@@ -52,3 +52,29 @@ ForthThread::Reset( void )
     mpConOutFile = stdout;
     mpConOutStr = NULL;
 }
+
+
+static char *pErrorStrings[] =
+{
+    "No Error",
+    "Bad Opcode",
+    "Parameter Stack Underflow",
+    "Parameter Stack Overflow",
+    "Return Stack Underflow",
+    "Return Stack Overflow",
+    "Unknown Symbol",
+    "File Open Failed",
+    "Aborted"
+};
+
+void
+ForthThread::GetErrorString( char *pString )
+{
+    int errorNum = (int) mError;
+    if ( errorNum < (sizeof(pErrorStrings) / sizeof(char *)) ) {
+        strcpy( pString, pErrorStrings[errorNum] );
+    } else {
+        sprintf( pString, "Unknown Error %d", errorNum );
+    }
+}
+

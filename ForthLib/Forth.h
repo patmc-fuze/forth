@@ -19,6 +19,7 @@ class ForthEngine;
 class ForthShell;
 class ForthThread;
 class ForthVocabulary;
+class ForthInputStack;
 
 // these are symbol types, they are held in the top byte of a symbols value field
 // the highest bit of the symbol type field is reserved for the precedence bit
@@ -57,14 +58,6 @@ typedef enum {
     kVarMinusStore
 } varOperation;
 
-typedef struct _ForthInputStream {
-    struct _ForthInputStream    *pNext;
-    char    *pBuffer;
-    int     bufferLen;
-    int     bufferOffset;
-    FILE    *pInFile;
-} ForthInputStream;
-
 #define DEFAULT_INPUT_BUFFER_LEN   256
 
 // these are the results of running the inner interpreter
@@ -90,7 +83,9 @@ typedef enum {
     kForthErrorReturnStackOverflow,
     kForthErrorUnknownSymbol,
     kForthErrorFileOpen,
-    kForthErrorAbort
+    kForthErrorAbort,
+    // NOTE: if you add errors, make sure that you update ForthThread::GetErrorString
+    kForthNumErrors
 } eForthError;
 
 // how sign should be handled while printing integers

@@ -28,7 +28,7 @@ protected:
     bool            ParseToken( char *pTokenBuffer, int *pParseFlags );
     void            ReportError( void );
 
-    ForthInputStream    *mpInStream;
+    ForthInputStack     *mpInStream;
     ForthEngine         *mpEngine;
     ForthThread         *mpThread;
     bool                mbCreatedEngine;

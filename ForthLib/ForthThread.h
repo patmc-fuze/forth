@@ -20,7 +20,9 @@ class ForthThread
 public:
 	ForthThread( ForthEngine *pEngine, int paramStackSize, int returnStackSize );
 	virtual ~ForthThread();
-    void Reset( void );
+
+    void                Reset( void );
+    void                GetErrorString( char *pString );
 
     inline long *       GetIP( void ) { return mIP; };
     inline void         SetIP( long *pNewIP ) { mIP = pNewIP; };

@@ -1,0 +1,40 @@
++ add vars...endvars for local definitions, and make int, float & double
+  not have precedence, vars sets state to compile
+  -> this will allow local string vars like "32 string someName"
++ add a way for engine to return last token after an error
++ move stack checking from inner interpreter to outer interpreter
++ change outer interpreter to compile a done opcode, remove
+  opcode count from inner interpreter
++ work on error trapping - print something on stack errors,
+  flush the stacks, have a way to bail out of a "load" on
+  error
++ add negate, and, or, xor, not, true, false, mod, /mod, lshift, rshift,
+  [, ], again
++ add malloc and free operations
++ get builds...does working
+- add ', leave, unloop, j
+  -> look at the basic word set in FORTH 83 manual...
+- look at class dependancies and who-makes-who
+- solve problem of user-defined builtins not tracing...
+  -> replace mpOpTable with table of baseDict structs
+- add string operations
+- add forget
++ fix "load" bug caused by not switching to new stream until
+  current line buffer is empty
+- add a way to compile "external scripts" - these are
+  definitions which are compiled somewhere outside of the
+  normal dictionary, and do not have a symbol in normal
+  forth vocabularies.
++ add the "end script" opcode for external script users
++ add a vocabulary to hold local variables
+- add a vocabulary to hold structure vocabularies
+- add case statements
++ change system to use real addresses, not relative to base of dictionary
+- add user definable types
+Interactive Execution Call Flow:
+
+ForthShell::Run
+ForthShell::InterpretLine
+ForthEngine::InterpretToken
+ForthEngine::InnerInterpreter
+

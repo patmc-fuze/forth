@@ -47,56 +47,24 @@ ForthShell::~ForthShell()
     if ( mbCreatedThread ) {
         delete mpThread;
     }
-
-    // TBD: should we be closing file here?
-    while ( mpInStream != NULL ) {
-        ForthInputStream *pNextStream = mpInStream->pNext;
-        delete [] mpInStream->pBuffer;
-        if ( mpInStream->pInFile != NULL ) {
-            fclose( mpInStream->pInFile );
-        }
+    if ( mpInStream ) {
         delete mpInStream;
-        mpInStream = pNextStream;
     }
 }
 
 void
 ForthShell::PushInputStream( FILE *pInFile )
 {
-    ForthInputStream *pOldStream;
-    
     assert( pInFile != NULL );
 
-    pOldStream = mpInStream;
-    mpInStream = new ForthInputStream;
-    mpInStream->pInFile = pInFile;
-    mpInStream->pNext = pOldStream;
-    mpInStream->pBuffer = new char [ DEFAULT_INPUT_BUFFER_LEN ];
-    mpInStream->bufferLen = DEFAULT_INPUT_BUFFER_LEN;
-    mpInStream->bufferOffset = 0;
+    mpInStream->PushInputStream( pInFile );
 }
 
 
 bool
 ForthShell::PopInputStream( void )
 {
-    ForthInputStream *pNext;
-
-    if ( mpInStream->pInFile != NULL ) {
-        fclose( mpInStream->pInFile );
-        mpInStream->pInFile = NULL;
-    }
-    if ( mpInStream->pNext == NULL ) {
-        // all done!
-        return true;
-    } else {
-        // this stream is done, pop out to previous input stream
-        pNext = mpInStream->pNext;
-        delete [] mpInStream->pBuffer;
-        delete mpInStream;
-        mpInStream = pNext;
-    }
-    return false;
+    return mpInStream->PopInputStream();
 }
 
 //
@@ -112,46 +80,33 @@ ForthShell::Run( char *pFileName )
     bool bQuit = false;
     eForthResult result = kResultOk;
     bool bInteractiveMode = (pFileName == NULL);
+    FILE *pInFile;
 
-    mpInStream = new ForthInputStream;
-
-    mpInStream->pNext = NULL;
-    mpInStream->pBuffer = new char [ DEFAULT_INPUT_BUFFER_LEN ];
-    mpInStream->bufferLen = DEFAULT_INPUT_BUFFER_LEN;
-    mpInStream->bufferOffset = 0;
+    mpInStream = new ForthInputStack;
 
     if ( bInteractiveMode ) {
 
         // interactive mode
-        mpInStream->pInFile = NULL;
+        pInFile = NULL;
 
     } else {
 
         // get input from named file
-        mpInStream->pInFile = fopen( pFileName, "r" );
-        if ( mpInStream->pInFile == NULL ) {
+        pInFile = fopen( pFileName, "r" );
+        if ( pInFile == NULL ) {
             // failure!
-            delete [] mpInStream->pBuffer;
             delete mpInStream;
             return 1;
         }
-
     }
+    mpInStream->PushInputStream( pInFile );
 
     while ( !bQuit ) {
 
         // try to fetch a line from current stream
-        if ( mpInStream->pInFile != NULL ) {
-            pBuffer = fgets( mpInStream->pBuffer, mpInStream->bufferLen, mpInStream->pInFile );
-        } else {
-            printf( "\nok> " );
-            pBuffer = gets( mpInStream->pBuffer );
-        }
-
+        pBuffer = mpInStream->GetLine( "\nok> " );
         if ( pBuffer == NULL ) {
             bQuit = PopInputStream();
-        } else {
-            mpInStream->bufferOffset = 0;
         }
 
         if ( !bQuit ) {
@@ -189,7 +144,6 @@ ForthShell::Run( char *pFileName )
         }
     }
     
-    delete [] mpInStream->pBuffer;
     delete mpInStream;
     mpInStream = NULL;
 
@@ -205,18 +159,14 @@ ForthShell::InterpretLine( int *pExitCode )
     eForthResult  result = kResultOk;
     bool bLineEmpty;
     int parseFlags;
-    char tokenBuf[256], *pEndLine;
+    char tokenBuf[256], *pLineBuff;
     long depth;
 
     // TBD: set exit code on exit due to error
 
-    // get rid of the linefeed (if any)
-    pEndLine = strchr( mpInStream->pBuffer, '\n' );
-    if ( pEndLine ) {
-        *pEndLine = '\0';
-    }
+    pLineBuff = mpInStream->GetBufferPointer();
 
-    TRACE( "**** InterpretLine: %s\n", mpInStream->pBuffer );
+    TRACE( "*** InterpretLine \"%s\"\n", pLineBuff );
     bLineEmpty = false;
     mpThread->SetError( kForthErrorNone );
     while ( !bLineEmpty && (result == kResultOk) ) {
@@ -250,13 +200,10 @@ ForthShell::InterpretLine( int *pExitCode )
             if ( result != kResultOk ) {
                 ReportError();
                 mpThread->Reset();
-                // dump all nested input stream
-                while ( mpInStream->pNext != NULL ) {
-                    PopInputStream();
-                }
-                // if the initial input stream was a file, any error
-                //   must be treated as a fatal error
-                if ( mpInStream->pInFile != NULL ) {
+                mpInStream->Reset();
+                if ( mpInStream->IsAFile() ) {
+                    // if the initial input stream was a file, any error
+                    //   must be treated as a fatal error
                     result = kResultFatalError;
                 }
             }
@@ -271,39 +218,7 @@ void
 ForthShell::ReportError( void )
 {
     char errorBuf[256];
-
-    switch( mpThread->GetError() ) {
-    case kForthErrorNone:
-        sprintf( errorBuf, "No Error" );
-        break;
-    case kForthErrorBadOpcode:
-        sprintf( errorBuf, "Bad Opcode" );
-        break;
-    case kForthErrorParamStackUnderflow:
-        sprintf( errorBuf, "Parameter Stack Underflow" );
-        break;
-    case kForthErrorParamStackOverflow:
-        sprintf( errorBuf, "Parameter Stack Overflow" );
-        break;
-    case kForthErrorReturnStackUnderflow:
-        sprintf( errorBuf, "Return Stack Underflow" );
-        break;
-    case kForthErrorReturnStackOverflow:
-        sprintf( errorBuf, "Return Stack Overflow" );
-        break;
-    case kForthErrorUnknownSymbol:
-        sprintf( errorBuf, "Unknown Symbol" );
-        break;
-    case kForthErrorFileOpen:
-        sprintf( errorBuf, "File Open Failed" );
-        break;
-    case kForthErrorAbort:
-        sprintf( errorBuf, "Aborted" );
-        break;
-    default:
-        sprintf( errorBuf, "Unknown Error %d", (int) mpThread->GetError() );
-        break;
-    }
+    mpThread->GetErrorString( errorBuf );
     TRACE( "%s!, last input token: %s\n", errorBuf, mpEngine->GetLastInputToken() );
     printf( "%s!, last input token: %s\n", errorBuf, mpEngine->GetLastInputToken() );
 }
@@ -371,7 +286,7 @@ ForthShell::ParseToken( char               *pTokenBuffer,
     char *pToken, *pEndToken;
     *pParseFlags = 0;
 
-    pToken = mpInStream->pBuffer + mpInStream->bufferOffset;
+    pToken = mpInStream->GetBufferPointer();
     if ( *pToken == '\0' ) {
         // input buffer is empty
         return true;
@@ -433,7 +348,7 @@ ForthShell::ParseToken( char               *pTokenBuffer,
         }
         *pTokenBuffer++ = 0;
     }
-    mpInStream->bufferOffset = pEndToken - mpInStream->pBuffer;
+    mpInStream->SetBufferPointer( pEndToken );
 
     return false;
 }
@@ -442,7 +357,7 @@ ForthShell::ParseToken( char               *pTokenBuffer,
 char *
 ForthShell::GetNextSimpleToken( void )
 {
-    char *pToken = mpInStream->pBuffer + mpInStream->bufferOffset;
+    char *pToken = mpInStream->GetBufferPointer();
     char *pEndToken, c;
     bool bDone;
 
@@ -469,7 +384,7 @@ ForthShell::GetNextSimpleToken( void )
             pEndToken++;
         }
     }
-    mpInStream->bufferOffset = pEndToken - mpInStream->pBuffer;
+    mpInStream->SetBufferPointer( pEndToken );
 
     return pToken;
 }

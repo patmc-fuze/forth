@@ -28,6 +28,7 @@
 #include "ForthEngine.h"
 #include "ForthShell.h"
 #include "ForthVocabulary.h"
+#include "ForthInputStack.h"
 
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.
