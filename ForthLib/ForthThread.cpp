@@ -4,6 +4,7 @@
 
 #include "stdafx.h"
 #include "ForthThread.h"
+#include "ForthEngine.h"
 
 // this is the number of extra longs to allocate at top and
 //    bottom of stacks
@@ -13,21 +14,22 @@
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-ForthThread::ForthThread( ForthEngine *pEngine, int paramStackSize, int returnStackSize )
+ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnStackLongs )
+: mpEngine( pEngine )
+, mSLen( paramStackLongs )
+, mRLen( returnStackLongs )
+, mpPrivate( NULL )
 {
-    mpEngine = pEngine;
-
-    mSLen = paramStackSize;
     // leave a few extra words above top of stacks, so that underflows don't
     //   tromp on the memory allocator info
     mSB = new long[mSLen + (GAURD_AREA * 2)];
     mSB += GAURD_AREA;
     mST = mSB + mSLen;
 
-    mRLen = returnStackSize;
     mRB = new long[mRLen + (GAURD_AREA * 2)];
     mRB += GAURD_AREA;
     mRT = mRB + mRLen;
+
     Reset();
 }
 
@@ -43,6 +45,7 @@ ForthThread::Reset( void )
     EmptySStack();
     EmptyRStack();
     mFP = NULL;
+    mTP = NULL;
 
     mError = kForthErrorNone;
     mState = kResultDone;
@@ -64,7 +67,9 @@ static char *pErrorStrings[] =
     "Return Stack Overflow",
     "Unknown Symbol",
     "File Open Failed",
-    "Aborted"
+    "Aborted",
+    "Can't Forget Builtin Op",
+    "Bad Method Number"
 };
 
 void
@@ -77,4 +82,58 @@ ForthThread::GetErrorString( char *pString )
         sprintf( pString, "Unknown Error %d", errorNum );
     }
 }
+
+
+//
+// ExecuteOneOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
+// execute forth ops, and is also how systems external to forth execute ops
+//
+eForthResult
+ForthThread::ExecuteOneOp( long opCode )
+{
+    long opScratch[2];
+    long *savedIP;
+    eForthResult exitStatus = kResultOk;
+
+    opScratch[0] = opCode;
+    opScratch[1] = BUILTIN_OP( OP_DONE );
+
+    savedIP = mIP;
+    mIP = opScratch;
+    exitStatus = mpEngine->InnerInterpreter( this );
+    mIP = savedIP;
+
+    return exitStatus;
+}
+
+
+eForthResult
+ForthThread::CheckStacks( void )
+{
+    long depth;
+    eForthResult result = kResultOk;
+
+    // check parameter stack for over/underflow
+    depth = GetSDepth();
+    if ( depth < 0 ) {
+        SetError( kForthErrorParamStackUnderflow );
+        result = kResultError;
+    } else if ( depth >= GetSSize() ) {
+        SetError( kForthErrorParamStackOverflow );
+        result = kResultError;
+    }
+    
+    // check return stack for over/underflow
+    depth = GetRDepth();
+    if ( depth < 0 ) {
+        SetError( kForthErrorReturnStackUnderflow );
+        result = kResultError;
+    } else if ( depth >= GetRSize() ) {
+        SetError( kForthErrorReturnStackOverflow );
+        result = kResultError;
+    }
+
+    return result;
+}
+
 

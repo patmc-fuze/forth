@@ -1,16 +1,31 @@
+//////////////////////////////////////////////////////////////////////
+//
+// ForthOps.cpp: forth builtin operator definitions
+//
+//////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
 
+#include "Forth.h"
+#include "ForthEngine.h"
+#include "ForthThread.h"
+#include "ForthVocabulary.h"
+#include "ForthShell.h"
+#include "ForthInput.h"
+#include <conio.h>
+
+//////////////////////////////////////////////////////////////////////
+////
+///     built-in forth ops are implemented with static C-style routines
+//      which take a pointer to the ForthThread they are being run in
+//      the thread is accesed through "g->" in the code
+
+#define FORTHOP(NAME) static void NAME(ForthThread *g)
+
+
 // Forth operator TBDs:
-// - add "align", have colon & builds call it...
 // - add dpi, fpi (pi constant)
 // - add string lib operators
-// - builds...does words do not need to be distinct from other user
-//   definitions - doDoes could be made to move the top of the return
-//   stack to the param stack
-
-// + add if/else/endif/repeat/until operators - need compile time stack
-// + add built-in symbols to user vocabulary at startup
 
 // compiled token is 32-bits,
 // top 8 bits are "super" opcode (hiOp)
@@ -30,8 +45,6 @@
 // TBD: where should "hard" addresses be used - right now, all addresses compiled into code
 // or on stacks are relative
 // -> hard addresses are never exposed
-
-static long unravelIP;
 
 
 // TBD:
@@ -388,11 +401,54 @@ FORTHOP( d2fOp )
 //
 // TBD: replace branch, tbranch, fbranch with immediate ops
 
-FORTHOP(exitOp)
+// exit normal op with no local vars
+FORTHOP(doExitOp)
 {
+    // rstack: oldIP
     if ( g->GetRDepth() < 1 ) {
         g->SetError( kForthErrorReturnStackUnderflow );
     } else {
+        g->SetIP( (long *) g->RPop() );
+    }
+}
+
+// exit normal op with local vars
+FORTHOP(doExitLOp)
+{
+    // rstack: local_var_storage oldFP oldIP
+    // FP points to oldFP
+    g->SetRP( g->GetFP() );
+    g->SetFP( (long *) (g->RPop()) );
+    if ( g->GetRDepth() < 1 ) {
+        g->SetError( kForthErrorReturnStackUnderflow );
+    } else {
+        g->SetIP( (long *) g->RPop() );
+    }
+}
+
+// exit method op with no local vars
+FORTHOP(doExitMOp)
+{
+    // rstack: oldTP oldIP
+    if ( g->GetRDepth() < 2 ) {
+        g->SetError( kForthErrorReturnStackUnderflow );
+    } else {
+        g->SetTP( (long *) g->RPop() );
+        g->SetIP( (long *) g->RPop() );
+    }
+}
+
+// exit method op with local vars
+FORTHOP(doExitMLOp)
+{
+    // rstack: local_var_storage oldFP oldTP oldIP
+    // FP points to oldFP
+    g->SetRP( g->GetFP() );
+    g->SetFP( (long *) (g->RPop()) );
+    if ( g->GetRDepth() < 2 ) {
+        g->SetError( kForthErrorReturnStackUnderflow );
+    } else {
+        g->SetTP( (long *) g->RPop() );
         g->SetIP( (long *) g->RPop() );
     }
 }
@@ -408,63 +464,129 @@ FORTHOP(gotoOp)
     g->SetIP( (long *) g->Pop() );
 }
 
+// has precedence!
 FORTHOP(doOp)
 {
     NEEDS(2);
-    g->RPush( (long) g->GetIP() );
+    ForthEngine *pEngine = g->GetEngine();
+    // save address for loop/+loop
+    g->Push( (long)pEngine->GetDP() );
+    // this will be fixed by loop/+loop
+    pEngine->CompileLong( OP_ABORT );
+    pEngine->CompileLong( 0 );
+}
+
+// has precedence!
+FORTHOP(loopOp)
+{
+    NEEDS(1);
+    ForthEngine *pEngine = g->GetEngine();
+    long *pDoOp = (long *) g->Pop();
+    *pDoOp++ = OP_DO_DO;
+    // compile the "_loop" opcode
+    pEngine->CompileLong( OP_DO_LOOP );
+    // fill in the branch to after loop opcode
+    *pDoOp = COMPILED_OP( kOpBranch, (g->GetEngine()->GetDP() - pDoOp) - 1 );
+}
+
+// has precedence!
+FORTHOP(loopNOp)
+{
+    NEEDS(1);
+    ForthEngine *pEngine = g->GetEngine();
+    long *pDoOp = (long *) g->Pop();
+    *pDoOp++ = OP_DO_DO;
+    // compile the "_loop" opcode
+    pEngine->CompileLong( OP_DO_LOOPN );
+    // fill in the branch to after loop opcode
+    *pDoOp = COMPILED_OP( kOpBranch, (g->GetEngine()->GetDP() - pDoOp) - 1 );
+}
+
+FORTHOP(doDoOp)
+{
+    NEEDS(2);
+    long startIndex = g->Pop();
+    // skip over loop exit IP right after this op
+    long *newIP = (g->GetIP()) + 1;
+    g->SetIP( newIP );
+
+    g->RPush( (long) newIP );
     g->RPush( g->Pop() );
-    g->RPush( g->Pop() );
-    // top of rstack is end index, next is current index,
+    g->RPush( startIndex );
+    // top of rstack is current index, next is end index,
     //  next is looptop IP
 }
 
-FORTHOP(loopOp)
+FORTHOP(doLoopOp)
 {
     RNEEDS(3);
-    if ( g->GetRP()[1] >= *(g->GetRP()) ) {
+
+    long *pRP = g->GetRP();
+    long newIndex = (*pRP) + 1;
+
+    if ( newIndex >= pRP[1] ) {
         // loop has ended, drop end, current indices, loopIP
-        g->SetRP( g->GetRP() + 3 );
+        g->SetRP( pRP + 3 );
     } else {
         // loop again
-        g->GetRP()[1] += 1;
-        g->SetIP( (long *) (g->GetRP()[2]) );
+        *pRP = newIndex;
+        g->SetIP( (long *) (pRP[2]) );
     }
 }
 
-FORTHOP(loopnOp)
+FORTHOP(doLoopNOp)
 {
     RNEEDS(3);
-    if ( g->GetRP()[1] >= *(g->GetRP()) ) {
+    NEEDS(1);
+
+    long *pRP = g->GetRP();
+    long increment = g->Pop();
+    long newIndex = (*pRP) + increment;
+    bool done;
+
+    done = (increment > 0) ? (newIndex >= pRP[1]) : (newIndex < pRP[1]);
+    if ( done ) {
         // loop has ended, drop end, current indices, loopIP
-        g->SetRP( g->GetRP() + 3 );
+        g->SetRP( pRP + 3 );
     } else {
         // loop again
-        g->GetRP()[1] += g->Pop();
-        g->SetIP( (long *) (g->GetRP()[2]) );
+        *pRP = newIndex;
+        g->SetIP( (long *) (pRP[2]) );
     }
 }
 
 FORTHOP(iOp)
 {
-    g->Push( g->GetRP()[1] );
+    g->Push( *(g->GetRP()) );
 }
 
 FORTHOP(jOp)
 {
-    g->Push( g->GetRP()[4] );
+    g->Push( g->GetRP()[3] );
 }
 
-// this op unravels a stack frame upon exit from a user op which
-//   has local variables
-FORTHOP( unravelFrameOp )
+
+// discard stuff "do" put on rstack in preparation for an "exit"
+//   of the current op from inside a do loop
+FORTHOP( unloopOp )
 {
-    long oldRP, oldFP;
-    
-    oldRP = g->RPop();
-    oldFP = g->RPop();
-    g->SetFP( (long *) oldFP );
-    g->SetRP( (long *) oldRP );
-    g->SetIP( (long *) g->RPop() );
+    RNEEDS(3);
+    // loop has ended, drop end, current indices, loopIP
+    g->SetRP( g->GetRP() + 3 );
+}
+
+
+// exit loop immediately
+FORTHOP( leaveOp )
+{
+    RNEEDS(3);
+    long *pRP = g->GetRP();
+    long *newIP = (long *) (pRP[2]) - 1;
+
+    // loop has ended, drop end, current indices, loopIP
+    g->SetRP( pRP + 3 );
+    // point IP back to the branch op just after the _do opcode
+    g->SetIP( newIP );
 }
 
 
@@ -472,6 +594,8 @@ FORTHOP( unravelFrameOp )
 FORTHOP( ifOp )
 {
     ForthEngine *pEngine = g->GetEngine();
+    // flag that this is the "if" branch
+    g->Push( 1 );
     // save address for else/endif
     g->Push( (long)pEngine->GetDP() );
     // this will be fixed by else/endif
@@ -482,9 +606,12 @@ FORTHOP( ifOp )
 // else - has precedence
 FORTHOP( elseOp )
 {
-    NEEDS(1);
+    NEEDS(2);
     ForthEngine *pEngine = g->GetEngine();
     long *pIfOp = (long *) g->Pop();
+    // flag that this is the "else" branch
+    g->Pop();
+    g->Push( 0 );
     // save address for endif
     g->Push( (long) pEngine->GetDP() );
     // this will be fixed by endif
@@ -497,10 +624,17 @@ FORTHOP( elseOp )
 // endif - has precedence
 FORTHOP( endifOp )
 {
-    NEEDS(1);
-    long *pElseOp = (long *) g->Pop();
-    // fill in the branch at end of path taken when "if" arg is true
-    *pElseOp = COMPILED_OP( kOpBranch, (g->GetEngine()->GetDP() - pElseOp) - 1 );
+    NEEDS(2);
+    long *pOp = (long *) g->Pop();
+    if ( g->Pop() ) {
+        // if branch
+        // fill in the branch taken when "if" arg is false
+        *pOp = COMPILED_OP( kOpBranchZ, (g->GetEngine()->GetDP() - pOp) - 1 );
+    } else {
+        // else branch
+        // fill in the branch at end of path taken when "if" arg is true
+        *pOp = COMPILED_OP( kOpBranch, (g->GetEngine()->GetDP() - pOp) - 1 );
+    }
 }
 
 
@@ -558,6 +692,63 @@ FORTHOP( againOp )
     pEngine->CompileLong( COMPILED_OP( kOpBranch, (pBeginOp - pEngine->GetDP()) - 1 ) );
 }
 
+// case - has precedence
+FORTHOP( caseOp )
+{
+    // leave marker for end of list of case-exit branches for endcase
+    g->Push( 0 );
+}
+
+
+// of - has precedence
+FORTHOP( ofOp )
+{
+    ForthEngine *pEngine = g->GetEngine();
+
+    // save address for endof
+    g->Push( (long)pEngine->GetDP() );
+    // this will be set to a caseBranch by endof
+    pEngine->CompileLong( OP_ABORT );
+}
+
+
+// endof - has precedence
+FORTHOP( endofOp )
+{
+    NEEDS(1);
+    ForthEngine *pEngine = g->GetEngine();
+    long *pDP = pEngine->GetDP();
+
+    // this will be fixed by endcase
+    pEngine->CompileLong( OP_ABORT );
+
+    long *pOfOp = (long *) g->Pop();
+    // fill in the branch taken when case doesn't match
+    *pOfOp = COMPILED_OP( kOpCaseBranch, (pEngine->GetDP() - pOfOp) - 1 );
+
+    // save address for endcase
+    g->Push( (long) pDP );
+}
+
+// endcase - has precedence
+FORTHOP( endcaseOp )
+{
+    long *pSP = g->GetSP();
+    long *pEndofOp;
+
+    ForthEngine *pEngine = g->GetEngine();
+    if ( ((pEngine->GetDP()) - (long *)(*pSP)) == 1 ) {
+        // there is no default case, we must compile a "drop" to
+        //   dispose of the case selector on TOS
+        pEngine->CompileLong( OP_DROP );
+    }
+    // patch branches from end-of-case to common exit point
+    while ( (pEndofOp = (long *) (*pSP++)) != NULL ) {
+        *pEndofOp = COMPILED_OP( kOpBranch, (g->GetEngine()->GetDP() - pEndofOp) - 1 );
+    }
+    g->SetSP( pSP );
+}
+
 ///////////////////////////////////////////
 //  bit-vector logic ops
 ///////////////////////////////////////////
@@ -605,7 +796,7 @@ FORTHOP( rshiftOp )
     NEEDS(2);
     long b = g->Pop();
     long a = g->Pop();
-    g->Push( a << b );
+    g->Push( a >> b );
 }
 
 
@@ -1041,12 +1232,10 @@ static long    *gpSavedDP;
 FORTHOP(buildsOp)
 {
     ForthEngine *pEngine = g->GetEngine();
-    ForthVocabulary *pVocab = pEngine->GetCurrentVocabulary();
 
     // get next symbol, add it to vocabulary with type "builds/does"
     pEngine->AlignDP();
-    pVocab->AddSymbol( pEngine->GetNextSimpleToken(), kOpUserDef, (long) pEngine->GetDP() );
-    pVocab->SmudgeNewestSymbol();
+    pEngine->AddUserOp( pEngine->GetNextSimpleToken(), true );
     // remember current DP (for does)
     gpSavedDP = pEngine->GetDP();
     // compile dummy word at DP, will be filled in by does
@@ -1063,15 +1252,14 @@ FORTHOP( doesOp )
 {
     long newOp;
     ForthEngine *pEngine = g->GetEngine();
-    ForthVocabulary *pVocab = pEngine->GetCurrentVocabulary();
     
-    // finish current symbol definition (of defining op)
-    pVocab->UnSmudgeNewestSymbol();
     // compile dodoes opcode & dummy word
     pEngine->CompileLong( OP_END_BUILDS );
     pEngine->CompileLong( 0 );
     // create a nameless vocabulary entry for does-body opcode
-    newOp = pVocab->AddSymbol( NULL, kOpUserDef, (long) pEngine->GetDP() );
+    //newOp = pVocab->AddSymbol( NULL, kOpUserDef, (long) pEngine->GetDP() );
+    newOp = pEngine->AddOp( pEngine->GetDP() );
+    newOp = COMPILED_OP( kOpUserDef, newOp );
     pEngine->CompileLong( OP_DO_DOES );
     // stuff does-body opcode in dummy word
     pEngine->GetDP()[-2] = newOp;
@@ -1088,7 +1276,7 @@ FORTHOP( doesOp )
 FORTHOP( endBuildsOp )
 {
     // finish current symbol definition (of op defined by builds)
-    g->GetEngine()->GetCurrentVocabulary()->UnSmudgeNewestSymbol();
+    g->GetEngine()->GetDefinitionVocabulary()->UnSmudgeNewestSymbol();
     
     // fetch opcode at pIP, compile it into dummy word remembered by builds
     *gpSavedDP = *g->GetIP();
@@ -1106,40 +1294,76 @@ FORTHOP( doDoesOp )
     g->Push( g->RPop() );
 }
 
+// exit has precedence
+FORTHOP( exitOp )
+{
+    ForthEngine *pEngine = g->GetEngine();
+    // compile exitOp
+    long flags = pEngine->GetCompileFlags();
+
+    switch ( flags & (kFECompileFlagHasLocalVars | kFECompileFlagIsMethod) ) {
+    case 0:
+        // normal definition, no local vars, not a method
+        pEngine->CompileLong( OP_DO_EXIT );
+        break;
+    case kFECompileFlagHasLocalVars:
+        // normal definition with local vars
+        pEngine->CompileLong( OP_DO_EXIT_L );
+        break;
+    case kFECompileFlagIsMethod:
+        // method definition, no local vars
+        pEngine->CompileLong( OP_DO_EXIT_M );
+        break;
+    case (kFECompileFlagHasLocalVars | kFECompileFlagIsMethod):
+        // method definition, with local vars
+        pEngine->CompileLong( OP_DO_EXIT_ML );
+        break;
+    }
+}
+
 // semi has precedence
 FORTHOP( semiOp )
 {
     ForthEngine *pEngine = g->GetEngine();
-    // compile exitOp
-    pEngine->CompileLong( OP_EXIT );
-    // finish current symbol definition
-    pEngine->GetCurrentVocabulary()->UnSmudgeNewestSymbol();
+
+    exitOp( g );
     // switch back from compile mode to execute mode
     pEngine->SetCompileState( 0 );
+    pEngine->SetCompileFlags( 0 );
+    // finish current symbol definition
     // compile local vars allocation op (if needed)
-    pEngine->EndOpDefinition();
+    pEngine->EndOpDefinition( true );
 }
 
 FORTHOP( colonOp )
 {
     ForthEngine *pEngine = g->GetEngine();
-    pEngine->StartOpDefinition();
+    // get next symbol, add it to vocabulary with type "user op"
+    pEngine->StartOpDefinition( true );
     // switch to compile mode
     pEngine->SetCompileState( 1 );
-    // get next symbol, add it to vocabulary with type "user op"
-    pEngine->GetCurrentVocabulary()->SmudgeNewestSymbol();
+    pEngine->SetCompileFlags( 0 );
 }
 
 FORTHOP( createOp )
 {
     ForthEngine *pEngine = g->GetEngine();
-    pEngine->StartOpDefinition();
+    // get next symbol, add it to vocabulary with type "user op"
+    pEngine->StartOpDefinition( false );
     pEngine->CompileLong( OP_DO_VAR );
 }
+
+FORTHOP( forgetOp )
+{
+    ForthEngine *pEngine = g->GetEngine();
+    pEngine->ForgetSymbol( pEngine->GetNextSimpleToken() );
+}
+
 
 FORTHOP( variableOp )
 {
     ForthEngine *pEngine = g->GetEngine();
+    // get next symbol, add it to vocabulary with type "user op"
     pEngine->StartOpDefinition();
     pEngine->CompileLong( OP_DO_VAR );
     pEngine->CompileLong( 0 );
@@ -1187,11 +1411,11 @@ FORTHOP( intOp )
     char *pToken = pEngine->GetNextSimpleToken();
     // get next symbol, add it to vocabulary with type "user op"
     if ( pEngine->InVarsDefinition() ) {
-        // TBD: define local variable
+        // define local variable
         pEngine->AddLocalVar( pToken, kOpLocalInt, sizeof(long) );
     } else {
-        pEngine->AlignDP();
-        pEngine->GetCurrentVocabulary()->AddSymbol( pToken, kOpUserDef, (long) pEngine->GetDP() );
+        // define global variable
+        pEngine->AddUserOp( pToken );
         pEngine->CompileLong( OP_DO_INT );
         pEngine->CompileLong( 0 );
     }
@@ -1303,11 +1527,55 @@ ForthEngine::LocalIntAction( ForthThread   *g,
 {
     if ( g->GetVarOperation() == kVarFetch ) {
 
-        g->Push( *(g->GetFP() + offset) );
+        g->Push( *(g->GetFP() - offset) );
 
     } else if ( (g->GetVarOperation() > kVarFetch) && (g->GetVarOperation() <= kVarMinusStore) ) {
 
-        g->Push( (long)(g->GetFP() + offset) );
+        g->Push( (long)(g->GetFP() - offset) );
+        // TOS points to data field
+        localIntOps[ g->GetVarOperation() ] ( g );
+        g->ClearVarOperation();
+
+    //} else {
+        // TBD: report g->GetVarOperation() out of range
+    }
+}
+
+
+void
+ForthEngine::FieldIntAction( ForthThread   *g,
+                             ulong         offset )
+{
+    long *pVar = ((long *)*(g->GetSP())) + offset;
+    if ( g->GetVarOperation() == kVarFetch ) {
+
+        *(g->GetSP()) = *pVar;
+
+    } else if ( (g->GetVarOperation() > kVarFetch) && (g->GetVarOperation() <= kVarMinusStore) ) {
+
+        *(g->GetSP()) = (long) pVar;
+        // TOS points to data field
+        localIntOps[ g->GetVarOperation() ] ( g );
+        g->ClearVarOperation();
+
+    //} else {
+        // TBD: report g->GetVarOperation() out of range
+    }
+}
+
+
+void
+ForthEngine::MemberIntAction( ForthThread   *g,
+                              ulong         offset )
+{
+    long *pInt = ((long *) (g->GetTP()[1])) + offset;
+    if ( g->GetVarOperation() == kVarFetch ) {
+
+        g->Push( *pInt );
+
+    } else if ( (g->GetVarOperation() > kVarFetch) && (g->GetVarOperation() <= kVarMinusStore) ) {
+
+        g->Push( (long)pInt );
         // TOS points to data field
         localIntOps[ g->GetVarOperation() ] ( g );
         g->ClearVarOperation();
@@ -1325,11 +1593,11 @@ FORTHOP( floatOp )
     char *pToken = pEngine->GetNextSimpleToken();
     // get next symbol, add it to vocabulary with type "user op"
     if ( pEngine->InVarsDefinition() ) {
-        // TBD: define local variable
+        // define local variable
         pEngine->AddLocalVar( pToken, kOpLocalFloat, sizeof(float) );
     } else {
-        pEngine->AlignDP();
-        pEngine->GetCurrentVocabulary()->AddSymbol( pToken, kOpUserDef, (long) pEngine->GetDP() );
+        // define global variable
+        pEngine->AddUserOp( pToken );
         pEngine->CompileLong( OP_DO_FLOAT );
         pEngine->CompileLong( *(long *) &t );
     }
@@ -1403,11 +1671,56 @@ ForthEngine::LocalFloatAction( ForthThread   *g,
 {
     if ( g->GetVarOperation() == kVarFetch ) {
 
-        g->FPush( *(float *)(g->GetFP() + offset) );
+        g->FPush( *(float *)(g->GetFP() - offset) );
 
     } else if ( (g->GetVarOperation() > kVarFetch) && (g->GetVarOperation() <= kVarMinusStore) ) {
 
-        g->Push( (long)(g->GetFP() + offset) );
+        g->Push( (long)(g->GetFP() - offset) );
+        localFloatOps[ g->GetVarOperation() ] ( g );
+        g->ClearVarOperation();
+
+    //} else {
+        // TBD: report g->GetVarOperation() out of range
+    }
+}
+
+
+void
+ForthEngine::FieldFloatAction( ForthThread   *g,
+                               ulong         offset )
+{
+    float *pVar = (float *) ( ((long *)*(g->GetSP())) + offset );
+
+    if ( g->GetVarOperation() == kVarFetch ) {
+
+        *(g->GetSP()) = *((long *) pVar);
+
+    } else if ( (g->GetVarOperation() > kVarFetch) && (g->GetVarOperation() <= kVarMinusStore) ) {
+
+        *(g->GetSP()) = (long) pVar;
+        // TOS points to data field
+        localFloatOps[ g->GetVarOperation() ] ( g );
+        g->ClearVarOperation();
+
+    //} else {
+        // TBD: report g->GetVarOperation() out of range
+    }
+}
+
+
+void
+ForthEngine::MemberFloatAction( ForthThread   *g,
+                                ulong         offset )
+{
+    float *pFloat = ((float *) (g->GetTP()[1])) + offset;
+    if ( g->GetVarOperation() == kVarFetch ) {
+
+        g->FPush( *pFloat );
+
+    } else if ( (g->GetVarOperation() > kVarFetch) && (g->GetVarOperation() <= kVarMinusStore) ) {
+
+        g->Push( (long) pFloat );
+        // TOS points to data field
         localFloatOps[ g->GetVarOperation() ] ( g );
         g->ClearVarOperation();
 
@@ -1424,11 +1737,11 @@ FORTHOP( doubleOp )
     char *pToken = pEngine->GetNextSimpleToken();
     // get next symbol, add it to vocabulary with type "user op"
     if ( pEngine->InVarsDefinition() ) {
-        // TBD: define local variable
+        // define local variable
         pEngine->AddLocalVar( pToken, kOpLocalDouble, sizeof(double) );
     } else {
-        pEngine->AlignDP();
-        pEngine->GetCurrentVocabulary()->AddSymbol( pToken, kOpUserDef, (long) pEngine->GetDP() );
+        // define global variable
+        pEngine->AddUserOp( pToken );
         pEngine->CompileLong( OP_DO_DOUBLE );
         pDT = (double *) pEngine->GetDP();
         *pDT++ = 0.0;
@@ -1528,15 +1841,59 @@ ForthOp localDoubleOps[] = {
 
 void
 ForthEngine::LocalDoubleAction( ForthThread   *g,
-                               ulong         offset )
+                                ulong         offset )
 {
     if ( g->GetVarOperation() == kVarFetch ) {
 
-        g->DPush( *(double *)(g->GetFP() + offset) );
+        g->DPush( *(double *)(g->GetFP() - offset) );
 
     } else if ( (g->GetVarOperation() > kVarFetch) && (g->GetVarOperation() <= kVarMinusStore) ) {
 
-        g->Push( (long)(g->GetFP() + offset) );
+        g->Push( (long)(g->GetFP() - offset) );
+        localDoubleOps[ g->GetVarOperation() ] ( g );
+        g->ClearVarOperation();
+
+    //} else {
+        // TBD: report g->GetVarOperation() out of range
+    }
+}
+
+
+void
+ForthEngine::FieldDoubleAction( ForthThread   *g,
+                                ulong         offset )
+{
+    double *pVar = (double *) ( (long *)(g->Pop()) + offset );
+
+    if ( g->GetVarOperation() == kVarFetch ) {
+
+        g->DPush( *pVar );
+
+    } else if ( (g->GetVarOperation() > kVarFetch) && (g->GetVarOperation() <= kVarMinusStore) ) {
+
+        g->Push( (long) pVar );
+        localDoubleOps[ g->GetVarOperation() ] ( g );
+        g->ClearVarOperation();
+
+    //} else {
+        // TBD: report g->GetVarOperation() out of range
+    }
+}
+
+
+void
+ForthEngine::MemberDoubleAction( ForthThread   *g,
+                                 ulong         offset )
+{
+    double *pDouble = (double *) (((long *) (g->GetTP()[1])) + offset);
+    if ( g->GetVarOperation() == kVarFetch ) {
+
+        g->DPush( *pDouble );
+
+    } else if ( (g->GetVarOperation() > kVarFetch) && (g->GetVarOperation() <= kVarMinusStore) ) {
+
+        g->Push( (long) pDouble );
+        // TOS points to data field
         localDoubleOps[ g->GetVarOperation() ] ( g );
         g->ClearVarOperation();
 
@@ -1550,17 +1907,17 @@ FORTHOP( stringOp )
 {
     ForthEngine *pEngine = g->GetEngine();
     char *pToken = pEngine->GetNextSimpleToken();
-    long len = (g->Pop() + 3) & ~3;
+    long len = g->Pop();
 
     // get next symbol, add it to vocabulary with type "user op"
     if ( pEngine->InVarsDefinition() ) {
-        // TBD: define local variable
+        // define local variable
         pEngine->AddLocalVar( pToken, kOpLocalString, len );
     } else {
-        pEngine->AlignDP();
-        pEngine->GetCurrentVocabulary()->AddSymbol( pToken, kOpUserDef, (long) pEngine->GetDP() );
+        // define global variable
+        pEngine->AddUserOp( pToken );
         pEngine->CompileLong( OP_DO_STRING );
-        pEngine->AllotLongs( len >> 2 );
+        pEngine->AllotLongs( ((len  + 3) & ~3) >> 2 );
     }
 }
 
@@ -1631,11 +1988,11 @@ ForthEngine::LocalStringAction( ForthThread   *g,
 {
     if ( g->GetVarOperation() == kVarFetch ) {
 
-        g->Push( (long)(g->GetFP() + offset) );
+        g->Push( (long)(g->GetFP() - offset) );
 
     } else if ( (g->GetVarOperation() > kVarFetch) && (g->GetVarOperation() <= kVarPlusStore) ) {
 
-        g->Push( (long)(g->GetFP() + offset) );
+        g->Push( (long)(g->GetFP() - offset) );
         // TOS points to data field
         localStringOps[ g->GetVarOperation() ] ( g );
         g->ClearVarOperation();
@@ -1646,8 +2003,50 @@ ForthEngine::LocalStringAction( ForthThread   *g,
 }
 
 
+void
+ForthEngine::FieldStringAction( ForthThread   *g,
+                                ulong         offset )
+{
+    long *pVar = ((long *)*(g->GetSP())) + offset;
+    if ( g->GetVarOperation() == kVarFetch ) {
 
-// TBD: recursion support
+        *(g->GetSP()) = (long) pVar;
+
+    } else if ( (g->GetVarOperation() > kVarFetch) && (g->GetVarOperation() <= kVarPlusStore) ) {
+
+        *(g->GetSP()) = (long) pVar;
+        // TOS points to data field
+        localStringOps[ g->GetVarOperation() ] ( g );
+        g->ClearVarOperation();
+
+    //} else {
+        // TBD: report g->GetVarOperation() out of range
+    }
+}
+
+
+void
+ForthEngine::MemberStringAction( ForthThread   *g,
+                                 ulong         offset )
+{
+    char *pString = (char *) (((long *) (g->GetTP()[1])) + offset);
+    if ( g->GetVarOperation() == kVarFetch ) {
+
+        g->Push( (long) pString );
+
+    } else if ( (g->GetVarOperation() > kVarFetch) && (g->GetVarOperation() <= kVarMinusStore) ) {
+
+        g->Push( (long) pString );
+        // TOS points to data field
+        localStringOps[ g->GetVarOperation() ] ( g );
+        g->ClearVarOperation();
+
+    //} else {
+        // TBD: report g->GetVarOperation() out of range
+    }
+}
+
+
 // in traditional FORTH, the vocabulary entry for the operation currently
 // being defined is "smudged" so that if a symbol appears in its own definition
 // it will normally only match any previously existing symbol of the same name.
@@ -1659,29 +2058,22 @@ ForthEngine::LocalStringAction( ForthThread   *g,
 // has precedence!
 FORTHOP( recursiveOp )
 {
-    g->GetEngine()->GetCurrentVocabulary()->UnSmudgeNewestSymbol();
+    g->GetEngine()->GetDefinitionVocabulary()->UnSmudgeNewestSymbol();
 }
 
 FORTHOP( precedenceOp )
 {
     ForthEngine *pEngine = g->GetEngine();
-    char *pSym = (char *) pEngine->GetCurrentVocabulary()->FindSymbol( pEngine->GetNextSimpleToken() );
+    char *pSym = pEngine->GetNextSimpleToken();
+    char *pEntry = (char *) pEngine->GetDefinitionVocabulary()->FindSymbol( pSym );
     
-    if ( pSym ) {
-        switch( (forthOpType) *pSym ) {
-        case kOpBuiltIn:        case kOpBuiltInPrec:
-        case kOpUserDef:        case kOpUserDefPrec:
-        //case kOpUserBuilds:     case kOpUserBuildsPrec:
-            // set highest bit of symbol
-            *pSym |= 0x80;
-            break;
-        default:
-            // TBD: report symbol has wrong type, cannot be given precedence
-            break;
-        }
-        return;
+    if ( pEntry ) {
+        pEngine->GetPrecedenceVocabulary()->CopyEntry( pEntry );
+        pEngine->GetDefinitionVocabulary()->DeleteEntry( pEntry );
+    } else {
+        printf( "!!!! Failure finding symbol %s !!!!\n", pSym );
+        TRACE( "!!!! Failure finding symbol %s !!!!\n", pSym );
     }
-    // TBD: report that symbol was not found
 }
 
 FORTHOP( loadOp )
@@ -1695,6 +2087,7 @@ FORTHOP( loadOp )
         if ( pInFile != NULL ) {
             pEngine->PushInputStream( pInFile );
         } else {
+            printf( "!!!! Failure opening source file %s !!!!\n", pFileName );
             TRACE( "!!!! Failure opening source file %s !!!!\n", pFileName );
         }
 
@@ -1725,12 +2118,11 @@ FORTHOP( tickOp )
 {
     ForthEngine *pEngine = g->GetEngine();
     char *pToken = pEngine->GetNextSimpleToken();
-    long *pSymbol = (long *) pEngine->GetCurrentVocabulary()->FindSymbol( pToken );
+    long *pSymbol = (long *) (pEngine->FindSymbol( pToken ));
     if ( pSymbol != NULL ) {
         g->Push( *pSymbol );
     } else {
-        // TBD: fix this
-        g->Push( -1 );
+        g->SetError( kForthErrorUnknownSymbol );
     }
 }
 
@@ -1746,6 +2138,34 @@ FORTHOP( executeOp )
     g->SetIP( mProg );
     g->GetEngine()->InnerInterpreter( g );
     g->SetIP( oldIP );
+}
+
+// has precedence!
+FORTHOP( compileOp )
+{
+    ForthEngine *pEngine = g->GetEngine();
+    char *pToken = pEngine->GetNextSimpleToken();
+    long *pSymbol = (long *) (pEngine->FindSymbol( pToken ));
+    if ( pSymbol != NULL ) {
+        pEngine->CompileLong( *pSymbol );
+    } else {
+        g->SetError( kForthErrorUnknownSymbol );
+    }
+}
+
+// has precedence!
+FORTHOP( bracketTickOp )
+{
+    // TBD: what should this do if state is interpret? an error? or act the same as tick?
+    ForthEngine *pEngine = g->GetEngine();
+    char *pToken = pEngine->GetNextSimpleToken();
+    long *pSymbol = (long *) (pEngine->FindSymbol( pToken ));
+    if ( pSymbol != NULL ) {
+        pEngine->CompileLong( OP_INT_VAL );
+        pEngine->CompileLong( *pSymbol );
+    } else {
+        g->SetError( kForthErrorUnknownSymbol );
+    }
 }
 
 
@@ -1778,62 +2198,73 @@ stringOut( ForthThread  *g,
     }
 }
 
-FORTHOP( printNumOp )
+static void
+printNumInCurrentBase( ForthThread *    g,
+                       long             val )
 {
     NEEDS(1);
-#define PRINT_NUM_BUFF_CHARS 36
+#define PRINT_NUM_BUFF_CHARS 68
     char buff[ PRINT_NUM_BUFF_CHARS ];
     char *pNext = &buff[ PRINT_NUM_BUFF_CHARS ];
     div_t v;
     long base;
-    long val = g->Pop();
     bool bIsNegative, bPrintUnsigned;
     ulong urem;
+    ePrintSignedMode signMode;
 
-    sprintf( buff, "%d", val );
     if ( val == 0 ) {
-        sprintf( buff, "0" );
+        strcpy( buff, "0" );
         pNext = buff;
     } else {
-        *--pNext = 0;
         base = *(g->GetBaseRef());
 
-        switch( g->GetPrintSignedNumMode() ) {
-        case kPrintSignedDecimal:
-            bPrintUnsigned = (base != 10);
-            break;
-        case kPrintAllSigned:
-            bPrintUnsigned = false;
-            break;
-        case kPrintAllUnsigned:
-            bPrintUnsigned = true;
-            break;
-        }
-        if ( bPrintUnsigned ) {
-            // since div is defined as signed divide/mod, make sure
-            //   that the number is not negative by generating the bottom digit
-            bIsNegative = false;
-            urem = ((ulong) val) % ((ulong) base);
-            *--pNext = (char) ( (urem < 10) ? (urem + '0') : ((urem - 10) + 'A') );
-            val = ((ulong) val) / ((ulong) base);
+        signMode = g->GetPrintSignedNumMode();
+        if ( (base == 10) && (signMode == kPrintSignedDecimal) ) {
+
+            // most common case - print signed decimal
+            sprintf( buff, "%d", val );
+            pNext = buff;
+
         } else {
-            bIsNegative = ( val < 0 );
+
+            // unsigned or any base other than 10
+
+            *--pNext = 0;
+            bPrintUnsigned = !(signMode == kPrintAllSigned);
+            if ( bPrintUnsigned ) {
+                // since div is defined as signed divide/mod, make sure
+                //   that the number is not negative by generating the bottom digit
+                bIsNegative = false;
+                urem = ((ulong) val) % ((ulong) base);
+                *--pNext = (char) ( (urem < 10) ? (urem + '0') : ((urem - 10) + 'a') );
+                val = ((ulong) val) / ((ulong) base);
+            } else {
+                bIsNegative = ( val < 0 );
+                if ( bIsNegative ) {
+                    val = (-val);
+                }
+            }
+            while ( val != 0 ) {
+                v = div( val, base );
+                *--pNext = (char) ( (v.rem < 10) ? (v.rem + '0') : ((v.rem - 10) + 'a') );
+                val = v.quot;
+            }
             if ( bIsNegative ) {
-                val = (-val);
+                *--pNext = '-';
             }
         }
-        while ( val != 0 ) {
-            v = div( val, base );
-            *--pNext = (char) ( (v.rem < 10) ? (v.rem + '0') : ((v.rem - 10) + 'A') );
-            val = v.quot;
-        }
-        if ( bIsNegative ) {
-            *--pNext = '-';
-        }
     }
+#ifdef TRACE_PRINTS
     TRACE( "printed %s\n", pNext );
+#endif
 
-    stringOut( g, buff );
+    stringOut( g, pNext );
+}
+
+
+FORTHOP( printNumOp )
+{
+    printNumInCurrentBase( g, g->Pop() );
 }
 
 FORTHOP( printNumDecimalOp )
@@ -1843,7 +2274,9 @@ FORTHOP( printNumDecimalOp )
 
     long val = g->Pop();
     sprintf( buff, "%d", val );
+#ifdef TRACE_PRINTS
     TRACE( "printed %s\n", buff );
+#endif
 
     stringOut( g, buff );
 }
@@ -1855,7 +2288,9 @@ FORTHOP( printNumHexOp )
 
     long val = g->Pop();
     sprintf( buff, "%x", val );
+#ifdef TRACE_PRINTS
     TRACE( "printed %s\n", buff );
+#endif
 
     stringOut( g, buff );
 }
@@ -1867,7 +2302,9 @@ FORTHOP( printFloatOp )
 
     float fval = g->FPop();
     sprintf( buff, "%f", fval );
+#ifdef TRACE_PRINTS
     TRACE( "printed %s\n", buff );
+#endif
 
     stringOut( g, buff );
 }
@@ -1879,7 +2316,9 @@ FORTHOP( printDoubleOp )
     double dval = g->DPop();
 
     sprintf( buff, "%f", dval );
+#ifdef TRACE_PRINTS
     TRACE( "printed %s\n", buff );
+#endif
 
     stringOut( g, buff );
 }
@@ -1888,7 +2327,9 @@ FORTHOP( printStrOp )
 {
     NEEDS(1);
     char *buff = (char *) g->Pop();
+#ifdef TRACE_PRINTS
     TRACE( "printed %s\n", buff );
+#endif
 
     stringOut( g, buff );
 }
@@ -1898,7 +2339,9 @@ FORTHOP( printCharOp )
     NEEDS(1);
     char buff[4];
     char c = (char) g->Pop();
+#ifdef TRACE_PRINTS
     TRACE( "printed %c\n", c );
+#endif
 
     FILE *pOutFile = g->GetConOutFile();
     if ( pOutFile != NULL ) {
@@ -1960,11 +2403,13 @@ FORTHOP( outToScreenOp )
 
 FORTHOP( outToFileOp )
 {
+    NEEDS( 1 );
     g->SetConOutFile( (FILE *) g->Pop() );
 }
 
 FORTHOP( outToStringOp )
 {
+    NEEDS( 1 );
     g->SetConOutString( (char *) g->Pop() );
     g->SetConOutFile( NULL );
 }
@@ -2032,6 +2477,25 @@ FORTHOP( fwriteOp )
     g->Push( result );
 }
 
+FORTHOP( fgetcOp )
+{    
+    NEEDS(1);
+    FILE *pFP = (FILE *) g->Pop();
+    
+    int result = fgetc( pFP );
+    g->Push( result );
+}
+
+FORTHOP( fputcOp )
+{    
+    NEEDS(2);
+    FILE *pFP = (FILE *) g->Pop();
+    int outChar = g->Pop();
+    
+    int result = fputc( outChar, pFP );
+    g->Push( result );
+}
+
 FORTHOP( feofOp )
 {
     NEEDS(1);
@@ -2062,10 +2526,90 @@ FORTHOP( stderrOp )
     g->Push( (long) stderr );
 }
 
-#define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func }
+FORTHOP( dstackOp )
+{
+    long *pSP = g->GetSP();
+    int nItems = g->GetSDepth();
+    int i;
+
+    stringOut( g, "stack:" );
+    for ( i = 0; i < nItems; i++ ) {
+        stringOut( g, " " );
+        printNumInCurrentBase( g, *pSP++ );
+    }
+    stringOut( g, "\n" );
+}
+
+
+FORTHOP( drstackOp )
+{
+    long *pRP = g->GetRP();
+    int nItems = g->GetRDepth();
+    int i;
+
+    stringOut( g, "rstack:" );
+    for ( i = 0; i < nItems; i++ ) {
+        stringOut( g, " " );
+        printNumInCurrentBase( g, *pRP++ );
+    }
+    stringOut( g, "\n" );
+}
+
+
+// return true IFF user quit out
+static bool
+ShowVocab( ForthThread      *g,
+           ForthVocabulary  *pVocab )
+{
+#define BUFF_SIZE 256
+    char buff[BUFF_SIZE];
+    int i, len;
+    bool retVal = false;
+    ForthShell *pShell = g->GetEngine()->GetShell();
+    int nEntries = pVocab->GetNumEntries();
+    void *pEntry = pVocab->GetFirstEntry();
+
+    for ( i = 0; i < nEntries; i++ ) {
+        sprintf( buff, "%02x %06x ", ForthVocabulary::GetEntryType( pEntry ), ForthVocabulary::GetEntryValue( pEntry ) );
+        stringOut( g, buff );
+        len = pVocab->GetEntryNameLength( pEntry );
+        if ( len > (BUFF_SIZE - 1)) {
+            len = BUFF_SIZE - 1;
+        }
+        memcpy( buff, pVocab->GetEntryName( pEntry ), len );
+        buff[len] = '\0';
+        stringOut( g, buff );
+        stringOut( g, "\n" );
+        pEntry = pVocab->NextEntry( pEntry );
+        if ( ((i % 22) == 21) || (i == (nEntries-1)) ) {
+            if ( (pShell != NULL) && pShell->GetInput()->InputStream()->IsInteractive() ) {
+                stringOut( g, "Hit ENTER to continue, 'q' & ENTER to quit\n" );
+                char c = getchar();
+                if ( (c == 'q') || (c == 'Q') ) {
+                    retVal = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    return retVal;
+}
+
+FORTHOP( vlistOp )
+{
+    stringOut( g, "Definitions Vocabulary:\n" );
+    if ( ShowVocab( g, g->GetEngine()->GetDefinitionVocabulary() ) == false ) {
+        stringOut( g, "Precedence Vocabulary:\n" );
+        ShowVocab( g, g->GetEngine()->GetPrecedenceVocabulary() );
+    }
+}
+
+
+#define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func, 0 }
 
 // ops which have precedence (execute at compile time)
-#define PRECOP( func, funcName )  { funcName, kOpBuiltInPrec, (ulong) func }
+#define PRECOP( func, funcName )  { funcName, ((ulong) kOpBuiltIn) | BASE_DICT_PRECEDENCE_FLAG, (ulong) func, 1 }
 
 // NOTE: the order of the first few entries in this table must agree
 // with the list near the top of the file!  (look for COMPILED_OP)
@@ -2076,21 +2620,27 @@ baseDictEntry baseDict[] = {
     //   DO NOT REARRANGE UNDER PAIN OF DEATH
     ///////////////////////////////////////////
     OP(     abortOp,                "abort" ),
-    OP(     unravelFrameOp,         "_unravelFrame" ),
+    OP(     dropOp,                 "drop" ),
     OP(     doDoesOp,               "_doDoes"),
-    OP(     exitOp,                 "exit"),
     OP(     litOp,                  "lit" ),
     OP(     litOp,                  "flit" ),
     OP(     dlitOp,                 "dlit" ),
     OP(     doVariableOp,           "_doVariable" ),
     OP(     doConstantOp,           "_doConstant" ),
     OP(     endBuildsOp,            "_endBuilds" ),
-    OP(     doneOp,                 "_done" ),
+    OP(     doneOp,                 "done" ),
     OP(     doIntOp,                "_doInt" ),
     OP(     doFloatOp,              "_doFloat" ),
     OP(     doDoubleOp,             "_doDouble" ),
     OP(     doStringOp,             "_doString" ),
     OP(     intoOp,                 "->" ),
+    OP(     doDoOp,                 "_do" ),
+    OP(     doLoopOp,               "_loop" ),
+    OP(     doLoopNOp,               "_+loop" ),
+    OP(     doExitOp,               "_exit"),       // exit normal op with no vars
+    OP(     doExitLOp,              "_exitL"),      // exit normal op with local vars
+    OP(     doExitMOp,              "_exitM"),      // exit method op with no vars
+    OP(     doExitMLOp,             "_exitML"),     // exit method op with local vars
     
     // stuff below this line can be rearranged
     
@@ -2160,11 +2710,13 @@ baseDictEntry baseDict[] = {
     ///////////////////////////////////////////
     OP(     callOp,                 "call" ),
     OP(     gotoOp,                 "goto" ),
-    OP(     doOp,                   "do" ),
-    OP(     loopOp,                 "loop" ),
-    OP(     loopnOp,                "loop+" ),
+    PRECOP( doOp,                   "do" ),
+    PRECOP( loopOp,                 "loop" ),
+    PRECOP( loopNOp,                "+loop" ),
     OP(     iOp,                    "i" ),
     OP(     jOp,                    "j" ),
+    OP(     unloopOp,               "unloop" ),
+    OP(     leaveOp,                "leave" ),
     PRECOP( ifOp,                   "if" ),
     PRECOP( elseOp,                 "else" ),
     PRECOP( endifOp,                "endif" ),
@@ -2173,7 +2725,10 @@ baseDictEntry baseDict[] = {
     PRECOP( whileOp,                "while" ),
     PRECOP( repeatOp,               "repeat" ),
     PRECOP( againOp,                "again" ),
-    OP(     doneOp,                 "done" ),
+    PRECOP( caseOp,                 "case" ),
+    PRECOP( ofOp,                   "of" ),
+    PRECOP( endofOp,                "endof" ),
+    PRECOP( endcaseOp,              "endcase" ),
 
     ///////////////////////////////////////////
     //  bit-vector logic ops
@@ -2215,8 +2770,6 @@ baseDictEntry baseDict[] = {
     OP(     rdropOp,                "rdrop" ),
     OP(     dupOp,                  "dup" ),
     OP(     swapOp,                 "swap" ),
-    OP(     dropOp,                 "drop" ),
-    OP(     rotOp,                  "rot" ),
     OP(     overOp,                 "over" ),
     OP(     rotOp,                  "rot" ),
     OP(     ddupOp,                 "ddup" ),
@@ -2233,7 +2786,6 @@ baseDictEntry baseDict[] = {
     OP(     commaOp,                "," ),
     OP(     cCommaOp,               "c," ),
     OP(     hereOp,                 "here" ),
-    OP(     stateOp,                "state" ),
     OP(     mallocOp,               "malloc" ),
     OP(     freeOp,                 "free" ),
 
@@ -2264,9 +2816,11 @@ baseDictEntry baseDict[] = {
     ///////////////////////////////////////////
     OP(     buildsOp,               "builds" ),
     PRECOP( doesOp,                 "does" ),
+    PRECOP( exitOp,                 "exit" ),
     PRECOP( semiOp,                 ";" ),
     OP(     colonOp,                ":" ),
     OP(     createOp,               "create" ),
+    OP(     forgetOp,               "forget" ),
     OP(     variableOp,             "variable" ),
     OP(     constantOp,             "constant" ),
     PRECOP( varsOp,                 "vars" ),
@@ -2280,11 +2834,13 @@ baseDictEntry baseDict[] = {
     OP(     precedenceOp,           "precedence" ),
     OP(     loadOp,                 "load" ),
     OP(     loadDoneOp,             "loaddone" ),
-    OP(     stateInterpretOp,       "[" ),
+    PRECOP( stateInterpretOp,       "[" ),
     OP(     stateCompileOp,         "]" ),
     OP(     stateOp,                "state" ),
     OP(     tickOp,                 "\'" ),
     OP(     executeOp,              "execute" ),
+    PRECOP( compileOp,              "[compile]" ),
+    PRECOP( bracketTickOp,          "[\']" ),
 
     ///////////////////////////////////////////
     //  text display words
@@ -2317,12 +2873,18 @@ baseDictEntry baseDict[] = {
     OP(     fseekOp,                "fseek" ),
     OP(     freadOp,                "fread" ),
     OP(     fwriteOp,               "fwrite" ),
+    OP(     fgetcOp,                "fgetc" ),
+    OP(     fputcOp,                "fputc" ),
     OP(     feofOp,                 "feof" ),
     OP(     ftellOp,                "ftell" ),
     OP(     stdinOp,                "stdin" ),
     OP(     stdoutOp,               "stdout" ),
     OP(     stderrOp,               "stderr" ),
     
+    OP(     dstackOp,               "dstack" ),
+    OP(     drstackOp,              "drstack" ),
+    OP(     vlistOp,                "vlist" ),
+
     OP(     byeOp,                  "bye" ),
 
 

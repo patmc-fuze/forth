@@ -1,0 +1,8 @@
+
+  Forth Vocabularies
+----------------------
+
+  Vocabulary Entries
+----------------------
+Vocabulary entries are variable length.
+The first longword is the value field.

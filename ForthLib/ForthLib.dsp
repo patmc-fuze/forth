@@ -85,11 +85,15 @@ LIB32=link.exe -lib
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
+SOURCE=.\ForthClass.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\ForthEngine.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\ForthInputStack.cpp
+SOURCE=.\ForthInput.cpp
 # End Source File
 # Begin Source File
 
@@ -122,11 +126,15 @@ SOURCE=.\Forth.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\ForthClass.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\ForthEngine.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\ForthInputStack.h
+SOURCE=.\ForthInput.h
 # End Source File
 # Begin Source File
 

@@ -13,16 +13,26 @@
 
 class ForthEngine;
 
+#define DEFAULT_PSTACK_SIZE 128
+#define DEFAULT_RSTACK_SIZE 128
+
 class ForthThread  
 {
     friend ForthEngine;
 
 public:
-	ForthThread( ForthEngine *pEngine, int paramStackSize, int returnStackSize );
-	virtual ~ForthThread();
+    ForthThread( ForthEngine *pEngine, int paramStackLongs=DEFAULT_PSTACK_SIZE, int returnStackLongs=DEFAULT_PSTACK_SIZE );
+    virtual ~ForthThread();
+
+    //
+    // ExecuteOneOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
+    // execute forth ops, and is also how systems external to forth execute ops
+    //
+    eForthResult        ExecuteOneOp( long opCode );
 
     void                Reset( void );
     void                GetErrorString( char *pString );
+    eForthResult        CheckStacks( void );
 
     inline long *       GetIP( void ) { return mIP; };
     inline void         SetIP( long *pNewIP ) { mIP = pNewIP; };
@@ -34,10 +44,10 @@ public:
     inline void         EmptySStack( void ) { mSP = mST; };
     inline void         Push( long v ) { *--mSP = v; };
     inline void         FPush( float v ) { --mSP; *(float *)mSP = v; };
-    inline void         DPush( double v ) { --mSP; *(double *)mSP = v; };
+    inline void         DPush( double v ) { mSP -= 2; *(double *)mSP = v; };
     inline long         Pop( void ) { return *mSP++; };
     inline float        FPop( void ) { return *(float*)mSP++; };
-    inline double       DPop( void ) { return *(double*)mSP++; };
+    inline double       DPop( void ) { double dVal = *(double*)mSP; mSP += 2;  return dVal; };
 
     inline long *       GetRP( void ) { return mRP; };
     inline void         SetRP( long *pNewRP ) { mRP = pNewRP; };
@@ -46,13 +56,16 @@ public:
     inline void         EmptyRStack( void ) { mRP = mRT; };
     inline void         RPush( long v ) { *--mRP = v; };
     inline void         RFPush( float v ) { --mRP; *(float *)mRP = v; };
-    inline void         RDPush( double v ) { --mRP; *(double *)mRP = v; };
+    inline void         RDPush( double v ) { mRP -= 2; *(double *)mRP = v; };
     inline long         RPop( void ) { return *mRP++; };
     inline float        RFPop( void ) { return *(float*)mRP++; };
-    inline double       RDPop( void ) { return *(double*)mRP++; };
+    inline double       RDPop( void ) { double dVal = *(double*)mRP; mRP += 2;  return dVal; };
 
     inline long *       GetFP( void ) { return mFP; };
     inline void         SetFP( long *pNewFP ) { mFP = pNewFP; };
+
+    inline long *       GetTP( void ) { return mTP; };
+    inline void         SetTP( long *pNewTP ) { mTP = pNewTP; };
 
     inline varOperation GetVarOperation( void ) { return mVarMode; };
     inline void         SetVarOperation( varOperation op ) { mVarMode = op; };
@@ -82,7 +95,7 @@ protected:
     ForthThread         *mpNext;
     
     long                *mIP;       // interpreter pointer
-    
+
     long                *mSP;       // parameter stack pointer
     long                *mST;       // empty parameter stack pointer
     long                *mSB;       // param stack base
@@ -95,8 +108,10 @@ protected:
 
     long                *mFP;       // frame pointer
     
+    long                *mTP;       // this pointer
+
     void                *mpPrivate; // pointer to per-thread state
-    long                mToken;     // last token dispatched by inner interpreter
+    long                mCurrentOp; // last op dispatched by inner interpreter
     
     varOperation        mVarMode;   // operation to perform on variables
 

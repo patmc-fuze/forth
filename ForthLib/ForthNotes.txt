@@ -1,0 +1,479 @@
+
+//       11111111112222222222333333333344444444445555555555666666666677777777778
+//345678901234567890123456789012345678901234567890123456789012345678901234567890
+
+Forth Implementation Classes
+
+ForthEngine
+  tools for building forthops
+  code space management
+  DP
+  inner interpreter
+  outer interpreter (token-level interpretation)
+  action routines for forthOpTypes
+
+ForthShell
+  parsing
+  line-level interpretation
+  input stream management
+
+ForthVocabulary
+  symbol table management
+  vocabulary search
+
+ForthThread
+  storage for stacks
+  SP, RP, IP
+
+ForthInputStack
+  current input stream
+  pushing and popping streams
+  input buffer management
+
+ForthInputStream
+  input fetching
+
+ForthParseInfo
+  setup for fast vocabulary matching
+  interface between ForthShell and ForthVocabulary
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+How builds...does is implemented
+
+
+: con builds , does @ ;
+5 con aha
+: woof dup aha + ;
+
+memory after executing above 3 lines of forth:
+
+ADDR(con):  OP( builds )
+        +1  OP( , )
+        +2  OP( _endBuilds )    this op was compiled by "does"
+        +3  OP( _con )          this op was compiled by "does"
+ADDR(_con): OP( _doDoes )       this op was compiled by "does"
+        +1  OP( @ )
+        +2  OP( exit )
+ADDR(aha):  OP( _con )          this op was compiled as op 0 by builds, then set to _con by _endBuilds
+        +1  DATA_STORAGE( aha ), contents == 5
+ADDR(woof): OP( dup )
+        +1  OP( aha )
+        +2  OP( + )
+        +3  OP( exit )
+
+before executing "woof":
+    ps: 7
+    rs: <empty>
+    ip: OLD_IP_VAL
+start of executing woof opcode:
+    ps: 7
+    rs: OLD_IP_VAL
+    ip: ADDR(woof)
+start of executing aha opcode:
+    ps: 7 7
+    rs: ADDR(woof)+2 OLD_IP_VAL
+    ip: ADDR(aha)
+start of executing _con opcode:
+    ps: 7 7
+    rs: ADDR(aha)+1 ADDR(woof)+2 OLD_IP_VAL
+    ip: ADDR(_con)
+after executing doDoes:
+    ps: ADDR(aha)+1 7 7
+    rs: ADDR(woof)+2 OLD_IP_VAL
+    ip: ADDR(_con)+1
+after executing @ and exit (leaving _con):
+    ps: 5 7 7
+    rs: OLD_IP_VAL
+    ip: ADDR(woof)+2
+after executing + and exit (leaving woof):
+    ps: 12 7
+    rs: <empty>
+    ip: OLD_IP_VAL
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+code generated for if...else...endif
+
+: iffy if 1 else 0 endif %
+
+ADDR(iffy): branchZ +2
+        +1  intLit( 1 )
+        +2  branch +1
+        +3  intLit( 0 )
+        +4  OP( . )
+        +5  OP( exit )
+
+code generated for do ... loop
+
+: looy 5 0 do i . %bl loop ;
+
+ADDR(looy): intLit( 5 )
+        +1  intLit( 0 )
+        +2  OP( _do )
+        +3  branch +4
+        +4  OP( i )
+        +5  OP( . )
+        +6  OP( %bl )
+        +7  OP( _loop )
+        +8  OP( exit )
+
+: fur vars int a float b endvars 5 -> a 2 ->+ a a . ;
+
+ADDR(fur):  allocLocals( 2 )
+        +1  intLit( 5 )
+        +2  OP( -> )
+        +3  localInt( 0 )
+        +5  intLit( 2 )
+        +6  OP( ->+ )
+        +7  localInt( 0 )
+        +8  localInt( 0 )
+        +9  OP( . )
+        +10 OP( exit )
+
+allocLocals pushed a special IP on the stack which points to an _unravelFrame
+opcode, which will remove the local variable stack frame and return to the
+caller of "fur"
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+Forth opcode types
+
+kOpBuiltIn          // low 24 bits is builtin opcode
+
+kOpUserDef          // low 24 bits is opcode
+
+kOpBranch,          // low 24 bits is signed branch offset
+kOpBranchNZ,
+kOpBranchZ,
+kOpCaseBranch,
+
+kOpConstant,        // low 24 bits is signed symbol value
+
+kOpString,          // low 24 bits is immediate string length in longs
+
+kOpAllocLocals,     // low 24 bits is frame size in longs
+
+kOpLocalInt,        // low 24 bits is frame offset in longs
+kOpLocalFloat,
+kOpLocalDouble,
+kOpLocalString,
+
+kOpMethodWithThis,  // low 24 bits is method number
+
+kOpMemberInt,       // low 24 bits is object offset
+kOpMemberFloat,
+kOpMemberDouble,
+kOpMemberString,
+
+kOpLocalUserDefined,             // user can add more optypes starting with this one
+kOpMaxLocalUserDefined = 127,    // maximum user defined optype
+
+kOpUserMethods  = 128
+// optypes from 128...255 are used to select class methods    
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+  user defined classes in forth
+---------------------------------
+
+The outer interpreter will be changed to recognize the syntax
+objectName.methodName as a method invocation.
+
+Idea: instead of using the hibit of the optype to denote precedence, have
+the hibit set denote a method op, and the other seven bits designate the operation
+to be performed - this would allow roughly 128 methods to be easily represented
+without needing to use bits in the ops 24-bit value field.
+
+there will have to be a way to designate both local and global objects
+-> use hibit of value field to specify if the value field is global, in
+   which case it is referenced using the optable, or is in stack
+
+global objects:
+  optable holds pointer to pointer pair
+  first pointer points to class descriptor
+  second pointer is object storage (this pointer)
+local objects:
+  local var holds pointer pair
+  first pointer points to class descriptor
+  second pointer is object storage (this pointer)
+  first field of storage is pointer to class vtable
+? how should object arrays be handled
+-> maybe optable points to longword pair, first field is vtable ptr, second
+   field is storage pointer - local vars are similar
+
+  class descriptor table
+--------------------------
+class descriptor table is table of longwords with the following layout:
+
+long[0]    pointer to ForthClass object for this class
+long[1]    "magic" value CLASS_MAGIC_NUMBER for error checking
+long[2]    number of methods in this table
+long[3]    IP for method 0
+...
+long[N]    IP for method (N-3)
+
+
+? maybe have an "epilogue" compiled after end of a method, IP of epilogue
+  is pushed on rstack so epilogue is executed upon exit - epilogue includes
+  code for destroying local objects
+
+? where is vtable ptr?
+-> first field in any obj is classObj pointer
+-> whenever an obj is created, its classObj pointer must be filled in
+  -> declaration of a local obj requires constructor code to be compiled
+-> have all objects be implemented thru references, so when a global obj is
+   declared, the op for it is a global obj ptr
+
+? how can public member variables be implemented?
+-> maybe allow only methods to be public, accessor methods have to be used if
+   you want to read/write member variables
+? do seperate set/get operations need to be added, or can member variable ops
+  act like local vars, where a preceeding "->" or "->+" can modify how they
+  act?  If so, built in types like int and float can't be treated like
+  other classes, "->" couldn't be a method.
+
+  "this" pointer
+------------------
+The "this" pointer is a thread variable (TP).  Upon entry to a
+class method, the old "this" pointer is on top of the return stack.
+? How does invoking another method of the same class from inside a
+  method work?
+-> maybe add a new forthOpType, where the value field is the
+   method number
+
+  class defining words
+------------------------
+class CLASS_NAME
+
+private
+public
+protected
+
+isa BASE_CLASS_NAME
+
+vars
+...
+endvars
+
+method METHOD1_NAME ... ;
+...
+
+endclass
+
+? need to think about how "forget" interacts with class stuff
+? have class private definitions be held in temp vocab until endclass, then flushed
+? how to implement protected definitions
+
+? is there a vocabulary of classes?  think of CLASS_NAME.new
+? what other methods on class objects are there?
+? when you see OBJ_NAME.METHOD, who do you find the right class vocabulary to
+  lookup METHOD in, using OBJ_NAME?
+  -> when A.B token is seen, assume A is an object instance, lookup its opValue
+     in symbol table, lookup in opTable to find
+
+? support static variables
+    -> nope
+? support static methods
+    -> nope
+? support friend classes
+    -> not like c++, no access to class private stuff, but maybe allow a
+    way for friend classes to invoke protected methods without having to
+    be derived from base class
+    -> this would require having a way to search multiple class vocabs
+
+ADDR_OF(OBJ_A): OP( _objInstance
+                LONG( ptr to object )
+first file in object is vtable ptr, followed by storage...
+                LIT(classPointer)
+                data storage
+
+isa CLASS_NAME
+    public inheritance from named class
+
+inherits CLASS_NAME
+    private inheritance from named class
+
+
+new CLASS_NAME  (? or CLASS_NAME.new)
+    leaves addr of new object on TOS
+
+CLASS_NAME NEW_OBJ_NAME
+    creates a new object of type CLASS_NAME
+
+class CLASS_NAME
+
+method METHOD_NAME
+    add METHOD_NAME to new class vocabulary
+    compile code which sets this pointer?
+    ? or does inner interpreter do this for us
+    -- ugh, this pointer will need to be stacked somehow
+    ? do methods ALWAYS have stack frames ?
+    set state to compile
+
+? do we need "endmethod" or will ";" work?
+
+endclass
+    build vtable
+        first copy baseclass vtable
+        overwrite any methods this class redefines
+        add on any new methods
+    add new class vocabulary to list of class vocabularies
+    add new class defining word to main class vocabulary
+
+
+-> replace ForthEngine::InVarsDefinition with a more general execution mode,
+   with modes like:
+   - interpret mode
+   - compile mode
+   - vars definition mode
+   - class definition mode
+   ? are there cases where more than one mode can be active at a time,
+     like "compile while in class definition" mode?
+  bits:
+    compile mode
+    definition in progress
+        ? how are "compile mode" and "definition in progress" different
+        -> you can be compiling an unnamed table
+    class definition in progress
+    definition uses local vars
+
+
+  Cases to think about
+------------------------
+A) method invocation
+  Need to specify object, method
+  opcode bit 31 is 1
+  opcode bits 30:24 is 7-bit method number
+  1) on object referenced by global pointer
+        opcode bit 23 is 0
+        opcode value field bits 22:0 is opcode of global pointer var
+  2) on object referenced by local pointer
+        opcode bit 23 is 1
+        opcode bit 22 is 0
+        opcode value field bits 21:0 is frame offset of local pointer var
+  3) on "this" object
+        use global "this" as in 1) above
+        ? or have "method on this" optype, where the value field is
+          the opcode number?
+  4) on object referenced by a member pointer
+        opcode bit 23 is 1
+        opcode bit 22 is 1
+        opcode value field bits 21:0 is member offset of pointer var
+B) member access
+  Need to specify object, offset, type
+  1) on object referenced by global pointer
+        ???
+  2) on object referenced by local pointer
+        ???
+  3) on "this" object
+        easy, add opcode types for int, float, double, string...
+  4) on object referenced by a member pointer
+        ???
+  ? maybe member acces on other than "this" is a two-step process, where
+    the object ptr is put on the stack, then an opcode which encodes type
+    and offset is used?
+
+Idea:
+  If class vtable holds opcodes instead of IP addresses, member access could
+  be done by using member access opcodes in the vtable - you already have the
+  object pointer by the time you get to the vtable, and the member access
+  opcode optype tells the member type, and the value field is the offset
+One potential drawback:
+  If public member vars are assigned a vtable slot each, since member vars are
+  defined before methods it would be easy to go beyond the first 128 slots of
+  the vtable without intending to.
+  -> maybe member vars are not assigned vtable slots initially, but are
+     assigned vtable slots at the end of class definition
+     ? should vtable slots be assigned to methods before end of class def?
+? what do vocabulary entries hold, there is only one value field, and it
+  must specify: method/member, opcode, vtable slot
+  -> during class definition, value field holds the opcode, after definition
+     it holds vtable slot number
+? should private or protected methods be in the vtable, or should there be
+  a "method on this" optype?
+  -> probably two "method on this" optypes, one for builtin ops and one for
+  user defined ops - the "method on this" value field is the actual optable
+  number, NOT the vtable slot number, since when "method on this" ops are
+  compiled the vtable hasn't been made yet...
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+Adding classes to Forth
+ 
+Cases to think of:
+1. Global objects
+2. Local objects
+3. Global object arrays
+4. Local object arrays
+-> object arrays could mean 2 things:
+  1. a single object which is an array of elements
+  2. an array whose elements are objects
+One significant difference between these is that <1> has only vtable pointer,
+while <2> has a vtable pointer per array element.
+
+On Stack:
+type		vtable ptr at base of object
+method		in opcode
+instance	frame offset in opcode
+
+Globals:
+type		vtable ptr at base of object
+method		in opcode
+instance	object ptr
+
+
+<invokeMethodN> <objectOp>
+
+<methodDesignator> <instanceAddress> <classOp>    (ugh)
+
+<instanceAddress> <classMethodOp>
+
+A forthOpType for class operations could be assigned.  There are 24 bits
+which could be used to specify which object instance, and which method
+-> assign 2 forthOpTypes - one for global object instances and one for
+   local object instances 
+   for global object instances, use 14 bits to specify the opcode of the
+   object and 10 bits to specify the method number
+   for local object instances, use 14 bits to specify the stack offset
+   of the object and 10 bits to specify the method number
+
+? how to deal with automatic local object deletion?
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+
+forth extensions for syn2k:
+
+- operations for stating what synops are in a patch,
+  and what order they are to be executed in
+- operations for initializing synops - settings parameters
+  and input and output buffers
+- operations for getting note frequency and velocity
+- operations for building up sets of patches which are
+  selected by midi program number
+= operations for defining envelopes and connecting them
+  to synops
+? is there a way to define the interface so that when
+  a new synop is added to syn2k another op doesn't have
+  to be added to forth?
+
+
+table <TABLENAME>
+endtable
+
+<TABLENAME> tableLen    leaves number of entries in table on stack
+
+synPatchSet <SETNAME>
+
+synPatch <PATCHNAME>
+endPatch
+
+
+
+//       11111111112222222222333333333344444444445555555555666666666677777777778
+//345678901234567890123456789012345678901234567890123456789012345678901234567890
+<############################# Last Line In File ##############################>

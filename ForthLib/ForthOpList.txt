@@ -1,0 +1,147 @@
+    ///////////////////////////////////////////
+    //  STUFF WHICH IS COMPILED BY OTHER WORDS
+    //   DO NOT REARRANGE UNDER PAIN OF DEATH
+    ///////////////////////////////////////////
+    _unravelFrame    _doDoes    lit    flit    dlit
+    _doVariable    _doConstant    _endBuilds
+    _doInt    _doFloat    _doDouble    _doString
+    
+    ///////////////////////////////////////////
+    //  integer math
+    ///////////////////////////////////////////
+    +    -    *    /    /mod    mod    negate
+    
+    ///////////////////////////////////////////
+    //  single-precision floating point math
+    ///////////////////////////////////////////
+    f+    f-    f*    f/
+    
+    ///////////////////////////////////////////
+    //  double-precision floating point math
+    ///////////////////////////////////////////
+    d+    d-    d*    d/
+
+
+    ///////////////////////////////////////////
+    //  double-precision floating point functions
+    ///////////////////////////////////////////
+    dsin    darcsin    dcos    darccos    dtan    darctan
+    darctan2    DX DY darctan2 -> DRADIANS
+    dexp    dln    dlog10
+    dpow        DA DPOWER dpow -> (DA ** DPOWER)
+    dsqrt
+    dceil    dfloor    dabs
+    dldexp
+    dfrexp
+    dmodf
+    dfmod
+
+    
+    ///////////////////////////////////////////
+    //  integer/float/double conversions
+    ///////////////////////////////////////////
+    i2f  i2d  f2i  f2d  d2i  d2f
+    
+    ///////////////////////////////////////////
+    //  control flow ops
+    ///////////////////////////////////////////
+    call    goto    exit
+    NEW_IP call
+        push current IP on return stack,
+        return to point just after "call" with "exit"
+    NEW_IP goto     branch to NEW_IP
+    exit            pop IP off return stack
+
+    do    loop    loop+    i    j
+    END+1 START do ... loop
+    END+1 START do ... INCREMENT +loop
+
+    if    else    endif
+    begin    until    while    repeat    again
+    done        exit inner interpreter with status "done"
+    abort       exit outer interpreter with failure status
+    bye         exit outer interpreter with success status
+
+    ///////////////////////////////////////////
+    //  bit-vector logic ops
+    ///////////////////////////////////////////
+    or    and    xor    ~
+    <<
+    >>
+
+    ///////////////////////////////////////////
+    //  boolean ops
+    ///////////////////////////////////////////
+    not    true    false    null
+
+    ///////////////////////////////////////////
+    //  integer comparisons
+    ///////////////////////////////////////////
+    ==    >    >=    <    <=
+    ==0    >0    >=0    <0    <=0
+    
+    ///////////////////////////////////////////
+    //  stack manipulation
+    ///////////////////////////////////////////
+    r<    r>    rdrop
+    dup    swap    drop    over    rot
+    ddup    dswap    ddrop    dover    drot
+    
+    ///////////////////////////////////////////
+    //  data compilation/allocation
+    ///////////////////////////////////////////
+    align    allot    ,    c,    here    malloc    free
+
+    ///////////////////////////////////////////
+    //  memory store/fetch
+    ///////////////////////////////////////////
+    !    @    c!    c@    w!    w@    d!    d@
+    -> ->+    ->-    addressOf
+
+    ///////////////////////////////////////////
+    //  string manipulation
+    ///////////////////////////////////////////
+    strcpy    strlen    strcat
+
+    ///////////////////////////////////////////
+    //  defining words
+    ///////////////////////////////////////////
+    builds    does    ;    :    create
+    variable    constant
+    vars    endvars    int    float    double    string
+    recursive    precedence    load    loaddone    [    ]
+    state    '    execute    [compile]    [']
+
+
+    ///////////////////////////////////////////
+    //  text display words
+    ///////////////////////////////////////////
+    .    %d    %x    %f    %g    %s    %c    %bl    %nl
+    base    decimal    hex
+    printDecimalSigned    printAllSigned    printAllUnsigned
+    outToFile    outToScreen    outToString    getConOutFile
+
+    ///////////////////////////////////////////
+    //  file ops
+    ///////////////////////////////////////////
+    fopen    fclose    fseek    fread    fwrite
+    feof    ftell    stdin    stdout    stderr
+    fputc    fgetc
+
+    ///////////////////////////////////////////
+    //  debug ops
+    ///////////////////////////////////////////
+    dstack    drstack    vlist
+
+
+FILENAME_STR ACCESS_MODE_STR        fopen   FILE_PTR
+FILE_PTR                            fclose  RESULT
+OFFSET SEEK_MODE FILE_PTR           fseek   RESULT
+NUM_ITEMS ITEM_SIZE FILE_PTR        fread   ITEMS_READ
+NUM_ITEMS ITEM_SIZE FILE_PTR        fwrite  ITEMS_WRITTEN
+FILE_PTR                            fgetc   RESULT
+OUT_CHAR FILE_PTR                   fputc   RESULT
+FILE_PTR                            feof    RESULT
+FILE_PTR                            ftell   OFFSET
+
+
