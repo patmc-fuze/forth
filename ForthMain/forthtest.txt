@@ -1,0 +1,23 @@
+
+: woof 1 .  if " true " else " false " endif %s %nl ;
+
+: barney "This is a \"quoted\" test string\n\n\n" %s 0 woof 1 woof ;
+barney
+
+: fred "begin until " %s 5 begin dup . %bl 1 - dup ==0 until %nl ;
+fred
+
+: wilma "begin while repeat " %s 5 begin dup while dup . %bl 1 - repeat %nl ;
+wilma
+
+: betty "do loop " %s 5 0 do  i . %bl loop %nl ;
+betty
+
+: pebbles 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl ;
+pebbles
+"Interpreted: " %s 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c
+
+: nerf builds , does @ . ;
+
+loaddone
+

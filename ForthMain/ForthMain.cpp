@@ -3,12 +3,18 @@
 
 #include "stdafx.h"
 #include "ForthMain.h"
-#include "..\ForthParser\ForthParser.h"
+//#include "..\ForthLib\Forth.h"
+#include "..\ForthLib\ForthEngine.h"
+#include "..\ForthLib\ForthThread.h"
+#include "..\ForthLib\ForthShell.h"
+#include "..\ForthLib\ForthVocabulary.h"
 
+#if 0
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #undef THIS_FILE
 static char THIS_FILE[] = __FILE__;
+#endif
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
@@ -19,17 +25,10 @@ CWinApp theApp;
 using namespace std;
 
 
-void
-traceAction( char   *pToken,
-             int    parseFlags )
-{
-    TRACE( "token [%s]\n", pToken );
-}
-
-
 int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 {
 	int nRetCode = 0;
+    ForthShell *pShell;
 
 	// initialize MFC and print and error on failure
 	if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
@@ -41,14 +40,9 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 	else
 	{
 		// TODO: code your application's behavior here.
-        char lineBuff[256];
-        FILE *pInFile = fopen( argv[1], "r" );
-        if ( pInFile != NULL ) {
-            while ( fgets( lineBuff, sizeof(lineBuff), pInFile ) != NULL ) {
-                ForthParseLine( lineBuff, traceAction );
-                TRACE( "End parse line\n" );
-            }
-        }
+        pShell = new ForthShell( NULL, NULL );
+        nRetCode = pShell->Run( (argc > 1) ? argv[1] : NULL );
+        delete pShell;
 	}
 
 	return nRetCode;
