@@ -123,10 +123,6 @@ SOURCE=.\cursor1.cur
 # End Group
 # Begin Source File
 
-SOURCE=.\forthtbd.txt
-# End Source File
-# Begin Source File
-
 SOURCE=.\forthtest.txt
 # End Source File
 # Begin Source File
