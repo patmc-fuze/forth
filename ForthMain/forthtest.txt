@@ -1,23 +1,44 @@
+// test if...else...endif
+: woof  if " true " else " false " endif %s %nl ;
 
-: woof 1 .  if " true " else " false " endif %s %nl ;
+// test if...endif
+: foow if " foow " %s endif %nl ;
+1 foow
+0 foow
 
+// test qouted strings
 : barney "This is a \"quoted\" test string\n\n\n" %s 0 woof 1 woof ;
 barney
 
-: fred "begin until " %s 5 begin dup . %bl 1 - dup ==0 until %nl ;
+// test begin...until
+: fred "begin until " %s 5 begin dup . %bl 1 - dup ==0 until %nl drop ;
 fred
 
-: wilma "begin while repeat " %s 5 begin dup while dup . %bl 1 - repeat %nl ;
+// test begin...while...repeat
+: wilma "begin while repeat " %s 5 begin dup while dup . %bl 1 - repeat %nl drop ;
 wilma
 
-: betty "do loop " %s 5 0 do  i . %bl loop %nl ;
+// test do...loop
+: betty "5 0 do loop " %s 5 0 do  i . %bl loop %nl ;
 betty
 
+// test do...+loop with negative loop increment
+: unbetty "-5 0 do -1 +loop " %s -5 0 do  i . %bl -1 +loop %nl ;
+unbetty
+
+// test leave & unloop
+: ookla
+  1000 0 do i . %bl leave " burp " %s loop %nl
+  1000 0 do i . %nl unloop exit " glurp " %s loop
+;
+ookla
+
+// test character constants
 : pebbles 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl ;
 pebbles
 "Interpreted: " %s 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c
 
-: nerf builds , does @ . ;
+: lvtest vars int aa endvars 0 -> aa 10 0 do aa %d %bl 5 ->+ aa loop %nl ;
 
 loaddone
 
