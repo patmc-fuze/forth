@@ -28,7 +28,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
     ForthShell *pShell;
     ForthInputStream *pInStream;
 
-    // initialize MFC and print and error on failure
+    // initialize MFC and print an error on failure
     if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
     {
         // TODO: change error code to suit your needs
@@ -39,6 +39,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
     {
         // TODO: code your application's behavior here.
         pShell = new ForthShell;
+        pShell->SetCommandLine( argc - 1, (const char **) (argv + 1));
+        pShell->SetEnvironmentVars( (const char **) envp );
         if ( argc > 1 ) {
 
             //

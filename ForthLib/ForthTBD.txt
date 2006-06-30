@@ -3,6 +3,29 @@
   forgets classes based on DP after normal forget is done?  how do you
   forget a class?
 
+? add a default input stream and output stream to each thread, with simple
+  operators for doing input/output (putLong, getString, etc.)
+- a primary goal is to avoid having to specify the output/input stream for
+  every i/o operation
+  ? is there a way to unify this with the existing console input/output stuff
+    - there is a ForthInputStream, but no ForthOutputStream
+	- it might be bad to use the shell input stream for other operations, because
+	  then the outer shell parser and words which used the input stream would be
+	  interfering with each other
+	- the biggest win for this is being able to reuse the console formatted output ops
+    ? maybe change so current output stuff goes through new thread stream output, but
+	  leave shell input and output stuff is unchanged (IE shell output prompt and error
+	  messages don't go through new output stream)
+      -> make sure that console output is reset on errors
+
+- add ops to support running forth scripts from command line
+ - shell support & ops for fetching command line (argc, argv, envp)
+   - add debug methods which allow for running a word as if it was invoked from
+     the command line, including setting up a fake argc/argv/envp
+ - add ops for exit / abort
+ - add ops for getting environment variables
+ - check for anything which relies on interactive shell input
+
 ? is vars/endvars really needed ?
 -> its only absolute necessity is to leave room for the "allocVars" opcode
 ? why can't this be compiled when first local-var-defining word is executed

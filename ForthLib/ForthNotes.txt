@@ -39,6 +39,27 @@ ForthParseInfo
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 12, 2005
+
+I haven't done much with this project in a while.
+Current things to add:
+
+1) Shell stack - holds info used while compiling control structures and
+   for error checking
+2) Add ability to use parenthesized expressions like this:
+   sin( x 2 * )
+   When "sin(" is parsed, the "sin" token is pushed on the shell stack,
+   and when ")" is parsed, the "sin" token is poped and compiled.
+   This needs to support parens which have no associated function.
+   This should work in interpret and compile mode.
+3) Add default input and output files to a thread, and ops for doing
+   binary IO with them - formatted IO will probably still use the
+   existing IO operators and stream redirection
+4) Add support for loading DLLs and accessing their entry points
+5) Add a message passing/event system - a thread can have a chain of
+   listeners that are informed when a significant event occurs
+6) Add support for basic windows calls
+
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 
@@ -188,6 +209,14 @@ the hibit set denote a method op, and the other seven bits designate the operati
 to be performed - this would allow roughly 128 methods to be easily represented
 without needing to use bits in the ops 24-bit value field.
 
+1) object representation
+ a) object representation in memory
+   object is represented by a pair of pointers (vtable, this)
+ b) object representation on stack
+   object is represented on TOS by a pointer to a pair of pointers (vtable, this)
+2) object method invocation opcodes
+ a) 
+
 there will have to be a way to designate both local and global objects
 -> use hibit of value field to specify if the value field is global, in
    which case it is referenced using the optable, or is in stack
@@ -217,9 +246,14 @@ long[3]    IP for method 0
 long[N]    IP for method (N-3)
 
 
-? maybe have an "epilogue" compiled after end of a method, IP of epilogue
-  is pushed on rstack so epilogue is executed upon exit - epilogue includes
-  code for destroying local objects
+? maybe have an "epilogue" compiled at end of a method (or word which uses
+  local variables).  Epilogue includes:
+  o code for destroying local objects
+  o code for freeing stack frame
+  o code for restoring "this" ptr
+  -> keep track of "return" ops while compiling, turn them into branches to
+     epilogue
+     ? maybe make "exit" illegal inside class methods and words with local variables
 
 ? where is vtable ptr?
 -> first field in any obj is classObj pointer
@@ -266,6 +300,7 @@ endclass
 
 ? need to think about how "forget" interacts with class stuff
 ? have class private definitions be held in temp vocab until endclass, then flushed
+  ? this would screw up decompilation
 ? how to implement protected definitions
 
 ? is there a vocabulary of classes?  think of CLASS_NAME.new
@@ -341,41 +376,67 @@ endclass
     class definition in progress
     definition uses local vars
 
-
   Cases to think about
 ------------------------
 A) method invocation
   Need to specify object, method
-  opcode bit 31 is 1
-  opcode bits 30:24 is 7-bit method number
-  1) on object referenced by global pointer
-        opcode bit 23 is 0
-        opcode value field bits 22:0 is opcode of global pointer var
-  2) on object referenced by local pointer
-        opcode bit 23 is 1
-        opcode bit 22 is 0
-        opcode value field bits 21:0 is frame offset of local pointer var
-  3) on "this" object
-        use global "this" as in 1) above
-        ? or have "method on this" optype, where the value field is
-          the opcode number?
-  4) on object referenced by a member pointer
-        opcode bit 23 is 1
-        opcode bit 22 is 1
-        opcode value field bits 21:0 is member offset of pointer var
+  1) on object referenced by local pointer
+        opcode bit 31 is 1
+        opcode bit 30 is 1
+        opcode bits 29:15 is 15-bit method number
+        opcode bits 14:0 is 15-bit frame offset of local pointer var
+  2) on object referenced by a member pointer
+        opcode bit 31 is 1
+        opcode bit 30 is 0
+        opcode bits 29:15 is 15-bit method number
+        opcode bits 14:0 is 15-bit member offset of pointer var
+  3) on object referenced by global pointer
+        opcode bits 31:24 is method_on_global opcode
+        opcode bits 23:10 is 14-bit opcode of global pointer var
+        opcode bits 9:0 is 10-bit method number
+  4) on "this" object
+        opcode bits 31:24 is method_on_this opcode
+        opcode bits 23:0 is 24-bit method number
+  5) on object pointed to by top-of-stack
+        opcode bits 31:24 is method_on_tos opcode
+        opcode bits 23:0 is 24-bit method number
+
 B) member access
   Need to specify object, offset, type
-  1) on object referenced by global pointer
-        ???
-  2) on object referenced by local pointer
-        ???
-  3) on "this" object
-        easy, add opcode types for int, float, double, string...
-  4) on object referenced by a member pointer
-        ???
-  ? maybe member acces on other than "this" is a two-step process, where
+  1) on object referenced by global pointer (global.foo)
+        opcode bits 31:24 is global_member_TYPE opcode
+        opcode bits 23:12 is 12-bit opcode of global pointer var
+        opcode bits 11:0 is 12-bit offset
+  2) on object referenced by local pointer (local.foo)
+        opcode bits 31:24 is local_member_TYPE opcode
+        opcode bits 23:0 is 24-bit offset
+  3) on "this" object (foo)
+        opcode bits 31:24 is this_member_TYPE opcode
+        opcode bits 23:0 is 24-bit offset
+  4) on object referenced by a member pointer (memberVar.foo)
+        opcode bits 31:24 is other_member_TYPE opcode
+        opcode bits 23:12 is 12-bit offset of pointer in this object
+        opcode bits 11:0 is 12-bit offset of member
+
+  ? maybe member access on other than "this" is a two-step process, where
     the object ptr is put on the stack, then an opcode which encodes type
     and offset is used?
+
+? what about ->+ or ->- operations ?
+
+member
+method
+member:method
+member.member
+gvar:method
+lvar:method
+lvar.member
+lvar.member.member.member
+lvar.member:method
+lvar.member:method.member
+-> lvar.member:method.member
+... life gets complicated real fast ...
+
 
 Idea:
   If class vtable holds opcodes instead of IP addresses, member access could

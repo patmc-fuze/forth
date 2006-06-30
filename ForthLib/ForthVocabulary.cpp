@@ -41,7 +41,7 @@ ForthVocabulary *ForthVocabulary::mpChainHead = NULL;
 //
 
 ForthVocabulary::ForthVocabulary( ForthEngine   *pEngine,
-                                  char          *pName,
+                                  const char    *pName,
                                   int           valueLongs,
                                   int           storageBytes )
 : mpEngine( pEngine )
@@ -81,7 +81,7 @@ ForthVocabulary::~ForthVocabulary()
 }
 
 void
-ForthVocabulary::SetName( char *pVocabName )
+ForthVocabulary::SetName( const char *pVocabName )
 {
     int len;
 
@@ -121,7 +121,7 @@ ForthVocabulary::GetNextSearchVocabulary( void )
 
 
 long
-ForthVocabulary::AddSymbol( char            *pSymName,
+ForthVocabulary::AddSymbol( const char      *pSymName,
                             int             symType,
                             long            symValue,
                             bool            addToEngineOps )
@@ -199,7 +199,7 @@ ForthVocabulary::AddSymbol( char            *pSymName,
 
 // copy a symbol table entry, presumably from another vocabulary
 void
-ForthVocabulary::CopyEntry( void *pEntry )
+ForthVocabulary::CopyEntry( const void *pEntry )
 {
     int numLongs;
 
@@ -237,7 +237,7 @@ ForthVocabulary::DeleteEntry( void *pEntry )
 // delete symbol entry and all newer entries
 // return true IFF symbol was forgotten
 bool
-ForthVocabulary::ForgetSymbol( char   *pSymName )
+ForthVocabulary::ForgetSymbol( const char *pSymName )
 {
     int j, symLen, symbolsLeft;
     long *pEntry, *pTmp, *pNewBottom;
@@ -341,7 +341,7 @@ ForthVocabulary::ForgetOp( long op )
 
 // return ptr to vocabulary entry for symbol
 void *
-ForthVocabulary::FindSymbol( char   *pSymName )
+ForthVocabulary::FindSymbol( const char *pSymName )
 {
     long tmpSym[SYM_MAX_LONGS];
     ForthParseInfo parseInfo( tmpSym, SYM_MAX_LONGS );
@@ -412,7 +412,7 @@ ForthVocabulary::UnSmudgeNewestSymbol( void )
 //
 
 ForthLocalVarVocabulary::ForthLocalVarVocabulary( ForthEngine   *pEngine,
-                                                  char          *pName,
+                                                  const char    *pName,
                                                   int           storageBytes )
 : ForthVocabulary( pEngine, pName, storageBytes )
 {
@@ -425,7 +425,7 @@ ForthLocalVarVocabulary::~ForthLocalVarVocabulary()
 // delete symbol entry and all newer entries
 // return true IFF symbol was forgotten
 bool
-ForthLocalVarVocabulary::ForgetSymbol( char   *pSymName )
+ForthLocalVarVocabulary::ForgetSymbol( const char *pSymName )
 {
     return false;
 }

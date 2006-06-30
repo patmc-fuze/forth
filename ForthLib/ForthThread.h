@@ -90,6 +90,11 @@ public:
     inline void         SetPrintSignedNumMode( ePrintSignedMode mode ) { mSignedPrintMode = mode; };
     inline ePrintSignedMode GetPrintSignedNumMode( void ) { return mSignedPrintMode; };
 
+    inline void         SetDefaultOutFile( FILE *pFile ) { mpDefaultOutFile = pFile; };
+    inline void         SetDefaultInFile( FILE *pFile ) { mpDefaultInFile = pFile; };
+    inline FILE *       GetDefaultOutFile( void ) { return mpDefaultOutFile; };
+    inline FILE *       GetDefaultInFile( void ) { return mpDefaultInFile; };
+
 protected:
     ForthEngine         *mpEngine;
     ForthThread         *mpNext;
@@ -121,6 +126,8 @@ protected:
     FILE                *mpConOutFile;
     char                *mpConOutStr;
 
+    FILE                *mpDefaultOutFile;
+    FILE                *mpDefaultInFile;
     long                mBase;      // output base
     ePrintSignedMode    mSignedPrintMode;   // if numers are printed as signed/unsigned
 };

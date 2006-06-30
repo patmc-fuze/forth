@@ -54,8 +54,8 @@ ForthInputStack::PopInputStream( void )
 }
 
 
-char *
-ForthInputStack::GetLine( char *pPrompt )
+const char *
+ForthInputStack::GetLine( const char *pPrompt )
 {
     char *pBuffer, *pEndLine;
 
@@ -154,7 +154,7 @@ ForthFileInputStream::~ForthFileInputStream()
 
 
 char *
-ForthFileInputStream::GetLine( char *pPrompt )
+ForthFileInputStream::GetLine( const char *pPrompt )
 {
     char *pBuffer;
 
@@ -176,7 +176,7 @@ ForthConsoleInputStream::~ForthConsoleInputStream()
 
 
 char *
-ForthConsoleInputStream::GetLine( char *pPrompt )
+ForthConsoleInputStream::GetLine( const char *pPrompt )
 {
     char *pBuffer;
 
@@ -201,7 +201,7 @@ ForthBufferInputStream::~ForthBufferInputStream()
 
 
 char *
-ForthBufferInputStream::GetLine( char *pPrompt )
+ForthBufferInputStream::GetLine( const char *pPrompt )
 {
     char *pBuffer, *pDst, c;
 

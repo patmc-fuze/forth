@@ -139,20 +139,20 @@ ForthEngine::Reset( void )
 
 
 long
-ForthEngine::AddOp( long *pOp )
+ForthEngine::AddOp( const long *pOp )
 {
     if ( mNumOps == mMaxOps ) {
         mMaxOps += 128;
         mpOpTable = (long **) realloc( mpOpTable, sizeof(long *) * mMaxOps );
     }
-    mpOpTable[ mNumOps++ ] = pOp;
+    mpOpTable[ mNumOps++ ] = (long *) pOp;
 
     return mNumOps - 1;
 }
 
 
 long
-ForthEngine::AddUserOp( char *pSymbol, bool smudgeIt )
+ForthEngine::AddUserOp( const char *pSymbol, bool smudgeIt )
 {
 
     AlignDP();
@@ -212,7 +212,7 @@ ForthEngine::ForgetOp( ulong opNumber )
 }
 
 void
-ForthEngine::ForgetSymbol( char *pSym )
+ForthEngine::ForgetSymbol( const char *pSym )
 {
     void *pEntry = NULL;
     ForthVocabulary *pFoundVocab = NULL;
@@ -341,7 +341,7 @@ ForthEngine::EndOpDefinition( bool unsmudgeIt )
 
 
 void *
-ForthEngine::FindSymbol( char *pSymName )
+ForthEngine::FindSymbol( const char *pSymName )
 {
     void *pEntry = NULL;
     if ( (pEntry = mpPrecedenceVocab->FindSymbol( pSymName )) == NULL ) {
@@ -369,7 +369,7 @@ ForthEngine::EndVarsDefinition( void )
 }
 
 void
-ForthEngine::AddLocalVar( char          *pVarName,
+ForthEngine::AddLocalVar( const char    *pVarName,
                           forthOpType   varType,
                           long          varSize )
 {
@@ -529,9 +529,9 @@ ForthEngine::GetLastInputToken( void )
 
 // return true IFF token is an integer literal
 bool
-ForthEngine::ScanIntegerToken( char     *pToken,
-                               long     *pValue,
-                               int      base )
+ForthEngine::ScanIntegerToken( const char   *pToken,
+                               long         *pValue,
+                               int          base )
 {
     long value, digit;
     bool isNegative;
@@ -626,7 +626,7 @@ ForthEngine::ProcessToken( ForthThread    *g,
     forthOpType opType;
 
     mpLastToken = pToken;
-    if ( pToken == NULL ) {
+    if ( (pToken == NULL) || (len == 0) ) {
         return kResultOk;
     }
     

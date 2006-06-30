@@ -36,7 +36,7 @@ public:
     // SetToken copies symbol to token buffer (if pSrc not NULL), sets the length byte,
     //   sets mNumLongs and pads end of token buffer with nuls to next longword boundary
     // call with no argument or NULL if token has already been copied to mpToken
-    void            SetToken( char *pSrc = NULL );
+    void            SetToken( const char *pSrc = NULL );
 
     inline int      GetFlags( void ) { return mFlags; };
     inline void     SetAllFlags( int flags ) { mFlags = flags; };
@@ -68,9 +68,17 @@ public:
     int                     Run( ForthInputStream *pStream );
     char *                  GetNextSimpleToken( void );
 
+    void                    SetCommandLine( int argc, const char ** argv );
+    void                    SetCommandLine( const char *pCmdLine );
+
+    void                    SetEnvironmentVars( const char ** envp );
+
     inline ForthEngine *    GetEngine( void ) { return mpEngine; };
     inline ForthThread *    GetThread( void ) { return mpThread; };
     inline ForthInputStack * GetInput( void ) { return mpInput; };
+
+    inline int              GetArgCount( void ) { return mNumArgs; };
+    inline char *           GetArg( int argNum ) { return mpArgs[argNum]; };
 
 protected:
 
@@ -81,12 +89,20 @@ protected:
     bool                    ParseToken( ForthParseInfo *pInfo );
     void                    ReportError( void );
 
+    void                    DeleteEnvironmentVars();
+    void                    DeleteCommandLine();
+
     ForthInputStack *       mpInput;
     ForthEngine *           mpEngine;
     ForthThread *           mpThread;
     long                    mTokenBuffer[ TOKEN_BUFF_LONGS ];
 
     bool                    mbCreatedEngine;
+    int                     mNumArgs;
+    char **                 mpArgs;
+    int                     mNumEnvVars;
+    char **                 mpEnvVarNames;
+    char **                 mpEnvVarValues;
 };
 
 #endif // !defined(AFX_FORTHSHELL_H__A1EA9AA2_9092_11D4_97DF_00B0D011B654__INCLUDED_)

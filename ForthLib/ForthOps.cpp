@@ -82,6 +82,17 @@ FORTHOP( abortOp )
     g->SetFatalError( kForthErrorAbort );
 }
 
+FORTHOP( argvOp )
+{
+    NEEDS( 1 );
+    g->Push( (long) (g->GetEngine()->GetShell()->GetArg( g->Pop() )) );
+}
+
+FORTHOP( argcOp )
+{
+    g->Push( g->GetEngine()->GetShell()->GetArgCount() );
+}
+
 //##############################
 //
 // math ops
@@ -109,6 +120,18 @@ FORTHOP(timesOp)
     long b = g->Pop();
     long a = g->Pop();
     g->Push( a * b );
+}
+
+FORTHOP(times2Op)
+{
+    NEEDS(1);
+    g->Push( g->Pop() << 1 );
+}
+
+FORTHOP(times4Op)
+{
+    NEEDS(1);
+    g->Push( g->Pop() << 2 );
 }
 
 FORTHOP(divideOp)
@@ -1201,6 +1224,37 @@ FORTHOP( strcatOp )
 }
 
 
+FORTHOP( strchrOp )
+{
+    int c = (int) g->Pop();
+    char *pStr = (char *) g->Pop();
+    g->Push( (long) strchr( pStr, c ) );
+}
+
+FORTHOP( strcmpOp )
+{
+    char *pStr2 = (char *) g->Pop();
+    char *pStr1 = (char *) g->Pop();
+    g->Push( (long) strcmp( pStr1, pStr2 ) );
+}
+
+
+FORTHOP( strstrOp )
+{
+    char *pStr2 = (char *) g->Pop();
+    char *pStr1 = (char *) g->Pop();
+    g->Push( (long) strstr( pStr1, pStr2 ) );
+}
+
+
+FORTHOP( strtokOp )
+{
+    char *pStr2 = (char *) g->Pop();
+    char *pStr1 = (char *) g->Pop();
+    g->Push( (long) strtok( pStr1, pStr2 ) );
+}
+
+
 // push the immediately following literal 32-bit constant
 FORTHOP(litOp)
 {
@@ -2187,7 +2241,7 @@ FORTHOP( ConOutOpInvoke )
 
 static void
 stringOut( ForthThread  *g,
-           char         *buff )
+           const char   *buff )
 {    
     FILE *pOutFile = g->GetConOutFile();
     if ( pOutFile != NULL ) {
@@ -2511,6 +2565,20 @@ FORTHOP( ftellOp )
 }
 
 
+FORTHOP( systemOp )
+{
+    NEEDS(1);
+    int result = system( (char *) g->Pop() );
+    g->Push( result );
+}
+
+
+
+//##############################
+//
+// Default input/output file ops
+//
+
 FORTHOP( stdinOp )
 {
     g->Push( (long) stdin );
@@ -2650,6 +2718,8 @@ baseDictEntry baseDict[] = {
     OP(     plusOp,                 "+" ),
     OP(     minusOp,                "-" ),
     OP(     timesOp,                "*" ),
+    OP(     times2Op,               "2*" ),
+    OP(     times4Op,               "4*" ),
     OP(     divideOp,               "/" ),
     OP(     divmodOp,               "/mod" ),
     OP(     modOp,                  "mod" ),
@@ -2810,6 +2880,10 @@ baseDictEntry baseDict[] = {
     OP(     strcpyOp,               "strcpy" ),
     OP(     strlenOp,               "strlen" ),
     OP(     strcatOp,               "strcat" ),
+    OP(     strchrOp,               "strchr" ),
+    OP(     strcmpOp,               "strcmp" ),
+    OP(     strstrOp,               "strstr" ),
+    OP(     strtokOp,               "strtok" ),
 
     ///////////////////////////////////////////
     //  defining words
@@ -2885,9 +2959,10 @@ baseDictEntry baseDict[] = {
     OP(     drstackOp,              "drstack" ),
     OP(     vlistOp,                "vlist" ),
 
+    OP(     systemOp,               "system" ),
     OP(     byeOp,                  "bye" ),
-
-
+    OP(     argvOp,                 "argv" ),
+    OP(     argcOp,                 "argc" ),
 
     // following must be last in table
     OP(     NULL,                   "" )

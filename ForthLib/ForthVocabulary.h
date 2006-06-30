@@ -25,11 +25,11 @@ class ForthParseInfo;
 class ForthVocabulary  
 {
 public:
-    ForthVocabulary( ForthEngine *pEngine, char *pName=NULL,
+    ForthVocabulary( ForthEngine *pEngine, const char *pName=NULL,
                      int valueLongs=DEFAULT_VALUE_FIELD_LONGS, int storageBytes=DEFAULT_VOCAB_STORAGE );
     virtual ~ForthVocabulary();
 
-    void                SetName( char *pVocabName );
+    void                SetName( const char *pVocabName );
     char *              GetName( void );
 
     void                Empty( void );
@@ -38,23 +38,23 @@ public:
     ForthVocabulary *   GetNextSearchVocabulary( void );
 
     // add symbol to symbol table, return symvalue
-    virtual long        AddSymbol( char *pSymName, int symType, long symValue, bool addToEngineOps );
+    virtual long        AddSymbol( const char *pSymName, int symType, long symValue, bool addToEngineOps );
 
     // copy a symbol table entry, presumably from another vocabulary
-    void                CopyEntry( void *pEntry );
+    void                CopyEntry( const void *pEntry );
 
     // delete single symbol table entry
     void                DeleteEntry( void *pEntry );
 
     // delete symbol entry and all newer entries
     // return true IFF symbol was forgotten
-    virtual bool        ForgetSymbol( char   *pSymName );
+    virtual bool        ForgetSymbol( const char   *pSymName );
 
     // forget all ops with a greater op#
     virtual void        ForgetOp( long op );
 
     // return pointer to symbol entry, NULL if not found
-    virtual void *      FindSymbol( char *pSymName );
+    virtual void *      FindSymbol( const char *pSymName );
 
     // return pointer to symbol entry, NULL if not found
     // pSymName is required to be a longword aligned address, and to be padded with 0's
@@ -81,13 +81,13 @@ public:
 
     // find next entry in vocabulary
     // invoker is responsible for not going past end of vocabulary
-    inline void *       NextEntry( void *pEntry ) {
+    inline void *       NextEntry( const void *pEntry ) {
         long *pTmp = ((long *) pEntry) + mValueLongs;
         // add in 1 for length, and 3 for longword rounding
         return (void *) (pTmp + ( (( ((char *) pTmp)[0] ) + 4) >> 2));
     };
 
-    static inline forthOpType   GetEntryType( void *pEntry ) {
+    static inline forthOpType   GetEntryType( const void *pEntry ) {
         return FORTH_OP_TYPE( *((long *) pEntry) );
 
     };
@@ -96,15 +96,15 @@ public:
         *((long *) pEntry) = COMPILED_OP( opType, FORTH_OP_VALUE( *((long *) pEntry) ) );
     };
 
-    static inline long          GetEntryValue( void *pEntry ) {
+    static inline long          GetEntryValue( const void *pEntry ) {
         return FORTH_OP_VALUE( *((long *) pEntry) );
     };
 
-    inline char *               GetEntryName( void *pEntry ) {
+    inline char *               GetEntryName( const void *pEntry ) {
         return ((char *) pEntry) + (mValueLongs << 2) + 1;
     };
 
-    inline int                  GetEntryNameLength( void *pEntry ) {
+    inline int                  GetEntryNameLength( const void *pEntry ) {
         return (int) *(((char *) pEntry) + (mValueLongs << 2));
     };
 
@@ -135,12 +135,12 @@ private:
 class ForthLocalVarVocabulary : public ForthVocabulary
 {
 public:
-    ForthLocalVarVocabulary( ForthEngine *pEngine, char *pName=NULL, int storageBytes=DEFAULT_VOCAB_STORAGE );
+    ForthLocalVarVocabulary( ForthEngine *pEngine, const char *pName=NULL, int storageBytes=DEFAULT_VOCAB_STORAGE );
     virtual ~ForthLocalVarVocabulary();
 
     // delete symbol entry and all newer entries
     // return true IFF symbol was forgotten
-    virtual bool        ForgetSymbol( char   *pSymName );
+    virtual bool        ForgetSymbol( const char   *pSymName );
 
     // forget all ops with a greater op#
     virtual void        ForgetOp( long op );

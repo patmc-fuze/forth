@@ -25,6 +25,11 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthThread *pThread )
 : mpEngine(pEngine)
 , mpThread(pThread)
 , mbCreatedEngine(false)
+, mNumArgs(0)
+, mpArgs(NULL)
+, mNumEnvVars(0)
+, mpEnvVarNames(NULL)
+, mpEnvVarValues(NULL)
 {
     if ( mpEngine == NULL ) {
         mpEngine = new ForthEngine();
@@ -48,6 +53,8 @@ ForthShell::~ForthShell()
         delete mpEngine;
     }
 
+    DeleteEnvironmentVars();
+    DeleteCommandLine();
     delete mpInput;
 }
 
@@ -79,7 +86,7 @@ ForthShell::PopInputStream( void )
 int
 ForthShell::Run( ForthInputStream *pInStream )
 {
-    char *pBuffer;
+    const char *pBuffer;
     int retVal = 0;
     bool bQuit = false;
     eForthResult result = kResultOk;
@@ -226,8 +233,8 @@ backslashChar( char c )
 }
 
 
-static char *
-ForthParseSingleQuote( char             *pSrc,
+static const char *
+ForthParseSingleQuote( const char       *pSrc,
                        ForthParseInfo   *pInfo )
 {
     char cc[2];
@@ -259,8 +266,8 @@ ForthParseSingleQuote( char             *pSrc,
 }
 
 
-static char *
-ForthParseDoubleQuote( char             *pSrc,
+static const char *
+ForthParseDoubleQuote( const char       *pSrc,
                        ForthParseInfo   *pInfo )
 {
     char  *pDst = pInfo->GetToken();
@@ -302,7 +309,8 @@ ForthParseDoubleQuote( char             *pSrc,
 bool
 ForthShell::ParseToken( ForthParseInfo *pInfo )
 {
-    char *pSrc, *pEndSrc;
+    const char *pSrc;
+    const char *pEndSrc;
     char *pDst = pInfo->GetToken();
 
     pInfo->SetAllFlags( 0 );
@@ -411,7 +419,7 @@ ForthParseInfo::~ForthParseInfo()
 
 
 void
-ForthParseInfo::SetToken( char *pSrc )
+ForthParseInfo::SetToken( const char *pSrc )
 {
     int symLen, padChars;
     char *pDst;
@@ -460,6 +468,97 @@ ForthParseInfo::SetToken( char *pSrc )
             padChars--;
         }
     }
+}
+
+
+void
+ForthShell::SetCommandLine( int argc, const char ** argv )
+{
+    int i, len;
+
+    DeleteCommandLine();
+
+    i = 0;
+    mpArgs = new char *[ argc ];
+    while ( i < argc ) {
+        len = strlen( argv[i] );
+        mpArgs[i] = new char [ len + 1 ];
+        strcpy( mpArgs[i], argv[i] );
+        i++;
+    }
+    mNumArgs = argc;
+}
+
+
+void
+ForthShell::SetCommandLine( const char *pCmdLine )
+{
+    // TBD
+}
+
+
+void
+ForthShell::SetEnvironmentVars( const char ** envp )
+{
+    int i, len;
+    char *pValue;
+
+    DeleteEnvironmentVars();
+
+    // count number of environment variables
+    mNumEnvVars = 0;
+    while ( envp[mNumEnvVars] != NULL )
+    {
+        mNumEnvVars++;
+    }
+    mpEnvVarNames = new char *[ mNumEnvVars ];
+    mpEnvVarValues = new char *[ mNumEnvVars ];
+
+    // make copies of vars
+    i = 0;
+    while ( i < mNumEnvVars )
+    {
+        len = strlen( envp[i] );
+        mpEnvVarNames[i] = new char[ len + 1 ];
+        strcpy( mpEnvVarNames[i], envp[i] );
+        pValue = strchr( mpEnvVarNames[i], '=' );
+        if ( pValue != NULL )
+        {
+            *pValue++ = '\0';
+            mpEnvVarValues[i] = pValue;
+        } else {
+            printf( "Malformed environment variable: %s\n", envp[i] );
+        }
+        i++;
+    }
+}
+
+
+void
+ForthShell::DeleteCommandLine( void )
+{
+    while ( mNumArgs > 0 ) {
+        mNumArgs--;
+        delete [] mpArgs[mNumArgs];
+    }
+    delete [] mpArgs;
+
+    mpArgs = NULL;
+}
+
+
+void
+ForthShell::DeleteEnvironmentVars( void )
+{
+    while ( mNumEnvVars > 0 ) {
+        mNumEnvVars--;
+        delete [] mpEnvVarNames[mNumEnvVars];
+    }
+    delete [] mpEnvVarNames;
+    delete [] mpEnvVarValues;
+
+    mpEnvVarNames = NULL;
+    mpEnvVarValues = NULL;
 }
 
 

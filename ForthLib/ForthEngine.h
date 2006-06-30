@@ -36,14 +36,14 @@ public:
     void            Reset( void );
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
-    long            AddOp( long *pOp );
-    long            AddUserOp( char *pSymbol, bool smudgeIt=false );
+    long            AddOp( const long *pOp );
+    long            AddUserOp( const char *pSymbol, bool smudgeIt=false );
     void            AddBuiltinOps( baseDictEntry *pEntries );
 
     // forget the specified op and all higher numbered ops, and free the memory where those ops were stored
     void            ForgetOp( ulong opNumber );
     // forget the named symbol
-    void            ForgetSymbol( char *pSym );
+    void            ForgetSymbol( const char *pSym );
 
     // create a thread which will be managed by the engine - the engine destructor will delete all threads
     //  which were created with CreateThread 
@@ -69,10 +69,10 @@ public:
     void            StartOpDefinition( bool smudgeIt=false );
     void            EndOpDefinition( bool unsmudgeIt=false );
     // return pointer to symbol entry, NULL if not found
-    void *          FindSymbol( char *pSymName );
+    void *          FindSymbol( const char *pSymName );
     void            StartVarsDefinition( void );
     void            EndVarsDefinition( void );
-    void            AddLocalVar( char *pName, forthOpType varType, long varSize );
+    void            AddLocalVar( const char *pName, forthOpType varType, long varSize );
 
     eForthResult    ProcessToken( ForthThread *g, ForthParseInfo *pInfo );
     char *          GetLastInputToken( void );
@@ -123,7 +123,7 @@ public:
     inline void             ClearCompileFlag( long flags ) { mCompileFlags &= (~flags); };
 
 protected:
-    bool                    ScanIntegerToken( char *pToken, long *pValue, int base );
+    bool                    ScanIntegerToken( const char *pToken, long *pValue, int base );
 
 protected:
     long *      mpDP;                   // dictionary pointer

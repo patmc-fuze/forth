@@ -19,7 +19,7 @@ public:
     ForthInputStream( int bufferLen );
     virtual ~ForthInputStream();
 
-    virtual char    *GetLine( char *pPrompt ) = 0;
+    virtual char    *GetLine( const char *pPrompt ) = 0;
     virtual char    *GetBufferPointer( void );
     virtual void    SetBufferPointer( char *pBuff );
     virtual bool    IsInteractive( void ) = 0;
@@ -40,7 +40,7 @@ public:
     ForthFileInputStream( FILE *pInFile, int bufferLen = DEFAULT_INPUT_BUFFER_LEN );
     virtual ~ForthFileInputStream();
 
-    virtual char    *GetLine( char *pPrompt );
+    virtual char    *GetLine( const char *pPrompt );
     virtual bool    IsInteractive( void ) { return false; };
 protected:
     FILE        *mpInFile;
@@ -53,7 +53,7 @@ public:
     ForthConsoleInputStream( int bufferLen = DEFAULT_INPUT_BUFFER_LEN );
     virtual ~ForthConsoleInputStream();
 
-    virtual char    *GetLine( char *pPrompt );
+    virtual char    *GetLine( const char *pPrompt );
     virtual bool    IsInteractive( void ) { return true; };
 protected:
 };
@@ -65,7 +65,7 @@ public:
     ForthBufferInputStream( char *pDataBuffer, int dataBufferLen, int bufferLen = DEFAULT_INPUT_BUFFER_LEN );
     virtual ~ForthBufferInputStream();
 
-    virtual char    *GetLine( char *pPrompt );
+    virtual char    *GetLine( const char *pPrompt );
     virtual bool    IsInteractive( void ) { return false; };
 protected:
     char    *mpDataBuffer;
@@ -82,7 +82,7 @@ public:
     void                    PushInputStream( ForthInputStream *pStream );
     bool                    PopInputStream();
     void                    Reset( void );
-    char                    *GetLine( char *pPrompt );
+    const char              *GetLine( const char *pPrompt );
     inline ForthInputStream *InputStream( void ) { return mpHead; };
 
     char                    *GetBufferPointer( void );
