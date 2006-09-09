@@ -19,6 +19,7 @@ ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnS
 , mSLen( paramStackLongs )
 , mRLen( returnStackLongs )
 , mpPrivate( NULL )
+, mpErrorString( NULL )
 {
     // leave a few extra words above top of stacks, so that underflows don't
     //   tromp on the memory allocator info
@@ -69,16 +70,50 @@ static char *pErrorStrings[] =
     "File Open Failed",
     "Aborted",
     "Can't Forget Builtin Op",
-    "Bad Method Number"
+    "Bad Method Number",
+    "Unhandled Exception",
+    "Syntax error",
+    "Syntax error - else without matching if",
+    "Syntax error - endif without matching if/else",
+    "Syntax error - loop without matching do",
+    "Syntax error - until without matching begin",
+    "Syntax error - while without matching begin",
+    "Syntax error - repeat without matching while",
+    "Syntax error - again without matching begin",
 };
+
+void
+ForthThread::SetError( eForthError e, const char *pString )
+{
+    mState = kResultError;
+    mError = e;
+    mpErrorString = pString;
+}
+
+void
+ForthThread::SetFatalError( eForthError e, const char *pString )
+{
+    mState = kResultFatalError;
+    mError = e;
+    mpErrorString = pString;
+}
 
 void
 ForthThread::GetErrorString( char *pString )
 {
     int errorNum = (int) mError;
     if ( errorNum < (sizeof(pErrorStrings) / sizeof(char *)) ) {
-        strcpy( pString, pErrorStrings[errorNum] );
-    } else {
+        if ( mpErrorString != NULL )
+        {
+            sprintf( pString, "%s: %s", pErrorStrings[errorNum], mpErrorString );
+        }
+        else
+        {
+            strcpy( pString, pErrorStrings[errorNum] );
+        }
+    }
+    else
+    {
         sprintf( pString, "Unknown Error %d", errorNum );
     }
 }

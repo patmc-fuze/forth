@@ -17,14 +17,40 @@
 #define PSTACK_LONGS 8192
 #define RSTACK_LONGS 8192
 
+const char * TagStrings[] =
+{
+    "NOTHING",
+    "do",
+    "begin",
+    "while",
+    "case/of",
+    "if",
+    "else",
+    "paren",
+    "string",
+    "colon",
+};
+
+const char * GetTagString( long tag )
+{
+    static char msg[28];
+
+    if ( tag < kNumShellTags )
+    {
+        return TagStrings[ tag ];
+    }
+    sprintf( msg, "UNKNOWN TAG 0x%x", tag );
+    return msg;
+}
+
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-ForthShell::ForthShell( ForthEngine *pEngine, ForthThread *pThread )
+ForthShell::ForthShell( ForthEngine *pEngine, ForthThread *pThread, int shellStackLongs )
 : mpEngine(pEngine)
 , mpThread(pThread)
-, mbCreatedEngine(false)
+, mFlags(0)
 , mNumArgs(0)
 , mpArgs(NULL)
 , mNumEnvVars(0)
@@ -34,7 +60,7 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthThread *pThread )
     if ( mpEngine == NULL ) {
         mpEngine = new ForthEngine();
         mpEngine->Initialize( STORAGE_LONGS, true );
-        mbCreatedEngine = true;
+        mFlags = SHELL_FLAG_CREATED_ENGINE;
     }
     mpEngine->SetShell( this );
 
@@ -43,20 +69,23 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthThread *pThread )
     }
 
     mpInput = new ForthInputStack;
+	mpStack = new ForthShellStack( shellStackLongs );
 
 }
 
 ForthShell::~ForthShell()
 {
     // engine will destroy thread for us if we created it
-    if ( mbCreatedEngine ) {
+    if ( mFlags & SHELL_FLAG_CREATED_ENGINE ) {
         delete mpEngine;
     }
 
     DeleteEnvironmentVars();
     DeleteCommandLine();
     delete mpInput;
+	delete mpStack;
 }
+
 
 
 //
@@ -104,9 +133,7 @@ ForthShell::Run( ForthInputStream *pInStream )
 
         if ( !bQuit ) {
 
-
             result = InterpretLine();
-
 
             switch( result ) {
 
@@ -156,9 +183,7 @@ ForthShell::InterpretLine( void )
 
     pLineBuff = mpInput->GetBufferPointer();
 
-#ifdef TRACE_SHELL
-    TRACE( "*** InterpretLine \"%s\"\n", pLineBuff );
-#endif
+    SPEW_SHELL( "*** InterpretLine \"%s\"\n", pLineBuff );
     bLineEmpty = false;
     mpThread->SetError( kForthErrorNone );
     while ( !bLineEmpty && (result == kResultOk) ) {
@@ -166,7 +191,15 @@ ForthShell::InterpretLine( void )
 
         if ( !bLineEmpty ) {
 
-            result = mpEngine->ProcessToken( mpThread, &parseInfo );
+            try
+            {
+                result = mpEngine->ProcessToken( mpThread, &parseInfo );
+            }
+            catch(...)
+            {
+                result = kResultException;
+                mpThread->SetError( kForthErrorException, "" );
+            }
             if ( result == kResultOk ) {
                 result = mpThread->CheckStacks();
             }
@@ -174,9 +207,7 @@ ForthShell::InterpretLine( void )
                 if ( result != kResultExitShell ) {
                     ReportError();
                 }
-                mpEngine->Reset();
-                mpThread->Reset();
-                mpInput->Reset();
+				ErrorReset();
                 if ( !mpInput->InputStream()->IsInteractive() ) {
                     // if the initial input stream was a file, any error
                     //   must be treated as a fatal error
@@ -191,19 +222,53 @@ ForthShell::InterpretLine( void )
 }
 
 void
+ForthShell::ErrorReset( void )
+{
+	mpEngine->Reset();
+	mpThread->Reset();
+	mpInput->Reset();
+	mpStack->EmptyStack();
+}
+
+void
 ForthShell::ReportError( void )
 {
-    char errorBuf[256];
+    char errorBuf1[256];
+    char errorBuf2[256];
     char *pLastInputToken;
 
-    mpThread->GetErrorString( errorBuf );
+    mpThread->GetErrorString( errorBuf1 );
     pLastInputToken = mpEngine->GetLastInputToken();
     if ( pLastInputToken != NULL ) {
-        TRACE( "%s!, last input token: %s\n", errorBuf, pLastInputToken );
-        printf( "%s!, last input token: %s\n", errorBuf, pLastInputToken );
+        sprintf( errorBuf2, "%s, last input token: <%s>", errorBuf1, pLastInputToken );
     } else {
-        TRACE( "%s!\n", errorBuf );
-        printf( "%s!\n", errorBuf );
+        sprintf( errorBuf2, "%s", errorBuf1 );
+    }
+    int lineNumber = mpInput->InputStream()->GetLineNumber();
+    if ( lineNumber > 0 )
+    {
+        sprintf( errorBuf1, "%s at line number %d", errorBuf2, lineNumber );
+    }
+    else
+    {
+        strcpy( errorBuf1, errorBuf2 );
+    }
+    TRACE( errorBuf1 );
+    printf( errorBuf1 );
+    char *pBase = mpInput->GetBufferBasePointer();
+    pLastInputToken = mpInput->GetBufferPointer();
+    if ( (pBase != NULL) && (pLastInputToken != NULL) ) {
+        TRACE( "\n" );
+        printf( "\n" );
+        while ( pBase < pLastInputToken )
+        {
+            TRACE( "%c", *pBase );
+            printf( "%c", *pBase );
+            pBase++;
+        }
+        sprintf( errorBuf1, "{}%s\n", pLastInputToken );
+        TRACE( errorBuf1 );
+        printf( errorBuf1 );
     }
 }
 
@@ -304,60 +369,207 @@ ForthParseDoubleQuote( const char       *pSrc,
 }
 
 
-// return true IFF done parsing line
+// return true IFF done parsing line - in this case no string is returned in pInfo
+// this is a stripped down version of ParseToken used just for building string tables
+// TBD!!! there is nothing to keep us from writing past end of pTokenBuffer
+bool
+ForthShell::ParseString( ForthParseInfo *pInfo )
+{
+    const char *pSrc;
+    const char *pEndSrc;
+    char *pDst;
+    bool gotAToken = false;
+
+    pInfo->SetAllFlags( 0 );
+
+    while ( !gotAToken )
+    {
+
+        pSrc = mpInput->GetBufferPointer();
+        pDst = pInfo->GetToken();
+        if ( *pSrc == '\0' ) {
+            // input buffer is empty
+            return true;
+        }
+
+        *pDst = 0;
+
+        // eat any leading white space
+        while ( (*pSrc == ' ') || (*pSrc == '\t') ) {
+            pSrc++;
+        }
+
+        // support C++ end-of-line style comments
+        if ( (*pSrc == '/') && (pSrc[1] == '/') ) {
+            return true;
+        }
+
+        // parse symbol up till next white space
+        switch ( *pSrc )
+        {
+           case '\"':
+              // support C-style quoted strings...
+              pEndSrc = ForthParseDoubleQuote( pSrc, pInfo );
+              gotAToken = true;
+              break;
+
+           default:
+              break;
+        }
+
+        if ( pInfo->GetFlags() == 0 ) {
+            // token is not a special case, just parse till blank, space or EOL
+           bool done = false;
+            pEndSrc = pSrc;
+            while ( !done )
+            {
+               switch ( *pEndSrc )
+               {
+                  case ' ':
+                  case '\t':
+                  case '\0':
+                     done = true;
+                     *pDst++ = '\0';
+                     // set token length byte
+                     pInfo->SetToken();
+                     gotAToken = true;
+                     break;
+
+                  default:
+                     *pDst++ = *pEndSrc++;
+                     break;
+
+               }
+            } // while not done
+        }
+
+        mpInput->SetBufferPointer( (char *) pEndSrc );
+    }   // while ! gotAToken
+
+    return false;
+}
+
+
+// return true IFF done parsing line - in this case no token is returned in pInfo
 // TBD!!! there is nothing to keep us from writing past end of pTokenBuffer
 bool
 ForthShell::ParseToken( ForthParseInfo *pInfo )
 {
     const char *pSrc;
     const char *pEndSrc;
-    char *pDst = pInfo->GetToken();
+    char *pDst;
+    bool gotAToken = false;
 
     pInfo->SetAllFlags( 0 );
-
-    pSrc = mpInput->GetBufferPointer();
-    if ( *pSrc == '\0' ) {
-        // input buffer is empty
-        return true;
-    }
-
-    *pDst = 0;
-
-    // eat any leading white space
-    while ( (*pSrc == ' ') || (*pSrc == '\t') ) {
-        pSrc++;
-    }
-
-    // support C++ end-of-line style comments
-    if ( (*pSrc == '/') && (pSrc[1] == '/') ) {
-        return true;
-    }
-
-    // parse symbol up till next white space
-    if ( *pSrc == '\"' ) {
-
-        // support C-style quoted strings...
-        pEndSrc = ForthParseDoubleQuote( pSrc, pInfo );
-
-    } else if ( *pSrc == '\'' ) {
-
-        // support C-style quoted characters like 'a' or '\n'
-        pEndSrc = ForthParseSingleQuote( pSrc, pInfo );
-
-    }
-
-    if ( pInfo->GetFlags() == 0 ) {
-        // token is not a special case, just parse till blank, space or EOL
-        pEndSrc = pSrc;
-        while ( (*pEndSrc != ' ') && (*pEndSrc != '\t')
-            && (*pEndSrc != '\0') ) {
-            *pDst++ = *pEndSrc++;
+    if ( mFlags & SHELL_FLAG_POP_NEXT_TOKEN )
+    {
+        // previous symbol ended in ")", so next token to process is on top of shell stack
+        mFlags &= ~SHELL_FLAG_POP_NEXT_TOKEN;
+        if ( CheckSyntaxError( ")", mpStack->Pop(), kShellTagParen ) )
+        {
+            long tag = mpStack->Peek();
+            if ( mpStack->PopString( pInfo->GetToken() ) )
+            {
+                 pInfo->SetToken();
+            }
+            else
+            {
+                sprintf( mErrorString, "top of shell stack is <%s>, was expecting <string>",
+                         GetTagString( tag ) );
+                mpThread->SetError( kForthErrorBadSyntax, mErrorString );
+            }
         }
-        *pDst++ = '\0';
-        // set token length byte
-        pInfo->SetToken();
+        return false;
     }
-    mpInput->SetBufferPointer( pEndSrc );
+
+    while ( !gotAToken )
+    {
+
+        pSrc = mpInput->GetBufferPointer();
+        pDst = pInfo->GetToken();
+        if ( *pSrc == '\0' ) {
+            // input buffer is empty
+            return true;
+        }
+
+        *pDst = 0;
+
+        // eat any leading white space
+        while ( (*pSrc == ' ') || (*pSrc == '\t') ) {
+            pSrc++;
+        }
+
+        // support C++ end-of-line style comments
+        if ( (*pSrc == '/') && (pSrc[1] == '/') ) {
+            return true;
+        }
+
+        // parse symbol up till next white space
+        switch ( *pSrc )
+        {
+           case '\"':
+              // support C-style quoted strings...
+              pEndSrc = ForthParseDoubleQuote( pSrc, pInfo );
+              gotAToken = true;
+              break;
+
+           case '\'':
+              // support C-style quoted characters like 'a' or '\n'
+              pEndSrc = ForthParseSingleQuote( pSrc, pInfo );
+              gotAToken = true;
+              break;
+
+           default:
+              break;
+        }
+
+        if ( pInfo->GetFlags() == 0 ) {
+            // token is not a special case, just parse till blank, space or EOL
+           bool done = false;
+            pEndSrc = pSrc;
+            while ( !done )
+            {
+               switch ( *pEndSrc )
+               {
+                  case ' ':
+                  case '\t':
+                  case '\0':
+                     done = true;
+                     *pDst++ = '\0';
+                     // set token length byte
+                     pInfo->SetToken();
+                     gotAToken = true;
+                     break;
+
+                  case '(':
+                     // push accumulated token (if any) onto shell stack
+                     pEndSrc++;
+                     *pDst++ = '\0';
+                     pDst = pInfo->GetToken();
+                     mpStack->PushString( pDst );
+                     mpStack->Push( kShellTagParen );
+                     break;
+
+                  case ')':
+                     // process accumulated token (if any), pop shell stack, compile/interpret if not empty
+                     pEndSrc++;
+                     done = true;
+                     *pDst++ = '\0';
+                     mFlags |= SHELL_FLAG_POP_NEXT_TOKEN;
+                     pInfo->SetToken();
+                     gotAToken = true;
+                     break;
+
+                  default:
+                     *pDst++ = *pEndSrc++;
+                     break;
+
+               }
+            } // while not done
+        }
+
+        mpInput->SetBufferPointer( (char *) pEndSrc );
+    }   // while ! gotAToken
 
     return false;
 }
@@ -399,6 +611,38 @@ ForthShell::GetNextSimpleToken( void )
 }
 
 
+char *
+ForthShell::GetToken( char delim )
+{
+    char *pToken = mpInput->GetBufferPointer();
+    char *pEndToken, c;
+    bool bDone;
+
+    // eat any leading white space
+    while ( (*pToken == ' ') || (*pToken == '\t') ) {
+        pToken++;
+    }
+
+    pEndToken = pToken;
+    bDone = false;
+    while ( !bDone ) {
+        c = *pEndToken;
+        if ( (c == delim) || (c == '\0') )
+        {
+            bDone = true;
+            *pEndToken++ = '\0';
+        }
+        else
+        {
+            pEndToken++;
+        }
+    }
+    mpInput->SetBufferPointer( pEndToken );
+
+    return pToken;
+}
+
+
 ForthParseInfo::ForthParseInfo( long *pBuffer, int numLongs )
 : mpToken( pBuffer )
 , mMaxChars( (numLongs << 2) - 2 )
@@ -418,6 +662,8 @@ ForthParseInfo::~ForthParseInfo()
 }
 
 
+// copy string to mpToken buffer, set length, and pad with nulls to a longword boundary
+// if pSrc is null, just set length and do padding
 void
 ForthParseInfo::SetToken( const char *pSrc )
 {
@@ -562,3 +808,94 @@ ForthShell::DeleteEnvironmentVars( void )
 }
 
 
+bool
+ForthShell::CheckSyntaxError( const char *pString, long tag, long desiredTag )
+{
+    if ( tag != desiredTag )
+    {
+        sprintf( mErrorString, "<%s> preceeded by <%s>, was expecting <%s>",
+                 pString, GetTagString( tag ), GetTagString( desiredTag ) );
+        mpThread->SetError( kForthErrorBadSyntax, mErrorString );
+        return false;
+    }
+    return true;
+}
+
+//////////////////////////////////////////////////////////////////////
+// Shell stack
+//////////////////////////////////////////////////////////////////////
+
+// this is the number of extra longs to allocate at top and
+//    bottom of stacks
+#define GAURD_AREA 4
+
+ForthShellStack::ForthShellStack( int numLongs )
+: mSSLen( numLongs )
+{
+   mSSB = new long[mSSLen + (GAURD_AREA * 2)];
+   mSSB += GAURD_AREA;
+   mSST = mSSB + mSSLen;
+   EmptyStack();
+}
+
+ForthShellStack::~ForthShellStack()
+{
+   delete [] (mSSB - GAURD_AREA);
+}
+
+
+void
+ForthShellStack::Push( long tag )
+{
+    *--mSSP = tag;
+    SPEW_SHELL( "Pushed Tag %s\n", GetTagString( tag ) );
+}
+
+long
+ForthShellStack::Pop( void )
+{
+    if ( mSSP == mSST )
+    {
+        return kShellTagNothing;
+    }
+    SPEW_SHELL( "Popped Tag %s\n", GetTagString( *mSSP ) );
+    return *mSSP++;
+}
+
+long
+ForthShellStack::Peek( void )
+{
+    if ( mSSP == mSST )
+    {
+        return kShellTagNothing;
+    }
+    return *mSSP;
+}
+
+void
+ForthShellStack::PushString( const char *pString )
+{
+   int len = strlen( pString );
+   mSSP -= (len >> 2) + 1;
+   strcpy( (char *) mSSP, pString );
+    SPEW_SHELL( "Pushed String \"%s\"\n", pString );
+   Push( kShellTagString );
+}
+
+bool
+ForthShellStack::PopString( char *pString )
+{
+   if ( *mSSP != kShellTagString )
+   {
+        *pString = '\0';
+        SPEW_SHELL( "Failed to pop string\n" );
+        return false;
+   }
+   mSSP++;
+   int len = strlen( (char *) mSSP );
+   strcpy( pString, (char *) mSSP );
+   mSSP += (len >> 2) + 1;
+    SPEW_SHELL( "Popped Tag string\n" );
+    SPEW_SHELL( "Popped String \"%s\"\n", pString );
+   return true;
+}

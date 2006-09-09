@@ -562,48 +562,31 @@ ForthEngine::ScanIntegerToken( const char   *pToken,
 
     }
 
-    switch( base ) {
-    case 10:
-        if ( sscanf( pToken, "%d", &value ) == 1 ) {
-            *pValue = (isNegative) ? 0 - value : value;
-            return true;
-        }
-        break;
-    case 16:
-        if ( sscanf( pToken, "%x", &value ) == 1 ) {
-            *pValue = (isNegative) ? 0 - value : value;
-            return true;
-        }
-        break;
-    default:
-        value = 0;
-        while ( (c = *pToken++) != 0 ) {
+    value = 0;
+    while ( (c = *pToken++) != 0 ) {
 
-            if ( (c >= '0') && (c <= '9') ) {
-                digit = c - '0';
-            } else if ( (c >= 'A') && (c <= 'Z') ) {
-                digit = 10 + (c - 'A');
-            } else if ( (c >= 'a') && (c <= 'z') ) {
-                digit = 10 + (c - 'a');
-            } else {
-                // char can't be a digit
-                return false;
-            }
-
-            if ( digit >= base ) {
-                // invalid digit for current base
-                return false;
-            }
-
-            value = (value * base) + digit;
+        if ( (c >= '0') && (c <= '9') ) {
+            digit = c - '0';
+        } else if ( (c >= 'A') && (c <= 'Z') ) {
+            digit = 10 + (c - 'A');
+        } else if ( (c >= 'a') && (c <= 'z') ) {
+            digit = 10 + (c - 'a');
+        } else {
+            // char can't be a digit
+            return false;
         }
 
-        // all chars were valid digits
-        *pValue = (isNegative) ? 0 - value : value;
-        return true;
+        if ( digit >= base ) {
+            // invalid digit for current base
+            return false;
+        }
+
+        value = (value * base) + digit;
     }
 
-    return false;
+    // all chars were valid digits
+    *pValue = (isNegative) ? 0 - value : value;
+    return true;
 }
 
 //############################################################################
@@ -624,24 +607,22 @@ ForthEngine::ProcessToken( ForthThread    *g,
     char *pToken = pInfo->GetToken();
     int len = pInfo->GetTokenLength();
     forthOpType opType;
+    bool isAString = (pInfo->GetFlags() & PARSE_FLAG_QUOTED_STRING) != 0;
 
     mpLastToken = pToken;
-    if ( (pToken == NULL) || (len == 0) ) {
+    if ( (pToken == NULL)
+        || ((len == 0) && !isAString) ) {       // ignore empty tokens, except for the empty quoted string
         return kResultOk;
     }
     
-#ifdef TRACE_OUTER_INTERPRETER
-    TRACE( "%s [%s] flags[%x]\t", mCompileState ? "Compile" : "Interpret", pToken, pInfo->GetFlags() );
-#endif
-    if ( pInfo->GetFlags() & PARSE_FLAG_QUOTED_STRING ) {
+    SPEW_OUTER_INTERPRETER( "%s [%s] flags[%x]\t", mCompileState ? "Compile" : "Interpret", pToken, pInfo->GetFlags() );
+    if ( isAString ) {
         ////////////////////////////////////
         //
         // symbol is a quoted string - the quotes have already been stripped
         //
         ////////////////////////////////////
-#ifdef TRACE_OUTER_INTERPRETER
-        TRACE( "String[%s] flags[%x]\n", pToken, pInfo->GetFlags() );
-#endif
+        SPEW_OUTER_INTERPRETER( "String[%s] flags[%x]\n", pToken, pInfo->GetFlags() );
         if ( mCompileState ) {
             len = ((len + 4) & ~3) >> 2;
             *mpDP++ = COMPILED_OP( kOpString, len );
@@ -668,9 +649,7 @@ ForthEngine::ProcessToken( ForthThread    *g,
         // symbol is a quoted character - the quotes have already been stripped
         //
         ////////////////////////////////////
-#ifdef TRACE_OUTER_INTERPRETER
-        TRACE( "Character[%s] flags[%x]\n", pToken, pInfo->GetFlags() );
-#endif
+        SPEW_OUTER_INTERPRETER( "Character[%s] flags[%x]\n", pToken, pInfo->GetFlags() );
         value = *pToken & 0xFF;
         if ( mCompileState ) {
             *mpDP++ = value | (kOpConstant << 24);
@@ -713,9 +692,7 @@ ForthEngine::ProcessToken( ForthThread    *g,
         // symbol is a forth op with precedence
         //
         ////////////////////////////////////
-#ifdef TRACE_OUTER_INTERPRETER
-        TRACE( "Precedence Op\n" );
-#endif
+        SPEW_OUTER_INTERPRETER( "Precedence Op\n" );
         // the symbol is in the vocabulary
         opType = ForthVocabulary::GetEntryType( pSymbol );
         // execute the opcode
@@ -731,9 +708,7 @@ ForthEngine::ProcessToken( ForthThread    *g,
         // symbol is a forth op
         //
         ////////////////////////////////////
-#ifdef TRACE_OUTER_INTERPRETER
-        TRACE( "Op\n" );
-#endif
+        SPEW_OUTER_INTERPRETER( "Op\n" );
         // the symbol is in the vocabulary
         opType = ForthVocabulary::GetEntryType( pSymbol );
         if ( mCompileState ) {
@@ -766,9 +741,7 @@ ForthEngine::ProcessToken( ForthThread    *g,
             // symbol is a single precision fp literal
             //
             ////////////////////////////////////
-#ifdef TRACE_OUTER_INTERPRETER
-            TRACE( "Floating point literal %f\n", fvalue );
-#endif
+            SPEW_OUTER_INTERPRETER( "Floating point literal %f\n", fvalue );
             if ( mCompileState ) {
                 // compile the literal value
                 // value too big, must go in next longword
@@ -785,9 +758,7 @@ ForthEngine::ProcessToken( ForthThread    *g,
             // symbol is an integer literal
             //
             ////////////////////////////////////
-#ifdef TRACE_OUTER_INTERPRETER
-            TRACE( "Integer literal %d\n", value );
-#endif
+            SPEW_OUTER_INTERPRETER( "Integer literal %d\n", value );
             if ( mCompileState ) {
                 // compile the literal value
                 if ( (value < (1 << 23)) && (value >= -(1 << 23)) ) {

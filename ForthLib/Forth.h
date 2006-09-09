@@ -24,7 +24,8 @@ class ForthInputStream;
 
 // these are opcode types, they are held in the top byte of an opcode, and in
 // a vocabulary entry value field
-typedef enum {
+typedef enum
+{
     kOpBuiltIn = 0,
     kOpUserDef,
 
@@ -91,6 +92,7 @@ typedef enum {
     kResultExitShell,   // exit because of a "bye" opcode
     kResultError,       // exit because of error
     kResultFatalError,  // exit because of fatal error
+    kResultException,   // exit because of uncaught exception
 } eForthResult;
 
 #define FLAG_DONE           1
@@ -110,6 +112,8 @@ typedef enum {
     kForthErrorAbort,
     kForthErrorForgetBuiltin,
     kForthErrorBadMethod,
+    kForthErrorException,
+    kForthErrorBadSyntax,
     // NOTE: if you add errors, make sure that you update ForthThread::GetErrorString
     kForthNumErrors
 } eForthError;
@@ -165,20 +169,21 @@ typedef void  (*ForthOp)(ForthThread *);
 #define OP_DOUBLE_VAL   BUILTIN_OP(5)
 #define OP_DO_VAR       BUILTIN_OP(6)
 #define OP_DO_CONSTANT  BUILTIN_OP(7)
-#define OP_END_BUILDS   BUILTIN_OP(8)
-#define OP_DONE         BUILTIN_OP(9)
-#define OP_DO_INT       BUILTIN_OP(10)
-#define OP_DO_FLOAT     BUILTIN_OP(11)
-#define OP_DO_DOUBLE    BUILTIN_OP(12)
-#define OP_DO_STRING    BUILTIN_OP(13)
-#define OP_INTO         BUILTIN_OP(14)
-#define OP_DO_DO        BUILTIN_OP(15)
-#define OP_DO_LOOP      BUILTIN_OP(16)
-#define OP_DO_LOOPN     BUILTIN_OP(17)
-#define OP_DO_EXIT      BUILTIN_OP(18)
-#define OP_DO_EXIT_L    BUILTIN_OP(19)
-#define OP_DO_EXIT_M    BUILTIN_OP(20)
-#define OP_DO_EXIT_ML   BUILTIN_OP(21)
+#define OP_DO_DCONSTANT BUILTIN_OP(8)
+#define OP_END_BUILDS   BUILTIN_OP(9)
+#define OP_DONE         BUILTIN_OP(10)
+#define OP_DO_INT       BUILTIN_OP(11)
+#define OP_DO_FLOAT     BUILTIN_OP(12)
+#define OP_DO_DOUBLE    BUILTIN_OP(13)
+#define OP_DO_STRING    BUILTIN_OP(14)
+#define OP_INTO         BUILTIN_OP(15)
+#define OP_DO_DO        BUILTIN_OP(16)
+#define OP_DO_LOOP      BUILTIN_OP(17)
+#define OP_DO_LOOPN     BUILTIN_OP(18)
+#define OP_DO_EXIT      BUILTIN_OP(19)
+#define OP_DO_EXIT_L    BUILTIN_OP(20)
+#define OP_DO_EXIT_M    BUILTIN_OP(21)
+#define OP_DO_EXIT_ML   BUILTIN_OP(22)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct {
@@ -209,5 +214,36 @@ typedef struct _ForthClassDescriptor {
 #define TRACE_INNER_INTERPRETER
 #define TRACE_SHELL
 #define TRACE_VOCABULARY
+
+#ifdef TRACE_PRINTS
+#define SPEW_PRINTS TRACE
+#else
+#define SPEW_PRINTS TRACE
+//#define SPEW_PRINTS(...)
+#endif
+
+#ifdef TRACE_OUTER_INTERPRETER
+#define SPEW_OUTER_INTERPRETER TRACE
+#else
+#define SPEW_OUTER_INTERPRETER(...)
+#endif
+
+#ifdef TRACE_INNER_INTERPRETER
+#define SPEW_INNER_INTERPRETER TRACE
+#else
+#define SPEW_INNER_INTERPRETER(...)
+#endif
+
+#ifdef TRACE_SHELL
+#define SPEW_SHELL TRACE
+#else
+#define SPEW_SHELL(...)
+#endif
+
+#ifdef TRACE_VOCABULARY
+#define SPEW_VOCABULARY TRACE
+#else
+#define SPEW_VOCABULARY(...)
+#endif
 
 #endif

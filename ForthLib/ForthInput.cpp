@@ -84,6 +84,20 @@ ForthInputStack::GetBufferPointer( void )
 }
 
 
+char *
+ForthInputStack::GetBufferBasePointer( void )
+{
+    return (mpHead == NULL) ? NULL : mpHead->GetBufferBasePointer();
+}
+
+
+int
+ForthInputStack::GetBufferLength( void )
+{
+    return (mpHead == NULL) ? 0 : mpHead->GetBufferLength();
+}
+
+
 void
 ForthInputStack::SetBufferPointer( char *pBuff )
 {
@@ -130,17 +144,36 @@ ForthInputStream::GetBufferPointer( void )
 }
 
 
+char *
+ForthInputStream::GetBufferBasePointer( void )
+{
+    return mpBufferBase;
+}
+
+
+int
+ForthInputStream::GetBufferLength( void )
+{
+    return mBufferLen;
+}
+
+
 void
 ForthInputStream::SetBufferPointer( char *pBuff )
 {
     mpBuffer = pBuff;
 }
 
-
+int
+ForthInputStream::GetLineNumber( void )
+{
+    return -1;
+}
 
 ForthFileInputStream::ForthFileInputStream( FILE *pInFile, int bufferLen )
 : ForthInputStream(bufferLen)
 , mpInFile( pInFile )
+, mLineNumber( 0 )
 {
 }
 
@@ -161,9 +194,16 @@ ForthFileInputStream::GetLine( const char *pPrompt )
     pBuffer = fgets( mpBufferBase, mBufferLen, mpInFile );
 
     mpBuffer = mpBufferBase;
+    mLineNumber++;
     return pBuffer;
 }
 
+
+int
+ForthFileInputStream::GetLineNumber( void )
+{
+    return mLineNumber;
+}
 
 ForthConsoleInputStream::ForthConsoleInputStream( int bufferLen )
 : ForthInputStream(bufferLen)

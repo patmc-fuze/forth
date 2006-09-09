@@ -106,12 +106,54 @@ FORTHOP(plusOp)
     g->Push( a + b );
 }
 
+FORTHOP(plus1Op)
+{
+    NEEDS(1);
+    long a = g->Pop();
+    g->Push( a + 1 );
+}
+
+FORTHOP(plus2Op)
+{
+    NEEDS(1);
+    long a = g->Pop();
+    g->Push( a + 2 );
+}
+
+FORTHOP(plus4Op)
+{
+    NEEDS(1);
+    long a = g->Pop();
+    g->Push( a + 4 );
+}
+
 FORTHOP(minusOp)
 {
     NEEDS(2);
     long b = g->Pop();
     long a = g->Pop();
     g->Push( a - b );
+}
+
+FORTHOP(minus1Op)
+{
+    NEEDS(1);
+    long a = g->Pop();
+    g->Push( a - 1 );
+}
+
+FORTHOP(minus2Op)
+{
+    NEEDS(1);
+    long a = g->Pop();
+    g->Push( a - 2 );
+}
+
+FORTHOP(minus4Op)
+{
+    NEEDS(1);
+    long a = g->Pop();
+    g->Push( a - 4 );
 }
 
 FORTHOP(timesOp)
@@ -140,6 +182,20 @@ FORTHOP(divideOp)
     long b = g->Pop();
     long a = g->Pop();
     g->Push( a / b );
+}
+
+FORTHOP(divide2Op)
+{
+    NEEDS(1);
+    long a = g->Pop();
+    g->Push( a >> 1 );
+}
+
+FORTHOP(divide4Op)
+{
+    NEEDS(1);
+    long a = g->Pop();
+    g->Push( a >>2 );
 }
 
 FORTHOP( divmodOp )
@@ -492,8 +548,10 @@ FORTHOP(doOp)
 {
     NEEDS(2);
     ForthEngine *pEngine = g->GetEngine();
+    ForthShellStack *pShellStack = pEngine->GetShell()->GetShellStack();
     // save address for loop/+loop
-    g->Push( (long)pEngine->GetDP() );
+    pShellStack->Push( (long)pEngine->GetDP() );
+    pShellStack->Push( kShellTagDo );
     // this will be fixed by loop/+loop
     pEngine->CompileLong( OP_ABORT );
     pEngine->CompileLong( 0 );
@@ -504,7 +562,13 @@ FORTHOP(loopOp)
 {
     NEEDS(1);
     ForthEngine *pEngine = g->GetEngine();
-    long *pDoOp = (long *) g->Pop();
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    if ( !pShell->CheckSyntaxError( "loop", pShellStack->Pop(), kShellTagDo ) )
+    {
+        return;
+    }
+    long *pDoOp = (long *) pShellStack->Pop();
     *pDoOp++ = OP_DO_DO;
     // compile the "_loop" opcode
     pEngine->CompileLong( OP_DO_LOOP );
@@ -517,7 +581,13 @@ FORTHOP(loopNOp)
 {
     NEEDS(1);
     ForthEngine *pEngine = g->GetEngine();
-    long *pDoOp = (long *) g->Pop();
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    if ( !pShell->CheckSyntaxError( "loop+", pShellStack->Pop(), kShellTagDo ) )
+    {
+        return;
+    }
+    long *pDoOp = (long *) pShellStack->Pop();
     *pDoOp++ = OP_DO_DO;
     // compile the "_loop" opcode
     pEngine->CompileLong( OP_DO_LOOPN );
@@ -617,10 +687,12 @@ FORTHOP( leaveOp )
 FORTHOP( ifOp )
 {
     ForthEngine *pEngine = g->GetEngine();
-    // flag that this is the "if" branch
-    g->Push( 1 );
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
     // save address for else/endif
-    g->Push( (long)pEngine->GetDP() );
+    pShellStack->Push( (long)pEngine->GetDP() );
+    // flag that this is the "if" branch
+    pShellStack->Push( kShellTagIf );
     // this will be fixed by else/endif
     pEngine->CompileLong( OP_ABORT );
 }
@@ -631,12 +703,17 @@ FORTHOP( elseOp )
 {
     NEEDS(2);
     ForthEngine *pEngine = g->GetEngine();
-    long *pIfOp = (long *) g->Pop();
-    // flag that this is the "else" branch
-    g->Pop();
-    g->Push( 0 );
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    if ( !pShell->CheckSyntaxError( "else", pShellStack->Pop(), kShellTagIf ) )
+    {
+        return;
+    }
+    long *pIfOp = (long *) pShellStack->Pop();
     // save address for endif
-    g->Push( (long) pEngine->GetDP() );
+    pShellStack->Push( (long) pEngine->GetDP() );
+    // flag that this is the "else" branch
+    pShellStack->Push( kShellTagElse );
     // this will be fixed by endif
     pEngine->CompileLong( OP_ABORT );
     // fill in the branch taken when "if" arg is false
@@ -648,15 +725,21 @@ FORTHOP( elseOp )
 FORTHOP( endifOp )
 {
     NEEDS(2);
-    long *pOp = (long *) g->Pop();
-    if ( g->Pop() ) {
-        // if branch
-        // fill in the branch taken when "if" arg is false
-        *pOp = COMPILED_OP( kOpBranchZ, (g->GetEngine()->GetDP() - pOp) - 1 );
-    } else {
+    ForthEngine *pEngine = g->GetEngine();
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    long tag = pShellStack->Pop();
+    long *pOp = (long *) pShellStack->Pop();
+    if ( tag == kShellTagElse ) {
         // else branch
         // fill in the branch at end of path taken when "if" arg is true
         *pOp = COMPILED_OP( kOpBranch, (g->GetEngine()->GetDP() - pOp) - 1 );
+    }
+    else if ( pShell->CheckSyntaxError( "endif", tag, kShellTagIf ) )
+    {
+        // if branch
+        // fill in the branch taken when "if" arg is false
+        *pOp = COMPILED_OP( kOpBranchZ, (g->GetEngine()->GetDP() - pOp) - 1 );
     }
 }
 
@@ -665,7 +748,12 @@ FORTHOP( endifOp )
 // begin - has precedence
 FORTHOP( beginOp )
 {
-    g->Push( (long) g->GetEngine()->GetDP() );
+    ForthEngine *pEngine = g->GetEngine();
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    // save address for repeat/until/again
+    pShellStack->Push( (long)pEngine->GetDP() );
+    pShellStack->Push( kShellTagBegin );
 }
 
 
@@ -674,7 +762,13 @@ FORTHOP( untilOp )
 {
     NEEDS(1);
     ForthEngine *pEngine = g->GetEngine();
-    long *pBeginOp =  (long *) g->Pop();
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    if ( !pShell->CheckSyntaxError( "until", pShellStack->Pop(), kShellTagBegin ) )
+    {
+        return;
+    }
+    long *pBeginOp =  (long *) pShellStack->Pop();
     pEngine->CompileLong( COMPILED_OP( kOpBranchZ, (pBeginOp - pEngine->GetDP()) - 1 ) );
 }
 
@@ -685,9 +779,14 @@ FORTHOP( whileOp )
 {
     NEEDS(1);
     ForthEngine *pEngine = g->GetEngine();
-    long tmp = g->Pop();
-    g->Push( (long) pEngine->GetDP() );
-    g->Push( tmp );
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    if ( !pShell->CheckSyntaxError( "while", pShellStack->Pop(), kShellTagBegin ) )
+    {
+        return;
+    }
+    pShellStack->Push( (long) pEngine->GetDP() );
+    pShellStack->Push( kShellTagWhile );
     // repeat will fill this in
     pEngine->CompileLong( OP_ABORT );
 }
@@ -698,12 +797,18 @@ FORTHOP( repeatOp )
 {
     NEEDS(2);
     ForthEngine *pEngine = g->GetEngine();
-    // get address of "begin"
-    long *pOp =  (long *) g->Pop();
-    pEngine->CompileLong( COMPILED_OP( kOpBranch, (pOp - pEngine->GetDP()) - 1 ) );
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    if ( !pShell->CheckSyntaxError( "repeat", pShellStack->Pop(), kShellTagWhile ) )
+    {
+        return;
+    }
     // get address of "while"
-    pOp =  (long *) g->Pop();
-    *pOp = COMPILED_OP( kOpBranchZ, (pEngine->GetDP() - pOp) - 1 );
+    long *pOp =  (long *) pShellStack->Pop();
+    *pOp = COMPILED_OP( kOpBranchZ, (pEngine->GetDP() - pOp) );
+    // get address of "begin"
+    pOp =  (long *) pShellStack->Pop();
+    pEngine->CompileLong( COMPILED_OP( kOpBranch, (pOp - pEngine->GetDP()) - 1 ) );
 }
 
 // again - has precedence
@@ -711,7 +816,13 @@ FORTHOP( againOp )
 {
     NEEDS(1);
     ForthEngine *pEngine = g->GetEngine();
-    long *pBeginOp =  (long *) g->Pop();
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    if ( !pShell->CheckSyntaxError( "again", pShellStack->Pop(), kShellTagBegin ) )
+    {
+        return;
+    }
+    long *pBeginOp =  (long *) pShellStack->Pop();
     pEngine->CompileLong( COMPILED_OP( kOpBranch, (pBeginOp - pEngine->GetDP()) - 1 ) );
 }
 
@@ -719,7 +830,11 @@ FORTHOP( againOp )
 FORTHOP( caseOp )
 {
     // leave marker for end of list of case-exit branches for endcase
-    g->Push( 0 );
+   ForthEngine *pEngine = g->GetEngine();
+   ForthShell *pShell = pEngine->GetShell();
+   ForthShellStack *pShellStack = pShell->GetShellStack();
+   pShellStack->Push( 0 );
+   pShellStack->Push( kShellTagCase );
 }
 
 
@@ -727,9 +842,16 @@ FORTHOP( caseOp )
 FORTHOP( ofOp )
 {
     ForthEngine *pEngine = g->GetEngine();
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    if ( !pShell->CheckSyntaxError( "of", pShellStack->Pop(), kShellTagCase ) )
+    {
+        return;
+    }
 
     // save address for endof
-    g->Push( (long)pEngine->GetDP() );
+    pShellStack->Push( (long)pEngine->GetDP() );
+    pShellStack->Push( kShellTagCase );
     // this will be set to a caseBranch by endof
     pEngine->CompileLong( OP_ABORT );
 }
@@ -740,17 +862,24 @@ FORTHOP( endofOp )
 {
     NEEDS(1);
     ForthEngine *pEngine = g->GetEngine();
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
     long *pDP = pEngine->GetDP();
 
     // this will be fixed by endcase
     pEngine->CompileLong( OP_ABORT );
 
-    long *pOfOp = (long *) g->Pop();
+    if ( !pShell->CheckSyntaxError( "endof", pShellStack->Pop(), kShellTagCase ) )
+    {
+        return;
+    }
+    long *pOfOp = (long *) pShellStack->Pop();
     // fill in the branch taken when case doesn't match
     *pOfOp = COMPILED_OP( kOpCaseBranch, (pEngine->GetDP() - pOfOp) - 1 );
 
     // save address for endcase
-    g->Push( (long) pDP );
+    pShellStack->Push( (long) pDP );
+    pShellStack->Push( kShellTagCase );
 }
 
 // endcase - has precedence
@@ -760,13 +889,20 @@ FORTHOP( endcaseOp )
     long *pEndofOp;
 
     ForthEngine *pEngine = g->GetEngine();
-    if ( ((pEngine->GetDP()) - (long *)(*pSP)) == 1 ) {
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    if ( !pShell->CheckSyntaxError( "endcase", pShellStack->Pop(), kShellTagCase ) )
+    {
+        return;
+    }
+
+    if ( ((pEngine->GetDP()) - (long *)(pShellStack->Peek())) == 1 ) {
         // there is no default case, we must compile a "drop" to
         //   dispose of the case selector on TOS
         pEngine->CompileLong( OP_DROP );
     }
     // patch branches from end-of-case to common exit point
-    while ( (pEndofOp = (long *) (*pSP++)) != NULL ) {
+    while ( (pEndofOp = (long *) (pShellStack->Pop())) != NULL ) {
         *pEndofOp = COMPILED_OP( kOpBranch, (g->GetEngine()->GetDP() - pEndofOp) - 1 );
     }
     g->SetSP( pSP );
@@ -865,6 +1001,18 @@ FORTHOP(equalsOp)
     }
 }
 
+FORTHOP(notEqualsOp)
+{
+    NEEDS(2);
+    long b = g->Pop();
+    long a = g->Pop();
+    if ( a != b ) {
+        g->Push( -1L );
+    } else {
+        g->Push( 0 );
+    }
+}
+
 FORTHOP(greaterThanOp)
 {
     NEEDS(2);
@@ -918,6 +1066,17 @@ FORTHOP(equalsZeroOp)
     NEEDS(1);
     long a = g->Pop();
     if ( a == 0 ) {
+        g->Push( -1L );
+    } else {
+        g->Push( 0 );
+    }
+}
+
+FORTHOP(notEqualsZeroOp)
+{
+    NEEDS(1);
+    long a = g->Pop();
+    if ( a != 0 ) {
         g->Push( -1L );
     } else {
         g->Push( 0 );
@@ -1145,7 +1304,7 @@ FORTHOP(cfetchOp)
 {
     NEEDS(1);
     char *pA = (char *) (g->Pop());
-    g->Push( *pA );
+    g->Push( (*pA) & 0xFF );
 }
 
 FORTHOP(wstoreOp)
@@ -1321,6 +1480,12 @@ FORTHOP( doesOp )
     pEngine->EndOpDefinition();
 }
 
+extern char *newestSymbol;
+FORTHOP( newestSymbolOp )
+{
+    g->Push( (long) g->GetEngine()->GetDefinitionVocabulary()->NewestSymbol() );
+}
+
 // endBuilds
 // - does not have precedence
 // - is executed while executing the defining word
@@ -1456,6 +1621,21 @@ FORTHOP( doConstantOp )
 {
     // IP points to data field
     g->Push( *g->GetIP() );
+    g->SetIP( (long *) (g->RPop()) );
+}
+
+FORTHOP( dconstantOp )
+{
+    ForthEngine *pEngine = g->GetEngine();
+    pEngine->StartOpDefinition();
+    pEngine->CompileLong( OP_DO_DCONSTANT );
+    pEngine->CompileDouble( g->DPop() );
+}
+
+FORTHOP( doDConstantOp )
+{
+    // IP points to data field
+    g->DPush( *((double *) (g->GetIP())) );
     g->SetIP( (long *) (g->RPop()) );
 }
 
@@ -2309,7 +2489,7 @@ printNumInCurrentBase( ForthThread *    g,
         }
     }
 #ifdef TRACE_PRINTS
-    TRACE( "printed %s\n", pNext );
+    SPEW_PRINTS( "printed %s\n", pNext );
 #endif
 
     stringOut( g, pNext );
@@ -2329,7 +2509,7 @@ FORTHOP( printNumDecimalOp )
     long val = g->Pop();
     sprintf( buff, "%d", val );
 #ifdef TRACE_PRINTS
-    TRACE( "printed %s\n", buff );
+    SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
     stringOut( g, buff );
@@ -2343,7 +2523,7 @@ FORTHOP( printNumHexOp )
     long val = g->Pop();
     sprintf( buff, "%x", val );
 #ifdef TRACE_PRINTS
-    TRACE( "printed %s\n", buff );
+    SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
     stringOut( g, buff );
@@ -2357,7 +2537,7 @@ FORTHOP( printFloatOp )
     float fval = g->FPop();
     sprintf( buff, "%f", fval );
 #ifdef TRACE_PRINTS
-    TRACE( "printed %s\n", buff );
+    SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
     stringOut( g, buff );
@@ -2371,7 +2551,22 @@ FORTHOP( printDoubleOp )
 
     sprintf( buff, "%f", dval );
 #ifdef TRACE_PRINTS
-    TRACE( "printed %s\n", buff );
+    SPEW_PRINTS( "printed %s\n", buff );
+#endif
+
+    stringOut( g, buff );
+}
+
+FORTHOP( printFormattedOp )
+{
+    NEEDS(2);
+    char buff[80];
+
+    char* pFmt = (char *) (g->Pop());
+    long val = g->Pop();
+    sprintf( buff, pFmt, val );
+#ifdef TRACE_PRINTS
+    SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
     stringOut( g, buff );
@@ -2382,7 +2577,7 @@ FORTHOP( printStrOp )
     NEEDS(1);
     char *buff = (char *) g->Pop();
 #ifdef TRACE_PRINTS
-    TRACE( "printed %s\n", buff );
+    SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
     stringOut( g, buff );
@@ -2394,7 +2589,7 @@ FORTHOP( printCharOp )
     char buff[4];
     char c = (char) g->Pop();
 #ifdef TRACE_PRINTS
-    TRACE( "printed %c\n", c );
+    SPEW_PRINTS( "printed %c\n", c );
 #endif
 
     FILE *pOutFile = g->GetConOutFile();
@@ -2674,6 +2869,185 @@ FORTHOP( vlistOp )
 }
 
 
+FORTHOP( loadLibraryOp )
+{
+    NEEDS( 1 );
+    char* pDLLName = (char *) g->Pop();
+    HINSTANCE hDLL = LoadLibrary( pDLLName );
+    g->Push( (long) hDLL );
+}
+
+FORTHOP( freeLibraryOp )
+{
+    NEEDS( 1 );
+    HINSTANCE hDLL = (HINSTANCE) g->Pop();
+    FreeLibrary( hDLL );
+}
+
+FORTHOP( getProcAddressOp )
+{
+    NEEDS( 2 );
+    char* pProcName = (char *) g->Pop();
+    HINSTANCE hDLL = (HINSTANCE) g->Pop();
+    long pFunc = (long) GetProcAddress( hDLL, pProcName );
+
+    g->Push( pFunc );
+}
+
+typedef long (*proc0Args)();
+typedef long (*proc1Args)( long arg1 );
+typedef long (*proc2Args)( long arg1, long arg2 );
+typedef long (*proc3Args)( long arg1, long arg2, long arg3 );
+typedef long (*proc4Args)( long arg1, long arg2, long arg3, long arg4 );
+typedef long (*proc5Args)( long arg1, long arg2, long arg3, long arg4, long arg5 );
+typedef long (*proc6Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6 );
+typedef long (*proc7Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7 );
+typedef long (*proc8Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7, long arg8 );
+
+FORTHOP( callProc0Op )
+{
+    NEEDS( 1 );
+    proc0Args pFunc = (proc0Args) g->Pop();
+    g->Push( pFunc() );
+}
+
+FORTHOP( callProc1Op )
+{
+    NEEDS( 1 );
+    proc1Args pFunc = (proc1Args) g->Pop();
+    long a1 = g->Pop();
+    g->Push( pFunc( a1 ) );
+}
+
+FORTHOP( callProc2Op )
+{
+    NEEDS( 2 );
+    proc2Args pFunc = (proc2Args) g->Pop();
+    long a2 = g->Pop();
+    long a1 = g->Pop();
+    g->Push( pFunc( a1, a2 ) );
+}
+
+FORTHOP( callProc3Op )
+{
+    NEEDS( 3 );
+    proc3Args pFunc = (proc3Args) g->Pop();
+    long a3 = g->Pop();
+    long a2 = g->Pop();
+    long a1 = g->Pop();
+    g->Push( pFunc( a1, a2, a3 ) );
+}
+
+FORTHOP( callProc4Op )
+{
+    NEEDS( 4 );
+    proc4Args pFunc = (proc4Args) g->Pop();
+    long a4 = g->Pop();
+    long a3 = g->Pop();
+    long a2 = g->Pop();
+    long a1 = g->Pop();
+    g->Push( pFunc( a1, a2, a3, a4 ) );
+}
+
+FORTHOP( callProc5Op )
+{
+    NEEDS( 5 );
+    proc5Args pFunc = (proc5Args) g->Pop();
+    long a5 = g->Pop();
+    long a4 = g->Pop();
+    long a3 = g->Pop();
+    long a2 = g->Pop();
+    long a1 = g->Pop();
+    g->Push( pFunc( a1, a2, a3, a4, a5 ) );
+}
+
+FORTHOP( callProc6Op )
+{
+    NEEDS( 6 );
+    proc6Args pFunc = (proc6Args) g->Pop();
+    long a6 = g->Pop();
+    long a5 = g->Pop();
+    long a4 = g->Pop();
+    long a3 = g->Pop();
+    long a2 = g->Pop();
+    long a1 = g->Pop();
+    g->Push( pFunc( a1, a2, a3, a4, a5, a6 ) );
+}
+
+FORTHOP( callProc7Op )
+{
+    NEEDS( 7 );
+    proc7Args pFunc = (proc7Args) g->Pop();
+    long a7 = g->Pop();
+    long a6 = g->Pop();
+    long a5 = g->Pop();
+    long a4 = g->Pop();
+    long a3 = g->Pop();
+    long a2 = g->Pop();
+    long a1 = g->Pop();
+    g->Push( pFunc( a1, a2, a3, a4, a5, a6, a7 ) );
+}
+
+FORTHOP( callProc8Op )
+{
+    NEEDS( 8 );
+    proc8Args pFunc = (proc8Args) g->Pop();
+    long a8 = g->Pop();
+    long a7 = g->Pop();
+    long a6 = g->Pop();
+    long a5 = g->Pop();
+    long a4 = g->Pop();
+    long a3 = g->Pop();
+    long a2 = g->Pop();
+    long a1 = g->Pop();
+    g->Push( pFunc( a1, a2, a3, a4, a5, a6, a7, a8 ) );
+}
+
+FORTHOP( blwordOp )
+{
+    NEEDS( 0 );
+    ForthShell *pShell = g->GetEngine()->GetShell();
+    g->Push( (long) (pShell->GetNextSimpleToken()) );
+}
+
+FORTHOP( wordOp )
+{
+    NEEDS( 1 );
+    ForthShell *pShell = g->GetEngine()->GetShell();
+    char delim = (char) (g->Pop());
+    g->Push( (long) (pShell->GetToken( delim )) );
+}
+
+FORTHOP( getInBufferBaseOp )
+{
+    ForthInputStack* pInput = g->GetEngine()->GetShell()->GetInput();
+    g->Push( (long) (pInput->GetBufferBasePointer()) );
+}
+
+FORTHOP( getInBufferPointerOp )
+{
+    ForthInputStack* pInput = g->GetEngine()->GetShell()->GetInput();
+    g->Push( (long) (pInput->GetBufferPointer()) );
+}
+
+FORTHOP( setInBufferPointerOp )
+{
+    ForthInputStack* pInput = g->GetEngine()->GetShell()->GetInput();
+    pInput->SetBufferPointer( (char *) (g->Pop()) );
+}
+
+FORTHOP( getInBufferLengthOp )
+{
+    ForthInputStack* pInput = g->GetEngine()->GetShell()->GetInput();
+    g->Push( (long) (pInput->GetBufferLength()) );
+}
+
+FORTHOP( fillInBufferOp )
+{
+    ForthInputStack* pInput = g->GetEngine()->GetShell()->GetInput();
+    g->Push( (long) (pInput->GetLine( (char *) (g->Pop()) )) );
+}
+
 #define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func, 0 }
 
 // ops which have precedence (execute at compile time)
@@ -2695,6 +3069,7 @@ baseDictEntry baseDict[] = {
     OP(     dlitOp,                 "dlit" ),
     OP(     doVariableOp,           "_doVariable" ),
     OP(     doConstantOp,           "_doConstant" ),
+    OP(     doDConstantOp,          "_doDConstant" ),
     OP(     endBuildsOp,            "_endBuilds" ),
     OP(     doneOp,                 "done" ),
     OP(     doIntOp,                "_doInt" ),
@@ -2716,11 +3091,19 @@ baseDictEntry baseDict[] = {
     //  integer math
     ///////////////////////////////////////////
     OP(     plusOp,                 "+" ),
+    OP(     plus1Op,                "1+" ),
+    OP(     plus2Op,                "2+" ),
+    OP(     plus4Op,                "4+" ),
     OP(     minusOp,                "-" ),
+    OP(     minus1Op,               "1-" ),
+    OP(     minus2Op,               "2-" ),
+    OP(     minus4Op,               "4-" ),
     OP(     timesOp,                "*" ),
     OP(     times2Op,               "2*" ),
     OP(     times4Op,               "4*" ),
     OP(     divideOp,               "/" ),
+    OP(     divide2Op,              "2/" ),
+    OP(     divide4Op,              "4/" ),
     OP(     divmodOp,               "/mod" ),
     OP(     modOp,                  "mod" ),
     OP(     negateOp,               "negate" ),
@@ -2822,15 +3205,17 @@ baseDictEntry baseDict[] = {
     //  integer comparisons
     ///////////////////////////////////////////
     OP(     equalsOp,               "==" ),
+    OP(     notEqualsOp,            "!=" ),
     OP(     greaterThanOp,          ">" ),
     OP(     greaterEqualsOp,        ">=" ),
     OP(     lessThanOp,             "<" ),
     OP(     lessEqualsOp,           "<=" ),
-    OP(     equalsZeroOp,           "==0" ),
-    OP(     greaterThanZeroOp,      ">0" ),
-    OP(     greaterEqualsZeroOp,    ">=0" ),
-    OP(     lessThanZeroOp,         "<0" ),
-    OP(     lessEqualsZeroOp,       "<=0" ),
+    OP(     equalsZeroOp,           "0==" ),
+    OP(     notEqualsZeroOp,        "0!=" ),
+    OP(     greaterThanZeroOp,      "0>" ),
+    OP(     greaterEqualsZeroOp,    "0>=" ),
+    OP(     lessThanZeroOp,         "0<" ),
+    OP(     lessEqualsZeroOp,       "0<=" ),
     
     ///////////////////////////////////////////
     //  stack manipulation
@@ -2890,6 +3275,7 @@ baseDictEntry baseDict[] = {
     ///////////////////////////////////////////
     OP(     buildsOp,               "builds" ),
     PRECOP( doesOp,                 "does" ),
+    OP(     newestSymbolOp,         "newestSymbol" ),
     PRECOP( exitOp,                 "exit" ),
     PRECOP( semiOp,                 ";" ),
     OP(     colonOp,                ":" ),
@@ -2897,6 +3283,7 @@ baseDictEntry baseDict[] = {
     OP(     forgetOp,               "forget" ),
     OP(     variableOp,             "variable" ),
     OP(     constantOp,             "constant" ),
+    OP(     dconstantOp,            "dconstant" ),
     PRECOP( varsOp,                 "vars" ),
     PRECOP( endvarsOp,              "endvars" ),
     OP(     intOp,                  "int" ),
@@ -2928,6 +3315,7 @@ baseDictEntry baseDict[] = {
     OP(     printNewlineOp,         "%nl" ),
     OP(     printFloatOp,           "%f" ),
     OP(     printDoubleOp,          "%g" ),
+    OP(     printFormattedOp,        "%fmt" ),
     OP(     baseOp,                 "base" ),
     OP(     decimalOp,              "decimal" ),
     OP(     hexOp,                  "hex" ),
@@ -2963,6 +3351,33 @@ baseDictEntry baseDict[] = {
     OP(     byeOp,                  "bye" ),
     OP(     argvOp,                 "argv" ),
     OP(     argcOp,                 "argc" ),
+
+    ///////////////////////////////////////////
+    //  DLL support words
+    ///////////////////////////////////////////
+    OP(     loadLibraryOp,          "loadLibrary" ),
+    OP(     freeLibraryOp,          "freeLibrary" ),
+    OP(     getProcAddressOp,       "getProcAddress" ),
+    OP(     callProc0Op,            "callProc0" ),
+    OP(     callProc1Op,            "callProc1" ),
+    OP(     callProc2Op,            "callProc2" ),
+    OP(     callProc3Op,            "callProc3" ),
+    OP(     callProc4Op,            "callProc4" ),
+    OP(     callProc5Op,            "callProc5" ),
+    OP(     callProc6Op,            "callProc6" ),
+    OP(     callProc7Op,            "callProc7" ),
+    OP(     callProc8Op,            "callProc8" ),
+
+    ///////////////////////////////////////////
+    //  input buffer words
+    ///////////////////////////////////////////
+    OP(     blwordOp,               "blword"    ),
+    OP(     wordOp,                 "word"      ),
+    OP(     getInBufferBaseOp,      "getInBufferBase" ),
+    OP(     getInBufferPointerOp,   "getInBufferPointer" ),
+    OP(     setInBufferPointerOp,   "setInBufferPointer" ),
+    OP(     getInBufferLengthOp,    "getInBufferLength" ),
+    OP(     fillInBufferOp,         "fillInBuffer" ),
 
     // following must be last in table
     OP(     NULL,                   "" )

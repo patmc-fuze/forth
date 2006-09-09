@@ -76,8 +76,8 @@ public:
 
     inline ForthEngine *GetEngine( void ) { return mpEngine; };
     
-    inline void         SetError( eForthError e ) { mState = kResultError; mError = e; };
-    inline void         SetFatalError( eForthError e ) { mState = kResultFatalError; mError = e; };
+    void                SetError( eForthError e, const char *pString = NULL );
+    void                SetFatalError( eForthError e, const char *pString = NULL );
     inline eForthError  GetError( void ) { return mError; };
 
     inline void         SetState( eForthResult s ) { mState = s; };
@@ -122,6 +122,7 @@ protected:
 
     eForthError         mError;
     eForthResult        mState;     // inner loop state - ok/done/error
+    const char *        mpErrorString;  // optional error information from shell
 
     FILE                *mpConOutFile;
     char                *mpConOutStr;

@@ -116,6 +116,11 @@ public:
         return mpChainNext;
     };
 
+    inline char *NewestSymbol( void ) {
+        return &(mNewestSymbol[0]);
+    };
+
+
 private:
 
     static ForthVocabulary *mpChainHead;
@@ -130,6 +135,7 @@ private:
     long                *mpNewestSymbol;
     char                *mpName;
     int                 mValueLongs;
+    char                mNewestSymbol[ 256 ];
 };
 
 class ForthLocalVarVocabulary : public ForthVocabulary

@@ -134,6 +134,10 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
     if ( nameLen > 255 ) {
         nameLen = 255;
     }
+    else
+    {
+        strcpy( mNewestSymbol, pSymName );
+    }
 
     symSize = mValueLongs + ( ((nameLen + 4) & ~3) >> 2 );
     pBase = mpStorageBottom - symSize;
@@ -142,7 +146,7 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
         // new symbol wont fit, increase storage size
         //
         newLen = mStorageLongs + VOCAB_EXPANSION_INCREMENT;
-        TRACE( "Increasing %s vocabulary size to %d longs\n", GetName(), newLen );
+        SPEW_VOCABULARY( "Increasing %s vocabulary size to %d longs\n", GetName(), newLen );
         pBase = new long[newLen];
         pSrc = mpStorageBase + mStorageLongs;
         pDst = pBase + newLen;
@@ -164,10 +168,8 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
         symValue = mpEngine->AddOp( (long *) symValue );
     }
     
-#ifdef TRACE_VOCABULARY
-    TRACE( "Adding symbol %s type %d value 0x%x to %s\n",
+    SPEW_VOCABULARY( "Adding symbol %s type %d value 0x%x to %s\n",
         pSymName, (int) symType, symValue, GetName() );
-#endif
 
     mpStorageBottom = pBase;
     symValue += ((int) symType << 24);

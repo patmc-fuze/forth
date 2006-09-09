@@ -1,0 +1,88 @@
+forget tools_module
+
+: tools_module ;
+
+: ds dstack ;
+
+: dir "dir" system ;
+
+int dumpWidth
+16 -> dumpWidth
+
+// ADDR LEN OFFSET _dump
+: _dump
+  vars
+    int addr
+    int len
+    int offset
+    int columns
+    int endAddr
+    int ch
+  endvars
+  -> offset -> len -> addr
+  addr len + -> endAddr
+  begin
+    addr endAddr <
+  while
+    addr offset - "%08x" %fmt "   " %s
+    len dumpWidth >
+    if
+      dumpWidth -> columns
+    else
+      len -> columns
+    endif
+    columns 0 do
+      addr i + c@ "%02x " %fmt
+    loop
+    "    " %s
+    // why do we have to add 1 to dumpWidth here?
+    dumpWidth 1+ columns - 0 do %bl %bl %bl loop
+    columns 0 do
+      addr i + c@ -> ch
+      ch ' ' >  ch 127 < and if
+        ch
+      else
+        '.'
+      endif
+      %c
+    loop
+    columns ->+ addr
+    columns ->- len
+    %nl
+  repeat
+;
+
+// addr len dump
+: dump
+  0 _dump
+;
+
+// FILENAME OFFSET LEN fdump
+: fdump
+  vars
+    int len
+    int offset
+    int infile
+    int buff
+  endvars
+  -> len -> offset
+  "rb" fopen -> infile
+  infile 0== if
+    "open failure" %s %nl
+    exit
+  endif
+  len malloc -> buff
+  infile offset 0 fseek
+  0 != if
+    "fdump fseek failure" %nl exit
+  endif
+  buff len 1 infile fread
+  0== if
+    "fdump read failure" %nl
+  else
+    buff len buff _dump
+  endif
+  infile fclose drop
+  buff free
+;
+

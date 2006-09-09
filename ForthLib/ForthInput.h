@@ -21,9 +21,11 @@ public:
 
     virtual char    *GetLine( const char *pPrompt ) = 0;
     virtual char    *GetBufferPointer( void );
+    virtual char    *GetBufferBasePointer( void );
+    virtual int     GetBufferLength( void );
     virtual void    SetBufferPointer( char *pBuff );
     virtual bool    IsInteractive( void ) = 0;
-
+    virtual int     GetLineNumber( void );
     friend ForthInputStack;
 
 protected:
@@ -42,8 +44,10 @@ public:
 
     virtual char    *GetLine( const char *pPrompt );
     virtual bool    IsInteractive( void ) { return false; };
+    virtual int     GetLineNumber( void );
 protected:
     FILE        *mpInFile;
+    int         mLineNumber;
 };
 
 
@@ -86,6 +90,8 @@ public:
     inline ForthInputStream *InputStream( void ) { return mpHead; };
 
     char                    *GetBufferPointer( void );
+    char                    *GetBufferBasePointer( void );
+    int                     GetBufferLength( void );
     void                    SetBufferPointer( char *pBuff );
 
 protected:

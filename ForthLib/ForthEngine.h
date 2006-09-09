@@ -104,6 +104,7 @@ public:
     inline long *           GetDP() { return mpDP; };
     inline void             SetDP( long *pNewDP ) { mpDP = pNewDP; };
     inline void             CompileLong( long v ) { *mpDP++ = v; };
+    inline void             CompileDouble( long v ) { *((double *) mpDP) = v; mpDP += 2; };
     inline void             AllotLongs( int n ) { mpDP += n; };
     inline void             AlignDP( void ) { mpDP = (long *)(( ((int)mpDP) + 3 ) & ~3); };
     inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpSearchVocab; };

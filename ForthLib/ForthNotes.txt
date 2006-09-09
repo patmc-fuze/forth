@@ -39,6 +39,98 @@ ForthParseInfo
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+TBDs:
+
+- vocabulary support
+- structure support
+- windows support
+  - gui stuff
+  - graphics
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+Structure Support
+
+Cases to consider:
+
+1) struct is pointed to by TOS
+2) struct is local var
+3) struct is global var
+4) struct is object member
+5) struct is struct member
+6) struct member is an array
+7) struct member is an object
+
+--------------------------
+The easiest way to implement structures is:
+
+a) all read/write to struct elements is done via pointer ops (@ ! c@ c! ...)
+b) structures are always represented by a pointer on TOS
+c) structure member ops just add in offsets to pointer on TOS
+
+Positives/negatives:
++ this is the most general way to do this
+- this can be very inefficient (lots of ops with little computing & much overhead per op)
++ this is very easy to implement
++ this is the way it has been done in many previous versions of forth
+- this can be a pain to program in (lots of ops, easy to make a mistake)
+? does this pose problems for object support?
+- doesn't solve name collisions between members in different structs
+--------------------------
+Another way to implement structures is:
+
+a) read/write to struct elements is done like local vars, use "->" to indicate writing, else reading
+b) compound symbols are used to specify the structure instance and member (struct.member)
+
+Positives/negatives:
++ should make the code look neater
++ some errors can be caught at interpret time (using member accessor on wrong type of struct)
++ allows disambiguation of member names by struct type (several structs could have members "x" or "index" for example)
++ potentially more efficient code
+- much more work to implement
+- very different from normal forth approach
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 5, 2006
+
++ added input buffer processing ops word/blword/fillInBuffer...
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 2, 2006
+
++ added support for loading DLLs and accessing procedures in DLLs
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 30, 2006
+
++ fixed a bug with parenthesized expressions - the token length byte wasn't
+  being set in a few places, so tokens coming off the shell stack disappeared
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 17, 2006
+
+- definition of an interface
+- definition of a structure
+- definition of a class
+- representation of an object on stack
+- method invocation
+- local objects
+  - automatic constructor/destructor
+- global objects
+- objects as members of other objects
+- constructors
+- class static data members
+- arrays of objects
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 3, 2006
+
++ added shell stack
++ converted control structures to use control stack
++ added parenthisized expressions using control stack
++ added better error messages for control structure syntax errors
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 12, 2005
 
 I haven't done much with this project in a while.
@@ -305,7 +397,7 @@ endclass
 
 ? is there a vocabulary of classes?  think of CLASS_NAME.new
 ? what other methods on class objects are there?
-? when you see OBJ_NAME.METHOD, who do you find the right class vocabulary to
+? when you see OBJ_NAME.METHOD, how do you find the right class vocabulary to
   lookup METHOD in, using OBJ_NAME?
   -> when A.B token is seen, assume A is an object instance, lookup its opValue
      in symbol table, lookup in opTable to find
