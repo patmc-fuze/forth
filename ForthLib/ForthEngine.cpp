@@ -93,9 +93,9 @@ ForthEngine::Initialize( int                totalLongs,
     mpDBase = new long[totalLongs];
     mpDP = mpDBase;
 
-    mpMainVocab = new ForthVocabulary( this, "base_ops" );
+    mpMainVocab = new ForthVocabulary( this, "forth" );
     mpLocalVocab = new ForthVocabulary( this, "local_vars" );
-    mpPrecedenceVocab = new ForthVocabulary( this, "precedence_ops" );
+    mpPrecedenceVocab = new ForthPrecedenceVocabulary( this, "precedence_ops" );
 
     mpStringBufferA = new char[256 * NUM_INTERP_STRINGS];
     mpStringBufferB = new char[256];
@@ -216,8 +216,8 @@ ForthEngine::ForgetSymbol( const char *pSym )
 {
     void *pEntry = NULL;
     ForthVocabulary *pFoundVocab = NULL;
-    ForthVocabulary *pNextVocab;
     long op;
+    forthOpType opType;
 
     if ( (pEntry = mpSearchVocab->FindSymbol( pSym )) != NULL ) {
         pFoundVocab = mpSearchVocab;
@@ -227,17 +227,22 @@ ForthEngine::ForgetSymbol( const char *pSym )
 
     if ( pFoundVocab != NULL ) {
         op = ForthVocabulary::GetEntryValue( pEntry );
-        ForgetOp( op );
-        // forget the symbol in its home vocabulary
-        pFoundVocab->ForgetSymbol( pSym );
-        // now forget all ops which are newer than symbol in ALL vocabs
-        pNextVocab = ForthVocabulary::GetVocabularyChainHead();
-        while ( pNextVocab != NULL ) {
-            if ( pNextVocab != pFoundVocab ) {
-                pNextVocab->ForgetOp( op );
-            }
-            pNextVocab = pNextVocab->GetNextChainVocabulary();
+        opType = ForthVocabulary::GetEntryType( pEntry );
+        if ( opType == kOpBuiltIn ) {
+            // sym is unknown, or in built-in ops - no way
+            TRACE( "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
+            printf( "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
         }
+        else
+        {
+           ForgetOp( op );
+           ForthForgettable::ForgetPropagate( mpDP, op );
+        }
+    }
+    else
+    {
+        TRACE( "Error - attempt to forget unknown op %s from %s\n", pSym, mpSearchVocab->GetName() );
+        printf( "Error - attempt to forget unknown op %s from %s\n", pSym, mpSearchVocab->GetName() );
     }
 }
 
@@ -589,6 +594,18 @@ ForthEngine::ScanIntegerToken( const char   *pToken,
     return true;
 }
 
+
+// compile an opcode
+// remember the last opcode compiled so someday we can do optimizations
+//   like combining "->" followed by a local var name into one opcode
+void
+ForthEngine::CompileOpcode( long op )
+{
+    mLastCompiledOpcode = op;
+    *mpDP++ = op;
+}
+
+
 //############################################################################
 //
 //          O U T E R    I N T E R P R E T E R  (sort of)
@@ -606,7 +623,6 @@ ForthEngine::ProcessToken( ForthThread    *g,
     float fvalue;
     char *pToken = pInfo->GetToken();
     int len = pInfo->GetTokenLength();
-    forthOpType opType;
     bool isAString = (pInfo->GetFlags() & PARSE_FLAG_QUOTED_STRING) != 0;
 
     mpLastToken = pToken;
@@ -685,102 +701,89 @@ ForthEngine::ProcessToken( ForthThread    *g,
             return kResultOk;
         }
     }
-    
-    if ( (pSymbol = (long *) mpPrecedenceVocab->FindSymbol( pInfo )) != NULL ) {
+
+    if ( mpPrecedenceVocab->ProcessSymbol( pInfo, g, exitStatus ) != NULL )
+    {
         ////////////////////////////////////
         //
         // symbol is a forth op with precedence
         //
         ////////////////////////////////////
         SPEW_OUTER_INTERPRETER( "Precedence Op\n" );
-        // the symbol is in the vocabulary
-        opType = ForthVocabulary::GetEntryType( pSymbol );
-        // execute the opcode
-        exitStatus = g->ExecuteOneOp( *pSymbol );
-        if ( exitStatus == kResultDone ) {
-            exitStatus = kResultOk;
+        return exitStatus;
+    }
+    else
+    {
+        ForthVocabulary* pVocab = mpSearchVocab;
+        while ( pVocab != NULL )
+        {
+            if ( pVocab->ProcessSymbol( pInfo, g, exitStatus ) )
+            {
+                ////////////////////////////////////
+                //
+                // symbol is a forth op
+                //
+                ////////////////////////////////////
+                SPEW_OUTER_INTERPRETER( "Op in vocab %s\n", pVocab->GetName() );
+                return exitStatus;
+            }
+            pVocab = pVocab->GetNextSearchVocabulary();
         }
 
-    } else if ( (pSymbol = (long *) mpSearchVocab->FindSymbol( pInfo )) != NULL ) {
+    }
+
+    // try to convert to a number
+    // if there is a period in string
+    //    try to covert to a floating point number
+    // else
+    //    try to convert to an integer
+
+    if ( (strchr( pToken, '.' ) != NULL)
+        && (sscanf( pToken, "%f", &fvalue ) == 1) ) {
 
         ////////////////////////////////////
         //
-        // symbol is a forth op
+        // symbol is a single precision fp literal
         //
         ////////////////////////////////////
-        SPEW_OUTER_INTERPRETER( "Op\n" );
-        // the symbol is in the vocabulary
-        opType = ForthVocabulary::GetEntryType( pSymbol );
+        SPEW_OUTER_INTERPRETER( "Floating point literal %f\n", fvalue );
         if ( mCompileState ) {
-            // compile the opcode
-            // remember the last opcode compiled so someday we can do optimizations
-            //   like combining "->" followed by a local var name into one opcode
-            mLastCompiledOpcode = *pSymbol;
-            *mpDP++ = mLastCompiledOpcode;
+            // compile the literal value
+            // value too big, must go in next longword
+            *mpDP++ = OP_FLOAT_VAL;
+            *(float *) mpDP++ = fvalue;
         } else {
-            // execute the opcode
-            exitStatus = g->ExecuteOneOp( *pSymbol );
-            if ( exitStatus == kResultDone ) {
-                exitStatus = kResultOk;
+            g->FPush( fvalue );
+        }
+        
+    } else if ( ScanIntegerToken( pToken, &value, *(g->GetBaseRef()) ) ) {
+
+        ////////////////////////////////////
+        //
+        // symbol is an integer literal
+        //
+        ////////////////////////////////////
+        SPEW_OUTER_INTERPRETER( "Integer literal %d\n", value );
+        if ( mCompileState ) {
+            // compile the literal value
+            if ( (value < (1 << 23)) && (value >= -(1 << 23)) ) {
+                // value fits in opcode immediate field
+                *mpDP++ = (value & 0xFFFFFF) | (kOpConstant << 24);
+            } else {
+                // value too big, must go in next longword
+                *mpDP++ = OP_INT_VAL;
+                *mpDP++ = value;
             }
+        } else {
+            // leave value on param stack
+            g->Push( value );
         }
 
     } else {
 
-        // try to convert to a number
-        // if there is a period in string
-        //    try to covert to a floating point number
-        // else
-        //    try to convert to an integer
-
-        if ( (strchr( pToken, '.' ) != NULL)
-            && (sscanf( pToken, "%f", &fvalue ) == 1) ) {
-
-            ////////////////////////////////////
-            //
-            // symbol is a single precision fp literal
-            //
-            ////////////////////////////////////
-            SPEW_OUTER_INTERPRETER( "Floating point literal %f\n", fvalue );
-            if ( mCompileState ) {
-                // compile the literal value
-                // value too big, must go in next longword
-                *mpDP++ = OP_FLOAT_VAL;
-                *(float *) mpDP++ = fvalue;
-            } else {
-                g->FPush( fvalue );
-            }
-            
-        } else if ( ScanIntegerToken( pToken, &value, *(g->GetBaseRef()) ) ) {
-
-            ////////////////////////////////////
-            //
-            // symbol is an integer literal
-            //
-            ////////////////////////////////////
-            SPEW_OUTER_INTERPRETER( "Integer literal %d\n", value );
-            if ( mCompileState ) {
-                // compile the literal value
-                if ( (value < (1 << 23)) && (value >= -(1 << 23)) ) {
-                    // value fits in opcode immediate field
-                    *mpDP++ = (value & 0xFFFFFF) | (kOpConstant << 24);
-                } else {
-                    // value too big, must go in next longword
-                    *mpDP++ = OP_INT_VAL;
-                    *mpDP++ = value;
-                }
-            } else {
-                // leave value on param stack
-                g->Push( value );
-            }
-
-        } else {
-
-            TRACE( "Unknown symbol %s\n", pToken );
-            g->SetError( kForthErrorUnknownSymbol );
-            exitStatus = kResultError;
-        }
-        
+        TRACE( "Unknown symbol %s\n", pToken );
+        g->SetError( kForthErrorUnknownSymbol );
+        exitStatus = kResultError;
     }
 
     // TBD: return exit-shell flag

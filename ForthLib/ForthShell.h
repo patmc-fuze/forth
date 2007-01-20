@@ -141,6 +141,9 @@ protected:
     // parse next token from input stream into mTokenBuff, padded with 0's up
     // to next longword boundary
     bool                    ParseToken( ForthParseInfo *pInfo );
+    // parse next string from input stream into mTokenBuff, padded with 0's up
+    // to next longword boundary
+    bool                    ParseString( ForthParseInfo *pInfo );
 	void                    ReportError( void );
 	void                    ErrorReset( void );
 

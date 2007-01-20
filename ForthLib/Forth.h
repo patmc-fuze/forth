@@ -21,6 +21,7 @@ class ForthThread;
 class ForthVocabulary;
 class ForthInputStack;
 class ForthInputStream;
+class ForthForgettable;
 
 // these are opcode types, they are held in the top byte of an opcode, and in
 // a vocabulary entry value field
@@ -184,6 +185,7 @@ typedef void  (*ForthOp)(ForthThread *);
 #define OP_DO_EXIT_L    BUILTIN_OP(20)
 #define OP_DO_EXIT_M    BUILTIN_OP(21)
 #define OP_DO_EXIT_ML   BUILTIN_OP(22)
+#define OP_DO_VOCAB     BUILTIN_OP(23)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct {

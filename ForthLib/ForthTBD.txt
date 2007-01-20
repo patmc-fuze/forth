@@ -1,4 +1,14 @@
 
+? add iterators
+  - all files in a directory tree
+  - all symbols in a vocabulary
+  - all tokens in a string
+
+? how should search/definitions vocabs be set
+- base vocabulary op does 2 things:
+  - set search vocab to itself
+  - returns its address if preceeded by "addressOf"
+
 - add a way to get parsed string input - allow both unquoted simple tokens
   with no embedded spaces and quoted strings which can have spaces
   -> I cloned and stripped down ForthShell::ParseToken to create ForthShell::ParseString
@@ -10,12 +20,30 @@
 ? should shell stack be pushed/popped when doing a colon definition
 
 - add generalized vocabulary support
+  - add way to set search vocab
+    -> default behaviour for vocab ops
+  - add way to set definitions vocab
+    -> add "definitions"
+  - add way to get vocab address
+    -> have vocab op support "addressOf"
+  - add way to search a vocab
+    - for a symbol
+	- for an opcode
+  - add way to add a symbol
+  ? add way to process a symbol
+  - add way to create a new vocab - its search chain successor should be current search vocab
+  ? add way to modify search chain
   ? should these vocabularies allow user-defined methods
     o find symbol
 	o process symbol
-	-> existing outer interp should be modified to invoke vocabs ProcessSymbol method
-	   instead of doing compile/interpret itself
+	+ modify existing outer interp to invoke vocabs ProcessSymbol method
+	  instead of doing compile/interpret itself
     -> having some support for string tables and maps would be helpful
+- add ops for base vocabulary and precedence vocabulary
+  o note that these 2 vocabs will be implemented as builtin ops, while all other
+    vocabs will be implemented as user-defined ops
+  -> maybe create these 2 vocabs dynamically at startup as if they were
+     user-defined ops
 
 - add a way to create executables with an embedded script (like self-extracting zips)
 
@@ -200,4 +228,19 @@ ForthShell::Run
 ForthShell::InterpretLine
 ForthEngine::InterpretToken
 ForthEngine::InnerInterpreter
+
+
+
+
+vocabulary.op
+class.op
+obj.*
+   .method
+   .member
+
+
+
+
+? what is a good word for "static" in the sense of a method or member that is not applied to a particular member ?
+? can everything in a class be covered by methods and members ?
 

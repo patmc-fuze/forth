@@ -12,6 +12,7 @@
 #endif // _MSC_VER > 1000
 
 #include "Forth.h"
+#include "ForthForgettable.h"
 
 class ForthParseInfo;
 
@@ -22,12 +23,14 @@ class ForthParseInfo;
 //   but this can be overridden in the constructor
 #define DEFAULT_VALUE_FIELD_LONGS 1
 
-class ForthVocabulary  
+class ForthVocabulary : public ForthForgettable
 {
 public:
     ForthVocabulary( ForthEngine *pEngine, const char *pName=NULL,
-                     int valueLongs=DEFAULT_VALUE_FIELD_LONGS, int storageBytes=DEFAULT_VOCAB_STORAGE );
+                     int valueLongs=DEFAULT_VALUE_FIELD_LONGS, int storageBytes=DEFAULT_VOCAB_STORAGE, void* pForgetLimt=NULL, long op=0 );
     virtual ~ForthVocabulary();
+
+    virtual void        ForgetCleanup( void *pForgetLimit, long op );
 
     void                SetName( const char *pVocabName );
     char *              GetName( void );
@@ -60,6 +63,12 @@ public:
     // pSymName is required to be a longword aligned address, and to be padded with 0's
     // to the next longword boundary
     virtual void *      FindSymbol( ForthParseInfo *pInfo );
+
+    // compile/interpret symbol if recognized
+    // return pointer to symbol entry, NULL if not found
+    // pSymName is required to be a longword aligned address, and to be padded with 0's
+    // to the next longword boundary
+    virtual void *      ProcessSymbol( ForthParseInfo *pInfo, ForthThread *pThread, eForthResult& exitStatus );
 
     // the symbol for the word which is currently under construction is "smudged"
     // so that if you try to reference that symbol in its own definition, the match
@@ -100,6 +109,11 @@ public:
         return FORTH_OP_VALUE( *((long *) pEntry) );
     };
 
+    inline void *               GetNewestEntry( void )
+    {
+        return mpNewestSymbol;
+    };
+
     inline char *               GetEntryName( const void *pEntry ) {
         return ((char *) pEntry) + (mValueLongs << 2) + 1;
     };
@@ -138,6 +152,23 @@ private:
     char                mNewestSymbol[ 256 ];
 };
 
+// the only difference between ForthPrecedenceVocabulary and ForthVocabulary is
+//  that opcodes in this vocabulary are executed even when in compile mode
+class ForthPrecedenceVocabulary : public ForthVocabulary
+{
+public:
+    ForthPrecedenceVocabulary( ForthEngine *pEngine, const char *pName=NULL,
+                               int valueLongs=DEFAULT_VALUE_FIELD_LONGS, int storageBytes=DEFAULT_VOCAB_STORAGE );
+    virtual ~ForthPrecedenceVocabulary();
+
+    // interpret symbol if recognized
+    // return pointer to symbol entry, NULL if not found
+    // pSymName is required to be a longword aligned address, and to be padded with 0's
+    // to the next longword boundary
+    virtual void *      ProcessSymbol( ForthParseInfo *pInfo, ForthThread *pThread, eForthResult& exitStatus );
+};
+
+
 class ForthLocalVarVocabulary : public ForthVocabulary
 {
 public:
@@ -151,7 +182,6 @@ public:
     // forget all ops with a greater op#
     virtual void        ForgetOp( long op );
 };
-
 
 
 #endif // !defined(AFX_FORTHVOCABULARY_H__C43FADC1_9009_11D4_A3C4_FD0788C5AC51__INCLUDED_)

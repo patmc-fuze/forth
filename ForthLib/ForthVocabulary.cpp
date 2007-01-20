@@ -1,3 +1,5 @@
+//////////////////////////////////////////////////////////////////////
+//
 // ForthVocabulary.cpp: implementation of the ForthVocabulary class.
 //
 //////////////////////////////////////////////////////////////////////
@@ -6,6 +8,7 @@
 #include "ForthVocabulary.h"
 #include "ForthEngine.h"
 #include "ForthShell.h"
+#include "ForthForgettable.h"
 
 //############################################################################
 //
@@ -43,8 +46,11 @@ ForthVocabulary *ForthVocabulary::mpChainHead = NULL;
 ForthVocabulary::ForthVocabulary( ForthEngine   *pEngine,
                                   const char    *pName,
                                   int           valueLongs,
-                                  int           storageBytes )
-: mpEngine( pEngine )
+                                  int           storageBytes,
+                                  void*         pForgetLimit,
+                                  long          op )
+: ForthForgettable( pForgetLimit, op )
+, mpEngine( pEngine )
 , mpSearchNext( NULL )
 , mpName( NULL )
 , mValueLongs( valueLongs ) 
@@ -66,19 +72,28 @@ ForthVocabulary::~ForthVocabulary()
 {
     delete [] mpStorageBase;
 
-    ForthVocabulary **mppNext = &mpChainHead;
-    while ( mppNext != NULL ) {
-        if ( *mppNext == this ) {
-            *mppNext = mpChainNext;
+    ForthVocabulary **ppNext = &mpChainHead;
+    while ( ppNext != NULL ) {
+        if ( *ppNext == this ) {
+            *ppNext = mpChainNext;
             break;
         }
-        mppNext = &((*mppNext)->mpChainNext);
+        ppNext = &((*ppNext)->mpChainNext);
     }
 
     if ( mpName != NULL ) {
         delete [] mpName;
     }
 }
+
+
+void
+ForthVocabulary::ForgetCleanup( void *pForgetLimit, long op )
+{
+   // this is invoked from the ForthForgettable chain to propagate a "forget"
+   ForgetOp( op );
+}
+
 
 void
 ForthVocabulary::SetName( const char *pVocabName )
@@ -388,6 +403,34 @@ ForthVocabulary::FindSymbol( ForthParseInfo     *pInfo )
 }
 
 
+// lookup symbol, and if found, compile or execute corresponding opcode
+// return vocab entry pointer if found, else NULL
+// execute opcode in context of thread g
+// exitStatus is only set if opcode is executed
+void *
+ForthVocabulary::ProcessSymbol( ForthParseInfo *pInfo, ForthThread *g, eForthResult& exitStatus )
+{
+    long *pEntry = (long *) FindSymbol( pInfo );
+    if ( pEntry != NULL )
+    {
+        if ( mpEngine->IsCompiling() )
+        {
+            mpEngine->CompileOpcode( *pEntry );
+        }
+        else
+        {
+            // execute the opcode
+            exitStatus = g->ExecuteOneOp( *pEntry );
+            if ( exitStatus == kResultDone )
+            {
+                exitStatus = kResultOk;
+            }
+        }
+    }
+    return pEntry;
+}
+
+
 void
 ForthVocabulary::SmudgeNewestSymbol( void )
 {
@@ -406,6 +449,44 @@ ForthVocabulary::UnSmudgeNewestSymbol( void )
 }
 
 
+//////////////////////////////////////////////////////////////////////
+////
+///     ForthPrecedenceVocabulary
+//
+//
+
+ForthPrecedenceVocabulary::ForthPrecedenceVocabulary( ForthEngine   *pEngine,
+                                                      const char    *pName,
+                                                      int           valueLongs,
+                                                      int           storageBytes )
+: ForthVocabulary( pEngine, pName, valueLongs, storageBytes )
+{
+}
+
+ForthPrecedenceVocabulary::~ForthPrecedenceVocabulary()
+{
+}
+
+// lookup symbol, and if found, execute corresponding opcode
+// return vocab entry pointer if found, else NULL
+// execute opcode in context of thread g
+// exitStatus is only set if opcode is executed
+void *
+ForthPrecedenceVocabulary::ProcessSymbol( ForthParseInfo *pInfo, ForthThread *g, eForthResult& exitStatus )
+{
+    long *pEntry = (long *) FindSymbol( pInfo );
+    if ( pEntry != NULL )
+    {
+        // execute the opcode
+        exitStatus = g->ExecuteOneOp( *pEntry );
+        if ( exitStatus == kResultDone )
+        {
+            exitStatus = kResultOk;
+        }
+    }
+    return pEntry;
+}
+
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -416,7 +497,7 @@ ForthVocabulary::UnSmudgeNewestSymbol( void )
 ForthLocalVarVocabulary::ForthLocalVarVocabulary( ForthEngine   *pEngine,
                                                   const char    *pName,
                                                   int           storageBytes )
-: ForthVocabulary( pEngine, pName, storageBytes )
+: ForthVocabulary( pEngine, pName, 1, storageBytes )
 {
 }
 
@@ -438,3 +519,5 @@ void
 ForthLocalVarVocabulary::ForgetOp( long op )
 {
 }
+
+

@@ -104,15 +104,19 @@ public:
     inline long *           GetDP() { return mpDP; };
     inline void             SetDP( long *pNewDP ) { mpDP = pNewDP; };
     inline void             CompileLong( long v ) { *mpDP++ = v; };
-    inline void             CompileDouble( long v ) { *((double *) mpDP) = v; mpDP += 2; };
+    inline void             CompileDouble( double v ) { *((double *) mpDP) = v; mpDP += 2; };
+    void                    CompileOpcode( long v );
     inline void             AllotLongs( int n ) { mpDP += n; };
     inline void             AlignDP( void ) { mpDP = (long *)(( ((int)mpDP) + 3 ) & ~3); };
     inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpSearchVocab; };
+    inline void             SetSearchVocabulary( ForthVocabulary* pVocab )  { mpSearchVocab = pVocab; };
     inline ForthVocabulary  *GetPrecedenceVocabulary( void )   { return mpPrecedenceVocab; };
     inline ForthVocabulary  *GetDefinitionVocabulary( void )   { return mpDefinitionVocab; };
+    inline void             SetDefinitionVocabulary( ForthVocabulary* pVocab )  { mpDefinitionVocab = pVocab; };
     inline ForthVocabulary  *GetLocalVocabulary( void )   { return mpLocalVocab; };
     inline void             SetShell( ForthShell *pShell ) { mpShell = pShell; };
     inline ForthShell *     GetShell( void ) { return mpShell; };
+    inline ForthVocabulary  *GetForthVocabulary( void )   { return mpMainVocab; };
 
     inline long             *GetCompileStatePtr( void ) { return &mCompileState; };
     inline void             SetCompileState( long v ) { mCompileState = v; };

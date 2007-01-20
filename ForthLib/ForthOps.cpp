@@ -1576,8 +1576,66 @@ FORTHOP( forgetOp )
 {
     ForthEngine *pEngine = g->GetEngine();
     pEngine->ForgetSymbol( pEngine->GetNextSimpleToken() );
+    // reset search & definitions vocabs in case we deleted a vocab we were using
+    pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
+    pEngine->SetSearchVocabulary( pEngine->GetForthVocabulary() );
 }
 
+FORTHOP( definitionsOp )
+{
+    g->GetEngine()->SetDefinitionVocabulary( (ForthVocabulary *) (g->Pop()) );
+}
+
+FORTHOP( usesOp )
+{
+    g->GetEngine()->SetSearchVocabulary( (ForthVocabulary *) (g->Pop()) );
+}
+
+FORTHOP( forthOp )
+{
+    g->Push( (long) (g->GetEngine()->GetForthVocabulary()) );
+}
+
+FORTHOP( searchVocabOp )
+{
+    if ( g->GetVarOperation() == kVarFetch )
+    {
+        g->Push( (long) (g->GetEngine()->GetSearchVocabulary()) );
+    }
+    else if ( g->GetVarOperation() == kVarStore )
+    {
+        g->GetEngine()->SetSearchVocabulary( (ForthVocabulary *) (g->Pop()) );
+    }
+}
+
+FORTHOP( definitionsVocabOp )
+{
+    if ( g->GetVarOperation() == kVarFetch )
+    {
+        g->Push( (long) (g->GetEngine()->GetDefinitionVocabulary()) );
+    }
+    else if ( g->GetVarOperation() == kVarStore )
+    {
+        g->GetEngine()->SetDefinitionVocabulary( (ForthVocabulary *) (g->Pop()) );
+    }
+}
+
+FORTHOP( vocabularyOp )
+{
+    ForthEngine *pEngine = g->GetEngine();
+    ForthVocabulary *pDefinitionsVocab = pEngine->GetDefinitionVocabulary();
+    // get next symbol, add it to vocabulary with type "user op"
+    pEngine->StartOpDefinition();
+    pEngine->CompileLong( OP_DO_VOCAB );
+    ForthVocabulary* pVocab = new ForthVocabulary( pEngine,
+                                                   pDefinitionsVocab->GetEntryName( pDefinitionsVocab->GetNewestEntry() ),
+                                                   1,
+                                                   512,
+                                                   pEngine->GetDP(),
+                                                   ForthVocabulary::GetEntryValue( pDefinitionsVocab->GetNewestEntry() ) );
+    pVocab->SetNextSearchVocabulary( pEngine->GetSearchVocabulary() );
+    pEngine->CompileLong( (long) pVocab );
+}
 
 FORTHOP( variableOp )
 {
@@ -2280,6 +2338,13 @@ ForthEngine::MemberStringAction( ForthThread   *g,
     }
 }
 
+FORTHOP( doVocabOp )
+{
+    // IP points to data field
+    g->Push( *g->GetIP() );
+    g->SetIP( (long *) (g->RPop()) );
+}
+
 
 // in traditional FORTH, the vocabulary entry for the operation currently
 // being defined is "smudged" so that if a symbol appears in its own definition
@@ -2849,6 +2914,7 @@ ShowVocab( ForthThread      *g,
                 stringOut( g, "Hit ENTER to continue, 'q' & ENTER to quit\n" );
                 char c = getchar();
                 if ( (c == 'q') || (c == 'Q') ) {
+                    c = getchar();
                     retVal = true;
                     break;
                 }
@@ -3080,11 +3146,12 @@ baseDictEntry baseDict[] = {
     OP(     doDoOp,                 "_do" ),
     OP(     doLoopOp,               "_loop" ),
     OP(     doLoopNOp,               "_+loop" ),
-    OP(     doExitOp,               "_exit"),       // exit normal op with no vars
-    OP(     doExitLOp,              "_exitL"),      // exit normal op with local vars
-    OP(     doExitMOp,              "_exitM"),      // exit method op with no vars
-    OP(     doExitMLOp,             "_exitML"),     // exit method op with local vars
-    
+    OP(     doExitOp,               "_exit" ),      // exit normal op with no vars
+    OP(     doExitLOp,              "_exitL" ),     // exit normal op with local vars
+    OP(     doExitMOp,              "_exitM" ),     // exit method op with no vars
+    OP(     doExitMLOp,             "_exitML" ),    // exit method op with local vars
+    OP(     doVocabOp,              "_doVocab" ),
+
     // stuff below this line can be rearranged
     
     ///////////////////////////////////////////
@@ -3281,6 +3348,12 @@ baseDictEntry baseDict[] = {
     OP(     colonOp,                ":" ),
     OP(     createOp,               "create" ),
     OP(     forgetOp,               "forget" ),
+    OP(     definitionsOp,          "definitions" ),
+    OP(     usesOp,                 "uses" ),
+    OP(     forthOp,                "forth" ),
+    OP(     searchVocabOp,          "searchVocab" ),
+    OP(     definitionsVocabOp,     "definitionsVocab" ),
+    OP(     vocabularyOp,           "vocabulary" ),
     OP(     variableOp,             "variable" ),
     OP(     constantOp,             "constant" ),
     OP(     dconstantOp,            "dconstant" ),

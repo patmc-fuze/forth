@@ -2,6 +2,19 @@
 //       11111111112222222222333333333344444444445555555555666666666677777777778
 //345678901234567890123456789012345678901234567890123456789012345678901234567890
 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+TBDs:
+
+- vocabulary support
+- structure support
+- windows support
+  - gui stuff
+  - graphics
+
+- rewrite kernel in assembler
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
 Forth Implementation Classes
 
 ForthEngine
@@ -37,16 +50,103 @@ ForthParseInfo
   setup for fast vocabulary matching
   interface between ForthShell and ForthVocabulary
 
+ForthForgettable
+  does propagation of "forget" to all vocabularies and memory cleanup after forget
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-TBDs:
 
-- vocabulary support
-- structure support
-- windows support
-  - gui stuff
-  - graphics
+[ARRAY_INDICES] STRUCT_PTR [FIELD_SELECTORS]
 
+INDEX STRUCT_PTR int[]
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+vocabulary NAME
+
+forth definitions
+forth uses
+
+SYMBOL_NAME SYMBOL_VALUE SYMBOL_TYPE VOCAB addSymbol	ENTRY_PTR
+SYMBOL_NAME VOCAB  findSymbol	ENTRY_PTR
+
+! this isn't very flexible - for example, how would this be used to make
+  a vocabulary which would recognize fixed point numbers?
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Assembler version
+
+7 general purpose registers available:
+eax, ebx, ecx, edx, esi, edi, ebp
+
+Things to keep in registers:
+IP
+SP
+optype dispatch table
+? builtinOp dispatch table
+inner interpreter PC
+thread ptr (RP, FP ...)
+
+this would only leave one general purpose regiter available for stuff...
+
+EAX	free
+EBX	free
+ECX	IP
+EDX	SP
+ESI	dispatch table
+EDI	inner interp PC
+EBP	thread ptr
+
+? maybe combine opType and builtinOp tables - have bottom 256 builtinOp codes
+  be illegal
+
+innerInterp
+	mov	eax,[ecx]		; eax is opcode
+	add	ecx,4			; advance IP
+	tst	al,255			; low 8 bits is 0 for builtin ops
+	jnz	notBuiltin
+	shr	eax,8			; high 24 bits of opcode is builtin op #
+	mov	eax,[esi+eax*4]
+	jmp	[eax]
+
+notBuiltin
+	mov	ebx,eax			; leave top 24-bits of opcode in ebx
+	shr	ebx,8
+	and	eax,0xFFFFFF00		; dispatch on 8-bit optype
+	mov	eax,[esi+eax*4]
+	jmp	[eax]
+	
+addOp
+	mov	eax,[edx]
+	add	edx,4
+	add	[edx],eax
+	jmp	[edi]
+	
+subOp
+	mov	eax,[edx]
+	add	edx,4
+	sub	[edx],eax
+	jmp	[edi]
+	
+andOp
+	mov	eax,[edx]
+	add	edx,4
+	and	[edx],eax
+	jmp	[edi]
+	
+orOp
+	mov	eax,[edx]
+	add	edx,4
+	or	[edx],eax
+	jmp	[edi]
+	
+xorOp
+	mov	eax,[edx]
+	add	edx,4
+	xor	[edx],eax
+	jmp	[edi]
+	
+	
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 
 Structure Support
@@ -89,6 +189,11 @@ Positives/negatives:
 + potentially more efficient code
 - much more work to implement
 - very different from normal forth approach
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 8, 2006
+
++ added ForthForgettable class, changed ForthVocabulary to be based off it
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 5, 2006

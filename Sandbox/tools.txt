@@ -19,8 +19,11 @@ int dumpWidth
     int endAddr
     int ch
   endvars
-  -> offset -> len -> addr
+  -> offset		// offset is subtracted from the actual data address before display
+  -> len
+  -> addr
   addr len + -> endAddr
+  len -> columns
   begin
     addr endAddr <
   while
@@ -28,8 +31,6 @@ int dumpWidth
     len dumpWidth >
     if
       dumpWidth -> columns
-    else
-      len -> columns
     endif
     columns 0 do
       addr i + c@ "%02x " %fmt
@@ -52,7 +53,7 @@ int dumpWidth
   repeat
 ;
 
-// addr len dump
+// ADDR LEN dump
 : dump
   0 _dump
 ;

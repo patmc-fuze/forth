@@ -16,6 +16,42 @@ class ForthEngine;
 #define DEFAULT_PSTACK_SIZE 128
 #define DEFAULT_RSTACK_SIZE 128
 
+struct ForthThreadState
+{
+    long                *IP;       // interpreter pointer
+
+    long                *SP;       // parameter stack pointer
+    long                *ST;       // empty parameter stack pointer
+    long                *SB;       // param stack base
+    ulong               SLen;      // size of param stack in longwords
+    
+    long                *RP;       // return stack pointer
+    long                *RT;       // empty return stack pointer
+    long                *RB;       // return stack base
+    ulong               RLen;      // size of return stack
+
+    long                *FP;       // frame pointer
+    
+    long                *TP;       // this pointer
+
+    void                *pPrivate; // pointer to per-thread state
+    long                currentOp; // last op dispatched by inner interpreter
+    
+    varOperation        varMode;   // operation to perform on variables
+
+    eForthError         error;
+    eForthResult        state;     // inner loop state - ok/done/error
+    const char *        pErrorString;  // optional error information from shell
+
+    FILE                *pConOutFile;
+    char                *pConOutStr;
+
+    FILE                *pDefaultOutFile;
+    FILE                *pDefaultInFile;
+    long                base;      // output base
+    ePrintSignedMode    signedPrintMode;   // if numers are printed as signed/unsigned
+};
+
 class ForthThread  
 {
     friend ForthEngine;
@@ -99,6 +135,7 @@ protected:
     ForthEngine         *mpEngine;
     ForthThread         *mpNext;
     
+    ForthThreadState    mState;
     long                *mIP;       // interpreter pointer
 
     long                *mSP;       // parameter stack pointer
