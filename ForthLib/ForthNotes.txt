@@ -74,6 +74,25 @@ SYMBOL_NAME VOCAB  findSymbol	ENTRY_PTR
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 3, 2007
+
+In preparation for switching over to using assembler for inner interpreter,
+I changed the inner interpreter to use a 2-stage dispatch scheme, and broke
+out the portion of the state that the assembly code will use into a new
+structure, the ForthCoreState.
+
+o There is a single ForthCoreState, which is contained in the ForthEngine.
+o The ForthCoreState is associated with a single thread at any time.
+
+I had done a similar state breakout of ForthThreadState from ForthThread a
+while back.  The big difference is that ForthCoreState contains the
+optype dispatch table and other ForthEngine related stuff.
+
+One other related change which caused some bugs is that before both builtinOps
+and user defined ops shared a single dispatch table, now they each have their
+own table.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 Assembler version
 
 7 general purpose registers available:
@@ -87,35 +106,66 @@ optype dispatch table
 inner interpreter PC
 thread ptr (RP, FP ...)
 
-this would only leave one general purpose regiter available for stuff...
+this would only leave one general purpose register available for stuff...
 
 EAX	free
 EBX	free
 ECX	IP
 EDX	SP
-ESI	dispatch table
+ESI	builtinOp dispatch table
 EDI	inner interp PC
 EBP	thread ptr
 
 ? maybe combine opType and builtinOp tables - have bottom 256 builtinOp codes
-  be illegal
+  be used for opType dispatchers
+-> it would not be "free" to detect situation where you compile an opcode in 0..255, which
+   would cause an optype handler routine to be executed as if it were a builtinOp
+   -> detecting this would require an extra compare & branch instruction pair, which could
+      be included in the debug version of the inner interpreter
+
+Maybe the engine ptr should be in a register, and the engine should have a notion
+of a current thread, and the threads state is stored in the engine...
+
+
+Maybe EBP register should point to a new structure, which has:
+  1) current thread state (RP, FP, etc)
+  2) ptr to engine
+  3) ptr to current thread
+  4) opType dispatch table
+  5) builtinOp dispatch table
+forthOps can reuse ESI or EDI, but if they do they either reload them from the EBP struct
+or they branch to an alternate inner interpreter entry point that reloads ESI & EDI
+Some of this structure is global engine state, some of it is a copy of the current thread state.
 
 innerInterp
 	mov	eax,[ecx]		; eax is opcode
 	add	ecx,4			; advance IP
-	tst	al,255			; low 8 bits is 0 for builtin ops
-	jnz	notBuiltin
-	shr	eax,8			; high 24 bits of opcode is builtin op #
+	cmp	eax,numBuiltins		; numBuiltins includes the 256 opType dispatchers
+	jge	notBuiltin
+	mov	eax,[esi+eax*4]
+	jmp	[eax]
+
+innerInterpDebug
+	mov	eax,[ecx]		; eax is opcode
+	add	ecx,4			; advance IP
+	cmp	eax,numBuiltins
+	jge	notBuiltin
+	cmp	eax,256
+	jlt	badOpcode
+; we should add checking of SP, RP etc. here
 	mov	eax,[esi+eax*4]
 	jmp	[eax]
 
 notBuiltin
-	mov	ebx,eax			; leave top 24-bits of opcode in ebx
-	shr	ebx,8
-	and	eax,0xFFFFFF00		; dispatch on 8-bit optype
+	mov	ebx,eax			; leave full opcode in ebx
+	shr	eax,24			; eax is 8-bit optype
 	mov	eax,[esi+eax*4]
 	jmp	[eax]
-	
+
+;
+; builtinOp code
+;
+
 addOp
 	mov	eax,[edx]
 	add	edx,4
@@ -147,6 +197,19 @@ xorOp
 	jmp	[edi]
 	
 	
++ I broke out the part of the forth machine state the inner interpreter uses
+  from the ForthThread class into a structure.
+- Change the dispatch table to combine the optype and builtinOp tables
+- Move most of ForthThread::InnerInterpreter into a c function, get that
+  working and then use the generated assembly entry and exit code
+- Remove the user-defined (high level) ops from the builtin op table
+- Put the pointer to the dispatch table into the inner interpreter struct
+- Don't have 256 opType dispatchers, the top 128 are for method stuff...
+- Change the current opType action routines from ForthEngine methods to
+  standalone routines
+- Move the inner interpreter and the opType action routines into their
+  own source module
+  -> need to disentangle the intOp/doIntOp/intActionRoutine stuff first
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 
 Structure Support

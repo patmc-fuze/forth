@@ -1,11 +1,11 @@
 //////////////////////////////////////////////////////////////////////
 //
-// ForthVocabulary.h: interface for the ForthVocabulary class.
+// ForthForgettable.h: interface for the ForthForgettable class.
 //
 //////////////////////////////////////////////////////////////////////
 
-#if !defined( FORTH_FORGETTABLE_H )
-#define FORTH_FORGETTABLE_H
+#if !defined( _FORTH_FORGETTABLE_H_INCLUDED_ )
+#define _FORTH_FORGETTABLE_H_INCLUDED_
 
 #if _MSC_VER > 1000
 #pragma once

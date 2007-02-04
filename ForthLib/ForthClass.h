@@ -4,8 +4,8 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#if !defined(AFX_FORTHCLASS_H__4B764080_16F1_11D8_B166_00045A5DC0CC__INCLUDED_)
-#define AFX_FORTHCLASS_H__4B764080_16F1_11D8_B166_00045A5DC0CC__INCLUDED_
+#if !defined(_FORTH_CLASS_H_INCLUDED_)
+#define _FORTH_CLASS_H_INCLUDED_
 
 #if _MSC_VER > 1000
 #pragma once
@@ -69,4 +69,4 @@ private:
 };
 
 
-#endif // !defined(AFX_FORTHCLASS_H__4B764080_16F1_11D8_B166_00045A5DC0CC__INCLUDED_)
+#endif

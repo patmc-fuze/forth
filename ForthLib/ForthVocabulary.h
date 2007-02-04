@@ -4,8 +4,8 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#if !defined(AFX_FORTHVOCABULARY_H__C43FADC1_9009_11D4_A3C4_FD0788C5AC51__INCLUDED_)
-#define AFX_FORTHVOCABULARY_H__C43FADC1_9009_11D4_A3C4_FD0788C5AC51__INCLUDED_
+#if !defined(_FORTH_VOCABULARY_H_INCLUDED_)
+#define _FORTH_VOCABULARY_H_INCLUDED_
 
 #if _MSC_VER > 1000
 #pragma once
@@ -41,7 +41,7 @@ public:
     ForthVocabulary *   GetNextSearchVocabulary( void );
 
     // add symbol to symbol table, return symvalue
-    virtual long        AddSymbol( const char *pSymName, int symType, long symValue, bool addToEngineOps );
+    virtual long        AddSymbol( const char *pSymName, forthOpType symType, long symValue, bool addToEngineOps );
 
     // copy a symbol table entry, presumably from another vocabulary
     void                CopyEntry( const void *pEntry );
@@ -68,7 +68,7 @@ public:
     // return pointer to symbol entry, NULL if not found
     // pSymName is required to be a longword aligned address, and to be padded with 0's
     // to the next longword boundary
-    virtual void *      ProcessSymbol( ForthParseInfo *pInfo, ForthThread *pThread, eForthResult& exitStatus );
+    virtual void *      ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
 
     // the symbol for the word which is currently under construction is "smudged"
     // so that if you try to reference that symbol in its own definition, the match
@@ -135,7 +135,7 @@ public:
     };
 
 
-private:
+protected:
 
     static ForthVocabulary *mpChainHead;
     ForthEngine         *mpEngine;
@@ -165,7 +165,7 @@ public:
     // return pointer to symbol entry, NULL if not found
     // pSymName is required to be a longword aligned address, and to be padded with 0's
     // to the next longword boundary
-    virtual void *      ProcessSymbol( ForthParseInfo *pInfo, ForthThread *pThread, eForthResult& exitStatus );
+    virtual void *      ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
 };
 
 
@@ -184,4 +184,4 @@ public:
 };
 
 
-#endif // !defined(AFX_FORTHVOCABULARY_H__C43FADC1_9009_11D4_A3C4_FD0788C5AC51__INCLUDED_)
+#endif

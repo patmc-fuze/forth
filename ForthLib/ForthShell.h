@@ -4,8 +4,8 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#if !defined(AFX_FORTHSHELL_H__A1EA9AA2_9092_11D4_97DF_00B0D011B654__INCLUDED_)
-#define AFX_FORTHSHELL_H__A1EA9AA2_9092_11D4_97DF_00B0D011B654__INCLUDED_
+#if !defined(_FORTH_SHELL_H_INCLUDED_)
+#define _FORTH_SHELL_H_INCLUDED_
 
 #if _MSC_VER > 1000
 #pragma once
@@ -166,4 +166,4 @@ protected:
     char                    mErrorString[ 128 ];
 };
 
-#endif // !defined(AFX_FORTHSHELL_H__A1EA9AA2_9092_11D4_97DF_00B0D011B654__INCLUDED_)
+#endif

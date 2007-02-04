@@ -1,10 +1,12 @@
+//////////////////////////////////////////////////////////////////////
 //
 // Forth engine definitions
 //   Pat McElhatton   September '00
 //
+//////////////////////////////////////////////////////////////////////
 
-#ifndef __FORTH_H
-#define __FORTH_H
+#ifndef _FORTH_H_INCLUDED_
+#define _FORTH_H_INCLUDED_
 
 #if _MSC_VER > 1000
 #pragma once
@@ -22,6 +24,7 @@ class ForthVocabulary;
 class ForthInputStack;
 class ForthInputStream;
 class ForthForgettable;
+struct ForthCoreState;
 
 // these are opcode types, they are held in the top byte of an opcode, and in
 // a vocabulary entry value field
@@ -66,7 +69,7 @@ typedef enum
 
 // there is an action routine with this signature for each forthOpType
 // user can add new optypes with ForthEngine::AddOpType
-typedef void (*optypeActionRoutine)( ForthThread *g, ulong theData );
+typedef void (*optypeActionRoutine)( ForthCoreState *pCore, ulong theData );
 
 // user will also have to add an external interpreter with ForthEngine::SetInterpreterExtension
 // to compile/interpret these new optypes
@@ -104,6 +107,7 @@ typedef enum {
 typedef enum {
     kForthErrorNone,
     kForthErrorBadOpcode,
+    kForthErrorBadOpcodeType,
     kForthErrorParamStackUnderflow,
     kForthErrorParamStackOverflow,
     kForthErrorReturnStackUnderflow,
@@ -127,13 +131,6 @@ typedef enum {
 } ePrintSignedMode;
 
 
-#define SET_ERROR( F )  SET_FLAG( (F) | FLAG_DONE | FLAG_ERROR )
-#define SET_DONE( F )   SET_FLAG( (F) | FLAG_DONE )
-#define CLR_FLAG( F )   g->flags &= ~(F)
-#define SET_FLAG( F )   g->flags |= (F)
-#define CHK_FLAG( F )   (g->flags & (F))
-
-
 // the bottom 24 bits of a forth opcode is a value field
 // the top 8 bits is the type field
 #define OPCODE_VALUE_MASK   0xFFFFFF
@@ -144,18 +141,9 @@ typedef enum {
 #define NEEDS(A)
 #define RNEEDS(A)
 
-#define POP       (*(g->sp)++)
-#define FPOP      (*(float *)(g->sp)++)
-#define DPOP      (*(double *)(g->sp)++)
-#define PUSH(A)   *--(g->sp) = (long) (A)
-#define FPUSH(A)  *(float *)--(g->sp) = (A)
-#define DPUSH(A)  *(double *)--(g->sp) = (A)
-#define RPOP      (*(g->rp)++)
-#define RPUSH(A)  *--(g->rp) = (ulong) (A)
-
 class ForthThread;
 
-typedef void  (*ForthOp)(ForthThread *);
+typedef void  (*ForthOp)(ForthCoreState *);
 
 #define COMPILED_OP( OP_TYPE, VALUE ) ((OP_TYPE << 24) | (VALUE & OPCODE_VALUE_MASK))
 #define BUILTIN_OP( INDEX )   COMPILED_OP( kOpBuiltIn, INDEX )
@@ -247,5 +235,16 @@ typedef struct _ForthClassDescriptor {
 #else
 #define SPEW_VOCABULARY(...)
 #endif
+
+
+//////////////////////////////////////////////////////////////////////
+////
+///     built-in forth ops are implemented with static C-style routines
+//      which take a pointer to the ForthThread they are being run in
+//      the thread is accesed through "g->" in the code
+
+#define FORTHOP(NAME) static void NAME( ForthCoreState *pCore )
+// GFORTHOP is used for forthops which are defined outside of the dictionary source module
+#define GFORTHOP(NAME) void NAME( ForthCoreState *pCore )
 
 #endif

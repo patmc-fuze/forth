@@ -137,7 +137,7 @@ ForthVocabulary::GetNextSearchVocabulary( void )
 
 long
 ForthVocabulary::AddSymbol( const char      *pSymName,
-                            int             symType,
+                            forthOpType     symType,
                             long            symValue,
                             bool            addToEngineOps )
 {
@@ -180,7 +180,7 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
     if ( addToEngineOps ){        
         // for executable ops, add the IP of symbol to op table
         // value of symbol is index into op table, not IP
-        symValue = mpEngine->AddOp( (long *) symValue );
+        symValue = mpEngine->AddOp( (long *) symValue, symType );
     }
     
     SPEW_VOCABULARY( "Adding symbol %s type %d value 0x%x to %s\n",
@@ -323,7 +323,6 @@ ForthVocabulary::ForgetOp( long op )
     long *pEntry, *pNewBottom;
     forthOpType opType;
     long opVal;
-    bool done;
 
     // go through the vocabulary looking for symbols which are greater than op#
     pEntry = mpStorageBottom;
@@ -333,25 +332,26 @@ ForthVocabulary::ForgetOp( long op )
     // how many symbols are left after forget
     symbolsLeft = mNumSymbols;
 
-    done = false;
-    while ( !done && (symbolsLeft > 0) ) {
+    while ( symbolsLeft > 0) {
 
         opType = GetEntryType( pEntry );
+        if ( opType == kOpBuiltIn )
+        {
+            // can't forget builtin ops
+            break;
+        }
         opVal = GetEntryValue( pEntry );
-        if ( opVal < op ) {
-            done = true;
-            pNewBottom = (long *) pEntry;
-        } else {
+        if ( opVal >= op )
+        {
             symbolsLeft--;
             pEntry = (long *) NextEntry( pEntry );
+            mpStorageBottom = (long *) pEntry;
+            mNumSymbols = symbolsLeft;
         }
-    }
-    if ( pNewBottom != NULL ) {
-        //
-        // if we get here, really do the forget operation
-        //
-        mpStorageBottom = (long *) pNewBottom;
-        mNumSymbols = symbolsLeft;
+        else
+        {
+            break;
+        }
     }
 }
 
@@ -408,7 +408,7 @@ ForthVocabulary::FindSymbol( ForthParseInfo     *pInfo )
 // execute opcode in context of thread g
 // exitStatus is only set if opcode is executed
 void *
-ForthVocabulary::ProcessSymbol( ForthParseInfo *pInfo, ForthThread *g, eForthResult& exitStatus )
+ForthVocabulary::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus )
 {
     long *pEntry = (long *) FindSymbol( pInfo );
     if ( pEntry != NULL )
@@ -420,7 +420,7 @@ ForthVocabulary::ProcessSymbol( ForthParseInfo *pInfo, ForthThread *g, eForthRes
         else
         {
             // execute the opcode
-            exitStatus = g->ExecuteOneOp( *pEntry );
+            exitStatus = mpEngine->ExecuteOneOp( *pEntry );
             if ( exitStatus == kResultDone )
             {
                 exitStatus = kResultOk;
@@ -472,13 +472,13 @@ ForthPrecedenceVocabulary::~ForthPrecedenceVocabulary()
 // execute opcode in context of thread g
 // exitStatus is only set if opcode is executed
 void *
-ForthPrecedenceVocabulary::ProcessSymbol( ForthParseInfo *pInfo, ForthThread *g, eForthResult& exitStatus )
+ForthPrecedenceVocabulary::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus )
 {
     long *pEntry = (long *) FindSymbol( pInfo );
     if ( pEntry != NULL )
     {
         // execute the opcode
-        exitStatus = g->ExecuteOneOp( *pEntry );
+        exitStatus = mpEngine->ExecuteOneOp( *pEntry );
         if ( exitStatus == kResultDone )
         {
             exitStatus = kResultOk;

@@ -67,6 +67,7 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthThread *pThread, int shellSta
     if ( mpThread == NULL ) {
         mpThread = mpEngine->CreateThread( PSTACK_LONGS, RSTACK_LONGS, NULL );
     }
+    mpEngine->SetCurrentThread( mpThread );
 
     mpInput = new ForthInputStack;
 	mpStack = new ForthShellStack( shellStackLongs );
@@ -193,7 +194,7 @@ ForthShell::InterpretLine( void )
 
             try
             {
-                result = mpEngine->ProcessToken( mpThread, &parseInfo );
+                result = mpEngine->ProcessToken( &parseInfo );
             }
             catch(...)
             {

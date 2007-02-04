@@ -1,9 +1,11 @@
+//////////////////////////////////////////////////////////////////////
+//
 // ForthEngine.h: interface for the ForthEngine class.
 //
 //////////////////////////////////////////////////////////////////////
 
-#if !defined(AFX_FORTHENGINE_H__C43FADC2_9009_11D4_A3C4_FD0788C5AC51__INCLUDED_)
-#define AFX_FORTHENGINE_H__C43FADC2_9009_11D4_A3C4_FD0788C5AC51__INCLUDED_
+#if !defined(_FORTH_ENGINE_H_INCLUDED_)
+#define _FORTH_ENGINE_H_INCLUDED_
 
 #if _MSC_VER > 1000
 #pragma once
@@ -12,6 +14,11 @@
 #include "Forth.h"
 #include "ForthThread.h"
 #include "ForthShell.h"
+#include "ForthInner.h"
+
+
+#define NEW_INNER_INTERP
+
 
 class ForthThread;
 class ForthShell;
@@ -35,8 +42,14 @@ public:
                                 baseDictEntry *pUserBuiltinOps=NULL );
     void            Reset( void );
 
+    //
+    // ExecuteOneOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
+    // execute forth ops, and is also how systems external to forth execute ops
+    //
+    eForthResult        ExecuteOneOp( long opCode );
+
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
-    long            AddOp( const long *pOp );
+    long            AddOp( const long *pOp, forthOpType symType );
     long            AddUserOp( const char *pSymbol, bool smudgeIt=false );
     void            AddBuiltinOps( baseDictEntry *pEntries );
 
@@ -51,7 +64,7 @@ public:
     void            DestroyThread( ForthThread *pThread );
 
     // add a user-defined extension to the outer interpreter
-    inline void             SetInterpreterExtension( interpreterExtensionRoutine *pRoutine )
+    inline void     SetInterpreterExtension( interpreterExtensionRoutine *pRoutine )
     {
         mpInterpreterExtension = pRoutine;
     };
@@ -59,7 +72,7 @@ public:
     // add a user-defined forthop type
     // opType should be in range kOpLocalUserDefined ... kOpMaxLocalUserDefined
     // return false IFF opType is out of range
-    static bool             AddOpType( forthOpType opType, optypeActionRoutine opAction );
+    bool            AddOpType( forthOpType opType, optypeActionRoutine opAction );
 
     char *          GetNextSimpleToken( void );
 
@@ -74,40 +87,18 @@ public:
     void            EndVarsDefinition( void );
     void            AddLocalVar( const char *pName, forthOpType varType, long varSize );
 
-    eForthResult    ProcessToken( ForthThread *g, ForthParseInfo *pInfo );
+    eForthResult    ProcessToken( ForthParseInfo *pInfo );
     char *          GetLastInputToken( void );
 
-    // action routines for different op types
-    static void     LocalIntAction( ForthThread *g, ulong loOp );
-    static void     LocalFloatAction( ForthThread *g, ulong loOp );
-    static void     LocalDoubleAction( ForthThread *g, ulong loOp );
-    static void     LocalStringAction( ForthThread *g, ulong loOp );
+    void                    TraceOp( void );
 
-    static void     FieldIntAction( ForthThread *g, ulong loOp );
-    static void     FieldFloatAction( ForthThread *g, ulong loOp );
-    static void     FieldDoubleAction( ForthThread *g, ulong loOp );
-    static void     FieldStringAction( ForthThread *g, ulong loOp );
-
-    static void     InvokeClassMethod( ForthThread *g, ulong loOp );
-    static void     BadOpcodeTypeError( ForthThread *g, ulong loOp );
-    static bool     IsExecutableType( forthOpType symType );
-
-    static void     MemberIntAction( ForthThread *g, ulong loOp );
-    static void     MemberFloatAction( ForthThread *g, ulong loOp );
-    static void     MemberDoubleAction( ForthThread *g, ulong loOp );
-    static void     MemberStringAction( ForthThread *g, ulong loOp );
-
-
-    void                    TraceOp( ForthThread *g );
-    virtual eForthResult    InnerInterpreter( ForthThread *g );
-
-    inline long *           GetDP() { return mpDP; };
-    inline void             SetDP( long *pNewDP ) { mpDP = pNewDP; };
-    inline void             CompileLong( long v ) { *mpDP++ = v; };
-    inline void             CompileDouble( double v ) { *((double *) mpDP) = v; mpDP += 2; };
+    inline long *           GetDP() { return mCore.DP; };
+    inline void             SetDP( long *pNewDP ) { mCore.DP = pNewDP; };
+    inline void             CompileLong( long v ) { *mCore.DP++ = v; };
+    inline void             CompileDouble( double v ) { *((double *) mCore.DP) = v; mCore.DP += 2; };
     void                    CompileOpcode( long v );
-    inline void             AllotLongs( int n ) { mpDP += n; };
-    inline void             AlignDP( void ) { mpDP = (long *)(( ((int)mpDP) + 3 ) & ~3); };
+    inline void             AllotLongs( int n ) { mCore.DP += n; };
+    inline void             AlignDP( void ) { mCore.DP = (long *)(( ((int)mCore.DP) + 3 ) & ~3); };
     inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpSearchVocab; };
     inline void             SetSearchVocabulary( ForthVocabulary* pVocab )  { mpSearchVocab = pVocab; };
     inline ForthVocabulary  *GetPrecedenceVocabulary( void )   { return mpPrecedenceVocab; };
@@ -115,8 +106,9 @@ public:
     inline void             SetDefinitionVocabulary( ForthVocabulary* pVocab )  { mpDefinitionVocab = pVocab; };
     inline ForthVocabulary  *GetLocalVocabulary( void )   { return mpLocalVocab; };
     inline void             SetShell( ForthShell *pShell ) { mpShell = pShell; };
-    inline ForthShell *     GetShell( void ) { return mpShell; };
+    inline ForthShell       *GetShell( void ) { return mpShell; };
     inline ForthVocabulary  *GetForthVocabulary( void )   { return mpMainVocab; };
+    inline ForthThread      *GetCurrentThread( void )  { return mpCurrentThread; };
 
     inline long             *GetCompileStatePtr( void ) { return &mCompileState; };
     inline void             SetCompileState( long v ) { mCompileState = v; };
@@ -127,19 +119,13 @@ public:
     inline void             SetCompileFlag( long flags ) { mCompileFlags |= flags; };
     inline void             ClearCompileFlag( long flags ) { mCompileFlags &= (~flags); };
 
+    void                    SetCurrentThread( ForthThread* pThread );
+
 protected:
     bool                    ScanIntegerToken( const char *pToken, long *pValue, int base );
 
 protected:
-    long *      mpDP;                   // dictionary pointer
-    long *      mpDBase;                // base of dictionary
-    ulong       mDLen;                  // max size of dictionary memory segment
-
-    ulong       mNumBuiltinOps;         // number of built-in ops
-
-    ulong       mNumOps;                // gNumOps is current number of entries in userDict
-
-    ulong       mMaxOps;                // gMaxOps is max entries in userDict
+    ForthCoreState   mCore;             // core inner interpreter state
 
     ForthVocabulary * mpMainVocab;          // main forth vocabulary
     ForthVocabulary * mpLocalVocab;         // local variable vocabulary
@@ -151,12 +137,10 @@ protected:
     char        *mpStringBufferA;       // string buffer A is used for quoted strings when in interpreted mode
     char        *mpStringBufferB;       // string buffer B is the buffer which string IO ops append to
 
-    long        **mpOpTable;            // ptr to table of ForthOp adresses for built-in ops, and IP
-                                        //   addresses for user-defined ops
-
     long        mCompileState;          // true iff compiling
 
     ForthThread *   mpThreads;
+    ForthThread *   mpCurrentThread;
     ForthShell  *   mpShell;
     long *          mpEngineScratch;
     char *          mpLastToken;
@@ -173,4 +157,4 @@ protected:
 
 
 
-#endif // !defined(AFX_FORTHENGINE_H__C43FADC2_9009_11D4_A3C4_FD0788C5AC51__INCLUDED_)
+#endif

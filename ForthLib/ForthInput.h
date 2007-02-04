@@ -1,9 +1,11 @@
+//////////////////////////////////////////////////////////////////////
+//
 // ForthInput.h: interface for the ForthInputStack class.
 //
 //////////////////////////////////////////////////////////////////////
 
-#if !defined(_FORTHINPUT_H_INCLUDED_)
-#define _FORTHINPUT_H_INCLUDED_
+#if !defined(_FORTH_INPUT_H_INCLUDED_)
+#define _FORTH_INPUT_H_INCLUDED_
 
 #if _MSC_VER > 1000
 #pragma once

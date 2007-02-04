@@ -97,6 +97,10 @@ SOURCE=.\ForthForgettable.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\ForthInner.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\ForthInput.cpp
 # End Source File
 # Begin Source File
@@ -139,6 +143,10 @@ SOURCE=.\ForthEngine.h
 # Begin Source File
 
 SOURCE=.\ForthForgettable.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\ForthInner.h
 # End Source File
 # Begin Source File
 

@@ -79,7 +79,7 @@ ForthClass::~ForthClass()
 void
 ForthClass::AddMethod( char *pSym, long *pMethodIP )
 {
-    mpDefinitionVocab->AddSymbol( pSym, 0, mNumTotalMethods++, false );
+    mpDefinitionVocab->AddSymbol( pSym, kOpUserMethods, mNumTotalMethods++, false );
     mpClassTable[mNumNewMethods++] = (long) pMethodIP;
 }
 

@@ -16,28 +16,28 @@
 
 ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnStackLongs )
 : mpEngine( pEngine )
-, mSLen( paramStackLongs )
-, mRLen( returnStackLongs )
-, mpPrivate( NULL )
-, mpErrorString( NULL )
 {
+    mState.SLen = paramStackLongs;
+    mState.RLen = returnStackLongs;
+    mState.pPrivate = NULL;
+    mState.pErrorString = NULL;
     // leave a few extra words above top of stacks, so that underflows don't
     //   tromp on the memory allocator info
-    mSB = new long[mSLen + (GAURD_AREA * 2)];
-    mSB += GAURD_AREA;
-    mST = mSB + mSLen;
+    mState.SB = new long[mState.SLen + (GAURD_AREA * 2)];
+    mState.SB += GAURD_AREA;
+    mState.ST = mState.SB + mState.SLen;
 
-    mRB = new long[mRLen + (GAURD_AREA * 2)];
-    mRB += GAURD_AREA;
-    mRT = mRB + mRLen;
+    mState.RB = new long[mState.RLen + (GAURD_AREA * 2)];
+    mState.RB += GAURD_AREA;
+    mState.RT = mState.RB + mState.RLen;
 
     Reset();
 }
 
 ForthThread::~ForthThread()
 {
-    delete [] (mSB - GAURD_AREA);
-    delete [] (mRB - GAURD_AREA);
+    delete [] (mState.SB - GAURD_AREA);
+    delete [] (mState.RB - GAURD_AREA);
 }
 
 void
@@ -45,16 +45,16 @@ ForthThread::Reset( void )
 {
     EmptySStack();
     EmptyRStack();
-    mFP = NULL;
-    mTP = NULL;
+    mState.FP = NULL;
+    mState.TP = NULL;
 
-    mError = kForthErrorNone;
-    mState = kResultDone;
-    mVarMode = kVarFetch;
-    mBase = 10;
-    mSignedPrintMode = kPrintSignedDecimal;
-    mpConOutFile = stdout;
-    mpConOutStr = NULL;
+    mState.error = kForthErrorNone;
+    mState.state = kResultDone;
+    mState.varMode = kVarFetch;
+    mState.base = 10;
+    mState.signedPrintMode = kPrintSignedDecimal;
+    mState.pConOutFile = stdout;
+    mState.pConOutStr = NULL;
 }
 
 
@@ -62,6 +62,7 @@ static char *pErrorStrings[] =
 {
     "No Error",
     "Bad Opcode",
+    "Bad OpcodeType",
     "Parameter Stack Underflow",
     "Parameter Stack Overflow",
     "Return Stack Underflow",
@@ -85,27 +86,27 @@ static char *pErrorStrings[] =
 void
 ForthThread::SetError( eForthError e, const char *pString )
 {
-    mState = kResultError;
-    mError = e;
-    mpErrorString = pString;
+    mState.state = kResultError;
+    mState.error = e;
+    mState.pErrorString = pString;
 }
 
 void
 ForthThread::SetFatalError( eForthError e, const char *pString )
 {
-    mState = kResultFatalError;
-    mError = e;
-    mpErrorString = pString;
+    mState.state = kResultFatalError;
+    mState.error = e;
+    mState.pErrorString = pString;
 }
 
 void
 ForthThread::GetErrorString( char *pString )
 {
-    int errorNum = (int) mError;
+    int errorNum = (int) mState.error;
     if ( errorNum < (sizeof(pErrorStrings) / sizeof(char *)) ) {
-        if ( mpErrorString != NULL )
+        if ( mState.pErrorString != NULL )
         {
-            sprintf( pString, "%s: %s", pErrorStrings[errorNum], mpErrorString );
+            sprintf( pString, "%s: %s", pErrorStrings[errorNum], mState.pErrorString );
         }
         else
         {
@@ -116,29 +117,6 @@ ForthThread::GetErrorString( char *pString )
     {
         sprintf( pString, "Unknown Error %d", errorNum );
     }
-}
-
-
-//
-// ExecuteOneOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
-// execute forth ops, and is also how systems external to forth execute ops
-//
-eForthResult
-ForthThread::ExecuteOneOp( long opCode )
-{
-    long opScratch[2];
-    long *savedIP;
-    eForthResult exitStatus = kResultOk;
-
-    opScratch[0] = opCode;
-    opScratch[1] = BUILTIN_OP( OP_DONE );
-
-    savedIP = mIP;
-    mIP = opScratch;
-    exitStatus = mpEngine->InnerInterpreter( this );
-    mIP = savedIP;
-
-    return exitStatus;
 }
 
 
@@ -169,6 +147,33 @@ ForthThread::CheckStacks( void )
     }
 
     return result;
+}
+
+
+void
+ForthThread::Activate( ForthCoreState& core )
+{
+    core.IP = mState.IP;
+    core.SP = mState.SP;
+    core.RP = mState.RP;
+    core.FP = mState.FP;
+    core.ST = mState.ST;
+    core.RT = mState.RT;
+    core.varMode = mState.varMode;
+    core.state = mState.state;
+    core.pThread = &mState;
+}
+
+
+void ForthThread::Deactivate( ForthCoreState& core )
+{
+    mState.IP = core.IP;
+    mState.SP = core.SP;
+    mState.RP = core.RP;
+    mState.FP = core.FP;
+    // NOTE: we don't copy RT & ST back into thread - they should not change
+    mState.varMode = core.varMode;
+    mState.state = core.state;
 }
 
 

@@ -11,20 +11,14 @@
 #include "ForthShell.h"
 #include "ForthVocabulary.h"
 #include "ForthClass.h"
+#include "ForthInner.h"
 
 extern baseDictEntry baseDict[];
-
-// ForthEngine::InnerInterpreter dispatches through this table for all opcode types
-// other than SimpleOp and UserOp
-
-// NOTE: remember to update opTypeNames if you add a new optype
-
-optypeActionRoutine optypeAction[256];
 
 #ifdef TRACE_INNER_INTERPRETER
 
 // provide trace ability for builtin ops
-#define NUM_TRACEABLE_OPS 500
+#define NUM_TRACEABLE_OPS MAX_BUILTIN_OPS
 static char *gOpNames[ NUM_TRACEABLE_OPS ];
 
 #endif
@@ -34,37 +28,42 @@ static char *gOpNames[ NUM_TRACEABLE_OPS ];
 //////////////////////////////////////////////////////////////////////
 
 ForthEngine::ForthEngine()
-: mpDBase( NULL )
-, mpDP( NULL )
-, mpMainVocab( NULL )
+: mpMainVocab( NULL )
 , mpLocalVocab( NULL )
 , mpPrecedenceVocab( NULL )
 , mpSearchVocab( NULL )
 , mpDefinitionVocab( NULL )
 , mpStringBufferA( NULL )
 , mpStringBufferB( NULL )
-, mpOpTable( NULL )
-, mNumOps( 0 )
-, mNumBuiltinOps( 0 )
 , mpThreads( NULL )
 , mpInterpreterExtension( NULL )
+, mpCurrentThread( NULL )
 {
     // scratch area for temporary definitions
     mpEngineScratch = new long[70];
+    InitCore( mCore );
 }
 
 ForthEngine::~ForthEngine()
 {
     ForthThread *pNextThread;
 
-    if ( mpDBase ) {
-        delete [] mpDBase;
+    if ( mCore.DBase ) {
+        delete [] mCore.DBase;
         delete mpMainVocab;
         delete mpLocalVocab;
         delete mpPrecedenceVocab;
         delete [] mpStringBufferA;
         delete [] mpStringBufferB;
-        free( mpOpTable );
+    }
+
+    if ( mCore.builtinOps )
+    {
+        free( mCore.builtinOps );
+    }
+    if ( mCore.userOps )
+    {
+        free( mCore.userOps );
     }
 
     // delete all threads;
@@ -90,8 +89,9 @@ ForthEngine::Initialize( int                totalLongs,
                          bool               bAddBaseOps,
                          baseDictEntry *    pUserBuiltinOps )
 {
-    mpDBase = new long[totalLongs];
-    mpDP = mpDBase;
+    mCore.DBase = new long[totalLongs];
+    mCore.DP = mCore.DBase;
+    mCore.pEngine = this;
 
     mpMainVocab = new ForthVocabulary( this, "forth" );
     mpLocalVocab = new ForthVocabulary( this, "local_vars" );
@@ -100,12 +100,18 @@ ForthEngine::Initialize( int                totalLongs,
     mpStringBufferA = new char[256 * NUM_INTERP_STRINGS];
     mpStringBufferB = new char[256];
 
-    mNumBuiltinOps = 0;
-    mNumOps = 0;
-    mMaxOps = 128;
-    mpOpTable = (long **) malloc( sizeof(long *) * mMaxOps );
+    mCore.numBuiltinOps = 0;
+    mCore.builtinOps = (ForthOp *) malloc( sizeof(ForthOp) * MAX_BUILTIN_OPS );
+    mCore.numUserOps = 0;
+    mCore.maxUserOps = 128;
+    mCore.userOps = (long **) malloc( sizeof(long *) * mCore.maxUserOps );
 
     Reset();
+
+    //
+    // build dispatch table for different opcode types
+    //
+    InitDispatchTables( mCore );
 
     if ( bAddBaseOps ) {
         AddBuiltinOps( baseDict );
@@ -114,13 +120,6 @@ ForthEngine::Initialize( int                totalLongs,
         AddBuiltinOps( pUserBuiltinOps );
     }
 
-    //
-    // build dispatch table for different opcode types
-    //
-    int i;
-    for ( i = 0; i < 256; i++ ) {
-        optypeAction[i] = ForthEngine::BadOpcodeTypeError;
-    }
 }
 
 
@@ -138,30 +137,45 @@ ForthEngine::Reset( void )
 }
 
 
+// add an op to dictionary
 long
-ForthEngine::AddOp( const long *pOp )
+ForthEngine::AddOp( const long *pOp, forthOpType symType )
 {
-    if ( mNumOps == mMaxOps ) {
-        mMaxOps += 128;
-        mpOpTable = (long **) realloc( mpOpTable, sizeof(long *) * mMaxOps );
-    }
-    mpOpTable[ mNumOps++ ] = (long *) pOp;
+    long newOp;
 
-    return mNumOps - 1;
+    if ( symType == kOpBuiltIn )
+    {
+        ASSERT( mCore.numBuiltinOps < MAX_BUILTIN_OPS );
+        mCore.builtinOps[ mCore.numBuiltinOps++ ] = (ForthOp) pOp;
+
+        newOp = mCore.numBuiltinOps - 1;
+    }
+    else
+    {
+        if ( mCore.numUserOps == mCore.maxUserOps ) {
+            mCore.maxUserOps += 128;
+            mCore.userOps = (long **) realloc( mCore.userOps, sizeof(long *) * mCore.maxUserOps );
+        }
+        mCore.userOps[ mCore.numUserOps++ ] = (long *) pOp;
+
+        newOp = mCore.numUserOps - 1;
+    }
+    return newOp;
 }
 
 
+// add an op to dictionary and corresponding symbol to current vocabulary
 long
 ForthEngine::AddUserOp( const char *pSymbol, bool smudgeIt )
 {
 
     AlignDP();
-    mpDefinitionVocab->AddSymbol( pSymbol, kOpUserDef, (long) mpDP, true );
+    mpDefinitionVocab->AddSymbol( pSymbol, kOpUserDef, (long) mCore.DP, true );
     if ( smudgeIt ) {
         mpDefinitionVocab->SmudgeNewestSymbol();
     }
 
-    return mNumOps - 1;
+    return mCore.numUserOps - 1;
 }
 
 
@@ -169,7 +183,7 @@ void
 ForthEngine::AddBuiltinOps( baseDictEntry *pEntries )
 {
     // assert if this is called after any user ops have been defined
-    ASSERT( mNumOps == mNumBuiltinOps );
+    ASSERT( mCore.numUserOps == 0 );
     forthOpType opType;
 
     while ( pEntries->value != NULL ) {
@@ -185,15 +199,14 @@ ForthEngine::AddBuiltinOps( baseDictEntry *pEntries )
 #ifdef TRACE_INNER_INTERPRETER
         // add built-in op names to table for TraceOp
         if ( opType == kOpBuiltIn ) {
-            if ( (mNumOps - 1) < NUM_TRACEABLE_OPS ) {
-                gOpNames[mNumOps - 1] = pEntries->name;
+            if ( (mCore.numBuiltinOps - 1) < NUM_TRACEABLE_OPS ) {
+                gOpNames[mCore.numBuiltinOps - 1] = pEntries->name;
             }
         }
 #endif
         pEntries++;
 
     }
-    mNumBuiltinOps = mNumOps;
 }
 
 
@@ -201,13 +214,11 @@ ForthEngine::AddBuiltinOps( baseDictEntry *pEntries )
 void
 ForthEngine::ForgetOp( ulong opNumber )
 {
-    if ( opNumber < mNumBuiltinOps ) {
-        TRACE( "ForthEngine::ForgetOp error - attempt to forget builtin op # %d\n", opNumber );
-    } else if ( opNumber < mNumOps ) {
-        mpDP = mpOpTable[ opNumber ];
-        mNumOps = opNumber;
+    if ( opNumber < mCore.numUserOps ) {
+        mCore.DP = mCore.userOps[ opNumber ];
+        mCore.numUserOps = opNumber;
     } else {
-        TRACE( "ForthEngine::ForgetOp error - attempt to forget bogus op # %d, only %d ops exist\n", opNumber, mNumOps );
+        TRACE( "ForthEngine::ForgetOp error - attempt to forget bogus op # %d, only %d ops exist\n", opNumber, mCore.numUserOps );
     }
 }
 
@@ -236,7 +247,7 @@ ForthEngine::ForgetSymbol( const char *pSym )
         else
         {
            ForgetOp( op );
-           ForthForgettable::ForgetPropagate( mpDP, op );
+           ForthForgettable::ForgetPropagate( mCore.DP, op );
         }
     }
     else
@@ -322,7 +333,7 @@ ForthEngine::StartOpDefinition( bool smudgeIt )
     mLocalFrameSize = 0;
     mpLocalAllocOp = NULL;
     AlignDP();
-    mpDefinitionVocab->AddSymbol( GetNextSimpleToken(), kOpUserDef, (long) mpDP, true );
+    mpDefinitionVocab->AddSymbol( GetNextSimpleToken(), kOpUserDef, (long) mCore.DP, true );
     if ( smudgeIt ) {
         mpDefinitionVocab->SmudgeNewestSymbol();
     }
@@ -362,7 +373,7 @@ ForthEngine::StartVarsDefinition( void )
     mCompileFlags |= (kFECompileFlagInVarsDefinition | kFECompileFlagHasLocalVars);
     if ( mpLocalAllocOp == NULL ) {
         // leave space for local alloc op
-        mpLocalAllocOp = mpDP;
+        mpLocalAllocOp = mCore.DP;
         CompileLong( 0 );
     }
 }
@@ -383,6 +394,7 @@ ForthEngine::AddLocalVar( const char    *pVarName,
     mpLocalVocab->AddSymbol( pVarName, varType, mLocalFrameSize, false );
 }
 
+#if 0
 void
 ForthEngine::InvokeClassMethod( ForthThread     *g,
                                 ulong           methodNumber )
@@ -401,15 +413,15 @@ ForthEngine::InvokeClassMethod( ForthThread     *g,
         opVal = FORTH_OP_VALUE( opVal );
 
         if ( opVal == kOpBuiltIn ) {
-            if ( opVal < pEngine->mNumBuiltinOps ) {
-                ((ForthOp) pEngine->mpOpTable[opVal]) ( g );
+            if ( opVal < pEngine->mCore.numBuiltinOps ) {
+                ((ForthOp) pEngine->mCore.builtinOps[opVal]) ( g );
             } else {
                 g->SetError( kForthErrorBadOpcode );
             }
         } else if ( opVal == kOpUserDef ) {
-            if ( opVal < pEngine->mNumOps ) {
-                g->RPush( (long) g->mIP );
-                g->mIP = pEngine->mpOpTable[opVal];
+            if ( opVal < pEngine->mCore.numUserOps ) {
+                g->RPush( (long) g->GetIP() );
+                g->SetIP( pEngine->mCore.userOps[opVal] );
             } else {
                 g->SetError( kForthErrorBadOpcode );
             }
@@ -420,14 +432,6 @@ ForthEngine::InvokeClassMethod( ForthThread     *g,
     } else {
         g->SetError( kForthErrorBadMethod );
     }
-}
-
-
-void
-ForthEngine::BadOpcodeTypeError( ForthThread    *g,
-                                 ulong          opVal )
-{
-    g->SetError( kForthErrorBadOpcode );
 }
 
 bool
@@ -444,6 +448,7 @@ ForthEngine::IsExecutableType( forthOpType      symType )
 
     }
 }
+#endif
 
 
 static char *opTypeNames[] = {
@@ -459,17 +464,15 @@ static char *opTypeNames[] = {
 // TBD: tracing of built-in ops won't work for user-added builtins...
 
 void
-ForthEngine::TraceOp( ForthThread     *g )
+ForthEngine::TraceOp()
 {
-    long *ip;
-    ulong opVal;
-    forthOpType opType;
+    long *ip = mCore.IP - 1;
+    long op = GetCurrentOp( &mCore );
+    forthOpType opType = FORTH_OP_TYPE( op );
+    ulong opVal = FORTH_OP_VALUE( op );
 
-    ip= g->mIP - 1;
-    opType = FORTH_OP_TYPE( g->mCurrentOp );
-    opVal = FORTH_OP_VALUE( g->mCurrentOp );
     if ( opType >= (sizeof(opTypeNames) / sizeof(char *)) ) {
-        TRACE( "# BadOpType 0x%x  @ IP = 0x%x\n", g->mCurrentOp, ip );
+        TRACE( "# BadOpType 0x%x  @ IP = 0x%x\n", op, ip );
     } else {
 
         switch( opType ){
@@ -479,19 +482,19 @@ ForthEngine::TraceOp( ForthThread     *g )
 #ifdef TRACE_INNER_INTERPRETER
                 if ( opVal < NUM_TRACEABLE_OPS ) {
                     // traceable built-in op
-                    TRACE( "# %s    0x%x   @ IP = 0x%x\n", gOpNames[opVal], g->mCurrentOp, ip );
+                    TRACE( "# %s    0x%x   @ IP = 0x%x\n", gOpNames[opVal], op, ip );
                 } else {
                     // op we don't have name pointer for
-                    TRACE( "# %s    0x%x   @ IP = 0x%x\n", opTypeNames[opType], g->mCurrentOp, ip );
+                    TRACE( "# %s    0x%x   @ IP = 0x%x\n", opTypeNames[opType], op, ip );
                 }
 #else
-                TRACE( "# %s    0x%x   @ IP = 0x%x\n", opTypeNames[opType], g->mCurrentOp, ip );
+                TRACE( "# %s    0x%x   @ IP = 0x%x\n", opTypeNames[opType], op, ip );
 #endif
             }
             break;
             
         case kOpString:
-            TRACE( "# \"%s\" 0x%x   @ IP = 0x%x\n", (char *)(g->mIP), g->mCurrentOp, ip );
+            TRACE( "# \"%s\" 0x%x   @ IP = 0x%x\n", (char *)ip, op, ip );
             break;
             
         case kOpConstant:
@@ -503,7 +506,7 @@ ForthEngine::TraceOp( ForthThread     *g )
             break;
             
         default:
-            TRACE( "# %s    0x%x   @ IP = 0x%x\n", opTypeNames[opType], g->mCurrentOp, ip );
+            TRACE( "# %s    0x%x   @ IP = 0x%x\n", opTypeNames[opType], op, ip );
             break;
         }
     }
@@ -515,9 +518,12 @@ bool
 ForthEngine::AddOpType( forthOpType opType, optypeActionRoutine opAction )
 {
 
-    if ( (opType >= kOpLocalUserDefined) && (opType <= kOpMaxLocalUserDefined) ) {
-        optypeAction[ opType ] = opAction;
-    } else {
+    if ( (opType >= kOpLocalUserDefined) && (opType <= kOpMaxLocalUserDefined) )
+    {
+        mCore.optypeAction[ opType ] = opAction;
+    }
+    else
+    {
         // opType out of range
         return false;
     }
@@ -602,8 +608,43 @@ void
 ForthEngine::CompileOpcode( long op )
 {
     mLastCompiledOpcode = op;
-    *mpDP++ = op;
+    *mCore.DP++ = op;
 }
+
+
+void
+ForthEngine::SetCurrentThread( ForthThread* pThread )
+{
+    if ( mpCurrentThread != NULL )
+    {
+        mpCurrentThread->Deactivate( mCore );
+    }
+    mpCurrentThread = pThread;
+    mpCurrentThread->Activate( mCore );
+}
+
+//
+// ExecuteOneOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
+// execute forth ops, and is also how systems external to forth execute ops
+//
+eForthResult
+ForthEngine::ExecuteOneOp( long opCode )
+{
+    long opScratch[2];
+    long *savedIP;
+    eForthResult exitStatus = kResultOk;
+
+    opScratch[0] = opCode;
+    opScratch[1] = BUILTIN_OP( OP_DONE );
+
+    savedIP = mCore.IP;
+    mCore.IP = opScratch;
+    exitStatus = InnerInterpreterFunc( &mCore );
+    mCore.IP = savedIP;
+
+    return exitStatus;
+}
+
 
 
 //############################################################################
@@ -615,8 +656,7 @@ ForthEngine::CompileOpcode( long op )
 
 // return true to exit forth shell
 eForthResult
-ForthEngine::ProcessToken( ForthThread    *g,
-                           ForthParseInfo   *pInfo )
+ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 {
     long *pSymbol, value;
     eForthResult exitStatus = kResultOk;
@@ -641,9 +681,9 @@ ForthEngine::ProcessToken( ForthThread    *g,
         SPEW_OUTER_INTERPRETER( "String[%s] flags[%x]\n", pToken, pInfo->GetFlags() );
         if ( mCompileState ) {
             len = ((len + 4) & ~3) >> 2;
-            *mpDP++ = COMPILED_OP( kOpString, len );
-            strcpy( (char *) mpDP, pToken );
-            mpDP += len;
+            *mCore.DP++ = COMPILED_OP( kOpString, len );
+            strcpy( (char *) mCore.DP, pToken );
+            mCore.DP += len;
         } else {
             // in interpret mode, stick the string in string buffer A
             //   and leave the address on param stack
@@ -654,7 +694,7 @@ ForthEngine::ProcessToken( ForthThread    *g,
             }
             char *pStr = mpStringBufferA + (256 * mNextStringNum);
             strncpy( pStr, pToken, 255 );  // TBD: make string buffer len a symbol
-            g->Push( (long) pStr );
+            *--mCore.SP = (long) pStr;
             mNextStringNum++;
         }
         return kResultOk;
@@ -668,10 +708,10 @@ ForthEngine::ProcessToken( ForthThread    *g,
         SPEW_OUTER_INTERPRETER( "Character[%s] flags[%x]\n", pToken, pInfo->GetFlags() );
         value = *pToken & 0xFF;
         if ( mCompileState ) {
-            *mpDP++ = value | (kOpConstant << 24);
+            *mCore.DP++ = value | (kOpConstant << 24);
         } else {
             // in interpret mode, stick the character on the stack
-            g->Push( value );
+            *--mCore.SP = value;
         }
         return kResultOk;
     }
@@ -697,12 +737,12 @@ ForthEngine::ProcessToken( ForthThread    *g,
             //
             ////////////////////////////////////
             mLastCompiledOpcode = *pSymbol;
-            *mpDP++ = mLastCompiledOpcode;
+            *mCore.DP++ = mLastCompiledOpcode;
             return kResultOk;
         }
     }
 
-    if ( mpPrecedenceVocab->ProcessSymbol( pInfo, g, exitStatus ) != NULL )
+    if ( mpPrecedenceVocab->ProcessSymbol( pInfo, exitStatus ) != NULL )
     {
         ////////////////////////////////////
         //
@@ -717,7 +757,7 @@ ForthEngine::ProcessToken( ForthThread    *g,
         ForthVocabulary* pVocab = mpSearchVocab;
         while ( pVocab != NULL )
         {
-            if ( pVocab->ProcessSymbol( pInfo, g, exitStatus ) )
+            if ( pVocab->ProcessSymbol( pInfo, exitStatus ) )
             {
                 ////////////////////////////////////
                 //
@@ -750,13 +790,14 @@ ForthEngine::ProcessToken( ForthThread    *g,
         if ( mCompileState ) {
             // compile the literal value
             // value too big, must go in next longword
-            *mpDP++ = OP_FLOAT_VAL;
-            *(float *) mpDP++ = fvalue;
+            *mCore.DP++ = OP_FLOAT_VAL;
+            *(float *) mCore.DP++ = fvalue;
         } else {
-            g->FPush( fvalue );
+            --mCore.SP;
+            *(float *) mCore.SP = fvalue;
         }
         
-    } else if ( ScanIntegerToken( pToken, &value, *(g->GetBaseRef()) ) ) {
+    } else if ( ScanIntegerToken( pToken, &value, mCore.pThread->base ) ) {
 
         ////////////////////////////////////
         //
@@ -768,21 +809,21 @@ ForthEngine::ProcessToken( ForthThread    *g,
             // compile the literal value
             if ( (value < (1 << 23)) && (value >= -(1 << 23)) ) {
                 // value fits in opcode immediate field
-                *mpDP++ = (value & 0xFFFFFF) | (kOpConstant << 24);
+                *mCore.DP++ = (value & 0xFFFFFF) | (kOpConstant << 24);
             } else {
                 // value too big, must go in next longword
-                *mpDP++ = OP_INT_VAL;
-                *mpDP++ = value;
+                *mCore.DP++ = OP_INT_VAL;
+                *mCore.DP++ = value;
             }
         } else {
             // leave value on param stack
-            g->Push( value );
+            *--mCore.SP = value;
         }
 
     } else {
 
         TRACE( "Unknown symbol %s\n", pToken );
-        g->SetError( kForthErrorUnknownSymbol );
+        mCore.pThread->error = kForthErrorUnknownSymbol;
         exitStatus = kResultError;
     }
 
@@ -790,242 +831,6 @@ ForthEngine::ProcessToken( ForthThread    *g,
     return exitStatus;
 }
 
-//############################################################################
-//
-//          I N N E R    I N T E R P R E T E R
-//
-//############################################################################
 
-
-eForthResult
-ForthEngine::InnerInterpreter( ForthThread  *g )
-{
-    ulong opVal;
-    ForthOp builtinOp;
-    forthOpType opType;
-    long *pSP;
-    int methodNum;
-    long *pObj, *pClass;
-
-    g->mState = kResultOk;
-    
-    while ( g->mState == kResultOk ) {
-        // fetch op at IP, advance IP
-        g->mCurrentOp = *g->mIP++;
-#ifdef TRACE_INNER_INTERPRETER
-        TraceOp( g );
-#endif
-        opType = FORTH_OP_TYPE( g->mCurrentOp );
-        opVal = FORTH_OP_VALUE( g->mCurrentOp );
-
-        switch ( opType ) {
-
-        case kOpBuiltIn:
-            // built in simple op
-            // look up routine in table of built-in ops & execute
-            if ( opVal < mNumBuiltinOps ) {
-                builtinOp = (ForthOp) mpOpTable[opVal];
-                builtinOp( g );
-            } else {
-                g->SetError( kForthErrorBadOpcode );
-            }
-            break;
-
-        case kOpUserDef:
-            // op is normal user-defined, push IP on rstack, lookup new IP
-            //  in table of user-defined ops
-            if ( opVal < mNumOps ) {
-                g->RPush( (long) g->mIP );
-                g->mIP = mpOpTable[opVal];
-            } else {
-                g->SetError( kForthErrorBadOpcode );
-            }
-            break;
-
-        case kOpBranch:
-            if ( (opVal & 0x00800000) != 0 ) {
-                // TBD: trap a hard loop (offset == -1)?
-                opVal |= 0xFF000000;
-            }
-            g->mIP += opVal;
-            break;
-
-        case kOpBranchNZ:
-            if ( g->Pop() != 0 ) {
-                if ( (opVal & 0x00800000) != 0 ) {
-                    // TBD: trap a hard loop (offset == -1)?
-                    opVal |= 0xFF000000;
-                }
-                g->mIP += opVal;
-            }
-            break;
-
-        case kOpBranchZ:
-            if ( g->Pop() == 0 ) {
-                if ( (opVal & 0x00800000) != 0 ) {
-                    // TBD: trap a hard loop (offset == -1)?
-                    opVal |= 0xFF000000;
-                }
-                g->mIP += opVal;
-            }
-            break;
-
-        case kOpCaseBranch:
-            // TOS: this_case_value case_selector
-            pSP = g->GetSP();
-            if ( *pSP == pSP[1] ) {
-                // case matched
-                pSP += 2;
-            } else {
-                // no match - drop this_case_value & skip to next case
-                pSP++;
-                // case branch is always forward
-                g->mIP += opVal;
-            }
-            g->SetSP( pSP );
-            break;
-
-        case kOpConstant:
-            // push constant in opVal
-            if ( (opVal & 0x00800000) != 0 ) {
-              opVal |= 0xFF000000;
-            }
-            g->Push( opVal );
-            break;
-
-        case kOpString:
-            // push address of immediate string & skip over
-            // opVal is number of longwords in string
-            g->Push( (long) g->mIP );
-            g->mIP += opVal;
-            break;
-
-        case kOpAllocLocals:
-            // allocate a local var stack frame
-            g->RPush( (long) g->mFP );      // rpush old FP
-            g->mFP = g->mRP;                // set FP = RP, points at oldFP
-            g->mRP -= opVal;                // allocate storage for local vars
-            break;
-
-        case kOpLocalInt:
-            LocalIntAction( g, opVal );
-            break;
-
-        case kOpLocalFloat:
-            LocalFloatAction( g, opVal );
-            break;
-
-        case kOpLocalDouble:
-            LocalDoubleAction( g, opVal );
-            break;
-
-        case kOpLocalString:
-            LocalStringAction( g, opVal );
-            break;
-
-        case kOpFieldInt:
-            FieldIntAction( g, opVal );
-            break;
-
-        case kOpFieldFloat:
-            FieldFloatAction( g, opVal );
-            break;
-
-        case kOpFieldDouble:
-            FieldDoubleAction( g, opVal );
-            break;
-
-        case kOpFieldString:
-            FieldStringAction( g, opVal );
-            break;
-
-        case kOpMemberInt:
-            MemberIntAction( g, opVal );
-            break;
-
-        case kOpMemberFloat:
-            MemberFloatAction( g, opVal );
-            break;
-
-        case kOpMemberDouble:
-            MemberDoubleAction( g, opVal );
-            break;
-
-        case kOpMemberString:
-            MemberStringAction( g, opVal );
-            break;
-
-        case kOpMethodWithThis:
-            // this is called when a method is invoked from inside another
-            // method in the same class - the difference is that in this case
-            // there is no explicit source for the "this" pointer, we just keep
-            // on using the current "this" pointer
-            pObj = g->GetTP();
-            if ( pObj != NULL ) {
-                // pObj is a pair of pointers, first pointer is to
-                //   class descriptor for this type of object,
-                //   second pointer is to storage for object (this ptr)
-                pClass = (long *) (*pObj);
-                if ( pClass[2] > (long) opVal ) {
-                    g->RPush( (long) g->mIP );
-                    g->RPush( (long) g->mTP );
-                    g->mTP = pObj;
-                    g->mIP = (long *) (pClass[opVal + 3]);
-                } else {
-                    // bad method number
-                    g->SetError( kForthErrorBadOpcode );
-                }
-            } else {
-                g->SetError( kForthErrorBadOpcode );
-            }
-            break;
-
-
-        default:
-
-            if ( opType >= kOpUserMethods ) {
-
-                // token is object method invocation
-                methodNum = ((int) opType) & 0x7F;
-                pObj = NULL;
-                if ( opVal & 0x00800000 ) {
-                    // object ptr is in local variable
-                    pObj = g->GetFP() - (opVal & 0x007F0000);
-                } else {
-                    // object ptr is in global op
-                    if ( opVal < mNumOps ) {
-                        pObj = (long *) (mpOpTable[opVal]);
-                    } else {
-                        g->SetError( kForthErrorBadOpcode );
-                    }
-                }
-                if ( pObj != NULL ) {
-                    // pObj is a pair of pointers, first pointer is to
-                    //   class descriptor for this type of object,
-                    //   second pointer is to storage for object (this ptr)
-                    pClass = (long *) (*pObj);
-                    if ( (pClass[1] == CLASS_MAGIC_NUMBER)
-                      && (pClass[2] > methodNum) ) {
-                        g->RPush( (long) g->mIP );
-                        g->RPush( (long) g->mTP );
-                        g->mTP = pObj;
-                        g->mIP = (long *) (pClass[methodNum + 3]);
-                    } else {
-                        // bad class magic number, or bad method number
-                        g->SetError( kForthErrorBadOpcode );
-                    }
-                } else {
-                    g->SetError( kForthErrorBadOpcode );
-                }
-
-            } else {
-                optypeAction[opType]( g, opVal );
-            }
-        }
-
-    }
-
-    return g->mState;
-}
 
 //############################################################################
