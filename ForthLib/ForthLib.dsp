@@ -121,6 +121,39 @@ SOURCE=.\ForthVocabulary.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\InnerInterp.asm
+
+!IF  "$(CFG)" == "ForthLib - Win32 Release"
+
+# Begin Custom Build
+OutDir=.\Release
+InputPath=.\InnerInterp.asm
+InputName=InnerInterp
+
+"$(OutDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	ml /c /Cx /coff $(InputPath) 
+	move $(InputName).obj $(OutDir) 
+	
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "ForthLib - Win32 Debug"
+
+# Begin Custom Build
+OutDir=.\Debug
+InputPath=.\InnerInterp.asm
+InputName=InnerInterp
+
+"$(OutDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	ml /c /Cx /coff $(InputPath) 
+	move $(InputName).obj $(OutDir) 
+	
+# End Custom Build
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=.\StdAfx.cpp
 # ADD CPP /Yc"stdafx.h"
 # End Source File
@@ -130,11 +163,19 @@ SOURCE=.\StdAfx.cpp
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
 # Begin Source File
 
+SOURCE=.\core.inc
+# End Source File
+# Begin Source File
+
 SOURCE=.\Forth.h
 # End Source File
 # Begin Source File
 
 SOURCE=.\ForthClass.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\ForthCore.h
 # End Source File
 # Begin Source File
 
