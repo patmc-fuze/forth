@@ -1,12 +1,12 @@
 // test if...else...endif
 : woof  if " true " else " false " endif %s %nl ;
 
-// test if...endif
-: foow if " foow " %s endif %nl ;
-1 foow
-0 foow
+"Test if...endif\n" %s
+: foow if " foow " %s endif ;
+"Should see: A foow BC\n" %s
+"A" %s 1 foow "B" %s 0 foow "C" %s %nl
 
-// test qouted strings
+" Test qouted strings and if...else...endif\n" %s
 : barney "This is a \"quoted\" test string\n\n\n" %s 0 woof 1 woof ;
 barney
 
@@ -38,7 +38,14 @@ ookla
 pebbles
 "Interpreted: " %s 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl
 
-: lvtest vars int aa endvars 0 -> aa 10 0 do aa %d %bl 5 ->+ aa loop %nl ;
+"Global variable test\n" %s
+int gaa
+: gvtest 0 -> gaa 10 0 do gaa %d %bl 5 ->+ gaa loop %nl ;
+"Should see 0..45 in increments of 5\n" %s gvtest
+
+"Local variable test\n" %s
+//: lvtest vars int aa endvars 0 -> aa 10 0 do aa %d %bl 5 ->+ aa loop %nl ;
+: lvtest int aa 0 -> aa 10 0 do aa %d %bl 5 ->+ aa loop %nl ;
 "Should see 0..45 in increments of 5\n" %s lvtest
 
 : casetest

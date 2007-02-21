@@ -13,6 +13,11 @@ TBDs:
 
 - rewrite kernel in assembler
 
+
+C++ code is setting ForthCoreState.state @(002F4948 + 434) = 1
+We are checking (002F4948 + 432)
+? Say huh ?
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 
 Forth Implementation Classes
@@ -74,6 +79,105 @@ SYMBOL_NAME VOCAB  findSymbol	ENTRY_PTR
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 18, 2007
+
+Fixed offset optype.
+
+Changed local var stuff so that local vars can be declared anywhere,
+vars...endvars are not needed and should be removed.
+One case which was a problem was strings:
+
+: anExample
+  55 string anyName
+;
+
+In this example, the 55 which was intended to be the length param to "string"
+had been compiled.  To deal with this, I added a method to the engine which
+checks if the last compiled opcode was a literal constant and returns its
+value if so.  The "string" implementation backs the DP over this constant.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 17, 2007
+
+When I looked at converting the string ops into assembler, I started thinking
+about string variables, in particular about detecting and avoiding string
+buffer overruns.  Three main possibilities came to mind:
+
+1) do like C does, just ignore the problem and always assign bigass buffers
+2) add a max length field to string variables
+  a) add a current length field to string variables
+3) go to a scheme where strings are handled more abstractly
+  a) suppose a string was a base pointer and a length
+  b) or maybe a pointer, current length and writable length (0 means const string)
+
+One problem with making strings more complex than simple uninitialized
+buffers is that it would make implementing local strings more complicated
+
+The max length field isn't important for ops that don't modify a string, so
+stuff like strlen, strcmp. strstr and strchar could be implemented as they
+are now by just calling the C library routines.
+
+Another problem with making strings something other than a simple set of
+bytes is if you want to use them in a disk record structure, you probably
+don't want the extra length fields taking up space.
+
+I went off on a tangent about eliminating the need for vars/endvars, allowing
+you to declare variables anywhere in a user defined word.
+  You would probably want to compile the allocLocals op at the first occurence
+  of a local variable.  There are many ways that a user could shoot themself
+  in the foot doing this, especially if they were manipulating the return
+  stack, but it would be mostly safe.
+  One consequence of this is that when a string local var is declared, it would
+  have to see if a literal constant was just compiled to determine its size.
+  -> maybe we could leave that literal constant op where it was compiled, and
+     then compile an opcode immediately after it which would store that constant
+	 in the local string vars max length field and zero its current length field.
+
+I tried adding an offset optype, it works fine in interpret mode, but not in compile mode.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 16, 2007
+
+Got most of the floating point ops defined
+int, float & double global & local variables are working
+
+- need to test builds...does
+
+- change string variables to include a current length & max length
+
+? make an optimized case branch, where the opcode includes the case value
+  and branch offset?
+
++ added the ability to add 'd' or 'f' to the end of real literals to control
+  generation of single or double precision constants
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 13, 2007
+
+Assembler version of forth is mostly working.
+
+I added a macro to allow assembly-code ops to invoke c-code ops.
+
+I added an op "turbo" that allows switching between using c-code
+and asm-code inner interpreters on the fly.
+
+c-code is setting ForthCoreState->state @(002F4948 + 434) = 1
+asm-code is checking (002F4948 + 432)
+? Say huh ?
+
+I auto-generated core.inc from core.h to define the FortheCoreState structure
+for asm-code.  One problem area is enumerated types.  Maybe both the c-code
+and asm-code structures should be defined strictly in terms of simple types
+with a known storage size.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 4, 2007
+
+Worked on writing assembler versions of optype dispatch routines.
+
+Got to LocalIntAction
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 February 3, 2007
 
 In preparation for switching over to using assembler for inner interpreter,
@@ -92,6 +196,14 @@ One other related change which caused some bugs is that before both builtinOps
 and user defined ops shared a single dispatch table, now they each have their
 own table.
 
+
+
+name STRUCT [[alignment]] [[, NONUNIQUE]]
+      fielddeclarations
+      name ENDS
+
+fcore STRUCT
+	
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 Assembler version
 
@@ -114,7 +226,7 @@ ECX	IP
 EDX	SP
 ESI	builtinOp dispatch table
 EDI	inner interp PC
-EBP	thread ptr
+EBP	core ptr
 
 ? maybe combine opType and builtinOp tables - have bottom 256 builtinOp codes
   be used for opType dispatchers

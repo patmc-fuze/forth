@@ -15,6 +15,8 @@
 
 class ForthEngine;
 
+extern "C" {
+
 // VAR_ACTIONs are subops of a variable op (store/fetch/incStore/decStore)
 #define VAR_ACTION(NAME) static void NAME( ForthCoreState *pCore )
 typedef void (*VarAction)( ForthCoreState *pCore );
@@ -23,6 +25,44 @@ typedef void (*VarAction)( ForthCoreState *pCore );
 
 // right now there are about 250 builtin ops, allow for future expansion
 #define MAX_BUILTIN_OPS 512
+
+
+struct ForthThreadState
+{
+    long                *IP;       // interpreter pointer
+
+    long                *SP;       // parameter stack pointer
+    long                *ST;       // empty parameter stack pointer
+    long                *SB;       // param stack base
+    ulong               SLen;      // size of param stack in longwords
+    
+    long                *RP;       // return stack pointer
+    long                *RT;       // empty return stack pointer
+    long                *RB;       // return stack base
+    ulong               RLen;      // size of return stack
+
+    long                *FP;       // frame pointer
+    
+    long                *TP;       // this pointer
+
+    void                *pPrivate; // pointer to per-thread state
+    long                currentOp; // last op dispatched by inner interpreter
+    
+    ulong               varMode;        // operation to perform on variables
+
+    ulong               state;          // inner loop state - ok/done/error
+
+    ulong               error;
+
+    FILE                *pConOutFile;
+    char                *pConOutStr;
+
+    FILE                *pDefaultOutFile;
+    FILE                *pDefaultInFile;
+    long                base;      // output base
+    ulong               signedPrintMode;   // if numers are printed as signed/unsigned
+};
+
 
 struct ForthCoreState
 {
@@ -44,19 +84,25 @@ struct ForthCoreState
 
     long                *SP;            // parameter stack pointer
     
-    long                *ST;            // empty parameter stack pointer
-
     long                *RP;            // return stack pointer
-
-    long                *RT;            // empty return stack pointer
 
     long                *FP;            // frame pointer
     
     long                *TP;            // this pointer
 
-    varOperation        varMode;        // operation to perform on variables
+    ulong               varMode;        // operation to perform on variables
 
-    eForthResult        state;          // inner loop state - ok/done/error
+    ulong               state;          // inner loop state - ok/done/error
+
+    ulong               error;
+
+    long                *ST;            // empty parameter stack pointer
+
+    ulong               SLen;           // size of param stack in longwords
+
+    long                *RT;            // empty return stack pointer
+
+    ulong               RLen;           // size of return stack in longwords
 
     // *** end of stuff which is per thread ***
 
@@ -66,10 +112,13 @@ struct ForthCoreState
     ulong               DLen;           // max size of dictionary memory segment
 };
 
-eForthResult InnerInterpreterFunc( ForthCoreState *pCore );
 
-void InitDispatchTables( ForthCoreState& core );
-void InitCore( ForthCoreState& core );
+extern eForthResult InnerInterpreter( ForthCoreState *pCore );
+extern eForthResult InnerInterpreterFast( ForthCoreState *pCore );
+extern InitAsmTables(  ForthCoreState *pCore );
+
+void InitDispatchTables( ForthCoreState* pCore );
+void InitCore( ForthCoreState* pCore );
 void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal );
 
 inline long GetCurrentOp( ForthCoreState *pCore )
@@ -103,7 +152,7 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define FPOP                            (*(float *)pCore->SP++)
 #define FPUSH( A )                      --pCore->SP; *(float *)pCore->SP = A
 
-#define DPOP                            (*(double *)pCore->SP++)
+#define DPOP                            *((double *)pCore->SP); pCore->SP += 2
 #define DPUSH( A )                      pCore->SP -= 2; *(double *)pCore->SP = A
 
 #define RPOP                            (*pCore->RP++)
@@ -112,7 +161,7 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define GET_SDEPTH                      (pCore->ST - pCore->SP)
 #define GET_RDEPTH                      (pCore->RT - pCore->RP)
 
-#define GET_STATE                       (pCore->state)
+#define GET_STATE                       (eForthResult)(pCore->state)
 #define SET_STATE( A )                  (pCore->state = A)
 
 #define GET_ENGINE                      (pCore->pEngine)
@@ -140,4 +189,7 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 
 #define GET_PRINT_SIGNED_NUM_MODE       (pCore->pThread->signedPrintMode)
 #define SET_PRINT_SIGNED_NUM_MODE( A )  (pCore->pThread->signedPrintMode = A)
+
+};      // end extern "C"
+
 #endif

@@ -5,7 +5,6 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
-
 #include "Forth.h"
 #include "ForthEngine.h"
 #include "ForthThread.h"
@@ -14,6 +13,7 @@
 #include "ForthInput.h"
 #include <conio.h>
 
+extern "C" {
 
 // Forth operator TBDs:
 // - add dpi, fpi (pi constant)
@@ -97,54 +97,12 @@ FORTHOP(plusOp)
     SPUSH( a + b );
 }
 
-FORTHOP(plus1Op)
-{
-    NEEDS(1);
-    long a = SPOP;
-    SPUSH( a + 1 );
-}
-
-FORTHOP(plus2Op)
-{
-    NEEDS(1);
-    long a = SPOP;
-    SPUSH( a + 2 );
-}
-
-FORTHOP(plus4Op)
-{
-    NEEDS(1);
-    long a = SPOP;
-    SPUSH( a + 4 );
-}
-
 FORTHOP(minusOp)
 {
     NEEDS(2);
     long b = SPOP;
     long a = SPOP;
     SPUSH( a - b );
-}
-
-FORTHOP(minus1Op)
-{
-    NEEDS(1);
-    long a = SPOP;
-    SPUSH( a - 1 );
-}
-
-FORTHOP(minus2Op)
-{
-    NEEDS(1);
-    long a = SPOP;
-    SPUSH( a - 2 );
-}
-
-FORTHOP(minus4Op)
-{
-    NEEDS(1);
-    long a = SPOP;
-    SPUSH( a - 4 );
 }
 
 FORTHOP(timesOp)
@@ -410,8 +368,9 @@ FORTHOP( dmodfOp )
     NEEDS(2);
     double b;
     double a = DPOP;
-    DPUSH( modf( a, &b ) );
+    a = modf( a, &b );
     DPUSH( b );
+    DPUSH( a );
 }
 
 FORTHOP( dfmodOp )
@@ -1582,7 +1541,7 @@ FORTHOP( usesOp )
     GET_ENGINE->SetSearchVocabulary( (ForthVocabulary *) (SPOP) );
 }
 
-FORTHOP( forthOp )
+FORTHOP( forthVocabOp )
 {
     SPUSH( (long) (GET_ENGINE->GetForthVocabulary()) );
 }
@@ -1678,7 +1637,8 @@ FORTHOP( dconstantOp )
     ForthEngine *pEngine = GET_ENGINE;
     pEngine->StartOpDefinition();
     pEngine->CompileLong( OP_DO_DCONSTANT );
-    pEngine->CompileDouble( DPOP );
+    double d = DPOP;
+    pEngine->CompileDouble( d );
 }
 
 FORTHOP( doDConstantOp )
@@ -1692,15 +1652,32 @@ FORTHOP( intOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     char *pToken = pEngine->GetNextSimpleToken();
+
     // get next symbol, add it to vocabulary with type "user op"
-    if ( pEngine->InVarsDefinition() ) {
+    if ( pEngine->IsCompiling() )
+    {
+        if ( !pEngine->HasLocalVars() )
+        {
+            // this is first local var declaration in this user op
+            pEngine->StartVarsDefinition();
+        }
         // define local variable
         pEngine->AddLocalVar( pToken, kOpLocalInt, sizeof(long) );
-    } else {
-        // define global variable
-        pEngine->AddUserOp( pToken );
-        pEngine->CompileLong( OP_DO_INT );
-        pEngine->CompileLong( 0 );
+    }
+    else
+    {
+        if ( pEngine->InVarsDefinition() )
+        {
+            // define local variable
+            pEngine->AddLocalVar( pToken, kOpLocalInt, sizeof(long) );
+        }
+        else
+        {
+            // define global variable
+            pEngine->AddUserOp( pToken );
+            pEngine->CompileLong( OP_DO_INT );
+            pEngine->CompileLong( 0 );
+        }
     }
 }
 
@@ -1709,15 +1686,32 @@ FORTHOP( floatOp )
     float t = 0.0;
     ForthEngine *pEngine = GET_ENGINE;
     char *pToken = pEngine->GetNextSimpleToken();
+
     // get next symbol, add it to vocabulary with type "user op"
-    if ( pEngine->InVarsDefinition() ) {
+    if ( pEngine->IsCompiling() )
+    {
+        if ( !pEngine->HasLocalVars() )
+        {
+            // this is first local var declaration in this user op
+            pEngine->StartVarsDefinition();
+        }
         // define local variable
         pEngine->AddLocalVar( pToken, kOpLocalFloat, sizeof(float) );
-    } else {
-        // define global variable
-        pEngine->AddUserOp( pToken );
-        pEngine->CompileLong( OP_DO_FLOAT );
-        pEngine->CompileLong( *(long *) &t );
+    }
+    else
+    {
+        if ( pEngine->InVarsDefinition() )
+        {
+            // define local variable
+            pEngine->AddLocalVar( pToken, kOpLocalFloat, sizeof(float) );
+        }
+        else
+        {
+            // define global variable
+            pEngine->AddUserOp( pToken );
+            pEngine->CompileLong( OP_DO_FLOAT );
+            pEngine->CompileLong( *(long *) &t );
+        }
     }
 }
 
@@ -1727,17 +1721,34 @@ FORTHOP( doubleOp )
     double *pDT;
     ForthEngine *pEngine = GET_ENGINE;
     char *pToken = pEngine->GetNextSimpleToken();
+
     // get next symbol, add it to vocabulary with type "user op"
-    if ( pEngine->InVarsDefinition() ) {
+    if ( pEngine->IsCompiling() )
+    {
+        if ( !pEngine->HasLocalVars() )
+        {
+            // this is first local var declaration in this user op
+            pEngine->StartVarsDefinition();
+        }
         // define local variable
         pEngine->AddLocalVar( pToken, kOpLocalDouble, sizeof(double) );
-    } else {
-        // define global variable
-        pEngine->AddUserOp( pToken );
-        pEngine->CompileLong( OP_DO_DOUBLE );
-        pDT = (double *) GET_DP;
-        *pDT++ = 0.0;
-        pEngine->SetDP( (long *) pDT );
+    }
+    else
+    {
+        if ( pEngine->InVarsDefinition() )
+        {
+            // define local variable
+            pEngine->AddLocalVar( pToken, kOpLocalDouble, sizeof(double) );
+        }
+        else
+        {
+            // define global variable
+            pEngine->AddUserOp( pToken );
+            pEngine->CompileLong( OP_DO_DOUBLE );
+            pDT = (double *) GET_DP;
+            *pDT++ = 0.0;
+            pEngine->SetDP( (long *) pDT );
+        }
     }
 }
 
@@ -1745,17 +1756,45 @@ FORTHOP( stringOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     char *pToken = pEngine->GetNextSimpleToken();
-    long len = SPOP;
+    long len;
 
-    // get next symbol, add it to vocabulary with type "user op"
-    if ( pEngine->InVarsDefinition() ) {
-        // define local variable
-        pEngine->AddLocalVar( pToken, kOpLocalString, len );
-    } else {
-        // define global variable
-        pEngine->AddUserOp( pToken );
-        pEngine->CompileLong( OP_DO_STRING );
-        pEngine->AllotLongs( ((len  + 3) & ~3) >> 2 );
+    if ( pEngine->IsCompiling() )
+    {
+        // the symbol just before "string" should have been an integer constant
+        if ( pEngine->GetLastConstant( len ) )
+        {
+            // uncompile the integer contant opcode
+            pEngine->UncompileLastOpcode();
+            if ( !pEngine->HasLocalVars() )
+            {
+                // this is first local var declaration in this user op
+                pEngine->StartVarsDefinition();
+            }
+            // define local variable
+            pEngine->AddLocalVar( pToken, kOpLocalString, len );
+        }
+        else
+        {
+            SET_ERROR( kForthErrorMissingSize );
+        }
+    }
+    else
+    {
+        len = SPOP;
+        if ( pEngine->InVarsDefinition() )
+        {
+            // define local variable
+            pEngine->AddLocalVar( pToken, kOpLocalString, len );
+        }
+        else
+        {
+            // define global variable
+            pEngine->AddUserOp( pToken );
+            pEngine->CompileLong( OP_DO_STRING );
+            pEngine->CompileLong( len );
+            pEngine->CompileLong( 0 );
+            pEngine->AllotLongs( ((len  + 3) & ~3) >> 2 );
+        }
     }
 }
 
@@ -1856,7 +1895,7 @@ FORTHOP( executeOp )
     prog[1] = BUILTIN_OP( OP_DONE );
     
     SET_IP( prog );
-    InnerInterpreterFunc( pCore );
+    InnerInterpreter( pCore );
     SET_IP( oldIP );
 }
 
@@ -1937,7 +1976,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
     } else {
         base = *(GET_BASE_REF);
 
-        signMode = GET_PRINT_SIGNED_NUM_MODE;
+        signMode = (ePrintSignedMode) GET_PRINT_SIGNED_NUM_MODE;
         if ( (base == 10) && (signMode == kPrintSignedDecimal) ) {
 
             // most common case - print signed decimal
@@ -2354,6 +2393,15 @@ FORTHOP( vlistOp )
     }
 }
 
+FORTHOP( statsOp )
+{
+    printf( "pCore %p pEngine %p pThread %p     DP %p DBase %p    IP %p\n",
+            pCore, pCore->pEngine, pCore->pThread, pCore->DP, pCore->DBase, pCore->IP );
+    printf( "SP %p ST %p SLen %d    RP %p RT %p RLen %d\n",
+                pCore->SP, pCore->ST, pCore->SLen,
+                pCore->RP, pCore->RT, pCore->RLen );
+    printf( "%d builtins    %d userops\n", pCore->numBuiltinOps, pCore->numUserOps );
+}
 
 FORTHOP( loadLibraryOp )
 {
@@ -2534,6 +2582,12 @@ FORTHOP( fillInBufferOp )
     SPUSH( (long) (pInput->GetLine( (char *) (SPOP) )) );
 }
 
+FORTHOP( turboOp )
+{
+    GET_ENGINE->ToggleFastMode();
+    SET_STATE( kResultDone );
+}
+
 #define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func, 0 }
 
 // ops which have precedence (execute at compile time)
@@ -2576,20 +2630,14 @@ baseDictEntry baseDict[] = {
     OP(     doExitMOp,              "_exitM" ),     // exit method op with no vars
     OP(     doExitMLOp,             "_exitML" ),    // exit method op with local vars
     OP(     doVocabOp,              "_doVocab" ),
+    OP(     plusOp,                 "+" ),
 
     // stuff below this line can be rearranged
     
     ///////////////////////////////////////////
     //  integer math
     ///////////////////////////////////////////
-    OP(     plusOp,                 "+" ),
-    OP(     plus1Op,                "1+" ),
-    OP(     plus2Op,                "2+" ),
-    OP(     plus4Op,                "4+" ),
     OP(     minusOp,                "-" ),
-    OP(     minus1Op,               "1-" ),
-    OP(     minus2Op,               "2-" ),
-    OP(     minus4Op,               "4-" ),
     OP(     timesOp,                "*" ),
     OP(     times2Op,               "2*" ),
     OP(     times4Op,               "4*" ),
@@ -2775,7 +2823,7 @@ baseDictEntry baseDict[] = {
     OP(     forgetOp,               "forget" ),
     OP(     definitionsOp,          "definitions" ),
     OP(     usesOp,                 "uses" ),
-    OP(     forthOp,                "forth" ),
+    OP(     forthVocabOp,           "forth" ),
     OP(     searchVocabOp,          "searchVocab" ),
     OP(     definitionsVocabOp,     "definitionsVocab" ),
     OP(     vocabularyOp,           "vocabulary" ),
@@ -2784,10 +2832,10 @@ baseDictEntry baseDict[] = {
     OP(     dconstantOp,            "dconstant" ),
     PRECOP( varsOp,                 "vars" ),
     PRECOP( endvarsOp,              "endvars" ),
-    OP(     intOp,                  "int" ),
-    OP(     floatOp,                "float" ),
-    OP(     doubleOp,               "double" ),
-    OP(     stringOp,               "string" ),
+    PRECOP( intOp,                  "int" ),
+    PRECOP( floatOp,                "float" ),
+    PRECOP( doubleOp,               "double" ),
+    PRECOP( stringOp,               "string" ),
 
     PRECOP( recursiveOp,            "recursive" ),
     OP(     precedenceOp,           "precedence" ),
@@ -2877,14 +2925,394 @@ baseDictEntry baseDict[] = {
     OP(     getInBufferLengthOp,    "getInBufferLength" ),
     OP(     fillInBufferOp,         "fillInBuffer" ),
 
+    OP(     turboOp,                "turbo" ),
+    OP(     statsOp,                "stats" ),
+
     // following must be last in table
     OP(     NULL,                   "" )
 };
+
+
+
+
+#define ASM_OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func, 0 }
+
+// ops which have precedence (execute at compile time)
+#define ASM_PRECOP( func, funcName )  { funcName, ((ulong) kOpBuiltIn) | BASE_DICT_PRECEDENCE_FLAG, (ulong) func, 1 }
+
+
+
+extern ForthOp
+    abortBop, dropBop, doDoesBop, litBop, litBop, dlitBop, doVariableBop, doConstantBop, doDConstantBop,
+    endBuildsBop, doneBop, doIntBop, doFloatBop, doDoubleBop, doStringBop, intoBop, doDoBop,
+    doLoopBop, doLoopNBop, doExitBop, doExitLBop, doExitMBop, doExitMLBop, doVocabBop, plusBop,
+    minusBop, timesBop,
+    times2Bop, times4Bop, divideBop, divide2Bop, divide4Bop, divmodBop, modBop, negateBop,
+    fplusBop, fminusBop, ftimesBop, fdivideBop, dplusBop, dminusBop, dtimesBop, ddivideBop,
+    dsinBop, dasinBop, dcosBop, dacosBop, dtanBop, datanBop, datan2Bop, dexpBop,
+    dlnBop, dlog10Bop, dpowBop, dsqrtBop, dceilBop, dfloorBop, dabsBop, dldexpBop,
+    dfrexpBop, dmodfBop, dfmodBop, i2fBop, i2dBop, f2iBop, f2dBop, d2iBop,
+    d2fBop, callBop, gotoBop, doBop, loopBop, loopNBop, iBop, jBop,
+    unloopBop, leaveBop, ifBop, elseBop, endifBop, beginBop, untilBop, whileBop,
+    repeatBop, againBop, caseBop, ofBop, endofBop, endcaseBop, orBop, andBop,
+    xorBop, invertBop, lshiftBop, rshiftBop, notBop, trueBop, falseBop, nullBop,
+    equalsBop, notEqualsBop, greaterThanBop, greaterEqualsBop, lessThanBop, lessEqualsBop, equalsZeroBop, notEqualsZeroBop,
+    greaterThanZeroBop, greaterEqualsZeroBop, lessThanZeroBop, lessEqualsZeroBop, rpushBop, rpopBop, rdropBop, dupBop,
+    swapBop, overBop, rotBop, ddupBop, dswapBop, ddropBop, doverBop, drotBop,
+    alignBop, allotBop, commaBop, cCommaBop, hereBop, mallocBop, freeBop, storeBop,
+    fetchBop, cstoreBop, cfetchBop, wstoreBop, wfetchBop, dstoreBop, dfetchBop, addToBop,
+    subtractFromBop, addressOfBop, strcpyBop, strlenBop, strcatBop, strchrBop, strcmpBop, strstrBop,
+    strtokBop, buildsBop, doesBop, newestSymbolBop, exitBop, semiBop, colonBop, createBop,
+    forgetBop, definitionsBop, usesBop, forthVocabBop, searchVocabBop, definitionsVocabBop, vocabularyBop, variableBop,
+    constantBop, dconstantBop, varsBop, endvarsBop, intBop, floatBop, doubleBop, stringBop,
+    recursiveBop, precedenceBop, loadBop, loadDoneBop, stateInterpretBop, stateCompileBop, stateBop, tickBop,
+    executeBop, compileBop, bracketTickBop, printNumBop, printNumDecimalBop, printNumHexBop, printStrBop, printCharBop,
+    printSpaceBop, printNewlineBop, printFloatBop, printDoubleBop, printFormattedBop, baseBop, decimalBop, hexBop,
+    printDecimalSignedBop, printAllSignedBop, printAllUnsignedBop, outToFileBop, outToScreenBop, outToStringBop, getConOutFileBop, fopenBop,
+    fcloseBop, fseekBop, freadBop, fwriteBop, fgetcBop, fputcBop, feofBop, ftellBop,
+    stdinBop, stdoutBop, stderrBop, dstackBop, drstackBop, vlistBop, systemBop, byeBop,
+    argvBop, argcBop, loadLibraryBop, freeLibraryBop, getProcAddressBop, callProc0Bop, callProc1Bop, callProc2Bop,
+    callProc3Bop, callProc4Bop, callProc5Bop, callProc6Bop, callProc7Bop, callProc8Bop, blwordBop, wordBop,
+    getInBufferBaseBop, getInBufferPointerBop, setInBufferPointerBop, getInBufferLengthBop, fillInBufferBop, turboBop, statsBop;
+
+baseDictEntry baseAsmDict[] = {
+    ///////////////////////////////////////////
+    //  STUFF WHICH IS COMPILED BY OTHER WORDS
+    //   DO NOT REARRANGE UNDER PAIN OF DEATH
+    ///////////////////////////////////////////
+    ASM_OP(     abortBop,                "abort" ),
+    ASM_OP(     dropBop,                 "drop" ),
+    ASM_OP(     doDoesBop,               "_doDoes"),
+    ASM_OP(     litBop,                  "lit" ),
+    ASM_OP(     litBop,                  "flit" ),
+    ASM_OP(     dlitBop,                 "dlit" ),
+    ASM_OP(     doVariableBop,           "_doVariable" ),
+    ASM_OP(     doConstantBop,           "_doConstant" ),
+    ASM_OP(     doDConstantBop,          "_doDConstant" ),
+    ASM_OP(     endBuildsBop,            "_endBuilds" ),
+    ASM_OP(     doneBop,                 "done" ),
+    ASM_OP(     doIntBop,                "_doInt" ),
+    ASM_OP(     doFloatBop,              "_doFloat" ),
+    ASM_OP(     doDoubleBop,             "_doDouble" ),
+    ASM_OP(     doStringBop,             "_doString" ),
+    ASM_OP(     intoBop,                 "->" ),
+    ASM_OP(     doDoBop,                 "_do" ),
+    ASM_OP(     doLoopBop,               "_loop" ),
+    ASM_OP(     doLoopNBop,               "_+loop" ),
+    ASM_OP(     doExitBop,               "_exit" ),      // exit normal op with no vars
+    ASM_OP(     doExitLBop,              "_exitL" ),     // exit normal op with local vars
+    ASM_OP(     doExitMBop,              "_exitM" ),     // exit method op with no vars
+    ASM_OP(     doExitMLBop,             "_exitML" ),    // exit method op with local vars
+    ASM_OP(     doVocabBop,              "_doVocab" ),
+    ASM_OP(     plusBop,                 "+" ),
+
+    // stuff below this line can be rearranged
+    
+    ///////////////////////////////////////////
+    //  integer math
+    ///////////////////////////////////////////
+    ASM_OP(     minusBop,                "-" ),
+    ASM_OP(     timesBop,                "*" ),
+    ASM_OP(     times2Bop,               "2*" ),
+    ASM_OP(     times4Bop,               "4*" ),
+    ASM_OP(     divideBop,               "/" ),
+    ASM_OP(     divide2Bop,              "2/" ),
+    ASM_OP(     divide4Bop,              "4/" ),
+    ASM_OP(     divmodBop,               "/mod" ),
+    ASM_OP(     modBop,                  "mod" ),
+    ASM_OP(     negateBop,               "negate" ),
+    
+    ///////////////////////////////////////////
+    //  single-precision floating point math
+    ///////////////////////////////////////////
+    ASM_OP(     fplusBop,                "f+" ),
+    ASM_OP(     fminusBop,               "f-" ),
+    ASM_OP(     ftimesBop,               "f*" ),
+    ASM_OP(     fdivideBop,              "f/" ),
+    
+    ///////////////////////////////////////////
+    //  double-precision floating point math
+    ///////////////////////////////////////////
+    ASM_OP(     dplusBop,                "d+" ),
+    ASM_OP(     dminusBop,               "d-" ),
+    ASM_OP(     dtimesBop,               "d*" ),
+    ASM_OP(     ddivideBop,              "d/" ),
+
+
+    ///////////////////////////////////////////
+    //  double-precision floating point functions
+    ///////////////////////////////////////////
+    ASM_OP(     dsinBop,                 "dsin" ),
+    ASM_OP(     dasinBop,                "darcsin" ),
+    ASM_OP(     dcosBop,                 "dcos" ),
+    ASM_OP(     dacosBop,                "darccos" ),
+    ASM_OP(     dtanBop,                 "dtan" ),
+    ASM_OP(     datanBop,                "darctan" ),
+    ASM_OP(     datan2Bop,               "darctan2" ),
+    ASM_OP(     dexpBop,                 "dexp" ),
+    ASM_OP(     dlnBop,                  "dln" ),
+    ASM_OP(     dlog10Bop,               "dlog10" ),
+    ASM_OP(     dpowBop,                 "dpow" ),
+    ASM_OP(     dsqrtBop,                "dsqrt" ),
+    ASM_OP(     dceilBop,                "dceil" ),
+    ASM_OP(     dfloorBop,               "dfloor" ),
+    ASM_OP(     dabsBop,                 "dabs" ),
+    ASM_OP(     dldexpBop,               "dldexp" ),
+    ASM_OP(     dfrexpBop,               "dfrexp" ),
+    ASM_OP(     dmodfBop,                "dmodf" ),
+    ASM_OP(     dfmodBop,                "dfmod" ),
+    
+    ///////////////////////////////////////////
+    //  integer/float/double conversions
+    ///////////////////////////////////////////
+    ASM_OP(     i2fBop,                  "i2f" ), 
+    ASM_OP(     i2dBop,                  "i2d" ),
+    ASM_OP(     f2iBop,                  "f2i" ),
+    ASM_OP(     f2dBop,                  "f2d" ),
+    ASM_OP(     d2iBop,                  "d2i" ),
+    ASM_OP(     d2fBop,                  "d2f" ),
+    
+    ///////////////////////////////////////////
+    //  control flow ops
+    ///////////////////////////////////////////
+    ASM_OP(     callBop,                 "call" ),
+    ASM_OP(     gotoBop,                 "goto" ),
+    ASM_PRECOP( doBop,                   "do" ),
+    ASM_PRECOP( loopBop,                 "loop" ),
+    ASM_PRECOP( loopNBop,                "+loop" ),
+    ASM_OP(     iBop,                    "i" ),
+    ASM_OP(     jBop,                    "j" ),
+    ASM_OP(     unloopBop,               "unloop" ),
+    ASM_OP(     leaveBop,                "leave" ),
+    ASM_PRECOP( ifBop,                   "if" ),
+    ASM_PRECOP( elseBop,                 "else" ),
+    ASM_PRECOP( endifBop,                "endif" ),
+    ASM_PRECOP( beginBop,                "begin" ),
+    ASM_PRECOP( untilBop,                "until" ),
+    ASM_PRECOP( whileBop,                "while" ),
+    ASM_PRECOP( repeatBop,               "repeat" ),
+    ASM_PRECOP( againBop,                "again" ),
+    ASM_PRECOP( caseBop,                 "case" ),
+    ASM_PRECOP( ofBop,                   "of" ),
+    ASM_PRECOP( endofBop,                "endof" ),
+    ASM_PRECOP( endcaseBop,              "endcase" ),
+
+    ///////////////////////////////////////////
+    //  bit-vector logic ops
+    ///////////////////////////////////////////
+    ASM_OP(     orBop,                   "or" ),
+    ASM_OP(     andBop,                  "and" ),
+    ASM_OP(     xorBop,                  "xor" ),
+    ASM_OP(     invertBop,               "~" ),
+    ASM_OP(     lshiftBop,               "<<" ),
+    ASM_OP(     rshiftBop,               ">>" ),
+
+    ///////////////////////////////////////////
+    //  boolean ops
+    ///////////////////////////////////////////
+    ASM_OP(     notBop,                  "not" ),
+    ASM_OP(     trueBop,                 "true" ),
+    ASM_OP(     falseBop,                "false" ),
+    ASM_OP(     nullBop,                 "null" ),
+
+    ///////////////////////////////////////////
+    //  integer comparisons
+    ///////////////////////////////////////////
+    ASM_OP(     equalsBop,               "==" ),
+    ASM_OP(     notEqualsBop,            "!=" ),
+    ASM_OP(     greaterThanBop,          ">" ),
+    ASM_OP(     greaterEqualsBop,        ">=" ),
+    ASM_OP(     lessThanBop,             "<" ),
+    ASM_OP(     lessEqualsBop,           "<=" ),
+    ASM_OP(     equalsZeroBop,           "0==" ),
+    ASM_OP(     notEqualsZeroBop,        "0!=" ),
+    ASM_OP(     greaterThanZeroBop,      "0>" ),
+    ASM_OP(     greaterEqualsZeroBop,    "0>=" ),
+    ASM_OP(     lessThanZeroBop,         "0<" ),
+    ASM_OP(     lessEqualsZeroBop,       "0<=" ),
+    
+    ///////////////////////////////////////////
+    //  stack manipulation
+    ///////////////////////////////////////////
+    ASM_OP(     rpushBop,                "r<" ),
+    ASM_OP(     rpopBop,                 "r>" ),
+    ASM_OP(     rdropBop,                "rdrop" ),
+    ASM_OP(     dupBop,                  "dup" ),
+    ASM_OP(     swapBop,                 "swap" ),
+    ASM_OP(     overBop,                 "over" ),
+    ASM_OP(     rotBop,                  "rot" ),
+    ASM_OP(     ddupBop,                 "ddup" ),
+    ASM_OP(     dswapBop,                "dswap" ),
+    ASM_OP(     ddropBop,                "ddrop" ),
+    ASM_OP(     doverBop,                "dover" ),
+    ASM_OP(     drotBop,                 "drot" ),
+    
+    ///////////////////////////////////////////
+    //  data compilation/allocation
+    ///////////////////////////////////////////
+    ASM_OP(     alignBop,                "align" ),
+    ASM_OP(     allotBop,                "allot" ),
+    ASM_OP(     commaBop,                "," ),
+    ASM_OP(     cCommaBop,               "c," ),
+    ASM_OP(     hereBop,                 "here" ),
+    ASM_OP(     mallocBop,               "malloc" ),
+    ASM_OP(     freeBop,                 "free" ),
+
+    ///////////////////////////////////////////
+    //  memory store/fetch
+    ///////////////////////////////////////////
+    ASM_OP(     storeBop,                "!" ),
+    ASM_OP(     fetchBop,                "@" ),
+    ASM_OP(     cstoreBop,               "c!" ),
+    ASM_OP(     cfetchBop,               "c@" ),
+    ASM_OP(     wstoreBop,               "w!" ),
+    ASM_OP(     wfetchBop,               "w@" ),
+    ASM_OP(     dstoreBop,               "d!" ),
+    ASM_OP(     dfetchBop,               "d@" ),
+    ASM_OP(     addToBop,                "->+" ),
+    ASM_OP(     subtractFromBop,         "->-" ),
+    ASM_OP(     addressOfBop,            "addressOf" ),
+
+    ///////////////////////////////////////////
+    //  string manipulation
+    ///////////////////////////////////////////
+    ASM_OP(     strcpyBop,               "strcpy" ),
+    ASM_OP(     strlenBop,               "strlen" ),
+    ASM_OP(     strcatBop,               "strcat" ),
+    ASM_OP(     strchrBop,               "strchr" ),
+    ASM_OP(     strcmpBop,               "strcmp" ),
+    ASM_OP(     strstrBop,               "strstr" ),
+    ASM_OP(     strtokBop,               "strtok" ),
+
+    ///////////////////////////////////////////
+    //  defining words
+    ///////////////////////////////////////////
+    ASM_OP(     buildsBop,               "builds" ),
+    ASM_PRECOP( doesBop,                 "does" ),
+    ASM_OP(     newestSymbolBop,         "newestSymbol" ),
+    ASM_PRECOP( exitBop,                 "exit" ),
+    ASM_PRECOP( semiBop,                 ";" ),
+    ASM_OP(     colonBop,                ":" ),
+    ASM_OP(     createBop,               "create" ),
+    ASM_OP(     forgetBop,               "forget" ),
+    ASM_OP(     definitionsBop,          "definitions" ),
+    ASM_OP(     usesBop,                 "uses" ),
+    ASM_OP(     forthVocabBop,           "forth" ),
+    ASM_OP(     searchVocabBop,          "searchVocab" ),
+    ASM_OP(     definitionsVocabBop,     "definitionsVocab" ),
+    ASM_OP(     vocabularyBop,           "vocabulary" ),
+    ASM_OP(     variableBop,             "variable" ),
+    ASM_OP(     constantBop,             "constant" ),
+    ASM_OP(     dconstantBop,            "dconstant" ),
+    ASM_PRECOP( varsBop,                 "vars" ),
+    ASM_PRECOP( endvarsBop,              "endvars" ),
+    ASM_OP(     intBop,                  "int" ),
+    ASM_OP(     floatBop,                "float" ),
+    ASM_OP(     doubleBop,               "double" ),
+    ASM_OP(     stringBop,               "string" ),
+
+    ASM_PRECOP( recursiveBop,            "recursive" ),
+    ASM_OP(     precedenceBop,           "precedence" ),
+    ASM_OP(     loadBop,                 "load" ),
+    ASM_OP(     loadDoneBop,             "loaddone" ),
+    ASM_PRECOP( stateInterpretBop,       "[" ),
+    ASM_OP(     stateCompileBop,         "]" ),
+    ASM_OP(     stateBop,                "state" ),
+    ASM_OP(     tickBop,                 "\'" ),
+    ASM_OP(     executeBop,              "execute" ),
+    ASM_PRECOP( compileBop,              "[compile]" ),
+    ASM_PRECOP( bracketTickBop,          "[\']" ),
+
+    ///////////////////////////////////////////
+    //  text display words
+    ///////////////////////////////////////////
+    ASM_OP(     printNumBop,             "." ),
+    ASM_OP(     printNumDecimalBop,      "%d" ),
+    ASM_OP(     printNumHexBop,          "%x" ),
+    ASM_OP(     printStrBop,             "%s" ),
+    ASM_OP(     printCharBop,            "%c" ),
+    ASM_OP(     printSpaceBop,           "%bl" ),
+    ASM_OP(     printNewlineBop,         "%nl" ),
+    ASM_OP(     printFloatBop,           "%f" ),
+    ASM_OP(     printDoubleBop,          "%g" ),
+    ASM_OP(     printFormattedBop,        "%fmt" ),
+    ASM_OP(     baseBop,                 "base" ),
+    ASM_OP(     decimalBop,              "decimal" ),
+    ASM_OP(     hexBop,                  "hex" ),
+    ASM_OP(     printDecimalSignedBop,   "printDecimalSigned" ),
+    ASM_OP(     printAllSignedBop,       "printAllSigned" ),
+    ASM_OP(     printAllUnsignedBop,     "printAllUnsigned" ),
+    ASM_OP(     outToFileBop,            "outToFile" ),
+    ASM_OP(     outToScreenBop,          "outToScreen" ),
+    ASM_OP(     outToStringBop,          "outToString" ),
+    ASM_OP(     getConOutFileBop,        "getConOutFile" ),
+
+    ///////////////////////////////////////////
+    //  file ops
+    ///////////////////////////////////////////
+    ASM_OP(     fopenBop,                "fopen" ),
+    ASM_OP(     fcloseBop,               "fclose" ),
+    ASM_OP(     fseekBop,                "fseek" ),
+    ASM_OP(     freadBop,                "fread" ),
+    ASM_OP(     fwriteBop,               "fwrite" ),
+    ASM_OP(     fgetcBop,                "fgetc" ),
+    ASM_OP(     fputcBop,                "fputc" ),
+    ASM_OP(     feofBop,                 "feof" ),
+    ASM_OP(     ftellBop,                "ftell" ),
+    ASM_OP(     stdinBop,                "stdin" ),
+    ASM_OP(     stdoutBop,               "stdout" ),
+    ASM_OP(     stderrBop,               "stderr" ),
+    
+    ASM_OP(     dstackBop,               "dstack" ),
+    ASM_OP(     drstackBop,              "drstack" ),
+    ASM_OP(     vlistBop,                "vlist" ),
+
+    ASM_OP(     systemBop,               "system" ),
+    ASM_OP(     byeBop,                  "bye" ),
+    ASM_OP(     argvBop,                 "argv" ),
+    ASM_OP(     argcBop,                 "argc" ),
+
+    ///////////////////////////////////////////
+    //  DLL support words
+    ///////////////////////////////////////////
+    ASM_OP(     loadLibraryBop,          "loadLibrary" ),
+    ASM_OP(     freeLibraryBop,          "freeLibrary" ),
+    ASM_OP(     getProcAddressBop,       "getProcAddress" ),
+    ASM_OP(     callProc0Bop,            "callProc0" ),
+    ASM_OP(     callProc1Bop,            "callProc1" ),
+    ASM_OP(     callProc2Bop,            "callProc2" ),
+    ASM_OP(     callProc3Bop,            "callProc3" ),
+    ASM_OP(     callProc4Bop,            "callProc4" ),
+    ASM_OP(     callProc5Bop,            "callProc5" ),
+    ASM_OP(     callProc6Bop,            "callProc6" ),
+    ASM_OP(     callProc7Bop,            "callProc7" ),
+    ASM_OP(     callProc8Bop,            "callProc8" ),
+
+    ///////////////////////////////////////////
+    //  input buffer words
+    ///////////////////////////////////////////
+    ASM_OP(     blwordBop,               "blword"    ),
+    ASM_OP(     wordBop,                 "word"      ),
+    ASM_OP(     getInBufferBaseBop,      "getInBufferBase" ),
+    ASM_OP(     getInBufferPointerBop,   "getInBufferPointer" ),
+    ASM_OP(     setInBufferPointerBop,   "setInBufferPointer" ),
+    ASM_OP(     getInBufferLengthBop,    "getInBufferLength" ),
+    ASM_OP(     fillInBufferBop,         "fillInBuffer" ),
+
+    ASM_OP(     turboBop,                "turbo" ),
+    ASM_OP(     statsBop,                "stats" ),
+
+    // following must be last in table
+    ASM_OP(     NULL,                   "" )
+};
+
 
 //############################################################################
 //
 //  The end of all things...
 //
 //############################################################################
+
+};  // end extern "C"
 
 

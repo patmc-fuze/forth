@@ -13,7 +13,12 @@
 #include "ForthClass.h"
 #include "ForthInner.h"
 
-extern baseDictEntry baseDict[];
+extern "C" {
+
+    extern baseDictEntry baseDict[];
+    extern InitAsmTables(  ForthCoreState *pCore );
+    extern eForthResult InnerInterp( ForthCoreState *pCore );
+};
 
 #ifdef TRACE_INNER_INTERPRETER
 
@@ -38,18 +43,22 @@ ForthEngine::ForthEngine()
 , mpThreads( NULL )
 , mpInterpreterExtension( NULL )
 , mpCurrentThread( NULL )
+, mpErrorString( NULL )
+, mFastMode( false )
+, mpLastCompiledOpcode( NULL )
 {
     // scratch area for temporary definitions
     mpEngineScratch = new long[70];
-    InitCore( mCore );
+    mpCore = new ForthCoreState;
+    InitCore( mpCore );
 }
 
 ForthEngine::~ForthEngine()
 {
     ForthThread *pNextThread;
 
-    if ( mCore.DBase ) {
-        delete [] mCore.DBase;
+    if ( mpCore->DBase ) {
+        delete [] mpCore->DBase;
         delete mpMainVocab;
         delete mpLocalVocab;
         delete mpPrecedenceVocab;
@@ -57,13 +66,13 @@ ForthEngine::~ForthEngine()
         delete [] mpStringBufferB;
     }
 
-    if ( mCore.builtinOps )
+    if ( mpCore->builtinOps )
     {
-        free( mCore.builtinOps );
+        free( mpCore->builtinOps );
     }
-    if ( mCore.userOps )
+    if ( mpCore->userOps )
     {
-        free( mCore.userOps );
+        free( mpCore->userOps );
     }
 
     // delete all threads;
@@ -73,6 +82,8 @@ ForthEngine::~ForthEngine()
         mpThreads = pNextThread;
     }
     delete mpEngineScratch;
+
+    delete mpCore;
 }
 
 
@@ -89,9 +100,9 @@ ForthEngine::Initialize( int                totalLongs,
                          bool               bAddBaseOps,
                          baseDictEntry *    pUserBuiltinOps )
 {
-    mCore.DBase = new long[totalLongs];
-    mCore.DP = mCore.DBase;
-    mCore.pEngine = this;
+    mpCore->DBase = new long[totalLongs];
+    mpCore->DP = mpCore->DBase;
+    mpCore->pEngine = this;
 
     mpMainVocab = new ForthVocabulary( this, "forth" );
     mpLocalVocab = new ForthVocabulary( this, "local_vars" );
@@ -100,18 +111,18 @@ ForthEngine::Initialize( int                totalLongs,
     mpStringBufferA = new char[256 * NUM_INTERP_STRINGS];
     mpStringBufferB = new char[256];
 
-    mCore.numBuiltinOps = 0;
-    mCore.builtinOps = (ForthOp *) malloc( sizeof(ForthOp) * MAX_BUILTIN_OPS );
-    mCore.numUserOps = 0;
-    mCore.maxUserOps = 128;
-    mCore.userOps = (long **) malloc( sizeof(long *) * mCore.maxUserOps );
+    mpCore->numBuiltinOps = 0;
+    mpCore->builtinOps = (ForthOp *) malloc( sizeof(ForthOp) * MAX_BUILTIN_OPS );
+    mpCore->numUserOps = 0;
+    mpCore->maxUserOps = 128;
+    mpCore->userOps = (long **) malloc( sizeof(long *) * mpCore->maxUserOps );
 
     Reset();
 
     //
     // build dispatch table for different opcode types
     //
-    InitDispatchTables( mCore );
+    InitDispatchTables( mpCore );
 
     if ( bAddBaseOps ) {
         AddBuiltinOps( baseDict );
@@ -124,6 +135,40 @@ ForthEngine::Initialize( int                totalLongs,
 
 
 void
+ForthEngine::ToggleFastMode( void )
+{
+    SetFastMode(!mFastMode );
+    if ( mFastMode )
+    {
+        printf( "Fast mode!\n" );
+    }
+    else
+    {
+        printf( "Slow mode!\n" );
+    }
+}
+
+void
+ForthEngine::SetFastMode( bool goFast )
+{
+    int i;
+
+    if ( goFast )
+    {
+        InitAsmTables( mpCore );
+    }
+    else
+    {
+        InitDispatchTables( mpCore );
+        for ( i = 0; baseDict[i].value != NULL; i++ )
+        {
+            mpCore->builtinOps[i] = (ForthOp) (baseDict[i].value);
+        }
+    }
+    mFastMode = goFast;
+}
+
+void
 ForthEngine::Reset( void )
 {
     mpDefinitionVocab = mpMainVocab;
@@ -131,9 +176,17 @@ ForthEngine::Reset( void )
 
     mNextStringNum = 0;
 
-    mLastCompiledOpcode = -1;
+    mpLastCompiledOpcode = NULL;
     mCompileState = 0;
     mCompileFlags = 0;
+}
+
+void
+ForthEngine::ErrorReset( void )
+{
+    Reset();
+	mpCurrentThread->Reset();
+    mpCurrentThread->Activate( mpCore );
 }
 
 
@@ -145,20 +198,20 @@ ForthEngine::AddOp( const long *pOp, forthOpType symType )
 
     if ( symType == kOpBuiltIn )
     {
-        ASSERT( mCore.numBuiltinOps < MAX_BUILTIN_OPS );
-        mCore.builtinOps[ mCore.numBuiltinOps++ ] = (ForthOp) pOp;
+        ASSERT( mpCore->numBuiltinOps < MAX_BUILTIN_OPS );
+        mpCore->builtinOps[ mpCore->numBuiltinOps++ ] = (ForthOp) pOp;
 
-        newOp = mCore.numBuiltinOps - 1;
+        newOp = mpCore->numBuiltinOps - 1;
     }
     else
     {
-        if ( mCore.numUserOps == mCore.maxUserOps ) {
-            mCore.maxUserOps += 128;
-            mCore.userOps = (long **) realloc( mCore.userOps, sizeof(long *) * mCore.maxUserOps );
+        if ( mpCore->numUserOps == mpCore->maxUserOps ) {
+            mpCore->maxUserOps += 128;
+            mpCore->userOps = (long **) realloc( mpCore->userOps, sizeof(long *) * mpCore->maxUserOps );
         }
-        mCore.userOps[ mCore.numUserOps++ ] = (long *) pOp;
+        mpCore->userOps[ mpCore->numUserOps++ ] = (long *) pOp;
 
-        newOp = mCore.numUserOps - 1;
+        newOp = mpCore->numUserOps - 1;
     }
     return newOp;
 }
@@ -170,12 +223,12 @@ ForthEngine::AddUserOp( const char *pSymbol, bool smudgeIt )
 {
 
     AlignDP();
-    mpDefinitionVocab->AddSymbol( pSymbol, kOpUserDef, (long) mCore.DP, true );
+    mpDefinitionVocab->AddSymbol( pSymbol, kOpUserDef, (long) mpCore->DP, true );
     if ( smudgeIt ) {
         mpDefinitionVocab->SmudgeNewestSymbol();
     }
 
-    return mCore.numUserOps - 1;
+    return mpCore->numUserOps - 1;
 }
 
 
@@ -183,7 +236,7 @@ void
 ForthEngine::AddBuiltinOps( baseDictEntry *pEntries )
 {
     // assert if this is called after any user ops have been defined
-    ASSERT( mCore.numUserOps == 0 );
+    ASSERT( mpCore->numUserOps == 0 );
     forthOpType opType;
 
     while ( pEntries->value != NULL ) {
@@ -199,8 +252,8 @@ ForthEngine::AddBuiltinOps( baseDictEntry *pEntries )
 #ifdef TRACE_INNER_INTERPRETER
         // add built-in op names to table for TraceOp
         if ( opType == kOpBuiltIn ) {
-            if ( (mCore.numBuiltinOps - 1) < NUM_TRACEABLE_OPS ) {
-                gOpNames[mCore.numBuiltinOps - 1] = pEntries->name;
+            if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS ) {
+                gOpNames[mpCore->numBuiltinOps - 1] = pEntries->name;
             }
         }
 #endif
@@ -214,11 +267,11 @@ ForthEngine::AddBuiltinOps( baseDictEntry *pEntries )
 void
 ForthEngine::ForgetOp( ulong opNumber )
 {
-    if ( opNumber < mCore.numUserOps ) {
-        mCore.DP = mCore.userOps[ opNumber ];
-        mCore.numUserOps = opNumber;
+    if ( opNumber < mpCore->numUserOps ) {
+        mpCore->DP = mpCore->userOps[ opNumber ];
+        mpCore->numUserOps = opNumber;
     } else {
-        TRACE( "ForthEngine::ForgetOp error - attempt to forget bogus op # %d, only %d ops exist\n", opNumber, mCore.numUserOps );
+        TRACE( "ForthEngine::ForgetOp error - attempt to forget bogus op # %d, only %d ops exist\n", opNumber, mpCore->numUserOps );
     }
 }
 
@@ -247,7 +300,7 @@ ForthEngine::ForgetSymbol( const char *pSym )
         else
         {
            ForgetOp( op );
-           ForthForgettable::ForgetPropagate( mCore.DP, op );
+           ForthForgettable::ForgetPropagate( mpCore->DP, op );
         }
     }
     else
@@ -332,9 +385,11 @@ ForthEngine::StartOpDefinition( bool smudgeIt )
     mpLocalVocab->Empty();
     mLocalFrameSize = 0;
     mpLocalAllocOp = NULL;
+    mpLastCompiledOpcode = NULL;
     AlignDP();
-    mpDefinitionVocab->AddSymbol( GetNextSimpleToken(), kOpUserDef, (long) mCore.DP, true );
-    if ( smudgeIt ) {
+    mpDefinitionVocab->AddSymbol( GetNextSimpleToken(), kOpUserDef, (long) mpCore->DP, true );
+    if ( smudgeIt )
+    {
         mpDefinitionVocab->SmudgeNewestSymbol();
     }
     mCompileFlags &= (~kFECompileFlagInVarsDefinition);
@@ -345,12 +400,15 @@ void
 ForthEngine::EndOpDefinition( bool unsmudgeIt )
 {
     int nLongs = mLocalFrameSize;
-    if ( mpLocalAllocOp != NULL ) {
+    if ( mpLocalAllocOp != NULL )
+    {
         *mpLocalAllocOp = COMPILED_OP( kOpAllocLocals, nLongs );
         mpLocalAllocOp = NULL;
         mLocalFrameSize = 0;
     }
-    if ( unsmudgeIt ) {
+    mpLastCompiledOpcode = NULL;
+    if ( unsmudgeIt )
+    {
         mpDefinitionVocab->UnSmudgeNewestSymbol();
     }
 }
@@ -373,7 +431,7 @@ ForthEngine::StartVarsDefinition( void )
     mCompileFlags |= (kFECompileFlagInVarsDefinition | kFECompileFlagHasLocalVars);
     if ( mpLocalAllocOp == NULL ) {
         // leave space for local alloc op
-        mpLocalAllocOp = mCore.DP;
+        mpLocalAllocOp = mpCore->DP;
         CompileLong( 0 );
     }
 }
@@ -413,15 +471,15 @@ ForthEngine::InvokeClassMethod( ForthThread     *g,
         opVal = FORTH_OP_VALUE( opVal );
 
         if ( opVal == kOpBuiltIn ) {
-            if ( opVal < pEngine->mCore.numBuiltinOps ) {
-                ((ForthOp) pEngine->mCore.builtinOps[opVal]) ( g );
+            if ( opVal < pEngine->mpCore->numBuiltinOps ) {
+                ((ForthOp) pEngine->mpCore->builtinOps[opVal]) ( g );
             } else {
                 g->SetError( kForthErrorBadOpcode );
             }
         } else if ( opVal == kOpUserDef ) {
-            if ( opVal < pEngine->mCore.numUserOps ) {
+            if ( opVal < pEngine->mpCore->numUserOps ) {
                 g->RPush( (long) g->GetIP() );
-                g->SetIP( pEngine->mCore.userOps[opVal] );
+                g->SetIP( pEngine->mpCore->userOps[opVal] );
             } else {
                 g->SetError( kForthErrorBadOpcode );
             }
@@ -454,7 +512,7 @@ ForthEngine::IsExecutableType( forthOpType      symType )
 static char *opTypeNames[] = {
     "BuiltIn", "UserDefined", 
     "Branch", "BranchTrue", "BranchFalse", "CaseBranch",
-    "Constant", "String",
+    "Constant", "Offset", "String",
     "AllocLocals",
     "LocalInt", "LocalFloat", "LocalDouble", "LocalString",
     "InvokeClassMethod",    
@@ -466,8 +524,8 @@ static char *opTypeNames[] = {
 void
 ForthEngine::TraceOp()
 {
-    long *ip = mCore.IP - 1;
-    long op = GetCurrentOp( &mCore );
+    long *ip = mpCore->IP - 1;
+    long op = GetCurrentOp( mpCore );
     forthOpType opType = FORTH_OP_TYPE( op );
     ulong opVal = FORTH_OP_VALUE( op );
 
@@ -498,6 +556,7 @@ ForthEngine::TraceOp()
             break;
             
         case kOpConstant:
+        case kOpOffset:
         case kOpBranch:   case kOpBranchNZ:  case kOpBranchZ:
             if ( opVal & 0x800000 ) {
                 opVal |= 0xFF000000;
@@ -520,7 +579,7 @@ ForthEngine::AddOpType( forthOpType opType, optypeActionRoutine opAction )
 
     if ( (opType >= kOpLocalUserDefined) && (opType <= kOpMaxLocalUserDefined) )
     {
-        mCore.optypeAction[ opType ] = opAction;
+        mpCore->optypeAction[ opType ] = opAction;
     }
     else
     {
@@ -539,15 +598,23 @@ ForthEngine::GetLastInputToken( void )
 
 
 // return true IFF token is an integer literal
+// sets isOffset if token ended with a + or -
+// NOTE: temporarily modifies string @pToken
 bool
-ForthEngine::ScanIntegerToken( const char   *pToken,
+ForthEngine::ScanIntegerToken( char         *pToken,
                                long         *pValue,
-                               int          base )
+                               int          base,
+                               bool         &isOffset )
 {
     long value, digit;
     bool isNegative;
     char c;
+    int digitsFound = 0;
+    int len = strlen( pToken );
+    char *pLastChar = pToken + (len - 1);
+    char lastChar = *pLastChar;
 
+    isOffset = false;
 
     // handle leading plus or minus sign
     isNegative = (pToken[0] == '-');
@@ -555,22 +622,29 @@ ForthEngine::ScanIntegerToken( const char   *pToken,
         // strip leading plus/minus sign
         pToken++;
     }
-    if ( pToken[0] == '\0' ) {
-        // just a plus/minus sign, no number
-        return false;
+
+    // handle trailing plus or minus sign
+    if ( lastChar == '+' )
+    {
+        isOffset = true;
+        *pLastChar = 0;
+    }
+    else if ( lastChar == '-' )
+    {
+        isOffset = true;
+        *pLastChar = 0;
+        isNegative = !isNegative;
+    }
+    else
+    {
+        pLastChar = NULL;
     }
 
-    if ( pToken[0] == '0' ) {
-        switch( pToken[1] ) {
-
-        case 'x': case 'X':
-            if ( sscanf( pToken + 2, "%x", &value ) == 1 ) {
-                *pValue = (isNegative) ? 0 - value : value;
-                return true;
-            }
-            break;
+    if ( (pToken[0] == '0') && (pToken[1] == 'x') ) {
+        if ( sscanf( pToken + 2, "%x", &value ) == 1 ) {
+            *pValue = (isNegative) ? 0 - value : value;
+            return true;
         }
-
     }
 
     value = 0;
@@ -578,10 +652,13 @@ ForthEngine::ScanIntegerToken( const char   *pToken,
 
         if ( (c >= '0') && (c <= '9') ) {
             digit = c - '0';
+            digitsFound++;
         } else if ( (c >= 'A') && (c <= 'Z') ) {
             digit = 10 + (c - 'A');
+            digitsFound++;
         } else if ( (c >= 'a') && (c <= 'z') ) {
             digit = 10 + (c - 'a');
+            digitsFound++;
         } else {
             // char can't be a digit
             return false;
@@ -595,9 +672,63 @@ ForthEngine::ScanIntegerToken( const char   *pToken,
         value = (value * base) + digit;
     }
 
+    if ( digitsFound == 0 )
+    {
+        return false;
+    }
+
     // all chars were valid digits
     *pValue = (isNegative) ? 0 - value : value;
+
+    // restore original last char
+    if ( pLastChar != NULL )
+    {
+        *pLastChar = lastChar;
+    }
     return true;
+}
+
+
+// return true IFF token is a real literal
+// sets isSingle to tell if result is a float or double
+// NOTE: temporarily modifies string @pToken
+bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle )
+{
+   bool retVal = false;
+   int len = strlen( pToken );
+
+   if ( strchr( pToken, '.' ) == NULL )
+   {
+      return false;
+   }
+   char *pLastChar = pToken + (len - 1);
+   if ( *pLastChar == 'd' )
+   {
+      *pLastChar = 0;
+      if ( sscanf( pToken, "%Lf", &dvalue ) == 1)
+      {
+         retVal = true;
+         isSingle = false;
+      }
+      *pLastChar = 'd';
+   }
+   else if ( *pLastChar == 'f' )
+   {
+      *pLastChar = 0;
+      if ( sscanf( pToken, "%f", &fvalue ) == 1)
+      {
+         retVal = true;
+         isSingle = true;
+      }
+      *pLastChar = 'f';
+   }
+   else if ( sscanf( pToken, "%f", &fvalue ) == 1)
+   {
+      retVal = true;
+      isSingle = true;
+   }
+
+   return retVal;
 }
 
 
@@ -607,20 +738,51 @@ ForthEngine::ScanIntegerToken( const char   *pToken,
 void
 ForthEngine::CompileOpcode( long op )
 {
-    mLastCompiledOpcode = op;
-    *mCore.DP++ = op;
+    mpLastCompiledOpcode = mpCore->DP;
+    *mpCore->DP++ = op;
 }
 
+void
+ForthEngine::UncompileLastOpcode( void )
+{
+    if ( mpLastCompiledOpcode != NULL )
+    {
+        mpCore->DP = mpLastCompiledOpcode;
+        mpLastCompiledOpcode = NULL;
+    }
+    else
+    {
+        TRACE( "ForthEngine::UncompileLastOpcode called with no previous opcode\n" );
+        SetError( kForthErrorMissingSize, "UncompileLastOpcode called with no previous opcode" );
+    }
+}
+
+// return true IFF the last compiled opcode was an integer literal
+bool
+ForthEngine::GetLastConstant( long& constantValue )
+{
+    if ( mpLastCompiledOpcode != NULL )
+    {
+        long op = *mpLastCompiledOpcode;
+        if ( ((mpLastCompiledOpcode + 1) == mpCore->DP)
+            && (FORTH_OP_TYPE( op ) == kOpConstant) )
+        {
+            constantValue = FORTH_OP_VALUE( op );
+            return true;
+        }
+    }
+    return false;
+}
 
 void
 ForthEngine::SetCurrentThread( ForthThread* pThread )
 {
     if ( mpCurrentThread != NULL )
     {
-        mpCurrentThread->Deactivate( mCore );
+        mpCurrentThread->Deactivate( mpCore );
     }
     mpCurrentThread = pThread;
-    mpCurrentThread->Activate( mCore );
+    mpCurrentThread->Activate( mpCore );
 }
 
 //
@@ -637,14 +799,115 @@ ForthEngine::ExecuteOneOp( long opCode )
     opScratch[0] = opCode;
     opScratch[1] = BUILTIN_OP( OP_DONE );
 
-    savedIP = mCore.IP;
-    mCore.IP = opScratch;
-    exitStatus = InnerInterpreterFunc( &mCore );
-    mCore.IP = savedIP;
+    savedIP = mpCore->IP;
+    mpCore->IP = opScratch;
+    if ( mFastMode )
+    {
+        exitStatus = InnerInterpreterFast( mpCore );
+    }
+    else
+    {
+        exitStatus = InnerInterpreter( mpCore );
+    }
+    mpCore->IP = savedIP;
 
     return exitStatus;
 }
 
+static char *pErrorStrings[] =
+{
+    "No Error",
+    "Bad Opcode",
+    "Bad OpcodeType",
+    "Parameter Stack Underflow",
+    "Parameter Stack Overflow",
+    "Return Stack Underflow",
+    "Return Stack Overflow",
+    "Unknown Symbol",
+    "File Open Failed",
+    "Aborted",
+    "Can't Forget Builtin Op",
+    "Bad Method Number",
+    "Unhandled Exception",
+    "Missing Preceeding Size Constant",
+    "Syntax error",
+    "Syntax error - else without matching if",
+    "Syntax error - endif without matching if/else",
+    "Syntax error - loop without matching do",
+    "Syntax error - until without matching begin",
+    "Syntax error - while without matching begin",
+    "Syntax error - repeat without matching while",
+    "Syntax error - again without matching begin",
+};
+
+void
+ForthEngine::SetError( eForthError e, const char *pString )
+{
+    mpCore->error = e;
+    mpErrorString = pString;
+    if ( e != kForthErrorNone )
+    {
+        mpCore->state = kResultError;
+    }
+}
+
+void
+ForthEngine::SetFatalError( eForthError e, const char *pString )
+{
+    mpCore->state = kResultFatalError;
+    mpCore->error = e;
+    mpErrorString = pString;
+}
+
+void
+ForthEngine::GetErrorString( char *pString )
+{
+    int errorNum = (int) mpCore->error;
+    if ( errorNum < (sizeof(pErrorStrings) / sizeof(char *)) ) {
+        if ( mpErrorString != NULL )
+        {
+            sprintf( pString, "%s: %s", pErrorStrings[errorNum], mpErrorString );
+        }
+        else
+        {
+            strcpy( pString, pErrorStrings[errorNum] );
+        }
+    }
+    else
+    {
+        sprintf( pString, "Unknown Error %d", errorNum );
+    }
+}
+
+
+eForthResult
+ForthEngine::CheckStacks( void )
+{
+    long depth;
+    eForthResult result = kResultOk;
+
+    // check parameter stack for over/underflow
+    depth = mpCore->ST - mpCore->SP;
+    if ( depth < 0 ) {
+        SetError( kForthErrorParamStackUnderflow );
+        result = kResultError;
+    } else if ( depth >= (long) mpCore->pThread->SLen ) {
+        SetError( kForthErrorParamStackOverflow );
+        result = kResultError;
+    }
+    
+    // check return stack for over/underflow
+    depth = mpCore->RT - mpCore->RP;
+    if ( depth < 0 ) {
+        SetError( kForthErrorReturnStackUnderflow );
+        result = kResultError;
+    } else if ( depth >= (long) mpCore->pThread->RLen ) {
+        SetError( kForthErrorReturnStackOverflow );
+        result = kResultError;
+    }
+
+    return result;
+}
 
 
 //############################################################################
@@ -661,9 +924,12 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     long *pSymbol, value;
     eForthResult exitStatus = kResultOk;
     float fvalue;
+    double dvalue;
     char *pToken = pInfo->GetToken();
     int len = pInfo->GetTokenLength();
     bool isAString = (pInfo->GetFlags() & PARSE_FLAG_QUOTED_STRING) != 0;
+    bool isSingle, isOffset;
+    double* pDPD;
 
     mpLastToken = pToken;
     if ( (pToken == NULL)
@@ -681,9 +947,9 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         SPEW_OUTER_INTERPRETER( "String[%s] flags[%x]\n", pToken, pInfo->GetFlags() );
         if ( mCompileState ) {
             len = ((len + 4) & ~3) >> 2;
-            *mCore.DP++ = COMPILED_OP( kOpString, len );
-            strcpy( (char *) mCore.DP, pToken );
-            mCore.DP += len;
+            CompileOpcode( len | (kOpString << 24) );
+            strcpy( (char *) mpCore->DP, pToken );
+            mpCore->DP += len;
         } else {
             // in interpret mode, stick the string in string buffer A
             //   and leave the address on param stack
@@ -694,7 +960,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             }
             char *pStr = mpStringBufferA + (256 * mNextStringNum);
             strncpy( pStr, pToken, 255 );  // TBD: make string buffer len a symbol
-            *--mCore.SP = (long) pStr;
+            *--mpCore->SP = (long) pStr;
             mNextStringNum++;
         }
         return kResultOk;
@@ -708,10 +974,10 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         SPEW_OUTER_INTERPRETER( "Character[%s] flags[%x]\n", pToken, pInfo->GetFlags() );
         value = *pToken & 0xFF;
         if ( mCompileState ) {
-            *mCore.DP++ = value | (kOpConstant << 24);
+            CompileOpcode( value | (kOpConstant << 24) );
         } else {
             // in interpret mode, stick the character on the stack
-            *--mCore.SP = value;
+            *--mpCore->SP = value;
         }
         return kResultOk;
     }
@@ -736,8 +1002,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             // symbol is a local variable
             //
             ////////////////////////////////////
-            mLastCompiledOpcode = *pSymbol;
-            *mCore.DP++ = mLastCompiledOpcode;
+            CompileOpcode( *pSymbol );
             return kResultOk;
         }
     }
@@ -777,27 +1042,48 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     //    try to covert to a floating point number
     // else
     //    try to convert to an integer
-
-    if ( (strchr( pToken, '.' ) != NULL)
-        && (sscanf( pToken, "%f", &fvalue ) == 1) ) {
-
-        ////////////////////////////////////
-        //
-        // symbol is a single precision fp literal
-        //
-        ////////////////////////////////////
-        SPEW_OUTER_INTERPRETER( "Floating point literal %f\n", fvalue );
-        if ( mCompileState ) {
-            // compile the literal value
-            // value too big, must go in next longword
-            *mCore.DP++ = OP_FLOAT_VAL;
-            *(float *) mCore.DP++ = fvalue;
-        } else {
-            --mCore.SP;
-            *(float *) mCore.SP = fvalue;
-        }
+    if ( ScanFloatToken( pToken, fvalue, dvalue, isSingle ) )
+    {
+       if ( isSingle )
+       {
+          ////////////////////////////////////
+          //
+          // symbol is a single precision fp literal
+          //
+          ////////////////////////////////////
+          SPEW_OUTER_INTERPRETER( "Floating point literal %f\n", fvalue );
+          if ( mCompileState ) {
+              // compile the literal value
+              // value too big, must go in next longword
+              CompileOpcode( OP_FLOAT_VAL );
+              *(float *) mpCore->DP++ = fvalue;
+          } else {
+              --mpCore->SP;
+              *(float *) mpCore->SP = fvalue;
+          }
+       }
+       else
+       {
+          ////////////////////////////////////
+          //
+          // symbol is a double precision fp literal
+          //
+          ////////////////////////////////////
+          SPEW_OUTER_INTERPRETER( "Floating point double literal %g\n", dvalue );
+          if ( mCompileState ) {
+              // compile the literal value
+              // value too big, must go in next longword
+              CompileOpcode( OP_DOUBLE_VAL );
+              pDPD = (double *) mpCore->DP;
+              *pDPD++ = dvalue;
+              mpCore->DP = (long *) pDPD;
+          } else {
+              mpCore->SP -= 2;
+              *(double *) mpCore->SP = dvalue;
+          }
+       }
         
-    } else if ( ScanIntegerToken( pToken, &value, mCore.pThread->base ) ) {
+    } else if ( ScanIntegerToken( pToken, &value, mpCore->pThread->base, isOffset ) ) {
 
         ////////////////////////////////////
         //
@@ -809,21 +1095,45 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             // compile the literal value
             if ( (value < (1 << 23)) && (value >= -(1 << 23)) ) {
                 // value fits in opcode immediate field
-                *mCore.DP++ = (value & 0xFFFFFF) | (kOpConstant << 24);
+                if ( isOffset )
+                {
+                    CompileOpcode( (value & 0xFFFFFF) | (kOpOffset << 24) );
+                }
+                else
+                {
+                    CompileOpcode( (value & 0xFFFFFF) | (kOpConstant << 24) );
+                }
             } else {
                 // value too big, must go in next longword
-                *mCore.DP++ = OP_INT_VAL;
-                *mCore.DP++ = value;
+                if ( isOffset )
+                {
+                    CompileOpcode( OP_INT_VAL );
+                    *mpCore->DP++ = value;
+                    CompileOpcode( OP_PLUS );
+                }
+                else
+                {
+                    CompileOpcode( OP_INT_VAL );
+                    *mpCore->DP++ = value;
+                }
             }
         } else {
-            // leave value on param stack
-            *--mCore.SP = value;
+            if ( isOffset )
+            {
+                // add value to top of param stack
+                *mpCore->SP += value;
+            }
+            else
+            {
+                // leave value on param stack
+                *--mpCore->SP = value;
+            }
         }
 
     } else {
 
         TRACE( "Unknown symbol %s\n", pToken );
-        mCore.pThread->error = kForthErrorUnknownSymbol;
+        mpCore->error = kForthErrorUnknownSymbol;
         exitStatus = kResultError;
     }
 

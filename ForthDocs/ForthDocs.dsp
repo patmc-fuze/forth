@@ -61,6 +61,10 @@ MTL=midl.exe
 # Name "ForthDocs - Win32 Debug"
 # Begin Source File
 
+SOURCE=..\ForthLib\core.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\ForthLib\ForthNotes.txt
 # End Source File
 # Begin Source File
@@ -69,7 +73,15 @@ SOURCE=..\ForthLib\ForthOpList.txt
 # End Source File
 # Begin Source File
 
+SOURCE=..\ForthLib\Debug\ForthOps.asm
+# End Source File
+# Begin Source File
+
 SOURCE=..\ForthLib\ForthTbd.txt
+# End Source File
+# Begin Source File
+
+SOURCE=..\Sandbox\forthtest.txt
 # End Source File
 # End Target
 # End Project

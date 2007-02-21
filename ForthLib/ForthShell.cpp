@@ -186,7 +186,7 @@ ForthShell::InterpretLine( void )
 
     SPEW_SHELL( "*** InterpretLine \"%s\"\n", pLineBuff );
     bLineEmpty = false;
-    mpThread->SetError( kForthErrorNone );
+    mpEngine->SetError( kForthErrorNone );
     while ( !bLineEmpty && (result == kResultOk) ) {
         bLineEmpty = ParseToken( &parseInfo );
 
@@ -199,10 +199,10 @@ ForthShell::InterpretLine( void )
             catch(...)
             {
                 result = kResultException;
-                mpThread->SetError( kForthErrorException, "" );
+                mpEngine->SetError( kForthErrorException, "" );
             }
             if ( result == kResultOk ) {
-                result = mpThread->CheckStacks();
+                result = mpEngine->CheckStacks();
             }
             if ( result != kResultOk ) {
                 if ( result != kResultExitShell ) {
@@ -225,8 +225,7 @@ ForthShell::InterpretLine( void )
 void
 ForthShell::ErrorReset( void )
 {
-	mpEngine->Reset();
-	mpThread->Reset();
+	mpEngine->ErrorReset();
 	mpInput->Reset();
 	mpStack->EmptyStack();
 }
@@ -238,7 +237,7 @@ ForthShell::ReportError( void )
     char errorBuf2[256];
     char *pLastInputToken;
 
-    mpThread->GetErrorString( errorBuf1 );
+    mpEngine->GetErrorString( errorBuf1 );
     pLastInputToken = mpEngine->GetLastInputToken();
     if ( pLastInputToken != NULL ) {
         sprintf( errorBuf2, "%s, last input token: <%s>", errorBuf1, pLastInputToken );
@@ -254,8 +253,8 @@ ForthShell::ReportError( void )
     {
         strcpy( errorBuf1, errorBuf2 );
     }
-    TRACE( errorBuf1 );
-    printf( errorBuf1 );
+    TRACE( "%s", errorBuf1 );
+    printf( "%s", errorBuf1 );
     char *pBase = mpInput->GetBufferBasePointer();
     pLastInputToken = mpInput->GetBufferPointer();
     if ( (pBase != NULL) && (pLastInputToken != NULL) ) {
@@ -268,8 +267,8 @@ ForthShell::ReportError( void )
             pBase++;
         }
         sprintf( errorBuf1, "{}%s\n", pLastInputToken );
-        TRACE( errorBuf1 );
-        printf( errorBuf1 );
+        TRACE( "%s", errorBuf1 );
+        printf( "%s", errorBuf1 );
     }
 }
 
@@ -477,7 +476,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
             {
                 sprintf( mErrorString, "top of shell stack is <%s>, was expecting <string>",
                          GetTagString( tag ) );
-                mpThread->SetError( kForthErrorBadSyntax, mErrorString );
+                mpEngine->SetError( kForthErrorBadSyntax, mErrorString );
             }
         }
         return false;
@@ -816,7 +815,7 @@ ForthShell::CheckSyntaxError( const char *pString, long tag, long desiredTag )
     {
         sprintf( mErrorString, "<%s> preceeded by <%s>, was expecting <%s>",
                  pString, GetTagString( tag ), GetTagString( desiredTag ) );
-        mpThread->SetError( kForthErrorBadSyntax, mErrorString );
+        mpEngine->SetError( kForthErrorBadSyntax, mErrorString );
         return false;
     }
     return true;

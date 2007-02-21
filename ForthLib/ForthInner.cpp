@@ -22,7 +22,7 @@ static char *gOpNames[ NUM_TRACEABLE_OPS ];
 
 #endif
 
-
+extern "C" {
 
 
 //////////////////////////////////////////////////////////////////////
@@ -680,6 +680,16 @@ OPTYPE_ACTION( ConstantAction )
     SPUSH( opVal );
 }
 
+OPTYPE_ACTION( OffsetAction )
+{
+    // push constant in opVal
+    if ( (opVal & 0x00800000) != 0 ) {
+      opVal |= 0xFF000000;
+    }
+    long v = SPOP + opVal;
+    SPUSH( v );
+}
+
 OPTYPE_ACTION( StringAction )
 {
     // push address of immediate string & skip over
@@ -788,6 +798,8 @@ optypeActionRoutine builtinOptypeAction[] =
     CaseBranchAction,
 
     ConstantAction,
+    OffsetAction,
+
     StringAction,
 
     AllocLocalsAction,
@@ -812,47 +824,52 @@ optypeActionRoutine builtinOptypeAction[] =
     NULL            // this must be last to end the list
 };
 
-void InitDispatchTables( ForthCoreState& core )
+void InitDispatchTables( ForthCoreState* pCore )
 {
     int i;
 
     for ( i = 0; i < 256; i++ ) {
-        core.optypeAction[i] = IllegalOptypeAction;
+        pCore->optypeAction[i] = IllegalOptypeAction;
     }
 
     for ( i = 0; i < MAX_BUILTIN_OPS; i++ ) {
-        core.builtinOps[i] = BadOpcodeOp;
+        pCore->builtinOps[i] = BadOpcodeOp;
     }
     for ( i = 0; builtinOptypeAction[i] != NULL; i++ )
     {
-        core.optypeAction[i] = builtinOptypeAction[i];
+        pCore->optypeAction[i] = builtinOptypeAction[i];
     }
 }
 
-void InitCore( ForthCoreState& core )
+void InitCore( ForthCoreState* pCore )
 {
-    core.builtinOps = NULL;
-    core.numBuiltinOps = 0;
-    core.userOps = NULL;
-    core.numUserOps = 0;
-    core.maxUserOps = 0;
-    core.IP = NULL;
-    core.SP = NULL;
-    core.RP = NULL;
-    core.FP = NULL;
-    core.TP = NULL;
-    core.varMode = kVarFetch;
-    core.state = kResultOk;
-    core.pThread = NULL;
-    core.pEngine = NULL;
-    core.DP = NULL;
-    core.DBase = NULL;
-    core.DLen = 0;
+    pCore->builtinOps = NULL;
+    pCore->numBuiltinOps = 0;
+    pCore->userOps = NULL;
+    pCore->numUserOps = 0;
+    pCore->maxUserOps = 0;
+    pCore->IP = NULL;
+    pCore->SP = NULL;
+    pCore->ST = NULL;
+    pCore->SLen = 0;
+    pCore->RP = NULL;
+    pCore->RT = NULL;
+    pCore->RLen = 0;
+    pCore->FP = NULL;
+    pCore->TP = NULL;
+    pCore->varMode = kVarFetch;
+    pCore->state = kResultOk;
+    pCore->error = kForthErrorNone;
+    pCore->pThread = NULL;
+    pCore->pEngine = NULL;
+    pCore->DP = NULL;
+    pCore->DBase = NULL;
+    pCore->DLen = 0;
 }
 
 void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal )
 {
-    pCore->pThread->error =  error;
+    pCore->error =  error;
     pCore->state = (isFatal) ? kResultFatalError : kResultError;
 }
 
@@ -862,8 +879,10 @@ void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal )
 //
 //############################################################################
 
+
+
 eForthResult
-InnerInterpreterFunc( ForthCoreState *pCore )
+InnerInterpreter( ForthCoreState *pCore )
 {
     ulong opVal, numBuiltinOps;
     forthOpType opType;
@@ -903,3 +922,4 @@ InnerInterpreterFunc( ForthCoreState *pCore )
 }
 
 
+};      // end extern "C"

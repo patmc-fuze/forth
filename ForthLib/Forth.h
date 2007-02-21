@@ -13,10 +13,6 @@
 #endif // _MSC_VER > 1000
 //#include "stdafx.h"
 
-#ifndef ulong
-#define ulong unsigned long
-#endif
-
 class ForthEngine;
 class ForthShell;
 class ForthThread;
@@ -25,6 +21,10 @@ class ForthInputStack;
 class ForthInputStream;
 class ForthForgettable;
 struct ForthCoreState;
+
+#ifndef ulong
+#define ulong   unsigned long
+#endif
 
 // these are opcode types, they are held in the top byte of an opcode, and in
 // a vocabulary entry value field
@@ -39,6 +39,8 @@ typedef enum
     kOpCaseBranch,
 
     kOpConstant,        // low 24 bits is signed symbol value
+    kOpOffset,          // low 24 bits is signed offset value
+
     kOpString,
 
     kOpAllocLocals,     // low 24 bits is frame size in longs
@@ -70,6 +72,8 @@ typedef enum
 // there is an action routine with this signature for each forthOpType
 // user can add new optypes with ForthEngine::AddOpType
 typedef void (*optypeActionRoutine)( ForthCoreState *pCore, ulong theData );
+
+typedef void  (*ForthOp)( ForthCoreState * );
 
 // user will also have to add an external interpreter with ForthEngine::SetInterpreterExtension
 // to compile/interpret these new optypes
@@ -118,8 +122,9 @@ typedef enum {
     kForthErrorForgetBuiltin,
     kForthErrorBadMethod,
     kForthErrorException,
+    kForthErrorMissingSize,
     kForthErrorBadSyntax,
-    // NOTE: if you add errors, make sure that you update ForthThread::GetErrorString
+    // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
 } eForthError;
 
@@ -142,8 +147,6 @@ typedef enum {
 #define RNEEDS(A)
 
 class ForthThread;
-
-typedef void  (*ForthOp)(ForthCoreState *);
 
 #define COMPILED_OP( OP_TYPE, VALUE ) ((OP_TYPE << 24) | (VALUE & OPCODE_VALUE_MASK))
 #define BUILTIN_OP( INDEX )   COMPILED_OP( kOpBuiltIn, INDEX )
@@ -174,6 +177,7 @@ typedef void  (*ForthOp)(ForthCoreState *);
 #define OP_DO_EXIT_M    BUILTIN_OP(21)
 #define OP_DO_EXIT_ML   BUILTIN_OP(22)
 #define OP_DO_VOCAB     BUILTIN_OP(23)
+#define OP_PLUS         BUILTIN_OP(24)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct {
@@ -243,7 +247,7 @@ typedef struct _ForthClassDescriptor {
 //      which take a pointer to the ForthThread they are being run in
 //      the thread is accesed through "g->" in the code
 
-#define FORTHOP(NAME) static void NAME( ForthCoreState *pCore )
+#define FORTHOP(NAME) void NAME( ForthCoreState *pCore )
 // GFORTHOP is used for forthops which are defined outside of the dictionary source module
 #define GFORTHOP(NAME) void NAME( ForthCoreState *pCore )
 

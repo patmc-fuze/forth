@@ -41,6 +41,10 @@ public:
                                 bool bAddBaseOps=true,
                                 baseDictEntry *pUserBuiltinOps=NULL );
     void            Reset( void );
+    void            ErrorReset( void );
+
+    void            SetFastMode( bool goFast );
+    void            ToggleFastMode( void );
 
     //
     // ExecuteOneOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
@@ -62,6 +66,9 @@ public:
     //  which were created with CreateThread 
     ForthThread *   CreateThread( int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE, long *pInitialIP = NULL );
     void            DestroyThread( ForthThread *pThread );
+
+    // return true IFF the last compiled opcode was an integer literal
+    bool            GetLastConstant( long& constantValue );
 
     // add a user-defined extension to the outer interpreter
     inline void     SetInterpreterExtension( interpreterExtensionRoutine *pRoutine )
@@ -92,13 +99,14 @@ public:
 
     void                    TraceOp( void );
 
-    inline long *           GetDP() { return mCore.DP; };
-    inline void             SetDP( long *pNewDP ) { mCore.DP = pNewDP; };
-    inline void             CompileLong( long v ) { *mCore.DP++ = v; };
-    inline void             CompileDouble( double v ) { *((double *) mCore.DP) = v; mCore.DP += 2; };
+    inline long *           GetDP() { return mpCore->DP; };
+    inline void             SetDP( long *pNewDP ) { mpCore->DP = pNewDP; };
+    inline void             CompileLong( long v ) { *mpCore->DP++ = v; };
+    inline void             CompileDouble( double v ) { *((double *) mpCore->DP) = v; mpCore->DP += 2; };
     void                    CompileOpcode( long v );
-    inline void             AllotLongs( int n ) { mCore.DP += n; };
-    inline void             AlignDP( void ) { mCore.DP = (long *)(( ((int)mCore.DP) + 3 ) & ~3); };
+    void                    UncompileLastOpcode( void );
+    inline void             AllotLongs( int n ) { mpCore->DP += n; };
+    inline void             AlignDP( void ) { mpCore->DP = (long *)(( ((int)mpCore->DP) + 3 ) & ~3); };
     inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpSearchVocab; };
     inline void             SetSearchVocabulary( ForthVocabulary* pVocab )  { mpSearchVocab = pVocab; };
     inline ForthVocabulary  *GetPrecedenceVocabulary( void )   { return mpPrecedenceVocab; };
@@ -114,18 +122,29 @@ public:
     inline void             SetCompileState( long v ) { mCompileState = v; };
     inline long             IsCompiling( void ) { return mCompileState; };
     inline bool             InVarsDefinition( void ) { return ((mCompileFlags & kFECompileFlagInVarsDefinition) != 0); };
+    inline bool             HasLocalVars( void ) { return ((mCompileFlags & kFECompileFlagHasLocalVars) != 0); };
     inline long             GetCompileFlags( void ) { return mCompileFlags; };
     inline void             SetCompileFlags( long flags ) { mCompileFlags = flags; };
     inline void             SetCompileFlag( long flags ) { mCompileFlags |= flags; };
     inline void             ClearCompileFlag( long flags ) { mCompileFlags &= (~flags); };
+    inline long *           GetLastCompiledOpcodePtr( void ) { return mpLastCompiledOpcode; };
 
     void                    SetCurrentThread( ForthThread* pThread );
 
-protected:
-    bool                    ScanIntegerToken( const char *pToken, long *pValue, int base );
+    void                    GetErrorString( char *pString );
+    eForthResult            CheckStacks( void );
+    void                    SetError( eForthError e, const char *pString = NULL );
+    void                    SetFatalError( eForthError e, const char *pString = NULL );
+    inline eForthError      GetError( void ) { return (eForthError) (mpCore->error); };
 
 protected:
-    ForthCoreState   mCore;             // core inner interpreter state
+    // NOTE: temporarily modifies string @pToken
+    bool                    ScanIntegerToken( char *pToken, long *pValue, int base, bool& isOffset );
+    // NOTE: temporarily modifies string @pToken
+    bool                    ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle );
+
+protected:
+    ForthCoreState*  mpCore;             // core inner interpreter state
 
     ForthVocabulary * mpMainVocab;          // main forth vocabulary
     ForthVocabulary * mpLocalVocab;         // local variable vocabulary
@@ -145,13 +164,15 @@ protected:
     long *          mpEngineScratch;
     char *          mpLastToken;
     int             mNextStringNum;
-    long            mLastCompiledOpcode;
+    long *          mpLastCompiledOpcode;
     long            mLocalFrameSize;
     long *          mpLocalAllocOp;
+    const char *    mpErrorString;  // optional error information from shell
 
     interpreterExtensionRoutine *mpInterpreterExtension;
 
-    long        mCompileFlags;
+    long            mCompileFlags;
+    bool            mFastMode;
 };
 
 
