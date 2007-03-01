@@ -1,0 +1,108 @@
+autoforget forth_autoload
+: forth_autoload "This is the forth_autoload.txt tools module" %s ;
+
+200 string _aa
+200 string _bb
+
+: cd
+  blword chdir
+  if "cd failed!\n" %s endif
+;
+
+: pwd "chdir" system drop ;
+
+: dir
+  blword -> _aa
+  "dir" -> _bb
+  strcmp( _aa "" )
+  if
+    // user specified a directory
+    strcat( _bb " " )
+    strcat( _bb _aa )
+  endif
+  _bb system drop
+;
+
+: sys 0 word system drop ;
+
+: ds dstack ;
+
+int dumpWidth
+16 -> dumpWidth
+
+// ADDR LEN OFFSET _dump
+: _dump
+  int addr
+  int len
+  int offset
+  int columns
+  int endAddr
+  int ch
+
+  -> offset		// offset is subtracted from the actual data address before display
+  -> len
+  -> addr
+  addr len + -> endAddr
+  len -> columns
+  begin
+    addr endAddr <
+  while
+    addr offset - "%08x" %fmt "   " %s
+    len dumpWidth >
+    if
+      dumpWidth -> columns
+    endif
+    columns 0 do
+      addr i + c@ "%02x " %fmt
+    loop
+    "    " %s
+    // why do we have to add 1 to dumpWidth here?
+    dumpWidth 1+ columns - 0 do %bl %bl %bl loop
+    columns 0 do
+      addr i + c@ -> ch
+      ch ' ' >  ch 127 < and if
+        ch
+      else
+        '.'
+      endif
+      %c
+    loop
+    columns ->+ addr
+    columns ->- len
+    %nl
+  repeat
+;
+
+// ADDR LEN dump
+: dump
+  0 _dump
+;
+
+// FILENAME OFFSET LEN fdump
+: fdump
+  int len
+  int offset
+  int infile
+  int buff
+
+  -> len -> offset
+  "rb" fopen -> infile
+  infile 0== if
+    "open failure" %s %nl
+    exit
+  endif
+  len malloc -> buff
+  infile offset 0 fseek
+  0 != if
+    "fdump fseek failure" %nl exit
+  endif
+  buff len 1 infile fread
+  0== if
+    "fdump read failure" %nl
+  else
+    buff len buff _dump
+  endif
+  infile fclose drop
+  buff free
+;
+

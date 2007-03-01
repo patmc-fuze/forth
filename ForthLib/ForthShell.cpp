@@ -93,11 +93,21 @@ ForthShell::~ForthShell()
 // create a new file input stream & push on stack
 //
 void
-ForthShell::PushInputStream( FILE *pInFile )
+ForthShell::PushInputFile( FILE *pInFile )
 {
     assert( pInFile != NULL );
 
-    mpInput->PushInputStream( new ForthFileInputStream(pInFile) );
+    mpInput->PushInputStream( new ForthFileInputStream( pInFile ) );
+}
+
+
+//
+// create a new file input stream & push on stack
+//
+void
+ForthShell::PushInputBuffer( char *pDataBuffer, int dataBufferLen )
+{
+    mpInput->PushInputStream( new ForthBufferInputStream( pDataBuffer, dataBufferLen ) );
 }
 
 
@@ -123,6 +133,11 @@ ForthShell::Run( ForthInputStream *pInStream )
     bool bInteractiveMode = pInStream->IsInteractive();
 
     mpInput->PushInputStream( pInStream );
+
+    FILE* pInFile = fopen( "forth_autoload.txt", "r" );
+    if ( pInFile != NULL ) {
+       mpEngine->PushInputFile( pInFile );
+    }
 
     while ( !bQuit ) {
 
@@ -627,7 +642,13 @@ ForthShell::GetToken( char delim )
     bDone = false;
     while ( !bDone ) {
         c = *pEndToken;
-        if ( (c == delim) || (c == '\0') )
+        if ( c == '\0' )
+        {
+			// don't move input ptr past terminating null
+            bDone = true;
+            *pEndToken = '\0';
+        }
+        else if ( c == delim )
         {
             bDone = true;
             *pEndToken++ = '\0';

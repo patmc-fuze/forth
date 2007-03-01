@@ -1,0 +1,106 @@
+         1         2         3         4         5         6         7
+1234567890123456789012345678901234567890123456789012345678901234567890123456789
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Feb. 21 2007
+
+blah.a.b.c[M].d.e[N].f
+M
+blah_ref_op
+offset(a + a.b + b.c)
+
+
+One important distinction about the "blah_ref_op" is that it does not reset
+the varOp, so that stuff like "5 -> a.b.c[2]" can work.
+
+typeBlah a1
+typeBlah a2
+
+// copy a1 into a2
+a1 -> a2
+
+// copy 55 into a2.x
+55 -> a2.x
+
+For local structs, or member structs, we just compile an opcode that pushes
+the proper offset off the stack frame or the this pointer:
+	lit(55)
+	op(->)
+	localInt(a2.x)
+
+For global variables we can't compile the ref operator and then the global
+variable op, since that would wipe out the "store" varOp set by "->".
+	lit(55)
+	op(->)
+	op(addressOf)
+	op(a2)
+	
+? So how do we implement field access for global structs ?
+? could the ref operator check to see if there is a pending operation, and
+  if so set varOp to a combined ref-followed-by-pending varOp
+  For example, if ref just set the hibit of varOp
+  varOp dispatchers would first check the hibit, and if set would just do
+  the ref operation, clear the hibit and leave the lowbits of varOp alone.
+o another possibility would be for the compiler to check if the last compiled
+  op was a varOp setting op (-> ->+ ->- ...) and if so replace the last
+  compiled op with an op that set the varOp and the ref bit
+o yet another possibility would be to recognize the preceeding varOp setting op,
+  uncompile it, compile the ref op, the global var op, then recompile the old
+  varOp setting op:
+  55 -> a2.x          becomes    55 ref a2 -> .x
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+[ARRAY_INDICES] STRUCT_PTR [FIELD_SELECTORS]
+
+INDEX STRUCT_PTR int[]
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+Structure Support			September 8, 2006
+
+Cases to consider:
+
+1) struct is pointed to by TOS
+2) struct is local var
+3) struct is global var
+4) struct is object member
+5) struct is struct member
+6) struct member is an array
+7) struct member is an object
+
+--------------------------
+The easiest way to implement structures is:
+
+a) all read/write to struct elements is done via pointer ops (@ ! c@ c! ...)
+b) structures are always represented by a pointer on TOS
+c) structure member ops just add in offsets to pointer on TOS
+
+Positives/negatives:
++ this is the most general way to do this
+- this can be very inefficient (lots of ops with little computing & much overhead per op)
++ this is very easy to implement
++ this is the way it has been done in many previous versions of forth
+- this can be a pain to program in (lots of ops, easy to make a mistake)
+? does this pose problems for object support?
+- doesn't solve name collisions between members in different structs
+--------------------------
+Another way to implement structures is:
+
+a) read/write to struct elements is done like local vars, use "->" to indicate writing, else reading
+b) compound symbols are used to specify the structure instance and member (struct.member)
+
+Positives/negatives:
++ should make the code look neater
++ some errors can be caught at interpret time (using member accessor on wrong type of struct)
++ allows disambiguation of member names by struct type (several structs could have members "x" or "index" for example)
++ potentially more efficient code
+- much more work to implement
+- very different from normal forth approach
+
+
+
+//       11111111112222222222333333333344444444445555555555666666666677777777778
+//345678901234567890123456789012345678901234567890123456789012345678901234567890
+<############################# Last Line In File ##############################>

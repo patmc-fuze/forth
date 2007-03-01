@@ -1,0 +1,402 @@
+    ///////////////////////////////////////////
+    //  STUFF WHICH IS COMPILED BY OTHER WORDS
+    //   DO NOT REARRANGE UNDER PAIN OF DEATH
+    ///////////////////////////////////////////
+    _unravelFrame    _doDoes    lit    flit    dlit
+    _doVariable    _doConstant    _endBuilds
+    _doInt    _doFloat    _doDouble    _doString
+    
+    ///////////////////////////////////////////
+    //  integer math
+    ///////////////////////////////////////////
+    +    -    *    /    /mod    mod    negate
+    1+   2+   4+   1-   2-      4-    2*   4*
+    
+    ///////////////////////////////////////////
+    //  single-precision floating point math
+    ///////////////////////////////////////////
+    f+    f-    f*    f/
+    
+    ///////////////////////////////////////////
+    //  double-precision floating point math
+    ///////////////////////////////////////////
+    d+    d-    d*    d/
+
+
+    ///////////////////////////////////////////
+    //  double-precision floating point functions
+    ///////////////////////////////////////////
+    dsin    darcsin    dcos    darccos    dtan    darctan
+    darctan2    DX DY darctan2 -> DRADIANS
+    dexp    dln    dlog10
+    dpow        DA DPOWER dpow -> (DA ** DPOWER)
+    dsqrt
+    dceil    dfloor    dabs
+    dldexp
+    dfrexp
+    dmodf
+    dfmod
+
+    
+    ///////////////////////////////////////////
+    //  integer/float/double conversions
+    ///////////////////////////////////////////
+    i2f  i2d  f2i  f2d  d2i  d2f
+    
+    ///////////////////////////////////////////
+    //  control flow ops
+    ///////////////////////////////////////////
+    call    goto    exit
+    NEW_IP call
+        push current IP on return stack,
+        return to point just after "call" with "exit"
+    NEW_IP goto     branch to NEW_IP
+    exit            pop IP off return stack
+
+    do    loop    loop+    i    j
+    END+1 START do ... loop
+    END+1 START do ... INCREMENT +loop
+
+    if    else    endif
+    begin    until    while    repeat    again
+    done        exit inner interpreter with status "done"
+    abort       exit outer interpreter with failure status
+    bye         exit outer interpreter with success status
+
+    ///////////////////////////////////////////
+    //  bit-vector logic ops
+    ///////////////////////////////////////////
+    or    and    xor    ~
+    <<
+    >>
+
+    ///////////////////////////////////////////
+    //  boolean ops
+    ///////////////////////////////////////////
+    not    true    false    null
+
+    ///////////////////////////////////////////
+    //  integer comparisons
+    ///////////////////////////////////////////
+    ==    !=   >    >=    <    <=
+    0==   0!=  0>   0>=   0<   0<=
+    
+    ///////////////////////////////////////////
+    //  stack manipulation
+    ///////////////////////////////////////////
+    r<    r>    rdrop
+    dup    swap    drop    over    rot
+    ddup    dswap    ddrop    dover    drot
+    
+    ///////////////////////////////////////////
+    //  data compilation/allocation
+    ///////////////////////////////////////////
+    align    allot    ,    c,    here    malloc    free
+
+    ///////////////////////////////////////////
+    //  memory store/fetch
+    ///////////////////////////////////////////
+    !    @    c!    c@    w!    w@    d!    d@
+    -> ->+    ->-    addressOf
+
+    ///////////////////////////////////////////
+    //  string manipulation
+    ///////////////////////////////////////////
+    strcpy    strlen    strcat
+
+    ///////////////////////////////////////////
+    //  defining words
+    ///////////////////////////////////////////
+    builds    does    ;    :    create
+    variable    constant
+    vars    endvars    int    float    double    string
+    recursive    precedence    load    loaddone    [    ]
+    state    '    execute    [compile]    [']
+
+
+    ///////////////////////////////////////////
+    //  text display words
+    ///////////////////////////////////////////
+    .    %d    %x    %f    %g    %s    %c    %bl    %nl
+    base    decimal    hex
+    printDecimalSigned    printAllSigned    printAllUnsigned
+    outToFile    outToScreen    outToString    getConOutFile
+
+    ///////////////////////////////////////////
+    //  file ops
+    ///////////////////////////////////////////
+    fopen    fclose    fseek    fread    fwrite
+    feof    ftell    stdin    stdout    stderr
+    fputc    fgetc
+
+    ///////////////////////////////////////////
+    //  debug ops
+    ///////////////////////////////////////////
+    dstack    drstack    vlist
+
+
+
+                                    _doDoes
+<NONE>                              lit         A
+<NONE>                              flit        F
+<NONE>                              dlit        D
+                                    _doVariable
+                                    _doConstant
+                                    _endBuilds
+                                    
+                                    done
+                                    _doInt
+                                    _doFloat
+                                    _doDouble
+                                    _doString
+                                    _do
+                                    _loop
+                                    _+loop
+                                    _exit
+                                    _exitL
+                                    _exitM
+                                    _exitML
+
+
+<NONE>                              abort       <NONE>
+<NONE>                              ->          <NONE>
+
+A B                                 +           A+B
+A                                   1+          A+1
+A                                   2+          A+2
+A                                   4+          A+4
+A B                                 -           A-B
+A                                   1-          A-1
+A                                   2-          A-2
+A                                   4-          A-4
+A B                                 *           A*B
+A                                   2*          A*2
+A                                   4*          A*4
+A B                                 /           A/B
+A                                   2/          A/2
+A                                   4/          A/4
+A B                                 /mod        mod(A,B) A/B
+A B                                 mod         mod(A,B)
+A                                   negate      -A
+
+A B                                 f+          A+B
+A B                                 f-          A-B
+A B                                 f*          A*B
+A B                                 f/          A/B
+
+DA DB                               d+          DA+DB
+DA DB                               d-          DA-DB
+DA DB                               d*          DA*DB
+DA DB                               d/          DA/DB
+
+DA                                  dsin        sin(DA)
+DA                                  darcsin     arcsin(DA)
+DA                                  dcos        cos(DA)
+DA                                  darccos     arccos(DA)
+DA                                  dtan        tan(DA)
+DA                                  darctan     arctan(DA)
+DA DB                               darctan2    arctan(DA/DB)
+DA                                  dexp        exp(DA)
+DA                                  dln         ln(DA)
+DA                                  dlog10      log10(DA)
+DA DB                               dpow        DA**DB
+DA                                  dsqrt       sqrt(DA)
+DA                                  dceil       ceil(DA)
+DA                                  dfloor      floor(DA)
+DA                                  dabs        abs(DA)
+DA B                                dldexp      ldexp(DA,B)
+DA                                  dfrexp      frac(DA) exponent(DA)
+DA                                  dmodf       frac(DA) whole(DA)
+DA DB                               dfmod       fmod(DA,DB)
+
+A                                   i2f         float(A)
+A                                   i2d         double(A)
+A                                   f2i         int(A)
+A                                   f2d         double(A)
+A                                   d2i         int(A)
+A                                   d2f         float(A)
+
+A B                                 or          or(A,B)
+A B                                 and         and(A,B)
+A B                                 xor         xor(A,B)
+~
+A B                                 <<          A<<B
+A B                                 >>          A>>B
+
+A                                   not         not(A)                      true iff A is 0, else false
+<NONE>                              true        -1
+<NONE>                              false       0
+<NONE>                              null        0
+
+A B                                 ==          A==B
+A B                                 !=          A!=B
+A B                                 >           A>B
+A B                                 >=          A>=B
+A B                                 <           A<B
+A B                                 <=          A<=B
+A                                   0==         A==0
+A                                   0!=         A!=0
+A                                   0>          A>0
+A                                   0>=         A>=0
+A                                   0<          A<0
+A                                   0<=         A<=0
+
+A                                   call        <NONE>
+goto
+do
+loop
++loop
+i
+j
+unloop
+leave
+if
+else
+endif
+begin
+until
+while
+repeat
+again
+case
+of
+endof
+endcase
+
+
+A                                   dup         A A
+A B                                 swap        B A
+A                                   drop        <NONE>
+A B                                 over        A B A
+A B C                               rot         B C A
+
+r<
+r>
+rdrop
+
+ddup
+dswap
+ddrop
+dover
+drot
+
+align
+allot
+,
+c,
+here
+malloc
+free
+
+!
+@
+c!
+c@
+w!
+w@
+d!
+d@
+->+
+->-
+addressOf
+
+strcpy
+strlen
+strcat
+strchr
+strcmp
+strstr
+strtok
+
+builds
+does
+newestSymbol
+exit
+;
+:
+create
+forget
+variable
+constant
+vars
+endvars
+int
+float
+double
+string
+
+recursive
+precedence
+load
+loaddone
+[
+]
+state
+'
+execute
+[compile]
+[']
+
+.
+%d
+%x
+%s
+%c
+%bl
+%nl
+%f
+%g
+%fmt
+base
+decimal
+hex
+printDecimalSigned
+printAllSigned
+printAllUnsigned
+outToFile
+outToScreen
+outToString
+getConOutFile
+
+FILENAME_STR ACCESS_MODE_STR        fopen                   FILE_PTR
+FILE_PTR                            fclose                  RESULT
+OFFSET SEEK_MODE FILE_PTR           fseek                   RESULT
+NUM_ITEMS ITEM_SIZE FILE_PTR        fread                   ITEMS_READ
+NUM_ITEMS ITEM_SIZE FILE_PTR        fwrite                  ITEMS_WRITTEN
+FILE_PTR                            fgetc                   RESULT
+OUT_CHAR FILE_PTR                   fputc                   RESULT
+FILE_PTR                            feof                    RESULT
+FILE_PTR                            ftell                   OFFSET
+<NONE>                              stdin                   FILE_PTR
+<NONE>                              stdout                  FILE_PTR
+<NONE>                              stderr                  FILE_PTR
+
+dstack
+drstack
+vlist
+
+STRING                              system                  RESULT_INT
+<NONE>                              bye
+A                                   argv                    argv[A]
+<NONE>                              argc                    ARG_COUNT
+
+LIBRARY_PATH                        loadLibrary             HANDLE
+HANDLE                              freeLibrary             <NONE>
+HANDLE PROCEDURE_NAME               getProcAddress          PROCEDURE_ADDRESS
+PROCEDURE_ADDRESS                   callProc0               RESULT
+ARG1 PROCEDURE_ADDRESS              callProc1               RESULT
+ARG1 ARG2 PROCEDURE_ADDRESS         callProc2               RESULT
+... likewise for callProc3 thru callProc7 ...
+ARG1...ARG8 PROCEDURE_ADDRESS       callProc8               RESULT
+
+                                    blword                  STRING
+A                                   word                    STRING
+<NONE>                              getInBufferBase         A
+<NONE>                              getInBufferPointer      A
+A                                   setInBufferPointer      <NONE>
+<NONE>                              getInBufferLength       A
+PROMPT_STRING                       fillInBuffer            STRING
+
+
+
+

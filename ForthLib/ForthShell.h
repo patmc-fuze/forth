@@ -113,7 +113,8 @@ public:
     ForthShell( ForthEngine *pEngine = NULL, ForthThread *pThread = NULL, int shellStackLongs = 1024 );
     virtual ~ForthShell();
 
-    void                    PushInputStream( FILE *pInFile );
+    void                    PushInputFile( FILE *pInFile );
+    void                    PushInputBuffer( char *pDataBuffer, int dataBufferLen );
     bool                    PopInputStream( void );
     int                     Run( ForthInputStream *pStream );
     char *                  GetNextSimpleToken( void );

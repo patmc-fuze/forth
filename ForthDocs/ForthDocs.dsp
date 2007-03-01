@@ -65,6 +65,18 @@ SOURCE=..\ForthLib\core.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\ForthClasses.txt
+# End Source File
+# Begin Source File
+
+SOURCE=.\ForthCode.txt
+# End Source File
+# Begin Source File
+
+SOURCE=.\ForthDocs.vpj
+# End Source File
+# Begin Source File
+
 SOURCE=..\ForthLib\ForthNotes.txt
 # End Source File
 # Begin Source File
@@ -77,11 +89,19 @@ SOURCE=..\ForthLib\Debug\ForthOps.asm
 # End Source File
 # Begin Source File
 
+SOURCE=.\ForthStructs.txt
+# End Source File
+# Begin Source File
+
 SOURCE=..\ForthLib\ForthTbd.txt
 # End Source File
 # Begin Source File
 
 SOURCE=..\Sandbox\forthtest.txt
+# End Source File
+# Begin Source File
+
+SOURCE=.\ForthVocabularies.txt
 # End Source File
 # End Target
 # End Project

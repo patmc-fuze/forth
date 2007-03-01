@@ -12,6 +12,7 @@
 #include "ForthShell.h"
 #include "ForthInput.h"
 #include <conio.h>
+#include <direct.h>
 
 extern "C" {
 
@@ -1104,7 +1105,8 @@ FORTHOP(rdropOp)
 FORTHOP(dupOp)
 {
     NEEDS(1);
-    SPUSH( *(GET_SP) );
+    long a = *(GET_SP);
+    SPUSH( a );
 }
 
 FORTHOP(swapOp)
@@ -1253,8 +1255,24 @@ FORTHOP(cstoreOp)
 FORTHOP(cfetchOp)
 {
     NEEDS(1);
-    char *pA = (char *) (SPOP);
-    SPUSH( (*pA) & 0xFF );
+    unsigned char *pA = (unsigned char *) (SPOP);
+    SPUSH( (*pA) );
+}
+
+// signed char fetch
+FORTHOP(scfetchOp)
+{
+    NEEDS(1);
+    signed char *pA = (signed char *) (SPOP);
+    SPUSH( (*pA) );
+}
+
+FORTHOP(c2lOp)
+{
+    NEEDS(1);
+    signed char a = (signed char) (SPOP);
+	long b = (long) a;
+    SPUSH( b );
 }
 
 FORTHOP(wstoreOp)
@@ -1268,8 +1286,24 @@ FORTHOP(wstoreOp)
 FORTHOP(wfetchOp)
 {
     NEEDS(1);
-    short *pA = (short *) (SPOP);
+    unsigned short *pA = (unsigned short *) (SPOP);
     SPUSH( *pA );
+}
+
+// signed word fetch
+FORTHOP(swfetchOp)
+{
+    NEEDS(1);
+    signed short *pA = (signed short *) (SPOP);
+    SPUSH( *pA );
+}
+
+FORTHOP(w2lOp)
+{
+    NEEDS(1);
+    short a = (short) (SPOP);
+	long b = (long) a;
+    SPUSH( b );
 }
 
 FORTHOP(dstoreOp)
@@ -1319,6 +1353,14 @@ FORTHOP( strcpyOp )
     strcpy( pDst, pSrc );
 }
 
+FORTHOP( strncpyOp )
+{
+	size_t maxBytes = (size_t) SPOP;
+    char *pSrc = (char *) SPOP;
+    char *pDst = (char *) SPOP;
+    strncpy( pDst, pSrc, maxBytes );
+}
+
 FORTHOP( strlenOp )
 {
     char *pSrc = (char *) SPOP;
@@ -1332,6 +1374,14 @@ FORTHOP( strcatOp )
     strcat( pDst, pSrc );
 }
 
+FORTHOP( strncatOp )
+{
+	size_t maxBytes = (size_t) SPOP;
+    char *pSrc = (char *) SPOP;
+    char *pDst = (char *) SPOP;
+    strncat( pDst, pSrc, maxBytes );
+}
+
 
 FORTHOP( strchrOp )
 {
@@ -1340,11 +1390,25 @@ FORTHOP( strchrOp )
     SPUSH( (long) strchr( pStr, c ) );
 }
 
+FORTHOP( strrchrOp )
+{
+    int c = (int) SPOP;
+    char *pStr = (char *) SPOP;
+    SPUSH( (long) strrchr( pStr, c ) );
+}
+
 FORTHOP( strcmpOp )
 {
     char *pStr2 = (char *) SPOP;
     char *pStr1 = (char *) SPOP;
     SPUSH( (long) strcmp( pStr1, pStr2 ) );
+}
+
+FORTHOP( stricmpOp )
+{
+    char *pStr2 = (char *) SPOP;
+    char *pStr1 = (char *) SPOP;
+    SPUSH( (long) stricmp( pStr1, pStr2 ) );
 }
 
 
@@ -1523,6 +1587,21 @@ FORTHOP( createOp )
 }
 
 FORTHOP( forgetOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    char* pSym = pEngine->GetNextSimpleToken();
+    if ( !pEngine->ForgetSymbol( pSym ) )
+    {
+        TRACE( "Error - attempt to forget unknown op %s from %s\n", pSym, pEngine->GetForthVocabulary()->GetName() );
+        printf( "Error - attempt to forget unknown op %s from %s\n", pSym, pEngine->GetForthVocabulary()->GetName() );
+    }
+    // reset search & definitions vocabs in case we deleted a vocab we were using
+    pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
+    pEngine->SetSearchVocabulary( pEngine->GetForthVocabulary() );
+}
+
+// just like forget, but no error message if symbol not found
+FORTHOP( autoforgetOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     pEngine->ForgetSymbol( pEngine->GetNextSimpleToken() );
@@ -1844,7 +1923,7 @@ FORTHOP( loadOp )
     if ( pFileName != NULL ) {
         pInFile = fopen( pFileName, "r" );
         if ( pInFile != NULL ) {
-            pEngine->PushInputStream( pInFile );
+            pEngine->PushInputFile( pInFile );
         } else {
             printf( "!!!! Failure opening source file %s !!!!\n", pFileName );
             TRACE( "!!!! Failure opening source file %s !!!!\n", pFileName );
@@ -1856,6 +1935,17 @@ FORTHOP( loadOp )
 FORTHOP( loadDoneOp )
 {
     GET_ENGINE->PopInputStream();
+}
+
+FORTHOP( interpretOp )
+{
+    char* pStr = (char *) SPOP;
+    if ( pStr != NULL )
+    {
+        int len = strlen( pStr );
+        ForthEngine *pEngine = GET_ENGINE;
+        pEngine->PushInputBuffer( pStr, len );
+    }
 }
 
 FORTHOP( stateInterpretOp )
@@ -2291,6 +2381,13 @@ FORTHOP( systemOp )
     SPUSH( result );
 }
 
+FORTHOP( chdirOp )
+{
+    NEEDS(1);
+    int result = chdir( (const char *) SPOP );
+    SPUSH( result );
+}
+
 
 
 //##############################
@@ -2541,7 +2638,10 @@ FORTHOP( blwordOp )
 {
     NEEDS( 0 );
     ForthShell *pShell = GET_ENGINE->GetShell();
-    SPUSH( (long) (pShell->GetNextSimpleToken()) );
+	char *pSrc = pShell->GetNextSimpleToken();
+	char *pDst = GET_ENGINE->GetTmpStringBuffer();
+	strncpy( pDst, pSrc, (TMP_STRING_BUFFER_LEN - 1) );
+    SPUSH( (long) pDst );
 }
 
 FORTHOP( wordOp )
@@ -2549,7 +2649,10 @@ FORTHOP( wordOp )
     NEEDS( 1 );
     ForthShell *pShell = GET_ENGINE->GetShell();
     char delim = (char) (SPOP);
-    SPUSH( (long) (pShell->GetToken( delim )) );
+	char *pSrc = pShell->GetToken( delim );
+	char *pDst = GET_ENGINE->GetTmpStringBuffer();
+	strncpy( pDst, pSrc, (TMP_STRING_BUFFER_LEN - 1) );
+    SPUSH( (long) pDst );
 }
 
 FORTHOP( getInBufferBaseOp )
@@ -2791,8 +2894,12 @@ baseDictEntry baseDict[] = {
     OP(     fetchOp,                "@" ),
     OP(     cstoreOp,               "c!" ),
     OP(     cfetchOp,               "c@" ),
+    OP(     scfetchOp,              "sc@" ),
+    OP(     c2lOp,                  "c2l" ),
     OP(     wstoreOp,               "w!" ),
     OP(     wfetchOp,               "w@" ),
+    OP(     swfetchOp,              "sw@" ),
+    OP(     w2lOp,                  "w2l" ),
     OP(     dstoreOp,               "d!" ),
     OP(     dfetchOp,               "d@" ),
     OP(     addToOp,                "->+" ),
@@ -2803,10 +2910,14 @@ baseDictEntry baseDict[] = {
     //  string manipulation
     ///////////////////////////////////////////
     OP(     strcpyOp,               "strcpy" ),
+    OP(     strncpyOp,              "strncpy" ),
     OP(     strlenOp,               "strlen" ),
     OP(     strcatOp,               "strcat" ),
+    OP(     strncatOp,              "strncat" ),
     OP(     strchrOp,               "strchr" ),
+    OP(     strrchrOp,              "strrchr" ),
     OP(     strcmpOp,               "strcmp" ),
+    OP(     stricmpOp,              "stricmp" ),
     OP(     strstrOp,               "strstr" ),
     OP(     strtokOp,               "strtok" ),
 
@@ -2821,6 +2932,7 @@ baseDictEntry baseDict[] = {
     OP(     colonOp,                ":" ),
     OP(     createOp,               "create" ),
     OP(     forgetOp,               "forget" ),
+    OP(     autoforgetOp,           "autoforget" ),
     OP(     definitionsOp,          "definitions" ),
     OP(     usesOp,                 "uses" ),
     OP(     forthVocabOp,           "forth" ),
@@ -2841,6 +2953,7 @@ baseDictEntry baseDict[] = {
     OP(     precedenceOp,           "precedence" ),
     OP(     loadOp,                 "load" ),
     OP(     loadDoneOp,             "loaddone" ),
+    OP(     interpretOp,            "interpret" ),
     PRECOP( stateInterpretOp,       "[" ),
     OP(     stateCompileOp,         "]" ),
     OP(     stateOp,                "state" ),
@@ -2894,6 +3007,7 @@ baseDictEntry baseDict[] = {
     OP(     vlistOp,                "vlist" ),
 
     OP(     systemOp,               "system" ),
+    OP(     chdirOp,                "chdir" ),
     OP(     byeOp,                  "bye" ),
     OP(     argvOp,                 "argv" ),
     OP(     argcOp,                 "argc" ),
@@ -2942,6 +3056,7 @@ baseDictEntry baseDict[] = {
 
 
 
+#if 0
 extern ForthOp
     abortBop, dropBop, doDoesBop, litBop, litBop, dlitBop, doVariableBop, doConstantBop, doDConstantBop,
     endBuildsBop, doneBop, doIntBop, doFloatBop, doDoubleBop, doStringBop, intoBop, doDoBop,
@@ -3165,8 +3280,12 @@ baseDictEntry baseAsmDict[] = {
     ASM_OP(     fetchBop,                "@" ),
     ASM_OP(     cstoreBop,               "c!" ),
     ASM_OP(     cfetchBop,               "c@" ),
+    ASM_OP(     scfetchBop,              "sc@" ),
+    ASM_OP(     c2lBop,                  "c2l" ),
     ASM_OP(     wstoreBop,               "w!" ),
     ASM_OP(     wfetchBop,               "w@" ),
+    ASM_OP(     swfetchBop,              "sw@" ),
+    ASM_OP(     w2lBop,                  "w2l" ),
     ASM_OP(     dstoreBop,               "d!" ),
     ASM_OP(     dfetchBop,               "d@" ),
     ASM_OP(     addToBop,                "->+" ),
@@ -3195,6 +3314,7 @@ baseDictEntry baseAsmDict[] = {
     ASM_OP(     colonBop,                ":" ),
     ASM_OP(     createBop,               "create" ),
     ASM_OP(     forgetBop,               "forget" ),
+    ASM_OP(     autoforgetBop,           "autoforget" ),
     ASM_OP(     definitionsBop,          "definitions" ),
     ASM_OP(     usesBop,                 "uses" ),
     ASM_OP(     forthVocabBop,           "forth" ),
@@ -3305,6 +3425,7 @@ baseDictEntry baseAsmDict[] = {
     // following must be last in table
     ASM_OP(     NULL,                   "" )
 };
+#endif
 
 
 //############################################################################

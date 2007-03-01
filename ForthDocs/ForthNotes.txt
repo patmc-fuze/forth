@@ -1,0 +1,454 @@
+         1         2         3         4         5         6         7
+1234567890123456789012345678901234567890123456789012345678901234567890123456789
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+TBDs:
+
+- vocabulary support
+- structure support
+- windows support
+  - gui stuff
+  - graphics
+
++ rewrite kernel in assembler
+  -> leave compile time words in c++
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 26, 2007
+
+Added chdir (couldn't use "system" for this)
+
+Added autoforget - just a version of "forget" that doesn't complain if
+  symbol to forget doesn't exist
+
+Added interpret - takes a string and gives it to outer interpreter
+
+Added automatic loading at startup of forth_autoload.txt
+
+Added a bunch of string operators (strncpy, strncat, strrchr, stricmp)
+
+Added a bunch of tests to forthtest.txt
+
+Added sc@ & sw@	- signed byte & word fetch
+Added c2l & w2l - byte & word sign extension to long
+
+Added ability to specify double float constants by appending a "d": 1.0d
+You can specify single float constants by 1.0f, but this is the default
+
+Fixed bug with "0 word"
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 21, 2007
+
+Broke out stuff in this file into seperate files in ForthDocs.
+
+Tried out builds... does with:
+	: plusser builds , does @ + ;
+	5 plusser p5
+	20 p5
+Normal mode returns 25, but turbo mode returns 40.
+	: minusser builds , does @ + ;
+	5 minusser m5
+	20 m5
+Normal mode returns 15, but turbo mode returns 0.
+
+-> got it working, but I should go through and verify that it is right
+  It feels like there is another level of indirection than is correct...
+-> there was a bug in @ - it wasn't doing any indirection, so it was a no-op,
+   and I had added an extra level of indirection to the asm doDoes code
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 18, 2007
+
+Fixed offset optype.
+
+Changed local var stuff so that local vars can be declared anywhere,
+vars...endvars are not needed and should be removed.
+One case which was a problem was strings:
+
+: anExample
+  55 string anyName
+;
+
+In this example, the 55 which was intended to be the length param to "string"
+had been compiled.  To deal with this, I added a method to the engine which
+checks if the last compiled opcode was a literal constant and returns its
+value if so.  The "string" implementation backs the DP over this constant.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 17, 2007
+
+When I looked at converting the string ops into assembler, I started thinking
+about string variables, in particular about detecting and avoiding string
+buffer overruns.  Three main possibilities came to mind:
+
+1) do like C does, just ignore the problem and always assign bigass buffers
+2) add a max length field to string variables
+  a) add a current length field to string variables
+3) go to a scheme where strings are handled more abstractly
+  a) suppose a string was a base pointer and a length
+  b) or maybe a pointer, current length and writable length (0 means const string)
+
+One problem with making strings more complex than simple uninitialized
+buffers is that it would make implementing local strings more complicated
+
+The max length field isn't important for ops that don't modify a string, so
+stuff like strlen, strcmp. strstr and strchar could be implemented as they
+are now by just calling the C library routines.
+
+Another problem with making strings something other than a simple set of
+bytes is if you want to use them in a disk record structure, you probably
+don't want the extra length fields taking up space.
+
+I went off on a tangent about eliminating the need for vars/endvars, allowing
+you to declare variables anywhere in a user defined word.
+  You would probably want to compile the allocLocals op at the first occurence
+  of a local variable.  There are many ways that a user could shoot themself
+  in the foot doing this, especially if they were manipulating the return
+  stack, but it would be mostly safe.
+  One consequence of this is that when a string local var is declared, it would
+  have to see if a literal constant was just compiled to determine its size.
+  -> maybe we could leave that literal constant op where it was compiled, and
+     then compile an opcode immediately after it which would store that constant
+	 in the local string vars max length field and zero its current length field.
+
+I tried adding an offset optype, it works fine in interpret mode, but not in compile mode.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 16, 2007
+
+Got most of the floating point ops defined
+int, float & double global & local variables are working
+
+- need to test builds...does
+
+- change string variables to include a current length & max length
+
+? make an optimized case branch, where the opcode includes the case value
+  and branch offset?
+
++ added the ability to add 'd' or 'f' to the end of real literals to control
+  generation of single or double precision constants
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 13, 2007
+
+Assembler version of forth is mostly working.
+
+I added a macro to allow assembly-code ops to invoke c-code ops.
+
+I added an op "turbo" that allows switching between using c-code
+and asm-code inner interpreters on the fly.
+
+c-code is setting ForthCoreState->state @(002F4948 + 434) = 1
+asm-code is checking (002F4948 + 432)
+? Say huh ?
+
+I auto-generated core.inc from core.h to define the FortheCoreState structure
+for asm-code.  One problem area is enumerated types.  Maybe both the c-code
+and asm-code structures should be defined strictly in terms of simple types
+with a known storage size.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 4, 2007
+
+Worked on writing assembler versions of optype dispatch routines.
+
+Got to LocalIntAction
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 3, 2007
+
+In preparation for switching over to using assembler for inner interpreter,
+I changed the inner interpreter to use a 2-stage dispatch scheme, and broke
+out the portion of the state that the assembly code will use into a new
+structure, the ForthCoreState.
+
+o There is a single ForthCoreState, which is contained in the ForthEngine.
+o The ForthCoreState is associated with a single thread at any time.
+
+I had done a similar state breakout of ForthThreadState from ForthThread a
+while back.  The big difference is that ForthCoreState contains the
+optype dispatch table and other ForthEngine related stuff.
+
+One other related change which caused some bugs is that before both builtinOps
+and user defined ops shared a single dispatch table, now they each have their
+own table.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Assembler version
+
+7 general purpose registers available:
+eax, ebx, ecx, edx, esi, edi, ebp
+
+Things to keep in registers:
+IP
+SP
+optype dispatch table
+? builtinOp dispatch table
+inner interpreter PC
+thread ptr (RP, FP ...)
+
+this would only leave one general purpose register available for stuff...
+
+EAX	free
+EBX	free
+ECX	IP
+EDX	SP
+ESI	builtinOp dispatch table
+EDI	inner interp PC
+EBP	core ptr
+
+? maybe combine opType and builtinOp tables - have bottom 256 builtinOp codes
+  be used for opType dispatchers
+-> it would not be "free" to detect situation where you compile an opcode in 0..255, which
+   would cause an optype handler routine to be executed as if it were a builtinOp
+   -> detecting this would require an extra compare & branch instruction pair, which could
+      be included in the debug version of the inner interpreter
+
+Maybe the engine ptr should be in a register, and the engine should have a notion
+of a current thread, and the threads state is stored in the engine...
+
+
+Maybe EBP register should point to a new structure, which has:
+  1) current thread state (RP, FP, etc)
+  2) ptr to engine
+  3) ptr to current thread
+  4) opType dispatch table
+  5) builtinOp dispatch table
+forthOps can reuse ESI or EDI, but if they do they either reload them from the EBP struct
+or they branch to an alternate inner interpreter entry point that reloads ESI & EDI
+Some of this structure is global engine state, some of it is a copy of the current thread state.
+
+innerInterp
+	mov	eax,[ecx]		; eax is opcode
+	add	ecx,4			; advance IP
+	cmp	eax,numBuiltins		; numBuiltins includes the 256 opType dispatchers
+	jge	notBuiltin
+	mov	eax,[esi+eax*4]
+	jmp	[eax]
+
+innerInterpDebug
+	mov	eax,[ecx]		; eax is opcode
+	add	ecx,4			; advance IP
+	cmp	eax,numBuiltins
+	jge	notBuiltin
+	cmp	eax,256
+	jlt	badOpcode
+; we should add checking of SP, RP etc. here
+	mov	eax,[esi+eax*4]
+	jmp	[eax]
+
+notBuiltin
+	mov	ebx,eax			; leave full opcode in ebx
+	shr	eax,24			; eax is 8-bit optype
+	mov	eax,[esi+eax*4]
+	jmp	[eax]
+
+;
+; builtinOp code
+;
+
+addOp
+	mov	eax,[edx]
+	add	edx,4
+	add	[edx],eax
+	jmp	[edi]
+	
+	
++ I broke out the part of the forth machine state the inner interpreter uses
+  from the ForthThread class into a structure.
+- Change the dispatch table to combine the optype and builtinOp tables
+- Move most of ForthThread::InnerInterpreter into a c function, get that
+  working and then use the generated assembly entry and exit code
+- Remove the user-defined (high level) ops from the builtin op table
+- Put the pointer to the dispatch table into the inner interpreter struct
+- Don't have 256 opType dispatchers, the top 128 are for method stuff...
+- Change the current opType action routines from ForthEngine methods to
+  standalone routines
+- Move the inner interpreter and the opType action routines into their
+  own source module
+  -> need to disentangle the intOp/doIntOp/intActionRoutine stuff first
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 8, 2006
+
++ added ForthForgettable class, changed ForthVocabulary to be based off it
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 5, 2006
+
++ added input buffer processing ops word/blword/fillInBuffer...
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 2, 2006
+
++ added support for loading DLLs and accessing procedures in DLLs
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 30, 2006
+
++ fixed a bug with parenthesized expressions - the token length byte wasn't
+  being set in a few places, so tokens coming off the shell stack disappeared
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 17, 2006
+
+- definition of an interface
+- definition of a structure
+- definition of a class
+- representation of an object on stack
+- method invocation
+- local objects
+  - automatic constructor/destructor
+- global objects
+- objects as members of other objects
+- constructors
+- class static data members
+- arrays of objects
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 3, 2006
+
++ added shell stack
++ converted control structures to use control stack
++ added parenthisized expressions using control stack
++ added better error messages for control structure syntax errors
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 12, 2005
+
+I haven't done much with this project in a while.
+Current things to add:
+
+1) Shell stack - holds info used while compiling control structures and
+   for error checking
+2) Add ability to use parenthesized expressions like this:
+   sin( x 2 * )
+   When "sin(" is parsed, the "sin" token is pushed on the shell stack,
+   and when ")" is parsed, the "sin" token is poped and compiled.
+   This needs to support parens which have no associated function.
+   This should work in interpret and compile mode.
+3) Add default input and output files to a thread, and ops for doing
+   binary IO with them - formatted IO will probably still use the
+   existing IO operators and stream redirection
+4) Add support for loading DLLs and accessing their entry points
+5) Add a message passing/event system - a thread can have a chain of
+   listeners that are informed when a significant event occurs
+6) Add support for basic windows calls
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+Forth Implementation Classes
+
+ForthEngine
+  tools for building forthops
+  code space management
+  DP
+  inner interpreter
+  outer interpreter (token-level interpretation)
+  action routines for forthOpTypes
+
+ForthShell
+  parsing
+  line-level interpretation
+  input stream management
+
+ForthVocabulary
+  symbol table management
+  vocabulary search
+
+ForthThread
+  storage for stacks
+  SP, RP, IP
+
+ForthInputStack
+  current input stream
+  pushing and popping streams
+  input buffer management
+
+ForthInputStream
+  input fetching
+
+ForthParseInfo
+  setup for fast vocabulary matching
+  interface between ForthShell and ForthVocabulary
+
+ForthForgettable
+  does propagation of "forget" to all vocabularies and memory cleanup after forget
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+Forth opcode types
+
+kOpBuiltIn          // low 24 bits is builtin opcode
+
+kOpUserDef          // low 24 bits is opcode
+
+kOpBranch,          // low 24 bits is signed branch offset
+kOpBranchNZ,
+kOpBranchZ,
+kOpCaseBranch,
+
+kOpConstant,        // low 24 bits is signed symbol value
+
+kOpString,          // low 24 bits is immediate string length in longs
+
+kOpAllocLocals,     // low 24 bits is frame size in longs
+
+kOpLocalInt,        // low 24 bits is frame offset in longs
+kOpLocalFloat,
+kOpLocalDouble,
+kOpLocalString,
+
+kOpMethodWithThis,  // low 24 bits is method number
+
+kOpMemberInt,       // low 24 bits is object offset
+kOpMemberFloat,
+kOpMemberDouble,
+kOpMemberString,
+
+kOpLocalUserDefined,             // user can add more optypes starting with this one
+kOpMaxLocalUserDefined = 127,    // maximum user defined optype
+
+kOpUserMethods  = 128
+// optypes from 128...255 are used to select class methods    
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+
+forth extensions for syn2k:
+
+- operations for stating what synops are in a patch,
+  and what order they are to be executed in
+- operations for initializing synops - settings parameters
+  and input and output buffers
+- operations for getting note frequency and velocity
+- operations for building up sets of patches which are
+  selected by midi program number
+= operations for defining envelopes and connecting them
+  to synops
+? is there a way to define the interface so that when
+  a new synop is added to syn2k another op doesn't have
+  to be added to forth?
+
+
+table <TABLENAME>
+endtable
+
+<TABLENAME> tableLen    leaves number of entries in table on stack
+
+synPatchSet <SETNAME>
+
+synPatch <PATCHNAME>
+endPatch
+
+
+
+//       11111111112222222222333333333344444444445555555555666666666677777777778
+//345678901234567890123456789012345678901234567890123456789012345678901234567890
+<############################# Last Line In File ##############################>

@@ -24,6 +24,10 @@ class ForthThread;
 class ForthShell;
 #define DEFAULT_USER_STORAGE 16384
 
+// this is the size of the buffer returned by GetTmpStringBuffer()
+//  which is the buffer used by word and blword
+#define TMP_STRING_BUFFER_LEN 256
+
 typedef enum {
     kFECompileFlagInVarsDefinition = 1,
     kFECompileFlagHasLocalVars = 2,
@@ -59,8 +63,8 @@ public:
 
     // forget the specified op and all higher numbered ops, and free the memory where those ops were stored
     void            ForgetOp( ulong opNumber );
-    // forget the named symbol
-    void            ForgetSymbol( const char *pSym );
+    // forget the named symbol - return false if symbol not found
+    bool            ForgetSymbol( const char *pSym );
 
     // create a thread which will be managed by the engine - the engine destructor will delete all threads
     //  which were created with CreateThread 
@@ -83,7 +87,8 @@ public:
 
     char *          GetNextSimpleToken( void );
 
-    void            PushInputStream( FILE *pInFile );
+    void            PushInputFile( FILE *pInFile );
+    void            PushInputBuffer( char *pDataBuffer, int dataBufferLen );
     void            PopInputStream( void );
 
     void            StartOpDefinition( bool smudgeIt=false );
@@ -128,7 +133,7 @@ public:
     inline void             SetCompileFlag( long flags ) { mCompileFlags |= flags; };
     inline void             ClearCompileFlag( long flags ) { mCompileFlags &= (~flags); };
     inline long *           GetLastCompiledOpcodePtr( void ) { return mpLastCompiledOpcode; };
-
+    inline char *           GetTmpStringBuffer( void ) { return mpStringBufferB; };
     void                    SetCurrentThread( ForthThread* pThread );
 
     void                    GetErrorString( char *pString );

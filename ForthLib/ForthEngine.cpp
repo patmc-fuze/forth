@@ -109,7 +109,7 @@ ForthEngine::Initialize( int                totalLongs,
     mpPrecedenceVocab = new ForthPrecedenceVocabulary( this, "precedence_ops" );
 
     mpStringBufferA = new char[256 * NUM_INTERP_STRINGS];
-    mpStringBufferB = new char[256];
+    mpStringBufferB = new char[TMP_STRING_BUFFER_LEN];
 
     mpCore->numBuiltinOps = 0;
     mpCore->builtinOps = (ForthOp *) malloc( sizeof(ForthOp) * MAX_BUILTIN_OPS );
@@ -275,7 +275,8 @@ ForthEngine::ForgetOp( ulong opNumber )
     }
 }
 
-void
+// return true if symbol was found
+bool
 ForthEngine::ForgetSymbol( const char *pSym )
 {
     void *pEntry = NULL;
@@ -306,8 +307,9 @@ ForthEngine::ForgetSymbol( const char *pSym )
     else
     {
         TRACE( "Error - attempt to forget unknown op %s from %s\n", pSym, mpSearchVocab->GetName() );
-        printf( "Error - attempt to forget unknown op %s from %s\n", pSym, mpSearchVocab->GetName() );
+        return false;
     }
+    return true;
 }
 
 ForthThread *
@@ -365,9 +367,15 @@ ForthEngine::GetNextSimpleToken( void )
 
 
 void
-ForthEngine::PushInputStream( FILE *pInFile )
+ForthEngine::PushInputFile( FILE *pInFile )
 {
-    mpShell->PushInputStream( pInFile );
+    mpShell->PushInputFile( pInFile );
+}
+
+void
+ForthEngine::PushInputBuffer( char *pDataBuffer, int dataBufferLen )
+{
+    mpShell->PushInputBuffer( pDataBuffer, dataBufferLen );
 }
 
 

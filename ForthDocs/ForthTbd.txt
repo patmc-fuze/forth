@@ -1,0 +1,246 @@
+
+? add iterators
+  - all files in a directory tree
+  - all symbols in a vocabulary
+  - all tokens in a string
+
+? how should search/definitions vocabs be set
+- base vocabulary op does 2 things:
+  - set search vocab to itself
+  - returns its address if preceeded by "addressOf"
+
+- add a way to get parsed string input - allow both unquoted simple tokens
+  with no embedded spaces and quoted strings which can have spaces
+  -> I cloned and stripped down ForthShell::ParseToken to create ForthShell::ParseString
+  One potential problem is this could break if you are using ParseString while interpreting
+  a script file, ForthShell::Run might not see the NULL return from GetLine, and so the
+  input stack would not get popped
+
+? should shell stack be pushed/popped when doing a load
+? should shell stack be pushed/popped when doing a colon definition
+
+- add generalized vocabulary support
+  - add way to set search vocab
+    -> default behaviour for vocab ops
+  - add way to set definitions vocab
+    -> add "definitions"
+  - add way to get vocab address
+    -> have vocab op support "addressOf"
+  - add way to search a vocab
+    - for a symbol
+	- for an opcode
+  - add way to add a symbol
+  ? add way to process a symbol
+  - add way to create a new vocab - its search chain successor should be current search vocab
+  ? add way to modify search chain
+  ? should these vocabularies allow user-defined methods
+    o find symbol
+	o process symbol
+	+ modify existing outer interp to invoke vocabs ProcessSymbol method
+	  instead of doing compile/interpret itself
+    -> having some support for string tables and maps would be helpful
+- add ops for base vocabulary and precedence vocabulary
+  o note that these 2 vocabs will be implemented as builtin ops, while all other
+    vocabs will be implemented as user-defined ops
+  -> maybe create these 2 vocabs dynamically at startup as if they were
+     user-defined ops
+
+- add a way to create executables with an embedded script (like self-extracting zips)
+
+- add string and token tables
+
+? add a map
+
++ add DLL support
+- add structure definition support
+  o structure symbols could translate to a special opcode that included the offset
+    -> this would just disassemble to +N, not to the struct member name
+  o it would be nice if this fit in well with class support
+  - this probably requires generalizing vocabulary support
+
+- add "shell"
+  - add cd/pwd/dir
+
+- add callstack traceback on error
+  - add func to lookup name of an opcode
+  - add func to lookup name which corresponds to an IP
+
+? user defined ops don't start at 0 - why?
+  -> the engine uses a single dispatch table for both builtin and user defined ops
+
++ add "word" and "blword"
+  ? where should they put the parsed input
++ add ops for manipulating shell input buffer
+  + get/set input buffer pointer
+  + refill input buffer
+  ? push/pop shell stack
+
+- add "forgettables" base class - used to delete objects which are created when
+  ops are compiled and the ops are forgotten - put them in a linked list
+
++ empty string "" is broken
+
++ parentheses dont always work
+  : oof .(55) ;		// works
+  : oof .( 55 ) ;   // fails, unknown symbol after ")"
+  .(55)             // fails, does nothing
+  .( 55 )           // fails, unknown symbol after ")"
+-> problem was that the token length byte wasn't being set
+
+? change class stuff so that class table holds opcodes, not IPs, since
+  forget is done in terms of opcodes? or do special class forget code which
+  forgets classes based on DP after normal forget is done?  how do you
+  forget a class?
+
+? add a default input stream and output stream to each thread, with simple
+  operators for doing input/output (putLong, getString, etc.)
+- a primary goal is to avoid having to specify the output/input stream for
+  every i/o operation
+  ? is there a way to unify this with the existing console input/output stuff
+    - there is a ForthInputStream, but no ForthOutputStream
+	- it might be bad to use the shell input stream for other operations, because
+	  then the outer shell parser and words which used the input stream would be
+	  interfering with each other
+	- the biggest win for this is being able to reuse the console formatted output ops
+    ? maybe change so current output stuff goes through new thread stream output, but
+	  leave shell input and output stuff is unchanged (IE shell output prompt and error
+	  messages don't go through new output stream)
+      -> make sure that console output is reset on errors
+
+- add ops to support running forth scripts from command line
+ - shell support & ops for fetching command line (argc, argv, envp)
+   - add debug methods which allow for running a word as if it was invoked from
+     the command line, including setting up a fake argc/argv/envp
+ - add ops for exit / abort
+ - add ops for getting environment variables
+ - check for anything which relies on interactive shell input
+
+? is vars/endvars really needed ?
+-> its only absolute necessity is to leave room for the "allocVars" opcode
+? why can't this be compiled when first local-var-defining word is executed
+-> gotcha: now inside vars...endvars state is interpret, and this is used
+   to allow the size of string vars to be specified
+-> potential gotcha: if the allocVars opcode occured in a branch of an
+   "if" construct
+
+
+- add peephole optimizer that recognizes combinations of op pairs
+  where the first op is a varOperation setting word, like "->+" or
+  "addr_of" and the next word is an op, and combines them into a single op
+  -> ugh, notice that this can't be done if op is a local variable...
+     -> so maybe make classes for int, float, double, string?
+  -> wasn't this what LocalStore32 and LocalStore64 were intended for?
+
+- add "ref" modifier for vars
+
+- add opTypes/var modifiers for @++, ++@, @--, --@
+
+- add branch ops which include the comparison
+  we already have branch, branchZ
+  single param branches: branchZ, branchNZ, branchGZ, branchGEZ, branchLZ, branchLEZ
+  two param branches: branchEQ, branchNE, branchGT, branchGE, branchLT, branchLE
+
+- add directory search iterator ops
+- add "key"
+- add multiple vocabularies
+- see what would be needed to have a real GUI for forth shell
+
++ check what happens if an error happens during compilation of a word - is there a
+  smudged half defined word left dangling?
+  -> yes
+- add more string operations
+- add buffer end checking for parse/token buffers
+- look at class dependancies and who-makes-who
+- add user definable types
+? add labels (what about forward references?)
+- add a way to compile "external scripts" - these are
+  definitions which are compiled somewhere outside of the
+  normal dictionary, and do not have a symbol in normal
+  forth vocabularies.
+  -> this can be done with current ops
+- add obj.method "class" support
+  ? how does shell know if an op is a class instance, and how
+    does it know what class it is in?
+? make vocabulary entry value field be full 32 bits?
+
++ change ForthVocabulary::AddSymbol to take addToEngineOps flag
++ change how "exit" and ";" work so that they compile the proper
+  exit op, based on if there are local vars, if the current definition
+  is a method - this will eliminate need for "unravelIP" silliness
++ change how local var frames are implemented - don't stack the oldRP,
+  have FP point to oldFP, and have variable offsets be subtracted from
+  FP
++ rewrote inner interpreter to use a case statement for simple immediate
+  optypes like branches, constants
++ changed user-defined-op type to not be 128 (default class method)
++ should "precedence" be implemented by putting all precedence ops
+  in a special vocabulary instead of assigning special precedence
+  opcode types
++ move "forget" logic from ForthVocabulary into ForthEngine, handle
+  forgetting when there are multiple vocabs
++ added vocab "static" chain, which links all vocabularies
++ added distinction between definition and search vocabs
++ changed optypes so that there is no precedence bit, userdefs
+  have optypes of 128...255 - in preparation for optypes of 128
+  or more being used to invoke methods
++ added case...of...endof...endcase
++ added runtime support for forth classes
++ add stack & rstack dump ops
++ add directory list op
++ add leave - need to change do/loop so that it can be exited immediately
+  -> look at the basic word set in FORTH 83 manual...
++ check that "if"..."endif" with no "else" actually works
++ solve problem of user-defined builtins not tracing...
+  -> replace mpOpTable with table of baseDict structs
++ look at do...+loop when the loop increment is negative
++ add forget
+  !!! the vocabulary is searched in the wrong order now...
+  + change vocabulary to build from the top down...
+  + need to remove ops from engine op table too
+  + need to make sure that built-in ops can't be forgotten
++ refactor ForthInputStream out of ForthInputStack
++ add use of "base" for numeric input
++ add vars...endvars for local definitions, and make int, float & double
+  not have precedence, vars sets state to compile
+  -> this will allow local string vars like "32 string someName"
++ add a way for engine to return last token after an error
++ move stack checking from inner interpreter to outer interpreter
++ change outer interpreter to compile a done opcode, remove
+  opcode count from inner interpreter
++ work on error trapping - print something on stack errors,
+  flush the stacks, have a way to bail out of a "load" on
+  error
++ add negate, and, or, xor, not, true, false, mod, /mod, lshift, rshift,
+  [, ], again
++ add malloc and free operations
++ get builds...does working
++ fix "load" bug caused by not switching to new stream until
+  current line buffer is empty
++ add the "end script" opcode for external script users
++ add a vocabulary to hold local variables
++ change system to use real addresses, not relative to base of dictionary
+
+
+
+Interactive Execution Call Flow:
+
+ForthShell::Run
+ForthShell::InterpretLine
+ForthEngine::InterpretToken
+ForthEngine::InnerInterpreter
+
+
+
+
+vocabulary.op
+class.op
+obj.*
+   .method
+   .member
+
+
+
+
+? what is a good word for "static" in the sense of a method or member that is not applied to a particular member ?
+? can everything in a class be covered by methods and members ?
+

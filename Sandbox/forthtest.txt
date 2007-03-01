@@ -1,68 +1,146 @@
-// test if...else...endif
-: woof  if " true " else " false " endif %s %nl ;
 
-"Test if...endif\n" %s
-: foow if " foow " %s endif ;
-"Should see: A foow BC\n" %s
-"A" %s 1 foow "B" %s 0 foow "C" %s %nl
+autoforget demo
 
-" Test qouted strings and if...else...endif\n" %s
-: barney "This is a \"quoted\" test string\n\n\n" %s 0 woof 1 woof ;
-barney
+// demo is used to both display and interpret a line of text
+: demo getInBufferPointer %s %nl ;
+precedence demo
 
-// test begin...until
-: fred "begin until " %s 5 begin dup . %bl 1 - dup 0== until %nl drop ;
-fred
+: showsection " ================== " dup %s swap %s %s %nl ;
 
-// test begin...while...repeat
-: wilma "begin while repeat " %s 5 begin dup while dup . %bl 1 - repeat %nl drop ;
-wilma
+///////////////////////////////////////////////////////////
 
-// test do...loop
-: betty "5 0 do loop " %s 5 0 do  i . %bl loop %nl ;
-betty
+"Test if...else...endif" showsection
+demo : woof  if " true " else " false " endif %s %nl ;
+demo 0 woof 1 woof
 
-// test do...+loop with negative loop increment
-: unbetty "-5 0 do -1 +loop " %s -5 0 do  i . %bl -1 +loop %nl ;
-unbetty
+///////////////////////////////////////////////////////////
 
-// test leave & unloop
-: ookla
-  1000 0 do i . %bl leave " burp " %s loop %nl
-  1000 0 do i . %nl unloop exit " glurp " %s loop
-;
-ookla
+"Test if...endif"  showsection
+demo : foow if " foow " %s endif ;
+demo "A" %s 1 foow "B" %s 0 foow "C" %s %nl
 
-// test character constants
-: pebbles 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl ;
-pebbles
-"Interpreted: " %s 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl
+///////////////////////////////////////////////////////////
 
-"Global variable test\n" %s
-int gaa
-: gvtest 0 -> gaa 10 0 do gaa %d %bl 5 ->+ gaa loop %nl ;
+"Test qouted strings and if...else...endif"  showsection
+demo : barney "This is a \"quoted\" test string\n\n\n" %s ;
+demo barney
+
+///////////////////////////////////////////////////////////
+
+"Test begin...until"  showsection
+demo : fred 5 begin dup . %bl 1 - dup 0== until %nl drop ;
+demo fred
+
+///////////////////////////////////////////////////////////
+
+"Test begin...while...repeat"  showsection
+demo : wilma 5 begin dup while dup . %bl 1 - repeat %nl drop ;
+demo wilma
+
+///////////////////////////////////////////////////////////
+
+"Test do...loop"  showsection
+demo : betty 5 0 do  i . %bl loop %nl ;
+demo betty
+
+///////////////////////////////////////////////////////////
+
+"Test do...+loop with negative loop increment"  showsection
+demo : unbetty -5 0 do  i . %bl -1 +loop %nl ;
+demo unbetty
+
+///////////////////////////////////////////////////////////
+
+"Test leave & unloop/exit"  showsection
+demo : ookla
+demo   1000 0 do i . %bl leave " burp " %s loop %nl
+demo   1000 0 do i . %nl unloop exit " glurp " %s loop
+demo ;
+demo ookla
+
+///////////////////////////////////////////////////////////
+
+"Test case statement" showsection
+demo : casetest
+demo   case
+demo     0 of "zero" endof
+demo     1 of "one" endof
+demo     2 of "two" endof
+demo     drop "whatever"
+demo   endcase
+demo   %s %nl
+demo ;
+
+demo 0 casetest
+demo 1 casetest
+demo 2 casetest
+demo 3 casetest
+demo 5 casetest
+
+///////////////////////////////////////////////////////////
+
+"Test character constants" showsection
+demo : pebbles 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl ;
+demo pebbles
+demo "Interpreted: " %s 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl
+
+///////////////////////////////////////////////////////////
+
+"Test global variables" showsection
+demo int gaa
+demo : gvtest 0 -> gaa 10 0 do gaa %d %bl 5 ->+ gaa loop %nl ;
 "Should see 0..45 in increments of 5\n" %s gvtest
 
-"Local variable test\n" %s
+///////////////////////////////////////////////////////////
+
+"Test local variables" showsection
 //: lvtest vars int aa endvars 0 -> aa 10 0 do aa %d %bl 5 ->+ aa loop %nl ;
-: lvtest int aa 0 -> aa 10 0 do aa %d %bl 5 ->+ aa loop %nl ;
+demo : lvtest int aa 0 -> aa 10 0 do aa %d %bl 5 ->+ aa loop %nl ;
 "Should see 0..45 in increments of 5\n" %s lvtest
 
-: casetest
-  case
-    0 of "zero" endof
-    1 of "one" endof
-    2 of "two" endof
-    drop "whatever"
-  endcase
-  %s %nl
-;
+///////////////////////////////////////////////////////////
 
-0 casetest
-1 casetest
-2 casetest
-3 casetest
-5 casetest
+"Test fetch & store" showsection
+demo : buffer builds allot does ;
+demo 20 buffer tb
+demo 0xDEADBEEF tb !
+demo tb c@ %x %bl tb w@ %x %nl
+demo tb sc@ %x %bl tb sw@ %x %nl
+demo tb c@ c2l %x %bl tb w@ w2l %x %nl
+
+///////////////////////////////////////////////////////////
+
+"Test strings" showsection
+demo 20 string aaa 20 string bbb
+demo "ajaja" -> aaa "bobobo" -> bbb
+demo aaa strlen %d %bl bbb strlen %d %nl
+demo : showstrs "aaa \"" %s aaa %s "\" bbb \"" %s bbb %s "\"" %s %nl ;
+demo showstrs
+
+demo strcpy( aaa bbb ) showstrs
+demo "blahblah" -> aaa  strncpy( aaa bbb 2 ) showstrs
+
+demo "head" -> aaa "tail" -> bbb strcat( aaa bbb ) showstrs
+demo "head" -> aaa "tail" -> bbb strncat( aaa bbb 3 ) showstrs
+
+demo "blahblah" -> aaa  strchr( aaa 'b' ) %s %nl
+demo "blahblah" -> aaa  strrchr( aaa 'b' ) %s %nl
+demo "blahblah" -> aaa  strchr( aaa 'q' ) %s %nl
+
+demo strcmp( aaa "blahblah" ) %d %nl
+demo strcmp( aaa "BlahblaH" ) %d %nl
+demo stricmp( aaa "BlahblaH" ) %d %nl
+demo stricmp( aaa "Blahbla" ) %d %nl
+
+demo strstr( aaa "ahbl" ) %s %nl
+demo strstr( aaa "ahab" ) %s %nl
+
+// strcpy strncpy strlen strcat strncat strchr strrchr strcmp stricmp strstr strtok
+
+///////////////////////////////////////////////////////////
+
+//%nl %nl "Hit ENTER to exit" %s
+//stdin fgetc
 
 loaddone
 

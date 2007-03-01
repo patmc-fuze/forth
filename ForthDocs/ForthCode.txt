@@ -1,0 +1,129 @@
+         1         2         3         4         5         6         7
+1234567890123456789012345678901234567890123456789012345678901234567890123456789
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+This file contains info about:
+
+o the code generated for builds...does words
+o the code generated for control structures
+  o if...else...endif
+  o do...loop
+o the code generated for local variables
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+How builds...does is implemented		 before 2005
+
+: con builds , does @ ;
+5 con aha
+: woof dup aha + ;
+
+memory after executing above 3 lines of forth:
+
+ADDR(con):  OP( builds )
+        +1  OP( , )
+        +2  OP( _endBuilds )    this op was compiled by "does"
+        +3  OP( _con )          this was compiled by "does"
+ADDR(_con): OP( _doDoes )       this op was compiled by "does"
+        +1  OP( @ )
+        +2  OP( exit )
+
+ADDR(aha):  OP( _con )          this op was compiled as op 0 by builds, then set to _con by _endBuilds
+        +1  DATA_STORAGE( aha ), contents == 5
+
+ADDR(woof): OP( dup )
+        +1  OP( aha )
+        +2  OP( + )
+        +3  OP( exit )
+
+before executing "woof":
+    ps: 7
+    rs: <empty>
+    ip: OLD_IP_VAL
+start of executing woof opcode:
+    ps: 7
+    rs: OLD_IP_VAL
+    ip: ADDR(woof)
+start of executing aha opcode:
+    ps: 7 7
+    rs: ADDR(woof)+2 OLD_IP_VAL
+    ip: ADDR(aha)
+start of executing _con opcode:
+    ps: 7 7
+    rs: ADDR(aha)+1 ADDR(woof)+2 OLD_IP_VAL
+    ip: ADDR(_con)
+after executing doDoes:
+    ps: ADDR(aha)+1 7 7
+    rs: ADDR(woof)+2 OLD_IP_VAL
+    ip: ADDR(_con)+1
+after executing @ and exit (leaving _con):
+    ps: 5 7 7
+    rs: OLD_IP_VAL
+    ip: ADDR(woof)+2
+after executing + and exit (leaving woof):
+    ps: 12 7
+    rs: <empty>
+    ip: OLD_IP_VAL
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+code generated for if...else...endif
+
+: iffy if 1 else 0 endif %
+
+ADDR(iffy): branchZ +2
+        +1  intLit( 1 )
+        +2  branch +1
+        +3  intLit( 0 )
+        +4  OP( . )
+        +5  OP( exit )
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+code generated for do ... loop
+
+: looy 5 0 do i . %bl loop ;
+
+ADDR(looy): intLit( 5 )
+        +1  intLit( 0 )
+        +2  OP( _do )
+        +3  branch +4
+        +4  OP( i )
+        +5  OP( . )
+        +6  OP( %bl )
+        +7  OP( _loop )
+        +8  OP( exit )
+
+TBDs:
+- show how leave works
+- show how unloop works
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+: fur vars int a float b endvars 5 -> a 2 ->+ a a . ;
+
+ADDR(fur):  allocLocals( 2 )
+        +1  intLit( 5 )
+        +2  OP( -> )
+        +3  localInt( 0 )
+        +5  intLit( 2 )
+        +6  OP( ->+ )
+        +7  localInt( 0 )
+        +8  localInt( 0 )
+        +9  OP( . )
+        +10 OP( exit )
+
+allocLocals pushed a special IP on the stack which points to an _unravelFrame
+opcode, which will remove the local variable stack frame and return to the
+caller of "fur"
+
+TBDs:
+- show how vars...endvars have been made unnecessary
+
+
+
+
+
+
+//       11111111112222222222333333333344444444445555555555666666666677777777778
+//345678901234567890123456789012345678901234567890123456789012345678901234567890
+<############################# Last Line In File ##############################>
