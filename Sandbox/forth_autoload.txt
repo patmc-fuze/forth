@@ -4,6 +4,44 @@ autoforget forth_autoload
 200 string _aa
 200 string _bb
 
+: $,
+  here over strlen 1+ callot
+  swap strcpy
+;
+
+int helpChain
+0 -> helpChain
+: addHelp
+  here helpChain , -> helpChain
+  blword $,
+  0 word $,
+  align
+;
+
+: help
+  100 string s
+  int pNext
+
+  blword -> s
+  helpChain -> pNext
+
+  begin
+    pNext
+  while
+    pNext 4+ s strcmp 0==
+    if
+      pNext 4+ dup strlen 1+ + %s
+      exit
+    endif
+    pNext @ -> pNext
+  repeat
+  s %s " not found!\n" %s
+;
+
+addHelp addHelp	addHelp SYMBOL REST_OF_LINE		add help entry
+addHelp $,	STRING_ADDR $,		compiles string (can leave DP unaligned)
+addHelp help	help BLAH		show help for BLAH
+
 : cd
   blword chdir
   if "cd failed!\n" %s endif
@@ -26,6 +64,12 @@ autoforget forth_autoload
 : sys 0 word system drop ;
 
 : ds dstack ;
+
+addHelp cd	cd BLAH			change working directory to BLAH
+addHelp pwd	pwd			display working directory
+addHelp dir	dir BLAH		display directory (BLAH is optional filespec)
+addHelp sys	sys REST_OF_LINE	run rest of line in a DOS shell
+addHelp	ds	ds			dump stack
 
 int dumpWidth
 16 -> dumpWidth
@@ -77,6 +121,7 @@ int dumpWidth
 : dump
   0 _dump
 ;
+addHelp	dump		ADDRESS LEN dump	dump memory
 
 // FILENAME OFFSET LEN fdump
 : fdump
@@ -105,4 +150,7 @@ int dumpWidth
   infile fclose drop
   buff free
 ;
+addHelp fdump	FILENAME OFFSET LEN fdump	dump file contents
+
+load help.txt
 

@@ -520,8 +520,8 @@ ForthEngine::IsExecutableType( forthOpType      symType )
 static char *opTypeNames[] = {
     "BuiltIn", "UserDefined", 
     "Branch", "BranchTrue", "BranchFalse", "CaseBranch",
-    "Constant", "Offset", "String",
-    "AllocLocals",
+    "Constant", "Offset", "ConstantString",
+    "AllocLocals", "InitLocalString",
     "LocalInt", "LocalFloat", "LocalDouble", "LocalString",
     "InvokeClassMethod",    
     "MemberInt", "MemberFloat", "MemberDouble", "MemberString",
@@ -559,7 +559,7 @@ ForthEngine::TraceOp()
             }
             break;
             
-        case kOpString:
+        case kOpConstantString:
             TRACE( "# \"%s\" 0x%x   @ IP = 0x%x\n", (char *)ip, op, ip );
             break;
             
@@ -955,7 +955,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         SPEW_OUTER_INTERPRETER( "String[%s] flags[%x]\n", pToken, pInfo->GetFlags() );
         if ( mCompileState ) {
             len = ((len + 4) & ~3) >> 2;
-            CompileOpcode( len | (kOpString << 24) );
+            CompileOpcode( len | (kOpConstantString << 24) );
             strcpy( (char *) mpCore->DP, pToken );
             mpCore->DP += len;
         } else {

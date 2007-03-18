@@ -690,7 +690,7 @@ OPTYPE_ACTION( OffsetAction )
     SPUSH( v );
 }
 
-OPTYPE_ACTION( StringAction )
+OPTYPE_ACTION( ConstantStringAction )
 {
     // push address of immediate string & skip over
     // opVal is number of longwords in string
@@ -705,6 +705,16 @@ OPTYPE_ACTION( AllocLocalsAction )
     RPUSH( (long) GET_FP );      // rpush old FP
     SET_FP( GET_RP );                // set FP = RP, points at oldFP
     SET_RP( GET_RP - opVal );                // allocate storage for local vars
+}
+
+OPTYPE_ACTION( InitLocalStringAction )
+{
+    // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
+    // init the current & max length fields of a local string
+    long* pFP = GET_FP;
+    long* pStr = pFP + (opVal >> 12);
+    *pStr++ = (opVal & 0xFFF);          // max length
+    *pStr = 0;                          // current length
 }
 
 OPTYPE_ACTION( MethodWithThisAction )
@@ -800,9 +810,10 @@ optypeActionRoutine builtinOptypeAction[] =
     ConstantAction,
     OffsetAction,
 
-    StringAction,
+    ConstantStringAction,
 
     AllocLocalsAction,
+    InitLocalStringAction,
 
     LocalIntAction,
     LocalFloatAction,

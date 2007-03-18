@@ -5,6 +5,10 @@
 #include "ForthGui.h"
 #include "ForthGuiDlg.h"
 
+#include "../ForthLib/ForthShell.h"
+#include "../ForthLib/ForthInput.h"
+#include ".\forthguidlg.h"
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #undef THIS_FILE
@@ -60,7 +64,9 @@ END_MESSAGE_MAP()
 // CForthGuiDlg dialog
 
 CForthGuiDlg::CForthGuiDlg(CWnd* pParent /*=NULL*/)
-	: CDialog(CForthGuiDlg::IDD, pParent)
+: CDialog(CForthGuiDlg::IDD, pParent)
+, mpShell( NULL )
+, mpInStream( NULL )
 {
 	//{{AFX_DATA_INIT(CForthGuiDlg)
 		// NOTE: the ClassWizard will add member initialization here
@@ -83,6 +89,8 @@ BEGIN_MESSAGE_MAP(CForthGuiDlg, CDialog)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	//}}AFX_MSG_MAP
+    ON_BN_CLICKED(IDOK, OnBnClickedOk)
+    ON_EN_CHANGE(IDC_EDIT_INPUT, OnEnChangeEditInput)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -116,7 +124,10 @@ BOOL CForthGuiDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 	
 	// TODO: Add extra initialization here
-	
+	mpShell = new ForthShell;
+    mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE );
+    mpShell->GetInput()->PushInputStream( mpInStream );
+
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -167,4 +178,23 @@ void CForthGuiDlg::OnPaint()
 HCURSOR CForthGuiDlg::OnQueryDragIcon()
 {
 	return (HCURSOR) m_hIcon;
+}
+
+void CForthGuiDlg::OnBnClickedOk()
+{
+    // TODO: Add your control notification handler code here
+    //OnOK();
+    CEdit *pEdit = (CEdit* )GetDlgItem( IDC_EDIT_INPUT );
+    pEdit->GetWindowText( mInBuffer, INPUT_BUFFER_SIZE - 4 );
+    mpShell->InterpretLine( mInBuffer );
+}
+
+void CForthGuiDlg::OnEnChangeEditInput()
+{
+    // TODO:  If this is a RICHEDIT control, the control will not
+    // send this notification unless you override the CDialog::OnInitDialog()
+    // function and call CRichEditCtrl().SetEventMask()
+    // with the ENM_CHANGE flag ORed into the mask.
+
+    // TODO:  Add your control notification handler code here
 }

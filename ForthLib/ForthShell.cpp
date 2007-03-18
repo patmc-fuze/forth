@@ -102,7 +102,7 @@ ForthShell::PushInputFile( FILE *pInFile )
 
 
 //
-// create a new file input stream & push on stack
+// create a new buffer input stream & push on stack
 //
 void
 ForthShell::PushInputBuffer( char *pDataBuffer, int dataBufferLen )
@@ -187,7 +187,7 @@ ForthShell::Run( ForthInputStream *pInStream )
 // return true IFF the forth shell should exit
 //
 eForthResult
-ForthShell::InterpretLine( void )
+ForthShell::InterpretLine( const char *pSrcLine )
 {
     eForthResult  result = kResultOk;
     bool bLineEmpty;
@@ -197,8 +197,11 @@ ForthShell::InterpretLine( void )
 
     // TBD: set exit code on exit due to error
 
-    pLineBuff = mpInput->GetBufferPointer();
-
+    pLineBuff = mpInput->GetBufferBasePointer();
+    if ( pSrcLine != NULL )
+	{
+        strcpy( pLineBuff, pSrcLine );
+	}
     SPEW_SHELL( "*** InterpretLine \"%s\"\n", pLineBuff );
     bLineEmpty = false;
     mpEngine->SetError( kForthErrorNone );

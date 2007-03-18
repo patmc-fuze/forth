@@ -1126,7 +1126,8 @@ FORTHOP(dropOp)
 FORTHOP(overOp)
 {
     NEEDS(1);
-    SPUSH( (GET_SP)[1] );
+    long a = (GET_SP)[1];
+    SPUSH( a );
 }
 
 FORTHOP(rotOp)
@@ -1192,6 +1193,13 @@ FORTHOP( alignOp )
 FORTHOP( allotOp )
 {
     GET_ENGINE->AllotLongs( SPOP );
+}        
+
+FORTHOP( callotOp )
+{
+    char *pNewDP = ((char *)GET_DP) + SPOP;
+    // NOTE: this could leave DP not longword aligned
+    SET_DP( (long *) pNewDP );
 }        
 
 FORTHOP( commaOp )
@@ -1321,6 +1329,24 @@ FORTHOP(dfetchOp)
     DPUSH( *pA );
 }
 
+FORTHOP(memcpyOp)
+{
+    NEEDS(3);
+    size_t nBytes = (size_t) (SPOP);
+    const void* pSrc = (const void *) (SPOP);
+    void* pDst = (void *) (SPOP);
+    memcpy( pDst, pSrc, nBytes );
+}
+
+FORTHOP(memsetOp)
+{
+    NEEDS(3);
+    size_t nBytes = (size_t) (SPOP);
+    int byteVal = (int) (SPOP);
+    void* pDst = (void *) (SPOP);
+    memset( pDst, byteVal, nBytes );
+}
+
 FORTHOP(intoOp)
 {
     SET_VAR_OPERATION( kVarStore );
@@ -1339,6 +1365,16 @@ FORTHOP(subtractFromOp)
 FORTHOP(addressOfOp)
 {
     SET_VAR_OPERATION( kVarRef );
+}
+
+FORTHOP(setVarActionOp)
+{
+    SET_VAR_OPERATION( SPOP );
+}
+
+FORTHOP(getVarActionOp)
+{
+    SPUSH( GET_VAR_OPERATION );
 }
 
 //##############################
@@ -2711,7 +2747,7 @@ baseDictEntry baseDict[] = {
     ///////////////////////////////////////////
     OP(     abortOp,                "abort" ),
     OP(     dropOp,                 "drop" ),
-    OP(     doDoesOp,               "_doDoes"),
+    OP(     doDoesOp,               "_doDoes" ),
     OP(     litOp,                  "lit" ),
     OP(     litOp,                  "flit" ),
     OP(     dlitOp,                 "dlit" ),
@@ -2727,7 +2763,7 @@ baseDictEntry baseDict[] = {
     OP(     intoOp,                 "->" ),
     OP(     doDoOp,                 "_do" ),
     OP(     doLoopOp,               "_loop" ),
-    OP(     doLoopNOp,               "_+loop" ),
+    OP(     doLoopNOp,              "_+loop" ),
     OP(     doExitOp,               "_exit" ),      // exit normal op with no vars
     OP(     doExitLOp,              "_exitL" ),     // exit normal op with local vars
     OP(     doExitMOp,              "_exitM" ),     // exit method op with no vars
@@ -2881,6 +2917,7 @@ baseDictEntry baseDict[] = {
     ///////////////////////////////////////////
     OP(     alignOp,                "align" ),
     OP(     allotOp,                "allot" ),
+    OP(     callotOp,               "callot" ),
     OP(     commaOp,                "," ),
     OP(     cCommaOp,               "c," ),
     OP(     hereOp,                 "here" ),
@@ -2902,9 +2939,13 @@ baseDictEntry baseDict[] = {
     OP(     w2lOp,                  "w2l" ),
     OP(     dstoreOp,               "d!" ),
     OP(     dfetchOp,               "d@" ),
+    OP(     memcpyOp,               "memcpy" ),
+    OP(     memsetOp,               "memset" ),
     OP(     addToOp,                "->+" ),
     OP(     subtractFromOp,         "->-" ),
     OP(     addressOfOp,            "addressOf" ),
+    OP(     setVarActionOp,         "varAction!" ),
+    OP(     getVarActionOp,         "varAction@" ),
 
     ///////////////////////////////////////////
     //  string manipulation
@@ -3031,8 +3072,8 @@ baseDictEntry baseDict[] = {
     ///////////////////////////////////////////
     //  input buffer words
     ///////////////////////////////////////////
-    OP(     blwordOp,               "blword"    ),
-    OP(     wordOp,                 "word"      ),
+    OP(     blwordOp,               "blword" ),
+    OP(     wordOp,                 "word" ),
     OP(     getInBufferBaseOp,      "getInBufferBase" ),
     OP(     getInBufferPointerOp,   "getInBufferPointer" ),
     OP(     setInBufferPointerOp,   "setInBufferPointer" ),
@@ -3045,387 +3086,6 @@ baseDictEntry baseDict[] = {
     // following must be last in table
     OP(     NULL,                   "" )
 };
-
-
-
-
-#define ASM_OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func, 0 }
-
-// ops which have precedence (execute at compile time)
-#define ASM_PRECOP( func, funcName )  { funcName, ((ulong) kOpBuiltIn) | BASE_DICT_PRECEDENCE_FLAG, (ulong) func, 1 }
-
-
-
-#if 0
-extern ForthOp
-    abortBop, dropBop, doDoesBop, litBop, litBop, dlitBop, doVariableBop, doConstantBop, doDConstantBop,
-    endBuildsBop, doneBop, doIntBop, doFloatBop, doDoubleBop, doStringBop, intoBop, doDoBop,
-    doLoopBop, doLoopNBop, doExitBop, doExitLBop, doExitMBop, doExitMLBop, doVocabBop, plusBop,
-    minusBop, timesBop,
-    times2Bop, times4Bop, divideBop, divide2Bop, divide4Bop, divmodBop, modBop, negateBop,
-    fplusBop, fminusBop, ftimesBop, fdivideBop, dplusBop, dminusBop, dtimesBop, ddivideBop,
-    dsinBop, dasinBop, dcosBop, dacosBop, dtanBop, datanBop, datan2Bop, dexpBop,
-    dlnBop, dlog10Bop, dpowBop, dsqrtBop, dceilBop, dfloorBop, dabsBop, dldexpBop,
-    dfrexpBop, dmodfBop, dfmodBop, i2fBop, i2dBop, f2iBop, f2dBop, d2iBop,
-    d2fBop, callBop, gotoBop, doBop, loopBop, loopNBop, iBop, jBop,
-    unloopBop, leaveBop, ifBop, elseBop, endifBop, beginBop, untilBop, whileBop,
-    repeatBop, againBop, caseBop, ofBop, endofBop, endcaseBop, orBop, andBop,
-    xorBop, invertBop, lshiftBop, rshiftBop, notBop, trueBop, falseBop, nullBop,
-    equalsBop, notEqualsBop, greaterThanBop, greaterEqualsBop, lessThanBop, lessEqualsBop, equalsZeroBop, notEqualsZeroBop,
-    greaterThanZeroBop, greaterEqualsZeroBop, lessThanZeroBop, lessEqualsZeroBop, rpushBop, rpopBop, rdropBop, dupBop,
-    swapBop, overBop, rotBop, ddupBop, dswapBop, ddropBop, doverBop, drotBop,
-    alignBop, allotBop, commaBop, cCommaBop, hereBop, mallocBop, freeBop, storeBop,
-    fetchBop, cstoreBop, cfetchBop, wstoreBop, wfetchBop, dstoreBop, dfetchBop, addToBop,
-    subtractFromBop, addressOfBop, strcpyBop, strlenBop, strcatBop, strchrBop, strcmpBop, strstrBop,
-    strtokBop, buildsBop, doesBop, newestSymbolBop, exitBop, semiBop, colonBop, createBop,
-    forgetBop, definitionsBop, usesBop, forthVocabBop, searchVocabBop, definitionsVocabBop, vocabularyBop, variableBop,
-    constantBop, dconstantBop, varsBop, endvarsBop, intBop, floatBop, doubleBop, stringBop,
-    recursiveBop, precedenceBop, loadBop, loadDoneBop, stateInterpretBop, stateCompileBop, stateBop, tickBop,
-    executeBop, compileBop, bracketTickBop, printNumBop, printNumDecimalBop, printNumHexBop, printStrBop, printCharBop,
-    printSpaceBop, printNewlineBop, printFloatBop, printDoubleBop, printFormattedBop, baseBop, decimalBop, hexBop,
-    printDecimalSignedBop, printAllSignedBop, printAllUnsignedBop, outToFileBop, outToScreenBop, outToStringBop, getConOutFileBop, fopenBop,
-    fcloseBop, fseekBop, freadBop, fwriteBop, fgetcBop, fputcBop, feofBop, ftellBop,
-    stdinBop, stdoutBop, stderrBop, dstackBop, drstackBop, vlistBop, systemBop, byeBop,
-    argvBop, argcBop, loadLibraryBop, freeLibraryBop, getProcAddressBop, callProc0Bop, callProc1Bop, callProc2Bop,
-    callProc3Bop, callProc4Bop, callProc5Bop, callProc6Bop, callProc7Bop, callProc8Bop, blwordBop, wordBop,
-    getInBufferBaseBop, getInBufferPointerBop, setInBufferPointerBop, getInBufferLengthBop, fillInBufferBop, turboBop, statsBop;
-
-baseDictEntry baseAsmDict[] = {
-    ///////////////////////////////////////////
-    //  STUFF WHICH IS COMPILED BY OTHER WORDS
-    //   DO NOT REARRANGE UNDER PAIN OF DEATH
-    ///////////////////////////////////////////
-    ASM_OP(     abortBop,                "abort" ),
-    ASM_OP(     dropBop,                 "drop" ),
-    ASM_OP(     doDoesBop,               "_doDoes"),
-    ASM_OP(     litBop,                  "lit" ),
-    ASM_OP(     litBop,                  "flit" ),
-    ASM_OP(     dlitBop,                 "dlit" ),
-    ASM_OP(     doVariableBop,           "_doVariable" ),
-    ASM_OP(     doConstantBop,           "_doConstant" ),
-    ASM_OP(     doDConstantBop,          "_doDConstant" ),
-    ASM_OP(     endBuildsBop,            "_endBuilds" ),
-    ASM_OP(     doneBop,                 "done" ),
-    ASM_OP(     doIntBop,                "_doInt" ),
-    ASM_OP(     doFloatBop,              "_doFloat" ),
-    ASM_OP(     doDoubleBop,             "_doDouble" ),
-    ASM_OP(     doStringBop,             "_doString" ),
-    ASM_OP(     intoBop,                 "->" ),
-    ASM_OP(     doDoBop,                 "_do" ),
-    ASM_OP(     doLoopBop,               "_loop" ),
-    ASM_OP(     doLoopNBop,               "_+loop" ),
-    ASM_OP(     doExitBop,               "_exit" ),      // exit normal op with no vars
-    ASM_OP(     doExitLBop,              "_exitL" ),     // exit normal op with local vars
-    ASM_OP(     doExitMBop,              "_exitM" ),     // exit method op with no vars
-    ASM_OP(     doExitMLBop,             "_exitML" ),    // exit method op with local vars
-    ASM_OP(     doVocabBop,              "_doVocab" ),
-    ASM_OP(     plusBop,                 "+" ),
-
-    // stuff below this line can be rearranged
-    
-    ///////////////////////////////////////////
-    //  integer math
-    ///////////////////////////////////////////
-    ASM_OP(     minusBop,                "-" ),
-    ASM_OP(     timesBop,                "*" ),
-    ASM_OP(     times2Bop,               "2*" ),
-    ASM_OP(     times4Bop,               "4*" ),
-    ASM_OP(     divideBop,               "/" ),
-    ASM_OP(     divide2Bop,              "2/" ),
-    ASM_OP(     divide4Bop,              "4/" ),
-    ASM_OP(     divmodBop,               "/mod" ),
-    ASM_OP(     modBop,                  "mod" ),
-    ASM_OP(     negateBop,               "negate" ),
-    
-    ///////////////////////////////////////////
-    //  single-precision floating point math
-    ///////////////////////////////////////////
-    ASM_OP(     fplusBop,                "f+" ),
-    ASM_OP(     fminusBop,               "f-" ),
-    ASM_OP(     ftimesBop,               "f*" ),
-    ASM_OP(     fdivideBop,              "f/" ),
-    
-    ///////////////////////////////////////////
-    //  double-precision floating point math
-    ///////////////////////////////////////////
-    ASM_OP(     dplusBop,                "d+" ),
-    ASM_OP(     dminusBop,               "d-" ),
-    ASM_OP(     dtimesBop,               "d*" ),
-    ASM_OP(     ddivideBop,              "d/" ),
-
-
-    ///////////////////////////////////////////
-    //  double-precision floating point functions
-    ///////////////////////////////////////////
-    ASM_OP(     dsinBop,                 "dsin" ),
-    ASM_OP(     dasinBop,                "darcsin" ),
-    ASM_OP(     dcosBop,                 "dcos" ),
-    ASM_OP(     dacosBop,                "darccos" ),
-    ASM_OP(     dtanBop,                 "dtan" ),
-    ASM_OP(     datanBop,                "darctan" ),
-    ASM_OP(     datan2Bop,               "darctan2" ),
-    ASM_OP(     dexpBop,                 "dexp" ),
-    ASM_OP(     dlnBop,                  "dln" ),
-    ASM_OP(     dlog10Bop,               "dlog10" ),
-    ASM_OP(     dpowBop,                 "dpow" ),
-    ASM_OP(     dsqrtBop,                "dsqrt" ),
-    ASM_OP(     dceilBop,                "dceil" ),
-    ASM_OP(     dfloorBop,               "dfloor" ),
-    ASM_OP(     dabsBop,                 "dabs" ),
-    ASM_OP(     dldexpBop,               "dldexp" ),
-    ASM_OP(     dfrexpBop,               "dfrexp" ),
-    ASM_OP(     dmodfBop,                "dmodf" ),
-    ASM_OP(     dfmodBop,                "dfmod" ),
-    
-    ///////////////////////////////////////////
-    //  integer/float/double conversions
-    ///////////////////////////////////////////
-    ASM_OP(     i2fBop,                  "i2f" ), 
-    ASM_OP(     i2dBop,                  "i2d" ),
-    ASM_OP(     f2iBop,                  "f2i" ),
-    ASM_OP(     f2dBop,                  "f2d" ),
-    ASM_OP(     d2iBop,                  "d2i" ),
-    ASM_OP(     d2fBop,                  "d2f" ),
-    
-    ///////////////////////////////////////////
-    //  control flow ops
-    ///////////////////////////////////////////
-    ASM_OP(     callBop,                 "call" ),
-    ASM_OP(     gotoBop,                 "goto" ),
-    ASM_PRECOP( doBop,                   "do" ),
-    ASM_PRECOP( loopBop,                 "loop" ),
-    ASM_PRECOP( loopNBop,                "+loop" ),
-    ASM_OP(     iBop,                    "i" ),
-    ASM_OP(     jBop,                    "j" ),
-    ASM_OP(     unloopBop,               "unloop" ),
-    ASM_OP(     leaveBop,                "leave" ),
-    ASM_PRECOP( ifBop,                   "if" ),
-    ASM_PRECOP( elseBop,                 "else" ),
-    ASM_PRECOP( endifBop,                "endif" ),
-    ASM_PRECOP( beginBop,                "begin" ),
-    ASM_PRECOP( untilBop,                "until" ),
-    ASM_PRECOP( whileBop,                "while" ),
-    ASM_PRECOP( repeatBop,               "repeat" ),
-    ASM_PRECOP( againBop,                "again" ),
-    ASM_PRECOP( caseBop,                 "case" ),
-    ASM_PRECOP( ofBop,                   "of" ),
-    ASM_PRECOP( endofBop,                "endof" ),
-    ASM_PRECOP( endcaseBop,              "endcase" ),
-
-    ///////////////////////////////////////////
-    //  bit-vector logic ops
-    ///////////////////////////////////////////
-    ASM_OP(     orBop,                   "or" ),
-    ASM_OP(     andBop,                  "and" ),
-    ASM_OP(     xorBop,                  "xor" ),
-    ASM_OP(     invertBop,               "~" ),
-    ASM_OP(     lshiftBop,               "<<" ),
-    ASM_OP(     rshiftBop,               ">>" ),
-
-    ///////////////////////////////////////////
-    //  boolean ops
-    ///////////////////////////////////////////
-    ASM_OP(     notBop,                  "not" ),
-    ASM_OP(     trueBop,                 "true" ),
-    ASM_OP(     falseBop,                "false" ),
-    ASM_OP(     nullBop,                 "null" ),
-
-    ///////////////////////////////////////////
-    //  integer comparisons
-    ///////////////////////////////////////////
-    ASM_OP(     equalsBop,               "==" ),
-    ASM_OP(     notEqualsBop,            "!=" ),
-    ASM_OP(     greaterThanBop,          ">" ),
-    ASM_OP(     greaterEqualsBop,        ">=" ),
-    ASM_OP(     lessThanBop,             "<" ),
-    ASM_OP(     lessEqualsBop,           "<=" ),
-    ASM_OP(     equalsZeroBop,           "0==" ),
-    ASM_OP(     notEqualsZeroBop,        "0!=" ),
-    ASM_OP(     greaterThanZeroBop,      "0>" ),
-    ASM_OP(     greaterEqualsZeroBop,    "0>=" ),
-    ASM_OP(     lessThanZeroBop,         "0<" ),
-    ASM_OP(     lessEqualsZeroBop,       "0<=" ),
-    
-    ///////////////////////////////////////////
-    //  stack manipulation
-    ///////////////////////////////////////////
-    ASM_OP(     rpushBop,                "r<" ),
-    ASM_OP(     rpopBop,                 "r>" ),
-    ASM_OP(     rdropBop,                "rdrop" ),
-    ASM_OP(     dupBop,                  "dup" ),
-    ASM_OP(     swapBop,                 "swap" ),
-    ASM_OP(     overBop,                 "over" ),
-    ASM_OP(     rotBop,                  "rot" ),
-    ASM_OP(     ddupBop,                 "ddup" ),
-    ASM_OP(     dswapBop,                "dswap" ),
-    ASM_OP(     ddropBop,                "ddrop" ),
-    ASM_OP(     doverBop,                "dover" ),
-    ASM_OP(     drotBop,                 "drot" ),
-    
-    ///////////////////////////////////////////
-    //  data compilation/allocation
-    ///////////////////////////////////////////
-    ASM_OP(     alignBop,                "align" ),
-    ASM_OP(     allotBop,                "allot" ),
-    ASM_OP(     commaBop,                "," ),
-    ASM_OP(     cCommaBop,               "c," ),
-    ASM_OP(     hereBop,                 "here" ),
-    ASM_OP(     mallocBop,               "malloc" ),
-    ASM_OP(     freeBop,                 "free" ),
-
-    ///////////////////////////////////////////
-    //  memory store/fetch
-    ///////////////////////////////////////////
-    ASM_OP(     storeBop,                "!" ),
-    ASM_OP(     fetchBop,                "@" ),
-    ASM_OP(     cstoreBop,               "c!" ),
-    ASM_OP(     cfetchBop,               "c@" ),
-    ASM_OP(     scfetchBop,              "sc@" ),
-    ASM_OP(     c2lBop,                  "c2l" ),
-    ASM_OP(     wstoreBop,               "w!" ),
-    ASM_OP(     wfetchBop,               "w@" ),
-    ASM_OP(     swfetchBop,              "sw@" ),
-    ASM_OP(     w2lBop,                  "w2l" ),
-    ASM_OP(     dstoreBop,               "d!" ),
-    ASM_OP(     dfetchBop,               "d@" ),
-    ASM_OP(     addToBop,                "->+" ),
-    ASM_OP(     subtractFromBop,         "->-" ),
-    ASM_OP(     addressOfBop,            "addressOf" ),
-
-    ///////////////////////////////////////////
-    //  string manipulation
-    ///////////////////////////////////////////
-    ASM_OP(     strcpyBop,               "strcpy" ),
-    ASM_OP(     strlenBop,               "strlen" ),
-    ASM_OP(     strcatBop,               "strcat" ),
-    ASM_OP(     strchrBop,               "strchr" ),
-    ASM_OP(     strcmpBop,               "strcmp" ),
-    ASM_OP(     strstrBop,               "strstr" ),
-    ASM_OP(     strtokBop,               "strtok" ),
-
-    ///////////////////////////////////////////
-    //  defining words
-    ///////////////////////////////////////////
-    ASM_OP(     buildsBop,               "builds" ),
-    ASM_PRECOP( doesBop,                 "does" ),
-    ASM_OP(     newestSymbolBop,         "newestSymbol" ),
-    ASM_PRECOP( exitBop,                 "exit" ),
-    ASM_PRECOP( semiBop,                 ";" ),
-    ASM_OP(     colonBop,                ":" ),
-    ASM_OP(     createBop,               "create" ),
-    ASM_OP(     forgetBop,               "forget" ),
-    ASM_OP(     autoforgetBop,           "autoforget" ),
-    ASM_OP(     definitionsBop,          "definitions" ),
-    ASM_OP(     usesBop,                 "uses" ),
-    ASM_OP(     forthVocabBop,           "forth" ),
-    ASM_OP(     searchVocabBop,          "searchVocab" ),
-    ASM_OP(     definitionsVocabBop,     "definitionsVocab" ),
-    ASM_OP(     vocabularyBop,           "vocabulary" ),
-    ASM_OP(     variableBop,             "variable" ),
-    ASM_OP(     constantBop,             "constant" ),
-    ASM_OP(     dconstantBop,            "dconstant" ),
-    ASM_PRECOP( varsBop,                 "vars" ),
-    ASM_PRECOP( endvarsBop,              "endvars" ),
-    ASM_OP(     intBop,                  "int" ),
-    ASM_OP(     floatBop,                "float" ),
-    ASM_OP(     doubleBop,               "double" ),
-    ASM_OP(     stringBop,               "string" ),
-
-    ASM_PRECOP( recursiveBop,            "recursive" ),
-    ASM_OP(     precedenceBop,           "precedence" ),
-    ASM_OP(     loadBop,                 "load" ),
-    ASM_OP(     loadDoneBop,             "loaddone" ),
-    ASM_PRECOP( stateInterpretBop,       "[" ),
-    ASM_OP(     stateCompileBop,         "]" ),
-    ASM_OP(     stateBop,                "state" ),
-    ASM_OP(     tickBop,                 "\'" ),
-    ASM_OP(     executeBop,              "execute" ),
-    ASM_PRECOP( compileBop,              "[compile]" ),
-    ASM_PRECOP( bracketTickBop,          "[\']" ),
-
-    ///////////////////////////////////////////
-    //  text display words
-    ///////////////////////////////////////////
-    ASM_OP(     printNumBop,             "." ),
-    ASM_OP(     printNumDecimalBop,      "%d" ),
-    ASM_OP(     printNumHexBop,          "%x" ),
-    ASM_OP(     printStrBop,             "%s" ),
-    ASM_OP(     printCharBop,            "%c" ),
-    ASM_OP(     printSpaceBop,           "%bl" ),
-    ASM_OP(     printNewlineBop,         "%nl" ),
-    ASM_OP(     printFloatBop,           "%f" ),
-    ASM_OP(     printDoubleBop,          "%g" ),
-    ASM_OP(     printFormattedBop,        "%fmt" ),
-    ASM_OP(     baseBop,                 "base" ),
-    ASM_OP(     decimalBop,              "decimal" ),
-    ASM_OP(     hexBop,                  "hex" ),
-    ASM_OP(     printDecimalSignedBop,   "printDecimalSigned" ),
-    ASM_OP(     printAllSignedBop,       "printAllSigned" ),
-    ASM_OP(     printAllUnsignedBop,     "printAllUnsigned" ),
-    ASM_OP(     outToFileBop,            "outToFile" ),
-    ASM_OP(     outToScreenBop,          "outToScreen" ),
-    ASM_OP(     outToStringBop,          "outToString" ),
-    ASM_OP(     getConOutFileBop,        "getConOutFile" ),
-
-    ///////////////////////////////////////////
-    //  file ops
-    ///////////////////////////////////////////
-    ASM_OP(     fopenBop,                "fopen" ),
-    ASM_OP(     fcloseBop,               "fclose" ),
-    ASM_OP(     fseekBop,                "fseek" ),
-    ASM_OP(     freadBop,                "fread" ),
-    ASM_OP(     fwriteBop,               "fwrite" ),
-    ASM_OP(     fgetcBop,                "fgetc" ),
-    ASM_OP(     fputcBop,                "fputc" ),
-    ASM_OP(     feofBop,                 "feof" ),
-    ASM_OP(     ftellBop,                "ftell" ),
-    ASM_OP(     stdinBop,                "stdin" ),
-    ASM_OP(     stdoutBop,               "stdout" ),
-    ASM_OP(     stderrBop,               "stderr" ),
-    
-    ASM_OP(     dstackBop,               "dstack" ),
-    ASM_OP(     drstackBop,              "drstack" ),
-    ASM_OP(     vlistBop,                "vlist" ),
-
-    ASM_OP(     systemBop,               "system" ),
-    ASM_OP(     byeBop,                  "bye" ),
-    ASM_OP(     argvBop,                 "argv" ),
-    ASM_OP(     argcBop,                 "argc" ),
-
-    ///////////////////////////////////////////
-    //  DLL support words
-    ///////////////////////////////////////////
-    ASM_OP(     loadLibraryBop,          "loadLibrary" ),
-    ASM_OP(     freeLibraryBop,          "freeLibrary" ),
-    ASM_OP(     getProcAddressBop,       "getProcAddress" ),
-    ASM_OP(     callProc0Bop,            "callProc0" ),
-    ASM_OP(     callProc1Bop,            "callProc1" ),
-    ASM_OP(     callProc2Bop,            "callProc2" ),
-    ASM_OP(     callProc3Bop,            "callProc3" ),
-    ASM_OP(     callProc4Bop,            "callProc4" ),
-    ASM_OP(     callProc5Bop,            "callProc5" ),
-    ASM_OP(     callProc6Bop,            "callProc6" ),
-    ASM_OP(     callProc7Bop,            "callProc7" ),
-    ASM_OP(     callProc8Bop,            "callProc8" ),
-
-    ///////////////////////////////////////////
-    //  input buffer words
-    ///////////////////////////////////////////
-    ASM_OP(     blwordBop,               "blword"    ),
-    ASM_OP(     wordBop,                 "word"      ),
-    ASM_OP(     getInBufferBaseBop,      "getInBufferBase" ),
-    ASM_OP(     getInBufferPointerBop,   "getInBufferPointer" ),
-    ASM_OP(     setInBufferPointerBop,   "setInBufferPointer" ),
-    ASM_OP(     getInBufferLengthBop,    "getInBufferLength" ),
-    ASM_OP(     fillInBufferBop,         "fillInBuffer" ),
-
-    ASM_OP(     turboBop,                "turbo" ),
-    ASM_OP(     statsBop,                "stats" ),
-
-    // following must be last in table
-    ASM_OP(     NULL,                   "" )
-};
-#endif
 
 
 //############################################################################

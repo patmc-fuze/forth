@@ -3,6 +3,402 @@
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Structure support issues and current answers:
+
+1) Should all accessor fields be seperated by ".", or should we use "->" for
+   ptr fields like C?
+-> Use just "." for all fields
+
+2) Should varAction ops like {-> ->+ ->-} be supported for fields, or
+   should all structure field manipulation use traditional memory store and
+   fetch ops {@ c@ ! c!}
+-> Use varAction ops
+
+3) When the final accessor is a pointer field, how should we distinguish
+  between applying the current varAction to the pointer and applying it to
+  the field it points to?
+-> a '@' can be appended to the end of last accessor to indicate that the
+   field pointed to is to be manipulated
+   5 -> a.pX@	// store 5 in field pointed to by a.pX
+   b -> a.pX	// store addr of b in a.pX
+-> a better solution is to always have the varAction apply to the
+   pointer - if you want to manipulate the variable the fields points at,
+   use the traditional memory fetch/store ops
+
+4) How should array fields be supported
+-> For now just support them as memory blocks, do not support array indexing
+   as part of accessors (IE don't support a.b[])
+-> Maybe use the same syntax for arrays as ptrs - if the final field is
+   an array, just leave addr of first element on TOS, if an array is in
+   a non-final field, compile the array indexing op 
+
+5) Should field access symbols be in a global namespace, or should we allow
+   different structs to have fields with the same names?
+-> Allow different strutcts to have fields with the same names
+
+6) How should field access off a ptr on TOS be supported - we don't know the
+   structure type of an anonymous ptr
+-> Initially require anonymous ptr to be copied to a ptr variable
+-> Eventually use something like STRUCT_TYPE.field
+
+7) How should we deal with the problem where a varAction is used by an initial
+   global struct op or global struct ptr op, when the varAction is intended to
+   be applied to a struct field
+-> This has been solved, look at issue 10 below
+
+8) How should struct members which are ops be supported
+-> for now, just use int fields and "execute"
+-> TBD, probably wait until class support
+
+9) How should you get the address of a structure field
+-> for now, just precede the op with the addressOf op: addressOf c.x
+-> eventually, it would be good to allow a '&' to be pre-pended to global or
+   local vars or structs to be able to generate more efficient code
+
+10) How should struct copying be done? With "->"?
+-> No, if the op for global structs uses the varOp, it will make it difficult
+   to use the varOp on struct fields.  Use memcpy to copy structs
+-> "sizeOf STRUCT_TYPE" should return the number of bytes in a struct
+
+11) Should arrayOf and ptrTo be usable outside of struct definitions?
+-> ptrTo at least should be - otherwise how do you get a global struct ptr
+
+12) Should strings be allowed in structs?  If so, string fields in local
+    and global structs will have to have their max & current length fields
+    initialized - structs with strings may need to have a default constructor.
+    This will need to be ?recursive? - a struct may contain a struct which
+    contains strings...
+    What about structs containing arrays of strings?
+-> TBD
+
+13) Should there be ops for getting field offsets and sizes?
+
+14) How complex should field definitions be allowed to be?
+    Should we allow stuff like:
+      ptrTo ptrTo int         ppGallons
+      ptrTo arrayOf 20 char   firstName
+      arrayOf 3 ptrTo coord   pVerts
+      ptrTo arrayOf 3 coord   pVerts
+    If not, what are the rules for defining fields?
+    
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+- add vocabulary that holds all struct definitions
+  o this should be below Forth vocab in search list
+- add vocabulary that holds struct defining ops (ptrTo, arrayOf, int, float, ...)
+
+- handle forget propagation - forgetting the vocab associated with a forgotten struct
+- add struct defining ops
+  - struct
+  - endstruct
+  - arrayOf
+  - ptrTo
+  - int
+  - float
+  - double
+  - short
+  - byte
+  - sizeOf
+- add struct runtime ops
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 16 2007
+
+There will be a dedicated structs vocabulary, which contains a symbol for
+each defined struct type.
+There will be a user opcode assigned to each defined struct type.
+
+There will also be a vocabulary for each struct type, whose elements define
+the fields in that struct.  Each field symbol will have an associated
+type and offset.
+Field accessor symbols will have no user opcode assigned them.
+
+There needs to be a way to find out the structure type for both global and
+local structs.
+
+The struct defining words will need to be able to distinguish between:
+    arrayOf 3 ptrTo coord verts
+and   ptrTo arrayOf 3 coord verts
+unless we don't allow one or the other
+
+What about stuff like:
+	ptrTo ptrTo int
+
+Maybe we should allow at most one of either ptrTo/arrayOf per field, then
+you could do the above example by creating another struct type that was
+just a ptr to int:
+    struct intPtr
+      ptrTo int pVal
+    endStruct
+    ptrTo intPtr ppJoe
+
+A very flexible way to do this would be to generalize field definitions to
+be either:
+  1) user ops that are executed at runtime that do the offseting & fetching
+  2) user ops that are executed at compile time that build complex accessors
+     that do the offseting & fetching
+Going this route allows a lot of flexibility, but may make optimizing
+accessors more difficult
+
+What are the basic building blocks of field accessors?
+  - add an offset
+  - fetch pointer
+  - char/short/int/float/double actionOp
+  - array indexing
+  - op invocation
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 15 2007
+
+lc    local coord
+lcp   local coord ptr
+gc    global coord
+gcp   global coord ptr
+
+---------------------------
+|syntax                   |
+|       generated code    |
+---------------------------
+lc
+        localStructOp(frameOffset(lc))
+lcp
+        localPtrOpframeOffset(lcp))
+gc
+        gc
+gcp
+        gcp
+
+lc.x
+        localAddr(frameOffset(lc))                          localIntAction(frameOffset(lc) + fieldOffset(x))
+        fieldIntAction(fieldOffset(x))
+lcp.x
+        localPtrFetch(frameOffset(lcp))
+        fieldIntAction(fieldOffset(x))
+
+gc.x
+        gc
+        fieldIntAction(fieldOffset(x))
+gcp.x
+        gcp
+        @
+        fieldIntAction(fieldOffset(x))
+
+lc.pNext
+        localAddr(frameOffset(lc))                	        localPtrAction(frameOffset(lc) + fieldOffset(pNext))
+        offsetPtrAction(fieldOffset(pNext))
+lcp.pNext
+        localPtrFetch(frameOffset(lcp))
+        offsetPtrAction(fieldOffset(pNext))
+gc.pNext
+        gc
+        offsetPtrAction(fieldOffset(pNext))
+gcp.pNext
+        gcp
+        @
+        offsetPtrAction(fieldOffset(pNext))
+
+lc.pNext.y
+        localAddr(frameOffset(lc))                          localPtrFetch(frameOffset(lc) + fieldOffset(pNext))
+        offsetPtrFetch(fieldOffset(pNext))                  fieldIntAction(fieldOffset(y))
+        fieldIntAction(fieldOffset(y))
+lcp.pNext.y
+        localPtrFetch(frameOffset(lcp))
+        offsetPtrFetch(fieldOffset(pNext))
+        fieldIntAction(fieldOffset(y))
+gc.pNext.y
+        gc
+        offsetPtrFetch(fieldOffset(pNext))
+        fieldIntAction(fieldOffset(y))
+gcp.pNext.y
+        gcp
+        @
+        offsetPtrFetch(fieldOffset(pNext))
+        fieldIntAction(fieldOffset(y))
+
+
+The above generated code could be improved by combining some ops,
+in particular in the case of local structures like lc.
+
+// first field processing
+get first field (up to first '.')
+if first field symbol is found in local vars vocab
+  set localStruct flag
+  set offset to frameOffset of local struct
+  set structType = type of local struct
+else
+  if first field symbol is found in regular op vocabs
+    set offset = 0
+    set structType = type of global struct
+      ? how do we know type of global struct
+      -> maybe there is a varOp for "get struct type"
+  else
+    error, unknown base symbol
+  endif
+endif
+fieldOffset = 0
+
+// process selector fields after first
+while there are fields left
+  get next field
+  lookup field in current structType
+  if field found
+     set structType to type of this field
+     fieldOffset += newFieldOffset
+  else
+    error, unknown field selector
+  endif
+  if field is last field
+    if field is a ptr
+      compile offsetPtrAction(fieldOffset))
+    else
+      compile fieldIntAction(fieldOffset))
+    endif
+  else
+    if field is a ptr
+      compile offsetPtrFetch(fieldOffset))
+      fieldOffset = 0
+    endif
+  endif
+endwhile
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 14 2007
+
+global struct
+local struct
+ptr to struct
+
+struct coord has
+  int x
+  int y
+  int ptr pZ
+  coord ptr pNext
+
+coord a
+coord b
+coord c
+int z1
+coord ptr pC
+
+1) c.x				// leaves value of c.x on TOS
+2) 5 -> c.x			// sets c.x to 5
+3) addressOf z1 -> c.pZ		// points c.pZ at z1
+4) 7 c.pZ !			// sets z1 to 7
+5) addressOf b -> c.pNext	// points c.pNext at b
+
+Think about the case where a struct has a field that is a pointer to another
+struct - suppose c.pNext points to b, and b.pZ points to z1, and we want to
+set z1 starting with c:
+
+7 c.pNext coord.pZ @ !
+
+"coord.pZ" takes a pointer to a coord and returns the pointer to its pZ field
+
+*c.pNext->pZ = 7;
+
+-|=|=|=|-
+
+This scheme always uses . as field accessor seperator
+The result of field accessor ops is always an addr on TOS
+Load and store are done with traditional ! and @ ops, not ->
+
+There really only need to be 2 new optypes:
+  1) add offset to TOS
+  2) fetch @ TOS and then add offset
+c
+  push addr of c
+c.x @
+  push addr of c
+  add x offset to TOS
+  fetch @ TOS (TOS is now value of c.x)
+c.pNext
+  push addr of c
+  add pNext offset to TOS (TOS is now addr or c.pNext)
+c.pNext @
+  push addr of c
+  add pNext offset to TOS
+  fetch @ TOS (TOS is now addr of b)
+a c.pNext !
+  push addr of a
+  push addr of c
+  add pNext offset to TOS
+  store addr of a in c.pNext
+c.pNext.x
+  push addr of c
+  add pNext offset to TOS
+  fetch @ TOS (TOS is now addr of b)
+  add x offset to TOS (tos is now addr of b.x)
+5 c.pNext.x !
+  push 5
+  add pNext offset to TOS
+  fetch @ TOS (TOS is now addr of b)
+  add x offset to TOS (tos is now addr of b.x)
+  store 5 in b.x
+7 c.pNext.pZ @ !
+  push 7
+  push addr of c
+  add pNext offset to TOS
+  fetch @ TOS (TOS is now addr of b)
+  add pZ offset to TOS (TOS is now addr of b.pZ)
+  fetch @ TOS (TOS is now value of b.pZ)
+  store 7 at addr pointed to by b.pZ
+
+-|=|=|=|-
+
+This scheme always uses . as field accessor seperator
+
+The result of field accessor ops can be an addr or value on TOS
+Load and store are done with ->
+An @ on the end of the final accessor indicates wether you want
+to treat the final accessor as an addr or value (only makes sense
+if final accessor is a pointer)
+
+c
+  push addr of c
+c.x
+  push addr of c
+  add x offset to TOS
+  fetch @ TOS (TOS is now value of c.x)
+c.pNext
+  push addr of c
+  add pNext offset to TOS
+c.pNext@
+  push addr of c
+  add pNext offset to TOS
+  fetch @ TOS (TOS is now addr of b)
+a -> c.pNext
+  push addr of a
+  push addr of c
+  add pNext offset to TOS
+  store addr of a in c.pNext
+a -> c.pNext@  (nonsensical)
+  push addr of a
+  push addr of c
+  add pNext offset to TOS
+  fetch @ TOS (TOS is now addr of b, addr of a)
+c.pNext.x
+  push addr of c
+  add pNext offset to TOS
+  fetch @ TOS (TOS is now addr of b)
+  add x offset to TOS
+  fetch @ TOS (tos is now value of b.x)
+5 -> c.pNext.x
+  push 5
+  add pNext offset to TOS
+  fetch @ TOS (TOS is now addr of b)
+  add x offset to TOS (tos is now addr of b.x)
+  store 5 in b.x
+7 -> c.pNext.pZ@
+  push 7
+  push addr of c
+  add pNext offset to TOS
+  fetch @ TOS (TOS is now addr of b)
+  add pZ offset to TOS (TOS is now addr of b.pZ)
+  fetch @ TOS (TOS is now value of b.pZ)
+  store 7 at addr pointed to by b.pZ
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 Feb. 21 2007
 
 blah.a.b.c[M].d.e[N].f
@@ -29,12 +425,15 @@ the proper offset off the stack frame or the this pointer:
 	op(->)
 	localInt(a2.x)
 
-For global variables we can't compile the ref operator and then the global
-variable op, since that would wipe out the "store" varOp set by "->".
+For global variables we can't just compile the global variable op then the
+field action op, since when the global variable op is executed it would
+do a store operation and clear the varOp set by "->"
 	lit(55)
 	op(->)
-	op(addressOf)
 	op(a2)
+        fieldInt(.x)
+This would result in memory at 55 being copied into a2, and a crash when
+the fieldInt(.x) op was executed.
 	
 ? So how do we implement field access for global structs ?
 ? could the ref operator check to see if there is a pending operation, and
@@ -56,6 +455,17 @@ o yet another possibility would be to recognize the preceeding varOp setting op,
 
 INDEX STRUCT_PTR int[]
 
+struct coord
+  int x
+  int y
+  ptrTo int pZ
+  ptrTo coord pNext
+endstruct
+
+struct triangle
+  arrayOf 3 coord verts
+endstruct
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 
 Structure Support			September 8, 2006
@@ -64,11 +474,14 @@ Cases to consider:
 
 1) struct is pointed to by TOS
 2) struct is local var
-3) struct is global var
-4) struct is object member
-5) struct is struct member
-6) struct member is an array
-7) struct member is an object
+3) struct is pointed by local var
+4) struct is global var
+5) struct is pointed to by global var
+6) struct is object member
+7) struct is struct member
+8) struct member is an array
+9) struct member is an object
+10) struct member is an op
 
 --------------------------
 The easiest way to implement structures is:
@@ -89,7 +502,7 @@ Positives/negatives:
 Another way to implement structures is:
 
 a) read/write to struct elements is done like local vars, use "->" to indicate writing, else reading
-b) compound symbols are used to specify the structure instance and member (struct.member)
+b) compound symbols are used to specify the structure instance and field (struct.field)
 
 Positives/negatives:
 + should make the code look neater

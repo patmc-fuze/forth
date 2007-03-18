@@ -8,6 +8,11 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+class ForthShell;
+class ForthBufferInputStream;
+
+#define INPUT_BUFFER_SIZE 1024
+
 /////////////////////////////////////////////////////////////////////////////
 // CForthGuiDlg dialog
 
@@ -33,6 +38,9 @@ public:
 protected:
 	HICON m_hIcon;
 
+    ForthShell*                 mpShell;
+    ForthBufferInputStream*     mpInStream;
+    char                        mInBuffer[INPUT_BUFFER_SIZE];
 	// Generated message map functions
 	//{{AFX_MSG(CForthGuiDlg)
 	virtual BOOL OnInitDialog();
@@ -41,6 +49,9 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
+public:
+    afx_msg void OnBnClickedOk();
+    afx_msg void OnEnChangeEditInput();
 };
 
 //{{AFX_INSERT_LOCATION}}

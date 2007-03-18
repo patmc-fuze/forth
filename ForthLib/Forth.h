@@ -41,9 +41,10 @@ typedef enum
     kOpConstant,        // low 24 bits is signed symbol value
     kOpOffset,          // low 24 bits is signed offset value
 
-    kOpString,
+    kOpConstantString,
 
     kOpAllocLocals,     // low 24 bits is frame size in longs
+    kOpInitLocalString,     // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
 
     kOpLocalInt,
     kOpLocalFloat,

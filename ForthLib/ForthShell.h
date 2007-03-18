@@ -135,9 +135,9 @@ public:
 
     bool                    CheckSyntaxError( const char *pString, long tag, long desiredTag );
 
-protected:
+    eForthResult            InterpretLine( const char *pSrcLine = NULL );
 
-    eForthResult            InterpretLine( void );
+protected:
 
     // parse next token from input stream into mTokenBuff, padded with 0's up
     // to next longword boundary
