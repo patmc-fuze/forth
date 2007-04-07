@@ -14,15 +14,268 @@
 
 extern baseDictEntry baseDict[];
 
-#ifdef TRACE_INNER_INTERPRETER
-
-// provide trace ability for builtin ops
-#define NUM_TRACEABLE_OPS 500
-static char *gOpNames[ NUM_TRACEABLE_OPS ];
-
-#endif
-
 extern "C" {
+
+
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     byte
+// 
+
+// doByte{Fetch,Ref,Store,PlusStore,MinusStore} are parts of doByteOp
+VAR_ACTION( doByteFetch ) 
+{
+    // IP points to data field
+    unsigned char c = *(unsigned char *)(SPOP);
+    SPUSH( (long) c );
+}
+
+VAR_ACTION( doByteRef )
+{
+}
+
+VAR_ACTION( doByteStore ) 
+{
+    // IP points to data field
+    unsigned char *pA = (unsigned char *)(SPOP);
+    *pA = (unsigned char) (SPOP);
+}
+
+VAR_ACTION( doBytePlusStore ) 
+{
+    // IP points to data field
+    unsigned char *pA = (unsigned char *)(SPOP);
+    *pA = (unsigned char) ((*pA) + SPOP);
+}
+
+VAR_ACTION( doByteMinusStore ) 
+{
+    // IP points to data field
+    unsigned char *pA = (unsigned char *)(SPOP);
+    *pA = (unsigned char) ((*pA) - SPOP);
+}
+
+VarAction byteOps[] = {
+    doByteFetch,
+    doByteRef,
+    doByteStore,
+    doBytePlusStore,
+    doByteMinusStore
+};
+
+// this is an internal op that is compiled before the data field of each byte variable
+GFORTHOP( doByteOp )
+{
+    // IP points to data field
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( (long) (GET_IP) );
+        byteOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+    SET_IP( (long *) (RPOP) );
+}
+
+OPTYPE_ACTION( LocalByteAction )
+{
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( (long)(GET_FP - opVal) );
+        // TOS points to data field
+        byteOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+OPTYPE_ACTION( FieldByteAction )
+{
+    long pVar = SPOP + opVal;
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( pVar );
+        // TOS points to data field
+        byteOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+// this is an internal op that is compiled before the data field of each byte array
+GFORTHOP( doByteArrayOp )
+{
+    // IP points to data field
+    int index = SPOP;
+    SPUSH( ((long) (GET_IP)) + index );
+    byteOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+    SET_IP( (long *) (RPOP) );
+}
+
+OPTYPE_ACTION( LocalByteArrayAction )
+{
+    int index = SPOP;
+    SPUSH( ((long) (GET_FP - opVal)) + index );
+    byteOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+}
+
+OPTYPE_ACTION( FieldByteArrayAction )
+{
+    // TOS is struct base, NOS is index
+    // opVal is byte offset of byte[0]
+    long pVar = SPOP + opVal;
+    pVar += SPOP;
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( pVar );
+        // TOS points to data field
+        byteOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     short
+// 
+
+// doShort{Fetch,Ref,Store,PlusStore,MinusStore} are parts of doShortOp
+VAR_ACTION( doShortFetch )
+{
+    // IP points to data field
+    short c = *(short *)(SPOP);
+    SPUSH( (long) c );
+}
+
+VAR_ACTION( doShortRef )
+{
+}
+
+VAR_ACTION( doShortStore ) 
+{
+    // IP points to data field
+    short *pA = (short *)(SPOP);
+    *pA = (short) (SPOP);
+}
+
+VAR_ACTION( doShortPlusStore ) 
+{
+    // IP points to data field
+    short *pA = (short *)(SPOP);
+    *pA = (short)((*pA) + SPOP);
+}
+
+VAR_ACTION( doShortMinusStore ) 
+{
+    // IP points to data field
+    short *pA = (short *)(SPOP);
+    *pA = (short)((*pA) - SPOP);
+}
+
+VarAction shortOps[] = {
+    doShortFetch,
+    doShortRef,
+    doShortStore,
+    doShortPlusStore,
+    doShortMinusStore
+};
+
+// this is an internal op that is compiled before the data field of each short variable
+GFORTHOP( doShortOp )
+{
+    
+    // IP points to data field
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( (long) (GET_IP) );
+        shortOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+    SET_IP( (long *) (RPOP) );
+}
+
+OPTYPE_ACTION( LocalShortAction )
+{
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( (long)(GET_FP - opVal) );
+        // TOS points to data field
+        shortOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+OPTYPE_ACTION( FieldShortAction )
+{
+    long pVar = SPOP + opVal;
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( pVar );
+        // TOS points to data field
+        shortOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+// this is an internal op that is compiled before the data field of each short array
+GFORTHOP( doShortArrayOp )
+{
+    // IP points to data field
+    int index = (SPOP) << 1;
+    SPUSH( ((long) (GET_IP)) + index );
+    shortOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+    SET_IP( (long *) (RPOP) );
+}
+
+OPTYPE_ACTION( LocalShortArrayAction )
+{
+    int index = (SPOP) << 1;
+    SPUSH( ((long) (GET_FP - opVal)) + index );
+    shortOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+}
+
+OPTYPE_ACTION( FieldShortArrayAction )
+{
+    // TOS is struct base, NOS is index
+    // opVal is byte offset of short[0]
+    long pVar = SPOP + opVal;
+    pVar += (SPOP << 1);
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( pVar );
+        // TOS points to data field
+        shortOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
 
 
 //////////////////////////////////////////////////////////////////////
@@ -35,33 +288,32 @@ extern "C" {
 VAR_ACTION( doIntFetch ) 
 {
     // IP points to data field
-    SPUSH( *GET_IP );
+    long *pA = (long *) (SPOP);
+    SPUSH( *pA );
 }
 
 VAR_ACTION( doIntRef )
 {
-    // IP points to data field
-    SPUSH( (long) GET_IP );
 }
 
 VAR_ACTION( doIntStore ) 
 {
     // IP points to data field
-    long *pA = (long *) (GET_IP);
+    long *pA = (long *) (SPOP);
     *pA = SPOP;
 }
 
 VAR_ACTION( doIntPlusStore ) 
 {
     // IP points to data field
-    long *pA = (long *) (GET_IP);
+    long *pA = (long *) (SPOP);
     *pA += SPOP;
 }
 
 VAR_ACTION( doIntMinusStore ) 
 {
     // IP points to data field
-    long *pA = (long *) (GET_IP);
+    long *pA = (long *) (SPOP);
     *pA -= SPOP;
 }
 
@@ -76,14 +328,10 @@ VarAction intOps[] = {
 // this is an internal op that is compiled before the data field of each int variable
 GFORTHOP( doIntOp )
 {
-    
     // IP points to data field
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        SPUSH( *GET_IP );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( (long) (GET_IP) );
         intOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
@@ -93,57 +341,13 @@ GFORTHOP( doIntOp )
     SET_IP( (long *) (RPOP) );
 }
 
-VAR_ACTION( doLocalIntFetch ) 
-{
-    // IP points to data field
-    SPUSH( * (long *) SPOP );
-}
-
-VAR_ACTION( doLocalIntRef )
-{
-    // address is already on stack
-}
-
-VAR_ACTION( doLocalIntStore ) 
-{
-    // IP points to data field
-    long *pA = (long *) SPOP;
-    *pA = SPOP;
-}
-
-VAR_ACTION( doLocalIntPlusStore ) 
-{
-    // IP points to data field
-    long *pA = (long *) SPOP;
-    *pA += SPOP;
-}
-
-VAR_ACTION( doLocalIntMinusStore ) 
-{
-    // IP points to data field
-    long *pA = (long *) SPOP;
-    *pA -= SPOP;
-}
-
-VarAction localIntOps[] = {
-    doLocalIntFetch,
-    doLocalIntRef,
-    doLocalIntStore,
-    doLocalIntPlusStore,
-    doLocalIntMinusStore
-};
-
 OPTYPE_ACTION( LocalIntAction )
 {
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        SPUSH( *(GET_FP - opVal) );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
         SPUSH( (long)(GET_FP - opVal) );
         // TOS points to data field
-        localIntOps[ GET_VAR_OPERATION ] ( pCore );
+        intOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
     //} else {
@@ -154,23 +358,18 @@ OPTYPE_ACTION( LocalIntAction )
 
 OPTYPE_ACTION( FieldIntAction )
 {
-    long *pVar = ((long *)*(GET_SP)) + opVal;
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        *(GET_SP) = *pVar;
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
-        *(GET_SP) = (long) pVar;
+    long pVar = SPOP + opVal;
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( pVar );
         // TOS points to data field
-        localIntOps[ GET_VAR_OPERATION ] ( pCore );
+        intOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
     //} else {
         // TBD: report GET_VAR_OPERATION out of range
     }
 }
-
 
 OPTYPE_ACTION( MemberIntAction )
 {
@@ -183,7 +382,44 @@ OPTYPE_ACTION( MemberIntAction )
 
         SPUSH( (long)pInt );
         // TOS points to data field
-        localIntOps[ GET_VAR_OPERATION ] ( pCore );
+        intOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+// this is an internal op that is compiled before the data field of each array
+GFORTHOP( doIntArrayOp )
+{
+    // IP points to data field
+    int index = SPOP;
+    SPUSH( ((long) ((GET_IP) + index)) );
+    intOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+    SET_IP( (long *) (RPOP) );
+}
+
+OPTYPE_ACTION( LocalIntArrayAction )
+{
+    int index = SPOP;
+    SPUSH( ((long) ((GET_FP - opVal) + index)) );
+    intOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+}
+
+OPTYPE_ACTION( FieldIntArrayAction )
+{
+    // TOS is struct base, NOS is index
+    // opVal is byte offset of int[0]
+    long pVar = SPOP + opVal;
+    pVar += (SPOP << 2);
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( pVar );
+        // TOS points to data field
+        intOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
     //} else {
@@ -201,14 +437,14 @@ OPTYPE_ACTION( MemberIntAction )
 VAR_ACTION( doFloatPlusStore ) 
 {
     // IP points to data field
-    float *pA = (float *) (GET_IP);
+    float *pA = (float *) (SPOP);
     *pA += FPOP;
 }
 
 VAR_ACTION( doFloatMinusStore ) 
 {
     // IP points to data field
-    float *pA = (float *) (GET_IP);
+    float *pA = (float *) (SPOP);
     *pA -= FPOP;
 }
 
@@ -223,12 +459,9 @@ VarAction floatOps[] = {
 GFORTHOP( doFloatOp )
 {    
     // IP points to data field
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        FPUSH( *(float *) GET_IP );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( (long) (GET_IP) );
         floatOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
@@ -238,66 +471,34 @@ GFORTHOP( doFloatOp )
     SET_IP( (long *) (RPOP) );
 }
 
-VAR_ACTION( doLocalFloatPlusStore ) 
-{
-    // IP points to data field
-    float *pA = (float *) SPOP;
-    *pA += FPOP;
-}
-
-VAR_ACTION( doLocalFloatMinusStore ) 
-{
-    // IP points to data field
-    float *pA = (float *) SPOP;
-    *pA -= FPOP;
-}
-
-VarAction localFloatOps[] = {
-    doLocalIntFetch,
-    doLocalIntRef,
-    doLocalIntStore,
-    doLocalFloatPlusStore,
-    doLocalFloatMinusStore
-};
-
 OPTYPE_ACTION( LocalFloatAction )
 {
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        FPUSH( *(float *)(GET_FP - opVal) );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
         SPUSH( (long)(GET_FP - opVal) );
-        localFloatOps[ GET_VAR_OPERATION ] ( pCore );
+        // TOS points to data field
+        floatOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
     //} else {
         // TBD: report GET_VAR_OPERATION out of range
     }
 }
-
 
 OPTYPE_ACTION( FieldFloatAction )
 {
-    float *pVar = (float *) ( ((long *)*(GET_SP)) + opVal );
-
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        *(GET_SP) = *((long *) pVar);
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
-        *(GET_SP) = (long) pVar;
+    long pVar = SPOP + opVal;
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( pVar );
         // TOS points to data field
-        localFloatOps[ GET_VAR_OPERATION ] ( pCore );
+        floatOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
     //} else {
         // TBD: report GET_VAR_OPERATION out of range
     }
 }
-
 
 OPTYPE_ACTION( MemberFloatAction )
 {
@@ -310,7 +511,44 @@ OPTYPE_ACTION( MemberFloatAction )
 
         SPUSH( (long) pFloat );
         // TOS points to data field
-        localFloatOps[ GET_VAR_OPERATION ] ( pCore );
+        floatOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+// this is an internal op that is compiled before the data field of each array
+GFORTHOP( doFloatArrayOp )
+{
+    // IP points to data field
+    int index = SPOP;
+    SPUSH( ((long) ((GET_IP) + index)) );
+    floatOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+    SET_IP( (long *) (RPOP) );
+}
+
+OPTYPE_ACTION( LocalFloatArrayAction )
+{
+    int index = SPOP;
+    SPUSH( ((long) ((GET_FP - opVal) + index)) );
+    floatOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+}
+
+OPTYPE_ACTION( FieldFloatArrayAction )
+{
+    // TOS is struct base, NOS is index
+    // opVal is byte offset of float[0]
+    long pVar = SPOP + opVal;
+    pVar += (SPOP << 2);
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( pVar );
+        // TOS points to data field
+        floatOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
     //} else {
@@ -329,28 +567,28 @@ OPTYPE_ACTION( MemberFloatAction )
 VAR_ACTION( doDoubleFetch ) 
 {
     // IP points to data field
-    double *pA = (double *) (GET_IP);
+    double *pA = (double *) (SPOP);
     DPUSH( *pA );
 }
 
 VAR_ACTION( doDoubleStore ) 
 {
     // IP points to data field
-    double *pA = (double *) (GET_IP);
+    double *pA = (double *) (SPOP);
     *pA = DPOP;
 }
 
 VAR_ACTION( doDoublePlusStore ) 
 {
     // IP points to data field
-    double *pA = (double *) (GET_IP);
+    double *pA = (double *) (SPOP);
     *pA += DPOP;
 }
 
 VAR_ACTION( doDoubleMinusStore ) 
 {
     // IP points to data field
-    double *pA = (double *) (GET_IP);
+    double *pA = (double *) (SPOP);
     *pA -= DPOP;
 }
 
@@ -365,12 +603,9 @@ VarAction doubleOps[] = {
 GFORTHOP( doDoubleOp )
 {
     // IP points to data field
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        DPUSH( *(double *) GET_IP );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( (long) (GET_IP) );
         doubleOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
@@ -380,52 +615,13 @@ GFORTHOP( doDoubleOp )
     SET_IP( (long *) (RPOP) );
 }
 
-VAR_ACTION( doLocalDoubleFetch ) 
-{
-    // IP points to data field
-    double *pA = (double *) SPOP;
-    DPUSH( *pA );
-}
-
-VAR_ACTION( doLocalDoubleStore ) 
-{
-    // IP points to data field
-    double *pA = (double *) SPOP;
-    *pA = DPOP;
-}
-
-VAR_ACTION( doLocalDoublePlusStore ) 
-{
-    // IP points to data field
-    double *pA = (double *) SPOP;
-    *pA += DPOP;
-}
-
-VAR_ACTION( doLocalDoubleMinusStore ) 
-{
-    // IP points to data field
-    double *pA = (double *) SPOP;
-    *pA -= DPOP;
-}
-
-VarAction localDoubleOps[] = {
-    doLocalDoubleFetch,
-    doLocalIntRef,
-    doLocalDoubleStore,
-    doLocalDoublePlusStore,
-    doLocalDoubleMinusStore
-};
-
 OPTYPE_ACTION( LocalDoubleAction )
 {
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        DPUSH( *(double *)(GET_FP - opVal) );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
         SPUSH( (long)(GET_FP - opVal) );
-        localDoubleOps[ GET_VAR_OPERATION ] ( pCore );
+        // TOS points to data field
+        doubleOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
     //} else {
@@ -436,16 +632,11 @@ OPTYPE_ACTION( LocalDoubleAction )
 
 OPTYPE_ACTION( FieldDoubleAction )
 {
-    double *pVar = (double *) ( (long *)(SPOP) + opVal );
-
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        DPUSH( *pVar );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
-        SPUSH( (long) pVar );
-        localDoubleOps[ GET_VAR_OPERATION ] ( pCore );
+    long pVar = SPOP + opVal;
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( pVar );
+        doubleOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
     //} else {
@@ -465,7 +656,44 @@ OPTYPE_ACTION( MemberDoubleAction )
 
         SPUSH( (long) pDouble );
         // TOS points to data field
-        localDoubleOps[ GET_VAR_OPERATION ] ( pCore );
+        doubleOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+// this is an internal op that is compiled before the data field of each array
+GFORTHOP( doDoubleArrayOp )
+{
+    // IP points to data field
+    int index = SPOP << 1;
+    SPUSH( ((long) ((GET_IP) + index)) );
+    doubleOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+    SET_IP( (long *) (RPOP) );
+}
+
+OPTYPE_ACTION( LocalDoubleArrayAction )
+{
+    int index = SPOP << 1;
+    SPUSH( ((long) ((GET_FP - opVal) + SPOP)) );
+    doubleOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+}
+
+OPTYPE_ACTION( FieldDoubleArrayAction )
+{
+    // TOS is struct base, NOS is index
+    // opVal is byte offset of double[0]
+    long pVar = SPOP + opVal;
+    pVar += (SPOP << 3);
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( pVar );
+        // TOS points to data field
+        doubleOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
     //} else {
@@ -479,23 +707,58 @@ OPTYPE_ACTION( MemberDoubleAction )
 ///
 //                     string
 // 
+// a string has 2 longs at its start:
+// - maximum string length
+// - current string length
+
+VAR_ACTION( doStringFetch )
+{
+    // TOS:  ptr to dst maxLen field
+    long a = (long) (SPOP + 8);
+    SPUSH( a );
+}
 
 VAR_ACTION( doStringStore ) 
 {
-    // IP points to data field
-    char *pA = (char *) (GET_IP);
-    strcpy( pA, (char *) SPOP );
+    // TOS:  ptr to dst maxLen field, ptr to src first byte
+    long *pLen = (long *) (SPOP);
+    char *pSrc = (char *) (SPOP);
+    long srcLen = strlen( pSrc );
+    long maxLen = *pLen++;
+    if ( srcLen > maxLen )
+    {
+        srcLen = maxLen;
+    }
+    // set current length
+    *pLen++ = srcLen;
+    char *pDst = (char *) pLen;
+    strncpy( pDst, pSrc, srcLen );
+    pDst[ srcLen ] = 0;
 }
 
 VAR_ACTION( doStringAppend ) 
 {
-    // IP points to data field
-    char *pA = (char *) (GET_IP);
-    strcat( pA, (char *) SPOP );
+    // TOS:  ptr to dst maxLen field, ptr to src first byte
+    long *pLen = (long *) (SPOP);
+    char *pSrc = (char *) (SPOP);
+    long srcLen = strlen( pSrc );
+    long maxLen = *pLen++;
+    long curLen = *pLen;
+    long newLen = curLen + srcLen;
+    if ( newLen > maxLen )
+    {
+        newLen = maxLen;
+        srcLen = maxLen - curLen;
+    }
+    // set current length
+    *pLen++ = newLen;
+    char *pDst = (char *) pLen;
+    strncat( pDst, pSrc, srcLen );
+    pDst[ newLen ] = 0;
 }
 
 VarAction stringOps[] = {
-    doIntRef,
+    doStringFetch,
     doIntRef,
     doStringStore,
     doStringAppend
@@ -503,14 +766,10 @@ VarAction stringOps[] = {
 
 GFORTHOP( doStringOp )
 {
-    
     // IP points to data field
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        SPUSH( (long) GET_IP );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarPlusStore) ) {
-
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( (long) (GET_IP) );
         stringOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
@@ -520,38 +779,12 @@ GFORTHOP( doStringOp )
     SET_IP( (long *) (RPOP) );
 }
 
-VAR_ACTION( doLocalStringStore ) 
-{
-    // IP points to data field
-    char *pA = (char *) SPOP;
-    strcpy( pA, (char *) SPOP );
-}
-
-VAR_ACTION( doLocalStringAppend ) 
-{
-    // IP points to data field
-    char *pA = (char *) SPOP;
-    strcat( pA, (char *) SPOP );
-}
-
-VarAction localStringOps[] = {
-    doLocalIntRef,
-    doLocalIntRef,
-    doLocalStringStore,
-    doLocalStringAppend
-};
-
 OPTYPE_ACTION( LocalStringAction )
 {
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
         SPUSH( (long)(GET_FP - opVal) );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarPlusStore) ) {
-
-        SPUSH( (long)(GET_FP - opVal) );
-        // TOS points to data field
-        localStringOps[ GET_VAR_OPERATION ] ( pCore );
+        stringOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
     //} else {
@@ -562,16 +795,11 @@ OPTYPE_ACTION( LocalStringAction )
 
 OPTYPE_ACTION( FieldStringAction )
 {
-    long *pVar = ((long *)*(GET_SP)) + opVal;
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        *(GET_SP) = (long) pVar;
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarPlusStore) ) {
-
-        *(GET_SP) = (long) pVar;
-        // TOS points to data field
-        localStringOps[ GET_VAR_OPERATION ] ( pCore );
+    long pVar = SPOP + opVal;
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( pVar );
+        stringOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
     //} else {
@@ -591,7 +819,7 @@ OPTYPE_ACTION( MemberStringAction )
 
         SPUSH( (long) pString );
         // TOS points to data field
-        localStringOps[ GET_VAR_OPERATION ] ( pCore );
+        stringOps[ GET_VAR_OPERATION ] ( pCore );
         CLEAR_VAR_OPERATION;
 
     //} else {
@@ -599,6 +827,176 @@ OPTYPE_ACTION( MemberStringAction )
     }
 }
 
+// this is an internal op that is compiled before the data field of each array
+GFORTHOP( doStringArrayOp )
+{
+    // IP points to data field
+    int index = SPOP;
+    long *pStr = GET_IP;
+    long len = ((*pStr) >> 2) + 3;      // length of one string in longwords
+    SPUSH( ((long) (pStr + (index * len))) );
+    stringOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+    SET_IP( (long *) (RPOP) );
+}
+
+OPTYPE_ACTION( LocalStringArrayAction )
+{
+    int index = SPOP;
+    long *pStr = GET_FP - opVal;
+    long len = ((*pStr) >> 2) + 3;      // length of one string in longwords
+    SPUSH( ((long) (pStr + (index * len))) );
+    stringOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+}
+
+OPTYPE_ACTION( FieldStringArrayAction )
+{
+    // TOS is struct base, NOS is index
+    // opVal is byte offset of string[0]
+    long *pStr = (long *) (SPOP + opVal);
+    long len = ((*pStr) >> 2) + 3;      // length of one string in longwords
+    int index = SPOP;
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( ((long) (pStr + (index * len))) );
+        // TOS points to data field
+        stringOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     op
+// 
+
+VAR_ACTION( doOpExecute ) 
+{
+    // IP points to data field
+    long prog[2];
+
+    // execute the opcode
+    prog[0] = *(long *)(SPOP);
+    prog[1] = BUILTIN_OP( OP_DONE );
+
+    SET_IP( prog );
+    InnerInterpreter( pCore );
+}
+
+VarAction opOps[] = {
+    doOpExecute,
+    doIntRef,
+    doIntStore,
+};
+
+GFORTHOP( doOpOp )
+{    
+    // IP points to data field
+    if ( GET_VAR_OPERATION <= kVarStore )
+    {
+        SPUSH( (long) (GET_IP) );
+        opOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+    SET_IP( (long *) (RPOP) );
+}
+
+OPTYPE_ACTION( LocalOpAction )
+{
+    if ( GET_VAR_OPERATION <= kVarStore )
+    {
+        SPUSH( (long)(GET_FP - opVal) );
+        opOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+
+OPTYPE_ACTION( FieldOpAction )
+{
+    long pVar = SPOP + opVal;
+
+    if ( GET_VAR_OPERATION <= kVarStore )
+    {
+        SPUSH( pVar );
+        // TOS points to data field
+        opOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+
+OPTYPE_ACTION( MemberOpAction )
+{
+    long *pOp = ((long *) (GET_TP[1])) + opVal;
+    if ( GET_VAR_OPERATION <= kVarStore )
+    {
+        SPUSH( (long) pOp );
+        // TOS points to data field
+        opOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+// this is an internal op that is compiled before the data field of each array
+GFORTHOP( doOpArrayOp )
+{
+    // IP points to data field
+    int index = SPOP;
+    SPUSH( ((long) ((GET_IP) + index)) );
+    opOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+    SET_IP( (long *) (RPOP) );
+}
+
+OPTYPE_ACTION( LocalOpArrayAction )
+{
+    int index = SPOP;
+    SPUSH( ((long) ((GET_FP - opVal) + index)) );
+    opOps[ GET_VAR_OPERATION ] ( pCore );
+    CLEAR_VAR_OPERATION;
+}
+
+OPTYPE_ACTION( FieldOpArrayAction )
+{
+    // TOS is struct base, NOS is index
+    // opVal is byte offset of op[0]
+    long pVar = SPOP + opVal;
+    pVar += (SPOP << 2);
+    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    {
+        SPUSH( pVar );
+        // TOS points to data field
+        opOps[ GET_VAR_OPERATION ] ( pCore );
+        CLEAR_VAR_OPERATION;
+
+    //} else {
+        // TBD: report GET_VAR_OPERATION out of range
+    }
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
 
 OPTYPE_ACTION( BuiltinAction )
 {
@@ -690,6 +1088,15 @@ OPTYPE_ACTION( OffsetAction )
     SPUSH( v );
 }
 
+OPTYPE_ACTION( ArrayOffsetAction )
+{
+    // opVal is array element size
+    // TOS is array base, index
+    char* pArray = (char *) (SPOP);
+    pArray += ((SPOP) * opVal);
+    SPUSH( (long) pArray );
+}
+
 OPTYPE_ACTION( ConstantStringAction )
 {
     // push address of immediate string & skip over
@@ -712,9 +1119,15 @@ OPTYPE_ACTION( InitLocalStringAction )
     // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
     // init the current & max length fields of a local string
     long* pFP = GET_FP;
-    long* pStr = pFP + (opVal >> 12);
+    long* pStr = pFP - (opVal >> 12);
     *pStr++ = (opVal & 0xFFF);          // max length
-    *pStr = 0;                          // current length
+    *pStr++ = 0;                        // current length
+    *((char *) pStr) = 0;               // terminating null
+}
+
+OPTYPE_ACTION( LocalRefAction )
+{
+    SPUSH( (long)(GET_FP - opVal) );
 }
 
 OPTYPE_ACTION( MethodWithThisAction )
@@ -809,28 +1222,55 @@ optypeActionRoutine builtinOptypeAction[] =
 
     ConstantAction,
     OffsetAction,
+    ArrayOffsetAction,
 
     ConstantStringAction,
 
     AllocLocalsAction,
     InitLocalStringAction,
+    LocalRefAction,
 
+    LocalByteAction,
+    LocalShortAction,
     LocalIntAction,
     LocalFloatAction,
     LocalDoubleAction,
     LocalStringAction,
+    LocalOpAction,
 
+    FieldByteAction,
+    FieldShortAction,
     FieldIntAction,
     FieldFloatAction,
     FieldDoubleAction,
     FieldStringAction,
+    FieldOpAction,
+
+    LocalByteArrayAction,
+    LocalShortArrayAction,
+    LocalIntArrayAction,
+    LocalFloatArrayAction,
+    LocalDoubleArrayAction,
+    LocalStringArrayAction,
+    LocalOpArrayAction,
+
+    FieldByteArrayAction,
+    FieldShortArrayAction,
+    FieldIntArrayAction,
+    FieldFloatArrayAction,
+    FieldDoubleArrayAction,
+    FieldStringArrayAction,
+    FieldOpArrayAction,
 
     MethodWithThisAction,
 
+    MemberIntAction,    // TBD: byte
+    MemberIntAction,    // TBD: short
     MemberIntAction,
     MemberFloatAction,
     MemberDoubleAction,
     MemberStringAction,
+    MemberOpAction,
 
     NULL            // this must be last to end the list
 };
@@ -934,3 +1374,4 @@ InnerInterpreter( ForthCoreState *pCore )
 
 
 };      // end extern "C"
+

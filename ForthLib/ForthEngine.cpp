@@ -28,6 +28,8 @@ static char *gOpNames[ NUM_TRACEABLE_OPS ];
 
 #endif
 
+ForthEngine* ForthEngine::mpInstance = NULL;
+
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
@@ -46,8 +48,12 @@ ForthEngine::ForthEngine()
 , mpErrorString( NULL )
 , mFastMode( false )
 , mpLastCompiledOpcode( NULL )
+, mNumElements( 0 )
+, mpStructsManager( NULL )
 {
     // scratch area for temporary definitions
+    ASSERT( mpInstance == NULL );
+    mpInstance = this;
     mpEngineScratch = new long[70];
     mpCore = new ForthCoreState;
     InitCore( mpCore );
@@ -62,6 +68,7 @@ ForthEngine::~ForthEngine()
         delete mpMainVocab;
         delete mpLocalVocab;
         delete mpPrecedenceVocab;
+        delete mpStructsManager;
         delete [] mpStringBufferA;
         delete [] mpStringBufferB;
     }
@@ -86,6 +93,12 @@ ForthEngine::~ForthEngine()
     delete mpCore;
 }
 
+ForthEngine*
+ForthEngine::GetInstance( void )
+{
+    ASSERT( mpInstance != NULL );
+    return mpInstance;
+}
 
 //############################################################################
 //
@@ -104,10 +117,9 @@ ForthEngine::Initialize( int                totalLongs,
     mpCore->DP = mpCore->DBase;
     mpCore->pEngine = this;
 
-    mpMainVocab = new ForthVocabulary( this, "forth" );
-    mpLocalVocab = new ForthVocabulary( this, "local_vars" );
-    mpPrecedenceVocab = new ForthPrecedenceVocabulary( this, "precedence_ops" );
-
+    mpMainVocab = new ForthVocabulary( "forth", NUM_FORTH_VOCAB_VALUE_LONGS );
+    mpLocalVocab = new ForthVocabulary( "locals", NUM_LOCALS_VOCAB_VALUE_LONGS );
+    mpPrecedenceVocab = new ForthPrecedenceVocabulary( "precedence_ops" );
     mpStringBufferA = new char[256 * NUM_INTERP_STRINGS];
     mpStringBufferB = new char[TMP_STRING_BUFFER_LEN];
 
@@ -116,6 +128,8 @@ ForthEngine::Initialize( int                totalLongs,
     mpCore->numUserOps = 0;
     mpCore->maxUserOps = 128;
     mpCore->userOps = (long **) malloc( sizeof(long *) * mpCore->maxUserOps );
+
+    mpStructsManager = new ForthStructsManager();
 
     Reset();
 
@@ -190,7 +204,7 @@ ForthEngine::ErrorReset( void )
 }
 
 
-// add an op to dictionary
+// add an op to engine dispatch table
 long
 ForthEngine::AddOp( const long *pOp, forthOpType symType )
 {
@@ -279,7 +293,7 @@ ForthEngine::ForgetOp( ulong opNumber )
 bool
 ForthEngine::ForgetSymbol( const char *pSym )
 {
-    void *pEntry = NULL;
+    long *pEntry = NULL;
     ForthVocabulary *pFoundVocab = NULL;
     long op;
     forthOpType opType;
@@ -387,20 +401,25 @@ ForthEngine::PopInputStream( void )
 
 
 
-void
-ForthEngine::StartOpDefinition( bool smudgeIt )
+long *
+ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt )
 {
     mpLocalVocab->Empty();
     mLocalFrameSize = 0;
     mpLocalAllocOp = NULL;
     mpLastCompiledOpcode = NULL;
     AlignDP();
-    mpDefinitionVocab->AddSymbol( GetNextSimpleToken(), kOpUserDef, (long) mpCore->DP, true );
+    if ( pName == NULL )
+    {
+        pName = GetNextSimpleToken();
+    }
+    long* pEntry = mpDefinitionVocab->AddSymbol( pName, kOpUserDef, (long) mpCore->DP, true );
     if ( smudgeIt )
     {
         mpDefinitionVocab->SmudgeNewestSymbol();
     }
-    mCompileFlags &= (~kFECompileFlagInVarsDefinition);
+
+    return pEntry;
 }
 
 
@@ -422,42 +441,70 @@ ForthEngine::EndOpDefinition( bool unsmudgeIt )
 }
 
 
-void *
+long *
 ForthEngine::FindSymbol( const char *pSymName )
 {
-    void *pEntry = NULL;
+    long *pEntry = NULL;
     if ( (pEntry = mpPrecedenceVocab->FindSymbol( pSymName )) == NULL ) {
         pEntry = mpSearchVocab->FindSymbol( pSymName );
     }
     return pEntry;
 }
 
+void
+ForthEngine::StartStructDefinition( void )
+{
+    mCompileFlags |= kFECompileFlagInStructDefinition;
+}
 
 void
-ForthEngine::StartVarsDefinition( void )
+ForthEngine::EndStructDefinition( void )
 {
-    mCompileFlags |= (kFECompileFlagInVarsDefinition | kFECompileFlagHasLocalVars);
+    mCompileFlags &= (~kFECompileFlagInStructDefinition);
+}
+
+long
+ForthEngine::AddLocalVar( const char        *pVarName,
+                          forthNativeType   varType,
+                          long              varSize )
+{
     if ( mpLocalAllocOp == NULL ) {
-        // leave space for local alloc op
+        // this is first local var definition, leave space for local alloc op
+        mCompileFlags |= kFECompileFlagHasLocalVars;
         mpLocalAllocOp = mpCore->DP;
         CompileLong( 0 );
     }
-}
-
-void
-ForthEngine::EndVarsDefinition( void )
-{
-    mCompileFlags &= (~kFECompileFlagInVarsDefinition);
-}
-
-void
-ForthEngine::AddLocalVar( const char    *pVarName,
-                          forthOpType   varType,
-                          long          varSize )
-{
     varSize = ((varSize + 3) & ~3) >> 2;
     mLocalFrameSize += varSize;
-    mpLocalVocab->AddSymbol( pVarName, varType, mLocalFrameSize, false );
+    long *pEntry = mpLocalVocab->AddSymbol( pVarName, (forthOpType)(kOpLocalByte + varType), mLocalFrameSize, false );
+    // TBD: support strings...
+    // TBD: support structs...
+    pEntry[1] = NATIVE_TYPE_TO_CODE( kDTNativeVariable, varType );
+
+    return mLocalFrameSize;
+}
+
+long
+ForthEngine::AddLocalArray( const char          *pArrayName,
+                            forthNativeType     elementType,
+                            long                elementSize )
+{
+    long arraySize = elementSize * mNumElements;
+    if ( mpLocalAllocOp == NULL ) {
+        // this is first local var definition, leave space for local alloc op
+        mCompileFlags |= kFECompileFlagHasLocalVars;
+        mpLocalAllocOp = mpCore->DP;
+        CompileLong( 0 );
+    }
+    arraySize = ((arraySize + 3) & ~3) >> 2;
+    mLocalFrameSize += arraySize;
+    long *pEntry = mpLocalVocab->AddSymbol( pArrayName, (forthOpType)(kOpLocalByteArray + elementType), mLocalFrameSize, false );
+    // TBD: support string arrays...
+    // TBD: support struct arrays...
+    pEntry[1] = NATIVE_TYPE_TO_CODE( kDTNativeArray, elementType );
+
+    mNumElements = 0;
+    return mLocalFrameSize;
 }
 
 #if 0
@@ -520,11 +567,12 @@ ForthEngine::IsExecutableType( forthOpType      symType )
 static char *opTypeNames[] = {
     "BuiltIn", "UserDefined", 
     "Branch", "BranchTrue", "BranchFalse", "CaseBranch",
-    "Constant", "Offset", "ConstantString",
+    "Constant", "Offset", "ArrayOffset", "ConstantString",
     "AllocLocals", "InitLocalString",
-    "LocalInt", "LocalFloat", "LocalDouble", "LocalString",
+    "LocalByte", "LocalShort", "LocalInt", "LocalFloat", "LocalDouble", "LocalString",
+    "FieldByte", "FieldShort", "FieldInt", "FieldFloat", "FieldDouble", "FieldString",
     "InvokeClassMethod",    
-    "MemberInt", "MemberFloat", "MemberDouble", "MemberString",
+    "MemberByte", "MemberShort", "MemberInt", "MemberFloat", "MemberDouble", "MemberString",
 };
 
 // TBD: tracing of built-in ops won't work for user-added builtins...
@@ -570,6 +618,10 @@ ForthEngine::TraceOp()
                 opVal |= 0xFF000000;
             }
             TRACE( "# %s    %d   @ IP = 0x%x\n", opTypeNames[opType], opVal, ip );
+            break;
+            
+        case kOpArrayOffset:
+            TRACE( "# %s    elementSize %d  @ IP = 0x%x\n", opTypeNames[opType], opVal, ip );
             break;
             
         default:
@@ -1003,7 +1055,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 
     // check for local variables
     if ( mCompileState) {
-        pSymbol = (long *) mpLocalVocab->FindSymbol( pInfo );
+        pSymbol = mpLocalVocab->FindSymbol( pInfo );
         if ( pSymbol ) {
             ////////////////////////////////////
             //

@@ -1,15 +1,15 @@
 // help definitions for builtin ops
-addHelp abort
-addHelp drop
-addHelp _doDoes
-addHelp lit
-addHelp flit
-addHelp dlit
+addHelp abort	abort		terminate execution with fatal error
+addHelp drop	VAL drop	drop top element of param stack
+addHelp _doDoes			INTERNAL
+addHelp lit			pushes longword which is compiled immediately after it
+addHelp flit			INTERNAL - pushes float which is compiled immediately after it
+addHelp dlit			pushes double which is compiled immediately after it
 addHelp _doVariable
 addHelp _doConstant
 addHelp _doDConstant
 addHelp _endBuilds
-addHelp done
+addHelp done			makes inner interpreter return - used by outer interpreter
 addHelp _doInt
 addHelp _doFloat
 addHelp _doDouble
@@ -24,27 +24,28 @@ addHelp _exitM
 addHelp _exitML
 addHelp _doVocab
 
-addHelp +
-addHelp -
-addHelp *
-addHelp 2*
-addHelp 4*
-addHelp /
-addHelp 2/
-addHelp 4/
-addHelp /mod
-addHelp mod
-addHelp negate
+addHelp +	A B + ... (A+B)		add top two items
+addHelp -	A B - ... (A-B)		subtract top two items
+addHelp *	A B * ... (A*B) 	mutliply top two items
+addHelp 2*	A 2* ... (A*2)		multiply top item by 2
+addHelp 4*	A 4* ... (A*4)		multiply top item by 4
+addHelp 8*	A 8* ... (A*8)		multiply top item by 8
+addHelp /	A B / ... (A/B)		divide top two items
+addHelp 2/	A 2/ ... (A/2)		divide top item by 2
+addHelp 4/	A 4/ ... (A/4)		divide top item by 4
+addHelp /mod	A B /mod ... (A/B) (A mod B)	divide top two items, return quotient & remainder
+addHelp mod	A B mod ... (A mod B)	take modulus of top two items
+addHelp negate	A negate ... (-A)	negate top item
 
-addHelp f+
-addHelp f-
-addHelp f*
-addHelp f/
+addHelp f+	FA FB f+ ... (FA+FB)	add top two floating point items
+addHelp f-	FA FB f- ... (FA-FB)	subtract top two floating point items
+addHelp f*	FA FB f* ... (FA*FB)	multiply top two floating point items
+addHelp f/	FA FB f/ ... (FA/FB)	divide top two floating point items
 
-addHelp d+
-addHelp d-
-addHelp d*
-addHelp d/
+addHelp d+	FA FB f+ ... (FA+FB)	add top two floating point items
+addHelp d-	FA FB f- ... (FA-FB)	subtract top two floating point items
+addHelp d*	FA FB f* ... (FA*FB)	multiply top two floating point items
+addHelp d/	FA FB f/ ... (FA/FB)	divide top two floating point items
 
 addHelp dsin
 addHelp darcsin

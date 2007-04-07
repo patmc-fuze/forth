@@ -6,6 +6,9 @@
 #if !defined(AFX_STDAFX_H__0A0B1769_8766_11D4_A3C4_84B80AB96A51__INCLUDED_)
 #define AFX_STDAFX_H__0A0B1769_8766_11D4_A3C4_84B80AB96A51__INCLUDED_
 
+// compile for Win2K or newer
+#define WINVER 0x0500
+
 #if _MSC_VER > 1000
 #pragma once
 #endif // _MSC_VER > 1000

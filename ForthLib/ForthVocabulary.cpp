@@ -19,12 +19,13 @@
 
 // symbol entry layout:
 // offset   contents
-//  0..3    4-byte symbol value - high byte is symbol type
-//  4       symbol length (not including padding)
-//  5..n    symbol characters
+//  0..3    4-byte symbol value - high byte is symbol type - usually this is opcode for symbol
+//  ...     0 or more extra symbol value fields
+//  N       1-byte symbol length (not including padding)
+//  N+1     symbol characters
 //
-//  n is chosen so that the total symbol entry length is a multiple of 4,
-//  padded with 0s if necessary.  This allows faster dictionary searches
+//  The total symbol entry length is always a multiple of 4, padded with 0s
+//  if necessary.  This allows faster dictionary searches.
 
 // vocabulary symbol storage grows downward, and is searched from the
 // bottom upward (try to match newest symbols first)
@@ -43,14 +44,12 @@ ForthVocabulary *ForthVocabulary::mpChainHead = NULL;
 //
 //
 
-ForthVocabulary::ForthVocabulary( ForthEngine   *pEngine,
-                                  const char    *pName,
+ForthVocabulary::ForthVocabulary( const char    *pName,
                                   int           valueLongs,
                                   int           storageBytes,
                                   void*         pForgetLimit,
                                   long          op )
 : ForthForgettable( pForgetLimit, op )
-, mpEngine( pEngine )
 , mpSearchNext( NULL )
 , mpName( NULL )
 , mValueLongs( valueLongs ) 
@@ -65,6 +64,7 @@ ForthVocabulary::ForthVocabulary( ForthEngine   *pEngine,
     if ( pName != NULL ) {
         SetName( pName );
     }
+    mpEngine = ForthEngine::GetInstance();
     Empty();
 }
 
@@ -135,7 +135,7 @@ ForthVocabulary::GetNextSearchVocabulary( void )
 }
 
 
-long
+long *
 ForthVocabulary::AddSymbol( const char      *pSymName,
                             forthOpType     symType,
                             long            symValue,
@@ -210,17 +210,17 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
     
     mNumSymbols++;
     
-    return symValue;
+    return mpStorageBottom;
 }
 
 
 // copy a symbol table entry, presumably from another vocabulary
 void
-ForthVocabulary::CopyEntry( const void *pEntry )
+ForthVocabulary::CopyEntry( long *pEntry )
 {
     int numLongs;
 
-    numLongs = (long *) NextEntry( pEntry ) - (long *) pEntry;
+    numLongs = NextEntry( pEntry ) - pEntry;
     mpStorageBottom -= numLongs;
     memcpy( mpStorageBottom, pEntry, numLongs * sizeof(long) );
     mNumSymbols++;
@@ -229,19 +229,19 @@ ForthVocabulary::CopyEntry( const void *pEntry )
 
 // delete single symbol entry
 void
-ForthVocabulary::DeleteEntry( void *pEntry )
+ForthVocabulary::DeleteEntry( long *pEntry )
 {
-    void *pNextEntry;
+    long *pNextEntry;
     int numLongs, entryLongs;
     long *pSrc, *pDst;
 
     pNextEntry = NextEntry( pEntry );
-    entryLongs = (long *) pNextEntry - (long *) pEntry;
+    entryLongs = pNextEntry - pEntry;
     if ( pEntry != mpStorageBottom ) {
         // there are newer symbols than entry, need to move newer symbols up
-        pSrc = ((long *) pEntry) - 1;
-        pDst = ((long *) pNextEntry) - 1;
-        numLongs = ((long *) pEntry) - mpStorageBottom;
+        pSrc = pEntry - 1;
+        pDst = pNextEntry - 1;
+        numLongs = pEntry - mpStorageBottom;
         while ( numLongs-- > 0 ) {
             *pDst-- = *pSrc--;
         }
@@ -296,9 +296,9 @@ ForthVocabulary::ForgetSymbol( const char *pSymName )
             if ( j == symLen ) {
                 // found it
                 done = true;
-                pNewBottom = (long *) NextEntry( pEntry );
+                pNewBottom = NextEntry( pEntry );
             } else {
-                pEntry = (long *) NextEntry( pEntry );
+                pEntry = NextEntry( pEntry );
             }
         }
     }
@@ -344,8 +344,8 @@ ForthVocabulary::ForgetOp( long op )
         if ( opVal >= op )
         {
             symbolsLeft--;
-            pEntry = (long *) NextEntry( pEntry );
-            mpStorageBottom = (long *) pEntry;
+            pEntry = NextEntry( pEntry );
+            mpStorageBottom = pEntry;
             mNumSymbols = symbolsLeft;
         }
         else
@@ -357,7 +357,7 @@ ForthVocabulary::ForgetOp( long op )
 
 
 // return ptr to vocabulary entry for symbol
-void *
+long *
 ForthVocabulary::FindSymbol( const char *pSymName )
 {
     long tmpSym[SYM_MAX_LONGS];
@@ -370,7 +370,7 @@ ForthVocabulary::FindSymbol( const char *pSymName )
 
 
 // return ptr to vocabulary entry for symbol
-void *
+long *
 ForthVocabulary::FindSymbol( ForthParseInfo     *pInfo )
 {
     int i, j, symLen;
@@ -395,7 +395,7 @@ ForthVocabulary::FindSymbol( ForthParseInfo     *pInfo )
             // found it
             return pEntry;
         }
-        pEntry = (long *) NextEntry( pEntry );
+        pEntry = NextEntry( pEntry );
     }
     
     // symbol isn't in vocabulary
@@ -407,10 +407,10 @@ ForthVocabulary::FindSymbol( ForthParseInfo     *pInfo )
 // return vocab entry pointer if found, else NULL
 // execute opcode in context of thread g
 // exitStatus is only set if opcode is executed
-void *
+long *
 ForthVocabulary::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus )
 {
-    long *pEntry = (long *) FindSymbol( pInfo );
+    long *pEntry = FindSymbol( pInfo );
     if ( pEntry != NULL )
     {
         if ( mpEngine->IsCompiling() )
@@ -455,11 +455,10 @@ ForthVocabulary::UnSmudgeNewestSymbol( void )
 //
 //
 
-ForthPrecedenceVocabulary::ForthPrecedenceVocabulary( ForthEngine   *pEngine,
-                                                      const char    *pName,
+ForthPrecedenceVocabulary::ForthPrecedenceVocabulary( const char    *pName,
                                                       int           valueLongs,
                                                       int           storageBytes )
-: ForthVocabulary( pEngine, pName, valueLongs, storageBytes )
+: ForthVocabulary( pName, valueLongs, storageBytes )
 {
 }
 
@@ -471,10 +470,10 @@ ForthPrecedenceVocabulary::~ForthPrecedenceVocabulary()
 // return vocab entry pointer if found, else NULL
 // execute opcode in context of thread g
 // exitStatus is only set if opcode is executed
-void *
+long *
 ForthPrecedenceVocabulary::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus )
 {
-    long *pEntry = (long *) FindSymbol( pInfo );
+    long *pEntry = FindSymbol( pInfo );
     if ( pEntry != NULL )
     {
         // execute the opcode
@@ -488,27 +487,27 @@ ForthPrecedenceVocabulary::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& e
 }
 
 
+#if 0
 //////////////////////////////////////////////////////////////////////
 ////
-///     ForthLocalVarVocabulary
+///     ForthLocalsVocabulary
 //
 //
 
-ForthLocalVarVocabulary::ForthLocalVarVocabulary( ForthEngine   *pEngine,
-                                                  const char    *pName,
+ForthLocalsVocabulary::ForthLocalsVocabulary( ForthEngine   *pEngine,
                                                   int           storageBytes )
-: ForthVocabulary( pEngine, pName, 1, storageBytes )
+: ForthVocabulary( pEngine, "locals", NUM_LOCALS_VOCAB_VALUE_LONGS, storageBytes )
 {
 }
 
-ForthLocalVarVocabulary::~ForthLocalVarVocabulary()
+ForthLocalsVocabulary::~ForthLocalsVocabulary()
 {
 }
 
 // delete symbol entry and all newer entries
 // return true IFF symbol was forgotten
 bool
-ForthLocalVarVocabulary::ForgetSymbol( const char *pSymName )
+ForthLocalsVocabulary::ForgetSymbol( const char *pSymName )
 {
     return false;
 }
@@ -516,8 +515,9 @@ ForthLocalVarVocabulary::ForgetSymbol( const char *pSymName )
 
 // forget all ops with a greater op#
 void
-ForthLocalVarVocabulary::ForgetOp( long op )
+ForthLocalsVocabulary::ForgetOp( long op )
 {
 }
 
+#endif
 

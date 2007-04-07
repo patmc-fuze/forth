@@ -48,7 +48,7 @@ Structure support issues and current answers:
 
 8) How should struct members which are ops be supported
 -> for now, just use int fields and "execute"
--> TBD, probably wait until class support
+-> op vars have no return type, and op fields must be final accessors.
 
 9) How should you get the address of a structure field
 -> for now, just precede the op with the addressOf op: addressOf c.x
@@ -61,7 +61,7 @@ Structure support issues and current answers:
 -> "sizeOf STRUCT_TYPE" should return the number of bytes in a struct
 
 11) Should arrayOf and ptrTo be usable outside of struct definitions?
--> ptrTo at least should be - otherwise how do you get a global struct ptr
+-> arrayOf & ptrTo should be usable for global and local variables
 
 12) Should strings be allowed in structs?  If so, string fields in local
     and global structs will have to have their max & current length fields
@@ -69,18 +69,34 @@ Structure support issues and current answers:
     This will need to be ?recursive? - a struct may contain a struct which
     contains strings...
     What about structs containing arrays of strings?
--> TBD
+-> Maybe leave it up to the the user to create an initialization op for structs
+   which have strings, and to invoke the initialization op on local or global
+   structs which need it
+-> Automatic initialization might not be so bad - there are only 2 cases,
+   strings and arrays of strings
 
 13) Should there be ops for getting field offsets and sizes?
+-> There will be sizeOf and offsetOf ops
 
 14) How complex should field definitions be allowed to be?
     Should we allow stuff like:
       ptrTo ptrTo int         ppGallons
-      ptrTo arrayOf 20 char   firstName
-      arrayOf 3 ptrTo coord   pVerts
-      ptrTo arrayOf 3 coord   pVerts
+      ptrTo 20 arrayOf char   firstName
+      3 arrayOf ptrTo coord   pVerts
+      ptrTo 3 arrayOf coord   pVerts
     If not, what are the rules for defining fields?
-    
+-> a field must be one of the following:
+   1) builtin - byte, short, int, float, double, string, op
+   2) struct
+   3) ptrTo builtin
+   4) ptrTo struct
+   5) arrayOf builtin
+   6) arrayOf struct
+   Anything more complex is created by defining multiple struct types.
+
+15) How should misaligned field definitions be handled?
+-> Force the fields to be aligned and print a warning
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 
 - add vocabulary that holds all struct definitions
@@ -98,11 +114,190 @@ Structure support issues and current answers:
   - double
   - short
   - byte
+  - op
   - sizeOf
+  - addressOf
 - add struct runtime ops
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-March 16 2007
+A native type has:
+- size
+- field action op
+- local action op
+? field array action op
+? local array action op
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 22 2007
+
+We need a way to get from a symbol to its struct or native type.
+Vocabulary lookup will give us the opcode for structs.
+For local structs, we should add another field to each local vocab entry
+which tells the type of the local var.
+For global structs, we could use the opcode to index into the engine's dispatch
+table to get the structs code address.  The op at the code address is unique
+to one struct type.
+Maybe we should dedicate an op type to global struct ops, these ops would
+always just push the address of the immediately following struct, but their
+opVal field could hold the struct type.
+Maybe we should just add a field to all user vocab entries to hold the
+struct type.
+
+There will be an array with an element for each struct type.  What needs to
+be in each element?
+1) pointer to vocabulary for this struct type
+2) size of this struct type
+3) opcode for the defining op for this struct type (for doing forget)
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 21 2007
+
+struct SNAME
+  Starts definition of a structure type called SNAME.
+  Creates the SNAME vocabulary under the structs vocabulary.
+  Adds SNAME to the structs vocabulary.
+
+endstruct
+  Finishes a struct definition.
+
+N arrayOf DECLARATION
+  Marks the next variable or field declaration as being an array with N elements.
+  NOTE: when compiling, N must be an immediately preceeding integer, not the
+    result of a calculation on top of the stack.
+  NOTE: this should be the first item in a declaration.
+
+ptrTo DECLARATION
+  Marks the next variable or field declaration as being a pointer type.
+  A ptrTo X is functionally the same as an int - it can do fetch, addressOf, ->, ->+, ->-
+  ->+ and ->- add/subtract byte offsets to the pointer.
+  All pointer variable ops share the same action code, regardless of the type
+    that it points to.
+
+op OPNAME
+  Declares an executable variable or field
+
+sizeOf STRUCT_TYPE/NATIVE_TYPE
+  Returns the size in bytes of a struct or native type
+
+offsetOf STRUCT_TYPE.FIELD_TYPE
+  Returns the offset in bytes of specified field in specified struct
+
+STRUCT_TYPE.FIELD_TYPE
+  Treats top of stack as a pointer to a struct of type STRUCT_TYPE, & compiles
+  or interprets offsets for one or more field accessors
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 20 2007
+
+lc.x
+        lc      PENDING:LocalOffset(lc)
+        x       LocalIntAction(lc + x)
+lcp.x
+        lcp     LocalPtrFetch(lcp)
+        x       LocalPtrFetch(lcp) FieldIntAction(x)
+gc.x
+        gc      gc
+        x       gc FieldIntAction(x)
+gcp.x
+        gcp     gcp @
+        x       gcp @ FieldIntAction(x)
+lc.pNext
+        lc      PENDING:LocalOffset(lc)
+        pNext   LocalPtrAction(lc + pNext)
+lcp.pNext
+        lcp     LocalPtrFetch(lcp)
+        pNext   LocalPtrFetch(lcp) FieldPtrAction(pNext)
+gc.pNext
+        gc      gc
+        pNext   gc FieldPtrAction(pNext)
+gcp.pNext
+        gcp     gcp @
+        pNext   gcp @ FieldPtrAction(pNext)
+
+lc.pNext.y
+        lc      PENDING:LocalOffset(lc)
+        pNext   LocalPtrFetch(lc + pNext)
+        y       LocalPtrFetch(lc + pNext) FieldIntAction(y)
+lcp.pNext.y
+        lcp     LocalPtrFetch(lcp)
+        pNext   LocalPtrFetch(lcp) FieldPtrFetch(pNext)
+        y       LocalPtrFetch(lcp) FieldPtrFetch(pNext) FieldIntAction(y)
+gc.pNext.y
+        gc      gc
+        pNext   gc FieldPtrFetch(pNext)
+        y       gc FieldPtrFetch(pNext) FieldIntAction(y)
+gcp.pNext.y
+        gcp     gcp @
+        pNext   gcp @ FieldPtrFetch(pNext)
+        y       gcp @ FieldPtrFetch(pNext) FieldIntAction(y)
+
+op fields
+o default operation is execute
+o reference operation returns unexecuted op
+o store operation sets the op to execute
+x ptrTo op fields may be followed by additional field accessors
+x op field that returns a native type (say int) has to be the final accessor
+x op fields that return non-native types (structs, arrays) are illegal.
+o global op fields should be inited to an "uninitialized op var" op
+? what syntax should be used
+    op ptrTo coord getCoord
+    ptrTo coord op getCoord
+? how do ptrTo, op and arrayOf interact
+  10 arrayOf op ptrTo coord
+  10 arrayOf ptrTo op
+
+Define a void type:
+o a void field or ptrTo void field must be the final accessor
+x you could also use void as the return type for op fields which
+  you don't want to use field accessors for, for example an op field that
+  returns multiple result items.
+o a ptrTo void is functionally the same as an int - it can do fetch, ->, ->+, ->-
+
+arrayOf must always be the first op in a variable or field definition, and is
+always immediately preceeded by an integer.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 19 2007
+
+Maybe use a stack-like arrangement for generating struct accessor code, and
+when you are going to add a new accessor op, you examine the op on the top
+of the stack to see if you can combine the new op with it
+
+We should allow fields to contain ops, that way a struct could have an op
+that would return a pointer to a struct or native type.  The only problem
+I can see is that you would need to define the pointer type that the op
+returns
+
+Optypes:
+
+GlobalStruct( op )
+GlobalStructPtr( op )
+LocalStruct( offset )
+LocalStructPtr( offset )
+
+LocalNativeAction( offset )
+LocalPtrAction( offset )
+    just supports fetch & store
+LocalPtrFetch( offset )
+
+FieldNativeAction( offset )
+FieldPtrAction( offset )
+FieldPtrFetch( offset )
+
+ArrayIndex( elementSize )
+Fetch
+AddOffset( offset )
+
+AddOffset is rarely compiled, it is usually combined with some following op.
+The only case I can think of where AddOffset would be compiled is if it was
+immediately followed by ArrayIndex
+
+The outer interpreter only needs to keep extra information about the last
+accessor op
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 16-18 2007
 
 There will be a dedicated structs vocabulary, which contains a symbol for
 each defined struct type.
@@ -117,8 +312,8 @@ There needs to be a way to find out the structure type for both global and
 local structs.
 
 The struct defining words will need to be able to distinguish between:
-    arrayOf 3 ptrTo coord verts
-and   ptrTo arrayOf 3 coord verts
+    3 arrayOf 3 ptrTo coord verts
+and   ptrTo 3 arrayOf coord verts
 unless we don't allow one or the other
 
 What about stuff like:
@@ -160,17 +355,19 @@ gcp   global coord ptr
 |       generated code    |
 ---------------------------
 lc
-        localStructOp(frameOffset(lc))
+        LocalStructOp(frameOffset(lc))
 lcp
-        localPtrOpframeOffset(lcp))
+        LocalPtrOp(frameOffset(lcp))
 gc
         gc
 gcp
         gcp
 
 lc.x
-        localAddr(frameOffset(lc))                          localIntAction(frameOffset(lc) + fieldOffset(x))
+        LocalStruct(frameOffset(lc))
         fieldIntAction(fieldOffset(x))
+  OPTIMIZED:
+	localIntAction(frameOffset(lc) + fieldOffset(x))
 lcp.x
         localPtrFetch(frameOffset(lcp))
         fieldIntAction(fieldOffset(x))
@@ -184,35 +381,40 @@ gcp.x
         fieldIntAction(fieldOffset(x))
 
 lc.pNext
-        localAddr(frameOffset(lc))                	        localPtrAction(frameOffset(lc) + fieldOffset(pNext))
-        offsetPtrAction(fieldOffset(pNext))
+        LocalStruct(frameOffset(lc))                	        
+        FieldPtrAction(fieldOffset(pNext))
+  OPTIMIZED:
+	localPtrAction(frameOffset(lc) + fieldOffset(pNext))
 lcp.pNext
         localPtrFetch(frameOffset(lcp))
-        offsetPtrAction(fieldOffset(pNext))
+        FieldPtrAction(fieldOffset(pNext))
 gc.pNext
         gc
-        offsetPtrAction(fieldOffset(pNext))
+        FieldPtrAction(fieldOffset(pNext))
 gcp.pNext
         gcp
         @
-        offsetPtrAction(fieldOffset(pNext))
+        FieldPtrAction(fieldOffset(pNext))
 
 lc.pNext.y
-        localAddr(frameOffset(lc))                          localPtrFetch(frameOffset(lc) + fieldOffset(pNext))
-        offsetPtrFetch(fieldOffset(pNext))                  fieldIntAction(fieldOffset(y))
+        LocalStruct(frameOffset(lc))
+        fieldtPtrFetch(fieldOffset(pNext))
         fieldIntAction(fieldOffset(y))
+  OPTIMIZED:
+	localPtrFetch(frameOffset(lc) + fieldOffset(pNext))
+	fieldIntAction(fieldOffset(y))
 lcp.pNext.y
         localPtrFetch(frameOffset(lcp))
-        offsetPtrFetch(fieldOffset(pNext))
+        fieldPtrFetch(fieldOffset(pNext))
         fieldIntAction(fieldOffset(y))
 gc.pNext.y
         gc
-        offsetPtrFetch(fieldOffset(pNext))
+        fieldPtrFetch(fieldOffset(pNext))
         fieldIntAction(fieldOffset(y))
 gcp.pNext.y
         gcp
         @
-        offsetPtrFetch(fieldOffset(pNext))
+        fieldPtrFetch(fieldOffset(pNext))
         fieldIntAction(fieldOffset(y))
 
 
@@ -249,7 +451,7 @@ while there are fields left
   endif
   if field is last field
     if field is a ptr
-      compile offsetPtrAction(fieldOffset))
+      compile FieldPtrAction(fieldOffset))
     else
       compile fieldIntAction(fieldOffset))
     endif
@@ -463,7 +665,7 @@ struct coord
 endstruct
 
 struct triangle
-  arrayOf 3 coord verts
+  3 arrayOf coord verts
 endstruct
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-

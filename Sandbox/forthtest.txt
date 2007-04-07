@@ -123,8 +123,8 @@ demo "blahblah" -> aaa  strncpy( aaa bbb 2 ) showstrs
 demo "head" -> aaa "tail" -> bbb strcat( aaa bbb ) showstrs
 demo "head" -> aaa "tail" -> bbb strncat( aaa bbb 3 ) showstrs
 
-demo "blahblah" -> aaa  strchr( aaa 'b' ) %s %nl
-demo "blahblah" -> aaa  strrchr( aaa 'b' ) %s %nl
+demo "blahblah" -> aaa  strchr( aaa 'l' ) %s %nl
+demo "blahblah" -> aaa  strrchr( aaa 'l' ) %s %nl
 demo "blahblah" -> aaa  strchr( aaa 'q' ) %s %nl
 
 demo strcmp( aaa "blahblah" ) %d %nl

@@ -10,6 +10,10 @@
 //    bottom of stacks
 #define GAURD_AREA 4
 
+extern "C" {
+    extern void consoleOutToFile( ForthCoreState   *pCore,  const char       *pMessage );
+};
+
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
@@ -52,6 +56,7 @@ ForthThread::Reset( void )
     mState.varMode = kVarFetch;
     mState.base = 10;
     mState.signedPrintMode = kPrintSignedDecimal;
+    mState.consoleOut = consoleOutToFile;
     mState.pConOutFile = stdout;
     mState.pConOutStr = NULL;
 }

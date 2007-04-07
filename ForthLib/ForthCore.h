@@ -12,6 +12,96 @@
 #endif // _MSC_VER > 1000
 
 
+#ifndef ulong
+#define ulong   unsigned long
+#endif
+
+// these are opcode types, they are held in the top byte of an opcode, and in
+// a vocabulary entry value field
+typedef enum
+{
+    kOpBuiltIn = 0,
+    kOpUserDef,
+
+    kOpBranch,          // low 24 bits is signed branch offset
+    kOpBranchNZ,
+    kOpBranchZ,
+    kOpCaseBranch,
+
+    kOpConstant,        // low 24 bits is signed symbol value
+    kOpOffset,          // low 24 bits is signed offset value
+    kOpArrayOffset,     // low 24 bits is array element size
+
+    kOpConstantString,
+
+    kOpAllocLocals,     // low 24 bits is frame size in longs
+    kOpInitLocalString,     // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
+    kOpLocalRef,
+
+    kOpLocalByte,
+    kOpLocalShort,
+    kOpLocalInt,
+    kOpLocalFloat,
+    kOpLocalDouble,
+    kOpLocalString,
+    kOpLocalOp,
+
+    kOpFieldByte,
+    kOpFieldShort,
+    kOpFieldInt,
+    kOpFieldFloat,
+    kOpFieldDouble,
+    kOpFieldString,
+    kOpFieldOp,
+
+    kOpLocalByteArray,
+    kOpLocalShortArray,
+    kOpLocalIntArray,
+    kOpLocalFloatArray,
+    kOpLocalDoubleArray,
+    kOpLocalStringArray,
+    kOpLocalOpArray,
+
+    kOpFieldByteArray,
+    kOpFieldShortArray,
+    kOpFieldIntArray,
+    kOpFieldFloatArray,
+    kOpFieldDoubleArray,
+    kOpFieldStringArray,
+    kOpFieldOpArray,
+
+    kOpMethodWithThis,  // low 24 bits is method number
+
+    kOpMemberByte,
+    kOpMemberShort,
+    kOpMemberInt,
+    kOpMemberFloat,
+    kOpMemberDouble,
+    kOpMemberString,
+    kOpMemberOp,
+
+    kOpLocalUserDefined,             // user can add more optypes starting with this one
+    kOpMaxLocalUserDefined = 127,    // maximum user defined optype
+
+    kOpUserMethods  = 128
+    // optypes from 128...255 are used to select class methods    
+} forthOpType;
+
+// forth native data types
+// NOTE: the order of these have to match the order of op type definitions above which
+//  are related to native types (kOpLocalByte, kOpMemberFloat, kOpLocalIntArray, ...)
+//  as well as the order of actual opcodes used to implement native types (OP_DO_INT, OP_DO_FLOAT, OP_DO_INT_ARRAY, ...)
+typedef enum
+{
+    kNativeByte,
+    kNativeShort,
+    kNativeInt,
+    kNativeFloat,
+    kNativeDouble,
+    kNativeString,
+    kNativeOp,
+} forthNativeType;
+
 typedef enum {
     kVarFetch = 0,
     kVarRef,
@@ -55,48 +145,6 @@ typedef enum {
     kPrintAllSigned,
     kPrintAllUnsigned
 } ePrintSignedMode;
-
-typedef enum
-{
-    kOpBuiltIn = 0,
-    kOpUserDef,
-
-    kOpBranch,          // low 24 bits is signed branch offset
-    kOpBranchNZ,
-    kOpBranchZ,
-    kOpCaseBranch,
-
-    kOpConstant,        // low 24 bits is signed symbol value
-    kOpOffset,          // low 24 bits is value to add to TOS
-
-    kOpConstantString,
-
-    kOpAllocLocals,     // low 24 bits is frame size in longs
-    kOpInitLocalString,     // bits 0..11 are string length in bytes, bits 12..23 are frame offset
-
-    kOpLocalInt,
-    kOpLocalFloat,
-    kOpLocalDouble,
-    kOpLocalString,
-
-    kOpFieldInt,
-    kOpFieldFloat,
-    kOpFieldDouble,
-    kOpFieldString,
-
-    kOpMethodWithThis,  // low 24 bits is method number
-
-    kOpMemberInt,
-    kOpMemberFloat,
-    kOpMemberDouble,
-    kOpMemberString,
-
-    kOpLocalUserDefined,             // user can add more optypes starting with this one
-    kOpMaxLocalUserDefined = 127,    // maximum user defined optype
-
-    kOpUserMethods  = 128
-    // optypes from 128...255 are used to select class methods    
-} forthOpType;
 
 #define ulong  unsigned long
 #define ForthEngine void

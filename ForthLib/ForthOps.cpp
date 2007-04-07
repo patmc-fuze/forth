@@ -5,20 +5,20 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
+#include <conio.h>
+#include <direct.h>
 #include "Forth.h"
 #include "ForthEngine.h"
 #include "ForthThread.h"
 #include "ForthVocabulary.h"
 #include "ForthShell.h"
 #include "ForthInput.h"
-#include <conio.h>
-#include <direct.h>
+#include "ForthStructs.h"
 
 extern "C" {
 
 // Forth operator TBDs:
 // - add dpi, fpi (pi constant)
-// - add string lib operators
 
 // compiled token is 32-bits,
 // top 8 bits are "super" opcode (hiOp)
@@ -72,6 +72,13 @@ FORTHOP(byeOp)
 FORTHOP( abortOp )
 {
     SET_FATAL_ERROR( kForthErrorAbort );
+}
+
+// abort is a user command which causes the entire forth engine to exit,
+//   and indicates that a fatal error has occured
+FORTHOP( badOpOp )
+{
+    SET_ERROR( kForthErrorBadOpcode );
 }
 
 FORTHOP( argvOp )
@@ -1102,6 +1109,18 @@ FORTHOP(rdropOp)
     RPOP;
 }
 
+FORTHOP(rpOp)
+{
+    long pRP = (long) (GET_RP);
+    SPUSH( pRP );
+}
+
+FORTHOP(rzeroOp)
+{
+    long pR0 = (long) (pCore->RT);
+    SPUSH( pR0 );
+}
+
 FORTHOP(dupOp)
 {
     NEEDS(1);
@@ -1134,12 +1153,66 @@ FORTHOP(rotOp)
 {
     NEEDS(3);
     int a, b, c;
-    a = (GET_SP)[2];
-    b = (GET_SP)[1];
-    c = (GET_SP)[0];
-    (GET_SP)[2] = b;
-    (GET_SP)[1] = c;
-    (GET_SP)[0] = a;
+    long *pSP = GET_SP;
+    a = pSP[2];
+    b = pSP[1];
+    c = pSP[0];
+    pSP[2] = b;
+    pSP[1] = c;
+    pSP[0] = a;
+}
+
+FORTHOP(tuckOp)
+{
+    NEEDS(2);
+    long *pSP = GET_SP;
+    long a = *pSP;
+    long b = pSP[1];
+    SPUSH( a );
+    *pSP = b;
+    pSP[1] = a;
+}
+
+FORTHOP(pickOp)
+{
+    NEEDS(1);
+    long *pSP = GET_SP;
+    long n = *pSP;
+    long a = pSP[n + 1];
+    *pSP = a;
+}
+
+FORTHOP(rollOp)
+{
+    // TBD: moves the Nth element to TOS
+    // 1 roll is the same as swap
+    // 2 roll is the same as rot
+    long n = (SPOP);
+    long *pSP = GET_SP;
+    long a = pSP[n];
+    for ( int i = n; i != 0; i-- )
+    {
+        pSP[i] = pSP[i - 1];
+    }
+    *pSP = a;
+}
+
+FORTHOP(spOp)
+{
+    long pSP = (long) (GET_SP);
+    SPUSH( pSP );
+}
+
+FORTHOP(szeroOp)
+{
+    long pS0 = (long) (pCore->ST);
+    SPUSH( pS0 );
+}
+
+FORTHOP(fpOp)
+{
+    long pFP = (long) (GET_FP);
+    SPUSH( pFP );
 }
 
 FORTHOP(ddupOp)
@@ -1463,6 +1536,43 @@ FORTHOP( strtokOp )
     SPUSH( (long) strtok( pStr1, pStr2 ) );
 }
 
+FORTHOP( initStringOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    long len;
+    long* pStr;
+
+    // TOS: ptr to first char, maximum length
+    pStr = (long *) (SPOP);
+    len = SPOP;
+    pStr[-2] = len;
+    pStr[-1] = 0;
+    *((char *) pStr) = 0;
+}
+
+
+FORTHOP( initStringArrayOp )
+{
+    // TOS: ptr to first char of first element, maximum length, number of elements
+    ForthEngine *pEngine = GET_ENGINE;
+    long len, nLongs;
+    long* pStr;
+    int i, numElements;
+
+    pStr = ((long *) (SPOP)) - 2;
+    len = SPOP;
+    numElements = SPOP;
+    nLongs = (len >> 2) + 3;
+
+    for ( i = 0; i < numElements; i++ )
+    {
+        *pStr = len;
+        pStr[1] = 0;
+        *((char *) (pStr + 2)) = 0;
+        pStr += nLongs;
+    }
+}
+
 
 // push the immediately following literal 32-bit constant
 FORTHOP(litOp)
@@ -1520,7 +1630,6 @@ FORTHOP( doesOp )
     pEngine->CompileLong( OP_END_BUILDS );
     pEngine->CompileLong( 0 );
     // create a nameless vocabulary entry for does-body opcode
-    //newOp = pVocab->AddSymbol( NULL, kOpUserDef, (long) GET_DP );
     newOp = pEngine->AddOp( GET_DP, kOpUserDef );
     newOp = COMPILED_OP( kOpUserDef, newOp );
     pEngine->CompileLong( OP_DO_DOES );
@@ -1608,7 +1717,7 @@ FORTHOP( colonOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
-    pEngine->StartOpDefinition( true );
+    pEngine->StartOpDefinition( NULL, true );
     // switch to compile mode
     pEngine->SetCompileState( 1 );
     pEngine->SetCompileFlags( 0 );
@@ -1618,7 +1727,7 @@ FORTHOP( createOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
-    pEngine->StartOpDefinition( false );
+    pEngine->StartOpDefinition( NULL, false );
     pEngine->CompileLong( OP_DO_VAR );
 }
 
@@ -1692,9 +1801,8 @@ FORTHOP( vocabularyOp )
     // get next symbol, add it to vocabulary with type "user op"
     pEngine->StartOpDefinition();
     pEngine->CompileLong( OP_DO_VOCAB );
-    ForthVocabulary* pVocab = new ForthVocabulary( pEngine,
-                                                   pDefinitionsVocab->GetEntryName( pDefinitionsVocab->GetNewestEntry() ),
-                                                   1,
+    ForthVocabulary* pVocab = new ForthVocabulary( pDefinitionsVocab->GetEntryName( pDefinitionsVocab->GetNewestEntry() ),
+                                                   NUM_FORTH_VOCAB_VALUE_LONGS,
                                                    512,
                                                    GET_DP,
                                                    ForthVocabulary::GetEntryValue( pDefinitionsVocab->GetNewestEntry() ) );
@@ -1709,20 +1817,6 @@ FORTHOP( variableOp )
     pEngine->StartOpDefinition();
     pEngine->CompileLong( OP_DO_VAR );
     pEngine->CompileLong( 0 );
-}
-
-FORTHOP( varsOp )
-{
-    ForthEngine *pEngine = GET_ENGINE;
-    pEngine->StartVarsDefinition();
-    pEngine->SetCompileState( 0 );
-}
-
-FORTHOP( endvarsOp )
-{
-    ForthEngine *pEngine = GET_ENGINE;
-    pEngine->EndVarsDefinition();
-    pEngine->SetCompileState( 1 );
 }
 
 FORTHOP( doVariableOp )
@@ -1763,130 +1857,66 @@ FORTHOP( doDConstantOp )
     SET_IP( (long *) (RPOP) );
 }
 
+FORTHOP( byteOp )
+{
+    char val = 0;
+	gNativeByte.DefineInstance( GET_ENGINE, &val );
+}
+
+FORTHOP( shortOp )
+{
+    short val = 0;
+	gNativeShort.DefineInstance( GET_ENGINE, &val );
+}
+
 FORTHOP( intOp )
 {
-    ForthEngine *pEngine = GET_ENGINE;
-    char *pToken = pEngine->GetNextSimpleToken();
-
-    // get next symbol, add it to vocabulary with type "user op"
-    if ( pEngine->IsCompiling() )
-    {
-        if ( !pEngine->HasLocalVars() )
-        {
-            // this is first local var declaration in this user op
-            pEngine->StartVarsDefinition();
-        }
-        // define local variable
-        pEngine->AddLocalVar( pToken, kOpLocalInt, sizeof(long) );
-    }
-    else
-    {
-        if ( pEngine->InVarsDefinition() )
-        {
-            // define local variable
-            pEngine->AddLocalVar( pToken, kOpLocalInt, sizeof(long) );
-        }
-        else
-        {
-            // define global variable
-            pEngine->AddUserOp( pToken );
-            pEngine->CompileLong( OP_DO_INT );
-            pEngine->CompileLong( 0 );
-        }
-    }
+    int val = 0;
+	gNativeInt.DefineInstance( GET_ENGINE, &val );
 }
 
 FORTHOP( floatOp )
 {
-    float t = 0.0;
-    ForthEngine *pEngine = GET_ENGINE;
-    char *pToken = pEngine->GetNextSimpleToken();
-
-    // get next symbol, add it to vocabulary with type "user op"
-    if ( pEngine->IsCompiling() )
-    {
-        if ( !pEngine->HasLocalVars() )
-        {
-            // this is first local var declaration in this user op
-            pEngine->StartVarsDefinition();
-        }
-        // define local variable
-        pEngine->AddLocalVar( pToken, kOpLocalFloat, sizeof(float) );
-    }
-    else
-    {
-        if ( pEngine->InVarsDefinition() )
-        {
-            // define local variable
-            pEngine->AddLocalVar( pToken, kOpLocalFloat, sizeof(float) );
-        }
-        else
-        {
-            // define global variable
-            pEngine->AddUserOp( pToken );
-            pEngine->CompileLong( OP_DO_FLOAT );
-            pEngine->CompileLong( *(long *) &t );
-        }
-    }
+    float val = 0.0;
+	gNativeFloat.DefineInstance( GET_ENGINE, &val );
 }
 
 
 FORTHOP( doubleOp )
 {
-    double *pDT;
-    ForthEngine *pEngine = GET_ENGINE;
-    char *pToken = pEngine->GetNextSimpleToken();
-
-    // get next symbol, add it to vocabulary with type "user op"
-    if ( pEngine->IsCompiling() )
-    {
-        if ( !pEngine->HasLocalVars() )
-        {
-            // this is first local var declaration in this user op
-            pEngine->StartVarsDefinition();
-        }
-        // define local variable
-        pEngine->AddLocalVar( pToken, kOpLocalDouble, sizeof(double) );
-    }
-    else
-    {
-        if ( pEngine->InVarsDefinition() )
-        {
-            // define local variable
-            pEngine->AddLocalVar( pToken, kOpLocalDouble, sizeof(double) );
-        }
-        else
-        {
-            // define global variable
-            pEngine->AddUserOp( pToken );
-            pEngine->CompileLong( OP_DO_DOUBLE );
-            pDT = (double *) GET_DP;
-            *pDT++ = 0.0;
-            pEngine->SetDP( (long *) pDT );
-        }
-    }
+    double val = 0.0;
+	gNativeDouble.DefineInstance( GET_ENGINE, &val );
 }
 
 FORTHOP( stringOp )
 {
+    gNativeString.DefineInstance( GET_ENGINE, NULL );
+}
+
+FORTHOP( opOp )
+{
+    int val = OP_BAD_OP;
+	gNativeOp.DefineInstance( GET_ENGINE, &val );
+}
+
+FORTHOP( voidOp )
+{
+}
+
+FORTHOP( arrayOfOp )
+{
     ForthEngine *pEngine = GET_ENGINE;
-    char *pToken = pEngine->GetNextSimpleToken();
-    long len;
+    long numElements;
 
     if ( pEngine->IsCompiling() )
     {
         // the symbol just before "string" should have been an integer constant
-        if ( pEngine->GetLastConstant( len ) )
+        if ( pEngine->GetLastConstant( numElements ) )
         {
             // uncompile the integer contant opcode
             pEngine->UncompileLastOpcode();
-            if ( !pEngine->HasLocalVars() )
-            {
-                // this is first local var declaration in this user op
-                pEngine->StartVarsDefinition();
-            }
-            // define local variable
-            pEngine->AddLocalVar( pToken, kOpLocalString, len );
+            // save #elements for var declaration ops
+            pEngine->SetArraySize( numElements );
         }
         else
         {
@@ -1895,28 +1925,53 @@ FORTHOP( stringOp )
     }
     else
     {
-        len = SPOP;
-        if ( pEngine->InVarsDefinition() )
-        {
-            // define local variable
-            pEngine->AddLocalVar( pToken, kOpLocalString, len );
-        }
-        else
-        {
-            // define global variable
-            pEngine->AddUserOp( pToken );
-            pEngine->CompileLong( OP_DO_STRING );
-            pEngine->CompileLong( len );
-            pEngine->CompileLong( 0 );
-            pEngine->AllotLongs( ((len  + 3) & ~3) >> 2 );
-        }
+        // save #elements for var declaration ops
+        numElements = SPOP;
+        pEngine->SetArraySize( numElements );
     }
+}
+
+FORTHOP( ptrToOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->SetCompileFlag( kFECompileFlagIsPointer );
+}
+
+FORTHOP( structOp )
+{
+    ForthEngine* pEngine = GET_ENGINE;
+    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthStructVocabulary* pVocab = pManager->AddStructType( pEngine->GetNextSimpleToken() );
+    pEngine->CompileLong( OP_DO_STRUCT );
+    pEngine->CompileLong( (long) pVocab );
+}
+
+FORTHOP( endstructOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->EndOpDefinition( true );
+}
+
+FORTHOP( sizeOfOp )
+{
+}
+
+FORTHOP( offsetOfOp )
+{
 }
 
 FORTHOP( doVocabOp )
 {
     // IP points to data field
     SPUSH( *GET_IP );
+    SET_IP( (long *) (RPOP) );
+}
+
+FORTHOP( doStructOp )
+{
+    // IP points to data field
+    ForthStructVocabulary *pVocab = (ForthStructVocabulary *) (*GET_IP);
+    pVocab->DefineInstance();
     SET_IP( (long *) (RPOP) );
 }
 
@@ -1939,7 +1994,7 @@ FORTHOP( precedenceOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     char *pSym = pEngine->GetNextSimpleToken();
-    char *pEntry = (char *) pEngine->GetDefinitionVocabulary()->FindSymbol( pSym );
+    long *pEntry = pEngine->GetDefinitionVocabulary()->FindSymbol( pSym );
     
     if ( pEntry ) {
         pEngine->GetPrecedenceVocabulary()->CopyEntry( pEntry );
@@ -2003,7 +2058,7 @@ FORTHOP( tickOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     char *pToken = pEngine->GetNextSimpleToken();
-    long *pSymbol = (long *) (pEngine->FindSymbol( pToken ));
+    long *pSymbol = pEngine->FindSymbol( pToken );
     if ( pSymbol != NULL ) {
         SPUSH( *pSymbol );
     } else {
@@ -2030,7 +2085,7 @@ FORTHOP( compileOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     char *pToken = pEngine->GetNextSimpleToken();
-    long *pSymbol = (long *) (pEngine->FindSymbol( pToken ));
+    long *pSymbol = pEngine->FindSymbol( pToken );
     if ( pSymbol != NULL ) {
         pEngine->CompileLong( *pSymbol );
     } else {
@@ -2044,7 +2099,7 @@ FORTHOP( bracketTickOp )
     // TBD: what should this do if state is interpret? an error? or act the same as tick?
     ForthEngine *pEngine = GET_ENGINE;
     char *pToken = pEngine->GetNextSimpleToken();
-    long *pSymbol = (long *) (pEngine->FindSymbol( pToken ));
+    long *pSymbol = pEngine->FindSymbol( pToken );
     if ( pSymbol != NULL ) {
         pEngine->CompileLong( OP_INT_VAL );
         pEngine->CompileLong( *pSymbol );
@@ -2059,27 +2114,41 @@ FORTHOP( bracketTickOp )
 //  output ops
 //
 
-FORTHOP( ConOutOpInvoke )
-{
-    // TBD: hook this so that user can specify string out routine
-    // TOS is null terminated string
-    char *pStr = (char *) SPOP;
-    char *pOutStr = GET_CON_OUT_STRING;
-    if ( pOutStr != NULL ) {
-        strcat( pOutStr, pStr );
-    }
-}
-static void
-stringOut( ForthCoreState   *pCore,
-           const char       *buff )
+void
+consoleOutToFile( ForthCoreState   *pCore,
+                  const char       *pMessage )
 {    
     FILE *pOutFile = GET_CON_OUT_FILE;
     if ( pOutFile != NULL ) {
-        fprintf(pOutFile, "%s", buff );
-    } else {
-        SPUSH( (long) buff );
-        ConOutOpInvoke( pCore );
+        fprintf(pOutFile, "%s", pMessage );
     }
+    else
+    {
+        // TBD: report error
+    }
+}
+
+void
+consoleOutToString( ForthCoreState   *pCore,
+                    const char       *pMessage )
+{    
+    char *pOutStr = GET_CON_OUT_STRING;
+    if ( pOutStr != NULL ) {
+        strcat( pOutStr, pMessage );
+    }
+    else
+    {
+        // TBD: report error
+    }
+}
+
+void
+consoleOutToOp( ForthCoreState   *pCore,
+                const char       *pMessage )
+{
+    SPUSH( (long) pMessage );
+    long op = GET_CON_OUT_OP;
+    GET_ENGINE->ExecuteOneOp( op );
 }
 
 static void
@@ -2142,7 +2211,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
     SPEW_PRINTS( "printed %s\n", pNext );
 #endif
 
-    stringOut( pCore, pNext );
+    CONSOLE_STRING_OUT( pCore, pNext );
 }
 
 
@@ -2162,7 +2231,7 @@ FORTHOP( printNumDecimalOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    stringOut( pCore, buff );
+    CONSOLE_STRING_OUT( pCore, buff );
 }
 
 FORTHOP( printNumHexOp )
@@ -2176,7 +2245,7 @@ FORTHOP( printNumHexOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    stringOut( pCore, buff );
+    CONSOLE_STRING_OUT( pCore, buff );
 }
 
 FORTHOP( printFloatOp )
@@ -2190,7 +2259,7 @@ FORTHOP( printFloatOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    stringOut( pCore, buff );
+    CONSOLE_STRING_OUT( pCore, buff );
 }
 
 FORTHOP( printDoubleOp )
@@ -2204,7 +2273,7 @@ FORTHOP( printDoubleOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    stringOut( pCore, buff );
+    CONSOLE_STRING_OUT( pCore, buff );
 }
 
 FORTHOP( printFormattedOp )
@@ -2219,7 +2288,7 @@ FORTHOP( printFormattedOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    stringOut( pCore, buff );
+    CONSOLE_STRING_OUT( pCore, buff );
 }
 
 FORTHOP( printStrOp )
@@ -2230,27 +2299,21 @@ FORTHOP( printStrOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    stringOut( pCore, buff );
+    CONSOLE_STRING_OUT( pCore, buff );
 }
 
 FORTHOP( printCharOp )
 {
     NEEDS(1);
     char buff[4];
-    char c = (char) SPOP;
+    buff[0] = (char) SPOP;
+    buff[1] = 0;
+
 #ifdef TRACE_PRINTS
-    SPEW_PRINTS( "printed %c\n", c );
+    SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    FILE *pOutFile = GET_CON_OUT_FILE;
-    if ( pOutFile != NULL ) {
-        fputc( c, pOutFile );
-    } else {
-        buff[0] = c;
-        buff[1] = 0;
-        SPUSH( (long) buff );
-        ConOutOpInvoke( pCore );
-    }
+    CONSOLE_STRING_OUT( pCore, buff );
 }
 
 FORTHOP( printSpaceOp )
@@ -2297,20 +2360,30 @@ FORTHOP( printAllUnsignedOp )
 
 FORTHOP( outToScreenOp )
 {
+    SET_CON_OUT_ROUTINE( consoleOutToFile );
     SET_CON_OUT_FILE( stdout );
 }
 
 FORTHOP( outToFileOp )
 {
     NEEDS( 1 );
+    SET_CON_OUT_ROUTINE( consoleOutToFile );
     SET_CON_OUT_FILE( (FILE *) SPOP );
 }
 
 FORTHOP( outToStringOp )
 {
     NEEDS( 1 );
+    SET_CON_OUT_ROUTINE( consoleOutToString );
     SET_CON_OUT_STRING( (char *) SPOP );
     SET_CON_OUT_FILE( NULL );
+}
+
+FORTHOP( outToOpOp )
+{
+    NEEDS( 1 );
+    long op = SPOP;
+    SET_CON_OUT_OP( SPOP );
 }
 
 FORTHOP( getConOutFileOp )
@@ -2452,12 +2525,12 @@ FORTHOP( dstackOp )
     int nItems = GET_SDEPTH;
     int i;
 
-    stringOut( pCore, "stack:" );
+    CONSOLE_STRING_OUT( pCore, "stack:" );
     for ( i = 0; i < nItems; i++ ) {
-        stringOut( pCore, " " );
+        CONSOLE_STRING_OUT( pCore, " " );
         printNumInCurrentBase( pCore, *pSP++ );
     }
-    stringOut( pCore, "\n" );
+    CONSOLE_STRING_OUT( pCore, "\n" );
 }
 
 
@@ -2467,12 +2540,12 @@ FORTHOP( drstackOp )
     int nItems = GET_RDEPTH;
     int i;
 
-    stringOut( pCore, "rstack:" );
+    CONSOLE_STRING_OUT( pCore, "rstack:" );
     for ( i = 0; i < nItems; i++ ) {
-        stringOut( pCore, " " );
+        CONSOLE_STRING_OUT( pCore, " " );
         printNumInCurrentBase( pCore, *pRP++ );
     }
-    stringOut( pCore, "\n" );
+    CONSOLE_STRING_OUT( pCore, "\n" );
 }
 
 
@@ -2487,23 +2560,23 @@ ShowVocab( ForthCoreState   *pCore,
     bool retVal = false;
     ForthShell *pShell = GET_ENGINE->GetShell();
     int nEntries = pVocab->GetNumEntries();
-    void *pEntry = pVocab->GetFirstEntry();
+    long *pEntry = pVocab->GetFirstEntry();
 
     for ( i = 0; i < nEntries; i++ ) {
         sprintf( buff, "%02x %06x ", ForthVocabulary::GetEntryType( pEntry ), ForthVocabulary::GetEntryValue( pEntry ) );
-        stringOut( pCore, buff );
+        CONSOLE_STRING_OUT( pCore, buff );
         len = pVocab->GetEntryNameLength( pEntry );
         if ( len > (BUFF_SIZE - 1)) {
             len = BUFF_SIZE - 1;
         }
-        memcpy( buff, pVocab->GetEntryName( pEntry ), len );
+        memcpy( buff, (void *) (pVocab->GetEntryName( pEntry )), len );
         buff[len] = '\0';
-        stringOut( pCore, buff );
-        stringOut( pCore, "\n" );
+        CONSOLE_STRING_OUT( pCore, buff );
+        CONSOLE_STRING_OUT( pCore, "\n" );
         pEntry = pVocab->NextEntry( pEntry );
         if ( ((i % 22) == 21) || (i == (nEntries-1)) ) {
             if ( (pShell != NULL) && pShell->GetInput()->InputStream()->IsInteractive() ) {
-                stringOut( pCore, "Hit ENTER to continue, 'q' & ENTER to quit\n" );
+                CONSOLE_STRING_OUT( pCore, "Hit ENTER to continue, 'q' & ENTER to quit\n" );
                 char c = getchar();
                 if ( (c == 'q') || (c == 'Q') ) {
                     c = getchar();
@@ -2519,9 +2592,9 @@ ShowVocab( ForthCoreState   *pCore,
 
 FORTHOP( vlistOp )
 {
-    stringOut( pCore, "Definitions Vocabulary:\n" );
+    CONSOLE_STRING_OUT( pCore, "Definitions Vocabulary:\n" );
     if ( ShowVocab( pCore, GET_ENGINE->GetDefinitionVocabulary() ) == false ) {
-        stringOut( pCore, "Precedence Vocabulary:\n" );
+        CONSOLE_STRING_OUT( pCore, "Precedence Vocabulary:\n" );
         ShowVocab( pCore, GET_ENGINE->GetPrecedenceVocabulary() );
     }
 }
@@ -2735,10 +2808,22 @@ FORTHOP( turboOp )
 // NOTE: the order of the first few entries in this table must agree
 // with the list near the top of the file!  (look for COMPILED_OP)
 
+extern GFORTHOP( doByteOp );
+extern GFORTHOP( doShortOp );
+extern GFORTHOP( doIntOp );
 extern GFORTHOP( doIntOp );
 extern GFORTHOP( doFloatOp );
 extern GFORTHOP( doDoubleOp );
 extern GFORTHOP( doStringOp );
+extern GFORTHOP( doOpOp );
+extern GFORTHOP( doByteArrayOp );
+extern GFORTHOP( doShortArrayOp );
+extern GFORTHOP( doIntArrayOp );
+extern GFORTHOP( doIntArrayOp );
+extern GFORTHOP( doFloatArrayOp );
+extern GFORTHOP( doDoubleArrayOp );
+extern GFORTHOP( doStringArrayOp );
+extern GFORTHOP( doOpArrayOp );
 
 baseDictEntry baseDict[] = {
     ///////////////////////////////////////////
@@ -2756,10 +2841,13 @@ baseDictEntry baseDict[] = {
     OP(     doDConstantOp,          "_doDConstant" ),
     OP(     endBuildsOp,            "_endBuilds" ),
     OP(     doneOp,                 "done" ),
+    OP(     doByteOp,               "_doByte" ),
+    OP(     doShortOp,              "_doShort" ),
     OP(     doIntOp,                "_doInt" ),
     OP(     doFloatOp,              "_doFloat" ),
     OP(     doDoubleOp,             "_doDouble" ),
     OP(     doStringOp,             "_doString" ),
+    OP(     doOpOp,                 "_doOp" ),
     OP(     intoOp,                 "->" ),
     OP(     doDoOp,                 "_do" ),
     OP(     doLoopOp,               "_loop" ),
@@ -2769,7 +2857,18 @@ baseDictEntry baseDict[] = {
     OP(     doExitMOp,              "_exitM" ),     // exit method op with no vars
     OP(     doExitMLOp,             "_exitML" ),    // exit method op with local vars
     OP(     doVocabOp,              "_doVocab" ),
+    OP(     doByteOp,               "_doByteArray" ),
+    OP(     doShortOp,              "_doShortArray" ),
+    OP(     doIntOp,                "_doIntArray" ),
+    OP(     doFloatOp,              "_doFloatArray" ),
+    OP(     doDoubleOp,             "_doDoubleArray" ),
+    OP(     doStringOp,             "_doStringArray" ),
+    OP(     doOpOp,                 "_doOpArray" ),
+    OP(     initStringOp,           "initString" ),
+    OP(     initStringArrayOp,      "initStringArray" ),
     OP(     plusOp,                 "+" ),
+    OP(     badOpOp,                "badOp" ),
+    OP(     doStructOp,             "_doStruct" ),
 
     // stuff below this line can be rearranged
     
@@ -2902,10 +3001,18 @@ baseDictEntry baseDict[] = {
     OP(     rpushOp,                "r<" ),
     OP(     rpopOp,                 "r>" ),
     OP(     rdropOp,                "rdrop" ),
+    OP(     rpOp,                   "rp" ),
+    OP(     rzeroOp,                "r0" ),
     OP(     dupOp,                  "dup" ),
     OP(     swapOp,                 "swap" ),
     OP(     overOp,                 "over" ),
     OP(     rotOp,                  "rot" ),
+    OP(     tuckOp,                 "tuck" ),
+    OP(     pickOp,                 "pick" ),
+    OP(     rollOp,                 "roll" ),
+    OP(     spOp,                   "sp" ),
+    OP(     szeroOp,                "s0" ),
+    OP(     fpOp,                   "fp" ),
     OP(     ddupOp,                 "ddup" ),
     OP(     dswapOp,                "dswap" ),
     OP(     ddropOp,                "ddrop" ),
@@ -2983,13 +3090,20 @@ baseDictEntry baseDict[] = {
     OP(     variableOp,             "variable" ),
     OP(     constantOp,             "constant" ),
     OP(     dconstantOp,            "dconstant" ),
-    PRECOP( varsOp,                 "vars" ),
-    PRECOP( endvarsOp,              "endvars" ),
+    PRECOP( byteOp,                 "byte" ),
+    PRECOP( shortOp,                "short" ),
     PRECOP( intOp,                  "int" ),
     PRECOP( floatOp,                "float" ),
     PRECOP( doubleOp,               "double" ),
     PRECOP( stringOp,               "string" ),
-
+    PRECOP( opOp,                   "op" ),
+    PRECOP( voidOp,                 "void" ),
+    PRECOP( arrayOfOp,              "arrayOf" ),
+    PRECOP( ptrToOp,                "ptrTo" ),
+    PRECOP( structOp,               "struct" ),
+    PRECOP( endstructOp,            "endstruct" ),
+    PRECOP( sizeOfOp,               "sizeOf" ),
+    PRECOP( offsetOfOp,             "offsetOf" ),
     PRECOP( recursiveOp,            "recursive" ),
     OP(     precedenceOp,           "precedence" ),
     OP(     loadOp,                 "load" ),
@@ -3025,6 +3139,7 @@ baseDictEntry baseDict[] = {
     OP(     outToFileOp,            "outToFile" ),
     OP(     outToScreenOp,          "outToScreen" ),
     OP(     outToStringOp,          "outToString" ),
+    OP(     outToOpOp,              "outToOp" ),
     OP(     getConOutFileOp,        "getConOutFile" ),
 
     ///////////////////////////////////////////

@@ -56,6 +56,8 @@ struct ForthThreadState
 
     FILE                *pConOutFile;
     char                *pConOutStr;
+    consoleOutRoutine   consoleOut;
+    long                consoleOutOp;
 
     FILE                *pDefaultOutFile;
     FILE                *pDefaultInFile;
@@ -103,7 +105,6 @@ struct ForthCoreState
     long                *RT;            // empty return stack pointer
 
     ulong               RLen;           // size of return stack in longwords
-
     // *** end of stuff which is per thread ***
 
     // user dictionary stuff
@@ -181,9 +182,13 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 
 #define GET_CON_OUT_FILE                (pCore->pThread->pConOutFile)
 #define SET_CON_OUT_FILE( A )           (pCore->pThread->pConOutFile = A)
-
+#define SET_CON_OUT_ROUTINE( A )        (pCore->pThread->consoleOut = A)
+#define CONSOLE_STRING_OUT( A, B )      (pCore->pThread->consoleOut( A, B ))
 #define GET_CON_OUT_STRING              (pCore->pThread->pConOutStr)
 #define SET_CON_OUT_STRING( A )         (pCore->pThread->pConOutStr = A)
+
+#define GET_CON_OUT_OP                  (pCore->pThread->consoleOutOp)
+#define SET_CON_OUT_OP( A )             (pCore->pThread->consoleOutOp = A)
 
 #define GET_BASE_REF                    (&pCore->pThread->base)
 

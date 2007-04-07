@@ -43,9 +43,9 @@ ForthClass::ForthClass( ForthEngine *pEngine )
     mpClassTable[1] = 0;        // bad magic number
     mpClassTable[2] = 0;        // zero methods defined
 
-    mpPrivateVocab = new ForthVocabulary( mpEngine, "private", DEFAULT_VALUE_FIELD_LONGS, 64 );
-    mpProtectedVocab = new ForthVocabulary( mpEngine, "protected", DEFAULT_VALUE_FIELD_LONGS, 64 );
-    mpPublicVocab = new ForthVocabulary( mpEngine, "public", DEFAULT_VALUE_FIELD_LONGS, 64 );
+    mpPrivateVocab = new ForthVocabulary( "private", DEFAULT_VALUE_FIELD_LONGS, 64 );
+    mpProtectedVocab = new ForthVocabulary( "protected", DEFAULT_VALUE_FIELD_LONGS, 64 );
+    mpPublicVocab = new ForthVocabulary( "public", DEFAULT_VALUE_FIELD_LONGS, 64 );
     SetVisibility( mVisibility );
 }
 

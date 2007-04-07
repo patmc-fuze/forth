@@ -15,13 +15,15 @@
 #include "ForthThread.h"
 #include "ForthShell.h"
 #include "ForthInner.h"
-
+#include "ForthVocabulary.h"
+#include "ForthStructs.h"
 
 #define NEW_INNER_INTERP
 
 
 class ForthThread;
 class ForthShell;
+
 #define DEFAULT_USER_STORAGE 16384
 
 // this is the size of the buffer returned by GetTmpStringBuffer()
@@ -29,10 +31,11 @@ class ForthShell;
 #define TMP_STRING_BUFFER_LEN 256
 
 typedef enum {
-    kFECompileFlagInVarsDefinition = 1,
-    kFECompileFlagHasLocalVars = 2,
-    kFECompileFlagIsMethod = 4,
-    kFECompileFlagInClassDefinition = 8,
+    kFECompileFlagHasLocalVars              = 0x01,
+    kFECompileFlagInStructDefinition        = 0x02,
+    kFECompileFlagIsPointer                 = 0x04,
+    kFECompileFlagIsMethod                  = 0x08,
+    kFECompileFlagInClassDefinition         = 0x10,
 } FECompileFlags;
 
 class ForthEngine
@@ -91,13 +94,16 @@ public:
     void            PushInputBuffer( char *pDataBuffer, int dataBufferLen );
     void            PopInputStream( void );
 
-    void            StartOpDefinition( bool smudgeIt=false );
+    // returns pointer to new vocabulary entry
+    long *          StartOpDefinition( const char *pName=NULL, bool smudgeIt=false );
     void            EndOpDefinition( bool unsmudgeIt=false );
     // return pointer to symbol entry, NULL if not found
-    void *          FindSymbol( const char *pSymName );
-    void            StartVarsDefinition( void );
-    void            EndVarsDefinition( void );
-    void            AddLocalVar( const char *pName, forthOpType varType, long varSize );
+    long *          FindSymbol( const char *pSymName );
+    void            StartStructDefinition( void );
+    void            EndStructDefinition( void );
+    // returns size of local stack frame in bytes after adding local var
+    long            AddLocalVar( const char *pName, forthNativeType varType, long varSize );
+    long            AddLocalArray( const char *pName, forthNativeType elementType, long varSize );
 
     eForthResult    ProcessToken( ForthParseInfo *pInfo );
     char *          GetLastInputToken( void );
@@ -126,7 +132,7 @@ public:
     inline long             *GetCompileStatePtr( void ) { return &mCompileState; };
     inline void             SetCompileState( long v ) { mCompileState = v; };
     inline long             IsCompiling( void ) { return mCompileState; };
-    inline bool             InVarsDefinition( void ) { return ((mCompileFlags & kFECompileFlagInVarsDefinition) != 0); };
+    inline bool             InStructDefinition( void ) { return ((mCompileFlags & kFECompileFlagInStructDefinition) != 0); };
     inline bool             HasLocalVars( void ) { return ((mCompileFlags & kFECompileFlagHasLocalVars) != 0); };
     inline long             GetCompileFlags( void ) { return mCompileFlags; };
     inline void             SetCompileFlags( long flags ) { mCompileFlags = flags; };
@@ -135,12 +141,17 @@ public:
     inline long *           GetLastCompiledOpcodePtr( void ) { return mpLastCompiledOpcode; };
     inline char *           GetTmpStringBuffer( void ) { return mpStringBufferB; };
     void                    SetCurrentThread( ForthThread* pThread );
+    inline void             SetArraySize( long numElements )        { mNumElements = numElements; };
+    inline long             GetArraySize( void )                    { return mNumElements; };
 
     void                    GetErrorString( char *pString );
     eForthResult            CheckStacks( void );
     void                    SetError( eForthError e, const char *pString = NULL );
     void                    SetFatalError( eForthError e, const char *pString = NULL );
     inline eForthError      GetError( void ) { return (eForthError) (mpCore->error); };
+    inline ForthCoreState*  GetCoreState( void ) { return mpCore; };
+
+    static ForthEngine*     GetInstance( void );
 
 protected:
     // NOTE: temporarily modifies string @pToken
@@ -151,9 +162,9 @@ protected:
 protected:
     ForthCoreState*  mpCore;             // core inner interpreter state
 
-    ForthVocabulary * mpMainVocab;          // main forth vocabulary
-    ForthVocabulary * mpLocalVocab;         // local variable vocabulary
-    ForthVocabulary * mpPrecedenceVocab;    // vocabulary for symbols with precedence
+    ForthVocabulary * mpMainVocab;              // main forth vocabulary
+    ForthVocabulary * mpLocalVocab;             // local variable vocabulary
+    ForthVocabulary * mpPrecedenceVocab;        // vocabulary for symbols with precedence
 
     ForthVocabulary * mpDefinitionVocab;    // vocabulary which new definitions are added to
     ForthVocabulary * mpSearchVocab;        // vocabulary where symbol lookup begins
@@ -174,10 +185,15 @@ protected:
     long *          mpLocalAllocOp;
     const char *    mpErrorString;  // optional error information from shell
 
+    ForthStructsManager *mpStructsManager;
+
     interpreterExtensionRoutine *mpInterpreterExtension;
 
     long            mCompileFlags;
+    long            mNumElements;       // number of elements in next array declared
     bool            mFastMode;
+
+    static ForthEngine* mpInstance;
 };
 
 

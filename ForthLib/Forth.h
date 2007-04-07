@@ -40,28 +40,55 @@ typedef enum
 
     kOpConstant,        // low 24 bits is signed symbol value
     kOpOffset,          // low 24 bits is signed offset value
+    kOpArrayOffset,     // low 24 bits is array element size
 
     kOpConstantString,
 
     kOpAllocLocals,     // low 24 bits is frame size in longs
     kOpInitLocalString,     // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
+    kOpLocalRef,
 
+    kOpLocalByte,
+    kOpLocalShort,
     kOpLocalInt,
     kOpLocalFloat,
     kOpLocalDouble,
     kOpLocalString,
+    kOpLocalOp,
 
+    kOpFieldByte,
+    kOpFieldShort,
     kOpFieldInt,
     kOpFieldFloat,
     kOpFieldDouble,
     kOpFieldString,
+    kOpFieldOp,
+
+    kOpLocalByteArray,
+    kOpLocalShortArray,
+    kOpLocalIntArray,
+    kOpLocalFloatArray,
+    kOpLocalDoubleArray,
+    kOpLocalStringArray,
+    kOpLocalOpArray,
+
+    kOpFieldByteArray,
+    kOpFieldShortArray,
+    kOpFieldIntArray,
+    kOpFieldFloatArray,
+    kOpFieldDoubleArray,
+    kOpFieldStringArray,
+    kOpFieldOpArray,
 
     kOpMethodWithThis,  // low 24 bits is method number
 
+    kOpMemberByte,
+    kOpMemberShort,
     kOpMemberInt,
     kOpMemberFloat,
     kOpMemberDouble,
     kOpMemberString,
+    kOpMemberOp,
 
     kOpLocalUserDefined,             // user can add more optypes starting with this one
     kOpMaxLocalUserDefined = 127,    // maximum user defined optype
@@ -81,6 +108,8 @@ typedef void  (*ForthOp)( ForthCoreState * );
 // return true if the extension has recognized and processed the symbol
 typedef bool (*interpreterExtensionRoutine)( ForthEngine *pEngine, char *pToken );
 
+// consoleOutRoutine is used to pass all console output
+typedef void (*consoleOutRoutine) ( ForthCoreState *pCore, const char *pBuff );
 
 // the varMode state makes variables do something other
 //  than their default behaviour (fetch)
@@ -154,31 +183,45 @@ class ForthThread;
 // These are opcodes that built-in ops must compile directly
 // NOTE: the index field of these opcodes must agree with the
 //  order of builtin dictionary entries in the ForthOps.cpp file
-#define OP_ABORT        BUILTIN_OP(0)
-#define OP_DROP         BUILTIN_OP(1)
-#define OP_DO_DOES      BUILTIN_OP(2)
-#define OP_INT_VAL      BUILTIN_OP(3)
-#define OP_FLOAT_VAL    BUILTIN_OP(4)
-#define OP_DOUBLE_VAL   BUILTIN_OP(5)
-#define OP_DO_VAR       BUILTIN_OP(6)
-#define OP_DO_CONSTANT  BUILTIN_OP(7)
-#define OP_DO_DCONSTANT BUILTIN_OP(8)
-#define OP_END_BUILDS   BUILTIN_OP(9)
-#define OP_DONE         BUILTIN_OP(10)
-#define OP_DO_INT       BUILTIN_OP(11)
-#define OP_DO_FLOAT     BUILTIN_OP(12)
-#define OP_DO_DOUBLE    BUILTIN_OP(13)
-#define OP_DO_STRING    BUILTIN_OP(14)
-#define OP_INTO         BUILTIN_OP(15)
-#define OP_DO_DO        BUILTIN_OP(16)
-#define OP_DO_LOOP      BUILTIN_OP(17)
-#define OP_DO_LOOPN     BUILTIN_OP(18)
-#define OP_DO_EXIT      BUILTIN_OP(19)
-#define OP_DO_EXIT_L    BUILTIN_OP(20)
-#define OP_DO_EXIT_M    BUILTIN_OP(21)
-#define OP_DO_EXIT_ML   BUILTIN_OP(22)
-#define OP_DO_VOCAB     BUILTIN_OP(23)
-#define OP_PLUS         BUILTIN_OP(24)
+#define OP_ABORT                BUILTIN_OP(0)
+#define OP_DROP                 BUILTIN_OP(1)
+#define OP_DO_DOES              BUILTIN_OP(2)
+#define OP_INT_VAL              BUILTIN_OP(3)
+#define OP_FLOAT_VAL            BUILTIN_OP(4)
+#define OP_DOUBLE_VAL           BUILTIN_OP(5)
+#define OP_DO_VAR               BUILTIN_OP(6)
+#define OP_DO_CONSTANT          BUILTIN_OP(7)
+#define OP_DO_DCONSTANT         BUILTIN_OP(8)
+#define OP_END_BUILDS           BUILTIN_OP(9)
+#define OP_DONE                 BUILTIN_OP(10)
+#define OP_DO_BYTE              BUILTIN_OP(11)
+#define OP_DO_SHORT             BUILTIN_OP(12)
+#define OP_DO_INT               BUILTIN_OP(13)
+#define OP_DO_FLOAT             BUILTIN_OP(14)
+#define OP_DO_DOUBLE            BUILTIN_OP(15)
+#define OP_DO_STRING            BUILTIN_OP(16)
+#define OP_DO_OP                BUILTIN_OP(17)
+#define OP_INTO                 BUILTIN_OP(18)
+#define OP_DO_DO                BUILTIN_OP(19)
+#define OP_DO_LOOP              BUILTIN_OP(20)
+#define OP_DO_LOOPN             BUILTIN_OP(21)
+#define OP_DO_EXIT              BUILTIN_OP(22)
+#define OP_DO_EXIT_L            BUILTIN_OP(23)
+#define OP_DO_EXIT_M            BUILTIN_OP(24)
+#define OP_DO_EXIT_ML           BUILTIN_OP(25)
+#define OP_DO_VOCAB             BUILTIN_OP(26)
+#define OP_DO_BYTE_ARRAY        BUILTIN_OP(27)
+#define OP_DO_SHORT_ARRAY       BUILTIN_OP(28)
+#define OP_DO_INT_ARRAY         BUILTIN_OP(29)
+#define OP_DO_FLOAT_ARRAY       BUILTIN_OP(30)
+#define OP_DO_DOUBLE_ARRAY      BUILTIN_OP(31)
+#define OP_DO_STRING_ARRAY      BUILTIN_OP(32)
+#define OP_DO_OP_ARRAY          BUILTIN_OP(33)
+#define OP_INIT_STRING          BUILTIN_OP(34)
+#define OP_INIT_STRING_ARRAY    BUILTIN_OP(35)
+#define OP_PLUS                 BUILTIN_OP(36)
+#define OP_BAD_OP               BUILTIN_OP(37)
+#define OP_DO_STRUCT            BUILTIN_OP(38)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct {
@@ -242,6 +285,22 @@ typedef struct _ForthClassDescriptor {
 #endif
 
 
+// user-defined ops vocab entries have the following value fields:
+// - opcode
+// - struct type
+#define NUM_FORTH_VOCAB_VALUE_LONGS 2
+
+// a locals vocab entry has the following value fields:
+// - opcode (which contains frame offset)
+// - struct type
+#define NUM_LOCALS_VOCAB_VALUE_LONGS 2
+
+// a struct vocab entry has the following value fields:
+// - field offset in bytes
+// - field type
+// - element count (valid only for array fields)
+#define NUM_STRUCT_VOCAB_VALUE_LONGS 3
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///     built-in forth ops are implemented with static C-style routines
@@ -251,5 +310,56 @@ typedef struct _ForthClassDescriptor {
 #define FORTHOP(NAME) void NAME( ForthCoreState *pCore )
 // GFORTHOP is used for forthops which are defined outside of the dictionary source module
 #define GFORTHOP(NAME) void NAME( ForthCoreState *pCore )
+
+//////////////////////////////////////////////////////////////////////
+////
+///     user-defined structure support
+//      
+//      
+
+// forth native data types
+// NOTE: the order of these have to match the order of forthOpType definitions above which
+//  are related to native types (kOpLocalByte, kOpMemberFloat, kOpLocalIntArray, ...)
+//  as well as the order of actual opcodes used to implement native types (OP_DO_INT, OP_DO_FLOAT, OP_DO_INT_ARRAY, ...)
+typedef enum
+{
+    kNativeByte,
+    kNativeShort,
+    kNativeInt,
+    kNativeFloat,
+    kNativeDouble,
+    kNativeString,
+    kNativeOp,
+} forthNativeType;
+
+typedef enum
+{
+    kDTNone,
+    kDTNativeVariable,
+    kDTNativeArray,
+    kDTNativePtr,
+    kDTStruct,
+    kDTStructArray,
+    kDTStructPtr,
+} storageDescriptor;
+
+// user-defined structure fields have a 32-bit descriptor with the following format:
+// 31...28    storageDescriptor
+// 27...0     more info
+
+// for types with storageDescriptor kDTNativeVariable, kDTNativeArray or kDTNativePtr:
+// 27...24    forthNativeType
+// 23...0     string length (if forthNativeType == kNativeString)
+
+// for types with storageDescriptor kDTStruct, kDTStructArray or kDTStructPtr:
+// 27...0     struct index
+
+#define NATIVE_TYPE_TO_CODE( STORAGE_TYPE, NATIVE_TYPE )     ((STORAGE_TYPE << 28) | (NATIVE_TYPE << 24))
+#define STRING_TYPE_TO_CODE( STORAGE_TYPE, MAXBYTES )   ((STORAGE_TYPE << 28) | (kNativeString << 24) | MAXBYTES)
+#define STRUCT_TYPE_TO_CODE( STRUCT_TYPE, STRUCT_INDEX ) ((STORAGE_TYPE << 28) | STRUCT_INDEX)
+#define CODE_TO_STORAGE_TYPE( CODE ) ((CODE) >> 28)
+#define CODE_TO_NATIVE_TYPE( CODE ) (((CODE) >> 24) & 0x0F)
+#define CODE_TO_STRUCT_INDEX( CODE ) ((CODE) & 0x0FFFFFFF)
+#define CODE_TO_STRING_BYTES( CODE ) ((CODE) & 0x00FFFFFF)
 
 #endif

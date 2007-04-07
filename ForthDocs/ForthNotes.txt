@@ -5,10 +5,11 @@
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 TBDs:
 
-- add an array indexing opType - op value field is element size in bytes
-  array indexing ops take an array base ptr and element index and returns
-  an element ptr
-- output redirection
+- look at stuff which uses ForthEngine::StartOpDefinition (variableOp, constantOp, vocabularyOp),
+  they aren't calling EndOpDefinition...
+  
+- string vars are currently not using len/maxLen fields
+
 - structure support
 - sdl support (not kernel)
 - vocabulary support
@@ -18,6 +19,88 @@ TBDs:
 
 + rewrite kernel in assembler
   -> leave compile time words in c++
+
+- change output-to-string to use the string current & max length fields
+- fix local strings
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+colonOp
+ ForthEngine::StartOpDefinition
+  ForthVocabulary::AddSymbol
+   ForthEngine::AddUserOp
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 31 2007
+
+Added ForthNativeType
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 26, 2007
+
+Added initStringArrayOp
+
+Added code for arrays to defining words
+
+Added ptrTo support to variable/array defining words
+Right now, any variable/array defined with ptrTo is the same as an int
+variable/array.
+When both arrayOf and ptrTo appear in the same declaration the result is
+an array of ints.
+
+Increased length of vocabulary value field for user-defined ops to 2 longs
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 25, 2007
+
+Added initString op
+
+How should local & global arrays be supported?
+Should they use varOps?  Should they be just like variables except always
+doing an array indexing operation?
+
+Simplified existing global/local variable code.  Previously there was code
+for each combination of varOp and local/global/field vars.  Now local/global/field
+use common code for each varOp.  This is slightly less efficient when running
+with the c++ inner interpreter but cuts down the amount of code by a factor
+of 2, which makes adding array support easier.
+
+Added support code for all types of arrays
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 23, 2007
+
+Removed remaining vars/endvars dead code
+Added field action types
+The c++ field action code was using the field offset as longs, changed it
+to be using bytes
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 22, 2007
+
+Added dummy entries for struct support ops, just to avoid having to add
+them an op at a time to c++ and assembler versions
+Added sp, s0, rp, r0, fp ops
+Added tuck, pick, roll ops
+Changed vocabulary stuff to use long* instead of void* for symbol entry pointers
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 20, 2007
+
+Added byte, short, op data types
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 18, 2007
+
+Added compilation of initLocalStringOp for local string vars
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 17, 2007
+
+Added byte & short types
+Added local string support to turbo mode
+Changed string store & append varOps to use max & current length fields
+Added output redirection
+Added ArrayOffset optype
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 16, 2007
@@ -29,7 +112,8 @@ a callback.  A possible solution would be to define an interfacing DLL that
 goes between the windows DLL and forth.
 
 ? could we define a generic callback into forth, and accessors on the forth
-  side that gave access to the callback arguments ?
+  side that gave access to the callback arguments on the stack ?
+-> wait until we run into a case where we need a callback
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 15, 2007
