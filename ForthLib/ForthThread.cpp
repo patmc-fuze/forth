@@ -15,8 +15,10 @@ extern "C" {
 };
 
 //////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthThread
+// 
 
 ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnStackLongs )
 : mpEngine( pEngine )

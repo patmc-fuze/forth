@@ -20,7 +20,6 @@
 
 #define NEW_INNER_INTERP
 
-
 class ForthThread;
 class ForthShell;
 
@@ -58,6 +57,9 @@ public:
     // execute forth ops, and is also how systems external to forth execute ops
     //
     eForthResult        ExecuteOneOp( long opCode );
+    // ExecuteOps executes a sequence of forth ops
+    // The sequence must be terminated with an OP_DONE
+    eForthResult        ExecuteOps( long* pOps );
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
     long            AddOp( const long *pOp, forthOpType symType );
@@ -102,8 +104,8 @@ public:
     void            StartStructDefinition( void );
     void            EndStructDefinition( void );
     // returns size of local stack frame in bytes after adding local var
-    long            AddLocalVar( const char *pName, forthNativeType varType, long varSize );
-    long            AddLocalArray( const char *pName, forthNativeType elementType, long varSize );
+    long            AddLocalVar( const char *pName, long typeCode, long varSize );
+    long            AddLocalArray( const char *pName, long typeCode, long varSize );
 
     eForthResult    ProcessToken( ForthParseInfo *pInfo );
     char *          GetLastInputToken( void );
@@ -183,7 +185,7 @@ protected:
     long *          mpLastCompiledOpcode;
     long            mLocalFrameSize;
     long *          mpLocalAllocOp;
-    const char *    mpErrorString;  // optional error information from shell
+    char *          mpErrorString;  // optional error information from shell
 
     ForthStructsManager *mpStructsManager;
 

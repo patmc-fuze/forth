@@ -30,9 +30,13 @@ static char *gOpNames[ NUM_TRACEABLE_OPS ];
 
 ForthEngine* ForthEngine::mpInstance = NULL;
 
+#define ERROR_STRING_MAX    256
+
 //////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthEngine
+// 
 
 ForthEngine::ForthEngine()
 : mpMainVocab( NULL )
@@ -45,7 +49,6 @@ ForthEngine::ForthEngine()
 , mpThreads( NULL )
 , mpInterpreterExtension( NULL )
 , mpCurrentThread( NULL )
-, mpErrorString( NULL )
 , mFastMode( false )
 , mpLastCompiledOpcode( NULL )
 , mNumElements( 0 )
@@ -57,6 +60,7 @@ ForthEngine::ForthEngine()
     mpEngineScratch = new long[70];
     mpCore = new ForthCoreState;
     InitCore( mpCore );
+    mpErrorString = new char[ ERROR_STRING_MAX + 1 ];
 }
 
 ForthEngine::~ForthEngine()
@@ -72,7 +76,15 @@ ForthEngine::~ForthEngine()
         delete [] mpStringBufferA;
         delete [] mpStringBufferB;
     }
+    delete [] mpErrorString;
 
+    ForthVocabulary *pVocab = ForthVocabulary::GetVocabularyChainHead();
+    while ( pVocab != NULL )
+    {
+        ForthVocabulary *pNextVocab = pVocab->GetNextChainVocabulary();
+        delete pVocab;
+        pVocab = pNextVocab;
+    }
     if ( mpCore->builtinOps )
     {
         free( mpCore->builtinOps );
@@ -465,9 +477,10 @@ ForthEngine::EndStructDefinition( void )
 
 long
 ForthEngine::AddLocalVar( const char        *pVarName,
-                          forthNativeType   varType,
+                          long              typeCode,
                           long              varSize )
 {
+    long *pEntry;
     if ( mpLocalAllocOp == NULL ) {
         // this is first local var definition, leave space for local alloc op
         mCompileFlags |= kFECompileFlagHasLocalVars;
@@ -476,20 +489,35 @@ ForthEngine::AddLocalVar( const char        *pVarName,
     }
     varSize = ((varSize + 3) & ~3) >> 2;
     mLocalFrameSize += varSize;
-    long *pEntry = mpLocalVocab->AddSymbol( pVarName, (forthOpType)(kOpLocalByte + varType), mLocalFrameSize, false );
-    // TBD: support strings...
-    // TBD: support structs...
-    pEntry[1] = NATIVE_TYPE_TO_CODE( kDTNativeVariable, varType );
+    if ( CODE_IS_NATIVE( typeCode ) )
+    {
+        long varType = CODE_TO_NATIVE_TYPE( typeCode );
+        pEntry = mpLocalVocab->AddSymbol( pVarName, (kOpLocalByte + varType), mLocalFrameSize, false );
+    }
+    else
+    {
+        if ( CODE_IS_PTR( typeCode ) )
+        {
+            // treat a struct ptr like an int
+            pEntry = mpLocalVocab->AddSymbol( pVarName, kOpLocalInt, mLocalFrameSize, false );
+        }
+        else
+        {
+            pEntry = mpLocalVocab->AddSymbol( pVarName, kOpLocalRef, mLocalFrameSize, false );
+        }
+    }
+    pEntry[1] = typeCode;
 
     return mLocalFrameSize;
 }
 
 long
 ForthEngine::AddLocalArray( const char          *pArrayName,
-                            forthNativeType     elementType,
+                            long                typeCode,
                             long                elementSize )
 {
     long arraySize = elementSize * mNumElements;
+    long *pEntry;
     if ( mpLocalAllocOp == NULL ) {
         // this is first local var definition, leave space for local alloc op
         mCompileFlags |= kFECompileFlagHasLocalVars;
@@ -498,10 +526,22 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
     }
     arraySize = ((arraySize + 3) & ~3) >> 2;
     mLocalFrameSize += arraySize;
-    long *pEntry = mpLocalVocab->AddSymbol( pArrayName, (forthOpType)(kOpLocalByteArray + elementType), mLocalFrameSize, false );
-    // TBD: support string arrays...
-    // TBD: support struct arrays...
-    pEntry[1] = NATIVE_TYPE_TO_CODE( kDTNativeArray, elementType );
+    if ( CODE_IS_NATIVE( typeCode ) )
+    {
+        long elementType = CODE_TO_NATIVE_TYPE( typeCode );
+        pEntry = mpLocalVocab->AddSymbol( pArrayName, (kOpLocalByteArray + elementType), mLocalFrameSize, false );
+    }
+    else
+    {
+        long fieldBytes, alignment, padding, alignMask;
+        ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+        pManager->GetFieldInfo( typeCode, fieldBytes, alignment );
+        alignMask = alignment - 1;
+        padding = fieldBytes & alignMask;
+        long paddedSize = (padding) ? (fieldBytes + (alignment - padding)) : fieldBytes;
+        pEntry = mpLocalVocab->AddSymbol( pArrayName, kOpLocalStructArray, (mLocalFrameSize << 12) + paddedSize, false );
+    }
+    pEntry[1] = typeCode;
 
     mNumElements = 0;
     return mLocalFrameSize;
@@ -853,14 +893,28 @@ eForthResult
 ForthEngine::ExecuteOneOp( long opCode )
 {
     long opScratch[2];
-    long *savedIP;
     eForthResult exitStatus = kResultOk;
 
     opScratch[0] = opCode;
     opScratch[1] = BUILTIN_OP( OP_DONE );
 
+    return ExecuteOps( &(opScratch[0]) );
+}
+
+//
+// ExecuteOps is used by the Outer Interpreter (ForthEngine::ProcessToken) to
+// execute a sequence of forth ops, and is also how systems external to forth execute ops
+//
+// code at pOps must be terminated with OP_DONE
+//
+eForthResult
+ForthEngine::ExecuteOps( long *pOps )
+{
+    long *savedIP;
+    eForthResult exitStatus = kResultOk;
+
     savedIP = mpCore->IP;
-    mpCore->IP = opScratch;
+    mpCore->IP = pOps;
     if ( mFastMode )
     {
         exitStatus = InnerInterpreterFast( mpCore );
@@ -890,6 +944,7 @@ static char *pErrorStrings[] =
     "Bad Method Number",
     "Unhandled Exception",
     "Missing Preceeding Size Constant",
+    "Error In Struct Definition",
     "Syntax error",
     "Syntax error - else without matching if",
     "Syntax error - endif without matching if/else",
@@ -904,7 +959,14 @@ void
 ForthEngine::SetError( eForthError e, const char *pString )
 {
     mpCore->error = e;
-    mpErrorString = pString;
+    if ( pString )
+    {
+        strncpy( mpErrorString, pString, ERROR_STRING_MAX );
+    }
+    else
+    {
+        mpErrorString[0] = '\0';
+    }
     if ( e != kForthErrorNone )
     {
         mpCore->state = kResultError;
@@ -916,7 +978,14 @@ ForthEngine::SetFatalError( eForthError e, const char *pString )
 {
     mpCore->state = kResultFatalError;
     mpCore->error = e;
-    mpErrorString = pString;
+    if ( pString )
+    {
+        strncpy( mpErrorString, pString, ERROR_STRING_MAX );
+    }
+    else
+    {
+        mpErrorString[0] = '\0';
+    }
 }
 
 void
@@ -924,7 +993,7 @@ ForthEngine::GetErrorString( char *pString )
 {
     int errorNum = (int) mpCore->error;
     if ( errorNum < (sizeof(pErrorStrings) / sizeof(char *)) ) {
-        if ( mpErrorString != NULL )
+        if ( mpErrorString[0] != '\0' )
         {
             sprintf( pString, "%s: %s", pErrorStrings[errorNum], mpErrorString );
         }
@@ -1043,7 +1112,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     }
     
     if ( mpInterpreterExtension != NULL ) {
-        if ( (*mpInterpreterExtension)( this, pToken ) ) {
+        if ( (*mpInterpreterExtension)( pToken ) ) {
             ////////////////////////////////////
             //
             // symbol was processed by user-defined interpreter extension
@@ -1097,12 +1166,27 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 
     }
 
+    // see if this is a structure access (like structA.fieldB.fieldC)
+    if ( pInfo->GetFlags() & PARSE_FLAG_HAS_PERIOD ) 
+    {
+        if ( mpStructsManager->ProcessSymbol( pInfo, exitStatus ) )
+        {
+            ////////////////////////////////////
+            //
+            // symbol is a structure access
+            //
+            ////////////////////////////////////
+            return exitStatus;
+        }
+    }
+
     // try to convert to a number
     // if there is a period in string
     //    try to covert to a floating point number
     // else
     //    try to convert to an integer
-    if ( ScanFloatToken( pToken, fvalue, dvalue, isSingle ) )
+    if ( (pInfo->GetFlags() & PARSE_FLAG_HAS_PERIOD) 
+      && ScanFloatToken( pToken, fvalue, dvalue, isSingle ) )
     {
        if ( isSingle )
        {
@@ -1190,7 +1274,9 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             }
         }
 
-    } else {
+    }
+    else
+    {
 
         TRACE( "Unknown symbol %s\n", pToken );
         mpCore->error = kForthErrorUnknownSymbol;

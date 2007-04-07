@@ -27,6 +27,17 @@
 #define ulong unsigned long
 #endif
 
+#if 0
+#include "Forth.h"
+#include "ForthEngine.h"
+#include "ForthForgettable.h"
+#include "ForthInner.h"
+#include "ForthInput.h"
+#include "ForthShell.h"
+#include "ForthStructs.h"
+#include "ForthThread.h"
+#include "ForthVocabulary.h"
+#endif
 
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.

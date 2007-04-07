@@ -13,7 +13,7 @@
 
 #include "Forth.h"
 
-class ForthEngine;
+//class ForthEngine;
 
 extern "C" {
 
@@ -77,7 +77,8 @@ struct ForthCoreState
     ulong               numUserOps;
     ulong               maxUserOps;     // current size of table at pUserOps
 
-    ForthEngine         *pEngine;
+    //ForthEngine         *pEngine;
+   void                 *pEngine;
 
     // *** beginning of stuff which is per thread ***
     ForthThreadState    *pThread;       // pointer to current thread state
@@ -165,7 +166,8 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define GET_STATE                       (eForthResult)(pCore->state)
 #define SET_STATE( A )                  (pCore->state = A)
 
-#define GET_ENGINE                      (pCore->pEngine)
+//#define GET_ENGINE                      (pCore->pEngine)
+#define GET_ENGINE                      (ForthEngine::GetInstance())
 
 #define GET_VAR_OPERATION               (pCore->varMode)
 #define SET_VAR_OPERATION( A )          (pCore->varMode = A)

@@ -1940,15 +1940,17 @@ FORTHOP( ptrToOp )
 FORTHOP( structOp )
 {
     ForthEngine* pEngine = GET_ENGINE;
+    pEngine->SetCompileFlag( kFECompileFlagInStructDefinition );
     ForthStructsManager* pManager = ForthStructsManager::GetInstance();
     ForthStructVocabulary* pVocab = pManager->AddStructType( pEngine->GetNextSimpleToken() );
-    pEngine->CompileLong( OP_DO_STRUCT );
+    pEngine->CompileLong( OP_DO_STRUCT_TYPE );
     pEngine->CompileLong( (long) pVocab );
 }
 
 FORTHOP( endstructOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
+    pEngine->ClearCompileFlag( kFECompileFlagInStructDefinition );
     pEngine->EndOpDefinition( true );
 }
 
@@ -1967,11 +1969,31 @@ FORTHOP( doVocabOp )
     SET_IP( (long *) (RPOP) );
 }
 
-FORTHOP( doStructOp )
+// doStructTypeOp is compiled at the start of each user-defined structure defining word 
+FORTHOP( doStructTypeOp )
 {
     // IP points to data field
     ForthStructVocabulary *pVocab = (ForthStructVocabulary *) (*GET_IP);
     pVocab->DefineInstance();
+    SET_IP( (long *) (RPOP) );
+}
+
+// doStructOp is compiled at the of each user-defined structure instance
+FORTHOP( doStructOp )
+{
+    // IP points to data field
+    SPUSH( (long) GET_IP );
+    SET_IP( (long *) (RPOP) );
+}
+
+// doStructArrayOp is compiled at the of each user-defined structure array instance
+FORTHOP( doStructArrayOp )
+{
+    // IP points to data field
+    long *pA = GET_IP;
+    long nBytes = (*pA++) * SPOP;
+
+    SPUSH( ((long) pA) + nBytes );
     SET_IP( (long *) (RPOP) );
 }
 
@@ -2867,8 +2889,11 @@ baseDictEntry baseDict[] = {
     OP(     initStringOp,           "initString" ),
     OP(     initStringArrayOp,      "initStringArray" ),
     OP(     plusOp,                 "+" ),
+    OP(     fetchOp,                "@" ),
     OP(     badOpOp,                "badOp" ),
     OP(     doStructOp,             "_doStruct" ),
+    OP(     doStructArrayOp,        "_doStructArray" ),
+    OP(     doStructTypeOp,         "_doStructType" ),
 
     // stuff below this line can be rearranged
     
@@ -3035,7 +3060,6 @@ baseDictEntry baseDict[] = {
     //  memory store/fetch
     ///////////////////////////////////////////
     OP(     storeOp,                "!" ),
-    OP(     fetchOp,                "@" ),
     OP(     cstoreOp,               "c!" ),
     OP(     cfetchOp,               "c@" ),
     OP(     scfetchOp,              "sc@" ),

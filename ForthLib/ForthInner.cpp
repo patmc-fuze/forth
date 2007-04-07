@@ -1097,6 +1097,15 @@ OPTYPE_ACTION( ArrayOffsetAction )
     SPUSH( (long) pArray );
 }
 
+OPTYPE_ACTION( LocalStructArrayAction )
+{
+    // bits 0..11 are padded struct length in bytes, bits 12..23 are frame offset in longs
+    // init the current & max length fields of a local string
+    long* pStruct = GET_FP - (opVal >> 12);
+    long offset = ((opVal & 0xFFF) * SPOP) + ((long) pStruct);
+    SPUSH( offset );
+}
+
 OPTYPE_ACTION( ConstantStringAction )
 {
     // push address of immediate string & skip over
@@ -1223,6 +1232,7 @@ optypeActionRoutine builtinOptypeAction[] =
     ConstantAction,
     OffsetAction,
     ArrayOffsetAction,
+    LocalStructArrayAction,
 
     ConstantStringAction,
 

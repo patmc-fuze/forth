@@ -128,6 +128,73 @@ A native type has:
 ? local array action op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 8
+
+Code generation
+
+----
+Processing first symbol:
+  offset = 0
+  global
+    struct
+      compile global struct op
+    ptr to struct
+      compile global struct op
+      compile at op
+    array of structs
+      compile global struct array op
+    array of ptrs to structs
+      compile global struct array op
+      compile at op
+  local
+    compile local ref( frame offset of array )
+    struct
+    ptr to struct
+      compile at op
+    array of structs
+      compile arrayOffsetOp( padded element size )
+    array of ptrs to structs
+      compile arrayOffsetOp( 4 )
+      compile at op
+
+Processing symbols after 1st:
+  offset += symbol offset
+  if symbol is not final
+    // all non-final symbols are struct types (not natives)
+    if storage is not single struct
+      if offset != 0
+        compile offsetOp( offset )
+        offset = 0
+    ptr to struct
+      compile at op
+    array of structs
+      compile arrayOffsetOp( padded element size )
+    array of ptrs to structs
+      compile arrayOffsetOp( 4 )
+      compile at op
+  else
+    // symbol is final
+    if symbol is native
+      compile native action op( offset )
+    else
+      if offset != 0
+        compile offsetOp( offset )
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 5 2007
+
+I've been working slowly on struct support.
+Still waffling on what storage configurations will be directly supported, and
+how they should be described.
+
+storageType:	none, single, array
+bool	isPtr
+bool	isNative
+long	dataType
+		for natives, a forthNativeType
+		for structs, struct index from ForthStructsManager
+int		numElements (0 means not an array)
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 22 2007
 
 We need a way to get from a symbol to its struct or native type.

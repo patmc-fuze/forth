@@ -42,7 +42,7 @@ public:
     ForthVocabulary *   GetNextSearchVocabulary( void );
 
     // add symbol to symbol table, return ptr to new symbol entry
-    virtual long*       AddSymbol( const char *pSymName, forthOpType symType, long symValue, bool addToEngineOps );
+    virtual long*       AddSymbol( const char *pSymName, long symType, long symValue, bool addToEngineOps );
 
     // copy a symbol table entry, presumably from another vocabulary
     void                CopyEntry( long *pEntry );

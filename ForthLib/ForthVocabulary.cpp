@@ -137,7 +137,7 @@ ForthVocabulary::GetNextSearchVocabulary( void )
 
 long *
 ForthVocabulary::AddSymbol( const char      *pSymName,
-                            forthOpType     symType,
+                            long            symType,
                             long            symValue,
                             bool            addToEngineOps )
 {
@@ -180,7 +180,7 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
     if ( addToEngineOps ){        
         // for executable ops, add the IP of symbol to op table
         // value of symbol is index into op table, not IP
-        symValue = mpEngine->AddOp( (long *) symValue, symType );
+        symValue = mpEngine->AddOp( (long *) symValue, (forthOpType) symType );
     }
     
     SPEW_VOCABULARY( "Adding symbol %s type %d value 0x%x to %s\n",

@@ -30,6 +30,29 @@ colonOp
    ForthEngine::AddUserOp
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 8 2007
+
+Maybe the first attempt at structures should skip all optimizations, just
+compile an op for each symbol in a structure access compound op
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 7 2007
+
+Struct defining stuff is in.  Extension to outer interpreter to handle
+stuff like a.b.c is not in yet.
+
+I'm not completely sure that the handling of pointers is correct.
+I got rid of ForthNativeStringType, merged it back into ForthNativeType.
+I'm not convinced that was a good idea, the code is messy, I was trying to
+avoid duplicating DefineInstance.  Most of the ugliness is because strings
+need to get the maximum string length, and how that is done is different
+in interpret mode and compile mode.
+
+Strings and string arrays in structs is probably not a great idea anyway,
+since the maximum length field is not set in that case, so it would be easy
+to use an uninitialized string and get a buffer overrun.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 31 2007
 
 Added ForthNativeType

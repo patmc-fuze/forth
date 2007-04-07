@@ -44,8 +44,10 @@ const char * GetTagString( long tag )
 }
 
 //////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthShell
+// 
 
 ForthShell::ForthShell( ForthEngine *pEngine, ForthThread *pThread, int shellStackLongs )
 : mpEngine(pEngine)
@@ -578,6 +580,11 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                      gotAToken = true;
                      break;
 
+                  case '.':
+                     pInfo->SetFlag( PARSE_FLAG_HAS_PERIOD );
+                     *pDst++ = *pEndSrc++;
+                     break;
+
                   default:
                      *pDst++ = *pEndSrc++;
                      break;
@@ -666,6 +673,115 @@ ForthShell::GetToken( char delim )
     return pToken;
 }
 
+void
+ForthShell::SetCommandLine( int argc, const char ** argv )
+{
+    int i, len;
+
+    DeleteCommandLine();
+
+    i = 0;
+    mpArgs = new char *[ argc ];
+    while ( i < argc ) {
+        len = strlen( argv[i] );
+        mpArgs[i] = new char [ len + 1 ];
+        strcpy( mpArgs[i], argv[i] );
+        i++;
+    }
+    mNumArgs = argc;
+}
+
+
+void
+ForthShell::SetCommandLine( const char *pCmdLine )
+{
+    // TBD
+}
+
+
+void
+ForthShell::SetEnvironmentVars( const char ** envp )
+{
+    int i, len;
+    char *pValue;
+
+    DeleteEnvironmentVars();
+
+    // count number of environment variables
+    mNumEnvVars = 0;
+    while ( envp[mNumEnvVars] != NULL )
+    {
+        mNumEnvVars++;
+    }
+    mpEnvVarNames = new char *[ mNumEnvVars ];
+    mpEnvVarValues = new char *[ mNumEnvVars ];
+
+    // make copies of vars
+    i = 0;
+    while ( i < mNumEnvVars )
+    {
+        len = strlen( envp[i] );
+        mpEnvVarNames[i] = new char[ len + 1 ];
+        strcpy( mpEnvVarNames[i], envp[i] );
+        pValue = strchr( mpEnvVarNames[i], '=' );
+        if ( pValue != NULL )
+        {
+            *pValue++ = '\0';
+            mpEnvVarValues[i] = pValue;
+        } else {
+            printf( "Malformed environment variable: %s\n", envp[i] );
+        }
+        i++;
+    }
+}
+
+void
+ForthShell::DeleteCommandLine( void )
+{
+    while ( mNumArgs > 0 ) {
+        mNumArgs--;
+        delete [] mpArgs[mNumArgs];
+    }
+    delete [] mpArgs;
+
+    mpArgs = NULL;
+}
+
+
+void
+ForthShell::DeleteEnvironmentVars( void )
+{
+    while ( mNumEnvVars > 0 ) {
+        mNumEnvVars--;
+        delete [] mpEnvVarNames[mNumEnvVars];
+    }
+    delete [] mpEnvVarNames;
+    delete [] mpEnvVarValues;
+
+    mpEnvVarNames = NULL;
+    mpEnvVarValues = NULL;
+}
+
+
+bool
+ForthShell::CheckSyntaxError( const char *pString, long tag, long desiredTag )
+{
+    if ( tag != desiredTag )
+    {
+        sprintf( mErrorString, "<%s> preceeded by <%s>, was expecting <%s>",
+                 pString, GetTagString( tag ), GetTagString( desiredTag ) );
+        mpEngine->SetError( kForthErrorBadSyntax, mErrorString );
+        return false;
+    }
+    return true;
+}
+
+
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthParseInfo
+// 
 
 ForthParseInfo::ForthParseInfo( long *pBuffer, int numLongs )
 : mpToken( pBuffer )
@@ -741,113 +857,11 @@ ForthParseInfo::SetToken( const char *pSrc )
 }
 
 
-void
-ForthShell::SetCommandLine( int argc, const char ** argv )
-{
-    int i, len;
-
-    DeleteCommandLine();
-
-    i = 0;
-    mpArgs = new char *[ argc ];
-    while ( i < argc ) {
-        len = strlen( argv[i] );
-        mpArgs[i] = new char [ len + 1 ];
-        strcpy( mpArgs[i], argv[i] );
-        i++;
-    }
-    mNumArgs = argc;
-}
-
-
-void
-ForthShell::SetCommandLine( const char *pCmdLine )
-{
-    // TBD
-}
-
-
-void
-ForthShell::SetEnvironmentVars( const char ** envp )
-{
-    int i, len;
-    char *pValue;
-
-    DeleteEnvironmentVars();
-
-    // count number of environment variables
-    mNumEnvVars = 0;
-    while ( envp[mNumEnvVars] != NULL )
-    {
-        mNumEnvVars++;
-    }
-    mpEnvVarNames = new char *[ mNumEnvVars ];
-    mpEnvVarValues = new char *[ mNumEnvVars ];
-
-    // make copies of vars
-    i = 0;
-    while ( i < mNumEnvVars )
-    {
-        len = strlen( envp[i] );
-        mpEnvVarNames[i] = new char[ len + 1 ];
-        strcpy( mpEnvVarNames[i], envp[i] );
-        pValue = strchr( mpEnvVarNames[i], '=' );
-        if ( pValue != NULL )
-        {
-            *pValue++ = '\0';
-            mpEnvVarValues[i] = pValue;
-        } else {
-            printf( "Malformed environment variable: %s\n", envp[i] );
-        }
-        i++;
-    }
-}
-
-
-void
-ForthShell::DeleteCommandLine( void )
-{
-    while ( mNumArgs > 0 ) {
-        mNumArgs--;
-        delete [] mpArgs[mNumArgs];
-    }
-    delete [] mpArgs;
-
-    mpArgs = NULL;
-}
-
-
-void
-ForthShell::DeleteEnvironmentVars( void )
-{
-    while ( mNumEnvVars > 0 ) {
-        mNumEnvVars--;
-        delete [] mpEnvVarNames[mNumEnvVars];
-    }
-    delete [] mpEnvVarNames;
-    delete [] mpEnvVarValues;
-
-    mpEnvVarNames = NULL;
-    mpEnvVarValues = NULL;
-}
-
-
-bool
-ForthShell::CheckSyntaxError( const char *pString, long tag, long desiredTag )
-{
-    if ( tag != desiredTag )
-    {
-        sprintf( mErrorString, "<%s> preceeded by <%s>, was expecting <%s>",
-                 pString, GetTagString( tag ), GetTagString( desiredTag ) );
-        mpEngine->SetError( kForthErrorBadSyntax, mErrorString );
-        return false;
-    }
-    return true;
-}
-
 //////////////////////////////////////////////////////////////////////
-// Shell stack
-//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthShellStack
+// 
 
 // this is the number of extra longs to allocate at top and
 //    bottom of stacks

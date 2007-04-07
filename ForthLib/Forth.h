@@ -13,13 +13,6 @@
 #endif // _MSC_VER > 1000
 //#include "stdafx.h"
 
-class ForthEngine;
-class ForthShell;
-class ForthThread;
-class ForthVocabulary;
-class ForthInputStack;
-class ForthInputStream;
-class ForthForgettable;
 struct ForthCoreState;
 
 #ifndef ulong
@@ -41,6 +34,7 @@ typedef enum
     kOpConstant,        // low 24 bits is signed symbol value
     kOpOffset,          // low 24 bits is signed offset value
     kOpArrayOffset,     // low 24 bits is array element size
+    kOpLocalStructArray,   // bits 0..11 are padded struct size in bytes, bits 12..23 are frame offset in longs
 
     kOpConstantString,
 
@@ -106,7 +100,7 @@ typedef void  (*ForthOp)( ForthCoreState * );
 // user will also have to add an external interpreter with ForthEngine::SetInterpreterExtension
 // to compile/interpret these new optypes
 // return true if the extension has recognized and processed the symbol
-typedef bool (*interpreterExtensionRoutine)( ForthEngine *pEngine, char *pToken );
+typedef bool (*interpreterExtensionRoutine)( char *pToken );
 
 // consoleOutRoutine is used to pass all console output
 typedef void (*consoleOutRoutine) ( ForthCoreState *pCore, const char *pBuff );
@@ -153,6 +147,7 @@ typedef enum {
     kForthErrorBadMethod,
     kForthErrorException,
     kForthErrorMissingSize,
+    kForthErrorStruct,
     kForthErrorBadSyntax,
     // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
@@ -220,8 +215,11 @@ class ForthThread;
 #define OP_INIT_STRING          BUILTIN_OP(34)
 #define OP_INIT_STRING_ARRAY    BUILTIN_OP(35)
 #define OP_PLUS                 BUILTIN_OP(36)
-#define OP_BAD_OP               BUILTIN_OP(37)
-#define OP_DO_STRUCT            BUILTIN_OP(38)
+#define OP_FETCH                BUILTIN_OP(37)
+#define OP_BAD_OP               BUILTIN_OP(38)
+#define OP_DO_STRUCT            BUILTIN_OP(39)
+#define OP_DO_STRUCT_ARRAY      BUILTIN_OP(40)
+#define OP_DO_STRUCT_TYPE       BUILTIN_OP(41)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct {
@@ -252,6 +250,7 @@ typedef struct _ForthClassDescriptor {
 #define TRACE_INNER_INTERPRETER
 #define TRACE_SHELL
 #define TRACE_VOCABULARY
+#define TRACE_STRUCTS
 
 #ifdef TRACE_PRINTS
 #define SPEW_PRINTS TRACE
@@ -282,6 +281,12 @@ typedef struct _ForthClassDescriptor {
 #define SPEW_VOCABULARY TRACE
 #else
 #define SPEW_VOCABULARY(...)
+#endif
+
+#ifdef TRACE_STRUCTS
+#define SPEW_STRUCTS TRACE
+#else
+#define SPEW_STRUCTS(...)
 #endif
 
 
@@ -334,32 +339,40 @@ typedef enum
 
 typedef enum
 {
-    kDTNone,
-    kDTNativeVariable,
-    kDTNativeArray,
-    kDTNativePtr,
-    kDTStruct,
-    kDTStructArray,
-    kDTStructPtr,
+    // kDTNone, kDTSingle and kDTArray are mutually exclusive
+    kDTNone         = 0,
+    kDTSingle       = 1,
+    kDTArray        = 2,
+    kDTIllegal      = 3,
+    // kDTIsPtr and kDTIsNative can be combined with anything
+    kDTIsPtr        = 4,
+    kDTIsNative     = 8,
 } storageDescriptor;
 
 // user-defined structure fields have a 32-bit descriptor with the following format:
-// 31...28    storageDescriptor
-// 27...0     more info
+// 1...0        select none, single or array
+//   2          is field a pointer
+//   3          is field native
 
-// for types with storageDescriptor kDTNativeVariable, kDTNativeArray or kDTNativePtr:
-// 27...24    forthNativeType
-// 23...0     string length (if forthNativeType == kNativeString)
+// for types with kDTIsNative set:
+// 7...4        forthNativeType
+// 31...8       string length (if forthNativeType == kNativeString)
 
-// for types with storageDescriptor kDTStruct, kDTStructArray or kDTStructPtr:
-// 27...0     struct index
+// for types with kDTIsNative clear:
+// 31...4     struct index
 
-#define NATIVE_TYPE_TO_CODE( STORAGE_TYPE, NATIVE_TYPE )     ((STORAGE_TYPE << 28) | (NATIVE_TYPE << 24))
-#define STRING_TYPE_TO_CODE( STORAGE_TYPE, MAXBYTES )   ((STORAGE_TYPE << 28) | (kNativeString << 24) | MAXBYTES)
-#define STRUCT_TYPE_TO_CODE( STRUCT_TYPE, STRUCT_INDEX ) ((STORAGE_TYPE << 28) | STRUCT_INDEX)
-#define CODE_TO_STORAGE_TYPE( CODE ) ((CODE) >> 28)
-#define CODE_TO_NATIVE_TYPE( CODE ) (((CODE) >> 24) & 0x0F)
-#define CODE_TO_STRUCT_INDEX( CODE ) ((CODE) & 0x0FFFFFFF)
-#define CODE_TO_STRING_BYTES( CODE ) ((CODE) & 0x00FFFFFF)
+// when kDTArray and kDTIsPtr are both set, it means the field is an array of pointers
+#define NATIVE_TYPE_TO_CODE( STORAGE_TYPE, NATIVE_TYPE )    (kDTIsNative | ((NATIVE_TYPE << 4) | STORAGE_TYPE))
+#define STRING_TYPE_TO_CODE( STORAGE_TYPE, MAX_BYTES )      (kDTIsNative | ((MAX_BYTES << 8) | (kNativeString << 4) | STORAGE_TYPE))
+#define STRUCT_TYPE_TO_CODE( STORAGE_TYPE, STRUCT_INDEX )    ((STRUCT_INDEX << 4) | STORAGE_TYPE)
+#define CODE_IS_DATA( CODE )                (((CODE) & 3) != 0)
+#define CODE_IS_VARIABLE( CODE )            (((CODE) & 3) == kDTSingle)
+#define CODE_IS_ARRAY( CODE )               (((CODE) & 3) == kDTArray)
+#define CODE_IS_PTR( CODE )                 (((CODE) & kDTIsPtr) != 0)
+#define CODE_IS_NATIVE( CODE )              (((CODE) & kDTIsNative) != 0)
+#define CODE_TO_STORAGE_TYPE( CODE )        ((CODE) & 0x0F)
+#define CODE_TO_NATIVE_TYPE( CODE )         (((CODE) >> 4) & 0x0F)
+#define CODE_TO_STRUCT_INDEX( CODE )        (((CODE) >> 4) & 0x0FFFFFFF)
+#define CODE_TO_STRING_BYTES( CODE )        ((CODE) >> 8)
 
 #endif

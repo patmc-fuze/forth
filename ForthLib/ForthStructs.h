@@ -29,6 +29,9 @@ typedef struct
     long                        op;
 } ForthStructInfo;
 
+// a struct accessor compound operation must be less than this length in longs
+#define MAX_ACCESSOR_LONGS  64
+
 class ForthStructsManager : public ForthForgettable
 {
 public:
@@ -37,14 +40,19 @@ public:
 
     virtual void    ForgetCleanup( void *pForgetLimit, long op );
 
+    // compile/interpret symbol if it is a valid structure accessor
+    virtual bool    ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
+
     // add a new structure type
-    virtual ForthStructVocabulary*  AddStructType( const char *pName );
+    ForthStructVocabulary*  AddStructType( const char *pName );
     static ForthStructsManager*     GetInstance( void );
 
     // return info structure for struct type specified by structIndex
-    virtual ForthStructInfo*        GetStructInfo( int structIndex );
+    ForthStructInfo*        GetStructInfo( int structIndex );
 
-    static void GetFieldInfo( long fieldType, long& fieldBytes, long& alignment );
+    void GetFieldInfo( long fieldType, long& fieldBytes, long& alignment );
+
+    ForthStructVocabulary*   GetNewestStruct( void );
 
 protected:
     // mpStructInfo points to an array with an entry for each defined structure type
@@ -52,6 +60,8 @@ protected:
     int                             mNumStructs;
     int                             mMaxStructs;
     static ForthStructsManager*     mpInstance;
+    char                            mToken[ DEFAULT_INPUT_BUFFER_LEN ];
+    long                            mCode[ MAX_ACCESSOR_LONGS ];
 };
 
 class ForthStructVocabulary : public ForthVocabulary
@@ -71,10 +81,13 @@ public:
     void                DefineInstance( void );
 
     void                AddField( const char* pName, long fieldType, int numElements );
+    long                GetAlignment( void );
+    long                GetSize( void );
 
 protected:
-    int                 mNumBytes;
-    int                 mStructIndex;
+    long                mNumBytes;
+    long                mStructIndex;
+    long                mAlignment;
 };
 
 
@@ -91,6 +104,8 @@ public:
     inline long GetLocalArrayOp( void ) { return mNativeType + kOpLocalByteArray; };
     inline long GetFieldOp( void ) { return mNativeType + kOpFieldByte; };
     inline long GetFieldArrayOp( void ) { return mNativeType + kOpFieldByteArray; };
+    inline long GetAlignment( void ) { return (mNumBytes > 4) ? 4 : mNumBytes; };
+    inline long GetSize( void ) { return mNumBytes; };
 
 protected:
     const char*         mpName;
@@ -98,6 +113,7 @@ protected:
     forthNativeType     mNativeType;
 };
 
+#if 0
 class ForthNativeStringType : public ForthNativeType
 {
 public:
@@ -105,8 +121,8 @@ public:
     virtual ~ForthNativeStringType();
     virtual void DefineInstance( ForthEngine *pEngine, void *pInitialVal );
 };
+#endif
 
-extern ForthNativeType gNativeByte, gNativeShort, gNativeInt, gNativeFloat, gNativeDouble, gNativeOp;
-extern ForthNativeStringType gNativeString;
+extern ForthNativeType gNativeByte, gNativeShort, gNativeInt, gNativeFloat, gNativeDouble, gNativeString, gNativeOp;
 
 #endif

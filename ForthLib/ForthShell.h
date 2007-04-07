@@ -11,7 +11,8 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
-#include "Forth.h"
+#include "ForthEngine.h"
+#include "ForthInput.h"
 
 class ForthInputStack;
 
@@ -26,6 +27,7 @@ class ForthInputStack;
 // These are the flags that can be passed to ForthEngine::ProcessToken
 #define PARSE_FLAG_QUOTED_STRING        1
 #define PARSE_FLAG_QUOTED_CHARACTER     2
+#define PARSE_FLAG_HAS_PERIOD           4
 
 class ForthParseInfo
 {

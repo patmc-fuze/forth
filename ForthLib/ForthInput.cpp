@@ -8,8 +8,10 @@
 #include "ForthInput.h"
 
 //////////////////////////////////////////////////////////////////////
-// Construction/Destruction
-//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthInputStack
+// 
 
 ForthInputStack::ForthInputStack()
 {
@@ -121,6 +123,12 @@ ForthInputStack::Reset( void )
 }
 
 
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthInputStream
+// 
+
 ForthInputStream::ForthInputStream( int bufferLen )
 : mpNext(NULL)
 , mBufferLen(bufferLen)
@@ -172,6 +180,12 @@ ForthInputStream::GetLineNumber( void )
     return -1;
 }
 
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthFileInputStream
+// 
+
 ForthFileInputStream::ForthFileInputStream( FILE *pInFile, int bufferLen )
 : ForthInputStream(bufferLen)
 , mpInFile( pInFile )
@@ -207,6 +221,13 @@ ForthFileInputStream::GetLineNumber( void )
     return mLineNumber;
 }
 
+
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthConsoleInputStream
+// 
+
 ForthConsoleInputStream::ForthConsoleInputStream( int bufferLen )
 : ForthInputStream(bufferLen)
 {
@@ -229,6 +250,12 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
     return pBuffer;
 }
 
+
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthBufferInputStream
+// 
 
 ForthBufferInputStream::ForthBufferInputStream( char *pDataBuffer, int dataBufferLen, int bufferLen )
 : ForthInputStream(bufferLen)
