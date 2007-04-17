@@ -10,12 +10,15 @@ TBDs:
   
 - string vars are currently not using len/maxLen fields
 
-- structure support
++ structure support
 - sdl support (not kernel)
 - vocabulary support
 - windows support
   - gui stuff
   - graphics
+- better tests
+- help system
+- faster searches
 
 + rewrite kernel in assembler
   -> leave compile time words in c++
