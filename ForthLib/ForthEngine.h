@@ -30,11 +30,12 @@ class ForthShell;
 #define TMP_STRING_BUFFER_LEN 256
 
 typedef enum {
-    kFECompileFlagHasLocalVars              = 0x01,
-    kFECompileFlagInStructDefinition        = 0x02,
-    kFECompileFlagIsPointer                 = 0x04,
-    kFECompileFlagIsMethod                  = 0x08,
-    kFECompileFlagInClassDefinition         = 0x10,
+    kEngineFlagHasLocalVars              = 0x01,
+    kEngineFlagInStructDefinition        = 0x02,
+    kEngineFlagIsPointer                 = 0x04,
+    kEngineFlagInEnumDefinition          = 0x08,
+    kEngineFlagIsMethod                  = 0x10,
+    kEngineFlagInClassDefinition         = 0x20,
 } FECompileFlags;
 
 class ForthEngine
@@ -101,6 +102,8 @@ public:
     void            EndOpDefinition( bool unsmudgeIt=false );
     // return pointer to symbol entry, NULL if not found
     long *          FindSymbol( const char *pSymName );
+    void            DescribeSymbol( const char *pSymName );
+
     void            StartStructDefinition( void );
     void            EndStructDefinition( void );
     // returns size of local stack frame in bytes after adding local var
@@ -110,7 +113,10 @@ public:
     eForthResult    ProcessToken( ForthParseInfo *pInfo );
     char *          GetLastInputToken( void );
 
+    const char *            GetOpTypeName( long opType );
     void                    TraceOp( void );
+    void                    DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs=false );
+    long *                  NextOp( long *pOp );
 
     inline long *           GetDP() { return mpCore->DP; };
     inline void             SetDP( long *pNewDP ) { mpCore->DP = pNewDP; };
@@ -134,12 +140,13 @@ public:
     inline long             *GetCompileStatePtr( void ) { return &mCompileState; };
     inline void             SetCompileState( long v ) { mCompileState = v; };
     inline long             IsCompiling( void ) { return mCompileState; };
-    inline bool             InStructDefinition( void ) { return ((mCompileFlags & kFECompileFlagInStructDefinition) != 0); };
-    inline bool             HasLocalVars( void ) { return ((mCompileFlags & kFECompileFlagHasLocalVars) != 0); };
-    inline long             GetCompileFlags( void ) { return mCompileFlags; };
-    inline void             SetCompileFlags( long flags ) { mCompileFlags = flags; };
-    inline void             SetCompileFlag( long flags ) { mCompileFlags |= flags; };
-    inline void             ClearCompileFlag( long flags ) { mCompileFlags &= (~flags); };
+    inline bool             InStructDefinition( void ) { return ((mCompileFlags & kEngineFlagInStructDefinition) != 0); };
+    inline bool             HasLocalVars( void ) { return ((mCompileFlags & kEngineFlagHasLocalVars) != 0); };
+    inline long             GetFlags( void ) { return mCompileFlags; };
+    inline void             SetFlags( long flags ) { mCompileFlags = flags; };
+    inline void             SetFlag( long flags ) { mCompileFlags |= flags; };
+    inline void             ClearFlag( long flags ) { mCompileFlags &= (~flags); };
+    inline long             CheckFlag( long flags ) { return mCompileFlags & flags; };
     inline long *           GetLastCompiledOpcodePtr( void ) { return mpLastCompiledOpcode; };
     inline char *           GetTmpStringBuffer( void ) { return mpStringBufferB; };
     void                    SetCurrentThread( ForthThread* pThread );
@@ -152,6 +159,9 @@ public:
     void                    SetFatalError( eForthError e, const char *pString = NULL );
     inline eForthError      GetError( void ) { return (eForthError) (mpCore->error); };
     inline ForthCoreState*  GetCoreState( void ) { return mpCore; };
+
+    void                    StartEnumDefinition( void );
+    void                    EndEnumDefinition( void );
 
     static ForthEngine*     GetInstance( void );
 
@@ -193,9 +203,12 @@ protected:
 
     long            mCompileFlags;
     long            mNumElements;       // number of elements in next array declared
-    bool            mFastMode;
+
+    long *          mpEnumStackBase;
+    long            mNextEnum;
 
     static ForthEngine* mpInstance;
+    bool            mFastMode;
 };
 
 

@@ -332,25 +332,49 @@ ForthVocabulary::ForgetOp( long op )
     // how many symbols are left after forget
     symbolsLeft = mNumSymbols;
 
-    while ( symbolsLeft > 0) {
-
+    while ( symbolsLeft > 0 )
+    {
+        symbolsLeft--;
         opType = GetEntryType( pEntry );
-        if ( opType == kOpBuiltIn )
+        switch ( opType )
         {
-            // can't forget builtin ops
-            break;
-        }
-        opVal = GetEntryValue( pEntry );
-        if ( opVal >= op )
-        {
-            symbolsLeft--;
-            pEntry = NextEntry( pEntry );
-            mpStorageBottom = pEntry;
-            mNumSymbols = symbolsLeft;
-        }
-        else
-        {
-            break;
+            case kOpBuiltIn:
+                // can't forget builtin ops
+                symbolsLeft = 0;
+                break;
+
+            case kOpUserDef:
+                opVal = GetEntryValue( pEntry );
+                if ( opVal >= op )
+                {
+                    pEntry = NextEntry( pEntry );
+                    mpStorageBottom = pEntry;
+                    mNumSymbols = symbolsLeft;
+                }
+                else
+                {
+                    // this symbol was defined before the forgotten op, so we are done with this vocab
+                    symbolsLeft = 0;
+                }
+                break;
+
+             case kOpConstant:
+                opVal = CODE_TO_STRUCT_INDEX( pEntry[1] );
+                if ( opVal >= op )
+                {
+                    pEntry = NextEntry( pEntry );
+                    mpStorageBottom = pEntry;
+                    mNumSymbols = symbolsLeft;
+                }
+                else
+                {
+                    // this symbol was defined before the forgotten op, so we are done with this vocab
+                    symbolsLeft = 0;
+                }
+                break;
+
+             default:
+                break;
         }
     }
 }
@@ -393,6 +417,28 @@ ForthVocabulary::FindSymbol( ForthParseInfo     *pInfo )
         }
         if ( j == symLen ) {
             // found it
+            return pEntry;
+        }
+        pEntry = NextEntry( pEntry );
+    }
+    
+    // symbol isn't in vocabulary
+    return NULL;
+}
+
+// return ptr to vocabulary entry given its value
+long *
+ForthVocabulary::FindSymbolByValue( long val )
+
+{
+    int i, j, symLen;
+    long *pEntry, *pTmp;
+
+    // go through the vocabulary looking for match with value
+    pEntry = mpStorageBottom;
+    for ( i = 0; i < mNumSymbols; i++ ) {
+        if ( *pEntry == val )
+        {
             return pEntry;
         }
         pEntry = NextEntry( pEntry );

@@ -389,9 +389,9 @@ ForthStructVocabulary::DefineInstance( void )
     mpEngine->SetArraySize( 0 );
     typeCode = STRUCT_TYPE_TO_CODE( ((numElements) ? kDTArray : kDTSingle), mStructIndex );
 
-    if ( mpEngine->GetCompileFlags() & kFECompileFlagIsPointer )
+    if ( mpEngine->CheckFlag( kEngineFlagIsPointer ) )
     {
-        mpEngine->ClearCompileFlag( kFECompileFlagIsPointer );
+        mpEngine->ClearFlag( kEngineFlagIsPointer );
         nBytes = 4;
         typeCode |= kDTIsPtr;
     }
@@ -579,11 +579,11 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
         typeCode = NATIVE_TYPE_TO_CODE( ((numElements) ? kDTArray : kDTSingle), nativeType );
     }
 
-    if ( pEngine->GetCompileFlags() & kFECompileFlagIsPointer )
+    if ( pEngine->CheckFlag( kEngineFlagIsPointer ) )
     {
         // outside of a struct definition, any native variable or array defined with "ptrTo"
         //  is the same thing as an int variable or array, since native types have no fields
-        pEngine->ClearCompileFlag( kFECompileFlagIsPointer );
+        pEngine->ClearFlag( kEngineFlagIsPointer );
         nativeType = kNativeInt;
         nBytes = 4;
         pInitialVal = &val;
@@ -745,11 +745,11 @@ ForthNativeStringType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
     pEngine->SetArraySize( 0 );
     long typeCode = STRING_TYPE_TO_CODE( ((numElements) ? kDTArray : kDTSingle), len );
 
-    if ( pEngine->GetCompileFlags() & kFECompileFlagIsPointer )
+    if ( pEngine->CheckFlag( kEngineFlagIsPointer ) )
     {
         // outside of a struct definition, any native variable or array defined with "ptrTo"
         //  is the same thing as an int variable or array, since native types have no fields
-        pEngine->ClearCompileFlag( kFECompileFlagIsPointer );
+        pEngine->ClearFlag( kEngineFlagIsPointer );
         nativeType = kNativeInt;
         nBytes = 4;
         pInitialVal = &val;

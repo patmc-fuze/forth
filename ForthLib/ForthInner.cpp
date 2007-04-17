@@ -1358,11 +1358,11 @@ InnerInterpreter( ForthCoreState *pCore )
     while ( GET_STATE == kResultOk ) {
         // fetch op at IP, advance IP
         pIP = GET_IP;
-        op = *pIP++;
-        SET_IP( pIP );
 #ifdef TRACE_INNER_INTERPRETER
         GET_ENGINE->TraceOp();
 #endif
+        op = *pIP++;
+        SET_IP( pIP );
         opType = FORTH_OP_TYPE( op );
         opVal = FORTH_OP_VALUE( op );
         if ( opType == kOpBuiltIn )

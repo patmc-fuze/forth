@@ -1677,22 +1677,22 @@ FORTHOP( exitOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // compile exitOp
-    long flags = pEngine->GetCompileFlags();
+    long flags = pEngine->GetFlags();
 
-    switch ( flags & (kFECompileFlagHasLocalVars | kFECompileFlagIsMethod) ) {
+    switch ( flags & (kEngineFlagHasLocalVars | kEngineFlagIsMethod) ) {
     case 0:
         // normal definition, no local vars, not a method
         pEngine->CompileLong( OP_DO_EXIT );
         break;
-    case kFECompileFlagHasLocalVars:
+    case kEngineFlagHasLocalVars:
         // normal definition with local vars
         pEngine->CompileLong( OP_DO_EXIT_L );
         break;
-    case kFECompileFlagIsMethod:
+    case kEngineFlagIsMethod:
         // method definition, no local vars
         pEngine->CompileLong( OP_DO_EXIT_M );
         break;
-    case (kFECompileFlagHasLocalVars | kFECompileFlagIsMethod):
+    case (kEngineFlagHasLocalVars | kEngineFlagIsMethod):
         // method definition, with local vars
         pEngine->CompileLong( OP_DO_EXIT_ML );
         break;
@@ -1707,7 +1707,7 @@ FORTHOP( semiOp )
     exitOp( pCore );
     // switch back from compile mode to execute mode
     pEngine->SetCompileState( 0 );
-    pEngine->SetCompileFlags( 0 );
+    pEngine->SetFlags( 0 );
     // finish current symbol definition
     // compile local vars allocation op (if needed)
     pEngine->EndOpDefinition( true );
@@ -1720,7 +1720,7 @@ FORTHOP( colonOp )
     pEngine->StartOpDefinition( NULL, true );
     // switch to compile mode
     pEngine->SetCompileState( 1 );
-    pEngine->SetCompileFlags( 0 );
+    pEngine->SetFlags( 0 );
 }
 
 FORTHOP( createOp )
@@ -1735,11 +1735,7 @@ FORTHOP( forgetOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     char* pSym = pEngine->GetNextSimpleToken();
-    if ( !pEngine->ForgetSymbol( pSym ) )
-    {
-        TRACE( "Error - attempt to forget unknown op %s from %s\n", pSym, pEngine->GetForthVocabulary()->GetName() );
-        printf( "Error - attempt to forget unknown op %s from %s\n", pSym, pEngine->GetForthVocabulary()->GetName() );
-    }
+    pEngine->ForgetSymbol( pSym );
     // reset search & definitions vocabs in case we deleted a vocab we were using
     pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
     pEngine->SetSearchVocabulary( pEngine->GetForthVocabulary() );
@@ -1934,13 +1930,13 @@ FORTHOP( arrayOfOp )
 FORTHOP( ptrToOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    pEngine->SetCompileFlag( kFECompileFlagIsPointer );
+    pEngine->SetFlag( kEngineFlagIsPointer );
 }
 
 FORTHOP( structOp )
 {
     ForthEngine* pEngine = GET_ENGINE;
-    pEngine->SetCompileFlag( kFECompileFlagInStructDefinition );
+    pEngine->SetFlag( kEngineFlagInStructDefinition );
     ForthStructsManager* pManager = ForthStructsManager::GetInstance();
     ForthStructVocabulary* pVocab = pManager->AddStructType( pEngine->GetNextSimpleToken() );
     pEngine->CompileLong( OP_DO_STRUCT_TYPE );
@@ -1950,7 +1946,7 @@ FORTHOP( structOp )
 FORTHOP( endstructOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    pEngine->ClearCompileFlag( kFECompileFlagInStructDefinition );
+    pEngine->ClearFlag( kEngineFlagInStructDefinition );
     pEngine->EndOpDefinition( true );
 }
 
@@ -1960,6 +1956,25 @@ FORTHOP( sizeOfOp )
 
 FORTHOP( offsetOfOp )
 {
+}
+
+FORTHOP( enumOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    if ( pEngine->CheckFlag( kEngineFlagInStructDefinition ) )
+    {
+        pEngine->SetError( kForthErrorBadSyntax, "enum definition not allowed inside struct definition" );
+        return;
+    }
+    pEngine->StartEnumDefinition();
+    pEngine->StartOpDefinition();
+    pEngine->CompileLong( OP_DO_ENUM );
+}
+
+FORTHOP( endenumOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->EndEnumDefinition();
 }
 
 FORTHOP( doVocabOp )
@@ -1997,6 +2012,16 @@ FORTHOP( doStructArrayOp )
     SET_IP( (long *) (RPOP) );
 }
 
+// has precedence!
+// this is compiled as the only op for each enum set defining word
+// an enum set defining word acts just like the "int" op - it defines
+// a variable or field that is 4 bytes in size
+extern FORTHOP( intOp );
+FORTHOP( doEnumOp )
+{
+    intOp( pCore );
+    SET_IP( (long *) (RPOP) );
+}
 
 // in traditional FORTH, the vocabulary entry for the operation currently
 // being defined is "smudged" so that if a symbol appears in its own definition
@@ -2585,7 +2610,7 @@ ShowVocab( ForthCoreState   *pCore,
     long *pEntry = pVocab->GetFirstEntry();
 
     for ( i = 0; i < nEntries; i++ ) {
-        sprintf( buff, "%02x %06x ", ForthVocabulary::GetEntryType( pEntry ), ForthVocabulary::GetEntryValue( pEntry ) );
+        sprintf( buff, "%02x:%06x    ", ForthVocabulary::GetEntryType( pEntry ), ForthVocabulary::GetEntryValue( pEntry ) );
         CONSOLE_STRING_OUT( pCore, buff );
         len = pVocab->GetEntryNameLength( pEntry );
         if ( len > (BUFF_SIZE - 1)) {
@@ -2629,6 +2654,13 @@ FORTHOP( statsOp )
                 pCore->SP, pCore->ST, pCore->SLen,
                 pCore->RP, pCore->RT, pCore->RLen );
     printf( "%d builtins    %d userops\n", pCore->numBuiltinOps, pCore->numUserOps );
+}
+
+FORTHOP( describeOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    char* pSym = pEngine->GetNextSimpleToken();
+    pEngine->DescribeSymbol( pSym );
 }
 
 FORTHOP( loadLibraryOp )
@@ -2894,6 +2926,7 @@ baseDictEntry baseDict[] = {
     OP(     doStructOp,             "_doStruct" ),
     OP(     doStructArrayOp,        "_doStructArray" ),
     OP(     doStructTypeOp,         "_doStructType" ),
+    PRECOP( doEnumOp,               "_doEnum" ),
 
     // stuff below this line can be rearranged
     
@@ -3128,6 +3161,8 @@ baseDictEntry baseDict[] = {
     PRECOP( endstructOp,            "endstruct" ),
     PRECOP( sizeOfOp,               "sizeOf" ),
     PRECOP( offsetOfOp,             "offsetOf" ),
+    OP(     enumOp,                 "enum" ),
+    OP(     endenumOp,              "endenum" ),
     PRECOP( recursiveOp,            "recursive" ),
     OP(     precedenceOp,           "precedence" ),
     OP(     loadOp,                 "load" ),
@@ -3221,6 +3256,7 @@ baseDictEntry baseDict[] = {
 
     OP(     turboOp,                "turbo" ),
     OP(     statsOp,                "stats" ),
+    OP(     describeOp,             "describe" ),
 
     // following must be last in table
     OP(     NULL,                   "" )

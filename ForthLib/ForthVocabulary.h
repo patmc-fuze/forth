@@ -59,6 +59,8 @@ public:
 
     // return pointer to symbol entry, NULL if not found
     virtual long *      FindSymbol( const char *pSymName );
+    // return pointer to symbol entry, NULL if not found, given its value
+    virtual long *      FindSymbolByValue( long val );
 
     // return pointer to symbol entry, NULL if not found
     // pSymName is required to be a longword aligned address, and to be padded with 0's

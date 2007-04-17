@@ -260,7 +260,7 @@ ForthShell::ReportError( void )
     mpEngine->GetErrorString( errorBuf1 );
     pLastInputToken = mpEngine->GetLastInputToken();
     if ( pLastInputToken != NULL ) {
-        sprintf( errorBuf2, "%s, last input token: <%s>", errorBuf1, pLastInputToken );
+        sprintf( errorBuf2, "%s, last input token: <%s> last IP 0x%x", errorBuf1, pLastInputToken, mpEngine->GetCoreState()->IP );
     } else {
         sprintf( errorBuf2, "%s", errorBuf1 );
     }

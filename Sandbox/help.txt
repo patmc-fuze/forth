@@ -10,10 +10,13 @@ addHelp _doConstant
 addHelp _doDConstant
 addHelp _endBuilds
 addHelp done			makes inner interpreter return - used by outer interpreter
+addHelp _doByte
+addHelp _doShort
 addHelp _doInt
 addHelp _doFloat
 addHelp _doDouble
 addHelp _doString
+addHelp _doOp
 addHelp ->
 addHelp _do
 addHelp _loop
@@ -23,13 +26,24 @@ addHelp _exitL
 addHelp _exitM
 addHelp _exitML
 addHelp _doVocab
+addHelp _doByteArray
+addHelp _doShortArray
+addHelp _doIntArray
+addHelp _doFloatArray
+addHelp _doDoubleArray
+addHelp _doStringArray
+addHelp _doOpArray
+addHelp initString
+addHelp initStringArray
+addHelp _doStruct
+addHelp _doStructArray
+addHelp _doStructType
 
 addHelp +	A B + ... (A+B)		add top two items
 addHelp -	A B - ... (A-B)		subtract top two items
 addHelp *	A B * ... (A*B) 	mutliply top two items
 addHelp 2*	A 2* ... (A*2)		multiply top item by 2
 addHelp 4*	A 4* ... (A*4)		multiply top item by 4
-addHelp 8*	A 8* ... (A*8)		multiply top item by 8
 addHelp /	A B / ... (A/B)		divide top two items
 addHelp 2/	A 2/ ... (A/2)		divide top item by 2
 addHelp 4/	A 4/ ... (A/4)		divide top item by 4
@@ -109,11 +123,19 @@ addHelp 0<=
 addHelp r<
 addHelp r>
 addHelp rdrop
+addHelp rp
+addHelp r0
 
 addHelp dup
 addHelp swap
 addHelp over
 addHelp rot
+addHelp tuck
+addHelp pick
+addHelp roll
+addHelp sp
+addHelp s0
+addHelp fp
 addHelp ddup
 addHelp dswap
 addHelp ddrop
@@ -176,6 +198,8 @@ addHelp vocabulary
 addHelp variable
 addHelp constant
 addHelp dconstant
+addHelp enum
+addHelp endenum
 addHelp precedence
 addHelp load
 addHelp loaddone
@@ -205,6 +229,7 @@ addHelp printAllUnsigned
 addHelp outToFile
 addHelp outToScreen
 addHelp outToString
+addHelp	outToOp
 addHelp getConOutFile
 
 addHelp fopen
@@ -252,8 +277,10 @@ addHelp fillInBuffer
 
 addHelp turbo
 addHelp stats
+addHelp describe
 
 // ops below this line have precedence
+addHelp _doEnum
 addHelp do
 addHelp loop
 addHelp +loop
@@ -272,12 +299,20 @@ addHelp endcase
 addHelp does
 addHelp exit
 addHelp ;
-addHelp vars
-addHelp endvars
+addHelp byte
+addHelp short
 addHelp int
 addHelp float
 addHelp double
 addHelp string
+addHelp op
+addHelp void
+addHelp arrayOf
+addHelp ptrTo
+addhelp struct
+addHelp endstruct
+addHelp sizeOf
+addHelp offsetOf
 addHelp recursive
 addHelp [
 addHelp [compile]

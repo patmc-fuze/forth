@@ -32,6 +32,55 @@ ForthEngine* ForthEngine::mpInstance = NULL;
 
 #define ERROR_STRING_MAX    256
 
+///////////////////////////////////////////////////////////////////////
+//
+// opTypeNames must be kept in sync with forthOpType enum in forth.h
+//
+
+static char *opTypeNames[] = {
+    "BuiltIn", "UserDefined", 
+    "Branch", "BranchTrue", "BranchFalse", "CaseBranch",
+    "Constant", "Offset", "ArrayOffset", "LocalStructArray", "ConstantString",
+    "AllocLocals", "InitLocalString", "LocalRef",
+    "LocalByte", "LocalShort", "LocalInt", "LocalFloat", "LocalDouble", "LocalString", "LocalOp",
+    "FieldByte", "FieldShort", "FieldInt", "FieldFloat", "FieldDouble", "FieldString", "FieldOp",
+    "LocalByteArray", "LocalShortArray", "LocalIntArray", "LocalFloatArray", "LocalDoubleArray", "LocalStringArray", "LocalOpArray",
+    "FieldByteArray", "FieldShortArray", "FieldIntArray", "FieldFloatArray", "FieldDoubleArray", "FieldStringArray", "FieldOpArray",
+    "InvokeClassMethod",    
+    "MemberByte", "MemberShort", "MemberInt", "MemberFloat", "MemberDouble", "MemberString", "MemberOp",
+};
+
+///////////////////////////////////////////////////////////////////////
+//
+// pErrorStrings must be kept in sync with eForthError enum in forth.h
+//
+static char *pErrorStrings[] =
+{
+    "No Error",
+    "Bad Opcode",
+    "Bad OpcodeType",
+    "Parameter Stack Underflow",
+    "Parameter Stack Overflow",
+    "Return Stack Underflow",
+    "Return Stack Overflow",
+    "Unknown Symbol",
+    "File Open Failed",
+    "Aborted",
+    "Can't Forget Builtin Op",
+    "Bad Method Number",
+    "Unhandled Exception",
+    "Missing Preceeding Size Constant",
+    "Error In Struct Definition",
+    "Syntax error",
+    "Syntax error - else without matching if",
+    "Syntax error - endif without matching if/else",
+    "Syntax error - loop without matching do",
+    "Syntax error - until without matching begin",
+    "Syntax error - while without matching begin",
+    "Syntax error - repeat without matching while",
+    "Syntax error - again without matching begin",
+};
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -309,6 +358,7 @@ ForthEngine::ForgetSymbol( const char *pSym )
     ForthVocabulary *pFoundVocab = NULL;
     long op;
     forthOpType opType;
+    bool forgotIt = false;
 
     if ( (pEntry = mpSearchVocab->FindSymbol( pSym )) != NULL ) {
         pFoundVocab = mpSearchVocab;
@@ -319,23 +369,33 @@ ForthEngine::ForgetSymbol( const char *pSym )
     if ( pFoundVocab != NULL ) {
         op = ForthVocabulary::GetEntryValue( pEntry );
         opType = ForthVocabulary::GetEntryType( pEntry );
-        if ( opType == kOpBuiltIn ) {
-            // sym is unknown, or in built-in ops - no way
-            TRACE( "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
-            printf( "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
-        }
-        else
+        switch ( opType )
         {
-           ForgetOp( op );
-           ForthForgettable::ForgetPropagate( mpCore->DP, op );
+            case kOpBuiltIn:
+                // sym is built-in op - no way
+                TRACE( "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
+                printf( "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
+                break;
+
+            case kOpUserDef:
+                ForgetOp( op );
+                ForthForgettable::ForgetPropagate( mpCore->DP, op );
+                forgotIt = true;
+                break;
+
+            default:
+                const char* pStr = GetOpTypeName( opType );
+                TRACE( "Error - attempt to forget op %s of type %s from %s\n", pSym, pStr, pFoundVocab->GetName() );
+                printf( "Error - attempt to forget op %s of type %s from %s\n", pSym, pStr, pFoundVocab->GetName() );
+                break;
+
         }
     }
     else
     {
         TRACE( "Error - attempt to forget unknown op %s from %s\n", pSym, mpSearchVocab->GetName() );
-        return false;
     }
-    return true;
+    return forgotIt;
 }
 
 ForthThread *
@@ -464,15 +524,100 @@ ForthEngine::FindSymbol( const char *pSymName )
 }
 
 void
+ForthEngine::DescribeSymbol( const char *pSymName )
+{
+    long *pEntry = NULL;
+    char buff[256];
+    char c;
+    int line = 1;
+    bool notDone = true;
+    if ( (pEntry = mpPrecedenceVocab->FindSymbol( pSymName )) == NULL ) {
+        pEntry = mpSearchVocab->FindSymbol( pSymName );
+    }
+    if ( pEntry )
+    {
+        long opType = FORTH_OP_TYPE( pEntry[0] );
+        long opValue = FORTH_OP_VALUE( pEntry[0] );
+        const char* pStr = GetOpTypeName( opType );
+        printf( "%s: type %s:%x value 0x%x 0x%x \n", pSymName, pStr, opValue, pEntry[0], pEntry[1] );
+        if ( opType == kOpUserDef )
+        {
+            // disassemble the op until IP reaches next newer op
+            long* curIP = mpCore->userOps[ opValue ];
+            long* endIP = (opValue == (mpCore->numUserOps - 1)) ? GetDP() : mpCore->userOps[ opValue + 1 ];
+            while ( (curIP < endIP) && notDone )
+            {
+                DescribeOp( curIP, buff, true );
+                printf( "%08x  %s\n", curIP, buff );
+                if ( (line & 31) == 0 )
+                {
+                    mpCore->pThread->consoleOut( mpCore, "Hit ENTER to continue, 'q' & ENTER to quit\n" );
+                    c = getchar();
+                    if ( (c == 'q') || (c == 'Q') ) {
+                        c = getchar();
+                        notDone = false;
+                    }
+                }
+                curIP = NextOp( curIP );
+                line++;
+            }
+        }
+    }
+    else
+    {
+        TRACE( "Symbol %s not found\n", pSymName );
+        printf( "Symbol %s not found\n", pSymName );
+    }
+}
+
+long *
+ForthEngine::NextOp( long *pOp )
+{
+    long op = *pOp++;
+    long opType = FORTH_OP_TYPE( op );
+    long opVal = FORTH_OP_VALUE( op );
+
+    switch ( opType )
+    {
+        case kOpBuiltIn:
+            switch( opVal )
+            {
+                case OP_INT_VAL:
+                case OP_FLOAT_VAL:
+                case OP_DO_DO:
+                case OP_DO_STRUCT_ARRAY:
+                    pOp++;
+                    break;
+
+                case OP_DOUBLE_VAL:
+                    pOp += 2;
+                    break;
+
+                default:
+                    break;
+            }
+            break;
+
+        case kOpConstantString:
+            pOp += opVal;
+            break;
+
+        default:
+            break;
+    }
+    return pOp;
+}
+
+void
 ForthEngine::StartStructDefinition( void )
 {
-    mCompileFlags |= kFECompileFlagInStructDefinition;
+    mCompileFlags |= kEngineFlagInStructDefinition;
 }
 
 void
 ForthEngine::EndStructDefinition( void )
 {
-    mCompileFlags &= (~kFECompileFlagInStructDefinition);
+    mCompileFlags &= (~kEngineFlagInStructDefinition);
 }
 
 long
@@ -483,7 +628,7 @@ ForthEngine::AddLocalVar( const char        *pVarName,
     long *pEntry;
     if ( mpLocalAllocOp == NULL ) {
         // this is first local var definition, leave space for local alloc op
-        mCompileFlags |= kFECompileFlagHasLocalVars;
+        mCompileFlags |= kEngineFlagHasLocalVars;
         mpLocalAllocOp = mpCore->DP;
         CompileLong( 0 );
     }
@@ -520,7 +665,7 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
     long *pEntry;
     if ( mpLocalAllocOp == NULL ) {
         // this is first local var definition, leave space for local alloc op
-        mCompileFlags |= kFECompileFlagHasLocalVars;
+        mCompileFlags |= kEngineFlagHasLocalVars;
         mpLocalAllocOp = mpCore->DP;
         CompileLong( 0 );
     }
@@ -604,68 +749,159 @@ ForthEngine::IsExecutableType( forthOpType      symType )
 #endif
 
 
-static char *opTypeNames[] = {
-    "BuiltIn", "UserDefined", 
-    "Branch", "BranchTrue", "BranchFalse", "CaseBranch",
-    "Constant", "Offset", "ArrayOffset", "ConstantString",
-    "AllocLocals", "InitLocalString",
-    "LocalByte", "LocalShort", "LocalInt", "LocalFloat", "LocalDouble", "LocalString",
-    "FieldByte", "FieldShort", "FieldInt", "FieldFloat", "FieldDouble", "FieldString",
-    "InvokeClassMethod",    
-    "MemberByte", "MemberShort", "MemberInt", "MemberFloat", "MemberDouble", "MemberString",
-};
-
 // TBD: tracing of built-in ops won't work for user-added builtins...
+const char *
+ForthEngine::GetOpTypeName( long opType )
+{
+    return (opType < kOpLocalUserDefined) ? opTypeNames[opType] : "unknown";
+}
+
 
 void
-ForthEngine::TraceOp()
+ForthEngine::TraceOp( void )
 {
-    long *ip = mpCore->IP - 1;
-    long op = GetCurrentOp( mpCore );
+#ifdef TRACE_INNER_INTERPRETER
+    long *pOp = mpCore->IP;
+    char buff[ 256 ];
+    if ( *pOp != OP_DONE )
+    {
+        DescribeOp( pOp, buff );
+        TRACE( "# %s  @ IP = 0x%x\n", buff, pOp );
+    }
+#endif
+}
+
+void
+ForthEngine::DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs )
+{
+    long op = *pOp;
     forthOpType opType = FORTH_OP_TYPE( op );
     ulong opVal = FORTH_OP_VALUE( op );
+    ForthVocabulary *pVocab = NULL;
+    long *pEntry = NULL;
 
-    if ( opType >= (sizeof(opTypeNames) / sizeof(char *)) ) {
-        TRACE( "# BadOpType 0x%x  @ IP = 0x%x\n", op, ip );
-    } else {
+    sprintf( pBuffer, "%02x:%06x    ", opType, opVal );
+    pBuffer += 13;
+    if ( opType >= (sizeof(opTypeNames) / sizeof(char *)) )
+    {
+        sprintf( pBuffer, "BadOpType" );
+    }
+    else
+    {
 
         switch( opType ){
             
         case kOpBuiltIn:
-            if ( opVal != OP_DONE ) {
-#ifdef TRACE_INNER_INTERPRETER
-                if ( opVal < NUM_TRACEABLE_OPS ) {
-                    // traceable built-in op
-                    TRACE( "# %s    0x%x   @ IP = 0x%x\n", gOpNames[opVal], op, ip );
-                } else {
-                    // op we don't have name pointer for
-                    TRACE( "# %s    0x%x   @ IP = 0x%x\n", opTypeNames[opType], op, ip );
-                }
-#else
-                TRACE( "# %s    0x%x   @ IP = 0x%x\n", opTypeNames[opType], op, ip );
-#endif
+            if ( opVal < NUM_TRACEABLE_OPS ) {
+                // traceable built-in op
+                sprintf( pBuffer, "%s", gOpNames[opVal] );
+            } else {
+                // op we don't have name pointer for
+                sprintf( pBuffer, "%s", opTypeNames[opType] );
             }
             break;
             
+        case kOpUserDef:
+            if ( lookupUserDefs )
+            {
+                pEntry = mpSearchVocab->FindSymbolByValue( op );
+                if ( pEntry )
+                {
+                    pVocab = mpSearchVocab;
+                }
+                else
+                {
+                    pEntry = mpPrecedenceVocab->FindSymbolByValue( op );
+                    if ( pEntry )
+                    {
+                        pVocab = mpPrecedenceVocab;
+                    }
+                }
+            }
+            if ( pVocab )
+            {
+                // the symbol name in the vocabulary doesn't always have a terminating null
+                int len = pVocab->GetEntryNameLength( pEntry );
+                const char* pName = pVocab->GetEntryName( pEntry );
+                for ( int i = 0; i < len; i++ )
+                {
+                    *pBuffer++ = *pName++;
+                }
+                *pBuffer = '\0';
+            }
+            else
+            {
+                sprintf( pBuffer, "%s", opTypeNames[opType] );
+            }
+            break;
+
+        case kOpLocalByte:
+        case kOpLocalShort:
+        case kOpLocalInt:
+        case kOpLocalFloat:
+        case kOpLocalDouble:
+        case kOpLocalString:
+        case kOpLocalOp:
+        case kOpLocalByteArray:
+        case kOpLocalShortArray:
+        case kOpLocalIntArray:
+        case kOpLocalFloatArray:
+        case kOpLocalDoubleArray:
+        case kOpLocalStringArray:
+        case kOpLocalOpArray:
+            sprintf( pBuffer, "%s_%x", opTypeNames[opType], opVal );
+            break;
+
+
         case kOpConstantString:
-            TRACE( "# \"%s\" 0x%x   @ IP = 0x%x\n", (char *)ip, op, ip );
+            sprintf( pBuffer, "\"%s\"", (char *)(pOp + 1) );
             break;
             
         case kOpConstant:
+            if ( opVal & 0x800000 ) {
+                opVal |= 0xFF000000;
+            }
+            sprintf( pBuffer, "%s    %d", opTypeNames[opType], opVal );
+            break;
+
         case kOpOffset:
+            if ( opVal & 0x800000 )
+            {
+                opVal |= 0xFF000000;
+                sprintf( pBuffer, "%s    %d", opTypeNames[opType], opVal );
+            }
+            else
+            {
+                sprintf( pBuffer, "%s    +%d", opTypeNames[opType], opVal );
+            }
+            break;
+
+        case kOpCaseBranch:
         case kOpBranch:   case kOpBranchNZ:  case kOpBranchZ:
             if ( opVal & 0x800000 ) {
                 opVal |= 0xFF000000;
             }
-            TRACE( "# %s    %d   @ IP = 0x%x\n", opTypeNames[opType], opVal, ip );
+            sprintf( pBuffer, "%s    0x%08x", opTypeNames[opType], opVal + 1 + pOp );
+            break;
+
+        case kOpInitLocalString:   // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
+            sprintf( pBuffer, "%s    maxBytes %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
+            break;
+            
+        case kOpLocalStructArray:   // bits 0..11 are padded struct size in bytes, bits 12..23 are frame offset in longs
+            sprintf( pBuffer, "%s    elementSize %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
+            break;
+            
+        case kOpAllocLocals:
+            sprintf( pBuffer, "%s    longs %d", opTypeNames[opType], opVal );
             break;
             
         case kOpArrayOffset:
-            TRACE( "# %s    elementSize %d  @ IP = 0x%x\n", opTypeNames[opType], opVal, ip );
+            sprintf( pBuffer, "%s    elementSize %d", opTypeNames[opType], opVal );
             break;
             
         default:
-            TRACE( "# %s    0x%x   @ IP = 0x%x\n", opTypeNames[opType], op, ip );
+            sprintf( pBuffer, "%s", opTypeNames[opType] );
             break;
         }
     }
@@ -928,33 +1164,6 @@ ForthEngine::ExecuteOps( long *pOps )
     return exitStatus;
 }
 
-static char *pErrorStrings[] =
-{
-    "No Error",
-    "Bad Opcode",
-    "Bad OpcodeType",
-    "Parameter Stack Underflow",
-    "Parameter Stack Overflow",
-    "Return Stack Underflow",
-    "Return Stack Overflow",
-    "Unknown Symbol",
-    "File Open Failed",
-    "Aborted",
-    "Can't Forget Builtin Op",
-    "Bad Method Number",
-    "Unhandled Exception",
-    "Missing Preceeding Size Constant",
-    "Error In Struct Definition",
-    "Syntax error",
-    "Syntax error - else without matching if",
-    "Syntax error - endif without matching if/else",
-    "Syntax error - loop without matching do",
-    "Syntax error - until without matching begin",
-    "Syntax error - while without matching begin",
-    "Syntax error - repeat without matching while",
-    "Syntax error - again without matching begin",
-};
-
 void
 ForthEngine::SetError( eForthError e, const char *pString )
 {
@@ -1038,6 +1247,26 @@ ForthEngine::CheckStacks( void )
     return result;
 }
 
+////////////////////////////
+//
+// enumerated type support
+//
+void
+ForthEngine::StartEnumDefinition( void )
+{
+    SetFlag( kEngineFlagInEnumDefinition );
+    mNextEnum = 0;
+    // remember the stack level at start of definition
+    // when another enum is to be defined, if the current stack is above this level,
+    // the top element on the stack will be popped and set the current value of the enum
+    mpEnumStackBase = mpCore->SP;
+}
+
+void
+ForthEngine::EndEnumDefinition( void )
+{
+    ClearFlag( kEngineFlagInEnumDefinition );
+}
 
 //############################################################################
 //
@@ -1275,9 +1504,32 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         }
 
     }
+    else if ( CheckFlag( kEngineFlagInEnumDefinition ) )
+    {
+        // add symbol as an enumerated value
+        if ( mpCore->SP < mpEnumStackBase )
+        {
+            // pop enum value off stack
+            mNextEnum = *mpCore->SP++;
+        }
+        if ( (mNextEnum < (1 << 23)) && (mNextEnum >= -(1 << 23)) )
+        {
+            // number is in range supported by kOpConstant, just add it to vocabulary
+            long *pEntry = mpDefinitionVocab->AddSymbol( pToken, kOpConstant, mNextEnum & 0x00FFFFFF, false );
+            // record the next user op in struct field to be used when forgetting
+            pEntry[1] = STRUCT_TYPE_TO_CODE( kDTNone, mpCore->numUserOps );
+        }
+        else
+        {
+            // number is out of range of kOpConstant, need to define a user op
+            StartOpDefinition( pToken );
+            CompileLong( OP_DO_CONSTANT );
+            CompileLong( mNextEnum );
+        }
+        mNextEnum++;
+    }
     else
     {
-
         TRACE( "Unknown symbol %s\n", pToken );
         mpCore->error = kForthErrorUnknownSymbol;
         exitStatus = kResultError;

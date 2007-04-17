@@ -21,6 +21,7 @@ struct ForthCoreState;
 
 // these are opcode types, they are held in the top byte of an opcode, and in
 // a vocabulary entry value field
+// NOTE: if you add or reorder op types, make sure that you update ForthEngine::opTypeNames
 typedef enum
 {
     kOpBuiltIn = 0,
@@ -220,6 +221,7 @@ class ForthThread;
 #define OP_DO_STRUCT            BUILTIN_OP(39)
 #define OP_DO_STRUCT_ARRAY      BUILTIN_OP(40)
 #define OP_DO_STRUCT_TYPE       BUILTIN_OP(41)
+#define OP_DO_ENUM              BUILTIN_OP(42)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct {

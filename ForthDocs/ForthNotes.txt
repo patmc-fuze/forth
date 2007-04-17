@@ -29,6 +29,109 @@ colonOp
   ForthVocabulary::AddSymbol
    ForthEngine::AddUserOp
 
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 15 2007
+
+Found the "dir" exception - it was in string store code.  String store and
+append were stomping multiple registers, and cleaning up by jumping to
+the main interpreter entry point to reload the registers from FCore.
+Unfortunately, the IP had not been saved out to FCore, so after returning
+from the string store, the IP was set back to the return point after the
+last user defined word executed.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 14 2007
+
+I tried making symbolic constants forgettable by using the pEntry[1] field
+to hold the next user defined op number for forgetting, but that just
+doesn't work reliably - many symbolic constants can share the same op
+number in this scheme, and there is no way to know which constants were
+defined before other constants, since the constants could be in multiple
+vocabularies.
+
+I'm switching over to having each enum set having a user-defined op and
+having forget only work on user-defined ops.  The user-defined op for an
+enum set will act as a defining word that is funtionally the same as the
+"int" op.
+
+I added "describe" op which disassembles user ops.
+Here is an example:
+
+: dir
+  blword -> _aa
+  "dir" -> _bb
+  strcmp( _aa "" )
+  if
+    // user specified a directory
+    strcat( _bb " " )
+    strcat( _bb _aa )
+  endif
+  _bb system drop
+;
+
+dir: type UserDefined:9 value 0x1000009 0x0
+0118041c  00:00011d    blword
+01180420  00:000012    ->
+01180424  01:000001    _aa
+01180428  0a:000001    "dir"
+01180430  00:000012    ->
+01180434  01:000002    _bb
+01180438  01:000001    _aa
+0118043c  0a:000001    ""
+01180444  00:0000b6    strcmp
+01180448  04:000007    BranchFalse    0x01180468
+0118044c  01:000002    _bb
+01180450  0a:000001    " "
+01180458  00:0000b2    strcat
+0118045c  01:000002    _bb
+01180460  01:000001    _aa
+01180464  00:0000b2    strcat
+01180468  01:000002    _bb
+0118046c  00:00010c    system
+01180470  00:000001    drop
+01180474  00:000016    _exit
+
+There is an exception if you execute "dir" in turbo mode.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 13 2007
+
+Added "enum definition" mode - this is an interpreted mode, where:
+o recognized symbols including numbers are executed like normal
+o unrecognized symbols become new enumerated value definitions
+o stack depth is recorded at start of enum definition, when a new enumerated
+  value definition is created, it will pop its value off TOS if TOS is above
+  the level at the start of enum definition
+o enumeration value is incremented after each definition
+o if possible, enumerated value definitions are created as kOpConstant ops,
+  if they are outside the possible range a user-defined constant op is
+  defined instead
+
+When testing enums, I found an interesting forget bug: if you try to
+forget a kOpConstant definition, nothing appears to happen, the constant ops
+still show up in vlist, but if you then forget a user op, the constant ops
+will also be forgotten, even if they were defined before the user op.
+? Is this a problem just for constant ops, or would if affect any ops which
+  do not have an entry in the engine dispatch table ?
+-> the problem is because forgetting only works for user defined ops (kOpUserDef)
+-> we could make symbol constants unforgettable (this wouldn't work for
+   constants which were too big for symbol constants, since they are user ops)
+-> maybe there should be a dummy symbol for each enum set that is used just
+   for forgetting
+-> we could use the unused "struct" field, make it type kDTNone, with the
+   value field holding the value of the next user op at the time the
+   symbolic constant was defined...  the forget would have to be
+   modified to take this into account
+   
+With enums and structs, I can start making an interface for the SDL DLL.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 11 2007
+
+Got structures working, just did a few simple tests, didn't test arrays or
+nested structures or anything complex
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 8 2007
 
