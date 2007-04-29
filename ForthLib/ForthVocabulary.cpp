@@ -373,6 +373,21 @@ ForthVocabulary::ForgetOp( long op )
                 }
                 break;
 
+            case kOpDLLEntryPoint:
+                opVal = CODE_TO_DLL_ENTRY_INDEX( GetEntryValue( pEntry ) );
+                if ( opVal >= op )
+                {
+                    pEntry = NextEntry( pEntry );
+                    mpStorageBottom = pEntry;
+                    mNumSymbols = symbolsLeft;
+                }
+                else
+                {
+                    // this symbol was defined before the forgotten op, so we are done with this vocab
+                    symbolsLeft = 0;
+                }
+                break;
+
              default:
                 break;
         }
@@ -382,20 +397,20 @@ ForthVocabulary::ForgetOp( long op )
 
 // return ptr to vocabulary entry for symbol
 long *
-ForthVocabulary::FindSymbol( const char *pSymName )
+ForthVocabulary::FindSymbol( const char *pSymName, ForthVocabulary** ppFoundVocab )
 {
     long tmpSym[SYM_MAX_LONGS];
     ForthParseInfo parseInfo( tmpSym, SYM_MAX_LONGS );
 
     parseInfo.SetToken( pSymName );
 
-    return FindSymbol( &parseInfo );
+    return FindSymbol( &parseInfo, ppFoundVocab );
 }
 
 
 // return ptr to vocabulary entry for symbol
 long *
-ForthVocabulary::FindSymbol( ForthParseInfo     *pInfo )
+ForthVocabulary::FindSymbol( ForthParseInfo *pInfo, ForthVocabulary** ppFoundVocab )
 {
     int i, j, symLen;
     long *pEntry, *pTmp;
@@ -417,33 +432,57 @@ ForthVocabulary::FindSymbol( ForthParseInfo     *pInfo )
         }
         if ( j == symLen ) {
             // found it
+            if ( ppFoundVocab )
+            {
+                *ppFoundVocab = this;
+            }
             return pEntry;
         }
         pEntry = NextEntry( pEntry );
     }
-    
+
+    if ( ppFoundVocab )
+    {
+        ForthVocabulary *pNextVocab = GetNextSearchVocabulary();
+        if ( pNextVocab )
+        {
+            return pNextVocab->FindSymbol( pInfo, ppFoundVocab );
+        }
+    }
     // symbol isn't in vocabulary
     return NULL;
 }
 
 // return ptr to vocabulary entry given its value
 long *
-ForthVocabulary::FindSymbolByValue( long val )
+ForthVocabulary::FindSymbolByValue( long val, ForthVocabulary** ppFoundVocab )
 
 {
-    int i, j, symLen;
-    long *pEntry, *pTmp;
+    int i;
+    long *pEntry;
 
     // go through the vocabulary looking for match with value
     pEntry = mpStorageBottom;
     for ( i = 0; i < mNumSymbols; i++ ) {
         if ( *pEntry == val )
         {
+            if ( ppFoundVocab )
+            {
+                *ppFoundVocab = this;
+            }
             return pEntry;
         }
         pEntry = NextEntry( pEntry );
     }
     
+    if ( ppFoundVocab )
+    {
+        ForthVocabulary *pNextVocab = GetNextSearchVocabulary();
+        if ( pNextVocab )
+        {
+            return pNextVocab->FindSymbolByValue( val, ppFoundVocab );
+        }
+    }
     // symbol isn't in vocabulary
     return NULL;
 }
@@ -467,10 +506,6 @@ ForthVocabulary::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus 
         {
             // execute the opcode
             exitStatus = mpEngine->ExecuteOneOp( *pEntry );
-            if ( exitStatus == kResultDone )
-            {
-                exitStatus = kResultOk;
-            }
         }
     }
     return pEntry;
@@ -492,6 +527,12 @@ ForthVocabulary::UnSmudgeNewestSymbol( void )
     // unsmudge by clearing highest bit of 1st character of name
     assert( mpNewestSymbol != NULL );
     ((char *) mpNewestSymbol)[1 + (mValueLongs << 2)] &= 0x7F;
+}
+
+const char*
+ForthVocabulary::GetType( void )
+{
+    return "userOp";
 }
 
 
@@ -524,46 +565,106 @@ ForthPrecedenceVocabulary::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& e
     {
         // execute the opcode
         exitStatus = mpEngine->ExecuteOneOp( *pEntry );
-        if ( exitStatus == kResultDone )
-        {
-            exitStatus = kResultOk;
-        }
     }
     return pEntry;
 }
 
+// the precedence vocabulary always chains to the current search vocabulary
+// this is to allow you to avoid doing a FindSymbol on the precedence vocab
+// and then do another FindSymbol on the search chain
+ForthVocabulary *
+ForthPrecedenceVocabulary::GetNextSearchVocabulary( void )
+{
+    return mpEngine->GetSearchVocabulary();
+}
 
-#if 0
 //////////////////////////////////////////////////////////////////////
 ////
-///     ForthLocalsVocabulary
+///     ForthLocalVocabulary
 //
 //
 
-ForthLocalsVocabulary::ForthLocalsVocabulary( ForthEngine   *pEngine,
-                                                  int           storageBytes )
-: ForthVocabulary( pEngine, "locals", NUM_LOCALS_VOCAB_VALUE_LONGS, storageBytes )
+ForthLocalVocabulary::ForthLocalVocabulary( const char    *pName,
+                                                      int           valueLongs,
+                                                      int           storageBytes )
+: ForthVocabulary( pName, valueLongs, storageBytes )
 {
 }
 
-ForthLocalsVocabulary::~ForthLocalsVocabulary()
+ForthLocalVocabulary::~ForthLocalVocabulary()
 {
 }
 
-// delete symbol entry and all newer entries
-// return true IFF symbol was forgotten
-bool
-ForthLocalsVocabulary::ForgetSymbol( const char *pSymName )
+const char*
+ForthLocalVocabulary::GetType( void )
 {
-    return false;
+    return "local";
 }
 
+//////////////////////////////////////////////////////////////////////
+////
+///     ForthDLLVocabulary
+//
+//
 
-// forget all ops with a greater op#
-void
-ForthLocalsVocabulary::ForgetOp( long op )
+ForthDLLVocabulary::ForthDLLVocabulary( const char      *pName,
+                                        const char      *pDLLName,
+                                        int             valueLongs,
+                                        int             storageBytes,
+                                        void*           pForgetLimit,
+                                        long            op )
+: ForthVocabulary( pName, valueLongs, storageBytes, pForgetLimit, op )
 {
+    int len = strlen( pDLLName );
+    mpDLLName = new char[len + 1];
+    strcpy( mpDLLName, pDLLName );
+
+    mhDLL = LoadLibrary( mpDLLName );
 }
 
-#endif
+ForthDLLVocabulary::~ForthDLLVocabulary()
+{
+    if ( mhDLL != 0 )
+    {
+        UnloadDLL();
+    }
+    delete [] mpDLLName;
+}
+
+long ForthDLLVocabulary::LoadDLL( void )
+{
+    mhDLL = LoadLibrary( mpDLLName );
+    return (long) mhDLL;
+}
+
+void ForthDLLVocabulary::UnloadDLL( void )
+{
+    FreeLibrary( mhDLL );
+    mhDLL = 0;
+}
+
+long * ForthDLLVocabulary::AddEntry( const char *pFuncName, long numArgs )
+{
+    long *pEntry = NULL;
+    long pFunc = (long) GetProcAddress( mhDLL, pFuncName );
+    if ( pFunc )
+    {
+        pEntry = AddSymbol( pFuncName, kOpDLLEntryPoint, pFunc, true );
+        // the opcode at this point is just the opType and dispatch table index or-ed together
+        // we need to combine in the argument count
+        *pEntry |= (numArgs << 19);
+    }
+    else
+    {
+        mpEngine->SetError( kForthErrorUnknownSymbol, " unknown entry point" );
+    }
+
+    return pEntry;
+}
+
+const char*
+ForthDLLVocabulary::GetType( void )
+{
+    return "dllOp";
+}
 

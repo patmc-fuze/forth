@@ -5,13 +5,14 @@
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 TBDs:
 
-- look at stuff which uses ForthEngine::StartOpDefinition (variableOp, constantOp, vocabularyOp),
-  they aren't calling EndOpDefinition...
-  
-- string vars are currently not using len/maxLen fields
+? string vars are currently not using len/maxLen fields
+  - change output-to-string to use the string current & max length fields
++ document output system
 
-+ structure support
-- sdl support (not kernel)
+- automated tests using outputToFile & comparison of test result file to known good file
++ improve dll support
+? remove vocabulary static chain, since it is redundant with forgettable static chain?
+- a mechanism for supporting callbacks from external code to forth code
 - vocabulary support
 - windows support
   - gui stuff
@@ -19,12 +20,8 @@ TBDs:
 - better tests
 - help system
 - faster searches
-
-+ rewrite kernel in assembler
-  -> leave compile time words in c++
-
-- change output-to-string to use the string current & max length fields
 - fix local strings
+- test structure support
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 colonOp
@@ -32,7 +29,153 @@ colonOp
   ForthVocabulary::AddSymbol
    ForthEngine::AddUserOp
 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 28 2007
 
+Initial debug of new DLL support - it works!
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 26 2007
+
+Wrote the assembly side of support for DLL via a special opcode type.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 25 2007
+
++ look at usage of CompileLong versus CompileOpcode
+  -> replaced CompileLong with CompileOpcode where appropriate
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 24 2007
+
++ see if initialization of local strings works, it might not since it looks like this:
+  -> 100 string myName
+  The "100" compiles into a constant op, which is then removed by "string", but it
+  might make string ignore the "->" and not do the initialization...
+  -> added mpLastIntoOpcode to engine, to track last "->" compiled in
+     current definition
+     
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 23 2007
+
+I moved the replacement of kResultDone with kResultOk into ForthEngine::ExecuteOps.
+This centralizes the fix for ops which execute an op variable from exiting
+the inner interpreter prematurely.
+There is one drawback to fixing this bug, it could make the "done" op useless
+except as an internal to the outer interpreter.
+
++ if "->" has been executed before a native global or local variable declaration,
+  initialize the new variable from TOS
+  
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 22 2007
+
+The current state of forth output:
+
+ops which produce output invoke CONSOLE_STRING_OUT, passing a core ptr & a char buffer ptr
+CONSOLE_STRING_OUT is defined as: pCore->pThread->consoleOut( A, B )
+consoleOut is set by the SET_CON_OUT_ROUTINE macro.
+
+outToScreenOp
+  sets consoleOut = consoleOutToFile
+  sets output file = stdout
+
+outToFileOp
+  sets consoleOut = consoleOutToFile
+  sets output file = file on TOS
+
+outToStringOp
+  sets consoleOut = consoleOutToString
+  sets output file = NULL
+  sets output string = string ptr on TOS
+
+outToOpOp
+  sets consoleOut = consoleOutToOp
+  sets consoleOutOp = TOS
+
+SET_CON_OUT_FILE( FILE_POINTER )
+SET_CON_OUT_ROUTINE( OUTPUT_ROUTINE )
+SET_CON_OUT_STRING( A )
+SET_CON_OUT_OP( OUTPUT_OP )
+
+consoleOutToString just appends the string to the end of the buffer, it should
+be changed to use the string current length & max length fields.
+
+Got outToOp working, but found an apparent bug in local variables - if I
+define a local pointer variable with "ptrTo byte" I get an exception when
+it tries to print what is at that address, but it works if I change that
+variable to be "int".
+-> the local variable defining code was ignoring the "isPointer" flag.
+
+There is still a bug in the output code - if you use a user-defined op,
+any output generating op will end the execution of a calling op.
+It almost looks like the "done" flag is being set.
+-> duhh, yeah, since consoleOutToOp calls ForthEngine::ExecuteOneOp,
+   that does a "done" after executing the output op...
+-> fixed
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 21 2007
+
+One way to improve DLL support would be to dedicate an opcode to DLL calls.
+The address of the DLL entry point would be held in the user defined op
+dispatch table.  The op value field would hold 2 things:
+1) the dispatch table index
+2) the number of arguments the op takes
+As mentioned yesterday, Each DLL would have a dedicated vocabulary.
+
++ fixed a bug in structure support - any forget was wiping out all structs,
+  because it was comparing the forgotten op's value field to the structs
+  entire opcode
+
++ added extends, sizeOf and addressOf
+
++ add "union" to structure definitions
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 20 2007
+
+The SDL_LoadBMP exception happened because SDL_LoadBMP isn't one of the DLLs
+exports - the real export is SDL_LoadBMP_RW.  The defining words for DLL
+interface words should check for getProcAddress returning NULL.
+
+Maybe we should create a special type of vocabulary for DLLs, where the
+vocabulary would know the path to the DLL and its symbols would be the
+DLLs entry points - this would allow saving the forth state and restoring
+the DLL linkage on coldstart.
+
+Before you call a C routine you push arguments right-to-left, so the first
+argument is on top of the stack (lowest memory address).  When we call a
+DLL routine, we push arguments left-to-right, so the last argument is on
+top of the stack.  This forces us to have to copy between the parameter
+stack and the PC stack to reverse the order.  If that wasn't the case we
+could do a trick in assembler where we just set the PC stack pointer to the
+parameter stack before the DLL call.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 19 2007
+
+Tried to implement SDL dll interface - got an exception in SDL_LoadBMP
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 16 2007
+
+I took the 11 forth.zip files dating back to February 2004 and entered them
+into CVS.  Unfortunately, most of them didn't have the assembler inner
+interpreter, just one right after I started writing it and the most
+recent version.
+
+I added a recursive search option to FindSymbol and FindSymbolByValue.
+The recursive search happens if you pass an optional pointer to a pointer
+to a vocab.  This is filled in with the vocab the symbol was found in.
+This gets around problems caused by the format of entries being different
+in different vocabularies - for example, where the name begins depends on
+the number of value fields, which can vary between vocabularies.
+
+I also changed the ForthPrecedenceVocabulary::GetNextSearchVocabulary
+to return the engine's current search vocab, so you can just do a recursive
+search on the precedence vocab instead of searching it and then searching
+the search chain.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 15 2007

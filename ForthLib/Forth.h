@@ -25,7 +25,7 @@ struct ForthCoreState;
 typedef enum
 {
     kOpBuiltIn = 0,
-    kOpUserDef,
+    kOpUserDef,         // low 24 bits is op number (index into ForthCoreState userOps table)
 
     kOpBranch,          // low 24 bits is signed branch offset
     kOpBranchNZ,
@@ -74,6 +74,8 @@ typedef enum
     kOpFieldDoubleArray,
     kOpFieldStringArray,
     kOpFieldOpArray,
+
+    kOpDLLEntryPoint,   // bits 0..18 are index into ForthCoreState userOps table, 19..23 are arg count
 
     kOpMethodWithThis,  // low 24 bits is method number
 
@@ -149,6 +151,7 @@ typedef enum {
     kForthErrorException,
     kForthErrorMissingSize,
     kForthErrorStruct,
+    kForthErrorUserDefined,
     kForthErrorBadSyntax,
     // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
@@ -247,12 +250,14 @@ typedef struct _ForthClassDescriptor {
 
 
 // trace output flags
+#ifdef INCLUDE_TRACE
 //#define TRACE_PRINTS
 #define TRACE_OUTER_INTERPRETER
 #define TRACE_INNER_INTERPRETER
 #define TRACE_SHELL
 #define TRACE_VOCABULARY
 #define TRACE_STRUCTS
+#endif
 
 #ifdef TRACE_PRINTS
 #define SPEW_PRINTS TRACE
@@ -264,31 +269,36 @@ typedef struct _ForthClassDescriptor {
 #ifdef TRACE_OUTER_INTERPRETER
 #define SPEW_OUTER_INTERPRETER TRACE
 #else
-#define SPEW_OUTER_INTERPRETER(...)
+#define SPEW_OUTER_INTERPRETER TRACE
+//#define SPEW_OUTER_INTERPRETER(...)
 #endif
 
 #ifdef TRACE_INNER_INTERPRETER
 #define SPEW_INNER_INTERPRETER TRACE
 #else
-#define SPEW_INNER_INTERPRETER(...)
+#define SPEW_INNER_INTERPRETER TRACE
+//#define SPEW_INNER_INTERPRETER(...)
 #endif
 
 #ifdef TRACE_SHELL
 #define SPEW_SHELL TRACE
 #else
-#define SPEW_SHELL(...)
+#define SPEW_SHELL TRACE
+//#define SPEW_SHELL(...)
 #endif
 
 #ifdef TRACE_VOCABULARY
 #define SPEW_VOCABULARY TRACE
 #else
-#define SPEW_VOCABULARY(...)
+#define SPEW_VOCABULARY TRACE
+//#define SPEW_VOCABULARY(...)
 #endif
 
 #ifdef TRACE_STRUCTS
 #define SPEW_STRUCTS TRACE
 #else
-#define SPEW_STRUCTS(...)
+#define SPEW_STRUCTS TRACE
+//#define SPEW_STRUCTS(...)
 #endif
 
 
@@ -376,5 +386,10 @@ typedef enum
 #define CODE_TO_NATIVE_TYPE( CODE )         (((CODE) >> 4) & 0x0F)
 #define CODE_TO_STRUCT_INDEX( CODE )        (((CODE) >> 4) & 0x0FFFFFFF)
 #define CODE_TO_STRING_BYTES( CODE )        ((CODE) >> 8)
+
+// bit fields for kOpDLLEntryPoint
+#define DLL_ENTRY_TO_CODE( INDEX, NUM_ARGS )    (((NUM_ARGS) << 19) | (INDEX))
+#define CODE_TO_DLL_ENTRY_INDEX( VAL )          ((VAL) & 0x0007FFFF)
+#define CODE_TO_DLL_ENTRY_NUM_ARGS( VAL)        (((VAL) & 0x00F80000) >> 19)
 
 #endif

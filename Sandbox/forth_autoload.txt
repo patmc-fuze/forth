@@ -9,8 +9,7 @@ autoforget forth_autoload
   swap strcpy
 ;
 
-int helpChain
-0 -> helpChain
+0 -> int helpChain
 : addHelp
   here helpChain , -> helpChain
   blword $,
@@ -19,11 +18,8 @@ int helpChain
 ;
 
 : help
-  100 string s
-  int pNext
-
-  blword -> s
-  helpChain -> pNext
+  blword	-> 100 string s
+  helpChain	-> int pNext
 
   begin
     pNext
@@ -76,16 +72,13 @@ int dumpWidth
 
 // ADDR LEN OFFSET _dump
 : _dump
-  int addr
-  int len
-  int offset
+  -> int offset		// offset is subtracted from the actual data address before display
+  -> int len
+  -> int addr
   int columns
   int endAddr
   int ch
 
-  -> offset		// offset is subtracted from the actual data address before display
-  -> len
-  -> addr
   addr len + -> endAddr
   len -> columns
   begin
@@ -125,16 +118,18 @@ addHelp	dump		ADDRESS LEN dump	dump memory
 
 // FILENAME OFFSET LEN fdump
 : fdump
-  int len
-  int offset
-  int infile
+  -> int len
+  -> int offset
+  "rb" fopen -> int infile
   int buff
 
-  -> len -> offset
-  "rb" fopen -> infile
   infile 0== if
     "open failure" %s %nl
     exit
+  endif
+  len 0== if
+    // read entire file
+    infile flen -> len
   endif
   len malloc -> buff
   infile offset 0 fseek
@@ -143,7 +138,7 @@ addHelp	dump		ADDRESS LEN dump	dump memory
   endif
   buff len 1 infile fread
   0== if
-    "fdump read failure" %nl
+    "fdump read failure" %s %nl
   else
     buff len buff _dump
   endif

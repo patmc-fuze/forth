@@ -124,6 +124,7 @@ public:
     inline void             CompileDouble( double v ) { *((double *) mpCore->DP) = v; mpCore->DP += 2; };
     void                    CompileOpcode( long v );
     void                    UncompileLastOpcode( void );
+    void                    ProcessConstant( long value, bool isOffset=false );
     inline void             AllotLongs( int n ) { mpCore->DP += n; };
     inline void             AlignDP( void ) { mpCore->DP = (long *)(( ((int)mpCore->DP) + 3 ) & ~3); };
     inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpSearchVocab; };
@@ -148,6 +149,7 @@ public:
     inline void             ClearFlag( long flags ) { mCompileFlags &= (~flags); };
     inline long             CheckFlag( long flags ) { return mCompileFlags & flags; };
     inline long *           GetLastCompiledOpcodePtr( void ) { return mpLastCompiledOpcode; };
+    inline long *           GetLastCompiledIntoPtr( void ) { return mpLastIntoOpcode; };
     inline char *           GetTmpStringBuffer( void ) { return mpStringBufferB; };
     void                    SetCurrentThread( ForthThread* pThread );
     inline void             SetArraySize( long numElements )        { mNumElements = numElements; };
@@ -156,6 +158,7 @@ public:
     void                    GetErrorString( char *pString );
     eForthResult            CheckStacks( void );
     void                    SetError( eForthError e, const char *pString = NULL );
+    void                    AddErrorText( const char *pString );
     void                    SetFatalError( eForthError e, const char *pString = NULL );
     inline eForthError      GetError( void ) { return (eForthError) (mpCore->error); };
     inline ForthCoreState*  GetCoreState( void ) { return mpCore; };
@@ -193,6 +196,7 @@ protected:
     char *          mpLastToken;
     int             mNextStringNum;
     long *          mpLastCompiledOpcode;
+    long *          mpLastIntoOpcode;
     long            mLocalFrameSize;
     long *          mpLocalAllocOp;
     char *          mpErrorString;  // optional error information from shell

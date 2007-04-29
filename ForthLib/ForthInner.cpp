@@ -1139,6 +1139,23 @@ OPTYPE_ACTION( LocalRefAction )
     SPUSH( (long)(GET_FP - opVal) );
 }
 
+// bits 0..18 are index into ForthCoreState userOps table, 19..23 are arg count
+OPTYPE_ACTION( DLLEntryPointAction )
+{
+    ulong entryIndex = CODE_TO_DLL_ENTRY_INDEX( opVal );
+    ulong argCount = CODE_TO_DLL_ENTRY_NUM_ARGS( opVal );
+    if ( entryIndex < GET_NUM_USER_OPS )
+    {
+        long result = CallDLLRoutine( (DLLRoutine)(USER_OP_TABLE[entryIndex]), argCount, pCore );
+        SPUSH( result );
+    }
+    else
+    {
+        SET_ERROR( kForthErrorBadOpcode );
+    }
+
+}
+
 OPTYPE_ACTION( MethodWithThisAction )
 {
     // this is called when a method is invoked from inside another
@@ -1271,6 +1288,8 @@ optypeActionRoutine builtinOptypeAction[] =
     FieldDoubleArrayAction,
     FieldStringArrayAction,
     FieldOpArrayAction,
+
+    DLLEntryPointAction,
 
     MethodWithThisAction,
 

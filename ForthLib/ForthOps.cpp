@@ -56,13 +56,13 @@ extern "C" {
 
 // done is used by the outer interpreter to make the inner interpreter
 //  exit after interpreting a single opcode
-FORTHOP(doneOp)
+FORTHOP( doneOp )
 {
     SET_STATE( kResultDone );
 }
 
 // bye is a user command which causes the entire forth program to exit
-FORTHOP(byeOp)
+FORTHOP( byeOp )
 {
     SET_STATE( kResultExitShell );
 }
@@ -97,7 +97,7 @@ FORTHOP( argcOp )
 // math ops
 //
 
-FORTHOP(plusOp)
+FORTHOP( plusOp )
 {
     NEEDS(2);
     long b = SPOP;
@@ -105,7 +105,7 @@ FORTHOP(plusOp)
     SPUSH( a + b );
 }
 
-FORTHOP(minusOp)
+FORTHOP( minusOp )
 {
     NEEDS(2);
     long b = SPOP;
@@ -113,7 +113,7 @@ FORTHOP(minusOp)
     SPUSH( a - b );
 }
 
-FORTHOP(timesOp)
+FORTHOP( timesOp )
 {
     NEEDS(2);
     long b = SPOP;
@@ -121,19 +121,19 @@ FORTHOP(timesOp)
     SPUSH( a * b );
 }
 
-FORTHOP(times2Op)
+FORTHOP( times2Op )
 {
     NEEDS(1);
     SPUSH( SPOP << 1 );
 }
 
-FORTHOP(times4Op)
+FORTHOP( times4Op )
 {
     NEEDS(1);
     SPUSH( SPOP << 2 );
 }
 
-FORTHOP(divideOp)
+FORTHOP( divideOp )
 {
     NEEDS(2);
     long b = SPOP;
@@ -141,14 +141,14 @@ FORTHOP(divideOp)
     SPUSH( a / b );
 }
 
-FORTHOP(divide2Op)
+FORTHOP( divide2Op )
 {
     NEEDS(1);
     long a = SPOP;
     SPUSH( a >> 1 );
 }
 
-FORTHOP(divide4Op)
+FORTHOP( divide4Op )
 {
     NEEDS(1);
     long a = SPOP;
@@ -511,7 +511,7 @@ FORTHOP(doOp)
     pShellStack->Push( (long)GET_DP );
     pShellStack->Push( kShellTagDo );
     // this will be fixed by loop/+loop
-    pEngine->CompileLong( OP_ABORT );
+    pEngine->CompileOpcode( OP_ABORT );
     pEngine->CompileLong( 0 );
 }
 
@@ -529,7 +529,7 @@ FORTHOP(loopOp)
     long *pDoOp = (long *) pShellStack->Pop();
     *pDoOp++ = OP_DO_DO;
     // compile the "_loop" opcode
-    pEngine->CompileLong( OP_DO_LOOP );
+    pEngine->CompileOpcode( OP_DO_LOOP );
     // fill in the branch to after loop opcode
     *pDoOp = COMPILED_OP( kOpBranch, (GET_DP - pDoOp) - 1 );
 }
@@ -548,7 +548,7 @@ FORTHOP(loopNOp)
     long *pDoOp = (long *) pShellStack->Pop();
     *pDoOp++ = OP_DO_DO;
     // compile the "_loop" opcode
-    pEngine->CompileLong( OP_DO_LOOPN );
+    pEngine->CompileOpcode( OP_DO_LOOPN );
     // fill in the branch to after loop opcode
     *pDoOp = COMPILED_OP( kOpBranch, (GET_DP - pDoOp) - 1 );
 }
@@ -652,7 +652,7 @@ FORTHOP( ifOp )
     // flag that this is the "if" branch
     pShellStack->Push( kShellTagIf );
     // this will be fixed by else/endif
-    pEngine->CompileLong( OP_ABORT );
+    pEngine->CompileOpcode( OP_ABORT );
 }
 
 
@@ -673,7 +673,7 @@ FORTHOP( elseOp )
     // flag that this is the "else" branch
     pShellStack->Push( kShellTagElse );
     // this will be fixed by endif
-    pEngine->CompileLong( OP_ABORT );
+    pEngine->CompileOpcode( OP_ABORT );
     // fill in the branch taken when "if" arg is false
     *pIfOp = COMPILED_OP( kOpBranchZ, (GET_DP - pIfOp) - 1 );
 }
@@ -727,7 +727,7 @@ FORTHOP( untilOp )
         return;
     }
     long *pBeginOp =  (long *) pShellStack->Pop();
-    pEngine->CompileLong( COMPILED_OP( kOpBranchZ, (pBeginOp - GET_DP) - 1 ) );
+    pEngine->CompileOpcode( COMPILED_OP( kOpBranchZ, (pBeginOp - GET_DP) - 1 ) );
 }
 
 
@@ -746,7 +746,7 @@ FORTHOP( whileOp )
     pShellStack->Push( (long) GET_DP );
     pShellStack->Push( kShellTagWhile );
     // repeat will fill this in
-    pEngine->CompileLong( OP_ABORT );
+    pEngine->CompileOpcode( OP_ABORT );
 }
 
 
@@ -766,7 +766,7 @@ FORTHOP( repeatOp )
     *pOp = COMPILED_OP( kOpBranchZ, (GET_DP - pOp) );
     // get address of "begin"
     pOp =  (long *) pShellStack->Pop();
-    pEngine->CompileLong( COMPILED_OP( kOpBranch, (pOp - GET_DP) - 1 ) );
+    pEngine->CompileOpcode( COMPILED_OP( kOpBranch, (pOp - GET_DP) - 1 ) );
 }
 
 // again - has precedence
@@ -781,7 +781,7 @@ FORTHOP( againOp )
         return;
     }
     long *pBeginOp =  (long *) pShellStack->Pop();
-    pEngine->CompileLong( COMPILED_OP( kOpBranch, (pBeginOp - GET_DP) - 1 ) );
+    pEngine->CompileOpcode( COMPILED_OP( kOpBranch, (pBeginOp - GET_DP) - 1 ) );
 }
 
 // case - has precedence
@@ -811,7 +811,7 @@ FORTHOP( ofOp )
     pShellStack->Push( (long)GET_DP );
     pShellStack->Push( kShellTagCase );
     // this will be set to a caseBranch by endof
-    pEngine->CompileLong( OP_ABORT );
+    pEngine->CompileOpcode( OP_ABORT );
 }
 
 
@@ -825,7 +825,7 @@ FORTHOP( endofOp )
     long *pDP = GET_DP;
 
     // this will be fixed by endcase
-    pEngine->CompileLong( OP_ABORT );
+    pEngine->CompileOpcode( OP_ABORT );
 
     if ( !pShell->CheckSyntaxError( "endof", pShellStack->Pop(), kShellTagCase ) )
     {
@@ -857,7 +857,7 @@ FORTHOP( endcaseOp )
     if ( ((GET_DP) - (long *)(pShellStack->Peek())) == 1 ) {
         // there is no default case, we must compile a "drop" to
         //   dispose of the case selector on TOS
-        pEngine->CompileLong( OP_DROP );
+        pEngine->CompileOpcode( OP_DROP );
     }
     // patch branches from end-of-case to common exit point
     while ( (pEndofOp = (long *) (pShellStack->Pop())) != NULL ) {
@@ -1627,12 +1627,12 @@ FORTHOP( doesOp )
     ForthEngine *pEngine = GET_ENGINE;
     
     // compile dodoes opcode & dummy word
-    pEngine->CompileLong( OP_END_BUILDS );
+    pEngine->CompileOpcode( OP_END_BUILDS );
     pEngine->CompileLong( 0 );
     // create a nameless vocabulary entry for does-body opcode
     newOp = pEngine->AddOp( GET_DP, kOpUserDef );
     newOp = COMPILED_OP( kOpUserDef, newOp );
-    pEngine->CompileLong( OP_DO_DOES );
+    pEngine->CompileOpcode( OP_DO_DOES );
     // stuff does-body opcode in dummy word
     GET_DP[-2] = newOp;
     // compile local vars allocation op (if needed)
@@ -1682,19 +1682,19 @@ FORTHOP( exitOp )
     switch ( flags & (kEngineFlagHasLocalVars | kEngineFlagIsMethod) ) {
     case 0:
         // normal definition, no local vars, not a method
-        pEngine->CompileLong( OP_DO_EXIT );
+        pEngine->CompileOpcode( OP_DO_EXIT );
         break;
     case kEngineFlagHasLocalVars:
         // normal definition with local vars
-        pEngine->CompileLong( OP_DO_EXIT_L );
+        pEngine->CompileOpcode( OP_DO_EXIT_L );
         break;
     case kEngineFlagIsMethod:
         // method definition, no local vars
-        pEngine->CompileLong( OP_DO_EXIT_M );
+        pEngine->CompileOpcode( OP_DO_EXIT_M );
         break;
     case (kEngineFlagHasLocalVars | kEngineFlagIsMethod):
         // method definition, with local vars
-        pEngine->CompileLong( OP_DO_EXIT_ML );
+        pEngine->CompileOpcode( OP_DO_EXIT_ML );
         break;
     }
 }
@@ -1728,7 +1728,7 @@ FORTHOP( createOp )
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
     pEngine->StartOpDefinition( NULL, false );
-    pEngine->CompileLong( OP_DO_VAR );
+    pEngine->CompileOpcode( OP_DO_VAR );
 }
 
 FORTHOP( forgetOp )
@@ -1796,7 +1796,7 @@ FORTHOP( vocabularyOp )
     ForthVocabulary *pDefinitionsVocab = pEngine->GetDefinitionVocabulary();
     // get next symbol, add it to vocabulary with type "user op"
     pEngine->StartOpDefinition();
-    pEngine->CompileLong( OP_DO_VOCAB );
+    pEngine->CompileOpcode( OP_DO_VOCAB );
     ForthVocabulary* pVocab = new ForthVocabulary( pDefinitionsVocab->GetEntryName( pDefinitionsVocab->GetNewestEntry() ),
                                                    NUM_FORTH_VOCAB_VALUE_LONGS,
                                                    512,
@@ -1811,7 +1811,7 @@ FORTHOP( variableOp )
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
     pEngine->StartOpDefinition();
-    pEngine->CompileLong( OP_DO_VAR );
+    pEngine->CompileOpcode( OP_DO_VAR );
     pEngine->CompileLong( 0 );
 }
 
@@ -1826,7 +1826,7 @@ FORTHOP( constantOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     pEngine->StartOpDefinition();
-    pEngine->CompileLong( OP_DO_CONSTANT );
+    pEngine->CompileOpcode( OP_DO_CONSTANT );
     pEngine->CompileLong( SPOP );
 }
 
@@ -1841,7 +1841,7 @@ FORTHOP( dconstantOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     pEngine->StartOpDefinition();
-    pEngine->CompileLong( OP_DO_DCONSTANT );
+    pEngine->CompileOpcode( OP_DO_DCONSTANT );
     double d = DPOP;
     pEngine->CompileDouble( d );
 }
@@ -1939,7 +1939,7 @@ FORTHOP( structOp )
     pEngine->SetFlag( kEngineFlagInStructDefinition );
     ForthStructsManager* pManager = ForthStructsManager::GetInstance();
     ForthStructVocabulary* pVocab = pManager->AddStructType( pEngine->GetNextSimpleToken() );
-    pEngine->CompileLong( OP_DO_STRUCT_TYPE );
+    pEngine->CompileOpcode( OP_DO_STRUCT_TYPE );
     pEngine->CompileLong( (long) pVocab );
 }
 
@@ -1950,12 +1950,110 @@ FORTHOP( endstructOp )
     pEngine->EndOpDefinition( true );
 }
 
+FORTHOP( unionOp )
+{
+    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    pManager->GetNewestStruct()->StartUnion();
+}
+
+FORTHOP( extendsOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    char *pSym = pEngine->GetNextSimpleToken();
+    ForthVocabulary* pFoundVocab;
+    long *pEntry = pEngine->GetPrecedenceVocabulary()->FindSymbol( pSym, &pFoundVocab );
+    if ( pEntry )
+    {
+        ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+        ForthStructVocabulary* pParentVocab = pManager->GetStructVocabulary( pEntry[0] );
+        if ( pParentVocab )
+        {
+            pManager->GetNewestStruct()->Extends( pParentVocab );
+        }
+        else
+        {
+            pEngine->AddErrorText( pSym );
+            pEngine->SetError( kForthErrorUnknownSymbol, " is not a structure" );
+        }
+    }
+    else
+    {
+        pEngine->SetError( kForthErrorUnknownSymbol, pSym );
+    }
+}
+
 FORTHOP( sizeOfOp )
 {
+    // TBD: allow sizeOf to be applied to variables
+    // TBD: allow sizeOf to apply to native types, including strings
+    ForthEngine *pEngine = GET_ENGINE;
+    char *pSym = pEngine->GetNextSimpleToken();
+    ForthVocabulary* pFoundVocab;
+    long *pEntry = pEngine->GetPrecedenceVocabulary()->FindSymbol( pSym, &pFoundVocab );
+
+    if ( pEntry )
+    {
+        ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+        ForthStructVocabulary* pStructVocab = pManager->GetStructVocabulary( pEntry[0] );
+        if ( pStructVocab )
+        {
+            pEngine->ProcessConstant( pStructVocab->GetSize() );
+        }
+        else
+        {
+            pEngine->AddErrorText( pSym );
+            pEngine->SetError( kForthErrorUnknownSymbol, " is not a structure" );
+        }
+    }
+    else
+    {
+        pEngine->SetError( kForthErrorUnknownSymbol, pSym );
+    }
 }
 
 FORTHOP( offsetOfOp )
 {
+    // TBD: allow offsetOf to be take variable.field instead of just type.field
+    ForthEngine *pEngine = GET_ENGINE;
+    char *pType = pEngine->GetNextSimpleToken();
+    char *pField = strchr( pType, '.' );
+    if ( pField == NULL )
+    {
+        pEngine->SetError( kForthErrorBadSyntax, "argument must contain a period" );
+        return;
+    }
+    *pField++ = '\0';
+
+    ForthVocabulary* pFoundVocab;
+    long *pEntry = pEngine->GetPrecedenceVocabulary()->FindSymbol( pType, &pFoundVocab );
+    if ( pEntry )
+    {
+        ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+        ForthStructVocabulary* pStructVocab = pManager->GetStructVocabulary( pEntry[0] );
+        if ( pStructVocab )
+        {
+            pEntry = pStructVocab->FindSymbol( pField, &pFoundVocab );
+            if ( pEntry )
+            {
+                pEngine->ProcessConstant( pEntry[0] );
+            }
+            else
+            {
+                pEngine->AddErrorText( pField );
+                pEngine->AddErrorText( " is not a field in " );
+                pEngine->SetError( kForthErrorUnknownSymbol, pType );
+            }
+        }
+        else
+        {
+            pEngine->AddErrorText( pType );
+            pEngine->SetError( kForthErrorUnknownSymbol, " is not a structure" );
+        }
+    }
+    else
+    {
+        pEngine->SetError( kForthErrorUnknownSymbol, pType );
+    }
 }
 
 FORTHOP( enumOp )
@@ -1968,7 +2066,7 @@ FORTHOP( enumOp )
     }
     pEngine->StartEnumDefinition();
     pEngine->StartOpDefinition();
-    pEngine->CompileLong( OP_DO_ENUM );
+    pEngine->CompileOpcode( OP_DO_ENUM );
 }
 
 FORTHOP( endenumOp )
@@ -1993,7 +2091,7 @@ FORTHOP( doStructTypeOp )
     SET_IP( (long *) (RPOP) );
 }
 
-// doStructOp is compiled at the of each user-defined structure instance
+// doStructOp is compiled at the of each user-defined global structure instance
 FORTHOP( doStructOp )
 {
     // IP points to data field
@@ -2001,7 +2099,9 @@ FORTHOP( doStructOp )
     SET_IP( (long *) (RPOP) );
 }
 
-// doStructArrayOp is compiled at the of each user-defined structure array instance
+// doStructArrayOp is compiled as the only op of each user-defined global structure array instance
+// the word after this op is the padded element length
+// after that word is storage for structure 0 of the array
 FORTHOP( doStructArrayOp )
 {
     // IP points to data field
@@ -2020,6 +2120,7 @@ extern FORTHOP( intOp );
 FORTHOP( doEnumOp )
 {
     intOp( pCore );
+    // we need to pop the IP, since there is no instruction after this one
     SET_IP( (long *) (RPOP) );
 }
 
@@ -2134,7 +2235,7 @@ FORTHOP( compileOp )
     char *pToken = pEngine->GetNextSimpleToken();
     long *pSymbol = pEngine->FindSymbol( pToken );
     if ( pSymbol != NULL ) {
-        pEngine->CompileLong( *pSymbol );
+        pEngine->CompileOpcode( *pSymbol );
     } else {
         SET_ERROR( kForthErrorUnknownSymbol );
     }
@@ -2148,14 +2249,14 @@ FORTHOP( bracketTickOp )
     char *pToken = pEngine->GetNextSimpleToken();
     long *pSymbol = pEngine->FindSymbol( pToken );
     if ( pSymbol != NULL ) {
-        pEngine->CompileLong( OP_INT_VAL );
+        pEngine->CompileOpcode( OP_INT_VAL );
         pEngine->CompileLong( *pSymbol );
     } else {
         SET_ERROR( kForthErrorUnknownSymbol );
     }
 }
 
-
+   
 //##############################
 //
 //  output ops
@@ -2195,7 +2296,8 @@ consoleOutToOp( ForthCoreState   *pCore,
 {
     SPUSH( (long) pMessage );
     long op = GET_CON_OUT_OP;
-    GET_ENGINE->ExecuteOneOp( op );
+    ForthEngine* pEngine = GET_ENGINE;
+    pEngine->ExecuteOneOp( op );
 }
 
 static void
@@ -2429,7 +2531,7 @@ FORTHOP( outToStringOp )
 FORTHOP( outToOpOp )
 {
     NEEDS( 1 );
-    long op = SPOP;
+    SET_CON_OUT_ROUTINE( consoleOutToOp );
     SET_CON_OUT_OP( SPOP );
 }
 
@@ -2526,6 +2628,17 @@ FORTHOP( ftellOp )
 {
     NEEDS(1);
     int result = ftell( (FILE *) SPOP );
+    SPUSH( result );
+}
+
+FORTHOP( flenOp )
+{
+    NEEDS(1);
+    FILE* pFile = (FILE *) SPOP;
+    int oldPos = ftell( pFile );
+    fseek( pFile, 0, SEEK_END );
+    int result = ftell( pFile );
+    fseek( pFile, 0, SEEK_SET );
     SPUSH( result );
 }
 
@@ -2663,6 +2776,36 @@ FORTHOP( describeOp )
     pEngine->DescribeSymbol( pSym );
 }
 
+FORTHOP( DLLVocabularyOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthVocabulary *pDefinitionsVocab = pEngine->GetDefinitionVocabulary();
+    // get next symbol, add it to vocabulary with type "user op"
+    pEngine->StartOpDefinition();
+    char* pDLLName = pEngine->GetNextSimpleToken();
+    pEngine->CompileOpcode( OP_DO_VOCAB );
+    ForthDLLVocabulary* pVocab = new ForthDLLVocabulary( pDefinitionsVocab->GetEntryName( pDefinitionsVocab->GetNewestEntry() ),
+                                                         pDLLName,
+                                                         NUM_FORTH_VOCAB_VALUE_LONGS,
+                                                         512,
+                                                         GET_DP,
+                                                         ForthVocabulary::GetEntryValue( pDefinitionsVocab->GetNewestEntry() ) );
+    pVocab->LoadDLL();
+    pVocab->SetNextSearchVocabulary( pEngine->GetSearchVocabulary() );
+    pEngine->CompileLong( (long) pVocab );
+}
+
+FORTHOP( addDLLEntryOp )
+{
+    NEEDS( 3 );
+
+    char* pProcName = (char *) SPOP;
+    ForthDLLVocabulary* pVocab = (ForthDLLVocabulary *) (SPOP);
+    ulong numArgs = SPOP;
+    pVocab->AddEntry( pProcName, numArgs );
+}
+
+#if 0
 FORTHOP( loadLibraryOp )
 {
     NEEDS( 1 );
@@ -2697,6 +2840,9 @@ typedef long (*proc5Args)( long arg1, long arg2, long arg3, long arg4, long arg5
 typedef long (*proc6Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6 );
 typedef long (*proc7Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7 );
 typedef long (*proc8Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7, long arg8 );
+typedef long (*proc9Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7, long arg8, long arg9 );
+typedef long (*proc10Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7, long arg8, long arg9, long arg10 );
+typedef long (*proc11Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7, long arg8, long arg9, long arg10, long arg11 );
 
 FORTHOP( callProc0Op )
 {
@@ -2797,6 +2943,58 @@ FORTHOP( callProc8Op )
     SPUSH( pFunc( a1, a2, a3, a4, a5, a6, a7, a8 ) );
 }
 
+FORTHOP( callProc9Op )
+{
+    NEEDS( 9 );
+    proc9Args pFunc = (proc9Args) SPOP;
+    long a9 = SPOP;
+    long a8 = SPOP;
+    long a7 = SPOP;
+    long a6 = SPOP;
+    long a5 = SPOP;
+    long a4 = SPOP;
+    long a3 = SPOP;
+    long a2 = SPOP;
+    long a1 = SPOP;
+    SPUSH( pFunc( a1, a2, a3, a4, a5, a6, a7, a8, a9 ) );
+}
+
+FORTHOP( callProc10Op )
+{
+    NEEDS( 10 );
+    proc10Args pFunc = (proc10Args) SPOP;
+    long a10 = SPOP;
+    long a9 = SPOP;
+    long a8 = SPOP;
+    long a7 = SPOP;
+    long a6 = SPOP;
+    long a5 = SPOP;
+    long a4 = SPOP;
+    long a3 = SPOP;
+    long a2 = SPOP;
+    long a1 = SPOP;
+    SPUSH( pFunc( a1, a2, a3, a4, a5, a6, a7, a8, a9, a10 ) );
+}
+
+FORTHOP( callProc11Op )
+{
+    NEEDS( 11 );
+    proc11Args pFunc = (proc11Args) SPOP;
+    long a11 = SPOP;
+    long a10 = SPOP;
+    long a9 = SPOP;
+    long a8 = SPOP;
+    long a7 = SPOP;
+    long a6 = SPOP;
+    long a5 = SPOP;
+    long a4 = SPOP;
+    long a3 = SPOP;
+    long a2 = SPOP;
+    long a1 = SPOP;
+    SPUSH( pFunc( a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11 ) );
+}
+#endif
+
 FORTHOP( blwordOp )
 {
     NEEDS( 0 );
@@ -2852,6 +3050,18 @@ FORTHOP( turboOp )
 {
     GET_ENGINE->ToggleFastMode();
     SET_STATE( kResultDone );
+}
+
+FORTHOP( errorOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->SetError( kForthErrorUserDefined, (char *) (SPOP) );
+}
+
+FORTHOP( addErrorTextOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->AddErrorText( (char *) (SPOP) );
 }
 
 #define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func, 0 }
@@ -3157,8 +3367,10 @@ baseDictEntry baseDict[] = {
     PRECOP( voidOp,                 "void" ),
     PRECOP( arrayOfOp,              "arrayOf" ),
     PRECOP( ptrToOp,                "ptrTo" ),
-    PRECOP( structOp,               "struct" ),
-    PRECOP( endstructOp,            "endstruct" ),
+    OP(     structOp,               "struct" ),
+    OP(     endstructOp,            "endstruct" ),
+    OP(     unionOp,                "union" ),
+    OP(     extendsOp,              "extends" ),
     PRECOP( sizeOfOp,               "sizeOf" ),
     PRECOP( offsetOfOp,             "offsetOf" ),
     OP(     enumOp,                 "enum" ),
@@ -3213,6 +3425,7 @@ baseDictEntry baseDict[] = {
     OP(     fputcOp,                "fputc" ),
     OP(     feofOp,                 "feof" ),
     OP(     ftellOp,                "ftell" ),
+    OP(     flenOp,                 "flen" ),
     OP(     stdinOp,                "stdin" ),
     OP(     stdoutOp,               "stdout" ),
     OP(     stderrOp,               "stderr" ),
@@ -3230,6 +3443,9 @@ baseDictEntry baseDict[] = {
     ///////////////////////////////////////////
     //  DLL support words
     ///////////////////////////////////////////
+    OP(     DLLVocabularyOp,        "DLLVocabulary" ),
+    OP(     addDLLEntryOp,          "addDLLEntry" ),
+#if 0
     OP(     loadLibraryOp,          "loadLibrary" ),
     OP(     freeLibraryOp,          "freeLibrary" ),
     OP(     getProcAddressOp,       "getProcAddress" ),
@@ -3242,6 +3458,10 @@ baseDictEntry baseDict[] = {
     OP(     callProc6Op,            "callProc6" ),
     OP(     callProc7Op,            "callProc7" ),
     OP(     callProc8Op,            "callProc8" ),
+    OP(     callProc9Op,            "callProc9" ),
+    OP(     callProc10Op,           "callProc10" ),
+    OP(     callProc11Op,           "callProc11" ),
+#endif
 
     ///////////////////////////////////////////
     //  input buffer words
@@ -3257,6 +3477,8 @@ baseDictEntry baseDict[] = {
     OP(     turboOp,                "turbo" ),
     OP(     statsOp,                "stats" ),
     OP(     describeOp,             "describe" ),
+    OP(     errorOp,                "error" ),
+    OP(     addErrorTextOp,         "addErrorText" ),
 
     // following must be last in table
     OP(     NULL,                   "" )

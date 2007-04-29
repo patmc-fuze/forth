@@ -117,11 +117,19 @@ struct ForthCoreState
 
 extern eForthResult InnerInterpreter( ForthCoreState *pCore );
 extern eForthResult InnerInterpreterFast( ForthCoreState *pCore );
-extern InitAsmTables(  ForthCoreState *pCore );
+extern InitAsmTables( ForthCoreState *pCore );
 
 void InitDispatchTables( ForthCoreState* pCore );
 void InitCore( ForthCoreState* pCore );
 void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal );
+
+// DLLRoutine is used for any external DLL routine - it can take any number of arguments
+typedef long (*DLLRoutine)();
+// CallDLLRoutine is an assembler routine which:
+// 1) moves arguments from the forth parameter stack to the real stack in reverse order
+// 2) calls the DLL routine
+// 3) leaves the DLL routine result on the forth parameter stack
+extern long CallDLLRoutine( DLLRoutine function, long argCount, ForthCoreState *pCore );
 
 inline long GetCurrentOp( ForthCoreState *pCore )
 {

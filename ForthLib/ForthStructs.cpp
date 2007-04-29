@@ -49,12 +49,12 @@ ForthStructsManager::~ForthStructsManager()
 void
 ForthStructsManager::ForgetCleanup( void *pForgetLimit, long op )
 {
-    // TBD: remove struct info for forgotten struct types
+    // remove struct info for forgotten struct types
     int i;
 
     for ( i = mNumStructs - 1; i >= 0; i-- )
     {
-        if ( mpStructInfo[i].op >= op )
+        if ( FORTH_OP_VALUE( mpStructInfo[i].op ) >= op )
         {
             // this struct is among forgotten ops
             SPEW_STRUCTS( "Forgetting struct vocab %s\n", mpStructInfo[i].pVocab->GetName() );
@@ -71,7 +71,6 @@ ForthStructsManager::ForgetCleanup( void *pForgetLimit, long op )
 ForthStructVocabulary*
 ForthStructsManager::AddStructType( const char *pName )
 {
-    // TBD
     ForthEngine *pEngine = ForthEngine::GetInstance();
     ForthVocabulary* pDefinitionsVocab = pEngine->GetDefinitionVocabulary();
 
@@ -89,6 +88,23 @@ ForthStructsManager::AddStructType( const char *pName )
     SPEW_STRUCTS( "AddStructType %s struct index %d\n", pName, mNumStructs );
     mNumStructs++;
     return pInfo->pVocab;
+}
+
+ForthStructVocabulary*
+ForthStructsManager::GetStructVocabulary( long op )
+{
+    int i;
+    ForthStructInfo *pInfo;
+
+    for ( i = 0; i < mNumStructs; i++ )
+    {
+        pInfo = &(mpStructInfo[i]);
+        if ( pInfo->op == op )
+        {
+            return pInfo->pVocab;
+        }
+    }
+    return NULL;
 }
 
 ForthStructInfo*
@@ -162,6 +178,9 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
     // get first token
     char *pToken = &(mToken[0]);
     char *pNextToken = strchr( mToken, '.' );
+    ForthVocabulary *pFoundVocab = NULL;
+
+
     if ( pNextToken == NULL )
     {
         return false;
@@ -174,7 +193,7 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
     //
 
     // see if first token is local or global struct
-    long *pEntry = pEngine->GetSearchVocabulary()->FindSymbol( mToken );
+    long *pEntry = pEngine->GetSearchVocabulary()->FindSymbol( mToken, &pFoundVocab );
     if ( pEntry == NULL )
     {
         pEntry = pEngine->GetLocalVocabulary()->FindSymbol( mToken );
@@ -229,7 +248,8 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
            *pNextToken++ = '\0';
         }
         bool isFinal = (pNextToken == NULL);
-        pEntry = pStruct->pVocab->FindSymbol( pToken );
+        ForthVocabulary* pFoundVocab = NULL;
+        pEntry = pStruct->pVocab->FindSymbol( pToken, &pFoundVocab );
         SPEW_STRUCTS( "field %s", pToken );
         if ( pEntry == NULL )
         {
@@ -334,6 +354,9 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
     return true;
 }
 
+
+
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///     ForthStructVocabulary
@@ -344,8 +367,9 @@ ForthStructVocabulary::ForthStructVocabulary( const char    *pName,
                                               int           structIndex )
 : ForthVocabulary( pName, NUM_STRUCT_VOCAB_VALUE_LONGS, DEFAULT_VOCAB_STORAGE )
 , mStructIndex( structIndex )
-, mAlignment( 4 )
+, mAlignment( 1 )
 , mNumBytes( 0 )
+, mMaxNumBytes( 0 )
 {
 
 }
@@ -429,7 +453,7 @@ ForthStructVocabulary::DefineInstance( void )
             {
                 padding = mAlignment - (nBytes & alignMask);
             }
-            mpEngine->CompileLong( OP_DO_STRUCT_ARRAY );
+            mpEngine->CompileOpcode( OP_DO_STRUCT_ARRAY );
             mpEngine->CompileLong( nBytes + padding );
             pHere = (char *) (mpEngine->GetDP());
             mpEngine->AllotLongs( (((nBytes + padding) * (numElements - 1)) + nBytes + 3) >> 2 );
@@ -437,7 +461,7 @@ ForthStructVocabulary::DefineInstance( void )
         }
         else
         {
-            mpEngine->CompileLong( OP_DO_STRUCT );
+            mpEngine->CompileOpcode( OP_DO_STRUCT );
             pHere = (char *) (mpEngine->GetDP());
             mpEngine->AllotLongs( (nBytes  + 3) >> 2 );
             memset( pHere, 0, nBytes );
@@ -461,10 +485,15 @@ ForthStructVocabulary::AddField( const char* pName, long fieldType, int numEleme
 
     pManager->GetFieldInfo( fieldType, fieldBytes, alignment );
 
-    if ( mNumSymbols == 0 )
+    if ( mNumBytes == 0 )
     {
         // this is first field in struct, so this field defines structs' alignment
-        mAlignment = alignment;
+        // to allow union types, the first field in each union subtype can set
+        //   the alignment, but it can't reduce the alignment size
+        if ( alignment > mAlignment )
+        {
+            mAlignment = alignment;
+        }
     }
     alignMask = alignment - 1;
 
@@ -496,6 +525,10 @@ ForthStructVocabulary::AddField( const char* pName, long fieldType, int numEleme
         }
     }
     mNumBytes += fieldBytes;
+    if ( mNumBytes > mMaxNumBytes )
+    {
+        mMaxNumBytes = mNumBytes;
+    }
     SPEW_STRUCTS( "AddField %s code 0x%x isPtr %d isNative %d elements %d\n",
                   pName, fieldType, isPtr, isNative, numElements );
 }
@@ -511,8 +544,36 @@ long
 ForthStructVocabulary::GetSize( void )
 {
     // return alignment of first field
-    return mNumBytes;
+    return mMaxNumBytes;
 }
+
+void
+ForthStructVocabulary::StartUnion()
+{
+    // when a union subtype is started, the current size is zeroed, but
+    //   the maximum size is left untouched
+    // if this struct is an extension of another struct, the size is set to
+    //   the size of the parent struct
+    mNumBytes = (mpSearchNext) ? ((ForthStructVocabulary *) mpSearchNext)->GetSize() : 0;
+}
+
+void
+ForthStructVocabulary::Extends( ForthStructVocabulary *pParentStruct )
+{
+    // this new struct is an extension of an existing struct - it has all
+    //   the fields of the parent struct
+    mpSearchNext = pParentStruct;
+    mNumBytes = pParentStruct->GetSize();
+    mMaxNumBytes = mNumBytes;
+    mAlignment = pParentStruct->GetAlignment();
+}
+
+const char*
+ForthStructVocabulary::GetType( void )
+{
+    return "struct";
+}
+
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -610,7 +671,16 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
             }
             else
             {
+                pHere = (char *) (pEngine->GetDP());
                 pEngine->AddLocalVar( pToken, typeCode, nBytes );
+                long* pLastIntoOp = pEngine->GetLastCompiledIntoPtr();
+                if ( pLastIntoOp == (((long *) pHere) - 1) )
+                {
+                    // local var definition was preceeded by "->", so compile the op for this local var
+                    //  so it will be initialized
+                    long *pEntry = pVocab->GetNewestEntry();
+                    pEngine->CompileOpcode( pEntry[0] );
+                }
             }
         }
         else
@@ -620,7 +690,8 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
             pEntry = pEngine->GetDefinitionVocabulary()->GetNewestEntry();
             if ( numElements )
             {
-                pEngine->CompileLong( OP_DO_BYTE_ARRAY + nativeType );
+                // define global array
+                pEngine->CompileOpcode( OP_DO_BYTE_ARRAY + nativeType );
                 pHere = (char *) (pEngine->GetDP());
                 pEngine->AllotLongs( ((nBytes * numElements) + 3) >> 2 );
                 for ( i = 0; i < numElements; i++ )
@@ -631,10 +702,19 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
             }
             else
             {
-                pEngine->CompileLong( OP_DO_BYTE + nativeType );
+                // define global single variable
+                pEngine->CompileOpcode( OP_DO_BYTE + nativeType );
                 pHere = (char *) (pEngine->GetDP());
                 pEngine->AllotLongs( (nBytes  + 3) >> 2 );
-                memcpy( pHere, pInitialVal, nBytes );
+                if ( GET_VAR_OPERATION == kVarStore )
+                {
+                    // var definition was preceeded by "->", so initialize var
+                    pEngine->ExecuteOneOp( pEntry[0] );
+                }
+                else
+                {
+                    memcpy( pHere, pInitialVal, nBytes );
+                }
             }
             pEntry[1] = typeCode;
         }
@@ -644,25 +724,37 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
         // instance is string
         if ( pEngine->IsCompiling() )
         {
-            // uncompile the integer contant opcode
+            pVocab = pEngine->GetLocalVocabulary();
+            // uncompile the integer contant opcode - it is the string maxLen
             pEngine->UncompileLastOpcode();
             storageLen = ((len >> 2) + 3) << 2;
 
             if ( numElements )
             {
+                // define local string array
                 varOffset = pEngine->AddLocalArray( pToken, typeCode, storageLen );
-                pEngine->CompileLong( COMPILED_OP( kOpConstant, numElements ) );
-                pEngine->CompileLong( COMPILED_OP( kOpConstant, len ) );
-                pEngine->CompileLong( COMPILED_OP( kOpLocalRef, varOffset - 2) );
-                pEngine->CompileLong( OP_INIT_STRING_ARRAY );
+                pEngine->CompileOpcode( COMPILED_OP( kOpConstant, numElements ) );
+                pEngine->CompileOpcode( COMPILED_OP( kOpConstant, len ) );
+                pEngine->CompileOpcode( COMPILED_OP( kOpLocalRef, varOffset - 2) );
+                pEngine->CompileOpcode( OP_INIT_STRING_ARRAY );
             }
             else
             {
-                // define local variable
+                // define local string variable
+                pHere = (char *) (pEngine->GetDP());
                 varOffset = pEngine->AddLocalVar( pToken, typeCode, storageLen );
                 // compile initLocalString op
                 varOffset = (varOffset << 12) | len;
-                pEngine->CompileLong( COMPILED_OP( kOpInitLocalString, varOffset ) );
+                // NOTE: do not use CompileOpcode here - it would screw up the OP_INTO check just below
+                pEngine->CompileOpcode( COMPILED_OP( kOpInitLocalString, varOffset ) );
+                long* pLastIntoOp = pEngine->GetLastCompiledIntoPtr();
+                if ( pLastIntoOp == (((long *) pHere) - 1) )
+                {
+                    // local var definition was preceeded by "->", so compile the op for this local var
+                    //  so it will be initialized
+                    long *pEntry = pVocab->GetNewestEntry();
+                    pEngine->CompileOpcode( pEntry[0] );
+                }
             }
         }
         else
@@ -671,8 +763,8 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
             pEntry = pEngine->GetDefinitionVocabulary()->GetNewestEntry();
             if ( numElements )
             {
-                // define global array
-                pEngine->CompileLong( OP_DO_STRING_ARRAY );
+                // define global string array
+                pEngine->CompileOpcode( OP_DO_STRING_ARRAY );
                 for ( i = 0; i < numElements; i++ )
                 {
                     pEngine->CompileLong( len );
@@ -685,14 +777,19 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
             }
             else
             {
-                // define global variable
-                pEngine->CompileLong( OP_DO_STRING );
+                // define global string variable
+                pEngine->CompileOpcode( OP_DO_STRING );
                 pEngine->CompileLong( len );
                 pEngine->CompileLong( 0 );
                 pStr = (char *) (pEngine->GetDP());
                 // a length of 4 means room for 4 chars plus a terminating null
                 pEngine->AllotLongs( ((len  + 4) & ~3) >> 2 );
                 *pStr = 0;
+                if ( GET_VAR_OPERATION == kVarStore )
+                {
+                    // var definition was preceeded by "->", so initialize var
+                    pEngine->ExecuteOneOp( pEntry[0] );
+                }
             }
             pEntry[1] = typeCode;
         }
@@ -771,10 +868,10 @@ ForthNativeStringType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
         if ( numElements )
         {
             varOffset = pEngine->AddLocalArray( pToken, typeCode, storageLen );
-            pEngine->CompileLong( COMPILED_OP( kOpConstant, numElements ) );
-            pEngine->CompileLong( COMPILED_OP( kOpConstant, len ) );
-            pEngine->CompileLong( COMPILED_OP( kOpLocalRef, varOffset - 2) );
-            pEngine->CompileLong( OP_INIT_STRING_ARRAY );
+            pEngine->CompileOpcode( COMPILED_OP( kOpConstant, numElements ) );
+            pEngine->CompileOpcode( COMPILED_OP( kOpConstant, len ) );
+            pEngine->CompileOpcode( COMPILED_OP( kOpLocalRef, varOffset - 2) );
+            pEngine->CompileOpcode( OP_INIT_STRING_ARRAY );
         }
         else
         {
@@ -782,7 +879,7 @@ ForthNativeStringType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
             varOffset = pEngine->AddLocalVar( pToken, typeCode, storageLen );
             // compile initLocalString op
             varOffset = (varOffset << 12) | len;
-            pEngine->CompileLong( COMPILED_OP( kOpInitLocalString, varOffset ) );
+            pEngine->CompileOpcode( COMPILED_OP( kOpInitLocalString, varOffset ) );
         }
     }
     else
@@ -791,7 +888,7 @@ ForthNativeStringType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
         if ( numElements )
         {
             // define global array
-            pEngine->CompileLong( OP_DO_STRING_ARRAY );
+            pEngine->CompileOpcode( OP_DO_STRING_ARRAY );
             for ( i = 0; i < numElements; i++ )
             {
                 pEngine->CompileLong( len );
@@ -805,7 +902,7 @@ ForthNativeStringType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
         else
         {
             // define global variable
-            pEngine->CompileLong( OP_DO_STRING );
+            pEngine->CompileOpcode( OP_DO_STRING );
             pEngine->CompileLong( len );
             pEngine->CompileLong( 0 );
             pStr = (char *) (pEngine->GetDP());

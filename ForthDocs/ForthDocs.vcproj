@@ -71,7 +71,7 @@
 			RelativePath=".\ForthOpList.txt">
 		</File>
 		<File
-			RelativePath="..\ForthLib\Debug\ForthOps.asm">
+			RelativePath=".\ForthSave.txt">
 		</File>
 		<File
 			RelativePath="ForthStructs.txt">
@@ -84,6 +84,9 @@
 		</File>
 		<File
 			RelativePath="ForthVocabularies.txt">
+		</File>
+		<File
+			RelativePath="..\Sandbox\help.txt">
 		</File>
 	</Files>
 	<Globals>

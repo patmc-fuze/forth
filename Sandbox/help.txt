@@ -241,6 +241,7 @@ addHelp fgetc
 addHelp fputc
 addHelp feof
 addHelp ftell
+addHelp flen
 addHelp stdin
 addHelp stdout
 addHelp stderr
@@ -309,7 +310,7 @@ addHelp op
 addHelp void
 addHelp arrayOf
 addHelp ptrTo
-addhelp struct
+addHelp struct
 addHelp endstruct
 addHelp sizeOf
 addHelp offsetOf

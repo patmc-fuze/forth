@@ -20,13 +20,13 @@ extern "C" {
     extern eForthResult InnerInterp( ForthCoreState *pCore );
 };
 
-#ifdef TRACE_INNER_INTERPRETER
+//#ifdef TRACE_INNER_INTERPRETER
 
 // provide trace ability for builtin ops
 #define NUM_TRACEABLE_OPS MAX_BUILTIN_OPS
 static char *gOpNames[ NUM_TRACEABLE_OPS ];
 
-#endif
+//#endif
 
 ForthEngine* ForthEngine::mpInstance = NULL;
 
@@ -71,6 +71,7 @@ static char *pErrorStrings[] =
     "Unhandled Exception",
     "Missing Preceeding Size Constant",
     "Error In Struct Definition",
+    "Error In User-Defined Op",
     "Syntax error",
     "Syntax error - else without matching if",
     "Syntax error - endif without matching if/else",
@@ -100,6 +101,7 @@ ForthEngine::ForthEngine()
 , mpCurrentThread( NULL )
 , mFastMode( false )
 , mpLastCompiledOpcode( NULL )
+, mpLastIntoOpcode( NULL )
 , mNumElements( 0 )
 , mpStructsManager( NULL )
 {
@@ -179,7 +181,7 @@ ForthEngine::Initialize( int                totalLongs,
     mpCore->pEngine = this;
 
     mpMainVocab = new ForthVocabulary( "forth", NUM_FORTH_VOCAB_VALUE_LONGS );
-    mpLocalVocab = new ForthVocabulary( "locals", NUM_LOCALS_VOCAB_VALUE_LONGS );
+    mpLocalVocab = new ForthLocalVocabulary( "locals", NUM_LOCALS_VOCAB_VALUE_LONGS );
     mpPrecedenceVocab = new ForthPrecedenceVocabulary( "precedence_ops" );
     mpStringBufferA = new char[256 * NUM_INTERP_STRINGS];
     mpStringBufferB = new char[TMP_STRING_BUFFER_LEN];
@@ -252,6 +254,7 @@ ForthEngine::Reset( void )
     mNextStringNum = 0;
 
     mpLastCompiledOpcode = NULL;
+    mpLastIntoOpcode = NULL;
     mCompileState = 0;
     mCompileFlags = 0;
 }
@@ -355,16 +358,12 @@ bool
 ForthEngine::ForgetSymbol( const char *pSym )
 {
     long *pEntry = NULL;
-    ForthVocabulary *pFoundVocab = NULL;
     long op;
     forthOpType opType;
     bool forgotIt = false;
 
-    if ( (pEntry = mpSearchVocab->FindSymbol( pSym )) != NULL ) {
-        pFoundVocab = mpSearchVocab;
-    } else if ( (pEntry = mpPrecedenceVocab->FindSymbol( pSym )) != NULL ) {
-        pFoundVocab = mpPrecedenceVocab;
-    }
+    ForthVocabulary* pFoundVocab = NULL;
+    pEntry = mpPrecedenceVocab->FindSymbol( pSym, &pFoundVocab );
 
     if ( pFoundVocab != NULL ) {
         op = ForthVocabulary::GetEntryValue( pEntry );
@@ -480,6 +479,7 @@ ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt )
     mLocalFrameSize = 0;
     mpLocalAllocOp = NULL;
     mpLastCompiledOpcode = NULL;
+    mpLastIntoOpcode = NULL;
     AlignDP();
     if ( pName == NULL )
     {
@@ -506,6 +506,7 @@ ForthEngine::EndOpDefinition( bool unsmudgeIt )
         mLocalFrameSize = 0;
     }
     mpLastCompiledOpcode = NULL;
+    mpLastIntoOpcode = NULL;
     if ( unsmudgeIt )
     {
         mpDefinitionVocab->UnSmudgeNewestSymbol();
@@ -516,11 +517,8 @@ ForthEngine::EndOpDefinition( bool unsmudgeIt )
 long *
 ForthEngine::FindSymbol( const char *pSymName )
 {
-    long *pEntry = NULL;
-    if ( (pEntry = mpPrecedenceVocab->FindSymbol( pSymName )) == NULL ) {
-        pEntry = mpSearchVocab->FindSymbol( pSymName );
-    }
-    return pEntry;
+    ForthVocabulary* pFoundVocab = NULL;
+    return mpPrecedenceVocab->FindSymbol( pSymName, &pFoundVocab );
 }
 
 void
@@ -531,9 +529,9 @@ ForthEngine::DescribeSymbol( const char *pSymName )
     char c;
     int line = 1;
     bool notDone = true;
-    if ( (pEntry = mpPrecedenceVocab->FindSymbol( pSymName )) == NULL ) {
-        pEntry = mpSearchVocab->FindSymbol( pSymName );
-    }
+
+    ForthVocabulary* pFoundVocab = NULL;
+    pEntry = mpPrecedenceVocab->FindSymbol( pSymName, &pFoundVocab );
     if ( pEntry )
     {
         long opType = FORTH_OP_TYPE( pEntry[0] );
@@ -636,7 +634,7 @@ ForthEngine::AddLocalVar( const char        *pVarName,
     mLocalFrameSize += varSize;
     if ( CODE_IS_NATIVE( typeCode ) )
     {
-        long varType = CODE_TO_NATIVE_TYPE( typeCode );
+        long varType = CODE_IS_PTR( typeCode ) ? kNativeInt : CODE_TO_NATIVE_TYPE( typeCode );
         pEntry = mpLocalVocab->AddSymbol( pVarName, (kOpLocalByte + varType), mLocalFrameSize, false );
     }
     else
@@ -756,6 +754,7 @@ ForthEngine::GetOpTypeName( long opType )
     return (opType < kOpLocalUserDefined) ? opTypeNames[opType] : "unknown";
 }
 
+static bool lookupUserTraces = true;
 
 void
 ForthEngine::TraceOp( void )
@@ -763,10 +762,17 @@ ForthEngine::TraceOp( void )
 #ifdef TRACE_INNER_INTERPRETER
     long *pOp = mpCore->IP;
     char buff[ 256 ];
+    int rDepth = mpCore->RT - mpCore->RP;
+    if ( rDepth > 8 )
+    {
+        rDepth = 8;
+    }
+    char* sixteenSpaces = "                ";     // 16 spaces
+    char* pIndent = sixteenSpaces + (16 - (rDepth << 1));
     if ( *pOp != OP_DONE )
     {
-        DescribeOp( pOp, buff );
-        TRACE( "# %s  @ IP = 0x%x\n", buff, pOp );
+        DescribeOp( pOp, buff, lookupUserTraces );
+        TRACE( "# 0x%08x %s%s\n", pOp, pIndent, buff );
     }
 #endif
 }
@@ -777,7 +783,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs )
     long op = *pOp;
     forthOpType opType = FORTH_OP_TYPE( op );
     ulong opVal = FORTH_OP_VALUE( op );
-    ForthVocabulary *pVocab = NULL;
+    ForthVocabulary *pFoundVocab = NULL;
     long *pEntry = NULL;
 
     sprintf( pBuffer, "%02x:%06x    ", opType, opVal );
@@ -804,25 +810,13 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs )
         case kOpUserDef:
             if ( lookupUserDefs )
             {
-                pEntry = mpSearchVocab->FindSymbolByValue( op );
-                if ( pEntry )
-                {
-                    pVocab = mpSearchVocab;
-                }
-                else
-                {
-                    pEntry = mpPrecedenceVocab->FindSymbolByValue( op );
-                    if ( pEntry )
-                    {
-                        pVocab = mpPrecedenceVocab;
-                    }
-                }
+                pEntry = mpPrecedenceVocab->FindSymbolByValue( op, &pFoundVocab );
             }
-            if ( pVocab )
+            if ( pEntry )
             {
                 // the symbol name in the vocabulary doesn't always have a terminating null
-                int len = pVocab->GetEntryNameLength( pEntry );
-                const char* pName = pVocab->GetEntryName( pEntry );
+                int len = pFoundVocab->GetEntryNameLength( pEntry );
+                const char* pName = pFoundVocab->GetEntryName( pEntry );
                 for ( int i = 0; i < len; i++ )
                 {
                     *pBuffer++ = *pName++;
@@ -1075,6 +1069,12 @@ void
 ForthEngine::CompileOpcode( long op )
 {
     mpLastCompiledOpcode = mpCore->DP;
+    if ( op == OP_INTO )
+    {
+       // we need this to support initialization of local string vars (ugh)
+       mpLastIntoOpcode = mpLastCompiledOpcode;
+       
+    }
     *mpCore->DP++ = op;
 }
 
@@ -1083,6 +1083,11 @@ ForthEngine::UncompileLastOpcode( void )
 {
     if ( mpLastCompiledOpcode != NULL )
     {
+        if ( mpLastCompiledOpcode <= mpLastIntoOpcode )
+        {
+            mpLastIntoOpcode = NULL;
+
+        }
         mpCore->DP = mpLastCompiledOpcode;
         mpLastCompiledOpcode = NULL;
     }
@@ -1090,6 +1095,50 @@ ForthEngine::UncompileLastOpcode( void )
     {
         TRACE( "ForthEngine::UncompileLastOpcode called with no previous opcode\n" );
         SetError( kForthErrorMissingSize, "UncompileLastOpcode called with no previous opcode" );
+    }
+}
+
+// interpret/compile a constant value/offset
+void
+ForthEngine::ProcessConstant( long value, bool isOffset )
+{
+    if ( mCompileState ) {
+        // compile the literal value
+        if ( (value < (1 << 23)) && (value >= -(1 << 23)) ) {
+            // value fits in opcode immediate field
+            if ( isOffset )
+            {
+                CompileOpcode( (value & 0xFFFFFF) | (kOpOffset << 24) );
+            }
+            else
+            {
+                CompileOpcode( (value & 0xFFFFFF) | (kOpConstant << 24) );
+            }
+        } else {
+            // value too big, must go in next longword
+            if ( isOffset )
+            {
+                CompileOpcode( OP_INT_VAL );
+                *mpCore->DP++ = value;
+                CompileOpcode( OP_PLUS );
+            }
+            else
+            {
+                CompileOpcode( OP_INT_VAL );
+                *mpCore->DP++ = value;
+            }
+        }
+    } else {
+        if ( isOffset )
+        {
+            // add value to top of param stack
+            *mpCore->SP += value;
+        }
+        else
+        {
+            // leave value on param stack
+            *--mpCore->SP = value;
+        }
     }
 }
 
@@ -1160,8 +1209,18 @@ ForthEngine::ExecuteOps( long *pOps )
         exitStatus = InnerInterpreter( mpCore );
     }
     mpCore->IP = savedIP;
-
+    if ( exitStatus == kResultDone )
+    {
+        mpCore->state = kResultOk;
+        exitStatus = kResultOk;
+    }
     return exitStatus;
+}
+
+void
+ForthEngine::AddErrorText( const char *pString )
+{
+    strncat( mpErrorString, pString, ERROR_STRING_MAX );
 }
 
 void
@@ -1170,13 +1229,14 @@ ForthEngine::SetError( eForthError e, const char *pString )
     mpCore->error = e;
     if ( pString )
     {
-        strncpy( mpErrorString, pString, ERROR_STRING_MAX );
+        strncat( mpErrorString, pString, ERROR_STRING_MAX );
     }
-    else
+    if ( e == kForthErrorNone )
     {
+        // previous error state is being cleared
         mpErrorString[0] = '\0';
     }
-    if ( e != kForthErrorNone )
+    else
     {
         mpCore->state = kResultError;
     }
@@ -1190,10 +1250,6 @@ ForthEngine::SetFatalError( eForthError e, const char *pString )
     if ( pString )
     {
         strncpy( mpErrorString, pString, ERROR_STRING_MAX );
-    }
-    else
-    {
-        mpErrorString[0] = '\0';
     }
 }
 
@@ -1464,45 +1520,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         //
         ////////////////////////////////////
         SPEW_OUTER_INTERPRETER( "Integer literal %d\n", value );
-        if ( mCompileState ) {
-            // compile the literal value
-            if ( (value < (1 << 23)) && (value >= -(1 << 23)) ) {
-                // value fits in opcode immediate field
-                if ( isOffset )
-                {
-                    CompileOpcode( (value & 0xFFFFFF) | (kOpOffset << 24) );
-                }
-                else
-                {
-                    CompileOpcode( (value & 0xFFFFFF) | (kOpConstant << 24) );
-                }
-            } else {
-                // value too big, must go in next longword
-                if ( isOffset )
-                {
-                    CompileOpcode( OP_INT_VAL );
-                    *mpCore->DP++ = value;
-                    CompileOpcode( OP_PLUS );
-                }
-                else
-                {
-                    CompileOpcode( OP_INT_VAL );
-                    *mpCore->DP++ = value;
-                }
-            }
-        } else {
-            if ( isOffset )
-            {
-                // add value to top of param stack
-                *mpCore->SP += value;
-            }
-            else
-            {
-                // leave value on param stack
-                *--mpCore->SP = value;
-            }
-        }
-
+        ProcessConstant( value, isOffset );
     }
     else if ( CheckFlag( kEngineFlagInEnumDefinition ) )
     {
@@ -1523,7 +1541,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         {
             // number is out of range of kOpConstant, need to define a user op
             StartOpDefinition( pToken );
-            CompileLong( OP_DO_CONSTANT );
+            CompileOpcode( OP_DO_CONSTANT );
             CompileLong( mNextEnum );
         }
         mNextEnum++;

@@ -50,6 +50,9 @@ public:
     // return info structure for struct type specified by structIndex
     ForthStructInfo*        GetStructInfo( int structIndex );
 
+    // return vocabulary for a struct type given its opcode
+    ForthStructVocabulary*  GetStructVocabulary( long op );
+
     void GetFieldInfo( long fieldType, long& fieldBytes, long& alignment );
 
     ForthStructVocabulary*   GetNewestStruct( void );
@@ -77,15 +80,20 @@ public:
     // forget all ops with a greater op#
     virtual void        ForgetOp( long op );
 
+    virtual const char* GetType( void );
+
     // handle invocation of a struct op - define a local/global struct or struct array, or define a field
     void                DefineInstance( void );
 
     void                AddField( const char* pName, long fieldType, int numElements );
     long                GetAlignment( void );
     long                GetSize( void );
+    void                StartUnion( void );
+    void                Extends( ForthStructVocabulary *pParentStruct );
 
 protected:
     long                mNumBytes;
+    long                mMaxNumBytes;
     long                mStructIndex;
     long                mAlignment;
 };

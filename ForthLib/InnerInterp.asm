@@ -35,8 +35,10 @@ PUBLIC	printSpaceBop, printNewlineBop, printFloatBop, printDoubleBop, printForma
 PUBLIC	printDecimalSignedBop, printAllSignedBop, printAllUnsignedBop, outToFileBop, outToScreenBop, outToStringBop, outToOpBop, getConOutFileBop, fopenBop;
 PUBLIC	fcloseBop, fseekBop, freadBop, fwriteBop, fgetcBop, fputcBop, feofBop, ftellBop;
 PUBLIC	stdinBop, stdoutBop, stderrBop, dstackBop, drstackBop, vlistBop, systemBop, chdirBop, byeBop;
-PUBLIC	argvBop, argcBop, loadLibraryBop, freeLibraryBop, getProcAddressBop, callProc0Bop, callProc1Bop, callProc2Bop;
-PUBLIC	callProc3Bop, callProc4Bop, callProc5Bop, callProc6Bop, callProc7Bop, callProc8Bop, blwordBop, wordBop;
+PUBLIC	argvBop, argcBop;
+;PUBLIC	loadLibraryBop, freeLibraryBop, getProcAddressBop, callProc0Bop, callProc1Bop, callProc2Bop;
+;PUBLIC	callProc3Bop, callProc4Bop, callProc5Bop, callProc6Bop, callProc7Bop, callProc8Bop;
+PUBLIC	blwordBop, wordBop;
 PUBLIC	getInBufferBaseBop, getInBufferPointerBop, setInBufferPointerBop, getInBufferLengthBop, fillInBufferBop, turboBop, statsBop;
 
 EXTRN	_iob:BYTE
@@ -169,10 +171,10 @@ InnerInterpreterFast PROC near C public uses ebx ecx edx esi edi ebp,
 	mov	eax, kResultOk
 	mov	[ebp].FCore.state, eax
 	call	interpFunc
-	push	ecx
-	push	edx
-	pop	edx
-	pop	ecx
+	;push	ecx
+	;push	edx
+	;pop	edx
+	;pop	ecx
 	ret
 InnerInterpreterFast ENDP
 
@@ -3448,6 +3450,16 @@ endstructBop:	; TBD
 	
 ;========================================
 
+unionBop:	; TBD
+	extOp	unionOp
+	
+;========================================
+
+extendsBop:	; TBD
+	extOp	extendsOp
+	
+;========================================
+
 doStructBop:	; TBD
 	; push IP
 	sub	edx, 4
@@ -3734,6 +3746,11 @@ ftellBop:	; TBD
 	
 ;========================================
 
+flenBop:	; TBD
+	extOp	flenOp
+	
+;========================================
+
 systemBop:	; TBD
 	extOp	systemOp
 	
@@ -3774,63 +3791,13 @@ vlistBop:	; TBD
 	
 ;========================================
 
-loadLibraryBop:	; TBD
-	extOp	loadLibraryOp
+DLLVocabularyBop:	; TBD
+	extOp	DLLVocabularyOp
 	
 ;========================================
 
-freeLibraryBop:	; TBD
-	extOp	freeLibraryOp
-	
-;========================================
-
-getProcAddressBop:	; TBD
-	extOp	getProcAddressOp
-	
-;========================================
-
-callProc0Bop:	; TBD
-	extOp	callProc0Op
-	
-;========================================
-
-callProc1Bop:	; TBD
-	extOp	callProc1Op
-	
-;========================================
-
-callProc2Bop:	; TBD
-	extOp	callProc2Op
-	
-;========================================
-
-callProc3Bop:	; TBD
-	extOp	callProc3Op
-	
-;========================================
-
-callProc4Bop:	; TBD
-	extOp	callProc4Op
-	
-;========================================
-
-callProc5Bop:	; TBD
-	extOp	callProc5Op
-	
-;========================================
-
-callProc6Bop:	; TBD
-	extOp	callProc6Op
-	
-;========================================
-
-callProc7Bop:	; TBD
-	extOp	callProc7Op
-	
-;========================================
-
-callProc8Bop:	; TBD
-	extOp	callProc8Op
+addDLLEntryBop:	; TBD
+	extOp	addDLLEntryOp
 	
 ;========================================
 
@@ -3884,7 +3851,75 @@ statsBop:	; TBD
 describeBop:	; TBD
 	extOp	describeOp
 	
+;========================================
 
+errorBop:	; TBD
+	extOp	errorOp
+	
+;========================================
+
+addErrorTextBop:	; TBD
+	extOp	addErrorTextOp
+	
+
+;========================================
+
+; extern long CallDLLRoutine( DLLRoutine function, long argCount, void *core );
+
+CallDLLRoutine PROC near C public uses ebx ecx edx esi edi ebp,
+	funcAddr:PTR,
+	argCount:DWORD,
+	core:PTR
+	mov	eax, DWORD PTR funcAddr
+	mov	edi, argCount
+	mov	ebp, DWORD PTR core
+	mov	edx, [ebp].FCore.SPtr
+	mov	ecx, edi
+CallDLL1:
+	sub	ecx, 1
+	jl	CallDLL2
+	mov	ebx, [edx]
+	add	edx, 4
+	push	ebx
+	jmp CallDLL1
+CallDLL2:
+	; all args have been moved from parameter stack to PC stack
+	mov	[ebp].FCore.SPtr, edx
+	call	eax
+	mov	edx, [ebp].FCore.SPtr
+	sub	edx, 4
+	mov	[edx], eax		; return result on parameter stack
+	mov	[ebp].FCore.SPtr, edx
+	; cleanup PC stack
+	mov	ebx, edi
+	sal	ebx, 2
+	add	esp, ebx
+	ret
+CallDLLRoutine ENDP
+
+;========================================
+dllEntryPointType:
+	mov	[ebp].FCore.IPtr, ecx
+	mov	[ebp].FCore.SPtr, edx
+	mov	eax, ebx
+	and	eax, 0007FFFFh
+	cmp	eax, [ebp].FCore.numUserOps
+	jge	badUserDef
+	; push core ptr
+	push	ebp
+	; push arg count
+	mov	ecx, ebx
+	and	ecx, 00F80000h
+	sar	ecx, 19
+	push	ecx
+	; push entry point address
+	mov	ecx, [ebp].FCore.userOps
+	mov	edx, [ecx+eax*4]
+	push	edx
+	call	CallDLLRoutine
+	add	esp, 8
+	pop	ebp
+	jmp	interpFunc
 
 opTypesTable:
 ; TBD: check the order of these
@@ -3931,6 +3966,7 @@ opTypesTable:
 	DD	FLAT:fieldDoubleArrayType
 	DD	FLAT:fieldStringArrayType
 	DD	FLAT:fieldOpArrayType
+	DD	FLAT:dllEntryPointType
 endOpTypesTable:
 	DD	0
 
@@ -4152,6 +4188,8 @@ opsTable:
 	DD	FLAT:ptrToBop
 	DD	FLAT:structBop
 	DD	FLAT:endstructBop
+	DD	FLAT:unionBop
+	DD	FLAT:extendsBop
 	DD	FLAT:sizeOfBop
 	DD	FLAT:offsetOfBop
 	DD	FLAT:enumBop
@@ -4198,6 +4236,7 @@ opsTable:
 	DD	FLAT:fputcBop
 	DD	FLAT:feofBop
 	DD	FLAT:ftellBop
+	DD	FLAT:flenBop
 	DD	FLAT:stdinBop
 	DD	FLAT:stdoutBop
 	DD	FLAT:stderrBop
@@ -4209,18 +4248,23 @@ opsTable:
 	DD	FLAT:byeBop
 	DD	FLAT:argvBop
 	DD	FLAT:argcBop
-	DD	FLAT:loadLibraryBop
-	DD	FLAT:freeLibraryBop
-	DD	FLAT:getProcAddressBop
-	DD	FLAT:callProc0Bop
-	DD	FLAT:callProc1Bop
-	DD	FLAT:callProc2Bop
-	DD	FLAT:callProc3Bop
-	DD	FLAT:callProc4Bop
-	DD	FLAT:callProc5Bop
-	DD	FLAT:callProc6Bop
-	DD	FLAT:callProc7Bop
-	DD	FLAT:callProc8Bop
+	DD	FLAT:DLLVocabularyBop
+	DD	FLAT:addDLLEntryBop
+;	DD	FLAT:loadLibraryBop
+;	DD	FLAT:freeLibraryBop
+;	DD	FLAT:getProcAddressBop
+;	DD	FLAT:callProc0Bop
+;	DD	FLAT:callProc1Bop
+;	DD	FLAT:callProc2Bop
+;	DD	FLAT:callProc3Bop
+;	DD	FLAT:callProc4Bop
+;	DD	FLAT:callProc5Bop
+;	DD	FLAT:callProc6Bop
+;	DD	FLAT:callProc7Bop
+;	DD	FLAT:callProc8Bop
+;	DD	FLAT:callProc9Bop
+;	DD	FLAT:callProc10Bop
+;	DD	FLAT:callProc11Bop
 	DD	FLAT:blwordBop
 	DD	FLAT:wordBop
 	DD	FLAT:getInBufferBaseBop
@@ -4231,6 +4275,8 @@ opsTable:
 	DD	FLAT:turboBop
 	DD	FLAT:statsBop
 	DD	FLAT:describeBop
+	DD	FLAT:errorBop
+	DD	FLAT:addErrorTextBop
 endOpsTable:
 	DD	0
 	

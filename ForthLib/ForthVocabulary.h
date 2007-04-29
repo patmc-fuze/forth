@@ -27,8 +27,11 @@ class ForthEngine;
 class ForthVocabulary : public ForthForgettable
 {
 public:
-    ForthVocabulary( const char *pName=NULL,
-                     int valueLongs=DEFAULT_VALUE_FIELD_LONGS, int storageBytes=DEFAULT_VOCAB_STORAGE, void* pForgetLimit=NULL, long op=0 );
+    ForthVocabulary( const char *pName = NULL,
+                     int valueLongs = DEFAULT_VALUE_FIELD_LONGS,
+                     int storageBytes = DEFAULT_VOCAB_STORAGE,
+                     void* pForgetLimit = NULL,
+                     long op = 0 );
     virtual ~ForthVocabulary();
 
     virtual void        ForgetCleanup( void *pForgetLimit, long op );
@@ -38,8 +41,8 @@ public:
 
     void                Empty( void );
 
-    void                SetNextSearchVocabulary( ForthVocabulary *pNext );
-    ForthVocabulary *   GetNextSearchVocabulary( void );
+    void                        SetNextSearchVocabulary( ForthVocabulary *pNext );
+    virtual ForthVocabulary *   GetNextSearchVocabulary( void );
 
     // add symbol to symbol table, return ptr to new symbol entry
     virtual long*       AddSymbol( const char *pSymName, long symType, long symValue, bool addToEngineOps );
@@ -58,20 +61,25 @@ public:
     virtual void        ForgetOp( long op );
 
     // return pointer to symbol entry, NULL if not found
-    virtual long *      FindSymbol( const char *pSymName );
+    // ppFoundVocab will be set to the vocabulary the symbol was actually found in
+    // set ppFoundVocab to NULL to search just this vocabulary (not the search chain)
+    virtual long *      FindSymbol( const char *pSymName, ForthVocabulary** ppFoundVocab=NULL );
     // return pointer to symbol entry, NULL if not found, given its value
-    virtual long *      FindSymbolByValue( long val );
+    virtual long *      FindSymbolByValue( long val, ForthVocabulary** ppFoundVocab=NULL );
 
     // return pointer to symbol entry, NULL if not found
     // pSymName is required to be a longword aligned address, and to be padded with 0's
     // to the next longword boundary
-    virtual long *      FindSymbol( ForthParseInfo *pInfo );
+    virtual long *      FindSymbol( ForthParseInfo *pInfo, ForthVocabulary** ppFoundVocab=NULL );
 
     // compile/interpret symbol if recognized
     // return pointer to symbol entry, NULL if not found
     // pSymName is required to be a longword aligned address, and to be padded with 0's
     // to the next longword boundary
     virtual long *      ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
+
+    // return a string telling the type of library
+    virtual const char* GetType( void );
 
     // the symbol for the word which is currently under construction is "smudged"
     // so that if you try to reference that symbol in its own definition, the match
@@ -137,7 +145,6 @@ public:
         return &(mNewestSymbol[0]);
     };
 
-
 protected:
 
     static ForthVocabulary *mpChainHead;
@@ -169,6 +176,41 @@ public:
     // pSymName is required to be a longword aligned address, and to be padded with 0's
     // to the next longword boundary
     virtual long *      ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
+
+    virtual ForthVocabulary *   GetNextSearchVocabulary( void );
+};
+
+class ForthLocalVocabulary : public ForthVocabulary
+{
+public:
+    ForthLocalVocabulary( const char *pName=NULL,
+                               int valueLongs=NUM_LOCALS_VOCAB_VALUE_LONGS, int storageBytes=DEFAULT_VOCAB_STORAGE );
+    virtual ~ForthLocalVocabulary();
+
+    // return a string telling the type of library
+    virtual const char* GetType( void );
+};
+
+class ForthDLLVocabulary : public ForthVocabulary
+{
+public:
+    ForthDLLVocabulary( const char *pVocabName,
+                        const char *pDLLName,
+                        int valueLongs = DEFAULT_VALUE_FIELD_LONGS,
+                        int storageBytes = DEFAULT_VOCAB_STORAGE,
+                        void* pForgetLimit = NULL,
+                        long op = 0 );
+    virtual ~ForthDLLVocabulary();
+
+    // return a string telling the type of library
+    virtual const char* GetType( void );
+
+    long                LoadDLL( void );
+    void                UnloadDLL( void );
+    long *              AddEntry( const char* pFuncName, long numArgs );
+protected:
+    char *              mpDLLName;
+    HINSTANCE           mhDLL;
 };
 
 

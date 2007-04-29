@@ -99,7 +99,7 @@ Structure support issues and current answers:
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 
-- add vocabulary that holds all struct definitions
++ add vocabulary that holds all struct definitions
   o this should be below Forth vocab in search list
 - add vocabulary that holds struct defining ops (ptrTo, arrayOf, int, float, ...)
 
@@ -126,6 +126,14 @@ A native type has:
 - local action op
 ? field array action op
 ? local array action op
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 20
+
+Added "union" - when this is executed, it sets the current struct size to 0,
+but the maximum struct size is remembered for struct allocation.   The
+struct alignment is set to the strictest alignment of all subtypes.
+The union subtypes are anonymous.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 15
