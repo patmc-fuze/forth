@@ -5,24 +5,70 @@
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 TBDs:
 
-? string vars are currently not using len/maxLen fields
-  - change output-to-string to use the string current & max length fields
-+ document output system
+- a way to do varargs
 
-- automated tests using outputToFile & comparison of test result file to known good file
-+ improve dll support
-? remove vocabulary static chain, since it is redundant with forgettable static chain?
-- a mechanism for supporting callbacks from external code to forth code
+- look into abandoning the current vocabulary search tree in favor of the
+  ANS Forth search stack
+  -> it would probably require folding the precedence vocabulary into the
+     normal vocabulary
+     -> this could be done by adding 2 new opTypes, kOpBuiltInPrecedence and
+        kOpUserDefPrecedence
+        
++ unsigned comparison ops
+
+- a forth assembler
+
+- a method for saving and restoring state
+
+- testing
+  - automated tests using outputToFile & comparison of test result file to known good file
+  - test structure support
+
+- dll support
+  - a mechanism for supporting callbacks from external code to forth code
+
 - vocabulary support
+  ? remove vocabulary static chain, since it is redundant with forgettable static chain?
+  - add vocabulary manipulation (addSymbol, hideSymbol, ...)
+
+? fix local strings
+  ? string vars are currently not using len/maxLen fields
+    - change output-to-string to use the string current & max length fields
+
 - windows support
   - gui stuff
   - graphics
-- better tests
-- help system
-- faster searches
-- fix local strings
-- test structure support
+  ? do this via DLL support
 
+- help system
+
+- faster searches
+
+? generalize the undefined symbol handling mechanism which is used to
+  define enums
+
+? forward referencing
+  Problem: forward referencing breaks "forget"
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+cvs checkout DIR
+	fetch a project or directory from cvs
+
+cvs commit
+	recursively commit all changes
+		
+cvs log FILENAME
+	show revision history
+
+cvs diff FILENAME
+	show difference between current file & repository
+cvs diff -r REVISION FILENAME
+	show difference between current file & specified revision
+
+cvs update
+	recursively update all directories from repository
+	can be used to show what files are not in CVS or what files have been modified
+	
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 colonOp
  ForthEngine::StartOpDefinition
@@ -30,9 +76,62 @@ colonOp
    ForthEngine::AddUserOp
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 3 2007
+
+The GForth assembler is ported, it loads but it is untested.
+The GForth package doesn't seem to have any examples of its usage in actual
+code, but the assembler is almost identical to the assembler in BigForth,
+maybe it has some examples.  The file gforth.050/doc/gforth.i9 has a
+"386 Assembler" section which spells out the syntax.
+
+One problem area was that GForth is not case sensitive.
+Another was that there was a partially implemented relocation scheme which
+remapped forth builtin ops which compile stuff or manipulate the DP to a set of
+proxy ops which mostly did exactly the same thing - presumably this was
+preparation for swapping out the proxy ops for another set which did something
+like assembling to an address offset from the intended run address.
+
+The next step would be to create a way to make a user-defined op in
+assembler.  This could be tricky, especially if we want the fast inner
+interpreter to be able to execute these ops without passing them off to
+the slow inner assembler.
+-> The user defined code ops would be setup to work with the fast interpreter,
+   and create a piece of glue code which the slow interpreter uses to execute
+   user defined code ops
+   -> We could also use this for builtinOps which have no C++ version (with a small mod)
+User defined code ops should live in userOps dispatch table, and therefore
+share the opValue space of other user defined ops, which will make "forget"
+easy to implement for them.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 30 2007
+
+Working on adapting the GForth assembler
+
+: within  ( u1 u2 u3 -- f )
+ over - >r - r> u< ;
+
+: t5a 5 -5 within . ;  ok
+: t5b -5 5 within . ;  ok
+
+-6 t5a -1  ok
+-5 t5a 0  ok
+4 t5a 0  ok
+5 t5a -1  ok
+
+-6 t5b 0  ok
+-5 t5b -1  ok
+4 t5b -1  ok
+5 t5b 0  ok
+
+With arguments in low,high order result is true for numbers between low & high-1
+With arguments in high,low order result is false for numbers between low & high-1
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 28 2007
 
 Initial debug of new DLL support - it works!
+
+Integrated with old CVS system
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 26 2007

@@ -1085,6 +1085,30 @@ FORTHOP(lessEqualsZeroOp)
     }
 }
 
+FORTHOP(unsignedGreaterThanOp)
+{
+    NEEDS(2);
+    ulong b = (ulong) SPOP;
+    ulong a = (ulong) SPOP;
+    if ( a > b ) {
+        SPUSH( -1L );
+    } else {
+        SPUSH( 0 );
+    }
+}
+
+FORTHOP(unsignedLessThanOp)
+{
+    NEEDS(2);
+    ulong b = (ulong) SPOP;
+    ulong a = (ulong) SPOP;
+    if ( a < b ) {
+        SPUSH( -1L );
+    } else {
+        SPUSH( 0 );
+    }
+}
+
 
 //##############################
 //
@@ -1707,7 +1731,7 @@ FORTHOP( semiOp )
     exitOp( pCore );
     // switch back from compile mode to execute mode
     pEngine->SetCompileState( 0 );
-    pEngine->SetFlags( 0 );
+    pEngine->ClearFlag( kEngineFlagHasLocalVars );
     // finish current symbol definition
     // compile local vars allocation op (if needed)
     pEngine->EndOpDefinition( true );
@@ -1720,7 +1744,7 @@ FORTHOP( colonOp )
     pEngine->StartOpDefinition( NULL, true );
     // switch to compile mode
     pEngine->SetCompileState( 1 );
-    pEngine->SetFlags( 0 );
+    pEngine->ClearFlag( kEngineFlagHasLocalVars );
 }
 
 FORTHOP( createOp )
@@ -3016,6 +3040,58 @@ FORTHOP( wordOp )
     SPUSH( (long) pDst );
 }
 
+// has precedence!
+// inline comment using "/*"
+FORTHOP( commentOp )
+{
+    NEEDS( 0 );
+    ForthShell *pShell = GET_ENGINE->GetShell();
+    ForthInputStack* pInput = pShell->GetInput();
+    char *pSrc = pInput->GetBufferPointer();
+    char *pEnd = strstr( pSrc, "*/" );
+    if ( pEnd != NULL )
+    {
+        pInput->SetBufferPointer( pEnd + 2 );
+    }
+    else
+    {
+        // end of comment not found on line, just terminate line here
+        *pSrc = '\0';
+    }
+}
+
+// has precedence!
+// inline comment using parens
+// strictly for ease of porting old style forth code
+FORTHOP( parenCommentOp )
+{
+    NEEDS( 0 );
+    ForthShell *pShell = GET_ENGINE->GetShell();
+	char *pSrc = pShell->GetToken( ')' );
+}
+
+// fake variable used to turn on/off old-style paren comments mode
+FORTHOP( parenIsCommentOp )
+{
+    NEEDS( 1 );
+    if ( GET_VAR_OPERATION == kVarStore )
+    {
+        if ( SPOP )
+        {
+            GET_ENGINE->SetFlag( kEngineFlagParenIsComment );
+        }
+        else
+        {
+            GET_ENGINE->ClearFlag( kEngineFlagParenIsComment );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        SPUSH( GET_ENGINE->CheckFlag( kEngineFlagParenIsComment ) ? ~0 : 0 );
+    }
+}
+
 FORTHOP( getInBufferBaseOp )
 {
     ForthInputStack* pInput = GET_ENGINE->GetShell()->GetInput();
@@ -3262,6 +3338,8 @@ baseDictEntry baseDict[] = {
     OP(     greaterEqualsZeroOp,    "0>=" ),
     OP(     lessThanZeroOp,         "0<" ),
     OP(     lessEqualsZeroOp,       "0<=" ),
+    OP(     unsignedGreaterThanOp,  "u>" ),
+    OP(     unsignedLessThanOp,     "u<" ),
     
     ///////////////////////////////////////////
     //  stack manipulation
@@ -3468,6 +3546,9 @@ baseDictEntry baseDict[] = {
     ///////////////////////////////////////////
     OP(     blwordOp,               "blword" ),
     OP(     wordOp,                 "word" ),
+    PRECOP( commentOp,              "/*" ),
+    PRECOP( parenCommentOp,         "(" ),
+    OP(     parenIsCommentOp,       "parenIsComment" ),
     OP(     getInBufferBaseOp,      "getInBufferBase" ),
     OP(     getInBufferPointerOp,   "getInBufferPointer" ),
     OP(     setInBufferPointerOp,   "setInBufferPointer" ),

@@ -2552,6 +2552,35 @@ leBop2:
 	
 ;========================================
 
+unsignedGreaterThanBop:
+	mov	ebx, [edx]
+	add	edx, 4
+ugtBop1:
+	xor	eax, eax
+	cmp	ebx, [edx]
+	ja	ugtBop2
+	dec	eax
+ugtBop2:
+	mov	[edx], eax
+	jmp	edi
+	
+;========================================
+
+unsignedLessThanBop:
+	mov	ebx, [edx]
+	add	edx, 4
+ultBop1:
+	xor	eax, eax
+	cmp	ebx, [edx]
+	jb	ultBop2
+	dec	eax
+ultBop2:
+	mov	[edx], eax
+	jmp	edi
+	
+	
+;========================================
+
 rpushBop:
 	mov	ebx, [edx]
 	add	edx, 4
@@ -3811,6 +3840,21 @@ wordBop:	; TBD
 	
 ;========================================
 
+commentBop:	; TBD
+	extOp	commentOp
+	
+;========================================
+
+parenCommentBop:	; TBD
+	extOp	parenCommentOp
+	
+;========================================
+
+parenIsCommentBop:	; TBD
+	extOp	parenIsCommentOp
+	
+;========================================
+
 getInBufferBaseBop:	; TBD
 	extOp	getInBufferBaseOp
 	
@@ -4101,6 +4145,8 @@ opsTable:
 	DD	FLAT:greaterEqualsZeroBop
 	DD	FLAT:lessThanZeroBop
 	DD	FLAT:lessEqualsZeroBop
+	DD	FLAT:unsignedGreaterThanBop
+	DD	FLAT:unsignedLessThanBop
 	DD	FLAT:rpushBop
 	DD	FLAT:rpopBop
 	DD	FLAT:rdropBop
@@ -4267,6 +4313,9 @@ opsTable:
 ;	DD	FLAT:callProc11Bop
 	DD	FLAT:blwordBop
 	DD	FLAT:wordBop
+	DD	FLAT:commentBop
+	DD	FLAT:parenCommentBop
+	DD	FLAT:parenIsCommentBop
 	DD	FLAT:getInBufferBaseBop
 	DD	FLAT:getInBufferPointerBop
 	DD	FLAT:setInBufferPointerBop

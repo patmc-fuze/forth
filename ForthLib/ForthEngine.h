@@ -36,6 +36,7 @@ typedef enum {
     kEngineFlagInEnumDefinition          = 0x08,
     kEngineFlagIsMethod                  = 0x10,
     kEngineFlagInClassDefinition         = 0x20,
+    kEngineFlagParenIsComment            = 0x40,
 } FECompileFlags;
 
 class ForthEngine

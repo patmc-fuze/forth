@@ -219,7 +219,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
             catch(...)
             {
                 result = kResultException;
-                mpEngine->SetError( kForthErrorException, "" );
+                mpEngine->SetError( kForthErrorException );
             }
             if ( result == kResultOk ) {
                 result = mpEngine->CheckStacks();
@@ -562,22 +562,36 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                      break;
 
                   case '(':
-                     // push accumulated token (if any) onto shell stack
-                     pEndSrc++;
-                     *pDst++ = '\0';
-                     pDst = pInfo->GetToken();
-                     mpStack->PushString( pDst );
-                     mpStack->Push( kShellTagParen );
+                     if ( mpEngine->CheckFlag( kEngineFlagParenIsComment ) )
+                     {
+                        *pDst++ = *pEndSrc++;
+                     }
+                     else
+                     {
+                        // push accumulated token (if any) onto shell stack
+                        pEndSrc++;
+                        *pDst++ = '\0';
+                        pDst = pInfo->GetToken();
+                        mpStack->PushString( pDst );
+                        mpStack->Push( kShellTagParen );
+                     }
                      break;
 
                   case ')':
-                     // process accumulated token (if any), pop shell stack, compile/interpret if not empty
-                     pEndSrc++;
-                     done = true;
-                     *pDst++ = '\0';
-                     mFlags |= SHELL_FLAG_POP_NEXT_TOKEN;
-                     pInfo->SetToken();
-                     gotAToken = true;
+                     if ( mpEngine->CheckFlag( kEngineFlagParenIsComment ) )
+                     {
+                        *pDst++ = *pEndSrc++;
+                     }
+                     else
+                     {
+                        // process accumulated token (if any), pop shell stack, compile/interpret if not empty
+                        pEndSrc++;
+                        done = true;
+                        *pDst++ = '\0';
+                        mFlags |= SHELL_FLAG_POP_NEXT_TOKEN;
+                        pInfo->SetToken();
+                        gotAToken = true;
+                     }
                      break;
 
                   case '.':
