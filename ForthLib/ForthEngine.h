@@ -128,15 +128,15 @@ public:
     void                    ProcessConstant( long value, bool isOffset=false );
     inline void             AllotLongs( int n ) { mpCore->DP += n; };
     inline void             AlignDP( void ) { mpCore->DP = (long *)(( ((int)mpCore->DP) + 3 ) & ~3); };
-    inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpSearchVocab; };
-    inline void             SetSearchVocabulary( ForthVocabulary* pVocab )  { mpSearchVocab = pVocab; };
-    inline ForthVocabulary  *GetPrecedenceVocabulary( void )   { return mpPrecedenceVocab; };
+    inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpVocabStack->GetTop(); };
+    inline void             SetSearchVocabulary( ForthVocabulary* pVocab )  { mpVocabStack->SetTop( pVocab ); };
     inline ForthVocabulary  *GetDefinitionVocabulary( void )   { return mpDefinitionVocab; };
     inline void             SetDefinitionVocabulary( ForthVocabulary* pVocab )  { mpDefinitionVocab = pVocab; };
     inline ForthVocabulary  *GetLocalVocabulary( void )   { return mpLocalVocab; };
     inline void             SetShell( ForthShell *pShell ) { mpShell = pShell; };
     inline ForthShell       *GetShell( void ) { return mpShell; };
-    inline ForthVocabulary  *GetForthVocabulary( void )   { return mpMainVocab; };
+    inline ForthVocabulary  *GetForthVocabulary( void )   { return mpForthVocab; };
+    inline ForthVocabulary  *GetAssemblerVocabulary( void )   { return mpAssemblerVocab; };
     inline ForthThread      *GetCurrentThread( void )  { return mpCurrentThread; };
 
     inline long             *GetCompileStatePtr( void ) { return &mCompileState; };
@@ -167,6 +167,8 @@ public:
     void                    StartEnumDefinition( void );
     void                    EndEnumDefinition( void );
 
+    ForthVocabularyStack*   GetVocabularyStack( void )              { return mpVocabStack; };
+
     static ForthEngine*     GetInstance( void );
 
 protected:
@@ -178,13 +180,13 @@ protected:
 protected:
     ForthCoreState*  mpCore;             // core inner interpreter state
 
-    ForthVocabulary * mpMainVocab;              // main forth vocabulary
+    ForthVocabulary * mpForthVocab;              // main forth vocabulary
+    ForthVocabulary * mpAssemblerVocab;         // main forth vocabulary
     ForthVocabulary * mpLocalVocab;             // local variable vocabulary
-    ForthVocabulary * mpPrecedenceVocab;        // vocabulary for symbols with precedence
 
     ForthVocabulary * mpDefinitionVocab;    // vocabulary which new definitions are added to
-    ForthVocabulary * mpSearchVocab;        // vocabulary where symbol lookup begins
-    
+    ForthVocabularyStack * mpVocabStack;
+
     char        *mpStringBufferA;       // string buffer A is used for quoted strings when in interpreted mode
     char        *mpStringBufferB;       // string buffer B is the buffer which string IO ops append to
 

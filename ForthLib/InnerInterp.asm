@@ -27,7 +27,7 @@ PUBLIC	alignBop, allotBop, callotBop, commaBop, cCommaBop, hereBop, mallocBop, f
 PUBLIC	fetchBop, cstoreBop, cfetchBop, scfetchBop, c2lBop, wstoreBop, wfetchBop, swfetchBop, w2lBop, dstoreBop, dfetchBop, memcpyBop, memsetBop, addToBop;
 PUBLIC	subtractFromBop, addressOfBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop, strchrBop, strrchrBop;
 PUBLIC	strcmpBop, stricmpBop, strstrBop, strtokBop, buildsBop, doesBop, newestSymbolBop, exitBop, semiBop, colonBop, createBop;
-PUBLIC	forgetBop, autoforgetBop, definitionsBop, usesBop, forthVocabBop, searchVocabBop, definitionsVocabBop, vocabularyBop, variableBop;
+PUBLIC	forgetBop, autoforgetBop, definitionsBop, forthVocabBop, vocabularyBop, variableBop;
 PUBLIC	constantBop, dconstantBop, byteBop, shortBop, intBop, floatBop, doubleBop, stringBop;
 PUBLIC	recursiveBop, precedenceBop, loadBop, loadDoneBop, interpretBop, stateInterpretBop, stateCompileBop, stateBop, tickBop;
 PUBLIC	executeBop, compileBop, bracketTickBop, printNumBop, printNumDecimalBop, printNumHexBop, printStrBop, printCharBop;
@@ -36,8 +36,6 @@ PUBLIC	printDecimalSignedBop, printAllSignedBop, printAllUnsignedBop, outToFileB
 PUBLIC	fcloseBop, fseekBop, freadBop, fwriteBop, fgetcBop, fputcBop, feofBop, ftellBop;
 PUBLIC	stdinBop, stdoutBop, stderrBop, dstackBop, drstackBop, vlistBop, systemBop, chdirBop, byeBop;
 PUBLIC	argvBop, argcBop;
-;PUBLIC	loadLibraryBop, freeLibraryBop, getProcAddressBop, callProc0Bop, callProc1Bop, callProc2Bop;
-;PUBLIC	callProc3Bop, callProc4Bop, callProc5Bop, callProc6Bop, callProc7Bop, callProc8Bop;
 PUBLIC	blwordBop, wordBop;
 PUBLIC	getInBufferBaseBop, getInBufferPointerBop, setInBufferPointerBop, getInBufferLengthBop, fillInBufferBop, turboBop, statsBop;
 
@@ -165,16 +163,13 @@ InitAsmTables ENDP
 ;
 ; inner interpreter C entry point
 ;
+; extern eForthResult InnerInterpreterFast( ForthCoreState *pCore );
 InnerInterpreterFast PROC near C public uses ebx ecx edx esi edi ebp,
 	core:PTR
 	mov	ebp, DWORD PTR core
 	mov	eax, kResultOk
 	mov	[ebp].FCore.state, eax
 	call	interpFunc
-	;push	ecx
-	;push	edx
-	;pop	edx
-	;pop	ecx
 	ret
 InnerInterpreterFast ENDP
 
@@ -251,6 +246,29 @@ notBuiltin:
 	mov	eax, [ebp+eax*4]
 	jmp	eax
 
+; extern void UserCodeAction( ForthCoreState *pCore, ulong opVal );
+;-----------------------------------------------
+;
+; inner interpreter entry point for user ops defined in assembler
+;
+PUBLIC	UserCodeAction
+UserCodeAction PROC near C public uses ebx ecx edx esi edi ebp,
+	core:PTR,
+	opVal:DWORD
+; TBD!
+	mov	ebp, DWORD PTR core
+	mov	eax, opVal
+	; TBD: fetch dispatch address from userOps
+	mov	ecx, [ebp].FCore.IPtr
+	mov	edx, [ebp].FCore.SPtr
+	mov	esi, [ebp].FCore.userOps
+	mov	edi, userCodeFuncExit
+	mov	eax, [esi+eax*4]
+	jmp	eax
+userCodeFuncExit:
+	ret
+UserCodeAction ENDP
+
 ;-----------------------------------------------
 ;
 ; user-defined ops
@@ -274,6 +292,19 @@ badUserDef:
 	mov	eax, kForthErrorBadOpcode
 	jmp	interpLoopErrorExit
 
+;-----------------------------------------------
+;
+; user-defined code ops
+;
+userCodeType:
+	; get low-24 bits of opcode & check validity
+	and	ebx, 00FFFFFFh
+	cmp	ebx, [ebp].FCore.numUserOps
+	jge	badUserDef
+	mov	eax,[ebp].FCore.userOps
+	mov	eax, [eax+ebx*4]
+	jmp	eax
+	
 ;-----------------------------------------------
 ;
 ; unconditional branch ops
@@ -410,9 +441,9 @@ localStructArrayType:
 
 ;-----------------------------------------------
 ;
-; string literal ops
+; string constant ops
 ;
-stringLitType:
+constantStringType:
 	; IP points to beginning of string
 	; low 24-bits of ebx is string len in longs
 	sub	edx, 4
@@ -3316,6 +3347,11 @@ colonBop:	; TBD
 	
 ;========================================
 
+codeBop:	; TBD
+	extOp	codeOp
+	
+;========================================
+
 createBop:	; TBD
 	extOp	createOp
 	
@@ -3336,23 +3372,23 @@ definitionsBop:	; TBD
 	
 ;========================================
 
-usesBop:	; TBD
-	extOp	usesOp
-	
-;========================================
-
 forthVocabBop:	; TBD
 	extOp	forthVocabOp
 	
 ;========================================
 
-searchVocabBop:	; TBD
-	extOp	searchVocabOp
+assemblerVocabBop:	; TBD
+	extOp	assemblerVocabOp
 	
 ;========================================
 
-definitionsVocabBop:	; TBD
-	extOp	definitionsVocabOp
+alsoBop:	; TBD
+	extOp	alsoOp
+	
+;========================================
+
+onlyBop:	; TBD
+	extOp	onlyOp
 	
 ;========================================
 
@@ -3968,20 +4004,41 @@ dllEntryPointType:
 opTypesTable:
 ; TBD: check the order of these
 ; TBD: copy these into base of ForthCoreState, fill unused slots with badOptype
+;	00 - 09
+	DD	FLAT:badOpcode				; kOpBuiltIn = 0,
+	DD	FLAT:badOpcode				; kOpBuiltInImmediate,
+	DD	FLAT:userDefType			; kOpUserDef,
+	DD	FLAT:badOpcode				; kOpUserDefImmediate,
+	DD	FLAT:userCodeType			; kOpUserCode,         
+	DD	FLAT:badOpcode				; kOpUserCodeImmediate,
+	DD	FLAT:dllEntryPointType		; kOpDLLEntryPoint,
 	DD	FLAT:badOpcode	
-	DD	FLAT:userDefType
-	DD	FLAT:branchType
-	DD	FLAT:branchNZType
-	DD	FLAT:branchZType
-	DD	FLAT:caseBranchType
-	DD	FLAT:constantType
-	DD	FLAT:offsetType
-	DD	FLAT:arrayOffsetType
-	DD	FLAT:localStructArrayType
-	DD	FLAT:stringLitType
-	DD	FLAT:allocLocalsType
-	DD	FLAT:initLocalStringType
-	DD	FLAT:localRefType
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+;	10 - 19
+	DD	FLAT:branchType				; kOpBranch = 10,
+	DD	FLAT:branchNZType			; kOpBranchNZ,
+	DD	FLAT:branchZType			; kOpBranchZ,
+	DD	FLAT:caseBranchType			; kOpCaseBranch,
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+;	20 - 29
+	DD	FLAT:constantType			; kOpConstant = 20,   
+	DD	FLAT:constantStringType		; kOpConstantString,	
+	DD	FLAT:offsetType				; kOpOffset,          
+	DD	FLAT:arrayOffsetType		; kOpArrayOffset,     
+	DD	FLAT:allocLocalsType		; kOpAllocLocals,     
+	DD	FLAT:localRefType			; kOpLocalRef,
+	DD	FLAT:initLocalStringType	; kOpInitLocalString, 
+	DD	FLAT:localStructArrayType	; kOpLocalStructArray,
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+
+;	30 - 39
 	DD	FLAT:localByteType
 	DD	FLAT:localShortType
 	DD	FLAT:localIntType
@@ -3989,6 +4046,10 @@ opTypesTable:
 	DD	FLAT:localDoubleType
 	DD	FLAT:localStringType
 	DD	FLAT:localOpType
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+;	40 - 49
 	DD	FLAT:fieldByteType
 	DD	FLAT:fieldShortType
 	DD	FLAT:fieldIntType
@@ -3996,6 +4057,10 @@ opTypesTable:
 	DD	FLAT:fieldDoubleType
 	DD	FLAT:fieldStringType
 	DD	FLAT:fieldOpType
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+;	50 - 59
 	DD	FLAT:localByteArrayType
 	DD	FLAT:localShortArrayType
 	DD	FLAT:localIntArrayType
@@ -4003,6 +4068,10 @@ opTypesTable:
 	DD	FLAT:localDoubleArrayType
 	DD	FLAT:localStringArrayType
 	DD	FLAT:localOpArrayType
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+;	60 - 69
 	DD	FLAT:fieldByteArrayType
 	DD	FLAT:fieldShortArrayType
 	DD	FLAT:fieldIntArrayType
@@ -4010,7 +4079,9 @@ opTypesTable:
 	DD	FLAT:fieldDoubleArrayType
 	DD	FLAT:fieldStringArrayType
 	DD	FLAT:fieldOpArrayType
-	DD	FLAT:dllEntryPointType
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
+	DD	FLAT:badOpcode	
 endOpTypesTable:
 	DD	0
 
@@ -4059,6 +4130,7 @@ opsTable:
 	DD	FLAT:doStructTypeBop
 	DD	FLAT:doEnumBop
 	
+	; integer math
 	DD	FLAT:minusBop
 	DD	FLAT:timesBop
 	DD	FLAT:times2Bop
@@ -4069,14 +4141,20 @@ opsTable:
 	DD	FLAT:divmodBop
 	DD	FLAT:modBop
 	DD	FLAT:negateBop
+	
+	; single precision fp math
 	DD	FLAT:fplusBop
 	DD	FLAT:fminusBop
 	DD	FLAT:ftimesBop
 	DD	FLAT:fdivideBop
+	
+	; double precision fp math
 	DD	FLAT:dplusBop
 	DD	FLAT:dminusBop
 	DD	FLAT:dtimesBop
 	DD	FLAT:ddivideBop
+
+	; double precision fp functions	
 	DD	FLAT:dsinBop
 	DD	FLAT:dasinBop
 	DD	FLAT:dcosBop
@@ -4096,12 +4174,16 @@ opsTable:
 	DD	FLAT:dfrexpBop
 	DD	FLAT:dmodfBop
 	DD	FLAT:dfmodBop
+	
+	; int/float/double conversions
 	DD	FLAT:i2fBop
 	DD	FLAT:i2dBop
 	DD	FLAT:f2iBop
 	DD	FLAT:f2dBop
 	DD	FLAT:d2iBop
 	DD	FLAT:d2fBop
+	
+	; control flow
 	DD	FLAT:callBop
 	DD	FLAT:gotoBop
 	DD	FLAT:doBop
@@ -4123,16 +4205,22 @@ opsTable:
 	DD	FLAT:ofBop
 	DD	FLAT:endofBop
 	DD	FLAT:endcaseBop
+	
+	; bit-vector logic
 	DD	FLAT:orBop
 	DD	FLAT:andBop
 	DD	FLAT:xorBop
 	DD	FLAT:invertBop
 	DD	FLAT:lshiftBop
 	DD	FLAT:rshiftBop
+	
+	; boolean logic
 	DD	FLAT:notBop
 	DD	FLAT:trueBop
 	DD	FLAT:falseBop
 	DD	FLAT:nullBop
+	
+	; integer comparisons
 	DD	FLAT:equalsBop
 	DD	FLAT:notEqualsBop
 	DD	FLAT:greaterThanBop
@@ -4147,6 +4235,8 @@ opsTable:
 	DD	FLAT:lessEqualsZeroBop
 	DD	FLAT:unsignedGreaterThanBop
 	DD	FLAT:unsignedLessThanBop
+	
+	; stack manipulation
 	DD	FLAT:rpushBop
 	DD	FLAT:rpopBop
 	DD	FLAT:rdropBop
@@ -4167,6 +4257,8 @@ opsTable:
 	DD	FLAT:ddropBop
 	DD	FLAT:doverBop
 	DD	FLAT:drotBop
+	
+	; data compilation/allocation
 	DD	FLAT:alignBop
 	DD	FLAT:allotBop
 	DD	FLAT:callotBop
@@ -4175,6 +4267,8 @@ opsTable:
 	DD	FLAT:hereBop
 	DD	FLAT:mallocBop
 	DD	FLAT:freeBop
+	
+	; memory store/fetch
 	DD	FLAT:storeBop
 	DD	FLAT:cstoreBop
 	DD	FLAT:cfetchBop
@@ -4191,8 +4285,10 @@ opsTable:
 	DD	FLAT:addToBop
 	DD	FLAT:subtractFromBop
 	DD	FLAT:addressOfBop
-	DD FLAT:setVarActionBop
-	DD FLAT:getVarActionBop
+	DD	FLAT:setVarActionBop
+	DD	FLAT:getVarActionBop
+	
+	; string manipulation
 	DD	FLAT:strcpyBop
 	DD	FLAT:strncpyBop
 	DD	FLAT:strlenBop
@@ -4204,21 +4300,15 @@ opsTable:
 	DD	FLAT:stricmpBop
 	DD	FLAT:strstrBop
 	DD	FLAT:strtokBop
+	
+	; op definition
 	DD	FLAT:buildsBop
 	DD	FLAT:doesBop
-	DD	FLAT:newestSymbolBop
 	DD	FLAT:exitBop
 	DD	FLAT:semiBop
 	DD	FLAT:colonBop
+	DD	FLAT:codeBop
 	DD	FLAT:createBop
-	DD	FLAT:forgetBop
-	DD	FLAT:autoforgetBop
-	DD	FLAT:definitionsBop
-	DD	FLAT:usesBop
-	DD	FLAT:forthVocabBop
-	DD	FLAT:searchVocabBop
-	DD	FLAT:definitionsVocabBop
-	DD	FLAT:vocabularyBop
 	DD	FLAT:variableBop
 	DD	FLAT:constantBop
 	DD	FLAT:dconstantBop
@@ -4252,6 +4342,20 @@ opsTable:
 	DD	FLAT:executeBop
 	DD	FLAT:compileBop
 	DD	FLAT:bracketTickBop
+
+	; vocabulary/symbol
+	DD	FLAT:forthVocabBop
+	DD	FLAT:assemblerVocabBop
+	DD	FLAT:definitionsBop
+	DD	FLAT:vocabularyBop
+	DD	FLAT:alsoBop
+	DD	FLAT:onlyBop
+	DD	FLAT:newestSymbolBop
+	DD	FLAT:forgetBop
+	DD	FLAT:autoforgetBop
+	DD	FLAT:vlistBop
+
+	; text display	
 	DD	FLAT:printNumBop
 	DD	FLAT:printNumDecimalBop
 	DD	FLAT:printNumHexBop
@@ -4273,6 +4377,8 @@ opsTable:
 	DD	FLAT:outToStringBop
 	DD	FLAT:outToOpBop
 	DD	FLAT:getConOutFileBop
+	
+	; file manipulation
 	DD	FLAT:fopenBop
 	DD	FLAT:fcloseBop
 	DD	FLAT:fseekBop
@@ -4286,31 +4392,8 @@ opsTable:
 	DD	FLAT:stdinBop
 	DD	FLAT:stdoutBop
 	DD	FLAT:stderrBop
-	DD	FLAT:dstackBop
-	DD	FLAT:drstackBop
-	DD	FLAT:vlistBop
-	DD	FLAT:systemBop
-	DD	FLAT:chdirBop
-	DD	FLAT:byeBop
-	DD	FLAT:argvBop
-	DD	FLAT:argcBop
-	DD	FLAT:DLLVocabularyBop
-	DD	FLAT:addDLLEntryBop
-;	DD	FLAT:loadLibraryBop
-;	DD	FLAT:freeLibraryBop
-;	DD	FLAT:getProcAddressBop
-;	DD	FLAT:callProc0Bop
-;	DD	FLAT:callProc1Bop
-;	DD	FLAT:callProc2Bop
-;	DD	FLAT:callProc3Bop
-;	DD	FLAT:callProc4Bop
-;	DD	FLAT:callProc5Bop
-;	DD	FLAT:callProc6Bop
-;	DD	FLAT:callProc7Bop
-;	DD	FLAT:callProc8Bop
-;	DD	FLAT:callProc9Bop
-;	DD	FLAT:callProc10Bop
-;	DD	FLAT:callProc11Bop
+	
+	; input buffer
 	DD	FLAT:blwordBop
 	DD	FLAT:wordBop
 	DD	FLAT:commentBop
@@ -4321,6 +4404,19 @@ opsTable:
 	DD	FLAT:setInBufferPointerBop
 	DD	FLAT:getInBufferLengthBop
 	DD	FLAT:fillInBufferBop
+
+	; DLL support
+	DD	FLAT:DLLVocabularyBop
+	DD	FLAT:addDLLEntryBop
+	
+	; admin/debug/system
+	DD	FLAT:dstackBop
+	DD	FLAT:drstackBop
+	DD	FLAT:systemBop
+	DD	FLAT:chdirBop
+	DD	FLAT:byeBop
+	DD	FLAT:argvBop
+	DD	FLAT:argcBop
 	DD	FLAT:turboBop
 	DD	FLAT:statsBop
 	DD	FLAT:describeBop

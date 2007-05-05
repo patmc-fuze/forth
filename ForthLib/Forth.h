@@ -25,25 +25,28 @@ struct ForthCoreState;
 typedef enum
 {
     kOpBuiltIn = 0,
+    kOpBuiltInImmediate,
     kOpUserDef,         // low 24 bits is op number (index into ForthCoreState userOps table)
+    kOpUserDefImmediate,
+    kOpUserCode,         // low 24 bits is op number (index into ForthCoreState userOps table)
+    kOpUserCodeImmediate,
+    kOpDLLEntryPoint,   // bits 0..18 are index into ForthCoreState userOps table, 19..23 are arg count
 
-    kOpBranch,          // low 24 bits is signed branch offset
+    kOpBranch = 10,          // low 24 bits is signed branch offset
     kOpBranchNZ,
     kOpBranchZ,
     kOpCaseBranch,
 
-    kOpConstant,        // low 24 bits is signed symbol value
+    kOpConstant = 20,    // low 24 bits is signed symbol value
+    kOpConstantString,
     kOpOffset,          // low 24 bits is signed offset value
     kOpArrayOffset,     // low 24 bits is array element size
+    kOpAllocLocals,     // low 24 bits is frame size in longs
+    kOpLocalRef,
+    kOpInitLocalString,     // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
     kOpLocalStructArray,   // bits 0..11 are padded struct size in bytes, bits 12..23 are frame offset in longs
 
-    kOpConstantString,
-
-    kOpAllocLocals,     // low 24 bits is frame size in longs
-    kOpInitLocalString,     // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
-    kOpLocalRef,
-
-    kOpLocalByte,
+    kOpLocalByte = 30,
     kOpLocalShort,
     kOpLocalInt,
     kOpLocalFloat,
@@ -51,7 +54,7 @@ typedef enum
     kOpLocalString,
     kOpLocalOp,
 
-    kOpFieldByte,
+    kOpFieldByte = 40,
     kOpFieldShort,
     kOpFieldInt,
     kOpFieldFloat,
@@ -59,7 +62,7 @@ typedef enum
     kOpFieldString,
     kOpFieldOp,
 
-    kOpLocalByteArray,
+    kOpLocalByteArray = 50,
     kOpLocalShortArray,
     kOpLocalIntArray,
     kOpLocalFloatArray,
@@ -67,7 +70,7 @@ typedef enum
     kOpLocalStringArray,
     kOpLocalOpArray,
 
-    kOpFieldByteArray,
+    kOpFieldByteArray = 60,
     kOpFieldShortArray,
     kOpFieldIntArray,
     kOpFieldFloatArray,
@@ -75,19 +78,16 @@ typedef enum
     kOpFieldStringArray,
     kOpFieldOpArray,
 
-    kOpDLLEntryPoint,   // bits 0..18 are index into ForthCoreState userOps table, 19..23 are arg count
-
-    kOpMethodWithThis,  // low 24 bits is method number
-
-    kOpMemberByte,
+    kOpMemberByte = 70,
     kOpMemberShort,
     kOpMemberInt,
     kOpMemberFloat,
     kOpMemberDouble,
     kOpMemberString,
     kOpMemberOp,
+    kOpMethodWithThis,  // low 24 bits is method number
 
-    kOpLocalUserDefined,             // user can add more optypes starting with this one
+    kOpLocalUserDefined = 100,             // user can add more optypes starting with this one
     kOpMaxLocalUserDefined = 127,    // maximum user defined optype
 
     kOpUserMethods  = 128
@@ -229,9 +229,8 @@ class ForthThread;
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct {
    char             *name;
-   ulong            flags;       // forthOpType is bits 0:7, bit 8 is precedence
+   ulong            flags;
    ulong            value;
-   int              precedence;
 } baseDictEntry;
 
 //

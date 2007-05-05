@@ -17,35 +17,9 @@
 
 extern "C" {
 
-// Forth operator TBDs:
-// - add dpi, fpi (pi constant)
-
 // compiled token is 32-bits,
-// top 8 bits are "super" opcode (hiOp)
+// top 8 bits are opcode type (opType)
 // bottom 24 bits are immediate operand
-// hiOp == 0   built-in simple op, immediate operand = built-in opcode index
-// hiOp == 1   user-defined simple op, immediate operand = user opcode index
-//             dictionary entry .value is opcode IP
-// hiOp == 2   user-defined op made by build-does word. immediate operand = user opcode index
-//             dictionary entry .value points to lword holding new IP, .value + 4 is param address
-// other values of hiOp are used to dispatch through a function table
-// to get to built-in or user-defined ops which take immediate operand
-
-
-// Idea: to speed dictionary search, pad all op names to be multiples of 4 in length,
-//  and do string comparisons with longs
-
-// TBD: where should "hard" addresses be used - right now, all addresses compiled into code
-// or on stacks are relative
-// -> hard addresses are never exposed
-
-
-// TBD:
-// - add immDataFuncs for built-in ops which take immediate data
-// - init immDataFuncs at startup
-// - add way for user to define ops which take immediate data
-//  - have a single procedure which does all user immediate ops, and
-//    have an array of IPs - the proc
 
 //############################################################################
 //
@@ -1663,12 +1637,6 @@ FORTHOP( doesOp )
     pEngine->EndOpDefinition();
 }
 
-extern char *newestSymbol;
-FORTHOP( newestSymbolOp )
-{
-    SPUSH( (long) GET_ENGINE->GetDefinitionVocabulary()->NewestSymbol() );
-}
-
 // endBuilds
 // - does not have precedence
 // - is executed while executing the defining word
@@ -1747,6 +1715,18 @@ FORTHOP( colonOp )
     pEngine->ClearFlag( kEngineFlagHasLocalVars );
 }
 
+FORTHOP( codeOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    // get next symbol, add it to vocabulary with type "user op"
+    ForthVocabulary* pVocab = pEngine->GetDefinitionVocabulary();
+    pEngine->SetSearchVocabulary( pEngine->GetAssemblerVocabulary() );
+    pEngine->StartOpDefinition( NULL, false );
+    long* pEntry = pVocab->GetNewestEntry();
+    long newestOp = *pEntry;
+    *pEntry = COMPILED_OP( kOpUserCode, FORTH_OP_VALUE( newestOp ) );
+}
+
 FORTHOP( createOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
@@ -1755,63 +1735,39 @@ FORTHOP( createOp )
     pEngine->CompileOpcode( OP_DO_VAR );
 }
 
-FORTHOP( forgetOp )
+FORTHOP( forthVocabOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    char* pSym = pEngine->GetNextSimpleToken();
-    pEngine->ForgetSymbol( pSym );
-    // reset search & definitions vocabs in case we deleted a vocab we were using
-    pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
-    pEngine->SetSearchVocabulary( pEngine->GetForthVocabulary() );
+    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+    pVocabStack->SetTop( pEngine->GetForthVocabulary() );
 }
 
-// just like forget, but no error message if symbol not found
-FORTHOP( autoforgetOp )
+FORTHOP( assemblerVocabOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    pEngine->ForgetSymbol( pEngine->GetNextSimpleToken() );
-    // reset search & definitions vocabs in case we deleted a vocab we were using
-    pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
-    pEngine->SetSearchVocabulary( pEngine->GetForthVocabulary() );
+    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+    pVocabStack->SetTop( pEngine->GetAssemblerVocabulary() );
 }
 
 FORTHOP( definitionsOp )
 {
-    GET_ENGINE->SetDefinitionVocabulary( (ForthVocabulary *) (SPOP) );
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+    pEngine->SetDefinitionVocabulary( pVocabStack->GetTop() );
 }
 
-FORTHOP( usesOp )
+FORTHOP( alsoOp )
 {
-    GET_ENGINE->SetSearchVocabulary( (ForthVocabulary *) (SPOP) );
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+    pVocabStack->DupTop();
 }
 
-FORTHOP( forthVocabOp )
+FORTHOP( onlyOp )
 {
-    SPUSH( (long) (GET_ENGINE->GetForthVocabulary()) );
-}
-
-FORTHOP( searchVocabOp )
-{
-    if ( GET_VAR_OPERATION == kVarFetch )
-    {
-        SPUSH( (long) (GET_ENGINE->GetSearchVocabulary()) );
-    }
-    else if ( GET_VAR_OPERATION == kVarStore )
-    {
-        GET_ENGINE->SetSearchVocabulary( (ForthVocabulary *) (SPOP) );
-    }
-}
-
-FORTHOP( definitionsVocabOp )
-{
-    if ( GET_VAR_OPERATION == kVarFetch )
-    {
-        SPUSH( (long) (GET_ENGINE->GetDefinitionVocabulary()) );
-    }
-    else if ( GET_VAR_OPERATION == kVarStore )
-    {
-        GET_ENGINE->SetDefinitionVocabulary( (ForthVocabulary *) (SPOP) );
-    }
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+    pVocabStack->Clear();
 }
 
 FORTHOP( vocabularyOp )
@@ -1828,6 +1784,96 @@ FORTHOP( vocabularyOp )
                                                    ForthVocabulary::GetEntryValue( pDefinitionsVocab->GetNewestEntry() ) );
     pVocab->SetNextSearchVocabulary( pEngine->GetSearchVocabulary() );
     pEngine->CompileLong( (long) pVocab );
+}
+
+FORTHOP( forgetOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    char* pSym = pEngine->GetNextSimpleToken();
+    pEngine->ForgetSymbol( pSym );
+    // reset search & definitions vocabs in case we deleted a vocab we were using
+    pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
+    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+    pVocabStack->Clear();
+}
+
+extern char *newestSymbol;
+FORTHOP( newestSymbolOp )
+{
+    SPUSH( (long) GET_ENGINE->GetDefinitionVocabulary()->NewestSymbol() );
+}
+
+// just like forget, but no error message if symbol not found
+FORTHOP( autoforgetOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->ForgetSymbol( pEngine->GetNextSimpleToken() );
+    // reset search & definitions vocabs in case we deleted a vocab we were using
+    pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
+    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+    pVocabStack->Clear();
+}
+
+// return true IFF user quit out
+static bool
+ShowVocab( ForthCoreState   *pCore,
+           ForthVocabulary  *pVocab )
+{
+#define BUFF_SIZE 256
+    char buff[BUFF_SIZE];
+    int i, len;
+    bool retVal = false;
+    ForthShell *pShell = GET_ENGINE->GetShell();
+    int nEntries = pVocab->GetNumEntries();
+    long *pEntry = pVocab->GetFirstEntry();
+
+    for ( i = 0; i < nEntries; i++ ) {
+        sprintf( buff, "%02x:%06x    ", ForthVocabulary::GetEntryType( pEntry ), ForthVocabulary::GetEntryValue( pEntry ) );
+        CONSOLE_STRING_OUT( pCore, buff );
+        len = pVocab->GetEntryNameLength( pEntry );
+        if ( len > (BUFF_SIZE - 1)) {
+            len = BUFF_SIZE - 1;
+        }
+        memcpy( buff, (void *) (pVocab->GetEntryName( pEntry )), len );
+        buff[len] = '\0';
+        CONSOLE_STRING_OUT( pCore, buff );
+        CONSOLE_STRING_OUT( pCore, "\n" );
+        pEntry = pVocab->NextEntry( pEntry );
+        if ( ((i % 22) == 21) || (i == (nEntries-1)) ) {
+            if ( (pShell != NULL) && pShell->GetInput()->InputStream()->IsInteractive() ) {
+                CONSOLE_STRING_OUT( pCore, "Hit ENTER to continue, 'q' & ENTER to quit\n" );
+                char c = getchar();
+                if ( (c == 'q') || (c == 'Q') ) {
+                    c = getchar();
+                    retVal = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    return retVal;
+}
+
+FORTHOP( vlistOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    bool quit = false;
+    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+    ForthVocabulary* pVocab;
+    int depth = 0;
+    while ( !quit )
+    {
+        pVocab = pVocabStack->GetElement( depth );
+        if ( pVocab == NULL )
+        {
+            return;
+        }
+        CONSOLE_STRING_OUT( pCore, pVocab->GetName() );
+        CONSOLE_STRING_OUT( pCore, " vocabulary:\n" );
+        quit = ShowVocab( pCore, pVocab );
+        depth++;
+    }
 }
 
 FORTHOP( variableOp )
@@ -1985,7 +2031,7 @@ FORTHOP( extendsOp )
     ForthEngine *pEngine = GET_ENGINE;
     char *pSym = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetPrecedenceVocabulary()->FindSymbol( pSym, &pFoundVocab );
+    long *pEntry = pEngine->GetSearchVocabulary()->FindSymbol( pSym, &pFoundVocab );
     if ( pEntry )
     {
         ForthStructsManager* pManager = ForthStructsManager::GetInstance();
@@ -2013,7 +2059,7 @@ FORTHOP( sizeOfOp )
     ForthEngine *pEngine = GET_ENGINE;
     char *pSym = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetPrecedenceVocabulary()->FindSymbol( pSym, &pFoundVocab );
+    long *pEntry = pEngine->GetSearchVocabulary()->FindSymbol( pSym, &pFoundVocab );
 
     if ( pEntry )
     {
@@ -2049,7 +2095,7 @@ FORTHOP( offsetOfOp )
     *pField++ = '\0';
 
     ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetPrecedenceVocabulary()->FindSymbol( pType, &pFoundVocab );
+    long *pEntry = pEngine->GetSearchVocabulary()->FindSymbol( pType, &pFoundVocab );
     if ( pEntry )
     {
         ForthStructsManager* pManager = ForthStructsManager::GetInstance();
@@ -2102,7 +2148,9 @@ FORTHOP( endenumOp )
 FORTHOP( doVocabOp )
 {
     // IP points to data field
-    SPUSH( *GET_IP );
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+    pVocabStack->SetTop( (ForthVocabulary *) (*GET_IP) );
     SET_IP( (long *) (RPOP) );
 }
 
@@ -2169,8 +2217,27 @@ FORTHOP( precedenceOp )
     long *pEntry = pEngine->GetDefinitionVocabulary()->FindSymbol( pSym );
     
     if ( pEntry ) {
-        pEngine->GetPrecedenceVocabulary()->CopyEntry( pEntry );
-        pEngine->GetDefinitionVocabulary()->DeleteEntry( pEntry );
+        long op = *pEntry;
+        ulong opVal = FORTH_OP_VALUE( op );
+        switch ( FORTH_OP_TYPE( op ) )
+        {
+            case kOpBuiltIn:
+                *pEntry = COMPILED_OP( kOpBuiltInImmediate, opVal );
+                break;
+
+            case kOpUserDef:
+                *pEntry = COMPILED_OP( kOpUserDefImmediate, opVal );
+                break;
+
+            case kOpUserCode:
+                *pEntry = COMPILED_OP( kOpUserCodeImmediate, opVal );
+                break;
+
+            default:
+                printf( "!!!! Can\'t set precedence for %s - wrong type !!!!\n", pSym );
+                TRACE( "!!!! Can\'t set precedence for %s - wrong type !!!!\n", pSym );
+                break;
+        }
     } else {
         printf( "!!!! Failure finding symbol %s !!!!\n", pSym );
         TRACE( "!!!! Failure finding symbol %s !!!!\n", pSym );
@@ -2733,56 +2800,6 @@ FORTHOP( drstackOp )
 }
 
 
-// return true IFF user quit out
-static bool
-ShowVocab( ForthCoreState   *pCore,
-           ForthVocabulary  *pVocab )
-{
-#define BUFF_SIZE 256
-    char buff[BUFF_SIZE];
-    int i, len;
-    bool retVal = false;
-    ForthShell *pShell = GET_ENGINE->GetShell();
-    int nEntries = pVocab->GetNumEntries();
-    long *pEntry = pVocab->GetFirstEntry();
-
-    for ( i = 0; i < nEntries; i++ ) {
-        sprintf( buff, "%02x:%06x    ", ForthVocabulary::GetEntryType( pEntry ), ForthVocabulary::GetEntryValue( pEntry ) );
-        CONSOLE_STRING_OUT( pCore, buff );
-        len = pVocab->GetEntryNameLength( pEntry );
-        if ( len > (BUFF_SIZE - 1)) {
-            len = BUFF_SIZE - 1;
-        }
-        memcpy( buff, (void *) (pVocab->GetEntryName( pEntry )), len );
-        buff[len] = '\0';
-        CONSOLE_STRING_OUT( pCore, buff );
-        CONSOLE_STRING_OUT( pCore, "\n" );
-        pEntry = pVocab->NextEntry( pEntry );
-        if ( ((i % 22) == 21) || (i == (nEntries-1)) ) {
-            if ( (pShell != NULL) && pShell->GetInput()->InputStream()->IsInteractive() ) {
-                CONSOLE_STRING_OUT( pCore, "Hit ENTER to continue, 'q' & ENTER to quit\n" );
-                char c = getchar();
-                if ( (c == 'q') || (c == 'Q') ) {
-                    c = getchar();
-                    retVal = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    return retVal;
-}
-
-FORTHOP( vlistOp )
-{
-    CONSOLE_STRING_OUT( pCore, "Definitions Vocabulary:\n" );
-    if ( ShowVocab( pCore, GET_ENGINE->GetDefinitionVocabulary() ) == false ) {
-        CONSOLE_STRING_OUT( pCore, "Precedence Vocabulary:\n" );
-        ShowVocab( pCore, GET_ENGINE->GetPrecedenceVocabulary() );
-    }
-}
-
 FORTHOP( statsOp )
 {
     printf( "pCore %p pEngine %p pThread %p     DP %p DBase %p    IP %p\n",
@@ -2828,196 +2845,6 @@ FORTHOP( addDLLEntryOp )
     ulong numArgs = SPOP;
     pVocab->AddEntry( pProcName, numArgs );
 }
-
-#if 0
-FORTHOP( loadLibraryOp )
-{
-    NEEDS( 1 );
-    char* pDLLName = (char *) SPOP;
-    HINSTANCE hDLL = LoadLibrary( pDLLName );
-    SPUSH( (long) hDLL );
-}
-
-FORTHOP( freeLibraryOp )
-{
-    NEEDS( 1 );
-    HINSTANCE hDLL = (HINSTANCE) SPOP;
-    FreeLibrary( hDLL );
-}
-
-FORTHOP( getProcAddressOp )
-{
-    NEEDS( 2 );
-    char* pProcName = (char *) SPOP;
-    HINSTANCE hDLL = (HINSTANCE) SPOP;
-    long pFunc = (long) GetProcAddress( hDLL, pProcName );
-
-    SPUSH( pFunc );
-}
-
-typedef long (*proc0Args)();
-typedef long (*proc1Args)( long arg1 );
-typedef long (*proc2Args)( long arg1, long arg2 );
-typedef long (*proc3Args)( long arg1, long arg2, long arg3 );
-typedef long (*proc4Args)( long arg1, long arg2, long arg3, long arg4 );
-typedef long (*proc5Args)( long arg1, long arg2, long arg3, long arg4, long arg5 );
-typedef long (*proc6Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6 );
-typedef long (*proc7Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7 );
-typedef long (*proc8Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7, long arg8 );
-typedef long (*proc9Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7, long arg8, long arg9 );
-typedef long (*proc10Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7, long arg8, long arg9, long arg10 );
-typedef long (*proc11Args)( long arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7, long arg8, long arg9, long arg10, long arg11 );
-
-FORTHOP( callProc0Op )
-{
-    NEEDS( 1 );
-    proc0Args pFunc = (proc0Args) SPOP;
-    SPUSH( pFunc() );
-}
-
-FORTHOP( callProc1Op )
-{
-    NEEDS( 1 );
-    proc1Args pFunc = (proc1Args) SPOP;
-    long a1 = SPOP;
-    SPUSH( pFunc( a1 ) );
-}
-
-FORTHOP( callProc2Op )
-{
-    NEEDS( 2 );
-    proc2Args pFunc = (proc2Args) SPOP;
-    long a2 = SPOP;
-    long a1 = SPOP;
-    SPUSH( pFunc( a1, a2 ) );
-}
-
-FORTHOP( callProc3Op )
-{
-    NEEDS( 3 );
-    proc3Args pFunc = (proc3Args) SPOP;
-    long a3 = SPOP;
-    long a2 = SPOP;
-    long a1 = SPOP;
-    SPUSH( pFunc( a1, a2, a3 ) );
-}
-
-FORTHOP( callProc4Op )
-{
-    NEEDS( 4 );
-    proc4Args pFunc = (proc4Args) SPOP;
-    long a4 = SPOP;
-    long a3 = SPOP;
-    long a2 = SPOP;
-    long a1 = SPOP;
-    SPUSH( pFunc( a1, a2, a3, a4 ) );
-}
-
-FORTHOP( callProc5Op )
-{
-    NEEDS( 5 );
-    proc5Args pFunc = (proc5Args) SPOP;
-    long a5 = SPOP;
-    long a4 = SPOP;
-    long a3 = SPOP;
-    long a2 = SPOP;
-    long a1 = SPOP;
-    SPUSH( pFunc( a1, a2, a3, a4, a5 ) );
-}
-
-FORTHOP( callProc6Op )
-{
-    NEEDS( 6 );
-    proc6Args pFunc = (proc6Args) SPOP;
-    long a6 = SPOP;
-    long a5 = SPOP;
-    long a4 = SPOP;
-    long a3 = SPOP;
-    long a2 = SPOP;
-    long a1 = SPOP;
-    SPUSH( pFunc( a1, a2, a3, a4, a5, a6 ) );
-}
-
-FORTHOP( callProc7Op )
-{
-    NEEDS( 7 );
-    proc7Args pFunc = (proc7Args) SPOP;
-    long a7 = SPOP;
-    long a6 = SPOP;
-    long a5 = SPOP;
-    long a4 = SPOP;
-    long a3 = SPOP;
-    long a2 = SPOP;
-    long a1 = SPOP;
-    SPUSH( pFunc( a1, a2, a3, a4, a5, a6, a7 ) );
-}
-
-FORTHOP( callProc8Op )
-{
-    NEEDS( 8 );
-    proc8Args pFunc = (proc8Args) SPOP;
-    long a8 = SPOP;
-    long a7 = SPOP;
-    long a6 = SPOP;
-    long a5 = SPOP;
-    long a4 = SPOP;
-    long a3 = SPOP;
-    long a2 = SPOP;
-    long a1 = SPOP;
-    SPUSH( pFunc( a1, a2, a3, a4, a5, a6, a7, a8 ) );
-}
-
-FORTHOP( callProc9Op )
-{
-    NEEDS( 9 );
-    proc9Args pFunc = (proc9Args) SPOP;
-    long a9 = SPOP;
-    long a8 = SPOP;
-    long a7 = SPOP;
-    long a6 = SPOP;
-    long a5 = SPOP;
-    long a4 = SPOP;
-    long a3 = SPOP;
-    long a2 = SPOP;
-    long a1 = SPOP;
-    SPUSH( pFunc( a1, a2, a3, a4, a5, a6, a7, a8, a9 ) );
-}
-
-FORTHOP( callProc10Op )
-{
-    NEEDS( 10 );
-    proc10Args pFunc = (proc10Args) SPOP;
-    long a10 = SPOP;
-    long a9 = SPOP;
-    long a8 = SPOP;
-    long a7 = SPOP;
-    long a6 = SPOP;
-    long a5 = SPOP;
-    long a4 = SPOP;
-    long a3 = SPOP;
-    long a2 = SPOP;
-    long a1 = SPOP;
-    SPUSH( pFunc( a1, a2, a3, a4, a5, a6, a7, a8, a9, a10 ) );
-}
-
-FORTHOP( callProc11Op )
-{
-    NEEDS( 11 );
-    proc11Args pFunc = (proc11Args) SPOP;
-    long a11 = SPOP;
-    long a10 = SPOP;
-    long a9 = SPOP;
-    long a8 = SPOP;
-    long a7 = SPOP;
-    long a6 = SPOP;
-    long a5 = SPOP;
-    long a4 = SPOP;
-    long a3 = SPOP;
-    long a2 = SPOP;
-    long a1 = SPOP;
-    SPUSH( pFunc( a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11 ) );
-}
-#endif
 
 FORTHOP( blwordOp )
 {
@@ -3140,10 +2967,10 @@ FORTHOP( addErrorTextOp )
     pEngine->AddErrorText( (char *) (SPOP) );
 }
 
-#define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func, 0 }
+#define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func }
 
 // ops which have precedence (execute at compile time)
-#define PRECOP( func, funcName )  { funcName, ((ulong) kOpBuiltIn) | BASE_DICT_PRECEDENCE_FLAG, (ulong) func, 1 }
+#define PRECOP( func, funcName )  { funcName, kOpBuiltInImmediate, (ulong) func }
 
 // NOTE: the order of the first few entries in this table must agree
 // with the list near the top of the file!  (look for COMPILED_OP)
@@ -3231,7 +3058,7 @@ baseDictEntry baseDict[] = {
     OP(     negateOp,               "negate" ),
     
     ///////////////////////////////////////////
-    //  single-precision floating point math
+    //  single-precision fp math
     ///////////////////////////////////////////
     OP(     fplusOp,                "f+" ),
     OP(     fminusOp,               "f-" ),
@@ -3239,7 +3066,7 @@ baseDictEntry baseDict[] = {
     OP(     fdivideOp,              "f/" ),
     
     ///////////////////////////////////////////
-    //  double-precision floating point math
+    //  double-precision fp math
     ///////////////////////////////////////////
     OP(     dplusOp,                "d+" ),
     OP(     dminusOp,               "d-" ),
@@ -3248,7 +3075,7 @@ baseDictEntry baseDict[] = {
 
 
     ///////////////////////////////////////////
-    //  double-precision floating point functions
+    //  double-precision fp functions
     ///////////////////////////////////////////
     OP(     dsinOp,                 "dsin" ),
     OP(     dasinOp,                "darcsin" ),
@@ -3271,7 +3098,7 @@ baseDictEntry baseDict[] = {
     OP(     dfmodOp,                "dfmod" ),
     
     ///////////////////////////////////////////
-    //  integer/float/double conversions
+    //  integer/float/double conversion
     ///////////////////////////////////////////
     OP(     i2fOp,                  "i2f" ), 
     OP(     i2dOp,                  "i2d" ),
@@ -3281,7 +3108,7 @@ baseDictEntry baseDict[] = {
     OP(     d2fOp,                  "d2f" ),
     
     ///////////////////////////////////////////
-    //  control flow ops
+    //  control flow
     ///////////////////////////////////////////
     OP(     callOp,                 "call" ),
     OP(     gotoOp,                 "goto" ),
@@ -3306,7 +3133,7 @@ baseDictEntry baseDict[] = {
     PRECOP( endcaseOp,              "endcase" ),
 
     ///////////////////////////////////////////
-    //  bit-vector logic ops
+    //  bit-vector logic
     ///////////////////////////////////////////
     OP(     orOp,                   "or" ),
     OP(     andOp,                  "and" ),
@@ -3316,7 +3143,7 @@ baseDictEntry baseDict[] = {
     OP(     rshiftOp,               ">>" ),
 
     ///////////////////////////////////////////
-    //  boolean ops
+    //  boolean logic
     ///////////////////////////////////////////
     OP(     notOp,                  "not" ),
     OP(     trueOp,                 "true" ),
@@ -3415,23 +3242,15 @@ baseDictEntry baseDict[] = {
     OP(     strtokOp,               "strtok" ),
 
     ///////////////////////////////////////////
-    //  defining words
+    //  op definition
     ///////////////////////////////////////////
     OP(     buildsOp,               "builds" ),
     PRECOP( doesOp,                 "does" ),
-    OP(     newestSymbolOp,         "newestSymbol" ),
     PRECOP( exitOp,                 "exit" ),
     PRECOP( semiOp,                 ";" ),
     OP(     colonOp,                ":" ),
+    OP(     codeOp,                 "code" ),
     OP(     createOp,               "create" ),
-    OP(     forgetOp,               "forget" ),
-    OP(     autoforgetOp,           "autoforget" ),
-    OP(     definitionsOp,          "definitions" ),
-    OP(     usesOp,                 "uses" ),
-    OP(     forthVocabOp,           "forth" ),
-    OP(     searchVocabOp,          "searchVocab" ),
-    OP(     definitionsVocabOp,     "definitionsVocab" ),
-    OP(     vocabularyOp,           "vocabulary" ),
     OP(     variableOp,             "variable" ),
     OP(     constantOp,             "constant" ),
     OP(     dconstantOp,            "dconstant" ),
@@ -3467,7 +3286,21 @@ baseDictEntry baseDict[] = {
     PRECOP( bracketTickOp,          "[\']" ),
 
     ///////////////////////////////////////////
-    //  text display words
+    //  vocabulary/symbol
+    ///////////////////////////////////////////
+    OP(     forthVocabOp,           "forth" ),
+    OP(     assemblerVocabOp,       "assembler" ),
+    OP(     definitionsOp,          "definitions" ),
+    OP(     vocabularyOp,           "vocabulary" ),
+    OP(     alsoOp,                 "also" ),
+    OP(     onlyOp,                 "only" ),
+    OP(     newestSymbolOp,         "newestSymbol" ),
+    OP(     forgetOp,               "forget" ),
+    OP(     autoforgetOp,           "autoforget" ),
+    OP(     vlistOp,                "vlist" ),
+
+    ///////////////////////////////////////////
+    //  text display
     ///////////////////////////////////////////
     OP(     printNumOp,             "." ),
     OP(     printNumDecimalOp,      "%d" ),
@@ -3492,7 +3325,7 @@ baseDictEntry baseDict[] = {
     OP(     getConOutFileOp,        "getConOutFile" ),
 
     ///////////////////////////////////////////
-    //  file ops
+    //  file manipulation
     ///////////////////////////////////////////
     OP(     fopenOp,                "fopen" ),
     OP(     fcloseOp,               "fclose" ),
@@ -3508,41 +3341,8 @@ baseDictEntry baseDict[] = {
     OP(     stdoutOp,               "stdout" ),
     OP(     stderrOp,               "stderr" ),
     
-    OP(     dstackOp,               "dstack" ),
-    OP(     drstackOp,              "drstack" ),
-    OP(     vlistOp,                "vlist" ),
-
-    OP(     systemOp,               "system" ),
-    OP(     chdirOp,                "chdir" ),
-    OP(     byeOp,                  "bye" ),
-    OP(     argvOp,                 "argv" ),
-    OP(     argcOp,                 "argc" ),
-
     ///////////////////////////////////////////
-    //  DLL support words
-    ///////////////////////////////////////////
-    OP(     DLLVocabularyOp,        "DLLVocabulary" ),
-    OP(     addDLLEntryOp,          "addDLLEntry" ),
-#if 0
-    OP(     loadLibraryOp,          "loadLibrary" ),
-    OP(     freeLibraryOp,          "freeLibrary" ),
-    OP(     getProcAddressOp,       "getProcAddress" ),
-    OP(     callProc0Op,            "callProc0" ),
-    OP(     callProc1Op,            "callProc1" ),
-    OP(     callProc2Op,            "callProc2" ),
-    OP(     callProc3Op,            "callProc3" ),
-    OP(     callProc4Op,            "callProc4" ),
-    OP(     callProc5Op,            "callProc5" ),
-    OP(     callProc6Op,            "callProc6" ),
-    OP(     callProc7Op,            "callProc7" ),
-    OP(     callProc8Op,            "callProc8" ),
-    OP(     callProc9Op,            "callProc9" ),
-    OP(     callProc10Op,           "callProc10" ),
-    OP(     callProc11Op,           "callProc11" ),
-#endif
-
-    ///////////////////////////////////////////
-    //  input buffer words
+    //  input buffer
     ///////////////////////////////////////////
     OP(     blwordOp,               "blword" ),
     OP(     wordOp,                 "word" ),
@@ -3555,6 +3355,22 @@ baseDictEntry baseDict[] = {
     OP(     getInBufferLengthOp,    "getInBufferLength" ),
     OP(     fillInBufferOp,         "fillInBuffer" ),
 
+    ///////////////////////////////////////////
+    //  DLL support
+    ///////////////////////////////////////////
+    OP(     DLLVocabularyOp,        "DLLVocabulary" ),
+    OP(     addDLLEntryOp,          "addDLLEntry" ),
+
+    ///////////////////////////////////////////
+    //  admin/debug/system
+    ///////////////////////////////////////////
+    OP(     dstackOp,               "dstack" ),
+    OP(     drstackOp,              "drstack" ),
+    OP(     systemOp,               "system" ),
+    OP(     chdirOp,                "chdir" ),
+    OP(     byeOp,                  "bye" ),
+    OP(     argvOp,                 "argv" ),
+    OP(     argcOp,                 "argc" ),
     OP(     turboOp,                "turbo" ),
     OP(     statsOp,                "stats" ),
     OP(     describeOp,             "describe" ),

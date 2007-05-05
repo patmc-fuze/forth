@@ -43,13 +43,14 @@
 // this allows the top level of the stack to be overwritten by forth, so they
 // can access forth words and assembler words, but swap the order at will
 
+autoforget assembler_package
+: assembler_package ;
+
+// allow inline comments using (...) to allow easier porting from GForth
 true -> parenIsComment
 
-autoforget assembler
-
-vocabulary assembler
-assembler definitions
-assembler uses
+//vocabulary assembler
+also assembler definitions
 
 : within  ( u1 u2 u3 -- f )
  over - r< - r> u< ;
@@ -60,8 +61,8 @@ assembler uses
 
 0x8 base !
 
-// : [F]  forth uses    ; precedence [F]
-// : [A]  assembler uses ; precedence [A]
+// : [F]  forth			; precedence [F]
+// : [A]  assembler		; precedence [A]
 
 // Assembler Forth words                                11mar00py
 
@@ -383,9 +384,14 @@ variable .osize               variable .onow
 // test shld shrd                                       07feb93py
 
 : test  ( reg1 reg2 / reg -- )  imm# @
-  if    assign#  AX case?
-        if  0xA9  else  test#  exit  endif
-  else  ?reg >mod  0x85  endif  finishb ;
+  if
+    assign#  AX case?
+    if  0xA9  else  test#  exit  endif
+  else
+    ?reg >mod  0x85
+  endif
+  finishb
+;
 
 : shd ( r/m reg opcode -- )
     imm# @ if  1 imm# ! 1-  endif  mod0F ;
@@ -722,9 +728,8 @@ variable fsize
 : but,          swap ;
 : yet,          dup ;
 : makeflag      ~cond AL swap setIF  1 # AX and  AX DEC ;
+: next,         DI jmp ;
 
-
-forth uses forth definitions decimal
+only forth definitions
+decimal
 false -> parenIsComment
-
-

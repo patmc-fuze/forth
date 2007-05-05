@@ -16,6 +16,8 @@ extern baseDictEntry baseDict[];
 
 extern "C" {
 
+// UserCodeAction is used to execute user ops which are defined in assembler
+extern void UserCodeAction( ForthCoreState *pCore, ulong opVal );
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -1182,12 +1184,12 @@ OPTYPE_ACTION( MethodWithThisAction )
     }
 }
 
-OPTYPE_ACTION( IllegalBuiltinAction )
+OPTYPE_ACTION( IllegalOptypeAction )
 {
-    SET_ERROR( kForthErrorBadOpcode );
+    SET_ERROR( kForthErrorBadOpcodeType );
 }
 
-OPTYPE_ACTION( IllegalOptypeAction )
+OPTYPE_ACTION( ReservedOptypeAction )
 {
     SET_ERROR( kForthErrorBadOpcodeType );
 }
@@ -1238,25 +1240,43 @@ FORTHOP( BadOpcodeOp )
 
 optypeActionRoutine builtinOptypeAction[] =
 {
-    IllegalBuiltinAction,
+    // 00 - 09
+    BuiltinAction,
+    BuiltinAction,          // immediate
     UserDefAction,
+    UserDefAction,          // immediate
+    UserCodeAction,
+    UserCodeAction,         // immediate
+    DLLEntryPointAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
 
+    // 10 - 19
     BranchAction,
     BranchNZAction,
     BranchZAction,
     CaseBranchAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
 
+    // 20 - 29
     ConstantAction,
+    ConstantStringAction,
     OffsetAction,
     ArrayOffsetAction,
-    LocalStructArrayAction,
-
-    ConstantStringAction,
-
     AllocLocalsAction,
-    InitLocalStringAction,
     LocalRefAction,
+    InitLocalStringAction,
+    LocalStructArrayAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
 
+    // 30 -39
     LocalByteAction,
     LocalShortAction,
     LocalIntAction,
@@ -1264,7 +1284,11 @@ optypeActionRoutine builtinOptypeAction[] =
     LocalDoubleAction,
     LocalStringAction,
     LocalOpAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
 
+    // 40 - 49
     FieldByteAction,
     FieldShortAction,
     FieldIntAction,
@@ -1272,7 +1296,11 @@ optypeActionRoutine builtinOptypeAction[] =
     FieldDoubleAction,
     FieldStringAction,
     FieldOpAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
 
+    // 50 - 59
     LocalByteArrayAction,
     LocalShortArrayAction,
     LocalIntArrayAction,
@@ -1280,7 +1308,11 @@ optypeActionRoutine builtinOptypeAction[] =
     LocalDoubleArrayAction,
     LocalStringArrayAction,
     LocalOpArrayAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
 
+    // 60 - 69
     FieldByteArrayAction,
     FieldShortArrayAction,
     FieldIntArrayAction,
@@ -1288,11 +1320,11 @@ optypeActionRoutine builtinOptypeAction[] =
     FieldDoubleArrayAction,
     FieldStringArrayAction,
     FieldOpArrayAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
 
-    DLLEntryPointAction,
-
-    MethodWithThisAction,
-
+    // 70 - 79
     MemberIntAction,    // TBD: byte
     MemberIntAction,    // TBD: short
     MemberIntAction,
@@ -1300,6 +1332,9 @@ optypeActionRoutine builtinOptypeAction[] =
     MemberDoubleAction,
     MemberStringAction,
     MemberOpAction,
+    MethodWithThisAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
 
     NULL            // this must be last to end the list
 };
@@ -1384,7 +1419,7 @@ InnerInterpreter( ForthCoreState *pCore )
         SET_IP( pIP );
         opType = FORTH_OP_TYPE( op );
         opVal = FORTH_OP_VALUE( op );
-        if ( opType == kOpBuiltIn )
+        if ( (opType == kOpBuiltIn) || (opType == kOpBuiltInImmediate) )
         {
             if ( opVal < numBuiltinOps ) {
                 builtinOp[ opVal ]( pCore );

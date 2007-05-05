@@ -69,6 +69,9 @@ cvs update
 	recursively update all directories from repository
 	can be used to show what files are not in CVS or what files have been modified
 	
+cvs log FILENMAE
+	show history of a file
+	
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 colonOp
  ForthEngine::StartOpDefinition
@@ -78,6 +81,8 @@ colonOp
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 3 2007
 
+Updated CVS.
+
 The GForth assembler is ported, it loads but it is untested.
 The GForth package doesn't seem to have any examples of its usage in actual
 code, but the assembler is almost identical to the assembler in BigForth,
@@ -85,11 +90,17 @@ maybe it has some examples.  The file gforth.050/doc/gforth.i9 has a
 "386 Assembler" section which spells out the syntax.
 
 One problem area was that GForth is not case sensitive.
+
 Another was that there was a partially implemented relocation scheme which
 remapped forth builtin ops which compile stuff or manipulate the DP to a set of
 proxy ops which mostly did exactly the same thing - presumably this was
 preparation for swapping out the proxy ops for another set which did something
 like assembling to an address offset from the intended run address.
+
+One odd thing was that "," was remapped to "c,", and it looked like "," was
+being used to compile byte data, not longs.  Perhaps the intent was that in
+the source for the assembler, "," was used to compile stuff that needed to
+be relocated and "c," was used to compile stuff that didn't.
 
 The next step would be to create a way to make a user-defined op in
 assembler.  This could be tricky, especially if we want the fast inner
@@ -102,6 +113,7 @@ the slow inner assembler.
 User defined code ops should live in userOps dispatch table, and therefore
 share the opValue space of other user defined ops, which will make "forget"
 easy to implement for them.
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 30 2007
 

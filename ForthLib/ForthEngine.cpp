@@ -89,10 +89,9 @@ static char *pErrorStrings[] =
 // 
 
 ForthEngine::ForthEngine()
-: mpMainVocab( NULL )
+: mpForthVocab( NULL )
+, mpAssemblerVocab( NULL )
 , mpLocalVocab( NULL )
-, mpPrecedenceVocab( NULL )
-, mpSearchVocab( NULL )
 , mpDefinitionVocab( NULL )
 , mpStringBufferA( NULL )
 , mpStringBufferB( NULL )
@@ -104,6 +103,7 @@ ForthEngine::ForthEngine()
 , mpLastIntoOpcode( NULL )
 , mNumElements( 0 )
 , mpStructsManager( NULL )
+, mpVocabStack( NULL )
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -120,9 +120,9 @@ ForthEngine::~ForthEngine()
 
     if ( mpCore->DBase ) {
         delete [] mpCore->DBase;
-        delete mpMainVocab;
+        delete mpForthVocab;
+        delete mpAssemblerVocab;
         delete mpLocalVocab;
-        delete mpPrecedenceVocab;
         delete mpStructsManager;
         delete [] mpStringBufferA;
         delete [] mpStringBufferB;
@@ -154,6 +154,7 @@ ForthEngine::~ForthEngine()
     delete mpEngineScratch;
 
     delete mpCore;
+    delete mpVocabStack;
 }
 
 ForthEngine*
@@ -180,9 +181,9 @@ ForthEngine::Initialize( int                totalLongs,
     mpCore->DP = mpCore->DBase;
     mpCore->pEngine = this;
 
-    mpMainVocab = new ForthVocabulary( "forth", NUM_FORTH_VOCAB_VALUE_LONGS );
+    mpForthVocab = new ForthVocabulary( "forth", NUM_FORTH_VOCAB_VALUE_LONGS );
+    mpAssemblerVocab = new ForthVocabulary( "assembler", NUM_FORTH_VOCAB_VALUE_LONGS );
     mpLocalVocab = new ForthLocalVocabulary( "locals", NUM_LOCALS_VOCAB_VALUE_LONGS );
-    mpPrecedenceVocab = new ForthPrecedenceVocabulary( "precedence_ops" );
     mpStringBufferA = new char[256 * NUM_INTERP_STRINGS];
     mpStringBufferB = new char[TMP_STRING_BUFFER_LEN];
 
@@ -193,6 +194,10 @@ ForthEngine::Initialize( int                totalLongs,
     mpCore->userOps = (long **) malloc( sizeof(long *) * mpCore->maxUserOps );
 
     mpStructsManager = new ForthStructsManager();
+
+    mpVocabStack = new ForthVocabularyStack;
+    mpVocabStack->Initialize();
+    mpVocabStack->Clear();
 
     Reset();
 
@@ -207,7 +212,6 @@ ForthEngine::Initialize( int                totalLongs,
     if ( pUserBuiltinOps != NULL ) {
         AddBuiltinOps( pUserBuiltinOps );
     }
-
 }
 
 
@@ -248,8 +252,8 @@ ForthEngine::SetFastMode( bool goFast )
 void
 ForthEngine::Reset( void )
 {
-    mpDefinitionVocab = mpMainVocab;
-    mpSearchVocab = mpMainVocab;
+    mpDefinitionVocab = mpForthVocab;
+    mpVocabStack->Clear();
 
     mNextStringNum = 0;
 
@@ -274,7 +278,7 @@ ForthEngine::AddOp( const long *pOp, forthOpType symType )
 {
     long newOp;
 
-    if ( symType == kOpBuiltIn )
+    if ( (symType == kOpBuiltIn) || (symType == kOpBuiltInImmediate) )
     {
         ASSERT( mpCore->numBuiltinOps < MAX_BUILTIN_OPS );
         mpCore->builtinOps[ mpCore->numBuiltinOps++ ] = (ForthOp) pOp;
@@ -315,21 +319,14 @@ ForthEngine::AddBuiltinOps( baseDictEntry *pEntries )
 {
     // assert if this is called after any user ops have been defined
     ASSERT( mpCore->numUserOps == 0 );
-    forthOpType opType;
 
     while ( pEntries->value != NULL ) {
         // AddSymbol will call ForthEngine::AddOp to add the operators to op table
-        opType = (forthOpType) (pEntries->flags & 0xFF);
-        if ( pEntries->flags & BASE_DICT_PRECEDENCE_FLAG ) {
-            // symbol has precedence, put in precedence vocab
-            mpPrecedenceVocab->AddSymbol( pEntries->name, opType, pEntries->value, true );
-        } else {
-            mpDefinitionVocab->AddSymbol( pEntries->name, opType, pEntries->value, true );
-        }
+        mpDefinitionVocab->AddSymbol( pEntries->name, pEntries->flags, pEntries->value, true );
 
 #ifdef TRACE_INNER_INTERPRETER
         // add built-in op names to table for TraceOp
-        if ( opType == kOpBuiltIn ) {
+        if ( (pEntries->flags == kOpBuiltIn) || ((pEntries->flags == kOpBuiltInImmediate)) ) {
             if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS ) {
                 gOpNames[mpCore->numBuiltinOps - 1] = pEntries->name;
             }
@@ -363,7 +360,7 @@ ForthEngine::ForgetSymbol( const char *pSym )
     bool forgotIt = false;
 
     ForthVocabulary* pFoundVocab = NULL;
-    pEntry = mpPrecedenceVocab->FindSymbol( pSym, &pFoundVocab );
+    pEntry = GetSearchVocabulary()->FindSymbol( pSym, &pFoundVocab );
 
     if ( pFoundVocab != NULL ) {
         op = ForthVocabulary::GetEntryValue( pEntry );
@@ -371,12 +368,16 @@ ForthEngine::ForgetSymbol( const char *pSym )
         switch ( opType )
         {
             case kOpBuiltIn:
+            case kOpBuiltInImmediate:
                 // sym is built-in op - no way
                 TRACE( "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
                 printf( "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
                 break;
 
             case kOpUserDef:
+            case kOpUserDefImmediate:
+            case kOpUserCode:
+            case kOpUserCodeImmediate:
                 ForgetOp( op );
                 ForthForgettable::ForgetPropagate( mpCore->DP, op );
                 forgotIt = true;
@@ -392,7 +393,7 @@ ForthEngine::ForgetSymbol( const char *pSym )
     }
     else
     {
-        TRACE( "Error - attempt to forget unknown op %s from %s\n", pSym, mpSearchVocab->GetName() );
+        TRACE( "Error - attempt to forget unknown op %s from %s\n", pSym, GetSearchVocabulary()->GetName() );
     }
     return forgotIt;
 }
@@ -518,7 +519,7 @@ long *
 ForthEngine::FindSymbol( const char *pSymName )
 {
     ForthVocabulary* pFoundVocab = NULL;
-    return mpPrecedenceVocab->FindSymbol( pSymName, &pFoundVocab );
+    return GetSearchVocabulary()->FindSymbol( pSymName, &pFoundVocab );
 }
 
 void
@@ -531,7 +532,7 @@ ForthEngine::DescribeSymbol( const char *pSymName )
     bool notDone = true;
 
     ForthVocabulary* pFoundVocab = NULL;
-    pEntry = mpPrecedenceVocab->FindSymbol( pSymName, &pFoundVocab );
+    pEntry = GetSearchVocabulary()->FindSymbol( pSymName, &pFoundVocab );
     if ( pEntry )
     {
         long opType = FORTH_OP_TYPE( pEntry[0] );
@@ -798,6 +799,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs )
         switch( opType ){
             
         case kOpBuiltIn:
+        case kOpBuiltInImmediate:
             if ( opVal < NUM_TRACEABLE_OPS ) {
                 // traceable built-in op
                 sprintf( pBuffer, "%s", gOpNames[opVal] );
@@ -808,9 +810,13 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs )
             break;
             
         case kOpUserDef:
+        case kOpUserDefImmediate:
+        case kOpUserCode:
+        case kOpUserCodeImmediate:
+        case kOpDLLEntryPoint:
             if ( lookupUserDefs )
             {
-                pEntry = mpPrecedenceVocab->FindSymbolByValue( op, &pFoundVocab );
+                pEntry = GetSearchVocabulary()->FindSymbolByValue( op, &pFoundVocab );
             }
             if ( pEntry )
             {
@@ -1421,34 +1427,15 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         }
     }
 
-    if ( mpPrecedenceVocab->ProcessSymbol( pInfo, exitStatus ) != NULL )
+    if ( mpVocabStack->ProcessSymbol( pInfo, exitStatus ) != NULL )
     {
         ////////////////////////////////////
         //
-        // symbol is a forth op with precedence
+        // symbol is a forth op
         //
         ////////////////////////////////////
-        SPEW_OUTER_INTERPRETER( "Precedence Op\n" );
+        SPEW_OUTER_INTERPRETER( "Processed Op\n" );
         return exitStatus;
-    }
-    else
-    {
-        ForthVocabulary* pVocab = mpSearchVocab;
-        while ( pVocab != NULL )
-        {
-            if ( pVocab->ProcessSymbol( pInfo, exitStatus ) )
-            {
-                ////////////////////////////////////
-                //
-                // symbol is a forth op
-                //
-                ////////////////////////////////////
-                SPEW_OUTER_INTERPRETER( "Op in vocab %s\n", pVocab->GetName() );
-                return exitStatus;
-            }
-            pVocab = pVocab->GetNextSearchVocabulary();
-        }
-
     }
 
     // see if this is a structure access (like structA.fieldB.fieldC)

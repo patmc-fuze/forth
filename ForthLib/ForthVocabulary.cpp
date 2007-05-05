@@ -279,7 +279,7 @@ ForthVocabulary::ForgetSymbol( const char *pSymName )
     while ( !done && (symbolsLeft > 0) ) {
 
         opType = GetEntryType( pEntry );
-        if ( opType == kOpBuiltIn ) {
+        if ( (opType == kOpBuiltIn) || (opType == kOpBuiltInImmediate) ) {
             // sym is unknown, or in built-in ops - no way
             TRACE( "Error - attempt to forget builtin op %s from %s\n", pSymName, GetName() );
             done = true;
@@ -339,11 +339,15 @@ ForthVocabulary::ForgetOp( long op )
         switch ( opType )
         {
             case kOpBuiltIn:
+            case kOpBuiltInImmediate:
                 // can't forget builtin ops
                 symbolsLeft = 0;
                 break;
 
             case kOpUserDef:
+            case kOpUserDefImmediate:
+            case kOpUserCode:
+            case kOpUserCodeImmediate:
                 opVal = GetEntryValue( pEntry );
                 if ( opVal >= op )
                 {
@@ -498,7 +502,20 @@ ForthVocabulary::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus 
     long *pEntry = FindSymbol( pInfo );
     if ( pEntry != NULL )
     {
+        bool compileIt = false;
         if ( mpEngine->IsCompiling() )
+        {
+            switch ( FORTH_OP_TYPE( *pEntry ) )
+            {
+                case kOpBuiltInImmediate:
+                case kOpUserDefImmediate:
+                case kOpUserCodeImmediate:
+                    break;
+                default:
+                    compileIt = true;
+            }
+        }
+        if ( compileIt )
         {
             mpEngine->CompileOpcode( *pEntry );
         }
@@ -535,48 +552,6 @@ ForthVocabulary::GetType( void )
     return "userOp";
 }
 
-
-//////////////////////////////////////////////////////////////////////
-////
-///     ForthPrecedenceVocabulary
-//
-//
-
-ForthPrecedenceVocabulary::ForthPrecedenceVocabulary( const char    *pName,
-                                                      int           valueLongs,
-                                                      int           storageBytes )
-: ForthVocabulary( pName, valueLongs, storageBytes )
-{
-}
-
-ForthPrecedenceVocabulary::~ForthPrecedenceVocabulary()
-{
-}
-
-// lookup symbol, and if found, execute corresponding opcode
-// return vocab entry pointer if found, else NULL
-// execute opcode in context of thread g
-// exitStatus is only set if opcode is executed
-long *
-ForthPrecedenceVocabulary::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus )
-{
-    long *pEntry = FindSymbol( pInfo );
-    if ( pEntry != NULL )
-    {
-        // execute the opcode
-        exitStatus = mpEngine->ExecuteOneOp( *pEntry );
-    }
-    return pEntry;
-}
-
-// the precedence vocabulary always chains to the current search vocabulary
-// this is to allow you to avoid doing a FindSymbol on the precedence vocab
-// and then do another FindSymbol on the search chain
-ForthVocabulary *
-ForthPrecedenceVocabulary::GetNextSearchVocabulary( void )
-{
-    return mpEngine->GetSearchVocabulary();
-}
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -668,3 +643,142 @@ ForthDLLVocabulary::GetType( void )
     return "dllOp";
 }
 
+//////////////////////////////////////////////////////////////////////
+////
+///     ForthVocabularyStack
+//
+//
+
+ForthVocabularyStack::ForthVocabularyStack( int maxDepth )
+: mStack( NULL )
+, mMaxDepth( maxDepth )
+, mTop( 0 )
+{
+    mpEngine = ForthEngine::GetInstance();
+}
+
+ForthVocabularyStack::~ForthVocabularyStack()
+{
+    delete mStack;
+}
+
+void ForthVocabularyStack::Initialize( void )
+{
+    delete mStack;
+    mTop = 0;
+    mStack = new ForthVocabulary* [ mMaxDepth ];
+}
+
+void ForthVocabularyStack::DupTop( void )
+{
+    if ( mTop < (mMaxDepth - 1) )
+    {
+        mTop++;
+        mStack[ mTop ] = mStack[ mTop - 1 ];
+    }
+    else
+    {
+        // TBD: report overflow
+    }
+}
+
+void ForthVocabularyStack::Clear( void )
+{
+    mTop = 0;
+    mStack[0] = mpEngine->GetForthVocabulary();
+//    mStack[1] = mpEngine->GetPrecedenceVocabulary();
+}
+
+void ForthVocabularyStack::SetTop( ForthVocabulary* pVocab )
+{
+    mStack[mTop] = pVocab;
+}
+
+ForthVocabulary* ForthVocabularyStack::GetTop( void )
+{
+    return mStack[mTop];
+}
+
+ForthVocabulary* ForthVocabularyStack::GetElement( int depth )
+{
+    return (depth > mTop) ? NULL : mStack[mTop - depth];
+}
+
+// return pointer to symbol entry, NULL if not found
+// ppFoundVocab will be set to the vocabulary the symbol was actually found in
+// set ppFoundVocab to NULL to search just this vocabulary (not the search chain)
+long * ForthVocabularyStack::FindSymbol( const char *pSymName, ForthVocabulary** ppFoundVocab )
+{
+    long *pEntry = NULL;
+    for ( int i = mTop; i >= 0; i-- )
+    {
+        pEntry = mStack[i]->FindSymbol( pSymName );
+        if ( pEntry )
+        {
+            if ( ppFoundVocab != NULL )
+            {
+                *ppFoundVocab = mStack[i];
+            }
+            break;
+        }
+    }
+    return pEntry;
+}
+
+// return pointer to symbol entry, NULL if not found, given its value
+long * ForthVocabularyStack::FindSymbolByValue( long val, ForthVocabulary** ppFoundVocab )
+{
+    long *pEntry = NULL;
+    for ( int i = mTop; i >= 0; i-- )
+    {
+        pEntry = mStack[i]->FindSymbolByValue( val );
+        if ( pEntry )
+        {
+            if ( ppFoundVocab != NULL )
+            {
+                *ppFoundVocab = mStack[i];
+            }
+            break;
+        }
+    }
+    return pEntry;
+}
+
+// return pointer to symbol entry, NULL if not found
+// pSymName is required to be a longword aligned address, and to be padded with 0's
+// to the next longword boundary
+long * ForthVocabularyStack::FindSymbol( ForthParseInfo *pInfo, ForthVocabulary** ppFoundVocab )
+{
+    long *pEntry = NULL;
+    for ( int i = mTop; i >= 0; i-- )
+    {
+        pEntry = mStack[i]->FindSymbol( pInfo );
+        if ( pEntry )
+        {
+            if ( ppFoundVocab != NULL )
+            {
+                *ppFoundVocab = mStack[i];
+            }
+            break;
+        }
+    }
+    return pEntry;
+}
+
+// compile/interpret symbol if recognized
+// return pointer to symbol entry, NULL if not found
+// pSymName is required to be a longword aligned address, and to be padded with 0's
+// to the next longword boundary
+long * ForthVocabularyStack::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus )
+{
+    long *pEntry = NULL;
+    for ( int i = mTop; i >= 0; i-- )
+    {
+        pEntry = mStack[i]->ProcessSymbol( pInfo, exitStatus );
+        if ( pEntry )
+        {
+            break;
+        }
+    }
+    return pEntry;
+}
