@@ -256,8 +256,8 @@ UserCodeAction PROC near C public uses ebx ecx edx esi edi ebp,
 	core:PTR,
 	opVal:DWORD
 ; TBD!
-	mov	ebp, DWORD PTR core
 	mov	eax, opVal
+	mov	ebp, DWORD PTR core
 	; TBD: fetch dispatch address from userOps
 	mov	ecx, [ebp].FCore.IPtr
 	mov	edx, [ebp].FCore.SPtr
@@ -266,6 +266,8 @@ UserCodeAction PROC near C public uses ebx ecx edx esi edi ebp,
 	mov	eax, [esi+eax*4]
 	jmp	eax
 userCodeFuncExit:
+	mov	[ebp].FCore.IPtr, ecx
+	mov	[ebp].FCore.SPtr, edx
 	ret
 UserCodeAction ENDP
 

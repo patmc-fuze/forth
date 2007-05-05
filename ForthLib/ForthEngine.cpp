@@ -38,16 +38,14 @@ ForthEngine* ForthEngine::mpInstance = NULL;
 //
 
 static char *opTypeNames[] = {
-    "BuiltIn", "UserDefined", 
-    "Branch", "BranchTrue", "BranchFalse", "CaseBranch",
-    "Constant", "Offset", "ArrayOffset", "LocalStructArray", "ConstantString",
-    "AllocLocals", "InitLocalString", "LocalRef",
-    "LocalByte", "LocalShort", "LocalInt", "LocalFloat", "LocalDouble", "LocalString", "LocalOp",
-    "FieldByte", "FieldShort", "FieldInt", "FieldFloat", "FieldDouble", "FieldString", "FieldOp",
-    "LocalByteArray", "LocalShortArray", "LocalIntArray", "LocalFloatArray", "LocalDoubleArray", "LocalStringArray", "LocalOpArray",
-    "FieldByteArray", "FieldShortArray", "FieldIntArray", "FieldFloatArray", "FieldDoubleArray", "FieldStringArray", "FieldOpArray",
-    "InvokeClassMethod",    
-    "MemberByte", "MemberShort", "MemberInt", "MemberFloat", "MemberDouble", "MemberString", "MemberOp",
+    "BuiltIn", "BuiltInImmediate", "UserDefined", "UserDefinedImmediate", "UserCode", "UserCodeImmediate", "DLLEntryPoint", 0, 0, 0,
+    "Branch", "BranchTrue", "BranchFalse", "CaseBranch", 0, 0, 0, 0, 0, 0,
+    "Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "InitLocalString", "LocalStructArray", 0, 0,
+    "LocalByte", "LocalShort", "LocalInt", "LocalFloat", "LocalDouble", "LocalString", "LocalOp", 0, 0, 0,
+    "FieldByte", "FieldShort", "FieldInt", "FieldFloat", "FieldDouble", "FieldString", "FieldOp", 0, 0, 0,
+    "LocalByteArray", "LocalShortArray", "LocalIntArray", "LocalFloatArray", "LocalDoubleArray", "LocalStringArray", "LocalOpArray", 0, 0, 0,
+    "FieldByteArray", "FieldShortArray", "FieldIntArray", "FieldFloatArray", "FieldDoubleArray", "FieldStringArray", "FieldOpArray", 0, 0, 0,
+    "MemberByte", "MemberShort", "MemberInt", "MemberFloat", "MemberDouble", "MemberString", "MemberOp", "MethodWithThis",
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -1341,7 +1339,7 @@ ForthEngine::EndEnumDefinition( void )
 eForthResult
 ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 {
-    long *pSymbol, value;
+    long *pEntry, value;
     eForthResult exitStatus = kResultOk;
     float fvalue;
     double dvalue;
@@ -1350,6 +1348,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     bool isAString = (pInfo->GetFlags() & PARSE_FLAG_QUOTED_STRING) != 0;
     bool isSingle, isOffset;
     double* pDPD;
+    ForthVocabulary* pFoundVocab = NULL;
 
     mpLastToken = pToken;
     if ( (pToken == NULL)
@@ -1415,27 +1414,29 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 
     // check for local variables
     if ( mCompileState) {
-        pSymbol = mpLocalVocab->FindSymbol( pInfo );
-        if ( pSymbol ) {
+        pEntry = mpLocalVocab->FindSymbol( pInfo );
+        if ( pEntry ) {
             ////////////////////////////////////
             //
             // symbol is a local variable
             //
             ////////////////////////////////////
-            CompileOpcode( *pSymbol );
+            SPEW_OUTER_INTERPRETER( "Local variable [%s]\n", pToken );
+            CompileOpcode( *pEntry );
             return kResultOk;
         }
     }
 
-    if ( mpVocabStack->ProcessSymbol( pInfo, exitStatus ) != NULL )
+    pEntry = mpVocabStack->FindSymbol( pInfo, &pFoundVocab );
+    if ( pEntry != NULL )
     {
         ////////////////////////////////////
         //
         // symbol is a forth op
         //
         ////////////////////////////////////
-        SPEW_OUTER_INTERPRETER( "Processed Op\n" );
-        return exitStatus;
+        SPEW_OUTER_INTERPRETER( "Forth op [%s] in vocabulary %s\n", pToken, pFoundVocab->GetName() );
+        return pFoundVocab->ProcessEntry( pEntry );
     }
 
     // see if this is a structure access (like structA.fieldB.fieldC)

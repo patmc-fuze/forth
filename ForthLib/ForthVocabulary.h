@@ -72,11 +72,8 @@ public:
     // to the next longword boundary
     virtual long *      FindSymbol( ForthParseInfo *pInfo, ForthVocabulary** ppFoundVocab=NULL );
 
-    // compile/interpret symbol if recognized
-    // return pointer to symbol entry, NULL if not found
-    // pSymName is required to be a longword aligned address, and to be padded with 0's
-    // to the next longword boundary
-    virtual long *      ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
+    // compile/interpret entry returned by FindSymbol
+    virtual eForthResult ProcessEntry( long *pEntry );
 
     // return a string telling the type of library
     virtual const char* GetType( void );
@@ -219,12 +216,6 @@ public:
     // pSymName is required to be a longword aligned address, and to be padded with 0's
     // to the next longword boundary
     long *      FindSymbol( ForthParseInfo *pInfo, ForthVocabulary** ppFoundVocab=NULL );
-
-    // compile/interpret symbol if recognized
-    // return pointer to symbol entry, NULL if not found
-    // pSymName is required to be a longword aligned address, and to be padded with 0's
-    // to the next longword boundary
-    long *      ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
 
 private:
     ForthVocabulary**   mStack;

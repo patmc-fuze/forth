@@ -77,7 +77,39 @@ colonOp
  ForthEngine::StartOpDefinition
   ForthVocabulary::AddSymbol
    ForthEngine::AddUserOp
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 5 2007
 
+Eliminated precedence vocabulary - it didn't work well with the vocabulary
+stack.
+
+Starting debug of pentium assembler.
+
+source:
+	code andy dx ) ax mov,  4 # dx add, ax dx ) and, next,
+generated:
+	011842F8  mov         eax,edx 
+	011842FA  add         edx,4 
+	011842FD  and         edx,eax 
+	011842FF  jmp         edi  
+should have generated:
+	mov	eax, [edx]
+	add	edx, 4
+	and	[edx], eax
+	jmp	edi
+
+-> The ")" op is never being executed - it may be getting eaten by the shell
+	code andy dx ] ax mov,  4 # dx add, ax dx ] and, next,
+
+-> changed all uses of ")" to "]"
+
+Assembler is now generating the correct code for "andy", and the op performs
+correctly with both fast & slow interpreters.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 4 2007
+
+Working on switching over to the ans forth vocabulary stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 3 2007
 

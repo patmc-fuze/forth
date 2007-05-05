@@ -491,41 +491,35 @@ ForthVocabulary::FindSymbolByValue( long val, ForthVocabulary** ppFoundVocab )
     return NULL;
 }
 
-
-// lookup symbol, and if found, compile or execute corresponding opcode
-// return vocab entry pointer if found, else NULL
-// execute opcode in context of thread g
-// exitStatus is only set if opcode is executed
-long *
-ForthVocabulary::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus )
+// process symbol entry
+eForthResult
+ForthVocabulary::ProcessEntry( long* pEntry )
 {
-    long *pEntry = FindSymbol( pInfo );
-    if ( pEntry != NULL )
+    eForthResult exitStatus = kResultOk;
+    bool compileIt = false;
+    if ( mpEngine->IsCompiling() )
     {
-        bool compileIt = false;
-        if ( mpEngine->IsCompiling() )
+        switch ( FORTH_OP_TYPE( *pEntry ) )
         {
-            switch ( FORTH_OP_TYPE( *pEntry ) )
-            {
-                case kOpBuiltInImmediate:
-                case kOpUserDefImmediate:
-                case kOpUserCodeImmediate:
-                    break;
-                default:
-                    compileIt = true;
-            }
-        }
-        if ( compileIt )
-        {
-            mpEngine->CompileOpcode( *pEntry );
-        }
-        else
-        {
-            // execute the opcode
-            exitStatus = mpEngine->ExecuteOneOp( *pEntry );
+            case kOpBuiltInImmediate:
+            case kOpUserDefImmediate:
+            case kOpUserCodeImmediate:
+                break;
+            default:
+                compileIt = true;
         }
     }
-    return pEntry;
+    if ( compileIt )
+    {
+        mpEngine->CompileOpcode( *pEntry );
+    }
+    else
+    {
+        // execute the opcode
+        exitStatus = mpEngine->ExecuteOneOp( *pEntry );
+    }
+
+    return exitStatus;
 }
 
 
@@ -759,24 +753,6 @@ long * ForthVocabularyStack::FindSymbol( ForthParseInfo *pInfo, ForthVocabulary*
             {
                 *ppFoundVocab = mStack[i];
             }
-            break;
-        }
-    }
-    return pEntry;
-}
-
-// compile/interpret symbol if recognized
-// return pointer to symbol entry, NULL if not found
-// pSymName is required to be a longword aligned address, and to be padded with 0's
-// to the next longword boundary
-long * ForthVocabularyStack::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus )
-{
-    long *pEntry = NULL;
-    for ( int i = mTop; i >= 0; i-- )
-    {
-        pEntry = mStack[i]->ProcessSymbol( pInfo, exitStatus );
-        if ( pEntry )
-        {
             break;
         }
     }
