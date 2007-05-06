@@ -5,18 +5,12 @@
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 TBDs:
 
+- one problem with using the assembler is that "code" sets the vocab stack top to "assembler", if
+  forth was the only thing on the vocab stack, forth is now not in the search chain.
+
+- need some way to "pop" the vocab stack
+
 - a way to do varargs
-
-- look into abandoning the current vocabulary search tree in favor of the
-  ANS Forth search stack
-  -> it would probably require folding the precedence vocabulary into the
-     normal vocabulary
-     -> this could be done by adding 2 new opTypes, kOpBuiltInPrecedence and
-        kOpUserDefPrecedence
-        
-+ unsigned comparison ops
-
-- a forth assembler
 
 - a method for saving and restoring state
 
@@ -26,11 +20,8 @@ TBDs:
 
 - dll support
   - a mechanism for supporting callbacks from external code to forth code
-
-- vocabulary support
-  ? remove vocabulary static chain, since it is redundant with forgettable static chain?
-  - add vocabulary manipulation (addSymbol, hideSymbol, ...)
-
+    -> the assembler somewhat minimizes the need for this
+    
 ? fix local strings
   ? string vars are currently not using len/maxLen fields
     - change output-to-string to use the string current & max length fields
@@ -80,6 +71,14 @@ colonOp
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 5 2007
 
+Added fprintf/sprintf/fscanf/sscanf - they work except that fprintf/sprintf
+can't print floating point numbers - there may be some expectation that
+fp numbers will be passed in fp registers, but that would seem to be a
+pain for variable numbers of arguments.
+One hokey thing is that you have to pass the number of variables to be
+printed as the last argument.
+Example: stdout "%d,%d" 5 7 2 fprintf
+
 Eliminated precedence vocabulary - it didn't work well with the vocabulary
 stack.
 
@@ -99,17 +98,23 @@ should have generated:
 	jmp	edi
 
 -> The ")" op is never being executed - it may be getting eaten by the shell
-	code andy dx ] ax mov,  4 # dx add, ax dx ] and, next,
-
 -> changed all uses of ")" to "]"
+	code andy dx ] ax mov,  4 # dx add, ax dx ] and, next,
 
 Assembler is now generating the correct code for "andy", and the op performs
 correctly with both fast & slow interpreters.
+
+DLL support is broken now, because they relied on the op for a vocab to
+push its address on TOS.
+
+I'm changing vocabularies to act like variables, where a prefix op is used
+to set the operation the vocabulary will do when invoked.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 4 2007
 
 Working on switching over to the ans forth vocabulary stack.
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 3 2007
 

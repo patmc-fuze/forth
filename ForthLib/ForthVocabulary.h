@@ -36,6 +36,8 @@ public:
 
     virtual void        ForgetCleanup( void *pForgetLimit, long op );
 
+    virtual void        DoOp( ForthCoreState *pCore );
+
     void                SetName( const char *pVocabName );
     char *              GetName( void );
 
@@ -199,6 +201,7 @@ public:
     ~ForthVocabularyStack();
     void                Initialize( void );
     void                DupTop( void );
+    bool                DropTop( void );
     ForthVocabulary*    GetTop( void );
     void                SetTop( ForthVocabulary* pVocab );
     void                Clear();

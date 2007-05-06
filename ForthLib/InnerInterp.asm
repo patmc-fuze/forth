@@ -43,6 +43,7 @@ EXTRN	_iob:BYTE
 EXTRN	_filbuf:NEAR
 EXTRN	printf:NEAR
 EXTRN	_chkesp:NEAR
+EXTRN	fprintf:NEAR, sprintf:NEAR, fscanf:NEAR, sscanf:NEAR
 
 EXTRN	sin:NEAR, asin:NEAR, cos:NEAR, acos:NEAR, tan:NEAR, atan:NEAR, atan2:NEAR, exp:NEAR, log:NEAR, log10:NEAR
 EXTRN	pow:NEAR, sqrt:NEAR, ceil:NEAR, floor:NEAR, ldexp:NEAR, frexp:NEAR, modf:NEAR, fmod:NEAR, _ftol:NEAR
@@ -3024,6 +3025,27 @@ addressOfBop:
 
 ;========================================
 
+removeEntryBop:
+	mov	eax, kVocabRemoveEntry
+	mov	[ebp].FCore.varMode, eax
+	jmp	edi
+	
+;========================================
+
+entryLengthBop:
+	mov	eax, kVocabEntryLength
+	mov	[ebp].FCore.varMode, eax
+	jmp	edi
+	
+;========================================
+
+numEntriesBop:
+	mov	eax, kVocabNumEntries
+	mov	[ebp].FCore.varMode, eax
+	jmp	edi
+	
+;========================================
+
 setVarActionBop:
    mov   eax, [edx]
    add   edx, 4
@@ -3389,6 +3411,11 @@ alsoBop:	; TBD
 	
 ;========================================
 
+previousBop:	; TBD
+	extOp	previousOp
+	
+;========================================
+
 onlyBop:	; TBD
 	extOp	onlyOp
 	
@@ -3693,6 +3720,26 @@ printFormattedBop:	; TBD
 	
 ;========================================
 
+fprintfBop:	; TBD
+	extOp	fprintfOp
+	
+;========================================
+
+sprintfBop:	; TBD
+	extOp	sprintfOp
+	
+;========================================
+
+fscanfBop:	; TBD
+	extOp	fscanfOp
+	
+;========================================
+
+sscanfBop:	; TBD
+	extOp	sscanfOp
+	
+;========================================
+
 printStrBop:	; TBD
 	extOp	printStrOp
 	
@@ -3943,6 +3990,162 @@ errorBop:	; TBD
 addErrorTextBop:	; TBD
 	extOp	addErrorTextOp
 	
+
+;extern void sprintfSub( ForthCoreState* pCore );
+;extern void fscanfSub( ForthCoreState* pCore );
+;extern void sscanfSub( ForthCoreState* pCore );
+
+;========================================
+
+fprintfSubCore:
+	mov	edi, [edx]
+	add	edi, 2
+	add	edx, 4
+	mov	ecx, edi
+fprintfSub1:
+	sub	ecx, 1
+	jl	fprintfSub2
+	mov	ebx, [edx]
+	add	edx, 4
+	push	ebx
+	jmp fprintfSub1
+fprintfSub2:
+	; all args have been moved from parameter stack to PC stack
+	mov	[ebp].FCore.SPtr, edx
+	call	fprintf
+	mov	edx, [ebp].FCore.SPtr
+	sub	edx, 4
+	mov	[edx], eax		; return result on parameter stack
+	mov	[ebp].FCore.SPtr, edx
+	; cleanup PC stack
+	mov	ebx, edi
+	sal	ebx, 2
+	add	esp, ebx
+	ret
+	
+; extern void fprintfSub( ForthCoreState* pCore );
+
+fprintfSub PROC near C public uses ebx ecx edx esi edi ebp,
+	core:PTR
+	mov	ebp, DWORD PTR core
+	mov	edx, [ebp].FCore.SPtr
+	call	fprintfSubCore
+	ret
+fprintfSub ENDP
+
+;========================================
+
+sprintfSubCore:
+	mov	edi, [edx]
+	add	edi, 2
+	add	edx, 4
+	mov	ecx, edi
+sprintfSub1:
+	sub	ecx, 1
+	jl	sprintfSub2
+	mov	ebx, [edx]
+	add	edx, 4
+	push	ebx
+	jmp sprintfSub1
+sprintfSub2:
+	; all args have been moved from parameter stack to PC stack
+	mov	[ebp].FCore.SPtr, edx
+	call	sprintf
+	mov	edx, [ebp].FCore.SPtr
+	sub	edx, 4
+	mov	[edx], eax		; return result on parameter stack
+	mov	[ebp].FCore.SPtr, edx
+	; cleanup PC stack
+	mov	ebx, edi
+	sal	ebx, 2
+	add	esp, ebx
+	ret
+	
+; extern long sprintfSub( ForthCoreState* pCore );
+
+sprintfSub PROC near C public uses ebx ecx edx esi edi ebp,
+	core:PTR
+	mov	ebp, DWORD PTR core
+	mov	edx, [ebp].FCore.SPtr
+	call	sprintfSubCore
+	ret
+sprintfSub ENDP
+
+;========================================
+
+fscanfSubCore:
+	mov	edi, [edx]
+	add	edi, 2
+	add	edx, 4
+	mov	ecx, edi
+fscanfSub1:
+	sub	ecx, 1
+	jl	fscanfSub2
+	mov	ebx, [edx]
+	add	edx, 4
+	push	ebx
+	jmp fscanfSub1
+fscanfSub2:
+	; all args have been moved from parameter stack to PC stack
+	mov	[ebp].FCore.SPtr, edx
+	call	fscanf
+	mov	edx, [ebp].FCore.SPtr
+	sub	edx, 4
+	mov	[edx], eax		; return result on parameter stack
+	mov	[ebp].FCore.SPtr, edx
+	; cleanup PC stack
+	mov	ebx, edi
+	sal	ebx, 2
+	add	esp, ebx
+	ret
+	
+; extern long fscanfSub( ForthCoreState* pCore );
+
+fscanfSub PROC near C public uses ebx ecx edx esi edi ebp,
+	core:PTR
+	mov	ebp, DWORD PTR core
+	mov	edx, [ebp].FCore.SPtr
+	call fscanfSubCore
+	ret
+fscanfSub ENDP
+
+;========================================
+
+sscanfSubCore:
+	mov	edi, [edx]
+	add	edi, 2
+	add	edx, 4
+	mov	ecx, edi
+sscanfSub1:
+	sub	ecx, 1
+	jl	sscanfSub2
+	mov	ebx, [edx]
+	add	edx, 4
+	push	ebx
+	jmp sscanfSub1
+sscanfSub2:
+	; all args have been moved from parameter stack to PC stack
+	mov	[ebp].FCore.SPtr, edx
+	call	sscanf
+	mov	edx, [ebp].FCore.SPtr
+	sub	edx, 4
+	mov	[edx], eax		; return result on parameter stack
+	mov	[ebp].FCore.SPtr, edx
+	; cleanup PC stack
+	mov	ebx, edi
+	sal	ebx, 2
+	add	esp, ebx
+	ret
+
+; extern long sscanfSub( ForthCoreState* pCore );
+
+sscanfSub PROC near C public uses ebx ecx edx esi edi ebp,
+	core:PTR
+	mov	ebp, DWORD PTR core
+	mov	edx, [ebp].FCore.SPtr
+	call sscanfSubCore
+	ret
+sscanfSub ENDP
 
 ;========================================
 
@@ -4351,12 +4554,20 @@ opsTable:
 	DD	FLAT:definitionsBop
 	DD	FLAT:vocabularyBop
 	DD	FLAT:alsoBop
+	DD	FLAT:previousBop
 	DD	FLAT:onlyBop
 	DD	FLAT:newestSymbolBop
 	DD	FLAT:forgetBop
 	DD	FLAT:autoforgetBop
 	DD	FLAT:vlistBop
-
+	DD	FLAT:intoBop
+	DD	FLAT:addressOfBop
+	DD	FLAT:addToBop
+	DD	FLAT:subtractFromBop
+	DD	FLAT:removeEntryBop
+	DD	FLAT:entryLengthBop
+	DD	FLAT:numEntriesBop
+	
 	; text display	
 	DD	FLAT:printNumBop
 	DD	FLAT:printNumDecimalBop
@@ -4368,6 +4579,10 @@ opsTable:
 	DD	FLAT:printFloatBop
 	DD	FLAT:printDoubleBop
 	DD	FLAT:printFormattedBop
+	DD	FLAT:fprintfBop
+	DD	FLAT:sprintfBop
+	DD	FLAT:fscanfBop
+	DD	FLAT:sscanfBop
 	DD	FLAT:baseBop
 	DD	FLAT:decimalBop
 	DD	FLAT:hexBop

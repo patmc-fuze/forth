@@ -193,7 +193,7 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define GET_CON_OUT_FILE                (pCore->pThread->pConOutFile)
 #define SET_CON_OUT_FILE( A )           (pCore->pThread->pConOutFile = A)
 #define SET_CON_OUT_ROUTINE( A )        (pCore->pThread->consoleOut = A)
-#define CONSOLE_STRING_OUT( A, B )      (pCore->pThread->consoleOut( A, B ))
+#define CONSOLE_STRING_OUT( A )         (pCore->pThread->consoleOut( pCore, A ))
 #define GET_CON_OUT_STRING              (pCore->pThread->pConOutStr)
 #define SET_CON_OUT_STRING( A )         (pCore->pThread->pConOutStr = A)
 

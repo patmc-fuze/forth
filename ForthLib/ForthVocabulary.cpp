@@ -81,9 +81,7 @@ ForthVocabulary::~ForthVocabulary()
         ppNext = &((*ppNext)->mpChainNext);
     }
 
-    if ( mpName != NULL ) {
-        delete [] mpName;
-    }
+    delete [] mpName;
 }
 
 
@@ -547,6 +545,68 @@ ForthVocabulary::GetType( void )
 }
 
 
+void
+ForthVocabulary::DoOp( ForthCoreState *pCore )
+{
+    long* pEntry;
+    char* pSymbol;
+    ulong opVal, opType;
+    bool addToEngineOps;
+    ForthVocabularyStack* pVocabStack;
+
+    // IP points to data field
+    switch ( GET_VAR_OPERATION )
+    {
+        case kVocabSetCurrent:
+            pVocabStack = mpEngine->GetVocabularyStack();
+            pVocabStack->SetTop( this );
+            break;
+
+        case kVocabNewestEntry:
+            SPUSH( (long) mpNewestSymbol );
+            break;
+
+        case kVocabFindEntry:
+            pSymbol = (char *) (SPOP);
+            pEntry = FindSymbol( pSymbol );
+            SPUSH( (long) pEntry );
+            break;
+
+        case kVocabFindEntryValue:
+            opVal = SPOP;
+            pEntry = FindSymbolByValue( (long) opVal );
+            SPUSH( (long) pEntry );
+            break;
+
+        case kVocabAddEntry:
+            opVal = SPOP;
+            opType = SPOP;
+            pSymbol = (char *) (SPOP);
+            addToEngineOps = (opType <= kOpDLLEntryPoint);
+            AddSymbol( pSymbol, opType, opVal, addToEngineOps );
+            break;
+
+        case kVocabRemoveEntry:
+            pEntry = (long *) (SPOP);
+            DeleteEntry( pEntry );
+            break;
+
+        case kVocabEntryLength:
+            SPUSH( mValueLongs );
+            break;
+
+        case kVocabNumEntries:
+            SPUSH( mNumSymbols );
+            break;
+
+        default:
+            mpEngine->SetError( kForthErrorBadVarOperation, " vocabulary operation out of range" );
+            break;
+    }
+    CLEAR_VAR_OPERATION;
+}
+
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///     ForthLocalVocabulary
@@ -674,6 +734,19 @@ void ForthVocabularyStack::DupTop( void )
     {
         // TBD: report overflow
     }
+}
+
+bool ForthVocabularyStack::DropTop( void )
+{
+    if ( mTop )
+    {
+        mTop--;
+    }
+    else
+    {
+        return false;
+    }
+    return true;
 }
 
 void ForthVocabularyStack::Clear( void )

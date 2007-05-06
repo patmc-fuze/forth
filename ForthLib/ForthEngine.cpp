@@ -57,6 +57,8 @@ static char *pErrorStrings[] =
     "No Error",
     "Bad Opcode",
     "Bad OpcodeType",
+    "Bad Parameter",
+    "Bad Variable Operation",
     "Parameter Stack Underflow",
     "Parameter Stack Overflow",
     "Return Stack Underflow",
@@ -71,13 +73,6 @@ static char *pErrorStrings[] =
     "Error In Struct Definition",
     "Error In User-Defined Op",
     "Syntax error",
-    "Syntax error - else without matching if",
-    "Syntax error - endif without matching if/else",
-    "Syntax error - loop without matching do",
-    "Syntax error - until without matching begin",
-    "Syntax error - while without matching begin",
-    "Syntax error - repeat without matching while",
-    "Syntax error - again without matching begin",
 };
 
 //////////////////////////////////////////////////////////////////////

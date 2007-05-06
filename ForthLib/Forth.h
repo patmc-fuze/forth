@@ -115,8 +115,20 @@ typedef enum {
     kVarRef,
     kVarStore,
     kVarPlusStore,
-    kVarMinusStore
+    kVarMinusStore,
+
 } varOperation;
+
+typedef enum {
+    kVocabSetCurrent = 0,
+    kVocabNewestEntry,
+    kVocabFindEntry,
+    kVocabFindEntryValue,
+    kVocabAddEntry,
+    kVocabRemoveEntry,
+    kVocabEntryLength,
+    kVocabNumEntries,
+} vocabOperation;
 
 #define DEFAULT_INPUT_BUFFER_LEN   256
 
@@ -139,6 +151,8 @@ typedef enum {
     kForthErrorNone,
     kForthErrorBadOpcode,
     kForthErrorBadOpcodeType,
+    kForthErrorBadParameter,
+    kForthErrorBadVarOperation,
     kForthErrorParamStackUnderflow,
     kForthErrorParamStackOverflow,
     kForthErrorReturnStackUnderflow,

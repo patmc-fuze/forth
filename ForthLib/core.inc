@@ -9,6 +9,14 @@ kVarStore		EQU		2t
 kVarPlusStore		EQU		3t
 kVarMinusStore		EQU		4t
 
+kVocabSetCurrent		EQU	0t
+kVocabNewestEntry		EQU	1t
+kVocabFindEntry			EQU	2t
+kVocabFindEntryValue	EQU	3t
+kVocabAddEntry			EQU	4t
+kVocabRemoveEntry		EQU	5t
+kVocabEntryLength		EQU	6t
+kVocabNumEntries		EQU	7t
 
 kResultOk		EQU		0t
 kResultDone		EQU		1t
@@ -18,22 +26,25 @@ kResultFatalError		EQU		4t
 kResultException		EQU		5t
 
 
-kForthErrorNone		EQU		0t
-kForthErrorBadOpcode		EQU		1t
-kForthErrorBadOpcodeType		EQU		2t
-kForthErrorParamStackUnderflow		EQU		3t
-kForthErrorParamStackOverflow		EQU		4t
-kForthErrorReturnStackUnderflow		EQU		5t
-kForthErrorReturnStackOverflow		EQU		6t
-kForthErrorUnknownSymbol		EQU		7t
-kForthErrorFileOpen		EQU		8t
-kForthErrorAbort		EQU		9t
-kForthErrorForgetBuiltin		EQU		10t
-kForthErrorBadMethod		EQU		11t
-kForthErrorException		EQU		12t
-kForthErrorMissingSize		EQU		13t
-kForthErrorBadSyntax		EQU		14t
-kForthNumErrors		EQU		15t
+kForthErrorNone						EQU		0t
+kForthErrorBadOpcode				EQU		1t
+kForthErrorBadOpcodeType			EQU		2t
+kForthErrorBadParameter				EQU		3t
+kForthErrorParamStackUnderflow		EQU		4t
+kForthErrorParamStackOverflow		EQU		5t
+kForthErrorReturnStackUnderflow		EQU		6t
+kForthErrorReturnStackOverflow		EQU		7t
+kForthErrorUnknownSymbol			EQU		8t
+kForthErrorFileOpen					EQU		9t
+kForthErrorAbort					EQU		10t
+kForthErrorForgetBuiltin			EQU		11t
+kForthErrorBadMethod				EQU		12t
+kForthErrorException				EQU		13t
+kForthErrorMissingSize				EQU		14t
+kForthErrorStruct					EQU		15t
+kForthErrorUserDefined				EQU		16t
+kForthErrorBadSyntax				EQU		17t
+kForthNumErrors						EQU		18t
 
 
 kPrintSignedDecimal		EQU		0t

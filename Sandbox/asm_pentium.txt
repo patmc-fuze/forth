@@ -735,6 +735,7 @@ variable fsize
 : makeflag      ~cond al swap setIF  1 # ax and,  ax dec, ;
 : next,         di jmp, ;
 
-only forth definitions
+previous definitions
 decimal
 false -> parenIsComment
+

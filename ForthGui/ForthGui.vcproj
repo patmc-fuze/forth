@@ -41,7 +41,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				OutputFile=".\Debug/ForthGui.exe"
-				LinkIncremental="1"
+				LinkIncremental="2"
 				SuppressStartupBanner="TRUE"
 				GenerateDebugInformation="TRUE"
 				ProgramDatabaseFile=".\Debug/ForthGui.pdb"
@@ -105,7 +105,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				OutputFile=".\Release/ForthGui.exe"
-				LinkIncremental="1"
+				LinkIncremental="2"
 				SuppressStartupBanner="TRUE"
 				ProgramDatabaseFile=".\Release/ForthGui.pdb"
 				SubSystem="2"

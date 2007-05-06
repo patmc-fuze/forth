@@ -104,6 +104,7 @@
 				LinkIncremental="2"
 				SuppressStartupBanner="TRUE"
 				GenerateDebugInformation="TRUE"
+				AssemblyDebug="1"
 				ProgramDatabaseFile=".\Debug/ForthMain.pdb"
 				SubSystem="1"
 				TargetMachine="1"/>

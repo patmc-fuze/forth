@@ -1438,6 +1438,21 @@ FORTHOP(addressOfOp)
     SET_VAR_OPERATION( kVarRef );
 }
 
+FORTHOP( removeEntryOp )
+{
+    SET_VAR_OPERATION( kVocabRemoveEntry );
+}
+
+FORTHOP( entryLengthOp )
+{
+    SET_VAR_OPERATION( kVocabEntryLength );
+}
+
+FORTHOP( numEntriesOp )
+{
+    SET_VAR_OPERATION( kVocabNumEntries );
+}
+
 FORTHOP(setVarActionOp)
 {
     SET_VAR_OPERATION( SPOP );
@@ -1763,6 +1778,16 @@ FORTHOP( alsoOp )
     pVocabStack->DupTop();
 }
 
+FORTHOP( previousOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+    if ( !pVocabStack->DropTop() )
+    {
+        CONSOLE_STRING_OUT( "Attempt to drop last item on vocabulary stack ignored.\n" );
+    }
+}
+
 FORTHOP( onlyOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
@@ -1815,37 +1840,42 @@ FORTHOP( autoforgetOp )
 }
 
 // return true IFF user quit out
-static bool
+static char
 ShowVocab( ForthCoreState   *pCore,
            ForthVocabulary  *pVocab )
 {
 #define BUFF_SIZE 256
     char buff[BUFF_SIZE];
     int i, len;
-    bool retVal = false;
+    char retVal = 0;
     ForthShell *pShell = GET_ENGINE->GetShell();
     int nEntries = pVocab->GetNumEntries();
     long *pEntry = pVocab->GetFirstEntry();
 
     for ( i = 0; i < nEntries; i++ ) {
         sprintf( buff, "%02x:%06x    ", ForthVocabulary::GetEntryType( pEntry ), ForthVocabulary::GetEntryValue( pEntry ) );
-        CONSOLE_STRING_OUT( pCore, buff );
+        CONSOLE_STRING_OUT( buff );
         len = pVocab->GetEntryNameLength( pEntry );
         if ( len > (BUFF_SIZE - 1)) {
             len = BUFF_SIZE - 1;
         }
         memcpy( buff, (void *) (pVocab->GetEntryName( pEntry )), len );
         buff[len] = '\0';
-        CONSOLE_STRING_OUT( pCore, buff );
-        CONSOLE_STRING_OUT( pCore, "\n" );
+        CONSOLE_STRING_OUT( buff );
+        CONSOLE_STRING_OUT( "\n" );
         pEntry = pVocab->NextEntry( pEntry );
         if ( ((i % 22) == 21) || (i == (nEntries-1)) ) {
             if ( (pShell != NULL) && pShell->GetInput()->InputStream()->IsInteractive() ) {
-                CONSOLE_STRING_OUT( pCore, "Hit ENTER to continue, 'q' & ENTER to quit\n" );
-                char c = getchar();
-                if ( (c == 'q') || (c == 'Q') ) {
-                    c = getchar();
-                    retVal = true;
+                CONSOLE_STRING_OUT( "Hit ENTER to continue, 'q' & ENTER to quit, 'n' & ENTER to do next vocabulary\n" );
+                retVal = tolower( getchar() );
+                if ( retVal == 'q' )
+                {
+                    getchar();
+                    break;
+                }
+                else if ( retVal == 'n' )
+                {
+                    getchar();
                     break;
                 }
             }
@@ -1862,6 +1892,20 @@ FORTHOP( vlistOp )
     ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
     ForthVocabulary* pVocab;
     int depth = 0;
+    CONSOLE_STRING_OUT( "vocab stack:" ); 
+    while ( true )
+    {
+        pVocab = pVocabStack->GetElement( depth );
+        if ( pVocab == NULL )
+        {
+            break;
+        }
+        CONSOLE_STRING_OUT( " " );
+        CONSOLE_STRING_OUT( pVocab->GetName() );
+        depth++;
+    }
+    CONSOLE_STRING_OUT( "\n" );
+    depth = 0;
     while ( !quit )
     {
         pVocab = pVocabStack->GetElement( depth );
@@ -1869,9 +1913,9 @@ FORTHOP( vlistOp )
         {
             return;
         }
-        CONSOLE_STRING_OUT( pCore, pVocab->GetName() );
-        CONSOLE_STRING_OUT( pCore, " vocabulary:\n" );
-        quit = ShowVocab( pCore, pVocab );
+        CONSOLE_STRING_OUT( pVocab->GetName() );
+        CONSOLE_STRING_OUT( " vocabulary:\n" );
+        quit = ( ShowVocab( pCore, pVocab ) == 'q' );
         depth++;
     }
 }
@@ -2148,9 +2192,8 @@ FORTHOP( endenumOp )
 FORTHOP( doVocabOp )
 {
     // IP points to data field
-    ForthEngine *pEngine = GET_ENGINE;
-    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
-    pVocabStack->SetTop( (ForthVocabulary *) (*GET_IP) );
+    ForthVocabulary* pVocab = (ForthVocabulary *) (*GET_IP);
+    pVocab->DoOp( pCore );
     SET_IP( (long *) (RPOP) );
 }
 
@@ -2234,12 +2277,15 @@ FORTHOP( precedenceOp )
                 break;
 
             default:
-                printf( "!!!! Can\'t set precedence for %s - wrong type !!!!\n", pSym );
+                CONSOLE_STRING_OUT( "!!!! Can\'t set precedence for " );
+                CONSOLE_STRING_OUT( pSym );
+                CONSOLE_STRING_OUT( "s - wrong type !!!!\n" );
                 TRACE( "!!!! Can\'t set precedence for %s - wrong type !!!!\n", pSym );
                 break;
         }
     } else {
-        printf( "!!!! Failure finding symbol %s !!!!\n", pSym );
+        CONSOLE_STRING_OUT( "!!!! Failure finding symbol " );
+        CONSOLE_STRING_OUT( pSym );
         TRACE( "!!!! Failure finding symbol %s !!!!\n", pSym );
     }
 }
@@ -2255,7 +2301,9 @@ FORTHOP( loadOp )
         if ( pInFile != NULL ) {
             pEngine->PushInputFile( pInFile );
         } else {
-            printf( "!!!! Failure opening source file %s !!!!\n", pFileName );
+            CONSOLE_STRING_OUT( "!!!! Failure opening source file " );
+            CONSOLE_STRING_OUT( pFileName );
+            CONSOLE_STRING_OUT( " !!!!\n" );
             TRACE( "!!!! Failure opening source file %s !!!!\n", pFileName );
         }
 
@@ -2451,7 +2499,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
     SPEW_PRINTS( "printed %s\n", pNext );
 #endif
 
-    CONSOLE_STRING_OUT( pCore, pNext );
+    CONSOLE_STRING_OUT( pNext );
 }
 
 
@@ -2471,7 +2519,7 @@ FORTHOP( printNumDecimalOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    CONSOLE_STRING_OUT( pCore, buff );
+    CONSOLE_STRING_OUT( buff );
 }
 
 FORTHOP( printNumHexOp )
@@ -2485,7 +2533,13 @@ FORTHOP( printNumHexOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    CONSOLE_STRING_OUT( pCore, buff );
+    CONSOLE_STRING_OUT( buff );
+}
+
+float aa, bb, cc;
+void arfy()
+{
+    printf( "%f,%f,%f", aa, bb, cc );
 }
 
 FORTHOP( printFloatOp )
@@ -2499,7 +2553,7 @@ FORTHOP( printFloatOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    CONSOLE_STRING_OUT( pCore, buff );
+    CONSOLE_STRING_OUT( buff );
 }
 
 FORTHOP( printDoubleOp )
@@ -2513,7 +2567,7 @@ FORTHOP( printDoubleOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    CONSOLE_STRING_OUT( pCore, buff );
+    CONSOLE_STRING_OUT( buff );
 }
 
 FORTHOP( printFormattedOp )
@@ -2528,7 +2582,37 @@ FORTHOP( printFormattedOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    CONSOLE_STRING_OUT( pCore, buff );
+    CONSOLE_STRING_OUT( buff );
+}
+
+extern long fprintfSub( ForthCoreState* pCore );
+extern long sprintfSub( ForthCoreState* pCore );
+extern long fscanfSub( ForthCoreState* pCore );
+extern long sscanfSub( ForthCoreState* pCore );
+
+
+FORTHOP( fprintfOp )
+{
+    // TOS: N argN ... arg1 formatStr filePtr       (arg1 to argN are optional)
+    fprintfSub( pCore );
+}
+
+FORTHOP( sprintfOp )
+{
+    // TOS: N argN ... arg1 formatStr bufferPtr       (arg1 to argN are optional)
+    sprintfSub( pCore );
+}
+
+FORTHOP( fscanfOp )
+{
+    // TOS: N argN ... arg1 formatStr filePtr       (arg1 to argN are optional)
+    fscanfSub( pCore );
+}
+
+FORTHOP( sscanfOp )
+{
+    // TOS: N argN ... arg1 formatStr bufferPtr       (arg1 to argN are optional)
+    sscanfSub( pCore );
 }
 
 FORTHOP( printStrOp )
@@ -2539,7 +2623,7 @@ FORTHOP( printStrOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    CONSOLE_STRING_OUT( pCore, buff );
+    CONSOLE_STRING_OUT( buff );
 }
 
 FORTHOP( printCharOp )
@@ -2553,7 +2637,7 @@ FORTHOP( printCharOp )
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
 
-    CONSOLE_STRING_OUT( pCore, buff );
+    CONSOLE_STRING_OUT( buff );
 }
 
 FORTHOP( printSpaceOp )
@@ -2776,12 +2860,12 @@ FORTHOP( dstackOp )
     int nItems = GET_SDEPTH;
     int i;
 
-    CONSOLE_STRING_OUT( pCore, "stack:" );
+    CONSOLE_STRING_OUT( "stack:" );
     for ( i = 0; i < nItems; i++ ) {
-        CONSOLE_STRING_OUT( pCore, " " );
+        CONSOLE_STRING_OUT( " " );
         printNumInCurrentBase( pCore, *pSP++ );
     }
-    CONSOLE_STRING_OUT( pCore, "\n" );
+    CONSOLE_STRING_OUT( "\n" );
 }
 
 
@@ -2791,23 +2875,28 @@ FORTHOP( drstackOp )
     int nItems = GET_RDEPTH;
     int i;
 
-    CONSOLE_STRING_OUT( pCore, "rstack:" );
+    CONSOLE_STRING_OUT( "rstack:" );
     for ( i = 0; i < nItems; i++ ) {
-        CONSOLE_STRING_OUT( pCore, " " );
+        CONSOLE_STRING_OUT( " " );
         printNumInCurrentBase( pCore, *pRP++ );
     }
-    CONSOLE_STRING_OUT( pCore, "\n" );
+    CONSOLE_STRING_OUT( "\n" );
 }
 
 
 FORTHOP( statsOp )
 {
-    printf( "pCore %p pEngine %p pThread %p     DP %p DBase %p    IP %p\n",
-            pCore, pCore->pEngine, pCore->pThread, pCore->DP, pCore->DBase, pCore->IP );
-    printf( "SP %p ST %p SLen %d    RP %p RT %p RLen %d\n",
-                pCore->SP, pCore->ST, pCore->SLen,
-                pCore->RP, pCore->RT, pCore->RLen );
-    printf( "%d builtins    %d userops\n", pCore->numBuiltinOps, pCore->numUserOps );
+    char buff[128];
+
+    sprintf( buff, "pCore %p pEngine %p pThread %p     DP %p DBase %p    IP %p\n",
+             pCore, pCore->pEngine, pCore->pThread, pCore->DP, pCore->DBase, pCore->IP );
+    CONSOLE_STRING_OUT( buff );
+    sprintf( buff, "SP %p ST %p SLen %d    RP %p RT %p RLen %d\n",
+             pCore->SP, pCore->ST, pCore->SLen,
+             pCore->RP, pCore->RT, pCore->RLen );
+    CONSOLE_STRING_OUT( buff );
+    sprintf( buff, "%d builtins    %d userops\n", pCore->numBuiltinOps, pCore->numUserOps );
+    CONSOLE_STRING_OUT( buff );
 }
 
 FORTHOP( describeOp )
@@ -2822,15 +2911,16 @@ FORTHOP( DLLVocabularyOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthVocabulary *pDefinitionsVocab = pEngine->GetDefinitionVocabulary();
     // get next symbol, add it to vocabulary with type "user op"
-    pEngine->StartOpDefinition();
+    char* pDLLOpName = pEngine->GetNextSimpleToken();
+    pEngine->StartOpDefinition( pDLLOpName );
     char* pDLLName = pEngine->GetNextSimpleToken();
-    pEngine->CompileOpcode( OP_DO_VOCAB );
-    ForthDLLVocabulary* pVocab = new ForthDLLVocabulary( pDefinitionsVocab->GetEntryName( pDefinitionsVocab->GetNewestEntry() ),
+    ForthDLLVocabulary* pVocab = new ForthDLLVocabulary( pDLLOpName,
                                                          pDLLName,
                                                          NUM_FORTH_VOCAB_VALUE_LONGS,
                                                          512,
                                                          GET_DP,
                                                          ForthVocabulary::GetEntryValue( pDefinitionsVocab->GetNewestEntry() ) );
+    pEngine->CompileOpcode( OP_DO_VOCAB );
     pVocab->LoadDLL();
     pVocab->SetNextSearchVocabulary( pEngine->GetSearchVocabulary() );
     pEngine->CompileLong( (long) pVocab );
@@ -2838,10 +2928,16 @@ FORTHOP( DLLVocabularyOp )
 
 FORTHOP( addDLLEntryOp )
 {
-    NEEDS( 3 );
+    NEEDS( 2 );
 
+    ForthEngine *pEngine = GET_ENGINE;
     char* pProcName = (char *) SPOP;
-    ForthDLLVocabulary* pVocab = (ForthDLLVocabulary *) (SPOP);
+    ForthDLLVocabulary* pVocab = (ForthDLLVocabulary *) (pEngine->GetDefinitionVocabulary());
+    if ( strcmp( pVocab->GetType(), "dllOp" ) )
+    {
+        pEngine->AddErrorText( pVocab->GetName() );
+        pEngine->SetError( kForthErrorBadParameter, " is not a DLL vocabulary" );
+    }
     ulong numArgs = SPOP;
     pVocab->AddEntry( pProcName, numArgs );
 }
@@ -3293,11 +3389,19 @@ baseDictEntry baseDict[] = {
     OP(     definitionsOp,          "definitions" ),
     OP(     vocabularyOp,           "vocabulary" ),
     OP(     alsoOp,                 "also" ),
+    OP(     previousOp,             "previous" ),
     OP(     onlyOp,                 "only" ),
     OP(     newestSymbolOp,         "newestSymbol" ),
     OP(     forgetOp,               "forget" ),
     OP(     autoforgetOp,           "autoforget" ),
     OP(     vlistOp,                "vlist" ),
+    OP(     intoOp,                 "getNewest" ),
+    OP(     addressOfOp,            "findEntry" ),
+    OP(     addToOp,                "findEntryValue" ),
+    OP(     subtractFromOp,         "addEntry" ),
+    OP(     removeEntryOp,          "removeEntry" ),
+    OP(     entryLengthOp,          "entryLength" ),
+    OP(     numEntriesOp,           "numEntries" ),
 
     ///////////////////////////////////////////
     //  text display
@@ -3311,7 +3415,11 @@ baseDictEntry baseDict[] = {
     OP(     printNewlineOp,         "%nl" ),
     OP(     printFloatOp,           "%f" ),
     OP(     printDoubleOp,          "%g" ),
-    OP(     printFormattedOp,        "%fmt" ),
+    OP(     printFormattedOp,       "%fmt" ),
+    OP(     fprintfOp,              "fprintf" ),
+    OP(     sprintfOp,              "sprintf" ),
+    OP(     fscanfOp,               "fscanf" ),
+    OP(     sscanfOp,               "sscanf" ),
     OP(     baseOp,                 "base" ),
     OP(     decimalOp,              "decimal" ),
     OP(     hexOp,                  "hex" ),
