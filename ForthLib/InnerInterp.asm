@@ -3401,11 +3401,6 @@ forthVocabBop:	; TBD
 	
 ;========================================
 
-assemblerVocabBop:	; TBD
-	extOp	assemblerVocabOp
-	
-;========================================
-
 alsoBop:	; TBD
 	extOp	alsoOp
 	
@@ -4550,7 +4545,6 @@ opsTable:
 
 	; vocabulary/symbol
 	DD	FLAT:forthVocabBop
-	DD	FLAT:assemblerVocabBop
 	DD	FLAT:definitionsBop
 	DD	FLAT:vocabularyBop
 	DD	FLAT:alsoBop

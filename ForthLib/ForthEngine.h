@@ -136,7 +136,6 @@ public:
     inline void             SetShell( ForthShell *pShell ) { mpShell = pShell; };
     inline ForthShell       *GetShell( void ) { return mpShell; };
     inline ForthVocabulary  *GetForthVocabulary( void )   { return mpForthVocab; };
-    inline ForthVocabulary  *GetAssemblerVocabulary( void )   { return mpAssemblerVocab; };
     inline ForthThread      *GetCurrentThread( void )  { return mpCurrentThread; };
 
     inline long             *GetCompileStatePtr( void ) { return &mCompileState; };
@@ -181,7 +180,6 @@ protected:
     ForthCoreState*  mpCore;             // core inner interpreter state
 
     ForthVocabulary * mpForthVocab;              // main forth vocabulary
-    ForthVocabulary * mpAssemblerVocab;         // main forth vocabulary
     ForthVocabulary * mpLocalVocab;             // local variable vocabulary
 
     ForthVocabulary * mpDefinitionVocab;    // vocabulary which new definitions are added to

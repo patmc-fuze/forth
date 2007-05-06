@@ -24,6 +24,9 @@ class ForthEngine;
 //   but this can be overridden in the constructor
 #define DEFAULT_VALUE_FIELD_LONGS 2
 
+// maximum length of a symbol in longwords
+#define SYM_MAX_LONGS 64
+
 class ForthVocabulary : public ForthForgettable
 {
 public:
@@ -43,9 +46,6 @@ public:
 
     void                Empty( void );
 
-    void                        SetNextSearchVocabulary( ForthVocabulary *pNext );
-    virtual ForthVocabulary *   GetNextSearchVocabulary( void );
-
     // add symbol to symbol table, return ptr to new symbol entry
     virtual long*       AddSymbol( const char *pSymName, long symType, long symValue, bool addToEngineOps );
 
@@ -62,17 +62,22 @@ public:
     // forget all ops with a greater op#
     virtual void        ForgetOp( long op );
 
+    // the FindSymbol* methods take a serial number which is used to avoid doing
+    //  redundant searches, since a vocabulary can appear multiple times in the
+    //  vocabulary stack - the vocabulary stack keeps a serial which it increments
+    //  before each search.  If the serial passed to FindSymbol is the same as the
+    //  serial of the last failed search, FindSymbol immediately returns NULL.
+    // The default serial value of 0 will force FindSymbol to do the search
+
     // return pointer to symbol entry, NULL if not found
-    // ppFoundVocab will be set to the vocabulary the symbol was actually found in
-    // set ppFoundVocab to NULL to search just this vocabulary (not the search chain)
-    virtual long *      FindSymbol( const char *pSymName, ForthVocabulary** ppFoundVocab=NULL );
+    virtual long *      FindSymbol( const char *pSymName, ulong serial=0 );
     // return pointer to symbol entry, NULL if not found, given its value
-    virtual long *      FindSymbolByValue( long val, ForthVocabulary** ppFoundVocab=NULL );
+    virtual long *      FindSymbolByValue( long val, ulong serial=0 );
 
     // return pointer to symbol entry, NULL if not found
     // pSymName is required to be a longword aligned address, and to be padded with 0's
     // to the next longword boundary
-    virtual long *      FindSymbol( ForthParseInfo *pInfo, ForthVocabulary** ppFoundVocab=NULL );
+    virtual long *      FindSymbol( ForthParseInfo *pInfo, ulong serial=0 );
 
     // compile/interpret entry returned by FindSymbol
     virtual eForthResult ProcessEntry( long *pEntry );
@@ -149,7 +154,6 @@ protected:
     static ForthVocabulary *mpChainHead;
     ForthEngine         *mpEngine;
     ForthVocabulary     *mpChainNext;
-    ForthVocabulary     *mpSearchNext;
     int                 mNumSymbols;
     int                 mStorageLongs;
     long                *mpStorageBase;
@@ -158,6 +162,7 @@ protected:
     long                *mpNewestSymbol;
     char                *mpName;
     int                 mValueLongs;
+    ulong               mLastSerial;
     char                mNewestSymbol[ 256 ];
 };
 
@@ -225,6 +230,7 @@ private:
     ForthEngine*        mpEngine;
     int                 mMaxDepth;
     int                 mTop;
+    ulong               mSerial;
 };
 
 

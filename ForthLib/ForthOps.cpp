@@ -1735,7 +1735,6 @@ FORTHOP( codeOp )
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
     ForthVocabulary* pVocab = pEngine->GetDefinitionVocabulary();
-    pEngine->SetSearchVocabulary( pEngine->GetAssemblerVocabulary() );
     pEngine->StartOpDefinition( NULL, false );
     long* pEntry = pVocab->GetNewestEntry();
     long newestOp = *pEntry;
@@ -1755,13 +1754,6 @@ FORTHOP( forthVocabOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
     pVocabStack->SetTop( pEngine->GetForthVocabulary() );
-}
-
-FORTHOP( assemblerVocabOp )
-{
-    ForthEngine *pEngine = GET_ENGINE;
-    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
-    pVocabStack->SetTop( pEngine->GetAssemblerVocabulary() );
 }
 
 FORTHOP( definitionsOp )
@@ -1807,7 +1799,6 @@ FORTHOP( vocabularyOp )
                                                    512,
                                                    GET_DP,
                                                    ForthVocabulary::GetEntryValue( pDefinitionsVocab->GetNewestEntry() ) );
-    pVocab->SetNextSearchVocabulary( pEngine->GetSearchVocabulary() );
     pEngine->CompileLong( (long) pVocab );
 }
 
@@ -2075,7 +2066,7 @@ FORTHOP( extendsOp )
     ForthEngine *pEngine = GET_ENGINE;
     char *pSym = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetSearchVocabulary()->FindSymbol( pSym, &pFoundVocab );
+    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSym, &pFoundVocab );
     if ( pEntry )
     {
         ForthStructsManager* pManager = ForthStructsManager::GetInstance();
@@ -2103,7 +2094,7 @@ FORTHOP( sizeOfOp )
     ForthEngine *pEngine = GET_ENGINE;
     char *pSym = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetSearchVocabulary()->FindSymbol( pSym, &pFoundVocab );
+    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSym, &pFoundVocab );
 
     if ( pEntry )
     {
@@ -2139,14 +2130,14 @@ FORTHOP( offsetOfOp )
     *pField++ = '\0';
 
     ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetSearchVocabulary()->FindSymbol( pType, &pFoundVocab );
+    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pType, &pFoundVocab );
     if ( pEntry )
     {
         ForthStructsManager* pManager = ForthStructsManager::GetInstance();
         ForthStructVocabulary* pStructVocab = pManager->GetStructVocabulary( pEntry[0] );
         if ( pStructVocab )
         {
-            pEntry = pStructVocab->FindSymbol( pField, &pFoundVocab );
+            pEntry = pStructVocab->FindSymbol( pField );
             if ( pEntry )
             {
                 pEngine->ProcessConstant( pEntry[0] );
@@ -2536,12 +2527,6 @@ FORTHOP( printNumHexOp )
     CONSOLE_STRING_OUT( buff );
 }
 
-float aa, bb, cc;
-void arfy()
-{
-    printf( "%f,%f,%f", aa, bb, cc );
-}
-
 FORTHOP( printFloatOp )
 {
     NEEDS(1);
@@ -2922,7 +2907,6 @@ FORTHOP( DLLVocabularyOp )
                                                          ForthVocabulary::GetEntryValue( pDefinitionsVocab->GetNewestEntry() ) );
     pEngine->CompileOpcode( OP_DO_VOCAB );
     pVocab->LoadDLL();
-    pVocab->SetNextSearchVocabulary( pEngine->GetSearchVocabulary() );
     pEngine->CompileLong( (long) pVocab );
 }
 
@@ -3385,7 +3369,6 @@ baseDictEntry baseDict[] = {
     //  vocabulary/symbol
     ///////////////////////////////////////////
     OP(     forthVocabOp,           "forth" ),
-    OP(     assemblerVocabOp,       "assembler" ),
     OP(     definitionsOp,          "definitions" ),
     OP(     vocabularyOp,           "vocabulary" ),
     OP(     alsoOp,                 "also" ),

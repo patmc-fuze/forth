@@ -8,9 +8,7 @@ TBDs:
 - one problem with using the assembler is that "code" sets the vocab stack top to "assembler", if
   forth was the only thing on the vocab stack, forth is now not in the search chain.
 
-- need some way to "pop" the vocab stack
-
-- a way to do varargs
+? a way to do varargs
 
 - a method for saving and restoring state
 
@@ -69,6 +67,22 @@ colonOp
   ForthVocabulary::AddSymbol
    ForthEngine::AddUserOp
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 6 2007
+
+Added a serial number to vocab stack searches to eliminate redundant failed
+searches of the same vocabulary.  It worked for everything until I tested
+sdl2.txt, and it looks like it failed the first time it tried to lookup
+an enumerated type.
+-> false alarm, sdl2.txt just wasn't adding sdl to the search order
+? maybe make vocabulary stack always have at least 2 entries, and the
+  bottom entry is always forth?
+  
+When this works I should rip out the vocabulary search chain since it is
+no longer used.
+-> No, the search chain is still used, but only by the structs vocabulary.
+-> Move the search chain down to the structs vocabulary
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 5 2007
 
 Added fprintf/sprintf/fscanf/sscanf - they work except that fprintf/sprintf
@@ -104,8 +118,8 @@ should have generated:
 Assembler is now generating the correct code for "andy", and the op performs
 correctly with both fast & slow interpreters.
 
-DLL support is broken now, because they relied on the op for a vocab to
-push its address on TOS.
+DLL support was broken, because it relied on the op for a vocab to push
+its address on TOS.
 
 I'm changing vocabularies to act like variables, where a prefix op is used
 to set the operation the vocabulary will do when invoked.

@@ -73,6 +73,9 @@ public:
     ForthStructVocabulary( const char* pName, int structIndex );
     virtual ~ForthStructVocabulary();
 
+    // return pointer to symbol entry, NULL if not found
+    virtual long *      FindSymbol( const char *pSymName, ulong serial=0 );
+
     // delete symbol entry and all newer entries
     // return true IFF symbol was forgotten
     virtual bool        ForgetSymbol( const char   *pSymName );
@@ -92,10 +95,11 @@ public:
     void                Extends( ForthStructVocabulary *pParentStruct );
 
 protected:
-    long                mNumBytes;
-    long                mMaxNumBytes;
-    long                mStructIndex;
-    long                mAlignment;
+    long                    mNumBytes;
+    long                    mMaxNumBytes;
+    long                    mStructIndex;
+    long                    mAlignment;
+    ForthStructVocabulary   *mpSearchNext;
 };
 
 

@@ -43,13 +43,12 @@
 // this allows the top level of the stack to be overwritten by forth, so they
 // can access forth words and assembler words, but swap the order at will
 
-autoforget assembler_package
-: assembler_package ;
+autoforget assembler
+vocabulary assembler
 
 // allow inline comments using (...) to allow easier porting from GForth
 true -> parenIsComment
 
-//vocabulary assembler
 also assembler definitions
 
 : within  ( u1 u2 u3 -- f )
@@ -511,20 +510,20 @@ variable .osize               variable .onow
 
 // misc                                                 16nov97py
 
-: ENTER ( imm8 -- ) 2 imm# ! 0xC8 finish c, ;
-: ARPL ( reg r/m -- )  swap 0x63 modf ;
+: enter, ( imm8 -- ) 2 imm# ! 0xC8 finish c, ;
+: arpl, ( reg r/m -- )  swap 0x63 modf ;
 0x62 modf: BOUND ( mem reg -- )
 
 : mod0F:  builds c,  does c@ mod0F ;
 0xBC mod0F: BSF ( r/m reg -- )   0xBD mod0F: BSR ( r/m reg -- )
 
-0x06 bc0F: CLTS
-0x08 bc0F: INVD  0x09 bc0F: WBINVD
+0x06 bc0F: clts,
+0x08 bc0F: invd,  0x09 bc0F: wbinvd,
 
-: CMPXCHG ( reg r/m -- ) swap 0xA7 movx ;
-: CMPXCHG8B ( r/m -- )   0x8 0xC7 movx ;
-: BSWAP ( reg -- )       7 and 0xC8 or finish0F ;
-: XADD ( r/m reg -- )    0xC1 movx ;
+: cmpxchg, ( reg r/m -- ) swap 0xA7 movx ;
+: cmpxchg8b, ( r/m -- )   0x8 0xC7 movx ;
+: bswap, ( reg -- )       7 and 0xC8 or finish0F ;
+: xadd, ( r/m reg -- )    0xC1 movx ;
 
 // misc                                                 20may93py
 
@@ -537,11 +536,11 @@ variable .osize               variable .onow
 : out, ( -- ) 0xE7 io ;
 : int, ( -- ) 1 imm# ! 0xCD finish ;
 : 0F.0: ( r/m -- ) builds c, does c@ 0x00 mod0F ;
-00 0F.0: SLDT   11 0F.0: STR    22 0F.0: LLDT   33 0F.0: LTR
-44 0F.0: VERR   55 0F.0: VERW
+00 0F.0: sldt,   11 0F.0: str,    22 0F.0: lldt,   33 0F.0: ltr,
+44 0F.0: verr,   55 0F.0: verw,
 : 0F.1: ( r/m -- ) builds c, does c@ 0x01 mod0F ;
-00 0F.1: SGDT   11 0F.1: SIDT   22 0F.1: LGDT   33 0F.1: LIDT
-44 0F.1: SMSW                   66 0F.1: LMSW   77 0F.1: INVLPG
+00 0F.1: sgdt,   11 0F.1: sidt,   22 0F.1: lgdt,   33 0F.1: lidt,
+44 0F.1: smsw,                    66 0F.1: lmsw,   77 0F.1: invlpg,
 
 // misc                                                 29mar94py
 
@@ -629,90 +628,90 @@ variable fsize
 : cmovIF ( r/m r flag -- )  0x40 or mod0F ;
 : cmov:  builds c, does c@ cmovIF ;
 : cmovs:  0 do  i cmov:  loop ;
-0x10 cmovs: cmovo  cmovno   cmovb   cmovnb   cmovz  cmovnz   cmovbe  cmovnbe   cmovs  cmovns   cmovpe  cmovpo   cmovl  cmovnl   cmovle  cmovnle
+0x10 cmovs: cmovo,  cmovno,   cmovb,   cmovnb,   cmovz,  cmovnz,  cmovbe,  cmovnbe,   cmovs,  cmovns,   cmovpe,  cmovpo,   cmovl,  cmovnl,   cmovle,  cmovnle,
 
 // MMX opcodes                                          02mar97py
 
-300 7 regs MM0 MM1 MM2 MM3 MM4 MM5 MM6 MM7
+300 7 regs mm0 mm1 mm2 mm3 mm4 mm5 mm6 mm7
 
 : mmxs
   dup if
     do i mod0F:  loop
   endif
 ;
-0x64 0x60 mmxs PUNPCKLBW PUNPCKLWD PUNOCKLDQ PACKUSDW
-0x68 0x64 mmxs PCMPGTB   PCMPGTW   PCMPGTD   PACKSSWB
-0x6C 0x68 mmxs PUNPCKHBW PUNPCKHWD PUNPCKHDQ PACKSSDW
-0x78 0x74 mmxs PCMPEQB   PCMPEQW   PCMPEQD   EMMS
-0xDA 0xD8 mmxs PSUBUSB   PSUBUSW
-0xEA 0xE8 mmxs PSUBSB    PSUBSW
-0xFB 0xF8 mmxs PSUBB     PSUBW     PSUBD
-0xDE 0xDC mmxs PADDUSB   PADDUSW
-0xEE 0xEC mmxs PADDSB    PADDSW
-0xFF 0xFC mmxs PADDB     PADDW     PADDD
+0x64 0x60 mmxs punpcklbw, punpcklwd, punockldq, packusdw,
+0x68 0x64 mmxs pcmpgtb, pcmpgtw, pcmpgtd, packsswb,
+0x6C 0x68 mmxs punpckhbw, punpckhwd, punpckhdq, packssdw,
+0x78 0x74 mmxs pcmpeqb, pcmpeqw, pcmpeqd, emms,
+0xDA 0xD8 mmxs psubusb, psubusw,
+0xEA 0xE8 mmxs psubsb, psubsw,
+0xFB 0xF8 mmxs psubb, psubw, psubd,
+0xDE 0xDC mmxs paddusb, paddusw,
+0xEE 0xEC mmxs paddsb, paddsw,
+0xFF 0xFC mmxs paddb, paddw, paddd,
 
 // MMX opcodes                                          02mar97py
 
-0xD5 mod0F: pmullw               0xE5 mod0F: pmulhw
-0xF5 mod0F: pmaddwd
-0xDB mod0F: pand                 0xDF mod0F: pandn
-0xEB mod0F: por                  0xEF mod0F: pxor
+0xD5 mod0F: pmullw,               0xE5 mod0F: pmulhw,
+0xF5 mod0F: pmaddwd,
+0xDB mod0F: pand,                 0xDF mod0F: pandn,
+0xEB mod0F: por,                  0xEF mod0F: pxor,
 : pshift ( mmx imm/m mod op -- )
   imm# @ if  1 imm# !  else  + 0x50 +  endif  mod0F ;
-: PSRLW ( mmx imm/m -- )  020 0x71 pshift ;
-: PSRLD ( mmx imm/m -- )  020 0x72 pshift ;
-: PSRLQ ( mmx imm/m -- )  020 0x73 pshift ;
-: PSRAW ( mmx imm/m -- )  040 0x71 pshift ;
-: PSRAD ( mmx imm/m -- )  040 0x72 pshift ;
-: PSLLW ( mmx imm/m -- )  060 0x71 pshift ;
-: PSLLD ( mmx imm/m -- )  060 0x72 pshift ;
-: PSLLQ ( mmx imm/m -- )  060 0x73 pshift ;
+: psrlw, ( mmx imm/m -- )  020 0x71 pshift ;
+: psrld, ( mmx imm/m -- )  020 0x72 pshift ;
+: psrlq, ( mmx imm/m -- )  020 0x73 pshift ;
+: psraw, ( mmx imm/m -- )  040 0x71 pshift ;
+: psrad, ( mmx imm/m -- )  040 0x72 pshift ;
+: psllw, ( mmx imm/m -- )  060 0x71 pshift ;
+: pslld, ( mmx imm/m -- )  060 0x72 pshift ;
+: psllq, ( mmx imm/m -- )  060 0x73 pshift ;
 
 // MMX opcodes                                         27jun99beu
 
 // mmxreg --> mmxreg move
-0x6F mod0F: MOVQ
+0x6F mod0F: movq,
 
 // memory/reg32 --> mmxreg load
-0x6F mod0F: PLDQ  // Intel: MOVQ mm,m64
-0x6E mod0F: PLDD  // Intel: MOVD mm,m32/r
+0x6F mod0F: pldq,  // Intel: MOVQ mm,m64
+0x6E mod0F: pldd,  // Intel: MOVD mm,m32/r
 
 // mmxreg --> memory/reg32
-: PSTQ ( mm m64   -- ) swap  0x7F mod0F ; // Intel: MOVQ m64,mm
-: PSTD ( mm m32/r -- ) swap  0x7E mod0F ; // Intel: MOVD m32/r,mm
+: pstq, ( mm m64   -- ) swap  0x7F mod0F ; // Intel: MOVQ m64,mm
+: pstd, ( mm m32/r -- ) swap  0x7E mod0F ; // Intel: MOVD m32/r,mm
 
 // 3Dnow! opcodes (K6)                                  21apr00py
 : mod0F# ( code imm -- )  # 1 imm ! mod0F ;
 : 3Dnow: ( imm -- )  builds c,  does c@ mod0F# ;
-0x0D 3Dnow: PI2FD                0x1D 3Dnow: PF2ID
-0x90 3Dnow: PFCMPGE              0xA0 3Dnow: PFCMPGT
-0x94 3Dnow: PFMIN                0xA4 3Dnow: PFMAX
-0x96 3Dnow: PFRCP                0xA6 3Dnow: PFRCPIT1
-0x97 3Dnow: PFRSQRT              0xA7 3Dnow: PFRSQIT1
-0x9A 3Dnow: PFSUB                0xAA 3Dnow: PFSUBR
-0x9E 3Dnow: PFADD                0xAE 3Dnow: PFACC
-0xB0 3Dnow: PFCMPEQ              0xB4 3Dnow: PFMUL
-0xB6 3Dnow: PFRCPIT2             0xB7 3Dnow: PMULHRW
-0xBF 3Dnow: PAVGUSB
+0x0D 3Dnow: pi2fd,                0x1D 3Dnow: pf2id,
+0x90 3Dnow: pfcmpge,              0xA0 3Dnow: pfcmpgt,
+0x94 3Dnow: pfmin,                0xA4 3Dnow: pfmax,
+0x96 3Dnow: pfrcp,                0xA6 3Dnow: pfrcpit1,
+0x97 3Dnow: pfrsqrt,              0xA7 3Dnow: pfrsqit1,
+0x9A 3Dnow: pfsub,                0xAA 3Dnow: pfsubr,
+0x9E 3Dnow: pfadd,                0xAE 3Dnow: pfacc,
+0xB0 3Dnow: pfcmpeq,              0xB4 3Dnow: pfmul,
+0xB6 3Dnow: pfrcpit2,             0xB7 3Dnow: pmulhrw,
+0xBF 3Dnow: pavgusb,
 
-: FEMMS  0x0E finish0F ;
-: PREFETCH  000 0x0D mod0F ;    : PREFETCHW  010 0x0D mod0F ;
+: femms,  0x0E finish0F ;
+: prefetch,  000 0x0D mod0F ;    : prefetchw,  010 0x0D mod0F ;
 
 // 3Dnow!+MMX opcodes (Athlon)                          21apr00py
 
-0xF7 mod0F: MASKMOVQ             0xE7 mod0F: MOVNTQ
-0xE0 mod0F: PAVGB                0xE3 mod0F: PAVGW
-0xC5 mod0F: PEXTRW               0xC4 mod0F: PINSRW
-0xEE mod0F: PMAXSW               0xDE mod0F: PMAXUB
-0xEA mod0F: PMINSW               0xDA mod0F: PMINUB
-0xD7 mod0F: PMOVMSKB             0xE4 mod0F: PMULHUW
-0xF6 mod0F: PSADBW               0x70 mod0F: PSHUFW
+0xF7 mod0F: maskmovq,             0xE7 mod0F: movntq,
+0xE0 mod0F: pavgb,                0xE3 mod0F: pavgw,
+0xC5 mod0F: pextrw,               0xC4 mod0F: pinsrw,
+0xEE mod0F: pmaxsw,               0xDE mod0F: pmaxub,
+0xEA mod0F: pminsw,               0xDA mod0F: pminub,
+0xD7 mod0F: pmovmskb,             0xE4 mod0F: pmulhuw,
+0xF6 mod0F: psadbw,               0x70 mod0F: pshufw,
 
-0x0C 3Dnow: PI2FW                0x1C 3Dnow: PF2IW
-0x8A 3Dnow: PFNACC               0x8E 3Dnow: PFPNACC
-0xBB 3Dnow: PSWABD               : SFENCE   0xAE 0x07 mod0F# ;
-: PREFETCHNTA  000 0x18 mod0F ;  : PREFETCHT0  010 0x18 mod0F ;
-: PREFETCHT1   020 0x18 mod0F ;  : PREFETCHT2  030 0x18 mod0F ;
+0x0C 3Dnow: pi2fw,                0x1C 3Dnow: pf2iw,
+0x8A 3Dnow: pfnacc,               0x8E 3Dnow: pfpnacc,
+0xBB 3Dnow: pswabd,               : sfence,   0xAE 0x07 mod0F# ;
+: prefetchnta,  000 0x18 mod0F ;  : prefetcht0,  010 0x18 mod0F ;
+: prefetcht1,   020 0x18 mod0F ;  : prefetcht2,  030 0x18 mod0F ;
 
 // Assembler Conditionals                               22dec93py
 // cond -- ~cond
@@ -734,6 +733,7 @@ variable fsize
 : yet,          dup ;
 : makeflag      ~cond al swap setIF  1 # ax and,  ax dec, ;
 : next,         di jmp, ;
+: subroutine	create ;
 
 previous definitions
 decimal

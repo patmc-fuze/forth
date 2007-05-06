@@ -83,7 +83,6 @@ static char *pErrorStrings[] =
 
 ForthEngine::ForthEngine()
 : mpForthVocab( NULL )
-, mpAssemblerVocab( NULL )
 , mpLocalVocab( NULL )
 , mpDefinitionVocab( NULL )
 , mpStringBufferA( NULL )
@@ -114,7 +113,6 @@ ForthEngine::~ForthEngine()
     if ( mpCore->DBase ) {
         delete [] mpCore->DBase;
         delete mpForthVocab;
-        delete mpAssemblerVocab;
         delete mpLocalVocab;
         delete mpStructsManager;
         delete [] mpStringBufferA;
@@ -175,7 +173,6 @@ ForthEngine::Initialize( int                totalLongs,
     mpCore->pEngine = this;
 
     mpForthVocab = new ForthVocabulary( "forth", NUM_FORTH_VOCAB_VALUE_LONGS );
-    mpAssemblerVocab = new ForthVocabulary( "assembler", NUM_FORTH_VOCAB_VALUE_LONGS );
     mpLocalVocab = new ForthLocalVocabulary( "locals", NUM_LOCALS_VOCAB_VALUE_LONGS );
     mpStringBufferA = new char[256 * NUM_INTERP_STRINGS];
     mpStringBufferB = new char[TMP_STRING_BUFFER_LEN];
@@ -353,7 +350,7 @@ ForthEngine::ForgetSymbol( const char *pSym )
     bool forgotIt = false;
 
     ForthVocabulary* pFoundVocab = NULL;
-    pEntry = GetSearchVocabulary()->FindSymbol( pSym, &pFoundVocab );
+    pEntry = GetVocabularyStack()->FindSymbol( pSym, &pFoundVocab );
 
     if ( pFoundVocab != NULL ) {
         op = ForthVocabulary::GetEntryValue( pEntry );
@@ -512,7 +509,7 @@ long *
 ForthEngine::FindSymbol( const char *pSymName )
 {
     ForthVocabulary* pFoundVocab = NULL;
-    return GetSearchVocabulary()->FindSymbol( pSymName, &pFoundVocab );
+    return GetVocabularyStack()->FindSymbol( pSymName, &pFoundVocab );
 }
 
 void
@@ -525,7 +522,7 @@ ForthEngine::DescribeSymbol( const char *pSymName )
     bool notDone = true;
 
     ForthVocabulary* pFoundVocab = NULL;
-    pEntry = GetSearchVocabulary()->FindSymbol( pSymName, &pFoundVocab );
+    pEntry = GetVocabularyStack()->FindSymbol( pSymName, &pFoundVocab );
     if ( pEntry )
     {
         long opType = FORTH_OP_TYPE( pEntry[0] );
@@ -809,7 +806,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs )
         case kOpDLLEntryPoint:
             if ( lookupUserDefs )
             {
-                pEntry = GetSearchVocabulary()->FindSymbolByValue( op, &pFoundVocab );
+                pEntry = GetVocabularyStack()->FindSymbolByValue( op, &pFoundVocab );
             }
             if ( pEntry )
             {

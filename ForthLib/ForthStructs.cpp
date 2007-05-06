@@ -193,7 +193,7 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
     //
 
     // see if first token is local or global struct
-    long *pEntry = pEngine->GetSearchVocabulary()->FindSymbol( mToken, &pFoundVocab );
+    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( mToken, &pFoundVocab );
     if ( pEntry == NULL )
     {
         pEntry = pEngine->GetLocalVocabulary()->FindSymbol( mToken );
@@ -248,8 +248,7 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
            *pNextToken++ = '\0';
         }
         bool isFinal = (pNextToken == NULL);
-        ForthVocabulary* pFoundVocab = NULL;
-        pEntry = pStruct->pVocab->FindSymbol( pToken, &pFoundVocab );
+        pEntry = pStruct->pVocab->FindSymbol( pToken );
         SPEW_STRUCTS( "field %s", pToken );
         if ( pEntry == NULL )
         {
@@ -370,6 +369,7 @@ ForthStructVocabulary::ForthStructVocabulary( const char    *pName,
 , mAlignment( 1 )
 , mNumBytes( 0 )
 , mMaxNumBytes( 0 )
+, mpSearchNext( NULL )
 {
 
 }
@@ -572,6 +572,29 @@ const char*
 ForthStructVocabulary::GetType( void )
 {
     return "struct";
+}
+
+// return ptr to vocabulary entry for symbol
+long *
+ForthStructVocabulary::FindSymbol( const char *pSymName, ulong serial )
+{
+    long tmpSym[SYM_MAX_LONGS];
+    long* pEntry;
+    ForthParseInfo parseInfo( tmpSym, SYM_MAX_LONGS );
+
+    parseInfo.SetToken( pSymName );
+    ForthStructVocabulary* pVocab = this;
+    while ( pVocab )
+    {
+        pEntry = pVocab->ForthVocabulary::FindSymbol( &parseInfo, serial );
+        if ( pEntry )
+        {
+            return pEntry;
+        }
+        pVocab = pVocab->mpSearchNext;
+    }
+
+    return NULL;
 }
 
 

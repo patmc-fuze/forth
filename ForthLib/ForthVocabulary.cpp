@@ -50,9 +50,9 @@ ForthVocabulary::ForthVocabulary( const char    *pName,
                                   void*         pForgetLimit,
                                   long          op )
 : ForthForgettable( pForgetLimit, op )
-, mpSearchNext( NULL )
 , mpName( NULL )
-, mValueLongs( valueLongs ) 
+, mValueLongs( valueLongs )
+, mLastSerial( 0 )
 {
     mStorageLongs = ((storageBytes + 3) & ~3) >> 2;
     mpStorageBase = new long[mStorageLongs];
@@ -118,18 +118,6 @@ ForthVocabulary::Empty( void )
     mNumSymbols = 0;
     mpStorageBottom = mpStorageBase + mStorageLongs;
     mpNewestSymbol = NULL;
-}
-
-void
-ForthVocabulary::SetNextSearchVocabulary( ForthVocabulary *pNextVocab )
-{
-    mpSearchNext = pNextVocab;
-}
-
-ForthVocabulary *
-ForthVocabulary::GetNextSearchVocabulary( void )
-{
-    return mpSearchNext;
 }
 
 
@@ -399,24 +387,30 @@ ForthVocabulary::ForgetOp( long op )
 
 // return ptr to vocabulary entry for symbol
 long *
-ForthVocabulary::FindSymbol( const char *pSymName, ForthVocabulary** ppFoundVocab )
+ForthVocabulary::FindSymbol( const char *pSymName, ulong serial )
 {
     long tmpSym[SYM_MAX_LONGS];
     ForthParseInfo parseInfo( tmpSym, SYM_MAX_LONGS );
 
     parseInfo.SetToken( pSymName );
 
-    return FindSymbol( &parseInfo, ppFoundVocab );
+    return FindSymbol( &parseInfo, serial );
 }
 
 
 // return ptr to vocabulary entry for symbol
 long *
-ForthVocabulary::FindSymbol( ForthParseInfo *pInfo, ForthVocabulary** ppFoundVocab )
+ForthVocabulary::FindSymbol( ForthParseInfo *pInfo, ulong serial )
 {
     int i, j, symLen;
     long *pEntry, *pTmp;
     long *pToken;
+
+    if ( (serial != 0) && (serial == mLastSerial) )
+    {
+        // this vocabulary was already searched
+        return NULL;
+    }
 
     pToken = pInfo->GetTokenAsLong();
     symLen = pInfo->GetNumLongs();
@@ -434,58 +428,43 @@ ForthVocabulary::FindSymbol( ForthParseInfo *pInfo, ForthVocabulary** ppFoundVoc
         }
         if ( j == symLen ) {
             // found it
-            if ( ppFoundVocab )
-            {
-                *ppFoundVocab = this;
-            }
             return pEntry;
         }
         pEntry = NextEntry( pEntry );
     }
 
-    if ( ppFoundVocab )
-    {
-        ForthVocabulary *pNextVocab = GetNextSearchVocabulary();
-        if ( pNextVocab )
-        {
-            return pNextVocab->FindSymbol( pInfo, ppFoundVocab );
-        }
-    }
     // symbol isn't in vocabulary
+    mLastSerial = serial;
     return NULL;
 }
 
 // return ptr to vocabulary entry given its value
 long *
-ForthVocabulary::FindSymbolByValue( long val, ForthVocabulary** ppFoundVocab )
+ForthVocabulary::FindSymbolByValue( long val, ulong serial )
 
 {
     int i;
     long *pEntry;
+
+    if ( (serial != 0) && (serial == mLastSerial) )
+    {
+        // this vocabulary was already searched
+        return NULL;
+    }
 
     // go through the vocabulary looking for match with value
     pEntry = mpStorageBottom;
     for ( i = 0; i < mNumSymbols; i++ ) {
         if ( *pEntry == val )
         {
-            if ( ppFoundVocab )
-            {
-                *ppFoundVocab = this;
-            }
+            // found it
             return pEntry;
         }
         pEntry = NextEntry( pEntry );
     }
     
-    if ( ppFoundVocab )
-    {
-        ForthVocabulary *pNextVocab = GetNextSearchVocabulary();
-        if ( pNextVocab )
-        {
-            return pNextVocab->FindSymbolByValue( val, ppFoundVocab );
-        }
-    }
     // symbol isn't in vocabulary
+    mLastSerial = serial;
     return NULL;
 }
 
@@ -707,6 +686,7 @@ ForthVocabularyStack::ForthVocabularyStack( int maxDepth )
 : mStack( NULL )
 , mMaxDepth( maxDepth )
 , mTop( 0 )
+, mSerial( 0 )
 {
     mpEngine = ForthEngine::GetInstance();
 }
@@ -777,9 +757,11 @@ ForthVocabulary* ForthVocabularyStack::GetElement( int depth )
 long * ForthVocabularyStack::FindSymbol( const char *pSymName, ForthVocabulary** ppFoundVocab )
 {
     long *pEntry = NULL;
+
+    mSerial++;
     for ( int i = mTop; i >= 0; i-- )
     {
-        pEntry = mStack[i]->FindSymbol( pSymName );
+        pEntry = mStack[i]->FindSymbol( pSymName, mSerial );
         if ( pEntry )
         {
             if ( ppFoundVocab != NULL )
@@ -796,9 +778,11 @@ long * ForthVocabularyStack::FindSymbol( const char *pSymName, ForthVocabulary**
 long * ForthVocabularyStack::FindSymbolByValue( long val, ForthVocabulary** ppFoundVocab )
 {
     long *pEntry = NULL;
+
+    mSerial++;
     for ( int i = mTop; i >= 0; i-- )
     {
-        pEntry = mStack[i]->FindSymbolByValue( val );
+        pEntry = mStack[i]->FindSymbolByValue( val, mSerial );
         if ( pEntry )
         {
             if ( ppFoundVocab != NULL )
@@ -817,9 +801,11 @@ long * ForthVocabularyStack::FindSymbolByValue( long val, ForthVocabulary** ppFo
 long * ForthVocabularyStack::FindSymbol( ForthParseInfo *pInfo, ForthVocabulary** ppFoundVocab )
 {
     long *pEntry = NULL;
+
+    mSerial++;
     for ( int i = mTop; i >= 0; i-- )
     {
-        pEntry = mStack[i]->FindSymbol( pInfo );
+        pEntry = mStack[i]->FindSymbol( pInfo, mSerial );
         if ( pEntry )
         {
             if ( ppFoundVocab != NULL )
