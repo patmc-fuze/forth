@@ -137,6 +137,9 @@ public:
         return (int) *(((char *) pEntry) + (mValueLongs << 2));
     };
 
+    // returns number of chars in name
+    virtual int                 GetEntryName( const long *pEntry, char *pDstBuff, int buffSize );
+
     static inline ForthVocabulary *GetVocabularyChainHead( void ) {
         return mpChainHead;
     };
@@ -148,6 +151,10 @@ public:
     inline char *NewestSymbol( void ) {
         return &(mNewestSymbol[0]);
     };
+
+#ifdef MAP_LOOKUP
+    void                        InitLookupMap();
+#endif
 
 protected:
 
@@ -164,6 +171,9 @@ protected:
     int                 mValueLongs;
     ulong               mLastSerial;
     char                mNewestSymbol[ 256 ];
+#ifdef MAP_LOOKUP
+    CMapStringToPtr     mLookupMap;
+#endif
 };
 
 class ForthLocalVocabulary : public ForthVocabulary

@@ -112,6 +112,16 @@ ForthVocabulary::GetName( void )
     return (mpName == NULL) ? "Unknown" : mpName;
 }
 
+int ForthVocabulary::GetEntryName( const long *pEntry, char *pDstBuff, int buffSize )
+{
+    int symLen = GetEntryNameLength( pEntry );
+    int len = (symLen < buffSize) ? symLen : buffSize - 1;
+
+    memcpy( pDstBuff, (void *) GetEntryName( pEntry ), len );
+    pDstBuff[len] = '\0';
+    return len;
+}
+
 void
 ForthVocabulary::Empty( void )
 {
@@ -120,6 +130,22 @@ ForthVocabulary::Empty( void )
     mpNewestSymbol = NULL;
 }
 
+
+#ifdef MAP_LOOKUP
+void
+ForthVocabulary::InitLookupMap( void )
+{
+    mLookupMap.RemoveAll();
+    long* pEntry = mpStorageBottom;
+    char buff[ 256 ];
+    for ( int i = 0; i < mNumSymbols; i++ )
+    {
+        GetEntryName( pEntry, buff, sizeof(buff) );
+        mLookupMap.SetAt( buff, pEntry );
+        pEntry = NextEntry( pEntry );
+    }
+}
+#endif
 
 long *
 ForthVocabulary::AddSymbol( const char      *pSymName,
@@ -161,6 +187,9 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
         mpStorageBase = pBase;
         mStorageLongs = newLen;
         pBase = mpStorageBottom - symSize;
+#ifdef MAP_LOOKUP
+        InitLookupMap();
+#endif
     }
 
     if ( addToEngineOps ){        
@@ -173,6 +202,9 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
         pSymName, (int) symType, symValue, GetName() );
 
     mpStorageBottom = pBase;
+#ifdef MAP_LOOKUP
+    mLookupMap.SetAt( pSymName, mpStorageBottom );
+#endif
     symValue += ((int) symType << 24);
     mpNewestSymbol = mpStorageBottom;
     // TBD: check for storage overflow
@@ -210,6 +242,9 @@ ForthVocabulary::CopyEntry( long *pEntry )
     mpStorageBottom -= numLongs;
     memcpy( mpStorageBottom, pEntry, numLongs * sizeof(long) );
     mNumSymbols++;
+#ifdef MAP_LOOKUP
+    InitLookupMap();
+#endif
 }
 
 
@@ -234,6 +269,9 @@ ForthVocabulary::DeleteEntry( long *pEntry )
     }
     mpStorageBottom += entryLongs;
     mNumSymbols--;
+#ifdef MAP_LOOKUP
+    InitLookupMap();
+#endif
 }
 
 
@@ -294,6 +332,9 @@ ForthVocabulary::ForgetSymbol( const char *pSymName )
         //
         mpStorageBottom = (long *) pNewBottom;
         mNumSymbols = symbolsLeft;
+#ifdef MAP_LOOKUP
+        InitLookupMap();
+#endif
         return true;
     }
 
@@ -392,6 +433,13 @@ ForthVocabulary::FindSymbol( const char *pSymName, ulong serial )
     long tmpSym[SYM_MAX_LONGS];
     ForthParseInfo parseInfo( tmpSym, SYM_MAX_LONGS );
 
+#ifdef MAP_LOOKUP
+    void *pEntryVoid;
+    if ( mLookupMap.Lookup( pSymName, pEntryVoid ) )
+    {
+        return (long *) pEntryVoid;
+    }
+#endif
     parseInfo.SetToken( pSymName );
 
     return FindSymbol( &parseInfo, serial );

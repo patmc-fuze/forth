@@ -1419,7 +1419,11 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         }
     }
 
+#ifdef MAP_LOOKUP
+    pEntry = mpVocabStack->FindSymbol( pToken, &pFoundVocab );
+#else
     pEntry = mpVocabStack->FindSymbol( pInfo, &pFoundVocab );
+#endif
     if ( pEntry != NULL )
     {
         ////////////////////////////////////

@@ -60,12 +60,14 @@ addHelp help	help BLAH		show help for BLAH
 : sys 0 word system drop ;
 
 : ds dstack ;
+: fileExists "r" fopen dup if fclose drop true else drop false endif ;
 
 addHelp cd	cd BLAH			change working directory to BLAH
 addHelp pwd	pwd			display working directory
 addHelp dir	dir BLAH		display directory (BLAH is optional filespec)
 addHelp sys	sys REST_OF_LINE	run rest of line in a DOS shell
 addHelp	ds	ds			dump stack
+addHelp fileExists	"FILEPATH" fileExists ... true/false		tell if a file exists
 
 int dumpWidth
 16 -> dumpWidth

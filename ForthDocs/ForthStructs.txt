@@ -3,7 +3,7 @@
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-Structure support issues and current answers:
+Structure support issues and current answers (Spring 2007):
 
 1) Should all accessor fields be seperated by ".", or should we use "->" for
    ptr fields like C?

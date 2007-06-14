@@ -184,7 +184,6 @@ addHelp strstr
 addHelp strtok
 
 addHelp builds
-addHelp newestSymbol
 addHelp :
 addHelp create
 addHelp forget

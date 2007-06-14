@@ -26,7 +26,7 @@ PUBLIC	dupBop, swapBop, overBop, rotBop, tuckBop, pickBop, rollBop, spBop, szero
 PUBLIC	alignBop, allotBop, callotBop, commaBop, cCommaBop, hereBop, mallocBop, freeBop, storeBop;
 PUBLIC	fetchBop, cstoreBop, cfetchBop, scfetchBop, c2lBop, wstoreBop, wfetchBop, swfetchBop, w2lBop, dstoreBop, dfetchBop, memcpyBop, memsetBop, addToBop;
 PUBLIC	subtractFromBop, addressOfBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop, strchrBop, strrchrBop;
-PUBLIC	strcmpBop, stricmpBop, strstrBop, strtokBop, buildsBop, doesBop, newestSymbolBop, exitBop, semiBop, colonBop, createBop;
+PUBLIC	strcmpBop, stricmpBop, strstrBop, strtokBop, buildsBop, doesBop, exitBop, semiBop, colonBop, createBop;
 PUBLIC	forgetBop, autoforgetBop, definitionsBop, forthVocabBop, vocabularyBop, variableBop;
 PUBLIC	constantBop, dconstantBop, byteBop, shortBop, intBop, floatBop, doubleBop, stringBop;
 PUBLIC	recursiveBop, precedenceBop, loadBop, loadDoneBop, interpretBop, stateInterpretBop, stateCompileBop, stateBop, tickBop;
@@ -3291,11 +3291,6 @@ doesBop:	; TBD
 	
 ;========================================
 
-newestSymbolBop:	; TBD
-	extOp	newestSymbolOp
-	
-;========================================
-
 endBuildsBop:	; TBD
 	extOp	endBuildsOp
 	
@@ -4550,12 +4545,11 @@ opsTable:
 	DD	FLAT:alsoBop
 	DD	FLAT:previousBop
 	DD	FLAT:onlyBop
-	DD	FLAT:newestSymbolBop
 	DD	FLAT:forgetBop
 	DD	FLAT:autoforgetBop
 	DD	FLAT:vlistBop
-	DD	FLAT:intoBop
 	DD	FLAT:addressOfBop
+	DD	FLAT:intoBop
 	DD	FLAT:addToBop
 	DD	FLAT:subtractFromBop
 	DD	FLAT:removeEntryBop

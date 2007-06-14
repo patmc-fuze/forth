@@ -39,27 +39,12 @@
 	+ modify existing outer interp to invoke vocabs ProcessSymbol method
 	  instead of doing compile/interpret itself
     -> having some support for string tables and maps would be helpful
-- add ops for base vocabulary and precedence vocabulary
-  o note that these 2 vocabs will be implemented as builtin ops, while all other
-    vocabs will be implemented as user-defined ops
-  -> maybe create these 2 vocabs dynamically at startup as if they were
-     user-defined ops
 
 - add a way to create executables with an embedded script (like self-extracting zips)
 
 - add string and token tables
 
-? add a map
-
-+ add DLL support
-- add structure definition support
-  o structure symbols could translate to a special opcode that included the offset
-    -> this would just disassemble to +N, not to the struct member name
-  o it would be nice if this fit in well with class support
-  - this probably requires generalizing vocabulary support
-
-- add "shell"
-  - add cd/pwd/dir
+? add a map (string to pointer)
 
 - add callstack traceback on error
   - add func to lookup name of an opcode
@@ -68,24 +53,6 @@
 ? user defined ops don't start at 0 - why?
   -> the engine uses a single dispatch table for both builtin and user defined ops
 
-+ add "word" and "blword"
-  ? where should they put the parsed input
-+ add ops for manipulating shell input buffer
-  + get/set input buffer pointer
-  + refill input buffer
-  ? push/pop shell stack
-
-- add "forgettables" base class - used to delete objects which are created when
-  ops are compiled and the ops are forgotten - put them in a linked list
-
-+ empty string "" is broken
-
-+ parentheses dont always work
-  : oof .(55) ;		// works
-  : oof .( 55 ) ;   // fails, unknown symbol after ")"
-  .(55)             // fails, does nothing
-  .( 55 )           // fails, unknown symbol after ")"
--> problem was that the token length byte wasn't being set
 
 ? change class stuff so that class table holds opcodes, not IPs, since
   forget is done in terms of opcodes? or do special class forget code which
@@ -108,20 +75,13 @@
       -> make sure that console output is reset on errors
 
 - add ops to support running forth scripts from command line
- - shell support & ops for fetching command line (argc, argv, envp)
+ + shell support & ops for fetching command line (argc, argv, envp)
    - add debug methods which allow for running a word as if it was invoked from
      the command line, including setting up a fake argc/argv/envp
  - add ops for exit / abort
  - add ops for getting environment variables
  - check for anything which relies on interactive shell input
 
-? is vars/endvars really needed ?
--> its only absolute necessity is to leave room for the "allocVars" opcode
-? why can't this be compiled when first local-var-defining word is executed
--> gotcha: now inside vars...endvars state is interpret, and this is used
-   to allow the size of string vars to be specified
--> potential gotcha: if the allocVars opcode occured in a branch of an
-   "if" construct
 
 
 - add peephole optimizer that recognizes combinations of op pairs
@@ -130,8 +90,6 @@
   -> ugh, notice that this can't be done if op is a local variable...
      -> so maybe make classes for int, float, double, string?
   -> wasn't this what LocalStore32 and LocalStore64 were intended for?
-
-- add "ref" modifier for vars
 
 - add opTypes/var modifiers for @++, ++@, @--, --@
 
@@ -145,13 +103,8 @@
 - add multiple vocabularies
 - see what would be needed to have a real GUI for forth shell
 
-+ check what happens if an error happens during compilation of a word - is there a
-  smudged half defined word left dangling?
-  -> yes
-- add more string operations
 - add buffer end checking for parse/token buffers
 - look at class dependancies and who-makes-who
-- add user definable types
 ? add labels (what about forward references?)
 - add a way to compile "external scripts" - these are
   definitions which are compiled somewhere outside of the
@@ -161,8 +114,50 @@
 - add obj.method "class" support
   ? how does shell know if an op is a class instance, and how
     does it know what class it is in?
-? make vocabulary entry value field be full 32 bits?
-
+    
++ add ops for base vocabulary and precedence vocabulary
+  o note that these 2 vocabs will be implemented as builtin ops, while all other
+    vocabs will be implemented as user-defined ops
+  -> maybe create these 2 vocabs dynamically at startup as if they were
+     user-defined ops
++ add DLL support
++ add structure definition support
+  o structure symbols could translate to a special opcode that included the offset
+    -> this would just disassemble to +N, not to the struct member name
+  o it would be nice if this fit in well with class support
+  - this probably requires generalizing vocabulary support
++ add "shell"
+  + add cd/pwd/dir
++ add "word" and "blword"
+  ? where should they put the parsed input
++ add ops for manipulating shell input buffer
+  + get/set input buffer pointer
+  + refill input buffer
+  ? push/pop shell stack
++ add "forgettables" base class - used to delete objects which are created when
+  ops are compiled and the ops are forgotten - put them in a linked list
++ empty string "" is broken
++ parentheses dont always work
+  : oof .(55) ;		// works
+  : oof .( 55 ) ;   // fails, unknown symbol after ")"
+  .(55)             // fails, does nothing
+  .( 55 )           // fails, unknown symbol after ")"
+  -> problem was that the token length byte wasn't being set
++ eliminate vars/endvars
+  -> its only absolute necessity is to leave room for the "allocVars" opcode
+  ? why can't this be compiled when first local-var-defining word is executed
+  -> gotcha: now inside vars...endvars state is interpret, and this is used
+     to allow the size of string vars to be specified
+  -> potential gotcha: if the allocVars opcode occured in a branch of an
+    "if" construct
++ add "ref" modifier for vars
++ check what happens if an error happens during compilation of a word - is there a
+  smudged half defined word left dangling?
+  -> yes
++ add more string operations
++ add user definable types
+x make vocabulary entry value field be full 32 bits?
+  -> instead added a way to have multiple value fields  
 + change ForthVocabulary::AddSymbol to take addToEngineOps flag
 + change how "exit" and ";" work so that they compile the proper
   exit op, based on if there are local vars, if the current definition

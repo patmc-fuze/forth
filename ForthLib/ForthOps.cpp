@@ -1752,8 +1752,7 @@ FORTHOP( createOp )
 FORTHOP( forthVocabOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
-    pVocabStack->SetTop( pEngine->GetForthVocabulary() );
+    pEngine->GetForthVocabulary()->DoOp( pCore );
 }
 
 FORTHOP( definitionsOp )
@@ -1813,12 +1812,6 @@ FORTHOP( forgetOp )
     pVocabStack->Clear();
 }
 
-extern char *newestSymbol;
-FORTHOP( newestSymbolOp )
-{
-    SPUSH( (long) GET_ENGINE->GetDefinitionVocabulary()->NewestSymbol() );
-}
-
 // just like forget, but no error message if symbol not found
 FORTHOP( autoforgetOp )
 {
@@ -1837,7 +1830,7 @@ ShowVocab( ForthCoreState   *pCore,
 {
 #define BUFF_SIZE 256
     char buff[BUFF_SIZE];
-    int i, len;
+    int i;
     char retVal = 0;
     ForthShell *pShell = GET_ENGINE->GetShell();
     int nEntries = pVocab->GetNumEntries();
@@ -1846,12 +1839,7 @@ ShowVocab( ForthCoreState   *pCore,
     for ( i = 0; i < nEntries; i++ ) {
         sprintf( buff, "%02x:%06x    ", ForthVocabulary::GetEntryType( pEntry ), ForthVocabulary::GetEntryValue( pEntry ) );
         CONSOLE_STRING_OUT( buff );
-        len = pVocab->GetEntryNameLength( pEntry );
-        if ( len > (BUFF_SIZE - 1)) {
-            len = BUFF_SIZE - 1;
-        }
-        memcpy( buff, (void *) (pVocab->GetEntryName( pEntry )), len );
-        buff[len] = '\0';
+        pVocab->GetEntryName( pEntry, buff, BUFF_SIZE );
         CONSOLE_STRING_OUT( buff );
         CONSOLE_STRING_OUT( "\n" );
         pEntry = pVocab->NextEntry( pEntry );
@@ -3374,12 +3362,11 @@ baseDictEntry baseDict[] = {
     OP(     alsoOp,                 "also" ),
     OP(     previousOp,             "previous" ),
     OP(     onlyOp,                 "only" ),
-    OP(     newestSymbolOp,         "newestSymbol" ),
     OP(     forgetOp,               "forget" ),
     OP(     autoforgetOp,           "autoforget" ),
     OP(     vlistOp,                "vlist" ),
-    OP(     intoOp,                 "getNewest" ),
-    OP(     addressOfOp,            "findEntry" ),
+    OP(     addressOfOp,            "getNewest" ),
+    OP(     intoOp,                 "findEntry" ),
     OP(     addToOp,                "findEntryValue" ),
     OP(     subtractFromOp,         "addEntry" ),
     OP(     removeEntryOp,          "removeEntry" ),

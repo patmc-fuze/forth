@@ -5,12 +5,27 @@
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 TBDs:
 
-- one problem with using the assembler is that "code" sets the vocab stack top to "assembler", if
-  forth was the only thing on the vocab stack, forth is now not in the search chain.
+? add a "parser stack" - this would allow stuff like:
+  - using #ifdef to skip sections of code
+  - allowing "/*" based comments to span multiple lines
+  - allow easily adding user defined parsers for data definition languages
 
-? a way to do varargs
+? do support for inline comments using "/* ....*/" break the "*/" operator
+
+- document how parsing is done - put a breakpoint in ProcessToken and go from there
+
+- add a visual debugger that displays execution of words
+
+- switch from having a different exit opcode for ops with and without locals
+  to having an epilogue at the end of an op that "exit" will branch to
+  
+- "forget" doesn't complain about bogus symbols
+
+- add ops for getting current search & definition vocabularies
 
 - a method for saving and restoring state
+  -> maybe use memory mapped files for the dictionary, and only allow the restore if
+     the file can be mapped at the same address
 
 - testing
   - automated tests using outputToFile & comparison of test result file to known good file
@@ -33,9 +48,13 @@ TBDs:
 
 - faster searches
 
+- add "subroutine"
+  -> this will definitely cause problems for any simple save/restore scheme where relocation is required
+  
 ? generalize the undefined symbol handling mechanism which is used to
-  define enums
-
+ define enums
+? add a way to extend parsing for user-defined literal constants
+ 
 ? forward referencing
   Problem: forward referencing breaks "forget"
 
@@ -66,8 +85,32 @@ colonOp
  ForthEngine::StartOpDefinition
   ForthVocabulary::AddSymbol
    ForthEngine::AddUserOp
+
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+ForthShell::Run
+  ForthShell::InterpretLine
+    ForthEngine::ProcessToken
+
+ForthShell::Run
+	calls ForthShell::InterpretLine in a loop until it returns false
+
+ForthShell::InterpretLine
+	calls ForthShell::ParseToken and ForthEngine::ProcessToken in a loop until input line is empty
+		
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 6 2007
+
+I tried adding a lookup map to vocabularies to speedup loading.  Right now
+it is ifded-ed out with MAP_LOOKUP.  It seems to be unnecessary, since in
+the release version loading the pentium assembler is instantaneous.  The
+slowness of loading in the debug version is probably mostly caused by all
+the TRACE message output together with the slowness of debug code.
+
+Removed "code" setting of top search vocab to "assembler".  With this gone,
+there was no reason to have "assembler" vocab in kernel anymore, so I removed
+it and added it to asm_pentium.txt.
 
 Added a serial number to vocab stack searches to eliminate redundant failed
 searches of the same vocabulary.  It worked for everything until I tested
@@ -81,7 +124,8 @@ When this works I should rip out the vocabulary search chain since it is
 no longer used.
 -> No, the search chain is still used, but only by the structs vocabulary.
 -> Move the search chain down to the structs vocabulary
-
+  -> I should probably create a chained vocabulary type, since classes will
+     probably want to be able to extend another class, like structs
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 5 2007
 
