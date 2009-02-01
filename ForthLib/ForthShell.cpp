@@ -203,14 +203,17 @@ ForthShell::InterpretLine( const char *pSrcLine )
     if ( pSrcLine != NULL )
 	{
         strcpy( pLineBuff, pSrcLine );
+		mpInput->SetBufferPointer( pLineBuff );
 	}
     SPEW_SHELL( "*** InterpretLine \"%s\"\n", pLineBuff );
     bLineEmpty = false;
     mpEngine->SetError( kForthErrorNone );
-    while ( !bLineEmpty && (result == kResultOk) ) {
+    while ( !bLineEmpty && (result == kResultOk) )
+	{
         bLineEmpty = ParseToken( &parseInfo );
 
-        if ( !bLineEmpty ) {
+        if ( !bLineEmpty )
+		{
 
             try
             {
@@ -221,15 +224,19 @@ ForthShell::InterpretLine( const char *pSrcLine )
                 result = kResultException;
                 mpEngine->SetError( kForthErrorException );
             }
-            if ( result == kResultOk ) {
+            if ( result == kResultOk )
+			{
                 result = mpEngine->CheckStacks();
             }
-            if ( result != kResultOk ) {
-                if ( result != kResultExitShell ) {
+            if ( result != kResultOk )
+			{
+                if ( result != kResultExitShell )
+				{
                     ReportError();
                 }
 				ErrorReset();
-                if ( !mpInput->InputStream()->IsInteractive() ) {
+                if ( !mpInput->InputStream()->IsInteractive() && ( result != kResultExitShell) )
+				{
                     // if the initial input stream was a file, any error
                     //   must be treated as a fatal error
                     result = kResultFatalError;
@@ -253,14 +260,17 @@ ForthShell::ErrorReset( void )
 void
 ForthShell::ReportError( void )
 {
-    char errorBuf1[256];
-    char errorBuf2[256];
+    char errorBuf1[512];
+    char errorBuf2[512];
     char *pLastInputToken;
 
     mpEngine->GetErrorString( errorBuf1 );
     pLastInputToken = mpEngine->GetLastInputToken();
-    if ( pLastInputToken != NULL ) {
-        sprintf( errorBuf2, "%s, last input token: <%s> last IP 0x%x", errorBuf1, pLastInputToken, mpEngine->GetCoreState()->IP );
+	ForthCoreState* pCore = mpEngine->GetCoreState();
+	ForthThreadState* pThread = pCore->pThread;
+
+	if ( pLastInputToken != NULL ) {
+        sprintf( errorBuf2, "%s, last input token: <%s> last IP 0x%x", errorBuf1, pLastInputToken, pCore->IP );
     } else {
         sprintf( errorBuf2, "%s", errorBuf1 );
     }
@@ -274,22 +284,20 @@ ForthShell::ReportError( void )
         strcpy( errorBuf1, errorBuf2 );
     }
     TRACE( "%s", errorBuf1 );
-    printf( "%s", errorBuf1 );
+	pThread->consoleOut( pCore, errorBuf1 );
     char *pBase = mpInput->GetBufferBasePointer();
     pLastInputToken = mpInput->GetBufferPointer();
     if ( (pBase != NULL) && (pLastInputToken != NULL) ) {
-        TRACE( "\n" );
-        printf( "\n" );
+		char* pBuf = errorBuf1;
+		*pBuf++ = '\n';
         while ( pBase < pLastInputToken )
         {
-            TRACE( "%c", *pBase );
-            printf( "%c", *pBase );
-            pBase++;
+            *pBuf++ = *pBase++;
         }
-        sprintf( errorBuf1, "{}%s\n", pLastInputToken );
-        TRACE( "%s", errorBuf1 );
-        printf( "%s", errorBuf1 );
+        sprintf( pBuf, "{}%s\n", pLastInputToken );
     }
+	TRACE( "%s", errorBuf1 );
+	pThread->consoleOut( pCore, errorBuf1 );
 }
 
 static char

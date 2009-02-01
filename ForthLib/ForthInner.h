@@ -54,8 +54,7 @@ struct ForthThreadState
 
     ulong               error;
 
-    FILE                *pConOutFile;
-    char                *pConOutStr;
+    void                *pConOutData;
     consoleOutRoutine   consoleOut;
     long                consoleOutOp;
 
@@ -190,12 +189,10 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define SET_ERROR( A )                  CoreSetError( pCore, A, false )
 #define SET_FATAL_ERROR( A )            CoreSetError( pCore, A, true )
 
-#define GET_CON_OUT_FILE                (pCore->pThread->pConOutFile)
-#define SET_CON_OUT_FILE( A )           (pCore->pThread->pConOutFile = A)
+#define GET_CON_OUT_DATA                (pCore->pThread->pConOutData)
+#define SET_CON_OUT_DATA( A )           (pCore->pThread->pConOutData = A)
 #define SET_CON_OUT_ROUTINE( A )        (pCore->pThread->consoleOut = A)
 #define CONSOLE_STRING_OUT( A )         (pCore->pThread->consoleOut( pCore, A ))
-#define GET_CON_OUT_STRING              (pCore->pThread->pConOutStr)
-#define SET_CON_OUT_STRING( A )         (pCore->pThread->pConOutStr = A)
 
 #define GET_CON_OUT_OP                  (pCore->pThread->consoleOutOp)
 #define SET_CON_OUT_OP( A )             (pCore->pThread->consoleOutOp = A)

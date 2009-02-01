@@ -1,6 +1,7 @@
 // ForthGuiDlg.h : header file
 //
 
+#include "afxcmn.h"
 #if !defined(AFX_FORTHGUIDLG_H__FC416F88_AC2E_46DC_A696_CF8F972408E7__INCLUDED_)
 #define AFX_FORTHGUIDLG_H__FC416F88_AC2E_46DC_A696_CF8F972408E7__INCLUDED_
 
@@ -21,6 +22,7 @@ class CForthGuiDlg : public CDialog
 // Construction
 public:
 	CForthGuiDlg(CWnd* pParent = NULL);	// standard constructor
+	~CForthGuiDlg();
 
 // Dialog Data
 	//{{AFX_DATA(CForthGuiDlg)
@@ -36,6 +38,8 @@ public:
 
 // Implementation
 protected:
+	void			CreateForth();
+	void			DestroyForth();
 	HICON m_hIcon;
 
     ForthShell*                 mpShell;
@@ -51,7 +55,7 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
     afx_msg void OnBnClickedOk();
-    afx_msg void OnEnChangeEditInput();
+	CRichEditCtrl mOutputEdit;
 };
 
 //{{AFX_INSERT_LOCATION}}

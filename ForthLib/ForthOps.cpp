@@ -2384,7 +2384,7 @@ void
 consoleOutToFile( ForthCoreState   *pCore,
                   const char       *pMessage )
 {    
-    FILE *pOutFile = GET_CON_OUT_FILE;
+    FILE *pOutFile = static_cast<FILE*>(GET_CON_OUT_DATA);
     if ( pOutFile != NULL ) {
         fprintf(pOutFile, "%s", pMessage );
     }
@@ -2398,7 +2398,7 @@ void
 consoleOutToString( ForthCoreState   *pCore,
                     const char       *pMessage )
 {    
-    char *pOutStr = GET_CON_OUT_STRING;
+    char *pOutStr = static_cast<char*>(GET_CON_OUT_DATA);
     if ( pOutStr != NULL ) {
         strcat( pOutStr, pMessage );
     }
@@ -2657,23 +2657,23 @@ FORTHOP( printAllUnsignedOp )
 
 FORTHOP( outToScreenOp )
 {
-    SET_CON_OUT_ROUTINE( consoleOutToFile );
-    SET_CON_OUT_FILE( stdout );
+    ForthEngine *pEngine = GET_ENGINE;
+
+	pEngine->ResetConsoleOut( pCore->pThread );
 }
 
 FORTHOP( outToFileOp )
 {
     NEEDS( 1 );
     SET_CON_OUT_ROUTINE( consoleOutToFile );
-    SET_CON_OUT_FILE( (FILE *) SPOP );
+    SET_CON_OUT_DATA( reinterpret_cast<void*>(SPOP) );
 }
 
 FORTHOP( outToStringOp )
 {
     NEEDS( 1 );
     SET_CON_OUT_ROUTINE( consoleOutToString );
-    SET_CON_OUT_STRING( (char *) SPOP );
-    SET_CON_OUT_FILE( NULL );
+    SET_CON_OUT_DATA( (char *) SPOP );
 }
 
 FORTHOP( outToOpOp )
@@ -2685,7 +2685,7 @@ FORTHOP( outToOpOp )
 
 FORTHOP( getConOutFileOp )
 {
-    SPUSH( (long) GET_CON_OUT_FILE );
+    SPUSH( (long) GET_CON_OUT_DATA );
 }
 
 //##############################

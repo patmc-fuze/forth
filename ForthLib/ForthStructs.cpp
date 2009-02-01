@@ -43,6 +43,7 @@ ForthStructsManager::ForthStructsManager()
 
 ForthStructsManager::~ForthStructsManager()
 {
+	mpInstance = NULL;
     delete mpStructInfo;
 }
 

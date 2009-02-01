@@ -32,10 +32,10 @@
     dpow        DA DPOWER dpow -> (DA ** DPOWER)
     dsqrt
     dceil    dfloor    dabs
-    dldexp
-    dfrexp
-    dmodf
-    dfmod
+    dldexp		DA IEXP dldexp -> (DA * (2 ** IEXP))
+    dfrexp		DA dfrexp -> DA IEXP
+    dmodf		DA dmodf -> DWHOLE DFRACTION
+    dfmod		DA DB dfmod -> double remainder of DA/DB
 
     
     ///////////////////////////////////////////
@@ -396,6 +396,27 @@ A                                   word                    STRING
 A                                   setInBufferPointer      <NONE>
 <NONE>                              getInBufferLength       A
 PROMPT_STRING                       fillInBuffer            STRING
+
+forth
+    ///////////////////////////////////////////
+    //  vocabulary/symbol
+    ///////////////////////////////////////////
+    OP(     forthVocabOp,           "forth" ),
+    OP(     definitionsOp,          "definitions" ),
+    OP(     vocabularyOp,           "vocabulary" ),
+    OP(     alsoOp,                 "also" ),
+    OP(     previousOp,             "previous" ),
+    OP(     onlyOp,                 "only" ),
+    OP(     forgetOp,               "forget" ),
+    OP(     autoforgetOp,           "autoforget" ),
+    OP(     vlistOp,                "vlist" ),
+    OP(     addressOfOp,            "getNewest" ),
+    OP(     intoOp,                 "findEntry" ),
+    OP(     addToOp,                "findEntryValue" ),
+    OP(     subtractFromOp,         "addEntry" ),
+    OP(     removeEntryOp,          "removeEntry" ),
+    OP(     entryLengthOp,          "entryLength" ),
+    OP(     numEntriesOp,           "numEntries" ),
 
 
 

@@ -1,4 +1,4 @@
-//Microsoft Developer Studio generated resource script.
+// Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
 
@@ -27,18 +27,18 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE DISCARDABLE 
+1 TEXTINCLUDE 
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE DISCARDABLE 
+2 TEXTINCLUDE 
 BEGIN
     "#include ""afxres.h""\r\n"
     "\0"
 END
 
-3 TEXTINCLUDE DISCARDABLE 
+3 TEXTINCLUDE 
 BEGIN
     "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
     "#define _AFX_NO_OLE_RESOURCES\r\n"
@@ -66,15 +66,15 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDR_MAINFRAME           ICON    DISCARDABLE     "res\\ForthGui.ico"
+IDR_MAINFRAME           ICON                    "res\\ForthGui.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //
 // Dialog
 //
 
-IDD_ABOUTBOX DIALOG DISCARDABLE  0, 0, 235, 55
-STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+IDD_ABOUTBOX DIALOG  0, 0, 235, 55
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About ForthGui"
 FONT 8, "MS Sans Serif"
 BEGIN
@@ -86,23 +86,24 @@ BEGIN
 END
 
 IDD_FORTHGUI_DIALOG DIALOGEX 0, 0, 725, 442
-STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | 
+    WS_SYSMENU
 EXSTYLE WS_EX_APPWINDOW
 CAPTION "Forth"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
 BEGIN
     DEFPUSHBUTTON   "OK",IDOK,575,421,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,668,421,50,14
-    CONTROL         "",IDC_RICHEDIT_SCRIPT,"RICHEDIT",ES_AUTOHSCROLL | 
-                    ES_WANTRETURN | WS_BORDER | WS_TABSTOP,7,7,711,232,
-                    WS_EX_ACCEPTFILES
     EDITTEXT        IDC_EDIT_INPUT,7,421,564,14,ES_AUTOHSCROLL
-    CONTROL         "",IDC_RICHEDIT_OUTPUT,"RICHEDIT",ES_AUTOHSCROLL | 
-                    ES_READONLY | WS_BORDER | WS_TABSTOP,7,248,711,170
+    CONTROL         "",IDC_RICHEDIT_OUTPUT,"RichEdit20A",ES_MULTILINE | 
+                    ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_READONLY | 
+                    WS_BORDER | WS_VSCROLL | WS_TABSTOP,7,243,711,169
+    CONTROL         "",IDC_RICHEDT_SCRIPT,"RichEdit20A",ES_MULTILINE | 
+                    ES_AUTOVSCROLL | ES_AUTOHSCROLL | WS_BORDER | WS_VSCROLL | 
+                    WS_TABSTOP,7,7,711,230
 END
 
 
-#ifndef _MAC
 /////////////////////////////////////////////////////////////////////////////
 //
 // Version
@@ -125,15 +126,13 @@ BEGIN
     BEGIN
         BLOCK "040904B0"
         BEGIN
-            VALUE "CompanyName", "\0"
-            VALUE "FileDescription", "ForthGui MFC Application\0"
-            VALUE "FileVersion", "1, 0, 0, 1\0"
-            VALUE "InternalName", "ForthGui\0"
-            VALUE "LegalCopyright", "Copyright (C) 2006\0"
-            VALUE "LegalTrademarks", "\0"
-            VALUE "OriginalFilename", "ForthGui.EXE\0"
-            VALUE "ProductName", "ForthGui Application\0"
-            VALUE "ProductVersion", "1, 0, 0, 1\0"
+            VALUE "FileDescription", "ForthGui MFC Application"
+            VALUE "FileVersion", "1, 0, 0, 1"
+            VALUE "InternalName", "ForthGui"
+            VALUE "LegalCopyright", "Copyright (C) 2006"
+            VALUE "OriginalFilename", "ForthGui.EXE"
+            VALUE "ProductName", "ForthGui Application"
+            VALUE "ProductVersion", "1, 0, 0, 1"
         END
     END
     BLOCK "VarFileInfo"
@@ -142,8 +141,6 @@ BEGIN
     END
 END
 
-#endif    // !_MAC
-
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -151,7 +148,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO DISCARDABLE 
+GUIDELINES DESIGNINFO 
 BEGIN
     IDD_ABOUTBOX, DIALOG
     BEGIN
@@ -177,7 +174,7 @@ END
 // String Table
 //
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE 
 BEGIN
     IDS_ABOUTBOX            "&About ForthGui..."
 END

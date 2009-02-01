@@ -1,210 +1,220 @@
 // help definitions for builtin ops
-addHelp abort	abort		terminate execution with fatal error
-addHelp drop	VAL drop	drop top element of param stack
-addHelp _doDoes			INTERNAL
-addHelp lit			pushes longword which is compiled immediately after it
-addHelp flit			INTERNAL - pushes float which is compiled immediately after it
-addHelp dlit			pushes double which is compiled immediately after it
-addHelp _doVariable
-addHelp _doConstant
-addHelp _doDConstant
-addHelp _endBuilds
-addHelp done			makes inner interpreter return - used by outer interpreter
-addHelp _doByte
-addHelp _doShort
-addHelp _doInt
-addHelp _doFloat
-addHelp _doDouble
-addHelp _doString
-addHelp _doOp
-addHelp ->
-addHelp _do
-addHelp _loop
-addHelp _+loop
-addHelp _exit
-addHelp _exitL
-addHelp _exitM
-addHelp _exitML
-addHelp _doVocab
-addHelp _doByteArray
-addHelp _doShortArray
-addHelp _doIntArray
-addHelp _doFloatArray
-addHelp _doDoubleArray
-addHelp _doStringArray
-addHelp _doOpArray
-addHelp initString
-addHelp initStringArray
+addHelp abort			abort		terminate execution with fatal error
+addHelp drop			VAL drop	drop top element of param stack
+addHelp _doDoes			INTERNAL	compiled at start of "does" section of words created by a builds...does word
+addHelp lit							pushes longword which is compiled immediately after it
+addHelp flit						pushes float which is compiled immediately after it
+addHelp dlit						pushes double which is compiled immediately after it
+addHelp _doVariable		INTERNAL	compiled at start of words defined by "variable"
+addHelp _doConstant		INTERNAL	compiled at start of words defined by "constant"
+addHelp _doDConstant	INTERNAL	compiled at start of words defined by "dconstant"
+addHelp _endBuilds		INTERNAL	compiled at end of "builds" section
+addHelp done			INTERNAL	makes inner interpreter return - used by outer interpreter
+addHelp _doByte			INTERNAL	compiled at start of byte global vars
+addHelp _doShort		INTERNAL	compiled at start of short global vars
+addHelp _doInt			INTERNAL	compiled at start of int global vars
+addHelp _doFloat		INTERNAL	compiled at start of float global vars
+addHelp _doDouble		INTERNAL	compiled at start of double global vars
+addHelp _doString		INTERNAL	compiled at start of string global vars
+addHelp _doOp			INTERNAL	compiled at start of opcode global vars
+addHelp ->				-> VAR		set next variable action to "store"
+addHelp _do				INTERNAL	compiled at start of do loop
+addHelp _loop			INTERNAL	compiled at end of do loop
+addHelp _+loop			INTERNAL	compiled at end of do +loop
+addHelp _exit			INTERNAL	compiled at end of user definitions which have no local vars
+addHelp _exitL			INTERNAL	compiled at end of user definitions which have local vars
+addHelp _exitM			INTERNAL	compiled at end of method definitions which have no local vars
+addHelp _exitML			INTERNAL	compiled at end of method definitions which have local vars
+addHelp _doVocab		INTERNAL	compiled at start of vocabularies
+addHelp _doByteArray    INTERNAL	compiled at start of byte global arrays
+addHelp _doShortArray	INTERNAL	compiled at start of short global arrays
+addHelp _doIntArray		INTERNAL	compiled at start of int global arrays
+addHelp _doFloatArray	INTERNAL	compiled at start of float global arrays
+addHelp _doDoubleArray	INTERNAL	compiled at start of double global arrays
+addHelp _doStringArray	INTERNAL	compiled at start of string global arrays
+addHelp _doOpArray		INTERNAL	compiled at start of opcode global arrays
+addHelp initString		INTERNAL	compiled when a local string variable is declared
+addHelp initStringArray	INTERNAL	compiled when a local string array is declared
 addHelp _doStruct
 addHelp _doStructArray
 addHelp _doStructType
 
-addHelp +	A B + ... (A+B)		add top two items
-addHelp -	A B - ... (A-B)		subtract top two items
-addHelp *	A B * ... (A*B) 	mutliply top two items
-addHelp 2*	A 2* ... (A*2)		multiply top item by 2
-addHelp 4*	A 4* ... (A*4)		multiply top item by 4
-addHelp /	A B / ... (A/B)		divide top two items
-addHelp 2/	A 2/ ... (A/2)		divide top item by 2
-addHelp 4/	A 4/ ... (A/4)		divide top item by 4
-addHelp /mod	A B /mod ... (A/B) (A mod B)	divide top two items, return quotient & remainder
-addHelp mod	A B mod ... (A mod B)	take modulus of top two items
-addHelp negate	A negate ... (-A)	negate top item
+addHelp +		A B ... (A+B)		add top two items
+addHelp -		A B ... (A-B)		subtract top two items
+addHelp *		A B ... (A*B) 	mutliply top two items
+addHelp 2*		A  ... (A*2)		multiply top item by 2
+addHelp 4*		A  ... (A*4)		multiply top item by 4
+addHelp /		A B ... (A/B)		divide top two items
+addHelp 2/		A ... (A/2)		divide top item by 2
+addHelp 4/		A ... (A/4)		divide top item by 4
+addHelp /mod	A B ... (A/B) (A mod B)	divide top two items, return quotient & remainder
+addHelp mod		A B ... (A mod B)			take modulus of top two items
+addHelp negate	A ... (-A)	negate top item
 
-addHelp f+	FA FB f+ ... (FA+FB)	add top two floating point items
-addHelp f-	FA FB f- ... (FA-FB)	subtract top two floating point items
-addHelp f*	FA FB f* ... (FA*FB)	multiply top two floating point items
-addHelp f/	FA FB f/ ... (FA/FB)	divide top two floating point items
+addHelp f+	FA FB ... (FA+FB)	add top two floating point items
+addHelp f-	FA FB ... (FA-FB)	subtract top two floating point items
+addHelp f*	FA FB ... (FA*FB)	multiply top two floating point items
+addHelp f/	FA FB ... (FA/FB)	divide top two floating point items
 
-addHelp d+	FA FB f+ ... (FA+FB)	add top two floating point items
-addHelp d-	FA FB f- ... (FA-FB)	subtract top two floating point items
-addHelp d*	FA FB f* ... (FA*FB)	multiply top two floating point items
-addHelp d/	FA FB f/ ... (FA/FB)	divide top two floating point items
+addHelp d+	DA DB ... (DA+DB)	add top two double floating point items
+addHelp d-	DA DB ... (DA-DB)	subtract top two double floating point items
+addHelp d*	DA DB ... (DA*DB)	multiply top two double floating point items
+addHelp d/	DA DB ... (DA/DB)	divide top two double floating point items
 
-addHelp dsin
-addHelp darcsin
-addHelp dcos
-addHelp darccos
-addHelp dtan
-addHelp darctan
-addHelp darctan2
-addHelp dexp
-addHelp dln
-addHelp dlog10
-addHelp dpow
-addHelp dsqrt
-addHelp dceil
-addHelp dfloor
-addHelp dabs
-addHelp dldexp
-addHelp dfrexp
-addHelp dmodf
-addHelp dfmod
+addHelp dsin		DA    ... sin(DA)
+addHelp darcsin		DA    ... arcsin(DA)
+addHelp dcos		DA    ... cos(DA)
+addHelp darccos		DA    ... arccos(DA)
+addHelp dtan		DA    ... tan(DA)
+addHelp darctan		DA    ... arctan(DA)
+addHelp darctan2	DA DB ... arctan(DA/DB)
+addHelp dexp		DA    ... exp(DA)
+addHelp dln			DA    ... ln(DA)
+addHelp dlog10		DA    ... log10(DA)
+addHelp dpow		DA DB ... DA**DB
+addHelp dsqrt		DA    ... sqrt(DA)
+addHelp dceil		DA    ... ceil(DA)
+addHelp dfloor		DA    ... floor(DA)
+addHelp dabs		DA    ... abs(DA)
+addHelp dldexp		DA B  ... ldexp(DA,B)
+addHelp dfrexp		DA    ... frac(DA) exponent(DA)
+addHelp dmodf		DA    ... frac(DA) whole(DA)
+addHelp dfmod		DA DB ... fmod(DA,DB)
 
-addHelp i2f 
-addHelp i2d
-addHelp f2i
-addHelp f2d
-addHelp d2i
-addHelp d2f
+addHelp i2f			A ... float(A)
+addHelp i2d			A ... double(A)
+addHelp f2i			A ... int(A)
+addHelp f2d			A ... double(A)
+addHelp d2i			A ... int(A)
+addHelp d2f			A ... float(A)
 
-addHelp call
-addHelp goto
-addHelp i
-addHelp j
-addHelp unloop
+addHelp call		IP ...			rpushes current IP and sets IP to that on TOS
+addHelp goto		IP ...			sets IP to that on TOS
+addHelp i			... LOOPINDEX_I		pushes innermost doloop index
+addHelp j			... LOOPINDEX_J		pushes next innermost doloop index
+addHelp unloop		
 addHelp leave
 
-addHelp or
-addHelp and
-addHelp xor
-addHelp ~
-addHelp <<
-addHelp >>
+addHelp or		A B ... or(A,B)
+addHelp and		A B ... and(A,B)
+addHelp xor		A B ... xor(A,B)
+addHelp ~		A   ... ~A
+addHelp <<		A B ... A<<B
+addHelp >>		A B ... A>>B
+addHelp not		A   ... not(A)   true iff A is 0, else false
+addHelp true	    ... -1
+addHelp false	    ... 0
+addHelp null	    ... 0
 
-addHelp not
-addHelp true
-addHelp false
-addHelp null
+addHelp ==		A B ... A==B
+addHelp !=		A B ... A!=B
+addHelp >		A B ... A>B
+addHelp >=		A B ... A>=B
+addHelp <		A B ... A<B
+addHelp <=		A B ... A<=B
+addHelp 0==		A   ... A==0
+addHelp 0!=		A   ... A!=0
+addHelp 0>		A   ... A>0
+addHelp 0>=		A   ... A>=0
+addHelp 0<		A   ... A<0
+addHelp 0<=		A   ... A<=0
 
-addHelp ==
-addHelp !=
-addHelp >
-addHelp >=
-addHelp <
-addHelp <=
-addHelp 0==
-addHelp 0!=
-addHelp 0>
-addHelp 0>=
-addHelp 0<
-addHelp 0<=
+addHelp r<		A ...		pushes top of param stack on top of return stack
+addHelp r>		... A		pops top of return stack to top of param stack
+addHelp rdrop	...		drops top of return stack
+addHelp rp		... RETURN_STACK_PTR
+addHelp r0		... EMPTY_RETURN_STACK_PTR
 
-addHelp r<
-addHelp r>
-addHelp rdrop
-addHelp rp
-addHelp r0
+addHelp dup		A ... A A
+addHelp swap	A B ... B A
+addHelp over	A B ...	A B A
+addHelp rot		A B C ... B C A
+addHelp tuck	A B C ... A C B C
+addHelp pick	A ... PS(A)
+addHelp roll	N ...		rolls Nth item to top of params stack
+addHelp sp		... PARAM_STACK_PTR
+addHelp s0		... EMPTY_PARAM_STACK_PTR
+addHelp fp		... LOCAL_VAR_FRAME_PTR
+addHelp ddup	DA ...	DA DA
+addHelp dswap	DA DB ... DB DA
+addHelp ddrop	DA ...
+addHelp dover	DA DB ... DA DB DA
+addHelp drot	DA DB DC ... DB DC DA
 
-addHelp dup
-addHelp swap
-addHelp over
-addHelp rot
-addHelp tuck
-addHelp pick
-addHelp roll
-addHelp sp
-addHelp s0
-addHelp fp
-addHelp ddup
-addHelp dswap
-addHelp ddrop
-addHelp dover
-addHelp drot
+addHelp align	...		aligns DP to a lonword boundary
+addHelp allot	A ...	adds A*4 to DP
+addHelp callot	A ...	adds A to DP
+addHelp ,		A ...	compiles longword A
+addHelp c,		A ...	compiles byte A
+addHelp here	... DP	returns DP
+addHelp malloc	A ... PTR	allocates a block of memory with A bytes
+addHelp free	PTR ...		frees a block of memory
 
-addHelp align
-addHelp allot
-addHelp callot
-addHelp ,
-addHelp c,
-addHelp here
-addHelp malloc
-addHelp free
+addHelp !		A PTR ...	stores longword A at address PTR
+addHelp @		PTR ... A	fetches longword from address PTR
+addHelp c!		A PTR ...	stores byte A at address PTR
+addHelp c@		PTR ... A	fetches unsigned byte from address PTR
+addHelp sc@		PTR ... A	fetches signed byte from address PTR
+addHelp c2l		A ... LA	sign extends byte to long
+addHelp w!		A PTR ...	stores word A at address PTR
+addHelp w@		PTR ... A	fetches unsigned word from address PTR
+addHelp sw@		PTR ... A	fetches signed word from address PTR
+addHelp w2l		WA ... LA	sign extends word to long
+addHelp d!		DA PTR ...	store double at address PTR
+addHelp d@		PTR ... DA	fetch double from address PTR
+addHelp memcpy	DST SRC N ...	copy N bytes from SRC to DST
+addHelp memset	DST A N ...		fill N bytes at DST with byte value A
+addHelp ->+		N ->+ VAR ...	add N to VAR
+addHelp ->-		N ->- VAR ...	subtract N from VAR
+addHelp addressOf	addressOf VAR ... PTR	return address of VAR
+addHelp varAction!	A varAction! ...	set varAction to A
+addHelp varAction@	varAction@ ... A	fetch varAction
 
-addHelp !
-addHelp @
-addHelp c!
-addHelp c@
-addHelp sc@
-addHelp c2l
-addHelp w!
-addHelp w@
-addHelp sw@
-addHelp w2l
-addHelp d!
-addHelp d@
-addHelp memcpy
-addHelp memset
-addHelp ->+
-addHelp ->-
-addHelp addressOf
-addHelp varAction!
-addHelp varAction@
-
-addHelp strcpy
-addHelp strncpy
-addHelp strlen
-addHelp strcat
-addHelp strncat
-addHelp strchr
-addHelp strrchr
-addHelp strcmp
-addHelp stricmp
-addHelp strstr
-addHelp strtok
+addHelp strcpy	STRA STRB ...	copies string from STRB to STRA
+addHelp strncpy	STRA STRB N ...	copies up to N chars from STRB to STRA
+addHelp strlen	STR ... LEN		returns length of string at STR
+addHelp strcat	STRA STRB ...	appends STRB to string at STRA
+addHelp strncat	STRA STRB N ...	appends up to N chars from STRB to STRA
+addHelp strchr	STR CHAR ... PTR	returns ptr to first occurence of CHAR in string STR
+addHelp strrchr	STR CHAR ... PTR	returns ptr to last occurence of CHAR is string STR
+addHelp strcmp	STRA STRB ... N		returns 0 iff STRA == STRB, else result of last char comparison
+addHelp stricmp	STRA STRB ... N		returns 0 iff STRA == STRB ignoring case, else result of last char comparison,
+addHelp strstr	STRA STRB ... PTR	returns ptr to first occurence of STRB in string STRA
+addHelp strtok	STRA STRB ... PTR	returns ptr to next token in STRA, delimited by a char in STRB, modifies STRA, pass 0 for STRA after first call
 
 addHelp builds
 addHelp :
 addHelp create
+
+addHelp forth
+addHelp definitions
+addHelp vocabulary
+addHelp also
+addHelp previous
+addHelp only
 addHelp forget
 addHelp autoforget
-addHelp definitions
-addHelp uses
-addHelp forth
-addHelp searchVocab
-addHelp definitionsVocab
-addHelp vocabulary
-addHelp variable
-addHelp constant
-addHelp dconstant
+addHelp vlist
+addHelp getNewest
+addHelp findEntry
+addHelp findEntryValue
+addHelp addEntry
+addHelp removeEntry
+addHelp entryLength
+addHelp numEntries
+
+
+addHelp variable			variable VAR_NAME		creates a variable op which pushes its address when executed
+addHelp constant			A constant CON_NAME		creates a constant op which pushes A when executed
+addHelp dconstant			DA dconstant CON_NAME	creates a double constant op which pushes DA when executed
 addHelp enum
 addHelp endenum
 addHelp precedence
 addHelp load
 addHelp loaddone
 addHelp interpret
-addHelp ]
-addHelp state
+addHelp ]					sets state to compile
+addHelp state				leaves address of "state" var on TOS
 addHelp \'
 addHelp execute
 
@@ -217,11 +227,11 @@ addHelp %bl
 addHelp %nl
 addHelp %f
 addHelp %g
-addHelp "%fmt
-addHelp base
-addHelp decimal
-addHelp hex
-addHelp printDecimalSigned
+addHelp %fmt
+addHelp base					leaves address of "base" var on TOS
+addHelp decimal					sets current base to 10
+addHelp hex						sets current base to 16
+addHelp printDecimalSigned		
 addHelp printAllSigned
 addHelp printAllUnsigned
 
@@ -254,18 +264,8 @@ addHelp bye
 addHelp argv
 addHelp argc
 
-addHelp loadLibrary
-addHelp freeLibrary
-addHelp getProcAddress
-addHelp callProc0
-addHelp callProc1
-addHelp callProc2
-addHelp callProc3
-addHelp callProc4
-addHelp callProc5
-addHelp callProc6
-addHelp callProc7
-addHelp callProc8
+addHelp DLLVocabulary			DLLVocabulary VOCAB_NAME			creates a new DLL vocabulary, also loads the dll
+addHelp addDLLEntry				NUM_ARGS "ENTRY_NAME" addDLLEntry	adds a new entry point to current definitions DLL vocabulary
 
 addHelp blword
 addHelp word
@@ -275,9 +275,9 @@ addHelp setInBufferPointer
 addHelp getInBufferLength
 addHelp fillInBuffer
 
-addHelp turbo
-addHelp stats
-addHelp describe
+addHelp turbo			...		switches between slow and fast mode
+addHelp stats			...		displays forth engine statistics
+addHelp describe		describe OPNAME		displays info on op, disassembles userops
 
 // ops below this line have precedence
 addHelp _doEnum

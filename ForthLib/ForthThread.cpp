@@ -36,6 +36,8 @@ ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnS
     mState.RB += GAURD_AREA;
     mState.RT = mState.RB + mState.RLen;
 
+	pEngine->ResetConsoleOut( &mState );
+
     Reset();
 }
 
@@ -58,9 +60,6 @@ ForthThread::Reset( void )
     mState.varMode = kVarFetch;
     mState.base = 10;
     mState.signedPrintMode = kPrintSignedDecimal;
-    mState.consoleOut = consoleOutToFile;
-    mState.pConOutFile = stdout;
-    mState.pConOutStr = NULL;
 }
 
 

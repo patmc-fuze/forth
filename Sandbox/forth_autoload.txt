@@ -5,21 +5,35 @@ autoforget forth_autoload
 200 string _bb
 
 : $,
+  // TOS is ptr to nul terminated string at DP
   here over strlen 1+ callot
   swap strcpy
 ;
 
 0 -> int helpChain
 : addHelp
-  here helpChain , -> helpChain
-  blword $,
-  0 word $,
+  here helpChain , -> helpChain		// link new entry into help chain
+  blword $,		// compile new symbol
+  0 word $,		// compile symbols help definition
   align
 ;
 
 : help
   blword	-> 100 string s
   helpChain	-> int pNext
+  
+  s strlen 0==
+  if
+    // line was empty, just list all help
+    begin
+      pNext
+    while
+      pNext 4+ dup %s "	" %s
+      dup strlen 1+ + %s %nl
+      pNext @ -> pNext
+    repeat
+    exit
+  endif
 
   begin
     pNext

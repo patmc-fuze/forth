@@ -5,12 +5,18 @@
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 TBDs:
 
+- add support for iterating over files in directories
+
+- add a string-to-long map based off CMap
+  remember that a charPtr-to-long map would just map from the value of the
+  charPtr, not the chars in the string, to the long
+
 ? add a "parser stack" - this would allow stuff like:
   - using #ifdef to skip sections of code
   - allowing "/*" based comments to span multiple lines
   - allow easily adding user defined parsers for data definition languages
 
-? do support for inline comments using "/* ....*/" break the "*/" operator
+? does support for inline comments using "/* ....*/" break the "*/" operator
 
 - document how parsing is done - put a breakpoint in ProcessToken and go from there
 
@@ -40,10 +46,12 @@ TBDs:
     - change output-to-string to use the string current & max length fields
 
 - windows support
-  - gui stuff
+  - first step: create an app where all the windows stuff is in c++
+    - support associating windows controls to forth ops
+    - a programmable calculator might be a good first step
   - graphics
   ? do this via DLL support
-
+  
 - help system
 
 - faster searches
@@ -59,6 +67,10 @@ TBDs:
   Problem: forward referencing breaks "forget"
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+In a cygwin shell:
+
+cd /cygdrive/e/pat/prj/forth
+
 cvs checkout DIR
 	fetch a project or directory from cvs
 
@@ -99,6 +111,162 @@ ForthShell::Run
 ForthShell::InterpretLine
 	calls ForthShell::ParseToken and ForthEngine::ProcessToken in a loop until input line is empty
 		
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 31 2009
+
+A class has a primary interface, which is the set of methods which it declares.
+A class may have secondary interfaces, which can be gotten by querying.
+
+When a class doesn't have distinct methods of its own, and just implements a
+previously defined interface, will that pose a problem?  IE how can the primary
+interface for a class be defined using the "implements" keyword ?
+
+When you extend a class which has secondary interfaces, can you override or
+extend the secondary interfaces?
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 30 2009
+
+What about making all object references be a pair of pointers, a data pointer
+and a vtable pointer?  What would this look like?
++ this would allow a simple implementation of multiple interfaces
++ arrays would not need a redundant vtable field per element
+o object variables are just a pointer pair
+o object reference on TOS is a pointer pair (not a pointer to a pointer pair)
+o "this" in thread context is a pointer pair
+
+Maybe all interface definitions which don't have an "extends" statement implicitly
+extend the interface "object".
+
+Maybe a class definition could be like:
+
+interface blather1
+  talk
+  ramble
+endinterface
+
+interface blather2
+  extends blather1
+  spew
+endinterface
+
+struct sBlatherer
+	...
+endstruct
+
+class blahBlah blather2 sBlatherer
+ ... method definitions for
+-> having "extends" at the class level would make implementation easier
+-> "extends" should be available in both class and interface definitions
+-> it probably is better to have the class define its data members, instead of
+   requiring that its data members be defined in a seperate struct
+   
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 18 2008
+
+More ForthGUI work.
+
+Noticed that the line:   "dir" system
+produced no output - the problem is that the directory was sent to standard out
+for the console.
+? Is there a way to redirect standard out to a function ?
+SetStdHandle can be used to redirect standard in/out/error.
+? Is there a way to connect a handle to a function
+! The easiest thing to do might be to redirect output to a temp file
+  inside the "system" op, then after interpreting the string write the output
+  to the thread output routine
+
+Also "load" does not do anything.
+-> The forth console app calls shell::Run, which has a loop that keeps calling
+   GetLine and interpreting it, this is what does the loading.  The forth
+   GUI app doesn't call shell::Run or shell::GetLine, it interprets the edit
+   buffer when the edit control OnOK handler is triggered.
+   Maybe the solution would be for the GUI app to check the input stack depth
+   after interpreting a line, and keep doing GetLine/interpret until the input stack reaches zero.
+
+I added the above code to ForthGUI.  forthtest.txt has an error in it, and this
+was causing a crash.  I tried to fix it by adding methods to create and delete
+all the forth related objects, and these were called when InterpretLine returned
+a fatal error result code.  This is currently failing because the engine constructor
+saves its this pointer to a global instance pointer, and it asserts if that pointer
+is already not null.
+At some point I decided to treat the engine as a singleton, and for some
+reason I changed the GET_ENGINE macro to use the singleton, but most cases
+where it is used the code already has access to the engine, for example forthops
+can get the engine from the forth core state.
+For now, I am just clearing the engine global instance pointer inside the engine
+destructor.  I also had to do this in the ForthStructsManager, which also used
+a singleton.
+I think the idea was that there should only ever be one engine object.
+
+I get a fatal error when I load sdl.txt, then sdl2.txt, and run "test".
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 23 2008
+
+ForthGui program now mostly works
+- "bye" does not exit program
+- there is no error output
+  -> look at ForthShell::ReportError
+  -> fixed
+  
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 22 2008
+
++ added resetting of console output routine, so app can set default output routine
++ tried to make output more simple/unified by combining user data pointer and
+  file pointer
+  
+It might be nice to have a way of pushing/popping an output context.  There
+are 3 overall types of output context, here are their data:
+1) external function
+  - function address
+  - function data address
+2) file
+  - file pointer
+3) user op
+  - opcode
+  - data address
+
+One way to unify these would be to have an output context structure:
+	void*	function address
+	void*	data address
+	long	opcode
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 19 2008
+
++ added appending to GUI output pane
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 23 2007
+
+Haven't been working on forth since June.  I did add to help.txt.
+Going to to try to:
+1) add a string->long map feature, use it for help
+2) maybe get the Forth GUI working.
+
+The only problem with a map is that it would make a "save state" feature
+much more complicated
+-> make the map output be offsets from the DP, not absolute pointers
+-> come up with a general solution for dynamic data
+
+If I remember correctly, the hangup with doing the GUI was not knowing how to
+incrementally get text output to the edit output pane, I only know how to fill
+the whole edit pane at creation.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 13 2007
+
+Not much progress over the last month:
+- I took a quick look at class support, no amazing revelations occured
+- I started creating the GUI for a programmable calculator
+The projects I would like to wack on this summer:
+- programmable calculator
+- synth2k
+- graphics sandbox
+  ? based on sdl, or win32 ?
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 6 2007
 

@@ -18,6 +18,7 @@ extern "C" {
     extern baseDictEntry baseDict[];
     extern InitAsmTables(  ForthCoreState *pCore );
     extern eForthResult InnerInterp( ForthCoreState *pCore );
+    extern void consoleOutToFile( ForthCoreState   *pCore,  const char       *pMessage );
 };
 
 //#ifdef TRACE_INNER_INTERPRETER
@@ -96,6 +97,8 @@ ForthEngine::ForthEngine()
 , mNumElements( 0 )
 , mpStructsManager( NULL )
 , mpVocabStack( NULL )
+, mDefaultConsoleOut( consoleOutToFile )
+, mpDefaultConsoleOutData( stdout )
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -146,6 +149,7 @@ ForthEngine::~ForthEngine()
 
     delete mpCore;
     delete mpVocabStack;
+	mpInstance = NULL;
 }
 
 ForthEngine*
@@ -786,113 +790,137 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs )
     else
     {
 
-        switch( opType ){
-            
-        case kOpBuiltIn:
-        case kOpBuiltInImmediate:
-            if ( opVal < NUM_TRACEABLE_OPS ) {
-                // traceable built-in op
-                sprintf( pBuffer, "%s", gOpNames[opVal] );
-            } else {
-                // op we don't have name pointer for
-                sprintf( pBuffer, "%s", opTypeNames[opType] );
-            }
-            break;
-            
-        case kOpUserDef:
-        case kOpUserDefImmediate:
-        case kOpUserCode:
-        case kOpUserCodeImmediate:
-        case kOpDLLEntryPoint:
-            if ( lookupUserDefs )
-            {
-                pEntry = GetVocabularyStack()->FindSymbolByValue( op, &pFoundVocab );
-            }
-            if ( pEntry )
-            {
-                // the symbol name in the vocabulary doesn't always have a terminating null
-                int len = pFoundVocab->GetEntryNameLength( pEntry );
-                const char* pName = pFoundVocab->GetEntryName( pEntry );
-                for ( int i = 0; i < len; i++ )
-                {
-                    *pBuffer++ = *pName++;
+        switch( opType )
+        {
+
+            case kOpBuiltIn:
+            case kOpBuiltInImmediate:
+                if ( opVal < NUM_TRACEABLE_OPS ) {
+                    // traceable built-in op
+                    switch( opVal )
+                    {
+                        case OP_INT_VAL:
+                            sprintf( pBuffer, "%s 0x%x", gOpNames[opVal], pOp[1] );
+                            break;
+
+                        case OP_FLOAT_VAL:
+                            sprintf( pBuffer, "%s %f", gOpNames[opVal], *((float *)(&(pOp[1]))) );
+                            break;
+
+                        case OP_DOUBLE_VAL:
+                            sprintf( pBuffer, "%s %g", gOpNames[opVal], *((double *)(&(pOp[1]))) );
+                            break;
+
+                        default:
+                            sprintf( pBuffer, "%s", gOpNames[opVal] );
+                            break;
+                    }
+                } else {
+                    // op we don't have name pointer for
+                    sprintf( pBuffer, "%s", opTypeNames[opType] );
                 }
-                *pBuffer = '\0';
-            }
-            else
-            {
-                sprintf( pBuffer, "%s", opTypeNames[opType] );
-            }
-            break;
-
-        case kOpLocalByte:
-        case kOpLocalShort:
-        case kOpLocalInt:
-        case kOpLocalFloat:
-        case kOpLocalDouble:
-        case kOpLocalString:
-        case kOpLocalOp:
-        case kOpLocalByteArray:
-        case kOpLocalShortArray:
-        case kOpLocalIntArray:
-        case kOpLocalFloatArray:
-        case kOpLocalDoubleArray:
-        case kOpLocalStringArray:
-        case kOpLocalOpArray:
-            sprintf( pBuffer, "%s_%x", opTypeNames[opType], opVal );
-            break;
-
-
-        case kOpConstantString:
-            sprintf( pBuffer, "\"%s\"", (char *)(pOp + 1) );
-            break;
+                break;
             
-        case kOpConstant:
-            if ( opVal & 0x800000 ) {
-                opVal |= 0xFF000000;
-            }
-            sprintf( pBuffer, "%s    %d", opTypeNames[opType], opVal );
-            break;
+            case kOpUserDef:
+            case kOpUserDefImmediate:
+            case kOpUserCode:
+            case kOpUserCodeImmediate:
+            case kOpDLLEntryPoint:
+                if ( lookupUserDefs )
+                {
+                    pEntry = GetVocabularyStack()->FindSymbolByValue( op, &pFoundVocab );
+                }
+                if ( pEntry )
+                {
+                    // the symbol name in the vocabulary doesn't always have a terminating null
+                    int len = pFoundVocab->GetEntryNameLength( pEntry );
+                    const char* pName = pFoundVocab->GetEntryName( pEntry );
+                    for ( int i = 0; i < len; i++ )
+                    {
+                        *pBuffer++ = *pName++;
+                    }
+                    *pBuffer = '\0';
+                }
+                else
+                {
+                    sprintf( pBuffer, "%s", opTypeNames[opType] );
+                }
+                break;
 
-        case kOpOffset:
-            if ( opVal & 0x800000 )
-            {
-                opVal |= 0xFF000000;
+            case kOpLocalByte:
+            case kOpLocalShort:
+            case kOpLocalInt:
+            case kOpLocalFloat:
+            case kOpLocalDouble:
+            case kOpLocalString:
+            case kOpLocalOp:
+            case kOpLocalByteArray:
+            case kOpLocalShortArray:
+            case kOpLocalIntArray:
+            case kOpLocalFloatArray:
+            case kOpLocalDoubleArray:
+            case kOpLocalStringArray:
+            case kOpLocalOpArray:
+                sprintf( pBuffer, "%s_%x", opTypeNames[opType], opVal );
+                break;
+
+            case kOpConstantString:
+                sprintf( pBuffer, "\"%s\"", (char *)(pOp + 1) );
+                break;
+            
+            case kOpConstant:
+                if ( opVal & 0x800000 ) {
+                    opVal |= 0xFF000000;
+                }
                 sprintf( pBuffer, "%s    %d", opTypeNames[opType], opVal );
-            }
-            else
-            {
-                sprintf( pBuffer, "%s    +%d", opTypeNames[opType], opVal );
-            }
-            break;
+                break;
 
-        case kOpCaseBranch:
-        case kOpBranch:   case kOpBranchNZ:  case kOpBranchZ:
-            if ( opVal & 0x800000 ) {
-                opVal |= 0xFF000000;
-            }
-            sprintf( pBuffer, "%s    0x%08x", opTypeNames[opType], opVal + 1 + pOp );
-            break;
+            case kOpOffset:
+                if ( opVal & 0x800000 )
+                {
+                    opVal |= 0xFF000000;
+                    sprintf( pBuffer, "%s    %d", opTypeNames[opType], opVal );
+                }
+                else
+                {
+                    sprintf( pBuffer, "%s    +%d", opTypeNames[opType], opVal );
+                }
+                break;
 
-        case kOpInitLocalString:   // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
-            sprintf( pBuffer, "%s    maxBytes %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
-            break;
+            case kOpCaseBranch:
+            case kOpBranch:   case kOpBranchNZ:  case kOpBranchZ:
+                if ( opVal & 0x800000 ) {
+                    opVal |= 0xFF000000;
+                }
+                sprintf( pBuffer, "%s    0x%08x", opTypeNames[opType], opVal + 1 + pOp );
+                break;
+
+            case kOpInitLocalString:   // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
+                sprintf( pBuffer, "%s    maxBytes %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
+                break;
             
-        case kOpLocalStructArray:   // bits 0..11 are padded struct size in bytes, bits 12..23 are frame offset in longs
-            sprintf( pBuffer, "%s    elementSize %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
-            break;
+            case kOpLocalStructArray:   // bits 0..11 are padded struct size in bytes, bits 12..23 are frame offset in longs
+                sprintf( pBuffer, "%s    elementSize %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
+                break;
             
-        case kOpAllocLocals:
-            sprintf( pBuffer, "%s    longs %d", opTypeNames[opType], opVal );
-            break;
+            case kOpAllocLocals:
+                sprintf( pBuffer, "%s    longs %d", opTypeNames[opType], opVal );
+                break;
             
-        case kOpArrayOffset:
-            sprintf( pBuffer, "%s    elementSize %d", opTypeNames[opType], opVal );
-            break;
+            case kOpArrayOffset:
+                sprintf( pBuffer, "%s    elementSize %d", opTypeNames[opType], opVal );
+                break;
             
-        default:
-            sprintf( pBuffer, "%s", opTypeNames[opType] );
-            break;
+            default:
+                if ( opType >= (sizeof(opTypeNames) / sizeof(char *)) )
+                {
+                    sprintf( pBuffer, "BAD OPTYPE!" );
+                }
+                else
+                {
+                    sprintf( pBuffer, "%s", opTypeNames[opType] );
+                }
+                break;
         }
     }
 }
@@ -1298,6 +1326,20 @@ ForthEngine::CheckStacks( void )
 
     return result;
 }
+
+
+void ForthEngine::SetConsoleOut( consoleOutRoutine outRoutine, void* outData )
+{
+	mDefaultConsoleOut = outRoutine;
+	mpDefaultConsoleOutData = outData;
+}
+
+void ForthEngine::ResetConsoleOut( ForthThreadState* pThread )
+{
+	pThread->consoleOut = mDefaultConsoleOut;
+	pThread->pConOutData = mpDefaultConsoleOutData;
+}
+
 
 ////////////////////////////
 //

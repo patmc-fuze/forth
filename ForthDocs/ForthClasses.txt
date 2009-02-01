@@ -3,6 +3,29 @@
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Words that need to be defined:
+
+- class
+- endclass
+- method
+- endmethod
+- extends
+- abstract
+- new
+- delete
+- this
+
+? public
+? private
+? static (some word to indicate global members) ? or just use global vars ?
+If everything is public, then static methods could just be regular forth definitions
+
+- interface
+- endinterface
+- implements
+- endimplements
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 
 instance type
   local
@@ -19,6 +42,21 @@ instance type
     array
 method invocation
 member access
+
+Stuff that need to be defined:
+- definition of an interface
+- definition of a structure
+- definition of a class
+- representation of an object on stack
+- method invocation
+- local objects
+  - automatic constructor/destructor
+- global objects
+- objects as members of other objects
+- constructors
+- class static data members
+- arrays of objects
+
   
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 Class support issues and current answers (May 2007):
@@ -44,7 +82,9 @@ Class support issues and current answers (May 2007):
 -> object.method and object.member can be used
 
 ) What opcodes are needed for object support?
-
+  1) member access
+  2) method invocation
+  
 ) What is the relationship between structs and classes?
 -> A class usually specifies its data representation as a struct type
     Strictly speaking, a class doesn't need a struct type, for example a singleton
@@ -78,6 +118,19 @@ Class support issues and current answers (May 2007):
 ) Should there be public/private/protected members and methods?
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Object method invocation depends on 2 things:
+
+1) a set of executable methods
+2) a reference to the object data
+
+Method invocation opcodes usually provide both of these pieces of information,
+where the opcode is used to generate a pointer to the object, and the first
+field of the object is the vtable pointers, which defines the set of
+executable methods.
+
+We may want to have a more general scheme of method invocation which allows
+invocation of a method on structures which don't have a vtable pointer.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 struct sVec3d
     float x
     float y
@@ -89,18 +142,18 @@ class vec3d public sVec3d
 
 method dot
   -> vec3d vecb
-  b.x x f*
-  b.y y f* f+
-  b.z z f* f+
+  vecb.x x f*
+  vecb.y y f* f+
+  vecb.z z f* f+
 endmethod
-  
+
 
 method cross
+  -> vec3d result
   -> vec3d vecb
-  y vecb.z f* z vecb.y f* f-
-  x vecb.z f* z vecb.x f* f-
-  x vecb.y f* y vecb.x f* f-
-  -> z -> y -> x
+  y vecb.z f* z vecb.y f* f- -> result.x
+  x vecb.z f* z vecb.x f* f- -> result.y
+  x vecb.y f* y vecb.x f* f- -> result.z
 endmethod
 
 method add
@@ -112,11 +165,12 @@ endmethod
 
 endclass
 
-new vec3d -> vec3d aa
-new vec3d -> vec3d bb
+vec3d.new -> vec3d aa
+vec3d.new -> vec3d bb
+vec3d.new -> vec3d res
 
-aa bb.dot       // result is a single float
-aa bb.cross     // result is in bb
+aa bb.dot			// result is a single float on TOS
+aa res bb.cross     // result is in res
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 17, 2006

@@ -7,6 +7,7 @@
 
 #include "../ForthLib/ForthShell.h"
 #include "../ForthLib/ForthInput.h"
+#include "../ForthLib/ForthEngine.h"
 #include ".\forthguidlg.h"
 
 #ifdef _DEBUG
@@ -61,6 +62,71 @@ BEGIN_MESSAGE_MAP(CAboutDlg, CDialog)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
+///
+//  stuff to connect Forth output to output pane edit control
+//
+struct sStreamInScratch
+{
+	sStreamInScratch( const char* buffer )
+		:	m_buffer( buffer )
+		,	m_length( strlen( buffer ) )
+	{}
+	const char* m_buffer;
+	int			m_length;
+};
+
+DWORD CALLBACK StreamInCallback( DWORD dwCookie, LPBYTE outBuffer, LONG outBufferLen, LONG* bytesWritten )
+{
+	sStreamInScratch* const scratch = reinterpret_cast<sStreamInScratch*>( dwCookie );
+	*bytesWritten = min( outBufferLen, scratch->m_length );		
+
+	memcpy( outBuffer, scratch->m_buffer, *bytesWritten );
+	
+	scratch->m_length -= *bytesWritten;
+	scratch->m_buffer += *bytesWritten;
+
+	return 0;
+}
+
+void StreamToOutputPane( CRichEditCtrl* pOutEdit, const char* pMessage )
+{
+	// Grab the old selection and cursor placement.
+	CHARRANGE oldSelection;
+	pOutEdit->GetSel( oldSelection );
+	const long ixStart = pOutEdit->GetWindowTextLength();
+	const int oldLine = pOutEdit->LineFromChar( oldSelection.cpMax );
+	const int numLines = pOutEdit->GetLineCount();
+
+	// Move to the end of the text.
+	pOutEdit->SetSel( ixStart, -1 );
+
+	// Stream in the message text.
+	EDITSTREAM es;
+	sStreamInScratch scratch( pMessage );
+	es.dwCookie = reinterpret_cast<DWORD>( &scratch );
+	es.pfnCallback = StreamInCallback;
+	es.dwError = 0;
+	pOutEdit->StreamIn( SF_TEXT | SFF_SELECTION, es );
+
+	// Scroll the window if the cursor was on the last line and the selection was empty. Otherwise, reset the selection.
+	if ( oldSelection.cpMin != oldSelection.cpMax || pOutEdit->LineFromChar( oldSelection.cpMin ) != (numLines - 1) )
+	{
+		pOutEdit->SetSel( oldSelection );
+	}
+	else
+	{
+		pOutEdit->SetSel( -1, -1 );
+		pOutEdit->LineScroll( pOutEdit->GetLineCount() - oldLine );
+	}
+}
+
+CRichEditCtrl* gpOutEdit = NULL;
+void ForthOutRoutine( ForthCoreState *pCore, const char *pBuff )
+{
+	StreamToOutputPane( gpOutEdit, pBuff );
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // CForthGuiDlg dialog
 
 CForthGuiDlg::CForthGuiDlg(CWnd* pParent /*=NULL*/)
@@ -75,12 +141,39 @@ CForthGuiDlg::CForthGuiDlg(CWnd* pParent /*=NULL*/)
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
 
+CForthGuiDlg::~CForthGuiDlg()
+{
+	DestroyForth();
+}
+
+void CForthGuiDlg::CreateForth()
+{
+	mpShell = new ForthShell;
+	ForthEngine* pEngine = mpShell->GetEngine();
+	pEngine->SetConsoleOut( ForthOutRoutine, GetDlgItem( IDC_RICHEDIT_OUTPUT ) );
+	pEngine->ResetConsoleOut( pEngine->GetCoreState()->pThread );
+    mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE );
+    mpShell->GetInput()->PushInputStream( mpInStream );
+}
+
+void CForthGuiDlg::DestroyForth()
+{
+	if ( mpShell )
+	{
+		delete mpShell;
+		// the shell destructor deletes all the streams on the input stack, including mpInStream
+		mpShell = NULL;
+		mpInStream = NULL;
+	}
+}
+
 void CForthGuiDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
 	//{{AFX_DATA_MAP(CForthGuiDlg)
-		// NOTE: the ClassWizard will add DDX and DDV calls here
+	// NOTE: the ClassWizard will add DDX and DDV calls here
 	//}}AFX_DATA_MAP
+	DDX_Control(pDX, IDC_RICHEDIT_OUTPUT, mOutputEdit);
 }
 
 BEGIN_MESSAGE_MAP(CForthGuiDlg, CDialog)
@@ -90,7 +183,6 @@ BEGIN_MESSAGE_MAP(CForthGuiDlg, CDialog)
 	ON_WM_QUERYDRAGICON()
 	//}}AFX_MSG_MAP
     ON_BN_CLICKED(IDOK, OnBnClickedOk)
-    ON_EN_CHANGE(IDC_EDIT_INPUT, OnEnChangeEditInput)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -124,9 +216,8 @@ BOOL CForthGuiDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 	
 	// TODO: Add extra initialization here
-	mpShell = new ForthShell;
-    mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE );
-    mpShell->GetInput()->PushInputStream( mpInStream );
+	gpOutEdit = static_cast<CRichEditCtrl*>(GetDlgItem( IDC_RICHEDIT_OUTPUT ));
+	CreateForth();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
@@ -185,16 +276,58 @@ void CForthGuiDlg::OnBnClickedOk()
     // TODO: Add your control notification handler code here
     //OnOK();
     CEdit *pEdit = (CEdit* )GetDlgItem( IDC_EDIT_INPUT );
-    pEdit->GetWindowText( mInBuffer, INPUT_BUFFER_SIZE - 4 );
-    mpShell->InterpretLine( mInBuffer );
+	CRichEditCtrl *pOutEdit = (CRichEditCtrl*) GetDlgItem( IDC_RICHEDIT_OUTPUT );
+	ForthInputStack* pInput = mpShell->GetInput();
+    eForthResult result = kResultOk;
+
+	pEdit->GetWindowText( mInBuffer, INPUT_BUFFER_SIZE - 4 );
+	StreamToOutputPane( pOutEdit, mInBuffer );
+	StreamToOutputPane( pOutEdit, "\r\n" );
+	pEdit->GetWindowText( mInBuffer, INPUT_BUFFER_SIZE - 4 );
+    result = mpShell->InterpretLine( mInBuffer );
+	StreamToOutputPane( pOutEdit, "\r\n" );
+	// clear input buffer
+	pEdit->SetSel( 0, -1 );
+	pEdit->ReplaceSel( "" );
+
+	if ( result == kResultOk )
+	{
+		// to implement the "load" op, we must do 
+		while ( pInput->InputStream() != mpInStream )
+		{
+			// get a line
+			// interpret the line
+			bool bQuit = false;
+			const char*pBuffer = pInput->GetLine( "" );
+			if ( pBuffer == NULL )
+			{
+				bQuit = pInput->PopInputStream();
+			}
+
+			if ( !bQuit )
+			{
+			    result = mpShell->InterpretLine();
+			}
+			if ( bQuit || (result != kResultOk) )
+			{
+				break;
+			}
+		}
+	}
+	switch ( result )
+	{
+	case kResultExitShell:
+		// exit program
+		OnCancel();
+		break;
+
+	case kResultFatalError:
+		DestroyForth();
+		CreateForth();
+		break;
+
+	default:
+		break;
+	}
 }
 
-void CForthGuiDlg::OnEnChangeEditInput()
-{
-    // TODO:  If this is a RICHEDIT control, the control will not
-    // send this notification unless you override the CDialog::OnInitDialog()
-    // function and call CRichEditCtrl().SetEventMask()
-    // with the ENM_CHANGE flag ORed into the mask.
-
-    // TODO:  Add your control notification handler code here
-}

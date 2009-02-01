@@ -170,6 +170,9 @@ public:
 
     static ForthEngine*     GetInstance( void );
 
+	void					SetConsoleOut( consoleOutRoutine outRoutine, void* outData );
+	void					ResetConsoleOut( ForthThreadState* pThread );
+
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char *pToken, long *pValue, int base, bool& isOffset );
@@ -211,6 +214,9 @@ protected:
 
     long *          mpEnumStackBase;
     long            mNextEnum;
+
+    consoleOutRoutine   mDefaultConsoleOut;
+	void*				mpDefaultConsoleOutData;
 
     static ForthEngine* mpInstance;
     bool            mFastMode;
