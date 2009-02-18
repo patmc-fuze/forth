@@ -53,6 +53,7 @@ typedef enum
     kOpLocalDouble,
     kOpLocalString,
     kOpLocalOp,
+    kOpLocalObject,
 
     kOpFieldByte = 40,
     kOpFieldShort,
@@ -61,6 +62,7 @@ typedef enum
     kOpFieldDouble,
     kOpFieldString,
     kOpFieldOp,
+    kOpFieldObject,
 
     kOpLocalByteArray = 50,
     kOpLocalShortArray,
@@ -69,6 +71,7 @@ typedef enum
     kOpLocalDoubleArray,
     kOpLocalStringArray,
     kOpLocalOpArray,
+    kOpLocalObjectArray,
 
     kOpFieldByteArray = 60,
     kOpFieldShortArray,
@@ -77,6 +80,7 @@ typedef enum
     kOpFieldDoubleArray,
     kOpFieldStringArray,
     kOpFieldOpArray,
+    kOpFieldObjectArray,
 
     kOpMemberByte = 70,
     kOpMemberShort,
@@ -85,7 +89,19 @@ typedef enum
     kOpMemberDouble,
     kOpMemberString,
     kOpMemberOp,
-    kOpMethodWithThis,  // low 24 bits is method number
+    kOpMemberObject,
+
+    kOpMemberByteArray = 80,
+    kOpMemberShortArray,
+    kOpMemberIntArray,
+    kOpMemberFloatArray,
+    kOpMemberDoubleArray,
+    kOpMemberStringArray,
+    kOpMemberOpArray,
+    kOpMemberObjectArray,
+
+    kOpMethodWithThis = 90,  // low 24 bits is method number
+    kOpMethodWithTOS,  // low 24 bits is method number
 
     kOpLocalUserDefined = 100,             // user can add more optypes starting with this one
     kOpMaxLocalUserDefined = 127,    // maximum user defined optype
@@ -130,7 +146,7 @@ typedef enum {
     kVocabNumEntries,
 } vocabOperation;
 
-#define DEFAULT_INPUT_BUFFER_LEN   256
+#define DEFAULT_INPUT_BUFFER_LEN   1024
 
 // these are the results of running the inner interpreter
 typedef enum {
@@ -214,31 +230,37 @@ class ForthThread;
 #define OP_DO_DOUBLE            BUILTIN_OP(15)
 #define OP_DO_STRING            BUILTIN_OP(16)
 #define OP_DO_OP                BUILTIN_OP(17)
-#define OP_INTO                 BUILTIN_OP(18)
-#define OP_DO_DO                BUILTIN_OP(19)
-#define OP_DO_LOOP              BUILTIN_OP(20)
-#define OP_DO_LOOPN             BUILTIN_OP(21)
-#define OP_DO_EXIT              BUILTIN_OP(22)
-#define OP_DO_EXIT_L            BUILTIN_OP(23)
-#define OP_DO_EXIT_M            BUILTIN_OP(24)
-#define OP_DO_EXIT_ML           BUILTIN_OP(25)
-#define OP_DO_VOCAB             BUILTIN_OP(26)
-#define OP_DO_BYTE_ARRAY        BUILTIN_OP(27)
-#define OP_DO_SHORT_ARRAY       BUILTIN_OP(28)
-#define OP_DO_INT_ARRAY         BUILTIN_OP(29)
-#define OP_DO_FLOAT_ARRAY       BUILTIN_OP(30)
-#define OP_DO_DOUBLE_ARRAY      BUILTIN_OP(31)
-#define OP_DO_STRING_ARRAY      BUILTIN_OP(32)
-#define OP_DO_OP_ARRAY          BUILTIN_OP(33)
-#define OP_INIT_STRING          BUILTIN_OP(34)
-#define OP_INIT_STRING_ARRAY    BUILTIN_OP(35)
-#define OP_PLUS                 BUILTIN_OP(36)
-#define OP_FETCH                BUILTIN_OP(37)
-#define OP_BAD_OP               BUILTIN_OP(38)
-#define OP_DO_STRUCT            BUILTIN_OP(39)
-#define OP_DO_STRUCT_ARRAY      BUILTIN_OP(40)
-#define OP_DO_STRUCT_TYPE       BUILTIN_OP(41)
-#define OP_DO_ENUM              BUILTIN_OP(42)
+#define OP_DO_OBJECT            BUILTIN_OP(18)
+#define OP_ADDRESS_OF           BUILTIN_OP(19)
+#define OP_INTO                 BUILTIN_OP(20)
+#define OP_INTO_PLUS            BUILTIN_OP(21)
+#define OP_INTO_MINUS           BUILTIN_OP(22)
+#define OP_DO_EXIT              BUILTIN_OP(23)
+#define OP_DO_EXIT_L            BUILTIN_OP(24)
+#define OP_DO_EXIT_M            BUILTIN_OP(25)
+#define OP_DO_EXIT_ML           BUILTIN_OP(26)
+#define OP_DO_VOCAB             BUILTIN_OP(27)
+#define OP_DO_BYTE_ARRAY        BUILTIN_OP(28)
+#define OP_DO_SHORT_ARRAY       BUILTIN_OP(29)
+#define OP_DO_INT_ARRAY         BUILTIN_OP(30)
+#define OP_DO_FLOAT_ARRAY       BUILTIN_OP(31)
+#define OP_DO_DOUBLE_ARRAY      BUILTIN_OP(32)
+#define OP_DO_STRING_ARRAY      BUILTIN_OP(33)
+#define OP_DO_OP_ARRAY          BUILTIN_OP(34)
+#define OP_DO_OBJECT_ARRAY      BUILTIN_OP(35)
+#define OP_INIT_STRING          BUILTIN_OP(36)
+#define OP_INIT_STRING_ARRAY    BUILTIN_OP(37)
+#define OP_PLUS                 BUILTIN_OP(38)
+#define OP_FETCH                BUILTIN_OP(39)
+#define OP_BAD_OP               BUILTIN_OP(40)
+#define OP_DO_STRUCT            BUILTIN_OP(41)
+#define OP_DO_STRUCT_ARRAY      BUILTIN_OP(42)
+#define OP_DO_STRUCT_TYPE       BUILTIN_OP(43)
+#define OP_DO_CLASS_TYPE        BUILTIN_OP(44)
+#define OP_DO_ENUM              BUILTIN_OP(45)
+#define OP_DO_DO                BUILTIN_OP(46)
+#define OP_DO_LOOP              BUILTIN_OP(47)
+#define OP_DO_LOOPN             BUILTIN_OP(48)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct {
@@ -360,6 +382,7 @@ typedef enum
     kNativeDouble,
     kNativeString,
     kNativeOp,
+    kNativeObject,
 } forthNativeType;
 
 typedef enum
@@ -372,33 +395,36 @@ typedef enum
     // kDTIsPtr and kDTIsNative can be combined with anything
     kDTIsPtr        = 4,
     kDTIsNative     = 8,
+    kDTIsMethod     = 16,
 } storageDescriptor;
 
 // user-defined structure fields have a 32-bit descriptor with the following format:
 // 1...0        select none, single or array
 //   2          is field a pointer
 //   3          is field native
+//   4          is this a method
 
 // for types with kDTIsNative set:
-// 7...4        forthNativeType
-// 31...8       string length (if forthNativeType == kNativeString)
+// 8...5        forthNativeType
+// 31...9       string length (if forthNativeType == kNativeString)
 
 // for types with kDTIsNative clear:
-// 31...4     struct index
+// 31...5     structIndex/classId
 
 // when kDTArray and kDTIsPtr are both set, it means the field is an array of pointers
-#define NATIVE_TYPE_TO_CODE( STORAGE_TYPE, NATIVE_TYPE )    (kDTIsNative | ((NATIVE_TYPE << 4) | STORAGE_TYPE))
-#define STRING_TYPE_TO_CODE( STORAGE_TYPE, MAX_BYTES )      (kDTIsNative | ((MAX_BYTES << 8) | (kNativeString << 4) | STORAGE_TYPE))
-#define STRUCT_TYPE_TO_CODE( STORAGE_TYPE, STRUCT_INDEX )    ((STRUCT_INDEX << 4) | STORAGE_TYPE)
+#define NATIVE_TYPE_TO_CODE( STORAGE_TYPE, NATIVE_TYPE )    (kDTIsNative | ((NATIVE_TYPE << 5) | STORAGE_TYPE))
+#define STRING_TYPE_TO_CODE( STORAGE_TYPE, MAX_BYTES )      (kDTIsNative | ((MAX_BYTES << 9) | (kNativeString << 5) | STORAGE_TYPE))
+#define STRUCT_TYPE_TO_CODE( STORAGE_TYPE, STRUCT_INDEX )    ((STRUCT_INDEX << 5) | STORAGE_TYPE)
 #define CODE_IS_DATA( CODE )                (((CODE) & 3) != 0)
 #define CODE_IS_VARIABLE( CODE )            (((CODE) & 3) == kDTSingle)
 #define CODE_IS_ARRAY( CODE )               (((CODE) & 3) == kDTArray)
 #define CODE_IS_PTR( CODE )                 (((CODE) & kDTIsPtr) != 0)
 #define CODE_IS_NATIVE( CODE )              (((CODE) & kDTIsNative) != 0)
+#define CODE_IS_METHOD( CODE )              (((CODE) & kDTIsMethod) != 0)
 #define CODE_TO_STORAGE_TYPE( CODE )        ((CODE) & 0x0F)
-#define CODE_TO_NATIVE_TYPE( CODE )         (((CODE) >> 4) & 0x0F)
-#define CODE_TO_STRUCT_INDEX( CODE )        (((CODE) >> 4) & 0x0FFFFFFF)
-#define CODE_TO_STRING_BYTES( CODE )        ((CODE) >> 8)
+#define CODE_TO_NATIVE_TYPE( CODE )         (((CODE) >> 5) & 0x0F)
+#define CODE_TO_STRUCT_INDEX( CODE )        (((CODE) >> 5) & 0x07FFFFFF)
+#define CODE_TO_STRING_BYTES( CODE )        ((CODE) >> 9)
 
 // bit fields for kOpDLLEntryPoint
 #define DLL_ENTRY_TO_CODE( INDEX, NUM_ARGS )    (((NUM_ARGS) << 19) | (INDEX))

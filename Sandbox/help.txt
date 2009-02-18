@@ -194,7 +194,6 @@ addHelp previous
 addHelp only
 addHelp forget
 addHelp autoforget
-addHelp vlist
 addHelp getNewest
 addHelp findEntry
 addHelp findEntryValue
@@ -207,8 +206,8 @@ addHelp numEntries
 addHelp variable			variable VAR_NAME		creates a variable op which pushes its address when executed
 addHelp constant			A constant CON_NAME		creates a constant op which pushes A when executed
 addHelp dconstant			DA dconstant CON_NAME	creates a double constant op which pushes DA when executed
-addHelp enum
-addHelp endenum
+addHelp enum:
+addHelp ;enum
 addHelp precedence
 addHelp load
 addHelp loaddone
@@ -218,62 +217,63 @@ addHelp state				leaves address of "state" var on TOS
 addHelp \'
 addHelp execute
 
-addHelp .
-addHelp %d
-addHelp %x
-addHelp %s
-addHelp %c
-addHelp %bl
-addHelp %nl
-addHelp %f
-addHelp %g
-addHelp %fmt
-addHelp base					leaves address of "base" var on TOS
-addHelp decimal					sets current base to 10
-addHelp hex						sets current base to 16
-addHelp printDecimalSigned		
-addHelp printAllSigned
-addHelp printAllUnsigned
+addHelp .					NUM ...				prints number in current base
+addHelp %d					NUM ...				prints number in decimal
+addHelp %x					NUM ...				prints number in hex
+addHelp %s					STRING ...			prints string
+addHelp %c					CHARVAL ...			prints character
+addHelp %bl					prints a space
+addHelp %nl					prints a newline
+addHelp %f					FPNUM ...			prints a single-precision floating point number
+addHelp %g					DOUBLE_FPNUM ...	prints a double-precision floating point number
+addHelp %fmt				ARG FORMAT_STRING ...	prints a formatted string
+addHelp base				leaves address of "base" var on TOS
+addHelp decimal				sets current base to 10
+addHelp hex					sets current base to 16
+addHelp printDecimalSigned	makes all decimal printing signed, printing in any other base is unsigned	
+addHelp printAllSigned		makes printing in any base signed
+addHelp printAllUnsigned	makes printing in any base unsigned
 
-addHelp outToFile
-addHelp outToScreen
-addHelp outToString
-addHelp	outToOp
-addHelp getConOutFile
+addHelp outToFile			FILE ...	redirect output to file
+addHelp outToScreen			...			set output to screen (standard out)
+addHelp outToString			STRING ...	redirect output to string
+addHelp	outToOp				OP ...		redirect output to forth op (op takes a single string argument, returns nothing)
+addHelp getConOutFile		... FILE	returns redirected output file
 
-addHelp fopen
-addHelp fclose
-addHelp fseek
-addHelp fread
-addHelp fwrite
-addHelp fgetc
-addHelp fputc
-addHelp feof
-addHelp ftell
-addHelp flen
-addHelp stdin
-addHelp stdout
-addHelp stderr
+addHelp fopen				PATH_STR ATTRIB_STR ... FILE		open file
+addHelp fclose				FILE ... RESULT						close file
+addHelp fseek				FILE OFFSET CTRL ... RESULT			seek in file, CTRL: 0 from start, 1 from current, 2 from end 
+addHelp fread				NITEMS ITEMSIZE FILE ... RESULT		read items from file
+addHelp fwrite				NITEMS ITEMSIZE FILE ... RESULT		write items to file
+addHelp fgetc				FILE ... CHARVAL					read a character from file
+addHelp fputc				CHARVAL FILE ... RESULT				write a character to file
+addHelp feof				FILE ... RESULT						check if file is at end-of-file
+addHelp ftell				FILE ... OFFSET						return current read/write position in file
+addHelp flen				FILE ... FILE_LENGTH				return length of file
+addHelp stdin				... FILE							get standard in file
+addHelp stdout				... FILE							get standard out file
+addHelp stderr				... FILE							get standard error file
+addHelp fprintf				FILE FORMAT_STRING (ARGS) NUM_ARGS ... RESULT		print formatted string to file
 
-addHelp dstack
-addHelp drstack
-addHelp vlist
-addHelp system
-addHelp chdir
-addHelp bye
-addHelp argv
-addHelp argc
+addHelp dstack				display parameter stack
+addHelp drstack				display return stack
+addHelp vlist				display current search vocabulary
+addHelp system				STRING ... RESULT				pass DOS command line to system, returns exit code (0 means success)
+addHelp chdir				STRING ... RESULT				change current working directory, returns exit code (0 means success)
+addHelp bye					exit forth
+addHelp argv				INDEX ... STRING_ADDR			return arguments from command line that started forth
+addHelp argc				... NUM_ARGUMENTS				return number of arguments from command line that started forth (not counting "forth" itself)
 
 addHelp DLLVocabulary			DLLVocabulary VOCAB_NAME			creates a new DLL vocabulary, also loads the dll
 addHelp addDLLEntry				NUM_ARGS "ENTRY_NAME" addDLLEntry	adds a new entry point to current definitions DLL vocabulary
 
-addHelp blword
-addHelp word
-addHelp getInBufferBase
-addHelp getInBufferPointer
-addHelp setInBufferPointer
-addHelp getInBufferLength
-addHelp fillInBuffer
+addHelp blword					... STRING_ADDR						fetch next whitespace-delimited token from input stream, return its address
+addHelp word					CHARVAL ... STRING_ADDR				fetch next token delimited by CHARVAL from input stream, return its address
+addHelp getInBufferBase			... INPUT_BUFFER_ADDR				return address of base of input buffer
+addHelp getInBufferPointer		... INPUT_BUFFER_ADDR				return address of cursor position in input buffer
+addHelp setInBufferPointer		ADDR ...							set cursor position in input buffer
+addHelp getInBufferLength		... LEN								return size of input buffer (maximum input line length)
+addHelp fillInBuffer			PROMPT_STRING ... INPUT_BUFFER_ADDR		display prompt, fill input buffer & return input buffer address
 
 addHelp turbo			...		switches between slow and fast mode
 addHelp stats			...		displays forth engine statistics
@@ -281,17 +281,17 @@ addHelp describe		describe OPNAME		displays info on op, disassembles userops
 
 // ops below this line have precedence
 addHelp _doEnum
-addHelp do
-addHelp loop
-addHelp +loop
-addHelp if
-addHelp else
-addHelp endif
-addHelp begin
-addHelp until
-addHelp while
-addHelp repeat
-addHelp again
+addHelp do				ENDVAL STARTVAL ...			start do loop, ends at ENDVAL-1
+addHelp loop			...							end do loop
+addHelp +loop			INCREMENT ...				end do loop, add INCREMENT to index each time
+addHelp if				BOOL ...					start if statement
+addHelp else										start else branch of if statement
+addHelp endif										end if statement
+addHelp begin										begin loop statement
+addHelp until			BOOL ...					loop back to "begin" if BOOL is false
+addHelp while			BOOL ...					exit loop after "repeat" if BOOL is false
+addHelp repeat										end loop statement
+addHelp again										loop back to "begin"
 addHelp case
 addHelp of
 addHelp endof
@@ -309,8 +309,8 @@ addHelp op
 addHelp void
 addHelp arrayOf
 addHelp ptrTo
-addHelp struct
-addHelp endstruct
+addHelp struct:
+addHelp ;struct
 addHelp sizeOf
 addHelp offsetOf
 addHelp recursive

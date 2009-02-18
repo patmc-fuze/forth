@@ -11,6 +11,9 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+#include <sys/types.h>
+#include <sys/timeb.h>
+
 #include "Forth.h"
 #include "ForthThread.h"
 #include "ForthShell.h"
@@ -53,6 +56,7 @@ public:
 
     void            SetFastMode( bool goFast );
     void            ToggleFastMode( void );
+    bool            GetFastMode( void );
 
     //
     // ExecuteOneOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
@@ -99,7 +103,7 @@ public:
     void            PopInputStream( void );
 
     // returns pointer to new vocabulary entry
-    long *          StartOpDefinition( const char *pName=NULL, bool smudgeIt=false );
+    long *          StartOpDefinition( const char *pName=NULL, bool smudgeIt=false, forthOpType opType=kOpUserDef );
     void            EndOpDefinition( bool unsmudgeIt=false );
     // return pointer to symbol entry, NULL if not found
     long *          FindSymbol( const char *pSymName );
@@ -173,6 +177,9 @@ public:
 	void					SetConsoleOut( consoleOutRoutine outRoutine, void* outData );
 	void					ResetConsoleOut( ForthThreadState* pThread );
 
+    // return milliseconds since engine was created
+    unsigned long           GetElapsedTime( void );
+
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char *pToken, long *pValue, int base, bool& isOffset );
@@ -217,6 +224,8 @@ protected:
 
     consoleOutRoutine   mDefaultConsoleOut;
 	void*				mpDefaultConsoleOutData;
+
+    struct _timeb   mStartTime;
 
     static ForthEngine* mpInstance;
     bool            mFastMode;

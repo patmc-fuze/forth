@@ -30,28 +30,30 @@ kForthErrorNone						EQU		0t
 kForthErrorBadOpcode				EQU		1t
 kForthErrorBadOpcodeType			EQU		2t
 kForthErrorBadParameter				EQU		3t
-kForthErrorParamStackUnderflow		EQU		4t
-kForthErrorParamStackOverflow		EQU		5t
-kForthErrorReturnStackUnderflow		EQU		6t
-kForthErrorReturnStackOverflow		EQU		7t
-kForthErrorUnknownSymbol			EQU		8t
-kForthErrorFileOpen					EQU		9t
-kForthErrorAbort					EQU		10t
-kForthErrorForgetBuiltin			EQU		11t
-kForthErrorBadMethod				EQU		12t
-kForthErrorException				EQU		13t
-kForthErrorMissingSize				EQU		14t
-kForthErrorStruct					EQU		15t
-kForthErrorUserDefined				EQU		16t
-kForthErrorBadSyntax				EQU		17t
-kForthNumErrors						EQU		18t
+kForthErrorBadVarOperation			EQU		4t
+kForthErrorParamStackUnderflow		EQU		5t
+kForthErrorParamStackOverflow		EQU		6t
+kForthErrorReturnStackUnderflow		EQU		7t
+kForthErrorReturnStackOverflow		EQU		8t
+kForthErrorUnknownSymbol			EQU		9t
+kForthErrorFileOpen					EQU		10t
+kForthErrorAbort					EQU		11t
+kForthErrorForgetBuiltin			EQU		12t
+kForthErrorBadMethod				EQU		13t
+kForthErrorException				EQU		14t
+kForthErrorMissingSize				EQU		15t
+kForthErrorStruct					EQU		16t
+kForthErrorUserDefined				EQU		17t
+kForthErrorBadSyntax				EQU		18t
+kForthNumErrors						EQU		19t
+
 
 
 kPrintSignedDecimal		EQU		0t
 kPrintAllSigned		EQU		1t
 kPrintAllUnsigned		EQU		2t
 
-
+; the kOp definitions are all out of date, bogus and luckily unused
 kOpBuiltIn		EQU		0t
 kOpUserDef		EQU		1t
 kOpBranch		EQU		2t
@@ -95,7 +97,8 @@ IPtr		DWORD		?
 SPtr		DWORD		?
 RPtr		DWORD		?
 FPtr		DWORD		?
-TPtr		DWORD		?
+TVPtr		DWORD		?
+TDPtr		DWORD		?
 varMode		DWORD		?
 state		DWORD		?
 error		DWORD		?

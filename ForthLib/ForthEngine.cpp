@@ -42,11 +42,14 @@ static char *opTypeNames[] = {
     "BuiltIn", "BuiltInImmediate", "UserDefined", "UserDefinedImmediate", "UserCode", "UserCodeImmediate", "DLLEntryPoint", 0, 0, 0,
     "Branch", "BranchTrue", "BranchFalse", "CaseBranch", 0, 0, 0, 0, 0, 0,
     "Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "InitLocalString", "LocalStructArray", 0, 0,
-    "LocalByte", "LocalShort", "LocalInt", "LocalFloat", "LocalDouble", "LocalString", "LocalOp", 0, 0, 0,
-    "FieldByte", "FieldShort", "FieldInt", "FieldFloat", "FieldDouble", "FieldString", "FieldOp", 0, 0, 0,
-    "LocalByteArray", "LocalShortArray", "LocalIntArray", "LocalFloatArray", "LocalDoubleArray", "LocalStringArray", "LocalOpArray", 0, 0, 0,
-    "FieldByteArray", "FieldShortArray", "FieldIntArray", "FieldFloatArray", "FieldDoubleArray", "FieldStringArray", "FieldOpArray", 0, 0, 0,
-    "MemberByte", "MemberShort", "MemberInt", "MemberFloat", "MemberDouble", "MemberString", "MemberOp", "MethodWithThis",
+    "LocalByte", "LocalShort", "LocalInt", "LocalFloat", "LocalDouble", "LocalString", "LocalOp", "LocalObject", 0, 0,
+    "FieldByte", "FieldShort", "FieldInt", "FieldFloat", "FieldDouble", "FieldString", "FieldOp", "FieldObject", 0, 0,
+    "LocalByteArray", "LocalShortArray", "LocalIntArray", "LocalFloatArray", "LocalDoubleArray", "LocalStringArray", "LocalOpArray", "LocalObjectArray", 0, 0,
+    "FieldByteArray", "FieldShortArray", "FieldIntArray", "FieldFloatArray", "FieldDoubleArray", "FieldStringArray", "FieldOpArray", "FieldObjectArray", 0, 0,
+    "MemberByte", "MemberShort", "MemberInt", "MemberFloat", "MemberDouble", "MemberString", "MemberOp", "MemberObject", 0, 0,
+    "MemberByteArray", "MemberShortArray", "MemberIntArray", "MemberFloatArray", "MemberDoubleArray", "MemberStringArray", "MemberOpArray", "MemberObjectArray", 0, 0,
+    "MethodWithThis", "MethodWithTOS", 0, 0, 0, 0, 0, 0, 0, 0,
+    "LocalUserDefined"
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -107,6 +110,9 @@ ForthEngine::ForthEngine()
     mpCore = new ForthCoreState;
     InitCore( mpCore );
     mpErrorString = new char[ ERROR_STRING_MAX + 1 ];
+
+    // remember creation time for elapsed time method
+    _ftime( &mStartTime );
 }
 
 ForthEngine::~ForthEngine()
@@ -221,6 +227,12 @@ ForthEngine::ToggleFastMode( void )
     {
         printf( "Slow mode!\n" );
     }
+}
+
+bool
+ForthEngine::GetFastMode( void )
+{
+    return mFastMode;
 }
 
 void
@@ -468,7 +480,7 @@ ForthEngine::PopInputStream( void )
 
 
 long *
-ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt )
+ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt, forthOpType opType )
 {
     mpLocalVocab->Empty();
     mLocalFrameSize = 0;
@@ -480,7 +492,7 @@ ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt )
     {
         pName = GetNextSimpleToken();
     }
-    long* pEntry = mpDefinitionVocab->AddSymbol( pName, kOpUserDef, (long) mpCore->DP, true );
+    long* pEntry = mpDefinitionVocab->AddSymbol( pName, opType, (long) mpCore->DP, true );
     if ( smudgeIt )
     {
         mpDefinitionVocab->SmudgeNewestSymbol();
@@ -1360,6 +1372,18 @@ void
 ForthEngine::EndEnumDefinition( void )
 {
     ClearFlag( kEngineFlagInEnumDefinition );
+}
+
+// return milliseconds since engine was created
+unsigned long
+ForthEngine::GetElapsedTime( void )
+{
+    struct _timeb now;
+    _ftime( &now );
+
+    long seconds = now.time - mStartTime.time;
+    long milliseconds = now.millitm - mStartTime.millitm;
+    return (unsigned long) ((seconds * 1000) + milliseconds);
 }
 
 //############################################################################

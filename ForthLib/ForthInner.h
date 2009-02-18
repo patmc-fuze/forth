@@ -43,7 +43,8 @@ struct ForthThreadState
 
     long                *FP;       // frame pointer
     
-    long                *TP;       // this pointer
+    long                *TPV;      // this pointer (vtable)
+    long                *TPD;      // this pointer (data)
 
     void                *pPrivate; // pointer to per-thread state
     long                currentOp; // last op dispatched by inner interpreter
@@ -90,7 +91,8 @@ struct ForthCoreState
 
     long                *FP;            // frame pointer
     
-    long                *TP;            // this pointer
+    long                *TPV;           // this pointer (vtable)
+    long                *TPD;           // this pointer (data)
 
     ulong               varMode;        // operation to perform on variables
 
@@ -149,8 +151,10 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define GET_FP                          (pCore->FP)
 #define SET_FP( A )                     (pCore->FP = A)
 
-#define GET_TP                          (pCore->TP)
-#define SET_TP( A )                     (pCore->TP = A)
+#define GET_TPV                         (pCore->TPV)
+#define GET_TPD                         (pCore->TPD)
+#define SET_TPV( A )                    (pCore->TPV = A)
+#define SET_TPD( A )                    (pCore->TPD = A)
 
 #define GET_DP                          (pCore->DP)
 #define SET_DP( A )                     (pCore->DP = A)
@@ -161,8 +165,8 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define FPOP                            (*(float *)pCore->SP++)
 #define FPUSH( A )                      --pCore->SP; *(float *)pCore->SP = A
 
-#define DPOP                            *((double *)pCore->SP); pCore->SP += 2
-#define DPUSH( A )                      pCore->SP -= 2; *(double *)pCore->SP = A
+#define DPOP                            *((double *)(pCore->SP)); pCore->SP += 2
+#define DPUSH( A )                      pCore->SP -= 2; *((double *)(pCore->SP)) = A
 
 #define RPOP                            (*pCore->RP++)
 #define RPUSH( A )                      (*--pCore->RP = A)

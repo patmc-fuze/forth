@@ -7,6 +7,8 @@
 #include "stdafx.h"
 #include <conio.h>
 #include <direct.h>
+#include <io.h>
+#include <sys\timeb.h>
 #include "Forth.h"
 #include "ForthEngine.h"
 #include "ForthThread.h"
@@ -440,27 +442,29 @@ FORTHOP(doExitLOp)
 // exit method op with no local vars
 FORTHOP(doExitMOp)
 {
-    // rstack: oldTP oldIP
+    // rstack: oldIP oldTP
     if ( GET_RDEPTH < 2 ) {
         SET_ERROR( kForthErrorReturnStackUnderflow );
     } else {
-        SET_TP( (long *) RPOP );
         SET_IP( (long *) RPOP );
+        SET_TPV( (long *) RPOP );
+        SET_TPD( (long *) RPOP );
     }
 }
 
 // exit method op with local vars
 FORTHOP(doExitMLOp)
 {
-    // rstack: local_var_storage oldFP oldTP oldIP
+    // rstack: local_var_storage oldFP oldIP oldTP
     // FP points to oldFP
     SET_RP( GET_FP );
     SET_FP( (long *) (RPOP) );
     if ( GET_RDEPTH < 2 ) {
         SET_ERROR( kForthErrorReturnStackUnderflow );
     } else {
-        SET_TP( (long *) RPOP );
         SET_IP( (long *) RPOP );
+        SET_TPV( (long *) RPOP );
+        SET_TPD( (long *) RPOP );
     }
 }
 
@@ -913,6 +917,12 @@ FORTHOP( falseOp )
 
 FORTHOP( nullOp )
 {
+    SPUSH( 0 );
+}
+
+FORTHOP( dnullOp )
+{
+    SPUSH( 0 );
     SPUSH( 0 );
 }
 
@@ -1988,6 +1998,12 @@ FORTHOP( opOp )
 	gNativeOp.DefineInstance( GET_ENGINE, &val );
 }
 
+FORTHOP( objectOp )
+{
+    long val[2] = { 0, 0  };
+	gNativeObject.DefineInstance( GET_ENGINE, val );
+}
+
 FORTHOP( voidOp )
 {
 }
@@ -2041,6 +2057,81 @@ FORTHOP( endstructOp )
     ForthEngine *pEngine = GET_ENGINE;
     pEngine->ClearFlag( kEngineFlagInStructDefinition );
     pEngine->EndOpDefinition( true );
+}
+
+FORTHOP( classOp )
+{
+    ForthEngine* pEngine = GET_ENGINE;
+    pEngine->SetFlag( kEngineFlagInStructDefinition );
+    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthClassVocabulary* pVocab = pManager->AddClassType( pEngine->GetNextSimpleToken() );
+    pEngine->CompileOpcode( OP_DO_CLASS_TYPE );
+    pEngine->CompileLong( (long) pVocab );
+}
+
+FORTHOP( endclassOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->ClearFlag( kEngineFlagInStructDefinition );
+    pEngine->EndOpDefinition( true );
+}
+
+FORTHOP( methodOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    // get next symbol, add it to vocabulary with type "user op"
+    pEngine->StartOpDefinition( NULL, true );
+    // switch to compile mode
+    pEngine->SetCompileState( 1 );
+    pEngine->ClearFlag( kEngineFlagHasLocalVars );
+    pEngine->SetFlag( kEngineFlagIsMethod );
+}
+
+FORTHOP( endmethodOp )
+{
+    // TBD
+    ForthEngine *pEngine = GET_ENGINE;
+
+    exitOp( pCore );
+    // switch back from compile mode to execute mode
+    pEngine->SetCompileState( 0 );
+    pEngine->ClearFlag( kEngineFlagHasLocalVars );
+    // finish current symbol definition
+    // compile local vars allocation op (if needed)
+    pEngine->EndOpDefinition( true );
+    pEngine->ClearFlag( kEngineFlagIsMethod );
+}
+
+FORTHOP( implementsOp )
+{
+    // TBD
+    ForthEngine *pEngine = GET_ENGINE;
+
+    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthClassVocabulary* pVocab = pManager->GetNewestClass();
+    if ( pVocab )
+    {
+        pVocab->Implements( pEngine->GetNextSimpleToken() );
+    }
+    else
+    {
+        // TBD: report error - implements in struct
+    }
+}
+
+FORTHOP( endimplementsOp )
+{
+    // TBD
+    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthClassVocabulary* pVocab = pManager->GetNewestClass();
+    if ( pVocab )
+    {
+        pVocab->EndImplements();
+    }
+    else
+    {
+        // TBD: report error - ;implements in struct
+    }
 }
 
 FORTHOP( unionOp )
@@ -2185,7 +2276,16 @@ FORTHOP( doStructTypeOp )
     SET_IP( (long *) (RPOP) );
 }
 
-// doStructOp is compiled at the of each user-defined global structure instance
+// doClassTypeOp is compiled at the start of each user-defined class defining word 
+FORTHOP( doClassTypeOp )
+{
+    // IP points to data field
+    ForthClassVocabulary *pVocab = (ForthClassVocabulary *) (*GET_IP);
+    pVocab->DefineInstance();
+    SET_IP( (long *) (RPOP) );
+}
+
+// doStructOp is compiled at the start of each user-defined global structure instance
 FORTHOP( doStructOp )
 {
     // IP points to data field
@@ -2602,7 +2702,9 @@ FORTHOP( printStrOp )
 FORTHOP( printCharOp )
 {
     NEEDS(1);
-    char buff[4];
+    //long oof = SPOP;
+    char buff[2];
+//    buff[0] = 59;
     buff[0] = (char) SPOP;
     buff[1] = 0;
 
@@ -2786,15 +2888,126 @@ FORTHOP( flenOp )
     int oldPos = ftell( pFile );
     fseek( pFile, 0, SEEK_END );
     int result = ftell( pFile );
-    fseek( pFile, 0, SEEK_SET );
+    fseek( pFile, oldPos, SEEK_SET );
     SPUSH( result );
 }
-
 
 FORTHOP( systemOp )
 {
     NEEDS(1);
-    int result = system( (char *) SPOP );
+    int result = -1;
+    ForthEngine *pEngine = GET_ENGINE;
+
+    // open temp file which will take standard output
+    FILE* outStream = fopen( "_system_stdout.txt", "w" );
+    if ( outStream == NULL )
+    {
+        SET_ERROR( kForthErrorFileOpen );
+        pEngine->AddErrorText( "system: failure opening _system_stdout.txt\n" );
+        SPUSH( result );
+        return;
+    }
+
+    // open temp file which will take standard error
+    FILE* errStream = fopen( "_system_stderr.txt", "w" );
+    if ( errStream == NULL )
+    {
+        SET_ERROR( kForthErrorFileOpen );
+        pEngine->AddErrorText( "system: failure opening _system_stderr.txt\n" );
+        fclose( outStream );
+        SPUSH( result );
+        return;
+    }
+
+    // dup standard output file descriptor so we can restore it on exit
+    int oldStdOut = _dup( 1 );
+    if( oldStdOut == -1 )
+    {
+        SET_ERROR( kForthErrorFileOpen );
+        pEngine->AddErrorText( "system: failure dup-ing stdout\n" );
+        fclose( outStream );
+        fclose( errStream );
+        SPUSH( result );
+        return;
+    }
+
+    // dup standard error file descriptor so we can restore it on exit
+    int oldStdErr = _dup( 2 );
+    if( oldStdErr == -1 )
+    {
+        SET_ERROR( kForthErrorFileOpen );
+        pEngine->AddErrorText( "system: failure dup-ing stderr\n" );
+        fclose( outStream );
+        fclose( errStream );
+        _dup2( oldStdOut, 1 );
+        SPUSH( result );
+        return;
+    }
+
+    // redirect standard out to temp output file
+    if ( _dup2( _fileno( outStream ), 1 ) == -1 )
+    {
+        SET_ERROR( kForthErrorFileOpen );
+        pEngine->AddErrorText( "system: failure redirecting stdout to _system_stdout.txt\n" );
+    }
+    else
+    {
+        // redirect standard error to temp error file
+        if ( _dup2( _fileno( errStream ), 2 ) == -1 )
+        {
+            SET_ERROR( kForthErrorFileOpen );
+            pEngine->AddErrorText( "system: failure redirecting stderr to _system_stderr.txt\n" );
+        }
+        else
+        {
+            // have DOS shell execute command line string pointed to by TOS
+            result = system( (char *) SPOP );
+            fflush( stdout );
+            fflush( stderr );
+            // close standard error stream, then reopen it on oldStdError (console output)
+            _dup2( oldStdErr, 2 );
+        }
+         // close standard output stream, then reopen it on oldStdOut (console output)
+        _dup2( oldStdOut, 1 );
+    }
+    fclose( outStream );
+    fclose( errStream );
+
+    // dump contents of output and error files using forth console IO routines
+    char buff[2];
+    buff[1] = 0;
+    outStream = fopen( "_system_stdout.txt", "r" );
+    if ( outStream )
+    {
+        int ch;
+        while ( (ch = fgetc( outStream )) != EOF )
+        {
+            buff[0] = (char) ch;
+            CONSOLE_STRING_OUT( buff );
+        }
+        fclose( outStream );
+        errStream = fopen( "_system_stderr.txt", "r" );
+        if ( errStream )
+        {
+            while ( (ch = fgetc( errStream )) != EOF )
+            {
+                buff[0] = (char) ch;
+                CONSOLE_STRING_OUT( buff );
+            }
+            fclose( errStream );
+        }
+        else
+        {
+            SET_ERROR( kForthErrorFileOpen );
+            pEngine->AddErrorText( "system: failure reopening _system_stderr.txt\n" );
+        }
+    }
+    else
+    {
+        SET_ERROR( kForthErrorFileOpen );
+        pEngine->AddErrorText( "system: failure reopening _system_stdout.txt\n" );
+    }
+
     SPUSH( result );
 }
 
@@ -3035,6 +3248,22 @@ FORTHOP( addErrorTextOp )
     pEngine->AddErrorText( (char *) (SPOP) );
 }
 
+FORTHOP( strtimeOp )
+{
+    _strtime( (char *) (SPOP) );
+}
+
+FORTHOP( strdateOp )
+{
+    _strdate( (char *) (SPOP) );
+}
+
+FORTHOP( millitimeOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    SPUSH( (long) pEngine->GetElapsedTime() );
+}
+
 #define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func }
 
 // ops which have precedence (execute at compile time)
@@ -3051,6 +3280,7 @@ extern GFORTHOP( doFloatOp );
 extern GFORTHOP( doDoubleOp );
 extern GFORTHOP( doStringOp );
 extern GFORTHOP( doOpOp );
+extern GFORTHOP( doObjectOp );
 extern GFORTHOP( doByteArrayOp );
 extern GFORTHOP( doShortArrayOp );
 extern GFORTHOP( doIntArrayOp );
@@ -3059,6 +3289,7 @@ extern GFORTHOP( doFloatArrayOp );
 extern GFORTHOP( doDoubleArrayOp );
 extern GFORTHOP( doStringArrayOp );
 extern GFORTHOP( doOpArrayOp );
+extern GFORTHOP( doObjectArrayOp );
 
 baseDictEntry baseDict[] = {
     ///////////////////////////////////////////
@@ -3083,22 +3314,25 @@ baseDictEntry baseDict[] = {
     OP(     doDoubleOp,             "_doDouble" ),
     OP(     doStringOp,             "_doString" ),
     OP(     doOpOp,                 "_doOp" ),
+    OP(     doObjectOp,             "_doObject" ),
+    // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
+    OP(     addressOfOp,            "addressOf" ),
     OP(     intoOp,                 "->" ),
-    OP(     doDoOp,                 "_do" ),
-    OP(     doLoopOp,               "_loop" ),
-    OP(     doLoopNOp,              "_+loop" ),
+    OP(     addToOp,                "->+" ),
+    OP(     subtractFromOp,         "->-" ),
     OP(     doExitOp,               "_exit" ),      // exit normal op with no vars
     OP(     doExitLOp,              "_exitL" ),     // exit normal op with local vars
     OP(     doExitMOp,              "_exitM" ),     // exit method op with no vars
     OP(     doExitMLOp,             "_exitML" ),    // exit method op with local vars
     OP(     doVocabOp,              "_doVocab" ),
-    OP(     doByteOp,               "_doByteArray" ),
-    OP(     doShortOp,              "_doShortArray" ),
-    OP(     doIntOp,                "_doIntArray" ),
-    OP(     doFloatOp,              "_doFloatArray" ),
-    OP(     doDoubleOp,             "_doDoubleArray" ),
-    OP(     doStringOp,             "_doStringArray" ),
-    OP(     doOpOp,                 "_doOpArray" ),
+    OP(     doByteArrayOp,          "_doByteArray" ),
+    OP(     doShortArrayOp,         "_doShortArray" ),
+    OP(     doIntArrayOp,           "_doIntArray" ),
+    OP(     doFloatArrayOp,         "_doFloatArray" ),
+    OP(     doDoubleArrayOp,        "_doDoubleArray" ),
+    OP(     doStringArrayOp,        "_doStringArray" ),
+    OP(     doOpArrayOp,            "_doOpArray" ),
+    OP(     doObjectArrayOp,        "_doObjectArray" ),
     OP(     initStringOp,           "initString" ),
     OP(     initStringArrayOp,      "initStringArray" ),
     OP(     plusOp,                 "+" ),
@@ -3107,7 +3341,11 @@ baseDictEntry baseDict[] = {
     OP(     doStructOp,             "_doStruct" ),
     OP(     doStructArrayOp,        "_doStructArray" ),
     OP(     doStructTypeOp,         "_doStructType" ),
+    OP(     doClassTypeOp,          "_doClassType" ),
     PRECOP( doEnumOp,               "_doEnum" ),
+    OP(     doDoOp,                 "_do" ),
+    OP(     doLoopOp,               "_loop" ),
+    OP(     doLoopNOp,              "_+loop" ),
 
     // stuff below this line can be rearranged
     
@@ -3217,6 +3455,7 @@ baseDictEntry baseDict[] = {
     OP(     trueOp,                 "true" ),
     OP(     falseOp,                "false" ),
     OP(     nullOp,                 "null" ),
+    OP(     dnullOp,                "dnull" ),
 
     ///////////////////////////////////////////
     //  integer comparisons
@@ -3288,9 +3527,6 @@ baseDictEntry baseDict[] = {
     OP(     dfetchOp,               "d@" ),
     OP(     memcpyOp,               "memcpy" ),
     OP(     memsetOp,               "memset" ),
-    OP(     addToOp,                "->+" ),
-    OP(     subtractFromOp,         "->-" ),
-    OP(     addressOfOp,            "addressOf" ),
     OP(     setVarActionOp,         "varAction!" ),
     OP(     getVarActionOp,         "varAction@" ),
 
@@ -3329,17 +3565,24 @@ baseDictEntry baseDict[] = {
     PRECOP( doubleOp,               "double" ),
     PRECOP( stringOp,               "string" ),
     PRECOP( opOp,                   "op" ),
+    PRECOP( objectOp,               "object" ),
     PRECOP( voidOp,                 "void" ),
     PRECOP( arrayOfOp,              "arrayOf" ),
     PRECOP( ptrToOp,                "ptrTo" ),
-    OP(     structOp,               "struct" ),
-    OP(     endstructOp,            "endstruct" ),
+    OP(     structOp,               "struct:" ),
+    OP(     endstructOp,            ";struct" ),
+    OP(     classOp,                "class:" ),
+    OP(     endclassOp,             ";class" ),
+    OP(     methodOp,               "method:" ),
+    OP(     endmethodOp,            ";method" ),
+    OP(     implementsOp,           "implements:" ),
+    OP(     endimplementsOp,        ";implements" ),
     OP(     unionOp,                "union" ),
     OP(     extendsOp,              "extends" ),
     PRECOP( sizeOfOp,               "sizeOf" ),
     PRECOP( offsetOfOp,             "offsetOf" ),
-    OP(     enumOp,                 "enum" ),
-    OP(     endenumOp,              "endenum" ),
+    OP(     enumOp,                 "enum:" ),
+    OP(     endenumOp,              ";enum" ),
     PRECOP( recursiveOp,            "recursive" ),
     OP(     precedenceOp,           "precedence" ),
     OP(     loadOp,                 "load" ),
@@ -3438,6 +3681,13 @@ baseDictEntry baseDict[] = {
     ///////////////////////////////////////////
     OP(     DLLVocabularyOp,        "DLLVocabulary" ),
     OP(     addDLLEntryOp,          "addDLLEntry" ),
+
+    ///////////////////////////////////////////
+    //  time and date
+    ///////////////////////////////////////////
+    OP(     strtimeOp,              "strtime" ),
+    OP(     strdateOp,              "strdate" ),
+    OP(     millitimeOp,            "millitime" ),
 
     ///////////////////////////////////////////
     //  admin/debug/system

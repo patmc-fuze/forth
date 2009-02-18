@@ -53,7 +53,8 @@ ForthThread::Reset( void )
     mState.SP = mState.ST;
     mState.RP = mState.RT;
     mState.FP = NULL;
-    mState.TP = NULL;
+    mState.TPV = NULL;
+    mState.TPD = NULL;
 
     mState.error = kForthErrorNone;
     mState.state = kResultDone;
@@ -74,7 +75,8 @@ ForthThread::Activate( ForthCoreState* pCore )
     pCore->RT       = mState.RT;
     pCore->RLen     = mState.RLen;
     pCore->FP       = mState.FP;
-    pCore->TP       = mState.TP;
+    pCore->TPV      = mState.TPV;
+    pCore->TPD      = mState.TPD;
     pCore->varMode  = mState.varMode;
     pCore->state    = mState.state;
     pCore->error    = mState.error;
@@ -88,7 +90,8 @@ void ForthThread::Deactivate( ForthCoreState* pCore )
     mState.SP = pCore->SP;
     mState.RP = pCore->RP;
     mState.FP = pCore->FP;
-    mState.TP = pCore->TP;
+    mState.TPV = pCore->TPV;
+    mState.TPD = pCore->TPD;
     // NOTE: we don't copy ST, SLen, RT & RLen back into thread - they should not change
     mState.varMode = (varOperation) (pCore->varMode);
     mState.state = (eForthResult) (pCore->state);

@@ -144,7 +144,7 @@ ForthShell::Run( ForthInputStream *pInStream )
     while ( !bQuit ) {
 
         // try to fetch a line from current stream
-        pBuffer = mpInput->GetLine( "ok>" );
+        pBuffer = mpInput->GetLine( mpEngine->GetFastMode() ? "turbo>" : "ok>" );
         if ( pBuffer == NULL ) {
             bQuit = PopInputStream();
         }

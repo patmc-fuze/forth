@@ -5,25 +5,25 @@
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 Words that need to be defined:
 
-- class
-- endclass
-- method
-- endmethod
-- extends
+- class:
+- ;class
+- method:
+- ;method
+- extends		(modify)
+- implements:
+- ;implements
+
 - abstract
 - new
 - delete
 - this
 
+? returns
 ? public
 ? private
 ? static (some word to indicate global members) ? or just use global vars ?
-If everything is public, then static methods could just be regular forth definitions
+  If everything is public, then static methods could just be regular forth definitions
 
-- interface
-- endinterface
-- implements
-- endimplements
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 

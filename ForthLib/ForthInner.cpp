@@ -70,81 +70,209 @@ VarAction byteOps[] = {
 GFORTHOP( doByteOp )
 {
     // IP points to data field
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    unsigned char* pVar = (unsigned char *)(GET_IP);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long) (GET_IP) );
-        byteOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            byteOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
     }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalByteAction )
 {
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    unsigned char* pVar = (unsigned char *)(GET_FP - opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long)(GET_FP - opVal) );
-        // TOS points to data field
-        byteOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            byteOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
     }
 }
 
 OPTYPE_ACTION( FieldByteAction )
 {
-    long pVar = SPOP + opVal;
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    unsigned char* pVar = (unsigned char *)(SPOP + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        // TOS points to data field
-        byteOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            byteOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
+    }
+}
 
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+OPTYPE_ACTION( MemberByteAction )
+{
+    unsigned char* pVar = (unsigned char *)(((long)(GET_TPD)) + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            byteOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
     }
 }
 
 // this is an internal op that is compiled before the data field of each byte array
 GFORTHOP( doByteArrayOp )
 {
-    // IP points to data field
-    int index = SPOP;
-    SPUSH( ((long) (GET_IP)) + index );
-    byteOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    unsigned char* pVar = (unsigned char *)(SPOP + (long)(GET_IP));
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            byteOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
+    }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalByteArrayAction )
 {
-    int index = SPOP;
-    SPUSH( ((long) (GET_FP - opVal)) + index );
-    byteOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    unsigned char* pVar = (unsigned char *)(SPOP + ((long) (GET_FP - opVal)));
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            byteOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
+    }
 }
 
 OPTYPE_ACTION( FieldByteArrayAction )
 {
     // TOS is struct base, NOS is index
     // opVal is byte offset of byte[0]
-    long pVar = SPOP + opVal;
+    unsigned char* pVar = (unsigned char *)(SPOP + opVal);
     pVar += SPOP;
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        // TOS points to data field
-        byteOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            byteOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
+    }
+}
 
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+OPTYPE_ACTION( MemberByteArrayAction )
+{
+    // TOS is index
+    // opVal is byte offset of byte[0]
+    unsigned char* pVar = (unsigned char *)(((long)(GET_TPD)) + SPOP + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            byteOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
     }
 }
 
@@ -159,8 +287,8 @@ OPTYPE_ACTION( FieldByteArrayAction )
 VAR_ACTION( doShortFetch )
 {
     // IP points to data field
-    short c = *(short *)(SPOP);
-    SPUSH( (long) c );
+    short s = *(short *)(SPOP);
+    SPUSH( (long) s );
 }
 
 VAR_ACTION( doShortRef )
@@ -199,46 +327,103 @@ VarAction shortOps[] = {
 // this is an internal op that is compiled before the data field of each short variable
 GFORTHOP( doShortOp )
 {
-    
     // IP points to data field
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    short* pVar = (short *)(GET_IP);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long) (GET_IP) );
-        shortOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            shortOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
     }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalShortAction )
 {
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    short* pVar = (short *)(GET_FP - opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long)(GET_FP - opVal) );
-        // TOS points to data field
-        shortOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            shortOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
     }
 }
 
 OPTYPE_ACTION( FieldShortAction )
 {
-    long pVar = SPOP + opVal;
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    short* pVar = (short *)(SPOP + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        // TOS points to data field
-        shortOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            shortOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
+    }
+}
 
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+OPTYPE_ACTION( MemberShortAction )
+{
+    short* pVar = (short *)(((long)(GET_TPD)) + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            shortOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
     }
 }
 
@@ -246,36 +431,107 @@ OPTYPE_ACTION( FieldShortAction )
 GFORTHOP( doShortArrayOp )
 {
     // IP points to data field
-    int index = (SPOP) << 1;
-    SPUSH( ((long) (GET_IP)) + index );
-    shortOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    short* pVar = ((short *) (GET_IP)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            shortOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
+    }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalShortArrayAction )
 {
-    int index = (SPOP) << 1;
-    SPUSH( ((long) (GET_FP - opVal)) + index );
-    shortOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    short* pVar = ((short *) (GET_FP - opVal)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            shortOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
+    }
 }
 
 OPTYPE_ACTION( FieldShortArrayAction )
 {
     // TOS is struct base, NOS is index
     // opVal is byte offset of short[0]
-    long pVar = SPOP + opVal;
-    pVar += (SPOP << 1);
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    short* pVar = (short *)(SPOP + opVal);
+    pVar += SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        // TOS points to data field
-        shortOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            shortOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
+    }
+}
 
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+OPTYPE_ACTION( MemberShortArrayAction )
+{
+    // TOS is index
+    // opVal is byte offset of byte[0]
+    short* pVar = ((short *) (((long)(GET_TPD)) + opVal)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            shortOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( (long) *pVar );
     }
 }
 
@@ -331,64 +587,103 @@ VarAction intOps[] = {
 GFORTHOP( doIntOp )
 {
     // IP points to data field
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    long* pVar = (long *)(GET_IP);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long) (GET_IP) );
-        intOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            intOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *pVar );
     }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalIntAction )
 {
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    long* pVar = (long *)(GET_FP - opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long)(GET_FP - opVal) );
-        // TOS points to data field
-        intOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            intOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *pVar );
     }
 }
 
 
 OPTYPE_ACTION( FieldIntAction )
 {
-    long pVar = SPOP + opVal;
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    long* pVar = (long *)(SPOP + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        // TOS points to data field
-        intOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            intOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *pVar );
     }
 }
 
 OPTYPE_ACTION( MemberIntAction )
 {
-    long *pInt = ((long *) (GET_TP[1])) + opVal;
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        SPUSH( *pInt );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
-        SPUSH( (long)pInt );
-        // TOS points to data field
-        intOps[ GET_VAR_OPERATION ] ( pCore );
+    long *pVar = (long *) (((long)(GET_TPD)) + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            intOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *pVar );
     }
 }
 
@@ -396,36 +691,107 @@ OPTYPE_ACTION( MemberIntAction )
 GFORTHOP( doIntArrayOp )
 {
     // IP points to data field
-    int index = SPOP;
-    SPUSH( ((long) ((GET_IP) + index)) );
-    intOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    long* pVar = ((long *) (GET_IP)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            intOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *pVar );
+    }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalIntArrayAction )
 {
-    int index = SPOP;
-    SPUSH( ((long) ((GET_FP - opVal) + index)) );
-    intOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    long* pVar = ((long *) (GET_FP - opVal)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            intOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *pVar );
+    }
 }
 
 OPTYPE_ACTION( FieldIntArrayAction )
 {
     // TOS is struct base, NOS is index
     // opVal is byte offset of int[0]
-    long pVar = SPOP + opVal;
-    pVar += (SPOP << 2);
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    long* pVar = (long *)(SPOP + opVal);
+    pVar += SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        // TOS points to data field
-        intOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            intOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *pVar );
+    }
+}
 
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+OPTYPE_ACTION( MemberIntArrayAction )
+{
+    // TOS is index
+    // opVal is byte offset of byte[0]
+    long* pVar = ((long *) (((long)(GET_TPD)) + opVal)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            intOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *pVar );
     }
 }
 
@@ -461,63 +827,102 @@ VarAction floatOps[] = {
 GFORTHOP( doFloatOp )
 {    
     // IP points to data field
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    float* pVar = (float *)(GET_IP);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long) (GET_IP) );
-        floatOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            floatOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *((long *) pVar) );
     }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalFloatAction )
 {
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    float* pVar = (float *)(GET_FP - opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long)(GET_FP - opVal) );
-        // TOS points to data field
-        floatOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            floatOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *((long *) pVar) );
     }
 }
 
 OPTYPE_ACTION( FieldFloatAction )
 {
-    long pVar = SPOP + opVal;
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    float* pVar = (float *)(SPOP + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        // TOS points to data field
-        floatOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            floatOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *((long *) pVar) );
     }
 }
 
 OPTYPE_ACTION( MemberFloatAction )
 {
-    float *pFloat = ((float *) (GET_TP[1])) + opVal;
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        FPUSH( *pFloat );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
-        SPUSH( (long) pFloat );
-        // TOS points to data field
-        floatOps[ GET_VAR_OPERATION ] ( pCore );
+    float *pVar = (float *) (((long)(GET_TPD)) + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            floatOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *((long *) pVar) );
     }
 }
 
@@ -525,36 +930,107 @@ OPTYPE_ACTION( MemberFloatAction )
 GFORTHOP( doFloatArrayOp )
 {
     // IP points to data field
-    int index = SPOP;
-    SPUSH( ((long) ((GET_IP) + index)) );
-    floatOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    float* pVar = ((float *) (GET_IP)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            floatOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *((long *) pVar) );
+    }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalFloatArrayAction )
 {
-    int index = SPOP;
-    SPUSH( ((long) ((GET_FP - opVal) + index)) );
-    floatOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    float* pVar = ((float *) (GET_FP - opVal)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            floatOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *((long *) pVar) );
+    }
 }
 
 OPTYPE_ACTION( FieldFloatArrayAction )
 {
     // TOS is struct base, NOS is index
     // opVal is byte offset of float[0]
-    long pVar = SPOP + opVal;
-    pVar += (SPOP << 2);
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    float* pVar = (float *)(SPOP + opVal);
+    pVar += SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        // TOS points to data field
-        floatOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            floatOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *((long *) pVar) );
+    }
+}
 
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+OPTYPE_ACTION( MemberFloatArrayAction )
+{
+    // TOS is index
+    // opVal is byte offset of byte[0]
+    float* pVar = ((float *) (((long)(GET_TPD)) + opVal)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            floatOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH( *((long *) pVar) );
     }
 }
 
@@ -605,64 +1081,104 @@ VarAction doubleOps[] = {
 GFORTHOP( doDoubleOp )
 {
     // IP points to data field
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    double* pVar = (double *)(GET_IP);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long) (GET_IP) );
-        doubleOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            doubleOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
     }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalDoubleAction )
 {
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    double* pVar = (double *)(GET_FP - opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long)(GET_FP - opVal) );
-        // TOS points to data field
-        doubleOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            doubleOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
     }
 }
 
 
 OPTYPE_ACTION( FieldDoubleAction )
 {
-    long pVar = SPOP + opVal;
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    double* pVar = (double *)(SPOP + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        doubleOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            doubleOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
     }
 }
 
 
 OPTYPE_ACTION( MemberDoubleAction )
 {
-    double *pDouble = (double *) (((long *) (GET_TP[1])) + opVal);
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        DPUSH( *pDouble );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
-        SPUSH( (long) pDouble );
-        // TOS points to data field
-        doubleOps[ GET_VAR_OPERATION ] ( pCore );
+    double *pVar = (double *) (((long)(GET_TPD)) + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            doubleOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
     }
 }
 
@@ -670,36 +1186,107 @@ OPTYPE_ACTION( MemberDoubleAction )
 GFORTHOP( doDoubleArrayOp )
 {
     // IP points to data field
-    int index = SPOP << 1;
-    SPUSH( ((long) ((GET_IP) + index)) );
-    doubleOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    double* pVar = ((double *) (GET_IP)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            doubleOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
+    }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalDoubleArrayAction )
 {
-    int index = SPOP << 1;
-    SPUSH( ((long) ((GET_FP - opVal) + SPOP)) );
-    doubleOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    double* pVar = ((double *) (GET_FP - opVal)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            doubleOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
+    }
 }
 
 OPTYPE_ACTION( FieldDoubleArrayAction )
 {
     // TOS is struct base, NOS is index
     // opVal is byte offset of double[0]
-    long pVar = SPOP + opVal;
-    pVar += (SPOP << 3);
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    double* pVar = (double *)(SPOP + opVal);
+    pVar += SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        // TOS points to data field
-        doubleOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            doubleOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
+    }
+}
 
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+OPTYPE_ACTION( MemberDoubleArrayAction )
+{
+    // TOS is index
+    // opVal is byte offset of byte[0]
+    double* pVar = ((double *) (((long)(GET_TPD)) + opVal)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarMinusStore )
+        {
+            SPUSH( (long) pVar );
+            doubleOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
     }
 }
 
@@ -768,64 +1355,104 @@ VarAction stringOps[] = {
 
 GFORTHOP( doStringOp )
 {
-    // IP points to data field
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    char* pVar = (char *) (GET_IP);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long) (GET_IP) );
-        stringOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarPlusStore )
+        {
+            SPUSH( (long) pVar );
+            stringOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch - skip the maxLen/curLen fields
+        SPUSH( ((long) pVar) + 8 );
     }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalStringAction )
 {
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    char* pVar = (char *) (GET_FP - opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long)(GET_FP - opVal) );
-        stringOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarPlusStore )
+        {
+            SPUSH( (long) pVar );
+            stringOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch - skip the maxLen/curLen fields
+        SPUSH( ((long) pVar) + 8 );
     }
 }
 
 
 OPTYPE_ACTION( FieldStringAction )
 {
-    long pVar = SPOP + opVal;
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    char* pVar = (char *) (SPOP + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        stringOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarPlusStore )
+        {
+            SPUSH( (long) pVar );
+            stringOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch - skip the maxLen/curLen fields
+        SPUSH( ((long) pVar) + 8 );
     }
 }
 
 
 OPTYPE_ACTION( MemberStringAction )
 {
-    char *pString = (char *) (((long *) (GET_TP[1])) + opVal);
-    if ( GET_VAR_OPERATION == kVarFetch ) {
-
-        SPUSH( (long) pString );
-
-    } else if ( (GET_VAR_OPERATION > kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) ) {
-
-        SPUSH( (long) pString );
-        // TOS points to data field
-        stringOps[ GET_VAR_OPERATION ] ( pCore );
+    char *pVar = (char *) (((long)(GET_TPD)) + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarPlusStore )
+        {
+            SPUSH( (long) pVar );
+            stringOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch - skip the maxLen/curLen fields
+        SPUSH( ((long) pVar) + 8 );
     }
 }
 
@@ -833,41 +1460,118 @@ OPTYPE_ACTION( MemberStringAction )
 GFORTHOP( doStringArrayOp )
 {
     // IP points to data field
+    long *pLongs = GET_IP;
     int index = SPOP;
-    long *pStr = GET_IP;
-    long len = ((*pStr) >> 2) + 3;      // length of one string in longwords
-    SPUSH( ((long) (pStr + (index * len))) );
-    stringOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    long len = ((*pLongs) >> 2) + 3;      // length of one string in longwords
+    char *pVar = (char *) (pLongs + (index * len));
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarPlusStore )
+        {
+            SPUSH( (long) pVar );
+            stringOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch - skip the maxLen/curLen fields
+        SPUSH( ((long) pVar) + 8 );
+    }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalStringArrayAction )
 {
+    long *pLongs = GET_FP - opVal;
     int index = SPOP;
-    long *pStr = GET_FP - opVal;
-    long len = ((*pStr) >> 2) + 3;      // length of one string in longwords
-    SPUSH( ((long) (pStr + (index * len))) );
-    stringOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    long len = ((*pLongs) >> 2) + 3;      // length of one string in longwords
+    char *pVar = (char *) (pLongs + (index * len));
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarPlusStore )
+        {
+            SPUSH( (long) pVar );
+            stringOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch - skip the maxLen/curLen fields
+        SPUSH( ((long) pVar) + 8 );
+    }
 }
 
 OPTYPE_ACTION( FieldStringArrayAction )
 {
     // TOS is struct base, NOS is index
     // opVal is byte offset of string[0]
-    long *pStr = (long *) (SPOP + opVal);
-    long len = ((*pStr) >> 2) + 3;      // length of one string in longwords
+    long *pLongs = (long *) (SPOP + opVal);
     int index = SPOP;
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    long len = ((*pLongs) >> 2) + 3;      // length of one string in longwords
+    char *pVar = (char *) (pLongs + (index * len));
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( ((long) (pStr + (index * len))) );
-        // TOS points to data field
-        stringOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarPlusStore )
+        {
+            SPUSH( (long) pVar );
+            stringOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch - skip the maxLen/curLen fields
+        SPUSH( ((long) pVar) + 8 );
+    }
+}
 
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+OPTYPE_ACTION( MemberStringArrayAction )
+{
+    // TOS is index
+    // opVal is byte offset of string[0]
+    long *pLongs = (long *) ((long)(GET_TPD) + opVal);
+    int index = SPOP;
+    long len = ((*pLongs) >> 2) + 3;      // length of one string in longwords
+    char *pVar = (char *) (pLongs + (index * len));
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarPlusStore )
+        {
+            SPUSH( (long) pVar );
+            stringOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch - skip the maxLen/curLen fields
+        SPUSH( ((long) pVar) + 8 );
     }
 }
 
@@ -880,15 +1584,7 @@ OPTYPE_ACTION( FieldStringArrayAction )
 
 VAR_ACTION( doOpExecute ) 
 {
-    // IP points to data field
-    long prog[2];
-
-    // execute the opcode
-    prog[0] = *(long *)(SPOP);
-    prog[1] = BUILTIN_OP( OP_DONE );
-
-    SET_IP( prog );
-    InnerInterpreter( pCore );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( *(long *)(SPOP) );
 }
 
 VarAction opOps[] = {
@@ -900,61 +1596,104 @@ VarAction opOps[] = {
 GFORTHOP( doOpOp )
 {    
     // IP points to data field
-    if ( GET_VAR_OPERATION <= kVarStore )
+    long* pVar = (long *)(GET_IP);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long) (GET_IP) );
-        opOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            opOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch - execute the op
+        ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( *pVar );
     }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalOpAction )
 {
-    if ( GET_VAR_OPERATION <= kVarStore )
+    long* pVar = (long *)(GET_FP - opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long)(GET_FP - opVal) );
-        opOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            opOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch - execute the op
+        ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( *pVar );
     }
 }
 
 
 OPTYPE_ACTION( FieldOpAction )
 {
-    long pVar = SPOP + opVal;
-
-    if ( GET_VAR_OPERATION <= kVarStore )
+    long* pVar = (long *)(SPOP + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        // TOS points to data field
-        opOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            opOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch - execute the op
+        ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( *pVar );
     }
 }
 
 
 OPTYPE_ACTION( MemberOpAction )
 {
-    long *pOp = ((long *) (GET_TP[1])) + opVal;
-    if ( GET_VAR_OPERATION <= kVarStore )
+    long *pVar = (long *) (((long)(GET_TPD)) + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( (long) pOp );
-        // TOS points to data field
-        opOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            opOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
-
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+    }
+    else
+    {
+        // just a fetch - execute the op
+        ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( *pVar );
     }
 }
 
@@ -962,36 +1701,333 @@ OPTYPE_ACTION( MemberOpAction )
 GFORTHOP( doOpArrayOp )
 {
     // IP points to data field
-    int index = SPOP;
-    SPUSH( ((long) ((GET_IP) + index)) );
-    opOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    long* pVar = ((long *) (GET_IP)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            opOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch - execute the op
+        ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( *pVar );
+    }
     SET_IP( (long *) (RPOP) );
 }
 
 OPTYPE_ACTION( LocalOpArrayAction )
 {
-    int index = SPOP;
-    SPUSH( ((long) ((GET_FP - opVal) + index)) );
-    opOps[ GET_VAR_OPERATION ] ( pCore );
-    CLEAR_VAR_OPERATION;
+    long* pVar = ((long *) (GET_FP - opVal)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            opOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch - execute the op
+        ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( *pVar );
+    }
 }
 
 OPTYPE_ACTION( FieldOpArrayAction )
 {
     // TOS is struct base, NOS is index
     // opVal is byte offset of op[0]
-    long pVar = SPOP + opVal;
-    pVar += (SPOP << 2);
-    if ( (GET_VAR_OPERATION >= kVarFetch) && (GET_VAR_OPERATION <= kVarMinusStore) )
+    long* pVar = (long *)(SPOP + opVal);
+    pVar += SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
     {
-        SPUSH( pVar );
-        // TOS points to data field
-        opOps[ GET_VAR_OPERATION ] ( pCore );
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            opOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
         CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch - execute the op
+        ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( *pVar );
+    }
+}
 
-    //} else {
-        // TBD: report GET_VAR_OPERATION out of range
+OPTYPE_ACTION( MemberOpArrayAction )
+{
+    // TOS is index
+    // opVal is byte offset of byte[0]
+    long* pVar = ((long *) (((long)(GET_TPD)) + opVal)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            opOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch - execute the op
+        ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( *pVar );
+    }
+}
+
+
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     object
+// 
+
+
+VarAction objectOps[] = {
+    doDoubleFetch,
+    doIntRef,
+    doDoubleStore,
+};
+
+GFORTHOP( doObjectOp )
+{
+    // IP points to data field
+    double* pVar = (double *)(GET_IP);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            objectOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
+    }
+    SET_IP( (long *) (RPOP) );
+}
+
+OPTYPE_ACTION( LocalObjectAction )
+{
+    double* pVar = (double *)(GET_FP - opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            objectOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
+    }
+}
+
+
+OPTYPE_ACTION( FieldObjectAction )
+{
+    double* pVar = (double *)(SPOP + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            objectOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
+    }
+}
+
+
+OPTYPE_ACTION( MemberObjectAction )
+{
+    double *pVar = (double *) (((long)(GET_TPD)) + opVal);
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            objectOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
+    }
+}
+
+// this is an internal op that is compiled before the data field of each array
+GFORTHOP( doObjectArrayOp )
+{
+    // IP points to data field
+    double* pVar = ((double *) (GET_IP)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            objectOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
+    }
+    SET_IP( (long *) (RPOP) );
+}
+
+OPTYPE_ACTION( LocalObjectArrayAction )
+{
+    double* pVar = ((double *) (GET_FP - opVal)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            objectOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
+    }
+}
+
+OPTYPE_ACTION( FieldObjectArrayAction )
+{
+    // TOS is struct base, NOS is index
+    // opVal is byte offset of double[0]
+    double* pVar = (double *)(SPOP + opVal);
+    pVar += SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            objectOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
+    }
+}
+
+OPTYPE_ACTION( MemberObjectArrayAction )
+{
+    // TOS is index
+    // opVal is byte offset of byte[0]
+    double* pVar = ((double *) (((long)(GET_TPD)) + opVal)) + SPOP;
+    ulong varOp = GET_VAR_OPERATION;
+    if ( varOp )
+    {
+        if ( varOp <= kVarStore )
+        {
+            SPUSH( (long) pVar );
+            objectOps[ varOp ] ( pCore );
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            ((ForthEngine *)pCore->pEngine)->SetError( kForthErrorBadVarOperation );
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        DPUSH( *pVar );
     }
 }
 
@@ -1160,6 +2196,34 @@ OPTYPE_ACTION( DLLEntryPointAction )
 
 OPTYPE_ACTION( MethodWithThisAction )
 {
+#if 0
+    // this is called when an object method invokes another method on itself
+    // opVal is the method number
+
+    long *pObj = GET_TP;
+    if ( pObj != NULL ) {
+        // pObj is a pair of pointers, first pointer is to
+        //   class descriptor for this type of object,
+        //   second pointer is to storage for object (this ptr)
+        long *pClass = (long *) (*pObj);
+        if ( pClass[2] > (long) opVal ) {
+            RPUSH( (long) GET_IP );
+            RPUSH( (long) GET_TP );
+            SET_TP( pObj );
+            SET_IP( (long *) (pClass[opVal + 3]) );
+        } else {
+            // bad method number
+            SET_ERROR( kForthErrorBadOpcode );
+        }
+    } else {
+        SET_ERROR( kForthErrorBadOpcode );
+    }
+#endif
+}
+
+OPTYPE_ACTION( MethodWithTOSAction )
+{
+#if 0
     // this is called when a method is invoked from inside another
     // method in the same class - the difference is that in this case
     // there is no explicit source for the "this" pointer, we just keep
@@ -1182,6 +2246,7 @@ OPTYPE_ACTION( MethodWithThisAction )
     } else {
         SET_ERROR( kForthErrorBadOpcode );
     }
+#endif
 }
 
 OPTYPE_ACTION( IllegalOptypeAction )
@@ -1196,6 +2261,7 @@ OPTYPE_ACTION( ReservedOptypeAction )
 
 OPTYPE_ACTION( MethodAction )
 {
+#if 0
     // token is object method invocation
     long op = GET_CURRENT_OP;
     forthOpType opType = FORTH_OP_TYPE( op );
@@ -1230,6 +2296,7 @@ OPTYPE_ACTION( MethodAction )
     } else {
         SET_ERROR( kForthErrorBadOpcode );
     }
+#endif
 }
 
 // NOTE: there is no opcode assigned to this op
@@ -1284,7 +2351,7 @@ optypeActionRoutine builtinOptypeAction[] =
     LocalDoubleAction,
     LocalStringAction,
     LocalOpAction,
-    ReservedOptypeAction,
+    LocalObjectAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
 
@@ -1296,7 +2363,7 @@ optypeActionRoutine builtinOptypeAction[] =
     FieldDoubleAction,
     FieldStringAction,
     FieldOpAction,
-    ReservedOptypeAction,
+    FieldObjectAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
 
@@ -1308,7 +2375,7 @@ optypeActionRoutine builtinOptypeAction[] =
     LocalDoubleArrayAction,
     LocalStringArrayAction,
     LocalOpArrayAction,
-    ReservedOptypeAction,
+    LocalObjectArrayAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
 
@@ -1320,6 +2387,7 @@ optypeActionRoutine builtinOptypeAction[] =
     FieldDoubleArrayAction,
     FieldStringArrayAction,
     FieldOpArrayAction,
+    FieldObjectArrayAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
@@ -1332,7 +2400,33 @@ optypeActionRoutine builtinOptypeAction[] =
     MemberDoubleAction,
     MemberStringAction,
     MemberOpAction,
+    MemberObjectAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+
+    // 80 - 89
+    MemberByteArrayAction,
+    MemberShortArrayAction,
+    MemberIntArrayAction,
+    MemberFloatArrayAction,
+    MemberDoubleArrayAction,
+    MemberStringArrayAction,
+    MemberOpArrayAction,
+    MemberObjectArrayAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+
+    // 90 - 99
     MethodWithThisAction,
+    MethodWithTOSAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+    ReservedOptypeAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
 
@@ -1371,7 +2465,8 @@ void InitCore( ForthCoreState* pCore )
     pCore->RT = NULL;
     pCore->RLen = 0;
     pCore->FP = NULL;
-    pCore->TP = NULL;
+    SET_TPV( NULL );
+    SET_TPD( NULL );
     pCore->varMode = kVarFetch;
     pCore->state = kResultOk;
     pCore->error = kForthErrorNone;

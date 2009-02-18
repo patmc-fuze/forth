@@ -13,9 +13,11 @@
 
 #include "Forth.h"
 #include "ForthForgettable.h"
+#include <afxtempl.h>
 
 class ForthEngine;
 class ForthStructVocabulary;
+class ForthClassVocabulary;
 
 // each new structure type definition is assigned a unique index
 // the struct type index is:
@@ -28,6 +30,28 @@ typedef struct
     ForthStructVocabulary*      pVocab;
     long                        op;
 } ForthStructInfo;
+
+class ForthInterface
+{
+public:
+	ForthInterface();
+	virtual ~ForthInterface();
+
+	void					Copy( ForthInterface* pInterface );
+	void					Implements( ForthClassVocabulary* pClass );
+	ForthClassVocabulary*	GetDefiningClass();
+	long*					GetMethods();
+	long					GetMethod( long index );
+	void					SetMethod( long index, long method );
+	void					AddMethod( long method );
+    long                    GetMethodIndex( const char* pName );
+	long					GetNumMethods();
+	long					GetNumAbstractMethods();
+protected:
+	ForthClassVocabulary*	mpDefiningClass;
+	CArray<long>			mMethods;
+	long					mNumAbstractMethods;
+};
 
 // a struct accessor compound operation must be less than this length in longs
 #define MAX_ACCESSOR_LONGS  64
@@ -44,18 +68,22 @@ public:
     virtual bool    ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
 
     // add a new structure type
-    ForthStructVocabulary*  AddStructType( const char *pName );
+    ForthStructVocabulary*          AddStructType( const char *pName );
+    ForthClassVocabulary*           AddClassType( const char *pName );
     static ForthStructsManager*     GetInstance( void );
 
     // return info structure for struct type specified by structIndex
     ForthStructInfo*        GetStructInfo( int structIndex );
 
-    // return vocabulary for a struct type given its opcode
+    // return vocabulary for a struct type given its opcode or name
     ForthStructVocabulary*  GetStructVocabulary( long op );
+	ForthStructVocabulary*	GetStructVocabulary( const char* pName );
 
     void GetFieldInfo( long fieldType, long& fieldBytes, long& alignment );
 
     ForthStructVocabulary*   GetNewestStruct( void );
+    ForthClassVocabulary*   GetNewestClass( void );
+
 
 protected:
     // mpStructInfo points to an array with an entry for each defined structure type
@@ -70,7 +98,7 @@ protected:
 class ForthStructVocabulary : public ForthVocabulary
 {
 public:
-    ForthStructVocabulary( const char* pName, int structIndex );
+    ForthStructVocabulary( const char* pName, int typeIndex );
     virtual ~ForthStructVocabulary();
 
     // return pointer to symbol entry, NULL if not found
@@ -86,14 +114,15 @@ public:
     virtual const char* GetType( void );
 
     // handle invocation of a struct op - define a local/global struct or struct array, or define a field
-    void                DefineInstance( void );
+    virtual void	    DefineInstance( void );
+
+	virtual bool		IsClass( void );
 
     void                AddField( const char* pName, long fieldType, int numElements );
     long                GetAlignment( void );
     long                GetSize( void );
     void                StartUnion( void );
-    void                Extends( ForthStructVocabulary *pParentStruct );
-
+    virtual void        Extends( ForthStructVocabulary *pParentStruct );
 protected:
     long                    mNumBytes;
     long                    mMaxNumBytes;
@@ -102,6 +131,35 @@ protected:
     ForthStructVocabulary   *mpSearchNext;
 };
 
+class ForthClassVocabulary : public ForthStructVocabulary
+{
+public:
+    ForthClassVocabulary( const char* pName, int typeIndex );
+    virtual ~ForthClassVocabulary();
+
+    // handle invocation of a struct op - define a local/global struct or struct array, or define a field
+    virtual void	    DefineInstance( void );
+
+	bool				IsAbstract( void )		{ return mNumAbstractMethods == 0; }
+
+	void				AddMethod( const char* pName, long op );
+	void				Implements( const char* pName );
+	void				EndImplements( void );
+	long				GetClassId( void )		{ return mStructIndex; }
+
+	ForthInterface*		GetInterface( long index );
+    long                FindInterfaceIndex( long classId );
+	virtual bool		IsClass( void );
+	long				GetNumInterfaces( void );
+    virtual void        Extends( ForthStructVocabulary *pParentStruct );
+
+protected:
+	long                        mNumMethods;
+	long                        mNumAbstractMethods;
+    long                        mCurrentInterface;
+	ForthClassVocabulary*       mpParentClass;
+	CArray<ForthInterface *>	mInterfaces;
+};
 
 class ForthNativeType
 {
@@ -125,16 +183,6 @@ protected:
     forthNativeType     mNativeType;
 };
 
-#if 0
-class ForthNativeStringType : public ForthNativeType
-{
-public:
-    ForthNativeStringType( const char* pName, int numBytes, forthNativeType nativeType );
-    virtual ~ForthNativeStringType();
-    virtual void DefineInstance( ForthEngine *pEngine, void *pInitialVal );
-};
-#endif
-
-extern ForthNativeType gNativeByte, gNativeShort, gNativeInt, gNativeFloat, gNativeDouble, gNativeString, gNativeOp;
+extern ForthNativeType gNativeByte, gNativeShort, gNativeInt, gNativeFloat, gNativeDouble, gNativeString, gNativeOp, gNativeObject;
 
 #endif

@@ -5,9 +5,16 @@
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 TBDs:
 
+! document existing native ops !
+! create examples/tests for all native ops !
+
 - add support for iterating over files in directories
 
-- add a string-to-long map based off CMap
+? add a debug feature where a map is maintained from IP address to file/lineNumber
+
+? add a dynamic array (of longs/pointers
+
+? add a string-to-long map based off CMap
   remember that a charPtr-to-long map would just map from the value of the
   charPtr, not the chars in the string, to the long
 
@@ -103,6 +110,7 @@ colonOp
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 ForthShell::Run
   ForthShell::InterpretLine
+    ForthEngine::ParseToken
     ForthEngine::ProcessToken
 
 ForthShell::Run
@@ -112,6 +120,340 @@ ForthShell::InterpretLine
 	calls ForthShell::ParseToken and ForthEngine::ProcessToken in a loop until input line is empty
 		
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 17 2009
+
+I got a bunch of the simple problems with struct support debugged.
+	point p
+	ptrTo point pp
+	5 -> pp.x
+The above currently has an exception because it compiles into:
+  5 -> pp fieldInt(x)
+which results in 5 being stored into pp, leaving the stack empty, then
+the fieldInt(x) call tries to get the struct base address from TOS, adds
+the offset of x, and then dereferences the bogus result address since
+the store varaction was cleared when pp was executed.
+
+How can we differentiate between setting the pointer and setting a field in
+the struct the pointer references?
+When compiling a field reference using a global pointer, look at the opcode
+just previously compiled to see if it is one of (addressOf -> ->+ ->-) and if
+so, swap the order of the previous opcode and the global pointer opcode.
+But what if this is interpret mode? I guess in interpret mode we could save
+the varAction at the start of processSymbol, clear the varAction, and compile
+the appropriate varAction op after the first field opcode.
+Actually, are there any ops other than the final op which use the varAction?
+The first op compiled in a field accessor is always one of:
+o global struct op - just leaves base address on TOS
+o global ptr op - leaves ptr contents on TOS
+o local struct op - just leaves base address on TOS
+o local ptr op - leaves ptr contents on TOS
+-> I overwrote the previously compiled varAction op with the first op of the
+   field accessor code, and put the varAction op in the first element of
+   the field accessor codes, it appears to work fine
+
+I haven't tried complicated accessors where there is more than one level of
+indirection.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 16 2009
+
+I started cleaning up the native type support in ForthInner, making them all
+do varOp range checking and use a common code style.
+
+When doing "op" I noticed that the old IP gets stomped, and when you execute
+a local or global op var it causes an unwanted return
+-> these problems don't happen in turbo mode
+DOH! the problem was that it was building a 2 op program, the 2nd op was OP_DONE,
+and setting this flag makes the inner interpreter exit - I changed this to
+use ForthEngine::ExecuteOneOp, which handles this problem.
+
++ if you use tick inside a colon definition, that definition shows up in the
+  vlist, but if you try to interpret, it causes an undefined symbol error
+-> I was misusing tick, it doesn't have precedence, I should have used ['] or lit
+
+OP_DO_CLASS_TYPE is the first and only op in a class defining word, it is
+followed by a pointer to the class vocabulary.
+doClassTypeOp just calls pClassVocab->DefineInstance() and pops the return stack.
+DefineInstance will create an object instance of the class type, which could
+mean any of:
+o creating a global or local variable/array
+o adding an object or object array field to a struct or class definition
+Global instances have their vtable and data pointers initialized.
+OP_DO_OBJECT is the first and only op in an object instance word.
+
+- "ptrTo" doesn't work with global structs
+It looks like ptrTo just changes a var/field to act like a dumb int var
+
++ structs can't be used as local variables because the ops defined by "struct:"
+  don't have precedence, so they are compiled and not interpreted at local var
+  definition time...
+-> fixed
+
+I need to do more testing, documenting and debugging of existing struct
+support before I can advance on class support.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 15 2009
+
+What happens at the start of invocation of a method?
+The pushing of this on the rstack can't happen inside the method, since the
+code which invokes the method must have already overwritten the this pointer.
+
+Let's assume that the 64-bit object is on TOS already, and the current opcode
+is a "method-on-TOS" opcode with method field equal to 5.
+Pseudocode for "method-on-TOS":
+	rpush TP (2 longs)
+	pop TP (2 longs)
+	fetch opcode for 5th entry in vtable specified by TP & execute
+	
+
+NOTE: doExitMOp and doExitMLOp currently are using a single 32-bit field for
+the this pointer - that will have to become 2 fields, right?
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 14 2009
+
++ added strdate, strtime which return current date and time as strings
++ added millitime which returns # milliseconds since forth was started
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 13 2009
+
++ rewrote systemOp to use stdout/stderr redirection, this should allow it to
+  work in ForthGUI
+-> it does work, but there is a flash of black when the shell runs...
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 12 2009
+
+Chasing the "%c" problem in turbo release mode.  To debug in release mode,
+create time wasting user op that takes several seconds to run, pause the
+program, chances you will be able to find your way into the inner interpreter
+loop pretty quickly.  After that just set breakpoints in the dissassembly
+window and look at registers.
+After printCharOp returns, the top item on the stack should be the saved EBP
+pointer to the forth core, instead that entry has been overwritten by the
+characters of the string to be written.  The pushing of EBP was done both to
+preserve it and to pass it to the C routine about to be called, in release
+mode the compiler feels free to reuse the stack storage of its input params
+for other uses, in this case as the character buffer to be printed.  The
+solution is to push EBP twice.
+This change fixed %c/%bl/%nl as well as vlist in turbo release mode.
+Output from forthtest.txt looks ok in all modes now.
+
+Idea for syntax for using TOS as a struct address or object: 
+classA.method1
+structB.field2
+
+One problem with the current scheme for interfaces, where any class can be
+used as an interface, is that it makes it less safe to have classes which
+have public fields - the programmer is responsible for keeping track if an
+object variable of class blah is:
+1) referencing an object which is derived from class blah, in which case it
+   is okay to access member fields for class blah
+2) referencing an object which is not derived from class blah, but which
+   implements the blah interface, in which case it is not okay to access
+   any member fields
+   
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 11 2009
+
+Added a "is method" bit to the type code field (pEntry[1]) for struct vocab
+symbols.  In the future this will allow the existing bits of the type code
+to indicate the return value for the method, so that methods don't have to
+terminate a structure accessor string.
+
+Also added a new native type, kNativeObject, which will be a 64-bit field.
+When I was putting it in, I found that the global array ops had never
+been used, at least in non-turbo mode - their optable entries held the
+ops for single variables.
+
+Also, before I made my changes I noticed that running release in turbo mode,
+there is an unhandled exception which happens when you do "vlist".
+In debug mode, vlist is okay but any immediate op has a "bad opcode"
+error.
+
+-> it looks like the assembler version never could have handled immediate
+   builtin ops - did the handling of precedence change after the assembler
+   version of the nucleus was written?  -> yup!
+There was a similar problem with immediate user defined ops, I just made
+them use the same table entry as non-immediate user define ops, and I did
+the same with "user code" immediate ops, but I haven't tested those yet.
+
+Debug version in turbo mode now runs forthest.txt with no errors and what
+looks like valid output.
+
+Release version in turbo mode still breaks on vlist and fails pretty quickly
+when loading forthtest.txt
+-> %c, %nl, %bl cause a "No Error" failure!  They do display the character
+  %nl and %bl just push a char and call %c, %c just build a two char string
+  and calls %s, so why does %s work and these other ops fail?
+? What does a "No Error" failure mean?
+-> the exit status from InnerInterpreterFast is something other than kResultOk
+   or kResultDone, but core->error was not set to an error code
+The character is always printed correctly.
+The problem goes away if I change printCharOp to either use a larger character
+buffer or if I remove the SPOP that copies the character from the stack to
+the first byte of the buffer.
+The problem does not go away if I redirect output to a file.
+
+All of this really emphasizes the need for an automated test suite - changes I
+have made in the distant past have broken things, and I have no idea what
+change broke what feature.  DOH!
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 10 2009
+
+Decided to tackle a couple of problems using forth, to see what it needs to
+solve real problems.  The problems were:
+
+1) merge two equal sized files, which have missing data (zeroes), which come
+   from different torrents (rock band .flac file collections)
+   mergefiles.txt & mergeall.txt
+2) merge guitar pro song collections - there are multiple versions of many songs,
+   and the files in different collections sometimes have the same names and
+   versions
+   gp.txt & narf.txt
+
+Overall, it worked out pretty well.  The main thing that stood out is that I
+need to spend some time documenting the functionality that is already implemented.
+
+One missing thing is the ability to iterate over all files in a directory tree,
+I got around this by creating a list of files using the cygwin shell and then
+turning the list of files into forth files.
+
+Dropped off Xbox-360 today at UPS to fix red-ring-of-death.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 9 2009
+
++ changed struct/endstruct/enum/endenum to struct:/;struct/enum:/;enum
+
++ got incomplete class definition time stuff to compile
+
+- there are no examples of "union" - has it ever been tested?
+-> test & document its usage
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 7 2009
+
+The ways an interface gets defined:
+
+o the primary interface is defined two ways:
+	1) when the "extends" clause is processed, the methods of the defining
+	   class are copied
+	2) when a method is defined, it either replaces an existing method or is
+	   added as new
+o secondary interfaces are defined:
+	1) when the "extends" clause is processed, the secondary interfaces of
+	   the defining class are copied
+	2) when the implements clause is processed, if the named interface does
+	   not already exist, the new interface is initialized to have the same
+	   number of methods as the named interface, and all of the methods are
+	   marked as virtual and filled in with a dummy (error) method
+	3) when a method is defined inside an implements clause, it replaces the 
+	   named method in the interface
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 4 2009
+
+A problem with methods and also struct op fields is that there is no concept of
+a return type, so they can't be followed by a dot accessor: objectA.methodZ.fieldQ
+doesn't work because we don't know the struct type returned by methodZ, so we
+don't know the struct vocab to lookup fieldQ.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 3 2009
+
+One potential gotcha with just extending struct stuff to do classes: the struct
+stuff currently does allow structs to be allocated as globals or on the stack.
+? Is this really a problem?
+We should probably leave structs as is, it would be a pain to have them always
+have a dummy vtable on TOS.
+
+Classes should be able to extend a struct, but should a struct be able to
+extend a class?  If so, it should just be taking the data members.
+
+When a local class variable is declared, should code be generated to set its vtable?
+It would be redundant, except in cases where you only set the dataAddress part of
+an object variable.  In those cases the vtable would have to be explicitly
+initialized.
+
+Base methods are methods which every class implements, these are methods
+in class Object.
+
+-> make a list of class methods and base methods
+class.new			...		dataAddress methodsAddress
+	this should be an opcode type
+struct.sizeof		...		sizeofStructInstance
+class.sizeof		...		sizeofClassInstance
+object.sizeof		...		sizeofObject
+	this should be an opcode type, or be compiled as a constant
+class.methods		...		methodsAddress
+object.methods		...		methodsAddress
+class.numMethods	...		numberOfMethods
+object.numMethods	...		numberOfMethods
+object.class		...		classDescriptor
+	? what should the classDescriptor be?
+		1) the struct index
+		2) address of something
+	what can you do with a class_descriptor? is there a class class?
+object.delete
+class.parent
+object.print
+object.queryInterface
+
+? should base methods have a single vtable entry
+Note: object.methods could either be:
+1) at runtime, fetch the methods field from objects
+2) fetch the methods field from the declared class of object (which might be
+   a superclass of the actual class of object
+We probably want object.methods to fetch the actual object methods field, and
+have class.methods be used to fetch the methods field of class
+Maybe there are 2 predefined classes at startup, "object" and "class", with
+"class" derived from "object".
+
+object methods: delete class methods data sizeof print
+class methods: new sizeof methods name parent
+Ugh - class.methods doesn't returns the vtable of the class object, it returns
+the vtable of objects of its class...
+Maybe it should be called "vtable"?  This is bound to cause bugs...
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 1 2009
+
+Is there any reason to create a ForthClassVocabulary and manager instead of
+just expanding the ForthStruct stuff by adding methods?
+
+Every class defines:
+1) an interface
+2) a data structure
+The interface may be empty, in which case this is an old-fashioned struct.
+The data structure may be empty, in which case this is an abstract interface.
+
+How do extends/implements work and interact?
+Maybe only the primary interface can extend another class, "implements" means
+that this class implements the exact interface of an existing class as a
+secondary interface.
+When a class extends another class:
+o it inherits its implementation
+o it inherits any interfaces that it implements, but it may override any or all of the
+  implementations of those methods.
+When a class implements the interface of another class:
+o it does not inherit any implementation from that class
+o it does not automatically implement interfaces that the base class implemented
+
+What changes are needed to ForthStructVocabulary?
+- add method count
+- add abstract method count
+- add ?list? of interfaces
+
+Should class methods be assigned normal opcodes, and the vtable contain opcodes,
+or should the vtable just hold IP addresses?
+Is there a need to have class methods be native opcodes?
+o this might help implement classes which are defined in the kernel
+o this might be useful when calling a method from another method in the same class
+-> make vtables hold opcodes instead of IP addresses
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 January 31 2009
 
 A class has a primary interface, which is the set of methods which it declares.
@@ -120,6 +462,7 @@ A class may have secondary interfaces, which can be gotten by querying.
 When a class doesn't have distinct methods of its own, and just implements a
 previously defined interface, will that pose a problem?  IE how can the primary
 interface for a class be defined using the "implements" keyword ?
+-> the endclass word will handle this when the primary interface has 0 methods
 
 When you extend a class which has secondary interfaces, can you override or
 extend the secondary interfaces?
