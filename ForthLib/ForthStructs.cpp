@@ -20,7 +20,7 @@
 //
 // see forth.h for most current description of struct symbol entry fields
 
-extern ForthNativeType *gpNativeTypes[];
+extern ForthBaseType *gpBaseTypes[];
 #define STRUCTS_EXPANSION_INCREMENT     16
 
 //////////////////////////////////////////////////////////////////////
@@ -36,6 +36,7 @@ ForthStructsManager::ForthStructsManager()
 , mNumStructs( 0 )
 , mMaxStructs( 0 )
 , mpStructInfo( NULL )
+, mpSavedDefinitionVocab( NULL )
 {
     ASSERT( mpInstance == NULL );
     mpInstance = this;
@@ -70,7 +71,7 @@ ForthStructsManager::ForgetCleanup( void *pForgetLimit, long op )
 
 
 ForthStructVocabulary*
-ForthStructsManager::AddStructType( const char *pName )
+ForthStructsManager::StartStructDefinition( const char *pName )
 {
     ForthEngine *pEngine = ForthEngine::GetInstance();
     ForthVocabulary* pDefinitionsVocab = pEngine->GetDefinitionVocabulary();
@@ -78,7 +79,7 @@ ForthStructsManager::AddStructType( const char *pName )
     if ( mNumStructs == mMaxStructs )
     {
         mMaxStructs += STRUCTS_EXPANSION_INCREMENT;
-        SPEW_STRUCTS( "AddStructType expanding structs table to %d entries\n", mMaxStructs );
+        SPEW_STRUCTS( "StartStructDefinition expanding structs table to %d entries\n", mMaxStructs );
         mpStructInfo = (ForthStructInfo *) realloc( mpStructInfo, sizeof(ForthStructInfo) * mMaxStructs );
     }
     ForthStructInfo *pInfo = &(mpStructInfo[mNumStructs]);
@@ -86,13 +87,20 @@ ForthStructsManager::AddStructType( const char *pName )
     long *pEntry = pEngine->StartOpDefinition( pName, true, kOpUserDefImmediate );
     pInfo->pVocab = new ForthStructVocabulary( pName, mNumStructs );
     pInfo->op = *pEntry;
-    SPEW_STRUCTS( "AddStructType %s struct index %d\n", pName, mNumStructs );
+    SPEW_STRUCTS( "StartStructDefinition %s struct index %d\n", pName, mNumStructs );
     mNumStructs++;
     return pInfo->pVocab;
 }
 
+void
+ForthStructsManager::EndStructDefinition()
+{
+    ForthEngine *pEngine = ForthEngine::GetInstance();
+    pEngine->EndOpDefinition( true );
+}
+
 ForthClassVocabulary*
-ForthStructsManager::AddClassType( const char *pName )
+ForthStructsManager::StartClassDefinition( const char *pName )
 {
     ForthEngine *pEngine = ForthEngine::GetInstance();
     ForthVocabulary* pDefinitionsVocab = pEngine->GetDefinitionVocabulary();
@@ -100,17 +108,29 @@ ForthStructsManager::AddClassType( const char *pName )
     if ( mNumStructs == mMaxStructs )
     {
         mMaxStructs += STRUCTS_EXPANSION_INCREMENT;
-        SPEW_STRUCTS( "AddClassType expanding structs table to %d entries\n", mMaxStructs );
+        SPEW_STRUCTS( "StartClassDefinition expanding structs table to %d entries\n", mMaxStructs );
         mpStructInfo = (ForthStructInfo *) realloc( mpStructInfo, sizeof(ForthStructInfo) * mMaxStructs );
     }
     ForthStructInfo *pInfo = &(mpStructInfo[mNumStructs]);
 
-    long *pEntry = pEngine->StartOpDefinition( pName, true );
+    // can't smudge class definition, since method definitions will be nested inside it
+    long *pEntry = pEngine->StartOpDefinition( pName, false, kOpUserDefImmediate );
     pInfo->pVocab = new ForthClassVocabulary( pName, mNumStructs );
     pInfo->op = *pEntry;
-    SPEW_STRUCTS( "AddClassType %s struct index %d\n", pName, mNumStructs );
+    SPEW_STRUCTS( "StartClassDefinition %s struct index %d\n", pName, mNumStructs );
+    mpSavedDefinitionVocab = pEngine->GetDefinitionVocabulary();
+    pEngine->SetDefinitionVocabulary( pInfo->pVocab );
     mNumStructs++;
     return (ForthClassVocabulary*) (pInfo->pVocab);
+}
+
+void
+ForthStructsManager::EndClassDefinition()
+{
+    ForthEngine *pEngine = ForthEngine::GetInstance();
+    pEngine->EndOpDefinition( false );
+    pEngine->SetDefinitionVocabulary( mpSavedDefinitionVocab );
+    mpSavedDefinitionVocab = NULL;
 }
 
 ForthStructVocabulary*
@@ -180,16 +200,16 @@ ForthStructsManager::GetFieldInfo( long fieldType, long& fieldBytes, long& align
     else if ( CODE_IS_NATIVE( fieldType ) )
     {
         subType = CODE_TO_NATIVE_TYPE( fieldType );
-        if ( subType == kNativeString )
+        if ( subType == kBaseTypeString )
         {
             // add in for maxLen, curLen fields & terminating null byte
             fieldBytes = 9 + CODE_TO_STRING_BYTES( fieldType );
         }
         else
         {
-            fieldBytes = gpNativeTypes[subType]->GetSize();
+            fieldBytes = gpBaseTypes[subType]->GetSize();
         }
-        alignment = gpNativeTypes[subType]->GetAlignment();
+        alignment = gpBaseTypes[subType]->GetAlignment();
     }
     else
     {
@@ -253,6 +273,7 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
     {
         pEntry = pEngine->GetVocabularyStack()->FindSymbol( mToken, &pFoundVocab );
     }
+    bool tosIsObject = false;
     if ( pEntry )
     {
         // see if token is a struct
@@ -273,7 +294,7 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
             if ( pLastOp && ((pLastOp + 1) == GET_DP)
                 && (*pLastOp >= OP_ADDRESS_OF) && (*pLastOp <= OP_INTO_MINUS) )
             {
-                // overwrite the varAction setting op with first op for
+                // overwrite the varAction setting op with first accessor op
                 *pDst++ = *pLastOp;
                 *pLastOp = pEntry[0];
             }
@@ -289,7 +310,7 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
             *pDst++ = pEntry[0];
             if ( varMode )
             {
-                SET_VAR_OPERATION( 0 );
+                CLEAR_VAR_OPERATION;
                 *pDst++ = OP_ADDRESS_OF + (varMode - kVarRef);
             }
         }
@@ -309,6 +330,10 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
     else
     {
         SPEW_STRUCTS( "Struct first field of type %s\n", pStruct->pVocab->GetName() );
+    }
+    if ( pStruct->pVocab->IsClass() )
+    {
+        tosIsObject = true;
     }
     long offset = 0;
 
@@ -338,6 +363,9 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
         bool isNative = CODE_IS_NATIVE( typeCode );
         bool isPtr = CODE_IS_PTR( typeCode );
         bool isArray = CODE_IS_ARRAY( typeCode );
+        long nativeType = CODE_TO_NATIVE_TYPE( typeCode );
+        bool isObject = isNative && (nativeType == kBaseTypeObject);
+        bool isMethod = CODE_IS_METHOD( typeCode );
         long opType;
         offset += pEntry[0];
         SPEW_STRUCTS( " offset %d", offset );
@@ -349,13 +377,31 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
         {
             SPEW_STRUCTS( " pointer" );
         }
+        if ( tosIsObject )
+        {
+            if ( isMethod )
+            {
+                isFinal = true;
+            }
+            else
+            {
+                // TOS is object pair, discard vtable ptr since this is a member field access
+                *pDst++ = OP_DROP;
+                tosIsObject = false;
+            }
+        }
         if ( isFinal )
         {
             //
             // this is final accessor field
             //
             SPEW_STRUCTS( " FINAL" );
-            if ( isPtr )
+            if ( isMethod )
+            {
+                opType = kOpMethodWithTOS;
+                offset = pEntry[0];
+            }
+            else if ( isPtr )
             {
                 SPEW_STRUCTS( (isArray) ? " array of pointers\n" : " pointer\n" );
                 opType = (isArray) ? kOpFieldIntArray : kOpFieldInt;
@@ -364,7 +410,7 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
             {
                 if ( isNative )
                 {
-                    opType = ((isArray) ? kOpFieldByteArray : kOpFieldByte) + CODE_TO_NATIVE_TYPE( typeCode );
+                    opType = ((isArray) ? kOpFieldByteArray : kOpFieldByte) + nativeType;
                 }
                 else
                 {
@@ -383,7 +429,7 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
             //
             // this is not the final accessor field
             //
-            if ( isNative )
+            if ( isNative && !isObject )
             {
                 // ERROR! a native field must be a final accessor
                 char blah[256];
@@ -392,9 +438,13 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
                 return false;
             }
             // struct: do nothing (offset already added in
-            // ptr to struct: compile offset, compile at
+            // ptr to struct: compile offset, compile @
             // array of structs: compile offset, compile array offset
             // array of ptrs to structs: compile offset, compile array offset, compile at
+            // object: compile offset, compile d@
+            // ptr to object: compile offset, compile @, compile d@
+            // array of objects: compile offset, compile array offset, compile d@
+            // array of ptrs to objects: compile offset, compile array offset, compile at, compile d@
             if ( isArray || isPtr )
             {
                 SPEW_STRUCTS( " offsetOp 0x%x", COMPILED_OP( kOpOffset, offset ) );
@@ -411,6 +461,21 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
                     SPEW_STRUCTS( " fetchOp 0x%x", BUILTIN_OP( OP_FETCH ) );
                     *pDst++ = BUILTIN_OP( OP_FETCH );
                 }
+                if ( isObject )
+                {
+                    SPEW_STRUCTS( " dfetchOp 0x%x", BUILTIN_OP( OP_DFETCH ) );
+                    *pDst++ = BUILTIN_OP( OP_DFETCH );
+                    tosIsObject = true;
+                }
+            }
+            else if ( isObject )
+            {
+                SPEW_STRUCTS( " offsetOp 0x%x", COMPILED_OP( kOpOffset, offset ) );
+                *pDst++ = COMPILED_OP( kOpOffset, offset );
+                offset = 0;
+                SPEW_STRUCTS( " dfetchOp 0x%x", BUILTIN_OP( OP_DFETCH ) );
+                *pDst++ = BUILTIN_OP( OP_DFETCH );
+                tosIsObject = true;
             }
             pStruct = GetStructInfo( CODE_TO_STRUCT_INDEX( typeCode ) );
             if ( pStruct == NULL )
@@ -436,6 +501,82 @@ ForthStructsManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitSta
     }
     return true;
 }
+
+// compile symbol if it is a member variable or method
+bool
+ForthStructsManager::ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus )
+{
+    ForthEngine *pEngine = ForthEngine::GetInstance();
+    long *pDst = &(mCode[0]);
+    ForthVocabulary *pFoundVocab = NULL;
+    ForthCoreState* pCore = pEngine->GetCoreState();
+
+    ForthClassVocabulary* pVocab = GetNewestClass();
+    if ( pVocab == NULL )
+    {
+        // TBD: report no newest class??
+        return false;
+    }
+
+    long* pEntry = pVocab->FindSymbol( pInfo->GetToken() );
+    if ( pEntry )
+    {
+        long offset = *pEntry;
+        long typeCode = pEntry[1];
+        long opType;
+        if ( CODE_IS_METHOD( typeCode ) )
+        {
+            // this is a method invocation on current object
+            opType = kOpMethodWithThis;
+            SPEW_STRUCTS( " opcode 0x%x\n", COMPILED_OP( opType, offset ) );
+            *pDst++ = COMPILED_OP( opType, offset );
+        }
+        else
+        {
+            // this is a member variable of current object
+            bool isNative = CODE_IS_NATIVE( typeCode );
+            bool isPtr = CODE_IS_PTR( typeCode );
+            bool isArray = CODE_IS_ARRAY( typeCode );
+            if ( isPtr )
+            {
+                SPEW_STRUCTS( (isArray) ? " array of pointers\n" : " pointer\n" );
+                opType = (isArray) ? kOpMemberIntArray : kOpMemberInt;
+            }
+            else
+            {
+                if ( isNative )
+                {
+                    opType = ((isArray) ? kOpMemberByteArray : kOpMemberByte) + CODE_TO_NATIVE_TYPE( typeCode );
+                }
+                else
+                {
+                    if ( isArray )
+                    {
+                        *pDst++ = COMPILED_OP( kOpArrayOffset, pEntry[2] );
+                    }
+                    opType = kOpOffset;
+                }
+            }
+            SPEW_STRUCTS( " opcode 0x%x\n", COMPILED_OP( opType, offset ) );
+            *pDst++ = COMPILED_OP( opType, offset );
+        }
+    }
+    else
+    {
+        // token isn't in current class vocabulary
+        return false;
+    }
+    // when done, compile (copy) the code in mCode buffer
+    int nLongs = pDst - &(mCode[0]);
+    if ( nLongs )
+    {
+        pDst = pEngine->GetDP();
+        pEngine->AllotLongs( nLongs );
+        memcpy( pDst, &(mCode[0]), (nLongs << 2) );
+    }
+    return true;
+}
+
 
 
 
@@ -708,6 +849,91 @@ ForthStructVocabulary::IsClass( void )
     return false;
 }
 
+void
+ForthStructVocabulary::PrintEntry( long*   pEntry )
+{
+#define BUFF_SIZE 256
+    char buff[BUFF_SIZE];
+    char nameBuff[128];
+    ForthCoreState* pCore = mpEngine->GetCoreState();
+    // print out the base class stuff - name and value fields
+    sprintf( buff, "%02x:%06x    ", GetEntryType( pEntry ), GetEntryValue( pEntry ) );
+    CONSOLE_STRING_OUT( buff );
+
+    for ( int j = 1; j < mValueLongs; j++ )
+    {
+        sprintf( buff, "%08x    ", pEntry[j] );
+        CONSOLE_STRING_OUT( buff );
+    }
+
+    GetEntryName( pEntry, nameBuff, sizeof(nameBuff) );
+    if ( strlen( nameBuff ) > 32 )
+    {
+        sprintf( buff, "%s    ", nameBuff );
+    }
+    else
+    {
+        sprintf( buff, "%32s    ", nameBuff );
+    }
+    CONSOLE_STRING_OUT( buff );
+
+    long typeCode = pEntry[1];
+    if ( CODE_IS_METHOD( typeCode ) )
+    {
+        CONSOLE_STRING_OUT( "Method returning " );
+    }
+    if ( CODE_IS_ARRAY( typeCode ) )
+    {
+        CONSOLE_STRING_OUT( "array of " );
+    }
+    if ( CODE_IS_PTR( typeCode ) )
+    {
+        CONSOLE_STRING_OUT( "pointer to " );
+    }
+    if ( CODE_IS_NATIVE( typeCode ) )
+    {
+        int nativeType = CODE_TO_NATIVE_TYPE( typeCode );
+        if ( nativeType < kNumBaseTypes )
+        {
+            sprintf( buff, "%s ", gpBaseTypes[nativeType]->GetName() );
+            CONSOLE_STRING_OUT( buff );
+            if ( nativeType == kBaseTypeString )
+            {
+                sprintf( buff, "strLen=%d, ", CODE_TO_STRING_BYTES( typeCode ) );
+                CONSOLE_STRING_OUT( buff );
+            }
+        }
+        else
+        {
+            sprintf( buff, "<INVALID NATIVE TYPE %d!> ", nativeType );
+        }
+    }
+    else
+    {
+        long structIndex = CODE_TO_STRUCT_INDEX( typeCode );
+        ForthStructInfo* pInfo = ForthStructsManager::GetInstance()->GetStructInfo( structIndex );
+        if ( pInfo )
+        {
+            sprintf( buff, "%s ", pInfo->pVocab->GetName() );
+        }
+        else
+        {
+            sprintf( buff, "<UNKNOWN STRUCT INDEX %d!> ", structIndex );
+        }
+
+        CONSOLE_STRING_OUT( buff );
+    }
+    if ( CODE_IS_METHOD( typeCode ) )
+    {
+        sprintf( buff, "method # %d", pEntry[0] );
+    }
+    else
+    {
+        sprintf( buff, "@ offset %d", pEntry[0] );
+    }
+    CONSOLE_STRING_OUT( buff );
+}
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///     ForthClassVocabulary
@@ -720,7 +946,7 @@ ForthClassVocabulary::ForthClassVocabulary( const char*     pName,
 , mpParentClass( NULL )
 , mCurrentInterface( 0 )
 {
-    ForthInterface* pPrimaryInterface = new ForthInterface;
+    ForthInterface* pPrimaryInterface = new ForthInterface( this );
     mInterfaces.Add( pPrimaryInterface );
 }
 
@@ -748,17 +974,21 @@ ForthClassVocabulary::DefineInstance( void )
     ForthVocabulary *pVocab;
     long *pEntry;
     long typeCode;
+    bool isPtr = false;
     ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthCoreState *pCore = mpEngine->GetCoreState();
 
     long numElements = mpEngine->GetArraySize();
+    bool isArray = (numElements != 0);
     mpEngine->SetArraySize( 0 );
-    typeCode = STRUCT_TYPE_TO_CODE( ((numElements) ? kDTArray : kDTSingle), mStructIndex );
+    typeCode = STRUCT_TYPE_TO_CODE( (isArray ? kDTArray : kDTSingle), mStructIndex );
 
     if ( mpEngine->CheckFlag( kEngineFlagIsPointer ) )
     {
         mpEngine->ClearFlag( kEngineFlagIsPointer );
         nBytes = 4;
         typeCode |= kDTIsPtr;
+        isPtr = true;
     }
 
     if ( mpEngine->InStructDefinition() )
@@ -772,13 +1002,22 @@ ForthClassVocabulary::DefineInstance( void )
     {
         // define local struct
         pVocab = mpEngine->GetLocalVocabulary();
-        if ( numElements )
+        if ( isArray )
         {
             mpEngine->AddLocalArray( pToken, typeCode, nBytes );
         }
         else
         {
+            pHere = mpEngine->GetDP();
             mpEngine->AddLocalVar( pToken, typeCode, nBytes );
+            long* pLastIntoOp = mpEngine->GetLastCompiledIntoPtr();
+            if ( pLastIntoOp == (((long *) pHere) - 1) )
+            {
+                // local var definition was preceeded by "->", so compile the op for this local var
+                //  so it will be initialized
+                long *pEntry = pVocab->GetNewestEntry();
+                mpEngine->CompileOpcode( COMPILED_OP( (isPtr ? kOpLocalInt : kOpLocalObject), pEntry[0] ) );
+            }
         }
     }
     else
@@ -808,17 +1047,30 @@ ForthClassVocabulary::DefineInstance( void )
             pHere = mpEngine->GetDP();
             mpEngine->AllotLongs( nBytes >> 2 );
             memset( pHere, 0, nBytes );
-            if ( !(typeCode & kDTIsPtr) )
+            if ( !isPtr )
             {
                 // TBD: fill in vtable pointer
                 *pHere = 0;
+            }
+            if ( GET_VAR_OPERATION == kVarStore )
+            {
+                if ( isPtr )
+                {
+                    *pHere = SPOP;
+                }
+                else
+                {
+                    *pHere++ = SPOP;
+                    *pHere = SPOP;
+                }
+                CLEAR_VAR_OPERATION;
             }
         }
         pEntry[1] = typeCode;
     }
 }
 
-void
+long
 ForthClassVocabulary::AddMethod( const char*    pName,
                                  long           op )
 {
@@ -832,7 +1084,7 @@ ForthClassVocabulary::AddMethod( const char*    pName,
         if ( mCurrentInterface == 0 )
         {
             // add new method to primary interface
-            pCurInterface->AddMethod( op );
+            methodIndex = pCurInterface->AddMethod( op );
         }
         else
         {
@@ -844,6 +1096,7 @@ ForthClassVocabulary::AddMethod( const char*    pName,
         // overwrite method
         pCurInterface->SetMethod( methodIndex, op );
     }
+    return methodIndex;
 }
 
 
@@ -959,8 +1212,8 @@ ForthClassVocabulary::GetNumInterfaces( void )
 //
 //
 
-ForthInterface::ForthInterface()
-: mpDefiningClass( NULL )
+ForthInterface::ForthInterface( ForthClassVocabulary* pDefiningClass )
+: mpDefiningClass( pDefiningClass )
 , mNumAbstractMethods( 0 )
 {
 }
@@ -1037,14 +1290,16 @@ ForthInterface::Implements( ForthClassVocabulary* pVocab )
 }
 
 
-void
+long
 ForthInterface::AddMethod( long method )
 {
+    long methodIndex = mMethods.GetSize();
 	mMethods.Add( method );
     if ( method == OP_BAD_OP )
     {
         mNumAbstractMethods++;
     }
+    return methodIndex;
 }
 
 
@@ -1066,17 +1321,26 @@ long
 ForthInterface::GetMethodIndex( const char* pName )
 {
     // TBD: lookup method name in defining vocabulary and return its method index
-    return 0;
+    long* pEntry = mpDefiningClass->FindSymbol( pName );
+    if ( pEntry )
+    {
+        long typeCode = pEntry[1];
+        if ( CODE_IS_METHOD( typeCode ) )
+        {
+            return pEntry[0];
+        }
+    }
+    return -1;
 }
 
 
 //////////////////////////////////////////////////////////////////////
 ////
-///     ForthNativeType
+///     ForthBaseType
 //
 //
 
-ForthNativeType::ForthNativeType( const char*       pName,
+ForthBaseType::ForthBaseType( const char*       pName,
                                   int               numBytes,
                                   forthNativeType   nativeType )
 : mpName( pName )
@@ -1085,12 +1349,12 @@ ForthNativeType::ForthNativeType( const char*       pName,
 {
 }
 
-ForthNativeType::~ForthNativeType()
+ForthBaseType::~ForthBaseType()
 {
 }
 
 void
-ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
+ForthBaseType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
 {
     char *pToken = pEngine->GetNextSimpleToken();
     int nBytes = mNumBytes;
@@ -1105,7 +1369,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
     ForthCoreState *pCore = pEngine->GetCoreState();        // so we can SPOP maxbytes
     ForthStructsManager* pManager = ForthStructsManager::GetInstance();
 
-    bool isString = (nativeType == kNativeString);
+    bool isString = (nativeType == kBaseTypeString);
 
     if ( isString )
     {
@@ -1140,7 +1404,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
         // outside of a struct definition, any native variable or array defined with "ptrTo"
         //  is the same thing as an int variable or array, since native types have no fields
         pEngine->ClearFlag( kEngineFlagIsPointer );
-        nativeType = kNativeInt;
+        nativeType = kBaseTypeInt;
         nBytes = 4;
         pInitialVal = &val;
         typeCode |= kDTIsPtr;
@@ -1298,31 +1562,31 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
 //
 //
 
-ForthNativeType gNativeByte( "byte", 1, kNativeByte );
+ForthBaseType gBaseTypeByte( "byte", 1, kBaseTypeByte );
 
-ForthNativeType gNativeShort( "short", 2, kNativeShort );
+ForthBaseType gBaseTypeShort( "short", 2, kBaseTypeShort );
 
-ForthNativeType gNativeInt( "int", 4, kNativeInt );
+ForthBaseType gBaseTypeInt( "int", 4, kBaseTypeInt );
 
-ForthNativeType gNativeFloat( "float", 4, kNativeFloat );
+ForthBaseType gBaseTypeFloat( "float", 4, kBaseTypeFloat );
 
-ForthNativeType gNativeDouble( "double", 8, kNativeDouble );
+ForthBaseType gBaseTypeDouble( "double", 8, kBaseTypeDouble );
 
-ForthNativeType gNativeString( "string", 12, kNativeString );
+ForthBaseType gBaseTypeString( "string", 12, kBaseTypeString );
 
-ForthNativeType gNativeOp( "op", 4, kNativeOp );
+ForthBaseType gBaseTypeOp( "op", 4, kBaseTypeOp );
 
-ForthNativeType gNativeObject( "object", 8, kNativeObject );
+ForthBaseType gBaseTypeObject( "object", 8, kBaseTypeObject );
 
 
-ForthNativeType *gpNativeTypes[] =
+ForthBaseType *gpBaseTypes[] =
 {
-    &gNativeByte,
-    &gNativeShort,
-    &gNativeInt,
-    &gNativeFloat,
-    &gNativeDouble,
-    &gNativeString,
-    &gNativeOp,
-    &gNativeObject
+    &gBaseTypeByte,
+    &gBaseTypeShort,
+    &gBaseTypeInt,
+    &gBaseTypeFloat,
+    &gBaseTypeDouble,
+    &gBaseTypeString,
+    &gBaseTypeOp,
+    &gBaseTypeObject
 };

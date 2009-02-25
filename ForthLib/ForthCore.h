@@ -93,13 +93,13 @@ typedef enum
 //  as well as the order of actual opcodes used to implement native types (OP_DO_INT, OP_DO_FLOAT, OP_DO_INT_ARRAY, ...)
 typedef enum
 {
-    kNativeByte,
-    kNativeShort,
-    kNativeInt,
-    kNativeFloat,
-    kNativeDouble,
-    kNativeString,
-    kNativeOp,
+    kBaseTypeByte,
+    kBaseTypeShort,
+    kBaseTypeInt,
+    kBaseTypeFloat,
+    kBaseTypeDouble,
+    kBaseTypeString,
+    kBaseTypeOp,
 } forthNativeType;
 
 typedef enum {

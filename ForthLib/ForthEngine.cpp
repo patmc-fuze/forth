@@ -219,6 +219,7 @@ void
 ForthEngine::ToggleFastMode( void )
 {
     SetFastMode(!mFastMode );
+#if 0
     if ( mFastMode )
     {
         printf( "Fast mode!\n" );
@@ -227,6 +228,7 @@ ForthEngine::ToggleFastMode( void )
     {
         printf( "Slow mode!\n" );
     }
+#endif
 }
 
 bool
@@ -641,7 +643,7 @@ ForthEngine::AddLocalVar( const char        *pVarName,
     mLocalFrameSize += varSize;
     if ( CODE_IS_NATIVE( typeCode ) )
     {
-        long varType = CODE_IS_PTR( typeCode ) ? kNativeInt : CODE_TO_NATIVE_TYPE( typeCode );
+        long varType = CODE_IS_PTR( typeCode ) ? kBaseTypeInt : CODE_TO_NATIVE_TYPE( typeCode );
         pEntry = mpLocalVocab->AddSymbol( pVarName, (kOpLocalByte + varType), mLocalFrameSize, false );
     }
     else
@@ -1485,6 +1487,20 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         }
     }
 
+    // check for member variables and methods
+    if ( mCompileState && CheckFlag( kEngineFlagIsMethod ) )
+    {
+        if ( mpStructsManager->ProcessMemberSymbol( pInfo, exitStatus ) )
+        {
+            ////////////////////////////////////
+            //
+            // symbol is a member variable or method
+            //
+            ////////////////////////////////////
+            return exitStatus;
+        }
+    }
+
 #ifdef MAP_LOOKUP
     pEntry = mpVocabStack->FindSymbol( pToken, &pFoundVocab );
 #else
@@ -1533,7 +1549,6 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
           SPEW_OUTER_INTERPRETER( "Floating point literal %f\n", fvalue );
           if ( mCompileState ) {
               // compile the literal value
-              // value too big, must go in next longword
               CompileOpcode( OP_FLOAT_VAL );
               *(float *) mpCore->DP++ = fvalue;
           } else {
@@ -1551,7 +1566,6 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
           SPEW_OUTER_INTERPRETER( "Floating point double literal %g\n", dvalue );
           if ( mCompileState ) {
               // compile the literal value
-              // value too big, must go in next longword
               CompileOpcode( OP_DOUBLE_VAL );
               pDPD = (double *) mpCore->DP;
               *pDPD++ = dvalue;

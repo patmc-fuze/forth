@@ -100,8 +100,9 @@ typedef enum
     kOpMemberOpArray,
     kOpMemberObjectArray,
 
-    kOpMethodWithThis = 90,  // low 24 bits is method number
-    kOpMethodWithTOS,  // low 24 bits is method number
+    kOpMethodWithThis = 90,                 // low 24 bits is method number
+    kOpMethodWithTOS,                       // low 24 bits is method number
+    kOpInitMemberString,                    // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
 
     kOpLocalUserDefined = 100,             // user can add more optypes starting with this one
     kOpMaxLocalUserDefined = 127,    // maximum user defined optype
@@ -261,6 +262,8 @@ class ForthThread;
 #define OP_DO_DO                BUILTIN_OP(46)
 #define OP_DO_LOOP              BUILTIN_OP(47)
 #define OP_DO_LOOPN             BUILTIN_OP(48)
+#define OP_DO_NEW               BUILTIN_OP(49)
+#define OP_DFETCH               BUILTIN_OP(50)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct {
@@ -375,14 +378,17 @@ typedef struct _ForthClassDescriptor {
 //  as well as the order of actual opcodes used to implement native types (OP_DO_INT, OP_DO_FLOAT, OP_DO_INT_ARRAY, ...)
 typedef enum
 {
-    kNativeByte,
-    kNativeShort,
-    kNativeInt,
-    kNativeFloat,
-    kNativeDouble,
-    kNativeString,
-    kNativeOp,
-    kNativeObject,
+    kBaseTypeByte,
+    kBaseTypeShort,
+    kBaseTypeInt,
+    kBaseTypeFloat,
+    kBaseTypeDouble,
+    kBaseTypeString,
+    kBaseTypeOp,
+    kNumNativeTypes,
+    kBaseTypeObject = kNumNativeTypes,
+    kBaseTypeStruct,
+    kNumBaseTypes
 } forthNativeType;
 
 typedef enum
@@ -406,14 +412,14 @@ typedef enum
 
 // for types with kDTIsNative set:
 // 8...5        forthNativeType
-// 31...9       string length (if forthNativeType == kNativeString)
+// 31...9       string length (if forthNativeType == kBaseTypeString)
 
 // for types with kDTIsNative clear:
-// 31...5     structIndex/classId
+// 31...5       structIndex/classId
 
 // when kDTArray and kDTIsPtr are both set, it means the field is an array of pointers
 #define NATIVE_TYPE_TO_CODE( STORAGE_TYPE, NATIVE_TYPE )    (kDTIsNative | ((NATIVE_TYPE << 5) | STORAGE_TYPE))
-#define STRING_TYPE_TO_CODE( STORAGE_TYPE, MAX_BYTES )      (kDTIsNative | ((MAX_BYTES << 9) | (kNativeString << 5) | STORAGE_TYPE))
+#define STRING_TYPE_TO_CODE( STORAGE_TYPE, MAX_BYTES )      (kDTIsNative | ((MAX_BYTES << 9) | (kBaseTypeString << 5) | STORAGE_TYPE))
 #define STRUCT_TYPE_TO_CODE( STORAGE_TYPE, STRUCT_INDEX )    ((STRUCT_INDEX << 5) | STORAGE_TYPE)
 #define CODE_IS_DATA( CODE )                (((CODE) & 3) != 0)
 #define CODE_IS_VARIABLE( CODE )            (((CODE) & 3) == kDTSingle)

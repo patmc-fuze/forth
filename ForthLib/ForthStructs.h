@@ -34,7 +34,7 @@ typedef struct
 class ForthInterface
 {
 public:
-	ForthInterface();
+	ForthInterface( ForthClassVocabulary* pDefiningClass=NULL );
 	virtual ~ForthInterface();
 
 	void					Copy( ForthInterface* pInterface );
@@ -43,7 +43,7 @@ public:
 	long*					GetMethods();
 	long					GetMethod( long index );
 	void					SetMethod( long index, long method );
-	void					AddMethod( long method );
+	long					AddMethod( long method );
     long                    GetMethodIndex( const char* pName );
 	long					GetNumMethods();
 	long					GetNumAbstractMethods();
@@ -67,9 +67,14 @@ public:
     // compile/interpret symbol if it is a valid structure accessor
     virtual bool    ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
 
+    // compile symbol if it is a class member variable or method
+    virtual bool    ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
+
     // add a new structure type
-    ForthStructVocabulary*          AddStructType( const char *pName );
-    ForthClassVocabulary*           AddClassType( const char *pName );
+    ForthStructVocabulary*          StartStructDefinition( const char *pName );
+    void                            EndStructDefinition( void );
+    ForthClassVocabulary*           StartClassDefinition( const char *pName );
+    void                            EndClassDefinition( void );
     static ForthStructsManager*     GetInstance( void );
 
     // return info structure for struct type specified by structIndex
@@ -84,13 +89,13 @@ public:
     ForthStructVocabulary*   GetNewestStruct( void );
     ForthClassVocabulary*   GetNewestClass( void );
 
-
 protected:
     // mpStructInfo points to an array with an entry for each defined structure type
     ForthStructInfo                 *mpStructInfo;
     int                             mNumStructs;
     int                             mMaxStructs;
     static ForthStructsManager*     mpInstance;
+    ForthVocabulary*                mpSavedDefinitionVocab;
     char                            mToken[ DEFAULT_INPUT_BUFFER_LEN ];
     long                            mCode[ MAX_ACCESSOR_LONGS ];
 };
@@ -113,6 +118,8 @@ public:
 
     virtual const char* GetType( void );
 
+    virtual void        PrintEntry( long*   pEntry );
+
     // handle invocation of a struct op - define a local/global struct or struct array, or define a field
     virtual void	    DefineInstance( void );
 
@@ -123,6 +130,9 @@ public:
     long                GetSize( void );
     void                StartUnion( void );
     virtual void        Extends( ForthStructVocabulary *pParentStruct );
+
+    inline ForthStructVocabulary* BaseVocabulary( void ) { return mpSearchNext; }
+
 protected:
     long                    mNumBytes;
     long                    mMaxNumBytes;
@@ -142,7 +152,7 @@ public:
 
 	bool				IsAbstract( void )		{ return mNumAbstractMethods == 0; }
 
-	void				AddMethod( const char* pName, long op );
+	long				AddMethod( const char* pName, long op );
 	void				Implements( const char* pName );
 	void				EndImplements( void );
 	long				GetClassId( void )		{ return mStructIndex; }
@@ -161,11 +171,11 @@ protected:
 	CArray<ForthInterface *>	mInterfaces;
 };
 
-class ForthNativeType
+class ForthBaseType
 {
 public:
-    ForthNativeType( const char* pName, int numBytes, forthNativeType nativeType );
-    virtual ~ForthNativeType();
+    ForthBaseType( const char* pName, int numBytes, forthNativeType nativeType );
+    virtual ~ForthBaseType();
     virtual void DefineInstance( ForthEngine *pEngine, void *pInitialVal );
 
     inline long GetGlobalOp( void ) { return mNativeType + OP_DO_BYTE; };
@@ -176,6 +186,7 @@ public:
     inline long GetFieldArrayOp( void ) { return mNativeType + kOpFieldByteArray; };
     inline long GetAlignment( void ) { return (mNumBytes > 4) ? 4 : mNumBytes; };
     inline long GetSize( void ) { return mNumBytes; };
+    inline const char* GetName( void ) { return mpName; };
 
 protected:
     const char*         mpName;
@@ -183,6 +194,6 @@ protected:
     forthNativeType     mNativeType;
 };
 
-extern ForthNativeType gNativeByte, gNativeShort, gNativeInt, gNativeFloat, gNativeDouble, gNativeString, gNativeOp, gNativeObject;
+extern ForthBaseType gBaseTypeByte, gBaseTypeShort, gBaseTypeInt, gBaseTypeFloat, gBaseTypeDouble, gBaseTypeString, gBaseTypeOp, gBaseTypeObject;
 
 #endif

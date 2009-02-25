@@ -2196,57 +2196,40 @@ OPTYPE_ACTION( DLLEntryPointAction )
 
 OPTYPE_ACTION( MethodWithThisAction )
 {
-#if 0
     // this is called when an object method invokes another method on itself
     // opVal is the method number
-
-    long *pObj = GET_TP;
-    if ( pObj != NULL ) {
-        // pObj is a pair of pointers, first pointer is to
-        //   class descriptor for this type of object,
-        //   second pointer is to storage for object (this ptr)
-        long *pClass = (long *) (*pObj);
-        if ( pClass[2] > (long) opVal ) {
-            RPUSH( (long) GET_IP );
-            RPUSH( (long) GET_TP );
-            SET_TP( pObj );
-            SET_IP( (long *) (pClass[opVal + 3]) );
-        } else {
-            // bad method number
-            SET_ERROR( kForthErrorBadOpcode );
-        }
-    } else {
-        SET_ERROR( kForthErrorBadOpcode );
-    }
-#endif
+    ForthEngine *pEngine = GET_ENGINE;
+    long* pMethods = GET_TPV;
+    RPUSH( ((long) GET_TPD) );
+    RPUSH( ((long) pMethods) );
+    pEngine->ExecuteOneOp( pMethods[ opVal ] );
 }
 
 OPTYPE_ACTION( MethodWithTOSAction )
 {
-#if 0
+    // TOS is object (top is vtable, next is data)
     // this is called when a method is invoked from inside another
     // method in the same class - the difference is that in this case
     // there is no explicit source for the "this" pointer, we just keep
     // on using the current "this" pointer
-    long *pObj = GET_TP;
-    if ( pObj != NULL ) {
-        // pObj is a pair of pointers, first pointer is to
-        //   class descriptor for this type of object,
-        //   second pointer is to storage for object (this ptr)
-        long *pClass = (long *) (*pObj);
-        if ( pClass[2] > (long) opVal ) {
-            RPUSH( (long) GET_IP );
-            RPUSH( (long) GET_TP );
-            SET_TP( pObj );
-            SET_IP( (long *) (pClass[opVal + 3]) );
-        } else {
-            // bad method number
-            SET_ERROR( kForthErrorBadOpcode );
-        }
-    } else {
-        SET_ERROR( kForthErrorBadOpcode );
-    }
-#endif
+    ForthEngine *pEngine = GET_ENGINE;
+    RPUSH( ((long) GET_TPD) );
+    RPUSH( ((long) GET_TPV) );
+    long* pMethods = (long *)(SPOP);
+    SET_TPV( pMethods );
+    SET_TPD( (long *) (SPOP) );
+    pEngine->ExecuteOneOp( pMethods[ opVal ] );
+}
+
+OPTYPE_ACTION( InitMemberStringAction )
+{
+    // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
+    // init the current & max length fields of a local string
+    long* pThis = GET_TPD;
+    long* pStr = pThis + (opVal >> 12);
+    *pStr++ = (opVal & 0xFFF);          // max length
+    *pStr++ = 0;                        // current length
+    *((char *) pStr) = 0;               // terminating null
 }
 
 OPTYPE_ACTION( IllegalOptypeAction )
@@ -2390,7 +2373,6 @@ optypeActionRoutine builtinOptypeAction[] =
     FieldObjectArrayAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
-    ReservedOptypeAction,
 
     // 70 - 79
     MemberIntAction,    // TBD: byte
@@ -2401,7 +2383,6 @@ optypeActionRoutine builtinOptypeAction[] =
     MemberStringAction,
     MemberOpAction,
     MemberObjectAction,
-    ReservedOptypeAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
 
@@ -2416,12 +2397,11 @@ optypeActionRoutine builtinOptypeAction[] =
     MemberObjectArrayAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
-    ReservedOptypeAction,
 
     // 90 - 99
     MethodWithThisAction,
     MethodWithTOSAction,
-    ReservedOptypeAction,
+    InitMemberStringAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
     ReservedOptypeAction,

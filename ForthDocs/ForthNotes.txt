@@ -108,21 +108,157 @@ colonOp
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-ForthShell::Run
-  ForthShell::InterpretLine
-    ForthEngine::ParseToken
-    ForthEngine::ProcessToken
+February 24 2009
 
-ForthShell::Run
-	calls ForthShell::InterpretLine in a loop until it returns false
+? does the current structure support properly handle the case where the first
+  field of an accessor is a pointer to a struct?
 
-ForthShell::InterpretLine
-	calls ForthShell::ParseToken and ForthEngine::ProcessToken in a loop until input line is empty
-		
+Ugh, some of the code assumes object variables have the native flag set,
+other parts of the code require that object variables have the native flag
+clear...
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 23 2009
+
+The existing struct support handles struct accessors in 3 stages:
+1) the first token, either a local or global struct (or pointer)
+  -> compile opcode which pushes the address of base of struct
+2) intermediate accessors
+  -> compile opcodes which add offsets to TOS, or do an indirection on TOS
+     for fields which are pointers
+3) the final field
+  -> compile fieldAction opcode based on the type of field
+
+Things get a little messier with classes, because:
+o an object field is automatically a pointer access, a ptrTo object field
+  requires a double dereferencing
+o a field which is an object needs to be processed differently depending on
+  wether the next accessor designates a method or a member field - a method
+  will require both pointers, a member will just need one of the pointers
+  
+Class support status:
+
+-------
+- objG.methodB						method invocation on global object objG
+	objG
+	OP( methodWithTOS, B )
++ methodB							method invocation on current object within method
+	OP( methodWithThis, B )
+- objA.methodB						method invocation on other local object
+	OP( localObject, A )
+	OP( methodWithTOS, B )
+- objD.methodB						method invocation on other member object
+	OP( memberObject, D )
+	OP( methodWithTOS, B )
+- stuff.objQ.methodB
+	...stuff leaving addr of objQ on TOS...
+	d@
+	OP( methodWithTOS, B )
+
++ fieldC							member access within method
+	OP( memberInt, C )
+- objA.fieldC						(objA is local within method)
+	OP( localObject, A )
+	drop
+	OP( fieldInt, C )
+- objD.fieldC						(objD is a member variable)
+	OP( memberObject, D )
+	drop
+	OP( fieldInt, C )
+- objG.fieldC
+-------
+Member access and methods outside a method:
+- objL.methodB						(objL is a local object)
+- objL.fieldC
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 22 2009
+
++ Some class support is working, I can invoke methods using doMethod, the right
+  vtable opcode is executed, stacks look after it is done.
++ "extends" works for classes
+- currently member fields don't work in classes
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 21 2009
+
+The next step for class support is to create "new", possible approaches:
+
+1 - new sets a varAction
+=========================
+Syntax is "new blah"
+o blah must be next opcode executed
+o a struct/class defining word like blah is immediate, so it can define local
+  instances while compiling.  doStructTypeOp/doClassTypeOp would need to be
+  modified when compiling to check if the preceeding compiled op was a
+  varAction setting op, and if so just compile appropriate code.
+  doClassTypeOp:
+  if ( state is compile )
+    // either defining a local instance, or "new blah"
+    if previously compiled op is a valid varAction (IE "new")
+      compile blahOp (how do I know blahOp?)
+    else
+      DefineInstance of blah
+    endif
+  else
+    if varAction is valid
+      
+    else
+      DefineInstance of blah
+    endif
+  endif
+  
+  The code to be compiled can't just be the blah opcode - when it is
+  executed, 
+  ? what is the appropriate code
+
+2 - new is an immediate op
+==========================
+Syntax is "new blah"
+o blah must be next immediate token, on same line
+o new grabs next token, and interprets or compiles appropriate code
+o the code compiled would be:
+  doNewClassOp
+  <pointer to class vocab>
+  ? what is the appropriate code
+
+3 - struct manager ProcessSymbol handles new
+============================================
+Syntax is "blah.new"
+o stuct manager ProcessSymbol recognizes blah as a class name and new
+  as a special token and interprets/compiles appropriate code
+  ? what is the appropriate code
+
+In all these cases, we are stuck with the question of what should be
+compiled - it can't be the blah opcode.
+
+The minimalist in me thinks that a varAction approach is best, but varAction is
+a kludge:
+o varActions look like local operations, but use globals
+o varActions break making methods be part of a struct accessor chain
+o a varAction could be applied to the wrong object/variable
+  o the same varAction value means different things for different datatypes
+Also, struct/class type ops are currently defining words which eat the
+next simple token, and they have precedence
+
+- "sizeOf" and "offsetOf" will only work in interpret mode
+  ? change these into varActions too
+  
+Currently varAction ops are implemented with non-precedence ops, should I
+change them to precedence ops?
+-> No, I don't think it would really fix the general varAction problems
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 18 2009
+
++ changed ShowVocab to use ForthVocabulary::PrintEntry
+
++ Changed "describe" to display the symbols of struct or class vocabularies
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 February 17 2009
 
-I got a bunch of the simple problems with struct support debugged.
+I debugged a bunch of the simple problems with struct support.
 	point p
 	ptrTo point pp
 	5 -> pp.x
@@ -133,15 +269,42 @@ the fieldInt(x) call tries to get the struct base address from TOS, adds
 the offset of x, and then dereferences the bogus result address since
 the store varaction was cleared when pp was executed.
 
+----
 How can we differentiate between setting the pointer and setting a field in
 the struct the pointer references?
+
+A structure/object accessor has the syntax
+	start.end
+or	start.middle.end	where middle can be many dotted ops
+
+o start always compiles into an opcode which pushes the base address of the data
+o end always compiles into an opcode which will actually affect the data, and
+  which pays attention to the current varAction
+o middle is a series of ops which can:
+  o add an offset to TOS
+  o do a fetch - replace TOS with the address it points to
+  o do an array address calculation: replace a base address and index with the
+    address of the indexed element
+  o (someday) execute a method with a known return type
+If the opcode compiled for start is a pointer var op, it can mistakenly
+use the varAction which is intended for the end op.  Also, when methods
+can be in the middle ops, the methods could interfere with the varAction.
+On a different note, there is a potential optimization for local structs,
+where the start op, middle ops and end op are combined into a single op which
+is the same as a local variable op.
+---
+
 When compiling a field reference using a global pointer, look at the opcode
 just previously compiled to see if it is one of (addressOf -> ->+ ->-) and if
 so, swap the order of the previous opcode and the global pointer opcode.
 But what if this is interpret mode? I guess in interpret mode we could save
 the varAction at the start of processSymbol, clear the varAction, and compile
 the appropriate varAction op after the first field opcode.
+
 Actually, are there any ops other than the final op which use the varAction?
+Not now, but when methods can be in the middle of an accessor chain, those
+methods are very likely to internally modify the varAction
+
 The first op compiled in a field accessor is always one of:
 o global struct op - just leaves base address on TOS
 o global ptr op - leaves ptr contents on TOS
@@ -153,6 +316,17 @@ o local ptr op - leaves ptr contents on TOS
 
 I haven't tried complicated accessors where there is more than one level of
 indirection.
+
++ I added "comparefiles" to forth_autoload.txt.
+
++ Added automated test file autotest.txt, which runs forthtest.txt in
+  both slow and turbo mode and compares the output of both against output
+  from a known good run
+  
+Maybe there should be a varAction-setting opcode type...
+That would require that the varAction setting opcodes in the kernel be in
+their own list.
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 February 16 2009
 
@@ -262,7 +436,7 @@ symbols.  In the future this will allow the existing bits of the type code
 to indicate the return value for the method, so that methods don't have to
 terminate a structure accessor string.
 
-Also added a new native type, kNativeObject, which will be a 64-bit field.
+Also added a new native type, kBaseTypeObject, which will be a 64-bit field.
 When I was putting it in, I found that the global array ops had never
 been used, at least in non-turbo mode - their optable entries held the
 ops for single variables.
@@ -544,6 +718,17 @@ I think the idea was that there should only ever be one engine object.
 
 I get a fatal error when I load sdl.txt, then sdl2.txt, and run "test".
 
+ForthShell::Run
+  ForthShell::InterpretLine
+    ForthEngine::ParseToken
+    ForthEngine::ProcessToken
+
+ForthShell::Run
+	calls ForthShell::InterpretLine in a loop until it returns false
+
+ForthShell::InterpretLine
+	calls ForthShell::ParseToken and ForthEngine::ProcessToken in a loop until input line is empty
+		
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 23 2008
 
@@ -1008,7 +1193,7 @@ Struct defining stuff is in.  Extension to outer interpreter to handle
 stuff like a.b.c is not in yet.
 
 I'm not completely sure that the handling of pointers is correct.
-I got rid of ForthNativeStringType, merged it back into ForthNativeType.
+I got rid of ForthNativeStringType, merged it back into ForthBaseType.
 I'm not convinced that was a good idea, the code is messy, I was trying to
 avoid duplicating DefineInstance.  Most of the ugliness is because strings
 need to get the maximum string length, and how that is done is different
@@ -1021,7 +1206,7 @@ to use an uninitialized string and get a buffer overrun.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 31 2007
 
-Added ForthNativeType
+Added ForthBaseType
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 26, 2007

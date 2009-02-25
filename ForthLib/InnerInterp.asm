@@ -1595,6 +1595,26 @@ methodWithTOSType:
 	
 ;-----------------------------------------------
 ;
+; member string init ops
+;
+initMemberStringType:
+   ; bits 0..11 are string length in bytes, bits 12..23 are member offset in longs
+   ; init the current & max length fields of a member string
+	mov	eax, 00FFF000h
+	and	eax, ebx
+	sar	eax, 10							; eax = member offset in bytes
+	mov	esi, [ebp].FCore.TDPtr
+	sub	esi, eax						; esi -> max length field
+	and	ebx, 00000FFFh					; ebx = max length
+	mov	[esi], ebx						; set max length
+	xor	eax, eax
+	mov	[esi+4], eax					; set current length to 0
+	mov	[esi+5], al						; add terminating null
+	mov	esi, [ebp].FCore.builtinOps
+	jmp	edi
+
+;-----------------------------------------------
+;
 ; builtinOps code
 ;
 
@@ -3947,6 +3967,11 @@ endmethodBop:	; TBD
 	
 ;========================================
 
+doMethodBop:	; TBD
+	extOp	doMethodOp
+	
+;========================================
+
 implementsBop:	; TBD
 	extOp	implementsOp
 	
@@ -4022,6 +4047,31 @@ offsetOfBop:	; TBD
 	
 ;========================================
 
+thisBop:
+	mov	eax, [ebp].FCore.TVPtr
+	sub	edx, 8
+	mov	[edx], eax
+	mov	eax, [ebp].FCore.TDPtr
+	mov	[edx+4], eax
+	jmp	edi
+	
+;========================================
+
+newBop:		; TBD
+	extOp	newOp
+	
+;========================================
+
+doNewBop:		; TBD
+	extOp	doNewOp
+	
+;========================================
+
+initMemberStringBop:	; TBD
+	extOp	initMemberStringOp
+	
+;========================================
+
 enumBop:	; TBD
 	extOp	enumOp
 	
@@ -4058,6 +4108,11 @@ precedenceBop:	; TBD
 
 loadBop:	; TBD
 	extOp	loadOp
+	
+;========================================
+
+loadStrBop:	; TBD
+	extOp	loadStrOp
 	
 ;========================================
 
@@ -4745,6 +4800,7 @@ opTypesTable:
 ;	90 - 99
 	DD	FLAT:methodWithThisType
 	DD	FLAT:methodWithTOSType
+	DD	FLAT:initMemberStringType
 	
 endOpTypesTable:
 	DD	0
@@ -4803,6 +4859,8 @@ opsTable:
 	DD	FLAT:doDoBop
 	DD	FLAT:doLoopBop
 	DD	FLAT:doLoopNBop
+	DD	FLAT:doNewBop
+	DD	FLAT:dfetchBop
 	
 	; integer math
 	DD	FLAT:minusBop
@@ -4954,7 +5012,6 @@ opsTable:
 	DD	FLAT:swfetchBop
 	DD	FLAT:w2lBop
 	DD	FLAT:dstoreBop
-	DD	FLAT:dfetchBop
 	DD	FLAT:memcpyBop
 	DD	FLAT:memsetBop
 	DD	FLAT:setVarActionBop
@@ -5001,16 +5058,21 @@ opsTable:
 	DD	FLAT:endclassBop
 	DD	FLAT:methodBop
 	DD	FLAT:endmethodBop
+	DD	FLAT:doMethodBop
 	DD	FLAT:implementsBop
 	DD	FLAT:endimplementsBop
 	DD	FLAT:unionBop
 	DD	FLAT:extendsBop
 	DD	FLAT:sizeOfBop
 	DD	FLAT:offsetOfBop
+	DD	FLAT:thisBop
+	DD	FLAT:newBop
+	DD	FLAT:initMemberStringBop
 	DD	FLAT:enumBop
 	DD	FLAT:endenumBop
 	DD	FLAT:recursiveBop
 	DD	FLAT:precedenceBop
+	DD	FLAT:loadStrBop
 	DD	FLAT:loadBop
 	DD	FLAT:loadDoneBop
 	DD	FLAT:interpretBop

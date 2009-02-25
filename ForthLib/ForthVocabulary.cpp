@@ -634,6 +634,25 @@ ForthVocabulary::DoOp( ForthCoreState *pCore )
 }
 
 
+void
+ForthVocabulary::PrintEntry( long*   pEntry )
+{
+#define BUFF_SIZE 256
+    char buff[BUFF_SIZE];
+    ForthCoreState* pCore = mpEngine->GetCoreState();
+    sprintf( buff, "%02x:%06x    ", GetEntryType( pEntry ), GetEntryValue( pEntry ) );
+    CONSOLE_STRING_OUT( buff );
+
+    for ( int j = 1; j < mValueLongs; j++ )
+    {
+        sprintf( buff, "%08x    ", pEntry[j] );
+        CONSOLE_STRING_OUT( buff );
+    }
+
+    GetEntryName( pEntry, buff, BUFF_SIZE );
+    CONSOLE_STRING_OUT( buff );
+}
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///     ForthLocalVocabulary

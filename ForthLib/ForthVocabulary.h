@@ -85,6 +85,8 @@ public:
     // return a string telling the type of library
     virtual const char* GetType( void );
 
+    virtual void        PrintEntry( long*   pEntry );
+
     // the symbol for the word which is currently under construction is "smudged"
     // so that if you try to reference that symbol in its own definition, the match
     // will fail, and an earlier symbol with the same name will be compiled instead
@@ -136,6 +138,11 @@ public:
     inline int                  GetEntryNameLength( const long *pEntry ) {
         return (int) *(((char *) pEntry) + (mValueLongs << 2));
     };
+
+    inline int                  GetValueLength()
+    {
+        return mValueLongs << 2;
+    }
 
     // returns number of chars in name
     virtual int                 GetEntryName( const long *pEntry, char *pDstBuff, int buffSize );

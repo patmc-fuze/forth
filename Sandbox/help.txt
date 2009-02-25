@@ -1,3 +1,8 @@
+// this file is loaded the first time "help" is executed - if this file hasn't been loaded, help just leaves the address of the
+// desired symbol on TOS and loads this file - the last line in this file should be a $help op which will display the desired
+// help after these definitions have been loaded
+
+"Loading help definitions\n" %s
 // help definitions for builtin ops
 addHelp abort			abort		terminate execution with fatal error
 addHelp drop			VAL drop	drop top element of param stack
@@ -186,21 +191,22 @@ addHelp builds
 addHelp :
 addHelp create
 
-addHelp forth
-addHelp definitions
-addHelp vocabulary
-addHelp also
-addHelp previous
-addHelp only
-addHelp forget
-addHelp autoforget
-addHelp getNewest
-addHelp findEntry
-addHelp findEntryValue
-addHelp addEntry
-addHelp removeEntry
-addHelp entryLength
-addHelp numEntries
+addHelp forth		...							overwrites the top of the vocabulary stack with forth vocabulary
+addHelp definitions	...							makes the top of the vocabulary stack be the destination of newly defined words
+addHelp vocabulary	vocabulary VOCAB			create a new vocabulary
+addHelp also		...							duplicates top of vocabulary stack, use "also vocab1" to add vocab1 to the stack above current vocab
+addHelp previous	...							drops top of vocabulary stack
+addHelp only		...							sets the vocabulary stack to just one element, forth, use "only vocab1" to make vocab1 the only vocab in stack
+addHelp forget		forget WORDNAME				forget named word and all newer definitions
+addHelp autoforget	autoforget WORDNAME			forget named word and all newer definitions, don't report error if WORDNAME is not defined yet
+addHelp getNewest	getNewest VOCAB ... PTR_TO_SYMBOL	get a pointer to newest symbol in VOCAB
+addHelp findEntry	SYMNAME findEntry VOCAB ...	PTR_TO_SYMBOL	search VOCAB for SYMNAME, return pointer to symbol entry or NULL if not found
+addHelp findEntryValue	SYMVALUE findEntryValue VOCAB ... PTR_TO_SYMBOL		search VOCAB for word whose value is SYMVALUE, return pointer to symbol entry or NULL if not found
+addHelp addEntry	NAME TYPE VAL addEntry VOCAB ...	add new symbol to VOCAB - VAL holds low 24 bits, TYPE is high 8 bits of opcode
+addHelp removeEntry	NAME removeEntry VOCAB ...		remove named symbol from VOCAB
+addHelp entryLength	entryLength VOCAB ... NLONGS	length of symbol value field in longwords
+addHelp numEntries	numEntries VOCAB ... NSYMBOLS	return number of symbols in VOCAB
+
 
 
 addHelp variable			variable VAR_NAME		creates a variable op which pushes its address when executed
@@ -318,3 +324,6 @@ addHelp [
 addHelp [compile]
 addHelp [\']
 
+// THIS NEXT LINE MUST BE THE LAST IN THIS FILE!
+
+$help
