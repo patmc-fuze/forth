@@ -45,6 +45,8 @@ typedef enum
     kOpLocalRef,
     kOpInitLocalString,     // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
     kOpLocalStructArray,   // bits 0..11 are padded struct size in bytes, bits 12..23 are frame offset in longs
+    kOpOffsetFetch,          // low 24 bits is signed offset value
+    kOpMemberRef,
 
     kOpLocalByte = 30,
     kOpLocalShort,
@@ -266,11 +268,24 @@ class ForthThread;
 #define OP_DFETCH               BUILTIN_OP(50)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
-typedef struct {
+typedef struct
+{
    char             *name;
    ulong            flags;
    ulong            value;
 } baseDictEntry;
+
+typedef struct
+{
+    char            *name;
+    ulong           value;
+} baseMethodEntry;
+
+typedef struct
+{
+    char                *name;
+    baseMethodEntry     *methods;
+} baseClassEntry;
 
 //
 // this is the descriptor for a class defined in forth
@@ -388,49 +403,43 @@ typedef enum
     kNumNativeTypes,
     kBaseTypeObject = kNumNativeTypes,
     kBaseTypeStruct,
-    kNumBaseTypes
-} forthNativeType;
+    kNumBaseTypes,
+    kBaseTypeUnknown = kNumBaseTypes
+} forthBaseType;
 
 typedef enum
 {
-    // kDTNone, kDTSingle and kDTArray are mutually exclusive
-    kDTNone         = 0,
-    kDTSingle       = 1,
-    kDTArray        = 2,
-    kDTIllegal      = 3,
     // kDTIsPtr and kDTIsNative can be combined with anything
-    kDTIsPtr        = 4,
-    kDTIsNative     = 8,
-    kDTIsMethod     = 16,
+    kDTIsPtr        = 16,
+    kDTIsArray      = 32,
+    kDTIsMethod     = 64,
 } storageDescriptor;
 
 // user-defined structure fields have a 32-bit descriptor with the following format:
-// 1...0        select none, single or array
-//   2          is field a pointer
-//   3          is field native
-//   4          is this a method
-
-// for types with kDTIsNative set:
-// 8...5        forthNativeType
-// 31...9       string length (if forthNativeType == kBaseTypeString)
-
-// for types with kDTIsNative clear:
-// 31...5       structIndex/classId
+// 3...0        base type
+//   4          is field a pointer
+//   5          is field an array
+//   6          is this a method
+//   7          reserved
+// 31...8       depends on base type:
+//      string      length
+//      struct      structIndex
+//      object      classId
 
 // when kDTArray and kDTIsPtr are both set, it means the field is an array of pointers
-#define NATIVE_TYPE_TO_CODE( STORAGE_TYPE, NATIVE_TYPE )    (kDTIsNative | ((NATIVE_TYPE << 5) | STORAGE_TYPE))
-#define STRING_TYPE_TO_CODE( STORAGE_TYPE, MAX_BYTES )      (kDTIsNative | ((MAX_BYTES << 9) | (kBaseTypeString << 5) | STORAGE_TYPE))
-#define STRUCT_TYPE_TO_CODE( STORAGE_TYPE, STRUCT_INDEX )    ((STRUCT_INDEX << 5) | STORAGE_TYPE)
-#define CODE_IS_DATA( CODE )                (((CODE) & 3) != 0)
-#define CODE_IS_VARIABLE( CODE )            (((CODE) & 3) == kDTSingle)
-#define CODE_IS_ARRAY( CODE )               (((CODE) & 3) == kDTArray)
-#define CODE_IS_PTR( CODE )                 (((CODE) & kDTIsPtr) != 0)
-#define CODE_IS_NATIVE( CODE )              (((CODE) & kDTIsNative) != 0)
-#define CODE_IS_METHOD( CODE )              (((CODE) & kDTIsMethod) != 0)
-#define CODE_TO_STORAGE_TYPE( CODE )        ((CODE) & 0x0F)
-#define CODE_TO_NATIVE_TYPE( CODE )         (((CODE) >> 5) & 0x0F)
-#define CODE_TO_STRUCT_INDEX( CODE )        (((CODE) >> 5) & 0x07FFFFFF)
-#define CODE_TO_STRING_BYTES( CODE )        ((CODE) >> 9)
+#define NATIVE_TYPE_TO_CODE( ARRAY_FLAG, NATIVE_TYPE )      ((ARRAY_FLAG) | (NATIVE_TYPE))
+#define STRING_TYPE_TO_CODE( ARRAY_FLAG, MAX_BYTES )        ((ARRAY_FLAG) | kBaseTypeString | ((MAX_BYTES) << 8))
+#define STRUCT_TYPE_TO_CODE( ARRAY_FLAG, STRUCT_INDEX )     ((ARRAY_FLAG) | kBaseTypeStruct | ((STRUCT_INDEX) << 8))
+#define OBJECT_TYPE_TO_CODE( ARRAY_FLAG, STRUCT_INDEX )     ((ARRAY_FLAG) | kBaseTypeObject | ((STRUCT_INDEX) << 8))
+
+#define CODE_IS_SIMPLE( CODE )                              (((CODE) & (kDTIsArray | kDTIsPtr)) == 0)
+#define CODE_IS_ARRAY( CODE )                               (((CODE) & kDTIsArray) != 0)
+#define CODE_IS_PTR( CODE )                                 (((CODE) & kDTIsPtr) != 0)
+#define CODE_IS_NATIVE( CODE )                              (((CODE) & 0xF) < kNumNativeTypes)
+#define CODE_IS_METHOD( CODE )                              (((CODE) & kDTIsMethod) != 0)
+#define CODE_TO_BASE_TYPE( CODE )                           ((CODE) & 0x0F)
+#define CODE_TO_STRUCT_INDEX( CODE )                        ((CODE) >> 8)
+#define CODE_TO_STRING_BYTES( CODE )                        ((CODE) >> 8)
 
 // bit fields for kOpDLLEntryPoint
 #define DLL_ENTRY_TO_CODE( INDEX, NUM_ARGS )    (((NUM_ARGS) << 19) | (INDEX))

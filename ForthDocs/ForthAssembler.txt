@@ -1,0 +1,372 @@
+         1         2         3         4         5         6         7
+1234567890123456789012345678901234567890123456789012345678901234567890123456789
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+TBDs:
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+-> look at "bytes,"
+
+: jmp,   		// reg / disp --
+  rel? if
+    drop disp @ here 2 + - dup
+    -0x80 0x80 within
+    if
+      disp ! 1 disp# !  0xEB
+    else
+      3 - disp ! 0xE9
+    endif
+    finish
+    exit
+  endif
+  44 0xFF
+  modf
+;
+
+: rel? ( reg -- reg flag ) dup -2 == ;
+variable disp                 variable disp#
+
+: modf  ( r/m reg opcode -- )  -rot >mod finish   ;
+
+: jmp,   		// reg / disp --
+  dup -2 == if
+  endif
+  44 0xFF
+  -rot
+  >mod
+  finish
+;
+
+: >>mod ( reg1 reg2 -- mod )  70 and swap 307 and or ;
+: >mod ( reg1 reg2 -- )  >>mod ModR/M !  1 ModR/M# ! ;
+
+: jmp,   		// reg / disp --
+  44 0xFF
+  rot rot
+  70 and swap 307 and or
+  ModR/M !
+  1 ModR/M# !
+  finish
+;
+
+: finish // opcode --
+  opcode,
+  ModR/M# @ if  ModR/M @ c,  endif
+  SIB#    @ if  SIB    @ c,  endif
+  Adisp?  @ disp @ disp# @ bytes,
+  Aimm?   @ imm  @ imm#  @ bytes,
+  sclear
+;
+
+
+
+
+
+
+
+*** InterpretLine "jmp,"
+Interpret [jmp,] flags[0]	Forth op [jmp,] in vocabulary assembler
+# 0x0012f840 02:000110    jmp,
+# 0x00d4217c   02:000091    rel?
+# 0x00d41708     00:000091    dup
+# 0x00d4170c     14:fffffe    Constant    -2
+# 0x00d41710     00:00007e    ==
+# 0x00d41714     00:000017    _exit
+# 0x00d42180   0c:00001a    BranchFalse    0x00d421ec
+# 0x00d421ec   14:000024    Constant    36
+# 0x00d421f0   14:0000ff    Constant    255
+# 0x00d421f4   02:0000c2    modf
+# 0x00d41b90     02:00001b    -rot
+# 0x00d40d4c       00:000094    rot
+# 0x00d40d50       00:000094    rot
+# 0x00d40d54       00:000017    _exit
+# 0x00d41b94     02:00007c    >mod
+# 0x00d414f4       02:00007b    >>mod
+# 0x00d414d8         14:000038    Constant    56
+# 0x00d414dc         00:000074    and
+# 0x00d414e0         00:000092    swap
+# 0x00d414e4         14:0000c7    Constant    199
+# 0x00d414e8         00:000074    and
+# 0x00d414ec         00:000073    or
+# 0x00d414f0         00:000017    _exit
+# 0x00d414f8       02:00001d    ModR/M
+# 0x00d40d78         00:000006    _doVariable
+# 0x00d414fc       00:0000a8    !
+# 0x00d41500       14:000001    Constant    1
+# 0x00d41504       02:00001e    ModR/M#
+# 0x00d40d80         00:000006    _doVariable
+# 0x00d41508       00:0000a8    !
+# 0x00d4150c       00:000017    _exit
+# 0x00d41b98     02:000039    finish
+# 0x00d40fa0       02:000038    opcode,
+# 0x00d40f3c         02:000029    .asize
+# 0x00d40dd8           00:000006    _doVariable
+# 0x00d40f40         00:000027    @
+# 0x00d40f44         02:00002a    .anow
+# 0x00d40de0           00:000006    _doVariable
+# 0x00d40f48         00:000027    @
+# 0x00d40f4c         00:00007f    !=
+# 0x00d40f50         0c:000002    BranchFalse    0x00d40f5c
+# 0x00d40f5c         02:00002b    .osize
+# 0x00d40de8           00:000006    _doVariable
+# 0x00d40f60         00:000027    @
+# 0x00d40f64         02:00002c    .onow
+# 0x00d40df0           00:000006    _doVariable
+# 0x00d40f68         00:000027    @
+# 0x00d40f6c         00:00007f    !=
+# 0x00d40f70         0c:000002    BranchFalse    0x00d40f7c
+# 0x00d40f7c         02:000028    seg
+# 0x00d40dd0           00:000006    _doVariable
+# 0x00d40f80         00:000027    @
+# 0x00d40f84         0c:000003    BranchFalse    0x00d40f94
+# 0x00d40f94         00:0000a4    c,
+# 0x00d40f98         02:000030    pre-
+# 0x00d40e30           02:000028    seg
+# 0x00d40dd0             00:000006    _doVariable
+# 0x00d40e34           02:00002d    off
+# 0x00d40df8             14:000000    Constant    0
+# 0x00d40dfc             00:000092    swap
+# 0x00d40e00             00:0000a8    !
+# 0x00d40e04             00:000017    _exit
+# 0x00d40e38           02:000029    .asize
+# 0x00d40dd8             00:000006    _doVariable
+# 0x00d40e3c           00:000027    @
+# 0x00d40e40           02:00002a    .anow
+# 0x00d40de0             00:000006    _doVariable
+# 0x00d40e44           00:0000a8    !
+# 0x00d40e48           02:00002b    .osize
+# 0x00d40de8             00:000006    _doVariable
+# 0x00d40e4c           00:000027    @
+# 0x00d40e50           02:00002c    .onow
+# 0x00d40df0             00:000006    _doVariable
+# 0x00d40e54           00:0000a8    !
+# 0x00d40e58           00:000017    _exit
+# 0x00d40f9c         00:000017    _exit
+# 0x00d40fa4       02:00001e    ModR/M#
+# 0x00d40d80         00:000006    _doVariable
+# 0x00d40fa8       00:000027    @
+# 0x00d40fac       0c:000003    BranchFalse    0x00d40fbc
+# 0x00d40fb0       02:00001d    ModR/M
+# 0x00d40d78         00:000006    _doVariable
+# 0x00d40fb4       00:000027    @
+# 0x00d40fb8       00:0000a4    c,
+# 0x00d40fbc       02:000020    SIB#
+# 0x00d40d90         00:000006    _doVariable
+# 0x00d40fc0       00:000027    @
+# 0x00d40fc4       0c:000003    BranchFalse    0x00d40fd4
+# 0x00d40fd4       02:000026    Adisp?
+# 0x00d40dc0         00:000006    _doVariable
+# 0x00d40fd8       00:000027    @
+# 0x00d40fdc       02:000021    disp
+# 0x00d40d98         00:000006    _doVariable
+# 0x00d40fe0       00:000027    @
+# 0x00d40fe4       02:000022    disp#
+# 0x00d40da0         00:000006    _doVariable
+# 0x00d40fe8       00:000027    @
+# 0x00d40fec       02:000037    bytes,
+# 0x00d40ef4         00:000091    dup
+# 0x00d40ef8         0c:00000e    BranchFalse    0x00d40f34
+# 0x00d40f34         00:00009d    ddrop
+# 0x00d40f38         00:000017    _exit
+# 0x00d40ff0       02:000025    Aimm?
+# 0x00d40db8         00:000006    _doVariable
+# 0x00d40ff4       00:000027    @
+# 0x00d40ff8       02:000023    imm
+# 0x00d40da8         00:000006    _doVariable
+# 0x00d40ffc       00:000027    @
+# 0x00d41000       02:000024    imm#
+# 0x00d40db0         00:000006    _doVariable
+# 0x00d41004       00:000027    @
+# 0x00d41008       02:000037    bytes,
+# 0x00d40ef4         00:000091    dup
+# 0x00d40ef8         0c:00000e    BranchFalse    0x00d40f34
+# 0x00d40f34         00:00009d    ddrop
+# 0x00d40f38         00:000017    _exit
+# 0x00d4100c       02:000031    sclear
+# 0x00d40e5c         02:000030    pre-
+# 0x00d40e30           02:000028    seg
+# 0x00d40dd0             00:000006    _doVariable
+# 0x00d40e34           02:00002d    off
+# 0x00d40df8             14:000000    Constant    0
+# 0x00d40dfc             00:000092    swap
+# 0x00d40e00             00:0000a8    !
+# 0x00d40e04             00:000017    _exit
+# 0x00d40e38           02:000029    .asize
+# 0x00d40dd8             00:000006    _doVariable
+# 0x00d40e3c           00:000027    @
+# 0x00d40e40           02:00002a    .anow
+# 0x00d40de0             00:000006    _doVariable
+# 0x00d40e44           00:0000a8    !
+# 0x00d40e48           02:00002b    .osize
+# 0x00d40de8             00:000006    _doVariable
+# 0x00d40e4c           00:000027    @
+# 0x00d40e50           02:00002c    .onow
+# 0x00d40df0             00:000006    _doVariable
+# 0x00d40e54           00:0000a8    !
+# 0x00d40e58           00:000017    _exit
+# 0x00d40e60         02:000025    Aimm?
+# 0x00d40db8           00:000006    _doVariable
+# 0x00d40e64         02:00002d    off
+# 0x00d40df8           14:000000    Constant    0
+# 0x00d40dfc           00:000092    swap
+# 0x00d40e00           00:0000a8    !
+# 0x00d40e04           00:000017    _exit
+# 0x00d40e68         02:000026    Adisp?
+# 0x00d40dc0           00:000006    _doVariable
+# 0x00d40e6c         02:00002d    off
+# 0x00d40df8           14:000000    Constant    0
+# 0x00d40dfc           00:000092    swap
+# 0x00d40e00           00:0000a8    !
+# 0x00d40e04           00:000017    _exit
+# 0x00d40e70         02:00001e    ModR/M#
+# 0x00d40d80           00:000006    _doVariable
+# 0x00d40e74         02:00002d    off
+# 0x00d40df8           14:000000    Constant    0
+# 0x00d40dfc           00:000092    swap
+# 0x00d40e00           00:0000a8    !
+# 0x00d40e04           00:000017    _exit
+# 0x00d40e78         02:000020    SIB#
+# 0x00d40d90           00:000006    _doVariable
+# 0x00d40e7c         02:00002d    off
+# 0x00d40df8           14:000000    Constant    0
+# 0x00d40dfc           00:000092    swap
+# 0x00d40e00           00:0000a8    !
+# 0x00d40e04           00:000017    _exit
+# 0x00d40e80         02:000022    disp#
+# 0x00d40da0           00:000006    _doVariable
+# 0x00d40e84         02:00002d    off
+# 0x00d40df8           14:000000    Constant    0
+# 0x00d40dfc           00:000092    swap
+# 0x00d40e00           00:0000a8    !
+# 0x00d40e04           00:000017    _exit
+# 0x00d40e88         02:000024    imm#
+# 0x00d40db0           00:000006    _doVariable
+# 0x00d40e8c         02:00002d    off
+# 0x00d40df8           14:000000    Constant    0
+# 0x00d40dfc           00:000092    swap
+# 0x00d40e00           00:0000a8    !
+# 0x00d40e04           00:000017    _exit
+# 0x00d40e90         02:000027    byte?
+# 0x00d40dc8           00:000006    _doVariable
+# 0x00d40e94         02:00002d    off
+# 0x00d40df8           14:000000    Constant    0
+# 0x00d40dfc           00:000092    swap
+# 0x00d40e00           00:0000a8    !
+# 0x00d40e04           00:000017    _exit
+# 0x00d40e98         00:000017    _exit
+# 0x00d41010       00:000017    _exit
+# 0x00d41b9c     00:000017    _exit
+# 0x00d421f8   00:000017    _exit
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 18 2009
+
+I decided to try out the assembler again, I found that it works, there is a
+problem where some ops leave crap on stack when they are done - in particular,
+the "next," op leaves 2 zeroes.
+
+code noop	next,	// 2 zeroes on stack after executing "next,"
+
+code andy dx ] ax mov,  4 # dx add, ax dx ] and, next,
+
+Pentium machine code:
+
+o instruction prefixes
+	up to four prefixes of 1-byte each (optional)
+o opcode
+	1 or 2 bytes
+o ModR/M
+	1 byte if required
+	0..2	R/M
+	3..5	reg/opcode
+	6..7	Mod
+o SIB - scale/index/base
+	1 byte if required
+	0..2	base
+	3..5	index
+	6..7	scale
+o address displacement
+	none, 1, 2 or 4 bytes
+o immediate data
+	none, 1, 2 or 4 bytes
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
+... years pass ...
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 5 2007
+
+Added fprintf/sprintf/fscanf/sscanf - they work except that fprintf/sprintf
+can't print floating point numbers - there may be some expectation that
+fp numbers will be passed in fp registers, but that would seem to be a
+pain for variable numbers of arguments.
+One hokey thing is that you have to pass the number of variables to be
+printed as the last argument.
+Example: stdout "%d,%d" 5 7 2 fprintf
+
+Eliminated precedence vocabulary - it didn't work well with the vocabulary
+stack.
+
+Starting debug of pentium assembler.
+
+source:
+	code andy dx ) ax mov,  4 # dx add, ax dx ) and, next,
+generated:
+	011842F8  mov         eax,edx 
+	011842FA  add         edx,4 
+	011842FD  and         edx,eax 
+	011842FF  jmp         edi  
+should have generated:
+	mov	eax, [edx]
+	add	edx, 4
+	and	[edx], eax
+	jmp	edi
+
+-> The ")" op is never being executed - it may be getting eaten by the shell
+-> changed all uses of ")" to "]"
+	code andy dx ] ax mov,  4 # dx add, ax dx ] and, next,
+
+Assembler is now generating the correct code for "andy", and the op performs
+correctly with both fast & slow interpreters.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 3 2007
+
+The GForth assembler is ported, it loads but it is untested.
+The GForth package doesn't seem to have any examples of its usage in actual
+code, but the assembler is almost identical to the assembler in BigForth,
+maybe it has some examples.  The file gforth.050/doc/gforth.i9 has a
+"386 Assembler" section which spells out the syntax.
+
+One problem area was that GForth is not case sensitive.
+
+Another was that there was a partially implemented relocation scheme which
+remapped forth builtin ops which compile stuff or manipulate the DP to a set of
+proxy ops which mostly did exactly the same thing - presumably this was
+preparation for swapping out the proxy ops for another set which did something
+like assembling to an address offset from the intended run address.
+
+One odd thing was that "," was remapped to "c,", and it looked like "," was
+being used to compile byte data, not longs.  Perhaps the intent was that in
+the source for the assembler, "," was used to compile stuff that needed to
+be relocated and "c," was used to compile stuff that didn't.
+
+The next step would be to create a way to make a user-defined op in
+assembler.  This could be tricky, especially if we want the fast inner
+interpreter to be able to execute these ops without passing them off to
+the slow inner assembler.
+-> The user defined code ops would be setup to work with the fast interpreter,
+   and create a piece of glue code which the slow interpreter uses to execute
+   user defined code ops
+   -> We could also use this for builtinOps which have no C++ version (with a small mod)
+User defined code ops should live in userOps dispatch table, and therefore
+share the opValue space of other user defined ops, which will make "forget"
+easy to implement for them.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 30 2007
+
+Working on adapting the GForth assembler
+

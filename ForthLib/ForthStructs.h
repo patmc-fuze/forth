@@ -29,7 +29,7 @@ typedef struct
 {
     ForthStructVocabulary*      pVocab;
     long                        op;
-} ForthStructInfo;
+} ForthTypeInfo;
 
 class ForthInterface
 {
@@ -56,11 +56,11 @@ protected:
 // a struct accessor compound operation must be less than this length in longs
 #define MAX_ACCESSOR_LONGS  64
 
-class ForthStructsManager : public ForthForgettable
+class ForthTypesManager : public ForthForgettable
 {
 public:
-    ForthStructsManager();
-    ~ForthStructsManager();
+    ForthTypesManager();
+    ~ForthTypesManager();
 
     virtual void    ForgetCleanup( void *pForgetLimit, long op );
 
@@ -75,10 +75,10 @@ public:
     void                            EndStructDefinition( void );
     ForthClassVocabulary*           StartClassDefinition( const char *pName );
     void                            EndClassDefinition( void );
-    static ForthStructsManager*     GetInstance( void );
+    static ForthTypesManager*     GetInstance( void );
 
     // return info structure for struct type specified by structIndex
-    ForthStructInfo*        GetStructInfo( int structIndex );
+    ForthTypeInfo*        GetStructInfo( int structIndex );
 
     // return vocabulary for a struct type given its opcode or name
     ForthStructVocabulary*  GetStructVocabulary( long op );
@@ -86,15 +86,16 @@ public:
 
     void GetFieldInfo( long fieldType, long& fieldBytes, long& alignment );
 
-    ForthStructVocabulary*   GetNewestStruct( void );
+    ForthStructVocabulary*  GetNewestStruct( void );
     ForthClassVocabulary*   GetNewestClass( void );
+    forthBaseType           GetBaseTypeFromName( const char* typeName );
 
 protected:
     // mpStructInfo points to an array with an entry for each defined structure type
-    ForthStructInfo                 *mpStructInfo;
+    ForthTypeInfo                   *mpStructInfo;
     int                             mNumStructs;
     int                             mMaxStructs;
-    static ForthStructsManager*     mpInstance;
+    static ForthTypesManager*       mpInstance;
     ForthVocabulary*                mpSavedDefinitionVocab;
     char                            mToken[ DEFAULT_INPUT_BUFFER_LEN ];
     long                            mCode[ MAX_ACCESSOR_LONGS ];
@@ -132,6 +133,8 @@ public:
     virtual void        Extends( ForthStructVocabulary *pParentStruct );
 
     inline ForthStructVocabulary* BaseVocabulary( void ) { return mpSearchNext; }
+
+    inline long         GetTypeIndex( void ) { return mStructIndex; };
 
 protected:
     long                    mNumBytes;
@@ -174,24 +177,25 @@ protected:
 class ForthBaseType
 {
 public:
-    ForthBaseType( const char* pName, int numBytes, forthNativeType nativeType );
+    ForthBaseType( const char* pName, int numBytes, forthBaseType nativeType );
     virtual ~ForthBaseType();
     virtual void DefineInstance( ForthEngine *pEngine, void *pInitialVal );
 
-    inline long GetGlobalOp( void ) { return mNativeType + OP_DO_BYTE; };
-    inline long GetGlobalArrayOp( void ) { return mNativeType + OP_DO_BYTE_ARRAY; };
-    inline long GetLocalOp( void ) { return mNativeType + kOpLocalByte; };
-    inline long GetLocalArrayOp( void ) { return mNativeType + kOpLocalByteArray; };
-    inline long GetFieldOp( void ) { return mNativeType + kOpFieldByte; };
-    inline long GetFieldArrayOp( void ) { return mNativeType + kOpFieldByteArray; };
+    inline long GetGlobalOp( void ) { return mBaseType + OP_DO_BYTE; };
+    inline long GetGlobalArrayOp( void ) { return mBaseType + OP_DO_BYTE_ARRAY; };
+    inline long GetLocalOp( void ) { return mBaseType + kOpLocalByte; };
+    inline long GetLocalArrayOp( void ) { return mBaseType + kOpLocalByteArray; };
+    inline long GetFieldOp( void ) { return mBaseType + kOpFieldByte; };
+    inline long GetFieldArrayOp( void ) { return mBaseType + kOpFieldByteArray; };
     inline long GetAlignment( void ) { return (mNumBytes > 4) ? 4 : mNumBytes; };
     inline long GetSize( void ) { return mNumBytes; };
     inline const char* GetName( void ) { return mpName; };
+    inline forthBaseType GetBaseType( void ) { return mBaseType; };
 
 protected:
     const char*         mpName;
     int                 mNumBytes;
-    forthNativeType     mNativeType;
+    forthBaseType       mBaseType;
 };
 
 extern ForthBaseType gBaseTypeByte, gBaseTypeShort, gBaseTypeInt, gBaseTypeFloat, gBaseTypeDouble, gBaseTypeString, gBaseTypeOp, gBaseTypeObject;

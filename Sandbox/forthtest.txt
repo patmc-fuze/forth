@@ -1,9 +1,5 @@
 
-autoforget demo
-
-// demo is used to both display and interpret a line of text
-: demo getInBufferPointer %s %nl ;
-precedence demo
+autoforget showsection
 
 : showsection " ================== " dup %s swap %s %s %nl ;
 

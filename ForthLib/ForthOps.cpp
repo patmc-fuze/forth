@@ -443,11 +443,11 @@ FORTHOP(doExitLOp)
 FORTHOP(doExitMOp)
 {
     // rstack: oldIP oldTP
-    if ( GET_RDEPTH < 2 ) {
+    if ( GET_RDEPTH < 3 ) {
         SET_ERROR( kForthErrorReturnStackUnderflow );
     } else {
         SET_IP( (long *) RPOP );
-        SET_TPV( (long *) RPOP );
+        SET_TPM( (long *) RPOP );
         SET_TPD( (long *) RPOP );
     }
 }
@@ -459,11 +459,11 @@ FORTHOP(doExitMLOp)
     // FP points to oldFP
     SET_RP( GET_FP );
     SET_FP( (long *) (RPOP) );
-    if ( GET_RDEPTH < 2 ) {
+    if ( GET_RDEPTH < 3 ) {
         SET_ERROR( kForthErrorReturnStackUnderflow );
     } else {
         SET_IP( (long *) RPOP );
-        SET_TPV( (long *) RPOP );
+        SET_TPM( (long *) RPOP );
         SET_TPD( (long *) RPOP );
     }
 }
@@ -1844,13 +1844,16 @@ ShowVocab( ForthCoreState   *pCore,
     int nEntries = pVocab->GetNumEntries();
     long *pEntry = pVocab->GetFirstEntry();
 
-    for ( i = 0; i < nEntries; i++ ) {
+    for ( i = 0; i < nEntries; i++ )
+    {
         pVocab->PrintEntry( pEntry );
         CONSOLE_STRING_OUT( "\n" );
         pEntry = pVocab->NextEntry( pEntry );
-        if ( ((i % 22) == 21) || (i == (nEntries-1)) ) {
-            if ( (pShell != NULL) && pShell->GetInput()->InputStream()->IsInteractive() ) {
-                CONSOLE_STRING_OUT( "Hit ENTER to continue, 'q' & ENTER to quit, 'n' & ENTER to do next vocabulary\n" );
+        if ( ((i % 22) == 21) || (i == (nEntries-1)) )
+        {
+            if ( (pShell != NULL) && pShell->GetInput()->InputStream()->IsInteractive() )
+            {
+                CONSOLE_STRING_OUT( "\nHit ENTER to continue, 'q' & ENTER to quit, 'n' & ENTER to do next vocabulary\n" );
                 retVal = tolower( getchar() );
                 if ( retVal == 'q' )
                 {
@@ -2041,7 +2044,7 @@ FORTHOP( structOp )
 {
     ForthEngine* pEngine = GET_ENGINE;
     pEngine->SetFlag( kEngineFlagInStructDefinition );
-    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthStructVocabulary* pVocab = pManager->StartStructDefinition( pEngine->GetNextSimpleToken() );
     pEngine->CompileOpcode( OP_DO_STRUCT_TYPE );
     pEngine->CompileLong( (long) pVocab );
@@ -2051,7 +2054,7 @@ FORTHOP( endstructOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     pEngine->ClearFlag( kEngineFlagInStructDefinition );
-    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     pManager->EndStructDefinition();
 }
 
@@ -2059,7 +2062,7 @@ FORTHOP( classOp )
 {
     ForthEngine* pEngine = GET_ENGINE;
     pEngine->SetFlag( kEngineFlagInStructDefinition );
-    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->StartClassDefinition( pEngine->GetNextSimpleToken() );
     pEngine->CompileOpcode( OP_DO_CLASS_TYPE );
     pEngine->CompileLong( (long) pVocab );
@@ -2069,7 +2072,7 @@ FORTHOP( endclassOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     pEngine->ClearFlag( kEngineFlagInStructDefinition );
-    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     pManager->EndClassDefinition();
 }
 
@@ -2078,12 +2081,12 @@ FORTHOP( methodOp )
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
     const char* pMethodName = pEngine->GetNextSimpleToken();
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     pEngine->StartOpDefinition( pMethodName, true );
     // switch to compile mode
     pEngine->SetCompileState( 1 );
     pEngine->ClearFlag( kEngineFlagHasLocalVars );
     pEngine->SetFlag( kEngineFlagIsMethod );
-    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->GetNewestClass();
     if ( pVocab )
     {
@@ -2120,14 +2123,62 @@ FORTHOP( endmethodOp )
     pEngine->ClearFlag( kEngineFlagIsMethod );
 }
 
+FORTHOP( returnsOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    if ( pEngine->CheckFlag( kEngineFlagIsMethod ) )
+    {
+        char *pToken = pEngine->GetNextSimpleToken();
+        ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+        ForthClassVocabulary* pVocab = pManager->GetNewestClass();
+        long* pEntry = pVocab->GetNewestEntry();
+        if ( strcmp( pToken, "ptrTo" ) == 0 )
+        {
+            pToken = pEngine->GetNextSimpleToken();
+            pEntry[1] |= kDTIsPtr;
+        }
+        forthBaseType baseType = pManager->GetBaseTypeFromName( pToken );
+        if ( baseType != kBaseTypeUnknown )
+        {
+            pEntry[1] |= NATIVE_TYPE_TO_CODE( 0, baseType );
+        }
+        else
+        {
+            // see if it is a struct type
+            ForthStructVocabulary* pTypeVocab = pManager->GetStructVocabulary( pToken );
+            if ( pTypeVocab )
+            {
+                if ( pTypeVocab->IsClass() )
+                {
+                    pEntry[1] |= OBJECT_TYPE_TO_CODE( 0, pTypeVocab->GetTypeIndex() );
+                }
+                else
+                {
+                    pEntry[1] |= STRUCT_TYPE_TO_CODE( 0, pTypeVocab->GetTypeIndex() );
+                }
+            }
+            else
+            {
+                pEngine->AddErrorText( pToken );
+                pEngine->SetError( kForthErrorUnknownSymbol, " is not a known return type" );
+            }
+        }
+    }
+    else
+    {
+        // report error - "returns" outside of method
+        pEngine->SetError( kForthErrorBadSyntax, "returns can only be used inside a method" );
+    }
+}
+
 FORTHOP( doMethodOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     long methodIndex = SPOP;
     RPUSH( ((long) GET_TPD) );
-    RPUSH( ((long) GET_TPV) );
+    RPUSH( ((long) GET_TPM) );
     long* pMethods = ((long *) (SPOP));
-    SET_TPV( pMethods );
+    SET_TPM( pMethods );
     SET_TPD( ((long *) (SPOP)) );
     pEngine->ExecuteOneOp( pMethods[ methodIndex ] );
 }
@@ -2137,7 +2188,7 @@ FORTHOP( implementsOp )
     // TBD
     ForthEngine *pEngine = GET_ENGINE;
 
-    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->GetNewestClass();
     if ( pVocab )
     {
@@ -2152,7 +2203,7 @@ FORTHOP( implementsOp )
 FORTHOP( endimplementsOp )
 {
     // TBD
-    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->GetNewestClass();
     if ( pVocab )
     {
@@ -2166,7 +2217,7 @@ FORTHOP( endimplementsOp )
 
 FORTHOP( unionOp )
 {
-    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     pManager->GetNewestStruct()->StartUnion();
 }
 
@@ -2178,7 +2229,7 @@ FORTHOP( extendsOp )
     long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSym, &pFoundVocab );
     if ( pEntry )
     {
-        ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+        ForthTypesManager* pManager = ForthTypesManager::GetInstance();
         ForthStructVocabulary* pParentVocab = pManager->GetStructVocabulary( pEntry[0] );
         if ( pParentVocab )
         {
@@ -2207,7 +2258,7 @@ FORTHOP( sizeOfOp )
 
     if ( pEntry )
     {
-        ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+        ForthTypesManager* pManager = ForthTypesManager::GetInstance();
         ForthStructVocabulary* pStructVocab = pManager->GetStructVocabulary( pEntry[0] );
         if ( pStructVocab )
         {
@@ -2242,7 +2293,7 @@ FORTHOP( offsetOfOp )
     long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pType, &pFoundVocab );
     if ( pEntry )
     {
-        ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+        ForthTypesManager* pManager = ForthTypesManager::GetInstance();
         ForthStructVocabulary* pStructVocab = pManager->GetStructVocabulary( pEntry[0] );
         if ( pStructVocab )
         {
@@ -2273,7 +2324,17 @@ FORTHOP( offsetOfOp )
 FORTHOP( thisOp )
 {
     SPUSH( ((long) GET_TPD) );
-    SPUSH( ((long) GET_TPV) );
+    SPUSH( ((long) GET_TPM) );
+}
+
+FORTHOP( thisDataOp )
+{
+    SPUSH( ((long) GET_TPD) );
+}
+
+FORTHOP( thisMethodsOp )
+{
+    SPUSH( ((long) GET_TPM) );
 }
 
 FORTHOP( newOp )
@@ -2287,7 +2348,7 @@ FORTHOP( newOp )
 
     if ( pEntry )
     {
-        ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+        ForthTypesManager* pManager = ForthTypesManager::GetInstance();
         ForthClassVocabulary* pClassVocab = (ForthClassVocabulary *) (pManager->GetStructVocabulary( pEntry[0] ));
 
         if ( pClassVocab && pClassVocab->IsClass() )
@@ -2351,7 +2412,7 @@ FORTHOP( initMemberStringOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     char *pString = pEngine->GetNextSimpleToken();
-    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->GetNewestClass();
     long* pEntry;
 
@@ -2369,7 +2430,7 @@ FORTHOP( initMemberStringOp )
     }
 
     long typeCode = pEntry[1];
-    if ( !CODE_IS_VARIABLE(typeCode) || !CODE_IS_NATIVE(typeCode) || (CODE_TO_NATIVE_TYPE(typeCode) != kBaseTypeString) )
+    if ( !CODE_IS_SIMPLE(typeCode) || !CODE_IS_NATIVE(typeCode) || (CODE_TO_BASE_TYPE(typeCode) != kBaseTypeString) )
     {
         pEngine->SetError( kForthErrorBadSyntax, "initMemberStringOp can only be used on a simple string" );
         return;
@@ -3193,8 +3254,10 @@ FORTHOP( dstackOp )
     long *pSP = GET_SP;
     int nItems = GET_SDEPTH;
     int i;
+    char buff[64];
 
-    CONSOLE_STRING_OUT( "stack:" );
+    sprintf( buff, "stack[%d]:", nItems );
+    CONSOLE_STRING_OUT( buff );
     for ( i = 0; i < nItems; i++ ) {
         CONSOLE_STRING_OUT( " " );
         printNumInCurrentBase( pCore, *pSP++ );
@@ -3208,8 +3271,10 @@ FORTHOP( drstackOp )
     long *pRP = GET_RP;
     int nItems = GET_RDEPTH;
     int i;
+    char buff[64];
 
-    CONSOLE_STRING_OUT( "rstack:" );
+    sprintf( buff, "rstack[%d]:", nItems );
+    CONSOLE_STRING_OUT( buff );
     for ( i = 0; i < nItems; i++ ) {
         CONSOLE_STRING_OUT( " " );
         printNumInCurrentBase( pCore, *pRP++ );
@@ -3239,7 +3304,7 @@ FORTHOP( describeOp )
 
     ForthEngine *pEngine = GET_ENGINE;
     char* pSym = pEngine->GetNextSimpleToken();
-    ForthStructsManager* pManager = ForthStructsManager::GetInstance();
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthStructVocabulary* pVocab = pManager->GetStructVocabulary( pSym );
     if ( pVocab )
     {
@@ -3437,6 +3502,11 @@ FORTHOP( millitimeOp )
     SPUSH( (long) pEngine->GetElapsedTime() );
 }
 
+void AddBuiltinClasses( ForthEngine* pEngine )
+{
+    // TBD: add all builtin classes
+}
+
 #define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func }
 
 // ops which have precedence (execute at compile time)
@@ -3464,7 +3534,8 @@ extern GFORTHOP( doStringArrayOp );
 extern GFORTHOP( doOpArrayOp );
 extern GFORTHOP( doObjectArrayOp );
 
-baseDictEntry baseDict[] = {
+baseDictEntry baseDict[] =
+{
     ///////////////////////////////////////////
     //  STUFF WHICH IS COMPILED BY OTHER WORDS
     //   DO NOT REARRANGE UNDER PAIN OF DEATH
@@ -3749,6 +3820,7 @@ baseDictEntry baseDict[] = {
     OP(     endclassOp,             ";class" ),
     OP(     methodOp,               "method:" ),
     PRECOP( endmethodOp,            ";method" ),
+    PRECOP( returnsOp,              "returns" ),
     OP(     doMethodOp,             "doMethod" ),
     OP(     implementsOp,           "implements:" ),
     OP(     endimplementsOp,        ";implements" ),
@@ -3757,6 +3829,8 @@ baseDictEntry baseDict[] = {
     PRECOP( sizeOfOp,               "sizeOf" ),
     PRECOP( offsetOfOp,             "offsetOf" ),
     OP(     thisOp,                 "this" ),
+    OP(     thisDataOp,             "thisData" ),
+    OP(     thisMethodsOp,          "thisMethods" ),
     PRECOP( newOp,                  "new" ),
     PRECOP( initMemberStringOp,     "initMemberString" ),
     OP(     enumOp,                 "enum:" ),

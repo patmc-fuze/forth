@@ -51,22 +51,18 @@ true -> parenIsComment
 
 also assembler definitions
 
-: within  ( u1 u2 u3 -- f )
- over - r< - r> u< ;
+: within		// u1 u2 u3 -- f
+  over - r< - r> u<
+;
 : nip swap drop ;
 : d= rot == r< == r> and ;
 : -rot rot rot ;
 
 0x8 base !
 
-// : [F]  forth			; precedence [F]
-// : [A]  assembler		; precedence [A]
-
 // Assembler Forth words                                11mar00py
 
-// : user' ' >body @ ; immediate
-
-: case? ( n1 n2 -- t / n1 f )
+: case? 		// n1 n2 -- t / n1 f
   over == if
     drop true
   else
@@ -125,7 +121,7 @@ also assembler definitions
 //>exec +rel
 //drop
 
-: +rel ;
+// : +rel ;
 
 // ############### END OF CONFUSING SECTION ALERT ###############
 // ############### END OF CONFUSING SECTION ALERT ###############
@@ -177,26 +173,29 @@ variable .osize               variable .onow
 
 
 // Extra-Werte compilieren                              01may95py
-: bytes,  ( nr x n -- )
+: bytes,  // nr x n --
   dup if
     0 do
-      over 0< if  +rel  swap 1+ swap  endif  dup c,  0x8 >>
+      over 0< if  swap 1+ swap  endif  dup c,  0x8 >>
     loop
   endif
   ddrop
 ;
 
-: opcode, ( opcode -- )
+: opcode, // opcode -- 
   .asize @ .anow @  != if  0x67 c,  endif
   .osize @ .onow @  != if  0x66 c,  endif
-  seg     @ if  seg @ c,  endif c,  pre-
+  seg     @ if  seg @ c,  endif
+  c,  pre-
 ;
 
-: finish ( opcode -- )  opcode,
+: finish // opcode --
+  opcode,
   ModR/M# @ if  ModR/M @ c,  endif
   SIB#    @ if  SIB    @ c,  endif
   Adisp?  @ disp @ disp# @ bytes,
-  Aimm?   @ imm  @ imm#  @ bytes,    sclear
+  Aimm?   @ imm  @ imm#  @ bytes,
+  sclear
 ;
 
 //
@@ -205,15 +204,24 @@ variable .osize               variable .onow
 ;
 : 0F,  0x0F opcode, ;
 
-: finish0F ( opcode -- )       0F,  finish ;
+: finish0F // opcode --
+  0F,  finish
+;
 
 // Register                                             29mar94py
 
-: regs  ( mod n -- ) 1+ 0 do  dup constant 11 +  loop  drop ;
+: regs  // mod n --
+  1+ 0 do  dup constant 11 +  loop  drop
+;
 
-: breg  ( reg -- )  builds c,  does c@  .b ;
+: breg  // reg --
+  builds c,
+  does c@  .b
+;
 
-: bregs ( mod n -- ) 1+ 0 do  dup breg     11 +  loop  drop ;
+: bregs // mod n --
+  1+ 0 do  dup breg     11 +  loop  drop
+;
 
 : wadr: ( reg -- )  builds c,  does c@  .wa ;
 
@@ -223,9 +231,6 @@ variable .osize               variable .onow
  300 7 regs  ax cx dx bx sp bp si di
  300 7 bregs al cl dl bl ah ch dh bh
 2300 5 regs es cs ss ds fs gs
-: RP si ;
-: UP bp ;
-: OP di ;
 
 : .386  .asize on   .osize on  sclear ;  .386
 
@@ -306,14 +311,25 @@ variable .osize               variable .onow
 : reg>mod ( reg1 reg2 -- 1 / 3 )
     reg? if  >mod 3  else  swap ?reg >mod 1  endif  ;
 ( n -- )
-: ari:  builds c,
-    does ( reg1 reg2 / reg -- )  c@ r< imm# @
-    if    imm# @ byte? @ + 1 > over ax == and
-          if    drop 0x05 r> 70 and or
-          else  r> >mod 0x81 imm# @ 1 byte? @ + == if 2 + endif
-          endif
-    else  reg>mod  r> 70 and or
-    endif  finishb  ;
+: ari:
+  builds
+    c,
+  does 			// reg1 reg2 / reg -- 
+    c@ r< imm# @
+    if
+      imm# @ byte? @ + 1 > over ax == and
+      if
+        drop 0x05 r> 70 and or
+      else
+        r> >mod 0x81 imm# @ 1 byte? @ + ==
+        if 2+
+        endif
+      endif
+    else
+      reg>mod  r> 70 and or
+    endif
+    finishb
+;
 
 00 ari: add,     11 ari: or,      22 ari: adc,     33 ari: sbb,
 44 ari: and,     55 ari: sub,     66 ari: xor,     77 ari: cmp,
@@ -321,12 +337,24 @@ variable .osize               variable .onow
 // bit shifts    strings                                07nov92py
 
 ( n -- )
-: shift:   builds c,
-    does ( r/m -- )  c@ >mod  imm# @
-    if    imm @ 1 ==
-          if  0xD1 0  else  0xC1 1  endif   imm# !
-    else  0xD3
-    endif  finishb ;
+: shift:
+  builds
+    c,
+  does			// r/m -- 
+    c@ >mod  imm# @
+    if
+        imm @ 1 ==
+        if
+          0xD1 0
+        else
+          0xC1 1
+        endif
+        imm# !
+    else
+      0xD3
+    endif
+    finishb
+;
 
 00 shift: rol,   11 shift: ror,   22 shift: rcl,   33 shift: rcr,
 44 shift: shl,   55 shift: shr,   66 shift: sal,   77 shift: sar,
@@ -461,19 +489,44 @@ variable .osize               variable .onow
 
 // call jmp                                             22dec93py
 
-: call,  ( reg / disp -- ) rel?
-  if  drop 0xE8 disp @ here 1+ asize@ + - disp ! finish
-      exit  endif  22 0xFF modf ;
-: callf, ( reg / seg -- )
-  seg? if  drop 0x9A  finish exit  endif  33 0xFF modf ;
+: call,			// reg / disp --
+  rel? if
+    drop 0xE8 disp @ here 1+ asize@ + - disp !
+    finish exit
+  endif
+  22 0xFF modf
+;
 
-: jmp,   ( reg / disp -- )
-  rel? if  drop disp @ here 2 + - dup -0x80 0x80 within
-           if    disp ! 1 disp# !  0xEB
-           else  3 - disp ! 0xE9  endif  finish exit  endif
-  44 0xFF modf ;
-: jmpf,  ( reg / seg -- )
-  seg? if  drop 0xEA  finish exit  endif  55 0xFF modf ;
+: callf,		// reg / seg --
+  seg? if
+    drop 0x9A
+    finish exit
+  endif
+  33 0xFF modf
+;
+
+: jmp,   		// reg / disp --
+  rel? if
+    drop disp @ here 2 + - dup
+    -0x80 0x80 within
+    if
+      disp ! 1 disp# !  0xEB
+    else
+      3 - disp ! 0xE9
+    endif
+    finish
+    exit
+  endif
+  44 0xFF modf
+;
+
+: jmpf,		// reg / seg --
+  seg? if
+    drop 0xEA
+    finish exit
+  endif
+  55 0xFF modf
+;
 
 // : next ['] noop >code-address rel] jmp ;
 

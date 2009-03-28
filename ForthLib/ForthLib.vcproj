@@ -4,6 +4,7 @@
 	Version="7.10"
 	Name="ForthLib"
 	ProjectGUID="{749E1CE7-CD96-4DCC-8D3C-DE275F32C926}"
+	RootNamespace="ForthLib"
 	SccProjectName=""
 	SccLocalPath=""
 	Keyword="MFCProj">
@@ -303,6 +304,7 @@ move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;
 						CommandLine="ml /c /Cx /coff &quot;$(InputPath)&quot;
 move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;
 "
+						AdditionalDependencies="core.inc"
 						Outputs="$(OutDir)\$(InputName).obj"/>
 				</FileConfiguration>
 			</File>

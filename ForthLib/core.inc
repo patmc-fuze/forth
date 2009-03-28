@@ -97,7 +97,7 @@ IPtr		DWORD		?
 SPtr		DWORD		?
 RPtr		DWORD		?
 FPtr		DWORD		?
-TVPtr		DWORD		?
+TMPtr		DWORD		?
 TDPtr		DWORD		?
 varMode		DWORD		?
 state		DWORD		?

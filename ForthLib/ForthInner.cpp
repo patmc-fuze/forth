@@ -2126,6 +2126,16 @@ OPTYPE_ACTION( OffsetAction )
     SPUSH( v );
 }
 
+OPTYPE_ACTION( OffsetFetchAction )
+{
+    // push constant in opVal
+    if ( (opVal & 0x00800000) != 0 ) {
+      opVal |= 0xFF000000;
+    }
+    long v = *((long *)(SPOP + opVal));
+    SPUSH( v );
+}
+
 OPTYPE_ACTION( ArrayOffsetAction )
 {
     // opVal is array element size
@@ -2174,7 +2184,14 @@ OPTYPE_ACTION( InitLocalStringAction )
 
 OPTYPE_ACTION( LocalRefAction )
 {
+    // opVal is offset in longs
     SPUSH( (long)(GET_FP - opVal) );
+}
+
+OPTYPE_ACTION( MemberRefAction )
+{
+    // opVal is offset in bytes
+    SPUSH( ((long)GET_TPD) + opVal );
 }
 
 // bits 0..18 are index into ForthCoreState userOps table, 19..23 are arg count
@@ -2199,7 +2216,7 @@ OPTYPE_ACTION( MethodWithThisAction )
     // this is called when an object method invokes another method on itself
     // opVal is the method number
     ForthEngine *pEngine = GET_ENGINE;
-    long* pMethods = GET_TPV;
+    long* pMethods = GET_TPM;
     RPUSH( ((long) GET_TPD) );
     RPUSH( ((long) pMethods) );
     pEngine->ExecuteOneOp( pMethods[ opVal ] );
@@ -2214,9 +2231,9 @@ OPTYPE_ACTION( MethodWithTOSAction )
     // on using the current "this" pointer
     ForthEngine *pEngine = GET_ENGINE;
     RPUSH( ((long) GET_TPD) );
-    RPUSH( ((long) GET_TPV) );
+    RPUSH( ((long) GET_TPM) );
     long* pMethods = (long *)(SPOP);
-    SET_TPV( pMethods );
+    SET_TPM( pMethods );
     SET_TPD( (long *) (SPOP) );
     pEngine->ExecuteOneOp( pMethods[ opVal ] );
 }
@@ -2323,8 +2340,8 @@ optypeActionRoutine builtinOptypeAction[] =
     LocalRefAction,
     InitLocalStringAction,
     LocalStructArrayAction,
-    ReservedOptypeAction,
-    ReservedOptypeAction,
+    OffsetFetchAction,
+    MemberRefAction,
 
     // 30 -39
     LocalByteAction,
@@ -2375,8 +2392,8 @@ optypeActionRoutine builtinOptypeAction[] =
     ReservedOptypeAction,
 
     // 70 - 79
-    MemberIntAction,    // TBD: byte
-    MemberIntAction,    // TBD: short
+    MemberByteAction,
+    MemberShortAction,
     MemberIntAction,
     MemberFloatAction,
     MemberDoubleAction,
@@ -2445,7 +2462,7 @@ void InitCore( ForthCoreState* pCore )
     pCore->RT = NULL;
     pCore->RLen = 0;
     pCore->FP = NULL;
-    SET_TPV( NULL );
+    SET_TPM( NULL );
     SET_TPD( NULL );
     pCore->varMode = kVarFetch;
     pCore->state = kResultOk;
@@ -2512,5 +2529,4 @@ InnerInterpreter( ForthCoreState *pCore )
 }
 
 
-};      // end extern "C"
-
+};      // end ex

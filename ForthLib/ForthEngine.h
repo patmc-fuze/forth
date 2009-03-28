@@ -72,6 +72,8 @@ public:
     long            AddUserOp( const char *pSymbol, bool smudgeIt=false );
     void            AddBuiltinOps( baseDictEntry *pEntries );
 
+    ForthClassVocabulary*   AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseDictEntry *pEntries );
+
     // forget the specified op and all higher numbered ops, and free the memory where those ops were stored
     void            ForgetOp( ulong opNumber );
     // forget the named symbol - return false if symbol not found
@@ -180,6 +182,7 @@ public:
     // return milliseconds since engine was created
     unsigned long           GetElapsedTime( void );
 
+    void                    ConsoleOut( const char* pBuff );
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char *pToken, long *pValue, int base, bool& isOffset );
@@ -212,7 +215,7 @@ protected:
     long *          mpLocalAllocOp;
     char *          mpErrorString;  // optional error information from shell
 
-    ForthStructsManager *mpStructsManager;
+    ForthTypesManager *mpStructsManager;
 
     interpreterExtensionRoutine *mpInterpreterExtension;
 

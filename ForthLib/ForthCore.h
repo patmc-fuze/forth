@@ -100,7 +100,7 @@ typedef enum
     kBaseTypeDouble,
     kBaseTypeString,
     kBaseTypeOp,
-} forthNativeType;
+} forthBaseType;
 
 typedef enum {
     kVarFetch = 0,

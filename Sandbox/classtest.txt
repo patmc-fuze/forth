@@ -1,0 +1,240 @@
+autoforget ook
+
+class: ook
+
+  int num
+
+  32 string name
+
+  method: ouch
+    "ouch!" %s
+  ;method
+
+  method: bowwow
+    "woof!" %s
+  ;method
+
+  method: setstr
+    -> name
+  ;method
+
+  method: getstr
+    returns ptrTo string
+    addressOf name
+  ;method
+  
+  method: boohoo
+    "my name is " %s name %s
+  ;method
+
+;class
+
+
+
+class: kool
+  extends ook
+
+  method: zvooba
+    boohoo
+    " and my number is " %s num %d
+  ;method
+
+  method: init
+    initMemberString name
+    11 -> num
+  ;method
+  
+;class
+
+new kool -> kool kk
+kk.init
+kk.bowwow
+kk.boohoo
+
+"I am kk" kk.setstr
+
+: kookoo
+  -> ptrTo kool pp
+  pp.zvooba
+;
+
+addressOf kk kookoo
+
+struct: sRGBA
+  byte r
+  byte g
+  byte b
+  byte alpha
+  union
+  int RGBA
+;struct
+
+class: rgba
+  extends sRGBA
+  
+  method: set
+	  -> alpha -> b -> g -> r
+  ;method
+  
+  method: show
+	  r %d %bl g %d %bl b %d %bl alpha %d %bl %nl
+  ;method
+  
+  method: add
+    // TOS is object to add
+    -> rgba t
+    t.r ->+ r
+    t.g ->+ g
+    t.b ->+ b
+    t.alpha ->+ alpha
+  ;method
+  
+;class
+
+
+"\n==================\nusing global objects:\n" %s
+
+// test global pointer to structs
+ptrTo rgba gpp
+: %grgb32
+  -> gpp
+  gpp.r . %bl gpp.g . %bl gpp.b . %bl gpp.alpha . %nl
+;
+
+: gsetrgb32
+  -> gpp
+  -> gpp.alpha -> gpp.b -> gpp.g -> gpp.r
+;
+
+// test global arrayOf pointers to objects
+here
+2 arrayOf ptrTo rgba gapo
+new rgba -> rgba go0
+new rgba -> rgba go1
+here swap - "Expected size: 20 Actual size: " %s %d %nl
+
+2 arrayOf rgba ago
+: ll go0.g gpp.g 1 ago.g 1 gapo.g ;
+: ll2 rgba hh ptrTo rgba phh 4 arrayOf rgba ahh 4 arrayOf ptrTo rgba pahh   hh.g phh.g 1 ahh.g 1 pahh.g ;
+
+: testGAPO
+  1 2 3 4 addressOf go0 gsetrgb32
+  5 6 7 8 addressOf go1 gsetrgb32
+  addressOf go0 -> 0 gapo
+  addressOf go1 -> 1 gapo
+  0 gapo %grgb32
+  1 gapo %grgb32
+  // test assignment through pointers
+  new rgba -> rgba tmp
+  99 88 77 11 tmp.set
+  22 ->( 0 ) gapo.g
+  55 ->( 1 ) gapo.r
+  33 -> go0.b
+  10 ->+( 0 ) gapo.r
+  0 gapo.show
+  1 gapo.show
+  go1 0 gapo.add
+  0 gapo.show
+;
+
+testGAPO
+
+"\n==================\nusing local objects:\n" %s
+// test local pointer to structs
+: %rgba
+  -> ptrTo rgba pp
+  pp.r %d %bl pp.g %d %bl pp.b %d %bl pp.alpha %d %bl %nl
+;
+
+: setrgb32
+  -> ptrTo rgba pp
+  -> pp.alpha -> pp.b -> pp.g -> pp.r
+;
+
+// test local arrayOf pointers to objects
+: testLAPO
+  2 arrayOf ptrTo rgba lapo
+  new rgba -> rgba lo0
+  new rgba -> rgba lo1
+  1 2 3 4 addressOf lo0 setrgb32
+  5 6 7 8 addressOf lo1 setrgb32
+  addressOf lo0 -> 0 lapo
+  addressOf lo1 -> 1 lapo
+  0 lapo %rgba
+  1 lapo %rgba
+  // test assignment through pointers
+  22 ->( 0 ) lapo.g
+  55 ->( 1 ) lapo.r
+  33 -> lo0.b
+  10 ->+( 0 ) lapo.r
+  
+  0 lapo.show
+  1 lapo.show
+  lo1 0 lapo.add
+  lo0.show
+;
+
+testLAPO
+
+
+class: urg
+  extends rgba
+  
+  rgba partner
+  
+  method: boo
+    returns rgba
+    partner
+  ;method
+
+;class
+
+new rgba -> rgba mm
+new urg -> urg nn
+
+mm -> nn.partner
+
+1 2 3 4 mm.set
+mm.show
+
+: krunk nn.partner.show ;
+: klunk nn.boo.show ;
+
+krunk
+klunk
+
+class: fakeRgba
+  int rrr
+  int ggg
+  int bbb
+  int aaa
+
+  method: blah
+  	"blah!\n" %s
+  ;method
+    
+  implements: rgba
+  
+  method: set
+	  -> aaa -> bbb -> ggg -> rrr
+  ;method
+  
+  method: show
+	  rrr %d %bl ggg %d %bl bbb %d %bl aaa %d "!!!" %s %nl
+  ;method
+  
+  method: add
+    // TOS is object to add
+    -> rgba t
+    t.r ->+ rrr
+    t.g ->+ ggg
+    t.b ->+ bbb
+    t.alpha ->+ aaa
+  ;method
+
+  ;implements
+
+;class
+
+loaddone
+

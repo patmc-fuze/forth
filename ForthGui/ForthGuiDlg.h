@@ -39,6 +39,7 @@ public:
 // Implementation
 protected:
 	void			CreateForth();
+    void            CreateDialogOps();
 	void			DestroyForth();
 	HICON m_hIcon;
 

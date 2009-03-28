@@ -218,6 +218,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
             try
             {
                 result = mpEngine->ProcessToken( &parseInfo );
+                CHECK_STACKS( mpEngine->GetCurrentThread() );
             }
             catch(...)
             {

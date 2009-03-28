@@ -66,13 +66,16 @@ addHelp addHelp	addHelp SYMBOL REST_OF_LINE		add help entry
 addHelp $,	STRING_ADDR $,		compiles string (can leave DP unaligned)
 addHelp help	help BLAH		show help for BLAH
 
+addHelp cd	cd BLAH			change working directory to BLAH
 : cd
   blword chdir
   if "cd failed!\n" %s endif
 ;
 
+addHelp pwd	pwd			display working directory
 : pwd "chdir" system drop ;
 
+addHelp dir	dir BLAH		display directory (BLAH is optional filespec)
 : dir
   blword -> _aa
   "dir" -> _bb
@@ -85,17 +88,15 @@ addHelp help	help BLAH		show help for BLAH
   _bb system drop
 ;
 
+addHelp sys	sys REST_OF_LINE	run rest of line in a DOS shell
 : sys 0 word system drop ;
 
+addHelp	ds	ds			dump stack
 : ds dstack ;
+
+addHelp fileExists	"FILEPATH" fileExists ... true/false		tell if a file exists
 : fileExists "r" fopen dup if fclose drop true else drop false endif ;
 
-addHelp cd	cd BLAH			change working directory to BLAH
-addHelp pwd	pwd			display working directory
-addHelp dir	dir BLAH		display directory (BLAH is optional filespec)
-addHelp sys	sys REST_OF_LINE	run rest of line in a DOS shell
-addHelp	ds	ds			dump stack
-addHelp fileExists	"FILEPATH" fileExists ... true/false		tell if a file exists
 
 int dumpWidth
 16 -> dumpWidth
@@ -140,13 +141,12 @@ int dumpWidth
   repeat
 ;
 
-// ADDR LEN dump
+addHelp	dump		ADDRESS LEN dump	dump memory
 : dump
   0 _dump
 ;
-addHelp	dump		ADDRESS LEN dump	dump memory
 
-// FILENAME OFFSET LEN fdump
+addHelp fdump	FILENAME OFFSET LEN fdump	dump file contents
 : fdump
   -> int len
   -> int offset
@@ -175,9 +175,8 @@ addHelp	dump		ADDRESS LEN dump	dump memory
   infile fclose drop
   buff free
 ;
-addHelp fdump	FILENAME OFFSET LEN fdump	dump file contents
 
-// FILENAME1 FILENAME2 comparefiles TRUE_IF_EQUAL
+addHelp comparefiles	FILENAME1 FILENAME2 comparefiles TRUE_IF_EQUAL
 : comparefiles
   -> ptrTo byte fname2
   -> ptrTo byte fname1
@@ -216,4 +215,24 @@ addHelp fdump	FILENAME OFFSET LEN fdump	dump file contents
   infile2 fclose drop
   true
 ;
+
+addHelp numLocals	returns number of longwords of local variables in current stack frame
+: numlocals fp if fp rp - 4 / 1- else 0 endif ;
+
+: dlocals
+  fp if
+    rp 4+
+    fp 4-
+    do
+      i @ %x %nl
+    -4 +loop
+  else
+    "no locals defined\n" %s
+  endif
+;
+addHelp dlocals		display the local variables in current stack frame
+
+addHelp demo	 demo is used to both display and interpret a line of text
+: demo getInBufferPointer %s %nl ;
+precedence demo
 

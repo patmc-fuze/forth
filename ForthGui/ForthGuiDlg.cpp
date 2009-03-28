@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "ForthGui.h"
 #include "ForthGuiDlg.h"
+#include "ForthBlankDlg.h"
 
 #include "../ForthLib/ForthShell.h"
 #include "../ForthLib/ForthInput.h"
@@ -154,6 +155,7 @@ void CForthGuiDlg::CreateForth()
 	pEngine->ResetConsoleOut( pEngine->GetCoreState()->pThread );
     mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE );
     mpShell->GetInput()->PushInputStream( mpInStream );
+    CreateDialogOps();
 }
 
 void CForthGuiDlg::DestroyForth()
@@ -330,4 +332,34 @@ void CForthGuiDlg::OnBnClickedOk()
 		break;
 	}
 }
+
+FORTHOP( makeDialogOp )
+{
+    ForthBlankDlg* pDialog = new ForthBlankDlg;
+    SPUSH( ((long) pDialog) );
+}
+
+#define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func }
+
+baseDictEntry dialogDict[] =
+{
+    // following must be last in table
+    OP( makeDialogOp, "makeDialog" ),
+    OP(     NULL,                   "" )
+};
+
+
+void CForthGuiDlg::CreateDialogOps()
+{
+	ForthEngine* pEngine = mpShell->GetEngine();
+    pEngine->AddBuiltinOps( dialogDict );
+}
+
+/*
+    CButton gButton1;
+    gButton1.Create(_T("My button"), WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON, 
+       CRect(10,10,150,30), this, 0x4000 );
+    gButton1.SetWindowText("Your button");
+    gButton1.SetCheck( 1 );
+*/
 

@@ -43,7 +43,7 @@ struct ForthThreadState
 
     long                *FP;       // frame pointer
     
-    long                *TPV;      // this pointer (vtable)
+    long                *TPM;      // this pointer (vtable)
     long                *TPD;      // this pointer (data)
 
     void                *pPrivate; // pointer to per-thread state
@@ -91,7 +91,7 @@ struct ForthCoreState
 
     long                *FP;            // frame pointer
     
-    long                *TPV;           // this pointer (vtable)
+    long                *TPM;           // this pointer (methods)
     long                *TPD;           // this pointer (data)
 
     ulong               varMode;        // operation to perform on variables
@@ -151,9 +151,9 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define GET_FP                          (pCore->FP)
 #define SET_FP( A )                     (pCore->FP = A)
 
-#define GET_TPV                         (pCore->TPV)
+#define GET_TPM                         (pCore->TPM)
 #define GET_TPD                         (pCore->TPD)
-#define SET_TPV( A )                    (pCore->TPV = A)
+#define SET_TPM( A )                    (pCore->TPM = A)
 #define SET_TPD( A )                    (pCore->TPD = A)
 
 #define GET_DP                          (pCore->DP)

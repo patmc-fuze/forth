@@ -59,6 +59,9 @@
 			RelativePath="..\Sandbox\forth_autoload.txt">
 		</File>
 		<File
+			RelativePath=".\ForthAssembler.txt">
+		</File>
+		<File
 			RelativePath="ForthClasses.txt">
 		</File>
 		<File

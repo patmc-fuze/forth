@@ -7,38 +7,6 @@ include core.inc
 
 PUBLIC	HelloString		; `string'
 
-PUBLIC	abortBop, dropBop, doDoesBop, litBop, flitBop, dlitBop, doVariableBop, doConstantBop, doDConstantBop;
-PUBLIC	endBuildsBop, doneBop, doByteBop, doShortBop, doIntBop, doIntArrayBop, doFloatBop, doDoubleBop, doStringBop, doOpBop, doObjectBop, intoBop, doDoBop;
-PUBLIC	doLoopBop, doLoopNBop, doExitBop, doExitLBop, doExitMBop, doExitMLBop, doVocabBop, initStringBop, initStringArrayBop, plusBop;
-PUBLIC	minusBop, timesBop;
-PUBLIC	times2Bop, times4Bop, divideBop, divide2Bop, divide4Bop, divmodBop, modBop, negateBop;
-PUBLIC	fplusBop, fminusBop, ftimesBop, fdivideBop, dplusBop, dminusBop, dtimesBop, ddivideBop;
-PUBLIC	dsinBop, dasinBop, dcosBop, dacosBop, dtanBop, datanBop, datan2Bop, dexpBop;
-PUBLIC	dlnBop, dlog10Bop, dpowBop, dsqrtBop, dceilBop, dfloorBop, dabsBop, dldexpBop;
-PUBLIC	dfrexpBop, dmodfBop, dfmodBop, i2fBop, i2dBop, f2iBop, f2dBop, d2iBop;
-PUBLIC	d2fBop, callBop, gotoBop, doBop, loopBop, loopNBop, iBop, jBop;
-PUBLIC	unloopBop, leaveBop, ifBop, elseBop, endifBop, beginBop, untilBop, whileBop;
-PUBLIC	repeatBop, againBop, caseBop, ofBop, endofBop, endcaseBop, orBop, andBop;
-PUBLIC	xorBop, invertBop, lshiftBop, rshiftBop, notBop, trueBop, falseBop, nullBop, dnullBop;
-PUBLIC	equalsBop, notEqualsBop, greaterThanBop, greaterEqualsBop, lessThanBop, lessEqualsBop, equalsZeroBop, notEqualsZeroBop;
-PUBLIC	greaterThanZeroBop, greaterEqualsZeroBop, lessThanZeroBop, lessEqualsZeroBop, rpushBop, rpopBop, rdropBop, rpBop, rzeroBop;
-PUBLIC	dupBop, swapBop, overBop, rotBop, tuckBop, pickBop, rollBop, spBop, szeroBop, fpBop, ddupBop, dswapBop, ddropBop, doverBop, drotBop;
-PUBLIC	alignBop, allotBop, callotBop, commaBop, cCommaBop, hereBop, mallocBop, freeBop, storeBop;
-PUBLIC	fetchBop, cstoreBop, cfetchBop, scfetchBop, c2lBop, wstoreBop, wfetchBop, swfetchBop, w2lBop, dstoreBop, dfetchBop, memcpyBop, memsetBop, addToBop;
-PUBLIC	subtractFromBop, addressOfBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop, strchrBop, strrchrBop;
-PUBLIC	strcmpBop, stricmpBop, strstrBop, strtokBop, buildsBop, doesBop, exitBop, semiBop, colonBop, createBop;
-PUBLIC	forgetBop, autoforgetBop, definitionsBop, forthVocabBop, vocabularyBop, variableBop;
-PUBLIC	constantBop, dconstantBop, byteBop, shortBop, intBop, floatBop, doubleBop, stringBop, opBop, objectBop;
-PUBLIC	recursiveBop, precedenceBop, loadBop, loadDoneBop, interpretBop, stateInterpretBop, stateCompileBop, stateBop, tickBop;
-PUBLIC	executeBop, compileBop, bracketTickBop, printNumBop, printNumDecimalBop, printNumHexBop, printStrBop, printCharBop;
-PUBLIC	printSpaceBop, printNewlineBop, printFloatBop, printDoubleBop, printFormattedBop, baseBop, decimalBop, hexBop;
-PUBLIC	printDecimalSignedBop, printAllSignedBop, printAllUnsignedBop, outToFileBop, outToScreenBop, outToStringBop, outToOpBop, getConOutFileBop, fopenBop;
-PUBLIC	fcloseBop, fseekBop, freadBop, fwriteBop, fgetcBop, fputcBop, feofBop, ftellBop;
-PUBLIC	stdinBop, stdoutBop, stderrBop, dstackBop, drstackBop, vlistBop, systemBop, chdirBop, byeBop;
-PUBLIC	argvBop, argcBop;
-PUBLIC	blwordBop, wordBop;
-PUBLIC	getInBufferBaseBop, getInBufferPointerBop, setInBufferPointerBop, getInBufferLengthBop, fillInBufferBop, turboBop, statsBop;
-
 EXTRN	_iob:BYTE
 EXTRN	_filbuf:NEAR
 EXTRN	printf:NEAR
@@ -49,6 +17,7 @@ EXTRN	sin:NEAR, asin:NEAR, cos:NEAR, acos:NEAR, tan:NEAR, atan:NEAR, atan2:NEAR,
 EXTRN	pow:NEAR, sqrt:NEAR, ceil:NEAR, floor:NEAR, ldexp:NEAR, frexp:NEAR, modf:NEAR, fmod:NEAR, _ftol:NEAR
 EXTRN	strcpy:NEAR, strncpy:NEAR, strstr:NEAR, strcmp:NEAR, stricmp:NEAR, strchr:NEAR, strrchr:NEAR, strcat:NEAR, strncat:NEAR, strtok:NEAR
 EXTRN	memcpy:NEAR, memset:NEAR, strlen:NEAR
+EXTRN	fopen:NEAR, fclose:NEAR, fseek:NEAR, fread:NEAR, fwrite:NEAR, fgetc:NEAR, fputc:NEAR, ftell:NEAR, feof:NEAR
 
 
 FCore		TYPEDEF		ForthCoreState
@@ -63,28 +32,57 @@ _c$ = -4
 
 _TEXT	SEGMENT
 
+; register usage in a forthOp:
+;
 ;	EAX		free
 ;	EBX		free
 ;	ECX		IP
 ;	EDX		SP
-;	ESI		builtinOp dispatch table
-;	EDI		inner interp PC
-;	EBP		core ptr
+;	ESI		builtinOp dispatch table (constant)
+;	EDI		inner interp PC (constant)
+;	EBP		core ptr (constant)
 
+; when in a opType routine:
+;	AL		8-bit opType
+;	EBX		full 32-bit opcode (need to mask off top 8 bits)
+
+; remember when calling extern cdecl functions:
+; 1) they are free to stomp EAX, EBX, ECX and EDX
+; 2) they are free to modify their input params on stack
+
+; if you need more than EAX and EBX in a routine, save ECX/IP & EDX/SP in FCore at start with these instructions:
+;	mov	[ebp].FCore.IPtr, ecx
+;	mov	[ebp].FCore.SPtr, edx
+; jump to interpFunc at end - interpFunc will restore ECX, EDX, ESI, and EDI and go back to inner loop
 
 numBuiltins	EQU	512
 
 ;-----------------------------------------------
 ;
+; the entry macro declares a label and makes it public
+;
+entry	MACRO	func
+PUBLIC func;
+func:
+	ENDM
+
+;-----------------------------------------------
+;
 ; the extOp macro allows us to call forthops written in C from assembly
 ;
-extOp	MACRO	func
-EXTRN	func:NEAR
-	mov	eax, func
+extOp	MACRO	op, cfunc
+EXTRN	cfunc:NEAR
+PUBLIC	op
+op:
+	mov	eax, cfunc
 	jmp	callExtOp
-	endm
-
-callExtOp:
+	ENDM
+	
+;-----------------------------------------------
+;
+; callExtOp is used by "builtin" ops which are only defined in C++
+;
+entry callExtOp
 	mov	[ebp].FCore.IPtr, ecx
 	mov	[ebp].FCore.SPtr, edx
 	; we need to push ebp twice - the C compiler feels free to overwrite its input parameters,
@@ -106,12 +104,15 @@ callExtOp:
 
 ;-----------------------------------------------
 ;
-; inner interpreter C entry point
+; InitAsmTables initializes the opcode dispatch tables:
 ;
-; TBD: fill unused opTypesTable slots with badOptype
+;	1) the 256-entry opTypesTable dispatch table
+;	2) the builtin ops table
+;
 ; TBD: fill unused builtinOps slots with ???
 ; TBD: move numBuiltins to core.inc
 ;
+PUBLIC InitAsmTables
 InitAsmTables PROC near C public uses ebx ecx edx esi edi ebp,
 	core:PTR
 	mov	ebp, DWORD PTR core
@@ -169,6 +170,7 @@ InitAsmTables ENDP
 ; inner interpreter C entry point
 ;
 ; extern eForthResult InnerInterpreterFast( ForthCoreState *pCore );
+PUBLIC InnerInterpreterFast
 InnerInterpreterFast PROC near C public uses ebx ecx edx esi edi ebp,
 	core:PTR
 	mov	ebp, DWORD PTR core
@@ -181,16 +183,14 @@ InnerInterpreterFast ENDP
 ;-----------------------------------------------
 ;
 ; inner interpreter
-;
-PUBLIC	interpFunc
-interpFunc:
+;	jump to interpFunc if you nead to reload IP, SP, builtinOps, interpLoop
+entry interpFunc
 	mov	ecx, [ebp].FCore.IPtr
 	mov	edx, [ebp].FCore.SPtr
 	mov	esi, [ebp].FCore.builtinOps
 	mov	edi, interpLoop
 
-PUBLIC	interpLoop
-interpLoop:
+entry interpLoop
 	mov	eax, [ecx]		; eax is opcode
 	add	ecx, 4			; advance IP
 	; interpLoopExecuteEntry is entry for executeBop - expects opcode in eax
@@ -293,9 +293,9 @@ UserCodeAction ENDP
 
 ;-----------------------------------------------
 ;
-; user-defined ops
+; user-defined ops (forth words defined with colon)
 ;
-userDefType:
+entry userDefType
 	; get low-24 bits of opcode & check validity
 	and	ebx, 00FFFFFFh
 	cmp	ebx, [ebp].FCore.numUserOps
@@ -318,7 +318,7 @@ badUserDef:
 ;
 ; user-defined code ops
 ;
-userCodeType:
+entry userCodeType
 	; get low-24 bits of opcode & check validity
 	and	ebx, 00FFFFFFh
 	cmp	ebx, [ebp].FCore.numUserOps
@@ -331,7 +331,7 @@ userCodeType:
 ;
 ; unconditional branch ops
 ;
-branchType:
+entry branchType
 	; get low-24 bits of opcode
 	mov	eax, ebx
 	and	eax, 00800000h
@@ -352,7 +352,7 @@ branchBack:
 ;
 ; branch-on-zero ops
 ;
-branchZType:
+entry branchZType
 	mov	eax, [edx]
 	add	edx, 4
 	or	eax, eax
@@ -363,7 +363,7 @@ branchZType:
 ;
 ; branch-on-notzero ops
 ;
-branchNZType:
+entry branchNZType
 	mov	eax, [edx]
 	add	edx, 4
 	or	eax, eax
@@ -374,7 +374,7 @@ branchNZType:
 ;
 ; case branch ops
 ;
-caseBranchType:
+entry caseBranchType
     ; TOS: this_case_value case_selector
 	mov	eax, [edx]		; eax is this_case_value
 	add	edx, 4
@@ -395,7 +395,7 @@ caseMatched:
 ;
 ; 24-bit constant ops
 ;
-constantType:
+entry constantType
 	; get low-24 bits of opcode
 	mov	eax, ebx
 	sub	edx, 4
@@ -415,7 +415,7 @@ constantNegative:
 ;
 ; 24-bit offset ops
 ;
-offsetType:
+entry offsetType
 	; get low-24 bits of opcode
 	mov	eax, ebx
 	and	eax, 00800000h
@@ -432,9 +432,32 @@ offsetNegative:
 
 ;-----------------------------------------------
 ;
+; 24-bit offset fetch ops
+;
+entry offsetFetchType
+	; get low-24 bits of opcode
+	mov	eax, ebx
+	and	eax, 00800000h
+	jnz	offsetFetchNegative
+	; positive constant
+	and	ebx, 00FFFFFFh
+	add	ebx, [edx]
+	mov	eax, [ebx]
+	mov	[edx], eax
+	jmp	edi
+
+offsetFetchNegative:
+	or	ebx, 0FF000000h
+	add	ebx, [edx]
+	mov	eax, [ebx]
+	mov	[edx], eax
+	jmp	edi
+
+;-----------------------------------------------
+;
 ; array offset ops
 ;
-arrayOffsetType:
+entry arrayOffsetType
 	; get low-24 bits of opcode
 	and	ebx, 00FFFFFFh		; ebx is size of one element
 	; TOS is array base, tos-1 is index
@@ -448,7 +471,7 @@ arrayOffsetType:
 ;
 ; local struct array ops
 ;
-localStructArrayType:
+entry localStructArrayType
    ; bits 0..11 are padded struct length in bytes, bits 12..23 are frame offset in longs
    ; multiply struct length by TOS, add in (negative) frame offset, and put result on TOS
 	mov	eax, 00000FFFh
@@ -465,7 +488,7 @@ localStructArrayType:
 ;
 ; string constant ops
 ;
-constantStringType:
+entry constantStringType
 	; IP points to beginning of string
 	; low 24-bits of ebx is string len in longs
 	sub	edx, 4
@@ -481,7 +504,7 @@ constantStringType:
 ;
 ; local stack frame allocation ops
 ;
-allocLocalsType:
+entry allocLocalsType
 	; rpush old FP
 	mov	esi, [ebp].FCore.FPtr
 	mov	eax, [ebp].FCore.RPtr
@@ -501,7 +524,7 @@ allocLocalsType:
 ;
 ; local string init ops
 ;
-initLocalStringType:
+entry initLocalStringType
    ; bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
    ; init the current & max length fields of a local string
 	mov	eax, 00FFF000h
@@ -521,7 +544,7 @@ initLocalStringType:
 ;
 ; local reference ops
 ;
-localRefType:
+entry localRefType
 	; push local reference - ebx is frame offset in longs
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -533,9 +556,22 @@ localRefType:
 	
 ;-----------------------------------------------
 ;
+; member reference ops
+;
+entry memberRefType
+	; push member reference - ebx is member offset in bytes
+	mov	eax, [ebp].FCore.TDPtr
+	and	ebx, 00FFFFFFh
+	add	eax, ebx
+	sub	edx, 4
+	mov	[edx], eax
+	jmp	edi
+	
+;-----------------------------------------------
+;
 ; local byte ops
 ;
-localByteType:
+entry localByteType
 	; get ptr to byte var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -607,7 +643,7 @@ localByte1:
 	mov	ebx, DWORD PTR localByteActionTable[ebx*4]
 	jmp	ebx
 
-fieldByteType:
+entry fieldByteType
 	; get ptr to byte var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
@@ -616,7 +652,7 @@ fieldByteType:
 	add	eax, ebx
 	jmp	byteEntry
 
-memberByteType:
+entry memberByteType
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp].FCore.TDPtr
@@ -624,7 +660,7 @@ memberByteType:
 	add	eax, ebx
 	jmp	byteEntry
 
-localByteArrayType:
+entry localByteArrayType
 	; get ptr to byte var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -634,7 +670,7 @@ localByteArrayType:
 	add	edx, 4
 	jmp	byteEntry
 
-fieldByteArrayType:
+entry fieldByteArrayType
 	; get ptr to byte var into eax
 	; TOS is struct base ptr, NOS is index
 	; ebx is field offset in bytes
@@ -645,7 +681,7 @@ fieldByteArrayType:
 	add	eax, ebx
 	jmp	byteEntry
 
-memberByteArrayType:
+entry memberByteArrayType
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, TOS is index
 	; ebx is field offset in bytes
@@ -660,7 +696,7 @@ memberByteArrayType:
 ;
 ; local short ops
 ;
-localShortType:
+entry localShortType
 	; get ptr to short var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -729,7 +765,7 @@ localShort1:
 	mov	ebx, DWORD PTR localShortActionTable[ebx*4]
 	jmp	ebx
 
-fieldShortType:
+entry fieldShortType
 	; get ptr to byte var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
@@ -738,7 +774,7 @@ fieldShortType:
 	add	eax, ebx
 	jmp	shortEntry
 
-memberShortType:
+entry memberShortType
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp].FCore.TDPtr
@@ -746,7 +782,7 @@ memberShortType:
 	add	eax, ebx
 	jmp	shortEntry
 
-localShortArrayType:
+entry localShortArrayType
 	; get ptr to int var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh	; ebx is frame offset in longs
@@ -758,7 +794,7 @@ localShortArrayType:
 	add	eax, ebx
 	jmp	shortEntry
 
-fieldShortArrayType:
+entry fieldShortArrayType
 	; get ptr to short var into eax
 	; TOS is struct base ptr, NOS is index
 	; ebx is field offset in bytes
@@ -770,7 +806,7 @@ fieldShortArrayType:
 	add	eax, ebx		; add in field offset
 	jmp	shortEntry
 
-memberShortArrayType:
+entry memberShortArrayType
 	; get ptr to short var into eax
 	; this data ptr is base ptr, TOS is index
 	; ebx is field offset in bytes
@@ -786,7 +822,7 @@ memberShortArrayType:
 ;
 ; local int ops
 ;
-localIntType:
+entry localIntType
 	; get ptr to int var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -855,7 +891,7 @@ localInt1:
 	mov	ebx, DWORD PTR localIntActionTable[ebx*4]
 	jmp	ebx
 
-fieldIntType:
+entry fieldIntType
 	; get ptr to int var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
@@ -864,7 +900,7 @@ fieldIntType:
 	add	eax, ebx
 	jmp	intEntry
 
-memberIntType:
+entry memberIntType
 	; get ptr to int var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp].FCore.TDPtr
@@ -872,7 +908,7 @@ memberIntType:
 	add	eax, ebx
 	jmp	intEntry
 
-localIntArrayType:
+entry localIntArrayType
 	; get ptr to int var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -882,7 +918,7 @@ localIntArrayType:
 	sub	eax, ebx
 	jmp	intEntry
 
-fieldIntArrayType:
+entry fieldIntArrayType
 	; get ptr to int var into eax
 	; TOS is struct base ptr, NOS is index
 	; ebx is field offset in bytes
@@ -894,7 +930,7 @@ fieldIntArrayType:
 	add	eax, ebx		; add in field offset
 	jmp	intEntry
 
-memberIntArrayType:
+entry memberIntArrayType
 	; get ptr to short var into eax
 	; this data ptr is base ptr, TOS is index
 	; ebx is field offset in bytes
@@ -910,7 +946,7 @@ memberIntArrayType:
 ;
 ; local float ops
 ;
-localFloatType:
+entry localFloatType
 	; get ptr to float var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -979,7 +1015,7 @@ localFloat1:
 	mov	ebx, DWORD PTR localFloatActionTable[ebx*4]
 	jmp	ebx
 
-fieldFloatType:
+entry fieldFloatType
 	; get ptr to float var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
@@ -988,7 +1024,7 @@ fieldFloatType:
 	add	eax, ebx
 	jmp	floatEntry
 
-memberFloatType:
+entry memberFloatType
 	; get ptr to float var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp].FCore.TDPtr
@@ -996,7 +1032,7 @@ memberFloatType:
 	add	eax, ebx
 	jmp	floatEntry
 
-localFloatArrayType:
+entry localFloatArrayType
 	; get ptr to float var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -1006,7 +1042,7 @@ localFloatArrayType:
 	sub	eax, ebx
 	jmp	floatEntry
 
-fieldFloatArrayType:
+entry fieldFloatArrayType
 	; get ptr to float var into eax
 	; TOS is struct base ptr, NOS is index
 	; ebx is field offset in bytes
@@ -1018,7 +1054,7 @@ fieldFloatArrayType:
 	add	eax, ebx		; add in field offset
 	jmp	floatEntry
 
-memberFloatArrayType:
+entry memberFloatArrayType
 	; get ptr to short var into eax
 	; this data ptr is base ptr, TOS is index
 	; ebx is field offset in bytes
@@ -1034,7 +1070,7 @@ memberFloatArrayType:
 ;
 ; local double ops
 ;
-localDoubleType:
+entry localDoubleType
 	; get ptr to double var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -1107,7 +1143,7 @@ localDouble1:
 	mov	ebx, DWORD PTR localDoubleActionTable[ebx*4]
 	jmp	ebx
 
-fieldDoubleType:
+entry fieldDoubleType
 	; get ptr to double var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
@@ -1116,7 +1152,7 @@ fieldDoubleType:
 	add	eax, ebx
 	jmp	doubleEntry
 
-memberDoubleType:
+entry memberDoubleType
 	; get ptr to double var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp].FCore.TDPtr
@@ -1124,7 +1160,7 @@ memberDoubleType:
 	add	eax, ebx
 	jmp	doubleEntry
 
-localDoubleArrayType:
+entry localDoubleArrayType
 	; get ptr to double var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -1136,7 +1172,7 @@ localDoubleArrayType:
 	add	eax, ebx
 	jmp doubleEntry
 
-fieldDoubleArrayType:
+entry fieldDoubleArrayType
 	; get ptr to double var into eax
 	; TOS is struct base ptr, NOS is index
 	; ebx is field offset in bytes
@@ -1148,7 +1184,7 @@ fieldDoubleArrayType:
 	add	eax, ebx		; add in field offset
 	jmp	doubleEntry
 
-memberDoubleArrayType:
+entry memberDoubleArrayType
 	; get ptr to short var into eax
 	; this data ptr is base ptr, TOS is index
 	; ebx is field offset in bytes
@@ -1165,7 +1201,7 @@ memberDoubleArrayType:
 ; local string ops
 ;
 PUBLIC localStringType, stringEntry, localStringFetch, localStringStore, localStringAppend
-localStringType:
+entry localStringType
 	; get ptr to string var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -1263,6 +1299,7 @@ lsAppend1:
 	push	eax		; push numBytes
 	push	esi		; srcPtr
 	push	edi		; dstPtr
+	; don't need to worry about stncat stomping registers since we jump to interpFunc
 	call	strncat
 	add	esp, 12
 
@@ -1288,7 +1325,7 @@ localString1:
 	mov	ebx, DWORD PTR localStringActionTable[ebx*4]
 	jmp	ebx
 
-fieldStringType:
+entry fieldStringType
 	; get ptr to byte var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
@@ -1297,7 +1334,7 @@ fieldStringType:
 	add	eax, ebx
 	jmp	stringEntry
 
-memberStringType:
+entry memberStringType
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp].FCore.TDPtr
@@ -1305,7 +1342,7 @@ memberStringType:
 	add	eax, ebx
 	jmp	stringEntry
 
-localStringArrayType:
+entry localStringArrayType
 	; get ptr to int var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -1320,7 +1357,7 @@ localStringArrayType:
 	add	eax, ebx
 	jmp stringEntry
 
-fieldStringArrayType:
+entry fieldStringArrayType
 	; get ptr to string var into eax
 	; TOS is struct base ptr, NOS is index
 	; ebx is field offset in bytes
@@ -1335,7 +1372,7 @@ fieldStringArrayType:
 	add	edx, 8
 	jmp	opEntry
 
-memberStringArrayType:
+entry memberStringArrayType
 	; get ptr to string var into eax
 	; this data ptr is base ptr, TOS is index
 	; ebx is field offset in bytes
@@ -1354,7 +1391,7 @@ memberStringArrayType:
 ;
 ; local op ops
 ;
-localOpType:
+entry localOpType
 	; get ptr to op var into ebx
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -1383,7 +1420,7 @@ localOp1:
 	mov	ebx, DWORD PTR localOpActionTable[ebx*4]
 	jmp	ebx
 
-fieldOpType:
+entry fieldOpType
 	; get ptr to op var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
@@ -1392,7 +1429,7 @@ fieldOpType:
 	add	eax, ebx
 	jmp	opEntry
 
-memberOpType:
+entry memberOpType
 	; get ptr to op var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp].FCore.TDPtr
@@ -1400,7 +1437,7 @@ memberOpType:
 	add	eax, ebx
 	jmp	opEntry
 
-localOpArrayType:
+entry localOpArrayType
 	; get ptr to op var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -1410,7 +1447,7 @@ localOpArrayType:
 	sub	eax, ebx
 	jmp	opEntry
 
-fieldOpArrayType:
+entry fieldOpArrayType
 	; get ptr to op var into eax
 	; TOS is struct base ptr, NOS is index
 	; ebx is field offset in bytes
@@ -1422,7 +1459,7 @@ fieldOpArrayType:
 	add	eax, ebx		; add in field offset
 	jmp	opEntry
 
-memberOpArrayType:
+entry memberOpArrayType
 	; get ptr to short var into eax
 	; this data ptr is base ptr, TOS is index
 	; ebx is field offset in bytes
@@ -1438,7 +1475,7 @@ memberOpArrayType:
 ;
 ; local object ops
 ;
-localObjectType:
+entry localObjectType
 	; get ptr to Object var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -1489,7 +1526,7 @@ localObject1:
 	mov	ebx, DWORD PTR localObjectActionTable[ebx*4]
 	jmp	ebx
 
-fieldObjectType:
+entry fieldObjectType
 	; get ptr to Object var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
@@ -1498,7 +1535,7 @@ fieldObjectType:
 	add	eax, ebx
 	jmp	objectEntry
 
-memberObjectType:
+entry memberObjectType
 	; get ptr to Object var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp].FCore.TDPtr
@@ -1506,7 +1543,7 @@ memberObjectType:
 	add	eax, ebx
 	jmp	objectEntry
 
-localObjectArrayType:
+entry localObjectArrayType
 	; get ptr to Object var into eax
 	mov	eax, [ebp].FCore.FPtr
 	and	ebx, 00FFFFFFh
@@ -1518,7 +1555,7 @@ localObjectArrayType:
 	add	eax, ebx
 	jmp objectEntry
 
-fieldObjectArrayType:
+entry fieldObjectArrayType
 	; get ptr to Object var into eax
 	; TOS is struct base ptr, NOS is index
 	; ebx is field offset in bytes
@@ -1530,7 +1567,7 @@ fieldObjectArrayType:
 	add	eax, ebx		; add in field offset
 	jmp	objectEntry
 
-memberObjectArrayType:
+entry memberObjectArrayType
 	; get ptr to short var into eax
 	; this data ptr is base ptr, TOS is index
 	; ebx is field offset in bytes
@@ -1548,7 +1585,7 @@ memberObjectArrayType:
 ;
 
 ; invoke a method on object currently referenced by this ptr pair
-methodWithThisType:
+entry methodWithThisType
 	; ebx is method number
 	; push this ptr pair on return stack
 	mov	esi, [ebp].FCore.RPtr
@@ -1556,7 +1593,7 @@ methodWithThisType:
 	mov	[ebp].FCore.RPtr, esi
 	mov	eax, [ebp].FCore.TDPtr
 	mov	[esi+4], eax
-	mov	eax, [ebp].FCore.TVPtr
+	mov	eax, [ebp].FCore.TMPtr
 	mov	[esi], eax
 	
 	and	ebx, 00FFFFFFh
@@ -1567,7 +1604,7 @@ methodWithThisType:
 	jmp	interpLoopExecuteEntry
 	
 ; invoke a method on an object referenced by ptr pair on TOS
-methodWithTOSType:
+entry methodWithTOSType
 	; TOS is object vtable, NOS is object data ptr
 	; ebx is method number
 	; push this ptr pair on return stack
@@ -1576,7 +1613,7 @@ methodWithTOSType:
 	mov	[ebp].FCore.RPtr, esi
 	mov	eax, [ebp].FCore.TDPtr
 	mov	[esi+4], eax
-	mov	eax, [ebp].FCore.TVPtr
+	mov	eax, [ebp].FCore.TMPtr
 	mov	[esi], eax
 
 	; set data ptr from TOS	
@@ -1584,7 +1621,7 @@ methodWithTOSType:
 	mov	[ebp].FCore.TDPtr, eax
 	; set vtable ptr from TOS
 	mov	eax, [edx]
-	mov	[ebp].FCore.TVPtr, eax
+	mov	[ebp].FCore.TMPtr, eax
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	add	ebx, eax
@@ -1597,19 +1634,19 @@ methodWithTOSType:
 ;
 ; member string init ops
 ;
-initMemberStringType:
+entry initMemberStringType
    ; bits 0..11 are string length in bytes, bits 12..23 are member offset in longs
    ; init the current & max length fields of a member string
 	mov	eax, 00FFF000h
 	and	eax, ebx
 	sar	eax, 10							; eax = member offset in bytes
 	mov	esi, [ebp].FCore.TDPtr
-	sub	esi, eax						; esi -> max length field
+	add	esi, eax						; esi -> max length field
 	and	ebx, 00000FFFh					; ebx = max length
 	mov	[esi], ebx						; set max length
 	xor	eax, eax
 	mov	[esi+4], eax					; set current length to 0
-	mov	[esi+5], al						; add terminating null
+	mov	[esi+9], al						; add terminating null
 	mov	esi, [ebp].FCore.builtinOps
 	jmp	edi
 
@@ -1623,7 +1660,7 @@ initMemberStringType:
 ; doByteOp is compiled as the first op in global byte vars
 ; the byte data field is immediately after this op
 ;
-doByteBop:
+entry doByteBop
 	; get ptr to byte var into eax
 	mov	eax, ecx
 	; pop rstack
@@ -1638,7 +1675,7 @@ doByteBop:
 ; doByteArrayOp is compiled as the first op in global byte arrays
 ; the data array is immediately after this op
 ;
-doByteArrayBop:
+entry doByteArrayBop
 	; get ptr to byte var into eax
 	mov	eax, ecx
 	add	eax, [edx]
@@ -1655,7 +1692,7 @@ doByteArrayBop:
 ; doShortOp is compiled as the first op in global short vars
 ; the short data field is immediately after this op
 ;
-doShortBop:
+entry doShortBop
 	; get ptr to short var into eax
 	mov	eax, ecx
 	; pop rstack
@@ -1670,7 +1707,7 @@ doShortBop:
 ; doShortArrayOp is compiled as the first op in global short arrays
 ; the data array is immediately after this op
 ;
-doShortArrayBop:
+entry doShortArrayBop
 	; get ptr to short var into eax
 	mov	eax, ecx
 	mov	ebx, [edx]		; ebx = array index
@@ -1689,7 +1726,7 @@ doShortArrayBop:
 ; doIntOp is compiled as the first op in global int vars
 ; the int data field is immediately after this op
 ;
-doIntBop:
+entry doIntBop
 	; get ptr to int var into eax
 	mov	eax, ecx
 	; pop rstack
@@ -1704,7 +1741,7 @@ doIntBop:
 ; doIntArrayOp is compiled as the first op in global int arrays
 ; the data array is immediately after this op
 ;
-doIntArrayBop:
+entry doIntArrayBop
 	; get ptr to int var into eax
 	mov	eax, ecx
 	mov	ebx, [edx]		; ebx = array index
@@ -1723,7 +1760,7 @@ doIntArrayBop:
 ; doFloatOp is compiled as the first op in global float vars
 ; the float data field is immediately after this op
 ;
-doFloatBop:
+entry doFloatBop
 	; get ptr to float var into eax
 	mov	eax, ecx
 	; pop rstack
@@ -1738,7 +1775,7 @@ doFloatBop:
 ; doFloatArrayOp is compiled as the first op in global float arrays
 ; the data array is immediately after this op
 ;
-doFloatArrayBop:
+entry doFloatArrayBop
 	; get ptr to float var into eax
 	mov	eax, ecx
 	mov	ebx, [edx]		; ebx = array index
@@ -1757,7 +1794,7 @@ doFloatArrayBop:
 ; doDoubleOp is compiled as the first op in global double vars
 ; the data field is immediately after this op
 ;
-doDoubleBop:
+entry doDoubleBop
 	; get ptr to double var into eax
 	mov	eax, ecx
 	; pop rstack
@@ -1772,7 +1809,7 @@ doDoubleBop:
 ; doDoubleArrayOp is compiled as the first op in global double arrays
 ; the data array is immediately after this op
 ;
-doDoubleArrayBop:
+entry doDoubleArrayBop
 	; get ptr to double var into eax
 	mov	eax, ecx
 	mov	ebx, [edx]		; ebx = array index
@@ -1791,7 +1828,7 @@ doDoubleArrayBop:
 ; doStringOp is compiled as the first op in global string vars
 ; the data field is immediately after this op
 ;
-doStringBop:
+entry doStringBop
 	; get ptr to string var into eax
 	mov	eax, ecx
 	; pop rstack
@@ -1806,7 +1843,7 @@ doStringBop:
 ; doStringArrayOp is compiled as the first op in global string arrays
 ; the data array is immediately after this op
 ;
-doStringArrayBop:
+entry doStringArrayBop
 	; get ptr to string var into eax
 	mov	eax, ecx		; eax -> maxLen field of string[0]
 	mov	ebx, [eax]		; ebx = maxLen
@@ -1828,7 +1865,7 @@ doStringArrayBop:
 ; doOpOp is compiled as the first op in global op vars
 ; the op data field is immediately after this op
 ;
-doOpBop:
+entry doOpBop
 	; get ptr to int var into eax
 	mov	eax, ecx
 	; pop rstack
@@ -1843,7 +1880,7 @@ doOpBop:
 ; doOpArrayOp is compiled as the first op in global op arrays
 ; the data array is immediately after this op
 ;
-doOpArrayBop:
+entry doOpArrayBop
 	; get ptr to op var into eax
 	mov	eax, ecx
 	mov	ebx, [edx]		; ebx = array index
@@ -1862,7 +1899,7 @@ doOpArrayBop:
 ; doObjectOp is compiled as the first op in global Object vars
 ; the data field is immediately after this op
 ;
-doObjectBop:
+entry doObjectBop
 	; get ptr to Object var into eax
 	mov	eax, ecx
 	; pop rstack
@@ -1877,7 +1914,7 @@ doObjectBop:
 ; doObjectArrayOp is compiled as the first op in global Object arrays
 ; the data array is immediately after this op
 ;
-doObjectArrayBop:
+entry doObjectArrayBop
 	; get ptr to Object var into eax
 	mov	eax, ecx
 	mov	ebx, [edx]		; ebx = array index
@@ -1893,7 +1930,7 @@ doObjectArrayBop:
 
 ;========================================
 
-initStringBop:
+entry initStringBop
 	;	TOS: strPtr len
 	mov	ebx, [edx]		; ebx -> first char of string
 	xor	eax, eax
@@ -1906,45 +1943,35 @@ initStringBop:
 
 ;========================================
 
-initStringArrayBop:	; TBD
-	extOp	initStringArrayOp
+	extOp	initStringArrayBop, initStringArrayOp
 	
 ;========================================
 
-doneBop:
+entry doneBop
 	mov	eax,kResultDone
 	jmp	interpLoopExit
 
 ;========================================
 
-byeBop:
+entry byeBop
 	mov	eax,kResultExitShell
 	jmp	interpLoopExit
 
 ;========================================
 
-abortBop:
+entry abortBop
 	mov	eax,kForthErrorAbort
 	jmp	interpLoopFatalErrorExit
 
 ;========================================
 
-badOpBop:
-	extOp	badOpOp
-	
-;========================================
-
-argvBop:	; TBD
-	extOp	argvOp
-
-;========================================
-	
-argcBop:	; TBD
-	extOp	argcOp
+	extOp	badOpBop, badOpOp
+	extOp	argvBop, argvOp
+	extOp	argcBop, argcOp
 
 ;========================================
 
-plusBop:
+entry plusBop
 	mov	eax, [edx]
 	add	edx, 4
 	add	eax, [edx]
@@ -1953,7 +1980,7 @@ plusBop:
 
 ;========================================
 	
-minusBop:
+entry minusBop
 	mov	eax, [edx]
 	add	edx, 4
 	mov	ebx, [edx]
@@ -1963,7 +1990,7 @@ minusBop:
 
 ;========================================
 
-timesBop:
+entry timesBop
 	mov	eax, [edx]
 	add	edx, 4
 	imul	eax, [edx]
@@ -1972,7 +1999,7 @@ timesBop:
 
 ;========================================
 	
-times2Bop:
+entry times2Bop
 	mov	eax, [edx]
 	add	eax, eax
 	mov	[edx], eax
@@ -1980,7 +2007,7 @@ times2Bop:
 
 ;========================================
 	
-times4Bop:
+entry times4Bop
 	mov	eax, [edx]
 	sal	eax, 2
 	mov	[edx], eax
@@ -1988,7 +2015,7 @@ times4Bop:
 
 ;========================================
 	
-divideBop:
+entry divideBop
 	; idiv takes 64-bit numerator in edx:eax
 	mov	ebx, edx
 	mov	eax, [edx+4]	; get numerator
@@ -2001,7 +2028,7 @@ divideBop:
 
 ;========================================
 
-divide2Bop:
+entry divide2Bop
 	mov	eax, [edx]
 	sar	eax, 1
 	mov	[edx], eax
@@ -2009,7 +2036,7 @@ divide2Bop:
 	
 ;========================================
 
-divide4Bop:
+entry divide4Bop
 	mov	eax, [edx]
 	sar	eax, 2
 	mov	[edx], eax
@@ -2017,7 +2044,7 @@ divide4Bop:
 	
 ;========================================
 	
-divmodBop:
+entry divmodBop
 	; idiv takes 64-bit numerator in edx:eax
 	mov	ebx, edx
 	mov	eax, [edx+4]	; get numerator
@@ -2030,7 +2057,7 @@ divmodBop:
 	
 ;========================================
 	
-modBop:
+entry modBop
 	; idiv takes 64-bit numerator in edx:eax
 	mov	ebx, edx
 	mov	eax, [edx+4]	; get numerator
@@ -2043,7 +2070,7 @@ modBop:
 	
 ;========================================
 	
-negateBop:
+entry negateBop
 	mov	eax, [edx]
 	neg	eax
 	mov	[edx], eax
@@ -2051,7 +2078,7 @@ negateBop:
 	
 ;========================================
 	
-fplusBop:
+entry fplusBop
 	fld	DWORD PTR [edx+4]
 	fadd	DWORD PTR [edx]
 	add	edx,4
@@ -2063,7 +2090,7 @@ fplusBop:
 	
 ;========================================
 	
-fminusBop:
+entry fminusBop
 	fld	DWORD PTR [edx+4]
 	fsub	DWORD PTR [edx]
 	add	edx,4
@@ -2075,7 +2102,7 @@ fminusBop:
 	
 ;========================================
 	
-ftimesBop:
+entry ftimesBop
 	fld	DWORD PTR [edx+4]
 	fmul	DWORD PTR [edx]
 	add	edx,4
@@ -2087,7 +2114,7 @@ ftimesBop:
 	
 ;========================================
 	
-fdivideBop:
+entry fdivideBop
 	fld	DWORD PTR [edx+4]
 	fdiv	DWORD PTR [edx]
 	add	edx,4
@@ -2099,7 +2126,7 @@ fdivideBop:
 	
 ;========================================
 	
-dplusBop:
+entry dplusBop
 	fld	QWORD PTR [edx+8]
 	fadd	QWORD PTR [edx]
 	add	edx,8
@@ -2111,7 +2138,7 @@ dplusBop:
 	
 ;========================================
 	
-dminusBop:
+entry dminusBop
 	fld	QWORD PTR [edx+8]
 	fsub	QWORD PTR [edx]
 	add	edx,8
@@ -2123,7 +2150,7 @@ dminusBop:
 	
 ;========================================
 	
-dtimesBop:
+entry dtimesBop
 	fld	QWORD PTR [edx+8]
 	fmul	QWORD PTR [edx]
 	add	edx,8
@@ -2132,11 +2159,10 @@ dtimesBop:
 	mov	[ebp].FCore.varMode, ebx
 	fstp	QWORD PTR [edx]
 	jmp	edi
-	extOp	dtimesOp
 	
 ;========================================
 	
-ddivideBop:
+entry ddivideBop
 	fld	QWORD PTR [edx+8]
 	fdiv	QWORD PTR [edx]
 	add	edx,8
@@ -2148,7 +2174,7 @@ ddivideBop:
 	
 ;========================================
 	
-dsinBop:
+entry dsinBop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2164,7 +2190,7 @@ dsinBop:
 	
 ;========================================
 	
-dasinBop:
+entry dasinBop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2180,7 +2206,7 @@ dasinBop:
 	
 ;========================================
 	
-dcosBop:
+entry dcosBop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2196,7 +2222,7 @@ dcosBop:
 	
 ;========================================
 
-dacosBop:
+entry dacosBop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2212,7 +2238,7 @@ dacosBop:
 	
 ;========================================
 	
-dtanBop:
+entry dtanBop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2228,7 +2254,7 @@ dtanBop:
 	
 ;========================================
 	
-datanBop:
+entry datanBop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2244,7 +2270,7 @@ datanBop:
 	
 ;========================================
 	
-datan2Bop:
+entry datan2Bop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2265,7 +2291,7 @@ datan2Bop:
 	
 ;========================================
 	
-dexpBop:
+entry dexpBop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2281,7 +2307,7 @@ dexpBop:
 	
 ;========================================
 	
-dlnBop:
+entry dlnBop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2297,7 +2323,7 @@ dlnBop:
 	
 ;========================================
 	
-dlog10Bop:
+entry dlog10Bop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2313,7 +2339,7 @@ dlog10Bop:
 	
 ;========================================
 	
-dpowBop:
+entry dpowBop
 	; a^x
 	push	edx
 	push	ecx
@@ -2337,7 +2363,7 @@ dpowBop:
 	
 ;========================================
 
-dsqrtBop:
+entry dsqrtBop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2353,7 +2379,7 @@ dsqrtBop:
 	
 ;========================================
 
-dceilBop:
+entry dceilBop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2369,7 +2395,7 @@ dceilBop:
 	
 ;========================================
 
-dfloorBop:
+entry dfloorBop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2385,7 +2411,7 @@ dfloorBop:
 
 ;========================================
 
-dabsBop:
+entry dabsBop
 	fld	QWORD PTR [edx]
 	fabs
 	fstp	QWORD PTR [edx]
@@ -2393,7 +2419,7 @@ dabsBop:
 	
 ;========================================
 
-dldexpBop:
+entry dldexpBop
 	; ldexp( a, n )
 	push	edx
 	push	ecx
@@ -2416,7 +2442,7 @@ dldexpBop:
 	
 ;========================================
 
-dfrexpBop:
+entry dfrexpBop
 	; frexp( a, ptrToLong )
 	sub	edx, 4
 	push	edx
@@ -2439,7 +2465,7 @@ dfrexpBop:
 	
 ;========================================
 
-dmodfBop:	; TBD
+entry dmodfBop
 	; modf( a, ptrToDouble )
 	mov	eax, edx
 	sub	edx, 8
@@ -2463,7 +2489,7 @@ dmodfBop:	; TBD
 	
 ;========================================
 
-dfmodBop:
+entry dfmodBop
 	push	edx
 	push	ecx
 	mov	eax, [edx+4]
@@ -2484,14 +2510,14 @@ dfmodBop:
 	
 ;========================================
 
-i2fBop:
+entry i2fBop
 	fild	DWORD PTR [edx]
 	fstp	DWORD PTR [edx]
 	jmp	edi	
 
 ;========================================
 
-i2dBop:
+entry i2dBop
 	fild	DWORD PTR [edx]
 	sub	edx, 4
 	fstp	QWORD PTR [edx]
@@ -2499,7 +2525,7 @@ i2dBop:
 
 ;========================================
 
-f2iBop:
+entry f2iBop
 	push	edx
 	push	ecx
 	fld	DWORD PTR [edx]
@@ -2511,7 +2537,7 @@ f2iBop:
 
 ;========================================
 
-f2dBop:
+entry f2dBop
 	fld	DWORD PTR [edx]
 	sub	edx, 4
 	fstp	QWORD PTR [edx]
@@ -2519,7 +2545,7 @@ f2dBop:
 		
 ;========================================
 
-d2iBop:
+entry d2iBop
 	push	edx
 	push	ecx
 	fld	QWORD PTR [edx]
@@ -2532,7 +2558,7 @@ d2iBop:
 
 ;========================================
 
-d2fBop:
+entry d2fBop
 	fld	QWORD PTR [edx]
 	add	edx, 4
 	fstp	DWORD PTR [edx]
@@ -2540,7 +2566,7 @@ d2fBop:
 
 ;========================================
 
-doExitBop:
+entry doExitBop
 	mov	eax, [ebp].FCore.RPtr
 	mov	ebx, [ebp].FCore.RTPtr
 	cmp	ebx, eax
@@ -2556,7 +2582,7 @@ doExitBop1:
 	
 ;========================================
 
-doExitLBop:
+entry doExitLBop
     ; rstack: local_var_storage oldFP oldIP
     ; FP points to oldFP
 	mov	eax, [ebp].FCore.FPtr
@@ -2573,17 +2599,45 @@ doExitLBop:
 	
 ;========================================
 
-doExitMBop:	; TBD
-	extOp	doExitMOp
+
+entry doExitMBop
+    ; rstack: oldIP oldTPV oldTPD
+	mov	eax, [ebp].FCore.RPtr
+	mov	ebx, [ebp].FCore.RTPtr
+	add	eax, 12
+	cmp	ebx, eax
+	jl	doExitBop1
+	mov	[ebp].FCore.RPtr, eax
+	mov	ecx, [eax-12]	; IP = oldIP
+	mov	ebx, [eax-8]
+	mov	[ebp].FCore.TMPtr, ebx
+	mov	ebx, [eax-4]
+	mov	[ebp].FCore.TDPtr, ebx
+	jmp	edi
+
+;========================================
+
+entry doExitMLBop
+    ; rstack: local_var_storage oldFP oldIP oldTPV oldTPD
+    ; FP points to oldFP
+	mov	eax, [ebp].FCore.FPtr
+	mov	ecx, [eax]
+	mov	[ebp].FCore.FPtr, ecx
+	add	eax, 16
+	mov	ebx, [ebp].FCore.RTPtr
+	cmp	ebx, eax
+	jl	doExitBop1
+	mov	[ebp].FCore.RPtr, eax
+	mov	ecx, [eax-12]	; IP = oldIP
+	mov	ebx, [eax-8]
+	mov	[ebp].FCore.TMPtr, ebx
+	mov	ebx, [eax-4]
+	mov	[ebp].FCore.TDPtr, ebx
+	jmp	edi
 	
 ;========================================
 
-doExitMLBop:	; TBD
-	extOp	doExitMLOp
-	
-;========================================
-
-callBop:
+entry callBop
 	; rpush current IP
 	mov	eax, [ebp].FCore.RPtr
 	sub	eax, 4
@@ -2596,24 +2650,15 @@ callBop:
 	
 ;========================================
 
-gotoBop:
+entry gotoBop
 	mov	ecx, [edx]
 	jmp	edi
 
 ;========================================
 
-doBop:	; TBD
-	extOp	doOp
-	
-;========================================
-
-loopBop:	; TBD
-	extOp	loopOp
-	
-;========================================
-
-loopNBop:	; TBD
-	extOp	loopNOp
+	extOp	doBop, doOp
+	extOp	loopBop, loopOp
+	extOp	loopNBop, loopNOp
 	
 ;========================================
 ;
@@ -2621,7 +2666,7 @@ loopNBop:	; TBD
 ; TOS+4 is end-index
 ; the op right after this one should be a branch
 ; 
-doDoBop:
+entry doDoBop
 	mov	ebx, [ebp].FCore.RPtr
 	sub	ebx, 12
 	mov	[ebp].FCore.RPtr, ebx
@@ -2639,7 +2684,7 @@ doDoBop:
 	
 ;========================================
 
-doLoopBop:
+entry doLoopBop
 	mov	ebx, [ebp].FCore.RPtr
 	mov	eax, [ebx]
 	inc	eax
@@ -2656,7 +2701,7 @@ doLoopBop1:
 	
 ;========================================
 
-doLoopNBop:
+entry doLoopNBop
 	mov	ebx, [ebp].FCore.RPtr	; ebp is RP
 	mov	eax, [edx]		; pop N into eax
 	add	edx, 4
@@ -2679,7 +2724,7 @@ doLoopNBop1:
 	
 ;========================================
 
-iBop:
+entry iBop
 	mov	eax, [ebp].FCore.RPtr
 	mov	ebx, [eax]
 	sub	edx,4
@@ -2688,7 +2733,7 @@ iBop:
 	
 ;========================================
 
-jBop:
+entry jBop
 	mov	eax, [ebp].FCore.RPtr
 	mov	ebx, [eax+12]
 	sub	edx,4
@@ -2697,7 +2742,7 @@ jBop:
 	
 ;========================================
 
-unloopBop:
+entry unloopBop
 	mov	eax, [ebp].FCore.RPtr
 	add	eax, 12
 	mov	[ebp].FCore.RPtr, eax
@@ -2705,7 +2750,7 @@ unloopBop:
 	
 ;========================================
 
-leaveBop:
+entry leaveBop
 	mov	eax, [ebp].FCore.RPtr
 	; point IP at the branch instruction which is just before top of loop
 	mov	ecx, [eax+8]
@@ -2717,67 +2762,22 @@ leaveBop:
 	
 ;========================================
 
-ifBop:	; TBD
-	extOp	ifOp
+	extOp	ifBop, ifOp
+	extOp	elseBop, elseOp
+	extOp	endifBop, endifOp
+	extOp	beginBop, beginOp
+	extOp	untilBop, untilOp
+	extOp	whileBop, whileOp
+	extOp	repeatBop, repeatOp
+	extOp	againBop, againOp
+	extOp	caseBop, caseOp
+	extOp	ofBop, ofOp
+	extOp	endofBop, endofOp
+	extOp	endcaseBop, endcaseOp
 	
 ;========================================
 
-elseBop:	; TBD
-	extOp	elseOp
-	
-;========================================
-
-endifBop:	; TBD
-	extOp	endifOp
-	
-;========================================
-
-beginBop:	; TBD
-	extOp	beginOp
-	
-;========================================
-
-untilBop:	; TBD
-	extOp	untilOp
-	
-;========================================
-
-whileBop:	; TBD
-	extOp	whileOp
-	
-;========================================
-
-repeatBop:	; TBD
-	extOp	repeatOp
-	
-;========================================
-
-againBop:	; TBD
-	extOp	againOp
-	
-;========================================
-
-caseBop:	; TBD
-	extOp	caseOp
-	
-;========================================
-
-ofBop:	; TBD
-	extOp	ofOp
-	
-;========================================
-
-endofBop:	; TBD
-	extOp	endofOp
-	
-;========================================
-
-endcaseBop:	; TBD
-	extOp	endcaseOp
-	
-;========================================
-
-orBop:
+entry orBop
 	mov	eax, [edx]
 	add	edx, 4
 	or	[edx], eax
@@ -2785,7 +2785,7 @@ orBop:
 	
 ;========================================
 
-andBop:
+entry andBop
 	mov	eax, [edx]
 	add	edx, 4
 	and	[edx], eax
@@ -2793,7 +2793,7 @@ andBop:
 	
 ;========================================
 
-xorBop:
+entry xorBop
 	mov	eax, [edx]
 	add	edx, 4
 	xor	[edx], eax
@@ -2801,7 +2801,7 @@ xorBop:
 	
 ;========================================
 
-invertBop:
+entry invertBop
 	mov	eax,0FFFFFFFFh
 	xor	eax, [edx]
 	mov	[edx], eax
@@ -2809,7 +2809,7 @@ invertBop:
 	
 ;========================================
 
-lshiftBop:
+entry lshiftBop
 	mov	eax, ecx
 	mov	ecx, [edx]
 	add	edx, 4
@@ -2821,7 +2821,7 @@ lshiftBop:
 	
 ;========================================
 
-rshiftBop:
+entry rshiftBop
 	mov	eax, ecx
 	mov	ecx, [edx]
 	add	edx, 4
@@ -2833,14 +2833,14 @@ rshiftBop:
 	
 ;========================================
 
-notBop:
+entry notBop
 	mov	eax,0FFFFFFFFh
 	xor	[edx], eax
 	jmp	edi
 	
 ;========================================
 
-trueBop:
+entry trueBop
 	mov	eax,0FFFFFFFFh
 	sub	edx, 4
 	mov	[edx], eax
@@ -2848,7 +2848,7 @@ trueBop:
 	
 ;========================================
 
-falseBop:
+entry falseBop
 	xor	eax, eax
 	sub	edx, 4
 	mov	[edx], eax
@@ -2856,7 +2856,7 @@ falseBop:
 	
 ;========================================
 
-nullBop:
+entry nullBop
 	xor	eax, eax
 	sub	edx, 4
 	mov	[edx], eax
@@ -2864,7 +2864,7 @@ nullBop:
 	
 ;========================================
 
-dnullBop:
+entry dnullBop
 	xor	eax, eax
 	sub	edx, 8
 	mov	[edx+4], eax
@@ -2873,13 +2873,13 @@ dnullBop:
 	
 ;========================================
 
-equalsZeroBop:
+entry equalsZeroBop
 	xor	ebx, ebx
 	jmp	equalsBop1
 	
 ;========================================
 
-equalsBop:
+entry equalsBop
 	mov	ebx, [edx]
 	add	edx, 4
 equalsBop1:
@@ -2893,13 +2893,13 @@ equalsBop2:
 	
 ;========================================
 
-notEqualsZeroBop:
+entry notEqualsZeroBop
 	xor	ebx, ebx
 	jmp	notEqualsBop1
 	
 ;========================================
 
-notEqualsBop:
+entry notEqualsBop
 	mov	ebx, [edx]
 	add	edx, 4
 notEqualsBop1:
@@ -2913,39 +2913,39 @@ notEqualsBop2:
 	
 ;========================================
 
-greaterThanZeroBop:
+entry greaterThanZeroBop
 	xor	ebx, ebx
 	jmp	gtBop1
 	
 ;========================================
 
-greaterThanBop:
-	mov	ebx, [edx]
+entry greaterThanBop
+	mov	ebx, [edx]		; ebx = b
 	add	edx, 4
 gtBop1:
 	xor	eax, eax
-	cmp	ebx, [edx]
-	jg	gtBop2
+	cmp	[edx], ebx
+	jle	gtBop2
 	dec	eax
 gtBop2:
 	mov	[edx], eax
 	jmp	edi
-	
+
 ;========================================
 
-greaterEqualsZeroBop:
+entry greaterEqualsZeroBop
 	xor	ebx, ebx
 	jmp	geBop1
 	
 ;========================================
 
-greaterEqualsBop:
+entry greaterEqualsBop
 	mov	ebx, [edx]
 	add	edx, 4
 geBop1:
 	xor	eax, eax
-	cmp	ebx, [edx]
-	jge	geBop2
+	cmp	[edx], ebx
+	jl	geBop2
 	dec	eax
 geBop2:
 	mov	[edx], eax
@@ -2954,19 +2954,19 @@ geBop2:
 
 ;========================================
 
-lessThanZeroBop:
+entry lessThanZeroBop
 	xor	ebx, ebx
 	jmp	ltBop1
 	
 ;========================================
 
-lessThanBop:
+entry lessThanBop
 	mov	ebx, [edx]
 	add	edx, 4
 ltBop1:
 	xor	eax, eax
-	cmp	ebx, [edx]
-	jl	ltBop2
+	cmp	[edx], ebx
+	jge	ltBop2
 	dec	eax
 ltBop2:
 	mov	[edx], eax
@@ -2974,19 +2974,19 @@ ltBop2:
 	
 ;========================================
 
-lessEqualsZeroBop:
+entry lessEqualsZeroBop
 	xor	ebx, ebx
 	jmp	leBop1
 	
 ;========================================
 
-lessEqualsBop:
+entry lessEqualsBop
 	mov	ebx, [edx]
 	add	edx, 4
 leBop1:
 	xor	eax, eax
-	cmp	ebx, [edx]
-	jle	leBop2
+	cmp	[edx], ebx
+	jg	leBop2
 	dec	eax
 leBop2:
 	mov	[edx], eax
@@ -2994,13 +2994,13 @@ leBop2:
 	
 ;========================================
 
-unsignedGreaterThanBop:
+entry unsignedGreaterThanBop
 	mov	ebx, [edx]
 	add	edx, 4
 ugtBop1:
 	xor	eax, eax
-	cmp	ebx, [edx]
-	ja	ugtBop2
+	cmp	[edx], ebx
+	jbe	ugtBop2
 	dec	eax
 ugtBop2:
 	mov	[edx], eax
@@ -3008,13 +3008,13 @@ ugtBop2:
 	
 ;========================================
 
-unsignedLessThanBop:
+entry unsignedLessThanBop
 	mov	ebx, [edx]
 	add	edx, 4
 ultBop1:
 	xor	eax, eax
-	cmp	ebx, [edx]
-	jb	ultBop2
+	cmp	[edx], ebx
+	jae	ultBop2
 	dec	eax
 ultBop2:
 	mov	[edx], eax
@@ -3023,7 +3023,7 @@ ultBop2:
 	
 ;========================================
 
-rpushBop:
+entry rpushBop
 	mov	ebx, [edx]
 	add	edx, 4
 	mov	eax, [ebp].FCore.RPtr
@@ -3034,7 +3034,7 @@ rpushBop:
 	
 ;========================================
 
-rpopBop:
+entry rpopBop
 	mov	eax, [ebp].FCore.RPtr
 	mov	ebx, [edx]
 	add	eax, 4
@@ -3045,7 +3045,7 @@ rpopBop:
 	
 ;========================================
 
-rdropBop:
+entry rdropBop
 	mov	eax, [ebp].FCore.RPtr
 	add	eax, 4
 	mov	[ebp].FCore.RPtr, eax
@@ -3053,7 +3053,7 @@ rdropBop:
 	
 ;========================================
 
-rpBop:
+entry rpBop
 	mov	eax, [ebp].FCore.RPtr
 	sub	edx, 4
 	mov	[edx], eax
@@ -3061,7 +3061,7 @@ rpBop:
 	
 ;========================================
 
-rzeroBop:
+entry rzeroBop
 	mov	eax, [ebp].FCore.RTPtr
 	sub	edx, 4
 	mov	[edx], eax
@@ -3069,7 +3069,7 @@ rzeroBop:
 	
 ;========================================
 
-dupBop:
+entry dupBop
 	mov	eax, [edx]
 	sub	edx, 4
 	mov	[edx], eax
@@ -3077,7 +3077,7 @@ dupBop:
 
 ;========================================
 
-swapBop:
+entry swapBop
 	mov	eax, [edx]
 	mov	ebx, [edx+4]
 	mov	[edx], ebx
@@ -3086,13 +3086,13 @@ swapBop:
 	
 ;========================================
 
-dropBop:
+entry dropBop
 	add	edx, 4
 	jmp	edi
 	
 ;========================================
 
-overBop:
+entry overBop
 	mov	eax, [edx+4]
 	sub	edx, 4
 	mov	[edx], eax
@@ -3100,7 +3100,7 @@ overBop:
 	
 ;========================================
 
-rotBop:
+entry rotBop
 	mov	eax, [edx]
 	mov	ebx, [edx+8]
 	mov	[edx], ebx
@@ -3111,7 +3111,7 @@ rotBop:
 	
 ;========================================
 
-tuckBop:	; TBD
+entry tuckBop
 	mov	eax, [edx]
 	mov	ebx, [edx+4]
 	sub	edx, 4
@@ -3122,7 +3122,7 @@ tuckBop:	; TBD
 	
 ;========================================
 
-pickBop:
+entry pickBop
 	mov	eax, [edx]
 	add   eax, 1
 	mov	ebx, [edx+eax*4]
@@ -3131,12 +3131,11 @@ pickBop:
 	
 ;========================================
 
-rollBop:	; TBD
-	extOp	rollOp
+	extOp	rollBop, rollOp
 	
 ;========================================
 
-spBop:
+entry spBop
 	mov	eax, [ebp].FCore.SPtr
 	sub	edx, 4
 	mov	[edx], eax
@@ -3144,7 +3143,7 @@ spBop:
 	
 ;========================================
 
-szeroBop:
+entry szeroBop
 	mov	eax, [ebp].FCore.STPtr
 	sub	edx, 4
 	mov	[edx], eax
@@ -3152,7 +3151,7 @@ szeroBop:
 	
 ;========================================
 
-fpBop:
+entry fpBop
 	mov	eax, [ebp].FCore.FPtr
 	sub	edx, 4
 	mov	[edx], eax
@@ -3160,7 +3159,7 @@ fpBop:
 	
 ;========================================
 
-ddupBop:
+entry ddupBop
 	mov	eax, [edx]
 	mov	ebx, [edx+4]
 	sub	edx, 8
@@ -3170,7 +3169,7 @@ ddupBop:
 	
 ;========================================
 
-dswapBop:
+entry dswapBop
 	mov	eax, [edx]
 	mov	ebx, [edx+8]
 	mov	[edx+8], eax
@@ -3183,13 +3182,13 @@ dswapBop:
 	
 ;========================================
 
-ddropBop:
+entry ddropBop
 	add	edx, 8
 	jmp	edi
 	
 ;========================================
 
-doverBop:
+entry doverBop
 	mov	eax, [edx+8]
 	mov	ebx, [edx+12]
 	sub	edx, 8
@@ -3199,7 +3198,7 @@ doverBop:
 	
 ;========================================
 
-drotBop:
+entry drotBop
 	mov	eax, [edx+20]
 	mov	ebx, [edx+12]
 	mov	[edx+20], ebx
@@ -3216,32 +3215,15 @@ drotBop:
 	
 ;========================================
 
-alignBop:
-	extOp	alignOp
+	extOp	alignBop, alignOp
+	extOp	allotBop, allotOp
+	extOp	callotBop, callotOp
+	extOp	commaBop, commaOp
+	extOp	cCommaBop, cCommaOp
 	
 ;========================================
 
-allotBop:
-	extOp	allotOp
-	
-;========================================
-
-callotBop:
-	extOp	callotOp
-	
-;========================================
-
-commaBop:
-	extOp	commaOp
-	
-;========================================
-
-cCommaBop:
-	extOp	cCommaOp
-	
-;========================================
-
-hereBop:
+entry hereBop
 	mov	eax, [ebp].FCore.DP
 	sub	edx, 4
 	mov	[edx], eax
@@ -3249,17 +3231,12 @@ hereBop:
 	
 ;========================================
 
-mallocBop:
-	extOp	mallocOp
+	extOp	mallocBop, mallocOp
+	extOp	freeBop, freeOp
 	
 ;========================================
 
-freeBop:
-	extOp	freeOp
-	
-;========================================
-
-storeBop:
+entry storeBop
 	mov	eax, [edx]
 	mov	ebx, [edx+4]
 	add	edx, 8
@@ -3268,7 +3245,7 @@ storeBop:
 	
 ;========================================
 
-fetchBop:
+entry fetchBop
 	mov	eax, [edx]
 	mov	ebx, [eax]
 	mov	[edx], ebx
@@ -3276,7 +3253,7 @@ fetchBop:
 	
 ;========================================
 
-cstoreBop:
+entry cstoreBop
 	mov	eax, [edx]
 	mov	ebx, [edx+4]
 	add	edx, 8
@@ -3285,7 +3262,7 @@ cstoreBop:
 	
 ;========================================
 
-cfetchBop:
+entry cfetchBop
 	mov	eax, [edx]
 	xor	ebx, ebx
 	mov	bl, [eax]
@@ -3294,7 +3271,7 @@ cfetchBop:
 	
 ;========================================
 
-scfetchBop:
+entry scfetchBop
 	mov	eax, [edx]
 	movsx	ebx, BYTE PTR [eax]
 	mov	[edx], ebx
@@ -3302,7 +3279,7 @@ scfetchBop:
 	
 ;========================================
 
-c2lBop:
+entry c2lBop
 	mov	eax, [edx]
 	movsx	ebx, al
 	mov	[edx], ebx
@@ -3310,7 +3287,7 @@ c2lBop:
 	
 ;========================================
 
-wstoreBop:
+entry wstoreBop
 	mov	eax, [edx]
 	mov	bx, [edx+4]
 	add	edx, 8
@@ -3319,7 +3296,7 @@ wstoreBop:
 	
 ;========================================
 
-wfetchBop:
+entry wfetchBop
 	mov	eax, [edx]
 	xor	ebx, ebx
 	mov	bx, [eax]
@@ -3328,7 +3305,7 @@ wfetchBop:
 	
 ;========================================
 
-swfetchBop:
+entry swfetchBop
 	mov	eax, [edx]
 	movsx	ebx, WORD PTR [eax]
 	mov	[edx], ebx
@@ -3336,7 +3313,7 @@ swfetchBop:
 	
 ;========================================
 
-w2lBop:
+entry w2lBop
 	mov	eax, [edx]
 	movsx	ebx, ax
 	mov	[edx], ebx
@@ -3344,7 +3321,7 @@ w2lBop:
 	
 ;========================================
 
-dstoreBop:
+entry dstoreBop
 	mov	eax, [edx]
 	mov	ebx, [edx+4]
 	mov	[eax], ebx
@@ -3355,18 +3332,18 @@ dstoreBop:
 	
 ;========================================
 
-dfetchBop:
+entry dfetchBop
 	mov	eax, [edx]
 	sub	edx, 4
-	mov	ebx, [edx]
-	mov	[eax], ebx
-	mov	ebx, [edx+4]
-	mov	[eax+4], ebx
+	mov	ebx, [eax]
+	mov	[edx], ebx
+	mov	ebx, [eax+4]
+	mov	[edx+4], ebx
 	jmp	edi
 	
 ;========================================
 
-memcpyBop:
+entry memcpyBop
 	;	TOS: nBytes srcPtr dstPtr
 	push	edx
 	push	ecx
@@ -3385,7 +3362,7 @@ memcpyBop:
 
 ;========================================
 
-memsetBop:
+entry memsetBop
 	;	TOS: nBytes byteVal dstPtr
 	push	edx
 	push	ecx
@@ -3405,56 +3382,56 @@ memsetBop:
 
 ;========================================
 
-intoBop:
+entry intoBop
 	mov	eax, kVarStore
 	mov	[ebp].FCore.varMode, eax
 	jmp	edi
 	
 ;========================================
 
-addToBop:
+entry addToBop
 	mov	eax, kVarPlusStore
 	mov	[ebp].FCore.varMode, eax
 	jmp	edi
 	
 ;========================================
 
-subtractFromBop:
+entry subtractFromBop
 	mov	eax, kVarMinusStore
 	mov	[ebp].FCore.varMode, eax
 	jmp	edi
 	
 ;========================================
 
-addressOfBop:
+entry addressOfBop
 	mov	eax, kVarRef
 	mov	[ebp].FCore.varMode, eax
 	jmp	edi
 
 ;========================================
 
-removeEntryBop:
+entry removeEntryBop
 	mov	eax, kVocabRemoveEntry
 	mov	[ebp].FCore.varMode, eax
 	jmp	edi
 	
 ;========================================
 
-entryLengthBop:
+entry entryLengthBop
 	mov	eax, kVocabEntryLength
 	mov	[ebp].FCore.varMode, eax
 	jmp	edi
 	
 ;========================================
 
-numEntriesBop:
+entry numEntriesBop
 	mov	eax, kVocabNumEntries
 	mov	[ebp].FCore.varMode, eax
 	jmp	edi
 	
 ;========================================
 
-setVarActionBop:
+entry setVarActionBop
    mov   eax, [edx]
    add   edx, 4
 	mov	[ebp].FCore.varMode, eax
@@ -3462,7 +3439,7 @@ setVarActionBop:
 
 ;========================================
 
-getVarActionBop:
+entry getVarActionBop
 	mov	eax, [ebp].FCore.varMode
    sub   edx, 4
    mov   [edx], eax
@@ -3470,7 +3447,7 @@ getVarActionBop:
 
 ;========================================
 
-strcpyBop:
+entry strcpyBop
 	;	TOS: srcPtr dstPtr
 	push	edx
 	push	ecx
@@ -3487,7 +3464,7 @@ strcpyBop:
 
 ;========================================
 
-strncpyBop:
+entry strncpyBop
 	;	TOS: maxBytes srcPtr dstPtr
 	push	edx
 	push	ecx
@@ -3506,7 +3483,7 @@ strncpyBop:
 
 ;========================================
 
-strlenBop:
+entry strlenBop
 	mov	eax, [edx]
 	xor	ebx, ebx
 strlenBop1:
@@ -3524,7 +3501,7 @@ strlenBop2:
 
 ;========================================
 
-strcatBop:
+entry strcatBop
 	;	TOS: srcPtr dstPtr
 	push	edx
 	push	ecx
@@ -3541,7 +3518,7 @@ strcatBop:
 
 ;========================================
 
-strncatBop:
+entry strncatBop
 	;	TOS: maxBytes srcPtr dstPtr
 	push	edx
 	push	ecx
@@ -3560,7 +3537,7 @@ strncatBop:
 
 ;========================================
 
-strchrBop:
+entry strchrBop
 	;	TOS: char strPtr
 	push	edx
 	push	ecx
@@ -3578,7 +3555,7 @@ strchrBop:
 	
 ;========================================
 
-strrchrBop:
+entry strrchrBop
 	;	TOS: char strPtr
 	push	edx
 	push	ecx
@@ -3596,7 +3573,7 @@ strrchrBop:
 	
 ;========================================
 
-strcmpBop:
+entry strcmpBop
 	;	TOS: ptr2 ptr1
 	push	edx
 	push	ecx
@@ -3614,7 +3591,7 @@ strcmpBop:
 	
 ;========================================
 
-stricmpBop:
+entry stricmpBop
 	;	TOS: ptr2 ptr1
 	push	edx
 	push	ecx
@@ -3632,7 +3609,7 @@ stricmpBop:
 	
 ;========================================
 
-strstrBop:
+entry strstrBop
 	;	TOS: ptr2 ptr1
 	push	edx
 	push	ecx
@@ -3650,7 +3627,7 @@ strstrBop:
 	
 ;========================================
 
-strtokBop:
+entry strtokBop
 	;	TOS: ptr2 ptr1
 	push	edx
 	push	ecx
@@ -3668,8 +3645,8 @@ strtokBop:
 	
 ;========================================
 
-litBop:
-flitBop:
+entry litBop
+entry flitBop
 	mov	eax, [ecx]
 	add	ecx, 4
 	sub	edx, 4
@@ -3678,7 +3655,7 @@ flitBop:
 	
 ;========================================
 
-dlitBop:
+entry dlitBop
 	mov	eax, [ecx]
 	mov	ebx, [ecx+4]
 	add	ecx, 8
@@ -3689,18 +3666,9 @@ dlitBop:
 	
 ;========================================
 
-buildsBop:	; TBD
-	extOp	buildsOp
-	
-;========================================
-
-doesBop:	; TBD
-	extOp	doesOp
-	
-;========================================
-
-endBuildsBop:	; TBD
-	extOp	endBuildsOp
+	extOp	buildsBop, buildsOp
+	extOp	doesBop, doesOp
+	extOp	endBuildsBop, endBuildsOp
 	
 ;========================================
 
@@ -3748,7 +3716,7 @@ endBuildsBop:	; TBD
 ;	28		op(doExit)		(12)	(76)
 ;	76		op(%d)			(12)	()
 ;
-doDoesBop:
+entry doDoesBop
 	mov	eax, [ebp].FCore.RPtr
 	sub	edx, 4
 	mov	ebx, [eax]	; ebx points at param field
@@ -3759,77 +3727,28 @@ doDoesBop:
 	
 ;========================================
 
-exitBop:	; TBD
-	extOp	exitOp
+	extOp	exitBop, exitOp
+	extOp	semiBop, semiOp
+	extOp	colonBop, colonOp
+	extOp	codeBop, codeOp
+	extOp	createBop, createOp
+	
+	extOp	forgetBop, forgetOp
+	extOp	autoforgetBop, autoforgetOp
+	extOp	definitionsBop, definitionsOp
+	extOp	forthVocabBop, forthVocabOp
+	extOp	alsoBop, alsoOp
+	extOp	previousBop, previousOp
+	extOp	onlyBop, onlyOp
+	
+	extOp	vocabularyBop, vocabularyOp
+	extOp	variableBop, variableOp
+	extOp	constantBop, constantOp
+	extOp	dconstantBop, dconstantOp
 	
 ;========================================
 
-semiBop:	; TBD
-	extOp	semiOp
-	
-;========================================
-
-colonBop:	; TBD
-	extOp	colonOp
-	
-;========================================
-
-codeBop:	; TBD
-	extOp	codeOp
-	
-;========================================
-
-createBop:	; TBD
-	extOp	createOp
-	
-;========================================
-
-forgetBop:	; TBD
-	extOp	forgetOp
-	
-;========================================
-
-autoforgetBop:	; TBD
-	extOp	autoforgetOp
-	
-;========================================
-
-definitionsBop:	; TBD
-	extOp	definitionsOp
-	
-;========================================
-
-forthVocabBop:	; TBD
-	extOp	forthVocabOp
-	
-;========================================
-
-alsoBop:	; TBD
-	extOp	alsoOp
-	
-;========================================
-
-previousBop:	; TBD
-	extOp	previousOp
-	
-;========================================
-
-onlyBop:	; TBD
-	extOp	onlyOp
-	
-;========================================
-
-vocabularyBop:	; TBD
-	extOp	vocabularyOp
-	
-;========================================
-
-variableBop:	; TBD
-	extOp	variableOp
-	
-;========================================
-
-doVariableBop:	; TBD
+entry doVariableBop
 	; push IP
 	sub	edx, 4
 	mov	[edx], ecx
@@ -3842,12 +3761,7 @@ doVariableBop:	; TBD
 	
 ;========================================
 
-constantBop:	; TBD
-	extOp	constantOp
-	
-;========================================
-
-doConstantBop:
+entry doConstantBop
 	; push longword @ IP
 	mov	eax, [ecx]
 	sub	edx, 4
@@ -3861,12 +3775,7 @@ doConstantBop:
 	
 ;========================================
 
-dconstantBop:	; TBD
-	extOp	dconstantOp
-	
-;========================================
-
-doDConstantBop:
+entry doDConstantBop
 	; push quadword @ IP
 	mov	eax, [ecx]
 	sub	edx, 8
@@ -3882,117 +3791,34 @@ doDConstantBop:
 	
 ;========================================
 
-byteBop:	; TBD
-	extOp	byteOp
+	extOp	byteBop, byteOp
+	extOp	shortBop, shortOp
+	extOp	intBop, intOp
+	extOp	floatBop, floatOp
+	extOp	doubleBop, doubleOp
+	extOp	stringBop, stringOp
+	extOp	opBop, opOp
+	extOp	objectBop, objectOp
+	extOp	voidBop, voidOp
+	extOp	arrayOfBop, arrayOfOp
+	extOp	ptrToBop, ptrToOp
+	extOp	structBop, structOp
+	extOp	endstructBop, endstructOp
+	
+	extOp	classBop, classOp
+	extOp	endclassBop, endclassOp
+	extOp	methodBop, methodOp
+	extOp	endmethodBop, endmethodOp
+	extOp	returnsBop, returnsOp
+	extOp	doMethodBop, doMethodOp
+	extOp	implementsBop, implementsOp
+	extOp	endimplementsBop, endimplementsOp
+	extOp	unionBop, unionOp
+	extOp	extendsBop, extendsOp
 	
 ;========================================
 
-shortBop:	; TBD
-	extOp	shortOp
-	
-;========================================
-
-intBop:	; TBD
-	extOp	intOp
-	
-;========================================
-
-floatBop:	; TBD
-	extOp	floatOp
-	
-;========================================
-
-doubleBop:	; TBD
-	extOp	doubleOp
-	
-;========================================
-
-stringBop:	; TBD
-	extOp	stringOp
-	
-;========================================
-
-opBop:	; TBD
-	extOp	opOp
-	
-;========================================
-
-objectBop:	; TBD
-	extOp	objectOp
-	
-;========================================
-
-voidBop:	; TBD
-	extOp	voidOp
-	
-;========================================
-
-arrayOfBop:	; TBD
-	extOp	arrayOfOp
-	
-;========================================
-
-ptrToBop:	; TBD
-	extOp	ptrToOp
-	
-;========================================
-
-structBop:	; TBD
-	extOp	structOp
-	
-;========================================
-
-endstructBop:	; TBD
-	extOp	endstructOp
-	
-;========================================
-
-classBop:	; TBD
-	extOp	classOp
-	
-;========================================
-
-endclassBop:	; TBD
-	extOp	endclassOp
-	
-;========================================
-
-methodBop:	; TBD
-	extOp	methodOp
-	
-;========================================
-
-endmethodBop:	; TBD
-	extOp	endmethodOp
-	
-;========================================
-
-doMethodBop:	; TBD
-	extOp	doMethodOp
-	
-;========================================
-
-implementsBop:	; TBD
-	extOp	implementsOp
-	
-;========================================
-
-endimplementsBop:	; TBD
-	extOp	endimplementsOp
-	
-;========================================
-
-unionBop:	; TBD
-	extOp	unionOp
-	
-;========================================
-
-extendsBop:	; TBD
-	extOp	extendsOp
-	
-;========================================
-
-doStructBop:	; TBD
+entry doStructBop
 	; push IP
 	sub	edx, 4
 	mov	[edx], ecx
@@ -4005,7 +3831,7 @@ doStructBop:	; TBD
 
 ;========================================
 
-doStructArrayBop:
+entry doStructArrayBop
 	; TOS is array index
 	; ecx -> bytes per element, followed by element 0
 	mov	eax, [ecx]		; eax = bytes per element
@@ -4022,33 +3848,16 @@ doStructArrayBop:
 
 ;========================================
 
-doStructTypeBop:	; TBD
-	extOp	doStructTypeOp
-
-;========================================
-
-doClassTypeBop:	; TBD
-	extOp	doClassTypeOp
-
-;========================================
-
-doEnumBop:	; TBD
-	extOp	doEnumOp
-
-;========================================
-
-sizeOfBop:	; TBD
-	extOp	sizeOfOp
+	extOp	doStructTypeBop, doStructTypeOp
+	extOp	doClassTypeBop, doClassTypeOp
+	extOp	doEnumBop, doEnumOp
+	extOp	sizeOfBop, sizeOfOp
+	extOp	offsetOfBop, offsetOfOp
 	
 ;========================================
 
-offsetOfBop:	; TBD
-	extOp	offsetOfOp
-	
-;========================================
-
-thisBop:
-	mov	eax, [ebp].FCore.TVPtr
+entry thisBop
+	mov	eax, [ebp].FCore.TMPtr
 	sub	edx, 8
 	mov	[edx], eax
 	mov	eax, [ebp].FCore.TDPtr
@@ -4057,32 +3866,31 @@ thisBop:
 	
 ;========================================
 
-newBop:		; TBD
-	extOp	newOp
+entry thisDataBop
+	mov	eax, [ebp].FCore.TDPtr
+	sub	edx, 4
+	mov	[edx], eax
+	jmp	edi
 	
 ;========================================
 
-doNewBop:		; TBD
-	extOp	doNewOp
+entry thisMethodsBop
+	mov	eax, [ebp].FCore.TMPtr
+	sub	edx, 4
+	mov	[edx], eax
+	jmp	edi
 	
 ;========================================
 
-initMemberStringBop:	; TBD
-	extOp	initMemberStringOp
+	extOp	newBop, newOp
+	extOp	doNewBop, doNewOp
+	extOp	initMemberStringBop, initMemberStringOp
+	extOp	enumBop, enumOp
+	extOp	endenumBop, endenumOp
 	
 ;========================================
 
-enumBop:	; TBD
-	extOp	enumOp
-	
-;========================================
-
-endenumBop:	; TBD
-	extOp	endenumOp
-	
-;========================================
-
-doVocabBop:	; TBD
+entry doVocabBop
 	; push longword @ IP
 	mov	eax, [ecx]
 	sub	edx, 4
@@ -4096,387 +3904,286 @@ doVocabBop:	; TBD
 	
 ;========================================
 
-recursiveBop:	; TBD
-	extOp	recursiveOp
+	extOp	recursiveBop, recursiveOp
+	extOp	precedenceBop, precedenceOp
+	extOp	loadBop, loadOp
+	extOp	loadStrBop, loadStrOp
+	extOp	loadDoneBop, loadDoneOp
+	extOp	interpretBop, interpretOp
+	extOp	stateInterpretBop, stateInterpretOp
+	extOp	stateCompileBop, stateCompileOp
+	extOp	stateBop, stateOp
+	extOp	tickBop, tickOp
 	
 ;========================================
 
-precedenceBop:	; TBD
-	extOp	precedenceOp
-	
-;========================================
-
-loadBop:	; TBD
-	extOp	loadOp
-	
-;========================================
-
-loadStrBop:	; TBD
-	extOp	loadStrOp
-	
-;========================================
-
-loadDoneBop:	; TBD
-	extOp	loadDoneOp
-	
-;========================================
-
-interpretBop:	; TBD
-	extOp	interpretOp
-	
-;========================================
-
-stateInterpretBop:	; TBD
-	extOp	stateInterpretOp
-	
-;========================================
-
-stateCompileBop:	; TBD
-	extOp	stateCompileOp
-	
-;========================================
-
-stateBop:	; TBD
-	extOp	stateOp
-	
-;========================================
-
-tickBop:	; TBD
-	extOp	tickOp
-	
-;========================================
-
-executeBop:	; TBD
+entry executeBop
 	mov	eax, [edx]
 	add	edx, 4
 	jmp	interpLoopExecuteEntry
 	
 ;========================================
 
-compileBop:	; TBD
-	extOp	compileOp
-	
-;========================================
-
-bracketTickBop:	; TBD
-	extOp	bracketTickOp
-	
-;========================================
-
-printNumBop:	; TBD
-	extOp	printNumOp
-	
-;========================================
-
-printNumDecimalBop:	; TBD
-	extOp	printNumDecimalOp
-	
-;========================================
-
-printNumHexBop:	; TBD
-	extOp	printNumHexOp
-	
-;========================================
-
-printFloatBop:	; TBD
-	extOp	printFloatOp
-	
-;========================================
-
-printDoubleBop:	; TBD
-	extOp	printDoubleOp
-	
-;========================================
-
-printFormattedBop:	; TBD
-	extOp	printFormattedOp
-	
-;========================================
-
-fprintfBop:	; TBD
-	extOp	fprintfOp
-	
-;========================================
-
-sprintfBop:	; TBD
-	extOp	sprintfOp
-	
-;========================================
-
-fscanfBop:	; TBD
-	extOp	fscanfOp
-	
-;========================================
-
-sscanfBop:	; TBD
-	extOp	sscanfOp
-	
-;========================================
-
-printStrBop:	; TBD
-	extOp	printStrOp
-	
-;========================================
-
-printCharBop:	; TBD
-	extOp	printCharOp
-	
-;========================================
-
-printSpaceBop:	; TBD
-	extOp	printSpaceOp
-	
-;========================================
-
-printNewlineBop:	; TBD
-	extOp	printNewlineOp
-	
-;========================================
-
-baseBop:	; TBD
-	extOp	baseOp
-	
-;========================================
-
-decimalBop:	; TBD
-	extOp	decimalOp
-	
-;========================================
-
-hexBop:	; TBD
-	extOp	hexOp
-	
-;========================================
-
-printDecimalSignedBop:	; TBD
-	extOp	printDecimalSignedOp
-	
-;========================================
-
-printAllSignedBop:	; TBD
-	extOp	printAllSignedOp
-	
-;========================================
-
-printAllUnsignedBop:	; TBD
-	extOp	printAllUnsignedOp
-	
-;========================================
-
-outToScreenBop:	; TBD
-	extOp	outToScreenOp
-	
-;========================================
-
-outToFileBop:	; TBD
-	extOp	outToFileOp
-	
-;========================================
-
-outToStringBop:	; TBD
-	extOp	outToStringOp
-	
-;========================================
-
-outToOpBop:	; TBD
-	extOp	outToOpOp
-	
-;========================================
-
-getConOutFileBop:	; TBD
-	extOp	getConOutFileOp
-	
-;========================================
-
-fopenBop:	; TBD
-	extOp	fopenOp
-	
-;========================================
-
-fcloseBop:	; TBD
-	extOp	fcloseOp
-	
-;========================================
-
-fseekBop:	; TBD
-	extOp	fseekOp
-	
-;========================================
-
-freadBop:	; TBD
-	extOp	freadOp
-	
-;========================================
-
-fwriteBop:	; TBD
-	extOp	fwriteOp
-	
-;========================================
-
-fgetcBop:	; TBD
-	extOp	fgetcOp
-	
-;========================================
-
-fputcBop:	; TBD
-	extOp	fputcOp
-	
-;========================================
-
-feofBop:	; TBD
-	extOp	feofOp
-	
-;========================================
-
-ftellBop:	; TBD
-	extOp	ftellOp
-	
-;========================================
-
-flenBop:	; TBD
-	extOp	flenOp
-	
-;========================================
-
-systemBop:	; TBD
-	extOp	systemOp
-	
-;========================================
-
-chdirBop:	; TBD
-	extOp	chdirOp
-	
-;========================================
-
-stdinBop:	; TBD
-	extOp	stdinOp
-	
-;========================================
-
-stdoutBop:	; TBD
-	extOp	stdoutOp
-	
-;========================================
-
-stderrBop:	; TBD
-	extOp	stderrOp
-	
-;========================================
-
-dstackBop:	; TBD
-	extOp	dstackOp
-	
-;========================================
-
-drstackBop:	; TBD
-	extOp	drstackOp
-
-;========================================
-	
-vlistBop:	; TBD
-	extOp	vlistOp
-	
-;========================================
-
-DLLVocabularyBop:	; TBD
-	extOp	DLLVocabularyOp
-	
-;========================================
-
-addDLLEntryBop:	; TBD
-	extOp	addDLLEntryOp
-	
-;========================================
-
-strtimeBop:	; TBD
-	extOp	strtimeOp
-	
-;========================================
-
-strdateBop:	; TBD
-	extOp	strdateOp
-	
-;========================================
-
-millitimeBop:	; TBD
-	extOp	millitimeOp
-	
-;========================================
-
-blwordBop:	; TBD
-	extOp	blwordOp
-	
-;========================================
-
-wordBop:	; TBD
-	extOp	wordOp
-	
-;========================================
-
-commentBop:	; TBD
-	extOp	commentOp
-	
-;========================================
-
-parenCommentBop:	; TBD
-	extOp	parenCommentOp
-	
-;========================================
-
-parenIsCommentBop:	; TBD
-	extOp	parenIsCommentOp
-	
-;========================================
-
-getInBufferBaseBop:	; TBD
-	extOp	getInBufferBaseOp
-	
-;========================================
-
-getInBufferPointerBop:	; TBD
-	extOp	getInBufferPointerOp
-	
-;========================================
-
-setInBufferPointerBop:	; TBD
-	extOp	setInBufferPointerOp
-	
-;========================================
-
-getInBufferLengthBop:	; TBD
-	extOp	getInBufferLengthOp
-	
-;========================================
-
-fillInBufferBop:	; TBD
-	extOp	fillInBufferOp
-	
-;========================================
-
-turboBop:	; TBD
-	extOp	turboOp
-	
-
-;========================================
-
-statsBop:	; TBD
-	extOp	statsOp
-	
-
-;========================================
-
-describeBop:	; TBD
-	extOp	describeOp
-	
-;========================================
-
-errorBop:	; TBD
-	extOp	errorOp
-	
-;========================================
+	extOp	compileBop, compileOp
+	extOp	bracketTickBop, bracketTickOp
+	
+	extOp	printNumBop, printNumOp
+	extOp	printNumDecimalBop, printNumDecimalOp
+	extOp	printNumHexBop, printNumHexOp
+	extOp	printFloatBop, printFloatOp
+	extOp	printDoubleBop, printDoubleOp
+	extOp	printFormattedBop, printFormattedOp
+	extOp	fprintfBop, fprintfOp
+	extOp	sprintfBop, sprintfOp
+	extOp	fscanfBop, fscanfOp
+	extOp	sscanfBop, sscanfOp
+	extOp	printStrBop, printStrOp
+	extOp	printCharBop, printCharOp
+	extOp	printSpaceBop, printSpaceOp
+	extOp	printNewlineBop, printNewlineOp
+	extOp	baseBop, baseOp
+	extOp	decimalBop, decimalOp
+	extOp	hexBop, hexOp
+	
+	extOp	printDecimalSignedBop, printDecimalSignedOp
+	extOp	printAllSignedBop, printAllSignedOp
+	extOp	printAllUnsignedBop, printAllUnsignedOp
+	
+	extOp	outToScreenBop, outToScreenOp
+	extOp	outToFileBop, outToFileOp
+	extOp	outToStringBop, outToStringOp
+	extOp	outToOpBop, outToOpOp
+	extOp	getConOutFileBop, getConOutFileOp
+
+;========================================
+
+entry	fopenBop
+	push	ecx
+	mov	eax, [edx]	; pop access string
+	add	edx, 4
+	push	edx
+	push	eax
+	mov	eax, [edx]	; pop pathname string
+	push	eax
+	call	fopen
+	add		sp, 8
+	pop	edx
+	pop	ecx
+	mov	[edx], eax	; push fopen result
+	jmp	edi
+	
+;========================================
+
+entry	fcloseBop
+	push	ecx
+	mov	eax, [edx]	; pop file pointer
+	push	edx
+	push	eax
+	call	fclose
+	add	sp,4
+	pop	edx
+	pop	ecx
+	mov	[edx], eax	; push fclose result
+	jmp	edi
+	
+;========================================
+
+entry	fseekBop
+	push	ecx
+	push	edx
+	mov	eax, [edx]	; pop control
+	push	eax
+	mov	eax, [edx+4]	; pop offset
+	push	eax
+	mov	eax, [edx+8]	; pop file pointer
+	push	eax
+	call	fseek
+	add		sp, 12
+	pop	edx
+	pop	ecx
+	add	edx, 8
+	mov	[edx], eax	; push fseek result
+	jmp	edi
+	
+;========================================
+
+entry	freadBop
+	push	ecx
+	push	edx
+	mov	eax, [edx]	; pop itemSize
+	push	eax
+	mov	eax, [edx+4]	; pop numItems
+	push	eax
+	mov	eax, [edx+8]	; pop file pointer
+	push	eax
+	call	fread
+	add		sp, 12
+	pop	edx
+	pop	ecx
+	add	edx, 8
+	mov	[edx], eax	; push fread result
+	jmp	edi
+	
+;========================================
 
-addErrorTextBop:	; TBD
-	extOp	addErrorTextOp
+entry	fwriteBop
+	push	ecx
+	push	edx
+	mov	eax, [edx]	; pop itemSize
+	push	eax
+	mov	eax, [edx+4]	; pop numItems
+	push	eax
+	mov	eax, [edx+8]	; pop file pointer
+	push	eax
+	call	fwrite
+	add		sp, 12
+	pop	edx
+	pop	ecx
+	add	edx, 8
+	mov	[edx], eax	; push fwrite result
+	jmp	edi
+	
+;========================================
+
+entry	fgetcBop
+	push	ecx
+	mov	eax, [edx]	; pop file pointer
+	push	edx
+	push	eax
+	call	fgetc
+	add	sp, 4
+	pop	edx
+	pop	ecx
+	mov	[edx], eax	; push fgetc result
+	jmp	edi
+	
+;========================================
+
+entry	fputcBop
+	push	ecx
+	mov	eax, [edx]	; pop char to put
+	add	edx, 4
+	push	edx
+	push	eax
+	mov	eax, [edx]	; pop file pointer
+	push	eax
+	call	fputc
+	add		sp, 8
+	pop	edx
+	pop	ecx
+	mov	[edx], eax	; push fputc result
+	jmp	edi
+	
+;========================================
+
+entry	feofBop
+	push	ecx
+	mov	eax, [edx]	; pop file pointer
+	push	edx
+	push	eax
+	call	feof
+	add	sp, 4
+	pop	edx
+	pop	ecx
+	mov	[edx], eax	; push feof result
+	jmp	edi
+	
+;========================================
+
+entry	ftellBop
+	push	ecx
+	mov	eax, [edx]	; pop file pointer
+	push	edx
+	push	eax
+	call	ftell
+	add	sp, 4
+	pop	edx
+	pop	ecx
+	mov	[edx], eax	; push ftell result
+	jmp	edi
+	
+;========================================
+
+entry	flenBop
+	mov	[ebp].FCore.IPtr, ecx
+	mov	[ebp].FCore.SPtr, edx
+	mov	esi, [edx]	; pop file pointer
+	mov	edi, edx	; edi will hold param stack ptr
+	
+	sub	sp, 12
+	
+	; oldPos = ftell( file );
+	mov	[esp], esi
+	call	ftell	; eax is original file position
+	; TBD: check eax for ftell error
+	mov	[edi], eax	; save original file position on TOS
+	
+	; fseek( file, 0, SEEK_END );
+	mov	eax, 2
+	mov	[esp+8], eax	; SEEK_END == 2
+	xor	eax, eax
+	mov	[esp+4], eax
+	mov	[esp], esi
+	call	fseek
+	; TBD: check eax for fseek error
+
+	; fileLen = ftell( file );
+	mov	[esp], esi
+	call	ftell
+	; TBD: check eax for ftell error
+	mov	ebx, [edi]	; ebx = oldPos
+	mov	[edi], eax	; put fileLen on TOS
+
+	; fseek( file, oldPos, SEEK_SET );	
+	xor	eax, eax
+	mov	[esp+8], eax	; SEEK_SET == 0
+	mov	[esp+4], eax
+	mov	[esp], esi
+	call	fseek
+	; TBD: check eax for fseek error
+
+	add	sp, 12
+	
+	jmp	interpFunc
+	
+;========================================
+
+	extOp	systemBop, systemOp
+	extOp	chdirBop, chdirOp
+	
+	extOp	stdinBop, stdinOp
+	extOp	stdoutBop, stdoutOp
+	extOp	stderrBop, stderrOp
+	
+	extOp	dstackBop, dstackOp
+	extOp	drstackBop, drstackOp
+	extOp	vlistBop, vlistOp
+	
+	extOp	DLLVocabularyBop, DLLVocabularyOp
+	extOp	addDLLEntryBop, addDLLEntryOp
+	
+	extOp	strtimeBop, strtimeOp
+	extOp	strdateBop, strdateOp
+	extOp	millitimeBop, millitimeOp
+
+	extOp	blwordBop, blwordOp
+	extOp	wordBop, wordOp
+	extOp	commentBop, commentOp
+	extOp	parenCommentBop, parenCommentOp
+	extOp	parenIsCommentBop, parenIsCommentOp
+	
+	extOp	getInBufferBaseBop, getInBufferBaseOp
+	extOp	getInBufferPointerBop, getInBufferPointerOp
+	extOp	setInBufferPointerBop, setInBufferPointerOp
+	extOp	getInBufferLengthBop, getInBufferLengthOp
+	extOp	fillInBufferBop, fillInBufferOp
+	
+	extOp	turboBop, turboOp
+	extOp	statsBop, statsOp
+	extOp	describeBop, describeOp
+	
+	extOp	errorBop, errorOp
+	extOp	addErrorTextBop, addErrorTextOp
 	
 
 ;extern void sprintfSub( ForthCoreState* pCore );
@@ -4485,7 +4192,7 @@ addErrorTextBop:	; TBD
 
 ;========================================
 
-fprintfSubCore:
+entry fprintfSubCore
 	mov	edi, [edx]
 	add	edi, 2
 	add	edx, 4
@@ -4523,7 +4230,7 @@ fprintfSub ENDP
 
 ;========================================
 
-sprintfSubCore:
+entry sprintfSubCore
 	mov	edi, [edx]
 	add	edi, 2
 	add	edx, 4
@@ -4561,7 +4268,7 @@ sprintfSub ENDP
 
 ;========================================
 
-fscanfSubCore:
+entry fscanfSubCore
 	mov	edi, [edx]
 	add	edi, 2
 	add	edx, 4
@@ -4599,7 +4306,7 @@ fscanfSub ENDP
 
 ;========================================
 
-sscanfSubCore:
+entry sscanfSubCore
 	mov	edi, [edx]
 	add	edi, 2
 	add	edx, 4
@@ -4671,7 +4378,7 @@ CallDLL2:
 CallDLLRoutine ENDP
 
 ;========================================
-dllEntryPointType:
+entry dllEntryPointType
 	mov	[ebp].FCore.IPtr, ecx
 	mov	[ebp].FCore.SPtr, edx
 	mov	eax, ebx
@@ -4694,7 +4401,7 @@ dllEntryPointType:
 	pop	ebp
 	jmp	interpFunc
 
-opTypesTable:
+entry opTypesTable
 ; TBD: check the order of these
 ; TBD: copy these into base of ForthCoreState, fill unused slots with badOptype
 ;	00 - 09
@@ -4728,8 +4435,8 @@ opTypesTable:
 	DD	FLAT:localRefType			; kOpLocalRef,
 	DD	FLAT:initLocalStringType	; kOpInitLocalString, 
 	DD	FLAT:localStructArrayType	; kOpLocalStructArray,
-	DD	FLAT:badOpcode	
-	DD	FLAT:badOpcode	
+	DD	FLAT:offsetFetchType		; kOpOffsetFetch,          
+	DD	FLAT:memberRefType			; kOpMemberRef,	
 
 ;	30 - 39
 	DD	FLAT:localByteType
@@ -5058,6 +4765,7 @@ opsTable:
 	DD	FLAT:endclassBop
 	DD	FLAT:methodBop
 	DD	FLAT:endmethodBop
+	DD	FLAT:returnsBop
 	DD	FLAT:doMethodBop
 	DD	FLAT:implementsBop
 	DD	FLAT:endimplementsBop
@@ -5066,6 +4774,8 @@ opsTable:
 	DD	FLAT:sizeOfBop
 	DD	FLAT:offsetOfBop
 	DD	FLAT:thisBop
+	DD	FLAT:thisDataBop
+	DD	FLAT:thisMethodsBop
 	DD	FLAT:newBop
 	DD	FLAT:initMemberStringBop
 	DD	FLAT:enumBop

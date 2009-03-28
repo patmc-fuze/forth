@@ -203,8 +203,8 @@ storageType:	none, single, array
 bool	isPtr
 bool	isNative
 long	dataType
-		for natives, a forthNativeType
-		for structs, struct index from ForthStructsManager
+		for natives, a forthBaseType
+		for structs, struct index from ForthTypesManager
 int		numElements (0 means not an array)
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-

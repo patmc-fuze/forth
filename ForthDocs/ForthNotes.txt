@@ -8,6 +8,10 @@ TBDs:
 ! document existing native ops !
 ! create examples/tests for all native ops !
 
+- only allow "implements" to be used on abstract interfaces (no data members) - this
+  will avoid the problem with accessing data members on secondary interface objects
+  which have different data members...
+
 - add support for iterating over files in directories
 
 ? add a debug feature where a map is maintained from IP address to file/lineNumber
@@ -74,9 +78,7 @@ TBDs:
   Problem: forward referencing breaks "forget"
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-In a cygwin shell:
-
-cd /cygdrive/e/pat/prj/forth
+In a DOS shell:
 
 cvs checkout DIR
 	fetch a project or directory from cvs
@@ -103,9 +105,315 @@ cvs log FILENMAE
 colonOp
  ForthEngine::StartOpDefinition
   ForthVocabulary::AddSymbol
-   ForthEngine::AddUserOp
+   ForthEngine::AddOp
 
 
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Gotchas with structure and object support:
+
+1) pointer fields are automatically dereferenced in field selectors, except
+   for the final field:    "5 -> woof.pointerToInt" will set the pointerToInt
+   field to 5, it will not set the int pointerToInt points at.
+2) varAction ops must be the symbol just before a field selector symbol, which
+   means that index calculation ops must appear before the varAction op
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 27 2009
+
+I started putting in support for builtin classes, then I realized I hadn't
+put stuff in CVS in a while
+
+Right now when switching in and out of turbo mode the opType dispatch table
+and builtinOps tables in the forth core are re-initialized - I think it would
+be better to have copies of asm and c versions of the tables in the core
+that were initialized once.
+
+- get stuff to compile with partially done builtin class support
+- bring CVS up to date
+- have asm and c modes use separate tables in forth core
+- replace the extOp macro with a single asm routine that grabs the c routine
+  address from the c builtinOps table
+? maybe move the majority of c-only ops to the end of the builtinOps table
+  and allow the size of the asm table to be smaller
+  builtinOps tables
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 26 2009
+
+More fiddling with dynamic dialog creation.
+
+There is a fair amount of functionality in the CWnd class that would be useful
+to have available to derived controls - setting position, label text, styles
+and so on.  The most convenient thing to do would probably to define a set of
+forth classes corresponding to CWnd and the derived controls.  This would
+require creating built-in classes, something I haven't done yet.
+
+While working on ForthEngine::AddBuiltinClass I noticed that overwriting a
+method probably adds a redundant symbol to its class.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 24 2009
+
++ Fixed boundary cases for assembler comparison ops - this should fix "dump".
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 21 2009
+
+Started fiddling with dynamic dialog creation.
+
+Some simple controls could be handled by just adding a OnCmdMsg handler to the
+top level generic dialog.
+
+----------
+Step 1 - Static text control
+CStatic* pStatic = new CStatic;
+pStatic->Create( "some text",
+                 WS_CHILD | WS_VISIBLE | SS_CENTER,
+                 CRect(10,100,100,130),
+                 pDialogWnd,
+                 controlId );
+
+----------
+Step 2 - Pushbuttons
+CButton* pButton = new CButton;
+pButton->Create( "button text",
+                 WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                 CRect(10,100,100,130),
+                 pDialogWnd,
+                 controlId );
+pButton->SetWindowText( "Woohoo!" );
+Other button types:
+	BS_PUSHBUTTON
+	BS_RADIOBUTTON
+	BS_AUTO3STATE
+	BS_AUTOCHECKBOX
+	BS_AUTORADIOBUTTON
+	BS_CHECKBOX
+	BS_RADIOBUTTON
+	BS_3STATE 
+
+I'm not sure what would be involved with doing radio buttons in terms of
+grouping them.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 17 2009
+
+Need a way for a class to return secondary interfaces...
+- implement a generic queryInterface class method
+- require individual classes to implement explicit "getInterfaceX" methods
+
+Inside secondary interface methods, how can methods from other interfaces be
+accessed?  Possible approaches:
+
+1) they can't - that is what is currently implemented - you could still do it
+   manually by creating local objects with the appropriate methods/data pair
+
+2) concatenate all interface vtables, the method number is relative
+   to current interface, negative values and numbers larger than the current
+   interface method count would refer to methods in other interfaces of this
+   class - actually, you would only need negatives, since you could only refer
+   to methods defined in previously defined interfaces
+   -> that would require that all the methods for each interface are specified
+      in one shot - you couldn't define some primary interface methods, then
+      implement a secondary interface, then add some more primary interface methods
+
+3) when a cross-interface method is compiled, it is compiled as code which pushes
+   the object pointer pair for the target interface and then uses the MethodWithTOS
+   opcode type to invoke the method
+   
+I decided to try out the assembler again, I found that it works, there is a
+problem where some ops leave crap on stack when they are done - in particular,
+the "next," op leaves 2 zeroes.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 16 2009
+
+Methods returning an object as a non-final selector works...
+
+Stuff to do:
+- class/struct support
+  - "implements" & "queryInterface"
+  - class methods - new/delete/queryInterface/show/
+  ? have all classes derive from a base "object" class
+  - struct accessor optimizer
+- testing
+  - more tests of datatypes: locals, structs, classes
+  - more automated tests of core forth stuff
+- sample block ops
+- GUI app support
+- assembler documentation and test
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 14 2009
+
+Been off doing other things...
+Starting debugging methods which aren't final selectors - I really still need
+to define how methods as final selectors work, in particular if the return
+value is an array - should I be compiling an array accessor, and should it
+use varAction?
+o if you want to have varAction work on data inside an object, use an object
+  data member as an accessor, not a method
+o you can have methods use varAction if you want to code it that way
+o when final selector is a method, do nothing about method return type
+  ? it feels inconsistent/broken to allow array indexing to be done on non-final
+    selectors but not on final selectors...
+o a non-final method selector whose base type is byte/short/int/float/double is illegal
+! maybe the right choice is to only allow "returns" to take a struct/class type,
+  with no ptrTo or arrayOf modifiers.  This is actually the most flexible choice,
+  since the method could take an index argument if an array is involved
+  
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 7 2009
+
++ made turbo versions of most of the file operations
+
++ made turbo versions of doExitMOp and doExitMLOp - the rstack underflow
+  checking doesn't seem to be working, though
+-> fixed
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 5 2009
+
+Try loading foo.txt in non-turbo mode, switch to turbo, then do "addressOf kk kookoo",
+switch back to non-turbo and repeat - the namb and numb fields of kk were modified
+by reading or printing them from turbo mode...
+
+-> the problem was that the turbo version of dfetch was badly broken
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 3 2009
+
+Bugfixing struct and class stuff.
+
+An unrelated bug: if you do "dump" in turbo mode, it displays a different
+number of rows of output - it looks like there is one extra row, as long as
+the last expected row...
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 2 2009
+
+Ugh, my graphics card died yesterday, killing a day.
+
+There is a memory trash bug, it is triggered by LocalIntArray, but I think it
+is because the opVal coming in is 0x2004, when it should probably be 4.
+-> fixed
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 28 2009
+
+The basic class support seems to be working - I haven't tested many combinations
+of member accessors, but I can access members of local and global objects,
+including arrays and pointers, and I can invoke methods on objects.
+
+There are crashes running class stuff in turbo mode.
+
+One thing I don't think I implemented is allowing field accessors or methods
+on member variables.
+
+I added "returns" op, it doesn't work at the moment.
+
+If you start forth, run structtest.txt, then do "bye", there is a crash
+while trying to delete the parameter stack of the current thread.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 27 2009
+
+First field code for object accessors:
+
++ gobj1.blah					global object
+	gobj1			doObject drop
++ pgobj1.blah					global ptrTo object
+	gobj1			doInt d@ drop
++ 1 gaobj1.blah					global object array
+	gaobj1			doObjectArray drop
++ 1 gapobj1.blah				global ptrTo object array
+	gapobj1			doIntArray d@ drop
+
++ lobj1.blah					local object
+					LocalObject drop
++ plobj1.blah					global ptrTo object
+	gobj1			LocalInt d@ drop
++ 1 laobj1.blah					local object array
+	laobj1			LocalObjectArray drop
++ 1 lapobj1.blah				local ptrTo object array
+	lapobj1			LocalIntArray d@ drop
+
+Most of the broken ones are pointer types - they are all missing the d@.
+
+If we implemented an opcode which added an offset to TOS and then did a fetch,
+that could replace the "d@ drop", and could also be useful in struct accessors
+whenever a pointer field was used - these usually compile into (offset(N), @).
+-> But you don't know if you should use offsetFetch until you process the next
+   field, since if it is a method you need both pointers on TOS
+   -> There should be a final optimization step
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 26 2009
+
+There is a problem with local and global ptrTo array implementation - an intArray
+is used, and the intArray will use the varAction which is meant for the field code...
+For example:
+	5 -> 4 pFoo.A
+compiles into
+	lit 5
+	->
+	lit 4
+	_doIntArray(pFoo)
+	FieldInt(A)
+and the varAction set by "->" is used by _doIntArray, not FieldInt.  The code
+which compiles field accesses does handle the case where the varAction symbol
+is just before the field accessor, but in array access cases the array index
+calculating op(s) are usually just before the field accessor.
+
+There is also a general problem with the varAction being consumed accidentally
+if there are any variables used in calculating the array index.
+The general (ugly) solution to this problem is to require that the varAction
+op be placed just before the field accessor:
+	"5 -> 4 pFoo.A"		is replaced with	"5 4 -> pFoo.A"
+
+A better workaround might be to use parens:
+	5 ->( 4 ) pFoo.A
+This looks silly in this case, but might help with cases where the index
+calculation uses variables...
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 25 2009
+
++ added "lsize" - number of longwords in local variables
++ added "dlocals" - displays local variables
+
+Ran into some crashes while testing class support, writing tests to check both
+struct and class support.
+-> all local arrays were allocating 0 bytes because ForthEngine::SetArraySize
+   wasn't being called before calling ForthEngine::AddLocalVar and ForthEngine::AddLocalArray
+   
+First field code for struct accessors:
++ gstr1.blah					global struct
+	gstr1			doStruct
++ pgstr1.blah					global ptrTo struct
+	pgstr1			doInt
++ 1 gastr1.blah					global struct array
+	gastr1			doStructArray
++ 1 gapstr1.blah				global ptrTo struct array
+	gapstr1			doIntArray
+	
++ lstr1.blah					local struct
+	lstr1			LocalRef
++ plstr1.blah					local ptrTo struct
+	plstr1			LocalInt
++ 1 lastr1.blah					local struct array
+	lastr1			LocalStructArray
++ 1 lapstr1.blah				local ptrTo struct array
+	lapstr1			LocalIntArray
+	
+Here is what the rstack should look like when local variables are defined:
+
+ok> : woo hex drstack int aa int bb int cc drstack 5 -> aa 7 -> bb 9 -> cc drstack ;
+ok> woo
+rstack: 12f844
+rstack: 1 3 7 0 12f844
+rstack: 9 7 5 0 12f844
+The top 3 elements are the 3 local int variables, next is the old frame pointer,
+and last is the return IP from woo.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 February 24 2009
@@ -116,6 +424,28 @@ February 24 2009
 Ugh, some of the code assumes object variables have the native flag set,
 other parts of the code require that object variables have the native flag
 clear...
+
+Why didn't I just have a typeCode bit for "array" - why is there a 2-bit
+storage type field with choices none/single/array/illegal?  What does it mean
+to have a storage type of none?
+-> "none" had been used by enum opcodes to help with a problem with forgetting
+   enums, but that had been made obsolete a while ago
+
+I changed the typeCode around to have:
+o bottom 4 bits are baseType
+  o baseType are the old native types, plus struct
+    o object is a baseType, but it is no longer a native
+o isArray is a separate bit, there is no idea of single/none/illegal
+o the top 24 bits is the stringLen/structIndex/classIndex
+? Are there any changes needed in the assembler code, or is all the typeCode
+  stuff always handled by the outer interpreter or C++ only code?
+
+The field accessor stuff will need to be changed, some of it is still treating
+object fields as native...
+
+o changed ForthStructsManager to ForthTypesManager
+o changed ForthStructInfo to ForthTypeInfo
+o changed most uses of Native to BaseType
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 February 23 2009
@@ -712,7 +1042,7 @@ reason I changed the GET_ENGINE macro to use the singleton, but most cases
 where it is used the code already has access to the engine, for example forthops
 can get the engine from the forth core state.
 For now, I am just clearing the engine global instance pointer inside the engine
-destructor.  I also had to do this in the ForthStructsManager, which also used
+destructor.  I also had to do this in the ForthTypesManager, which also used
 a singleton.
 I think the idea was that there should only ever be one engine object.
 

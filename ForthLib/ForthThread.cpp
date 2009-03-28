@@ -8,7 +8,11 @@
 
 // this is the number of extra longs to allocate at top and
 //    bottom of stacks
+#ifdef CHECK_GAURD_AREAS
+#define GAURD_AREA 64
+#else
 #define GAURD_AREA 4
+#endif
 
 extern "C" {
     extern void consoleOutToFile( ForthCoreState   *pCore,  const char       *pMessage );
@@ -36,7 +40,18 @@ ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnS
     mState.RB += GAURD_AREA;
     mState.RT = mState.RB + mState.RLen;
 
-	pEngine->ResetConsoleOut( &mState );
+#ifdef CHECK_GAURD_AREAS
+    long checkVal = 0x03020100;
+    for ( int i = 0; i < 64; i++ )
+    {
+        mState.SB[i - GAURD_AREA] = checkVal;
+        mState.RB[i - GAURD_AREA] = checkVal;
+        mState.ST[i] = checkVal;
+        mState.RT[i] = checkVal;
+        checkVal += 0x04040404;
+    }
+#endif
+    pEngine->ResetConsoleOut( &mState );
 
     Reset();
 }
@@ -47,13 +62,43 @@ ForthThread::~ForthThread()
     delete [] (mState.RB - GAURD_AREA);
 }
 
+#ifdef CHECK_GAURD_AREAS
+bool
+ForthThread::CheckGaurdAreas( void )
+{
+    long checkVal = 0x03020100;
+    bool retVal = false;
+    for ( int i = 0; i < 64; i++ )
+    {
+        if ( mState.SB[i - GAURD_AREA] != checkVal )
+        {
+            return true;
+        }
+        if ( mState.RB[i - GAURD_AREA] != checkVal )
+        {
+            return true;
+        }
+        if ( mState.ST[i] != checkVal )
+        {
+            return true;
+        }
+        if ( mState.RT[i] != checkVal )
+        {
+            return true;
+        }
+        checkVal += 0x04040404;
+    }
+    return false;
+}
+#endif
+
 void
 ForthThread::Reset( void )
 {
     mState.SP = mState.ST;
     mState.RP = mState.RT;
     mState.FP = NULL;
-    mState.TPV = NULL;
+    mState.TPM = NULL;
     mState.TPD = NULL;
 
     mState.error = kForthErrorNone;
@@ -75,7 +120,7 @@ ForthThread::Activate( ForthCoreState* pCore )
     pCore->RT       = mState.RT;
     pCore->RLen     = mState.RLen;
     pCore->FP       = mState.FP;
-    pCore->TPV      = mState.TPV;
+    pCore->TPM      = mState.TPM;
     pCore->TPD      = mState.TPD;
     pCore->varMode  = mState.varMode;
     pCore->state    = mState.state;
@@ -90,7 +135,7 @@ void ForthThread::Deactivate( ForthCoreState* pCore )
     mState.SP = pCore->SP;
     mState.RP = pCore->RP;
     mState.FP = pCore->FP;
-    mState.TPV = pCore->TPV;
+    mState.TPM = pCore->TPM;
     mState.TPD = pCore->TPD;
     // NOTE: we don't copy ST, SLen, RT & RLen back into thread - they should not change
     mState.varMode = (varOperation) (pCore->varMode);
