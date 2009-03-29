@@ -362,7 +362,6 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
         // do "method:"
         const char* pMethodName = pEntries->name;
         StartOpDefinition( pMethodName, false );
-        // switch to compile mode
         long* pEntry = pVocab->GetNewestEntry();
         // pEntry[0] is initially the opcode for the method, now we replace it with the method index,
         //  and put the opcode in the method table
@@ -871,7 +870,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs )
 
             case kOpBuiltIn:
             case kOpBuiltInImmediate:
-                if ( opVal < NUM_TRACEABLE_OPS ) {
+                if ( (opVal < NUM_TRACEABLE_OPS) && (gOpNames[opVal] != NULL) ) {
                     // traceable built-in op
                     switch( opVal )
                     {
@@ -893,7 +892,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs )
                     }
                 } else {
                     // op we don't have name pointer for
-                    sprintf( pBuffer, "%s", opTypeNames[opType] );
+                    sprintf( pBuffer, "%s(%d)", opTypeNames[opType], opVal );
                 }
                 break;
             

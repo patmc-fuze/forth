@@ -12,7 +12,6 @@
 #include "ForthVocabulary.h"
 #include "ForthClass.h"
 
-extern baseDictEntry baseDict[];
 
 extern "C" {
 
@@ -2038,12 +2037,15 @@ OPTYPE_ACTION( MemberObjectArrayAction )
 
 OPTYPE_ACTION( BuiltinAction )
 {
-    // op is normal user-defined, push IP on rstack, lookup new IP
-    //  in table of user-defined ops
-    if ( opVal < GET_NUM_USER_OPS ) {
-        RPUSH( (long) GET_IP );
-        SET_IP( USER_OP_TABLE[opVal] );
-    } else {
+    ForthOp opRoutine;
+    // op is builtin
+    if ( opVal < pCore->numBuiltinOps )
+    {
+        opRoutine = pCore->builtinOps[opVal];
+        opRoutine( pCore );
+    }
+    else
+    {
         SET_ERROR( kForthErrorBadOpcode );
     }
 }
@@ -2511,22 +2513,11 @@ InnerInterpreter( ForthCoreState *pCore )
         SET_IP( pIP );
         opType = FORTH_OP_TYPE( op );
         opVal = FORTH_OP_VALUE( op );
-        if ( (opType == kOpBuiltIn) || (opType == kOpBuiltInImmediate) )
-        {
-            if ( opVal < numBuiltinOps ) {
-                builtinOp[ opVal ]( pCore );
-            } else {
-                SET_ERROR( kForthErrorBadOpcode );
-            }
-        }
-        else
-        {
-            pCore->optypeAction[ (int) opType ]( pCore, opVal );
-        }
+        pCore->optypeAction[ (int) opType ]( pCore, opVal );
     }
 
     return GET_STATE;
 }
 
 
-};      // end ex
+};      // end extern "C"
