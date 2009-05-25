@@ -1,15 +1,10 @@
+#pragma once
 //////////////////////////////////////////////////////////////////////
 //
 // ForthEngine.h: interface for the ForthEngine class.
 //
 //////////////////////////////////////////////////////////////////////
 
-#if !defined(_FORTH_ENGINE_H_INCLUDED_)
-#define _FORTH_ENGINE_H_INCLUDED_
-
-#if _MSC_VER > 1000
-#pragma once
-#endif // _MSC_VER > 1000
 
 #include <sys/types.h>
 #include <sys/timeb.h>
@@ -72,7 +67,7 @@ public:
     long            AddUserOp( const char *pSymbol, bool smudgeIt=false );
     void            AddBuiltinOps( baseDictEntry *pEntries );
 
-    ForthClassVocabulary*   AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseDictEntry *pEntries );
+    ForthClassVocabulary*   AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseMethodEntry *pEntries );
 
     // forget the specified op and all higher numbered ops, and free the memory where those ops were stored
     void            ForgetOp( ulong opNumber );
@@ -215,7 +210,7 @@ protected:
     long *          mpLocalAllocOp;
     char *          mpErrorString;  // optional error information from shell
 
-    ForthTypesManager *mpStructsManager;
+    ForthTypesManager *mpTypesManager;
 
     interpreterExtensionRoutine *mpInterpreterExtension;
 
@@ -228,13 +223,13 @@ protected:
     consoleOutRoutine   mDefaultConsoleOut;
 	void*				mpDefaultConsoleOutData;
 
+#ifdef _WINDOWS
     struct _timeb   mStartTime;
+#else
+    struct timeb    mStartTime;
+#endif
 
     static ForthEngine* mpInstance;
     bool            mFastMode;
 };
 
-
-
-
-#endif

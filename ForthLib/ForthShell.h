@@ -1,15 +1,9 @@
+#pragma once
 //////////////////////////////////////////////////////////////////////
 //
 // ForthShell.h: interface for the ForthShell class.
 //
 //////////////////////////////////////////////////////////////////////
-
-#if !defined(_FORTH_SHELL_H_INCLUDED_)
-#define _FORTH_SHELL_H_INCLUDED_
-
-#if _MSC_VER > 1000
-#pragma once
-#endif // _MSC_VER > 1000
 
 #include "ForthEngine.h"
 #include "ForthInput.h"
@@ -169,4 +163,3 @@ protected:
     char                    mErrorString[ 128 ];
 };
 
-#endif

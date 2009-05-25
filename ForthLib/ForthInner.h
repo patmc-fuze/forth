@@ -1,15 +1,9 @@
+#pragma once
 //////////////////////////////////////////////////////////////////////
 //
 // ForthInner.h: inner interpreter state
 //
 //////////////////////////////////////////////////////////////////////
-
-#if !defined(_FORTH_INNER_H_INCLUDED_)
-#define _FORTH_INNER_H_INCLUDED_
-
-#if _MSC_VER > 1000
-#pragma once
-#endif // _MSC_VER > 1000
 
 #include "Forth.h"
 
@@ -68,10 +62,12 @@ struct ForthThreadState
 
 struct ForthCoreState
 {
-    optypeActionRoutine  optypeAction[ 256 ];
+    optypeActionRoutine  *optypeAction;
 
     ForthOp             *builtinOps;
     ulong               numBuiltinOps;
+
+    ulong               numAsmBuiltinOps;
 
     long                **userOps;
     ulong               numUserOps;
@@ -117,8 +113,10 @@ struct ForthCoreState
 
 
 extern eForthResult InnerInterpreter( ForthCoreState *pCore );
+#ifdef _ASM_INNER_INTERPRETER
 extern eForthResult InnerInterpreterFast( ForthCoreState *pCore );
-extern InitAsmTables( ForthCoreState *pCore );
+extern void InitAsmTables( ForthCoreState *pCore );
+#endif
 
 void InitDispatchTables( ForthCoreState* pCore );
 void InitCore( ForthCoreState* pCore );
@@ -208,4 +206,3 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 
 };      // end extern "C"
 
-#endif

@@ -85,30 +85,31 @@ kOpUserMethods		EQU		128t
 
 
 ForthCoreState		STRUCT 2t
-optypeAction		DWORD		256t DUP (?)
-builtinOps		DWORD		?
+optypeAction		DWORD		?
+builtinOps			DWORD		?
 numBuiltinOps		DWORD		?
-userOps		DWORD		?
-numUserOps		DWORD		?
-maxUserOps		DWORD		?
-pEngine		DWORD		?
-pThread		DWORD		?
-IPtr		DWORD		?
-SPtr		DWORD		?
-RPtr		DWORD		?
-FPtr		DWORD		?
-TMPtr		DWORD		?
-TDPtr		DWORD		?
-varMode		DWORD		?
-state		DWORD		?
-error		DWORD		?
-STPtr		DWORD		?
-SLen		DWORD		?
-RTPtr		DWORD		?
-RLen		DWORD		?
-DP			DWORD		?
-DBase		DWORD		?
-DLen		DWORD		?
+numAsmBuiltinOps	DWORD		?
+userOps				DWORD		?
+numUserOps			DWORD		?
+maxUserOps			DWORD		?
+pEngine				DWORD		?
+pThread				DWORD		?
+IPtr				DWORD		?
+SPtr				DWORD		?
+RPtr				DWORD		?
+FPtr				DWORD		?
+TMPtr				DWORD		?
+TDPtr				DWORD		?
+varMode				DWORD		?
+state				DWORD		?
+error				DWORD		?
+STPtr				DWORD		?
+SLen				DWORD		?
+RTPtr				DWORD		?
+RLen				DWORD		?
+DP					DWORD		?
+DBase				DWORD		?
+DLen				DWORD		?
 ForthCoreState		ENDS
 
 ; End of file core.h

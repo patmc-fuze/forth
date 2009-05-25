@@ -1,19 +1,13 @@
+#pragma once
 //////////////////////////////////////////////////////////////////////
 //
 // ForthStructs.h: support for user-defined structures
 //
 //////////////////////////////////////////////////////////////////////
 
-#if !defined(_FORTH_STRUCTS_H_INCLUDED_)
-#define _FORTH_STRUCTS_H_INCLUDED_
-
-#if _MSC_VER > 1000
-#pragma once
-#endif // _MSC_VER > 1000
-
 #include "Forth.h"
 #include "ForthForgettable.h"
-#include <afxtempl.h>
+#include <vector>
 
 class ForthEngine;
 class ForthStructVocabulary;
@@ -49,7 +43,7 @@ public:
 	long					GetNumAbstractMethods();
 protected:
 	ForthClassVocabulary*	mpDefiningClass;
-	CArray<long>			mMethods;
+    std::vector<long>		mMethods;
 	long					mNumAbstractMethods;
 };
 
@@ -69,6 +63,8 @@ public:
 
     // compile symbol if it is a class member variable or method
     virtual bool    ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
+
+    void            AddBuiltinClasses( ForthEngine* pEngine );
 
     // add a new structure type
     ForthStructVocabulary*          StartStructDefinition( const char *pName );
@@ -171,7 +167,7 @@ protected:
 	long                        mNumAbstractMethods;
     long                        mCurrentInterface;
 	ForthClassVocabulary*       mpParentClass;
-	CArray<ForthInterface *>	mInterfaces;
+	std::vector<ForthInterface *>	mInterfaces;
 };
 
 class ForthBaseType
@@ -200,4 +196,3 @@ protected:
 
 extern ForthBaseType gBaseTypeByte, gBaseTypeShort, gBaseTypeInt, gBaseTypeFloat, gBaseTypeDouble, gBaseTypeString, gBaseTypeOp, gBaseTypeObject;
 
-#endif

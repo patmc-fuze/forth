@@ -215,16 +215,20 @@ ForthShell::InterpretLine( const char *pSrcLine )
         if ( !bLineEmpty )
 		{
 
+#ifdef _WINDOWS
             try
+#endif
             {
                 result = mpEngine->ProcessToken( &parseInfo );
                 CHECK_STACKS( mpEngine->GetCurrentThread() );
             }
+#ifdef _WINDOWS
             catch(...)
             {
                 result = kResultException;
                 mpEngine->SetError( kForthErrorException );
             }
+#endif
             if ( result == kResultOk )
 			{
                 result = mpEngine->CheckStacks();

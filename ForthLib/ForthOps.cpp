@@ -5,9 +5,13 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
+#ifdef _WINDOWS
 #include <conio.h>
 #include <direct.h>
 #include <io.h>
+#endif
+#include <ctype.h>
+#include <time.h>
 #include <sys\timeb.h>
 #include "Forth.h"
 #include "ForthEngine.h"
@@ -1561,7 +1565,6 @@ FORTHOP( strtokOp )
 
 FORTHOP( initStringOp )
 {
-    ForthEngine *pEngine = GET_ENGINE;
     long len;
     long* pStr;
 
@@ -1577,7 +1580,6 @@ FORTHOP( initStringOp )
 FORTHOP( initStringArrayOp )
 {
     // TOS: ptr to first char of first element, maximum length, number of elements
-    ForthEngine *pEngine = GET_ENGINE;
     long len, nLongs;
     long* pStr;
     int i, numElements;
@@ -1892,6 +1894,9 @@ FORTHOP( vlistOp )
         depth++;
     }
     CONSOLE_STRING_OUT( "\n" );
+    CONSOLE_STRING_OUT( "definitions vocab: " );
+    CONSOLE_STRING_OUT( pEngine->GetDefinitionVocabulary()->GetName() );
+    CONSOLE_STRING_OUT( "\n" );
     depth = 0;
     while ( !quit )
     {
@@ -1906,6 +1911,17 @@ FORTHOP( vlistOp )
         depth++;
     }
 }
+
+FORTHOP( findOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthVocabulary* pVocab = pEngine->GetVocabularyStack()->GetTop();
+
+    char *pSymbol = (char *) (SPOP);
+    long* pEntry = pVocab->FindSymbol( pSymbol );
+    SPUSH( ((long) pEntry) );
+}
+
 
 FORTHOP( variableOp )
 {
@@ -2867,11 +2883,70 @@ FORTHOP( printFormattedOp )
     CONSOLE_STRING_OUT( buff );
 }
 
+#ifdef _WINDOWS
 extern long fprintfSub( ForthCoreState* pCore );
 extern long sprintfSub( ForthCoreState* pCore );
 extern long fscanfSub( ForthCoreState* pCore );
 extern long sscanfSub( ForthCoreState* pCore );
+#else
 
+long fprintfSub( ForthCoreState* pCore )
+{
+    int a[8];
+    // TBD: assert if numArgs > 8
+    long numArgs = SPOP;
+    for ( int i = numArgs - 1; i >= 0; --i )
+    {
+        a[i] = SPOP;
+    }
+    const char* fmt = (const char *) SPOP;
+    FILE* outfile = (FILE *) SPOP;
+    return fprintf( outfile, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
+}
+
+long sprintfSub( ForthCoreState* pCore )
+{
+    int a[8];
+    // TBD: assert if numArgs > 8
+    long numArgs = SPOP;
+    for ( int i = numArgs - 1; i >= 0; --i )
+    {
+        a[i] = SPOP;
+    }
+    const char* fmt = (const char *) SPOP;
+    char* outbuff = (char *) SPOP;
+    return sprintf( outbuff, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
+}
+
+long fscanfSub( ForthCoreState* pCore )
+{
+    void* a[8];
+    // TBD: assert if numArgs > 8
+    long numArgs = SPOP;
+    for ( int i = numArgs - 1; i >= 0; --i )
+    {
+        a[i] = (void *) SPOP;
+    }
+    const char* fmt = (const char *) SPOP;
+    FILE* infile = (FILE *) SPOP;
+    return fscanf( infile, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
+}
+
+long sscanfSub( ForthCoreState* pCore )
+{
+    void* a[8];
+    // TBD: assert if numArgs > 8
+    long numArgs = SPOP;
+    for ( int i = numArgs - 1; i >= 0; --i )
+    {
+        a[i] = (void *) SPOP;
+    }
+    const char* fmt = (const char *) SPOP;
+    char* inbuff = (char *) SPOP;
+    return sscanf( inbuff, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
+}
+
+#endif
 
 FORTHOP( fprintfOp )
 {
@@ -3101,6 +3176,7 @@ FORTHOP( flenOp )
     SPUSH( result );
 }
 
+#ifdef _WINDOWS
 FORTHOP( systemOp )
 {
     NEEDS(1);
@@ -3226,6 +3302,7 @@ FORTHOP( chdirOp )
     int result = chdir( (const char *) SPOP );
     SPUSH( result );
 }
+#endif
 
 
 
@@ -3330,6 +3407,8 @@ FORTHOP( describeOp )
     }
 }
 
+#ifdef _WINDOWS
+
 FORTHOP( DLLVocabularyOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
@@ -3364,6 +3443,8 @@ FORTHOP( addDLLEntryOp )
     ulong numArgs = SPOP;
     pVocab->AddEntry( pProcName, numArgs );
 }
+
+#endif
 
 FORTHOP( blwordOp )
 {
@@ -3413,7 +3494,7 @@ FORTHOP( parenCommentOp )
 {
     NEEDS( 0 );
     ForthShell *pShell = GET_ENGINE->GetShell();
-	char *pSrc = pShell->GetToken( ')' );
+	pShell->GetToken( ')' );
 }
 
 // fake variable used to turn on/off old-style paren comments mode
@@ -3486,25 +3567,31 @@ FORTHOP( addErrorTextOp )
     pEngine->AddErrorText( (char *) (SPOP) );
 }
 
-FORTHOP( strtimeOp )
+FORTHOP( timeOp )
 {
-    _strtime( (char *) (SPOP) );
+    time_t rawtime;
+    time ( &rawtime );
+    DPUSH( *((double *) &rawtime) );
 }
 
-FORTHOP( strdateOp )
+FORTHOP( strftimeOp )
 {
-    _strdate( (char *) (SPOP) );
+    double dtime = DPOP;
+    time_t rawtime = *((time_t*) &dtime);
+    struct tm * timeinfo;
+    const char* fmt = (const char *)(SPOP);
+    size_t bufferSize = (size_t)(SPOP);
+    char* buffer = (char *)(SPOP);
+
+    timeinfo = localtime ( &rawtime );
+    // Www Mmm dd yyyy (weekday, month, day, year)
+    strftime( buffer, bufferSize, fmt, timeinfo);
 }
 
 FORTHOP( millitimeOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     SPUSH( (long) pEngine->GetElapsedTime() );
-}
-
-void AddBuiltinClasses( ForthEngine* pEngine )
-{
-    // TBD: add all builtin classes
 }
 
 #define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func }
@@ -3594,6 +3681,25 @@ baseDictEntry baseDict[] =
     OP(     dfetchOp,               "d@" ),
 
     // stuff below this line can be rearranged
+    OP(     thisOp,                 "this" ),
+    OP(     thisDataOp,             "thisData" ),
+    OP(     thisMethodsOp,          "thisMethods" ),
+    OP(     executeOp,              "execute" ),
+    OP(     callOp,                 "call" ),
+    OP(     gotoOp,                 "goto" ),
+    OP(     iOp,                    "i" ),
+    OP(     jOp,                    "j" ),
+    OP(     unloopOp,               "unloop" ),
+    OP(     leaveOp,                "leave" ),
+    OP(     hereOp,                 "here" ),
+    // vocabulary varActions
+    OP(     addressOfOp,            "getNewest" ),
+    OP(     intoOp,                 "findEntry" ),
+    OP(     addToOp,                "findEntryValue" ),
+    OP(     subtractFromOp,         "addEntry" ),
+    OP(     removeEntryOp,          "removeEntry" ),
+    OP(     entryLengthOp,          "entryLength" ),
+    OP(     numEntriesOp,           "numEntries" ),
     
     ///////////////////////////////////////////
     //  integer math
@@ -3660,31 +3766,6 @@ baseDictEntry baseDict[] =
     OP(     d2fOp,                  "d2f" ),
     
     ///////////////////////////////////////////
-    //  control flow
-    ///////////////////////////////////////////
-    OP(     callOp,                 "call" ),
-    OP(     gotoOp,                 "goto" ),
-    PRECOP( doOp,                   "do" ),
-    PRECOP( loopOp,                 "loop" ),
-    PRECOP( loopNOp,                "+loop" ),
-    OP(     iOp,                    "i" ),
-    OP(     jOp,                    "j" ),
-    OP(     unloopOp,               "unloop" ),
-    OP(     leaveOp,                "leave" ),
-    PRECOP( ifOp,                   "if" ),
-    PRECOP( elseOp,                 "else" ),
-    PRECOP( endifOp,                "endif" ),
-    PRECOP( beginOp,                "begin" ),
-    PRECOP( untilOp,                "until" ),
-    PRECOP( whileOp,                "while" ),
-    PRECOP( repeatOp,               "repeat" ),
-    PRECOP( againOp,                "again" ),
-    PRECOP( caseOp,                 "case" ),
-    PRECOP( ofOp,                   "of" ),
-    PRECOP( endofOp,                "endof" ),
-    PRECOP( endcaseOp,              "endcase" ),
-
-    ///////////////////////////////////////////
     //  bit-vector logic
     ///////////////////////////////////////////
     OP(     orOp,                   "or" ),
@@ -3746,18 +3827,6 @@ baseDictEntry baseDict[] =
     OP(     drotOp,                 "drot" ),
     
     ///////////////////////////////////////////
-    //  data compilation/allocation
-    ///////////////////////////////////////////
-    OP(     alignOp,                "align" ),
-    OP(     allotOp,                "allot" ),
-    OP(     callotOp,               "callot" ),
-    OP(     commaOp,                "," ),
-    OP(     cCommaOp,               "c," ),
-    OP(     hereOp,                 "here" ),
-    OP(     mallocOp,               "malloc" ),
-    OP(     freeOp,                 "free" ),
-
-    ///////////////////////////////////////////
     //  memory store/fetch
     ///////////////////////////////////////////
     OP(     storeOp,                "!" ),
@@ -3789,6 +3858,42 @@ baseDictEntry baseDict[] =
     OP(     stricmpOp,              "stricmp" ),
     OP(     strstrOp,               "strstr" ),
     OP(     strtokOp,               "strtok" ),
+
+    ///////////////////////////////////////////
+    //  file manipulation
+    ///////////////////////////////////////////
+    OP(     fopenOp,                "fopen" ),
+    OP(     fcloseOp,               "fclose" ),
+    OP(     fseekOp,                "fseek" ),
+    OP(     freadOp,                "fread" ),
+    OP(     fwriteOp,               "fwrite" ),
+    OP(     fgetcOp,                "fgetc" ),
+    OP(     fputcOp,                "fputc" ),
+    OP(     feofOp,                 "feof" ),
+    OP(     ftellOp,                "ftell" ),
+    OP(     flenOp,                 "flen" ),
+    OP(     stdinOp,                "stdin" ),
+    OP(     stdoutOp,               "stdout" ),
+    OP(     stderrOp,               "stderr" ),
+    
+    ///////////////////////////////////////////
+    //  control flow
+    ///////////////////////////////////////////
+    PRECOP( doOp,                   "do" ),
+    PRECOP( loopOp,                 "loop" ),
+    PRECOP( loopNOp,                "+loop" ),
+    PRECOP( ifOp,                   "if" ),
+    PRECOP( elseOp,                 "else" ),
+    PRECOP( endifOp,                "endif" ),
+    PRECOP( beginOp,                "begin" ),
+    PRECOP( untilOp,                "until" ),
+    PRECOP( whileOp,                "while" ),
+    PRECOP( repeatOp,               "repeat" ),
+    PRECOP( againOp,                "again" ),
+    PRECOP( caseOp,                 "case" ),
+    PRECOP( ofOp,                   "of" ),
+    PRECOP( endofOp,                "endof" ),
+    PRECOP( endcaseOp,              "endcase" ),
 
     ///////////////////////////////////////////
     //  op definition
@@ -3828,9 +3933,6 @@ baseDictEntry baseDict[] =
     OP(     extendsOp,              "extends" ),
     PRECOP( sizeOfOp,               "sizeOf" ),
     PRECOP( offsetOfOp,             "offsetOf" ),
-    OP(     thisOp,                 "this" ),
-    OP(     thisDataOp,             "thisData" ),
-    OP(     thisMethodsOp,          "thisMethods" ),
     PRECOP( newOp,                  "new" ),
     PRECOP( initMemberStringOp,     "initMemberString" ),
     OP(     enumOp,                 "enum:" ),
@@ -3845,7 +3947,6 @@ baseDictEntry baseDict[] =
     OP(     stateCompileOp,         "]" ),
     OP(     stateOp,                "state" ),
     OP(     tickOp,                 "\'" ),
-    OP(     executeOp,              "execute" ),
     PRECOP( compileOp,              "[compile]" ),
     PRECOP( bracketTickOp,          "[\']" ),
 
@@ -3861,13 +3962,18 @@ baseDictEntry baseDict[] =
     OP(     forgetOp,               "forget" ),
     OP(     autoforgetOp,           "autoforget" ),
     OP(     vlistOp,                "vlist" ),
-    OP(     addressOfOp,            "getNewest" ),
-    OP(     intoOp,                 "findEntry" ),
-    OP(     addToOp,                "findEntryValue" ),
-    OP(     subtractFromOp,         "addEntry" ),
-    OP(     removeEntryOp,          "removeEntry" ),
-    OP(     entryLengthOp,          "entryLength" ),
-    OP(     numEntriesOp,           "numEntries" ),
+    OP(     findOp,                 "find" ),
+
+    ///////////////////////////////////////////
+    //  data compilation/allocation
+    ///////////////////////////////////////////
+    OP(     alignOp,                "align" ),
+    OP(     allotOp,                "allot" ),
+    OP(     callotOp,               "callot" ),
+    OP(     commaOp,                "," ),
+    OP(     cCommaOp,               "c," ),
+    OP(     mallocOp,               "malloc" ),
+    OP(     freeOp,                 "free" ),
 
     ///////////////////////////////////////////
     //  text display
@@ -3899,23 +4005,6 @@ baseDictEntry baseDict[] =
     OP(     getConOutFileOp,        "getConOutFile" ),
 
     ///////////////////////////////////////////
-    //  file manipulation
-    ///////////////////////////////////////////
-    OP(     fopenOp,                "fopen" ),
-    OP(     fcloseOp,               "fclose" ),
-    OP(     fseekOp,                "fseek" ),
-    OP(     freadOp,                "fread" ),
-    OP(     fwriteOp,               "fwrite" ),
-    OP(     fgetcOp,                "fgetc" ),
-    OP(     fputcOp,                "fputc" ),
-    OP(     feofOp,                 "feof" ),
-    OP(     ftellOp,                "ftell" ),
-    OP(     flenOp,                 "flen" ),
-    OP(     stdinOp,                "stdin" ),
-    OP(     stdoutOp,               "stdout" ),
-    OP(     stderrOp,               "stderr" ),
-    
-    ///////////////////////////////////////////
     //  input buffer
     ///////////////////////////////////////////
     OP(     blwordOp,               "blword" ),
@@ -3932,14 +4021,16 @@ baseDictEntry baseDict[] =
     ///////////////////////////////////////////
     //  DLL support
     ///////////////////////////////////////////
+#ifdef _WINDOWS
     OP(     DLLVocabularyOp,        "DLLVocabulary" ),
     OP(     addDLLEntryOp,          "addDLLEntry" ),
+#endif
 
     ///////////////////////////////////////////
     //  time and date
     ///////////////////////////////////////////
-    OP(     strtimeOp,              "strtime" ),
-    OP(     strdateOp,              "strdate" ),
+    OP(     timeOp,                 "time" ),
+    OP(     strftimeOp,             "strftime" ),
     OP(     millitimeOp,            "millitime" ),
 
     ///////////////////////////////////////////
@@ -3947,8 +4038,10 @@ baseDictEntry baseDict[] =
     ///////////////////////////////////////////
     OP(     dstackOp,               "dstack" ),
     OP(     drstackOp,              "drstack" ),
+#ifdef _WINDOWS
     OP(     systemOp,               "system" ),
     OP(     chdirOp,                "chdir" ),
+#endif
     OP(     byeOp,                  "bye" ),
     OP(     argvOp,                 "argv" ),
     OP(     argcOp,                 "argc" ),

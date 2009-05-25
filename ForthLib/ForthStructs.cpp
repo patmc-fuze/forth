@@ -668,6 +668,103 @@ ForthTypesManager::GetBaseTypeFromName( const char* typeName )
 
 
 //////////////////////////////////////////////////////////////////////
+//
+// builtin classes
+//
+
+//
+// object
+//
+
+#define METHOD_RETURN \
+    SET_TPM( (long *) RPOP ); \
+    SET_TPD( (long *) RPOP )
+
+#if 0
+
+FORTHOP( classMethod )
+{
+    // ? how should the class be represented
+    METHOD_RETURN;
+}
+
+
+FORTHOP( queryInterfaceMethod )
+{
+    // ? what is the input argument - how do you specify the interface you want ?
+    SPOP;
+    SPUSH( 0 );
+    SPUSH( 0 );
+    METHOD_RETURN;
+}
+
+
+FORTHOP( sizeMethod )
+{
+    METHOD_RETURN;
+}
+
+
+FORTHOP( initMethod )
+{
+    // what should this do?
+    // 1) clear "size" bytes of data area to 0
+    // 2) cause an error - indicating invoking it on a class which failed to define init
+    METHOD_RETURN;
+}
+
+
+#endif
+
+FORTHOP( deleteMethod )
+{
+    free( GET_TPD );
+    METHOD_RETURN;
+}
+
+
+FORTHOP( showMethod )
+{
+    char buff[32];
+    sprintf( buff, "0x%8x:0x%8x", GET_TPM, GET_TPD );
+    CONSOLE_STRING_OUT( buff );
+    METHOD_RETURN;
+}
+
+
+FORTHOP( dataMethod )
+{
+    SPUSH( ((long)(GET_TPD)) );
+    METHOD_RETURN;
+}
+
+
+FORTHOP( methodsMethod )
+{
+    SPUSH( ((long)(GET_TPM)) );
+    METHOD_RETURN;
+}
+
+#define METHOD( VALUE, NAME )  { NAME, (ulong) VALUE }
+
+baseMethodEntry objectMethods[] =
+{
+    METHOD(     deleteMethod,       "delete" ),
+    METHOD(     showMethod,         "show" ),
+    METHOD(     dataMethod,         "data" ),
+    METHOD(     methodsMethod,      "methods" ),
+    // following must be last in table
+    METHOD(     NULL,               "" )
+};
+
+void
+ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
+{
+    ForthClassVocabulary* pObjectClass = pEngine->AddBuiltinClass( "object", NULL, objectMethods );
+}
+
+
+//////////////////////////////////////////////////////////////////////
 ////
 ///     ForthStructVocabulary
 //
@@ -1029,13 +1126,13 @@ ForthClassVocabulary::ForthClassVocabulary( const char*     pName,
 , mCurrentInterface( 0 )
 {
     ForthInterface* pPrimaryInterface = new ForthInterface( this );
-    mInterfaces.Add( pPrimaryInterface );
+    mInterfaces.push_back( pPrimaryInterface );
 }
 
 
 ForthClassVocabulary::~ForthClassVocabulary()
 {
-    for ( int i = 0; i < mInterfaces.GetSize(); i++ )
+    for ( unsigned int i = 0; i < mInterfaces.size(); i++ )
     {
         delete mInterfaces[i];
     }
@@ -1191,7 +1288,7 @@ ForthClassVocabulary::Extends( ForthStructVocabulary *pParentStruct )
 	{
 		mpParentClass = reinterpret_cast<ForthClassVocabulary *>(pParentStruct);
 		long numInterfaces = mpParentClass->GetNumInterfaces();
-		mInterfaces.SetSize( numInterfaces );
+		mInterfaces.resize( numInterfaces );
 		for ( int i = 0; i < numInterfaces; i++ )
 		{
 			if ( i != 0 )
@@ -1227,7 +1324,7 @@ ForthClassVocabulary::Implements( const char* pName )
                 // this is an interface which this class doesn't already have
                 ForthInterface* pNewInterface = new ForthInterface;
                 pNewInterface->Implements( pClassVocab );
-                mInterfaces.Add( pNewInterface );
+                mInterfaces.push_back( pNewInterface );
             }
             else
             {
@@ -1271,7 +1368,7 @@ ForthClassVocabulary::GetInterface( long index )
 long
 ForthClassVocabulary::FindInterfaceIndex( long classId )
 {
-    for ( int i = 0; i < mInterfaces.GetSize(); i++ )
+    for ( unsigned int i = 0; i < mInterfaces.size(); i++ )
     {
         ForthClassVocabulary* pVocab = mInterfaces[i]->GetDefiningClass();
         if ( pVocab->GetClassId() == classId )
@@ -1285,7 +1382,7 @@ ForthClassVocabulary::FindInterfaceIndex( long classId )
 long
 ForthClassVocabulary::GetNumInterfaces( void )
 {
-	return mInterfaces.GetSize();
+	return mInterfaces.size();
 }
 
 // TBD: implement FindSymbol which iterates over all interfaces
@@ -1313,8 +1410,8 @@ ForthInterface::Copy( ForthInterface* pInterface )
 {
     mpDefiningClass = pInterface->GetDefiningClass();
     mNumAbstractMethods = pInterface->mNumAbstractMethods;
-    int numMethods = pInterface->mMethods.GetSize();
-    mMethods.SetSize( numMethods );
+    int numMethods = pInterface->mMethods.size();
+    mMethods.resize( numMethods );
     for ( int i = 0; i < numMethods; i++ )
     {
         mMethods[i] = pInterface->mMethods[i];
@@ -1365,7 +1462,7 @@ ForthInterface::Implements( ForthClassVocabulary* pVocab )
 {
     ForthInterface* pInterface = pVocab->GetInterface( 0 );
     long numMethods = pInterface->GetNumMethods();
-    mMethods.SetSize( numMethods );
+    mMethods.resize( numMethods );
 	for ( int i = 0; i < numMethods; i++ )
 	{
 		mMethods[i] = OP_BAD_OP;	// TBD: make this "unimplemented method" opcode
@@ -1377,8 +1474,8 @@ ForthInterface::Implements( ForthClassVocabulary* pVocab )
 long
 ForthInterface::AddMethod( long method )
 {
-    long methodIndex = mMethods.GetSize();
-	mMethods.Add( method );
+    long methodIndex = mMethods.size();
+	mMethods.push_back( method );
     if ( method == OP_BAD_OP )
     {
         mNumAbstractMethods++;
@@ -1390,7 +1487,7 @@ ForthInterface::AddMethod( long method )
 long
 ForthInterface::GetNumMethods( void )
 {
-    return static_cast<long>( mMethods.GetSize() );
+    return static_cast<long>( mMethods.size() );
 }
 
 

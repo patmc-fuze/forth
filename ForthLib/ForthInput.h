@@ -1,17 +1,15 @@
+#pragma once
 //////////////////////////////////////////////////////////////////////
 //
 // ForthInput.h: interface for the ForthInputStack class.
 //
 //////////////////////////////////////////////////////////////////////
 
-#if !defined(_FORTH_INPUT_H_INCLUDED_)
-#define _FORTH_INPUT_H_INCLUDED_
+//#include "Forth.h"
 
-#if _MSC_VER > 1000
-#pragma once
-#endif // _MSC_VER > 1000
-
-#include "Forth.h"
+#ifndef DEFAULT_INPUT_BUFFER_LEN
+#define DEFAULT_INPUT_BUFFER_LEN 1024
+#endif
 
 class ForthInputStack;
 
@@ -28,7 +26,8 @@ public:
     virtual void    SetBufferPointer( char *pBuff );
     virtual bool    IsInteractive( void ) = 0;
     virtual int     GetLineNumber( void );
-    friend ForthInputStack;
+
+    friend class ForthInputStack;
 
 protected:
     ForthInputStream    *mpNext;
@@ -100,4 +99,3 @@ protected:
     ForthInputStream        *mpHead;
 };
 
-#endif

@@ -15,8 +15,10 @@
 
 extern "C" {
 
+#ifdef _ASM_INNER_INTERPRETER
 // UserCodeAction is used to execute user ops which are defined in assembler
 extern void UserCodeAction( ForthCoreState *pCore, ulong opVal );
+#endif
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -2199,18 +2201,18 @@ OPTYPE_ACTION( MemberRefAction )
 // bits 0..18 are index into ForthCoreState userOps table, 19..23 are arg count
 OPTYPE_ACTION( DLLEntryPointAction )
 {
+#ifdef _WINDOWS
     ulong entryIndex = CODE_TO_DLL_ENTRY_INDEX( opVal );
     ulong argCount = CODE_TO_DLL_ENTRY_NUM_ARGS( opVal );
     if ( entryIndex < GET_NUM_USER_OPS )
     {
-        long result = CallDLLRoutine( (DLLRoutine)(USER_OP_TABLE[entryIndex]), argCount, pCore );
-        SPUSH( result );
+        CallDLLRoutine( (DLLRoutine)(USER_OP_TABLE[entryIndex]), argCount, pCore );
     }
     else
     {
         SET_ERROR( kForthErrorBadOpcode );
     }
-
+#endif
 }
 
 OPTYPE_ACTION( MethodWithThisAction )
@@ -2314,8 +2316,13 @@ optypeActionRoutine builtinOptypeAction[] =
     BuiltinAction,          // immediate
     UserDefAction,
     UserDefAction,          // immediate
+#ifdef _ASM_INNER_INTERPRETER
     UserCodeAction,
     UserCodeAction,         // immediate
+#else
+    ReservedOptypeAction,
+    ReservedOptypeAction,
+#endif
     DLLEntryPointAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
@@ -2451,6 +2458,7 @@ void InitDispatchTables( ForthCoreState* pCore )
 
 void InitCore( ForthCoreState* pCore )
 {
+    pCore->optypeAction = NULL;
     pCore->builtinOps = NULL;
     pCore->numBuiltinOps = 0;
     pCore->userOps = NULL;
@@ -2497,8 +2505,6 @@ InnerInterpreter( ForthCoreState *pCore )
     forthOpType opType;
     long *pIP;
     long op;
-    optypeActionRoutine* opTypeAction = &(pCore->optypeAction[0]);
-    ForthOp* builtinOp = &(pCore->builtinOps[0]);
     numBuiltinOps = pCore->numBuiltinOps;
 
     SET_STATE( kResultOk );

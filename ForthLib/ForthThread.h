@@ -1,15 +1,9 @@
+#pragma once
 //////////////////////////////////////////////////////////////////////
 //
 // ForthThread.h: interface for the ForthThread class.
 //
 //////////////////////////////////////////////////////////////////////
-
-#if !defined(_FORTH_THREAD_H_INCLUDED_)
-#define _FORTH_THREAD_H_INCLUDED_
-
-#if _MSC_VER > 1000
-#pragma once
-#endif // _MSC_VER > 1000
 
 #include "Forth.h"
 #include "ForthInner.h"
@@ -31,8 +25,6 @@ class ForthEngine;
 
 class ForthThread  
 {
-    friend ForthEngine;
-
 public:
     ForthThread( ForthEngine *pEngine, int paramStackLongs=DEFAULT_PSTACK_SIZE, int returnStackLongs=DEFAULT_PSTACK_SIZE );
     virtual ~ForthThread();
@@ -48,6 +40,8 @@ public:
 
     inline void         SetIP( long *pNewIP ) { mState.IP = pNewIP; };
 
+    friend class ForthEngine;
+
 protected:
     ForthEngine         *mpEngine;
     ForthThread         *mpNext;
@@ -55,4 +49,3 @@ protected:
     ForthThreadState    mState;
 };
 
-#endif

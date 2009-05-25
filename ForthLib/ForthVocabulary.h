@@ -1,15 +1,9 @@
+#pragma once
 //////////////////////////////////////////////////////////////////////
 //
 // ForthVocabulary.h: interface for the ForthVocabulary class.
 //
 //////////////////////////////////////////////////////////////////////
-
-#if !defined(_FORTH_VOCABULARY_H_INCLUDED_)
-#define _FORTH_VOCABULARY_H_INCLUDED_
-
-#if _MSC_VER > 1000
-#pragma once
-#endif // _MSC_VER > 1000
 
 #include "Forth.h"
 #include "ForthForgettable.h"
@@ -42,7 +36,7 @@ public:
     virtual void        DoOp( ForthCoreState *pCore );
 
     void                SetName( const char *pVocabName );
-    char *              GetName( void );
+    const char *        GetName( void );
 
     void                Empty( void );
 
@@ -194,6 +188,7 @@ public:
     virtual const char* GetType( void );
 };
 
+#ifdef _WINDOWS
 class ForthDLLVocabulary : public ForthVocabulary
 {
 public:
@@ -215,6 +210,7 @@ protected:
     char *              mpDLLName;
     HINSTANCE           mhDLL;
 };
+#endif
 
 class ForthVocabularyStack
 {
@@ -250,8 +246,3 @@ private:
     ulong               mSerial;
 };
 
-
-
-
-
-#endif

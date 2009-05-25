@@ -1,3 +1,4 @@
+#pragma once
 //////////////////////////////////////////////////////////////////////
 //
 // Forth engine definitions
@@ -5,12 +6,6 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#ifndef _FORTH_H_INCLUDED_
-#define _FORTH_H_INCLUDED_
-
-#if _MSC_VER > 1000
-#pragma once
-#endif // _MSC_VER > 1000
 //#include "stdafx.h"
 
 struct ForthCoreState;
@@ -210,7 +205,7 @@ typedef enum {
 
 class ForthThread;
 
-#define COMPILED_OP( OP_TYPE, VALUE ) ((OP_TYPE << 24) | (VALUE & OPCODE_VALUE_MASK))
+#define COMPILED_OP( OP_TYPE, VALUE ) (((OP_TYPE) << 24) | ((VALUE) & OPCODE_VALUE_MASK))
 #define BUILTIN_OP( INDEX )   COMPILED_OP( kOpBuiltIn, INDEX )
 // These are opcodes that built-in ops must compile directly
 // NOTE: the index field of these opcodes must agree with the
@@ -270,36 +265,16 @@ class ForthThread;
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct
 {
-   char             *name;
+   const char       *name;
    ulong            flags;
    ulong            value;
 } baseDictEntry;
 
 typedef struct
 {
-    char            *name;
+    const char      *name;
     ulong           value;
 } baseMethodEntry;
-
-typedef struct
-{
-    char                *name;
-    baseMethodEntry     *methods;
-} baseClassEntry;
-
-//
-// this is the descriptor for a class defined in forth
-//
-// pOpTable points to a table holding numMethods opcodes
-// pBaseClass points to this class's base class, or NULL if there is none
-// opcode is the forth op for the class's defining word
-//
-typedef struct _ForthClassDescriptor {
-    ulong                           numMethods;
-    ulong                           opcode;
-    ulong                           *pOpTable;
-    struct _ForthClassDescriptor    *pBaseClass;
-} ForthClassDescriptor;
 
 
 // trace output flags
@@ -446,4 +421,3 @@ typedef enum
 #define CODE_TO_DLL_ENTRY_INDEX( VAL )          ((VAL) & 0x0007FFFF)
 #define CODE_TO_DLL_ENTRY_NUM_ARGS( VAL)        (((VAL) & 0x00F80000) >> 19)
 
-#endif

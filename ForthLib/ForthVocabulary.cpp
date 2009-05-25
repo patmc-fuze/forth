@@ -106,7 +106,7 @@ ForthVocabulary::SetName( const char *pVocabName )
 }
 
 
-char *
+const char *
 ForthVocabulary::GetName( void )
 {
     return (mpName == NULL) ? "Unknown" : mpName;
@@ -676,6 +676,7 @@ ForthLocalVocabulary::GetType( void )
     return "local";
 }
 
+#ifdef _WINDOWS
 //////////////////////////////////////////////////////////////////////
 ////
 ///     ForthDLLVocabulary
@@ -742,6 +743,8 @@ ForthDLLVocabulary::GetType( void )
 {
     return "dllOp";
 }
+
+#endif
 
 //////////////////////////////////////////////////////////////////////
 ////

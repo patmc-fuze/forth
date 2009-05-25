@@ -1,16 +1,9 @@
+#pragma once
 //////////////////////////////////////////////////////////////////////
 //
 // ForthCore.h: definitions shared by C++ and assembler code
 //
 //////////////////////////////////////////////////////////////////////
-
-#if !defined(_FORTH_CORE_H_INCLUDED_)
-#define _FORTH_CORE_H_INCLUDED_
-
-#if _MSC_VER > 1000
-#pragma once
-#endif // _MSC_VER > 1000
-
 
 #ifndef ulong
 #define ulong   unsigned long
@@ -204,4 +197,3 @@ struct ForthCoreState
     ulong               DLen;           // max size of dictionary memory segment
 };
 
-#endif

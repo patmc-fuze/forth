@@ -16,8 +16,9 @@
 extern "C" {
 
     extern baseDictEntry baseDict[];
-    extern void AddBuiltinClasses( ForthEngine* pEngine );
-    extern InitAsmTables(  ForthCoreState *pCore );
+#ifdef _ASM_INNER_INTERPRETER
+    extern void InitAsmTables(  ForthCoreState *pCore );
+#endif
     extern eForthResult InnerInterp( ForthCoreState *pCore );
     extern void consoleOutToFile( ForthCoreState   *pCore,  const char       *pMessage );
 };
@@ -26,7 +27,7 @@ extern "C" {
 
 // provide trace ability for builtin ops
 #define NUM_TRACEABLE_OPS MAX_BUILTIN_OPS
-static char *gOpNames[ NUM_TRACEABLE_OPS ];
+static const char *gOpNames[ NUM_TRACEABLE_OPS ];
 
 //#endif
 
@@ -39,7 +40,7 @@ ForthEngine* ForthEngine::mpInstance = NULL;
 // opTypeNames must be kept in sync with forthOpType enum in forth.h
 //
 
-static char *opTypeNames[] = {
+static const char *opTypeNames[] = {
     "BuiltIn", "BuiltInImmediate", "UserDefined", "UserDefinedImmediate", "UserCode", "UserCodeImmediate", "DLLEntryPoint", 0, 0, 0,
     "Branch", "BranchTrue", "BranchFalse", "CaseBranch", 0, 0, 0, 0, 0, 0,
     "Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "InitLocalString", "LocalStructArray", "OffsetFetch", 0,
@@ -57,7 +58,7 @@ static char *opTypeNames[] = {
 //
 // pErrorStrings must be kept in sync with eForthError enum in forth.h
 //
-static char *pErrorStrings[] =
+static const char *pErrorStrings[] =
 {
     "No Error",
     "Bad Opcode",
@@ -99,7 +100,7 @@ ForthEngine::ForthEngine()
 , mpLastCompiledOpcode( NULL )
 , mpLastIntoOpcode( NULL )
 , mNumElements( 0 )
-, mpStructsManager( NULL )
+, mpTypesManager( NULL )
 , mpVocabStack( NULL )
 , mDefaultConsoleOut( consoleOutToFile )
 , mpDefaultConsoleOutData( stdout )
@@ -113,7 +114,9 @@ ForthEngine::ForthEngine()
     mpErrorString = new char[ ERROR_STRING_MAX + 1 ];
 
     // remember creation time for elapsed time method
+#ifdef _WINDOWS
     _ftime( &mStartTime );
+#endif
 }
 
 ForthEngine::~ForthEngine()
@@ -124,7 +127,7 @@ ForthEngine::~ForthEngine()
         delete [] mpCore->DBase;
         delete mpForthVocab;
         delete mpLocalVocab;
-        delete mpStructsManager;
+        delete mpTypesManager;
         delete [] mpStringBufferA;
         delete [] mpStringBufferB;
     }
@@ -136,6 +139,10 @@ ForthEngine::~ForthEngine()
         ForthVocabulary *pNextVocab = pVocab->GetNextChainVocabulary();
         delete pVocab;
         pVocab = pNextVocab;
+    }
+    if ( mpCore->optypeAction )
+    {
+        free( mpCore->optypeAction );
     }
     if ( mpCore->builtinOps )
     {
@@ -188,13 +195,14 @@ ForthEngine::Initialize( int                totalLongs,
     mpStringBufferA = new char[256 * NUM_INTERP_STRINGS];
     mpStringBufferB = new char[TMP_STRING_BUFFER_LEN];
 
+    mpCore->optypeAction = (optypeActionRoutine *) malloc( sizeof(optypeActionRoutine) * 256 );
     mpCore->numBuiltinOps = 0;
     mpCore->builtinOps = (ForthOp *) malloc( sizeof(ForthOp) * MAX_BUILTIN_OPS );
     mpCore->numUserOps = 0;
     mpCore->maxUserOps = 128;
     mpCore->userOps = (long **) malloc( sizeof(long *) * mpCore->maxUserOps );
 
-    mpStructsManager = new ForthTypesManager();
+    mpTypesManager = new ForthTypesManager();
 
     mpVocabStack = new ForthVocabularyStack;
     mpVocabStack->Initialize();
@@ -206,10 +214,13 @@ ForthEngine::Initialize( int                totalLongs,
     // build dispatch table for different opcode types
     //
     InitDispatchTables( mpCore );
+#ifdef _ASM_INNER_INTERPRETER
+    InitAsmTables( mpCore );
+#endif
 
     if ( bAddBaseOps ) {
         AddBuiltinOps( baseDict );
-        AddBuiltinClasses( this );
+        mpTypesManager->AddBuiltinClasses( this );
     }
     if ( pUserBuiltinOps != NULL ) {
         AddBuiltinOps( pUserBuiltinOps );
@@ -232,20 +243,6 @@ ForthEngine::GetFastMode( void )
 void
 ForthEngine::SetFastMode( bool goFast )
 {
-    int i;
-
-    if ( goFast )
-    {
-        InitAsmTables( mpCore );
-    }
-    else
-    {
-        InitDispatchTables( mpCore );
-        for ( i = 0; baseDict[i].value != NULL; i++ )
-        {
-            mpCore->builtinOps[i] = (ForthOp) (baseDict[i].value);
-        }
-    }
     mFastMode = goFast;
 }
 
@@ -303,7 +300,6 @@ ForthEngine::AddOp( const long *pOp, forthOpType symType )
 long
 ForthEngine::AddUserOp( const char *pSymbol, bool smudgeIt )
 {
-
     AlignDP();
     mpDefinitionVocab->AddSymbol( pSymbol, kOpUserDef, (long) mpCore->DP, true );
     if ( smudgeIt ) {
@@ -339,12 +335,12 @@ ForthEngine::AddBuiltinOps( baseDictEntry *pEntries )
 
 
 ForthClassVocabulary*
-ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseDictEntry *pEntries )
+ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseMethodEntry *pEntries )
 {
     // do "class:" - define class subroutine
     SetFlag( kEngineFlagInStructDefinition );
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
-    ForthClassVocabulary* pVocab = pManager->StartClassDefinition( GetNextSimpleToken() );
+    ForthClassVocabulary* pVocab = pManager->StartClassDefinition( pClassName );
     CompileOpcode( OP_DO_CLASS_TYPE );
     CompileLong( (long) pVocab );
 
@@ -383,11 +379,11 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
 
     }
 
+#endif
     // do ";class"
     ClearFlag( kEngineFlagInStructDefinition );
     pManager->EndClassDefinition();
 
-#endif
     return pVocab;
 }
 
@@ -760,62 +756,6 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
     return mLocalFrameSize;
 }
 
-#if 0
-void
-ForthEngine::InvokeClassMethod( ForthThread     *g,
-                                ulong           methodNumber )
-{
-    ForthClassDescriptor *pDesc;
-    ulong opVal;
-    forthOpType opType;
-    ForthEngine *pEngine = g->mpEngine;
-
-    // top of stack is pointer to object instance
-    // first field in object instance is pointer to its class descriptor
-    pDesc = *(ForthClassDescriptor **) (*(g->GetSP()));
-    if ( methodNumber < pDesc->numMethods ) {
-        opVal = pDesc->pOpTable[ methodNumber ];
-        opType = FORTH_OP_TYPE( opVal );
-        opVal = FORTH_OP_VALUE( opVal );
-
-        if ( opVal == kOpBuiltIn ) {
-            if ( opVal < pEngine->mpCore->numBuiltinOps ) {
-                ((ForthOp) pEngine->mpCore->builtinOps[opVal]) ( g );
-            } else {
-                g->SetError( kForthErrorBadOpcode );
-            }
-        } else if ( opVal == kOpUserDef ) {
-            if ( opVal < pEngine->mpCore->numUserOps ) {
-                g->RPush( (long) g->GetIP() );
-                g->SetIP( pEngine->mpCore->userOps[opVal] );
-            } else {
-                g->SetError( kForthErrorBadOpcode );
-            }
-        } else {
-            g->SetError( kForthErrorBadOpcode );
-        }
-
-    } else {
-        g->SetError( kForthErrorBadMethod );
-    }
-}
-
-bool
-ForthEngine::IsExecutableType( forthOpType      symType )
-{
-    switch( symType ) {
-
-    case kOpBuiltIn:
-    case kOpUserDef:
-        return true;
-
-    default:
-        return false;
-
-    }
-}
-#endif
-
 
 // TBD: tracing of built-in ops won't work for user-added builtins...
 const char *
@@ -998,7 +938,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs )
                 break;
 
             default:
-                if ( opType >= (sizeof(opTypeNames) / sizeof(char *)) )
+                if ( opType >= (unsigned int)(sizeof(opTypeNames) / sizeof(char *)) )
                 {
                     sprintf( pBuffer, "BAD OPTYPE!" );
                 }
@@ -1145,7 +1085,7 @@ bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, b
    if ( *pLastChar == 'd' )
    {
       *pLastChar = 0;
-      if ( sscanf( pToken, "%Lf", &dvalue ) == 1)
+      if ( sscanf( pToken, "%lf", &dvalue ) == 1)
       {
          retVal = true;
          isSingle = false;
@@ -1310,11 +1250,13 @@ ForthEngine::ExecuteOps( long *pOps )
 
     savedIP = mpCore->IP;
     mpCore->IP = pOps;
+#ifdef _ASM_INNER_INTERPRETER
     if ( mFastMode )
     {
         exitStatus = InnerInterpreterFast( mpCore );
     }
     else
+#endif
     {
         exitStatus = InnerInterpreter( mpCore );
     }
@@ -1458,12 +1400,16 @@ ForthEngine::EndEnumDefinition( void )
 unsigned long
 ForthEngine::GetElapsedTime( void )
 {
+#ifdef _WINDOWS
     struct _timeb now;
     _ftime( &now );
 
     long seconds = now.time - mStartTime.time;
     long milliseconds = now.millitm - mStartTime.millitm;
     return (unsigned long) ((seconds * 1000) + milliseconds);
+#else
+    return 0;
+#endif
 }
 
 //############################################################################
@@ -1568,7 +1514,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     // check for member variables and methods
     if ( mCompileState && CheckFlag( kEngineFlagIsMethod ) )
     {
-        if ( mpStructsManager->ProcessMemberSymbol( pInfo, exitStatus ) )
+        if ( mpTypesManager->ProcessMemberSymbol( pInfo, exitStatus ) )
         {
             ////////////////////////////////////
             //
@@ -1598,7 +1544,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     // see if this is a structure/object access (like structA.fieldB.fieldC)
     if ( pInfo->GetFlags() & PARSE_FLAG_HAS_PERIOD ) 
     {
-        if ( mpStructsManager->ProcessSymbol( pInfo, exitStatus ) )
+        if ( mpTypesManager->ProcessSymbol( pInfo, exitStatus ) )
         {
             ////////////////////////////////////
             //
