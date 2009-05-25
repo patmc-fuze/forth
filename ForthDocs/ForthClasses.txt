@@ -2,23 +2,72 @@
 1234567890123456789012345678901234567890123456789012345678901234567890123456789
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+- improve classtest.txt
+
+- report an error if "implements:" is done on a non-abstract class - this will
+  divide classes into abstract interfaces with no data members and non-abstract
+  with accessible data members - this will avoid the problem where you do a
+  queryInterface on an object, get a secondary interface with defined data
+  members, then get bogus results when you try to access data members of the
+  secondary interface
+
+- add a syntax for invoking a method on the object on TOS - the underlying
+  action code is already there (MethodWithTOS opType), I just need to define
+  the syntax needed to invoke it, and implement that in the outer interpreter
+  
+? should this be a "single rooted hierarchy" where everything is derived from
+  another class, with the exception of the ultimate root class, "object"?
+  ? what methods should "object" define
+    ? new
+    o delete
+    o size
+    o superclass
+    ? data
+    ? methods
+  ? should the name be "object"?
+
+? what classes should be defined in the kernel
+  + gui objects - windows, dialogs, controls
+  ? strings
+  ? vocabularies
+    ? struct vocabularies
+    ? class vocabularies
+  ? files
+  ? directory iterators
+  ? dynamic containers
+    ? maps
+    ? arrays
+    ? sets
+    ? lists
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 27, 2009
+
+Class support is mostly working.  I am now thinking about how to support
+classes built-into the forth kernel - it really isn't that hard, but I am
+thinking that it may be time to re-examine how the assembler version of the
+kernel is implemented.  I am going to eliminate the need to create explicit
+assembler stubs for all ops which are not defined in assembler.
+
+
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 Words that need to be defined:
 
-- class:
-- ;class
-- method:
-- ;method
-- extends		(modify)
-- implements:
-- ;implements
++ class:
++ ;class
++ method:
++ ;method
++ extends		(modify)
++ implements:
++ ;implements
 
 - abstract
 - new
 - delete
 - this
 
-? returns
++ returns
 ? public
 ? private
 ? static (some word to indicate global members) ? or just use global vars ?

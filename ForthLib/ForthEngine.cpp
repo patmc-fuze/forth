@@ -10,7 +10,6 @@
 #include "ForthThread.h"
 #include "ForthShell.h"
 #include "ForthVocabulary.h"
-#include "ForthClass.h"
 #include "ForthInner.h"
 
 extern "C" {

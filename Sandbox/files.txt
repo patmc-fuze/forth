@@ -1,3 +1,7 @@
+//
+// something to display info from titan quest .que files
+//
+
 int _infile
 0 -> _infile
 

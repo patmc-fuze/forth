@@ -68,6 +68,9 @@
 			RelativePath="ForthCode.txt">
 		</File>
 		<File
+			RelativePath=".\ForthDS.txt">
+		</File>
+		<File
 			RelativePath=".\ForthNotes.txt">
 		</File>
 		<File

@@ -1,6 +1,15 @@
 autoforget forth_autoload
 : forth_autoload "This is the forth_autoload.txt tools module" %s ;
 
+: autoload
+  blword find
+  0== if
+    blword load$
+  else
+    blword drop
+  endif
+;
+  
 200 string _aa
 200 string _bb
 
@@ -77,7 +86,7 @@ addHelp pwd	pwd			display working directory
 
 addHelp dir	dir BLAH		display directory (BLAH is optional filespec)
 : dir
-  blword -> _aa
+  '\n' word -> _aa
   "dir" -> _bb
   strcmp( _aa "" )
   if

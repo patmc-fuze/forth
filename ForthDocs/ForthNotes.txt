@@ -8,6 +8,10 @@ TBDs:
 ! document existing native ops !
 ! create examples/tests for all native ops !
 
+? have "woof -> foo( blah )" compile into "woof blah -> foo"
+
+? add properties to classes
+
 - only allow "implements" to be used on abstract interfaces (no data members) - this
   will avoid the problem with accessing data members on secondary interface objects
   which have different data members...
@@ -119,6 +123,138 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 24 2009
+
+Forth on the DS will run as a server, with a command shell client running on
+the PC.  The client will be responsible for sending text to the server, and
+for displaying text from the server.
+The first step is to make a client-server version of Forth where both client
+and server run on the PC.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 23 2009
+
+Got Forth to compile for the DS under devkitPro.  There are a few new defines
+used, _WINDOWS and _ASM_INNER_INTERPRETER.
+
+There are still a lot of warnings when building for the DS.
+
+Replaced MFC containers with STL containers.
+
++ also, replaced strtime and strdate ops with time and strftime ops, this
+  allows more complex formatting and also works on the DS
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 4 2009
+
+Got the SPriG dll to work, I forgot to do SDL_UpdateRects after drawing
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 3 2009
+
+Tried to get SPriG, an SDL based graphics library to work, couldn't get it
+to draw a line, after running there was extra junk on stack.
+Several params are declared as Uint16, could this be screwing things up?
+I thought short params were promoted to long on the stack
+
+Also, sdltest.txt now leaves extra junk on stack.
+-> there was an enum that was defined twice - enum definitions rely on
+   the new enum symbols being undefined, since during an enum definition
+   any defined symbol is just executed
+
+Some of the SPriG functions take a callback, this brings up the question of
+adding a general callback mechanism - a way to have callbacks from DLLs
+execute forth code.
+o it wouldn't be hard to implement this
+o may need to support callbacks that return a value and callbacks that don't
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 30 2009
+
+Making vocabularies be a kind of object has some problems - for one thing,
+we would probably want them to ignore the "delete" method and "->".
+I'm now leaning toward having a set of "class methods", either using a
+dotted syntax like "className.new" or prefix syntax like "new className".
+
+class methods:
+	new
+	parent
+	size
+	methods
+	id
+	
+Use "classA.id objB.queryInterface" to get the classA interface from objB - the
+result is an object - if objB does not have a classA interface, the result is
+the null object (double zeros).
+	
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 29 2009
+
+I changed the initialization of the builtinOp and optypeAction tables in the
+forth core to only be done once in ForthEngine->Initialize.  Previously this
+was being done also in ForthEngine::SetFastMode, since those tables were used
+for both fast and slow modes.  SetFastMode was not filling in any builtinOps
+which were not in baseDict, such as builtin classes or user-defined builtins
+
+The next challenge is defining what appears in the builtin classes.  A lot of
+functionality is hard to define without making some decisions - like how do
+you specify the interface you want to a queryInterface method?  I am leaning
+toward defining a classVocabulary class, parented off a vocabulary class,
+parented off the object class.
+
+object : NULL
+	delete
+	data
+	methods
+	show
+	class	(returns a classVocabulary object)
+	size
+	queryInterface
+
+vocabulary : object
+	uses
+	also
+	? something to undo "also" ?
+	only
+	definitions
+	numEntries
+	find
+	addEntry
+	removeEntry
+	* some way to iterate through entries *
+		* info about entries - number of longs in data section
+	
+classVocabulary : vocabulary
+	parent
+	methods
+	classId
+	isAbstract
+	numMethods
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 28 2009
+
+Messed around with asm version of kernel, got it to use the static tables
+opsTable and opTypesTable instead of the stuff in FCore
+
++ change table init routines to always fill in core optypeAction and builtinOps
+  with C versions
++ replace extOp macros with a single extOp routine
++ fill in FCore.numAsmBuiltinOps with # entries in opsTable, and have
+  inner interp check against that, and call extOp for entries which are past
+  end of table
++ rearrange opsTable to put most routines without asm versions at end, remove
+  as many at end as possible
++ change FCore to just have a pointer to opTypesTable instead of the whole table
+  in the structure
++ currently assembler version of opTypesTable uses badOp for all optypes for
+  which there is no assember version, replace this with something that invokes
+  the C version instead - if the optype is truly unimplemented, the C version
+  will signal the error
+  -> until this is fixed, all optypes must have an assembler version...
++ take advantage of the fact that ESI register is no longer reserved for opsTable
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 27 2009
 
 I started putting in support for builtin classes, then I realized I hadn't
@@ -129,14 +265,14 @@ and builtinOps tables in the forth core are re-initialized - I think it would
 be better to have copies of asm and c versions of the tables in the core
 that were initialized once.
 
-- get stuff to compile with partially done builtin class support
-- bring CVS up to date
-- have asm and c modes use separate tables in forth core
-- replace the extOp macro with a single asm routine that grabs the c routine
++ get stuff to compile with partially done builtin class support
++ bring CVS up to date
+x have asm and c modes use separate tables in forth core
++ replace the extOp macro with a single asm routine that grabs the c routine
   address from the c builtinOps table
 ? maybe move the majority of c-only ops to the end of the builtinOps table
   and allow the size of the asm table to be smaller
-  builtinOps tables
+  
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 26 2009
 
