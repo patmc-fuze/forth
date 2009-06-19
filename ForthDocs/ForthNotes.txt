@@ -123,6 +123,44 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 25 2009
+
++ rearranged some things to make server-client split easier
++ got client-server working on PC
++ changed build target configurations - before all executables were a single target
+
+Client takes server address as a command line argument, uses localhost if no arguments.
+
+! right now, ForthClientMain doesn't include any Forth files, so the definitions of
+  server and client command message numbers are both in ForthClientMain.cpp and in ForthServer.h,
+  they are bound to get out of sync...
+  
++ got Forth server to compile for DS, but it didn't do anything when I ran it...
+  -> there may be more DS wifi hardware setup required
+  
+server    --kClientCmdSendLine(prompt)->      client
+client    --kServerCmdProcessLine(text)->     server
+client    --kServerCmdPopStream->             server
+
+server    --kClientCmdStartLoad(filename)->    client
+
+-> means server to client
+<- means client to server
+
+-> getLine( ok> )
+<- data( load blah.txt )
+-> pushStream( blah.txt )
+-> getLine()
+<- data ( ... )
+
+... repeat previous 2 lines for each line of file ...
+
+-> getLine()
+<- endOfFile ( ... )
+
+-> getLine( ok> )
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 24 2009
 
 Forth on the DS will run as a server, with a command shell client running on
