@@ -94,12 +94,16 @@ ForthShell::~ForthShell()
 //
 // create a new file input stream & push on stack
 //
-void
-ForthShell::PushInputFile( FILE *pInFile )
+bool
+ForthShell::PushInputFile( const char *pFileName )
 {
-    assert( pInFile != NULL );
-
-    mpInput->PushInputStream( new ForthFileInputStream( pInFile ) );
+    FILE *pInFile = fopen( pFileName, "r" );
+    if ( pInFile != NULL )
+    {
+        mpInput->PushInputStream( new ForthFileInputStream( pInFile ) );
+        return true;
+    }
+    return false;
 }
 
 
@@ -136,10 +140,7 @@ ForthShell::Run( ForthInputStream *pInStream )
 
     mpInput->PushInputStream( pInStream );
 
-    FILE* pInFile = fopen( "forth_autoload.txt", "r" );
-    if ( pInFile != NULL ) {
-       mpEngine->PushInputFile( pInFile );
-    }
+    mpEngine->PushInputFile( "forth_autoload.txt" );
 
     while ( !bQuit ) {
 
@@ -801,6 +802,13 @@ ForthShell::CheckSyntaxError( const char *pString, long tag, long desiredTag )
         return false;
     }
     return true;
+}
+
+
+char
+ForthShell::GetChar()
+{
+    return getchar();
 }
 
 

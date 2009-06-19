@@ -95,7 +95,8 @@ public:
 
     char *          GetNextSimpleToken( void );
 
-    void            PushInputFile( FILE *pInFile );
+    // returns true IFF file opened successfully
+    bool            PushInputFile( const char *pInFileName );
     void            PushInputBuffer( char *pDataBuffer, int dataBufferLen );
     void            PopInputStream( void );
 

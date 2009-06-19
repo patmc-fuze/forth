@@ -109,10 +109,11 @@ public:
     ForthShell( ForthEngine *pEngine = NULL, ForthThread *pThread = NULL, int shellStackLongs = 1024 );
     virtual ~ForthShell();
 
-    void                    PushInputFile( FILE *pInFile );
-    void                    PushInputBuffer( char *pDataBuffer, int dataBufferLen );
-    bool                    PopInputStream( void );
-    int                     Run( ForthInputStream *pStream );
+    // returns true IFF file opened successfully
+    virtual bool            PushInputFile( const char *pInFileName );
+    virtual void            PushInputBuffer( char *pDataBuffer, int dataBufferLen );
+    virtual bool            PopInputStream( void );
+    virtual int             Run( ForthInputStream *pStream );
     char *                  GetNextSimpleToken( void );
     char *                  GetToken( char delim );
 
@@ -132,6 +133,8 @@ public:
     bool                    CheckSyntaxError( const char *pString, long tag, long desiredTag );
 
     eForthResult            InterpretLine( const char *pSrcLine = NULL );
+
+    virtual char            GetChar();
 
 protected:
 

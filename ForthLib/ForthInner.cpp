@@ -2515,10 +2515,18 @@ InnerInterpreter( ForthCoreState *pCore )
         GET_ENGINE->TraceOp();
 #endif
         op = *pIP++;
+#if 1
+        if ( op < pCore->numBuiltinOps )
+        {
+            pCore->builtinOps[ op ]( pCore );
+        }
+
+#else
         SET_IP( pIP );
         opType = FORTH_OP_TYPE( op );
         opVal = FORTH_OP_VALUE( op );
         pCore->optypeAction[ (int) opType ]( pCore, opVal );
+#endif
     }
 
     return GET_STATE;

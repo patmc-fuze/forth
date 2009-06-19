@@ -257,7 +257,7 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
 //                     ForthBufferInputStream
 // 
 
-ForthBufferInputStream::ForthBufferInputStream( char *pDataBuffer, int dataBufferLen, int bufferLen )
+ForthBufferInputStream::ForthBufferInputStream( const char *pDataBuffer, int dataBufferLen, int bufferLen )
 : ForthInputStream(bufferLen)
 , mpDataBufferLimit( pDataBuffer + dataBufferLen )
 , mpDataBuffer( pDataBuffer )
@@ -272,7 +272,8 @@ ForthBufferInputStream::~ForthBufferInputStream()
 char *
 ForthBufferInputStream::GetLine( const char *pPrompt )
 {
-    char *pBuffer, *pDst, c;
+    const char *pBuffer;
+    char *pDst, c;
 
     if ( mpDataBuffer >= mpDataBufferLimit ) {
         return NULL;
@@ -291,6 +292,6 @@ ForthBufferInputStream::GetLine( const char *pPrompt )
     *pDst++ = '\0';
 
     mpBuffer = mpBufferBase;
-    return pBuffer;
+    return mpBuffer;
 }
 

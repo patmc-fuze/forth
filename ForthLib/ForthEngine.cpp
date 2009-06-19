@@ -502,10 +502,10 @@ ForthEngine::GetNextSimpleToken( void )
 }
 
 
-void
-ForthEngine::PushInputFile( FILE *pInFile )
+bool
+ForthEngine::PushInputFile( const char *pInFileName )
 {
-    mpShell->PushInputFile( pInFile );
+    return mpShell->PushInputFile( pInFileName );
 }
 
 void
@@ -606,9 +606,10 @@ ForthEngine::DescribeSymbol( const char *pSymName )
                 if ( ((line & 31) == 0) && (mpShell != NULL) && mpShell->GetInput()->InputStream()->IsInteractive() )
                 {
                     ConsoleOut( "Hit ENTER to continue, 'q' & ENTER to quit\n" );
-                    c = getchar();
+                    c = mpShell->GetChar();
+
                     if ( (c == 'q') || (c == 'Q') ) {
-                        c = getchar();
+                        c = mpShell->GetChar();
                         notDone = false;
                     }
                 }

@@ -95,6 +95,7 @@ ForthTypesManager::StartStructDefinition( const char *pName )
 void
 ForthTypesManager::EndStructDefinition()
 {
+    SPEW_STRUCTS( "EndStructDefinition\n" );
     ForthEngine *pEngine = ForthEngine::GetInstance();
     pEngine->EndOpDefinition( true );
 }
@@ -127,6 +128,7 @@ ForthTypesManager::StartClassDefinition( const char *pName )
 void
 ForthTypesManager::EndClassDefinition()
 {
+    SPEW_STRUCTS( "EndClassDefinition\n" );
     ForthEngine *pEngine = ForthEngine::GetInstance();
     pEngine->EndOpDefinition( false );
     pEngine->SetDefinitionVocabulary( mpSavedDefinitionVocab );

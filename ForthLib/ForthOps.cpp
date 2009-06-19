@@ -1856,15 +1856,15 @@ ShowVocab( ForthCoreState   *pCore,
             if ( (pShell != NULL) && pShell->GetInput()->InputStream()->IsInteractive() )
             {
                 CONSOLE_STRING_OUT( "\nHit ENTER to continue, 'q' & ENTER to quit, 'n' & ENTER to do next vocabulary\n" );
-                retVal = tolower( getchar() );
+                retVal = tolower( pShell->GetChar() );
                 if ( retVal == 'q' )
                 {
-                    getchar();
+                    pShell->GetChar();
                     break;
                 }
                 else if ( retVal == 'n' )
                 {
-                    getchar();
+                    pShell->GetChar();
                     break;
                 }
             }
@@ -2588,21 +2588,18 @@ FORTHOP( precedenceOp )
 
 FORTHOP( loadStrOp )
 {
-    FILE *pInFile;
-    ForthEngine *pEngine = GET_ENGINE;
     char *pFileName = ((char *) (SPOP));
 
-    if ( pFileName != NULL ) {
-        pInFile = fopen( pFileName, "r" );
-        if ( pInFile != NULL ) {
-            pEngine->PushInputFile( pInFile );
-        } else {
+    if ( pFileName != NULL )
+    {
+        ForthEngine *pEngine = GET_ENGINE;
+        if ( pEngine->PushInputFile( pFileName ) == false )
+        {
             CONSOLE_STRING_OUT( "!!!! Failure opening source file " );
             CONSOLE_STRING_OUT( pFileName );
             CONSOLE_STRING_OUT( " !!!!\n" );
             TRACE( "!!!! Failure opening source file %s !!!!\n", pFileName );
         }
-
     }
 }
 
