@@ -1665,7 +1665,7 @@ entry doByteArrayBop
 	mov	ecx, [ebx]
 	add	ebx, 4
 	mov	[ebp].FCore.RPtr, ebx
-	jmp	intEntry
+	jmp	byteEntry
 
 ;-----------------------------------------------
 ;
@@ -1699,7 +1699,7 @@ entry doShortArrayBop
 	mov	ecx, [ebx]
 	add	ebx, 4
 	mov	[ebp].FCore.RPtr, ebx
-	jmp	intEntry
+	jmp	shortEntry
 
 ;-----------------------------------------------
 ;
