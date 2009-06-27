@@ -136,6 +136,19 @@ public:
 
     virtual char            GetChar();
 
+    virtual FILE*           FileOpen( const char* filePath, const char* openMode );
+    virtual int             FileClose( FILE* pFile );
+    virtual int             FileSeek( FILE* pFile, int offset, int control );
+    virtual int             FileRead( FILE* pFile, void* pDst, int numItems, int itemSize );
+    virtual int             FileWrite( FILE* pFile, void* pDst, int numItems, int itemSize );
+    virtual int             FileGetChar( FILE* pFile );
+    virtual int             FilePutChar( FILE* pFile, int outChar );
+    virtual int             FileAtEOF( FILE* pFile );
+    virtual int             FileGetLength( FILE* pFile );
+    virtual int             FileGetPosition( FILE* pFile );
+    virtual char*           FileGetString( FILE* pFile, char* dstBuffer, int maxChars );
+    virtual int             FilePutString( FILE* pFile, const char* pBuffer );
+
 protected:
 
     // parse next token from input stream into mTokenBuff, padded with 0's up

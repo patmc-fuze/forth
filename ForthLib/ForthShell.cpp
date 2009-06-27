@@ -811,6 +811,83 @@ ForthShell::GetChar()
     return getchar();
 }
 
+FILE*
+ForthShell::FileOpen( const char* filePath, const char* openMode )
+{
+    return fopen( filePath, openMode );
+}
+
+int
+ForthShell::FileClose( FILE* pFile )
+{
+    return fclose( pFile );
+}
+
+int
+ForthShell::FileSeek( FILE* pFile, int offset, int control )
+{
+    return fseek( pFile, offset, control );
+}
+
+int
+ForthShell::FileRead( FILE* pFile, void* pDst, int numItems, int itemSize )
+{
+    return fread( pDst, numItems, itemSize, pFile );
+}
+
+int
+ForthShell::FileWrite( FILE* pFile, void* pDst, int numItems, int itemSize ) 
+{
+    return fwrite( pDst, numItems, itemSize, pFile );
+}
+
+int
+ForthShell::FileGetChar( FILE* pFile )
+{
+    return fgetc( pFile );
+}
+
+int
+ForthShell::FilePutChar( FILE* pFile, int outChar )
+{
+    return fputc( outChar, pFile );
+}
+
+int
+ForthShell::FileAtEOF( FILE* pFile )
+{
+    return feof( pFile );
+}
+
+int
+ForthShell::FileGetLength( FILE* pFile )
+{
+    int oldPos = ftell( pFile );
+    fseek( pFile, 0, SEEK_END );
+    int result = ftell( pFile );
+    fseek( pFile, oldPos, SEEK_SET );
+    return result;
+}
+
+int
+ForthShell::FileGetPosition( FILE* pFile )
+{
+    return ftell( pFile );
+}
+
+char*
+ForthShell::FileGetString( FILE* pFile, char* pBuffer, int maxChars )
+{
+    return fgets( pBuffer, maxChars, pFile );
+}
+
+
+int
+ForthShell::FilePutString( FILE* pFile, const char* pBuffer )
+{
+    return fputs( pBuffer, pFile );
+}
+
 
 //////////////////////////////////////////////////////////////////////
 ////
