@@ -15,13 +15,21 @@ int _testfile
 
 "testing slow mode... " %s
 millitime
-"slow_test_output.txt" "w" fopen -> _testfile _testfile outToFile load forthtest.txt outToScreen _testfile fclose drop
+"slow_test_output.txt" "w" fopen -> _testfile
+_testfile outToFile
+load forthtest.txt
+outToScreen
+_testfile fclose drop
 millitime swap - i2f 1000.0 f/ "test completed in " %s %f " seconds\n" %s
 "slow_test_output.txt" checktest
 
 "testing turbo mode... " %s
 millitime
-turbo "turbo_test_output.txt" "w" fopen -> _testfile _testfile outToFile load forthtest.txt outToScreen _testfile fclose drop turbo
+turbo "turbo_test_output.txt" "w" fopen -> _testfile
+_testfile outToFile
+load forthtest.txt
+outToScreen
+_testfile fclose drop turbo
 millitime swap - i2f 1000.0 f/ "test completed in " %s %f " seconds\n" %s
 "turbo_test_output.txt" checktest
 
