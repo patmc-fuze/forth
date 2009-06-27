@@ -26,12 +26,20 @@ INCLUDES	=	include
 #---------------------------------------------------------------------------------
 ARCH	:=	-mthumb -mthumb-interwork
 
-CFLAGS	:=	-g -Wall -O2\
+# use -O0 for debug builds
+#OPTIMIZATION_FLAGS	=	-O2
+OPTIMIZATION_FLAGS	=	-O0
+
+CFLAGS	:=	-g -Wall $(OPTIMIZATION_FLAGS)\
  		-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
 		-ffast-math \
 		$(ARCH)
-
+		
 CFLAGS	+=	$(INCLUDE) -DARM9 -D_ASM_INNER_INTERPRETER
+
+# comment out the next line when not using emulator
+CFLAGS	+=	-DDEBUG_WITH_NDS_EMULATOR
+
 #CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 # to generate assembly:
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -save-temps
