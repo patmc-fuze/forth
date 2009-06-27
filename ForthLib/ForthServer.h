@@ -16,21 +16,44 @@
 #define SOCKET  int
 #endif
 
+// commands sent to the client from the server
 enum
 {
-    kClientCmdDisplayText,
-    kClientCmdSendLine,
-    kClientCmdStartLoad,
-    kClientCmdGetChar,
+    kClientMsgDisplayText,
+    kClientMsgSendLine,
+    kClientMsgStartLoad,
+    kClientMsgGetChar,
+    kClientMsgFileOpen,
+    kClientMsgFileClose,
+    kClientMsgFileSetPosition,
+    kClientMsgFileRead,
+    kClientMsgFileWrite,
+    kClientMsgFileGetChar,
+    kClientMsgFilePutChar,
+    kClientMsgFileCheckEOF,
+    kClientMsgFileGetPosition,
+    kClientMsgFileGetLength,
+    kClientMsgFileCheckExists,
+    kClientMsgFileGetLine,
+    kNumClientMsgs
 };
 
+
+// commands sent to the server from the client
 enum
 {
-    kServerCmdProcessLine,
-    kServerCmdProcessChar,
-    kServerCmdPopStream         // sent when file is empty
+    kServerMsgProcessLine,
+    kServerMsgProcessChar,
+    kServerMsgPopStream,         // sent when file is empty
+    kServerMsgFileOpResult,
+    kNumServerMsgs
 };
 
+typedef struct
+{
+    int     messageType;
+    int     numDataBytes;
+} messageHeader;
 
 extern int      readSocketData( SOCKET s, char *buf, int len );
 extern void     writeSocketString( SOCKET s, int command, const char* str );
@@ -72,6 +95,19 @@ public:
     void                    SendTextToClient( const char *pMessage );
 
     virtual char            GetChar();
+
+    virtual FILE*           FileOpen( const char* filePath, const char* openMode );
+    virtual int             FileClose( FILE* pFile );
+    virtual int             FileSeek( FILE* pFile, int offset, int control );
+    virtual int             FileRead( FILE* pFile, void* pDst, int numItems, int itemSize );
+    virtual int             FileWrite( FILE* pFile, void* pDst, int numItems, int itemSize );
+    virtual int             FileGetChar( FILE* pFile );
+    virtual int             FilePutChar( FILE* pFile, int outChar );
+    virtual int             FileAtEOF( FILE* pFile );
+    virtual int             FileGetLength( FILE* pFile );
+    virtual int             FileGetPosition( FILE* pFile );
+    virtual char*           FileGetString( FILE* pFile, char* dstBuffer, int maxChars );
+    virtual int             FilePutString( FILE* pFile, const char* pBuffer );
 
 protected:
     SOCKET  mSocket;
