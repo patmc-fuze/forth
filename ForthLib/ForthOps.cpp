@@ -5,11 +5,17 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
+
 #ifdef _WINDOWS
 #include <conio.h>
 #include <direct.h>
 #include <io.h>
 #endif
+
+#ifdef ARM9
+#include <nds.h>
+#endif
+
 #include <ctype.h>
 #include <time.h>
 #include <sys\timeb.h>
@@ -3080,8 +3086,8 @@ FORTHOP( fopenOp )
     NEEDS(2);
     char *pAccess = (char *) SPOP;
     char *pName = (char *) SPOP;
-    
-    FILE *pFP = fopen( pName, pAccess );
+
+    FILE *pFP = GET_ENGINE->GetShell()->FileOpen( pName, pAccess );
     SPUSH( (long) pFP );
 }
 
@@ -3089,7 +3095,7 @@ FORTHOP( fcloseOp )
 {
     NEEDS(1);
     
-    int result = fclose( (FILE *) SPOP );
+    int result = GET_ENGINE->GetShell()->FileClose( (FILE *) SPOP );
     SPUSH( result );
 }
 
@@ -3099,7 +3105,7 @@ FORTHOP( fseekOp )
     int offset = SPOP;
     FILE *pFP = (FILE *) SPOP;
     
-    int result = fseek( pFP, offset, ctrl );
+    int result = GET_ENGINE->GetShell()->FileSeek( pFP, offset, ctrl );
     SPUSH( result );
 }
 
@@ -3112,7 +3118,7 @@ FORTHOP( freadOp )
     int numItems = SPOP;
     void *pDst = (void *) SPOP;
     
-    int result = fread( pDst, numItems, itemSize, pFP );
+    int result = GET_ENGINE->GetShell()->FileRead( pFP, pDst, numItems, itemSize );
     SPUSH( result );
 }
 
@@ -3125,7 +3131,7 @@ FORTHOP( fwriteOp )
     int numItems = SPOP;
     void *pSrc = (void *) SPOP;
     
-    int result = fwrite( pSrc, numItems, itemSize, pFP );
+    int result = GET_ENGINE->GetShell()->FileWrite( pFP, pSrc, numItems, itemSize );
     SPUSH( result );
 }
 
@@ -3134,7 +3140,7 @@ FORTHOP( fgetcOp )
     NEEDS(1);
     FILE *pFP = (FILE *) SPOP;
     
-    int result = fgetc( pFP );
+    int result = GET_ENGINE->GetShell()->FileGetChar( pFP );
     SPUSH( result );
 }
 
@@ -3144,21 +3150,21 @@ FORTHOP( fputcOp )
     FILE *pFP = (FILE *) SPOP;
     int outChar = SPOP;
     
-    int result = fputc( outChar, pFP );
+    int result = GET_ENGINE->GetShell()->FilePutChar( pFP, outChar );
     SPUSH( result );
 }
 
 FORTHOP( feofOp )
 {
     NEEDS(1);
-    int result = feof( (FILE *) SPOP );
+    int result = GET_ENGINE->GetShell()->FileAtEOF( (FILE *) SPOP );
     SPUSH( result );
 }
 
 FORTHOP( ftellOp )
 {
     NEEDS(1);
-    int result = ftell( (FILE *) SPOP );
+    int result = GET_ENGINE->GetShell()->FileGetPosition( (FILE *) SPOP );
     SPUSH( result );
 }
 
@@ -3166,12 +3172,29 @@ FORTHOP( flenOp )
 {
     NEEDS(1);
     FILE* pFile = (FILE *) SPOP;
-    int oldPos = ftell( pFile );
-    fseek( pFile, 0, SEEK_END );
-    int result = ftell( pFile );
-    fseek( pFile, oldPos, SEEK_SET );
+    int result = GET_ENGINE->GetShell()->FileGetLength( pFile );
     SPUSH( result );
 }
+
+FORTHOP( fgetsOp )
+{
+    NEEDS( 3 );
+    FILE* pFile = (FILE *) SPOP;
+    int maxChars = SPOP;
+    char* pBuffer = (char *) SPOP;
+    int result = (int) GET_ENGINE->GetShell()->FileGetString( pFile, pBuffer, maxChars );
+    SPUSH( result );
+}
+
+FORTHOP( fputsOp )
+{
+    NEEDS( 2 );
+    FILE* pFile = (FILE *) SPOP;
+    char* pBuffer = (char *) SPOP;
+    int result = GET_ENGINE->GetShell()->FilePutString( pFile, pBuffer );
+    SPUSH( result );
+}
+
 
 #ifdef _WINDOWS
 FORTHOP( systemOp )
@@ -3869,6 +3892,8 @@ baseDictEntry baseDict[] =
     OP(     feofOp,                 "feof" ),
     OP(     ftellOp,                "ftell" ),
     OP(     flenOp,                 "flen" ),
+    OP(     fputsOp,                "fputs" ),
+    OP(     fgetsOp,                "fgets" ),
     OP(     stdinOp,                "stdin" ),
     OP(     stdoutOp,               "stdout" ),
     OP(     stderrOp,               "stderr" ),
