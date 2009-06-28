@@ -37,6 +37,38 @@ DS->PC		load( filenameString )
 The interpret and display messages might be generalized to data movement operations.
 
 
+==============================================
+client/server messages:
+
+#bytes
+4		message type
+4		number of data bytes following (N)
+N		message data
+
+Messages are a predefined sequence of message elements.
+
+A message element can be either of fixed or variable size.
+
+A fixed size message element of N bytes is sent in N bytes.
+
+A variable size message element is sent as a 4-byte element size (N),
+followed by N bytes of message data.
+
+When strings are sent as part of messages, the message includes the terminating
+null byte.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 26, 2009
+
+Started reworking server/client messages to be more regular, to make
+implementing remote file access easier.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 21, 2009
+
+DS asm inner interpreter is completely switched over to ARM mode.
+Also implemented many more ops in assembler.
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 19, 2009
 
@@ -47,11 +79,12 @@ use.  I plan to use them like this:
 @	R4			core ptr
 @	R5			IP
 @	R6			SP
-@	R7			0xFFFFFF (opvalue mask)
-@	R8			builtinOps table
-@	R9			#builtinOps
-@	R10			FP
+@	R7			FP
+@	R8			RP
+@	R9			builtinOps table
+@	R10			#builtinOps
 @	R11			actionType table
+@	R12			0xFFFFFF (opvalue mask)
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 13, 2009
