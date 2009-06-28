@@ -12,17 +12,17 @@
 
 typedef enum
 {
-    kClientCmdDisplayText,
-    kClientCmdSendLine,
-    kClientCmdStartLoad,
-    kClientCmdGetChar,
+    kClientMsgDisplayText,
+    kClientMsgSendLine,
+    kClientMsgStartLoad,
+    kClientMsgGetChar,
 };
 
 typedef enum
 {
-    kServerCmdProcessLine,
-    kServerCmdProcessChar,
-    kServerCmdPopStream         // sent when file is empty
+    kServerMsgProcessLine,
+    kServerMsgProcessChar,
+    kServerMsgPopStream         // sent when file is empty
 };
 
 
@@ -123,7 +123,7 @@ int _tmain(int argc, _TCHAR* argv[])
                 buffer[len] = '\0';
                 switch ( command )
                 {
-                    case kClientCmdSendLine:
+                    case kClientMsgSendLine:
                         if ( len != 0 )
                         {
                             printf( buffer );
@@ -138,16 +138,16 @@ int _tmain(int argc, _TCHAR* argv[])
                             {
                                 *pNewline = '\0';
                             }
-                            SendCommandString( ConnectSocket, kServerCmdProcessLine, pBuffer );
+                            SendCommandString( ConnectSocket, kServerMsgProcessLine, pBuffer );
                         }
                         else
                         {
-                            SendCommandString( ConnectSocket, kServerCmdPopStream, NULL );
+                            SendCommandString( ConnectSocket, kServerMsgPopStream, NULL );
                             fclose( inputStack[ inputStackDepth ] );
                             inputStackDepth--;
                         }
                         break;
-                    case kClientCmdStartLoad:
+                    case kClientMsgStartLoad:
                         {
                             FILE* newInputFile = fopen( buffer, "r" );
                             if ( newInputFile != NULL )
@@ -157,23 +157,23 @@ int _tmain(int argc, _TCHAR* argv[])
                             }
                             else
                             {
-                                SendCommandString( ConnectSocket, kServerCmdPopStream, NULL );
+                                SendCommandString( ConnectSocket, kServerMsgPopStream, NULL );
                                 printf( "Client: failed to open '%s' upon server request!\n", buffer );
                             }
                         }
                         break;
 
-                    case kClientCmdDisplayText:
+                    case kClientMsgDisplayText:
                         if ( len != 0 )
                         {
                             printf( "%s", buffer );
                         }
                         break;
 
-                    case kClientCmdGetChar:
+                    case kClientMsgGetChar:
                         buffer[0] = getchar();
                         buffer[1] = '\0';
-                        SendCommandString( ConnectSocket, kServerCmdProcessChar, buffer );
+                        SendCommandString( ConnectSocket, kServerMsgProcessChar, buffer );
                         break;
                 }
             }
