@@ -5,65 +5,12 @@
 //////////////////////////////////////////////////////////////////////
 #include "stdafx.h"
 #include "ForthServer.h"
+#include "ForthPipe.h"
+#include "ForthMessages.h"
 
 #ifdef DEBUG_WITH_NDS_EMULATOR
 #include <nds.h>
 #endif
-
-int readSocketData( SOCKET s, char *buf, int len )
-{
-    int nBytes = 0;
-    while ( nBytes != len )
-    {
-        nBytes = recv( s, buf, len, MSG_PEEK );
-    }
-    nBytes = recv( s, buf, len, 0 );
-    return nBytes;
-}
-
-void sendCommandToClient( SOCKET s, int command, const char* data, int dataLen )
-{
-    send( s, (const char*) &command, sizeof(command), 0 );
-    send( s, (const char*) &dataLen, sizeof(dataLen), 0 );
-    if ( dataLen != 0 )
-    {
-        send( s, data, dataLen, 0 );
-    }
-}
-
-
-void sendStringCommandToClient( SOCKET s, int command, const char* str )
-{
-    int len = (str == NULL ) ? 0 : strlen( str );
-    sendCommandToClient( s, command, str, len );
-}
-
-bool readSocketResponse( SOCKET s, int* command, char* buffer, int bufferLen )
-{
-    int nBytes = readSocketData( s, (char *) command, sizeof(*command) );
-    if ( nBytes != sizeof( *command ) )
-    {
-        return false;
-    }
-    int len;
-    nBytes = readSocketData( s, (char *) &len, sizeof(len) );
-    if ( nBytes != sizeof( len ) )
-    {
-        return false;
-    }
-    // TBD: check len for buffer overflow
-    if ( len != 0 )
-    {
-        nBytes = readSocketData( s, buffer, len );
-        if ( nBytes != len )
-        {
-            return false;
-        }
-    }
-    buffer[len] = '\0';
-
-    return true;
-}
 
 static void consoleOutToClient( ForthCoreState   *pCore,
                                 const char       *pMessage )
@@ -79,9 +26,9 @@ static void consoleOutToClient( ForthCoreState   *pCore,
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-ForthServerInputStream::ForthServerInputStream( SOCKET inSocket, bool isFile, int bufferLen )
+ForthServerInputStream::ForthServerInputStream( ForthPipe* pPipe, bool isFile, int bufferLen )
 :   ForthInputStream( bufferLen )
-,   mSocket( inSocket )
+,   mpMsgPipe( pPipe )
 ,   mIsFile( isFile )
 {
 }
@@ -92,28 +39,47 @@ ForthServerInputStream::~ForthServerInputStream()
 
 char* ForthServerInputStream::GetLine( const char *pPrompt )
 {
-    int cmd;
-    SendCommandString( kClientMsgSendLine, mIsFile ? NULL : pPrompt );
+    int msgType, msgLen;
+    char* result = NULL;
+
     mpBuffer = mpBufferBase;
-    if ( GetResponse( &cmd ) ) 
-    {
-        return (cmd == kServerMsgPopStream) ? NULL : mpBuffer;
-    }
-    else
-    {
-        // error
-    }
-    return NULL;
-}
 
-bool ForthServerInputStream::GetResponse( int* command )
-{
-    return readSocketResponse( mSocket, command, mpBufferBase, mBufferLen );
-}
+    mpMsgPipe->StartMessage( kClientMsgSendLine );
+    mpMsgPipe->WriteString( mIsFile ? NULL : pPrompt );
+    mpMsgPipe->SendMessage();
 
-void ForthServerInputStream::SendCommandString( int command, const char* str )
-{
-    sendStringCommandToClient( mSocket, command, str );
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    switch ( msgType )
+    {
+    case kServerMsgProcessLine:
+        {
+            const char* pSrcLine;
+            int srcLen = 0;
+            if ( mpMsgPipe->ReadCountedData( pSrcLine, srcLen ) )
+            {
+                if ( srcLen != 0 )
+                {
+                    memcpy( mpBuffer, pSrcLine, srcLen );
+                    result = mpBuffer;
+                }
+            }
+            else
+            {
+                // TBD: report error
+            }
+        }
+        break;
+
+    case kServerMsgPopStream:
+        break;
+
+    default:
+        // TBD: report unexpected message type error
+    printf( "ForthServerShell::GetLine unexpected message type %d\n", msgType );
+        break;
+    }
+
+    return result;
 }
 
 bool ForthServerInputStream::IsInteractive( void )
@@ -121,9 +87,9 @@ bool ForthServerInputStream::IsInteractive( void )
     return !mIsFile;
 }
 
-SOCKET ForthServerInputStream::GetSocket()
+ForthPipe* ForthServerInputStream::GetPipe()
 {
-    return mSocket;
+    return mpMsgPipe;
 }
 
 
@@ -134,6 +100,7 @@ SOCKET ForthServerInputStream::GetSocket()
 ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, ForthThread *pThread, int shellStackLongs )
 :   ForthShell( pEngine, pThread, shellStackLongs )
 ,   mDoAutoload( doAutoload )
+,   mpMsgPipe( NULL )
 {
 }
 
@@ -144,7 +111,7 @@ ForthServerShell::~ForthServerShell()
 int ForthServerShell::Run( ForthInputStream *pInputStream )
 {
     ForthServerInputStream* pStream = (ForthServerInputStream *) pInputStream;
-    mSocket = pStream->GetSocket();
+    mpMsgPipe = pStream->GetPipe();
 
     const char *pBuffer;
     int retVal = 0;
@@ -179,6 +146,8 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
                 // users has typed "bye", exit the shell
                 bQuit = true;
                 retVal = 0;
+                mpMsgPipe->StartMessage( kClientMsgGoAway );
+                mpMsgPipe->SendMessage();
                 break;
 
             case kResultError:
@@ -210,24 +179,38 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
 
 bool ForthServerShell::PushInputFile( const char *pFileName )
 {
-    sendStringCommandToClient( mSocket, kClientMsgStartLoad, pFileName );
-    mpInput->PushInputStream( new ForthServerInputStream( mSocket, true ) );
+    mpMsgPipe->StartMessage( kClientMsgStartLoad );
+    mpMsgPipe->WriteString( pFileName );
+    mpMsgPipe->SendMessage();
+    mpInput->PushInputStream( new ForthServerInputStream( mpMsgPipe, true ) );
     return true;
 }
 
 void ForthServerShell::SendTextToClient( const char *pMessage )
 {
-    sendStringCommandToClient( mSocket, kClientMsgDisplayText, pMessage );
+    mpMsgPipe->StartMessage( kClientMsgDisplayText );
+    mpMsgPipe->WriteString( pMessage );
+    mpMsgPipe->SendMessage();
 }
 
 char ForthServerShell::GetChar()
 {
-    char buffer[16];
-    int cmd;
+    int c;
+    int msgType, msgLen;
 
-    sendStringCommandToClient( mSocket, kClientMsgGetChar, NULL );
-    readSocketResponse( mSocket, &cmd, buffer, sizeof(buffer) );
-    return buffer[0];
+    mpMsgPipe->StartMessage( kClientMsgGetChar );
+    mpMsgPipe->SendMessage();
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgProcessChar )
+    {
+        mpMsgPipe->ReadInt( c );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::GetChar unexpected message type %d\n", msgType );
+    }
+    return (int) c;
 }
 
 FILE*

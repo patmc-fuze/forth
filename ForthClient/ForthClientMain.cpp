@@ -7,50 +7,11 @@
 #include <stdio.h>
 #include <winsock2.h>
 #include <windows.h>
+#include "ForthPipe.h"
+#include "ForthMessages.h"
 
 #pragma comment(lib, "wininet.lib")
 
-typedef enum
-{
-    kClientMsgDisplayText,
-    kClientMsgSendLine,
-    kClientMsgStartLoad,
-    kClientMsgGetChar,
-};
-
-typedef enum
-{
-    kServerMsgProcessLine,
-    kServerMsgProcessChar,
-    kServerMsgPopStream         // sent when file is empty
-};
-
-
-void SendCommandString( SOCKET mSocket, int command, const char* str )
-{
-    send( mSocket, (const char*) &command, sizeof(command), 0 );
-    int len = (str == NULL ) ? 0 : strlen( str );
-    send( mSocket, (const char*) &len, sizeof(len), 0 );
-    if ( len != 0 )
-    {
-        send( mSocket, str, len, 0 );
-    }
-}
-
-int readSocketData( SOCKET s, char *buf, int len )
-{
-    int nBytes = 0;
-    while ( nBytes != len )
-    {
-        nBytes = recv( s, buf, len, MSG_PEEK );
-        if ( nBytes == 0 )
-        {
-            return 0;
-        }
-    }
-    nBytes = recv( s, buf, len, 0 );
-    return nBytes;
-}
 
 int _tmain(int argc, _TCHAR* argv[])
 {
@@ -89,6 +50,7 @@ int _tmain(int argc, _TCHAR* argv[])
         return -1;
     }
 
+    ForthPipe* pMsgPipe = new ForthPipe( ConnectSocket, kClientMsgDisplayText, kClientMsgLimit );
     bool done = false;
     char buffer[ 1024 ];
     FILE*   inputStack[ 16 ];
@@ -96,38 +58,24 @@ int _tmain(int argc, _TCHAR* argv[])
     inputStack[ 0 ] = stdin;
     while ( !done )
     {
-        int command;
-        int nBytes = readSocketData( ConnectSocket, (char *) &command, sizeof(command) );
-        if ( nBytes != sizeof( command ) )
+        int msgLen, msgType;
+        if ( pMsgPipe->GetMessage( msgType, msgLen ) )
         {
-            done = true;
-        }
-        else
-        {
-            int len;
-            nBytes = readSocketData( ConnectSocket, (char *) &len, sizeof(len) );
-            if ( nBytes != sizeof( len ) )
+            switch( msgType )
             {
-                done = true;
-            }
-            else
-            {
-                if ( len != 0 )
+            case kClientMsgSendLine:
                 {
-                    nBytes = readSocketData( ConnectSocket, buffer, len );
-                    if ( nBytes != len )
+                    // SendLine params:
+                    //   string     prompt
+                    char* pPrompt;
+                    int promptLen;
+                    if ( pMsgPipe->ReadCountedData( pPrompt, promptLen ) )
                     {
-                        done = true;
-                    }
-                }
-                buffer[len] = '\0';
-                switch ( command )
-                {
-                    case kClientMsgSendLine:
-                        if ( len != 0 )
+                        if ( promptLen != 0 )
                         {
-                            printf( buffer );
+                            printf( "%s", pPrompt );
                         }
+                        // read a line of text from top stream on inputStack and send to server
                         char *pBuffer;
                         buffer[0] = '\0';
                         pBuffer = fgets( buffer, sizeof(buffer), inputStack[ inputStackDepth ] );
@@ -138,48 +86,93 @@ int _tmain(int argc, _TCHAR* argv[])
                             {
                                 *pNewline = '\0';
                             }
-                            SendCommandString( ConnectSocket, kServerMsgProcessLine, pBuffer );
+                            pMsgPipe->StartMessage( kServerMsgProcessLine );
+                            pMsgPipe->WriteString( buffer );
+                            pMsgPipe->SendMessage();
                         }
                         else
                         {
-                            SendCommandString( ConnectSocket, kServerMsgPopStream, NULL );
+                            // this input stream is empty, pop the input stack and let server know
+                            pMsgPipe->StartMessage( kServerMsgPopStream );
+                            pMsgPipe->SendMessage();
                             fclose( inputStack[ inputStackDepth ] );
                             inputStackDepth--;
                         }
-                        break;
-                    case kClientMsgStartLoad:
-                        {
-                            FILE* newInputFile = fopen( buffer, "r" );
-                            if ( newInputFile != NULL )
-                            {
-                                inputStackDepth++;
-                                inputStack[ inputStackDepth ] = newInputFile;
-                            }
-                            else
-                            {
-                                SendCommandString( ConnectSocket, kServerMsgPopStream, NULL );
-                                printf( "Client: failed to open '%s' upon server request!\n", buffer );
-                            }
-                        }
-                        break;
-
-                    case kClientMsgDisplayText:
-                        if ( len != 0 )
-                        {
-                            printf( "%s", buffer );
-                        }
-                        break;
-
-                    case kClientMsgGetChar:
-                        buffer[0] = getchar();
-                        buffer[1] = '\0';
-                        SendCommandString( ConnectSocket, kServerMsgProcessChar, buffer );
-                        break;
+                    }
+                    else
+                    {
+                        printf( "Failed reading prompt string while processing SendLine\n" );
+                        done = true;
+                    }
                 }
+                break;
+
+            case kClientMsgStartLoad:
+                {
+                    char* pFilename;
+                    pMsgPipe->ReadString( pFilename );
+                    FILE* newInputFile = fopen( pFilename, "r" );
+                    if ( newInputFile != NULL )
+                    {
+                        inputStackDepth++;
+                        inputStack[ inputStackDepth ] = newInputFile;
+                    }
+                    else
+                    {
+                        pMsgPipe->StartMessage( kServerMsgPopStream );
+                        pMsgPipe->SendMessage();
+                        printf( "Client: failed to open '%s' upon server request!\n", buffer );
+                    }
+                }
+                break;
+
+            case kClientMsgDisplayText:
+                {
+                    char* pText;
+                    int textLen;
+                    if ( pMsgPipe->ReadCountedData( pText, textLen ) )
+                    {
+                        if ( textLen != 0 )
+                        {
+                            printf( "%s", pText );
+                        }
+                    }
+                    else
+                    {
+                        printf( "Failed reading text string while processing DisplayText\n" );
+                        done = true;
+                    }
+                }
+                break;
+
+            case kClientMsgGetChar:
+                {
+                    int c = getchar();
+                    pMsgPipe->StartMessage( kServerMsgProcessChar );
+                    pMsgPipe->WriteInt( c );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgGoAway:
+                done = true;
+                break;
+
+            default:
+                {
+                    printf( "Got unexpected message, type %d len %d \n", msgType, msgLen );
+                }
+                break;
             }
         }
+        else
+        {
+            done = true;
+        }
 
-    }
+    }   // end     while ( !done )
+
     WSACleanup();
+    delete pMsgPipe;
     return 0;
 }

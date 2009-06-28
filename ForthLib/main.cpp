@@ -66,9 +66,8 @@ int main(int argc, char* argv[], char* envp[])
     
 	consoleDemoInit();  //setup the sub screen for printing
 
-#define DEBUG_WITH_EMULATOR
-#ifdef DEBUG_WITH_EMULATOR
-	const char* woohoo = "turbo 55 66 + 33 *";
+#ifdef DEBUG_WITH_NDS_EMULATOR
+	const char* woohoo = "55 66 + 33 * %d";
     pInStream = new ForthBufferInputStream( woohoo, strlen(woohoo) );
     iprintf( "Forth: interpret %s\n", woohoo );
     iRetVal = pShell->Run( pInStream );

@@ -16,68 +16,23 @@
 #define SOCKET  int
 #endif
 
-// commands sent to the client from the server
-enum
-{
-    kClientMsgDisplayText,
-    kClientMsgSendLine,
-    kClientMsgStartLoad,
-    kClientMsgGetChar,
-    kClientMsgFileOpen,
-    kClientMsgFileClose,
-    kClientMsgFileSetPosition,
-    kClientMsgFileRead,
-    kClientMsgFileWrite,
-    kClientMsgFileGetChar,
-    kClientMsgFilePutChar,
-    kClientMsgFileCheckEOF,
-    kClientMsgFileGetPosition,
-    kClientMsgFileGetLength,
-    kClientMsgFileCheckExists,
-    kClientMsgFileGetLine,
-    kNumClientMsgs
-};
-
-
-// commands sent to the server from the client
-enum
-{
-    kServerMsgProcessLine,
-    kServerMsgProcessChar,
-    kServerMsgPopStream,         // sent when file is empty
-    kServerMsgFileOpResult,
-    kNumServerMsgs
-};
-
-typedef struct
-{
-    int     messageType;
-    int     numDataBytes;
-} messageHeader;
-
-extern int      readSocketData( SOCKET s, char *buf, int len );
-extern void     writeSocketString( SOCKET s, int command, const char* str );
-extern bool     readSocketResponse( SOCKET s, int* command, char* buffer, int bufferLen );
+class ForthPipe;
 
 class ForthServerInputStream : public ForthInputStream
 {
 public:
-    ForthServerInputStream( SOCKET inSocket, bool isFile = false, int bufferLen = DEFAULT_INPUT_BUFFER_LEN );
+    ForthServerInputStream( ForthPipe* pMsgPipe, bool isFile = false, int bufferLen = DEFAULT_INPUT_BUFFER_LEN );
     virtual ~ForthServerInputStream();
 
     virtual char    *GetLine( const char *pPrompt );
 
-    bool            GetResponse( int* command );
-
-    void            SendCommandString( int command, const char* str );
-
     virtual bool    IsInteractive( void );
 
-    SOCKET          GetSocket();
+    ForthPipe*      GetPipe();
 
 protected:
-    SOCKET      mSocket;
-    bool        mIsFile;
+    ForthPipe*      mpMsgPipe;
+    bool            mIsFile;
 };
 
 
@@ -110,8 +65,8 @@ public:
     virtual int             FilePutString( FILE* pFile, const char* pBuffer );
 
 protected:
-    SOCKET  mSocket;
-    bool    mDoAutoload;
+    ForthPipe*      mpMsgPipe;
+    bool            mDoAutoload;
 };
 
 

@@ -981,6 +981,9 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\ForthPipe.cpp">
+			</File>
+			<File
 				RelativePath=".\ForthServer.cpp">
 			</File>
 			<File
@@ -1450,6 +1453,12 @@ move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;
 			</File>
 			<File
 				RelativePath="ForthInput.h">
+			</File>
+			<File
+				RelativePath=".\ForthMessages.h">
+			</File>
+			<File
+				RelativePath=".\ForthPipe.h">
 			</File>
 			<File
 				RelativePath=".\ForthServer.h">

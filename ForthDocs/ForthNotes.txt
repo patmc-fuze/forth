@@ -123,6 +123,15 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 27 2009
+
++ Added ForthPipe abstraction which implements message passing between client
+  and server, and converted over old ForthClient/ForthServer to using it, got
+  it working on Windows, need to try it out on DS
+
+- need to add remote file operations using ForthPipe
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 25 2009
 
 + rearranged some things to make server-client split easier

@@ -9,6 +9,8 @@
 #include "..\ForthLib\ForthInput.h"
 #include "..\ForthLib\ForthThread.h"
 #include "..\ForthLib\ForthServer.h"
+#include "..\ForthLib\ForthPipe.h"
+#include "..\ForthLib\ForthMessages.h"
 
 using namespace std;
 
@@ -56,8 +58,11 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
                     printf( "Waiting for a client to connect.\n" );
                     ClientSocket = accept(ServerSocket, NULL, NULL);
                     printf("Incoming connection accepted!\n");
-                    pInStream = new ForthServerInputStream( ClientSocket );
+
+                    ForthPipe* pMsgPipe = new ForthPipe( ClientSocket, kServerMsgProcessLine, kServerMsgLimit );
+                    pInStream = new ForthServerInputStream( pMsgPipe );
                     iRetVal = pShell->Run( pInStream );
+
                     //send(ClientSocket, pszSendData, strlen(pszData), 0);
                     closesocket(ClientSocket);
                 }
