@@ -110,13 +110,15 @@ FORTHOP( timesOp )
 FORTHOP( times2Op )
 {
     NEEDS(1);
-    SPUSH( SPOP << 1 );
+    long a = SPOP;
+    SPUSH( a << 1 );
 }
 
 FORTHOP( times4Op )
 {
     NEEDS(1);
-    SPUSH( SPOP << 2 );
+    long a = SPOP;
+    SPUSH( a << 2 );
 }
 
 FORTHOP( divideOp )
@@ -138,7 +140,7 @@ FORTHOP( divide4Op )
 {
     NEEDS(1);
     long a = SPOP;
-    SPUSH( a >>2 );
+    SPUSH( a >> 2 );
 }
 
 FORTHOP( divmodOp )
@@ -3114,11 +3116,11 @@ FORTHOP( freadOp )
     NEEDS(4);
     
     FILE *pFP = (FILE *) SPOP;
-    int itemSize = SPOP;
     int numItems = SPOP;
+    int itemSize = SPOP;
     void *pDst = (void *) SPOP;
     
-    int result = GET_ENGINE->GetShell()->FileRead( pFP, pDst, numItems, itemSize );
+    int result = GET_ENGINE->GetShell()->FileRead( pFP, pDst, itemSize, numItems);
     SPUSH( result );
 }
 
@@ -3127,11 +3129,11 @@ FORTHOP( fwriteOp )
     
     NEEDS(4);
     FILE *pFP = (FILE *) SPOP;
-    int itemSize = SPOP;
     int numItems = SPOP;
+    int itemSize = SPOP;
     void *pSrc = (void *) SPOP;
     
-    int result = GET_ENGINE->GetShell()->FileWrite( pFP, pSrc, numItems, itemSize );
+    int result = GET_ENGINE->GetShell()->FileWrite( pFP, pSrc, itemSize, numItems);
     SPUSH( result );
 }
 
@@ -3158,6 +3160,13 @@ FORTHOP( feofOp )
 {
     NEEDS(1);
     int result = GET_ENGINE->GetShell()->FileAtEOF( (FILE *) SPOP );
+    SPUSH( result );
+}
+
+FORTHOP( fexistsOp )
+{
+    NEEDS(1);
+    int result = GET_ENGINE->GetShell()->FileCheckExists( (const char*) SPOP );
     SPUSH( result );
 }
 
@@ -3890,6 +3899,7 @@ baseDictEntry baseDict[] =
     OP(     fgetcOp,                "fgetc" ),
     OP(     fputcOp,                "fputc" ),
     OP(     feofOp,                 "feof" ),
+    OP(     fexistsOp,              "fexists" ),
     OP(     ftellOp,                "ftell" ),
     OP(     flenOp,                 "flen" ),
     OP(     fputsOp,                "fputs" ),

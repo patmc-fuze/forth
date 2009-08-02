@@ -830,15 +830,15 @@ ForthShell::FileSeek( FILE* pFile, int offset, int control )
 }
 
 int
-ForthShell::FileRead( FILE* pFile, void* pDst, int numItems, int itemSize )
+ForthShell::FileRead( FILE* pFile, void* pDst, int itemSize, int numItems )
 {
-    return fread( pDst, numItems, itemSize, pFile );
+    return fread( pDst, itemSize, numItems, pFile );
 }
 
 int
-ForthShell::FileWrite( FILE* pFile, void* pDst, int numItems, int itemSize ) 
+ForthShell::FileWrite( FILE* pFile, const void* pSrc, int itemSize, int numItems ) 
 {
-    return fwrite( pDst, numItems, itemSize, pFile );
+    return fwrite( pSrc, itemSize, numItems, pFile );
 }
 
 int
@@ -857,6 +857,18 @@ int
 ForthShell::FileAtEOF( FILE* pFile )
 {
     return feof( pFile );
+}
+
+int
+ForthShell::FileCheckExists( const char* pFilename )
+{
+    FILE* pFile = fopen( pFilename, "r" );
+    int result = (pFile != NULL) ? ~0 : 0;
+    if ( pFile != NULL )
+    {
+        fclose( pFile );
+    }
+    return result;
 }
 
 int

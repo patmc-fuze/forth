@@ -14,6 +14,9 @@
 #endif
 
 
+//#define PIPE_SPEW
+
+
 class ForthPipe
 {
 public:

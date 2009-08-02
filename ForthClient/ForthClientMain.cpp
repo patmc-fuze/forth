@@ -53,6 +53,8 @@ int _tmain(int argc, _TCHAR* argv[])
     ForthPipe* pMsgPipe = new ForthPipe( ConnectSocket, kClientMsgDisplayText, kClientMsgLimit );
     bool done = false;
     char buffer[ 1024 ];
+    int readBufferSize = 16384;
+    char* pReadBuffer = new char[ readBufferSize ];
     FILE*   inputStack[ 16 ];
     int inputStackDepth = 0;
     inputStack[ 0 ] = stdin;
@@ -73,7 +75,7 @@ int _tmain(int argc, _TCHAR* argv[])
                     {
                         if ( promptLen != 0 )
                         {
-                            printf( "%s", pPrompt );
+                            printf( "\n%s ", pPrompt );
                         }
                         // read a line of text from top stream on inputStack and send to server
                         char *pBuffer;
@@ -112,16 +114,30 @@ int _tmain(int argc, _TCHAR* argv[])
                     char* pFilename;
                     pMsgPipe->ReadString( pFilename );
                     FILE* newInputFile = fopen( pFilename, "r" );
+                    int itWorked = 0;
                     if ( newInputFile != NULL )
                     {
                         inputStackDepth++;
                         inputStack[ inputStackDepth ] = newInputFile;
+                        itWorked = 1;
                     }
                     else
                     {
-                        pMsgPipe->StartMessage( kServerMsgPopStream );
-                        pMsgPipe->SendMessage();
-                        printf( "Client: failed to open '%s' upon server request!\n", buffer );
+                        printf( "Client: failed to open '%s' upon server request!\n", pFilename );
+                    }
+                    pMsgPipe->StartMessage( kServerMsgStartLoadResult );
+                    pMsgPipe->WriteInt( itWorked );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgPopStream:
+                {
+                    // a "loaddone" was executed on server, so pop input stream
+                    if ( inputStackDepth > 0 )
+                    {
+                        fclose( inputStack[ inputStackDepth ] );
+                        inputStackDepth--;
                     }
                 }
                 break;
@@ -158,6 +174,194 @@ int _tmain(int argc, _TCHAR* argv[])
                 done = true;
                 break;
 
+            case kClientMsgFileOpen:
+                {
+                    char* pFilename;
+                    char* accessMode;
+                    pMsgPipe->ReadString( pFilename );
+                    pMsgPipe->ReadString( accessMode );
+                    FILE* pFile = fopen( pFilename, accessMode );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( (int) pFile );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFileClose:
+                {
+                    int file;
+                    pMsgPipe->ReadInt( file );
+                    int result = fclose( (FILE *) file );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFileSetPosition:
+                {
+                    int file, offset, control;
+                    pMsgPipe->ReadInt( file );
+                    pMsgPipe->ReadInt( offset );
+                    pMsgPipe->ReadInt( control );
+                    int result = fseek( (FILE *) file, offset, control );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFileRead:
+                {
+                    int file, numItems, itemSize;
+                    pMsgPipe->ReadInt( file );
+                    pMsgPipe->ReadInt( itemSize );
+                    pMsgPipe->ReadInt( numItems );
+                    int numBytes = numItems * itemSize;
+                    if ( numBytes > readBufferSize )
+                    {
+                        delete [] pReadBuffer;
+                        pReadBuffer = new char[ numBytes ];
+                        readBufferSize = numBytes;
+                    }
+                    int result = fread( pReadBuffer, itemSize, numItems, (FILE *) file );
+
+                    pMsgPipe->StartMessage( kServerMsgFileReadResult );
+                    pMsgPipe->WriteInt( result );
+                    if ( result > 0 )
+                    {
+                        numBytes = result * itemSize;
+                        pMsgPipe->WriteCountedData( pReadBuffer, numBytes );
+                    }
+                    else
+                    {
+                        printf( "fread returned %d\n", result );
+                    }
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFileWrite:
+                {
+                    int file, numItems, itemSize, numBytes;
+                    const char* pData;
+                    pMsgPipe->ReadInt( file );
+                    pMsgPipe->ReadInt( itemSize );
+                    pMsgPipe->ReadInt( numItems );
+                    pMsgPipe->ReadCountedData( pData, numBytes );
+                    int result = fwrite( pData, itemSize, numItems, (FILE *) file );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFileGetChar:
+                {
+                    int file;
+                    pMsgPipe->ReadInt( file );
+                    int result = fgetc( (FILE *) file );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFileCheckEOF:
+                {
+                    int file;
+                    pMsgPipe->ReadInt( file );
+                    int result = feof( (FILE *) file );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFileGetLength:
+                {
+                    int file;
+                    pMsgPipe->ReadInt( file );
+                    FILE* pFile = (FILE *) file;
+                    int oldPos = ftell( pFile );
+                    fseek( pFile, 0, SEEK_END );
+                    int result = ftell( pFile );
+                    fseek( pFile, oldPos, SEEK_SET );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFileCheckExists:
+                {
+                    char* pFilename;
+                    pMsgPipe->ReadString( pFilename );
+                    FILE* pFile = fopen( pFilename, "r" );
+                    int result = (pFile != NULL) ? ~0 : 0;
+                    if ( pFile != NULL )
+                    {
+                        fclose( pFile );
+                    }
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFileGetPosition:
+                {
+                    int file;
+                    pMsgPipe->ReadInt( file );
+                    int result = ftell( (FILE *) file );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFileGetString:
+                {
+                    int file, maxChars;
+                    pMsgPipe->ReadInt( file );
+                    pMsgPipe->ReadInt( maxChars );
+                    if ( maxChars > readBufferSize )
+                    {
+                        delete [] pReadBuffer;
+                        pReadBuffer = new char[ maxChars ];
+                        readBufferSize = maxChars;
+                    }
+                    char* result = fgets( pReadBuffer, maxChars, (FILE *) file );
+
+                    pMsgPipe->StartMessage( kServerMsgFileGetStringResult );
+                    pMsgPipe->WriteString( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFilePutString:
+                {
+                    int file;
+                    const char* pString;
+                    pMsgPipe->ReadInt( file );
+                    pMsgPipe->ReadString( pString );
+                    int result = fputs( pString, (FILE *) file );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
             default:
                 {
                     printf( "Got unexpected message, type %d len %d \n", msgType, msgLen );
@@ -173,6 +377,7 @@ int _tmain(int argc, _TCHAR* argv[])
     }   // end     while ( !done )
 
     WSACleanup();
+    delete [] pReadBuffer;
     delete pMsgPipe;
     return 0;
 }

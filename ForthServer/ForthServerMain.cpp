@@ -53,7 +53,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
             else
             {
                 pShell = new ForthServerShell;
-                while (true)
+                bool notDone = true;
+                while (notDone)
                 {
                     printf( "Waiting for a client to connect.\n" );
                     ClientSocket = accept(ServerSocket, NULL, NULL);
@@ -62,6 +63,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
                     ForthPipe* pMsgPipe = new ForthPipe( ClientSocket, kServerMsgProcessLine, kServerMsgLimit );
                     pInStream = new ForthServerInputStream( pMsgPipe );
                     iRetVal = pShell->Run( pInStream );
+                    delete pMsgPipe;
 
                     //send(ClientSocket, pszSendData, strlen(pszData), 0);
                     closesocket(ClientSocket);

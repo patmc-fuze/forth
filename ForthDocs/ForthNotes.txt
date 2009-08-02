@@ -123,13 +123,74 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 15 2009
+
+The current use of bracket to switch into interpret mode seems like a waste
+of a potentially very valuable synctactic element for a very limited use.
+I think it would be better if "[" was treated like a special character by the
+outer interpreter, to help disambiguate operations on array members from
+operations on the array itself.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 30 2009
+
+Looked at the "load blah.txt" bug - what is happening is that after trying to
+load a non-existant file, there is a one line delay between when you send a
+line to the server and when you get the response.  This delay increases by one
+line each time you try to load a bogus file.
+
+The problem appears to be that right after the server sends a "StartLoad"
+message, it sends a "SendLine" message, since it is done processing the
+line that had the bogus load command on it.
+
++ adding a kServerMsgStartLoadResult message fixed it
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 29 2009
+
++ created separate solutions for ForthClient and ForthServer - it just makes
+  it easier when running multiple sessions of MSDEV to do client/server debug
+  
++ fixed the disconnect problem that happened after loading forthtest.txt -
+  the problem was that when a "loaddone" opcode was executed, the client was
+  not told to pop its input stack, so it kept on reading forthtest.txt until
+  it hit the end of file, at which point it sent a "pop input stream" to the
+  server, which caused it to disconnect
+  ? should server ignore "pop input stream" when the input stack depth is 1 ?
+  
+The bug where things get screwy after you type "load blah.txt" when blah.txt
+doesn't exist is probably very similar
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 28 2009
+
++ finished implementing the remote file operations
+
++ partially tested file operations locally and remotely, they work
+
+o I had switched numItems/itemSize in fread and fwrite ops, I switched them
+  back everywhere, I think...
+  
+o I turned off 64-bit compatability warnings because they harped about storing
+  file pointers in ints...
+
+Known differences/problems when using server:
++ sometimes the prompt doesn't appear on its own line
+- sometimes there are multiple prompts printed on a line after loading a file
+- if you type "load foo.txt" and foo.txt doesn't exist, if you then type in
+  the correct name, it looks like the load doesn't happen right away, it
+  happens after you enter another console line... maybe...
++ sometimes after loading a file, the server shows the client as disconnected,
+  while the client is permanently stuck waiting for the next 8-byte message header
+  
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 27 2009
 
 + Added ForthPipe abstraction which implements message passing between client
   and server, and converted over old ForthClient/ForthServer to using it, got
   it working on Windows, need to try it out on DS
 
-- need to add remote file operations using ForthPipe
++ need to add remote file operations using ForthPipe
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 25 2009

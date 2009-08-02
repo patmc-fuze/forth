@@ -11,6 +11,7 @@ enum
     kClientMsgDisplayText = 10000,
     kClientMsgSendLine,
     kClientMsgStartLoad,
+    kClientMsgPopStream,    // sent when "loaddone" is executed
     kClientMsgGetChar,
     kClientMsgGoAway,
     kClientMsgFileOpen,
@@ -21,10 +22,11 @@ enum
     kClientMsgFileGetChar,
     kClientMsgFilePutChar,
     kClientMsgFileCheckEOF,
-    kClientMsgFileGetPosition,
     kClientMsgFileGetLength,
     kClientMsgFileCheckExists,
-    kClientMsgFileGetLine,
+    kClientMsgFileGetPosition,
+    kClientMsgFileGetString,
+    kClientMsgFilePutString,
     kClientMsgLimit,
 
     // client -> server    
@@ -32,7 +34,10 @@ enum
     kServerMsgProcessChar,
     kServerMsgPopStream,         // sent when file is empty
     kServerMsgFileOpResult,
-    kServerMsgLimit		
+    kServerMsgFileReadResult,
+    kServerMsgFileGetStringResult,
+    kServerMsgStartLoadResult,      // sent in response to kClientMsgStartLoad
+    kServerMsgLimit
 };
 
 

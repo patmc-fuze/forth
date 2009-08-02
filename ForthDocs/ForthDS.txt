@@ -57,6 +57,96 @@ followed by N bytes of message data.
 When strings are sent as part of messages, the message includes the terminating
 null byte.
 
+==============================================
+
+start devkitPro\msys
+cd /e/pat/prj/Forth
+make
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 1, 2009
+
+DOHHHHHHHHHHHHHHHHHH!
+The problem with the DS server is that recv always returns SOCKET_ERROR until
+it gets the requested number of bytes...
+Removing that made the DS server work fine...
+
+Can't run forthtest.txt, it uses "demo" which is defined in forth_autoload.txt,
+and forth_autoload.txt won't load on the DS because it uses the "system" op.
+-> See if system op can be made to run easily on the DS
+? Maybe make it a shell operation, like the way file operations are?
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 19, 2009
+
+A quick overview of the windows client:
+
+  init winsock
+  create ConnectSocket  (AF_INET, SOCK_STREAM, 0)
+  fill in ClientService with IP address of server, port 27015
+  connect to server
+  if connect worked
+    create pMsgPipe    ForthPipe( ConnectSocket, valid messages are in kClientMsgDisplayText...kClientMsgLimit )
+    push stdin on top of inputStack
+    while !done
+      get a message from server
+      process message
+  cleanup
+  cleanup winsock
+  exit
+
+A quick look at ForthDS.txt and ForthNotes.txt shows that the last known
+working version of Forth.NDS was on May 31, 2009.
+
+The source files which have been modified after that date are:
+modified						rev		revDate
+jun4	ForthInner.h			10		may25
+jun6	ForthInput.cpp			6		jun19
+jun6	ForthInput.h			6		jun19
+jun23	ForthInner.cpp			16		jun27
+jun28	ForthShell.cpp			18		jun27
+jun28	ForthShell.h			13		jun27
+jul1	ForthMessages.h			1		jun28
+jul10	ForthOps.cpp			25		jun27
+jul12	ForthPipe.cpp			1		jun28
+jul18	ForthPipe.h				1		jun28
+jun30	ForthServer.h			2&3		jun28			1	jun19
+jul1	ForthServer.cpp			2&3		jun28			1	jun19
+-------------------------
+jun29	ForthServerMain.cpp		2		jun28			1	jun19
+-------------------------
+jul1	ForthClientMain.cpp		2&3		jun28			1	jun19
+jul2	main.cpp				2		jun28			1	jun19
+
+It appears that I really only have a snapshot of June 19, but the changes between
+May 31 and June 19 seem to all be related to Thumb versus Arm assembler changes,
+not networking changes.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 1, 2009
+
+Got a lot of work done in the windows version of client/server, details are in ForthNotes.txt:
+
+o file IO goes through the shell, and works for client/server
+o fixed a bunch of existing client server bugs
+o broke out client/server communication into ForthPipe
+
+Ugh, when I brought the DS forth server up, after it connects it gets an
+error back from the first recv call! DOH!
+
+------
+Server									Client
+
+connects to access point
+waits for a client to connect
+										connects to server
+										waits for a message from Server (forever)
+accepts connection
+sends SendLine("ok>") message
+calls recv to get reply
+recv returns error
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 26, 2009
 

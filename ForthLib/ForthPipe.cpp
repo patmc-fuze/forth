@@ -18,6 +18,7 @@ static const char* clientMsgNames[] =
     "DisplayText",
     "SendLine",
     "StartLoad",
+    "PopStream",
     "GetChar",
     "GoAway",
     "FileOpen",
@@ -176,11 +177,12 @@ ForthPipe::WriteString( const char* pString )
 void
 ForthPipe::SendMessage()
 {
+    int numBytes = mOutOffset - (2 * sizeof(int));
 #ifdef PIPE_SPEW
-    printf( ">>>> SendMessage %s, %d bytes\n", MessageName( *((int*)(mOutBuffer)) ), mOutOffset - 8 );
+    printf( ">>>> SendMessage %s, %d bytes\n", MessageName( *((int*)(mOutBuffer)) ), numBytes );
 #endif
     // set length field (second int in buffer)
-    *((int *)(&(mOutBuffer[sizeof(int)]))) = mOutOffset - (2 * sizeof(int));
+    *((int *)(&(mOutBuffer[sizeof(int)]))) = numBytes;
     send( mSocket, mOutBuffer, mOutOffset, 0 );
     mOutOffset = 0;
 }
@@ -208,9 +210,25 @@ ForthPipe::ReceiveBytes( int numBytes )
     while ( bytesRead != numBytes )
     {
         bytesRead = recv( mSocket, pDst, numBytes, MSG_PEEK );
+#if 0        // this always returns SOCKET_ERROR on NDS until all bytes are received
+        if ( bytesRead == SOCKET_ERROR )
+        {
+#ifdef PIPE_SPEW
+            printf( "Socket error in recv!\n" );
+#endif
+            return NULL;
+        }
+#endif
     }
 
     recv( mSocket, pDst, numBytes, 0 );
+#ifdef PIPE_SPEW
+    for ( int i = 0; i < numBytes; i++ )
+    {
+        printf( " %02x", (int)(pDst[i]) );
+    }
+    printf( "\n" );
+#endif
 
     mInOffset = newOffset;
     return pDst;
@@ -222,6 +240,10 @@ ForthPipe::GetMessage( int& msgTypeOut, int& msgLenOut )
     bool responseValid = false;
     mInOffset = 0;
     const char* pSrc = (const char *) ReceiveBytes( 2 * sizeof(int) );
+    if ( pSrc == NULL )
+    {
+        return false;
+    }
     int numBytes;
     memcpy( &numBytes, pSrc + sizeof(int), sizeof(numBytes) );
     if ( numBytes < 0 )

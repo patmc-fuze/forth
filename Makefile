@@ -38,7 +38,7 @@ CFLAGS	:=	-g -Wall $(OPTIMIZATION_FLAGS)\
 CFLAGS	+=	$(INCLUDE) -DARM9 -D_ASM_INNER_INTERPRETER
 
 # comment out the next line when not using emulator
-CFLAGS	+=	-DDEBUG_WITH_NDS_EMULATOR
+#CFLAGS	+=	-DDEBUG_WITH_NDS_EMULATOR
 
 #CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 # to generate assembly:

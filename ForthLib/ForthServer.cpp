@@ -59,6 +59,9 @@ char* ForthServerInputStream::GetLine( const char *pPrompt )
             {
                 if ( srcLen != 0 )
                 {
+#ifdef PIPE_SPEW
+                    printf( "line = '%s'\n", pSrcLine );
+#endif
                     memcpy( mpBuffer, pSrcLine, srcLen );
                     result = mpBuffer;
                 }
@@ -75,7 +78,7 @@ char* ForthServerInputStream::GetLine( const char *pPrompt )
 
     default:
         // TBD: report unexpected message type error
-    printf( "ForthServerShell::GetLine unexpected message type %d\n", msgType );
+        printf( "ForthServerShell::GetLine unexpected message type %d\n", msgType );
         break;
     }
 
@@ -128,19 +131,23 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
         mpEngine->PushInputFile( "forth_autoload.txt" );
     }
 
-    while ( !bQuit ) {
+    while ( !bQuit )
+    {
 
         // try to fetch a line from current stream
         pBuffer = mpInput->GetLine( mpEngine->GetFastMode() ? "turbo>" : "ok>" );
-        if ( pBuffer == NULL ) {
+        if ( pBuffer == NULL )
+        {
             bQuit = PopInputStream();
         }
 
-        if ( !bQuit ) {
+        if ( !bQuit )
+        {
 
             result = InterpretLine();
 
-            switch( result ) {
+            switch( result )
+            {
 
             case kResultExitShell:
                 // users has typed "bye", exit the shell
@@ -153,9 +160,12 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
             case kResultError:
                 // an error has occured, empty input stream stack
                 // TBD
-                if ( !bInteractiveMode ) {
+                if ( !bInteractiveMode )
+                {
                     bQuit = true;
-                } else {
+                }
+                else
+                {
                     // TBD: dump all but outermost input stream
                 }
                 retVal = 0;
@@ -179,12 +189,40 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
 
 bool ForthServerShell::PushInputFile( const char *pFileName )
 {
+    int result = 0;
+    int msgType, msgLen;
+
     mpMsgPipe->StartMessage( kClientMsgStartLoad );
     mpMsgPipe->WriteString( pFileName );
     mpMsgPipe->SendMessage();
-    mpInput->PushInputStream( new ForthServerInputStream( mpMsgPipe, true ) );
-    return true;
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgStartLoadResult )
+    {
+        mpMsgPipe->ReadInt( result );
+        if ( result )
+        {
+            mpInput->PushInputStream( new ForthServerInputStream( mpMsgPipe, true ) );
+        }
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::PushInputFile unexpected message type %d\n", msgType );
+    }
+
+    return (result != 0);
 }
+
+bool
+ForthServerShell::PopInputStream( void )
+{
+    mpMsgPipe->StartMessage( kClientMsgPopStream );
+    mpMsgPipe->SendMessage();
+
+    return mpInput->PopInputStream();
+}
+
 
 void ForthServerShell::SendTextToClient( const char *pMessage )
 {
@@ -200,6 +238,7 @@ char ForthServerShell::GetChar()
 
     mpMsgPipe->StartMessage( kClientMsgGetChar );
     mpMsgPipe->SendMessage();
+
     mpMsgPipe->GetMessage( msgType, msgLen );
     if ( msgType == kServerMsgProcessChar )
     {
@@ -216,101 +255,351 @@ char ForthServerShell::GetChar()
 FILE*
 ForthServerShell::FileOpen( const char* filePath, const char* openMode )
 {
-#if 0
-    FILE* resultFile = NULL;
-    int command = kClientMsgFileOpen;
+    FILE* pFile = NULL;
+    int c;
+    int msgType, msgLen;
 
-    send( mSocket, (const char*) &command, sizeof(command), 0 );
-    int pathLen = strlen( filePath );
-    int modeLen = strlen( openMode );
-    int dataLen = pathLen + modeLen + 8;
-    send( mSocket, (const char*) &dataLen, sizeof(dataLen), 0 );
-    send( mSocket, (const char*) &pathLen, sizeof(pathLen), 0 );
-    if ( pathLen != 0 )
+    mpMsgPipe->StartMessage( kClientMsgFileOpen );
+    mpMsgPipe->WriteString( filePath );
+    mpMsgPipe->WriteString( openMode );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
     {
-        send( mSocket, filePath, pathLen, 0 );
+        mpMsgPipe->ReadInt( c );
+        pFile = (FILE *) c;
     }
-    send( mSocket, (const char*) &modeLen, sizeof(modeLen), 0 );
-    if ( modeLen != 0 )
+    else
     {
-        send( mSocket, openMode, modeLen, 0 );
+        // TBD: report error
+        printf( "ForthServerShell::FileOpen unexpected message type %d\n", msgType );
     }
-    readSocketResponse( mSocket, &command, resultFile, sizeof(resultFile) );
-    if ( command != expectedResult )
-        .........
-    return (FILE*) &(buffer[0]);
-#endif
-    return fopen( filePath, openMode );
+    return pFile;
 }
 
 int
 ForthServerShell::FileClose( FILE* pFile )
 {
-    return fclose( pFile );
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFileClose );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileClose unexpected message type %d\n", msgType );
+    }
+    return result;
 }
 
 int
 ForthServerShell::FileSeek( FILE* pFile, int offset, int control )
 {
-    return fseek( pFile, offset, control );
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFileSetPosition );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteInt( offset );
+    mpMsgPipe->WriteInt( control );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileSeek unexpected message type %d\n", msgType );
+    }
+    return result;
 }
 
 int
-ForthServerShell::FileRead( FILE* pFile, void* pDst, int numItems, int itemSize )
+ForthServerShell::FileRead( FILE* pFile, void* pDst, int itemSize, int numItems )
 {
-    return fread( pDst, numItems, itemSize, pFile );
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFileRead );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteInt( itemSize );
+    mpMsgPipe->WriteInt( numItems );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileReadResult )
+    {
+        mpMsgPipe->ReadInt( result );
+        if ( result > 0 )
+        {
+            int numBytes;
+            const char* pData;
+            mpMsgPipe->ReadCountedData( pData, numBytes );
+            if ( numBytes == (result * itemSize) )
+            {
+                memcpy( pDst, pData, numBytes );
+            }
+            else
+            {
+                // TBD: report error
+                printf( "ForthServerShell::FileRead unexpected data size %d != itemsRead %d * itemSize %d\n",
+                            numBytes, result, itemSize );
+            }
+        }
+        else
+        {
+            // TBD: report error
+            printf( "ForthServerShell::FileRead returned %d \n", result );
+        }
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileRead unexpected message type %d\n", msgType );
+    }
+    return result;
 }
 
 int
-ForthServerShell::FileWrite( FILE* pFile, void* pDst, int numItems, int itemSize ) 
+ForthServerShell::FileWrite( FILE* pFile, const void* pSrc, int itemSize, int numItems ) 
 {
-    return fwrite( pDst, numItems, itemSize, pFile );
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFileWrite );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteInt( itemSize );
+    mpMsgPipe->WriteInt( numItems );
+    int numBytes = numItems * itemSize;
+    mpMsgPipe->WriteCountedData( pSrc, numBytes );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileWrite unexpected message type %d\n", msgType );
+    }
+    return result;
 }
 
 int
 ForthServerShell::FileGetChar( FILE* pFile )
 {
-    return fgetc( pFile );
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFileGetChar );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileGetChar unexpected message type %d\n", msgType );
+    }
+    return result;
 }
 
 int
 ForthServerShell::FilePutChar( FILE* pFile, int outChar )
 {
-    return fputc( outChar, pFile );
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFileGetChar );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteInt( outChar );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FilePutChar unexpected message type %d\n", msgType );
+    }
+    return result;
 }
 
 int
 ForthServerShell::FileAtEOF( FILE* pFile )
 {
-    return feof( pFile );
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFileCheckEOF );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileAtEOF unexpected message type %d\n", msgType );
+    }
+    return result;
 }
 
 int
 ForthServerShell::FileGetLength( FILE* pFile )
 {
-    int oldPos = ftell( pFile );
-    fseek( pFile, 0, SEEK_END );
-    int result = ftell( pFile );
-    fseek( pFile, oldPos, SEEK_SET );
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFileGetLength );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileGetLength unexpected message type %d\n", msgType );
+    }
+    return result;
+}
+
+int
+ForthServerShell::FileCheckExists( const char* pFilename )
+{
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFileCheckExists );
+    mpMsgPipe->WriteString( pFilename );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileCheckExists unexpected message type %d\n", msgType );
+    }
     return result;
 }
 
 int
 ForthServerShell::FileGetPosition( FILE* pFile )
 {
-    return ftell( pFile );
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFileGetPosition );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileGetPosition unexpected message type %d\n", msgType );
+    }
+    return result;
 }
 
 char*
 ForthServerShell::FileGetString( FILE* pFile, char* pBuffer, int maxChars )
 {
-    return fgets( pBuffer, maxChars, pFile );
+    int msgType, msgLen;
+    char* result = NULL;
+
+    if ( maxChars <= 0 )
+    {
+        return NULL;
+    }
+    mpMsgPipe->StartMessage( kClientMsgFileGetString );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteInt( maxChars );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileGetStringResult )
+    {
+        int numBytes;
+        const char* pData;
+        mpMsgPipe->ReadCountedData( pData, numBytes );
+        if ( (numBytes != 0) && (numBytes <= maxChars) )
+        {
+            memcpy( pBuffer, pData, numBytes );
+            result = pBuffer;
+        }
+        else
+        {
+            // TBD: report error
+            printf( "ForthServerShell::FileGetString unexpected data size %d\n", numBytes );
+        }
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileGetString unexpected message type %d\n", msgType );
+    }
+    return result;
 }
 
 
 int
 ForthServerShell::FilePutString( FILE* pFile, const char* pBuffer )
 {
-    return fputs( pBuffer, pFile );
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFilePutString );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteString( pBuffer );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FilePutString unexpected message type %d\n", msgType );
+    }
+    return result;
 }
 

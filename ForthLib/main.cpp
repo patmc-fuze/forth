@@ -10,6 +10,8 @@
 #include "..\ForthLib\ForthInput.h"
 #include "..\ForthLib\ForthThread.h"
 #include "..\ForthLib\ForthServer.h"
+#include "..\ForthLib\ForthPipe.h"
+#include "..\ForthLib\ForthMessages.h"
 
 
 
@@ -116,8 +118,11 @@ int main(int argc, char* argv[], char* envp[])
                     if ( ClientSocket != -1 )
                     {
 	                    printf("Incoming connection accepted on %d!\n", ClientSocket );
-	                    pInStream = new ForthServerInputStream( ClientSocket );
+	                    ForthPipe* pMsgPipe = new ForthPipe( ClientSocket, kServerMsgProcessLine, kServerMsgLimit );
+	                    pInStream = new ForthServerInputStream( pMsgPipe );
 	                    iRetVal = pShell->Run( pInStream );
+	                    delete pMsgPipe;
+	                    
 	                    printf( "Connection closed on %d!\n", ClientSocket );
 	                    closesocket(ClientSocket);
 	                    waitingForConnection = true;
@@ -127,8 +132,8 @@ int main(int argc, char* argv[], char* envp[])
         }
     }
     closesocket(ServerSocket);
-#endif
     delete pShell;
     return 0;
 }
 
+#endif
