@@ -65,336 +65,39 @@ make
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-August 1, 2009
 
-DOHHHHHHHHHHHHHHHHHH!
-The problem with the DS server is that recv always returns SOCKET_ERROR until
-it gets the requested number of bytes...
-Removing that made the DS server work fine...
+Keys to success for DS Forth:
 
-Can't run forthtest.txt, it uses "demo" which is defined in forth_autoload.txt,
-and forth_autoload.txt won't load on the DS because it uses the "system" op.
--> See if system op can be made to run easily on the DS
-? Maybe make it a shell operation, like the way file operations are?
+The speed you can acheive in rapid prototyping has to massively outweigh the
+unfamiliarity of the language and any build cycle issues.
 
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-July 19, 2009
-
-A quick overview of the windows client:
-
-  init winsock
-  create ConnectSocket  (AF_INET, SOCK_STREAM, 0)
-  fill in ClientService with IP address of server, port 27015
-  connect to server
-  if connect worked
-    create pMsgPipe    ForthPipe( ConnectSocket, valid messages are in kClientMsgDisplayText...kClientMsgLimit )
-    push stdin on top of inputStack
-    while !done
-      get a message from server
-      process message
-  cleanup
-  cleanup winsock
-  exit
-
-A quick look at ForthDS.txt and ForthNotes.txt shows that the last known
-working version of Forth.NDS was on May 31, 2009.
-
-The source files which have been modified after that date are:
-modified						rev		revDate
-jun4	ForthInner.h			10		may25
-jun6	ForthInput.cpp			6		jun19
-jun6	ForthInput.h			6		jun19
-jun23	ForthInner.cpp			16		jun27
-jun28	ForthShell.cpp			18		jun27
-jun28	ForthShell.h			13		jun27
-jul1	ForthMessages.h			1		jun28
-jul10	ForthOps.cpp			25		jun27
-jul12	ForthPipe.cpp			1		jun28
-jul18	ForthPipe.h				1		jun28
-jun30	ForthServer.h			2&3		jun28			1	jun19
-jul1	ForthServer.cpp			2&3		jun28			1	jun19
--------------------------
-jun29	ForthServerMain.cpp		2		jun28			1	jun19
--------------------------
-jul1	ForthClientMain.cpp		2&3		jun28			1	jun19
-jul2	main.cpp				2		jun28			1	jun19
-
-It appears that I really only have a snapshot of June 19, but the changes between
-May 31 and June 19 seem to all be related to Thumb versus Arm assembler changes,
-not networking changes.
-
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-July 1, 2009
-
-Got a lot of work done in the windows version of client/server, details are in ForthNotes.txt:
-
-o file IO goes through the shell, and works for client/server
-o fixed a bunch of existing client server bugs
-o broke out client/server communication into ForthPipe
-
-Ugh, when I brought the DS forth server up, after it connects it gets an
-error back from the first recv call! DOH!
-
-------
-Server									Client
-
-connects to access point
-waits for a client to connect
-										connects to server
-										waits for a message from Server (forever)
-accepts connection
-sends SendLine("ok>") message
-calls recv to get reply
-recv returns error
-
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-June 26, 2009
-
-Started reworking server/client messages to be more regular, to make
-implementing remote file access easier.
-
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-June 21, 2009
-
-DS asm inner interpreter is completely switched over to ARM mode.
-Also implemented many more ops in assembler.
-
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-June 19, 2009
-
-Switching DS asm inner interpreter to ARM mode gives us registers r8-r12 to
-use.  I plan to use them like this:
-
-@	R0 - R3		scratch		(R0 is pCore at start)
-@	R4			core ptr
-@	R5			IP
-@	R6			SP
-@	R7			FP
-@	R8			RP
-@	R9			builtinOps table
-@	R10			#builtinOps
-@	R11			actionType table
-@	R12			0xFFFFFF (opvalue mask)
-
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-June 13, 2009
-
-Got Desmume built on second system, copied over to this system.
-What I am doing:
-- double-click E:\pat\prj\NDS\Desmume shortcut, which has " --arm9gdb=1234" param
-	File\Open	Forth.nds
-- double-click C:\bin\devkitPro\insight\bin\arm-eabi-insight.exe
-	File\Target settings
-		Target:		Remote/TCP
-		Hostname:	192.168.1.150
-		Port:		1234
-	Run\Connect to target
-	File\Open E:\pat\prj\Forth\Forth.elf
-	Run\Run
-	If a popup comes up saying "Make breakpoint pending on future shared library load?",
-		click "No" - clicking "Yes" crashes Insight.
-If you reload the file in insight, you need to reload it in desmume as well
-Sometimes when insight gets stuck, doing reset on desmume unsticks it
-
-All assembler functions need to be preceeded with ".thumb_func", or else
-arm-mode instructions are generated, and the cpu misinterprets arm instructions
-as thumb instructions leading to crashes.
-? is there a way to tell the gnu assembler that the whole file should be thumb
-? should I switch the inner interpreter to be arm mode?
-
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-June 5, 2009
-
-Tried DS Forth in the iDeaS emulator, they say SWI #FD will break into the
-debugger, but it didn't work for me.
-
--> it looks like it only works in ARM code, not THUMB code
-
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-June 1, 2009
-
-Looking at ARM assembly language
-
-InnerInterpreter:
-	push	{r4, r5, r6, lr}
-	mov	r3, #0				// SET_STATE( kResultOk )
-	ldr	r5, .L146			// r5 = 0x00FFFFFF
-	mov	r4, r0				// r4 = pCore
-	str	r3, [r0, #64]		// r0 = pCore
-.L143:
-	ldr	r3, [r4, #36]		// r3 = IP
-	mov	r0, r4				// r0 = pCore
-	ldmia	r3!, {r1}		// r1 = next opcode, advance IP
-	str	r3, [r4, #36]		// save IP in core
-	lsr	r2, r1, #24			// r2 = opType (hibyte of opcode)
-	ldr	r3, [r4]			// r3 = opType action routine table address
-	lsl	r2, r2, #2			// turn opType into longword offset
-	and	r1, r1, r5			// r1 = low 24 bits of opcode
-	ldr	r3, [r2, r3]		// r3 = action routine for this opType
-	blx	r3					// dispatch to action routine
-	ldr	r0, [r4, #64]		// get state from core
-	lsl	r0, r0, #24			// mask off top 24 bites
-	lsr	r0, r0, #24
-	cmp	r0, #0				// keep looping if state is still ok (zero)
-	beq	.L143
-	pop	{r4, r5, r6, pc}
-	
-	.align	2
-.L146:
-	.word	16777215
-
-	
-	
-eForthResult
-InnerInterpreter( ForthCoreState *pCore )
-{
-    ulong opVal, numBuiltinOps;
-    forthOpType opType;
-    long *pIP;
-    long op;
-    numBuiltinOps = pCore->numBuiltinOps;
-
-    SET_STATE( kResultOk );
-    
-    while ( GET_STATE == kResultOk ) {
-        // fetch op at IP, advance IP
-        pIP = GET_IP;
-#ifdef TRACE_INNER_INTERPRETER
-        GET_ENGINE->TraceOp();
-#endif
-        op = *pIP++;
-        SET_IP( pIP );
-        opType = FORTH_OP_TYPE( op );
-        opVal = FORTH_OP_VALUE( op );
-        pCore->optypeAction[ (int) opType ]( pCore, opVal );
-    }
-
-    return GET_STATE;
-}
-
-
-	
-	
-	
-// A B + ... (A+B)
-// forth SP points to B
-//
-plusOp:
-	push	{r4, lr}	// save r4 and return address
-	ldr	r3, [r0, #40]	// r3 = SP
-	mov	r2, r3			// r2 = SP
-	ldmia	r2!, {r1}   // r1 = B, r2 = SP after popping B
-	ldr	r4, [r3, #4]	// r4 = A
-	str	r2, [r0, #40]	// save new SP
-	add	r2, r4, r1		// r2 = A + B
-	str	r2, [r3, #4]	// push r2 (result of A + B)
-	pop	{r4, pc}		// restore r4 & return
-
-	
-// A B - ... (A-B)
-//
-minusOp:
-	push	{r4, lr}	// save r4 and return address
-	ldr	r3, [r0, #40]	// r3 = SP
-	mov	r2, r3			// r2 = SP
-	ldmia	r2!, {r1}   // r1 = B, r2 = SP after popping B
-	ldr	r4, [r3, #4]	// r4 = A
-	str	r2, [r0, #40]	// save new SP
-	sub	r2, r4, r1		// r2 = A - B
-	str	r2, [r3, #4]	// push r2 (result of A + B)
-	pop	{r4, pc}		// restore r4 & return
-
-timesOp:
-	push	{r4, lr}	// save r4 and return address
-	ldr	r3, [r0, #40]	// r3 = SP
-	mov	r2, r3			// r2 = SP
-	ldmia	r2!, {r4}   // r4 = B, r2 = SP after popping B
-	ldr	r1, [r3, #4]	// r1 = A
-	str	r2, [r0, #40]	// save new SP
-	mov	r2, r4			// r2 = B
-	mul	r2, r1			// r2 = A * B
-	str	r2, [r3, #4]	// push r2 (A * B)
-	pop	{r4, pc}
-
-	
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-May 31 2009
-
-I switched over to the combined build with an explicit arm7 section, but it
-still didn't work, then I found an error in my accept call, fixed that and
-now the DS Forth server connects to the PC client and works! Woohoo!
-
-There is a problem when an error occurs while doing a "load", the input
-stream is not sent back to the console, so you get a cascade of errors.
-
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-May 30 2009
-
-I noticed that wifi_example1 and wifi_lib_test, which I got from the dswifi site
-both have an arm7 source file which sets up the network.
-
-The DSMI examples (DS midi wifi) all have an equivalent arm7 section.
-
-The nds-examples-20090504\dswifi examples, which I got my Forth Makefile from,
-do not have arm7 sections - say huh?
-? are they loading an arm7 lib from somewhere
-? are they out of date
-I did build and run the ap_search and autoconnect examples, and they do work.
-
-I found a website with a NDS tutorial (http://www.double.co.nz/nintendo_ds/nds_develop1.html)
-that says that libnds includes boilerplate ARM7 code, and that devKitPro includes
-this, but the tutorial wasn't talking about network stuff.
-
-The dswifi forums are down, supposed to be back up June 3 (Wednesday).
-
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-May 25 2009
-
-+ rearranged some things to make server-client split easier
-+ got client-server working on PC
-+ changed build target configurations - before all executables were a single target
-
-Client takes server address as a command line argument, uses localhost if no arguments.
-
-! right now, ForthClientMain doesn't include any Forth files, so the definitions of
-  server and client command message numbers are both in ForthClientMain.cpp and in ForthServer.h,
-  they are bound to get out of sync...
+o if possible, allow most of development to be done on PC, then make it easy
+  to port over to the DS
+  o support same file formats on PC & DS
+  o have library wrapper calls that are the same
+  * in a sense, the PC side of this would be a specialized DS emulator
+  This might be very difficult for the 3d stuff
   
-+ got Forth server to compile for DS, but it didn't do anything when I ran it...
-  -> there may be more DS wifi hardware setup required
+o minimize the amount of wireless data bandwidth used
+
+o allow data to come from multiple places automatically:
+  o RAM
+  o ROM
+  o DSi flash
+  o SD card flash
+  o wireless transmission from host
   
-server    --kClientCmdSendLine(prompt)->      client
-client    --kServerCmdProcessLine(text)->     server
-client    --kServerCmdPopStream->             server
+o provide a queue of wireless data requests
 
-server    --kClientCmdStartLoad(filename)->    client
+o provide good crash handlers
+  ? what crash handling is builtin
 
--> means server to client
-<- means client to server
-
--> getLine( ok> )
-<- data( load blah.txt )
--> pushStream( blah.txt )
--> getLine()
-<- data ( ... )
-
-... repeat previous 2 lines for each line of file ...
-
--> getLine()
-<- endOfFile ( ... )
-
--> getLine( ok> )
-
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-May 24 2009
-
-Forth on the DS will run as a server, with a command shell client running on
-the PC.  The client will be responsible for sending text to the server, and
-for displaying text from the server.
-The first step is to make a client-server version of Forth where both client
-and server run on the PC.
-
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-May 23 2009
-
-+ got Forth to compile for the DS under devkitPro.
+o if possible, provide a way to salvage any files in RAM after a crash
+  o RAM based files need to include integrity check info
+  
+o make the windows client be more than just a console, tailor it to make
+  the development cycle as simple as possible
+  
+o if possible, provide a "safe" mode which tries to trap bad array accesses
+  and things like that
+  

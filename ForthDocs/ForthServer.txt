@@ -1,0 +1,229 @@
+pqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpq
+|                              Overall Design                                  |
+bdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbd
+The client is passive, just acting on messages from the server.
+
+In the original client-server version, the server always knows what message it
+will get next and there are no race conditions.  Whenever the server sends a
+message to the client, the client will immediately respond, and the server will
+know what type of response message it will receive.
+The only exception to this is kClientMsgSendLine, because the client may delay
+an unknown amount of time before responding, and can send one of 2 responses.
+
+pqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpq
+|                      Server and Forth Threads                                |
+bdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbd
+
+Adding forth threads to the server may require a change in the protocol, since
+now the server will not block waiting for the client to send the response to a
+kClientMsgSendLine message.  The client presumably could send the response at
+any time.  There seem to be 2 ways this could be handled:
+
+1) allow the client to send user command strings at any point in time
+
+2) the server polls the client for user command strings at regular intervals
+
+Scenario 2 would require the least changes to the existing client/server code.
+Scenario 1 might not be too bad, it just means that any server message that
+is waiting on a reply may get back a kServerMsgProcessLine
+
+ForthOps which send messages to the client may cause their thread to yield.
+if the clientResponsePending flag is set
+  this thread yields
+  IP is backed up to point to the triggering forthOp
+  thread is put on queue for network resource
+else
+  send message to client
+  set clientResponsePending flag
+  this thread yields
+  
+ForthServerShell methods which send message to the client and then wait for
+and process the response will have the response processing part removed and
+put together in one common response processing routine.
+
+At any time, the server will only be willing to accept 3 message types:
+  1) kServerMsgProcessLine
+     -> if kClientMsgSendLine has been sent, record the string for the outer interpreter
+  2) kClientMsgPopStream
+     -> if kClientMsgSendLine has been sent, process the pop stream request
+  3) if clientResponsePending is set
+the 
+pqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpq
+|                           Message Elements                                   |
+bdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbd
+
+client/server messages:
+
+#bytes
+  4          message type
+  4		    number of data bytes following (N)
+  N		    message data
+Messages are a predefined sequence of message elements.
+
+A message element can be either of fixed or variable size.
+
+A fixed size message element of N bytes is sent in N bytes.
+
+A variable size message element is sent as a 4-byte element size (N),
+   followed by N bytes of message data.
+
+When strings are sent as part of messages, the message includes the terminating null byte.
+
+
+pqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpq
+|                              Message Sequences                               |
+bdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbd
+
+In the following text
+  countedData means an integer N followed by N data bytes.
+  string means an integer N followed by N data bytes.
+
+            server                                            client
+===================================================================================
+1) server fetching a line of forth text
+
+  kClientMsgSendLine( promptString )         ->
+                                             <-     kServerMsgProcessLine(srcString)
+                                                         OR
+                                             <-     kServerMsgPopStream
+
+                                        =====##=====
+
+2) forthOp displays text on client console
+  kClientMsgDisplayText( textString )        ->
+
+                                        =====##=====
+
+3) load op is executed
+  kClientMsgStartLoad( filenameString )      ->
+                                             <-     kServerMsgStartLoadResult( resultInt )
+
+                                        =====##=====
+
+4) forthOp requests a character from console
+  kClientMsgGetChar                          ->
+                                             <-     kServerMsgProcessChar( char )
+
+                                        =====##=====
+
+5) forthOp/server terminates client session 
+  kClientMsgGoAway                           ->
+
+                                        =====##=====
+
+6) forthOp opens a file
+  kClientMsgFileOpen( pathString, modeString ) ->
+                                             <-     kServerMsgFileOpResult( resultFilePtr )
+
+                                        =====##=====
+
+7) forthOp closes a file
+  kClientMsgFileClose( filePtr )              ->
+                                              <-    kServerMsgFileOpResult( resultInt )
+
+                                        =====##=====
+
+8) forthOp sets a file position
+  kClientMsgFileSetPosition( filePtr, offsetInt, controlInt ) ->
+                                             <-     kServerMsgFileOpResult( resultInt )
+
+                                        =====##=====
+
+9) forthOp reads from a file
+  kClientMsgFileRead( filePtr, sizeInt, numItemsInt ) ->
+                                             <-     kServerMsgFileReadResult( itemsReadInt, readCountedData )
+
+                                        =====##=====
+
+10) forthOp writes to a file
+  kClientMsgFileWrite( filePtr, sizeInt, numItemsInt, writeCountedData ) ->
+                                             <-     kServerMsgFileOpResult( itemsWrittenInt )
+
+                                        =====##=====
+
+11) forthOp gets a character from a file
+  kClientMsgFileGetChar( filePtr )            ->
+                                              <-    kServerMsgFileOpResult( resultInt )
+
+                                        =====##=====
+
+12) forthOp writes a character to a file
+  kClientMsgFilePutChar( filePtr, charInt )   ->
+                                              <-    kServerMsgFileOpResult( resultInt )
+
+                                        =====##=====
+
+13) forthOp checks a file for end-of-file
+  kClientMsgFileCheckEOF( filePtr )           ->
+                                              <-    kServerMsgFileOpResult( resultInt )
+
+                                        =====##=====
+
+14) forthOp gets the length of a file
+  kClientMsgFileGetLength( filePtr )          ->
+                                              <-    kServerMsgFileOpResult( lengthInt )
+
+                                        =====##=====
+
+15) forthOp checks for the existence of a file
+  kClientMsgFileCheckExists( pathString )    ->
+                                             <-     kServerMsgFileOpResult( resultInt )
+
+                                        =====##=====
+
+16) forthOp gets the position of a file
+  kClientMsgFileGetPosition(filePtr )        ->
+                                             <-     kServerMsgFileOpResult( resultInt )
+
+                                        =====##=====
+
+17) forthOp reads a string from a file
+  kClientMsgFileGetString( filePtr, maxCharsInt ) ->
+                                             <-     kServerMsgFileGetStringResult( countedData )
+
+                                        =====##=====
+
+18) forthOp writes a string to a file
+  kClientMsgFilePutString( filePtr, countedData ) ->
+                                             <-     kServerMsgFileOpResult( resultInt )
+
+                                        =====##=====
+
+
+pqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpq
+|                              Message Codes                                   |
+bdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbd
+
+
+
+
+    kClientMsgDisplayText = 10000,
+    kClientMsgSendLine,
+    kClientMsgStartLoad,
+    kClientMsgPopStream,    // sent when "loaddone" is executed
+    kClientMsgGetChar,
+    kClientMsgGoAway,
+    kClientMsgFileOpen,
+    kClientMsgFileClose,
+    kClientMsgFileSetPosition,
+    kClientMsgFileRead,
+    kClientMsgFileWrite,
+    kClientMsgFileGetChar,
+    kClientMsgFilePutChar,
+    kClientMsgFileCheckEOF,
+    kClientMsgFileGetLength,
+    kClientMsgFileCheckExists,
+    kClientMsgFileGetPosition,
+    kClientMsgFileGetString,
+    kClientMsgFilePutString,
+    kClientMsgLimit,
+
+    // client -> server    
+    kServerMsgProcessLine = 20000,
+    kServerMsgProcessChar,
+    kServerMsgPopStream,         // sent when file is empty
+    kServerMsgFileOpResult,
+    kServerMsgFileReadResult,
+    kServerMsgFileGetStringResult,
+    kServerMsgStartLoadResult,      // sent in response to kClientMsgStartLoad
+    kServerMsgLimit

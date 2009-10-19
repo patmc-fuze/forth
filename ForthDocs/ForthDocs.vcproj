@@ -224,6 +224,9 @@
 			RelativePath=".\ForthSave.txt">
 		</File>
 		<File
+			RelativePath=".\ForthServer.txt">
+		</File>
+		<File
 			RelativePath="ForthStructs.txt">
 		</File>
 		<File
@@ -231,6 +234,9 @@
 		</File>
 		<File
 			RelativePath="..\Sandbox\forthtest.txt">
+		</File>
+		<File
+			RelativePath=".\ForthThreads.txt">
 		</File>
 		<File
 			RelativePath="ForthVocabularies.txt">

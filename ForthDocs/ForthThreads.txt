@@ -1,0 +1,163 @@
+Threads for Forth
+==================
+
+The Forth engine already has a concept of a thread, which is something which
+has its own parameter stack, return stack and IP.
+
+I want to add very basic threading support, doing cooperative non-preemptive
+threading at first, then going to preemptive threading where thread switching
+can only happen on forthop exits, IE whenever execution returns to the inner
+interpreter.
+
+------------------------------------------------------------------------------
+What is the relationship of the outer interpreter and the inner interpreter
+when threading is added?
+
+In the current non-threaded version, Forth runs as a console application that waits
+for the user to type a line, then it passes the line to the outer interpreter
+which parses the line into tokens and either compiles or interprets the
+tokens.  Interpreting tokens is done by calling the inner interpreter
+with an IP pointing to a 2 opcode array, the first opcode is the one
+corresponding to the parsed token, the second opcode is "done" which
+causes the inner interpreter to exit.  The call stack is:
+  
+  ForthShell::Run
+   ForthShell::InterpretLine
+    ForthEngine::ProcessToken
+     ForthVocabulary::ProcessEntry
+      ForthEngine::ExecuteOneOp
+       ForthEngine::ExecuteOps
+        InnerInterpreter
+
+It might be better to start with the server version of forth, this
+will get around the non-server versions problem of using blocking fgets to
+get user input.
+-> actually it doesn't really get around it - the client will still be using
+   a blocking fgets, so while it is waiting for user input it won't be able
+   to process requests from the server
+   
+? should an entire line be executed atomically
+  -> probably not, this limits/eliminates too many ways to use threads
+
+I also need to consider how threading will affect and be used in other apps,
+like ForthGUI, so it probably shouldn't be a part of the forth server.
+
+----
+Usage Scenarios
+
+1) entire program as a big forth op
+The way I was thinking about implementing threads would be fine if the
+entire program was one big forth op, with the inner interpeter running
+continuously, with some kind of thread manager switching which thread the
+inner interpreter was running.
+* this sounds almost like coroutines
+
+2) forth used as an interactive shell
+The way forth is currently being used is that a non-forth program is
+occasionally calling the outer interpreter with a line of forth text, and it
+is making a series of calls to the inner interpreter to execute individual
+forth ops.
+
+3) forth used to add scripting to a non-forth program
+The way forth is planned to really be put to work is for a non-forth program
+to be using forth as a scripting language, occasionally calling the inner
+interpreter with the IP of a sequence of forth ops, which end with a
+"done" op.
+
+For the typical game, I probably want just a few threads:
+- a thread to run the game main loop
+- a thread to execute interactive commands
+
+---
+
+Another possible way: have threading be managed in ForthEngine, have a
+ForthEngine::Update method, and apps which use forth have to call this on a
+regular basis.
+
+------------------------------------------------------------------------------
+Cooperative Threading
+
+Threads periodically do one of the following:
+  1) yield to any other ready-to-run thread
+  2) wait on a message queue
+
+The game programmer in me thinks that I can change threads to agents, and
+the message queue to a mission queue.  When a thread yields, it is the
+same as waiting on the "idle mission" queue.
+
+Another important concept to keep in minds is coroutines, which are basically
+cooperative threads which are completely synchronous.  These would be useful
+for things like audio envelope generators, where the code for generating the
+envelope would just keep adding envelope values to a buffer, and would be
+pre-empted when the buffer was full.
+
+------------------------------------------------------------------------------
+Pre-emptive Threading
+
+In this model, threads can be deactivated at the end of any low-level Forthop.
+
+This could be implemented by having the return to inner interpreter be a branch
+to an address whose pointer is in the thread state.
+
+A possible optimization would be to have pre-emption only occur for certain
+opcodes, such as exit or branch ops.
+  This optimization would allow threading bugs to hide, so it should be
+  possible to run with this optimization turned off for testing.
+
+------------------------------------------------------------------------------
+Non-thread safe operations                         |
+
+Forth threads are switched on forthOp boundaries
+
+o "forget" will need to check if thread code is being deleted
+o "load" may need to have threads turned off
+o threads should not use the memory at the DP for scratch
+
+------------------------------------------------------------------------------
+ForthOps needed:
+
+====  createThread ====
+PSTACK_SIZE RSTACK_SIZE THREAD_OPCODE createThread ... THREAD_ADDR
+
+? or would it be better to do:
+PSTACK_SIZE RSTACK_SIZE THREAD_OPCODE thread <THREAD_NAME>
+
+====  yield ====
+
+====  queueMessage ====
+
+------------------------------------------------------------------------------
+? what is the relationship of threads and queues
+  ? should each thread have its own queue
+  
+------------------------------------------------------------------------------
+Current tentative plan:
+
+o main program occasionally calls ForthEngine::Update
+o ForthEngine::Update does
+  if a command line is being interpreted
+    make outer interpreter the current thread
+    result = ForthShell::InterpretLine( NULL )
+    if result is ok (done interpreting line)
+      set needCommandInput = true
+  run each ready thread in priority order
+  if no threads have run, run idle threads
+  if needCommandInput
+    
+o forthOps which can cause network access (mainly file operations in threaded server)
+  can cause a yield
+  
+------------------------------------------------------------------------------
+Things we want thread system to support
+
+o threads cooperatively yielding the CPU to other threads
+o threads yielding the CPU until a specified event occurs
+  o a resource becomes available
+  o a message queue is not empty
+  o a timer expires
+o some notion of thread priority, so threads can specify that they should
+  only run when the system is idle
+
+
+
+
