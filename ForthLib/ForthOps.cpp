@@ -1319,6 +1319,14 @@ FORTHOP( mallocOp )
     SPUSH(  (long) malloc( SPOP )  );
 }
 
+FORTHOP( reallocOp )
+{
+    NEEDS(2);
+    size_t newSize = (size_t)(SPOP);
+    void* allocPtr = (void *)(SPOP);
+    SPUSH(  (long) realloc( allocPtr, newSize )  );
+}
+
 FORTHOP( freeOp )
 {
     NEEDS(1);
@@ -4005,6 +4013,7 @@ baseDictEntry baseDict[] =
     OP(     commaOp,                "," ),
     OP(     cCommaOp,               "c," ),
     OP(     mallocOp,               "malloc" ),
+    OP(     reallocOp,              "realloc" ),
     OP(     freeOp,                 "free" ),
 
     ///////////////////////////////////////////

@@ -312,8 +312,9 @@ ForthEngine::AddUserOp( const char *pSymbol, bool smudgeIt )
 void
 ForthEngine::AddBuiltinOps( baseDictEntry *pEntries )
 {
+    // I think this assert is a holdover from when userOps and builtinOps were in a single dispatch table
     // assert if this is called after any user ops have been defined
-    ASSERT( mpCore->numUserOps == 0 );
+    //ASSERT( mpCore->numUserOps == 0 );
 
     while ( pEntries->value != NULL ) {
         // AddSymbol will call ForthEngine::AddOp to add the operators to op table
