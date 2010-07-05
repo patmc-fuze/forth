@@ -144,3 +144,59 @@ void ForthThread::Deactivate( ForthCoreState* pCore )
 }
 
 
+
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthThreadQueue
+// 
+
+ForthThreadQueue::ForthThreadQueue( int initialSize )
+:   mFirst( 0 )
+,   mCount( 0 )
+,   mSize( initialSize )
+{
+    mQueue = (ForthThread **) malloc( sizeof(ForthThread*) *  mSize );
+}
+
+ForthThreadQueue::~ForthThreadQueue()
+{
+    free( mQueue );
+}
+
+void ForthThreadQueue::AddThread( ForthThread* pThread )
+{
+    if ( mCount == mSize )
+    {
+        mSize += 16;
+        mQueue = (ForthThread **) realloc( mQueue, sizeof(ForthThread*) *  mSize );
+    }
+    int ix = mFirst + mCount;
+    if ( ix >= mSize )
+    {
+        ix -= mSize;
+    }
+    mQueue[ix] = pThread;
+    ++mCount;
+}
+
+int ForthThreadQueue::Count()
+{
+    return mCount;
+}
+
+ForthThread* ForthThreadQueue::RemoveThread()
+{
+    ForthThread* result = NULL;
+    if ( mCount != 0 )
+    {
+        result = mQueue[mFirst++];
+        if ( mFirst == mSize )
+        {
+            mFirst = 0;
+        }
+        --mCount;
+    }
+    return result;
+}
+

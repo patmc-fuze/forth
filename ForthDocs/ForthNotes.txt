@@ -122,6 +122,40 @@ Gotchas with structure and object support:
 2) varAction ops must be the symbol just before a field selector symbol, which
    means that index calculation ops must appear before the varAction op
 
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 4, 2010
+
+I added r[ and ]r, which are used for variable numbers of arguments, and I
+added some definitions which use them which build tables of the basic types.
+
+I've mainly been working on SoftSyn2 for the past 7 months.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 1, 2009
+
+BOOL CForthGuiAppDlg::OnCmdMsg(UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO* pHandlerInfo)
+  nID: id of the control
+  nCode: tells how to interpret pExtra
+  pExtra:
+  pHandlerInfo:
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 28, 2009
+
+Did a quick look around at ways to support dynamic dialogs.  These are the
+ways I found:
+
+1) use standard GUI wizard to create a crapload of controls which are all
+   initially hidden, unhide them when you need them
+   + least complicated initially
+2) use OnCmdMsg handler and process the command messages
+   + most flexible
+   - requires a lot of knowledge about control messages
+3) use ON_CONTROL_RANGE in the message of a dialog class to map a range of
+   control IDs to a specific handler
+   + could be combined with method 1
+4) dynamically build the message map at runtime (Dr. Dobb's article tells how)
+   - can't easily add a control after dialog is visible
+   
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 18, 2009
 
@@ -134,6 +168,18 @@ and I think I know how to proceed.  The details are in ForthThreads.txt and
 ForthServer.txt.
 
 The first step will be to create a good set of backups.
+
+o The main loop in ForthShell::Run will be removed, most of its functionality
+  will go into a new method ForthEngine::Update
+
+o ForthEngine will be responsible for managing thread lists or queues
+
+o ForthClient will be changed to do its console fgets in a separate Windows
+  thread
+
+o ForthServer methods which send messages to the clients will be broken in two,
+  with the part which waits for the client response and then process it being
+  removed and put in a single common client response processing method
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 1, 2009

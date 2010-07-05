@@ -67,8 +67,21 @@ public:
     virtual int             FilePutString( FILE* pFile, const char* pBuffer );
 
 protected:
-    ForthPipe*      mpMsgPipe;
-    bool            mDoAutoload;
-};
+    ForthPipe*              mpMsgPipe;
+    bool                    mDoAutoload;
 
+    // mSendLinePending is true IFF server is waiting for a reply to kClientMsgSendLine
+    bool                    mSendLinePending;
+
+    // mRequestPending is true IFF server is waiting for a reply to a message other than kClientMsgSendLine
+    // mPendingCommand is the message sent to the client (kClientMsg*)
+    bool                    mRequestPending;
+    int                     mPendingCommand;
+
+    // threads which are waiting to send a message to client
+    ForthThreadQueue*       mClientWaitingThreads;
+
+    // threads which are ready to run
+    ForthThreadQueue*       mReadyThreads;
+};
 

@@ -121,6 +121,13 @@ FORTHOP( times4Op )
     SPUSH( a << 2 );
 }
 
+FORTHOP( times8Op )
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( a << 3 );
+}
+
 FORTHOP( divideOp )
 {
     NEEDS(2);
@@ -141,6 +148,13 @@ FORTHOP( divide4Op )
     NEEDS(1);
     long a = SPOP;
     SPUSH( a >> 2 );
+}
+
+FORTHOP( divide8Op )
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( a >> 3 );
 }
 
 FORTHOP( divmodOp )
@@ -1277,6 +1291,20 @@ FORTHOP(drotOp)
     pDsp[0] = a;
 }
 
+FORTHOP(startTupleOp)
+{
+    long pSP = (long) (GET_SP);
+    RPUSH( pSP );
+}
+
+FORTHOP(endTupleOp)
+{
+    long* pSP = (GET_SP);
+    long* pOldSP = (long *) (RPOP);
+    long count = pOldSP - pSP;
+    SPUSH( count );
+}
+
 // align (upwards) DP to longword boundary
 FORTHOP( alignOp )
 {
@@ -2045,7 +2073,7 @@ FORTHOP( arrayOfOp )
 
     if ( pEngine->IsCompiling() )
     {
-        // the symbol just before "string" should have been an integer constant
+        // the symbol just before "arrayOf" should have been an integer constant
         if ( pEngine->GetLastConstant( numElements ) )
         {
             // uncompile the integer contant opcode
@@ -3631,6 +3659,17 @@ FORTHOP( millitimeOp )
     SPUSH( (long) pEngine->GetElapsedTime() );
 }
 
+FORTHOP( randOp )
+{
+    SPUSH( rand() );
+}
+
+FORTHOP( srandOp )
+{
+    srand( (unsigned int) (SPOP) );
+    SPUSH( rand() );
+}
+
 #define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func }
 
 // ops which have precedence (execute at compile time)
@@ -3745,9 +3784,11 @@ baseDictEntry baseDict[] =
     OP(     timesOp,                "*" ),
     OP(     times2Op,               "2*" ),
     OP(     times4Op,               "4*" ),
+    OP(     times8Op,               "8*" ),
     OP(     divideOp,               "/" ),
     OP(     divide2Op,              "2/" ),
     OP(     divide4Op,              "4/" ),
+    OP(     divide8Op,              "8/" ),
     OP(     divmodOp,               "/mod" ),
     OP(     modOp,                  "mod" ),
     OP(     negateOp,               "negate" ),
@@ -3862,7 +3903,8 @@ baseDictEntry baseDict[] =
     OP(     ddropOp,                "ddrop" ),
     OP(     doverOp,                "dover" ),
     OP(     drotOp,                 "drot" ),
-    
+    OP(     startTupleOp,           "r[" ),
+    OP(     endTupleOp,             "]r" ),
     ///////////////////////////////////////////
     //  memory store/fetch
     ///////////////////////////////////////////
@@ -4083,6 +4125,8 @@ baseDictEntry baseDict[] =
     OP(     systemOp,               "system" ),
     OP(     chdirOp,                "chdir" ),
 #endif
+    OP(     randOp,                 "rand" ),
+    OP(     srandOp,                "srand" ),
     OP(     byeOp,                  "bye" ),
     OP(     argvOp,                 "argv" ),
     OP(     argcOp,                 "argc" ),

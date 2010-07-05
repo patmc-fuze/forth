@@ -1979,6 +1979,14 @@ entry times4Bop
 
 ;========================================
 	
+entry times8Bop
+	mov	eax, [edx]
+	sal	eax, 3
+	mov	[edx], eax
+	jmp	edi
+
+;========================================
+	
 entry divideBop
 	; idiv takes 64-bit numerator in edx:eax
 	mov	ebx, edx
@@ -2003,6 +2011,14 @@ entry divide2Bop
 entry divide4Bop
 	mov	eax, [edx]
 	sar	eax, 2
+	mov	[edx], eax
+	jmp	edi
+	
+;========================================
+
+entry divide8Bop
+	mov	eax, [edx]
+	sar	eax, 3
 	mov	[edx], eax
 	jmp	edi
 	
@@ -3075,7 +3091,7 @@ entry pickBop
 ;========================================
 
 entry spBop
-	mov	eax, [ebp].FCore.SPtr
+	mov	eax, edx
 	sub	edx, 4
 	mov	[edx], eax
 	jmp	edi
@@ -3150,6 +3166,28 @@ entry drotBop
 	mov	ebx, [edx]
 	mov	[edx+8], ebx
 	mov	[edx], eax
+	jmp	edi
+	
+;========================================
+
+entry startTupleBop
+	mov	eax, [ebp].FCore.RPtr
+	sub	eax, 4
+	mov	[ebp].FCore.RPtr, eax
+	mov	[eax], edx
+	jmp	edi
+	
+;========================================
+
+entry endTupleBop
+	mov	eax, [ebp].FCore.RPtr
+	mov	ebx, [eax]
+	add	eax, 4
+	mov	[ebp].FCore.RPtr, eax
+	sub	ebx, edx
+	sub	edx, 4
+	sar	ebx, 2
+	mov	[edx], ebx
 	jmp	edi
 	
 ;========================================
@@ -4397,9 +4435,11 @@ opsTable:
 	DD	FLAT:timesBop
 	DD	FLAT:times2Bop
 	DD	FLAT:times4Bop
+	DD	FLAT:times8Bop
 	DD	FLAT:divideBop
 	DD	FLAT:divide2Bop
 	DD	FLAT:divide4Bop
+	DD	FLAT:divide8Bop
 	DD	FLAT:divmodBop
 	DD	FLAT:modBop
 	DD	FLAT:negateBop
@@ -4497,6 +4537,8 @@ opsTable:
 	DD	FLAT:ddropBop
 	DD	FLAT:doverBop
 	DD	FLAT:drotBop
+	DD	FLAT:startTupleBop
+	DD	FLAT:endTupleBop
 	
 	; memory store/fetch
 	DD	FLAT:storeBop

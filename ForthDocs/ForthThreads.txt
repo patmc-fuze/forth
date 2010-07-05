@@ -105,7 +105,7 @@ opcodes, such as exit or branch ops.
   possible to run with this optimization turned off for testing.
 
 ------------------------------------------------------------------------------
-Non-thread safe operations                         |
+Non-thread safe operations
 
 Forth threads are switched on forthOp boundaries
 

@@ -1,9 +1,12 @@
 autoforget forth_autoload
 : forth_autoload "This is the forth_autoload.txt tools module" %s ;
 
+0x7FFFFFFF -> int MAXINT
+0x80000000 -> int MININT
+
 : autoload
   blword find
-  0== if
+  if( 0== )
     blword load$
   else
     blword drop
@@ -32,12 +35,10 @@ false -> int _helpfileLoaded
 : $help
   -> ptrTo byte s
   helpChain	-> int pNext
-  s strlen 0==
-  if
+  if( s strlen 0== )
     // line was empty, just list all help
     begin
-      pNext
-    while
+    while( pNext )
       pNext 4+ dup %s "	" %s
       dup strlen 1+ + %s %nl
       pNext @ -> pNext
@@ -46,10 +47,8 @@ false -> int _helpfileLoaded
   endif
 
   begin
-    pNext
-  while
-    pNext 4+ s strcmp 0==
-    if
+  while( pNext )
+    if( pNext 4+ s strcmp 0== )
       pNext 4+ dup strlen 1+ + %s
       exit
     endif
@@ -62,7 +61,7 @@ false -> int _helpfileLoaded
 : help
   blword -> _aa
   _aa
-  _helpfileLoaded not if
+  if( _helpfileLoaded not )
     "help.txt" load$
     true -> _helpfileLoaded
     // there is a help$ at end of help.txt that will complete the lookup
@@ -88,8 +87,7 @@ addHelp dir	dir BLAH		display directory (BLAH is optional filespec)
 : dir
   '\n' word -> _aa
   "dir" -> _bb
-  strcmp( _aa "" )
-  if
+  if( strcmp( _aa "" ) )
     // user specified a directory
     strcat( _bb " " )
     strcat( _bb _aa )
@@ -122,22 +120,20 @@ int dumpWidth
   addr len + -> endAddr
   len -> columns
   begin
-    addr endAddr <
-  while
+  while( addr endAddr < )
     addr offset - "%08x" %fmt "   " %s
-    len dumpWidth >
-    if
+    if( len dumpWidth > )
       dumpWidth -> columns
     endif
-    columns 0 do
+    do( columns 0 )
       addr i + c@ "%02x " %fmt
     loop
     "    " %s
     // why do we have to add 1 to dumpWidth here?
     dumpWidth 1+ columns - 0 do %bl %bl %bl loop
-    columns 0 do
+    do( columns 0 )
       addr i + c@ -> ch
-      ch ' ' >  ch 127 < and if
+      if( ch ' ' >  ch 127 < and )
         ch
       else
         '.'
@@ -162,21 +158,21 @@ addHelp fdump	FILENAME OFFSET LEN fdump	dump file contents
   "rb" fopen -> int infile
   int buff
 
-  infile 0== if
+  if( infile 0== )
     "open failure" %s %nl
     exit
   endif
-  len 0== if
+  if( len 0== )
     // read entire file
     infile flen -> len
   endif
   len malloc -> buff
   infile offset 0 fseek
-  0 != if
+  if( 0 != )
     "fdump fseek failure" %nl exit
   endif
   buff len 1 infile fread
-  0== if
+  if( 0== )
     "fdump read failure" %s %nl
   else
     buff len buff _dump
@@ -191,13 +187,13 @@ addHelp comparefiles	FILENAME1 FILENAME2 comparefiles TRUE_IF_EQUAL
   -> ptrTo byte fname1
   
   fname2 "rb" fopen -> int infile2
-  infile2 0== if
+  if( infile2 0== )
     "failed to open " %s fname2 %s %nl
     false exit
   endif
   
   fname1 "rb" fopen -> int infile1
-  infile1 0== if
+  if( infile1 0== )
     "failed to open " %s fname1 %s %nl
     infile2 fclose drop
     false exit
@@ -205,21 +201,19 @@ addHelp comparefiles	FILENAME1 FILENAME2 comparefiles TRUE_IF_EQUAL
   
   // opened both files successfully
   1 -> int linenum
-  int b1
-  int b2
   begin
-    infile1 fgetc -> b1
-    infile2 fgetc -> b2
-    b1 b2 != if
+    infile1 fgetc -> int b1
+    infile2 fgetc -> int b2
+    if( b1 b2 != )
       infile1 fclose drop
       infile2 fclose drop
       "mismatch at line " %s linenum %d %nl
       false exit
     endif
-    b1 '\n' == if
+    if( b1 '\n' == )
       1 ->+ linenum
     endif
-  infile1 feof until
+  until( infile1 feof )
   infile1 fclose drop
   infile2 fclose drop
   true

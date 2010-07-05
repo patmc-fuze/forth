@@ -9,4 +9,9 @@
 #include <iostream>
 #include <tchar.h>
 
+// compile for Win2K or newer
+#define WINVER 0x0500
+
+#define VC_EXTRALEAN		// Exclude rarely-used stuff from Windows headers
+
 // TODO: reference additional headers your program requires here

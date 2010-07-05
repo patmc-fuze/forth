@@ -49,3 +49,24 @@ protected:
     ForthThreadState    mState;
 };
 
+class ForthThreadQueue
+{
+public:
+    ForthThreadQueue( int initialSize=16 );
+    ~ForthThreadQueue();
+
+    void                AddThread( ForthThread* pThread );
+
+    // how many threads are in queue
+    int                 Count();
+
+    // returns NULL if queue is empty
+    ForthThread*        RemoveThread();
+
+protected:
+    ForthThread**   mQueue;
+    int             mFirst;
+    int             mCount;
+    int             mSize;
+};
+

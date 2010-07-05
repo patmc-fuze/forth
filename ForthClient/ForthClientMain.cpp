@@ -12,15 +12,23 @@
 
 #pragma comment(lib, "wininet.lib")
 
+void ErrorExit( const char* message )
+{
+    //TRACE( "%s\n", message );
+    WSACleanup();
+}
 
 int _tmain(int argc, _TCHAR* argv[])
 {
     //----------------------
     // Initialize Winsock
     WSADATA wsaData;
+    char errorMessage[128];
     int iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
     if (iResult != NO_ERROR)
+    {
         printf("Error at WSAStartup()\n");
+    }
 
     //----------------------
     // Create a SOCKET for connecting to server
@@ -29,8 +37,8 @@ int _tmain(int argc, _TCHAR* argv[])
     ConnectSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (ConnectSocket == INVALID_SOCKET)
     {
-        printf("Error at socket(): %ld\n", WSAGetLastError());
-        WSACleanup();
+        sprintf( errorMessage, "Error at socket(): %ld", WSAGetLastError() );
+        ErrorExit( errorMessage );
         return -1;
     }
 
@@ -45,8 +53,8 @@ int _tmain(int argc, _TCHAR* argv[])
     //----------------------
     // Connect to server.
     if ( connect( ConnectSocket, (SOCKADDR*) &clientService, sizeof(clientService) ) == SOCKET_ERROR) {
-        printf( "Failed to connect.\n" );
-        WSACleanup();
+        sprintf( errorMessage, "Failed to connect." );
+        ErrorExit( errorMessage );
         return -1;
     }
 
