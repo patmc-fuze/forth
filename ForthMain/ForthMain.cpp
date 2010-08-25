@@ -25,8 +25,8 @@ using namespace std;
 int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 {
     int nRetCode = 0;
-    ForthShell *pShell;
-    ForthInputStream *pInStream;
+    ForthShell *pShell = NULL;
+    ForthInputStream *pInStream = NULL;
 
     // initialize MFC and print an error on failure
     if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
@@ -37,23 +37,26 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
     }
     else
     {
-        // TODO: code your application's behavior here.
         pShell = new ForthShell;
         pShell->SetCommandLine( argc - 1, (const char **) (argv + 1));
         pShell->SetEnvironmentVars( (const char **) envp );
-        if ( argc > 1 ) {
+        if ( argc > 1 )
+        {
 
             //
             // interpret the forth file named on the command line
             //
             FILE *pInFile = fopen( argv[1], "r" );
-            if ( pInFile != NULL ) {
+            if ( pInFile != NULL )
+            {
                 pInStream = new ForthFileInputStream(pInFile);
                 nRetCode = pShell->Run( pInStream );
                 fclose( pInFile );
 
             }
-        } else {
+        }
+        else
+        {
 
             //
             // run forth in interactive mode
