@@ -192,15 +192,173 @@
 			<Tool
 				Name="VCPreBuildEventTool"/>
 		</Configuration>
+		<Configuration
+			Name="ForthMidi Debug|Win32"
+			OutputDirectory="$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="10"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			<Tool
+				Name="VCCustomBuildTool"/>
+			<Tool
+				Name="VCMIDLTool"
+				TypeLibraryName=".\Debug/ForthDocs.tlb"
+				HeaderFileName=""/>
+			<Tool
+				Name="VCPostBuildEventTool"/>
+			<Tool
+				Name="VCPreBuildEventTool"/>
+		</Configuration>
+		<Configuration
+			Name="ForthMidi Release|Win32"
+			OutputDirectory="$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
+			ConfigurationType="10"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			<Tool
+				Name="VCCustomBuildTool"/>
+			<Tool
+				Name="VCMIDLTool"
+				TypeLibraryName=".\Debug/ForthDocs.tlb"
+				HeaderFileName=""/>
+			<Tool
+				Name="VCPostBuildEventTool"/>
+			<Tool
+				Name="VCPreBuildEventTool"/>
+		</Configuration>
+		<Configuration
+			Name="ForthND Release|Win32"
+			ConfigurationType="1">
+			<Tool
+				Name="VCCLCompilerTool"/>
+			<Tool
+				Name="VCCustomBuildTool"/>
+			<Tool
+				Name="VCLinkerTool"/>
+			<Tool
+				Name="VCMIDLTool"/>
+			<Tool
+				Name="VCPostBuildEventTool"/>
+			<Tool
+				Name="VCPreBuildEventTool"/>
+			<Tool
+				Name="VCPreLinkEventTool"/>
+			<Tool
+				Name="VCResourceCompilerTool"/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"/>
+			<Tool
+				Name="VCWebDeploymentTool"/>
+			<Tool
+				Name="VCManagedWrapperGeneratorTool"/>
+			<Tool
+				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+		</Configuration>
 	</Configurations>
 	<References>
 	</References>
 	<Files>
+		<Filter
+			Name="Forth Sources"
+			Filter="">
+			<File
+				RelativePath="..\Sandbox\carmack_fast_sqrt.txt">
+			</File>
+			<File
+				RelativePath="..\Sandbox\div_reciprocal_test.txt">
+			</File>
+			<File
+				RelativePath="..\Sandbox\fast_logn_approximation.txt">
+			</File>
+			<File
+				RelativePath="..\Sandbox\scales.txt">
+			</File>
+			<Filter
+				Name="Core"
+				Filter="">
+				<File
+					RelativePath="..\Sandbox\ansi_case.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\asm_pentium.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\forth_autoload.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\help.txt">
+				</File>
+			</Filter>
+			<Filter
+				Name="Tests"
+				Filter="">
+				<File
+					RelativePath="..\Sandbox\autotest.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\classtest.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\filetest.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\forthtest.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\good_test_output.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\optest.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\output_test.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\structtest.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\turbo_test_output.txt">
+				</File>
+			</Filter>
+			<Filter
+				Name="Utilities"
+				Filter="">
+				<File
+					RelativePath="..\Sandbox\compare.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\mergefiles.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\random_generator.txt">
+				</File>
+			</Filter>
+			<Filter
+				Name="SDL"
+				Filter="">
+				<File
+					RelativePath="..\Sandbox\ellipse.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\sdl.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\sdltest.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\sprig.txt">
+				</File>
+				<File
+					RelativePath="..\Sandbox\sprigtest.txt">
+				</File>
+			</Filter>
+		</Filter>
 		<File
 			RelativePath="..\ForthLib\core.h">
-		</File>
-		<File
-			RelativePath="..\Sandbox\forth_autoload.txt">
 		</File>
 		<File
 			RelativePath=".\ForthAssembler.txt">
@@ -233,16 +391,10 @@
 			RelativePath=".\ForthTbd.txt">
 		</File>
 		<File
-			RelativePath="..\Sandbox\forthtest.txt">
-		</File>
-		<File
 			RelativePath=".\ForthThreads.txt">
 		</File>
 		<File
 			RelativePath="ForthVocabularies.txt">
-		</File>
-		<File
-			RelativePath="..\Sandbox\help.txt">
 		</File>
 	</Files>
 	<Globals>

@@ -1,4 +1,11 @@
+=======================================================================
+Overall big areas to be done:
 
+o thread support
+o class support
+o ability to build windows GUI apps in forth
+
+=======================================================================
 ? add iterators
   - all files in a directory tree
   - all symbols in a vocabulary
@@ -115,6 +122,10 @@
   ? how does shell know if an op is a class instance, and how
     does it know what class it is in?
     
+=================================  DONE  =================================
+=================================  DONE  =================================
+=================================  DONE  =================================
+
 + add ops for base vocabulary and precedence vocabulary
   o note that these 2 vocabs will be implemented as builtin ops, while all other
     vocabs will be implemented as user-defined ops
@@ -186,7 +197,7 @@ x make vocabulary entry value field be full 32 bits?
   -> look at the basic word set in FORTH 83 manual...
 + check that "if"..."endif" with no "else" actually works
 + solve problem of user-defined builtins not tracing...
-  -> replace mpOpTable with table of baseDict structs
+  -> replace mpOpTable with table of baseDictionary structs
 + look at do...+loop when the loop increment is negative
 + add forget
   !!! the vocabulary is searched in the wrong order now...

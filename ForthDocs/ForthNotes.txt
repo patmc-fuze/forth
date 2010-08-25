@@ -8,6 +8,12 @@ TBDs:
 ! document existing native ops !
 ! create examples/tests for all native ops !
 
+- redirect current thread console output back to screen before reporting errors
+- add native words like within/nip/?dup/%u
+- have vlist display the code address of ops
+- have error reporting show the param and return stacks, the op that the crash happened in
+  -> the param stack might not be up to date, especially in turbo mode
+  
 ? have "woof -> foo( blah )" compile into "woof blah -> foo"
 
 ? add properties to classes
@@ -123,6 +129,30 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 21, 2010
+
+I ported the kforth assembler to this forth, intending to replace gforth, but
+I can't get it to generate the correct code for  "edi jmp," which is needed to
+return to the inner interpreter.  I was interested in it mainly because I
+haven't found any real documentation for the gforth assembler, particularly
+how addressing modes work.  I finally gave up on the kforth assembler.
+
+- figure out and document addressing mode syntax in gforth assembler
+  - create assembler tests
+- figure out and document gforth assembler control structures
+  
++ fixed a bug in my port of gforth pentium assembler that was leaving zeros
+  on the stack after assembling code
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 16, 2010
+
++ I added conditional compilation support words - #if #ifdef #ifndef #else #endif
+
+- I tried to add inline assembly ops, but kept running into problems - I need
+  to find out more about how to use the gforth assembler
+  
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 4, 2010
 
@@ -644,7 +674,7 @@ I changed the initialization of the builtinOp and optypeAction tables in the
 forth core to only be done once in ForthEngine->Initialize.  Previously this
 was being done also in ForthEngine::SetFastMode, since those tables were used
 for both fast and slow modes.  SetFastMode was not filling in any builtinOps
-which were not in baseDict, such as builtin classes or user-defined builtins
+which were not in baseDictionary, such as builtin classes or user-defined builtins
 
 The next challenge is defining what appears in the builtin classes.  A lot of
 functionality is hard to define without making some decisions - like how do
