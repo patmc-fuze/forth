@@ -341,7 +341,7 @@ FORTHOP( makeDialogOp )
 
 #define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func }
 
-baseDictEntry dialogDict[] =
+baseDictionaryEntry dialogDict[] =
 {
     // following must be last in table
     OP( makeDialogOp, "makeDialog" ),
