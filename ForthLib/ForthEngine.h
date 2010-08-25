@@ -20,6 +20,7 @@
 
 class ForthThread;
 class ForthShell;
+class ForthExtension;
 
 #define DEFAULT_USER_STORAGE 16384
 
@@ -45,7 +46,7 @@ public:
 
     void            Initialize( int storageLongs=DEFAULT_USER_STORAGE,
                                 bool bAddBaseOps=true,
-                                baseDictEntry *pUserBuiltinOps=NULL );
+                                ForthExtension* pExtension=NULL );
     void            Reset( void );
     void            ErrorReset( void );
 
@@ -58,14 +59,16 @@ public:
     // execute forth ops, and is also how systems external to forth execute ops
     //
     eForthResult        ExecuteOneOp( long opCode );
+    eForthResult        ExecuteOneOp( long opCode, ForthThread* pThread );
     // ExecuteOps executes a sequence of forth ops
     // The sequence must be terminated with an OP_DONE
     eForthResult        ExecuteOps( long* pOps );
+    eForthResult        ExecuteOps( long* pOps, ForthThread* pThread );
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
     long            AddOp( const long *pOp, forthOpType symType );
     long            AddUserOp( const char *pSymbol, bool smudgeIt=false );
-    void            AddBuiltinOps( baseDictEntry *pEntries );
+    void            AddBuiltinOps( baseDictionaryEntry *pEntries );
 
     ForthClassVocabulary*   AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseMethodEntry *pEntries );
 
@@ -229,6 +232,7 @@ protected:
 #else
     struct timeb    mStartTime;
 #endif
+    ForthExtension* mpExtension;
 
     static ForthEngine* mpInstance;
     bool            mFastMode;

@@ -29,6 +29,7 @@ const char * TagStrings[] =
     "paren",
     "string",
     "colon",
+    "poundDirective"
 };
 
 const char * GetTagString( long tag )
@@ -58,15 +59,18 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthThread *pThread, int shellSta
 , mNumEnvVars(0)
 , mpEnvVarNames(NULL)
 , mpEnvVarValues(NULL)
+, mPoundIfDepth(0)
 {
-    if ( mpEngine == NULL ) {
+    if ( mpEngine == NULL )
+    {
         mpEngine = new ForthEngine();
         mpEngine->Initialize( STORAGE_LONGS, true );
         mFlags = SHELL_FLAG_CREATED_ENGINE;
     }
     mpEngine->SetShell( this );
 
-    if ( mpThread == NULL ) {
+    if ( mpThread == NULL )
+    {
         mpThread = mpEngine->CreateThread( PSTACK_LONGS, RSTACK_LONGS, NULL );
     }
     mpEngine->SetCurrentThread( mpThread );
@@ -79,7 +83,8 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthThread *pThread, int shellSta
 ForthShell::~ForthShell()
 {
     // engine will destroy thread for us if we created it
-    if ( mFlags & SHELL_FLAG_CREATED_ENGINE ) {
+    if ( mFlags & SHELL_FLAG_CREATED_ENGINE )
+    {
         delete mpEngine;
     }
 
@@ -142,44 +147,125 @@ ForthShell::Run( ForthInputStream *pInStream )
 
     mpEngine->PushInputFile( "forth_autoload.txt" );
 
-    while ( !bQuit ) {
+    while ( !bQuit )
+    {
 
         // try to fetch a line from current stream
         pBuffer = mpInput->GetLine( mpEngine->GetFastMode() ? "turbo>" : "ok>" );
-        if ( pBuffer == NULL ) {
+        if ( pBuffer == NULL )
+        {
             bQuit = PopInputStream();
         }
 
-        if ( !bQuit ) {
+        if ( !bQuit )
+        {
+            if ( (mFlags & SHELL_FLAG_SKIP_SECTION) != 0 )
+            {
+                char* pToken = GetNextSimpleToken();
+                if ( pToken != NULL )
+                {
+                    if ( !strcmp( "#if", pToken ) )
+                    {
+                        mPoundIfDepth++;
+                    }
+                    else if ( !strcmp( "#ifdef", pToken ) )
+                    {
+                        mPoundIfDepth++;
+                    }
+                    else if ( !strcmp( "#ifndef", pToken ) )
+                    {
+                        mPoundIfDepth++;
+                    }
+                    else if ( !strcmp( "#else", pToken ) )
+                    {
+                        if ( mPoundIfDepth == 0 )
+                        {
+                            mpStack->Push( kShellTagPoundIf );
+                            mFlags &= ~SHELL_FLAG_SKIP_SECTION;
+                        }
+                    }
+                    else if ( !strcmp( "#endif", pToken ) )
+                    {
+                        if ( mPoundIfDepth == 0 )
+                        {
+                            mFlags &= ~SHELL_FLAG_SKIP_SECTION;
+                        }
+                        else
+                        {
+                            mPoundIfDepth--;
+                        }
 
-            result = InterpretLine();
-
-            switch( result ) {
-
-            case kResultExitShell:
-                // users has typed "bye", exit the shell
-                bQuit = true;
-                retVal = 0;
-                break;
-
-            case kResultError:
-                // an error has occured, empty input stream stack
-                // TBD
-                if ( !bInteractiveMode ) {
-                    bQuit = true;
-                } else {
-                    // TBD: dump all but outermost input stream
+                    }
                 }
-                retVal = 0;
-                break;
-
-            case kResultFatalError:
-                // a fatal error has occured, exit the shell
-                bQuit = true;
-                retVal = 1;
-                break;
             }
+            else
+            {
+                result = InterpretLine();
 
+                switch( result )
+                {
+
+                case kResultOk:
+                    // process pount directive if needed
+                    if ( (mFlags & SHELL_FLAG_START_IF) != 0 )
+                    {
+                        // this line started with poundIf - 
+                        ForthCoreState* pCore = mpEngine->GetCoreState();
+                        if ( GET_SDEPTH > 0 )
+                        {
+                            long expressionResult = SPOP;
+                            if ( expressionResult != 0 )
+                            {
+                                // compile "if" part
+                                mpStack->Push( kShellTagPoundIf );
+                            }
+                            else
+                            {
+                                // skip to "else" or "endif"
+                                mFlags |= SHELL_FLAG_SKIP_SECTION;
+                                mPoundIfDepth = 0;
+                            }
+                            if ( (mFlags & SHELL_FLAG_START_IF_C) != 0 )
+                            {
+                                // state was compile before "if", put it back
+                                mpEngine->SetCompileState( 1 );
+                            }
+                        }
+                        else
+                        {
+                            mpEngine->SetError( kForthErrorBadPreprocessorDirective, "#if expression left empty stack" );
+                        }
+                        mFlags &= ~SHELL_FLAG_START_IF;
+                    }
+                    break;
+
+                case kResultExitShell:
+                    // users has typed "bye", exit the shell
+                    bQuit = true;
+                    retVal = 0;
+                    break;
+
+                case kResultError:
+                    // an error has occured, empty input stream stack
+                    // TBD
+                    if ( !bInteractiveMode )
+                    {
+                        bQuit = true;
+                    }
+                    else
+                    {
+                        // TBD: dump all but outermost input stream
+                    }
+                    retVal = 0;
+                    break;
+
+                case kResultFatalError:
+                    // a fatal error has occured, exit the shell
+                    bQuit = true;
+                    retVal = 1;
+                    break;
+                }
+            }
         }
     }
     
@@ -261,6 +347,8 @@ ForthShell::ErrorReset( void )
 	mpEngine->ErrorReset();
 	mpInput->Reset();
 	mpStack->EmptyStack();
+    mPoundIfDepth = 0;
+    mFlags &= SHELL_FLAGS_NOT_RESET_ON_ERROR;
 }
 
 void
@@ -275,9 +363,12 @@ ForthShell::ReportError( void )
 	ForthCoreState* pCore = mpEngine->GetCoreState();
 	ForthThreadState* pThread = pCore->pThread;
 
-	if ( pLastInputToken != NULL ) {
+	if ( pLastInputToken != NULL )
+    {
         sprintf( errorBuf2, "%s, last input token: <%s> last IP 0x%x", errorBuf1, pLastInputToken, pCore->IP );
-    } else {
+    }
+    else
+    {
         sprintf( errorBuf2, "%s", errorBuf1 );
     }
     int lineNumber = mpInput->InputStream()->GetLineNumber();
@@ -293,7 +384,8 @@ ForthShell::ReportError( void )
 	pThread->consoleOut( pCore, errorBuf1 );
     char *pBase = mpInput->GetBufferBasePointer();
     pLastInputToken = mpInput->GetBufferPointer();
-    if ( (pBase != NULL) && (pLastInputToken != NULL) ) {
+    if ( (pBase != NULL) && (pLastInputToken != NULL) )
+    {
 		char* pBuf = errorBuf1;
 		*pBuf++ = '\n';
         while ( pBase < pLastInputToken )
@@ -311,7 +403,8 @@ backslashChar( char c )
 {
     char cResult;
 
-    switch( c ) {
+    switch( c )
+    {
 
     case 'a':        cResult = '\a';        break;
     case 'b':        cResult = '\b';        break;
@@ -338,21 +431,27 @@ ForthParseSingleQuote( const char       *pSrc,
 {
     char cc[2];
 
-    if ( (pSrc[1] != 0) && (pSrc[2] != 0) ) {
-        if ( pSrc[1] == '\\' ) {
+    if ( (pSrc[1] != 0) && (pSrc[2] != 0) )
+    {
+        if ( pSrc[1] == '\\' )
+        {
             // special backslashed character constant
             if ( (pSrc[3] == '\'') &&
-                ((pSrc[4] == 0) || (pSrc[4] == ' ') || (pSrc[4] == '\t')) ) {
+                ((pSrc[4] == 0) || (pSrc[4] == ' ') || (pSrc[4] == '\t')) )
+            {
                 pInfo->SetFlag( PARSE_FLAG_QUOTED_CHARACTER );
                 cc[0] = backslashChar( pSrc[2] );
                 cc[1] = '\0';
                 pSrc += 4;
                 pInfo->SetToken( cc );
             }
-        } else {
+        }
+        else
+        {
             // regular character constant
             if ( (pSrc[2] == '\'') &&
-                ((pSrc[3] == 0) || (pSrc[3] == ' ') || (pSrc[3] == '\t')) ) {
+                ((pSrc[3] == 0) || (pSrc[3] == ' ') || (pSrc[3] == '\t')) )
+            {
                 pInfo->SetFlag( PARSE_FLAG_QUOTED_CHARACTER );
                 cc[0] = pSrc[1];
                 cc[1] = '\0';
@@ -374,9 +473,11 @@ ForthParseDoubleQuote( const char       *pSrc,
     pInfo->SetFlag( PARSE_FLAG_QUOTED_STRING );
 
     pSrc++;  // skip first double-quote
-    while ( *pSrc != '\0' ) {
+    while ( *pSrc != '\0' )
+    {
 
-        switch ( *pSrc ) {
+        switch ( *pSrc )
+        {
 
         case '"':
             *pDst = 0;
@@ -421,7 +522,8 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
 
         pSrc = mpInput->GetBufferPointer();
         pDst = pInfo->GetToken();
-        if ( *pSrc == '\0' ) {
+        if ( *pSrc == '\0' )
+        {
             // input buffer is empty
             return true;
         }
@@ -429,12 +531,14 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
         *pDst = 0;
 
         // eat any leading white space
-        while ( (*pSrc == ' ') || (*pSrc == '\t') ) {
+        while ( (*pSrc == ' ') || (*pSrc == '\t') )
+        {
             pSrc++;
         }
 
         // support C++ end-of-line style comments
-        if ( (*pSrc == '/') && (pSrc[1] == '/') ) {
+        if ( (*pSrc == '/') && (pSrc[1] == '/') )
+        {
             return true;
         }
 
@@ -451,7 +555,8 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
               break;
         }
 
-        if ( pInfo->GetFlags() == 0 ) {
+        if ( pInfo->GetFlags() == 0 )
+        {
             // token is not a special case, just parse till blank, space or EOL
            bool done = false;
             pEndSrc = pSrc;
@@ -521,7 +626,8 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
 
         pSrc = mpInput->GetBufferPointer();
         pDst = pInfo->GetToken();
-        if ( *pSrc == '\0' ) {
+        if ( *pSrc == '\0' )
+        {
             // input buffer is empty
             return true;
         }
@@ -529,12 +635,14 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
         *pDst = 0;
 
         // eat any leading white space
-        while ( (*pSrc == ' ') || (*pSrc == '\t') ) {
+        while ( (*pSrc == ' ') || (*pSrc == '\t') )
+        {
             pSrc++;
         }
 
         // support C++ end-of-line style comments
-        if ( (*pSrc == '/') && (pSrc[1] == '/') ) {
+        if ( (*pSrc == '/') && (pSrc[1] == '/') )
+        {
             return true;
         }
 
@@ -557,7 +665,8 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
               break;
         }
 
-        if ( pInfo->GetFlags() == 0 ) {
+        if ( pInfo->GetFlags() == 0 )
+        {
             // token is not a special case, just parse till blank, space or EOL
            bool done = false;
             pEndSrc = pSrc;
@@ -636,15 +745,18 @@ ForthShell::GetNextSimpleToken( void )
     bool bDone;
 
     // eat any leading white space
-    while ( (*pToken == ' ') || (*pToken == '\t') ) {
+    while ( (*pToken == ' ') || (*pToken == '\t') )
+    {
         pToken++;
     }
 
     pEndToken = pToken;
     bDone = false;
-    while ( !bDone ) {
+    while ( !bDone )
+    {
         c = *pEndToken;
-        switch( c ) {
+        switch( c )
+        {
         case ' ':
         case '\t':
             bDone = true;
@@ -672,13 +784,15 @@ ForthShell::GetToken( char delim )
     bool bDone;
 
     // eat any leading white space
-    while ( (*pToken == ' ') || (*pToken == '\t') ) {
+    while ( (*pToken == ' ') || (*pToken == '\t') )
+    {
         pToken++;
     }
 
     pEndToken = pToken;
     bDone = false;
-    while ( !bDone ) {
+    while ( !bDone )
+    {
         c = *pEndToken;
         if ( c == '\0' )
         {
@@ -710,7 +824,8 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
 
     i = 0;
     mpArgs = new char *[ argc ];
-    while ( i < argc ) {
+    while ( i < argc )
+    {
         len = strlen( argv[i] );
         mpArgs[i] = new char [ len + 1 ];
         strcpy( mpArgs[i], argv[i] );
@@ -756,7 +871,9 @@ ForthShell::SetEnvironmentVars( const char ** envp )
         {
             *pValue++ = '\0';
             mpEnvVarValues[i] = pValue;
-        } else {
+        }
+        else
+        {
             printf( "Malformed environment variable: %s\n", envp[i] );
         }
         i++;
@@ -766,7 +883,8 @@ ForthShell::SetEnvironmentVars( const char ** envp )
 void
 ForthShell::DeleteCommandLine( void )
 {
-    while ( mNumArgs > 0 ) {
+    while ( mNumArgs > 0 )
+    {
         mNumArgs--;
         delete [] mpArgs[mNumArgs];
     }
@@ -779,7 +897,8 @@ ForthShell::DeleteCommandLine( void )
 void
 ForthShell::DeleteEnvironmentVars( void )
 {
-    while ( mNumEnvVars > 0 ) {
+    while ( mNumEnvVars > 0 )
+    {
         mNumEnvVars--;
         delete [] mpEnvVarNames[mNumEnvVars];
     }
@@ -901,6 +1020,78 @@ ForthShell::FilePutString( FILE* pFile, const char* pBuffer )
 }
 
 
+//
+// support for conditional compilation ops
+//
+
+void ForthShell::PoundIf()
+{
+    //mPoundIfDepth++;
+
+    // set flags so Run will know to check result at end of line
+    //   and either continue compiling or skip section
+    if ( mpEngine->IsCompiling() )
+    {
+        // this means set state back to compile at end of line
+        mFlags |= SHELL_FLAG_START_IF_C;
+    }
+    else
+    {
+        mFlags |= SHELL_FLAG_START_IF_I;
+    }
+
+    // evaluate rest of input line
+    mpEngine->SetCompileState( 0 );
+}
+
+
+void ForthShell::PoundIfdef( bool isDefined )
+{
+    ForthVocabulary* pVocab = mpEngine->GetSearchVocabulary();
+    char* pToken = GetNextSimpleToken();
+    if ( (pToken != NULL) && (pVocab != NULL)
+        && ((pVocab->FindSymbol( pToken ) != NULL) == isDefined) )
+    {
+        // compile "if" part
+        mpStack->Push( kShellTagPoundIf );
+    }
+    else
+    {
+        // skip to "else" or "endif"
+        mFlags |= SHELL_FLAG_SKIP_SECTION;
+        mPoundIfDepth = 0;
+    }
+}
+
+
+void ForthShell::PoundElse()
+{
+    long marker = mpStack->Pop();
+    if ( marker == kShellTagPoundIf )
+    {
+        mFlags |= SHELL_FLAG_SKIP_SECTION;
+        // put the marker back for PoundEndif
+        mpStack->Push( marker );
+    }
+    else
+    {
+        // error - unexpected else
+        mpEngine->SetError( kForthErrorBadPreprocessorDirective, "unexpected #else" );
+    }
+}
+
+
+void ForthShell::PoundEndif()
+{
+    long marker = mpStack->Pop();
+    if ( marker != kShellTagPoundIf )
+    {
+        // error - unexpected endif
+        mpEngine->SetError( kForthErrorBadPreprocessorDirective, "unexpected #endif" );
+    }
+}
+
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -934,12 +1125,14 @@ ForthParseInfo::SetToken( const char *pSrc )
     int symLen, padChars;
     char *pDst;
 
-    if ( pSrc != NULL ) {
+    if ( pSrc != NULL )
+    {
 
         symLen = strlen( pSrc );
         pDst = (char *) mpToken;
 
-        if ( symLen > mMaxChars ) {
+        if ( symLen > mMaxChars )
+        {
             symLen = mMaxChars;
         }
         // set length byte
@@ -950,7 +1143,9 @@ ForthParseInfo::SetToken( const char *pSrc )
         pDst += symLen;
         *pDst++ = '\0';
 
-    } else {
+    }
+    else
+    {
 
         // token has already been copied to mpToken, just set length byte
         symLen = strlen( ((char *) mpToken) + 1 );
@@ -971,9 +1166,11 @@ ForthParseInfo::SetToken( const char *pSrc )
 
 
     padChars = (symLen + 2) & 3;
-    if ( padChars > 1 ) {
+    if ( padChars > 1 )
+    {
         padChars = 4 - padChars;
-        while ( padChars > 0 ) {
+        while ( padChars > 0 )
+        {
             *pDst++ = '\0';
             padChars--;
         }
@@ -1061,3 +1258,4 @@ ForthShellStack::PopString( char *pString )
     SPEW_SHELL( "Popped String \"%s\"\n", pString );
    return true;
 }
+

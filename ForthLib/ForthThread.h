@@ -40,6 +40,11 @@ public:
 
     inline void         SetIP( long *pNewIP ) { mState.IP = pNewIP; };
 
+    inline void         Push( long value ) { *--mState.SP = value; };
+    inline long         Pop() { return *mState.SP++; };
+    inline void         RPush( long value ) { *--mState.RP = value; };
+    inline long         RPop() { return *mState.RP++; };
+
     friend class ForthEngine;
 
 protected:

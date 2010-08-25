@@ -12,7 +12,8 @@
 #include "ForthVocabulary.h"
 
 
-extern "C" {
+extern "C"
+{
 
 #ifdef _ASM_INNER_INTERPRETER
 // UserCodeAction is used to execute user ops which are defined in assembler
@@ -58,7 +59,8 @@ VAR_ACTION( doByteMinusStore )
     *pA = (unsigned char) ((*pA) - SPOP);
 }
 
-VarAction byteOps[] = {
+VarAction byteOps[] =
+{
     doByteFetch,
     doByteRef,
     doByteStore,
@@ -316,7 +318,8 @@ VAR_ACTION( doShortMinusStore )
     *pA = (short)((*pA) - SPOP);
 }
 
-VarAction shortOps[] = {
+VarAction shortOps[] =
+{
     doShortFetch,
     doShortRef,
     doShortStore,
@@ -575,7 +578,8 @@ VAR_ACTION( doIntMinusStore )
     *pA -= SPOP;
 }
 
-VarAction intOps[] = {
+VarAction intOps[] =
+{
     doIntFetch,
     doIntRef,
     doIntStore,
@@ -816,7 +820,8 @@ VAR_ACTION( doFloatMinusStore )
     *pA -= FPOP;
 }
 
-VarAction floatOps[] = {
+VarAction floatOps[] =
+{
     doIntFetch,
     doIntRef,
     doIntStore,
@@ -1070,7 +1075,8 @@ VAR_ACTION( doDoubleMinusStore )
     *pA -= DPOP;
 }
 
-VarAction doubleOps[] = {
+VarAction doubleOps[] =
+{
     doDoubleFetch,
     doIntRef,
     doDoubleStore,
@@ -1346,7 +1352,8 @@ VAR_ACTION( doStringAppend )
     pDst[ newLen ] = 0;
 }
 
-VarAction stringOps[] = {
+VarAction stringOps[] =
+{
     doStringFetch,
     doIntRef,
     doStringStore,
@@ -1587,7 +1594,8 @@ VAR_ACTION( doOpExecute )
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( *(long *)(SPOP) );
 }
 
-VarAction opOps[] = {
+VarAction opOps[] =
+{
     doOpExecute,
     doIntRef,
     doIntStore,
@@ -1813,7 +1821,8 @@ OPTYPE_ACTION( MemberOpArrayAction )
 // 
 
 
-VarAction objectOps[] = {
+VarAction objectOps[] =
+{
     doDoubleFetch,
     doIntRef,
     doDoubleStore,
@@ -2055,17 +2064,21 @@ OPTYPE_ACTION( UserDefAction )
 {
     // op is normal user-defined, push IP on rstack, lookup new IP
     //  in table of user-defined ops
-    if ( opVal < GET_NUM_USER_OPS ) {
+    if ( opVal < GET_NUM_USER_OPS )
+    {
         RPUSH( (long) GET_IP );
         SET_IP( USER_OP_TABLE[opVal] );
-    } else {
+    }
+    else
+    {
         SET_ERROR( kForthErrorBadOpcode );
     }
 }
 
 OPTYPE_ACTION( BranchAction )
 {
-    if ( (opVal & 0x00800000) != 0 ) {
+    if ( (opVal & 0x00800000) != 0 )
+    {
         // TBD: trap a hard loop (opVal == -1)?
         opVal |= 0xFF000000;
     }
@@ -2074,8 +2087,10 @@ OPTYPE_ACTION( BranchAction )
 
 OPTYPE_ACTION( BranchNZAction )
 {
-    if ( SPOP != 0 ) {
-        if ( (opVal & 0x00800000) != 0 ) {
+    if ( SPOP != 0 )
+    {
+        if ( (opVal & 0x00800000) != 0 )
+        {
             // TBD: trap a hard loop (opVal == -1)?
             opVal |= 0xFF000000;
         }
@@ -2085,8 +2100,10 @@ OPTYPE_ACTION( BranchNZAction )
 
 OPTYPE_ACTION( BranchZAction )
 {
-    if ( SPOP == 0 ) {
-        if ( (opVal & 0x00800000) != 0 ) {
+    if ( SPOP == 0 )
+    {
+        if ( (opVal & 0x00800000) != 0 )
+        {
             // TBD: trap a hard loop (opVal == -1)?
             opVal |= 0xFF000000;
         }
@@ -2098,10 +2115,13 @@ OPTYPE_ACTION( CaseBranchAction )
 {
     // TOS: this_case_value case_selector
     long *pSP = GET_SP;
-    if ( *pSP == pSP[1] ) {
+    if ( *pSP == pSP[1] )
+    {
         // case matched
         pSP += 2;
-    } else {
+    }
+    else
+    {
         // no match - drop this_case_value & skip to next case
         pSP++;
         // case branch is always forward
@@ -2113,7 +2133,8 @@ OPTYPE_ACTION( CaseBranchAction )
 OPTYPE_ACTION( ConstantAction )
 {
     // push constant in opVal
-    if ( (opVal & 0x00800000) != 0 ) {
+    if ( (opVal & 0x00800000) != 0 )
+    {
       opVal |= 0xFF000000;
     }
     SPUSH( opVal );
@@ -2122,7 +2143,8 @@ OPTYPE_ACTION( ConstantAction )
 OPTYPE_ACTION( OffsetAction )
 {
     // push constant in opVal
-    if ( (opVal & 0x00800000) != 0 ) {
+    if ( (opVal & 0x00800000) != 0 )
+    {
       opVal |= 0xFF000000;
     }
     long v = SPOP + opVal;
@@ -2132,7 +2154,8 @@ OPTYPE_ACTION( OffsetAction )
 OPTYPE_ACTION( OffsetFetchAction )
 {
     // push constant in opVal
-    if ( (opVal & 0x00800000) != 0 ) {
+    if ( (opVal & 0x00800000) != 0 )
+    {
       opVal |= 0xFF000000;
     }
     long v = *((long *)(SPOP + opVal));
@@ -2270,33 +2293,45 @@ OPTYPE_ACTION( MethodAction )
     forthOpType opType = FORTH_OP_TYPE( op );
     int methodNum = ((int) opType) & 0x7F;
     long* pObj = NULL;
-    if ( opVal & 0x00800000 ) {
+    if ( opVal & 0x00800000 )
+    {
         // object ptr is in local variable
         pObj = GET_FP - (opVal & 0x007F0000);
-    } else {
+    }
+    else
+    {
         // object ptr is in global op
-        if ( opVal < pCore->numUserOps ) {
+        if ( opVal < pCore->numUserOps )
+        {
             pObj = (long *) (pCore->userOps[opVal]);
-        } else {
+        }
+        else
+        {
             SET_ERROR( kForthErrorBadOpcode );
         }
     }
-    if ( pObj != NULL ) {
+    if ( pObj != NULL )
+    {
         // pObj is a pair of pointers, first pointer is to
         //   class descriptor for this type of object,
         //   second pointer is to storage for object (this ptr)
         long *pClass = (long *) (*pObj);
         if ( (pClass[1] == CLASS_MAGIC_NUMBER)
-          && (pClass[2] > methodNum) ) {
+            && (pClass[2] > methodNum) )
+        {
             RPUSH( (long) GET_IP );
             RPUSH( (long) GET_TP );
             SET_TP( pObj );
             SET_IP( (long *) (pClass[methodNum + 3]) );
-        } else {
+        }
+        else
+        {
             // bad class magic number, or bad method number
             SET_ERROR( kForthErrorBadOpcode );
         }
-    } else {
+    }
+    else
+    {
         SET_ERROR( kForthErrorBadOpcode );
     }
 #endif
@@ -2442,11 +2477,13 @@ void InitDispatchTables( ForthCoreState* pCore )
 {
     int i;
 
-    for ( i = 0; i < 256; i++ ) {
+    for ( i = 0; i < 256; i++ )
+    {
         pCore->optypeAction[i] = IllegalOptypeAction;
     }
 
-    for ( i = 0; i < MAX_BUILTIN_OPS; i++ ) {
+    for ( i = 0; i < MAX_BUILTIN_OPS; i++ )
+    {
         pCore->builtinOps[i] = BadOpcodeOp;
     }
     for ( i = 0; builtinOptypeAction[i] != NULL; i++ )
@@ -2508,7 +2545,8 @@ InnerInterpreter( ForthCoreState *pCore )
 
     SET_STATE( kResultOk );
     
-    while ( GET_STATE == kResultOk ) {
+    while ( GET_STATE == kResultOk )
+    {
         // fetch op at IP, advance IP
         pIP = GET_IP;
 #ifdef TRACE_INNER_INTERPRETER

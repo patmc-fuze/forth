@@ -61,7 +61,8 @@ ForthVocabulary::ForthVocabulary( const char    *pName,
     mpChainNext = mpChainHead;
     mpChainHead = this;
 
-    if ( pName != NULL ) {
+    if ( pName != NULL )
+    {
         SetName( pName );
     }
     mpEngine = ForthEngine::GetInstance();
@@ -73,8 +74,10 @@ ForthVocabulary::~ForthVocabulary()
     delete [] mpStorageBase;
 
     ForthVocabulary **ppNext = &mpChainHead;
-    while ( ppNext != NULL ) {
-        if ( *ppNext == this ) {
+    while ( ppNext != NULL )
+    {
+        if ( *ppNext == this )
+        {
             *ppNext = mpChainNext;
             break;
         }
@@ -98,7 +101,8 @@ ForthVocabulary::SetName( const char *pVocabName )
 {
     int len;
 
-    if ( pVocabName != NULL ) {
+    if ( pVocabName != NULL )
+    {
         len = strlen( pVocabName );
         mpName = new char[len + 1];
         strcpy( mpName, pVocabName );
@@ -158,7 +162,8 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
     int i, nameLen, symSize, newLen;
 
     nameLen = (pSymName == NULL) ? 0 : strlen( pSymName );
-    if ( nameLen > 255 ) {
+    if ( nameLen > 255 )
+    {
         nameLen = 255;
     }
     else
@@ -168,7 +173,8 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
 
     symSize = mValueLongs + ( ((nameLen + 4) & ~3) >> 2 );
     pBase = mpStorageBottom - symSize;
-    if ( pBase < mpStorageBase ) {
+    if ( pBase < mpStorageBase )
+    {
         //
         // new symbol wont fit, increase storage size
         //
@@ -178,7 +184,8 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
         pSrc = mpStorageBase + mStorageLongs;
         pDst = pBase + newLen;
         // copy existing entries into new storage
-        while ( pSrc > mpStorageBottom ) {
+        while ( pSrc > mpStorageBottom )
+        {
             *--pDst = *--pSrc;
         }
 
@@ -192,7 +199,8 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
 #endif
     }
 
-    if ( addToEngineOps ){        
+    if ( addToEngineOps )
+    {        
         // for executable ops, add the IP of symbol to op table
         // value of symbol is index into op table, not IP
         symValue = mpEngine->AddOp( (long *) symValue, (forthOpType) symType );
@@ -209,17 +217,20 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
     mpNewestSymbol = mpStorageBottom;
     // TBD: check for storage overflow
     *pBase++ = symValue;
-    for ( i = 1; i < mValueLongs; i++ ) {
+    for ( i = 1; i < mValueLongs; i++ )
+    {
         *pBase++ = 0;
     }
     pVC = (char *) pBase;
     *pVC++ = nameLen;
-    for ( i = 0; i < nameLen; i++ ) {
+    for ( i = 0; i < nameLen; i++ )
+    {
         *pVC++ = *pSymName++;
     }
     // pad with 0s to make the total symbol entry a multiple of longwords long
     nameLen++;
-    while ( (nameLen & 3) != 0 ) {
+    while ( (nameLen & 3) != 0 )
+    {
         *pVC++ = 0;
         nameLen++;
     }
@@ -258,12 +269,14 @@ ForthVocabulary::DeleteEntry( long *pEntry )
 
     pNextEntry = NextEntry( pEntry );
     entryLongs = pNextEntry - pEntry;
-    if ( pEntry != mpStorageBottom ) {
+    if ( pEntry != mpStorageBottom )
+    {
         // there are newer symbols than entry, need to move newer symbols up
         pSrc = pEntry - 1;
         pDst = pNextEntry - 1;
         numLongs = pEntry - mpStorageBottom;
-        while ( numLongs-- > 0 ) {
+        while ( numLongs-- > 0 )
+        {
             *pDst-- = *pSrc--;
         }
     }
@@ -300,33 +313,43 @@ ForthVocabulary::ForgetSymbol( const char *pSymName )
     symbolsLeft = mNumSymbols;
 
     done = false;
-    while ( !done && (symbolsLeft > 0) ) {
+    while ( !done && (symbolsLeft > 0) )
+    {
 
         opType = GetEntryType( pEntry );
-        if ( (opType == kOpBuiltIn) || (opType == kOpBuiltInImmediate) ) {
+        if ( (opType == kOpBuiltIn) || (opType == kOpBuiltInImmediate) )
+        {
             // sym is unknown, or in built-in ops - no way
             TRACE( "Error - attempt to forget builtin op %s from %s\n", pSymName, GetName() );
             done = true;
-        } else {
+        }
+        else
+        {
             // skip value field
             pTmp = pEntry + 1;
-            for ( j = 0; j < symLen; j++ ) {
-                if ( pTmp[j] != tmpSym[j] ) {
+            for ( j = 0; j < symLen; j++ )
+            {
+                if ( pTmp[j] != tmpSym[j] )
+                {
                     // not a match
                     break;
                 }
             }
             symbolsLeft--;
-            if ( j == symLen ) {
+            if ( j == symLen )
+            {
                 // found it
                 done = true;
                 pNewBottom = NextEntry( pEntry );
-            } else {
+            }
+            else
+            {
                 pEntry = NextEntry( pEntry );
             }
         }
     }
-    if ( pNewBottom != NULL ) {
+    if ( pNewBottom != NULL )
+    {
         //
         // if we get here, really do the forget operation
         //
@@ -465,16 +488,20 @@ ForthVocabulary::FindSymbol( ForthParseInfo *pInfo, ulong serial )
     
     // go through the vocabulary looking for match with name
     pEntry = mpStorageBottom;
-    for ( i = 0; i < mNumSymbols; i++ ) {
+    for ( i = 0; i < mNumSymbols; i++ )
+    {
         // skip value field
         pTmp = pEntry + mValueLongs;
-        for ( j = 0; j < symLen; j++ ) {
-            if ( pTmp[j] != pToken[j] ) {
+        for ( j = 0; j < symLen; j++ )
+        {
+            if ( pTmp[j] != pToken[j] )
+            {
                 // not a match
                 break;
             }
         }
-        if ( j == symLen ) {
+        if ( j == symLen )
+        {
             // found it
             return pEntry;
         }
@@ -502,7 +529,8 @@ ForthVocabulary::FindSymbolByValue( long val, ulong serial )
 
     // go through the vocabulary looking for match with value
     pEntry = mpStorageBottom;
-    for ( i = 0; i < mNumSymbols; i++ ) {
+    for ( i = 0; i < mNumSymbols; i++ )
+    {
         if ( *pEntry == val )
         {
             // found it
@@ -640,13 +668,44 @@ ForthVocabulary::PrintEntry( long*   pEntry )
 #define BUFF_SIZE 256
     char buff[BUFF_SIZE];
     ForthCoreState* pCore = mpEngine->GetCoreState();
-    sprintf( buff, "  %02x:%06x    ", GetEntryType( pEntry ), GetEntryValue( pEntry ) );
+    forthOpType entryType = GetEntryType( pEntry );
+    ulong entryValue = GetEntryValue( pEntry );
+    sprintf( buff, "  %02x:%06x    ", entryType, entryValue );
     CONSOLE_STRING_OUT( buff );
 
-    for ( int j = 1; j < mValueLongs; j++ )
+    bool showCodeAddress = false;
+    switch ( entryType )
     {
-        sprintf( buff, "%08x    ", pEntry[j] );
-        CONSOLE_STRING_OUT( buff );
+    case kOpUserDef:
+    case kOpUserDefImmediate:
+    case kOpUserCode:
+    case kOpUserCodeImmediate:
+        showCodeAddress = CODE_IS_USER_DEFINITION( pEntry[1] );
+        break;
+    default:
+        break;
+    }
+    if ( showCodeAddress )
+    {
+        // for user defined ops the second entry field is meaningless, just show code address
+        if ( entryValue < GET_NUM_USER_OPS )
+        {
+            sprintf( buff, "%08x *  ", USER_OP_TABLE[entryValue] );
+            CONSOLE_STRING_OUT( buff );
+        }
+        else
+        {
+            sprintf( buff, "%08x - out of range", entryValue );
+            CONSOLE_STRING_OUT( buff );
+        }
+     }
+    else
+    {
+        for ( int j = 1; j < mValueLongs; j++ )
+        {
+            sprintf( buff, "%08x    ", pEntry[j] );
+            CONSOLE_STRING_OUT( buff );
+        }
     }
 
     GetEntryName( pEntry, buff, BUFF_SIZE );

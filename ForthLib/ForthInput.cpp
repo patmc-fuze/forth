@@ -21,7 +21,8 @@ ForthInputStack::ForthInputStack()
 ForthInputStack::~ForthInputStack()
 {
     // TBD: should we be closing file here?
-    while ( mpHead != NULL ) {
+    while ( mpHead != NULL )
+    {
         ForthInputStream *pNextStream = mpHead->mpNext;
         delete mpHead;
         mpHead = pNextStream;
@@ -45,7 +46,8 @@ ForthInputStack::PopInputStream( void )
 {
     ForthInputStream *pNext;
 
-    if ( (mpHead == NULL) || (mpHead->mpNext == NULL) ) {
+    if ( (mpHead == NULL) || (mpHead->mpNext == NULL) )
+    {
         // all done!
         return true;
     }
@@ -63,16 +65,19 @@ ForthInputStack::GetLine( const char *pPrompt )
 {
     char *pBuffer, *pEndLine;
 
-    if ( mpHead == NULL ) {
+    if ( mpHead == NULL )
+    {
         return NULL;
     }
 
     pBuffer = mpHead->GetLine( pPrompt );
 
-    if ( pBuffer != NULL ) {
+    if ( pBuffer != NULL )
+    {
         // get rid of the trailing linefeed (if any)
         pEndLine = strchr( pBuffer, '\n' );
-        if ( pEndLine ) {
+        if ( pEndLine )
+        {
             *pEndLine = '\0';
         }
     }
@@ -105,7 +110,8 @@ ForthInputStack::GetBufferLength( void )
 void
 ForthInputStack::SetBufferPointer( char *pBuff )
 {
-    if ( mpHead != NULL ) {
+    if ( mpHead != NULL )
+    {
         mpHead->SetBufferPointer( pBuff );
     }
 }
@@ -115,8 +121,10 @@ void
 ForthInputStack::Reset( void )
 {
     // dump all nested input stream
-    if ( mpHead != NULL ) {
-        while ( mpHead->mpNext != NULL ) {
+    if ( mpHead != NULL )
+    {
+        while ( mpHead->mpNext != NULL )
+        {
             PopInputStream();
         }
     }
@@ -141,7 +149,8 @@ ForthInputStream::ForthInputStream( int bufferLen )
 
 ForthInputStream::~ForthInputStream()
 {
-    if ( mpBufferBase != NULL ) {
+    if ( mpBufferBase != NULL )
+    {
         delete [] mpBufferBase;
     }
 }
@@ -196,7 +205,8 @@ ForthFileInputStream::ForthFileInputStream( FILE *pInFile, int bufferLen )
 ForthFileInputStream::~ForthFileInputStream()
 {
     // TBD: should we be closing file here?
-    if ( mpInFile != NULL ) {
+    if ( mpInFile != NULL )
+    {
         fclose( mpInFile );
     }
 }
@@ -275,17 +285,22 @@ ForthBufferInputStream::GetLine( const char *pPrompt )
     const char *pBuffer;
     char *pDst, c;
 
-    if ( mpDataBuffer >= mpDataBufferLimit ) {
+    if ( mpDataBuffer >= mpDataBufferLimit )
+    {
         return NULL;
     }
 
     pBuffer = mpDataBuffer;
     pDst = mpBufferBase;
-    while ( mpDataBuffer < mpDataBufferLimit ) {
+    while ( mpDataBuffer < mpDataBufferLimit )
+    {
         c = *mpDataBuffer++;
-        if ( (c == '\0') || (c == '\n') || (c == '\r') ) {
+        if ( (c == '\0') || (c == '\n') || (c == '\r') )
+        {
             break;
-        } else {
+        } 
+        else
+        {
             *pDst++ = c;
         }
     }

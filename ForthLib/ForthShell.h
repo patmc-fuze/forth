@@ -62,6 +62,7 @@ typedef enum
    kShellTagParen    = 7,
    kShellTagString   = 8,
    kShellTagColon    = 9,
+   kShellTagPoundIf  = 10,
    // if you add tags, remember to update TagStrings in ForthShell.cpp
    kNumShellTags
 } eShellTag;
@@ -99,6 +100,12 @@ protected:
 
 #define SHELL_FLAG_CREATED_ENGINE   1
 #define SHELL_FLAG_POP_NEXT_TOKEN   2
+#define SHELL_FLAG_START_IF_I       4
+#define SHELL_FLAG_START_IF_C       8
+#define SHELL_FLAG_START_IF         (SHELL_FLAG_START_IF_I | SHELL_FLAG_START_IF_C)
+#define SHELL_FLAG_SKIP_SECTION     16
+
+#define SHELL_FLAGS_NOT_RESET_ON_ERROR (SHELL_FLAG_CREATED_ENGINE)
 
 class ForthShell  
 {
@@ -113,6 +120,7 @@ public:
     virtual bool            PushInputFile( const char *pInFileName );
     virtual void            PushInputBuffer( char *pDataBuffer, int dataBufferLen );
     virtual bool            PopInputStream( void );
+    // NOTE: the input stream passed to Run will be deleted by ForthShell
     virtual int             Run( ForthInputStream *pStream );
     char *                  GetNextSimpleToken( void );
     char *                  GetToken( char delim );
@@ -150,6 +158,11 @@ public:
     virtual char*           FileGetString( FILE* pFile, char* dstBuffer, int maxChars );
     virtual int             FilePutString( FILE* pFile, const char* pBuffer );
 
+    virtual void            PoundIf();
+    virtual void            PoundIfdef( bool isDefined );
+    virtual void            PoundElse();
+    virtual void            PoundEndif();
+
 protected:
 
     // parse next token from input stream into mTokenBuff, padded with 0's up
@@ -178,5 +191,8 @@ protected:
     char **                 mpEnvVarValues;
     int                     mFlags;
     char                    mErrorString[ 128 ];
+
+    int                     mPoundIfDepth;
+    
 };
 

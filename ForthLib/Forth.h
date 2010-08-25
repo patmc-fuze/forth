@@ -181,6 +181,7 @@ typedef enum {
     kForthErrorStruct,
     kForthErrorUserDefined,
     kForthErrorBadSyntax,
+    kForthErrorBadPreprocessorDirective,
     // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
 } eForthError;
@@ -268,7 +269,14 @@ typedef struct
    const char       *name;
    ulong            flags;
    ulong            value;
-} baseDictEntry;
+} baseDictionaryEntry;
+
+// helper macro for built-in op entries in baseDictionary
+#define OP_DEF( func, funcName )  { funcName, kOpBuiltIn, (ulong) func }
+
+// helper macro for ops which have precedence (execute at compile time)
+#define PRECOP_DEF( func, funcName )  { funcName, kOpBuiltInImmediate, (ulong) func }
+
 
 typedef struct
 {
@@ -378,6 +386,7 @@ typedef enum
     kNumNativeTypes,
     kBaseTypeObject = kNumNativeTypes,
     kBaseTypeStruct,
+    kBaseTypeUserDefinition,
     kNumBaseTypes,
     kBaseTypeUnknown = kNumBaseTypes
 } forthBaseType;
@@ -407,6 +416,8 @@ typedef enum
 #define STRUCT_TYPE_TO_CODE( ARRAY_FLAG, STRUCT_INDEX )     ((ARRAY_FLAG) | kBaseTypeStruct | ((STRUCT_INDEX) << 8))
 #define OBJECT_TYPE_TO_CODE( ARRAY_FLAG, STRUCT_INDEX )     ((ARRAY_FLAG) | kBaseTypeObject | ((STRUCT_INDEX) << 8))
 
+#define BASE_TYPE_TO_CODE( BASE_TYPE )                      (BASE_TYPE)
+
 #define CODE_IS_SIMPLE( CODE )                              (((CODE) & (kDTIsArray | kDTIsPtr)) == 0)
 #define CODE_IS_ARRAY( CODE )                               (((CODE) & kDTIsArray) != 0)
 #define CODE_IS_PTR( CODE )                                 (((CODE) & kDTIsPtr) != 0)
@@ -415,6 +426,7 @@ typedef enum
 #define CODE_TO_BASE_TYPE( CODE )                           ((CODE) & 0x0F)
 #define CODE_TO_STRUCT_INDEX( CODE )                        ((CODE) >> 8)
 #define CODE_TO_STRING_BYTES( CODE )                        ((CODE) >> 8)
+#define CODE_IS_USER_DEFINITION( CODE )                     (((CODE) & 0x0F) == kBaseTypeUserDefinition)
 
 // bit fields for kOpDLLEntryPoint
 #define DLL_ENTRY_TO_CODE( INDEX, NUM_ARGS )    (((NUM_ARGS) << 19) | (INDEX))

@@ -2979,6 +2979,45 @@ ultBop2:
 	mov	[edx], eax
 	jmp	edi
 	
+;========================================
+
+entry withinBop
+	; tos: hiLimit loLimit value
+	xor	eax, eax
+	mov	ebx, [edx+8]	; ebx = value
+withinBop1:
+	cmp	[edx], ebx
+	jle	withinFail
+	cmp	[edx+4], ebx
+	jg	withinFail
+	dec	eax
+withinFail:
+	add edx, 8
+	mov	[edx], eax		
+	jmp	edi
+	
+;========================================
+
+entry minBop
+	mov	ebx, [edx]
+	add	edx, 4
+	cmp	[edx], ebx
+	jl	minBop1
+	mov	[edx], ebx
+minBop1:
+	jmp	edi
+	
+;========================================
+
+entry maxBop
+	mov	ebx, [edx]
+	add	edx, 4
+	cmp	[edx], ebx
+	jg	maxBop1
+	mov	[edx], ebx
+maxBop1:
+	jmp	edi
+	
 	
 ;========================================
 
@@ -3036,6 +3075,17 @@ entry dupBop
 
 ;========================================
 
+entry dupNonZeroBop
+	mov	eax, [edx]
+	or	eax, eax
+	jz	dupNonZeroBop1
+	sub	edx, 4
+	mov	[edx], eax
+dupNonZeroBop1:
+	jmp	edi
+
+;========================================
+
 entry swapBop
 	mov	eax, [edx]
 	mov	ebx, [edx+4]
@@ -3060,12 +3110,31 @@ entry overBop
 ;========================================
 
 entry rotBop
-	mov	eax, [edx]
-	mov	ebx, [edx+8]
+	mov	eax, [edx]		; tos[0], will go in tos[1]
+	mov	ebx, [edx+8]	; tos[2], will go in tos[0]
 	mov	[edx], ebx
-	mov	ebx, [edx+4]
+	mov	ebx, [edx+4]	; tos[1], will go in tos[2]
 	mov	[edx+8], ebx
 	mov	[edx+4], eax
+	jmp	edi
+	
+;========================================
+
+entry reverseRotBop
+	mov	eax, [edx]		; tos[0], will go in tos[2]
+	mov	ebx, [edx+4]	; tos[1], will go in tos[0]
+	mov	[edx], ebx
+	mov	ebx, [edx+8]	; tos[2], will go in tos[1]
+	mov	[edx+4], ebx
+	mov	[edx+8], eax
+	jmp	edi
+	
+;========================================
+
+entry nipBop
+	mov	eax, [edx]
+	add	edx, 4
+	mov	[edx], eax
 	jmp	edi
 	
 ;========================================
@@ -4515,6 +4584,9 @@ opsTable:
 	DD	FLAT:lessEqualsZeroBop
 	DD	FLAT:unsignedGreaterThanBop
 	DD	FLAT:unsignedLessThanBop
+	DD	FLAT:withinBop
+	DD	FLAT:minBop
+	DD	FLAT:maxBop
 	
 	; stack manipulation
 	DD	FLAT:rpushBop
@@ -4523,9 +4595,12 @@ opsTable:
 	DD	FLAT:rpBop
 	DD	FLAT:rzeroBop
 	DD	FLAT:dupBop
+	DD	FLAT:dupNonZeroBop
 	DD	FLAT:swapBop
 	DD	FLAT:overBop
 	DD	FLAT:rotBop
+	DD	FLAT:reverseRotBop
+	DD	FLAT:nipBop
 	DD	FLAT:tuckBop
 	DD	FLAT:pickBop
 	DD	FLAT:extOp					; rollBop
