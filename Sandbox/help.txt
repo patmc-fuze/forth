@@ -169,11 +169,11 @@ addHelp d!		DA PTR ...	store double at address PTR
 addHelp d@		PTR ... DA	fetch double from address PTR
 addHelp memcpy	DST SRC N ...	copy N bytes from SRC to DST
 addHelp memset	DST A N ...		fill N bytes at DST with byte value A
-addHelp ->+		N ->+ VAR ...	add N to VAR
+addHelp ->+		N ->+ VAR ...	add N to VAR, append for strings
 addHelp ->-		N ->- VAR ...	subtract N from VAR
 addHelp addressOf	addressOf VAR ... PTR	return address of VAR
-addHelp varAction!	A varAction! ...	set varAction to A
-addHelp varAction@	varAction@ ... A	fetch varAction
+addHelp varAction!	A varAction! ...	set varAction to A (use not recommended)
+addHelp varAction@	varAction@ ... A	fetch varAction (use not recommended)
 
 addHelp strcpy	STRA STRB ...	copies string from STRB to STRA
 addHelp strncpy	STRA STRB N ...	copies up to N chars from STRB to STRA
@@ -286,7 +286,7 @@ addHelp stats			...		displays forth engine statistics
 addHelp describe		describe OPNAME		displays info on op, disassembles userops
 
 // ops below this line have precedence
-addHelp _doEnum
+addHelp _doEnum			INTERNAL
 addHelp do				ENDVAL STARTVAL ...			start do loop, ends at ENDVAL-1
 addHelp loop			...							end do loop
 addHelp +loop			INCREMENT ...				end do loop, add INCREMENT to index each time
@@ -303,8 +303,8 @@ addHelp of
 addHelp endof
 addHelp endcase
 addHelp does
-addHelp exit
-addHelp ;
+addHelp exit										exit current hi-level op
+addHelp ;											ends a colon definition
 addHelp byte
 addHelp short
 addHelp int
