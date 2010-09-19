@@ -19,9 +19,14 @@ also sdl
 
 // x y DrawLine
 : DrawLine
-  -> int y1  -> int x1
-  curY -> int y0
+  curY negate -> int y0
   curX -> int x0
+  
+  ddup -> curY -> curX
+  
+  negate -> int y1
+  -> int x1
+  
   y1 y0 - -> int dy
   x1 x0 - -> int dx
   int stepx  int stepy
@@ -83,13 +88,18 @@ also sdl
       pixelColor pPixel pixel!
     repeat
   endif
-  y1 -> curY
-  x1 -> curX
   endDraw
 ;
 
-// X Y Draw4EllipsePoints ...
-: Draw4EllipsePoints
+// XYPAIRS NUM_PAIRS DrawPolyLine
+: DrawPolyLine
+  0 do
+    DrawLine
+  loop
+;
+
+// X Y _draw4EllipsePoints ...
+: _draw4EllipsePoints
   ddup
   -> int y
   -> int x
@@ -130,7 +140,7 @@ also sdl
   begin
     endX endY >=
   while
-    Draw4EllipsePoints( x y )
+    _draw4EllipsePoints( x y )
     1 ->+ y
     twoWSquared ->+ endY
     dy ->+ ellipseError
@@ -154,7 +164,7 @@ also sdl
   begin
     endX endY <=
   while
-    Draw4EllipsePoints( x y )
+    _draw4EllipsePoints( x y )
     1 ->+ x
     twoHSquared ->+ endX
     dx ->+ ellipseError
@@ -171,7 +181,7 @@ also sdl
 ;
 
 
-: DrawCirclePoints
+: _drawCirclePoints
   ddup
   -> int y
   -> int x
@@ -211,7 +221,7 @@ also sdl
   0 -> int x
   5 r 4* - 4 / -> int p
   
-  x y DrawCirclePoints
+  x y _drawCirclePoints
 
   begin
     x y <
@@ -223,16 +233,43 @@ also sdl
       1 ->- y
       x y - 2* 1+ ->+ p
     endif
-    x y DrawCirclePoints
+    x y _drawCirclePoints
   repeat
   
   endDraw
 ;
 
+: DrawSquare
+  -> int size
+  curX curY
+  
+  curX size - curY size + moveTo
+  curX curY size 2* - DrawLine
+  curX size 2* + curY DrawLine
+  curX curY size 2* + DrawLine
+  curX size 2* - curY DrawLine
+  moveTo
+;  
+
+: DrawRectangle
+  -> int h
+  -> int w
+  curX curY
+  
+  curX curY h + DrawLine
+  curX w + curY DrawLine
+  curX curY h - DrawLine
+  curX w - curY DrawLine
+  moveTo
+;
+  
 : dp DrawPoint ;
 : dl DrawLine ;
 : de DrawEllipse ;
 : dc DrawCircle ;
+: ds DrawSquare ;
+: dr DrawRectangle ;
+: dpl DrawPolyLine ;
 
 : test
   beginDraw

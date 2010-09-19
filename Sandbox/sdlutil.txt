@@ -5,36 +5,59 @@ also sdl
 
 : sdlutil ;
 
-null -> ptrTo SDL_Surface sdlScreen
-640 -> int screenW
-480 -> int screenH
-
+null  -> ptrTo SDL_Surface sdlScreen
+ 640  -> int screenW
+ 480  -> int screenH
+-320  -> int screenLeftLimit
+ 320  -> int screenRightLimit
+-240  -> int screenTopLimit
+ 240  -> int screenBottomLimit
+ 
+ 
 : dummyFetchOp drop 0 ;
 
 ' dummyFetchOp -> op pixel@
 ' ddrop -> op pixel!
+
 0x00FFFF00 -> int pixelColor
 
-screenW 2/ -> int screenCenterX
+screenW 2/ -> int screenCenterX 
 screenH 2/ -> int screenCenterY
+
 int _screenCenterPixelAddr
-0 ->int drawDepth
+0 -> int drawDepth
 
 SDL_Rect srcPos
 SDL_Rect dstPos
+
 
 0 -> srcPos.x 0 -> srcPos.y
 
 0 -> dstPos.x 0 -> dstPos.y
 
+0 -> int _sdlStarted
+
+: endSDL
+  if( _sdlStarted )
+    SDL_Quit drop
+    false -> _sdlStarted
+  endif
+;
+
 : startSDL
+
+  if( _sdlStarted )
+    endSDL
+  endif
+  true -> _sdlStarted
+  
   SDL_Init( SDL_INIT_VIDEO ) "SDL_Init returns " %s %d %nl
   SDL_SetVideoMode( screenW screenH 0 SDL_SWSURFACE ) -> sdlScreen
-  sdlScreen 0== if
+  if( sdlScreen 0== )
     "SDL_SetVideoMode failed!\n" %s abort
   else
     sdlScreen.format.BitsPerPixel
-    "bits per pixel: " %s dup %d
+    "bits per pixel: " %s dup %d %nl
     case
       8 of
         lit c@ -> pixel@
@@ -56,22 +79,21 @@ SDL_Rect dstPos
       lit ddrop -> pixel!
       "startSDL: Unhandled pixel size " %s %d %nl
     endcase
-    screenW 2/ -> screenCenterX
-    screenH 2/ -> screenCenterY
+    
+    // set coordinates so center of screen is 0,0
+    screenW 2/ dup -> screenCenterX dup -> screenRightLimit negate -> screenLeftLimit
+    screenH 2/ dup -> screenCenterY dup -> screenBottomLimit negate -> screenTopLimit
     screenCenterY sdlScreen.pitch *
     screenCenterX sdlScreen.format.BytesPerPixel *
     + sdlScreen.pixels + -> _screenCenterPixelAddr
+    
     // setup draw count and full-screen dirty rect for beginDraw/endDraw
     screenW -> srcPos.w
     screenH -> srcPos.h
     screenW -> dstPos.w
     screenH -> dstPos.h
-    0 ->drawDepth
+    0 -> drawDepth
   endif
-;
-
-: endSDL
-  SDL_Quit drop
 ;
 
 : beginDraw
@@ -96,9 +118,13 @@ SDL_Rect dstPos
 0 -> int curX
 0 -> int curY
 
+: moveTo
+  -> curY -> curX
+;
+
 // X Y screenAddress -> address of pixel on screen
 : screenAddress
-  sdlScreen.pitch *
+  sdlScreen.pitch * negate
   swap
   sdlScreen.format.BytesPerPixel *
   + _screenCenterPixelAddr +
@@ -106,7 +132,7 @@ SDL_Rect dstPos
 
 // dX dY screenAddressRelative -> address of pixel on screen
 : screenAddressRelative
-  curY + sdlScreen.pitch *
+  curY + sdlScreen.pitch * negate
   swap
   curX + sdlScreen.format.BytesPerPixel *
   + _screenCenterPixelAddr +
@@ -122,6 +148,23 @@ SDL_Rect dstPos
 : drawPixelRelative
   screenAddressRelative pixelColor swap pixel!
 ;
+
+// X Y getPixel -> fetches pixel value at X,Y
+: getPixel
+  screenAddress pixel@
+;
+
+: isOnScreen
+  screenTopLimit screenBottomLimit within
+  if
+    screenLeftLimit screenRightLimit within
+  else
+    drop false
+  endif
+;
+
+: sc -> pixelColor ;
+: mt moveTo ;
 
 previous definitions
 

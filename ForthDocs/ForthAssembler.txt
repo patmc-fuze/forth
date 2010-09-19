@@ -4,7 +4,135 @@
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 TBDs:
+- add a "call" op to allow high-level words to 
+- add a way to connect a c-style callback to forth ops
+- add a struct definition for ForthCoreState
+  ? why aren't 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 
+Defining user ops with assembler
+--------------
+o start definition with "code"
+o end definition with "next,"
+o assembler vocab is added to search order by "code", removed by "next,"
+o inside assembler op:
+  o eax, ebx, esi are free for modification
+  o ecx is IP
+  o edx is SP
+  o ebp is core state ptr
+  o edi holds address to jump to reenter inner interpreter
+
+UserCodeAction is an assembly routine in InnerInterp.asm that is called from
+the C++ inner interpreter to execute user code ops.
+
+userCodeType is an assembly routine in InnerInterp.asm that is called from the
+native code inner interpreter to execute user code ops.
+
+Subroutines
+-----------
+o start definition with "subroutine"
+o end definition with ";code"
+o definition should have a "ret," before ";code"
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+When calling external subroutines:
+
+o push arguments in right-to-left order (push first argument last)
+o return value is in eax
+o you are responsible for cleaning up stack after call returns
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Allowing C callbacks to invoke forth ops
+
+o this would need its own ForthThread
+o 
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Stuff from the top of InnerInterp.asm
+
+; register usage in a forthOp:
+;
+;	EAX		free
+;	EBX		free
+;	ECX		IP
+;	EDX		SP
+;	ESI		free
+;	EDI		inner interp PC (constant)
+;	EBP		core ptr (constant)
+
+; when in a opType routine:
+;	AL		8-bit opType
+;	EBX		full 32-bit opcode (need to mask off top 8 bits)
+
+; remember when calling extern cdecl functions:
+; 1) they are free to stomp EAX, EBX, ECX and EDX
+; 2) they are free to modify their input params on stack
+
+; if you need more than EAX and EBX in a routine, save ECX/IP & EDX/SP in FCore at start with these instructions:
+;	mov	[ebp].FCore.IPtr, ecx
+;	mov	[ebp].FCore.SPtr, edx
+; jump to interpFunc at end - interpFunc will restore ECX, EDX, and EDI and go back to inner loop
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Pentium instruction layout (from http://www.laynetworks.com/Pentium_Instruction%20formats.htm)
+
+prefixes | opcode | ModR/M | SIB | displacement | immediate
+
+prefixes
+	up to four 1-byte prefixes
+opcode
+	1 or 2 byte opcode
+ModR/M	(if required by opcode)
+	7:6 mod - 
+	5:3 reg/opcode - 
+	2:0 R/M
+SIB
+	7:6 scale - 
+	5:3 index - 
+	2:0 base -
+displacement (1, 2, 4)
+immediate (1, 2, 4)
+
+OPCODE
+
+The primary OPCODE is either 1 or 2 bytes. An additional 3-bit OPCODE field
+is sometimes encoded in the ModR/M byte. Smaller encoding fields can be
+defined within the primary OPCODE. These fields define the direction of the
+operation, the size of displacements, the register encoding, condition codes,
+or sign extension. The encoding of fields in the OPCODE varies, depending on
+the class of operation.
+
+MODR/M AND SIB BYTES
+
+Most instructions that refer to an operand in memory have an addressing-form
+specifier byte (called the ModR/M byte) following the primary OPCODE.
+The ModR/M byte contains three fields of information:
+
+o The mod field combines with the r/m field to form 32 possible values:
+  eight registers and 24 addressing modes.
+
+o The reg/opcode field specifies either a register number or three more bits
+  of opcode information. The purpose of the reg/opcode field is specified in
+  the primary opcode.
+
+o The r/m field can specify a register as an operand or can be combined with
+  the mod field to encode an addressing mode.
+
+Certain encoding of the ModR/M byte require a second addressing byte, the
+SIB byte, to fully specify the addressing form. The base-plus-index and
+scale-plus-index forms of 32-bit addressing require the SIB byte. The SIB
+byte includes the following fields:
+o The scale field specifies the scale factor.
+o The index field specifies the register number of the index register.
+o The base field specifies the register number of the base register.
+
+DISPLACEMENT AND IMMEDIATE BYTES
+
+Some addressing forms include a displacement immediately following either
+the ModR/M or SIB byte. If a displacement is required, it can be 1, 2, or
+4 bytes. If the instruction specifies an immediate operand, the operand
+always follows any displacement bytes. An immediate operand can be 1, 2,
+or 4 bytes.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 gforth assembler docs:

@@ -130,6 +130,30 @@ Gotchas with structure and object support:
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 28, 2010
+
+I spent some time trying to get ForthMidiExtension to work.  There is a crash
+that happens when I open a midi input port.  The overall situation is:
+ ForthMidiExtension::OpenInput
+  winmm.lib::midiInOpen
+   ForthMidiExtension::MidiInCallback
+    ForthMidiExtension::HandleMidiIn
+    ... crash ..
+HandleMidiIn and MidiInCallback appear to be fine, the crash happens after
+MidiInCallback returns but before midiInOpen returns.
+The PC is 0 and there is no valid call stack (why?)
+I ifdef-ed out the forth related stuff, all forth does is call midiInOpen,
+the callback doesn't do anything with forth, and the crash is unchanged.
+After we return from ForthMidiExtension::MidiInCallback we are in dissassembly
+land and it looks like we are in a simple wrapper, the PC becomes zero when
+the next return instruction happens.  So why isn't the return address where
+the callback wrapper expects it?
+After I get the crash 2 or 3 times, the program hangs on startup without
+ever getting to main.  The call stack shows many levels of calls in ntdll,
+kernel32, winmm, xgusb and myokent dlls.  After this I can't start the task
+manager and many programs won't startup either.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 21, 2010
 
 I ported the kforth assembler to this forth, intending to replace gforth, but
