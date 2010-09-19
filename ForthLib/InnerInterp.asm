@@ -1238,11 +1238,12 @@ lsStore1:
 	
 	; do the copy
 	push	eax		; push numBytes
+	push	eax		; and save a copy in case strncpy modifies its stack inputs
 	push	esi		; srcPtr
 	push	edi		; dstPtr
 	call	strncpy
-	add	esp, 8
-	pop	ecx
+	add	esp, 12
+	pop	ecx			; ecx = numBytes
 
 	; add the terminating null
 	xor	eax, eax

@@ -11,6 +11,9 @@
 #include "ForthShell.h"
 #include "ForthInput.h"
 #include "ForthVocabulary.h"
+#include "ForthExtension.h"
+
+#define CATCH_EXCEPTIONS
 
 #define STORAGE_LONGS 65536
 
@@ -50,7 +53,7 @@ const char * GetTagString( long tag )
 //                     ForthShell
 // 
 
-ForthShell::ForthShell( ForthEngine *pEngine, ForthThread *pThread, int shellStackLongs )
+ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthThread *pThread, int shellStackLongs )
 : mpEngine(pEngine)
 , mpThread(pThread)
 , mFlags(0)
@@ -64,7 +67,7 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthThread *pThread, int shellSta
     if ( mpEngine == NULL )
     {
         mpEngine = new ForthEngine();
-        mpEngine->Initialize( STORAGE_LONGS, true );
+        mpEngine->Initialize( STORAGE_LONGS, true, pExtension );
         mFlags = SHELL_FLAG_CREATED_ENGINE;
     }
     mpEngine->SetShell( this );
@@ -303,18 +306,22 @@ ForthShell::InterpretLine( const char *pSrcLine )
 		{
 
 #ifdef _WINDOWS
+#ifdef CATCH_EXCEPTIONS
             try
+#endif
 #endif
             {
                 result = mpEngine->ProcessToken( &parseInfo );
                 CHECK_STACKS( mpEngine->GetCurrentThread() );
             }
 #ifdef _WINDOWS
+#ifdef CATCH_EXCEPTIONS
             catch(...)
             {
                 result = kResultException;
                 mpEngine->SetError( kForthErrorException );
             }
+#endif
 #endif
             if ( result == kResultOk )
 			{

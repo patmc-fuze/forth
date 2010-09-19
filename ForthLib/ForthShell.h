@@ -9,6 +9,7 @@
 #include "ForthInput.h"
 
 class ForthInputStack;
+class ForthExtension;
 
 //
 // the ForthParseInfo class exists to support fast vocabulary searches.
@@ -113,7 +114,7 @@ public:
 
     // if the creator of a ForthShell passes in non-NULL engine and/or thread params,
     //   that creator is responsible for deleting the engine and/or thread
-    ForthShell( ForthEngine *pEngine = NULL, ForthThread *pThread = NULL, int shellStackLongs = 1024 );
+    ForthShell( ForthEngine *pEngine = NULL, ForthExtension *pExtension = NULL, ForthThread *pThread = NULL, int shellStackLongs = 1024 );
     virtual ~ForthShell();
 
     // returns true IFF file opened successfully

@@ -130,7 +130,6 @@ ForthEngine::~ForthEngine()
     if ( mpExtension != NULL )
     {
         mpExtension->Shutdown();
-        delete mpExtension;
     }
 
     if ( mpCore->DBase )
@@ -237,7 +236,7 @@ ForthEngine::Initialize( int                totalLongs,
         AddBuiltinOps( baseDictionary );
         mpTypesManager->AddBuiltinClasses( this );
     }
-    if ( mpExtension != NULL )
+    if ( pExtension != NULL )
     {
         mpExtension = pExtension;
         mpExtension->Initialize( this );
@@ -1309,15 +1308,12 @@ ForthEngine::ExecuteOneOp( long opCode )
 eForthResult
 ForthEngine::ExecuteOneOp( long opCode, ForthThread* pThread )
 {
-    ForthThread* pPreviousThread = mpCurrentThread;
-    mpCurrentThread = pThread;
     long opScratch[2];
 
     opScratch[0] = opCode;
     opScratch[1] = BUILTIN_OP( OP_DONE );
 
-    eForthResult exitStatus = ExecuteOps( &(opScratch[0]) );
-    mpCurrentThread = pPreviousThread;
+    eForthResult exitStatus = ExecuteOps( &(opScratch[0]), pThread );
     return exitStatus;
 }
 
@@ -1358,8 +1354,9 @@ eForthResult
 ForthEngine::ExecuteOps( long *pOps, ForthThread* pThread )
 {
     ForthThread* pPreviousThread = mpCurrentThread;
+    SetCurrentThread( pThread );
     eForthResult exitStatus = ExecuteOps( pOps );
-    mpCurrentThread = pPreviousThread;
+    SetCurrentThread( pPreviousThread );
     return exitStatus;
 }
 

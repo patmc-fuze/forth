@@ -7,6 +7,7 @@
 #include "ForthServer.h"
 #include "ForthPipe.h"
 #include "ForthMessages.h"
+#include "ForthExtension.h"
 
 #ifdef DEBUG_WITH_NDS_EMULATOR
 #include <nds.h>
@@ -100,8 +101,8 @@ ForthPipe* ForthServerInputStream::GetPipe()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, ForthThread *pThread, int shellStackLongs )
-:   ForthShell( pEngine, pThread, shellStackLongs )
+ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, ForthExtension *pExtension, ForthThread *pThread, int shellStackLongs )
+:   ForthShell( pEngine, pExtension, pThread, shellStackLongs )
 ,   mDoAutoload( doAutoload )
 ,   mpMsgPipe( NULL )
 {
