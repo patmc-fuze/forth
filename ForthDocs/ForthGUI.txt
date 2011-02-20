@@ -1,0 +1,186 @@
+         1         2         3         4         5         6         7
+1234567890123456789012345678901234567890123456789012345678901234567890123456789
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-
+
+These are notes on creating MFC apps which use Forth as a scripting element.
+
+o adding scripts to existing MFC elements
+o creating MFC elements in Forth
+o add a resource which contains the script to be interpreted at startup
+o add a way to run a script while debugging
+
+-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-
+Problem: binding forth to GUI actions
+
+Forth opcodes aren't (generally) known until runtime, how do you invoke forth
+ops from GUI actions?
+
+1) interpret strings every time a GUI action happens
+  a) GUI action routine builds a string of parameters and ops which is then interpreted
+  b) GUI action routine pushes parameters and just interprets the ops
+2) lookup ops just once
+  a) make an enum with a selector for each op, keep the ops in an array with an element
+     for each op and do the mapping just after adding the ops to forth
+     1) you could do it with a lookup call per op - this would be tedious but safe
+     2) you could require that the enums be in the same order as the elements in original
+        ops array passed to ForthEngine::AddBuiltinOps and just cycle through that array.
+        this is less tedious but allows errors to happen if the order of the dictionary
+        array doesn't correspond to the enum order
+  b) keep the enum as in 2a2 and eliminate the array but just record the opcode of the first op
+  c) define a class which does the lookup and is also used when invoking the forthop.
+     You would define a static member of the class for each op used in a GUI action.
+     The constructor for the class would just save a pointer to the string name of the op
+     and add the instance to a static chain.  After the forth dictionary is setup,
+     a static method on the forth binding class is called which iterates over the
+     static chain, looking up the forthop and storing its opcode in the instance.
+     The class would have operators which would be used to invoke forth.
+     
+     ForthBinding blahOp( "blah" );	// global or static definition
+     // later on in code:
+     result = blahOp.run( pForthThread, param1, param2 );
+-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-|=|-
+
+How to add Forth to an MFC dialog-basedapp (based on ForthGUI project)
+
+
+-|=|-|=|- add to main dialog class header: -|=|-|=|-
+
+class ForthShell;
+class ForthBufferInputStream;
+#define INPUT_BUFFER_SIZE 1024
+
+	void			CreateForth();
+    void            CreateDialogOps();
+	void			DestroyForth();
+
+    ForthShell*                 mpShell;
+    ForthBufferInputStream*     mpInStream;
+    char                        mInBuffer[INPUT_BUFFER_SIZE];	// optional
+
+
+-|=|-|=|- add to constructor: -|=|-|=|-
+, mpShell( NULL )
+, mpInStream( NULL )
+
+
+-|=|-|=|- add to destructor: -|=|-|=|-
+	DestroyForth();
+
+
+-|=|-|=|- add CreateForth and DestroyForth methods: -|=|-|=|-
+
+void ForthOutRoutine( ForthCoreState *pCore, const char *pBuff )
+{
+	// TODO: put in your output code here
+}
+
+void CForthGuiDlg::CreateForth()
+{
+	mpShell = new ForthShell;
+	ForthEngine* pEngine = mpShell->GetEngine();
+	pEngine->SetConsoleOut( ForthOutRoutine, GetDlgItem( IDC_RICHEDIT_OUTPUT ) );
+	pEngine->ResetConsoleOut( pEngine->GetCoreState() );
+    mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE );
+    mpShell->GetInput()->PushInputStream( mpInStream );
+    CreateDialogOps();
+}
+
+void CForthGuiDlg::DestroyForth()
+{
+	if ( mpShell )
+	{
+		delete mpShell;
+		// the shell destructor deletes all the streams on the input stack, including mpInStream
+		mpShell = NULL;
+		mpInStream = NULL;
+	}
+}
+
+
+-|=|-|=|- add to OnInitDialog: -|=|-|=|-
+
+	CreateForth();
+
+
+-|=|-|=|- If you want to add your own forthops: -|=|-|=|-
+
+FORTHOP( blahOp )
+{
+}
+
+#define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func }
+
+baseDictionaryEntry dialogDict[] =
+{
+    OP( blahOp, "blah" ),
+    // following must be last in table
+    OP(     NULL,                   "" )
+};
+
+
+void CForthGuiDlg::CreateDialogOps()
+{
+	ForthEngine* pEngine = mpShell->GetEngine();
+    pEngine->AddBuiltinOps( dialogDict );
+}
+
+
+-|=|-|=|- If you want to display output in a rich edit control: -|=|-|=|-
+
+struct sStreamInScratch
+{
+	sStreamInScratch( const char* buffer )
+		:	m_buffer( buffer )
+		,	m_length( strlen( buffer ) )
+	{}
+	const char* m_buffer;
+	int			m_length;
+};
+
+DWORD CALLBACK StreamInCallback( DWORD dwCookie, LPBYTE outBuffer, LONG outBufferLen, LONG* bytesWritten )
+{
+	sStreamInScratch* const scratch = reinterpret_cast<sStreamInScratch*>( dwCookie );
+	*bytesWritten = min( outBufferLen, scratch->m_length );		
+
+	memcpy( outBuffer, scratch->m_buffer, *bytesWritten );
+	
+	scratch->m_length -= *bytesWritten;
+	scratch->m_buffer += *bytesWritten;
+
+	return 0;
+}
+
+void StreamToOutputPane( CRichEditCtrl* pOutEdit, const char* pMessage )
+{
+	// Grab the old selection and cursor placement.
+	CHARRANGE oldSelection;
+	pOutEdit->GetSel( oldSelection );
+	const long ixStart = pOutEdit->GetWindowTextLength();
+	const int oldLine = pOutEdit->LineFromChar( oldSelection.cpMax );
+	const int numLines = pOutEdit->GetLineCount();
+
+	// Move to the end of the text.
+	pOutEdit->SetSel( ixStart, -1 );
+
+	// Stream in the message text.
+	EDITSTREAM es;
+	sStreamInScratch scratch( pMessage );
+	es.dwCookie = reinterpret_cast<DWORD>( &scratch );
+	es.pfnCallback = StreamInCallback;
+	es.dwError = 0;
+	pOutEdit->StreamIn( SF_TEXT | SFF_SELECTION, es );
+
+	// Scroll the window if the cursor was on the last line and the selection was empty. Otherwise, reset the selection.
+	if ( oldSelection.cpMin != oldSelection.cpMax || pOutEdit->LineFromChar( oldSelection.cpMin ) != (numLines - 1) )
+	{
+		pOutEdit->SetSel( oldSelection );
+	}
+	else
+	{
+		pOutEdit->SetSel( -1, -1 );
+		pOutEdit->LineScroll( pOutEdit->GetLineCount() - oldLine );
+	}
+}
+

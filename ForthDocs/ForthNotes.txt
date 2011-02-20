@@ -9,7 +9,7 @@ TBDs:
 ! create examples/tests for all native ops !
 
 - redirect current thread console output back to screen before reporting errors
-- add native words like within/nip/?dup/%u
+- add native words like %u
 - have vlist display the code address of ops
 - have error reporting show the param and return stacks, the op that the crash happened in
   -> the param stack might not be up to date, especially in turbo mode
@@ -33,7 +33,7 @@ TBDs:
   charPtr, not the chars in the string, to the long
 
 ? add a "parser stack" - this would allow stuff like:
-  - using #ifdef to skip sections of code
+  + using #ifdef to skip sections of code
   - allowing "/*" based comments to span multiple lines
   - allow easily adding user defined parsers for data definition languages
 
@@ -129,6 +129,29 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 7, 2010
+
+I added 2 things:
+
+o you can now explicitly specify vocabulary name as in
+	VOCABNAME:OPNAME
+  Explicit vocabulary specification can be used with global structures:
+	VOCABNAME:INSTANCE_NAME.FIELDS
+	
+o you can cast the top of stack to a class/struct pointer
+	<TYPENAME>.FIELDNAME
+	
+I was originally going to use (TYPENAME), but that would have complicated
+the current parenthesis code, which is in ForthShell and ForthEngine.  The
+current cast code is isolated to ForthTypesManager::ProcessSymbol.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 30, 2010
+
+I added assembler version of floating point comparison operators.
+
+I had started to add thread support but wound up backing it out when 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 28, 2010
 
@@ -501,7 +524,7 @@ InnerInterpreter( ForthCoreState *pCore )
         // fetch op at IP, advance IP
         pIP = GET_IP;
 #ifdef TRACE_INNER_INTERPRETER
-        GET_ENGINE->TraceOp();
+        GET_ENGINE->TraceOp( pCore );
 #endif
         op = *pIP++;
         SET_IP( pIP );

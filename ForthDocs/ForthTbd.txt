@@ -6,6 +6,12 @@ o class support
 o ability to build windows GUI apps in forth
 
 =======================================================================
+- ForthGUI app doesn't use ForthShell::Run, it duplicates its functionality,
+  so conditional compilation ops won't work in ForthGUI
++ add (STRUCT).blah to allow treating TOS as a pointer to STRUCT
++ add VOCAB:SYMBOL to interpreter
+- add optype which does "->" followed by a builtinop or userop
+
 ? add iterators
   - all files in a directory tree
   - all symbols in a vocabulary
@@ -27,9 +33,9 @@ o ability to build windows GUI apps in forth
 ? should shell stack be pushed/popped when doing a colon definition
 
 - add generalized vocabulary support
-  - add way to set search vocab
+  + add way to set search vocab
     -> default behaviour for vocab ops
-  - add way to set definitions vocab
+  + add way to set definitions vocab
     -> add "definitions"
   - add way to get vocab address
     -> have vocab op support "addressOf"
@@ -38,7 +44,7 @@ o ability to build windows GUI apps in forth
 	- for an opcode
   - add way to add a symbol
   ? add way to process a symbol
-  - add way to create a new vocab - its search chain successor should be current search vocab
+  + add way to create a new vocab - its search chain successor should be current search vocab
   ? add way to modify search chain
   ? should these vocabularies allow user-defined methods
     o find symbol

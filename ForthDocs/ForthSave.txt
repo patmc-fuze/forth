@@ -1,0 +1,46 @@
+         1         2         3         4         5         6         7
+1234567890123456789012345678901234567890123456789012345678901234567890123456789
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+This file contains info about:
+
+o How to save the state of the forth system to avoid having to recompile
+  everything every time
+
+? Would it be okay to have restoration of saved state only work if you could
+  reload the dictionary and other memory blocks at the same virtual address
+  they were saved at?
+  
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+What would it take to save "compiled" forth?
+
+o a chunk file format where chunks have names and types
+o an extensible coldstart mechanism
+? an extensible warmstart mechanism
+o a way for re-establishing pointers at coldstart time
+
+Damn! Using builds/does words for hooking up to external DLL support is
+currently done by getting the DLL procedure addresses as the API words are
+being compiled - this completely breaks savability.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Stuff that needs to be persistent:
+
+o forth kernel version
+o user defined op dispatch table
+o vocabularies
+  o symbol table
+  o symbol count
+  o search chain
+  o static chain
+o forgettables
+  o static chain
+o coldstart table
+o warmstart table
+o struct manager
+
+It seems that most of the save state is in classes derived from ForthForgettable.
+Maybe support for saving and restoring could be in ForthForgettable.
+
+TBDs:
+? Is there any thread state that needs to be saved?

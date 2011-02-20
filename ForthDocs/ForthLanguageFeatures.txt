@@ -1,0 +1,107 @@
+
+  Forth Language Features
+===========================
+
+This is mainly a description of the language features of my Forth implementation
+which are different from standard Forth.
+
+o builtin symbol types
+
+  o floating point types
+    A symbol which contains a period is checked to see if it is a floating point
+    constant.
+    First, the symbol last character is checked to see if it is a
+    precision specifier - 'f' denotes single precision,'g' or 'd' denote double
+    precision - if found, the precision specifier is stripped.  If no precision
+    is specified, precision defaults to single.
+    Next sscanf is used to attempt to convert the remaining string to floating
+    point.  If sscanf processes the string successfully the symbol is treated
+    as a floating point literal.
+    NOTE: the sscanf test is not rigorous, it just checks that sscanf returns 1,
+    a symbol which has extra bogus characters may be treated as valid.
+    
+  o integers
+    o hex numbers
+    o increments:  11+   47-   0x100+
+    
+  o strings: "A spotted elephant"  "In my pajamas!\n"
+    Any symbol which begins and ends with double quotes is treated as a literal
+    string.  You can include the following special characters by preceeding
+    them with a backslash:
+    \a=alert(bell)       \b=backspace       \f=formfeed      \n=newline
+    \r=carriage return   \t=horizontal tab  \v=vertical tab  \\=backslash
+    \?=question mark     \'=single quote    \"=double quote  \0=null
+    Note that backslash followed by an octal or hex number is not supported
+    
+  o character constants: 'a' '\n' 'Z
+    Any symbol which begins with a single quote, followed by any character (or
+    two characters if it is a backslash special character), followed by one
+    of (single quote  or  white space  or  end of line).  Single quote supports
+    the  same backslash special characters supported by double quote.
+    
+o you can access ops in vocabularies which aren't in the current search stack
+  by using the syntax   VOCABULARYNAME:OPNAME
+  
+o conditional compilation
+  All conditional compilation ops must be the first symbol on a line.
+  o #if <rest-of-line>
+    everything from #if to the end of the line is interpreted, if the top of the
+    stack is non-zero, the following section is compiled, otherwise input lines
+    are skipped up to the next #else or #endif
+  o #ifdef <symbol>
+    if symbol is defined, the following section is compiled, otherwise input lines
+    are skipped up to the next #else or #endif
+  o #ifndef <symbol>
+    if symbol is defined, the following section is compiled, otherwise input lines
+    are skipped up to the next #else or #endif
+  o #else
+    o Ends the "true" part of a conditional compilation section
+    o must be the first symbol on a line
+  o #endif
+    o Ends a conditional compilation section
+    o must be the first symbol on a line
+
+o include files
+  o requires blah
+    checks if blah is defined, if not it will load blah.txt
+   
+o parentheses
+  Parentheses can be used in two modes:
+  1) traditional mode where parentheses are used for comments
+  2) default mode where parentheses are used to make code ?more readable?
+  You can control parenthesis mode by setting the variable "parenIsComment".
+  In default mode, when a left parenthesis is encountered the outer interpreter
+  takes whatever symbol happened before the parenthesis and pushes it on the
+  shell stack, and that symbol is popped from the shell stack when the balancing
+  right parenthesis is encountered.
+  There must be no whitespace between the symbol and the left parenthesis.
+  Whitespace before or after the right parenthesis is optional.
+    dsin(a)     is the same as       a dsin
+  
+o structures
+  o you can cast the top of stack to a struct or object pointer by using the
+    syntax <TYPENAME>.FIELD_ACCESSORS
+
+o enumerated types
+  Inside an enumerated type definition, whenever an undefined symbol is
+  encountered it is added to the enumerated type.
+  The stack level at the start of an enumerated type definition is recorded, and
+  whenever an undefined symbol is added to the enumerated type, if a value has
+  been pushed on the stack it is popped and used as the value of the new symbol.
+  
+o union types
+  Inside a structure definition, the "union" symbol can be used to reset the
+  current member offset to 0
+
+o uncompiling
+  o local string variable length
+  o local array element count
+  o in the future, "->" will be combined with other ops
+  o ForthTypesManager::ProcessSymbol will uncompile some varAction setting
+    ops (addressOf -> ->+ ->-) when they occur immediately before a symbol
+    which has field accessors, and recompile it immediately before the final
+    field accessor, otherwise the varAction will be executed by the first op
+    compiled
+  ? I thought that varAction setting ops were uncompiled when they occured
+    right before symbols that were reordered due to parentheses, but I can't
+    find any sign of this in the code

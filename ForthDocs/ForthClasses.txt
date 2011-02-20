@@ -2,6 +2,16 @@
 1234567890123456789012345678901234567890123456789012345678901234567890123456789
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+- add classes for literal native constant values (byte/short/int/float) where the
+  data part is the literal data (can't do this for doubles though)
+
+- add container types
+  - heterogenous containers - every element is a 64-bit object reference
+  - specialized containers - elements are the actual storage, the container
+    knows the element class, can access as either objects or raw data
+    
+- add iterator types
+
 - improve classtest.txt
 
 - report an error if "implements:" is done on a non-abstract class - this will
@@ -39,6 +49,49 @@
     ? arrays
     ? sets
     ? lists
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+class
+	new
+	getparent
+	getname
+	
+object
+	delete
+	getclass
+	getinterface
+	
+container
+	count
+	getiterator
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 12, 2010
+
+Back looking at class stuff.  I am currently thinking about how to implement
+class objects.  Class objects would have methods that you would want to apply
+to all objects, like construction/destruction, object display, parent class,
+class name.  Generic container class implementation could be simplified if
+certain operations could be handled using the same method in all classes.
+It would also avoid having duplicate names for class methods in every class.
+
+I think there is a name collision - "object" is both a builtin generic object
+instance defining op (like "int" or "float"), it is also a class vocabulary.
+-> it looks like the one in forthops is redundant and is never called, I commented it out
+
+How things work as of today:
+
+---
+class CLASSNAME
+o defines a class vocabulary
+o compiles:
+  _doClassType
+  <ptr to class vocabulary just defined>
+  
+When executed, _doClassType calls pClassVocab->DefineInstance, which normally
+just defines a global/local variable or a field with this class type.
+NOTE: this does NOT create an instance of this type, it just creates a
+ methods/data pointer pair which are initialized to NULL
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 27, 2009

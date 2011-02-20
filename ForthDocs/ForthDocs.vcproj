@@ -350,6 +350,9 @@
 					RelativePath="..\Sandbox\sdltest.txt">
 				</File>
 				<File
+					RelativePath="..\Sandbox\sdlutil.txt">
+				</File>
+				<File
 					RelativePath="..\Sandbox\sprig.txt">
 				</File>
 				<File
@@ -371,6 +374,9 @@
 		</File>
 		<File
 			RelativePath=".\ForthDS.txt">
+		</File>
+		<File
+			RelativePath=".\ForthGUI.txt">
 		</File>
 		<File
 			RelativePath=".\ForthNotes.txt">
