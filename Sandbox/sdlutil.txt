@@ -154,6 +154,7 @@ SDL_Rect dstPos
   screenAddress pixel@
 ;
 
+// X Y isOnScreen -> true/false
 : isOnScreen
   screenTopLimit screenBottomLimit within
   if
