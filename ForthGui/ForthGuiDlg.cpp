@@ -152,7 +152,7 @@ void CForthGuiDlg::CreateForth()
 	mpShell = new ForthShell;
 	ForthEngine* pEngine = mpShell->GetEngine();
 	pEngine->SetConsoleOut( ForthOutRoutine, GetDlgItem( IDC_RICHEDIT_OUTPUT ) );
-	pEngine->ResetConsoleOut( pEngine->GetCoreState()->pThread );
+	pEngine->ResetConsoleOut( pEngine->GetCoreState() );
     mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE );
     mpShell->GetInput()->PushInputStream( mpInStream );
     CreateDialogOps();
@@ -286,7 +286,7 @@ void CForthGuiDlg::OnBnClickedOk()
 	StreamToOutputPane( pOutEdit, mInBuffer );
 	StreamToOutputPane( pOutEdit, "\r\n" );
 	pEdit->GetWindowText( mInBuffer, INPUT_BUFFER_SIZE - 4 );
-    result = mpShell->InterpretLine( mInBuffer );
+    result = mpShell->ProcessLine( mInBuffer );
 	StreamToOutputPane( pOutEdit, "\r\n" );
 	// clear input buffer
 	pEdit->SetSel( 0, -1 );
@@ -308,7 +308,7 @@ void CForthGuiDlg::OnBnClickedOk()
 
 			if ( !bQuit )
 			{
-			    result = mpShell->InterpretLine();
+			    result = mpShell->ProcessLine();
 			}
 			if ( bQuit || (result != kResultOk) )
 			{
@@ -343,8 +343,8 @@ FORTHOP( makeDialogOp )
 
 baseDictionaryEntry dialogDict[] =
 {
-    // following must be last in table
     OP( makeDialogOp, "makeDialog" ),
+    // following must be last in table
     OP(     NULL,                   "" )
 };
 
