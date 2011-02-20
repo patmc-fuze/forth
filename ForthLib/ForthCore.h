@@ -96,7 +96,8 @@ typedef enum
 } forthBaseType;
 
 typedef enum {
-    kVarFetch = 0,
+    kVarDefaultOp = 0,
+    kVarFetch,
     kVarRef,
     kVarStore,
     kVarPlusStore,

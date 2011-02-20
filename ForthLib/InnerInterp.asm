@@ -614,6 +614,7 @@ localByteMinusStore:
 
 localByteActionTable:
 	DD	FLAT:localByteFetch
+	DD	FLAT:localByteFetch
 	DD	FLAT:localByteRef
 	DD	FLAT:localByteStore
 	DD	FLAT:localBytePlusStore
@@ -735,6 +736,7 @@ localShortMinusStore:
 	jmp	edi
 
 localShortActionTable:
+	DD	FLAT:localShortFetch
 	DD	FLAT:localShortFetch
 	DD	FLAT:localShortRef
 	DD	FLAT:localShortStore
@@ -862,6 +864,7 @@ localIntMinusStore:
 
 localIntActionTable:
 	DD	FLAT:localIntFetch
+	DD	FLAT:localIntFetch
 	DD	FLAT:localIntRef
 	DD	FLAT:localIntStore
 	DD	FLAT:localIntPlusStore
@@ -985,6 +988,7 @@ localFloatMinusStore:
 	jmp	edi
 
 localFloatActionTable:
+	DD	FLAT:localFloatFetch
 	DD	FLAT:localFloatFetch
 	DD	FLAT:localFloatRef
 	DD	FLAT:localFloatStore
@@ -1113,6 +1117,7 @@ localDoubleMinusStore:
 	jmp	edi
 
 localDoubleActionTable:
+	DD	FLAT:localDoubleFetch
 	DD	FLAT:localDoubleFetch
 	DD	FLAT:localDoubleRef
 	DD	FLAT:localDoubleStore
@@ -1298,6 +1303,7 @@ lsAppend1:
 
 localStringActionTable:
 	DD	FLAT:localStringFetch
+	DD	FLAT:localStringFetch
 	DD	FLAT:localStringRef
 	DD	FLAT:localStringStore
 	DD	FLAT:localStringAppend
@@ -1394,6 +1400,7 @@ localOpExecute:
 
 localOpActionTable:
 	DD	FLAT:localOpExecute
+	DD	FLAT:localIntFetch
 	DD	FLAT:localIntRef
 	DD	FLAT:localIntStore
 
@@ -1499,6 +1506,7 @@ localObjectStore:
 	jmp	edi
 
 localObjectActionTable:
+	DD	FLAT:localObjectFetch
 	DD	FLAT:localObjectFetch
 	DD	FLAT:localObjectRef
 	DD	FLAT:localObjectStore
@@ -2107,6 +2115,192 @@ entry fdivideBop
 	
 ;========================================
 	
+entry fEqualsZeroBop
+	fldz
+	jmp	fEqualsBop1
+	
+entry fEqualsBop
+	fld	DWORD PTR [edx]
+	add	edx, 4
+fEqualsBop1:
+	fld	DWORD PTR [edx]
+	xor	ebx, ebx
+	fucompp
+	fnstsw	ax
+	test	ah, 44h
+	jp	fEqualsBop2
+	dec	ebx
+fEqualsBop2:
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry fNotEqualsZeroBop
+	fldz
+	jmp	fNotEqualsBop1
+	
+entry fNotEqualsBop
+	fld	DWORD PTR [edx]
+	add	edx, 4
+fNotEqualsBop1:
+	fld	DWORD PTR [edx]
+	xor	ebx, ebx
+	fucompp
+	fnstsw	ax
+	test	ah, 44h
+	jnp	fNotEqualsBop2
+	dec	ebx
+fNotEqualsBop2:
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry fGreaterThanZeroBop
+	fldz
+	jmp	fGreaterThanBop1
+	
+entry fGreaterThanBop
+	fld	DWORD PTR [edx]
+	add	edx, 4
+fGreaterThanBop1:
+	fld	DWORD PTR [edx]
+	xor	ebx, ebx
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 41h
+	jne	fGreaterThanBop2
+	dec	ebx
+fGreaterThanBop2:
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry fGreaterEqualsZeroBop
+	fldz
+	jmp	fGreaterEqualsBop1
+	
+entry fGreaterEqualsBop
+	fld	DWORD PTR [edx]
+	add	edx, 4
+fGreaterEqualsBop1:
+	fld	DWORD PTR [edx]
+	xor	ebx, ebx
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 1
+	jne	fGreaterEqualsBop2
+	dec	ebx
+fGreaterEqualsBop2:
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry fLessThanZeroBop
+	fldz
+	jmp	fLessThanBop1
+	
+entry fLessThanBop
+	fld	DWORD PTR [edx]
+	add	edx, 4
+fLessThanBop1:
+	fld	DWORD PTR [edx]
+	xor	ebx, ebx
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 5
+	jp	fLessThanBop2
+	dec	ebx
+fLessThanBop2:
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry fLessEqualsZeroBop
+	fldz
+	jmp	fLessEqualsBop1
+	
+entry fLessEqualsBop
+	fld	DWORD PTR [edx]
+	add	edx, 4
+fLessEqualsBop1:
+	fld	DWORD PTR [edx]
+	xor	ebx, ebx
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 41h
+	jp	fLessEqualsBop2
+	dec	ebx
+fLessEqualsBop2:
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry fWithinBop
+	fld	DWORD PTR [edx+4]
+	fld	DWORD PTR [edx+8]
+	xor	ebx, ebx
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 41h
+	jne	fWithinBop2
+	fld	DWORD PTR [edx]
+	fld	DWORD PTR [edx+8]
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 5
+	jp	fWithinBop2
+	dec	ebx
+fWithinBop2:
+	add	edx, 8
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry fMinBop
+	fld	DWORD PTR [edx]
+	fld	DWORD PTR [edx+4]
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 41h
+	jne	fMinBop2
+	mov	eax, [edx]
+	mov	[edx+4], eax
+fMinBop2:
+	add	edx, 4
+	jmp	edi
+	
+;========================================
+	
+entry fMaxBop
+	fld	DWORD PTR [edx]
+	fld	DWORD PTR [edx+4]
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 5
+	jp	fMaxBop2
+	mov	eax, [edx]
+	mov	[edx+4], eax
+fMaxBop2:
+	add	edx, 4
+	jmp	edi
+	
+;========================================
+	
 entry dplusBop
 	fld	QWORD PTR [edx+8]
 	fadd	QWORD PTR [edx]
@@ -2153,6 +2347,203 @@ entry ddivideBop
 	fstp	QWORD PTR [edx]
 	jmp	edi
 	
+;========================================
+	
+entry dEqualsZeroBop
+	fldz
+	jmp	dEqualsBop1
+	
+entry dEqualsBop
+	fld	QWORD PTR [edx]
+	add	edx, 8
+dEqualsBop1:
+	fld	QWORD PTR [edx]
+	add	edx, 4
+	xor	ebx, ebx
+	fucompp
+	fnstsw	ax
+	test	ah, 44h
+	jp	dEqualsBop2
+	dec	ebx
+dEqualsBop2:
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry dNotEqualsZeroBop
+	fldz
+	jmp	dNotEqualsBop1
+	
+entry dNotEqualsBop
+	fld	QWORD PTR [edx]
+	add	edx, 8
+dNotEqualsBop1:
+	fld	QWORD PTR [edx]
+	add	edx, 4
+	xor	ebx, ebx
+	fucompp
+	fnstsw	ax
+	test	ah, 44h
+	jnp	dNotEqualsBop2
+	dec	ebx
+dNotEqualsBop2:
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry dGreaterThanZeroBop
+	fldz
+	jmp	dGreaterThanBop1
+	
+entry dGreaterThanBop
+	fld	QWORD PTR [edx]
+	add	edx, 8
+dGreaterThanBop1:
+	fld	QWORD PTR [edx]
+	add	edx, 4
+	xor	ebx, ebx
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 41h
+	jne	dGreaterThanBop2
+	dec	ebx
+dGreaterThanBop2:
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry dGreaterEqualsZeroBop
+	fldz
+	jmp	dGreaterEqualsBop1
+	
+entry dGreaterEqualsBop
+	fld	QWORD PTR [edx]
+	add	edx, 8
+dGreaterEqualsBop1:
+	fld	QWORD PTR [edx]
+	add	edx, 4
+	xor	ebx, ebx
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 1
+	jne	dGreaterEqualsBop2
+	dec	ebx
+dGreaterEqualsBop2:
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry dLessThanZeroBop
+	fldz
+	jmp	dLessThanBop1
+	
+entry dLessThanBop
+	fld	QWORD PTR [edx]
+	add	edx, 8
+dLessThanBop1:
+	fld	QWORD PTR [edx]
+	add	edx, 4
+	xor	ebx, ebx
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 5
+	jp	dLessThanBop2
+	dec	ebx
+dLessThanBop2:
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry dLessEqualsZeroBop
+	fldz
+	jmp	dLessEqualsBop1
+	
+entry dLessEqualsBop
+	fld	QWORD PTR [edx]
+	add	edx, 8
+dLessEqualsBop1:
+	fld	QWORD PTR [edx]
+	add	edx, 4
+	xor	ebx, ebx
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 41h
+	jp	dLessEqualsBop2
+	dec	ebx
+dLessEqualsBop2:
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry dWithinBop
+	fld	QWORD PTR [edx+8]
+	fld	QWORD PTR [edx+16]
+	xor	ebx, ebx
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 41h
+	jne	dWithinBop2
+	fld	QWORD PTR [edx]
+	fld	QWORD PTR [edx+16]
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 5
+	jp	dWithinBop2
+	dec	ebx
+dWithinBop2:
+	add	edx, 20
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+	
+entry dMinBop
+	fld	QWORD PTR [edx]
+	fld	QWORD PTR [edx+8]
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 41h
+	jne	dMinBop2
+	mov	eax, [edx]
+	mov	ebx, [edx+4]
+	mov	[edx+8], eax
+	mov	[edx+12], ebx
+dMinBop2:
+	add	edx, 8
+	jmp	edi
+	
+;========================================
+	
+entry dMaxBop
+	fld	QWORD PTR [edx]
+	fld	QWORD PTR [edx+8]
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	test	ah, 5
+	jp	dMaxBop2
+	mov	eax, [edx]
+	mov	ebx, [edx+4]
+	mov	[edx+8], eax
+	mov	[edx+12], ebx
+dMaxBop2:
+	add	edx, 8
+	jmp	edi
+	
+
 ;========================================
 	
 entry dsinBop
@@ -3263,7 +3654,8 @@ entry endTupleBop
 ;========================================
 
 entry hereBop
-	mov	eax, [ebp].FCore.DP
+	mov	eax, [ebp].FCore.DictionaryPtr
+	mov	eax, [eax].ForthMemorySection.pCurrent
 	sub	edx, 4
 	mov	[edx], eax
 	jmp	edi
@@ -3856,20 +4248,6 @@ entry thisMethodsBop
 	
 ;========================================
 
-entry doVocabBop
-	; push longword @ IP
-	mov	eax, [ecx]
-	sub	edx, 4
-	mov	[edx], eax
-	; rpop new ip
-	mov	ebx, [ebp].FCore.RPtr
-	mov	ecx, [ebx]
-	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
-	jmp	edi
-	
-;========================================
-
 entry executeBop
 	mov	eax, [edx]
 	add	edx, 4
@@ -4451,7 +4829,7 @@ opsTable:
 	DD	FLAT:doExitLBop
 	DD	FLAT:doExitMBop
 	DD	FLAT:doExitMLBop
-	DD	FLAT:doVocabBop
+	DD	FLAT:extOp					; doVocabBop
 	DD	FLAT:doByteArrayBop
 	DD	FLAT:doShortArrayBop
 	DD	FLAT:doIntArrayBop
@@ -4520,11 +4898,45 @@ opsTable:
 	DD	FLAT:ftimesBop
 	DD	FLAT:fdivideBop
 	
+   ; single precision fp comparisons
+    DD	FLAT:fEqualsBop
+    DD	FLAT:fNotEqualsBop
+    DD	FLAT:fGreaterThanBop
+    DD	FLAT:fGreaterEqualsBop
+    DD	FLAT:fLessThanBop
+    DD	FLAT:fLessEqualsBop
+    DD	FLAT:fEqualsZeroBop
+    DD	FLAT:fNotEqualsZeroBop
+    DD	FLAT:fGreaterThanZeroBop
+    DD	FLAT:fGreaterEqualsZeroBop
+    DD	FLAT:fLessThanZeroBop
+    DD	FLAT:fLessEqualsZeroBop
+    DD	FLAT:fWithinBop
+    DD	FLAT:fMinBop
+    DD	FLAT:fMaxBop
+
 	; double precision fp math
 	DD	FLAT:dplusBop
 	DD	FLAT:dminusBop
 	DD	FLAT:dtimesBop
 	DD	FLAT:ddivideBop
+
+    ; double precision fp comparisons
+    DD	FLAT:dEqualsBop
+    DD	FLAT:dNotEqualsBop
+    DD	FLAT:dGreaterThanBop
+    DD	FLAT:dGreaterEqualsBop
+    DD	FLAT:dLessThanBop
+    DD	FLAT:dLessEqualsBop
+    DD	FLAT:dEqualsZeroBop
+    DD	FLAT:dNotEqualsZeroBop
+    DD	FLAT:dGreaterThanZeroBop
+    DD	FLAT:dGreaterEqualsZeroBop
+    DD	FLAT:dLessThanZeroBop
+    DD	FLAT:dLessEqualsZeroBop
+    DD	FLAT:dWithinBop
+    DD	FLAT:dMinBop
+    DD	FLAT:dMaxBop
 
 	; double precision fp functions	
 	DD	FLAT:dsinBop

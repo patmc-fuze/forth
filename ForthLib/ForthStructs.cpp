@@ -254,6 +254,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
     // get first token
     char *pToken = &(mToken[0]);
     char *pNextToken = strchr( mToken, '.' );
+    char* pLastChar = pNextToken - 1;
     ForthVocabulary *pFoundVocab = NULL;
     ForthCoreState* pCore = pEngine->GetCoreState();
     char errorMsg[256];
@@ -271,22 +272,69 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
     //
 
     // see if first token is local or global struct
-    long *pEntry = pEngine->GetLocalVocabulary()->FindSymbol( mToken );
-    if ( pEntry == NULL )
+    long* pEntry = NULL;
+    if ( pInfo->GetFlags() & PARSE_FLAG_HAS_COLON )
     {
-        pEntry = pEngine->GetVocabularyStack()->FindSymbol( mToken, &pFoundVocab );
+        if ( (pInfo->GetTokenLength() > 2) && (*pToken != ':') && (*pLastChar != ':') )
+        {
+            ////////////////////////////////////
+            //
+            // symbol may be of form VOCABULARY:SYMBOL.STUFF
+            //
+            ////////////////////////////////////
+            char* pColon = strchr( pToken, ':' );
+            *pColon = '\0';
+            ForthVocabulary* pVocab = ForthVocabulary::FindVocabulary( pToken );
+            if ( pVocab != NULL )
+            {
+                pEntry = pVocab->FindSymbol( pColon + 1 );
+                if ( pEntry != NULL )
+                {
+                    pFoundVocab = pVocab;
+                }
+            }
+            *pColon = ':';
+        }
     }
-    if ( pEntry == NULL )
+    bool explicitTOSCast = false;
+    if ( (pEntry == NULL) && (*pToken == '<') && (*pLastChar == '>') )
     {
-        // token not found in search or local vocabs
-        return false;
+        ////////////////////////////////////
+        //
+        // symbol may be of form <STRUCTTYPE>.STUFF
+        //
+        ////////////////////////////////////
+        *pLastChar = '\0';
+        ForthStructVocabulary* pCastVocab = GetStructVocabulary( pToken + 1 );
+        if ( pCastVocab != NULL )
+        {
+            explicitTOSCast = true;
+            typeCode = STRUCT_TYPE_TO_CODE( kDTIsPtr, pCastVocab->GetTypeIndex() );
+        }
+        *pLastChar = '>';
     }
-    // see if token is a struct
-    typeCode = pEntry[1];
-    if ( CODE_IS_NATIVE( typeCode ) )
+    if ( !explicitTOSCast )
     {
-        SPEW_STRUCTS( "Native type cant have fields\n" );
-        return false;
+        if ( pEntry == NULL )
+        {
+            pEntry = pEngine->GetLocalVocabulary()->FindSymbol( mToken );
+        }
+        if ( pEntry == NULL )
+        {
+            pEntry = pEngine->GetVocabularyStack()->FindSymbol( mToken, &pFoundVocab );
+        }
+        if ( pEntry == NULL )
+        {
+            // token not found in search or local vocabs
+            return false;
+        }
+        // see if token is a struct
+        typeCode = pEntry[1];
+        if ( CODE_IS_NATIVE( typeCode ) )
+        {
+            SPEW_STRUCTS( "Native type cant have fields\n" );
+            return false;
+        }
     }
     bool isPtr = CODE_IS_PTR( typeCode );
     bool isArray = CODE_IS_ARRAY( typeCode );
@@ -294,40 +342,45 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
     bool isObject = (baseType == kBaseTypeObject);
     bool previousWasObject = false;
 
-    SPEW_STRUCTS( "First field %s op 0x%x\n", pToken, pEntry[0] );
-    // handle case where previous opcode was varAction setting op (one of addressOf -> ->+ ->-)
-    // we need to execute the varAction setting op after the first op, since if the first op is
-    // a pointer type, it will use the varAction and clear it, when the varAction is meant to be
-    // used by the final field op
-    if ( pEngine->IsCompiling() )
+    // TBD: there is some wasteful fetching of full object when we just end up dropping method ptr
+
+    if ( !explicitTOSCast )
     {
-        long *pLastOp = pEngine->GetLastCompiledOpcodePtr();
-        if ( pLastOp && ((pLastOp + 1) == GET_DP)
-            && (*pLastOp >= OP_ADDRESS_OF) && (*pLastOp <= OP_INTO_MINUS) )
+        SPEW_STRUCTS( "First field %s op 0x%x\n", pToken, pEntry[0] );
+        // handle case where previous opcode was varAction setting op (one of addressOf -> ->+ ->-)
+        // we need to execute the varAction setting op after the first op, since if the first op is
+        // a pointer type, it will use the varAction and clear it, when the varAction is meant to be
+        // used by the final field op
+        if ( pEngine->IsCompiling() )
         {
-            // overwrite the varAction setting op with first accessor op
-            *pDst++ = *pLastOp;
-            *pLastOp = pEntry[0];
+            long *pLastOp = pEngine->GetLastCompiledOpcodePtr();
+            if ( pLastOp && ((pLastOp + 1) == GET_DP)
+                && (*pLastOp >= OP_ADDRESS_OF) && (*pLastOp <= OP_INTO_MINUS) )
+            {
+                // overwrite the varAction setting op with first accessor op
+                *pDst++ = *pLastOp;
+                *pLastOp = pEntry[0];
+            }
+            else
+            {
+                *pDst++ = pEntry[0];
+            }
         }
         else
         {
+            // we are interpreting, clear any existing varAction, but compile an op to set it after first op
+            ulong varMode = GET_VAR_OPERATION;
             *pDst++ = pEntry[0];
+            if ( varMode )
+            {
+                CLEAR_VAR_OPERATION;
+                *pDst++ = OP_ADDRESS_OF + (varMode - kVarRef);
+            }
         }
-    }
-    else
-    {
-        // we are interpreting, clear any existing varAction, but compile an op to set it after first op
-        ulong varMode = GET_VAR_OPERATION;
-        *pDst++ = pEntry[0];
-        if ( varMode )
+        if ( isObject && isPtr )
         {
-            CLEAR_VAR_OPERATION;
-            *pDst++ = OP_ADDRESS_OF + (varMode - kVarRef);
+            *pDst++ = OP_DFETCH;
         }
-    }
-    if ( isObject && isPtr )
-    {
-        *pDst++ = OP_DFETCH;
     }
 #if 0
     // this is broken - for now, the first field can only be a simple struct or object
@@ -755,6 +808,7 @@ baseMethodEntry objectMethods[] =
     METHOD(     showMethod,         "show" ),
     METHOD(     dataMethod,         "data" ),
     METHOD(     methodsMethod,      "methods" ),
+    //ETHOD(     getClassMethod,     "getClass" ),
     // following must be last in table
     METHOD(     NULL,               "" )
 };

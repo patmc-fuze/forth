@@ -3,6 +3,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
+#include <process.h>
 #include "ForthThread.h"
 #include "ForthEngine.h"
 
@@ -26,40 +27,68 @@ extern "C" {
 
 ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnStackLongs )
 : mpEngine( pEngine )
+, mWakeupTime( 0 )
+, mpNext( NULL )
+, mHandle( 0 )
+, mThreadId( 0 )
+, mpPrivate( NULL )
 {
-    mState.SLen = paramStackLongs;
-    mState.RLen = returnStackLongs;
-    mState.pPrivate = NULL;
+    mCore.pThread = this;
+    mCore.SLen = paramStackLongs;
+    mCore.RLen = returnStackLongs;
     // leave a few extra words above top of stacks, so that underflows don't
     //   tromp on the memory allocator info
-    mState.SB = new long[mState.SLen + (GAURD_AREA * 2)];
-    mState.SB += GAURD_AREA;
-    mState.ST = mState.SB + mState.SLen;
+    mCore.SB = new long[mCore.SLen + (GAURD_AREA * 2)];
+    mCore.SB += GAURD_AREA;
+    mCore.ST = mCore.SB + mCore.SLen;
 
-    mState.RB = new long[mState.RLen + (GAURD_AREA * 2)];
-    mState.RB += GAURD_AREA;
-    mState.RT = mState.RB + mState.RLen;
+    mCore.RB = new long[mCore.RLen + (GAURD_AREA * 2)];
+    mCore.RB += GAURD_AREA;
+    mCore.RT = mCore.RB + mCore.RLen;
 
 #ifdef CHECK_GAURD_AREAS
     long checkVal = 0x03020100;
     for ( int i = 0; i < 64; i++ )
     {
-        mState.SB[i - GAURD_AREA] = checkVal;
-        mState.RB[i - GAURD_AREA] = checkVal;
-        mState.ST[i] = checkVal;
-        mState.RT[i] = checkVal;
+        mCore.SB[i - GAURD_AREA] = checkVal;
+        mCore.RB[i - GAURD_AREA] = checkVal;
+        mCore.ST[i] = checkVal;
+        mCore.RT[i] = checkVal;
         checkVal += 0x04040404;
     }
 #endif
-    pEngine->ResetConsoleOut( &mState );
+    mCore.optypeAction = NULL;
+    mCore.builtinOps = NULL;
+    mCore.numBuiltinOps = 0;
+    mCore.userOps = NULL;
+    mCore.numUserOps = 0;
+    mCore.maxUserOps = 0;
+    mCore.IP = NULL;
+    mCore.pEngine = pEngine;
+
+    mCore.pDictionary = NULL;
+
+    mCore.pConOutData = NULL;
+    mCore.consoleOut = NULL;
+    mCore.consoleOutOp = 0;
+    mCore.pDefaultOutFile = NULL;
+    mCore.pDefaultInFile = NULL;
+
+    pEngine->ResetConsoleOut( &mCore );
+
+    mOps[1] = OP_DONE;
 
     Reset();
 }
 
 ForthThread::~ForthThread()
 {
-    delete [] (mState.SB - GAURD_AREA);
-    delete [] (mState.RB - GAURD_AREA);
+    delete [] (mCore.SB - GAURD_AREA);
+    delete [] (mCore.RB - GAURD_AREA);
+    if ( mHandle != 0 )
+    {
+        CloseHandle( mHandle );
+    }
 }
 
 #ifdef CHECK_GAURD_AREAS
@@ -70,19 +99,19 @@ ForthThread::CheckGaurdAreas( void )
     bool retVal = false;
     for ( int i = 0; i < 64; i++ )
     {
-        if ( mState.SB[i - GAURD_AREA] != checkVal )
+        if ( mCore.SB[i - GAURD_AREA] != checkVal )
         {
             return true;
         }
-        if ( mState.RB[i - GAURD_AREA] != checkVal )
+        if ( mCore.RB[i - GAURD_AREA] != checkVal )
         {
             return true;
         }
-        if ( mState.ST[i] != checkVal )
+        if ( mCore.ST[i] != checkVal )
         {
             return true;
         }
-        if ( mState.RT[i] != checkVal )
+        if ( mCore.RT[i] != checkVal )
         {
             return true;
         }
@@ -95,55 +124,60 @@ ForthThread::CheckGaurdAreas( void )
 void
 ForthThread::Reset( void )
 {
-    mState.SP = mState.ST;
-    mState.RP = mState.RT;
-    mState.FP = NULL;
-    mState.TPM = NULL;
-    mState.TPD = NULL;
+    mCore.SP = mCore.ST;
+    mCore.RP = mCore.RT;
+    mCore.FP = NULL;
+    mCore.TPM = NULL;
+    mCore.TPD = NULL;
 
-    mState.error = kForthErrorNone;
-    mState.state = kResultDone;
-    mState.varMode = kVarFetch;
-    mState.base = 10;
-    mState.signedPrintMode = kPrintSignedDecimal;
+    mCore.error = kForthErrorNone;
+    mCore.state = kResultDone;
+    mCore.varMode = kVarDefaultOp;
+    mCore.base = 10;
+    mCore.signedPrintMode = kPrintSignedDecimal;
 }
 
 
-void
-ForthThread::Activate( ForthCoreState* pCore )
+unsigned __stdcall ForthThread::RunLoop( void *pUserData )
 {
-    pCore->IP       = mState.IP;
-    pCore->SP       = mState.SP;
-    pCore->ST       = mState.ST;
-    pCore->SLen     = mState.SLen;
-    pCore->RP       = mState.RP;
-    pCore->RT       = mState.RT;
-    pCore->RLen     = mState.RLen;
-    pCore->FP       = mState.FP;
-    pCore->TPM      = mState.TPM;
-    pCore->TPD      = mState.TPD;
-    pCore->varMode  = mState.varMode;
-    pCore->state    = mState.state;
-    pCore->error    = mState.error;
-    pCore->pThread  = &mState;
+    ForthThread* pThis = (ForthThread*) pUserData;
+    eForthResult exitStatus = kResultOk;
+
+    pThis->Reset();
+    pThis->mCore.IP = &(pThis->mOps[0]);
+#ifdef _ASM_INNER_INTERPRETER
+    if ( pThis->mpEngine->GetFastMode() )
+    {
+        exitStatus = InnerInterpreterFast( &(pThis->mCore) );
+    }
+    else
+#endif
+    {
+        exitStatus = InnerInterpreter( &(pThis->mCore) );
+    }
+
+    return 0;
 }
 
-
-void ForthThread::Deactivate( ForthCoreState* pCore )
+long ForthThread::Start()
 {
-    mState.IP = pCore->IP;
-    mState.SP = pCore->SP;
-    mState.RP = pCore->RP;
-    mState.FP = pCore->FP;
-    mState.TPM = pCore->TPM;
-    mState.TPD = pCore->TPD;
-    // NOTE: we don't copy ST, SLen, RT & RLen back into thread - they should not change
-    mState.varMode = (varOperation) (pCore->varMode);
-    mState.state = (eForthResult) (pCore->state);
-    mState.error = (eForthError) (pCore->error);
+    // securityAttribPtr, stackSize, threadCodeAddr, threadUserData, flags, pThreadIdReturn
+    if ( mHandle != 0 )
+    {
+        ::CloseHandle( mHandle );
+    }
+    mHandle = (HANDLE) _beginthreadex( NULL, 0, ForthThread::RunLoop, this, 0, (unsigned *) &mThreadId );
+    return (long) mHandle;
 }
 
-
+void ForthThread::Exit()
+{
+    // TBD: make sure this isn't the main thread
+    if ( mpNext != NULL )
+    {
+        _endthreadex( 0 );
+    }
+}
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -185,6 +219,7 @@ int ForthThreadQueue::Count()
     return mCount;
 }
 
+// returns NULL if queue is empty
 ForthThread* ForthThreadQueue::RemoveThread()
 {
     ForthThread* result = NULL;
@@ -196,6 +231,71 @@ ForthThread* ForthThreadQueue::RemoveThread()
             mFirst = 0;
         }
         --mCount;
+    }
+    return result;
+}
+
+// returns NULL if index is out of range
+ForthThread* ForthThreadQueue::RemoveThread( int index )
+{
+    ForthThread* result = NULL;
+    if ( index < mCount )
+    {
+        int ix = mFirst + index;
+        if ( ix > mSize )
+        {
+            ix -= mSize;
+        }
+        result = mQueue[ix];
+        if ( index != 0 )
+        {
+            // move first element into slot where removed thread was
+            mQueue[ix] = mQueue[mFirst];
+        }
+        mFirst++;
+        if ( mFirst == mSize )
+        {
+            mFirst = 0;
+        }
+        --mCount;
+    }
+    return result;
+}
+
+// returns NULL if index is out of range
+ForthThread* ForthThreadQueue::GetThread( int index )
+{
+    ForthThread* result = NULL;
+    if ( index < mCount )
+    {
+        int ix = mFirst + index;
+        if ( ix > mSize )
+        {
+            ix -= mSize;
+        }
+        result = mQueue[ix];
+    }
+    return result;
+}
+
+// returns -1 if queue is empty
+int ForthThreadQueue::FindEarliest()
+{
+    int result = -1;
+    unsigned long earliest = 0;
+    for ( int i = 0; i < mCount; i++ )
+    {
+        int ix = mFirst + i;
+        if ( ix > mSize )
+        {
+            ix -= mSize;
+        }
+        unsigned long wakeupTime = mQueue[ix]->WakeupTime();
+        if ( wakeupTime <= earliest )
+        {
+            result = i;
+            earliest = wakeupTime;
+        }
     }
     return result;
 }

@@ -21,6 +21,7 @@ typedef void (*VarAction)( ForthCoreState *pCore );
 #define MAX_BUILTIN_OPS 512
 
 
+#if 0
 struct ForthThreadState
 {
     long                *IP;       // interpreter pointer
@@ -49,6 +50,8 @@ struct ForthThreadState
 
     ulong               error;
 
+    ForthMemorySection* pDictionary;
+
     void                *pConOutData;
     consoleOutRoutine   consoleOut;
     long                consoleOutOp;
@@ -58,7 +61,7 @@ struct ForthThreadState
     long                base;      // output base
     ulong               signedPrintMode;   // if numers are printed as signed/unsigned
 };
-
+#endif
 
 struct ForthCoreState
 {
@@ -77,7 +80,7 @@ struct ForthCoreState
    void                 *pEngine;
 
     // *** beginning of stuff which is per thread ***
-    ForthThreadState    *pThread;       // pointer to current thread state
+    //ForthThreadState    *pThread;       // pointer to current thread state
 
     long                *IP;            // interpreter pointer
 
@@ -96,19 +99,28 @@ struct ForthCoreState
 
     ulong               error;
 
+    long                *SB;            // param stack base
     long                *ST;            // empty parameter stack pointer
 
     ulong               SLen;           // size of param stack in longwords
 
+    long                *RB;            // return stack base
     long                *RT;            // empty return stack pointer
 
     ulong               RLen;           // size of return stack in longwords
     // *** end of stuff which is per thread ***
+    void                *pThread;
 
-    // user dictionary stuff
-    long                *DP;            // dictionary pointer
-    long                *DBase;         // base of dictionary
-    ulong               DLen;           // max size of dictionary memory segment
+    ForthMemorySection* pDictionary;
+
+    void                *pConOutData;
+    consoleOutRoutine   consoleOut;
+    long                consoleOutOp;
+
+    FILE                *pDefaultOutFile;
+    FILE                *pDefaultInFile;
+    long                base;               // output base
+    ulong               signedPrintMode;   // if numers are printed as signed/unsigned
 };
 
 
@@ -119,7 +131,6 @@ extern void InitAsmTables( ForthCoreState *pCore );
 #endif
 
 void InitDispatchTables( ForthCoreState* pCore );
-void InitCore( ForthCoreState* pCore );
 void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal );
 
 // DLLRoutine is used for any external DLL routine - it can take any number of arguments
@@ -154,8 +165,8 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define SET_TPM( A )                    (pCore->TPM = A)
 #define SET_TPD( A )                    (pCore->TPD = A)
 
-#define GET_DP                          (pCore->DP)
-#define SET_DP( A )                     (pCore->DP = A)
+#define GET_DP                          (pCore->pDictionary->pCurrent)
+#define SET_DP( A )                     (pCore->pDictionary->pCurrent = A)
 
 #define SPOP                            (*pCore->SP++)
 #define SPUSH( A )                      (*--pCore->SP = A)
@@ -180,7 +191,7 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 
 #define GET_VAR_OPERATION               (pCore->varMode)
 #define SET_VAR_OPERATION( A )          (pCore->varMode = A)
-#define CLEAR_VAR_OPERATION             (pCore->varMode = kVarFetch)
+#define CLEAR_VAR_OPERATION             (pCore->varMode = kVarDefaultOp)
 
 #define GET_NUM_USER_OPS                (pCore->numUserOps)
 
@@ -191,18 +202,18 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define SET_ERROR( A )                  CoreSetError( pCore, A, false )
 #define SET_FATAL_ERROR( A )            CoreSetError( pCore, A, true )
 
-#define GET_CON_OUT_DATA                (pCore->pThread->pConOutData)
-#define SET_CON_OUT_DATA( A )           (pCore->pThread->pConOutData = A)
-#define SET_CON_OUT_ROUTINE( A )        (pCore->pThread->consoleOut = A)
-#define CONSOLE_STRING_OUT( A )         (pCore->pThread->consoleOut( pCore, A ))
+#define GET_CON_OUT_DATA                (pCore->pConOutData)
+#define SET_CON_OUT_DATA( A )           (pCore->pConOutData = A)
+#define SET_CON_OUT_ROUTINE( A )        (pCore->consoleOut = A)
+#define CONSOLE_STRING_OUT( A )         (pCore->consoleOut( pCore, A ))
 
-#define GET_CON_OUT_OP                  (pCore->pThread->consoleOutOp)
-#define SET_CON_OUT_OP( A )             (pCore->pThread->consoleOutOp = A)
+#define GET_CON_OUT_OP                  (pCore->consoleOutOp)
+#define SET_CON_OUT_OP( A )             (pCore->consoleOutOp = A)
 
-#define GET_BASE_REF                    (&pCore->pThread->base)
+#define GET_BASE_REF                    (&pCore->base)
 
-#define GET_PRINT_SIGNED_NUM_MODE       (pCore->pThread->signedPrintMode)
-#define SET_PRINT_SIGNED_NUM_MODE( A )  (pCore->pThread->signedPrintMode = A)
+#define GET_PRINT_SIGNED_NUM_MODE       (pCore->signedPrintMode)
+#define SET_PRINT_SIGNED_NUM_MODE( A )  (pCore->signedPrintMode = A)
 
 };      // end extern "C"
 

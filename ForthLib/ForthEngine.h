@@ -38,6 +38,10 @@ typedef enum {
     kEngineFlagParenIsComment            = 0x40,
 } FECompileFlags;
 
+    //long                *DP;            // dictionary pointer
+    //long                *DBase;         // base of dictionary
+    //ulong               DLen;           // max size of dictionary memory segment
+
 class ForthEngine
 {
 public:
@@ -59,11 +63,9 @@ public:
     // execute forth ops, and is also how systems external to forth execute ops
     //
     eForthResult        ExecuteOneOp( long opCode );
-    eForthResult        ExecuteOneOp( long opCode, ForthThread* pThread );
     // ExecuteOps executes a sequence of forth ops
     // The sequence must be terminated with an OP_DONE
     eForthResult        ExecuteOps( long* pOps );
-    eForthResult        ExecuteOps( long* pOps, ForthThread* pThread );
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
     long            AddOp( const long *pOp, forthOpType symType );
@@ -73,13 +75,13 @@ public:
     ForthClassVocabulary*   AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseMethodEntry *pEntries );
 
     // forget the specified op and all higher numbered ops, and free the memory where those ops were stored
-    void            ForgetOp( ulong opNumber );
+    void            ForgetOp( ulong opNumber, bool quietMode=true );
     // forget the named symbol - return false if symbol not found
-    bool            ForgetSymbol( const char *pSym );
+    bool            ForgetSymbol( const char *pSym, bool quietMode=true );
 
     // create a thread which will be managed by the engine - the engine destructor will delete all threads
     //  which were created with CreateThread 
-    ForthThread *   CreateThread( int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE, long *pInitialIP = NULL );
+    ForthThread *   CreateThread( long threadLoopOp, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
     void            DestroyThread( ForthThread *pThread );
 
     // return true IFF the last compiled opcode was an integer literal
@@ -120,19 +122,19 @@ public:
     char *          GetLastInputToken( void );
 
     const char *            GetOpTypeName( long opType );
-    void                    TraceOp( void );
+    void                    TraceOp( ForthCoreState* pCore );
     void                    DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs=false );
     long *                  NextOp( long *pOp );
 
-    inline long *           GetDP() { return mpCore->DP; };
-    inline void             SetDP( long *pNewDP ) { mpCore->DP = pNewDP; };
-    inline void             CompileLong( long v ) { *mpCore->DP++ = v; };
-    inline void             CompileDouble( double v ) { *((double *) mpCore->DP) = v; mpCore->DP += 2; };
+    inline long *           GetDP() { return mDictionary.pCurrent; };
+    inline void             SetDP( long *pNewDP ) { mDictionary.pCurrent = pNewDP; };
+    inline void             CompileLong( long v ) { *mDictionary.pCurrent++ = v; };
+    inline void             CompileDouble( double v ) { *((double *) mDictionary.pCurrent) = v; mDictionary.pCurrent += 2; };
     void                    CompileOpcode( long v );
     void                    UncompileLastOpcode( void );
     void                    ProcessConstant( long value, bool isOffset=false );
-    inline void             AllotLongs( int n ) { mpCore->DP += n; };
-    inline void             AlignDP( void ) { mpCore->DP = (long *)(( ((int)mpCore->DP) + 3 ) & ~3); };
+    inline void             AllotLongs( int n ) { mDictionary.pCurrent += n; };
+    inline void             AlignDP( void ) { mDictionary.pCurrent = (long *)(( ((int)mDictionary.pCurrent) + 3 ) & ~3); };
     inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpVocabStack->GetTop(); };
     inline void             SetSearchVocabulary( ForthVocabulary* pVocab )  { mpVocabStack->SetTop( pVocab ); };
     inline ForthVocabulary  *GetDefinitionVocabulary( void )   { return mpDefinitionVocab; };
@@ -141,7 +143,7 @@ public:
     inline void             SetShell( ForthShell *pShell ) { mpShell = pShell; };
     inline ForthShell       *GetShell( void ) { return mpShell; };
     inline ForthVocabulary  *GetForthVocabulary( void )   { return mpForthVocab; };
-    inline ForthThread      *GetCurrentThread( void )  { return mpCurrentThread; };
+    inline ForthThread      *GetMainThread( void )  { return mpMainThread; };
 
     inline long             *GetCompileStatePtr( void ) { return &mCompileState; };
     inline void             SetCompileState( long v ) { mCompileState = v; };
@@ -156,7 +158,6 @@ public:
     inline long *           GetLastCompiledOpcodePtr( void ) { return mpLastCompiledOpcode; };
     inline long *           GetLastCompiledIntoPtr( void ) { return mpLastIntoOpcode; };
     inline char *           GetTmpStringBuffer( void ) { return mpStringBufferB; };
-    void                    SetCurrentThread( ForthThread* pThread );
     inline void             SetArraySize( long numElements )        { mNumElements = numElements; };
     inline long             GetArraySize( void )                    { return mNumElements; };
 
@@ -176,7 +177,7 @@ public:
     static ForthEngine*     GetInstance( void );
 
 	void					SetConsoleOut( consoleOutRoutine outRoutine, void* outData );
-	void					ResetConsoleOut( ForthThreadState* pThread );
+	void					ResetConsoleOut( ForthCoreState* pCore );
 
     // return milliseconds since engine was created
     unsigned long           GetElapsedTime( void );
@@ -191,6 +192,8 @@ protected:
 protected:
     ForthCoreState*  mpCore;             // core inner interpreter state
 
+    ForthMemorySection mDictionary;
+
     ForthVocabulary * mpForthVocab;              // main forth vocabulary
     ForthVocabulary * mpLocalVocab;             // local variable vocabulary
 
@@ -203,7 +206,7 @@ protected:
     long        mCompileState;          // true iff compiling
 
     ForthThread *   mpThreads;
-    ForthThread *   mpCurrentThread;
+    ForthThread *   mpMainThread;
     ForthShell  *   mpShell;
     long *          mpEngineScratch;
     char *          mpLastToken;

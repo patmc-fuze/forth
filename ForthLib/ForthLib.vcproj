@@ -198,6 +198,7 @@
 				UsePrecompiledHeader="3"
 				PrecompiledHeaderThrough="stdafx.h"
 				PrecompiledHeaderFile=".\Release/ForthLib.pch"
+				ExpandAttributedSource="FALSE"
 				AssemblerOutput="0"
 				AssemblerListingLocation=".\Release/"
 				ObjectFile=".\Release/"

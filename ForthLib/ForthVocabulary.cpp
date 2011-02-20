@@ -712,6 +712,20 @@ ForthVocabulary::PrintEntry( long*   pEntry )
     CONSOLE_STRING_OUT( buff );
 }
 
+ForthVocabulary* ForthVocabulary::FindVocabulary( const char* pName )
+{
+    ForthVocabulary *pVocab = mpChainHead;
+    while ( pVocab != NULL )
+    {
+        if ( strcmp( pName, pVocab->mpName ) == 0 )
+        {
+            break;
+        }
+        pVocab = pVocab->mpChainNext;
+    }
+    return pVocab;
+}
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///     ForthLocalVocabulary

@@ -2114,10 +2114,11 @@ FORTHOP( vocabularyOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthVocabulary *pDefinitionsVocab = pEngine->GetDefinitionVocabulary();
     // get next symbol, add it to vocabulary with type "user op"
-    long* pEntry = pEngine->StartOpDefinition();
+    char* pVocabName = pEngine->GetNextSimpleToken();
+    long* pEntry = pEngine->StartOpDefinition( pVocabName );
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileOpcode( OP_DO_VOCAB );
-    ForthVocabulary* pVocab = new ForthVocabulary( pDefinitionsVocab->GetEntryName( pDefinitionsVocab->GetNewestEntry() ),
+    ForthVocabulary* pVocab = new ForthVocabulary( pVocabName,
                                                    NUM_FORTH_VOCAB_VALUE_LONGS,
                                                    512,
                                                    GET_DP,
@@ -2129,7 +2130,7 @@ FORTHOP( forgetOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     char* pSym = pEngine->GetNextSimpleToken();
-    pEngine->ForgetSymbol( pSym );
+    pEngine->ForgetSymbol( pSym, false );
     // reset search & definitions vocabs in case we deleted a vocab we were using
     pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
     ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
@@ -2140,7 +2141,7 @@ FORTHOP( forgetOp )
 FORTHOP( autoforgetOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    pEngine->ForgetSymbol( pEngine->GetNextSimpleToken() );
+    pEngine->ForgetSymbol( pEngine->GetNextSimpleToken(), true );
     // reset search & definitions vocabs in case we deleted a vocab we were using
     pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
     ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
@@ -2327,11 +2328,11 @@ FORTHOP( opOp )
 	gBaseTypeOp.DefineInstance( GET_ENGINE, &val );
 }
 
-FORTHOP( objectOp )
-{
-    long val[2] = { 0, 0  };
-	gBaseTypeObject.DefineInstance( GET_ENGINE, val );
-}
+//FORTHOP( objectOp )
+//{
+//    long val[2] = { 0, 0  };
+//	gBaseTypeObject.DefineInstance( GET_ENGINE, val );
+//}
 
 FORTHOP( voidOp )
 {
@@ -3410,7 +3411,7 @@ FORTHOP( outToScreenOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
 
-	pEngine->ResetConsoleOut( pCore->pThread );
+	pEngine->ResetConsoleOut( pCore );
 }
 
 FORTHOP( outToFileOp )
@@ -3755,8 +3756,8 @@ FORTHOP( statsOp )
 {
     char buff[512];
 
-    sprintf( buff, "pCore %p pEngine %p pThread %p     DP %p DBase %p    IP %p\n",
-             pCore, pCore->pEngine, pCore->pThread, pCore->DP, pCore->DBase, pCore->IP );
+    sprintf( buff, "pCore %p pEngine %p     DP %p DBase %p    IP %p\n",
+             pCore, pCore->pEngine, pCore->pDictionary, pCore->pDictionary->pBase, pCore->IP );
     CONSOLE_STRING_OUT( buff );
     sprintf( buff, "SP %p ST %p SLen %d    RP %p RT %p RLen %d\n",
              pCore->SP, pCore->ST, pCore->SLen,
@@ -4029,6 +4030,140 @@ FORTHOP( poundEndifOp )
     pShell->PoundEndif();
 }
 
+#ifdef _WINDOWS
+///////////////////////////////////////////
+//  Windows support
+///////////////////////////////////////////
+
+FORTHOP( createEventOp )
+{
+    LPCTSTR lpName = (LPCTSTR)(SPOP);
+    BOOL bInitialState = (BOOL)(SPOP);
+    BOOL bManualReset = (BOOL)(SPOP);
+    LPSECURITY_ATTRIBUTES lpEventAttributes = (LPSECURITY_ATTRIBUTES) (SPOP);
+    HANDLE result = ::CreateEvent( lpEventAttributes, bManualReset, bInitialState, lpName );
+    SPUSH( (long) result );
+}
+
+FORTHOP( closeHandleOp )
+{
+    HANDLE hObject = (HANDLE)(SPOP);
+    BOOL result = ::CloseHandle( hObject );
+    SPUSH( (long) result );
+}
+
+FORTHOP( setEventOp )
+{
+    HANDLE hObject = (HANDLE)(SPOP);
+    BOOL result = ::SetEvent( hObject );
+    SPUSH( (long) result );
+}
+
+FORTHOP( resetEventOp )
+{
+    HANDLE hObject = (HANDLE)(SPOP);
+    BOOL result = ::ResetEvent( hObject );
+    SPUSH( (long) result );
+}
+
+FORTHOP( pulseEventOp )
+{
+    HANDLE hObject = (HANDLE)(SPOP);
+    BOOL result = ::PulseEvent( hObject );
+    SPUSH( (long) result );
+}
+
+FORTHOP( getLastErrorOp )
+{
+    DWORD result = ::GetLastError();
+    SPUSH( (long) result );
+}
+
+FORTHOP( waitForSingleObjectOp )
+{
+    DWORD dwMilliseconds = (DWORD)(SPOP);
+    HANDLE hHandle = (HANDLE)(SPOP);
+
+    DWORD result = ::WaitForSingleObject( hHandle, dwMilliseconds );
+    SPUSH( (long) result );
+}
+
+FORTHOP( waitForMultipleObjectsOp )
+{
+    DWORD dwMilliseconds = (DWORD)(SPOP);
+    BOOL bWaitAll = (BOOL)(SPOP);
+    const HANDLE* lpHandles = (const HANDLE*)(SPOP);
+    DWORD nCount = (DWORD)(SPOP);
+
+    DWORD result = ::WaitForMultipleObjects( nCount, lpHandles, bWaitAll, dwMilliseconds );
+    SPUSH( (long) result );
+}
+
+FORTHOP( initializeCriticalSectionOp )
+{
+    LPCRITICAL_SECTION pCriticalSection = (LPCRITICAL_SECTION)(SPOP);
+    ::InitializeCriticalSection( pCriticalSection );
+}
+
+FORTHOP( deleteCriticalSectionOp )
+{
+    LPCRITICAL_SECTION pCriticalSection = (LPCRITICAL_SECTION)(SPOP);
+    ::DeleteCriticalSection( pCriticalSection );
+}
+
+FORTHOP( enterCriticalSectionOp )
+{
+    LPCRITICAL_SECTION pCriticalSection = (LPCRITICAL_SECTION)(SPOP);
+    ::EnterCriticalSection( pCriticalSection );
+}
+
+FORTHOP( leaveCriticalSectionOp )
+{
+    LPCRITICAL_SECTION pCriticalSection = (LPCRITICAL_SECTION)(SPOP);
+    ::LeaveCriticalSection( pCriticalSection );
+}
+
+FORTHOP( mallocCriticalSectionOp )
+{
+    LPCRITICAL_SECTION pCriticalSection = (LPCRITICAL_SECTION)::malloc( sizeof( CRITICAL_SECTION ) );
+    SPUSH( (long) pCriticalSection );
+}
+
+FORTHOP( sleepOp )
+{
+    DWORD dwMilliseconds = (DWORD)(SPOP);
+    ::Sleep( dwMilliseconds );
+}
+
+FORTHOP( createThreadOp )
+{
+    long threadOp  = SPOP;
+    int returnStackSize = (int)(SPOP);
+    int paramStackSize = (int)(SPOP);
+    ForthThread* pThread = GET_ENGINE->CreateThread( threadOp, paramStackSize, returnStackSize );
+    SPUSH( (long) pThread );
+}
+
+FORTHOP( destroyThreadOp )
+{
+    ForthThread* pThread = (ForthThread*)(SPOP);
+    GET_ENGINE->DestroyThread( pThread );
+}
+
+FORTHOP( startThreadOp )
+{
+    ForthThread* pThread = (ForthThread*)(SPOP);
+    long result = pThread->Start();
+    SPUSH( result );
+}
+
+FORTHOP( exitThreadOp )
+{
+    ForthThread* pThread = (ForthThread*)(pCore->pThread);
+    pThread->Exit();
+}
+
+#endif
 
 // NOTE: the order of the first few entries in this table must agree
 // with the list near the top of the file!  (look for COMPILED_OP)
@@ -4157,6 +4292,25 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    fdivideOp,              "f/" ),
     
     ///////////////////////////////////////////
+    //  single-precision fp comparisons
+    ///////////////////////////////////////////
+    OP_DEF(    fEqualsOp,               "f==" ),
+    OP_DEF(    fNotEqualsOp,            "f!=" ),
+    OP_DEF(    fGreaterThanOp,          "f>" ),
+    OP_DEF(    fGreaterEqualsOp,        "f>=" ),
+    OP_DEF(    fLessThanOp,             "f<" ),
+    OP_DEF(    fLessEqualsOp,           "f<=" ),
+    OP_DEF(    fEqualsZeroOp,           "f0==" ),
+    OP_DEF(    fNotEqualsZeroOp,        "f0!=" ),
+    OP_DEF(    fGreaterThanZeroOp,      "f0>" ),
+    OP_DEF(    fGreaterEqualsZeroOp,    "f0>=" ),
+    OP_DEF(    fLessThanZeroOp,         "f0<" ),
+    OP_DEF(    fLessEqualsZeroOp,       "f0<=" ),
+    OP_DEF(    fWithinOp,               "fwithin" ),
+    OP_DEF(    fMinOp,                  "fmin" ),
+    OP_DEF(    fMaxOp,                  "fmax" ),
+
+    ///////////////////////////////////////////
     //  double-precision fp math
     ///////////////////////////////////////////
     OP_DEF(    dplusOp,                "d+" ),
@@ -4164,6 +4318,25 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    dtimesOp,               "d*" ),
     OP_DEF(    ddivideOp,              "d/" ),
 
+
+    ///////////////////////////////////////////
+    //  double-precision fp comparisons
+    ///////////////////////////////////////////
+    OP_DEF(    dEqualsOp,               "d==" ),
+    OP_DEF(    dNotEqualsOp,            "d!=" ),
+    OP_DEF(    dGreaterThanOp,          "d>" ),
+    OP_DEF(    dGreaterEqualsOp,        "d>=" ),
+    OP_DEF(    dLessThanOp,             "d<" ),
+    OP_DEF(    dLessEqualsOp,           "d<=" ),
+    OP_DEF(    dEqualsZeroOp,           "d0==" ),
+    OP_DEF(    dNotEqualsZeroOp,        "d0!=" ),
+    OP_DEF(    dGreaterThanZeroOp,      "d0>" ),
+    OP_DEF(    dGreaterEqualsZeroOp,    "d0>=" ),
+    OP_DEF(    dLessThanZeroOp,         "d0<" ),
+    OP_DEF(    dLessEqualsZeroOp,       "d0<=" ),
+    OP_DEF(    dWithinOp,               "dwithin" ),
+    OP_DEF(    dMinOp,                  "dmin" ),
+    OP_DEF(    dMaxOp,                  "dmax" ),
 
     ///////////////////////////////////////////
     //  double-precision fp functions
@@ -4362,7 +4535,7 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(doubleOp,               "double" ),
     PRECOP_DEF(stringOp,               "string" ),
     PRECOP_DEF(opOp,                   "op" ),
-    PRECOP_DEF(objectOp,               "object" ),
+    //PRECOP_DEF(objectOp,               "object" ),
     PRECOP_DEF(voidOp,                 "void" ),
     PRECOP_DEF(arrayOfOp,              "arrayOf" ),
     PRECOP_DEF(ptrToOp,                "ptrTo" ),
@@ -4512,43 +4685,30 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF( poundElseOp,            "#else" ),
     PRECOP_DEF( poundEndifOp,           "#endif" ),
 
+#ifdef _WINDOWS
     ///////////////////////////////////////////
-    //  single-precision fp comparisons
+    //  Windows support
     ///////////////////////////////////////////
-    OP_DEF(    fEqualsOp,               "f==" ),
-    OP_DEF(    fNotEqualsOp,            "f!=" ),
-    OP_DEF(    fGreaterThanOp,          "f>" ),
-    OP_DEF(    fGreaterEqualsOp,        "f>=" ),
-    OP_DEF(    fLessThanOp,             "f<" ),
-    OP_DEF(    fLessEqualsOp,           "f<=" ),
-    OP_DEF(    fEqualsZeroOp,           "f0==" ),
-    OP_DEF(    fNotEqualsZeroOp,        "f0!=" ),
-    OP_DEF(    fGreaterThanZeroOp,      "f0>" ),
-    OP_DEF(    fGreaterEqualsZeroOp,    "f0>=" ),
-    OP_DEF(    fLessThanZeroOp,         "f0<" ),
-    OP_DEF(    fLessEqualsZeroOp,       "f0<=" ),
-    OP_DEF(    fWithinOp,               "fwithin" ),
-    OP_DEF(    fMinOp,                  "fmin" ),
-    OP_DEF(    fMaxOp,                  "fmax" ),
+    OP_DEF( createEventOp,              "CreateEvent" ),
+    OP_DEF( closeHandleOp,              "CloseHandle" ),
+    OP_DEF( setEventOp,                 "SetEvent" ),
+    OP_DEF( resetEventOp,               "ResetEvent" ),
+    OP_DEF( pulseEventOp,               "PulseEvent" ),
+    OP_DEF( getLastErrorOp,             "GetLastError" ),
+    OP_DEF( waitForSingleObjectOp,      "WaitForSingleObject" ),
+    OP_DEF( waitForMultipleObjectsOp,   "WaitForMultipleObjects" ),
+    OP_DEF( initializeCriticalSectionOp, "InitializeCriticalSection" ),
+    OP_DEF( deleteCriticalSectionOp,    "DeleteCriticalSection" ),
+    OP_DEF( enterCriticalSectionOp,     "EnterCriticalSection" ),
+    OP_DEF( leaveCriticalSectionOp,     "LeaveCriticalSection" ),
+    OP_DEF( mallocCriticalSectionOp,    "mallocCriticalSection" ),
+    OP_DEF( sleepOp,                    "Sleep" ),
+    OP_DEF( createThreadOp,             "createThread" ),
+    OP_DEF( destroyThreadOp,            "destroyThread" ),
+    OP_DEF( startThreadOp,              "startThread" ),
+    OP_DEF( exitThreadOp,               "exitThread" ),
 
-    ///////////////////////////////////////////
-    //  double-precision fp comparisons
-    ///////////////////////////////////////////
-    OP_DEF(    dEqualsOp,               "d==" ),
-    OP_DEF(    dNotEqualsOp,            "d!=" ),
-    OP_DEF(    dGreaterThanOp,          "d>" ),
-    OP_DEF(    dGreaterEqualsOp,        "d>=" ),
-    OP_DEF(    dLessThanOp,             "d<" ),
-    OP_DEF(    dLessEqualsOp,           "d<=" ),
-    OP_DEF(    dEqualsZeroOp,           "d0==" ),
-    OP_DEF(    dNotEqualsZeroOp,        "d0!=" ),
-    OP_DEF(    dGreaterThanZeroOp,      "d0>" ),
-    OP_DEF(    dGreaterEqualsZeroOp,    "d0>=" ),
-    OP_DEF(    dLessThanZeroOp,         "d0<" ),
-    OP_DEF(    dLessEqualsZeroOp,       "d0<=" ),
-    OP_DEF(    dWithinOp,               "dwithin" ),
-    OP_DEF(    dMinOp,                  "dmin" ),
-    OP_DEF(    dMaxOp,                  "dmax" ),
+#endif
 
     // following must be last in table
     OP_DEF(    NULL,                   "" )

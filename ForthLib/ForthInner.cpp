@@ -62,6 +62,7 @@ VAR_ACTION( doByteMinusStore )
 VarAction byteOps[] =
 {
     doByteFetch,
+    doByteFetch,
     doByteRef,
     doByteStore,
     doBytePlusStore,
@@ -320,6 +321,7 @@ VAR_ACTION( doShortMinusStore )
 
 VarAction shortOps[] =
 {
+    doShortFetch,
     doShortFetch,
     doShortRef,
     doShortStore,
@@ -581,6 +583,7 @@ VAR_ACTION( doIntMinusStore )
 VarAction intOps[] =
 {
     doIntFetch,
+    doIntFetch,
     doIntRef,
     doIntStore,
     doIntPlusStore,
@@ -822,6 +825,7 @@ VAR_ACTION( doFloatMinusStore )
 
 VarAction floatOps[] =
 {
+    doIntFetch,
     doIntFetch,
     doIntRef,
     doIntStore,
@@ -1077,6 +1081,7 @@ VAR_ACTION( doDoubleMinusStore )
 
 VarAction doubleOps[] =
 {
+    doDoubleFetch,
     doDoubleFetch,
     doIntRef,
     doDoubleStore,
@@ -1355,6 +1360,7 @@ VAR_ACTION( doStringAppend )
 VarAction stringOps[] =
 {
     doStringFetch,
+    doStringFetch,
     doIntRef,
     doStringStore,
     doStringAppend
@@ -1597,6 +1603,7 @@ VAR_ACTION( doOpExecute )
 VarAction opOps[] =
 {
     doOpExecute,
+    doIntFetch,
     doIntRef,
     doIntStore,
 };
@@ -1823,6 +1830,7 @@ OPTYPE_ACTION( MemberOpArrayAction )
 
 VarAction objectOps[] =
 {
+    doDoubleFetch,
     doDoubleFetch,
     doIntRef,
     doDoubleStore,
@@ -2492,34 +2500,6 @@ void InitDispatchTables( ForthCoreState* pCore )
     }
 }
 
-void InitCore( ForthCoreState* pCore )
-{
-    pCore->optypeAction = NULL;
-    pCore->builtinOps = NULL;
-    pCore->numBuiltinOps = 0;
-    pCore->userOps = NULL;
-    pCore->numUserOps = 0;
-    pCore->maxUserOps = 0;
-    pCore->IP = NULL;
-    pCore->SP = NULL;
-    pCore->ST = NULL;
-    pCore->SLen = 0;
-    pCore->RP = NULL;
-    pCore->RT = NULL;
-    pCore->RLen = 0;
-    pCore->FP = NULL;
-    SET_TPM( NULL );
-    SET_TPD( NULL );
-    pCore->varMode = kVarFetch;
-    pCore->state = kResultOk;
-    pCore->error = kForthErrorNone;
-    pCore->pThread = NULL;
-    pCore->pEngine = NULL;
-    pCore->DP = NULL;
-    pCore->DBase = NULL;
-    pCore->DLen = 0;
-}
-
 void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal )
 {
     pCore->error =  error;
@@ -2550,7 +2530,7 @@ InnerInterpreter( ForthCoreState *pCore )
         // fetch op at IP, advance IP
         pIP = GET_IP;
 #ifdef TRACE_INNER_INTERPRETER
-        GET_ENGINE->TraceOp();
+        GET_ENGINE->TraceOp( pCore );
 #endif
         op = *pIP++;
 #if 0

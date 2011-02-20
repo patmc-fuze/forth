@@ -3,11 +3,12 @@ option expr32
 option casemap:none
 
 ; Begin of file core.h
-kVarFetch		EQU		0t
-kVarRef		EQU		1t
-kVarStore		EQU		2t
-kVarPlusStore		EQU		3t
-kVarMinusStore		EQU		4t
+kVarDefaultOp		EQU		0t
+kVarFetch			EQU		1t
+kVarRef				EQU		2t
+kVarStore			EQU		3t
+kVarPlusStore		EQU		4t
+kVarMinusStore		EQU		5t
 
 kVocabSetCurrent		EQU	0t
 kVocabNewestEntry		EQU	1t
@@ -83,6 +84,11 @@ kOpLocalUserDefined		EQU		25t
 kOpMaxLocalUserDefined		EQU		127t
 kOpUserMethods		EQU		128t
 
+ForthMemorySection	STRUCT 2t
+pCurrent			DWORD	?
+pBase				DWORD	?
+len					DWORD	?
+ForthMemorySection	ENDS
 
 ForthCoreState		STRUCT 2t
 optypeAction		DWORD		?
@@ -93,7 +99,6 @@ userOps				DWORD		?
 numUserOps			DWORD		?
 maxUserOps			DWORD		?
 pEngine				DWORD		?
-pThread				DWORD		?
 IPtr				DWORD		?
 SPtr				DWORD		?
 RPtr				DWORD		?
@@ -103,13 +108,14 @@ TDPtr				DWORD		?
 varMode				DWORD		?
 state				DWORD		?
 error				DWORD		?
+SBPtr				DWORD		?
 STPtr				DWORD		?
 SLen				DWORD		?
+RBPtr				DWORD		?
 RTPtr				DWORD		?
 RLen				DWORD		?
-DP					DWORD		?
-DBase				DWORD		?
-DLen				DWORD		?
+ThreadPtr			DWORD		?
+DictionaryPtr		DWORD		?
 ForthCoreState		ENDS
 
 ; End of file core.h

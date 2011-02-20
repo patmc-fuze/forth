@@ -124,7 +124,7 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
     bool bInteractiveMode = pStream->IsInteractive();
 
     mpEngine->SetConsoleOut( consoleOutToClient, NULL );
-	mpEngine->ResetConsoleOut( mpEngine->GetCoreState()->pThread );
+	mpEngine->ResetConsoleOut( mpEngine->GetCoreState() );
     mpInput->PushInputStream( pStream );
 
     if ( mDoAutoload )

@@ -33,25 +33,35 @@ public:
     bool CheckGaurdAreas();
 #endif
 
-    virtual void Activate( ForthCoreState* pCore );
-    virtual void Deactivate( ForthCoreState* pCore );
-
     void                Reset( void );
 
-    inline void         SetIP( long *pNewIP ) { mState.IP = pNewIP; };
+    inline void         SetOp( long op ) { mOps[0] = op; };
 
-    inline void         Push( long value ) { *--mState.SP = value; };
-    inline long         Pop() { return *mState.SP++; };
-    inline void         RPush( long value ) { *--mState.RP = value; };
-    inline long         RPop() { return *mState.RP++; };
+    inline void         Push( long value ) { *--mCore.SP = value; };
+    inline long         Pop() { return *mCore.SP++; };
+    inline void         RPush( long value ) { *--mCore.RP = value; };
+    inline long         RPop() { return *mCore.RP++; };
+
+    long                Start();
+    void                Exit();
+
+    inline ulong        WakeupTime() { return mWakeupTime; };
 
     friend class ForthEngine;
+
+    static unsigned __stdcall RunLoop( void *pThis );
 
 protected:
     ForthEngine         *mpEngine;
     ForthThread         *mpNext;
+    void                *mpPrivate;
     
-    ForthThreadState    mState;
+    //ForthThreadState    mState;
+    ForthCoreState      mCore;
+    long                mOps[2];
+    unsigned long       mWakeupTime;
+    HANDLE              mHandle;
+    ulong               mThreadId;
 };
 
 class ForthThreadQueue
@@ -67,6 +77,15 @@ public:
 
     // returns NULL if queue is empty
     ForthThread*        RemoveThread();
+
+    // returns NULL if index is out of range
+    ForthThread*        RemoveThread( int index );
+
+    // returns NULL if index is out of range
+    ForthThread*        GetThread( int index );
+
+    // returns -1 if queue is empty
+    int                 FindEarliest();
 
 protected:
     ForthThread**   mQueue;

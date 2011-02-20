@@ -23,6 +23,7 @@ class ForthExtension;
 #define PARSE_FLAG_QUOTED_STRING        1
 #define PARSE_FLAG_QUOTED_CHARACTER     2
 #define PARSE_FLAG_HAS_PERIOD           4
+#define PARSE_FLAG_HAS_COLON            8
 
 class ForthParseInfo
 {
@@ -141,8 +142,8 @@ public:
 
     bool                    CheckSyntaxError( const char *pString, long tag, long desiredTag );
 
-    eForthResult            InterpretLine( const char *pSrcLine = NULL );
-
+    virtual eForthResult    InterpretLine( const char *pSrcLine = NULL );
+    virtual eForthResult    ProcessLine( const char *pSrcLine = NULL );
     virtual char            GetChar();
 
     virtual FILE*           FileOpen( const char* filePath, const char* openMode );
@@ -178,6 +179,11 @@ protected:
     void                    DeleteEnvironmentVars();
     void                    DeleteCommandLine();
 
+#if 0
+    virtual DWORD           TimerThreadLoop();
+    virtual DWORD           ConsoleInputThreadLoop();
+#endif
+
     ForthInputStack *       mpInput;
     ForthEngine *           mpEngine;
     ForthThread *           mpThread;
@@ -194,6 +200,14 @@ protected:
     char                    mErrorString[ 128 ];
 
     int                     mPoundIfDepth;
-    
+
+    DWORD                   mMainThreadId;
+    DWORD                   mConsoleInputThreadId;
+    HANDLE                  mConsoleInputThreadHandle;
+    HANDLE                  mConsoleInputEvent;
+    ForthThreadQueue*       mpReadyThreads;
+    ForthThreadQueue*       mpSleepingThreads;
+    bool                    mWaitingForConsoleInput;
+    bool                    mConsoleInputReady;
 };
 

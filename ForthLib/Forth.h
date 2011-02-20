@@ -125,7 +125,8 @@ typedef void (*consoleOutRoutine) ( ForthCoreState *pCore, const char *pBuff );
 // the varMode state makes variables do something other
 //  than their default behaviour (fetch)
 typedef enum {
-    kVarFetch = 0,
+    kVarDefaultOp = 0,
+    kVarFetch,
     kVarRef,
     kVarStore,
     kVarPlusStore,
@@ -193,6 +194,13 @@ typedef enum {
     kPrintAllUnsigned
 } ePrintSignedMode;
 
+
+typedef struct {
+    // user dictionary stuff
+    long*               pCurrent;
+    long*               pBase;
+    ulong               len;
+} ForthMemorySection;
 
 // the bottom 24 bits of a forth opcode is a value field
 // the top 8 bits is the type field

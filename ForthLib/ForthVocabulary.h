@@ -141,6 +141,8 @@ public:
     // returns number of chars in name
     virtual int                 GetEntryName( const long *pEntry, char *pDstBuff, int buffSize );
 
+    static ForthVocabulary *FindVocabulary( const char* pName );
+
     static inline ForthVocabulary *GetVocabularyChainHead( void ) {
         return mpChainHead;
     };
@@ -152,6 +154,7 @@ public:
     inline char *NewestSymbol( void ) {
         return &(mNewestSymbol[0]);
     };
+
 
 #ifdef MAP_LOOKUP
     void                        InitLookupMap();

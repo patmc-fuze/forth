@@ -47,6 +47,8 @@ const char * GetTagString( long tag )
     return msg;
 }
 
+DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData );
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -72,14 +74,34 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
     }
     mpEngine->SetShell( this );
 
+#if 0
     if ( mpThread == NULL )
     {
-        mpThread = mpEngine->CreateThread( PSTACK_LONGS, RSTACK_LONGS, NULL );
+        mpThread = mpEngine->CreateThread( 0, PSTACK_LONGS, RSTACK_LONGS );
     }
     mpEngine->SetCurrentThread( mpThread );
+#endif
 
     mpInput = new ForthInputStack;
 	mpStack = new ForthShellStack( shellStackLongs );
+
+#if 0
+    mMainThreadId = GetThreadId( GetMainThread() );
+    mConsoleInputThreadId = 0;
+    mConsoleInputThreadHandle = _beginthreadex( NULL,		// thread security attribs
+                                                0,			// stack size (default)
+                                                ConsoleInputThreadLoop,
+                                                this,
+                                                CREATE_SUSPENDED,
+                                                &mConsoleInputThreadId );
+
+    mConsoleInputEvent = CreateEvent( NULL,               // default security attributes
+                                      FALSE,              // auto-reset event
+                                      FALSE,              // initial state is nonsignaled
+                                      TEXT("ConsoleInputEvent") ); // object name
+
+   mpReadyThreads = new ForthThreadQueue;
+#endif
 
 }
 
@@ -95,6 +117,10 @@ ForthShell::~ForthShell()
     DeleteCommandLine();
     delete mpInput;
 	delete mpStack;
+#if 0
+    delete mpReadyThreads;
+    CloseHandle( mConsoleInputEvent );
+#endif
 }
 
 
@@ -162,117 +188,140 @@ ForthShell::Run( ForthInputStream *pInStream )
 
         if ( !bQuit )
         {
-            if ( (mFlags & SHELL_FLAG_SKIP_SECTION) != 0 )
-            {
-                char* pToken = GetNextSimpleToken();
-                if ( pToken != NULL )
-                {
-                    if ( !strcmp( "#if", pToken ) )
-                    {
-                        mPoundIfDepth++;
-                    }
-                    else if ( !strcmp( "#ifdef", pToken ) )
-                    {
-                        mPoundIfDepth++;
-                    }
-                    else if ( !strcmp( "#ifndef", pToken ) )
-                    {
-                        mPoundIfDepth++;
-                    }
-                    else if ( !strcmp( "#else", pToken ) )
-                    {
-                        if ( mPoundIfDepth == 0 )
-                        {
-                            mpStack->Push( kShellTagPoundIf );
-                            mFlags &= ~SHELL_FLAG_SKIP_SECTION;
-                        }
-                    }
-                    else if ( !strcmp( "#endif", pToken ) )
-                    {
-                        if ( mPoundIfDepth == 0 )
-                        {
-                            mFlags &= ~SHELL_FLAG_SKIP_SECTION;
-                        }
-                        else
-                        {
-                            mPoundIfDepth--;
-                        }
+            result = ProcessLine();
 
-                    }
+            switch( result )
+            {
+
+            case kResultOk:
+                break;
+
+            case kResultExitShell:
+                // users has typed "bye", exit the shell
+                bQuit = true;
+                retVal = 0;
+                break;
+
+            case kResultError:
+                // an error has occured, empty input stream stack
+                // TBD
+                if ( !bInteractiveMode )
+                {
+                    bQuit = true;
+                }
+                else
+                {
+                    // TBD: dump all but outermost input stream
+                }
+                retVal = 0;
+                break;
+
+            case kResultFatalError:
+            default:
+                // a fatal error has occured, exit the shell
+                bQuit = true;
+                retVal = 1;
+                break;
+            }
+        }
+    } // while !bQuit
+    
+    return retVal;
+}
+
+// ProcessLine is the layer between Run and InterpretLine that implements pound directives
+eForthResult ForthShell::ProcessLine( const char *pSrcLine )
+{
+    eForthResult result = kResultOk;
+
+    char* pLineBuff = mpInput->GetBufferBasePointer();
+    if ( pSrcLine != NULL )
+	{
+        strcpy( pLineBuff, pSrcLine );
+		mpInput->SetBufferPointer( pLineBuff );
+	}
+
+    if ( (mFlags & SHELL_FLAG_SKIP_SECTION) != 0 )
+    {
+        // we are currently skipping input lines, check if we should stop skipping
+        char* pToken = GetNextSimpleToken();
+        if ( pToken != NULL )
+        {
+            if ( !strcmp( "#if", pToken ) )
+            {
+                mPoundIfDepth++;
+            }
+            else if ( !strcmp( "#ifdef", pToken ) )
+            {
+                mPoundIfDepth++;
+            }
+            else if ( !strcmp( "#ifndef", pToken ) )
+            {
+                mPoundIfDepth++;
+            }
+            else if ( !strcmp( "#else", pToken ) )
+            {
+                if ( mPoundIfDepth == 0 )
+                {
+                    mpStack->Push( kShellTagPoundIf );
+                    mFlags &= ~SHELL_FLAG_SKIP_SECTION;
                 }
             }
-            else
+            else if ( !strcmp( "#endif", pToken ) )
             {
-                result = InterpretLine();
-
-                switch( result )
+                if ( mPoundIfDepth == 0 )
                 {
-
-                case kResultOk:
-                    // process pount directive if needed
-                    if ( (mFlags & SHELL_FLAG_START_IF) != 0 )
-                    {
-                        // this line started with poundIf - 
-                        ForthCoreState* pCore = mpEngine->GetCoreState();
-                        if ( GET_SDEPTH > 0 )
-                        {
-                            long expressionResult = SPOP;
-                            if ( expressionResult != 0 )
-                            {
-                                // compile "if" part
-                                mpStack->Push( kShellTagPoundIf );
-                            }
-                            else
-                            {
-                                // skip to "else" or "endif"
-                                mFlags |= SHELL_FLAG_SKIP_SECTION;
-                                mPoundIfDepth = 0;
-                            }
-                            if ( (mFlags & SHELL_FLAG_START_IF_C) != 0 )
-                            {
-                                // state was compile before "if", put it back
-                                mpEngine->SetCompileState( 1 );
-                            }
-                        }
-                        else
-                        {
-                            mpEngine->SetError( kForthErrorBadPreprocessorDirective, "#if expression left empty stack" );
-                        }
-                        mFlags &= ~SHELL_FLAG_START_IF;
-                    }
-                    break;
-
-                case kResultExitShell:
-                    // users has typed "bye", exit the shell
-                    bQuit = true;
-                    retVal = 0;
-                    break;
-
-                case kResultError:
-                    // an error has occured, empty input stream stack
-                    // TBD
-                    if ( !bInteractiveMode )
-                    {
-                        bQuit = true;
-                    }
-                    else
-                    {
-                        // TBD: dump all but outermost input stream
-                    }
-                    retVal = 0;
-                    break;
-
-                case kResultFatalError:
-                    // a fatal error has occured, exit the shell
-                    bQuit = true;
-                    retVal = 1;
-                    break;
+                    mFlags &= ~SHELL_FLAG_SKIP_SECTION;
                 }
+                else
+                {
+                    mPoundIfDepth--;
+                }
+
             }
         }
     }
-    
-    return retVal;
+    else
+    {
+        // we are currently not skipping input lines
+        result = InterpretLine();
+
+        if ( result == kResultOk )
+        {
+            // process pound directive if needed
+            if ( (mFlags & SHELL_FLAG_START_IF) != 0 )
+            {
+                // this line started with #if
+                ForthCoreState* pCore = mpEngine->GetCoreState();
+                if ( GET_SDEPTH > 0 )
+                {
+                    long expressionResult = SPOP;
+                    if ( expressionResult != 0 )
+                    {
+                        // compile "if" part
+                        mpStack->Push( kShellTagPoundIf );
+                    }
+                    else
+                    {
+                        // skip to #else or #endif
+                        mFlags |= SHELL_FLAG_SKIP_SECTION;
+                        mPoundIfDepth = 0;
+                    }
+                    if ( (mFlags & SHELL_FLAG_START_IF_C) != 0 )
+                    {
+                        // state was compile before #if, put it back
+                        mpEngine->SetCompileState( 1 );
+                    }
+                }
+                else
+                {
+                    mpEngine->SetError( kForthErrorBadPreprocessorDirective, "#if expression left empty stack" );
+                }
+                mFlags &= ~SHELL_FLAG_START_IF;
+            }
+        }
+    }
+    return result;
 }
 
 //
@@ -312,7 +361,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
 #endif
             {
                 result = mpEngine->ProcessToken( &parseInfo );
-                CHECK_STACKS( mpEngine->GetCurrentThread() );
+                CHECK_STACKS( mpEngine->GetMainThread() );
             }
 #ifdef _WINDOWS
 #ifdef CATCH_EXCEPTIONS
@@ -368,7 +417,6 @@ ForthShell::ReportError( void )
     mpEngine->GetErrorString( errorBuf1 );
     pLastInputToken = mpEngine->GetLastInputToken();
 	ForthCoreState* pCore = mpEngine->GetCoreState();
-	ForthThreadState* pThread = pCore->pThread;
 
 	if ( pLastInputToken != NULL )
     {
@@ -388,7 +436,7 @@ ForthShell::ReportError( void )
         strcpy( errorBuf1, errorBuf2 );
     }
     TRACE( "%s", errorBuf1 );
-	pThread->consoleOut( pCore, errorBuf1 );
+	pCore->consoleOut( pCore, errorBuf1 );
     char *pBase = mpInput->GetBufferBasePointer();
     pLastInputToken = mpInput->GetBufferPointer();
     if ( (pBase != NULL) && (pLastInputToken != NULL) )
@@ -402,7 +450,7 @@ ForthShell::ReportError( void )
         sprintf( pBuf, "{}%s\n", pLastInputToken );
     }
 	TRACE( "%s", errorBuf1 );
-	pThread->consoleOut( pCore, errorBuf1 );
+	pCore->consoleOut( pCore, errorBuf1 );
 }
 
 static char
@@ -424,6 +472,7 @@ backslashChar( char c )
     case '\?':       cResult = '\?';        break;
     case '\'':       cResult = '\'';        break;
     case '\"':       cResult = '\"';        break;
+    case '\0':       cResult = '\0';        break;
 
     default:         cResult = c;           break;
 
@@ -726,6 +775,11 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
 
                   case '.':
                      pInfo->SetFlag( PARSE_FLAG_HAS_PERIOD );
+                     *pDst++ = *pEndSrc++;
+                     break;
+
+                  case ':':
+                     pInfo->SetFlag( PARSE_FLAG_HAS_COLON );
                      *pDst++ = *pEndSrc++;
                      break;
 
@@ -1264,5 +1318,22 @@ ForthShellStack::PopString( char *pString )
     SPEW_SHELL( "Popped Tag string\n" );
     SPEW_SHELL( "Popped String \"%s\"\n", pString );
    return true;
+}
+
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     Windows Thread Procedures
+// 
+
+DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData )
+{
+    ForthShell* pShell = (ForthShell *) pThreadData;
+
+#if 0
+    return pShell->ConsoleInputLoop();
+#else
+    return NULL;
+#endif
 }
 
