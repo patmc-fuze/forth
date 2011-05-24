@@ -12,6 +12,7 @@
 #include "ForthVocabulary.h"
 #include "ForthInner.h"
 #include "ForthExtension.h"
+#include "ForthStructs.h"
 
 extern "C"
 {
@@ -361,16 +362,26 @@ ForthEngine::AddBuiltinOps( baseDictionaryEntry *pEntries )
 
 
 ForthClassVocabulary*
-ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseMethodEntry *pEntries )
+ForthEngine::StartClassDefinition( const char* pClassName )
 {
-    // do "class:" - define class subroutine
     SetFlag( kEngineFlagInStructDefinition );
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->StartClassDefinition( pClassName );
     CompileOpcode( OP_DO_CLASS_TYPE );
     CompileLong( (long) pVocab );
 
-#if 0
+    return pVocab;
+}
+
+
+ForthClassVocabulary*
+ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseMethodEntry *pEntries )
+{
+    // do "class:" - define class subroutine
+    ForthClassVocabulary* pVocab = StartClassDefinition( pClassName );
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+
+#if 1
     if ( pParentClass )
     {
         // do "extends" - tie into parent class
@@ -380,17 +391,23 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
     // loop through pEntries, adding ops to builtinOps table and adding methods to class
     while ( pEntries->value != NULL )
     {
-        // add method subroutine to builtinOps table
+        const char* pMethodName = pEntries->name;
+        // add method routine to builtinOps table
+        long methodOp = AddOp( (long *) pEntries->value, kOpBuiltIn );
+        if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
+        {
+            gOpNames[mpCore->numBuiltinOps - 1] = pMethodName;
+        }
 
         // do "method:"
-        const char* pMethodName = pEntries->name;
         StartOpDefinition( pMethodName, false );
         long* pEntry = pVocab->GetNewestEntry();
         // pEntry[0] is initially the opcode for the method, now we replace it with the method index,
         //  and put the opcode in the method table
-        long methodIndex = pVocab->AddMethod( pMethodName, pEntry[0] );
+        long methodIndex = pVocab->AddMethod( pMethodName, methodOp );
         pEntry[0] = methodIndex;
-        pEntry[1] |= kDTIsMethod;
+        pEntry[1] = pEntries->returnType;
+        TRACE( "Method op is 0x%x\n", methodOp );
         // TBD: support method return values (structs or objects)
 
         // do ";method"
@@ -643,6 +660,7 @@ ForthEngine::DescribeSymbol( const char *pSymName )
 {
     long *pEntry = NULL;
     char buff[256];
+    char buff2[128];
     char c;
     int line = 1;
     bool notDone = true;
@@ -653,10 +671,19 @@ ForthEngine::DescribeSymbol( const char *pSymName )
     {
         long opType = FORTH_OP_TYPE( pEntry[0] );
         long opValue = FORTH_OP_VALUE( pEntry[0] );
+        bool isUserOp = (opType == kOpUserDef) || (opType == kOpUserDefImmediate);
         const char* pStr = GetOpTypeName( opType );
-        sprintf( buff, "%s: type %s:%x value 0x%x 0x%x \n", pSymName, pStr, opValue, pEntry[0], pEntry[1] );
+        if ( isUserOp )
+        {
+            ForthStructVocabulary::TypecodeToString( pEntry[1], buff2, sizeof(buff2) );
+            sprintf( buff, "%s: type %s:%x value 0x%x 0x%x (%s) \n", pSymName, pStr, opValue, pEntry[0], pEntry[1], buff2 );
+        }
+        else
+        {
+            sprintf( buff, "%s: type %s:%x value 0x%x 0x%x \n", pSymName, pStr, opValue, pEntry[0], pEntry[1] );
+        }
         ConsoleOut( buff );
-        if ( (opType == kOpUserDef) || (opType == kOpUserDefImmediate) )
+        if ( isUserOp )
         {
             // disassemble the op until IP reaches next newer op
             long* curIP = mpCore->userOps[ opValue ];
@@ -1056,19 +1083,23 @@ ForthEngine::GetLastInputToken( void )
 // NOTE: temporarily modifies string @pToken
 bool
 ForthEngine::ScanIntegerToken( char         *pToken,
-                               long         *pValue,
+                               long         &value,
+                               long long    &lvalue,
                                int          base,
-                               bool         &isOffset )
+                               bool         &isOffset,
+                               bool&        isSingle )
 {
-    long value, digit;
+    long digit;
     bool isNegative;
     char c;
     int digitsFound = 0;
     int len = strlen( pToken );
     char *pLastChar = pToken + (len - 1);
     char lastChar = *pLastChar;
+    bool isValid = false;
 
     isOffset = false;
+    isSingle = true;
 
     // handle leading plus or minus sign
     isNegative = (pToken[0] == '-');
@@ -1090,6 +1121,11 @@ ForthEngine::ScanIntegerToken( char         *pToken,
         *pLastChar = 0;
         isNegative = !isNegative;
     }
+    else if ( (lastChar == 'L') || (lastChar == 'l') )
+    {
+        isSingle = false;
+        *pLastChar = 0;
+    }
     else
     {
         pLastChar = NULL;
@@ -1097,61 +1133,101 @@ ForthEngine::ScanIntegerToken( char         *pToken,
 
     if ( (pToken[0] == '0') && (pToken[1] == 'x') )
     {
-        if ( sscanf( pToken + 2, "%x", &value ) == 1 )
+        if ( isSingle )
         {
-            *pValue = (isNegative) ? 0 - value : value;
-            return true;
-        }
-    }
-
-    value = 0;
-    while ( (c = *pToken++) != 0 )
-    {
-
-        if ( (c >= '0') && (c <= '9') )
-        {
-            digit = c - '0';
-            digitsFound++;
-        }
-        else if ( (c >= 'A') && (c <= 'Z') )
-        {
-            digit = 10 + (c - 'A');
-            digitsFound++;
-        }
-        else if ( (c >= 'a') && (c <= 'z') )
-        {
-            digit = 10 + (c - 'a');
-            digitsFound++;
+            if ( sscanf( pToken + 2, "%x", &value ) == 1 )
+            {
+                if ( isNegative )
+                {
+                    value = 0 - value;
+                }
+                isValid = true;
+            }
         }
         else
         {
-            // char can't be a digit
-            return false;
+            if ( sscanf( pToken + 2, "%I64x", &lvalue ) == 1 )
+            {
+                if ( isNegative )
+                {
+                    lvalue = 0 - lvalue;
+                }
+                isValid = true;
+            }
         }
-
-        if ( digit >= base )
-        {
-            // invalid digit for current base
-            return false;
-        }
-
-        value = (value * base) + digit;
     }
-
-    if ( digitsFound == 0 )
+    else
     {
-        return false;
-    }
 
-    // all chars were valid digits
-    *pValue = (isNegative) ? 0 - value : value;
+        isValid = true;
+        value = 0;
+        lvalue = 0;
+        while ( (c = *pToken++) != 0 )
+        {
+
+            if ( (c >= '0') && (c <= '9') )
+            {
+                digit = c - '0';
+                digitsFound++;
+            }
+            else if ( (c >= 'A') && (c <= 'Z') )
+            {
+                digit = 10 + (c - 'A');
+                digitsFound++;
+            }
+            else if ( (c >= 'a') && (c <= 'z') )
+            {
+                digit = 10 + (c - 'a');
+                digitsFound++;
+            }
+            else
+            {
+                // char can't be a digit
+                isValid = false;
+                break;
+            }
+
+            if ( digit >= base )
+            {
+                // invalid digit for current base
+                isValid = false;
+                break;
+            }
+            if ( isSingle )
+            {
+                value = (value * base) + digit;
+            }
+            else
+            {
+                lvalue = (lvalue * base) + digit;
+            }
+        }
+
+        if ( digitsFound == 0 )
+        {
+            isValid = false;
+        }
+
+        // all chars were valid digits
+        if ( isNegative )
+        {
+            if ( isSingle )
+            {
+                value = 0 - value;
+            }
+            else
+            {
+                lvalue = 0 - lvalue;
+            }
+        }
+    }
 
     // restore original last char
     if ( pLastChar != NULL )
     {
         *pLastChar = lastChar;
     }
-    return true;
+    return isValid;
 }
 
 
@@ -1286,6 +1362,26 @@ ForthEngine::ProcessConstant( long value, bool isOffset )
             // leave value on param stack
             *--mpCore->SP = value;
         }
+    }
+}
+
+// interpret/compile a 64-bit constant
+void
+ForthEngine::ProcessLongConstant( long long value )
+{
+    if ( mCompileState )
+    {
+        // compile the literal value
+        CompileOpcode( OP_DOUBLE_VAL );
+        long long* pDP = (long long *) mDictionary.pCurrent;
+        *pDP++ = value;
+        mDictionary.pCurrent = (long *) pDP;
+    }
+    else
+    {
+        // leave value on param stack
+        mpCore->SP -= 2;
+        *(long long *) mpCore->SP = value;
     }
 }
 
@@ -1518,6 +1614,7 @@ eForthResult
 ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 {
     long *pEntry, value;
+    long long lvalue;
     eForthResult exitStatus = kResultOk;
     float fvalue;
     double dvalue;
@@ -1743,7 +1840,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
        }
         
     }
-    else if ( ScanIntegerToken( pToken, &value, mpCore->base, isOffset ) )
+    else if ( ScanIntegerToken( pToken, value, lvalue, mpCore->base, isOffset, isSingle ) )
     {
 
         ////////////////////////////////////
@@ -1752,7 +1849,14 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         //
         ////////////////////////////////////
         SPEW_OUTER_INTERPRETER( "Integer literal %d\n", value );
-        ProcessConstant( value, isOffset );
+        if ( isSingle )
+        {
+            ProcessConstant( value, isOffset );
+        }
+        else
+        {
+            ProcessLongConstant( lvalue );
+        }
     }
     else if ( CheckFlag( kEngineFlagInEnumDefinition ) )
     {

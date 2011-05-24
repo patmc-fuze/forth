@@ -25,6 +25,12 @@ typedef struct
     long                        op;
 } ForthTypeInfo;
 
+typedef struct
+{
+    ForthClassVocabulary*       pVocab;
+    long                        newOp;
+} ForthClassObject;
+
 class ForthInterface
 {
 public:
@@ -86,6 +92,7 @@ public:
     ForthClassVocabulary*   GetNewestClass( void );
     forthBaseType           GetBaseTypeFromName( const char* typeName );
 
+    long*                   GetClassMethods();
 protected:
     // mpStructInfo points to an array with an entry for each defined structure type
     ForthTypeInfo                   *mpStructInfo;
@@ -95,6 +102,7 @@ protected:
     ForthVocabulary*                mpSavedDefinitionVocab;
     char                            mToken[ DEFAULT_INPUT_BUFFER_LEN ];
     long                            mCode[ MAX_ACCESSOR_LONGS ];
+    long*                           mpClassMethods;
 };
 
 class ForthStructVocabulary : public ForthVocabulary
@@ -116,6 +124,7 @@ public:
     virtual const char* GetType( void );
 
     virtual void        PrintEntry( long*   pEntry );
+    static void         TypecodeToString( long typeCode, char* outBuff, size_t outBuffSize );
 
     // handle invocation of a struct op - define a local/global struct or struct array, or define a field
     virtual void	    DefineInstance( void );
@@ -149,6 +158,8 @@ public:
     // handle invocation of a struct op - define a local/global struct or struct array, or define a field
     virtual void	    DefineInstance( void );
 
+    virtual void        DoOp( ForthCoreState *pCore );
+
 	bool				IsAbstract( void )		{ return mNumAbstractMethods == 0; }
 
 	long				AddMethod( const char* pName, long op );
@@ -161,6 +172,9 @@ public:
 	virtual bool		IsClass( void );
 	long				GetNumInterfaces( void );
     virtual void        Extends( ForthStructVocabulary *pParentStruct );
+    ForthClassObject*   GetClassObject( void );
+
+    virtual void        PrintEntry( long*   pEntry );
 
 protected:
 	long                        mNumMethods;
@@ -168,6 +182,7 @@ protected:
     long                        mCurrentInterface;
 	ForthClassVocabulary*       mpParentClass;
 	std::vector<ForthInterface *>	mInterfaces;
+    ForthClassObject*           mpClassObject;
 };
 
 class ForthBaseType
@@ -194,5 +209,6 @@ protected:
     forthBaseType       mBaseType;
 };
 
-extern ForthBaseType gBaseTypeByte, gBaseTypeShort, gBaseTypeInt, gBaseTypeFloat, gBaseTypeDouble, gBaseTypeString, gBaseTypeOp, gBaseTypeObject;
+extern ForthBaseType gBaseTypeByte, gBaseTypeShort, gBaseTypeInt, gBaseTypeFloat,
+        gBaseTypeDouble, gBaseTypeString, gBaseTypeOp, gBaseTypeObject, gBaseTypeLong;
 

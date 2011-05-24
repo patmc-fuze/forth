@@ -130,6 +130,308 @@ Gotchas with structure and object support:
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 22, 2011
+
++ fixed the bug where global object arrays had a redundant element size field,
+  it was a cut-and-paste error, ForthClassVocabulary::DefineInstance was cloned
+  from ForthStructVocabulary::DefineInstance, and doStructArray DOES have an
+  element byte field.
++ fixed the bug where initMemberString in turbo mode inited the string to
+  contain one garbage character
+  
+It seems that many, if not all exceptions are causing Forth to exit.
+-> the main loop was not handling the result case for kResultException, fixed.
+   I'm guessing that previously an exception set the result to kResultError.
+   
+There is a crash in turbo mode if you do CLASSNAME.new, it doesn't happen in
+non-turbo mode, and 'new CLASSNAME' works in turbo mode.
+
+: zoo object.new ;
+turbo> describe zoo
+zoo: type UserDefined:4f value 0x200004f 0xa (user defined forthop)
+  00d51520  00:000036    vocabToClass
+  00d51524  03:000000    object
+  00d51528  5b:000004    MethodWithTOS    4
+  00d5152c  00:000018    _exit
+
+Stepping through in turbo mode:
+
+12f704	02:00004f	zoo
+d51520	00:000036	vocabToClass
+d51524	03:000000	object
+d50068	00:00002e		_doClassType
+d51528	5b:000004	MethodWithTOS(4)
+d51530	cd:cdcdcd	?huh?
+
+Somehow after MethodWithTOS(4), which should be the 'new' operator, the IP has
+been incremented by 8 instead of 4.
+When we get to _methodWithTOSType, IP is d5152c, which is correct.
+At the end of _methodWithTOSType, it jumps to interpLoopExecuteEntry with
+the allocateObject opcode 1B7 in eax, it figures out that it is a builtin op,
+but that the op is only implemented in C++, so it calls extOp, which loads the
+opcode from ecx-4, so it is getting 5b000004, then it masks off the top byte,
+giving it opcode 4, so it executes the C++ version of 'lit', which advances the
+IP by 8 instead of 4 since it has an immediate argument.
+
+The problem is that extOp is grabbing its opcode from ecx-4 instead of using
+the opcode which is already in eax.  This should fail for anything which calls
+interpLoopExecuteEntry, so I'm guessing 'execute' probably has the same bug.
+
+In this particular case, ebx has a copy of the opcode we want executed, there
+must be other cases where extOp gets called and the opcode isn't in ebx.
+
+I changed extOp to take the opcode in ebx, the optype routines already were
+using ebx for the opcode, I just had to change a few spots in the inner
+interpreter to use ebx instead of eax.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 21, 2011
+
+If I execute "object.getClass" twice, the second time results in a return
+stack underflow.
+
+object.getClass  // should return the 'class' class object
+class.getClass   // should also return the 'class' class object
+
+It looks like the underflow only happens in interpret mode.
+-> The bug was caused by ForthClassVocabulary::DoOp not clearing the varOp set
+   by vocabToClass, so ForthTypesManager::ProcessSymbol was compiling a bogus varOp
+   setting op before the last field accessor
+   
+It looks like global arrays have the element length stored in a long just after
+the _doXXXArray opcode, but if you store to element 0 it overwrites it.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 16, 2011
+
+Fixed the crash, in ForthInterface::SetMethod I wasn't taking into account the
+fact that methods[0] now holds the class object pointer, so when 'class' overrode
+method 0 (delete) it actually overwrote the class object pointer.
+
+Class object stuff now seems to be working.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 15, 2011
+
+While looking at supporting CLASSNAME.METHOD, I noticed a few things in
+ForthTypesManager::ProcessSymbol:
+- the section for handling when the first token is a pointer/array is ifdefed
+  out, there is code which handles the pointer-to-object case
++ the handling for the case where the preceeding opcode was a varop setter
+  should be changed to move the varop to just before the last op, not just
+  after the first op
++ the vocabulary entries for methods don't have a way for a method to return nothing
+
+At the end of the day, the class object was mostly working, but there is a
+crash if you do this:
+
+object.new -> object foo   foo.getClass.show
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 14, 2011
+
+My current thinking on class objects and new:
+
+Each class will not have a 'new' method, the class object for each class will
+have a newOp member variable which holds the 'new' forthop for that class.  The class.new
+method will just invoke the classes newOp member.
+
+The syntax for object creation will be:
+
+new CLASS_NAME
+OBJ.getClass.new
+CLASS_OBJECT.new
+
++ when a class vocabulary is created, it will create a class object, and there
+  will be a pointer to the class object in the class vocabulary
++ class vocabulary destructor will delete class object
++ the class object will have:
+  o a pointer to the class vocabulary
+  o the new operator
++ there will be a class.setNew method
++ there will be a class.new method
++ the header field of each interface will point to the class object
++ there will be a default new forthop _allocObject, which will take a class vocabulary
+  pointer, will use the class vocabulary to get the storage length, will
+  malloc storage of that size, and will push the allocated storage address
++ the 'new' forthop will need to be implemented
++ all 'class' methods will have to be changed, since 'this' data pointer is
+  no longer the class vocabulary pointer
+
+When I tested this, there was a crash in 'implements:' because it was creating
+an interface, but wasn't passing the class vocabulary to the interface constructor,
+and now the interface constructor uses the class vocabulary to get the class
+object since it stores the class object pointer in the methods table header.
+I don't know if there are things which rely on non-primary interfaces having
+a null defining class.
+
+Bugs that came up during testing:
++ there was a slight difference between the text output of classtest.txt in
+  turbo and regular mode
+  -> classtest.txt prints out an uninitialized string variable
+- classtest.txt had an error message complaining about structs not having
+  the expected size - this may not be a new error
+- classes are not automatically derived from 'object'
+- the predefined classes & methods don't have the correct return types
++ CLASS_OBJECT.new does not work
+  ? is CLASS_OBJECT.METHOD needed
+  - this will need to work in both interpret and compile mode
+
+CLASS_OBJECT.METHOD doesn't work because the op which has the class name
+symbol is the op which defines an instance of the class.  There is no op
+defined which returns the class object like a global variable.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 13, 2011
+
+I added return types to builtin-class methods.
+I have currently defined the 'new' and 'getInterface' methods to methods of
+'class', I probably have to rethink that.  My thinking is that 'new' shouldn't
+be in the methods table, because you would never call .new on an instance of
+an object, and you need to call .new before you have any instances of an object.
+Maybe 'new' is not a regular method at all, it is an op that is part of the
+class object - this would argue for having a class-object that is separate
+from the class vocabulary
+
+The good thing about the current arrangement is that for a large number of
+classes the existing class methods would be fine, but it won't work for all
+classes.  The 'class' class methods should be universal:
+  getName
+  getSuper
+  getVocabulary
+  
+class.new really doesn't belong there.
+class.getInterface also isn't universal, a type might want to return a
+different data pointer for different interfaces.
+I really need to think about what gets compiled for the 'new' method.
+To have a generic constructor, it needs access to either the class vocabulary
+or some class object, or at the very least the object storage size.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 11, 2011
+
+I added most of what is needed to have predefined 'object' and 'class' classes.
+What remains:
+1) Make ForthTypesManager::ProcessSymbol handle the CLASSNAME.CLASSMETHOD case
+2) Change ForthTypesManager::AddBuiltinClasses to define the return types of
+   the predefined class methods
+? Is there a chicken-and-egg problem here - object.getClass method needs to
+  be defined to return an object of type 'class', but class.getInterface needs
+  to return an object of type 'object'
+  -> not a problem if we predefine the classIndices for all builtin classes
+  
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 10, 2011
+
+I need to document how to implement methods in assembler.  I think that all
+that is necessary is to pop TPD & TPM off the return stack.
+
+Can non-public methods be coded to not push/pop this?
+
+What is created in memory when a class is created?
+
+'class' op compiles (also done by ForthEngine::AddBuiltinClass)
+  0  _doClassType opcode
+  1  ptr to vocabulary for class
+
+In order to add the 'class' type, I need to provide some way to get to the
+class vocabulary or class object from an object.  The only thing an object
+reference has currently that connects it to its class is the method table pointer.
+I'm thinking that the way to do this is to put either the class vocab pointer
+or the class object pointer into the method table, or maybe just preceeding it.
+
+What exactly is a class object?  Is there any reason that the data pointer
+for it shouldn't just be the vocabulary pointer?
+If the class/object system was separated from the forth vocabulary implementation
+it might make it easier to implement/extend more of it outside the C++ kernel.
+
+What does class.getClass do?
+
+What are the forth objects that exist at startup?
+  'object' class object
+  'class' class object?
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 8, 2011
+
+I added the 64-bit comparison operators as well as lmod and l/mod.
+If I ever decide to do assembler versions of the 64-bit ops, there are asm
+version of multiply & divide in MS Visual Studio 2003/vc7/crt/src/intel
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 6, 2011
+
+I added partial support for 64-bit integers:
+
+o I added 64-bit literals to outer interpreter, add 'L' or 'l' to end of an
+  integer literal to make it 64-bit
+o I added 64-bit ops:
+  l+ l- l* l/ i2l f2l d2l l2f l2d %lld %llx
+o I added the 'long' datatype
+
+: test10s  1 -> int v  30 0 do v 10 * -> v v %d %nl loop ;
+: test10l 1l -> long v 30 0 do v 10l l* -> v v %lld %nl loop ;
+
+Not done:
+o comparison operators (needed)
+o offset operators like 1+L (not needed)
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 20, 2011
+
+Document these ops:
+  class:  ;class
+  method:  ;method
+  returns
+  doMethod
+  implements:  ;implements
+  union
+  extends
+  sizeOf   offsetOf
+  new
+  initMemberString
+
+I'm thinking that methods which you want all objects to handle should be done
+by adding a single method 'process', which takes:
+ 1) interface index
+ 2) method index
+ 3) arguments (should there be an argument count on TOS?)
+
+Methods which all objects must support would be made a part of the 'common'
+interface, and would include things like:
+o get interface
+o serialize
+o convert to string
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 12, 2010
+
+Back looking at class stuff.  I am currently thinking about how to implement
+class objects.  Class objects would have methods that you would want to apply
+to all objects, like construction/destruction, object display, parent class,
+class name.  Generic container class implementation could be simplified if
+certain operations could be handled using the same method in all classes.
+It would also avoid having duplicate names for class methods in every class.
+
+I think there is a name collision - "object" is both a builtin generic object
+instance defining op (like "int" or "float"), it is also a class vocabulary.
+-> it looks like the one in forthops is redundant and is never called, I commented it out
+
+How things work as of today:
+
+---
+class: CLASSNAME
+o defines a class vocabulary
+o compiles:
+  _doClassType
+  <ptr to class vocabulary just defined>
+  
+When executed, _doClassType calls pClassVocab->DefineInstance, which normally
+just defines a global/local variable or a field with this class type.
+NOTE: this does NOT create an instance of this type, it just creates a
+ methods/data pointer pair which are initialized to NULL
+ 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 7, 2010
 
 I added 2 things:

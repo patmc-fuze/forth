@@ -68,9 +68,11 @@ func:
 ;
 ; extOp is used by "builtin" ops which are only defined in C++
 ;
+;	ebx holds the opcode
+;
 entry extOp
-	; fetch the opcode which was just dispatched, use its low 24-bits as index into builtinOps table of ops defined in C/C++
-	mov	eax, [ecx-4]
+	; ebx holds the opcode which was just dispatched, use its low 24-bits as index into builtinOps table of ops defined in C/C++
+	mov	eax, ebx
 	and	eax, 00FFFFFFh
 	mov	ebx, [ebp].FCore.builtinOps
 	mov	eax, [ebx+eax*4]				; eax is C routine to dispatch to
@@ -178,14 +180,14 @@ entry interpFunc
 	mov	edi, interpLoop
 
 entry interpLoop
-	mov	eax, [ecx]		; eax is opcode
+	mov	ebx, [ecx]		; eax is opcode
 	add	ecx, 4			; advance IP
-	; interpLoopExecuteEntry is entry for executeBop - expects opcode in eax
+	; interpLoopExecuteEntry is entry for executeBop - expects opcode in ebx
 PUBLIC	interpLoopExecuteEntry
 interpLoopExecuteEntry:
-	cmp	eax, [ebp].FCore.numAsmBuiltinOps
+	cmp	ebx, [ebp].FCore.numAsmBuiltinOps
 	jge	notBuiltin
-	mov	eax, opsTable[eax*4]
+	mov	eax, opsTable[ebx*4]
 	jmp	eax
 
 PUBLIC	interpLoopExit
@@ -225,10 +227,10 @@ interpLoopFatalErrorExit:
 	mov	eax, kResultFatalError
 	jmp	interpLoopExit
 	
-; op is not a builtin, dispatch through optype table
+; op (in ebx) is not a builtin, dispatch through optype table
 PUBLIC notBuiltin
 notBuiltin:
-	mov	ebx, eax			; leave full opcode in ebx
+	mov	eax, ebx			; leave full opcode in ebx
 	shr	eax, 24			; eax is 8-bit optype
 	mov	eax, opTypesTable[eax*4]
 	jmp	eax
@@ -1394,7 +1396,7 @@ opEntry:
 	jnz	localOp1
 	; execute local op
 localOpExecute:
-	mov	eax, [eax]
+	mov	ebx, [eax]
 	jmp	interpLoopExecuteEntry
 
 
@@ -1461,6 +1463,143 @@ entry memberOpArrayType
 	and	ebx, 00FFFFFFh
 	add	eax, ebx		; add in field offset
 	jmp	opEntry
+	
+;-----------------------------------------------
+;
+; local long (int64) ops
+;
+entry localLongType
+	; get ptr to long var into eax
+	mov	eax, [ebp].FCore.FPtr
+	and	ebx, 00FFFFFFh
+	sal	ebx, 2
+	sub	eax, ebx
+	; see if it is a fetch
+longEntry:
+	mov	ebx, [ebp].FCore.varMode
+	or	ebx, ebx
+	jnz	localLong1
+	; fetch local double
+localLongFetch:
+	sub	edx, 8
+	mov	ebx, [eax]
+	mov	[edx], ebx
+	mov	ebx, [eax+4]
+	mov	[edx+4], ebx
+	jmp	edi
+
+localLongRef:
+	sub	edx, 4
+	mov	[edx], eax
+	; set var operation back to fetch
+	xor	eax, eax
+	mov	[ebp].FCore.varMode, eax
+	jmp	edi
+	
+localLongStore:
+	mov	ebx, [edx]
+	mov	[eax], ebx
+	mov	ebx, [edx+4]
+	mov	[eax+4], ebx
+	add	edx, 8
+	; set var operation back to fetch
+	xor	eax, eax
+	mov	[ebp].FCore.varMode, eax
+	jmp	edi
+
+localLongPlusStore:
+	mov	ebx, [eax]
+	add	ebx, [edx]
+	mov	[eax], ebx
+	mov	ebx, [eax+4]
+	adc	ebx, [edx+4]
+	mov	[eax+4], ebx
+	; set var operation back to fetch
+	xor	ebx, ebx
+	mov	[ebp].FCore.varMode, ebx
+	add	edx, 8
+	jmp	edi
+
+localLongMinusStore:
+	mov	ebx, [eax]
+	sub	ebx, [edx]
+	mov	[eax], ebx
+	mov	ebx, [eax+4]
+	sbb	ebx, [edx+4]
+	mov	[eax+4], ebx
+	; set var operation back to fetch
+	xor	ebx, ebx
+	mov	[ebp].FCore.varMode, ebx
+	add	edx, 8
+	jmp	edi
+
+localLongActionTable:
+	DD	FLAT:localLongFetch
+	DD	FLAT:localLongFetch
+	DD	FLAT:localLongRef
+	DD	FLAT:localLongStore
+	DD	FLAT:localLongPlusStore
+	DD	FLAT:localLongMinusStore
+
+localLong1:
+	cmp	ebx, kVarMinusStore
+	jg	badVarOperation
+	; dispatch based on value in ebx
+	mov	ebx, DWORD PTR localLongActionTable[ebx*4]
+	jmp	ebx
+
+entry fieldLongType
+	; get ptr to double var into eax
+	; TOS is base ptr, ebx is field offset in bytes
+	mov	eax, [edx]
+	add	edx, 4
+	and	ebx, 00FFFFFFh
+	add	eax, ebx
+	jmp	longEntry
+
+entry memberLongType
+	; get ptr to double var into eax
+	; this data ptr is base ptr, ebx is field offset in bytes
+	mov	eax, [ebp].FCore.TDPtr
+	and	ebx, 00FFFFFFh
+	add	eax, ebx
+	jmp	longEntry
+
+entry localLongArrayType
+	; get ptr to double var into eax
+	mov	eax, [ebp].FCore.FPtr
+	and	ebx, 00FFFFFFh
+	sal	ebx, 2
+	sub	eax, ebx
+	mov	ebx, [edx]		; add in array index on TOS
+	add	edx, 4
+	sal	ebx, 3
+	add	eax, ebx
+	jmp longEntry
+
+entry fieldLongArrayType
+	; get ptr to double var into eax
+	; TOS is struct base ptr, NOS is index
+	; ebx is field offset in bytes
+	mov	eax, [edx+4]	; eax = index
+	sal	eax, 3
+	add	eax, [edx]		; add in struct base ptr
+	add	edx, 8
+	and	ebx, 00FFFFFFh
+	add	eax, ebx		; add in field offset
+	jmp	longEntry
+
+entry memberLongArrayType
+	; get ptr to short var into eax
+	; this data ptr is base ptr, TOS is index
+	; ebx is field offset in bytes
+	mov	eax, [edx]	; eax = index
+	sal	eax, 3
+	add	eax, [ebp].FCore.TDPtr
+	add	edx, 4
+	and	ebx, 00FFFFFFh
+	add	eax, ebx		; add in field offset
+	jmp	longEntry
 	
 ;-----------------------------------------------
 ;
@@ -1591,7 +1730,7 @@ entry methodWithThisType
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	add	ebx, eax
-	mov	eax, [ebx]	; eax = method opcode
+	mov	ebx, [ebx]	; ebx = method opcode
 	jmp	interpLoopExecuteEntry
 	
 ; invoke a method on an object referenced by ptr pair on TOS
@@ -1616,7 +1755,7 @@ entry methodWithTOSType
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	add	ebx, eax
-	mov	eax, [ebx]	; eax = method opcode
+	mov	ebx, [ebx]	; ebx = method opcode
 	add	edx, 8
 	jmp	interpLoopExecuteEntry
 	
@@ -1636,7 +1775,7 @@ entry initMemberStringType
 	mov	[esi], ebx						; set max length
 	xor	eax, eax
 	mov	[esi+4], eax					; set current length to 0
-	mov	[esi+9], al						; add terminating null
+	mov	[esi+8], al						; add terminating null
 	jmp	edi
 
 ;-----------------------------------------------
@@ -1882,6 +2021,40 @@ entry doOpArrayBop
 	add	ebx, 4
 	mov	[ebp].FCore.RPtr, ebx
 	jmp	opEntry
+
+;-----------------------------------------------
+;
+; doLongOp is compiled as the first op in global int64 vars
+; the data field is immediately after this op
+;
+entry doLongBop
+	; get ptr to double var into eax
+	mov	eax, ecx
+	; pop rstack
+	mov	ebx, [ebp].FCore.RPtr
+	mov	ecx, [ebx]
+	add	ebx, 4
+	mov	[ebp].FCore.RPtr, ebx
+	jmp	longEntry
+
+;-----------------------------------------------
+;
+; doLongArrayOp is compiled as the first op in global int64 arrays
+; the data array is immediately after this op
+;
+entry doLongArrayBop
+	; get ptr to double var into eax
+	mov	eax, ecx
+	mov	ebx, [edx]		; ebx = array index
+	add	edx, 4
+	sal	ebx, 3
+	add	eax, ebx	
+	; pop rstack
+	mov	ebx, [ebp].FCore.RPtr
+	mov	ecx, [ebx]
+	add	ebx, 4
+	mov	[ebp].FCore.RPtr, ebx
+	jmp	longEntry
 
 ;-----------------------------------------------
 ;
@@ -2881,6 +3054,54 @@ entry dfmodBop
 	jmp	edi
 	
 ;========================================
+	
+entry lplusBop
+	mov	ebx, [edx+4]
+	mov	eax, [edx]
+	add	edx, 8
+	add	ebx, [edx+4]
+	adc	eax, [edx]
+	mov	[edx+4], ebx
+	mov	[edx], eax
+	jmp	edi
+	
+;========================================
+	
+entry lminusBop
+	mov	ebx, [edx+12]
+	mov	eax, [edx+8]
+	sub	ebx, [edx+4]
+	sbb	eax, [edx]
+	add	edx, 8
+	mov	[edx+4], ebx
+	mov	[edx], eax
+	jmp	edi
+	
+;========================================
+	
+entry ltimesBop
+	fld	QWORD PTR [edx+8]
+	fmul	QWORD PTR [edx]
+	add	edx,8
+	; set var operation back to fetch
+	xor	ebx, ebx
+	mov	[ebp].FCore.varMode, ebx
+	fstp	QWORD PTR [edx]
+	jmp	edi
+	
+;========================================
+	
+entry ldivideBop
+	fld	QWORD PTR [edx+8]
+	fdiv	QWORD PTR [edx]
+	add	edx,8
+	; set var operation back to fetch
+	xor	ebx, ebx
+	mov	[ebp].FCore.varMode, ebx
+	fstp	QWORD PTR [edx]
+	jmp	edi
+	
+;========================================
 
 entry i2fBop
 	fild	DWORD PTR [edx]
@@ -3857,6 +4078,13 @@ entry numEntriesBop
 	
 ;========================================
 
+entry vocabToClassBop
+	mov	eax, kVocabGetClass
+	mov	[ebp].FCore.varMode, eax
+	jmp	edi
+	
+;========================================
+
 entry setVarActionBop
    mov   eax, [edx]
    add   edx, 4
@@ -4249,7 +4477,7 @@ entry thisMethodsBop
 ;========================================
 
 entry executeBop
-	mov	eax, [edx]
+	mov	ebx, [edx]
 	add	edx, 4
 	jmp	interpLoopExecuteEntry
 	
@@ -4820,6 +5048,7 @@ opsTable:
 	DD	FLAT:doDoubleBop
 	DD	FLAT:doStringBop
 	DD	FLAT:doOpBop
+	DD	FLAT:doLongBop
 	DD	FLAT:doObjectBop
 	DD	FLAT:addressOfBop
 	DD	FLAT:intoBop
@@ -4836,6 +5065,7 @@ opsTable:
 	DD	FLAT:doFloatArrayBop
 	DD	FLAT:doDoubleArrayBop
 	DD	FLAT:doStringArrayBop
+	DD	FLAT:doLongArrayBop
 	DD	FLAT:doOpArrayBop
 	DD	FLAT:doObjectArrayBop
 	DD	FLAT:initStringBop
@@ -4853,6 +5083,8 @@ opsTable:
 	DD	FLAT:doLoopNBop
 	DD	FLAT:extOp					; doNewBop
 	DD	FLAT:dfetchBop
+	DD	FLAT:extOp					; allocObjectBop
+	DD	FLAT:vocabToClassBop
 
 	;	
     ; stuff below this line can be rearranged
@@ -4958,6 +5190,12 @@ opsTable:
 	DD	FLAT:dfrexpBop
 	DD	FLAT:dmodfBop
 	DD	FLAT:dfmodBop
+	
+	; long math (64-bit integer
+	;DD	FLAT:lplusBop
+	;DD	FLAT:lminusBop
+	;DD	FLAT:ltimesBop
+	;DD	FLAT:ldivideBop
 	
 	; int/float/double conversions
 	DD	FLAT:i2fBop

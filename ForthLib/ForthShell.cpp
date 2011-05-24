@@ -203,6 +203,7 @@ ForthShell::Run( ForthInputStream *pInStream )
                 break;
 
             case kResultError:
+            case kResultException:
                 // an error has occured, empty input stream stack
                 // TBD
                 if ( !bInteractiveMode )

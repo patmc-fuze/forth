@@ -143,6 +143,7 @@ typedef enum {
     kVocabRemoveEntry,
     kVocabEntryLength,
     kVocabNumEntries,
+    kVocabGetClass,
 } vocabOperation;
 
 #define DEFAULT_INPUT_BUFFER_LEN   1024
@@ -237,39 +238,43 @@ class ForthThread;
 #define OP_DO_DOUBLE            BUILTIN_OP(15)
 #define OP_DO_STRING            BUILTIN_OP(16)
 #define OP_DO_OP                BUILTIN_OP(17)
-#define OP_DO_OBJECT            BUILTIN_OP(18)
-#define OP_ADDRESS_OF           BUILTIN_OP(19)
-#define OP_INTO                 BUILTIN_OP(20)
-#define OP_INTO_PLUS            BUILTIN_OP(21)
-#define OP_INTO_MINUS           BUILTIN_OP(22)
-#define OP_DO_EXIT              BUILTIN_OP(23)
-#define OP_DO_EXIT_L            BUILTIN_OP(24)
-#define OP_DO_EXIT_M            BUILTIN_OP(25)
-#define OP_DO_EXIT_ML           BUILTIN_OP(26)
-#define OP_DO_VOCAB             BUILTIN_OP(27)
-#define OP_DO_BYTE_ARRAY        BUILTIN_OP(28)
-#define OP_DO_SHORT_ARRAY       BUILTIN_OP(29)
-#define OP_DO_INT_ARRAY         BUILTIN_OP(30)
-#define OP_DO_FLOAT_ARRAY       BUILTIN_OP(31)
-#define OP_DO_DOUBLE_ARRAY      BUILTIN_OP(32)
-#define OP_DO_STRING_ARRAY      BUILTIN_OP(33)
-#define OP_DO_OP_ARRAY          BUILTIN_OP(34)
-#define OP_DO_OBJECT_ARRAY      BUILTIN_OP(35)
-#define OP_INIT_STRING          BUILTIN_OP(36)
-#define OP_INIT_STRING_ARRAY    BUILTIN_OP(37)
-#define OP_PLUS                 BUILTIN_OP(38)
-#define OP_FETCH                BUILTIN_OP(39)
-#define OP_BAD_OP               BUILTIN_OP(40)
-#define OP_DO_STRUCT            BUILTIN_OP(41)
-#define OP_DO_STRUCT_ARRAY      BUILTIN_OP(42)
-#define OP_DO_STRUCT_TYPE       BUILTIN_OP(43)
-#define OP_DO_CLASS_TYPE        BUILTIN_OP(44)
-#define OP_DO_ENUM              BUILTIN_OP(45)
-#define OP_DO_DO                BUILTIN_OP(46)
-#define OP_DO_LOOP              BUILTIN_OP(47)
-#define OP_DO_LOOPN             BUILTIN_OP(48)
-#define OP_DO_NEW               BUILTIN_OP(49)
-#define OP_DFETCH               BUILTIN_OP(50)
+#define OP_DO_LONG              BUILTIN_OP(18)
+#define OP_DO_OBJECT            BUILTIN_OP(19)
+#define OP_ADDRESS_OF           BUILTIN_OP(20)
+#define OP_INTO                 BUILTIN_OP(21)
+#define OP_INTO_PLUS            BUILTIN_OP(22)
+#define OP_INTO_MINUS           BUILTIN_OP(23)
+#define OP_DO_EXIT              BUILTIN_OP(24)
+#define OP_DO_EXIT_L            BUILTIN_OP(25)
+#define OP_DO_EXIT_M            BUILTIN_OP(26)
+#define OP_DO_EXIT_ML           BUILTIN_OP(27)
+#define OP_DO_VOCAB             BUILTIN_OP(28)
+#define OP_DO_BYTE_ARRAY        BUILTIN_OP(29)
+#define OP_DO_SHORT_ARRAY       BUILTIN_OP(30)
+#define OP_DO_INT_ARRAY         BUILTIN_OP(31)
+#define OP_DO_FLOAT_ARRAY       BUILTIN_OP(32)
+#define OP_DO_DOUBLE_ARRAY      BUILTIN_OP(33)
+#define OP_DO_STRING_ARRAY      BUILTIN_OP(34)
+#define OP_DO_OP_ARRAY          BUILTIN_OP(35)
+#define OP_DO_LONG_ARRAY        BUILTIN_OP(36)
+#define OP_DO_OBJECT_ARRAY      BUILTIN_OP(37)
+#define OP_INIT_STRING          BUILTIN_OP(38)
+#define OP_INIT_STRING_ARRAY    BUILTIN_OP(39)
+#define OP_PLUS                 BUILTIN_OP(40)
+#define OP_FETCH                BUILTIN_OP(41)
+#define OP_BAD_OP               BUILTIN_OP(42)
+#define OP_DO_STRUCT            BUILTIN_OP(43)
+#define OP_DO_STRUCT_ARRAY      BUILTIN_OP(44)
+#define OP_DO_STRUCT_TYPE       BUILTIN_OP(45)
+#define OP_DO_CLASS_TYPE        BUILTIN_OP(46)
+#define OP_DO_ENUM              BUILTIN_OP(47)
+#define OP_DO_DO                BUILTIN_OP(48)
+#define OP_DO_LOOP              BUILTIN_OP(49)
+#define OP_DO_LOOPN             BUILTIN_OP(50)
+#define OP_DO_NEW               BUILTIN_OP(51)
+#define OP_DFETCH               BUILTIN_OP(52)
+#define OP_ALLOC_OBJECT         BUILTIN_OP(53)
+#define OP_VOCAB_TO_CLASS       BUILTIN_OP(54)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct
@@ -290,6 +295,7 @@ typedef struct
 {
     const char      *name;
     ulong           value;
+    ulong           returnType;
 } baseMethodEntry;
 
 
@@ -384,19 +390,21 @@ typedef struct
 //  as well as the order of actual opcodes used to implement native types (OP_DO_INT, OP_DO_FLOAT, OP_DO_INT_ARRAY, ...)
 typedef enum
 {
-    kBaseTypeByte,
-    kBaseTypeShort,
-    kBaseTypeInt,
-    kBaseTypeFloat,
-    kBaseTypeDouble,
-    kBaseTypeString,
-    kBaseTypeOp,
+    kBaseTypeByte,          // 0 - byte
+    kBaseTypeShort,         // 1 - short
+    kBaseTypeInt,           // 2 - int
+    kBaseTypeFloat,         // 3 - float
+    kBaseTypeDouble,        // 4 - double
+    kBaseTypeString,        // 5 - string
+    kBaseTypeOp,            // 6 - op
+    kBaseTypeLong,          // 7 - long
     kNumNativeTypes,
-    kBaseTypeObject = kNumNativeTypes,
-    kBaseTypeStruct,
-    kBaseTypeUserDefinition,
+    kBaseTypeObject = kNumNativeTypes,      // 8 - object
+    kBaseTypeStruct,                        // 9 - struct
+    kBaseTypeUserDefinition,                // 10 - user defined forthop
+    kBaseTypeVoid,
     kNumBaseTypes,
-    kBaseTypeUnknown = kNumBaseTypes
+    kBaseTypeUnknown = kNumBaseTypes,
 } forthBaseType;
 
 typedef enum

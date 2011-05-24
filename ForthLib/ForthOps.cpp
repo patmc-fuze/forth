@@ -394,6 +394,192 @@ FORTHOP( dfmodOp )
     DPUSH( fmod( a, b ) );
 }
 
+FORTHOP( lplusOp )
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    LPUSH( a + b );
+}
+
+FORTHOP( lminusOp )
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    LPUSH( a - b );
+}
+
+FORTHOP( ltimesOp )
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    LPUSH( a * b );
+}
+
+FORTHOP( ldivideOp )
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    LPUSH( a / b );
+}
+
+FORTHOP( lmodOp )
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    LPUSH( a % b );
+}
+
+FORTHOP( ldivmodOp )
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    LPUSH( a / b );
+    LPUSH( a % b );
+}
+
+FORTHOP( lnegateOp )
+{
+    NEEDS(2);
+    long long a = LPOP;
+    LPUSH( -a );
+}
+
+//##############################
+//
+// double-precision fp comparison ops
+//
+
+FORTHOP(lEqualsOp)
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    SPUSH( ( a == b ) ? -1L : 0 );
+}
+
+FORTHOP(lNotEqualsOp)
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    SPUSH( ( a != b ) ? -1L : 0 );
+}
+
+FORTHOP(lGreaterThanOp)
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    SPUSH( ( a > b ) ? -1L : 0 );
+}
+
+FORTHOP(lGreaterEqualsOp)
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    SPUSH( ( a >= b ) ? -1L : 0 );
+}
+
+FORTHOP(lLessThanOp)
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    SPUSH( ( a < b ) ? -1L : 0 );
+}
+
+FORTHOP(lLessEqualsOp)
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    SPUSH( ( a <= b ) ? -1L : 0 );
+}
+
+FORTHOP(lEqualsZeroOp)
+{
+    NEEDS(2);
+    long long a = LPOP;
+    SPUSH( ( a == 0 ) ? -1L : 0 );
+}
+
+FORTHOP(lNotEqualsZeroOp)
+{
+    NEEDS(2);
+    long long a = LPOP;
+    SPUSH( ( a != 0 ) ? -1L : 0 );
+}
+
+FORTHOP(lGreaterThanZeroOp)
+{
+    NEEDS(2);
+    long long a = LPOP;
+    SPUSH( ( a > 0 ) ? -1L : 0 );
+}
+
+FORTHOP(lGreaterEqualsZeroOp)
+{
+    NEEDS(2);
+    long long a = LPOP;
+    SPUSH( ( a >= 0 ) ? -1L : 0 );
+}
+
+FORTHOP(lLessThanZeroOp)
+{
+    NEEDS(2);
+    long long a = LPOP;
+    SPUSH( ( a < 0 ) ? -1L : 0 );
+}
+
+FORTHOP(lLessEqualsZeroOp)
+{
+    NEEDS(2);
+    long long a = LPOP;
+    SPUSH( ( a <= 0 ) ? -1L : 0 );
+}
+
+FORTHOP(lWithinOp)
+{
+    NEEDS(3);
+    long long hiLimit = LPOP;
+    long long loLimit = LPOP;
+    long long val = LPOP;
+    SPUSH( ( (loLimit <= val) && (val < hiLimit) ) ? -1L : 0 );
+}
+
+FORTHOP(lMinOp)
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    LPUSH( ( a < b ) ? a : b );
+}
+
+FORTHOP(lMaxOp)
+{
+    NEEDS(4);
+    long long b = LPOP;
+    long long a = LPOP;
+    LPUSH( ( a > b ) ? a : b );
+}
+
+
+
+FORTHOP( i2lOp )
+{
+    NEEDS(1);
+    int a = SPOP;
+    long long b = (long long) a;
+    LPUSH( b );
+}
+
 FORTHOP( i2fOp )
 {
     NEEDS(1);
@@ -407,11 +593,36 @@ FORTHOP( i2dOp )
     double a = SPOP;
     DPUSH( a );
 }
+
+FORTHOP( l2fOp )
+{
+    NEEDS(1);
+    long long a = LPOP;
+    float b = (float) a;
+    FPUSH( b );
+}
+
+FORTHOP( l2dOp )
+{
+    NEEDS(1);
+    long long a = LPOP;
+    double b = (double) a;
+    DPUSH( b );
+}
+
 FORTHOP( f2iOp )
 {
     NEEDS(1);
     int a = (int) FPOP;
     SPUSH( a );
+}
+
+FORTHOP( f2lOp )
+{
+    NEEDS(1);
+    float a = FPOP;
+    long long b = (long long) a;
+    LPUSH( b );
 }
 
 FORTHOP( f2dOp )
@@ -428,6 +639,13 @@ FORTHOP( d2iOp )
     SPUSH( a );
 }
 
+FORTHOP( d2lOp )
+{
+    NEEDS(2);
+    double a = DPOP;
+    long long b = (long long) a;
+    LPUSH( b );
+}
 
 FORTHOP( d2fOp )
 {
@@ -1235,7 +1453,7 @@ FORTHOP(fMaxOp)
 
 //##############################
 //
-// single-precision fp comparison ops
+// double-precision fp comparison ops
 //
 
 FORTHOP(dEqualsOp)
@@ -1776,6 +1994,11 @@ FORTHOP( numEntriesOp )
     SET_VAR_OPERATION( kVocabNumEntries );
 }
 
+FORTHOP( vocabToClassOp )
+{
+    SET_VAR_OPERATION( kVocabGetClass );
+}
+
 FORTHOP(setVarActionOp)
 {
     SET_VAR_OPERATION( SPOP );
@@ -2304,6 +2527,12 @@ FORTHOP( intOp )
 	gBaseTypeInt.DefineInstance( GET_ENGINE, &val );
 }
 
+FORTHOP( longOp )
+{
+    long long val = 0;
+	gBaseTypeLong.DefineInstance( GET_ENGINE, &val );
+}
+
 FORTHOP( floatOp )
 {
     float val = 0.0;
@@ -2393,11 +2622,7 @@ FORTHOP( endstructOp )
 FORTHOP( classOp )
 {
     ForthEngine* pEngine = GET_ENGINE;
-    pEngine->SetFlag( kEngineFlagInStructDefinition );
-    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
-    ForthClassVocabulary* pVocab = pManager->StartClassDefinition( pEngine->GetNextSimpleToken() );
-    pEngine->CompileOpcode( OP_DO_CLASS_TYPE );
-    pEngine->CompileLong( (long) pVocab );
+    pEngine->StartClassDefinition( pEngine->GetNextSimpleToken() );
 }
 
 FORTHOP( endclassOp )
@@ -2692,19 +2917,8 @@ FORTHOP( newOp )
             }
             else
             {
-                ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
-                if ( pPrimaryInterface )
-                {
-                    long nBytes = pClassVocab->GetSize();
-                    void* pData = malloc( nBytes );
-                    SPUSH( (long) pData );
-                    SPUSH( (long) (pPrimaryInterface->GetMethods()) );
-                }
-                else
-                {
-                    pEngine->AddErrorText( pSym );
-                    pEngine->SetError( kForthErrorBadParameter, " failure in new - has no primary interface" );
-                }
+                SPUSH( (long) pClassVocab );
+                pEngine->ExecuteOneOp( pClassVocab->GetClassObject()->newOp );
             }
         }
         else
@@ -2723,7 +2937,14 @@ FORTHOP( doNewOp )
 {
     // IP points to data field
     ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (*pCore->IP++);
+    SPUSH( (long) pClassVocab );
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->ExecuteOneOp( pClassVocab->GetClassObject()->newOp );
+}
 
+FORTHOP( allocObjectOp )
+{
+    ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
     ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
     if ( pPrimaryInterface )
     {
@@ -2815,7 +3036,15 @@ FORTHOP( doClassTypeOp )
 {
     // IP points to data field
     ForthClassVocabulary *pVocab = (ForthClassVocabulary *) (*GET_IP);
-    pVocab->DefineInstance();
+    if ( GET_VAR_OPERATION == kVocabGetClass )
+    {
+        // this is invoked at runtime when code explicitly invokes methods on class objects (IE CLASSNAME.new)
+        pVocab->DoOp( pCore );
+    }
+    else
+    {
+        pVocab->DefineInstance();
+    }
     SET_IP( (long *) (RPOP) );
 }
 
@@ -3194,6 +3423,34 @@ FORTHOP( printNumHexOp )
 
     long val = SPOP;
     sprintf( buff, "%x", val );
+#ifdef TRACE_PRINTS
+    SPEW_PRINTS( "printed %s\n", buff );
+#endif
+
+    CONSOLE_STRING_OUT( buff );
+}
+
+FORTHOP( printLongDecimalOp )
+{
+    NEEDS(2);
+    char buff[40];
+
+    long long val = LPOP;
+    sprintf( buff, "%I64d", val );
+#ifdef TRACE_PRINTS
+    SPEW_PRINTS( "printed %s\n", buff );
+#endif
+
+    CONSOLE_STRING_OUT( buff );
+}
+
+FORTHOP( printLongHexOp )
+{
+    NEEDS(1);
+    char buff[20];
+
+    long long val = LPOP;
+    sprintf( buff, "%I64x", val );
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -4176,6 +4433,7 @@ extern GFORTHOP( doFloatOp );
 extern GFORTHOP( doDoubleOp );
 extern GFORTHOP( doStringOp );
 extern GFORTHOP( doOpOp );
+extern GFORTHOP( doLongOp );
 extern GFORTHOP( doObjectOp );
 extern GFORTHOP( doByteArrayOp );
 extern GFORTHOP( doShortArrayOp );
@@ -4185,6 +4443,7 @@ extern GFORTHOP( doFloatArrayOp );
 extern GFORTHOP( doDoubleArrayOp );
 extern GFORTHOP( doStringArrayOp );
 extern GFORTHOP( doOpArrayOp );
+extern GFORTHOP( doLongArrayOp );
 extern GFORTHOP( doObjectArrayOp );
 
 baseDictionaryEntry baseDictionary[] =
@@ -4210,6 +4469,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    doFloatOp,              "_doFloat" ),
     OP_DEF(    doDoubleOp,             "_doDouble" ),
     OP_DEF(    doStringOp,             "_doString" ),
+    OP_DEF(    doLongOp,               "_doLong" ),
     OP_DEF(    doOpOp,                 "_doOp" ),
     OP_DEF(    doObjectOp,             "_doObject" ),
     // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
@@ -4229,6 +4489,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    doDoubleArrayOp,        "_doDoubleArray" ),
     OP_DEF(    doStringArrayOp,        "_doStringArray" ),
     OP_DEF(    doOpArrayOp,            "_doOpArray" ),
+    OP_DEF(    doLongArrayOp,          "_doLongArray" ),
     OP_DEF(    doObjectArrayOp,        "_doObjectArray" ),
     OP_DEF(    initStringOp,           "initString" ),
     OP_DEF(    initStringArrayOp,      "initStringArray" ),
@@ -4245,6 +4506,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    doLoopNOp,              "_+loop" ),
     OP_DEF(    doNewOp,                "_doNew" ),
     OP_DEF(    dfetchOp,               "d@" ),
+    OP_DEF(    allocObjectOp,           "_allocObject" ),
+    OP_DEF(    vocabToClassOp,          "vocabToClass" ),
 
     // stuff below this line can be rearranged
     OP_DEF(    thisOp,                 "this" ),
@@ -4362,7 +4625,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    dfmodOp,                "dfmod" ),
     
     ///////////////////////////////////////////
-    //  integer/float/double conversion
+    //  integer/long/float/double conversion
     ///////////////////////////////////////////
     OP_DEF(    i2fOp,                  "i2f" ), 
     OP_DEF(    i2dOp,                  "i2d" ),
@@ -4497,6 +4760,41 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    stderrOp,               "stderr" ),
     
     ///////////////////////////////////////////
+    //  64-bit integer math & conversions
+    ///////////////////////////////////////////
+    OP_DEF(    lplusOp,                "l+" ),
+    OP_DEF(    lminusOp,               "l-" ),
+    OP_DEF(    ltimesOp,               "l*" ),
+    OP_DEF(    ldivideOp,              "l/" ),
+    OP_DEF(    lmodOp,                 "lmod" ),
+    OP_DEF(    ldivmodOp,              "l/mod" ),
+    OP_DEF(    lnegateOp,              "lnegate" ),
+    OP_DEF(    i2lOp,                  "i2l" ), 
+    OP_DEF(    l2fOp,                  "l2f" ), 
+    OP_DEF(    l2dOp,                  "l2d" ), 
+    OP_DEF(    f2lOp,                  "f2l" ),
+    OP_DEF(    d2lOp,                  "d2l" ),
+    
+    ///////////////////////////////////////////
+    //  64-bit integer comparisons
+    ///////////////////////////////////////////
+    OP_DEF(    lEqualsOp,               "l==" ),
+    OP_DEF(    lNotEqualsOp,            "l!=" ),
+    OP_DEF(    lGreaterThanOp,          "l>" ),
+    OP_DEF(    lGreaterEqualsOp,        "l>=" ),
+    OP_DEF(    lLessThanOp,             "l<" ),
+    OP_DEF(    lLessEqualsOp,           "l<=" ),
+    OP_DEF(    lEqualsZeroOp,           "l0==" ),
+    OP_DEF(    lNotEqualsZeroOp,        "l0!=" ),
+    OP_DEF(    lGreaterThanZeroOp,      "l0>" ),
+    OP_DEF(    lGreaterEqualsZeroOp,    "l0>=" ),
+    OP_DEF(    lLessThanZeroOp,         "l0<" ),
+    OP_DEF(    lLessEqualsZeroOp,       "l0<=" ),
+    OP_DEF(    lWithinOp,               "lwithin" ),
+    OP_DEF(    lMinOp,                  "lmin" ),
+    OP_DEF(    lMaxOp,                  "lmax" ),
+
+    ///////////////////////////////////////////
     //  control flow
     ///////////////////////////////////////////
     PRECOP_DEF(doOp,                   "do" ),
@@ -4531,6 +4829,7 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(byteOp,                 "byte" ),
     PRECOP_DEF(shortOp,                "short" ),
     PRECOP_DEF(intOp,                  "int" ),
+    PRECOP_DEF(longOp,                 "long" ),
     PRECOP_DEF(floatOp,                "float" ),
     PRECOP_DEF(doubleOp,               "double" ),
     PRECOP_DEF(stringOp,               "string" ),
@@ -4603,6 +4902,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    printNumOp,             "." ),
     OP_DEF(    printNumDecimalOp,      "%d" ),
     OP_DEF(    printNumHexOp,          "%x" ),
+    OP_DEF(    printLongDecimalOp,     "%lld" ),
+    OP_DEF(    printLongHexOp,         "%llx" ),
     OP_DEF(    printStrOp,             "%s" ),
     OP_DEF(    printCharOp,            "%c" ),
     OP_DEF(    printSpaceOp,           "%bl" ),

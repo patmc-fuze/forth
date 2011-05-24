@@ -170,12 +170,16 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 
 #define SPOP                            (*pCore->SP++)
 #define SPUSH( A )                      (*--pCore->SP = A)
+#define SDROP                           (pCore->SP++)
 
 #define FPOP                            (*(float *)pCore->SP++)
 #define FPUSH( A )                      --pCore->SP; *(float *)pCore->SP = A
 
 #define DPOP                            *((double *)(pCore->SP)); pCore->SP += 2
 #define DPUSH( A )                      pCore->SP -= 2; *((double *)(pCore->SP)) = A
+
+#define LPOP                            *((long long *)(pCore->SP)); pCore->SP += 2
+#define LPUSH( A )                      pCore->SP -= 2; *((long long *)(pCore->SP)) = A
 
 #define RPOP                            (*pCore->RP++)
 #define RPUSH( A )                      (*--pCore->RP = A)

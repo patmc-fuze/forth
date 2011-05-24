@@ -93,6 +93,8 @@ typedef enum
     kBaseTypeDouble,
     kBaseTypeString,
     kBaseTypeOp,
+    kBaseTypeObject,
+    kBaseTypeLong
 } forthBaseType;
 
 typedef enum {

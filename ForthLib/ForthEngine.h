@@ -72,6 +72,7 @@ public:
     long            AddUserOp( const char *pSymbol, bool smudgeIt=false );
     void            AddBuiltinOps( baseDictionaryEntry *pEntries );
 
+    ForthClassVocabulary*   StartClassDefinition( const char* pClassName );
     ForthClassVocabulary*   AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseMethodEntry *pEntries );
 
     // forget the specified op and all higher numbered ops, and free the memory where those ops were stored
@@ -133,6 +134,7 @@ public:
     void                    CompileOpcode( long v );
     void                    UncompileLastOpcode( void );
     void                    ProcessConstant( long value, bool isOffset=false );
+    void                    ProcessLongConstant( long long value );
     inline void             AllotLongs( int n ) { mDictionary.pCurrent += n; };
     inline void             AlignDP( void ) { mDictionary.pCurrent = (long *)(( ((int)mDictionary.pCurrent) + 3 ) & ~3); };
     inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpVocabStack->GetTop(); };
@@ -185,7 +187,7 @@ public:
     void                    ConsoleOut( const char* pBuff );
 protected:
     // NOTE: temporarily modifies string @pToken
-    bool                    ScanIntegerToken( char *pToken, long *pValue, int base, bool& isOffset );
+    bool                    ScanIntegerToken( char* pToken, long& value, long long& lvalue, int base, bool& isOffset, bool& isSingle );
     // NOTE: temporarily modifies string @pToken
     bool                    ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle );
 

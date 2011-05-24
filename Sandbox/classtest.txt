@@ -108,10 +108,11 @@ ptrTo rgba gpp
 
 // test global arrayOf pointers to objects
 here
-2 arrayOf ptrTo rgba gapo
-new rgba -> rgba go0
-new rgba -> rgba go1
-here swap - "Expected size: 20 Actual size: " %s %d %nl
+2 arrayOf ptrTo rgba gapo		// expected size 12: gapo opcode (4) + pointers (2 x 4)
+new rgba -> rgba go0			// expected size 12: opcode (4) + object reference (8)
+new rgba -> rgba go1			// expected size 12: opcode (4) + object reference (8)
+
+here swap - "Expected size: 36 Actual size: " %s %d %nl
 
 2 arrayOf rgba ago
 : ll go0.g gpp.g 1 ago.g 1 gapo.g ;

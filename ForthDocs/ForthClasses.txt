@@ -2,8 +2,11 @@
 1234567890123456789012345678901234567890123456789012345678901234567890123456789
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
+- add robject - reference counted object - derive majority of classes from it,
+  pattern it after the NextStep container classes
+  
 - add classes for literal native constant values (byte/short/int/float) where the
-  data part is the literal data (can't do this for doubles though)
+  data part is the literal data (can't do this for doubles on longs though)
 
 - add container types
   - heterogenous containers - every element is a 64-bit object reference
@@ -29,11 +32,18 @@
   another class, with the exception of the ultimate root class, "object"?
   ? what methods should "object" define
     ? new
+      - no, this should be a class
     o delete
     o size
-    o superclass
+    o getclass
+      o superclass
     ? data
     ? methods
+    o compare
+    o set
+    o clone
+    o process message
+    o serialize in & out
   ? should the name be "object"?
 
 ? what classes should be defined in the kernel
@@ -52,18 +62,80 @@
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 class
-	new
-	getparent
-	getname
++	delete
++	new
++	getParent
++	getName
++	getVocabulary
++	getinterface
 	
 object
-	delete
-	getclass
-	getinterface
++	delete
++	show
++	compare
++	getClass
 	
 container
 	count
 	getiterator
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+ForthTypesManager::ProcessSymbol
+
+This is called from ForthEngine::ProcessToken when it encounters a string which
+has a period in it.  ProcessSymbol return true IFF it processed the string (IE
+the string started with a struct/object reference and had field accessors).
+
+ProcessSymbol currently deals with cases like "-> OBJ.FIELDS" by checking if
+the most recently processed op was a varop setting op and if so, moving the
+varop setting op to just after the code generated for the first field, sort
+of like "OBJ -> .FIELDS", otherwise the varop would be executed by the first
+op (OBJ) while it was intended to be applied to the last op in FIELDS.
+This should be changed so that the varop is moved to just before the last
+compiled field access op.
+
+ProcessSymbol compiles opcodes to an internal buffer as it parses. When it
+is done and there are no errors, ProcessSymbol in interpret mode executes the
+opcodes in the internal buffer, and in compile mode it appends the opcodes
+onto the end of the dictionary.
+
+ProcessSymbol handles 
+Cases:
+o GLOBAL.fields
+o GLOBAL_PTR.fields
+  Not implemented.
+o LOCAL.fields
+o <STRUCT_TYPE_NAME>.fields
+  TOS is pointer
+  nothing needs to be compiled for first token
+  
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 20, 2011
+
+
+Document these ops:
+  class:  ;class
+  method:  ;method
+  returns
+  doMethod
+  implements:  ;implements
+  union
+  extends
+  sizeOf   offsetOf
+  new
+  initMemberString
+
+I'm thinking that methods which you want all objects to handle should be done
+by adding a single method 'process', which takes:
+ 1) interface index
+ 2) method index
+ 3) arguments (should there be an argument count on TOS?)
+
+Methods which all objects must support would be made a part of the 'common'
+interface, and would include things like:
+o get interface
+o serialize
+o convert to string
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 12, 2010
@@ -82,7 +154,7 @@ instance defining op (like "int" or "float"), it is also a class vocabulary.
 How things work as of today:
 
 ---
-class CLASSNAME
+class: CLASSNAME
 o defines a class vocabulary
 o compiles:
   _doClassType
@@ -92,7 +164,7 @@ When executed, _doClassType calls pClassVocab->DefineInstance, which normally
 just defines a global/local variable or a field with this class type.
 NOTE: this does NOT create an instance of this type, it just creates a
  methods/data pointer pair which are initialized to NULL
-
+ 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 27, 2009
 
