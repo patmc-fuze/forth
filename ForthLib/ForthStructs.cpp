@@ -9,6 +9,7 @@
 #include "ForthVocabulary.h"
 #include "ForthShell.h"
 #include "ForthForgettable.h"
+#include "ForthBuiltinClasses.h"
 
 // symbol entry layout for struct vocabulary (fields and method symbols
 // offset   contents
@@ -22,12 +23,6 @@
 
 extern ForthBaseType *gpBaseTypes[];
 #define STRUCTS_EXPANSION_INCREMENT     16
-
-// structtype indices for builtin classes
-typedef enum {
-    kBCIObject,
-    kBCIClass
-} kBuiltinClassIndex;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -107,6 +102,7 @@ ForthTypesManager::EndStructDefinition()
     SPEW_STRUCTS( "EndStructDefinition\n" );
     ForthEngine *pEngine = ForthEngine::GetInstance();
     pEngine->EndOpDefinition( true );
+    GetNewestStruct()->EndDefinition();
 }
 
 ForthClassVocabulary*
@@ -761,164 +757,7 @@ ForthTypesManager::GetBaseTypeFromName( const char* typeName )
 }
 
 
-//////////////////////////////////////////////////////////////////////
-//
-// builtin classes
-//
-
-//
-// object
-//
-
-#define METHOD_RETURN \
-    SET_TPM( (long *) RPOP ); \
-    SET_TPD( (long *) RPOP )
-
-FORTHOP( objectDeleteMethod )
-{
-    free( GET_TPD );
-    METHOD_RETURN;
-}
-
-FORTHOP( objectShowMethod )
-{
-    char buff[128];
-    ForthClassObject* pClassObject = (ForthClassObject *)(*((GET_TPM) - 1));
-    sprintf( buff, "object %s  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), GET_TPM, GET_TPD );
-    CONSOLE_STRING_OUT( buff );
-    METHOD_RETURN;
-}
-
-FORTHOP( objectClassMethod )
-{
-    // this is the big gaping hole - where should the pointer to the class vocabulary be stored?
-    // we could store it in the slot for method 0, but that would be kind of clunky - also,
-    // would slot 0 of non-primary interfaces also have to hold it?
-    long* pClassObject = (GET_TPM) - 1;
-    SPUSH( (long) pClassObject );
-    SPUSH( (long) ForthTypesManager::GetInstance()->GetClassMethods() );
-    METHOD_RETURN;
-}
-
-FORTHOP( objectCompareMethod )
-{
-    long thisVal = (long)(GET_TPD);
-    long thatVal = SPOP;
-    long result = 0;
-    if ( thisVal != thatVal )
-    {
-        result = ( thisVal > thatVal ) ? 1 : -1;
-    }
-    SPUSH( result );
-    METHOD_RETURN;
-}
-
-#define METHOD( VALUE, NAME )           { NAME, (ulong) VALUE, NATIVE_TYPE_TO_CODE( kDTIsMethod, kBaseTypeVoid ) }
-#define METHOD_RET( VAL, NAME, RVAL )   { NAME, (ulong) VAL, RVAL }
-
-baseMethodEntry objectMethods[] =
-{
-    METHOD(     objectDeleteMethod,     "delete" ),
-    METHOD(     objectShowMethod,       "show" ),
-    METHOD_RET( objectClassMethod,      "getClass", OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIClass) ),
-    METHOD_RET( objectCompareMethod,    "compare", NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
-    // following must be last in table
-    METHOD(     NULL,               "" )
-};
-
-
-FORTHOP( classNewMethod )
-{
-    ForthClassObject* pClassObject = (ForthClassObject *)(GET_TPD);
-    SPUSH( (long) pClassObject->pVocab );
-    ForthEngine *pEngine = ForthEngine::GetInstance();
-    pEngine->ExecuteOneOp( pClassObject->newOp );
-    METHOD_RETURN;
-}
-
-FORTHOP( classSuperMethod )
-{
-    ForthClassObject* pClassObject = (ForthClassObject *)(GET_TPD);
-    ForthClassVocabulary* pClassVocab = pClassObject->pVocab;
-    // what should happen if a class is derived from a struct?
-    SPUSH( (long) pClassVocab->BaseVocabulary() );
-    SPUSH( (long) (GET_TPM) );
-    METHOD_RETURN;
-}
-
-FORTHOP( classNameMethod )
-{
-    ForthClassObject* pClassObject = (ForthClassObject *)(GET_TPD);
-    ForthClassVocabulary* pClassVocab = pClassObject->pVocab;
-    const char* pName = pClassVocab->GetName();
-    SPUSH( (long) pName );
-    METHOD_RETURN;
-}
-
-FORTHOP( classVocabularyMethod )
-{
-    ForthClassObject* pClassObject = (ForthClassObject *)(GET_TPD);
-    SPUSH( (long)(pClassObject->pVocab) );
-    METHOD_RETURN;
-}
-
-FORTHOP( classGetInterfaceMethod )
-{
-    // TOS is ptr to name of desired interface
-    ForthClassObject* pClassObject = (ForthClassObject *)(GET_TPD);
-    ForthClassVocabulary* pClassVocab = pClassObject->pVocab;
-    const char* pName = (const char*)(SPOP);
-    long foundInterface = NULL;
-	long numInterfaces = pClassVocab->GetNumInterfaces();
-	for ( int i = 0; i < numInterfaces; i++ )
-	{
-        ForthInterface* pInterface = pClassVocab->GetInterface( i );
-        if ( strcmp( pInterface->GetDefiningClass()->GetName(), pName ) == 0 )
-        {
-            foundInterface = (long) pInterface;
-            break;
-		}
-	}
-    SPUSH( (long)(GET_TPD) );
-    SPUSH( foundInterface );
-    METHOD_RETURN;
-}
-
-FORTHOP( classDeleteMethod )
-{
-    ForthEngine *pEngine = ForthEngine::GetInstance();
-    pEngine->SetError( kForthErrorException, " cannot delete a class object" );
-    METHOD_RETURN;
-}
-
-FORTHOP( classSetNewMethod )
-{
-    ForthClassObject* pClassObject = (ForthClassObject *)(GET_TPD);
-    pClassObject->newOp = SPOP;
-    METHOD_RETURN;
-}
-
-baseMethodEntry classMethods[] =
-{
-    METHOD(     classDeleteMethod,          "delete" ),
-    METHOD_RET( classNewMethod,             "new", OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) ),
-    METHOD_RET( classSuperMethod,           "getParent", OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIClass) ),
-    METHOD_RET( classNameMethod,            "getName", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeByte) ),
-    METHOD_RET( classVocabularyMethod,      "getVocabulary", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt) ),
-    METHOD_RET( classGetInterfaceMethod,    "getInterface", OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) ),
-    METHOD(     classSetNewMethod,          "setNew" ),
-    // following must be last in table
-    METHOD(     NULL,               "" )
-};
-
-void
-ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
-{
-    ForthClassVocabulary* pObjectClass = pEngine->AddBuiltinClass( "object", NULL, objectMethods );
-    ForthClassVocabulary* pClassClass = pEngine->AddBuiltinClass( "class", pObjectClass, classMethods );
-    mpClassMethods = pClassClass->GetInterface( 0 )->GetMethods();
-}
-
+// ForthTypesManager::AddBuiltinClasses is defined in ForthBuiltinClasses.cpp
 
 long*
 ForthTypesManager::GetClassMethods()
@@ -972,7 +811,7 @@ ForthStructVocabulary::DefineInstance( void )
     // - define a local instance of this struct type
     // - define a field of this struct type
     char *pToken = mpEngine->GetNextSimpleToken();
-    int nBytes = mNumBytes;
+    int nBytes = mMaxNumBytes;
     char *pHere;
     long val = 0;
     ForthVocabulary *pVocab;
@@ -1304,6 +1143,11 @@ ForthStructVocabulary::TypecodeToString( long typeCode, char* outBuff, size_t ou
     }
     outBuff[ outBuffSize - 1 ] = '\0';
     strncpy( outBuff, buff, outBuffSize - 1 );
+}
+
+void ForthStructVocabulary::EndDefinition()
+{
+    mNumBytes = mMaxNumBytes;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -1643,7 +1487,9 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
     }
     CONSOLE_STRING_OUT( buff );
 
-    CONSOLE_STRING_OUT( "returning " );
+    sprintf( buff, "method # %d returning ", methodNum );
+    CONSOLE_STRING_OUT( buff );
+
     if ( CODE_IS_ARRAY( typeCode ) )
     {
         CONSOLE_STRING_OUT( "array of " );
@@ -1699,7 +1545,7 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
         CONSOLE_STRING_OUT( buff );
     }
     long* pMethod = pPrimaryInterface->GetMethods() + methodNum;
-    sprintf( buff, "method # %d opcode=%02x:%06x", methodNum, GetEntryType(pMethod), GetEntryValue(pMethod) );
+    sprintf( buff, "opcode=%02x:%06x", GetEntryType(pMethod), GetEntryValue(pMethod) );
     CONSOLE_STRING_OUT( buff );
 }
 

@@ -707,6 +707,9 @@
 			Name="Source Files"
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat">
 			<File
+				RelativePath=".\ForthBuiltinClasses.cpp">
+			</File>
+			<File
 				RelativePath="ForthEngine.cpp">
 				<FileConfiguration
 					Name="Debug|Win32">
@@ -1747,6 +1750,9 @@ move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;
 			</File>
 			<File
 				RelativePath="Forth.h">
+			</File>
+			<File
+				RelativePath=".\ForthBuiltinClasses.h">
 			</File>
 			<File
 				RelativePath="ForthCore.h">

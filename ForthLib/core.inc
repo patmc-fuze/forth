@@ -117,6 +117,24 @@ RTPtr				DWORD		?
 RLen				DWORD		?
 ThreadPtr			DWORD		?
 DictionaryPtr		DWORD		?
+FileFuncs			DWORD		?
 ForthCoreState		ENDS
+
+ForthFileInterface	STRUCT	2t
+fileOpen		DWORD		?
+fileClose		DWORD		?
+fileRead		DWORD		?
+fileWrite		DWORD		?
+fileGetChar		DWORD		?
+filePutChar		DWORD		?
+fileAtEnd		DWORD		?
+fileExists		DWORD		?
+fileSeek		DWORD		?
+fileTell		DWORD		?
+fileGetLength	DWORD		?
+fileGetString	DWORD		?
+filePutString	DWORD		?
+ForthFileInterface		ENDS
+
 
 ; End of file core.h

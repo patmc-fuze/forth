@@ -77,9 +77,6 @@ TBDs:
 
 - faster searches
 
-- add "subroutine"
-  -> this will definitely cause problems for any simple save/restore scheme where relocation is required
-  
 ? generalize the undefined symbol handling mechanism which is used to
  define enums
 ? add a way to extend parsing for user-defined literal constants
@@ -128,6 +125,223 @@ Gotchas with structure and object support:
 2) varAction ops must be the symbol just before a field selector symbol, which
    means that index calculation ops must appear before the varAction op
 
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 10, 2011
+
+There was a crash in sdl testEvents, it was caused by return stack corruption,
+it had a SDL_Event local variable and only 8 bytes was allocated for it, it is
+a union type, and some of its subtypes have more than 8 bytes (SDL_KeyEvent is
+10 for example).  I'm guessing that the size of a union type isn't the size of
+its largest member, it is the size of the last member added to the union.
+-> yup, fixed
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 9, 2011
+
+I tried a test of sdl keyboard events, the key value didn't appear anywhere,
+it looks like there is a mismatch of how the c++ compiler aligns structure
+fields and how forth does.
+
+typedef struct SDL_KeyboardEvent {
+	Uint8 type;	/* SDL_KEYDOWN or SDL_KEYUP */
+	Uint8 which;	/* The keyboard device index */
+	Uint8 state;	/* SDL_PRESSED or SDL_RELEASED */
+	SDL_keysym keysym;
+} SDL_KeyboardEvent;
+
+typedef struct SDL_keysym {
+	Uint8 scancode;			/* hardware specific scancode */
+	SDLKey sym;			/* SDL virtual keysym */
+	SDLMod mod;			/* current key modifiers */
+	Uint16 unicode;			/* translated character */
+} SDL_keysym;
+SDLKey & SDLMod are both enums, both require 16 bits to represent
+
+0	Uint8 type;	/* SDL_KEYDOWN or SDL_KEYUP */
+	Uint8 which;	/* The keyboard device index */
+	Uint8 state;	/* SDL_PRESSED or SDL_RELEASED */
+3	SDL_keysym keysym;
+3		Uint8 scancode;			/* hardware specific scancode */
+5		SDLKey sym;			/* SDL virtual keysym */
+7		SDLMod mod;			/* current key modifiers */
+9		Uint16 unicode;			/* translated character */
+
+The forth declarations are:
+struct: SDL_keysym
+	byte scancode			// hardware specific scancode
+	short sym				// SDL virtual keysym 
+	short mod				// current key modifiers
+	short unicode			// translated character
+;struct
+// I'm not sure about sym and mod size, they are enums
+
+struct: SDL_KeyboardEvent
+	byte type	// SDL_KEYDOWN or SDL_KEYUP
+	byte which	// The keyboard device index
+	byte state	// SDL_PRESSED or SDL_RELEASED
+	SDL_keysym keysym
+;struct
+
+-> when SDL_keysym is defined, the struct code recognizes that the short sym
+   field would be misaligned, so it adds a pad byte after scancode
+   
+key down   type=0x2  which=0x0  state=0x1  scancode=0x0  sym=0x12fc  mod=0x0  unicode=0x0
+ 02   00   01         00    1e  fc 12  00 61 00 00 00 00 00 00 00        ........a.......
+type which state   scancode ??   sym
+key down   type=0x2  which=0x0  state=0x1  scancode=0x0  sym=0x12fc  mod=0x0  unicode=0x0
+00950098   02 00 01 00 1e fc 12 00 61 00 00 00 00 00 00 00        ........a.......
+key up   type=0x3  which=0x0  state=0x0  scancode=0x0  sym=0x12fc  mod=0x0  unicode=0x0
+00950098   03 00 00 00 1e fc 12 00 61 00 00 00 00 00 00 00        ........a.......
+
+key down   type=0x2  which=0x0  state=0x1  scancode=0x0  sym=0x12fc  mod=0x0  unicode=0x0
+00950098   02 00 01 00 30 fc 12 00 62 00 00 00 00 00 00 00        ....0...b.......
+key up   type=0x3  which=0x0  state=0x0  scancode=0x0  sym=0x12fc  mod=0x0  unicode=0x0
+00950098   03 00 00 00 30 fc 12 00 62 00 00 00 00 00 00 00        ....0...b.......
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 8, 2011
+
+I put in a new optype "internalMethod" which was like "methodWithThis" except
+that it didn't push TPM/TPD and on exit wouldn't pop them, then I realized
+that this could be done with regular forth ops, there just has to be a
+syntax that allows forth ops which are defined within a class to access the
+member variables of the current 'this' object.  Maybe within an forthop
+definition which is inside a class definition a leading period will cause
+the following symbol to be treated as a member variable of this class.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 4, 2011
+
+I added the ability to append forth text files to the forth executable, so
+that you can create forth applications that don't need external files.
+
+o at startup, the executable file is scanned starting at the end for markers
+  that show that there are appended files and their names, the shell records
+  these names and their positions in the executable file
+o ForthShell::PushInputFile checks its filename parameter against the list
+  of appended files and will use the appended file if it finds it instead of
+  opening an external file
+  * there is a potential gotcha here - ForthInputFile will read to the end of
+    the file if it doesn't hit a 'loaddone', so if you append a file which
+    doesn't have a loaddone it could keep reading past the end of the appended
+    file and read garbage
+o forth will now load app_autoload.txt if it exists instead of forth_autoload.txt.
+
+There is a utility forth script make_archive.txt which can append files to the
+forth executable in the proper format.
+
+While debugging make_archive.txt, I kept getting a crash on 'bye' due to
+heap corruption.  It was because when I made some thread support changes a
+while back, I wasn't specifying the main threads param and return stack sizes
+explicitly, so it was getting the defaults, which is 128 longwords for each.
+This is normally enough, but the make_archive code had several long local
+buffers eating up rstack space, so the return stack was overflowing and
+corrupting stuff beyond it.  The outer interpreter only checks under/overflow
+between top level ops, so the overflow was never caught.
+
+I also found that files that are loaded are kept locked until forth exits, I
+know that this wasn't the case until recently, because when creating scripts I
+usually just keep switching between forth and the editor without exiting forth.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 2, 2011
+
+I added the ability to append a set of files to the forth.exe image,
+I changed ForthShell::SetCommandLine to gather the list of files.  I made a
+test file named spud.exe in the sandbox which has forth_autoload.txt and
+asm_pentium.txt appended to it, it gathered the file list successfully.
+
+Remaining to be done:
+- create a utility for appending files to the forth image
+- change ForthShell::PushInputFile to check the input filename against its
+  list of internal files and open an internal file if one exists with the
+  same name
+
+0x00000  forth.exe (length=0x59000)
+
+0x59000  data from forth_autoload.txt (length=0x1332)
+0x5a332  0x00001332
+0x5a336  0xDEADBEEF
+0x5a33a  "forth_autoload.txt" (length=0x12)
+0x5a34c  0x00000012
+
+0x5a350  data from asm_pentium.txt (length=0x6cf2)
+0x61042  0x00006cf2
+0x61046  0xDEADBEEF
+0x6104a  "asm_pentium.txt" (length=0xf)
+0x61059  0x0000000f
+
+0x6105d  0x00000002
+0x61061  0x34323137
+0x61065
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 29, 2011
+
+I got the SDL audio callback coded in forth assembler working, just producing
+a tone computed by incrementing an 8 bit sample by 1 every sample time.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 28, 2011
+
+I added the fast hash function and unsigned multiply (32*32 -> 64) ops.
+
+While looking at the assembler version I noticed that it has implementations
+for most of the file ops, but when I looked at them I realized that unlike
+the C versions, they call the clib functions directly, while the C++ version
+goes through the shell wrapper calls which supports client/server operation.
+
+A bigger problem is that the C++ version ops use the GET_ENGINE, which at
+some point I changed from being pCore->pEngine to ForthEngine::GetInstance(),
+I don't remember why I did that.
+
+cvs diff -r 1.3 -r 1.4 ForthInner.h
+The 1.4 log message is 'More struct work' and is from 4/15/2007
+The 1.3 log message is 'Start adding user-defined structure support.' from 4/7/2007
+
+I can think of 2 probable reasons:
+1) I was on a 'must use singleton pattern' kick
+2) In the same change I had also changed the definition of pEngine from ForthEngine* to void*,
+   maybe the change had something to do with whatever that was about
+   
+To fix the file op problems, I'm going to try to stick a table of file operations
+in the shell, and put a pointer to them in the core state, the forth fileops
+will all dispatch through the table.
+The client/server version of the shell will replace that table with remote
+file access functions.
+After a little debugging, it works fine in regular and turbo mode.
+
+I made the same change on the client/server version, it works fine.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 25, 2011
+
+I was thinking of changing vocabularies to be special objects, something
+like class objects.
+
+The overall idea was:
+o eliminate the vocabulary specific varops: removeEntry, entryLength, numEntries,
+  and getClass, replace them with methods on the vocabulary class
+o have each class object have an op that handles when the object symbol
+  appears by itself (IE 'forth' or 'assembler') - most classes would use the
+  standard op, which would implement just default, fetch, store and ref.
+  The one for vocabularies would have its default action be setting the
+  top element of the search stack to this vocabulary.  This op is what would
+  be compiled as the first and only op for global instances of this class.
+  ? what about local instances
+  This might not be such a great idea, and the only thing it buys us is being
+  able to keep support traditional forth search order ops like also/only/definitions
+  
+There is a similar problem here between vocabulary objects and class object -
+the instances of these objects are globals, and their symbols have special
+meanings - 'object' by itself defines an instance of an object reference, it
+doesn't leave the 'object' class object instance on TOS.
+
+Also, how do you declare a reference object for special classes like vocabulary?
+If you use the 'vocabulary' keyword, it creates a new global vocabulary, not
+an empty object reference variable like other standard class name symbols.
+
+This requires more thought.  Maybe vocabularies are fine as is.  The way
+that vocab operations are done using varops does seem like a kludge though.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 22, 2011

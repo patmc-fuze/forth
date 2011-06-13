@@ -21,6 +21,7 @@ EXTRN	fopen:NEAR, fclose:NEAR, fseek:NEAR, fread:NEAR, fwrite:NEAR, fgetc:NEAR, 
 
 
 FCore		TYPEDEF		ForthCoreState
+FileFunc	TYPEDEF		ForthFileInterface
 
 CONST	SEGMENT
 HelloString DB 'Hello Cruelish World!', 0aH, 00H ; `string'
@@ -2144,6 +2145,19 @@ entry timesBop
 	jmp	edi
 
 ;========================================
+
+entry utimesBop
+	mov	eax, [edx]
+	mov	ebx, [edx+4]
+	push	edx
+	mul	ebx			; result hiword in edx, loword in eax
+	mov	ebx,edx
+	pop	edx
+	mov	[edx+4], ebx
+	mov	[edx], eax
+	jmp	edi
+
+;========================================
 	
 entry times2Bop
 	mov	eax, [edx]
@@ -3405,6 +3419,18 @@ entry rshiftBop
 	
 ;========================================
 
+entry urshiftBop
+	mov	eax, ecx
+	mov	ecx, [edx]
+	add	edx, 4
+	mov	ebx, [edx]
+	shr	ebx,cl
+	mov	[edx], ebx
+	mov	ecx, eax
+	jmp	edi
+	
+;========================================
+
 entry notBop
 	mov	eax,0FFFFFFFFh
 	xor	[edx], eax
@@ -4491,7 +4517,9 @@ entry	fopenBop
 	push	eax
 	mov	eax, [edx]	; pop pathname string
 	push	eax
-	call	fopen
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.fileOpen
+	call	eax
 	add		sp, 8
 	pop	edx
 	pop	ecx
@@ -4505,7 +4533,9 @@ entry	fcloseBop
 	mov	eax, [edx]	; pop file pointer
 	push	edx
 	push	eax
-	call	fclose
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.fileClose
+	call	eax
 	add	sp,4
 	pop	edx
 	pop	ecx
@@ -4523,7 +4553,9 @@ entry	fseekBop
 	push	eax
 	mov	eax, [edx+8]	; pop file pointer
 	push	eax
-	call	fseek
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.fileSeek
+	call	eax
 	add		sp, 12
 	pop	edx
 	pop	ecx
@@ -4536,14 +4568,18 @@ entry	fseekBop
 entry	freadBop
 	push	ecx
 	push	edx
-	mov	eax, [edx]	; pop itemSize
+	mov	eax, [edx]	; pop file pointer
 	push	eax
 	mov	eax, [edx+4]	; pop numItems
 	push	eax
-	mov	eax, [edx+8]	; pop file pointer
+	mov	eax, [edx+8]	; pop item size
 	push	eax
-	call	fread
-	add		sp, 12
+	mov	eax, [edx+12]	; pop dest pointer
+	push	eax
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.fileRead
+	call	eax
+	add		sp, 16
 	pop	edx
 	pop	ecx
 	add	edx, 8
@@ -4555,14 +4591,18 @@ entry	freadBop
 entry	fwriteBop
 	push	ecx
 	push	edx
-	mov	eax, [edx]	; pop itemSize
+	mov	eax, [edx]	; pop file pointer
 	push	eax
 	mov	eax, [edx+4]	; pop numItems
 	push	eax
-	mov	eax, [edx+8]	; pop file pointer
+	mov	eax, [edx+8]	; pop item size
 	push	eax
-	call	fwrite
-	add		sp, 12
+	mov	eax, [edx+12]	; pop dest pointer
+	push	eax
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.fileWrite
+	call	eax
+	add		sp, 16
 	pop	edx
 	pop	ecx
 	add	edx, 8
@@ -4576,7 +4616,9 @@ entry	fgetcBop
 	mov	eax, [edx]	; pop file pointer
 	push	edx
 	push	eax
-	call	fgetc
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.fileGetChar
+	call	eax
 	add	sp, 4
 	pop	edx
 	pop	ecx
@@ -4593,7 +4635,9 @@ entry	fputcBop
 	push	eax
 	mov	eax, [edx]	; pop file pointer
 	push	eax
-	call	fputc
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.filePutChar
+	call	eax
 	add		sp, 8
 	pop	edx
 	pop	ecx
@@ -4607,11 +4651,29 @@ entry	feofBop
 	mov	eax, [edx]	; pop file pointer
 	push	edx
 	push	eax
-	call	feof
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.fileAtEnd
+	call	eax
 	add	sp, 4
 	pop	edx
 	pop	ecx
 	mov	[edx], eax	; push feof result
+	jmp	edi
+	
+;========================================
+
+entry	fexistsBop
+	push	ecx
+	mov	eax, [edx]	; pop filename pointer
+	push	edx
+	push	eax
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.fileExists
+	call	eax
+	add	sp, 4
+	pop	edx
+	pop	ecx
+	mov	[edx], eax	; push fexists result
 	jmp	edi
 	
 ;========================================
@@ -4621,7 +4683,9 @@ entry	ftellBop
 	mov	eax, [edx]	; pop file pointer
 	push	edx
 	push	eax
-	call	ftell
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.fileTell
+	call	eax
 	add	sp, 4
 	pop	edx
 	pop	ecx
@@ -4631,46 +4695,58 @@ entry	ftellBop
 ;========================================
 
 entry	flenBop
-	mov	[ebp].FCore.IPtr, ecx
-	mov	[ebp].FCore.SPtr, edx
-	mov	esi, [edx]	; pop file pointer
-	mov	edi, edx	; edi will hold param stack ptr
+	push	ecx
+	mov	eax, [edx]	; pop file pointer
+	push	edx
+	push	eax
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.fileGetLength
+	call	eax
+	add	sp, 4
+	pop	edx
+	pop	ecx
+	mov	[edx], eax	; push flen result
+	jmp	edi
 	
-	sub	sp, 12
-	
-	; oldPos = ftell( file );
-	mov	[esp], esi
-	call	ftell	; eax is original file position
-	; TBD: check eax for ftell error
-	mov	[edi], eax	; save original file position on TOS
-	
-	; fseek( file, 0, SEEK_END );
-	mov	eax, 2
-	mov	[esp+8], eax	; SEEK_END == 2
-	xor	eax, eax
-	mov	[esp+4], eax
-	mov	[esp], esi
-	call	fseek
-	; TBD: check eax for fseek error
+;========================================
 
-	; fileLen = ftell( file );
-	mov	[esp], esi
-	call	ftell
-	; TBD: check eax for ftell error
-	mov	ebx, [edi]	; ebx = oldPos
-	mov	[edi], eax	; put fileLen on TOS
-
-	; fseek( file, oldPos, SEEK_SET );	
-	xor	eax, eax
-	mov	[esp+8], eax	; SEEK_SET == 0
-	mov	[esp+4], eax
-	mov	[esp], esi
-	call	fseek
-	; TBD: check eax for fseek error
-
-	add	sp, 12
+entry	fgetsBop
+	push	ecx
+	push	edx
+	mov	eax, [edx]	; pop file
+	push	eax
+	mov	eax, [edx+4]	; pop maxChars
+	push	eax
+	mov	eax, [edx+8]	; pop buffer
+	push	eax
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.fileGetString
+	call	eax
+	add		sp, 12
+	pop	edx
+	pop	ecx
+	add	edx, 8
+	mov	[edx], eax	; push fgets result
+	jmp	edi
 	
-	jmp	interpFunc
+;========================================
+
+entry	fputsBop
+	push	ecx
+	push	edx
+	mov	eax, [edx]	; pop file
+	push	eax
+	mov	eax, [edx+4]	; pop buffer
+	push	eax
+	mov	eax, [ebp].FCore.FileFuncs
+	mov	eax, [eax].FileFunc.filePutString
+	call	eax
+	add		sp, 8
+	pop	edx
+	pop	ecx
+	add	edx, 4
+	mov	[edx], eax	; push fseek result
+	jmp	edi
 	
 ;========================================
 
@@ -5113,6 +5189,7 @@ opsTable:
 	; integer math
 	DD	FLAT:minusBop
 	DD	FLAT:timesBop
+	DD	FLAT:utimesBop
 	DD	FLAT:times2Bop
 	DD	FLAT:times4Bop
 	DD	FLAT:times8Bop
@@ -5212,6 +5289,7 @@ opsTable:
 	DD	FLAT:invertBop
 	DD	FLAT:lshiftBop
 	DD	FLAT:rshiftBop
+	DD	FLAT:urshiftBop
 	
 	; boolean logic
 	DD	FLAT:notBop
@@ -5304,9 +5382,12 @@ opsTable:
 	DD	FLAT:fgetcBop
 	DD	FLAT:fputcBop
 	DD	FLAT:feofBop
+	DD	FLAT:fexistsBop
 	DD	FLAT:ftellBop
 	DD	FLAT:flenBop
-	
+	DD	FLAT:fgetsBop
+	DD	FLAT:fputsBop
+
 endOpsTable:
 	DD	0
 	

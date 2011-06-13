@@ -20,31 +20,54 @@
 #define PSTACK_LONGS 8192
 #define RSTACK_LONGS 8192
 
-const char * TagStrings[] =
+namespace
 {
-    "NOTHING",
-    "do",
-    "begin",
-    "while",
-    "case/of",
-    "if",
-    "else",
-    "paren",
-    "string",
-    "colon",
-    "poundDirective"
-};
-
-const char * GetTagString( long tag )
-{
-    static char msg[28];
-
-    if ( tag < kNumShellTags )
+    const char * TagStrings[] =
     {
-        return TagStrings[ tag ];
+        "NOTHING",
+        "do",
+        "begin",
+        "while",
+        "case/of",
+        "if",
+        "else",
+        "paren",
+        "string",
+        "colon",
+        "poundDirective"
+    };
+
+    const char * GetTagString( long tag )
+    {
+        static char msg[28];
+
+        if ( tag < kNumShellTags )
+        {
+            return TagStrings[ tag ];
+        }
+        sprintf( msg, "UNKNOWN TAG 0x%x", tag );
+        return msg;
     }
-    sprintf( msg, "UNKNOWN TAG 0x%x", tag );
-    return msg;
+
+    int fileExists( const char* pFilename )
+    {
+        FILE* pFile = fopen( pFilename, "r" );
+        int result = (pFile != NULL) ? ~0 : 0;
+        if ( pFile != NULL )
+        {
+            fclose( pFile );
+        }
+        return result;
+    }
+
+    int fileGetLength( FILE* pFile )
+    {
+        int oldPos = ftell( pFile );
+        fseek( pFile, 0, SEEK_END );
+        int result = ftell( pFile );
+        fseek( pFile, oldPos, SEEK_SET );
+        return result;
+    }
 }
 
 DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData );
@@ -65,14 +88,15 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 , mpEnvVarNames(NULL)
 , mpEnvVarValues(NULL)
 , mPoundIfDepth(0)
+, mpInternalFiles(NULL)
+, mInternalFileCount(0)
 {
     if ( mpEngine == NULL )
     {
         mpEngine = new ForthEngine();
-        mpEngine->Initialize( STORAGE_LONGS, true, pExtension );
         mFlags = SHELL_FLAG_CREATED_ENGINE;
     }
-    mpEngine->SetShell( this );
+    mpEngine->Initialize( this, STORAGE_LONGS, true, pExtension );
 
 #if 0
     if ( mpThread == NULL )
@@ -84,6 +108,20 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 
     mpInput = new ForthInputStack;
 	mpStack = new ForthShellStack( shellStackLongs );
+
+    mFileInterface.fileOpen = fopen;
+    mFileInterface.fileClose = fclose;
+    mFileInterface.fileRead = fread;
+    mFileInterface.fileWrite = fwrite;
+    mFileInterface.fileGetChar = fgetc;
+    mFileInterface.filePutChar = fputc;
+    mFileInterface.fileAtEnd = feof;
+    mFileInterface.fileExists = fileExists;
+    mFileInterface.fileSeek = fseek;
+    mFileInterface.fileTell = ftell;
+    mFileInterface.fileGetLength = fileGetLength;
+    mFileInterface.fileGetString = fgets;
+    mFileInterface.filePutString = fputs;
 
 #if 0
     mMainThreadId = GetThreadId( GetMainThread() );
@@ -131,7 +169,26 @@ ForthShell::~ForthShell()
 bool
 ForthShell::PushInputFile( const char *pFileName )
 {
-    FILE *pInFile = fopen( pFileName, "r" );
+    FILE *pInFile = NULL;
+    // see if file is an internal file, and if so use it
+    for ( int i = 0; i < mInternalFileCount; i++ )
+    {
+        if ( strcmp( mpInternalFiles[i].pName, pFileName ) == 0 )
+        {
+            // there is an internal file, open this .exe and seek to internal file
+            pInFile = fopen( mpArgs[0], "r" );
+            if ( fseek( pInFile, mpInternalFiles[i].offset, 0 ) != 0 )
+            {
+                fclose( pInFile );
+                pInFile = NULL;
+            }
+            break;
+        }
+    }
+    if ( pInFile == NULL )
+    {
+        pInFile = fopen( pFileName, "r" );
+    }
     if ( pInFile != NULL )
     {
         mpInput->PushInputStream( new ForthFileInputStream( pInFile ) );
@@ -174,7 +231,19 @@ ForthShell::Run( ForthInputStream *pInStream )
 
     mpInput->PushInputStream( pInStream );
 
-    mpEngine->PushInputFile( "forth_autoload.txt" );
+    const char* autoloadFilename = "app_autoload.txt";
+    FILE* pFile = fopen( autoloadFilename, "r" );
+    if ( pFile != NULL )
+    {
+        // there is an app autoload file, use that
+        fclose( pFile );
+    }
+    else
+    {
+        // no app autload, try using the normal autoload file
+        autoloadFilename = "forth_autoload.txt";
+    }
+    mpEngine->PushInputFile( autoloadFilename );
 
     while ( !bQuit )
     {
@@ -894,6 +963,106 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
         i++;
     }
     mNumArgs = argc;
+
+    // see if there are files appended to the executable file
+    // the format is:
+    //
+    // PER FILE:
+    // ... file1 databytes...
+    // length of file1 as int
+    // 0xDEADBEEF
+    // ... file1name ...
+    // length of file1name as int
+    //
+    // ... fileZ databytes...
+    // length of fileZ as int
+    // 0xDEADBEEF
+    // ... fileZname ...
+    // length of fileZname as int
+    //
+    // number of appended files as int
+    // 0x34323137
+    if ( (argc > 0) && (argv[0] != NULL) )
+    {
+        FILE* pFile = fopen( argv[0], "rb" );
+        if ( pFile != NULL )
+        {
+            int res = fseek( pFile, -4, SEEK_END );
+            int token = 0;
+            if ( res == 0 )
+            {
+                int nItems = fread( &token, sizeof(token), 1, pFile );
+                if ( nItems == 1 )
+#define FORTH_MAGIC_1 0x37313234
+#define FORTH_MAGIC_2 0xDEADBEEF
+                {
+                    if ( token == FORTH_MAGIC_1 )
+                    {
+                        int count = 0;
+                        res = fseek( pFile, -8, SEEK_CUR );
+                        nItems = fread( &count, sizeof(count), 1, pFile );
+                        if ( (res == 0) && (nItems == 1) )
+                        {
+                            mpInternalFiles = new sInternalFile[ count ];
+                            mInternalFileCount = count;
+                            for ( i = 0; i < count; i++ )
+                            {
+                                mpInternalFiles[i].pName = NULL;
+                                mpInternalFiles[i].length = 0;
+                            }
+                            res = fseek( pFile, -4, SEEK_CUR );
+                            for ( i = 0; i < mInternalFileCount; i++ )
+                            {
+                                // first get the filename length
+                                res = fseek( pFile, -4, SEEK_CUR );
+                                nItems = fread( &count, sizeof(count), 1, pFile );
+                                if ( (res != 0) || (nItems != 1) )
+                                {
+                                    break;
+                                }
+                                res = fseek( pFile, -(count + 8), SEEK_CUR );
+                                // filepos is at start of token2, followed by filename
+                                int offset = ftell( pFile );
+                                // check for magic token2
+                                nItems = fread( &token, sizeof(token), 1, pFile );
+                                if ( (res != 0) || (nItems != 1) || (token != FORTH_MAGIC_2) )
+                                {
+                                    break;
+                                }
+                                // filepos is at filename
+                                mpInternalFiles[i].pName = new char[ count + 1 ];
+                                mpInternalFiles[i].pName[count] = '\0';
+                                nItems = fread( mpInternalFiles[i].pName, count, 1, pFile );
+                                if ( (res != 0) || (nItems != 1) )
+                                {
+                                    delete [] mpInternalFiles[i].pName;
+                                    mpInternalFiles[i].pName = NULL;
+                                    break;
+                                }
+                                // seek back to data length just before filename
+                                res = fseek( pFile, (offset - 4), SEEK_SET );
+                                nItems = fread( &count, sizeof(count), 1, pFile );
+                                if ( (res != 0) || (nItems != 1) )
+                                {
+                                    break;
+                                }
+                                res = fseek( pFile, -(count + 4), SEEK_CUR );
+                                if ( res != 0 )
+                                {
+                                    break;
+                                }
+                                // filepos is at start of data section
+                                mpInternalFiles[i].offset = ftell( pFile );
+                                mpInternalFiles[i].length = count;
+                                TRACE( "Found file %s, %d bytes at 0x%x\n", mpInternalFiles[i].pName,
+                                        count, mpInternalFiles[i].offset );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 
@@ -953,6 +1122,20 @@ ForthShell::DeleteCommandLine( void )
     delete [] mpArgs;
 
     mpArgs = NULL;
+
+    if ( mpInternalFiles != NULL )
+    {
+        for ( int i = 0; i < mInternalFileCount; i++ )
+        {
+            if ( mpInternalFiles[i].pName != NULL )
+            {
+                delete [] mpInternalFiles[i].pName;
+            }
+        }
+        delete [] mpInternalFiles;
+        mpInternalFiles = NULL;
+    }
+    mInternalFileCount = 0;
 }
 
 
@@ -985,6 +1168,12 @@ ForthShell::CheckSyntaxError( const char *pString, long tag, long desiredTag )
     return true;
 }
 
+
+ForthFileInterface*
+ForthShell::GetFileInterface()
+{
+    return &mFileInterface;
+}
 
 char
 ForthShell::GetChar()

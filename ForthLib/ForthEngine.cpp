@@ -110,19 +110,25 @@ ForthEngine::ForthEngine()
 , mpDefaultConsoleOutData( stdout )
 , mpExtension( NULL )
 , mpCore( NULL )
+, mpShell( NULL )
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
     mpInstance = this;
     mpEngineScratch = new long[70];
-    mpMainThread = CreateThread( 0 );
-    mpCore = &(mpMainThread->mCore);
     mpErrorString = new char[ ERROR_STRING_MAX + 1 ];
 
     // remember creation time for elapsed time method
 #ifdef _WINDOWS
     _ftime( &mStartTime );
 #endif
+
+    // At this point, the main thread does not exist, it will be created later in Initialize, this
+    // is fairly screwed up, it is becauses originally ForthEngine was the center of the universe,
+    // and it created the shell, but now the shell is created first, and the shell or the main app
+    // can create the engine, and then the shell calls ForthEngine::Initialize to hook the two up.
+    // The main thread needs to get the file interface from the shell, so it can't be created until
+    // after the engine is connected to the shell.  Did I mention its screwed up?
 }
 
 ForthEngine::~ForthEngine()
@@ -196,10 +202,13 @@ ForthEngine::GetInstance( void )
 #define INTERP_STRINGS_LEN  256
 
 void
-ForthEngine::Initialize( int                totalLongs,
+ForthEngine::Initialize( ForthShell*        pShell,
+                         int                totalLongs,
                          bool               bAddBaseOps,
                          ForthExtension*    pExtension )
 {
+    mpShell = pShell;
+
     mDictionary.pBase = new long[totalLongs];
     mDictionary.pCurrent = mDictionary.pBase;
 
@@ -208,6 +217,8 @@ ForthEngine::Initialize( int                totalLongs,
     mpStringBufferA = new char[INTERP_STRINGS_LEN * NUM_INTERP_STRINGS];
     mpStringBufferB = new char[TMP_STRING_BUFFER_LEN];
 
+    mpMainThread = CreateThread( 0, MAIN_THREAD_PSTACK_LONGS, MAIN_THREAD_RSTACK_LONGS );
+    mpCore = &(mpMainThread->mCore);
     mpCore->optypeAction = (optypeActionRoutine *) malloc( sizeof(optypeActionRoutine) * 256 );
     mpCore->numBuiltinOps = 0;
     mpCore->builtinOps = (ForthOp *) malloc( sizeof(ForthOp) * MAX_BUILTIN_OPS );
@@ -381,7 +392,6 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
     ForthClassVocabulary* pVocab = StartClassDefinition( pClassName );
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
 
-#if 1
     if ( pParentClass )
     {
         // do "extends" - tie into parent class
@@ -389,29 +399,39 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
     }
 
     // loop through pEntries, adding ops to builtinOps table and adding methods to class
-    while ( pEntries->value != NULL )
+    while ( pEntries->name != NULL )
     {
-        const char* pMethodName = pEntries->name;
-        // add method routine to builtinOps table
-        long methodOp = AddOp( (long *) pEntries->value, kOpBuiltIn );
-        if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
+        const char* pMemberName = pEntries->name;
+        if ( (pEntries->returnType & kDTIsMethod) != 0 )
         {
-            gOpNames[mpCore->numBuiltinOps - 1] = pMethodName;
+            // this entry is a member method
+            // add method routine to builtinOps table
+            long methodOp = AddOp( (long *) pEntries->value, kOpBuiltIn );
+            if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
+            {
+                gOpNames[mpCore->numBuiltinOps - 1] = pMemberName;
+            }
+
+            // do "method:"
+            StartOpDefinition( pMemberName, false );
+            long* pEntry = pVocab->GetNewestEntry();
+            // pEntry[0] is initially the opcode for the method, now we replace it with the method index,
+            //  and put the opcode in the method table
+            long methodIndex = pVocab->AddMethod( pMemberName, methodOp );
+            pEntry[0] = methodIndex;
+            pEntry[1] = pEntries->returnType;
+            TRACE( "Method %s op is 0x%x\n", pMemberName, methodOp );
+            // TBD: support method return values (structs or objects)
+
+            // do ";method"
+            EndOpDefinition( false );
         }
+        else
+        {
+            // this entry is a member variable
+            pManager->GetNewestStruct()->AddField( pMemberName, pEntries->returnType, (int) pEntries->value );
 
-        // do "method:"
-        StartOpDefinition( pMethodName, false );
-        long* pEntry = pVocab->GetNewestEntry();
-        // pEntry[0] is initially the opcode for the method, now we replace it with the method index,
-        //  and put the opcode in the method table
-        long methodIndex = pVocab->AddMethod( pMethodName, methodOp );
-        pEntry[0] = methodIndex;
-        pEntry[1] = pEntries->returnType;
-        TRACE( "Method op is 0x%x\n", methodOp );
-        // TBD: support method return values (structs or objects)
-
-        // do ";method"
-        EndOpDefinition( false );
+        }
 
 #ifdef TRACE_INNER_INTERPRETER
         // add built-in op names to table for TraceOp
@@ -423,7 +443,6 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
         pEntries++;
     }
 
-#endif
     // do ";class"
     ClearFlag( kEngineFlagInStructDefinition );
     pManager->EndClassDefinition();
@@ -520,6 +539,7 @@ ForthEngine::CreateThread( long threadOp, int paramStackSize, int returnStackSiz
 
     pNewThread->mCore.pEngine = this;
     pNewThread->mCore.pDictionary = &mDictionary;
+    pNewThread->mCore.pFileFuncs = mpShell->GetFileInterface();
 
     if ( mpCore != NULL )
     {

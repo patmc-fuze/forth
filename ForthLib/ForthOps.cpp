@@ -110,6 +110,15 @@ FORTHOP( timesOp )
     SPUSH( a * b );
 }
 
+FORTHOP( utimesOp )
+{
+    NEEDS(2);
+    unsigned long b = SPOP;
+    unsigned long long a = (long long) SPOP;
+    unsigned long long prod = a * b;
+    LPUSH( prod );
+}
+
 FORTHOP( times2Op )
 {
     NEEDS(1);
@@ -1159,6 +1168,15 @@ FORTHOP( rshiftOp )
     NEEDS(2);
     long b = SPOP;
     long a = SPOP;
+    SPUSH( a >> b );
+}
+
+
+FORTHOP( urshiftOp )
+{
+    NEEDS(2);
+    long b = SPOP;
+    unsigned long a = (unsigned long) (SPOP);
     SPUSH( a >> b );
 }
 
@@ -2371,37 +2389,83 @@ FORTHOP( autoforgetOp )
     pVocabStack->Clear();
 }
 
+#define SCREEN_COLUMNS 80
+
 // return 'q' IFF user quit out
 static char
 ShowVocab( ForthCoreState   *pCore,
-           ForthVocabulary  *pVocab )
+           ForthVocabulary  *pVocab,
+           bool             quick )
 {
     int i;
     char retVal = 0;
     ForthShell *pShell = GET_ENGINE->GetShell();
     int nEntries = pVocab->GetNumEntries();
     long *pEntry = pVocab->GetFirstEntry();
+#define ENTRY_COLUMNS 16
+    char spaces[ENTRY_COLUMNS + 1];
+    int column = 0;
+#define BUFF_SIZE 256
+    char buff[BUFF_SIZE];
+
+    memset( spaces, ' ', ENTRY_COLUMNS );
+    spaces[ENTRY_COLUMNS] = '\0';
 
     for ( i = 0; i < nEntries; i++ )
     {
-        pVocab->PrintEntry( pEntry );
-        CONSOLE_STRING_OUT( "\n" );
-        pEntry = pVocab->NextEntry( pEntry );
-        if ( ((i % 22) == 21) || (i == (nEntries-1)) )
+        bool lastEntry = (i == (nEntries-1));
+        if ( quick )
         {
-            if ( (pShell != NULL) && pShell->GetInput()->InputStream()->IsInteractive() )
+            int nameLength = pVocab->GetEntryNameLength( pEntry );
+            int numSpaces = ENTRY_COLUMNS - (nameLength % ENTRY_COLUMNS);
+            if ( (column + nameLength) > SCREEN_COLUMNS )
             {
-                CONSOLE_STRING_OUT( "\nHit ENTER to continue, 'q' & ENTER to quit, 'n' & ENTER to do next vocabulary\n" );
-                retVal = tolower( pShell->GetChar() );
-                if ( retVal == 'q' )
+                CONSOLE_STRING_OUT( "\n" );
+                column = 0;
+            }
+            pVocab->GetEntryName( pEntry, buff, sizeof(buff) );
+            CONSOLE_STRING_OUT( buff );
+            column += (nameLength + numSpaces);
+            if ( column >= SCREEN_COLUMNS )
+            {
+                CONSOLE_STRING_OUT( "\n" );
+                column = 0;
+            }
+            else
+            {
+                CONSOLE_STRING_OUT( spaces + (ENTRY_COLUMNS - numSpaces) );
+            }
+            if ( lastEntry )
+            {
+                CONSOLE_STRING_OUT( "\n" );
+            }
+            else
+            {
+                pEntry = pVocab->NextEntry( pEntry );
+            }
+            i++;
+        }
+        else
+        {
+            pVocab->PrintEntry( pEntry );
+            CONSOLE_STRING_OUT( "\n" );
+            pEntry = pVocab->NextEntry( pEntry );
+            if ( ((i % 22) == 21) || lastEntry )
+            {
+                if ( (pShell != NULL) && pShell->GetInput()->InputStream()->IsInteractive() )
                 {
-                    pShell->GetChar();
-                    break;
-                }
-                else if ( retVal == 'n' )
-                {
-                    pShell->GetChar();
-                    break;
+                    CONSOLE_STRING_OUT( "\nHit ENTER to continue, 'q' & ENTER to quit, 'n' & ENTER to do next vocabulary\n" );
+                    retVal = tolower( pShell->GetChar() );
+                    if ( retVal == 'q' )
+                    {
+                        pShell->GetChar();
+                        break;
+                    }
+                    else if ( retVal == 'n' )
+                    {
+                        pShell->GetChar();
+                        break;
+                    }
                 }
             }
         }
@@ -2409,6 +2473,7 @@ ShowVocab( ForthCoreState   *pCore,
 
     return retVal;
 }
+
 
 FORTHOP( vlistOp )
 {
@@ -2443,7 +2508,45 @@ FORTHOP( vlistOp )
         }
         CONSOLE_STRING_OUT( pVocab->GetName() );
         CONSOLE_STRING_OUT( " vocabulary:\n" );
-        quit = ( ShowVocab( pCore, pVocab ) == 'q' );
+        quit = ( ShowVocab( pCore, pVocab, false ) == 'q' );
+        depth++;
+    }
+}
+
+FORTHOP( vlistqOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    bool quit = false;
+    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+    ForthVocabulary* pVocab;
+    int depth = 0;
+    CONSOLE_STRING_OUT( "vocab stack:" ); 
+    while ( true )
+    {
+        pVocab = pVocabStack->GetElement( depth );
+        if ( pVocab == NULL )
+        {
+            break;
+        }
+        CONSOLE_STRING_OUT( " " );
+        CONSOLE_STRING_OUT( pVocab->GetName() );
+        depth++;
+    }
+    CONSOLE_STRING_OUT( "\n" );
+    CONSOLE_STRING_OUT( "definitions vocab: " );
+    CONSOLE_STRING_OUT( pEngine->GetDefinitionVocabulary()->GetName() );
+    CONSOLE_STRING_OUT( "\n" );
+    depth = 0;
+    while ( !quit )
+    {
+        pVocab = pVocabStack->GetElement( depth );
+        if ( pVocab == NULL )
+        {
+            return;
+        }
+        CONSOLE_STRING_OUT( pVocab->GetName() );
+        CONSOLE_STRING_OUT( " vocabulary:\n" );
+        quit = ( ShowVocab( pCore, pVocab, true ) == 'q' );
         depth++;
     }
 }
@@ -3707,7 +3810,7 @@ FORTHOP( fopenOp )
     char *pAccess = (char *) SPOP;
     char *pName = (char *) SPOP;
 
-    FILE *pFP = GET_ENGINE->GetShell()->FileOpen( pName, pAccess );
+    FILE *pFP = pCore->pFileFuncs->fileOpen( pName, pAccess );
     SPUSH( (long) pFP );
 }
 
@@ -3715,7 +3818,7 @@ FORTHOP( fcloseOp )
 {
     NEEDS(1);
     
-    int result = GET_ENGINE->GetShell()->FileClose( (FILE *) SPOP );
+    int result = pCore->pFileFuncs->fileClose( (FILE *) SPOP );
     SPUSH( result );
 }
 
@@ -3725,7 +3828,7 @@ FORTHOP( fseekOp )
     int offset = SPOP;
     FILE *pFP = (FILE *) SPOP;
     
-    int result = GET_ENGINE->GetShell()->FileSeek( pFP, offset, ctrl );
+    int result = pCore->pFileFuncs->fileSeek( pFP, offset, ctrl );
     SPUSH( result );
 }
 
@@ -3738,7 +3841,7 @@ FORTHOP( freadOp )
     int itemSize = SPOP;
     void *pDst = (void *) SPOP;
     
-    int result = GET_ENGINE->GetShell()->FileRead( pFP, pDst, itemSize, numItems);
+    int result = pCore->pFileFuncs->fileRead( pDst, itemSize, numItems, pFP );
     SPUSH( result );
 }
 
@@ -3751,7 +3854,7 @@ FORTHOP( fwriteOp )
     int itemSize = SPOP;
     void *pSrc = (void *) SPOP;
     
-    int result = GET_ENGINE->GetShell()->FileWrite( pFP, pSrc, itemSize, numItems);
+    int result = pCore->pFileFuncs->fileWrite( pSrc, itemSize, numItems, pFP );
     SPUSH( result );
 }
 
@@ -3760,7 +3863,7 @@ FORTHOP( fgetcOp )
     NEEDS(1);
     FILE *pFP = (FILE *) SPOP;
     
-    int result = GET_ENGINE->GetShell()->FileGetChar( pFP );
+    int result = pCore->pFileFuncs->fileGetChar( pFP );
     SPUSH( result );
 }
 
@@ -3770,28 +3873,29 @@ FORTHOP( fputcOp )
     FILE *pFP = (FILE *) SPOP;
     int outChar = SPOP;
     
-    int result = GET_ENGINE->GetShell()->FilePutChar( pFP, outChar );
+    int result = pCore->pFileFuncs->filePutChar( outChar, pFP );
     SPUSH( result );
 }
 
 FORTHOP( feofOp )
 {
     NEEDS(1);
-    int result = GET_ENGINE->GetShell()->FileAtEOF( (FILE *) SPOP );
+
+    int result = pCore->pFileFuncs->fileAtEnd( (FILE *) SPOP );
     SPUSH( result );
 }
 
 FORTHOP( fexistsOp )
 {
     NEEDS(1);
-    int result = GET_ENGINE->GetShell()->FileCheckExists( (const char*) SPOP );
+    int result = pCore->pFileFuncs->fileExists( (const char*) SPOP );
     SPUSH( result );
 }
 
 FORTHOP( ftellOp )
 {
     NEEDS(1);
-    int result = GET_ENGINE->GetShell()->FileGetPosition( (FILE *) SPOP );
+    int result = pCore->pFileFuncs->fileTell( (FILE *) SPOP );
     SPUSH( result );
 }
 
@@ -3799,7 +3903,7 @@ FORTHOP( flenOp )
 {
     NEEDS(1);
     FILE* pFile = (FILE *) SPOP;
-    int result = GET_ENGINE->GetShell()->FileGetLength( pFile );
+    int result = pCore->pFileFuncs->fileGetLength( pFile );
     SPUSH( result );
 }
 
@@ -3809,7 +3913,7 @@ FORTHOP( fgetsOp )
     FILE* pFile = (FILE *) SPOP;
     int maxChars = SPOP;
     char* pBuffer = (char *) SPOP;
-    int result = (int) GET_ENGINE->GetShell()->FileGetString( pFile, pBuffer, maxChars );
+    int result = (int) pCore->pFileFuncs->fileGetString( pBuffer, maxChars, pFile );
     SPUSH( result );
 }
 
@@ -3818,7 +3922,7 @@ FORTHOP( fputsOp )
     NEEDS( 2 );
     FILE* pFile = (FILE *) SPOP;
     char* pBuffer = (char *) SPOP;
-    int result = GET_ENGINE->GetShell()->FilePutString( pFile, pBuffer );
+    int result = pCore->pFileFuncs->filePutString( pBuffer, pFile );
     SPUSH( result );
 }
 
@@ -4039,7 +4143,7 @@ FORTHOP( describeOp )
         {
             sprintf( buff, "%s vocabulary %s:\n", ((pVocab->IsClass() ? "class" : "struct")), pVocab->GetName() );
             CONSOLE_STRING_OUT( buff );
-            char quit = ShowVocab( pEngine->GetCoreState(), pVocab );
+            char quit = ShowVocab( pEngine->GetCoreState(), pVocab, true );
             if ( quit == 'q' )
             {
                 break;
@@ -4254,6 +4358,65 @@ FORTHOP( srandOp )
     SPUSH( rand() );
 }
 
+#define get16bits(d) ((((unsigned long)(((const unsigned char *)(d))[1])) << 8)\
+						+(unsigned long)(((const unsigned char *)(d))[0]) )
+
+unsigned long
+SuperFastHash (const char * data, int len, unsigned long hash)
+{
+
+	unsigned long tmp;
+	int rem;
+
+	rem = len & 3;
+	len >>= 2;
+
+	/* Main loop */
+	for (;len > 0; len--) {
+		hash  += get16bits (data);
+		tmp    = (get16bits (data+2) << 11) ^ hash;
+		hash   = (hash << 16) ^ tmp;
+		data  += 2*sizeof (unsigned short);
+		hash  += hash >> 11;
+	}
+
+	/* Handle end cases */
+	switch (rem) {
+		case 3: hash += get16bits (data);
+			hash ^= hash << 16;
+			hash ^= data[sizeof (unsigned short)] << 18;
+			hash += hash >> 11;
+			break;
+		case 2: hash += get16bits (data);
+			hash ^= hash << 11;
+			hash += hash >> 17;
+			break;
+		case 1: hash += *data;
+			hash ^= hash << 10;
+			hash += hash >> 1;
+	}
+
+	/* Force "avalanching" of final 127 bits */
+	hash ^= hash << 3;
+	hash += hash >> 5;
+	hash ^= hash << 4;
+	hash += hash >> 17;
+	hash ^= hash << 25;
+	hash += hash >> 6;
+
+	return hash;
+}
+
+// data len hashIn ... hashOut
+FORTHOP( hashOp )
+{
+    unsigned int hashVal = SPOP;
+    int len = SPOP;
+    const char* pData = (const char*) (SPOP);
+    hashVal = SuperFastHash( pData, len, hashVal );
+    SPUSH( hashVal );
+}
+
 ///////////////////////////////////////////
 //  conditional compilation
 ///////////////////////////////////////////
@@ -4380,12 +4543,6 @@ FORTHOP( leaveCriticalSectionOp )
     ::LeaveCriticalSection( pCriticalSection );
 }
 
-FORTHOP( mallocCriticalSectionOp )
-{
-    LPCRITICAL_SECTION pCriticalSection = (LPCRITICAL_SECTION)::malloc( sizeof( CRITICAL_SECTION ) );
-    SPUSH( (long) pCriticalSection );
-}
-
 FORTHOP( sleepOp )
 {
     DWORD dwMilliseconds = (DWORD)(SPOP);
@@ -4420,6 +4577,42 @@ FORTHOP( exitThreadOp )
     pThread->Exit();
 }
 
+FORTHOP( findFirstFileOp )
+{
+    LPWIN32_FIND_DATA pOutData = (LPWIN32_FIND_DATA)(SPOP);
+    LPCTSTR pPath = (LPCTSTR)(SPOP);
+    HANDLE result = ::FindFirstFile( pPath, pOutData );
+    SPUSH( (long) result );
+}
+
+FORTHOP( findNextFileOp )
+{
+    LPWIN32_FIND_DATA pOutData = (LPWIN32_FIND_DATA)(SPOP);
+    HANDLE searchHandle = (HANDLE)(SPOP);
+    BOOL result = ::FindNextFile( searchHandle, pOutData );
+    SPUSH( (long) result );
+}
+
+FORTHOP( findCloseOp )
+{
+    HANDLE searchHandle = (HANDLE)(SPOP);
+    BOOL result = ::FindClose( searchHandle );
+    SPUSH( (long) result );
+}
+
+FORTHOP( windowsConstantsOp )
+{
+    static int winConstants[5] =
+    {
+        (sizeof(winConstants)/sizeof(int)) - 1,
+        sizeof(TCHAR),
+        MAX_PATH,
+        sizeof(WIN32_FIND_DATA),
+        sizeof(CRITICAL_SECTION)
+    };
+    SPUSH( (long) (&(winConstants[0])) );
+}
+
 #endif
 
 // NOTE: the order of the first few entries in this table must agree
@@ -4452,25 +4645,25 @@ baseDictionaryEntry baseDictionary[] =
     //  STUFF WHICH IS COMPILED BY OTHER WORDS
     //   DO NOT REARRANGE UNDER PAIN OF DEATH
     ///////////////////////////////////////////
-    OP_DEF(    abortOp,                "abort" ),
+    OP_DEF(    abortOp,                "abort" ),           // 0
     OP_DEF(    dropOp,                 "drop" ),
     OP_DEF(    doDoesOp,               "_doDoes" ),
     OP_DEF(    litOp,                  "lit" ),
-    OP_DEF(    litOp,                  "flit" ),
+    OP_DEF(    litOp,                  "flit" ),            // 4
     OP_DEF(    dlitOp,                 "dlit" ),
     OP_DEF(    doVariableOp,           "_doVariable" ),
     OP_DEF(    doConstantOp,           "_doConstant" ),
-    OP_DEF(    doDConstantOp,          "_doDConstant" ),
+    OP_DEF(    doDConstantOp,          "_doDConstant" ),    // 8
     OP_DEF(    endBuildsOp,            "_endBuilds" ),
     OP_DEF(    doneOp,                 "done" ),
     OP_DEF(    doByteOp,               "_doByte" ),
-    OP_DEF(    doShortOp,              "_doShort" ),
+    OP_DEF(    doShortOp,              "_doShort" ),        // 12
     OP_DEF(    doIntOp,                "_doInt" ),
     OP_DEF(    doFloatOp,              "_doFloat" ),
     OP_DEF(    doDoubleOp,             "_doDouble" ),
-    OP_DEF(    doStringOp,             "_doString" ),
-    OP_DEF(    doLongOp,               "_doLong" ),
+    OP_DEF(    doStringOp,             "_doString" ),       // 16
     OP_DEF(    doOpOp,                 "_doOp" ),
+    OP_DEF(    doLongOp,               "_doLong" ),
     OP_DEF(    doObjectOp,             "_doObject" ),
     // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
     OP_DEF(    addressOfOp,            "addressOf" ),
@@ -4535,6 +4728,7 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     OP_DEF(    minusOp,                "-" ),
     OP_DEF(    timesOp,                "*" ),
+    OP_DEF(    utimesOp,               "u*" ),
     OP_DEF(    times2Op,               "2*" ),
     OP_DEF(    times4Op,               "4*" ),
     OP_DEF(    times8Op,               "8*" ),
@@ -4643,6 +4837,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    invertOp,               "~" ),
     OP_DEF(    lshiftOp,               "<<" ),
     OP_DEF(    rshiftOp,               ">>" ),
+    OP_DEF(    urshiftOp,              "u>>" ),
 
     ///////////////////////////////////////////
     //  boolean logic
@@ -4750,11 +4945,11 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    fexistsOp,              "fexists" ),
     OP_DEF(    ftellOp,                "ftell" ),
     OP_DEF(    flenOp,                 "flen" ),
+    OP_DEF(    fgetsOp,                "fgets" ),
+    OP_DEF(    fputsOp,                "fputs" ),
 
     // everything below this line does not have an assembler version
 
-    OP_DEF(    fputsOp,                "fputs" ),
-    OP_DEF(    fgetsOp,                "fgets" ),
     OP_DEF(    stdinOp,                "stdin" ),
     OP_DEF(    stdoutOp,               "stdout" ),
     OP_DEF(    stderrOp,               "stderr" ),
@@ -4882,6 +5077,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    forgetOp,               "forget" ),
     OP_DEF(    autoforgetOp,           "autoforget" ),
     OP_DEF(    vlistOp,                "vlist" ),
+    OP_DEF(    vlistqOp,               "vlistq" ),
     OP_DEF(    findOp,                 "find" ),
 
     ///////////////////////////////////////////
@@ -4968,6 +5164,7 @@ baseDictionaryEntry baseDictionary[] =
 #endif
     OP_DEF(    randOp,                 "rand" ),
     OP_DEF(    srandOp,                "srand" ),
+    OP_DEF(    hashOp,                 "hash" ),
     OP_DEF(    byeOp,                  "bye" ),
     OP_DEF(    argvOp,                 "argv" ),
     OP_DEF(    argcOp,                 "argc" ),
@@ -5002,12 +5199,15 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( deleteCriticalSectionOp,    "DeleteCriticalSection" ),
     OP_DEF( enterCriticalSectionOp,     "EnterCriticalSection" ),
     OP_DEF( leaveCriticalSectionOp,     "LeaveCriticalSection" ),
-    OP_DEF( mallocCriticalSectionOp,    "mallocCriticalSection" ),
     OP_DEF( sleepOp,                    "Sleep" ),
     OP_DEF( createThreadOp,             "createThread" ),
     OP_DEF( destroyThreadOp,            "destroyThread" ),
     OP_DEF( startThreadOp,              "startThread" ),
     OP_DEF( exitThreadOp,               "exitThread" ),
+    OP_DEF( findFirstFileOp,            "FindFirstFile" ),
+    OP_DEF( findNextFileOp,             "FindNextFile" ),
+    OP_DEF( findCloseOp,                "FindClose" ),
+    OP_DEF( windowsConstantsOp,         "windowsConstants" ),
 
 #endif
 
@@ -5022,6 +5222,13 @@ baseDictionaryEntry baseDictionary[] =
 //
 //############################################################################
 
+void audioCallback(void *userdata, unsigned char *stream, int len)
+{
+    for ( int i = 0; i < len; i++ )
+    {
+        *stream++ = (i & 1) ? 127 : -128;
+    }
+}
 };  // end extern "C"
 
 

@@ -146,6 +146,8 @@ public:
     virtual eForthResult    ProcessLine( const char *pSrcLine = NULL );
     virtual char            GetChar();
 
+    virtual ForthFileInterface* GetFileInterface();
+
     virtual FILE*           FileOpen( const char* filePath, const char* openMode );
     virtual int             FileClose( FILE* pFile );
     virtual int             FileSeek( FILE* pFile, int offset, int control );
@@ -188,6 +190,7 @@ protected:
     ForthEngine *           mpEngine;
     ForthThread *           mpThread;
     ForthShellStack *       mpStack;
+    ForthFileInterface      mFileInterface;
 
     long                    mTokenBuffer[ TOKEN_BUFF_LONGS ];
 
@@ -207,6 +210,16 @@ protected:
     HANDLE                  mConsoleInputEvent;
     ForthThreadQueue*       mpReadyThreads;
     ForthThreadQueue*       mpSleepingThreads;
+
+    struct sInternalFile
+    {
+        char*   pName;
+        int     length;
+        int     offset;
+    };
+    sInternalFile*          mpInternalFiles;
+    int                     mInternalFileCount;
+
     bool                    mWaitingForConsoleInput;
     bool                    mConsoleInputReady;
 };

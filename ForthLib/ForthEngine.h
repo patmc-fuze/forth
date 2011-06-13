@@ -24,6 +24,9 @@ class ForthExtension;
 
 #define DEFAULT_USER_STORAGE 16384
 
+#define MAIN_THREAD_PSTACK_LONGS   8192
+#define MAIN_THREAD_RSTACK_LONGS   8192
+
 // this is the size of the buffer returned by GetTmpStringBuffer()
 //  which is the buffer used by word and blword
 #define TMP_STRING_BUFFER_LEN 256
@@ -48,7 +51,8 @@ public:
                     ForthEngine();
     virtual         ~ForthEngine();
 
-    void            Initialize( int storageLongs=DEFAULT_USER_STORAGE,
+    void            Initialize( ForthShell* pShell,
+                                int storageLongs=DEFAULT_USER_STORAGE,
                                 bool bAddBaseOps=true,
                                 ForthExtension* pExtension=NULL );
     void            Reset( void );
@@ -142,7 +146,6 @@ public:
     inline ForthVocabulary  *GetDefinitionVocabulary( void )   { return mpDefinitionVocab; };
     inline void             SetDefinitionVocabulary( ForthVocabulary* pVocab )  { mpDefinitionVocab = pVocab; };
     inline ForthVocabulary  *GetLocalVocabulary( void )   { return mpLocalVocab; };
-    inline void             SetShell( ForthShell *pShell ) { mpShell = pShell; };
     inline ForthShell       *GetShell( void ) { return mpShell; };
     inline ForthVocabulary  *GetForthVocabulary( void )   { return mpForthVocab; };
     inline ForthThread      *GetMainThread( void )  { return mpMainThread; };

@@ -239,3 +239,49 @@ addHelp demo	 demo is used to both display and interpret a line of text
 : demo getInBufferPointer %s %nl ;
 precedence demo
 
+
+enum:	WIN32_FILE_ATTRIB
+  0x00001	FATTRIB_READONLY
+  0x00002	FATTRIB_HIDDEN
+  0x00004	FATTRIB_SYSTEM
+  0x00010	FATTRIB_DIRECTORY
+  0x00020	FATTRIB_ARCHIVE
+  0x00040	FATTRIB_DEVICE
+  0x00080	FATTRIB_NORMAL
+  0x00100	FATTRIB_TEMPORARY
+  0x00200	FATTRIB_SPARSE
+  0x00400	FATTRIB_LINK
+  0x00800	FATTRIB_COMPRESSED
+  0x01000	FATTRIB_OFFLINE
+  0x02000	FATTRIB_NOT_INDEXED
+  0x04000	FATTRIB_ENCRYPTED
+;enum
+
+struct: FILETIME
+  int	lowDateTime
+  int	highDateTime
+;struct
+
+decimal
+
+enum:	WIN32_CONSTANTS
+  windowsConstants 4+  @ TCHAR_SIZE
+  windowsConstants 8+  @ MAX_PATH
+  windowsConstants 12+ @ WIN32_FIND_DATA_SIZE
+  windowsConstants 16+ @ CRITICAL_SECTION_SIZE
+;enum
+
+struct: WIN32_FIND_DATA
+  int		attributes
+  FILETIME	creationTime
+  FILETIME	lastAccessTime
+  FILETIME	lastWriteTime
+  int		fileSizeHigh
+  int		fileSizeLow
+  int		reserved0
+  int		reserved1
+  MAX_PATH arrayOf byte fileName
+  14 arrayOf byte shortFileName
+;struct
+
+loaddone

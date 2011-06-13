@@ -38,8 +38,9 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
     else
     {
         pShell = new ForthShell;
-        pShell->SetCommandLine( argc - 1, (const char **) (argv + 1));
+        pShell->SetCommandLine( argc, (const char **) (argv));
         pShell->SetEnvironmentVars( (const char **) envp );
+#if 0
         if ( argc > 1 )
         {
 
@@ -56,6 +57,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
             }
         }
         else
+#endif
         {
 
             //

@@ -63,6 +63,23 @@ struct ForthThreadState
 };
 #endif
 
+struct ForthFileInterface
+{
+    FILE*               (*fileOpen)( const char* pPath, const char* pAccess );
+    int                 (*fileClose)( FILE* pFile );
+    size_t              (*fileRead)( void* data, size_t itemSize, size_t numItems, FILE* pFile );
+    size_t              (*fileWrite)( const void* data, size_t itemSize, size_t numItems, FILE* pFile );
+    int                 (*fileGetChar)( FILE* pFile );
+    int                 (*filePutChar)( int val, FILE* pFile );
+    int                 (*fileAtEnd)( FILE* pFile );
+    int                 (*fileExists)( const char* pPath );
+    int                 (*fileSeek)( FILE* pFile, long offset, int ctrl );
+    long                (*fileTell) ( FILE* pFile );
+    int                 (*fileGetLength)( FILE* pFile );
+    char*               (*fileGetString)( char* buffer, int bufferLength, FILE* pFile );
+    int                 (*filePutString)( const char* buffer, FILE* pFile );
+};
+
 struct ForthCoreState
 {
     optypeActionRoutine  *optypeAction;
@@ -112,6 +129,7 @@ struct ForthCoreState
     void                *pThread;
 
     ForthMemorySection* pDictionary;
+    ForthFileInterface* pFileFuncs;
 
     void                *pConOutData;
     consoleOutRoutine   consoleOut;
@@ -190,8 +208,8 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define GET_STATE                       (eForthResult)(pCore->state)
 #define SET_STATE( A )                  (pCore->state = A)
 
-//#define GET_ENGINE                      (pCore->pEngine)
-#define GET_ENGINE                      (ForthEngine::GetInstance())
+#define GET_ENGINE                      ((ForthEngine *) (pCore->pEngine))
+//#define GET_ENGINE                      (ForthEngine::GetInstance())
 
 #define GET_VAR_OPERATION               (pCore->varMode)
 #define SET_VAR_OPERATION( A )          (pCore->varMode = A)

@@ -214,7 +214,7 @@
 				PrecompiledHeaderThrough="stdafx.h"
 				PrecompiledHeaderFile=".\Release/ForthMain.pch"
 				ExpandAttributedSource="FALSE"
-				AssemblerOutput="0"
+				AssemblerOutput="4"
 				AssemblerListingLocation=".\Release/"
 				ObjectFile=".\Release/"
 				ProgramDataBaseFileName=".\Release/"

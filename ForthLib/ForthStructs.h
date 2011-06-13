@@ -141,6 +141,8 @@ public:
 
     inline long         GetTypeIndex( void ) { return mStructIndex; };
 
+    virtual void        EndDefinition();
+
 protected:
     long                    mNumBytes;
     long                    mMaxNumBytes;

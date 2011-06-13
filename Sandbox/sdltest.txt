@@ -1,0 +1,69 @@
+
+autoforget screen
+requires sdlutil
+requires sdl_events
+also sdl
+
+#if 1
+ptrTo int worldBM
+SDL_LoadBMP( "SimFunWorld.bmp" ) -> worldBM
+
+SDL_Rect srcPos
+SDL_Rect dstPos
+
+0 -> srcPos.x 0 -> srcPos.y
+640 -> srcPos.w 480 -> srcPos.h
+
+0 -> dstPos.x 0 -> dstPos.y
+640 -> dstPos.w 480 -> dstPos.h
+
+: test
+  SDL_UpperBlit( worldBM srcPos sdlScreen dstPos ) drop
+  SDL_UpdateRects( sdlScreen 1 dstPos ) drop
+;
+#endif
+
+		
+: %sx swap %bl %bl %s "=0x" %s %x ;
+
+: showKeyEvent
+  -> ptrTo SDL_KeyboardEvent ke
+  "type" ke.type %sx  "which" ke.which %sx   "state" ke.state %sx
+  "scancode" ke.scancode %sx
+  "sym" ke.sym %sx
+  "mod" ke.scancode %sx
+  "unicode" ke.unicode %sx
+  %nl
+;
+
+: testEvents
+  SDL_Event ev
+  startSDL
+  80 0 do
+    ev SDL_WaitEvent drop
+    ds
+    ev.type case
+      SDL_KEYDOWN of
+        "key down " %s ev.key showKeyEvent
+      endof
+      SDL_KEYUP of
+        "key up " %s ev.key showKeyEvent
+      endof
+      SDL_MOUSEMOTION of			// Mouse moved
+        "mouse motion\n" %s
+      endof
+      SDL_MOUSEBUTTONDOWN of		// Mouse button pressed
+        "mouse up\n" %s
+      endof
+      SDL_MOUSEBUTTONUP of		// Mouse button released
+        "mouse down\n" %s
+      endof
+      // default:
+      "event type 0x" %s %x %bl %bl
+      ev 16 dump
+    endcase
+  loop
+  endSDL
+;
+previous
+

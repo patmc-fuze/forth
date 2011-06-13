@@ -762,18 +762,19 @@ also forth definitions
   code
   also assembler		// push assembler vocab on top of search stack
 ;
+
+// subroutines must have a "endcode" after its return instruction to pop assembler stack
+: subroutine
+  create
+  also assembler		// push assembler vocab on top of search stack
+;
+
 previous definitions
 
 // exit from a forthop defined by "code"
 : next,
   edi jmp,
   previous				// pop assembler vocab off search stack
-;
-
-// subroutines must have a "endcode" after its return instruction to pop assembler stack
-: subroutine
-  create
-  also assembler		// push assembler vocab on top of search stack
 ;
 
 // use endcode to end subroutines and "code" forthops which don't end with "next,"

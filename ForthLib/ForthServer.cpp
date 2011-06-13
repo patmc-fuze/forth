@@ -13,16 +13,99 @@
 #include <nds.h>
 #endif
 
-static void consoleOutToClient( ForthCoreState   *pCore,
-                                const char       *pMessage )
+namespace
 {
-#ifdef DEBUG_WITH_NDS_EMULATOR
-	iprintf( "%s", pMessage );
-#else
-    ForthServerShell* pShell = (ForthServerShell *) (((ForthEngine *)(pCore->pEngine))->GetShell());
-    pShell->SendTextToClient( pMessage );
-#endif
-}
+    void consoleOutToClient( ForthCoreState   *pCore,
+                             const char       *pMessage )
+    {
+    #ifdef DEBUG_WITH_NDS_EMULATOR
+	    iprintf( "%s", pMessage );
+    #else
+        ForthServerShell* pShell = (ForthServerShell *) (((ForthEngine *)(pCore->pEngine))->GetShell());
+        pShell->SendTextToClient( pMessage );
+    #endif
+    }
+
+    FILE* fileOpen( const char* pPath, const char* pAccess )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileOpen( pPath, pAccess );
+    }
+
+    int fileClose( FILE* pFile )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileClose( pFile );
+    }
+
+    size_t fileRead( void* data, size_t itemSize, size_t numItems, FILE* pFile )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileRead( pFile, data, itemSize, numItems );
+    }
+
+    size_t fileWrite( const void* data, size_t itemSize, size_t numItems, FILE* pFile )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileWrite( pFile, data, itemSize, numItems );
+    }
+
+    int fileGetChar( FILE* pFile )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileGetChar( pFile );
+    }
+
+    int filePutChar( int val, FILE* pFile )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FilePutChar( pFile, val );
+    }
+
+    int fileAtEnd( FILE* pFile )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileAtEOF( pFile );
+    }
+
+    int fileExists( const char* pPath )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileCheckExists( pPath );
+    }
+
+    int fileSeek( FILE* pFile, long offset, int ctrl )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileSeek( pFile, offset, ctrl );
+    }
+
+    long fileTell( FILE* pFile )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileGetPosition( pFile );
+    }
+
+    int fileGetLength( FILE* pFile )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileGetLength( pFile );
+    }
+
+    char* fileGetString( char* buffer, int bufferLength, FILE* pFile )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileGetString( pFile, buffer, bufferLength );
+    }
+
+    int filePutString( const char* buffer, FILE* pFile )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FilePutString( pFile, buffer );
+    }
+
+
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -106,6 +189,19 @@ ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, Forth
 ,   mDoAutoload( doAutoload )
 ,   mpMsgPipe( NULL )
 {
+    mFileInterface.fileOpen = fileOpen;
+    mFileInterface.fileClose = fileClose;
+    mFileInterface.fileRead = fileRead;
+    mFileInterface.fileWrite = fileWrite;
+    mFileInterface.fileGetChar = fileGetChar;
+    mFileInterface.filePutChar = filePutChar;
+    mFileInterface.fileAtEnd = fileAtEnd;
+    mFileInterface.fileExists = fileExists;
+    mFileInterface.fileSeek = fileSeek;
+    mFileInterface.fileTell = fileTell;
+    mFileInterface.fileGetLength = fileGetLength;
+    mFileInterface.fileGetString = fileGetString;
+    mFileInterface.filePutString = filePutString;
 }
 
 ForthServerShell::~ForthServerShell()

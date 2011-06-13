@@ -283,3 +283,4 @@ also sdl
 
 previous definitions
 
+loaddone

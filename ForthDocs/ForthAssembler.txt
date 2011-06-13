@@ -4,10 +4,10 @@
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 TBDs:
-- add a "call" op to allow high-level words to 
+- add a "call" op to allow high-level words to call subroutines
 - add a way to connect a c-style callback to forth ops
 - add a struct definition for ForthCoreState
-  ? why aren't 
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 
 Defining user ops with assembler
