@@ -1,8 +1,8 @@
 
-autoforget ellipse
 requires sdlutil
 also sdl
 
+autoforget ellipse
 : ellipse ;
 
 720 -> screenW
