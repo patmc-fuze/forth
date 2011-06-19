@@ -129,6 +129,53 @@ Gotchas with structure and object support:
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 10, 2011
 
+I added generic quicksort and binary search ops.
+
+qsort( ARRAY_ADDR NUM_ELEMENTS ELEMENT_SIZE COMPARE_TYPE SIGNED_FLAG COMPARE_OFFSET )
+o COMPARE_TYPE is forth native base type
+o COMPARE_OFFSET is offset into record of field to compare
+o SIGNED_FLAG is 0 for unsigned, not 0 for signed for integer types
+o SIGNED_FLAG is string size for string comparisons
+Some sample output for signed & unsigned bytes:
+
+ok> variable aa
+ok> 0x17330483 aa ! aa 4 1 0 0 0 qsort aa @ %x
+83331704
+ok> 0x17330483 aa ! aa 4 1 0 1 0 qsort aa @ %x
+33170483
+ok> 0x17333317 aa ! aa 4 1 0 1 0 qsort aa @ %x
+33331717
+ok> 0x87333387 aa ! aa 4 1 0 1 0 qsort aa @ %x
+33338787
+ok> 0x87333387 aa ! aa 4 1 0 0 0 qsort aa @ %x
+87873333
+
+bsearch( ARRAY_ADDR NUM_ELEMENTS ELEMENT_SIZE COMPARE_TYPE SIGNED_FLAG COMPARE_OFFSET KEY_ADDR )
+
+bsearch is a little screwy - when it doesn't find a key it pushes the negative
+of the nearest index+1, which is a little confusing, but I needed some way to
+indicate when something wasn't found and was less than the lowest value in
+the array.  If the return value is negative, you need to insert at -(val-1).
+
+Maybe I should change it so it always returns the insertion index, and the
+caller is responisble for checking for an exact match?
+
+The next thing this suggests is adding a way of making datatypes user visible,
+so that the user can easily specify:
+o type of array elements
+o type of comparison fields
+o offset of comparison field
+
+Something like STRUCT_TYPE:FIELD_NAME would be nice.
+This would still leave the signed/unsigned issue to be dealt with.
+Bit 7 is unused in the data storage descriptor word, could be used for sign.
+
+A way of entering literal data for records would also be handy,
+maybe something like: data NAME STRUCT_TYPE ... enddata
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 10, 2011
+
 There was a crash in sdl testEvents, it was caused by return stack corruption,
 it had a SDL_Event local variable and only 8 bytes was allocated for it, it is
 a union type, and some of its subtypes have more than 8 bytes (SDL_KeyEvent is

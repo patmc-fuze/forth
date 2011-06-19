@@ -1702,7 +1702,7 @@ ForthBaseType::~ForthBaseType()
 }
 
 void
-ForthBaseType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
+ForthBaseType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long flags )
 {
     char *pToken = pEngine->GetNextSimpleToken();
     int nBytes = mNumBytes;
@@ -1737,15 +1737,18 @@ ForthBaseType::DefineInstance( ForthEngine *pEngine, void *pInitialVal )
     }
 
     long numElements = pEngine->GetArraySize();
-    long arrayFlag = (numElements) ? kDTIsArray : 0;
+    if ( numElements != 0 )
+    {
+        flags |= kDTIsArray;
+    }
     pEngine->SetArraySize( 0 );
     if ( isString )
     {
-        typeCode = STRING_TYPE_TO_CODE( arrayFlag, len );
+        typeCode = STRING_TYPE_TO_CODE( flags, len );
     }
     else
     {
-        typeCode = NATIVE_TYPE_TO_CODE( arrayFlag, baseType );
+        typeCode = NATIVE_TYPE_TO_CODE( flags, baseType );
     }
 
     if ( pEngine->CheckFlag( kEngineFlagIsPointer ) )

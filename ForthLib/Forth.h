@@ -413,6 +413,7 @@ typedef enum
     kDTIsPtr        = 16,
     kDTIsArray      = 32,
     kDTIsMethod     = 64,
+    kDTIsUnsigned   = 128,
 } storageDescriptor;
 
 // user-defined structure fields have a 32-bit descriptor with the following format:
@@ -420,7 +421,7 @@ typedef enum
 //   4          is field a pointer
 //   5          is field an array
 //   6          is this a method
-//   7          reserved
+//   7          is unsigned (integer types only)    
 // 31...8       depends on base type:
 //      string      length
 //      struct      structIndex

@@ -192,7 +192,7 @@ class ForthBaseType
 public:
     ForthBaseType( const char* pName, int numBytes, forthBaseType nativeType );
     virtual ~ForthBaseType();
-    virtual void DefineInstance( ForthEngine *pEngine, void *pInitialVal );
+    virtual void DefineInstance( ForthEngine *pEngine, void *pInitialVal, long flags=0 );
 
     inline long GetGlobalOp( void ) { return mBaseType + OP_DO_BYTE; };
     inline long GetGlobalArrayOp( void ) { return mBaseType + OP_DO_BYTE_ARRAY; };

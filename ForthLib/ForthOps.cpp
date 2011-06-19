@@ -2618,10 +2618,22 @@ FORTHOP( byteOp )
 	gBaseTypeByte.DefineInstance( GET_ENGINE, &val );
 }
 
+FORTHOP( ubyteOp )
+{
+    char val = 0;
+	gBaseTypeByte.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned );
+}
+
 FORTHOP( shortOp )
 {
     short val = 0;
 	gBaseTypeShort.DefineInstance( GET_ENGINE, &val );
+}
+
+FORTHOP( ushortOp )
+{
+    short val = 0;
+	gBaseTypeShort.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned );
 }
 
 FORTHOP( intOp )
@@ -2630,10 +2642,22 @@ FORTHOP( intOp )
 	gBaseTypeInt.DefineInstance( GET_ENGINE, &val );
 }
 
+FORTHOP( uintOp )
+{
+    int val = 0;
+	gBaseTypeInt.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned );
+}
+
 FORTHOP( longOp )
 {
     long long val = 0;
 	gBaseTypeLong.DefineInstance( GET_ENGINE, &val );
+}
+
+FORTHOP( ulongOp )
+{
+    long long val = 0;
+	gBaseTypeLong.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned  );
 }
 
 FORTHOP( floatOp )
@@ -4347,6 +4371,12 @@ FORTHOP( millitimeOp )
     SPUSH( (long) pEngine->GetElapsedTime() );
 }
 
+
+//##############################
+//
+//  computation utilities - randoms, hashing, sorting and searcing
+//
+
 FORTHOP( randOp )
 {
     SPUSH( rand() );
@@ -4415,6 +4445,319 @@ FORTHOP( hashOp )
     const char* pData = (const char*) (SPOP);
     hashVal = SuperFastHash( pData, len, hashVal );
     SPUSH( hashVal );
+}
+
+namespace
+{
+    struct qsInfo
+    {
+        void*   temp;
+        int     offset;
+        int     elementSize;
+        int     compareSize;
+        int     (*compare)( const void* a, const void* b, int );
+    };
+
+    int u8Compare( const void* pA, const void* pB, int )
+    {
+        int a = (int) *((unsigned char *) pA);
+        int b = (int) *((unsigned char *) pB);
+        return a - b;
+    }
+
+    int s8Compare( const void* pA, const void* pB, int )
+    {
+        int a = (int) *((char *) pA);
+        int b = (int) *((char *) pB);
+        return a - b;
+    }
+
+    int u16Compare( const void* pA, const void* pB, int )
+    {
+        int a = (int) *((unsigned short *) pA);
+        int b = (int) *((unsigned short *) pB);
+        return a - b;
+    }
+
+    int s16Compare( const void* pA, const void* pB, int )
+    {
+        int a = (int) *((short *) pA);
+        int b = (int) *((short *) pB);
+        return a - b;
+    }
+
+    int u32Compare( const void* pA, const void* pB, int )
+    {
+        unsigned int a = *((unsigned int *) pA);
+        unsigned int b = *((unsigned int *) pB);
+        if ( a > b ) 
+        {
+            return 1;
+        }
+        return (a == b) ? 0 : -1;
+    }
+
+    int s32Compare( const void* pA, const void* pB, int )
+    {
+        int a = *((int *) pA);
+        int b = *((int *) pB);
+        if ( a > b ) 
+        {
+            return 1;
+        }
+        return (a == b) ? 0 : -1;
+    }
+
+    int f32Compare( const void* pA, const void* pB, int )
+    {
+        float a = *((float *) pA);
+        float b = *((float *) pB);
+        if ( a > b ) 
+        {
+            return 1;
+        }
+        return (a == b) ? 0 : -1;
+    }
+
+    int f64Compare( const void* pA, const void* pB, int )
+    {
+        double a = *((double *) pA);
+        double b = *((double *) pB);
+        if ( a > b ) 
+        {
+            return 1;
+        }
+        return (a == b) ? 0 : -1;
+    }
+
+    int u64Compare( const void* pA, const void* pB, int )
+    {
+        unsigned long long a = *((unsigned long long *) pA);
+        unsigned long long b = *((unsigned long long *) pB);
+        if ( a > b ) 
+        {
+            return 1;
+        }
+        return (a == b) ? 0 : -1;
+    }
+
+    int s64Compare( const void* pA, const void* pB, int )
+    {
+        long long a = *((long long *) pA);
+        long long b = *((long long *) pB);
+        if ( a > b ) 
+        {
+            return 1;
+        }
+        return (a == b) ? 0 : -1;
+    }
+
+    int strCompare( const void* pA, const void* pB, int numChars )
+    {
+        char* a = (char *) pA;
+        char* b = (char *) pB;
+        return strncmp( a, b, numChars );
+    }
+
+    int qsPartition( char* pData, qsInfo* pQS, int left, int right )
+    {
+        int elementSize = pQS->elementSize;
+        char* pLeft = pData + (pQS->elementSize * left) + pQS->offset;
+        char* pRight = pData + (pQS->elementSize * right) + pQS->offset;
+        // pivot = pData[left]
+        char* pivot = (char *)(pQS->temp);
+        int compareSize = pQS->compareSize;
+        memcpy( pivot, pLeft, compareSize );
+
+	    while ( true )
+	    {
+		    // while (a[left] < pivot) left++;
+            while ( pQS->compare( pLeft, pivot, compareSize ) < 0 )
+            {
+                left++;
+                pLeft += elementSize;
+            }
+
+		    // while (a[right] > pivot) right--;
+            while ( pQS->compare( pRight, pivot, compareSize ) > 0 )
+            {
+                right--;
+                pRight -= elementSize;
+            }
+
+            if ( pQS->compare( pLeft, pRight, compareSize ) == 0 )
+            {
+                left++;
+                pLeft += elementSize;
+            }
+		    else if ( left < right )
+		    {
+			    // swap(a[left], a[right]);
+                memcpy( pivot, pLeft, pQS->elementSize );
+                memcpy( pLeft, pRight, pQS->elementSize );
+                memcpy( pRight, pivot, pQS->elementSize );
+		    }
+		    else
+		    {
+			    return right;
+		    }
+	    }
+    }
+
+    void qsStep( void* pData, qsInfo* pQS, int left, int right )
+    {
+	    if ( left < right )
+	    {
+		    int pivot = qsPartition( (char *) pData, pQS, left, right );
+		    qsStep( pData, pQS, left, (pivot-1) );
+		    qsStep( pData, pQS, (pivot+1), right );
+	    }
+    }
+
+}
+
+FORTHOP( qsortOp )
+{
+    // qsort( ARRAY_ADDR NUM_ELEMENTS ELEMENT_SIZE COMPARE_TYPE SIGNED_FLAG COMPARE_OFFSET )
+    NEEDS(6);
+    qsInfo qs;
+
+    qs.offset = SPOP;
+    long signedFlag = SPOP;
+    long compareType = SPOP;
+    qs.elementSize = SPOP;
+    long numElements = SPOP;
+    void* pArrayBase = (void *)(SPOP);
+
+    qs.temp = malloc( qs.elementSize );
+
+    switch ( compareType )
+    {
+    case kBaseTypeByte:
+        qs.compareSize = 1;
+        qs.compare = (signedFlag) ? s8Compare : u8Compare;
+        break;
+
+    case kBaseTypeShort:
+        qs.compareSize = 2;
+        qs.compare = (signedFlag) ? s16Compare : u16Compare;
+        break;
+
+    case kBaseTypeInt:
+        qs.compareSize = 4;
+        qs.compare = (signedFlag) ? s32Compare : u32Compare;
+        break;
+
+    case kBaseTypeFloat:
+        qs.compareSize = 4;
+        qs.compare = f32Compare;
+        break;
+
+    case kBaseTypeDouble:
+        qs.compareSize = 8;
+        qs.compare = f64Compare;
+        break;
+
+    case kBaseTypeString:
+        qs.compareSize = signedFlag;
+        qs.compare = strCompare;
+        break;
+
+    case kBaseTypeLong:
+        qs.compareSize = 8;
+        qs.compare = (signedFlag) ? s64Compare : u64Compare;
+        break;
+
+    default:
+        break;
+    }
+
+    qsStep( pArrayBase, &qs, 0, (numElements - 1) );
+
+    free( qs.temp );
+}
+
+FORTHOP(bsearchOp)
+{
+    // bsearch( ARRAY_ADDR NUM_ELEMENTS ELEMENT_SIZE COMPARE_TYPE SIGNED_FLAG COMPARE_OFFSET KEY_ADDR )
+    NEEDS(7);
+
+    char* pKey = (char *)(SPOP);
+    long offset = SPOP;
+    long signedFlag = SPOP;
+    long compareType = SPOP;
+    long elementSize = SPOP;
+    long numElements = SPOP;
+    char* pData = (char *)(SPOP);
+    long compareSize;
+    int (*compare)( const void* a, const void* b, int );
+
+    switch ( compareType )
+    {
+    case kBaseTypeByte:
+        compareSize = 1;
+        compare = (signedFlag) ? s8Compare : u8Compare;
+        break;
+
+    case kBaseTypeShort:
+        compareSize = 2;
+        compare = (signedFlag) ? s16Compare : u16Compare;
+        break;
+
+    case kBaseTypeInt:
+        compareSize = 4;
+        compare = (signedFlag) ? s32Compare : u32Compare;
+        break;
+
+    case kBaseTypeFloat:
+        compareSize = 4;
+        compare = f32Compare;
+        break;
+
+    case kBaseTypeDouble:
+        compareSize = 8;
+        compare = f64Compare;
+        break;
+
+    case kBaseTypeString:
+        compareSize = signedFlag;
+        compare = strCompare;
+        break;
+
+    case kBaseTypeLong:
+        compareSize = 8;
+        compare = (signedFlag) ? s64Compare : u64Compare;
+        break;
+
+    default:
+        break;
+    }
+
+    int first = 0;
+    int last = numElements - 1;
+    while ( first <= last )
+    {
+        int mid = (first + last) / 2;  // compute mid point.
+        char* pMid = pData + (elementSize * mid) + offset;
+        int result = compare( pKey, pMid, compareSize );
+        if ( result > 0 )           //if (key > sortedArray[mid]) 
+        {
+            first = mid + 1;  // repeat search in top half.
+        }
+        else if ( result < 0 )                 // if (key < sortedArray[mid]) 
+        {
+            last = mid - 1; // repeat search in bottom half.
+        }
+        else
+        {
+            SPUSH( mid );     // found it. return position
+            return;
+        }
+    }
+    // key is not in array, return negative of insertion point+1
+    //  the one is added so we can distinguish between an exact match with element 0 (return 0)
+    //  and the key value being less than element 0 (return -1)
+    SPUSH( -(first + 1) );    // failed to find key
 }
 
 ///////////////////////////////////////////
@@ -5022,9 +5365,13 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    constantOp,             "constant" ),
     OP_DEF(    dconstantOp,            "dconstant" ),
     PRECOP_DEF(byteOp,                 "byte" ),
+    PRECOP_DEF(ubyteOp,                "ubyte" ),
     PRECOP_DEF(shortOp,                "short" ),
+    PRECOP_DEF(ushortOp,               "ushort" ),
     PRECOP_DEF(intOp,                  "int" ),
+    PRECOP_DEF(uintOp,                 "uint" ),
     PRECOP_DEF(longOp,                 "long" ),
+    PRECOP_DEF(ulongOp,                "ulong" ),
     PRECOP_DEF(floatOp,                "float" ),
     PRECOP_DEF(doubleOp,               "double" ),
     PRECOP_DEF(stringOp,               "string" ),
@@ -5154,6 +5501,15 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    millitimeOp,            "millitime" ),
 
     ///////////////////////////////////////////
+    //  computation utilities - randoms, hashing, sorting and searcing
+    ///////////////////////////////////////////
+    OP_DEF(    randOp,                 "rand" ),
+    OP_DEF(    srandOp,                "srand" ),
+    OP_DEF(    hashOp,                 "hash" ),
+    OP_DEF(    qsortOp,                 "qsort" ),
+    OP_DEF(    bsearchOp,               "bsearch" ),
+
+    ///////////////////////////////////////////
     //  admin/debug/system
     ///////////////////////////////////////////
     OP_DEF(    dstackOp,               "dstack" ),
@@ -5162,9 +5518,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    systemOp,               "system" ),
     OP_DEF(    chdirOp,                "chdir" ),
 #endif
-    OP_DEF(    randOp,                 "rand" ),
-    OP_DEF(    srandOp,                "srand" ),
-    OP_DEF(    hashOp,                 "hash" ),
     OP_DEF(    byeOp,                  "bye" ),
     OP_DEF(    argvOp,                 "argv" ),
     OP_DEF(    argcOp,                 "argc" ),
