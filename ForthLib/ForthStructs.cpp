@@ -21,9 +21,38 @@
 //
 // see forth.h for most current description of struct symbol entry fields
 
-extern ForthBaseType *gpBaseTypes[];
 #define STRUCTS_EXPANSION_INCREMENT     16
 
+ForthBaseType gBaseTypeByte( "byte", 1, kBaseTypeByte );
+
+ForthBaseType gBaseTypeShort( "short", 2, kBaseTypeShort );
+
+ForthBaseType gBaseTypeInt( "int", 4, kBaseTypeInt );
+
+ForthBaseType gBaseTypeFloat( "float", 4, kBaseTypeFloat );
+
+ForthBaseType gBaseTypeDouble( "double", 8, kBaseTypeDouble );
+
+ForthBaseType gBaseTypeString( "string", 12, kBaseTypeString );
+
+ForthBaseType gBaseTypeOp( "op", 4, kBaseTypeOp );
+
+ForthBaseType gBaseTypeObject( "object", 8, kBaseTypeObject );
+
+ForthBaseType gBaseTypeLong( "long", 8, kBaseTypeLong );
+
+ForthBaseType *gpBaseTypes[] =
+{
+    &gBaseTypeByte,
+    &gBaseTypeShort,
+    &gBaseTypeInt,
+    &gBaseTypeFloat,
+    &gBaseTypeDouble,
+    &gBaseTypeString,
+    &gBaseTypeOp,
+    &gBaseTypeObject,
+    &gBaseTypeLong
+};
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -254,16 +283,19 @@ bool
 ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus )
 {
     long typeCode;
+    char errorMsg[256];
     ForthEngine *pEngine = ForthEngine::GetInstance();
+    ForthCoreState* pCore = pEngine->GetCoreState();
+    ForthVocabulary *pFoundVocab = NULL;
+
+    // ProcessSymbol will compile opcodes into temporary buffer mCode
     long *pDst = &(mCode[0]);
+
     strcpy( mToken, pInfo->GetToken() );
     // get first token
     char *pToken = &(mToken[0]);
     char *pNextToken = strchr( mToken, '.' );
     char* pLastChar = pNextToken - 1;
-    ForthVocabulary *pFoundVocab = NULL;
-    ForthCoreState* pCore = pEngine->GetCoreState();
-    char errorMsg[256];
 
     // if we get here, we know the symbol had a period in it
     if ( pNextToken == NULL )
@@ -279,6 +311,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
 
     // see if first token is local or global struct
     long* pEntry = NULL;
+
     if ( pInfo->GetFlags() & PARSE_FLAG_HAS_COLON )
     {
         int tokenLength = pInfo->GetTokenLength();
@@ -306,7 +339,8 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
                 *pColon = ':';
             }
         }
-    }
+    }   // endif token contains colon
+
     bool explicitTOSCast = false;
     bool isClassReference = false;
     if ( (pEntry == NULL) && (*pToken == '<') && (*pLastChar == '>') )
@@ -325,8 +359,13 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
         }
         *pLastChar = '>';
     }
+
     if ( !explicitTOSCast )
     {
+        //
+        // this isn't an explicit cast with <TYPE>, so try to determine the
+        //  structure type of the first token with a vocabulary search
+        //
         if ( pEntry == NULL )
         {
             pEntry = pEngine->GetLocalVocabulary()->FindSymbol( mToken );
@@ -365,7 +404,8 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
                 return false;
             }
         }
-    }
+    }   // endif ( !explicitTOSCast )
+
     bool isPtr = CODE_IS_PTR( typeCode );
     bool isArray = CODE_IS_ARRAY( typeCode );
     long baseType = CODE_TO_BASE_TYPE( typeCode );
@@ -511,7 +551,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
             if ( isMethod )
             {
                 opType = kOpMethodWithTOS;
-                offset = pEntry[0];
+                offset = pEntry[0];     // method#
             }
             else if ( isPtr )
             {
@@ -522,7 +562,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
             {
                 if ( isNative || isObject )
                 {
-                    opType = ((isArray) ? kOpFieldByteArray : kOpFieldByte) + baseType;
+                    opType = ((isArray) ? kOpFieldByteArray : kOpFieldByte) + TypeCodeToOpcodeOffset( typeCode );
                 }
                 else
                 {
@@ -536,7 +576,6 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
             SPEW_STRUCTS( " opcode 0x%x\n", COMPILED_OP( opType, offset ) );
             *pDst++ = COMPILED_OP( opType, offset );
         }
-#if 1
         else if ( isMethod )
         {
             // This is a method which is a non-final accessor field
@@ -571,7 +610,6 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
                 return false;
             }
         }
-#endif
         else
         {
             //
@@ -719,7 +757,7 @@ ForthTypesManager::ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exi
                 }
                 else
                 {
-                    opType = ((isArray) ? kOpMemberByteArray : kOpMemberByte) + baseType;
+                    opType = ((isArray) ? kOpMemberByteArray : kOpMemberByte) + TypeCodeToOpcodeOffset( typeCode );
                 }
             }
             SPEW_STRUCTS( " opcode 0x%x\n", COMPILED_OP( opType, offset ) );
@@ -757,6 +795,19 @@ ForthTypesManager::GetBaseTypeFromName( const char* typeName )
 }
 
 
+long
+ForthTypesManager::GetBaseTypeSizeFromName( const char* typeName )
+{
+    for ( int i = 0; i <= kBaseTypeObject; i++ )
+    {
+        if ( strcmp( gpBaseTypes[i]->GetName(), typeName ) == 0 )
+        {
+            return gpBaseTypes[i]->GetSize();
+        }
+    }
+    return -1;
+}
+
 // ForthTypesManager::AddBuiltinClasses is defined in ForthBuiltinClasses.cpp
 
 long*
@@ -765,6 +816,27 @@ ForthTypesManager::GetClassMethods()
     return mpClassMethods;
 }
 
+
+// TypeCodeToOpcodeOffset is needed because there really aren't separate types for unsigned bytes/shorts
+//   but there are distinct opcodes/optypes in dispatch tables - unsigned byte is at offset 9,
+//   unsigned short is at offset 10
+long
+ForthTypesManager::TypeCodeToOpcodeOffset( long typeCode )
+{
+    long baseType = CODE_TO_BASE_TYPE( typeCode );
+    if ( typeCode & kDTIsUnsigned )
+    {
+        if ( baseType == kBaseTypeByte )
+        {
+            baseType = kBaseTypeObject + 1;
+        }
+        else if ( baseType == kBaseTypeShort )
+        {
+            baseType = kBaseTypeObject + 2;
+        }
+    }
+    return baseType;
+}
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -1803,7 +1875,7 @@ ForthBaseType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long fla
             if ( numElements )
             {
                 // define global array
-                pEngine->CompileOpcode( OP_DO_BYTE_ARRAY + baseType );
+                pEngine->CompileOpcode( OP_DO_BYTE_ARRAY + ForthTypesManager::TypeCodeToOpcodeOffset( typeCode ) );
                 pHere = (char *) (pEngine->GetDP());
                 pEngine->AllotLongs( ((nBytes * numElements) + 3) >> 2 );
                 for ( i = 0; i < numElements; i++ )
@@ -1815,7 +1887,7 @@ ForthBaseType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long fla
             else
             {
                 // define global single variable
-                pEngine->CompileOpcode( OP_DO_BYTE + baseType );
+                pEngine->CompileOpcode( OP_DO_BYTE + ForthTypesManager::TypeCodeToOpcodeOffset( typeCode ) );
                 pHere = (char *) (pEngine->GetDP());
                 pEngine->AllotLongs( (nBytes  + 3) >> 2 );
                 if ( GET_VAR_OPERATION == kVarStore )
@@ -1907,41 +1979,3 @@ ForthBaseType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long fla
         }
     }
 }
-
-
-//////////////////////////////////////////////////////////////////////
-////
-///     globals
-//
-//
-
-ForthBaseType gBaseTypeByte( "byte", 1, kBaseTypeByte );
-
-ForthBaseType gBaseTypeShort( "short", 2, kBaseTypeShort );
-
-ForthBaseType gBaseTypeInt( "int", 4, kBaseTypeInt );
-
-ForthBaseType gBaseTypeFloat( "float", 4, kBaseTypeFloat );
-
-ForthBaseType gBaseTypeDouble( "double", 8, kBaseTypeDouble );
-
-ForthBaseType gBaseTypeString( "string", 12, kBaseTypeString );
-
-ForthBaseType gBaseTypeOp( "op", 4, kBaseTypeOp );
-
-ForthBaseType gBaseTypeObject( "object", 8, kBaseTypeObject );
-
-ForthBaseType gBaseTypeLong( "long", 8, kBaseTypeLong );
-
-ForthBaseType *gpBaseTypes[] =
-{
-    &gBaseTypeByte,
-    &gBaseTypeShort,
-    &gBaseTypeInt,
-    &gBaseTypeFloat,
-    &gBaseTypeDouble,
-    &gBaseTypeString,
-    &gBaseTypeOp,
-    &gBaseTypeObject,
-    &gBaseTypeLong
-};

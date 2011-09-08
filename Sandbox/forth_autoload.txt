@@ -95,6 +95,42 @@ addHelp dir	dir BLAH		display directory (BLAH is optional filespec)
   _bb system drop
 ;
 
+addHelp more more FILENAME	display FILENAME on screen
+: more
+  255 string linebuff
+  fopen( blword "r" ) -> int infile
+  if( infile null == )
+    exit
+  endif
+  false -> int done
+  0 -> int lineCounter
+  begin
+    fgets( linebuff 250 infile ) -> int result
+    
+    if( result null == )
+      true -> done
+    else
+      result %s
+      // pause every 50 lines
+      1 ->+ lineCounter
+      if( lineCounter 50 > )
+        0 -> lineCounter
+        "Hit q to quit, any other key to continue\n" %s
+        fgetc( stdin ) dup
+        if( 'q' == swap 'Q' == or )
+          true -> done
+        endif
+      endif
+    endif
+    
+    if( feof( infile ) )
+      true -> done
+    endif
+  done until
+  %nl
+  infile fclose drop
+;
+
 addHelp sys	sys REST_OF_LINE	run rest of line in a DOS shell
 : sys 0 word system drop ;
 

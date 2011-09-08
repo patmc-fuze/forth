@@ -1,262 +1,366 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="7.10"
+	Version="9.00"
 	Name="ForthDocs"
 	ProjectGUID="{360D0E7C-0868-46BC-BD8C-2B4ADE8EAF73}"
-	SccProjectName=""
-	SccLocalPath=""
-	Keyword="MakeFileProj">
+	Keyword="MakeFileProj"
+	TargetFrameworkVersion="131072"
+	>
 	<Platforms>
 		<Platform
-			Name="Win32"/>
+			Name="Win32"
+		/>
 	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
 	<Configurations>
 		<Configuration
 			Name="Release|Win32"
 			OutputDirectory=".\Release"
 			IntermediateDirectory=".\Release"
 			ConfigurationType="10"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
 				Name="VCMIDLTool"
 				TypeLibraryName=".\Release/ForthDocs.tlb"
-				HeaderFileName=""/>
+				HeaderFileName=""
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="Debug|Win32"
 			OutputDirectory=".\Debug"
 			IntermediateDirectory=".\Debug"
 			ConfigurationType="10"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
 				Name="VCMIDLTool"
 				TypeLibraryName=".\Debug/ForthDocs.tlb"
-				HeaderFileName=""/>
+				HeaderFileName=""
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="ForthMain Debug|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="10"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
 				Name="VCMIDLTool"
 				TypeLibraryName=".\Debug/ForthDocs.tlb"
-				HeaderFileName=""/>
+				HeaderFileName=""
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="ForthMain Release|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="10"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
 				Name="VCMIDLTool"
 				TypeLibraryName=".\Debug/ForthDocs.tlb"
-				HeaderFileName=""/>
+				HeaderFileName=""
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="ForthGui Debug|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="10"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
 				Name="VCMIDLTool"
 				TypeLibraryName=".\Debug/ForthDocs.tlb"
-				HeaderFileName=""/>
+				HeaderFileName=""
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="ForthGui Release|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="10"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
 				Name="VCMIDLTool"
 				TypeLibraryName=".\Debug/ForthDocs.tlb"
-				HeaderFileName=""/>
+				HeaderFileName=""
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="ForthServer Debug|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="10"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
 				Name="VCMIDLTool"
 				TypeLibraryName=".\Debug/ForthDocs.tlb"
-				HeaderFileName=""/>
+				HeaderFileName=""
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="ForthServer Release|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="10"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
 				Name="VCMIDLTool"
 				TypeLibraryName=".\Debug/ForthDocs.tlb"
-				HeaderFileName=""/>
+				HeaderFileName=""
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="ForthClient Debug|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="10"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
 				Name="VCMIDLTool"
 				TypeLibraryName=".\Debug/ForthDocs.tlb"
-				HeaderFileName=""/>
+				HeaderFileName=""
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="ForthClient Release|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="10"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
 				Name="VCMIDLTool"
 				TypeLibraryName=".\Debug/ForthDocs.tlb"
-				HeaderFileName=""/>
+				HeaderFileName=""
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="ForthMidi Debug|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="10"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
 				Name="VCMIDLTool"
 				TypeLibraryName=".\Debug/ForthDocs.tlb"
-				HeaderFileName=""/>
+				HeaderFileName=""
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="ForthMidi Release|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="10"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
 			UseOfMFC="0"
-			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
 				Name="VCMIDLTool"
 				TypeLibraryName=".\Debug/ForthDocs.tlb"
-				HeaderFileName=""/>
+				HeaderFileName=""
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
-			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 		<Configuration
 			Name="ForthND Release|Win32"
-			ConfigurationType="1">
+			ConfigurationType="1"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
+			>
 			<Tool
-				Name="VCCLCompilerTool"/>
+				Name="VCPreBuildEventTool"
+			/>
 			<Tool
-				Name="VCCustomBuildTool"/>
+				Name="VCCustomBuildTool"
+			/>
 			<Tool
-				Name="VCLinkerTool"/>
+				Name="VCXMLDataGeneratorTool"
+			/>
 			<Tool
-				Name="VCMIDLTool"/>
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
 			<Tool
-				Name="VCPostBuildEventTool"/>
+				Name="VCMIDLTool"
+			/>
 			<Tool
-				Name="VCPreBuildEventTool"/>
+				Name="VCCLCompilerTool"
+			/>
 			<Tool
-				Name="VCPreLinkEventTool"/>
+				Name="VCManagedResourceCompilerTool"
+			/>
 			<Tool
-				Name="VCResourceCompilerTool"/>
+				Name="VCResourceCompilerTool"
+			/>
 			<Tool
-				Name="VCWebServiceProxyGeneratorTool"/>
+				Name="VCPreLinkEventTool"
+			/>
 			<Tool
-				Name="VCXMLDataGeneratorTool"/>
+				Name="VCLinkerTool"
+				RandomizedBaseAddress="1"
+				DataExecutionPrevention="0"
+			/>
 			<Tool
-				Name="VCWebDeploymentTool"/>
+				Name="VCALinkTool"
+			/>
 			<Tool
-				Name="VCManagedWrapperGeneratorTool"/>
+				Name="VCManifestTool"
+			/>
 			<Tool
-				Name="VCAuxiliaryManagedWrapperGeneratorTool"/>
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+			/>
 		</Configuration>
 	</Configurations>
 	<References>
@@ -264,143 +368,183 @@
 	<Files>
 		<Filter
 			Name="Forth Sources"
-			Filter="">
+			>
 			<File
-				RelativePath="..\Sandbox\carmack_fast_sqrt.txt">
+				RelativePath="..\Sandbox\carmack_fast_sqrt.txt"
+				>
 			</File>
 			<File
-				RelativePath="..\Sandbox\div_reciprocal_test.txt">
+				RelativePath="..\Sandbox\div_reciprocal_test.txt"
+				>
 			</File>
 			<File
-				RelativePath="..\Sandbox\fast_logn_approximation.txt">
+				RelativePath="..\Sandbox\fast_logn_approximation.txt"
+				>
 			</File>
 			<File
-				RelativePath="..\Sandbox\scales.txt">
+				RelativePath="..\Sandbox\scales.txt"
+				>
 			</File>
 			<Filter
 				Name="Core"
-				Filter="">
+				>
 				<File
-					RelativePath="..\Sandbox\ansi_case.txt">
+					RelativePath="..\Sandbox\ansi_case.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\asm_pentium.txt">
+					RelativePath="..\Sandbox\asm_pentium.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\forth_autoload.txt">
+					RelativePath="..\Sandbox\forth_autoload.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\help.txt">
+					RelativePath="..\Sandbox\help.txt"
+					>
 				</File>
 			</Filter>
 			<Filter
 				Name="Tests"
-				Filter="">
+				>
 				<File
-					RelativePath="..\Sandbox\autotest.txt">
+					RelativePath="..\Sandbox\autotest.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\classtest.txt">
+					RelativePath="..\Sandbox\classtest.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\filetest.txt">
+					RelativePath="..\Sandbox\filetest.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\forthtest.txt">
+					RelativePath="..\Sandbox\forthtest.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\good_test_output.txt">
+					RelativePath="..\Sandbox\good_test_output.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\optest.txt">
+					RelativePath="..\Sandbox\optest.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\output_test.txt">
+					RelativePath="..\Sandbox\output_test.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\structtest.txt">
+					RelativePath="..\Sandbox\structtest.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\turbo_test_output.txt">
+					RelativePath="..\Sandbox\turbo_test_output.txt"
+					>
 				</File>
 			</Filter>
 			<Filter
 				Name="Utilities"
-				Filter="">
+				>
 				<File
-					RelativePath="..\Sandbox\compare.txt">
+					RelativePath="..\Sandbox\compare.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\mergefiles.txt">
+					RelativePath="..\Sandbox\mergefiles.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\random_generator.txt">
+					RelativePath="..\Sandbox\random_generator.txt"
+					>
 				</File>
 			</Filter>
 			<Filter
 				Name="SDL"
-				Filter="">
+				>
 				<File
-					RelativePath="..\Sandbox\ellipse.txt">
+					RelativePath="..\Sandbox\ellipse.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\sdl.txt">
+					RelativePath="..\Sandbox\sdl.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\sdltest.txt">
+					RelativePath="..\Sandbox\sdltest.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\sdlutil.txt">
+					RelativePath="..\Sandbox\sdlutil.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\sprig.txt">
+					RelativePath="..\Sandbox\sprig.txt"
+					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\sprigtest.txt">
+					RelativePath="..\Sandbox\sprigtest.txt"
+					>
 				</File>
 			</Filter>
 		</Filter>
 		<File
-			RelativePath="..\ForthLib\core.h">
+			RelativePath="..\ForthLib\core.h"
+			>
 		</File>
 		<File
-			RelativePath=".\ForthAssembler.txt">
+			RelativePath=".\ForthAssembler.txt"
+			>
 		</File>
 		<File
-			RelativePath="ForthClasses.txt">
+			RelativePath="ForthClasses.txt"
+			>
 		</File>
 		<File
-			RelativePath="ForthCode.txt">
+			RelativePath="ForthCode.txt"
+			>
 		</File>
 		<File
-			RelativePath=".\ForthDS.txt">
+			RelativePath=".\ForthDS.txt"
+			>
 		</File>
 		<File
-			RelativePath=".\ForthGUI.txt">
+			RelativePath=".\ForthGUI.txt"
+			>
 		</File>
 		<File
-			RelativePath=".\ForthNotes.txt">
+			RelativePath=".\ForthNotes.txt"
+			>
 		</File>
 		<File
-			RelativePath=".\ForthOpList.txt">
+			RelativePath=".\ForthOpList.txt"
+			>
 		</File>
 		<File
-			RelativePath=".\ForthSave.txt">
+			RelativePath=".\ForthSave.txt"
+			>
 		</File>
 		<File
-			RelativePath=".\ForthServer.txt">
+			RelativePath=".\ForthServer.txt"
+			>
 		</File>
 		<File
-			RelativePath="ForthStructs.txt">
+			RelativePath="ForthStructs.txt"
+			>
 		</File>
 		<File
-			RelativePath=".\ForthTbd.txt">
+			RelativePath=".\ForthTbd.txt"
+			>
 		</File>
 		<File
-			RelativePath=".\ForthThreads.txt">
+			RelativePath=".\ForthThreads.txt"
+			>
 		</File>
 		<File
-			RelativePath="ForthVocabularies.txt">
+			RelativePath="ForthVocabularies.txt"
+			>
 		</File>
 	</Files>
 	<Globals>

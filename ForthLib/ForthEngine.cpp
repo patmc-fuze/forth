@@ -47,13 +47,13 @@ static const char *opTypeNames[] =
     "BuiltIn", "BuiltInImmediate", "UserDefined", "UserDefinedImmediate", "UserCode", "UserCodeImmediate", "DLLEntryPoint", 0, 0, 0,
     "Branch", "BranchTrue", "BranchFalse", "CaseBranch", 0, 0, 0, 0, 0, 0,
     "Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "InitLocalString", "LocalStructArray", "OffsetFetch", 0,
-    "LocalByte", "LocalShort", "LocalInt", "LocalFloat", "LocalDouble", "LocalString", "LocalOp", "LocalObject", 0, 0,
-    "FieldByte", "FieldShort", "FieldInt", "FieldFloat", "FieldDouble", "FieldString", "FieldOp", "FieldObject", 0, 0,
-    "LocalByteArray", "LocalShortArray", "LocalIntArray", "LocalFloatArray", "LocalDoubleArray", "LocalStringArray", "LocalOpArray", "LocalObjectArray", 0, 0,
-    "FieldByteArray", "FieldShortArray", "FieldIntArray", "FieldFloatArray", "FieldDoubleArray", "FieldStringArray", "FieldOpArray", "FieldObjectArray", 0, 0,
-    "MemberByte", "MemberShort", "MemberInt", "MemberFloat", "MemberDouble", "MemberString", "MemberOp", "MemberObject", 0, 0,
-    "MemberByteArray", "MemberShortArray", "MemberIntArray", "MemberFloatArray", "MemberDoubleArray", "MemberStringArray", "MemberOpArray", "MemberObjectArray", 0, 0,
-    "MethodWithThis", "MethodWithTOS", "InitMemberString", 0, 0, 0, 0, 0, 0, 0,
+    "LocalByte", "LocalShort", "LocalInt", "LocalFloat", "LocalDouble", "LocalString", "LocalOp", "LocalLong", "LocalObject", "LocalUByte",
+    "LocalUShort", "LocalByteArray", "LocalShortArray", "LocalIntArray", "LocalFloatArray", "LocalDoubleArray", "LocalStringArray", "LocalOpArray", "LocalLongArray", "LocalObjectArray",
+    "LocalUByteArray", "LocalUShortArray", "FieldByte", "FieldShort", "FieldInt", "FieldFloat", "FieldDouble", "FieldString", "FieldOp", "FieldLong",
+    "FieldObject", "FieldUByte", "FieldUShort", "FieldByteArray", "FieldShortArray", "FieldIntArray", "FieldFloatArray", "FieldDoubleArray", "FieldStringArray", "FieldOpArray",
+    "FieldLongArray", "FieldObjectArray", "FieldUByteArray", "FieldUShortArray", "MemberByte", "MemberShort", "MemberInt", "MemberFloat", "MemberDouble", "MemberString",
+    "MemberOp", "MemberLong", "MemberObject", "MemberUByte", "MemberUShort", "MemberByteArray", "MemberShortArray", "MemberIntArray", "MemberFloatArray", "MemberDoubleArray",
+    "MemberStringArray", "MemberOpArray", "MemberLongArray", "MemberObjectArray",  "MemberUByteArray", "MemberUShortArray", "MethodWithThis", "MethodWithTOS", "InitMemberString", 0,
     "LocalUserDefined"
 };
 
@@ -345,6 +345,25 @@ ForthEngine::AddUserOp( const char *pSymbol, bool smudgeIt )
 
 
 void
+ForthEngine::AddBuiltinOp( const char* name, ulong flags, ulong value )
+{
+    // AddSymbol will call ForthEngine::AddOp to add the operators to op table
+    mpDefinitionVocab->AddSymbol( name, flags, value, true );
+
+//#ifdef TRACE_INNER_INTERPRETER
+    // add built-in op names to table for TraceOp
+    if ( (flags == kOpBuiltIn) || ((flags == kOpBuiltInImmediate)) )
+    {
+        if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
+        {
+            gOpNames[mpCore->numBuiltinOps - 1] = name;
+        }
+    }
+//#endif
+}
+
+
+void
 ForthEngine::AddBuiltinOps( baseDictionaryEntry *pEntries )
 {
     // I think this assert is a holdover from when userOps and builtinOps were in a single dispatch table
@@ -353,19 +372,8 @@ ForthEngine::AddBuiltinOps( baseDictionaryEntry *pEntries )
 
     while ( pEntries->value != NULL )
     {
-        // AddSymbol will call ForthEngine::AddOp to add the operators to op table
-        mpDefinitionVocab->AddSymbol( pEntries->name, pEntries->flags, pEntries->value, true );
 
-//#ifdef TRACE_INNER_INTERPRETER
-        // add built-in op names to table for TraceOp
-        if ( (pEntries->flags == kOpBuiltIn) || ((pEntries->flags == kOpBuiltInImmediate)) )
-        {
-            if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
-            {
-                gOpNames[mpCore->numBuiltinOps - 1] = pEntries->name;
-            }
-        }
-//#endif
+        AddBuiltinOp( pEntries->name, pEntries->flags, pEntries->value);
         pEntries++;
 
     }
@@ -404,27 +412,36 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
         const char* pMemberName = pEntries->name;
         if ( (pEntries->returnType & kDTIsMethod) != 0 )
         {
-            // this entry is a member method
-            // add method routine to builtinOps table
-            long methodOp = AddOp( (long *) pEntries->value, kOpBuiltIn );
-            if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
+            if ( !strcmp( pMemberName, "new" ) )
             {
-                gOpNames[mpCore->numBuiltinOps - 1] = pMemberName;
+                // this isn't a new method, it is the class constructor op
+                AddBuiltinOp( pMemberName, kOpBuiltIn, pEntries->value );
+                pVocab->GetClassObject()->newOp = mpCore->numBuiltinOps - 1;
             }
+            else
+            {
+                // this entry is a member method
+                // add method routine to builtinOps table
+                long methodOp = AddOp( (long *) pEntries->value, kOpBuiltIn );
+                if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
+                {
+                    gOpNames[mpCore->numBuiltinOps - 1] = pMemberName;
+                }
 
-            // do "method:"
-            StartOpDefinition( pMemberName, false );
-            long* pEntry = pVocab->GetNewestEntry();
-            // pEntry[0] is initially the opcode for the method, now we replace it with the method index,
-            //  and put the opcode in the method table
-            long methodIndex = pVocab->AddMethod( pMemberName, methodOp );
-            pEntry[0] = methodIndex;
-            pEntry[1] = pEntries->returnType;
-            TRACE( "Method %s op is 0x%x\n", pMemberName, methodOp );
-            // TBD: support method return values (structs or objects)
+                // do "method:"
+                StartOpDefinition( pMemberName, false );
+                long* pEntry = pVocab->GetNewestEntry();
+                // pEntry[0] is initially the opcode for the method, now we replace it with the method index,
+                //  and put the opcode in the method table
+                long methodIndex = pVocab->AddMethod( pMemberName, methodOp );
+                pEntry[0] = methodIndex;
+                pEntry[1] = pEntries->returnType;
+                TRACE( "Method %s op is 0x%x\n", pMemberName, methodOp );
+                // TBD: support method return values (structs or objects)
 
-            // do ";method"
-            EndOpDefinition( false );
+                // do ";method"
+                EndOpDefinition( false );
+            }
         }
         else
         {
@@ -837,6 +854,21 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
         mpLocalAllocOp = mDictionary.pCurrent;
         CompileLong( 0 );
     }
+
+#if 0
+    long elementType = CODE_TO_BASE_TYPE( typeCode );
+    long fieldBytes, alignment, padding, alignMask;
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+    pManager->GetFieldInfo( typeCode, fieldBytes, alignment );
+    alignMask = alignment - 1;
+    padding = fieldBytes & alignMask;
+    elementSize = (padding) ? (fieldBytes + (alignment - padding)) : fieldBytes;
+    long arraySize = elementSize * mNumElements;
+    mLocalFrameSize += arraySize;
+
+    pEntry = mpLocalVocab->AddSymbol( pArrayName, kOpLocalStructArray,
+                                        (mLocalFrameSize << 12) + elementSize, false );
+#else
     long elementType = CODE_TO_BASE_TYPE( typeCode );
     if ( elementType != kBaseTypeStruct )
     {
@@ -844,7 +876,8 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
         long arraySize = elementSize * mNumElements;
         arraySize = ((arraySize + 3) & ~3) >> 2;
         mLocalFrameSize += arraySize;
-        pEntry = mpLocalVocab->AddSymbol( pArrayName, (CODE_IS_PTR(typeCode) ? kOpLocalIntArray : (kOpLocalByteArray + elementType)), mLocalFrameSize, false );
+        long opcode = CODE_IS_PTR(typeCode) ? kOpLocalIntArray : (kOpLocalByteArray + ForthTypesManager::TypeCodeToOpcodeOffset(typeCode));
+        pEntry = mpLocalVocab->AddSymbol( pArrayName, opcode, mLocalFrameSize, false );
     }
     else
     {
@@ -866,6 +899,7 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
             pEntry = mpLocalVocab->AddSymbol( pArrayName, kOpLocalStructArray, (mLocalFrameSize << 12) + paddedSize, false );
         }
     }
+#endif
     pEntry[1] = typeCode;
 
     mNumElements = 0;
@@ -988,7 +1022,10 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs )
             case kOpLocalDouble:        case kOpLocalDoubleArray:
             case kOpLocalString:        case kOpLocalStringArray:
             case kOpLocalOp:            case kOpLocalOpArray:
+            case kOpLocalLong:          case kOpLocalLongArray:
             case kOpLocalObject:        case kOpLocalObjectArray:
+            case kOpLocalUByte:         case kOpLocalUByteArray:
+            case kOpLocalUShort:        case kOpLocalUShortArray:
             case kOpMemberByte:          case kOpMemberByteArray:
             case kOpMemberShort:         case kOpMemberShortArray:
             case kOpMemberInt:           case kOpMemberIntArray:
@@ -996,10 +1033,10 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs )
             case kOpMemberDouble:        case kOpMemberDoubleArray:
             case kOpMemberString:        case kOpMemberStringArray:
             case kOpMemberOp:            case kOpMemberOpArray:
+            case kOpMemberLong:          case kOpMemberLongArray:
             case kOpMemberObject:        case kOpMemberObjectArray:
-                sprintf( pBuffer, "%s_%x", opTypeNames[opType], opVal );
-                break;
-
+            case kOpMemberUByte:         case kOpMemberUByteArray:
+            case kOpMemberUShort:        case kOpMemberUShortArray:
                 sprintf( pBuffer, "%s_%x", opTypeNames[opType], opVal );
                 break;
 
@@ -1430,12 +1467,12 @@ eForthResult
 ForthEngine::ExecuteOneOp( long opCode )
 {
     long opScratch[2];
-    eForthResult exitStatus = kResultOk;
 
     opScratch[0] = opCode;
     opScratch[1] = BUILTIN_OP( OP_DONE );
 
-    return ExecuteOps( &(opScratch[0]) );
+	eForthResult exitStatus = ExecuteOps( &(opScratch[0]) );
+    return exitStatus;
 }
 
 //

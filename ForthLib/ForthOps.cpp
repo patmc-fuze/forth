@@ -172,7 +172,7 @@ FORTHOP( divide8Op )
 FORTHOP( divmodOp )
 {
     NEEDS(2);
-    div_t v;
+    ldiv_t v;
     long b = SPOP;
     long a = SPOP;
     v = div( a, b );
@@ -2389,7 +2389,7 @@ FORTHOP( autoforgetOp )
     pVocabStack->Clear();
 }
 
-#define SCREEN_COLUMNS 80
+#define SCREEN_COLUMNS 120
 
 // return 'q' IFF user quit out
 static char
@@ -2443,7 +2443,6 @@ ShowVocab( ForthCoreState   *pCore,
             {
                 pEntry = pVocab->NextEntry( pEntry );
             }
-            i++;
         }
         else
         {
@@ -2950,8 +2949,16 @@ FORTHOP( sizeOfOp )
         }
         else
         {
-            pEngine->AddErrorText( pSym );
-            pEngine->SetError( kForthErrorUnknownSymbol, " is not a structure" );
+            long size = pManager->GetBaseTypeSizeFromName( pSym );
+            if ( size > 0 )
+            {
+                pEngine->ProcessConstant( size );
+            }
+            else
+            {
+                pEngine->AddErrorText( pSym );
+                pEngine->SetError( kForthErrorUnknownSymbol, " is not a structure or base type" );
+            }
         }
     }
     else
@@ -3456,7 +3463,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
 #define PRINT_NUM_BUFF_CHARS 68
     char buff[ PRINT_NUM_BUFF_CHARS ];
     char *pNext = &buff[ PRINT_NUM_BUFF_CHARS ];
-    div_t v;
+    ldiv_t v;
     long base;
     bool bIsNegative, bPrintUnsigned;
     ulong urem;
@@ -3728,12 +3735,24 @@ FORTHOP( printStrOp )
     CONSOLE_STRING_OUT( buff );
 }
 
+FORTHOP( printBlockOp )
+{
+    NEEDS(2);
+    char buff[2];
+    buff[1] = 0;
+    long count = SPOP;
+    const char* pChars = (const char*)(SPOP);
+    for ( int i = 0; i < count; i++ )
+    {
+        buff[0] = *pChars++;
+        CONSOLE_STRING_OUT( buff );
+    }
+}
+
 FORTHOP( printCharOp )
 {
     NEEDS(1);
-    //long oof = SPOP;
     char buff[2];
-//    buff[0] = 59;
     buff[0] = (char) SPOP;
     buff[1] = 0;
 
@@ -4962,7 +4981,9 @@ FORTHOP( windowsConstantsOp )
 // with the list near the top of the file!  (look for COMPILED_OP)
 
 extern GFORTHOP( doByteOp );
+extern GFORTHOP( doUByteOp );
 extern GFORTHOP( doShortOp );
+extern GFORTHOP( doUShortOp );
 extern GFORTHOP( doIntOp );
 extern GFORTHOP( doIntOp );
 extern GFORTHOP( doFloatOp );
@@ -4972,7 +4993,9 @@ extern GFORTHOP( doOpOp );
 extern GFORTHOP( doLongOp );
 extern GFORTHOP( doObjectOp );
 extern GFORTHOP( doByteArrayOp );
+extern GFORTHOP( doUByteArrayOp );
 extern GFORTHOP( doShortArrayOp );
+extern GFORTHOP( doUShortArrayOp );
 extern GFORTHOP( doIntArrayOp );
 extern GFORTHOP( doIntArrayOp );
 extern GFORTHOP( doFloatArrayOp );
@@ -5008,11 +5031,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    doOpOp,                 "_doOp" ),
     OP_DEF(    doLongOp,               "_doLong" ),
     OP_DEF(    doObjectOp,             "_doObject" ),
-    // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
-    OP_DEF(    addressOfOp,            "addressOf" ),
-    OP_DEF(    intoOp,                 "->" ),
-    OP_DEF(    addToOp,                "->+" ),
-    OP_DEF(    subtractFromOp,         "->-" ),
+    OP_DEF(    doUByteOp,              "_doUByte" ),
+    OP_DEF(    doUShortOp,             "_doUShort" ),
     OP_DEF(    doExitOp,               "_exit" ),      // exit normal op with no vars
     OP_DEF(    doExitLOp,              "_exitL" ),     // exit normal op with local vars
     OP_DEF(    doExitMOp,              "_exitM" ),     // exit method op with no vars
@@ -5027,6 +5047,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    doOpArrayOp,            "_doOpArray" ),
     OP_DEF(    doLongArrayOp,          "_doLongArray" ),
     OP_DEF(    doObjectArrayOp,        "_doObjectArray" ),
+    OP_DEF(    doUByteArrayOp,         "_doUByteArray" ),
+    OP_DEF(    doUShortArrayOp,        "_doUShortArray" ),
     OP_DEF(    initStringOp,           "initString" ),
     OP_DEF(    initStringArrayOp,      "initStringArray" ),
     OP_DEF(    plusOp,                 "+" ),
@@ -5042,8 +5064,13 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    doLoopNOp,              "_+loop" ),
     OP_DEF(    doNewOp,                "_doNew" ),
     OP_DEF(    dfetchOp,               "d@" ),
-    OP_DEF(    allocObjectOp,           "_allocObject" ),
-    OP_DEF(    vocabToClassOp,          "vocabToClass" ),
+    OP_DEF(    allocObjectOp,          "_allocObject" ),
+    OP_DEF(    vocabToClassOp,         "vocabToClass" ),
+    // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
+    OP_DEF(    addressOfOp,            "ref" ),
+    OP_DEF(    intoOp,                 "->" ),
+    OP_DEF(    addToOp,                "->+" ),
+    OP_DEF(    subtractFromOp,         "->-" ),
 
     // stuff below this line can be rearranged
     OP_DEF(    thisOp,                 "this" ),
@@ -5449,6 +5476,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    printLongHexOp,         "%llx" ),
     OP_DEF(    printStrOp,             "%s" ),
     OP_DEF(    printCharOp,            "%c" ),
+    OP_DEF(    printBlockOp,           "%block" ),
     OP_DEF(    printSpaceOp,           "%bl" ),
     OP_DEF(    printNewlineOp,         "%nl" ),
     OP_DEF(    printFloatOp,           "%f" ),
@@ -5506,8 +5534,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    randOp,                 "rand" ),
     OP_DEF(    srandOp,                "srand" ),
     OP_DEF(    hashOp,                 "hash" ),
-    OP_DEF(    qsortOp,                 "qsort" ),
-    OP_DEF(    bsearchOp,               "bsearch" ),
+    OP_DEF(    qsortOp,                "qsort" ),
+    OP_DEF(    bsearchOp,              "bsearch" ),
 
     ///////////////////////////////////////////
     //  admin/debug/system

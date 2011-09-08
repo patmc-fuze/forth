@@ -74,6 +74,7 @@ public:
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
     long            AddOp( const long *pOp, forthOpType symType );
     long            AddUserOp( const char *pSymbol, bool smudgeIt=false );
+    void            AddBuiltinOp( const char* name, ulong flags, ulong value );
     void            AddBuiltinOps( baseDictionaryEntry *pEntries );
 
     ForthClassVocabulary*   StartClassDefinition( const char* pClassName );

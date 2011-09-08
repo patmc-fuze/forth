@@ -20,7 +20,7 @@ class: ook
 
   method: getstr
     returns ptrTo string
-    addressOf name
+    ref name
   ;method
   
   method: boohoo
@@ -58,7 +58,7 @@ kk.boohoo
   pp.zvooba
 ;
 
-addressOf kk kookoo
+ref kk kookoo
 
 struct: sRGBA
   byte r
@@ -119,17 +119,15 @@ here swap - "Expected size: 36 Actual size: " %s %d %nl
 : ll2 rgba hh ptrTo rgba phh 4 arrayOf rgba ahh 4 arrayOf ptrTo rgba pahh   hh.g phh.g 1 ahh.g 1 pahh.g ;
 
 : testGAPO
-  1 2 3 4 addressOf go0 gsetrgb32
-  5 6 7 8 addressOf go1 gsetrgb32
-  addressOf go0 -> 0 gapo
-  addressOf go1 -> 1 gapo
+  1 2 3 4 ref go0 gsetrgb32
+  5 6 7 8 ref go1 gsetrgb32
+  ref go0 -> 0 gapo
+  ref go1 -> 1 gapo
   0 gapo %grgb32
   1 gapo %grgb32
   // test assignment through pointers
-  new rgba -> rgba tmp
-  99 88 77 11 tmp.set
-  22 ->( 0 ) gapo.g
-  55 ->( 1 ) gapo.r
+  22 0 -> gapo.g
+  55 1 -> gapo.r
   33 -> go0.b
   10 ->+( 0 ) gapo.r
   0 gapo.show
@@ -157,10 +155,10 @@ testGAPO
   2 arrayOf ptrTo rgba lapo
   new rgba -> rgba lo0
   new rgba -> rgba lo1
-  1 2 3 4 addressOf lo0 setrgb32
-  5 6 7 8 addressOf lo1 setrgb32
-  addressOf lo0 -> 0 lapo
-  addressOf lo1 -> 1 lapo
+  1 2 3 4 ref lo0 setrgb32
+  5 6 7 8 ref lo1 setrgb32
+  ref lo0 -> 0 lapo
+  ref lo1 -> 1 lapo
   0 lapo %rgba
   1 lapo %rgba
   // test assignment through pointers

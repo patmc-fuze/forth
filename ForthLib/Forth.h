@@ -26,11 +26,13 @@ typedef enum
     kOpUserCode,         // low 24 bits is op number (index into ForthCoreState userOps table)
     kOpUserCodeImmediate,
     kOpDLLEntryPoint,   // bits 0..18 are index into ForthCoreState userOps table, 19..23 are arg count
+    // 7 - 9 are unused
 
     kOpBranch = 10,          // low 24 bits is signed branch offset
     kOpBranchNZ,
     kOpBranchZ,
     kOpCaseBranch,
+    // 14 - 19 are unused
 
     kOpConstant = 20,    // low 24 bits is signed symbol value
     kOpConstantString,
@@ -50,57 +52,75 @@ typedef enum
     kOpLocalDouble,
     kOpLocalString,
     kOpLocalOp,
+    kOpLocalLong,
     kOpLocalObject,
+    kOpLocalUByte,
+    kOpLocalUShort = 40,
 
-    kOpFieldByte = 40,
-    kOpFieldShort,
-    kOpFieldInt,
-    kOpFieldFloat,
-    kOpFieldDouble,
-    kOpFieldString,
-    kOpFieldOp,
-    kOpFieldObject,
-
-    kOpLocalByteArray = 50,
+    kOpLocalByteArray = 41,
     kOpLocalShortArray,
     kOpLocalIntArray,
     kOpLocalFloatArray,
     kOpLocalDoubleArray,
     kOpLocalStringArray,
     kOpLocalOpArray,
+    kOpLocalLongArray,
     kOpLocalObjectArray,
+    kOpLocalUByteArray,
+    kOpLocalUShortArray = 51,
 
-    kOpFieldByteArray = 60,
+    kOpFieldByte = 52,
+    kOpFieldShort,
+    kOpFieldInt,
+    kOpFieldFloat,
+    kOpFieldDouble,
+    kOpFieldString,
+    kOpFieldOp,
+    kOpFieldLong,
+    kOpFieldObject,
+    kOpFieldUByte,
+    kOpFieldUShort = 62,
+
+    kOpFieldByteArray = 63,
     kOpFieldShortArray,
     kOpFieldIntArray,
     kOpFieldFloatArray,
     kOpFieldDoubleArray,
     kOpFieldStringArray,
     kOpFieldOpArray,
+    kOpFieldLongArray,
     kOpFieldObjectArray,
+    kOpFieldUByteArray,
+    kOpFieldUShortArray = 73,
 
-    kOpMemberByte = 70,
+    kOpMemberByte = 74,
     kOpMemberShort,
     kOpMemberInt,
     kOpMemberFloat,
     kOpMemberDouble,
     kOpMemberString,
     kOpMemberOp,
+    kOpMemberLong,
     kOpMemberObject,
+    kOpMemberUByte,
+    kOpMemberUShort = 84,
 
-    kOpMemberByteArray = 80,
+    kOpMemberByteArray = 85,
     kOpMemberShortArray,
     kOpMemberIntArray,
     kOpMemberFloatArray,
     kOpMemberDoubleArray,
     kOpMemberStringArray,
     kOpMemberOpArray,
+    kOpMemberLongArray,
     kOpMemberObjectArray,
+    kOpMemberUByteArray,
+    kOpMemberUShortArray= 95,
 
-    kOpMethodWithThis = 90,                 // low 24 bits is method number
+    kOpMethodWithThis = 96,                 // low 24 bits is method number
     kOpMethodWithTOS,                       // low 24 bits is method number
     kOpInitMemberString,                    // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
-
+    // 99 is unused
     kOpLocalUserDefined = 100,             // user can add more optypes starting with this one
     kOpMaxLocalUserDefined = 127,    // maximum user defined optype
 
@@ -203,6 +223,16 @@ typedef struct {
     ulong               len;
 } ForthMemorySection;
 
+// this is what is placed on the stack to represent a forth object
+//  usually the 'data' field is actually a pointer to the data, but that is an
+//  implementation detail and not true for all classes
+typedef struct
+{
+    long*       pMethodOps;
+    long*       pData;      // actually this isn't always a pointer
+} ForthObject;
+
+
 // the bottom 24 bits of a forth opcode is a value field
 // the top 8 bits is the type field
 #define OPCODE_VALUE_MASK   0xFFFFFF
@@ -240,24 +270,24 @@ class ForthThread;
 #define OP_DO_OP                BUILTIN_OP(17)
 #define OP_DO_LONG              BUILTIN_OP(18)
 #define OP_DO_OBJECT            BUILTIN_OP(19)
-#define OP_ADDRESS_OF           BUILTIN_OP(20)
-#define OP_INTO                 BUILTIN_OP(21)
-#define OP_INTO_PLUS            BUILTIN_OP(22)
-#define OP_INTO_MINUS           BUILTIN_OP(23)
-#define OP_DO_EXIT              BUILTIN_OP(24)
-#define OP_DO_EXIT_L            BUILTIN_OP(25)
-#define OP_DO_EXIT_M            BUILTIN_OP(26)
-#define OP_DO_EXIT_ML           BUILTIN_OP(27)
-#define OP_DO_VOCAB             BUILTIN_OP(28)
-#define OP_DO_BYTE_ARRAY        BUILTIN_OP(29)
-#define OP_DO_SHORT_ARRAY       BUILTIN_OP(30)
-#define OP_DO_INT_ARRAY         BUILTIN_OP(31)
-#define OP_DO_FLOAT_ARRAY       BUILTIN_OP(32)
-#define OP_DO_DOUBLE_ARRAY      BUILTIN_OP(33)
-#define OP_DO_STRING_ARRAY      BUILTIN_OP(34)
-#define OP_DO_OP_ARRAY          BUILTIN_OP(35)
-#define OP_DO_LONG_ARRAY        BUILTIN_OP(36)
-#define OP_DO_OBJECT_ARRAY      BUILTIN_OP(37)
+#define OP_DO_UBYTE             BUILTIN_OP(20)
+#define OP_DO_USHORT            BUILTIN_OP(21)
+#define OP_DO_EXIT              BUILTIN_OP(22)
+#define OP_DO_EXIT_L            BUILTIN_OP(23)
+#define OP_DO_EXIT_M            BUILTIN_OP(24)
+#define OP_DO_EXIT_ML           BUILTIN_OP(25)
+#define OP_DO_VOCAB             BUILTIN_OP(26)
+#define OP_DO_BYTE_ARRAY        BUILTIN_OP(27)
+#define OP_DO_SHORT_ARRAY       BUILTIN_OP(28)
+#define OP_DO_INT_ARRAY         BUILTIN_OP(29)
+#define OP_DO_FLOAT_ARRAY       BUILTIN_OP(30)
+#define OP_DO_DOUBLE_ARRAY      BUILTIN_OP(31)
+#define OP_DO_STRING_ARRAY      BUILTIN_OP(32)
+#define OP_DO_OP_ARRAY          BUILTIN_OP(33)
+#define OP_DO_LONG_ARRAY        BUILTIN_OP(34)
+#define OP_DO_OBJECT_ARRAY      BUILTIN_OP(35)
+#define OP_DO_UBYTE_ARRAY       BUILTIN_OP(36)
+#define OP_DO_USHORT_ARRAY      BUILTIN_OP(37)
 #define OP_INIT_STRING          BUILTIN_OP(38)
 #define OP_INIT_STRING_ARRAY    BUILTIN_OP(39)
 #define OP_PLUS                 BUILTIN_OP(40)
@@ -275,6 +305,10 @@ class ForthThread;
 #define OP_DFETCH               BUILTIN_OP(52)
 #define OP_ALLOC_OBJECT         BUILTIN_OP(53)
 #define OP_VOCAB_TO_CLASS       BUILTIN_OP(54)
+#define OP_ADDRESS_OF           BUILTIN_OP(55)
+#define OP_INTO                 BUILTIN_OP(56)
+#define OP_INTO_PLUS            BUILTIN_OP(57)
+#define OP_INTO_MINUS           BUILTIN_OP(58)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct

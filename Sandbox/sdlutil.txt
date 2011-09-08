@@ -167,5 +167,7 @@ SDL_Rect dstPos
 : sc -> pixelColor ;
 : mt moveTo ;
 
-previous definitions
+previous
+
+loaddone
 

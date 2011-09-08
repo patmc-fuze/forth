@@ -2,8 +2,8 @@
 requires sdlutil
 also sdl
 
-autoforget ellipse
-: ellipse ;
+autoforget graf2d
+: graf2d ;
 
 720 -> screenW
 640 -> screenH
@@ -281,6 +281,6 @@ autoforget ellipse
   endDraw
 ;
 
-previous definitions
+previous
 
 loaddone

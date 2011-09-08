@@ -77,7 +77,7 @@ public:
     void                            EndStructDefinition( void );
     ForthClassVocabulary*           StartClassDefinition( const char *pName );
     void                            EndClassDefinition( void );
-    static ForthTypesManager*     GetInstance( void );
+    static ForthTypesManager*       GetInstance( void );
 
     // return info structure for struct type specified by structIndex
     ForthTypeInfo*        GetStructInfo( int structIndex );
@@ -91,8 +91,10 @@ public:
     ForthStructVocabulary*  GetNewestStruct( void );
     ForthClassVocabulary*   GetNewestClass( void );
     forthBaseType           GetBaseTypeFromName( const char* typeName );
-
+    long                    GetBaseTypeSizeFromName( const char* typeName );
     long*                   GetClassMethods();
+    static long             TypeCodeToOpcodeOffset( long typeCode );
+
 protected:
     // mpStructInfo points to an array with an entry for each defined structure type
     ForthTypeInfo                   *mpStructInfo;
@@ -197,9 +199,7 @@ public:
     inline long GetGlobalOp( void ) { return mBaseType + OP_DO_BYTE; };
     inline long GetGlobalArrayOp( void ) { return mBaseType + OP_DO_BYTE_ARRAY; };
     inline long GetLocalOp( void ) { return mBaseType + kOpLocalByte; };
-    inline long GetLocalArrayOp( void ) { return mBaseType + kOpLocalByteArray; };
     inline long GetFieldOp( void ) { return mBaseType + kOpFieldByte; };
-    inline long GetFieldArrayOp( void ) { return mBaseType + kOpFieldByteArray; };
     inline long GetAlignment( void ) { return (mNumBytes > 4) ? 4 : mNumBytes; };
     inline long GetSize( void ) { return mNumBytes; };
     inline const char* GetName( void ) { return mpName; };

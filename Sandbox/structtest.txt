@@ -60,7 +60,7 @@ struct: rgb32
 ptrTo rgb32 gpp
 : %grgb32
   -> gpp
-  gpp.r %x %bl gpp.g %x %bl gpp.b %x %bl gpp.alpha %x %bl %nl
+  gpp.r %d %bl gpp.g %d %bl gpp.b %d %bl gpp.alpha %d %bl %nl
 ;
 
 : gsetrgb32
@@ -70,10 +70,10 @@ ptrTo rgb32 gpp
 
 // test global arrayOf pointers to structs
 here
-2 arrayOf ptrTo rgb32 gqq
-rgb32 go0
-rgb32 go1
-here swap - "Expected size: 20 Actual size: " %s %d %nl
+2 arrayOf ptrTo rgb32 gqq		// 12 bytes - op, 2 pointers
+rgb32 go0		// 8 bytes - op, data
+rgb32 go1		// 8 bytes - op, data
+here swap - "Expected size: 28 Actual size: " %s %d %nl
 
 : testGAPS
   1 2 3 4 go0 gsetrgb32
@@ -109,6 +109,7 @@ testGAPS
   2 arrayOf ptrTo rgb32 qq
   rgb32 o0
   rgb32 o1
+  ptrTo rgb32 qp
   1 2 3 4 o0 setrgb32
   5 6 7 8 o1 setrgb32
   o0 -> 0 qq
@@ -116,13 +117,10 @@ testGAPS
   0 qq %rgb32
   1 qq %rgb32
   // test assignment through pointers
-  77 0 -> qq.g
-;
-: pppp
-  2 arrayOf ptrTo rgb32 qq
-  rgb32 o0
-  rgb32 o1
-  11 1 -> qq.r
+  0 qq -> qp
+  77 -> qp.g
+  1 qq -> qp
+  11 -> qp.r
   13 -> o0.b
   0 qq %rgb32
   1 qq %rgb32

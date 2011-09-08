@@ -171,7 +171,7 @@ addHelp memcpy	DST SRC N ...	copy N bytes from SRC to DST
 addHelp memset	DST A N ...		fill N bytes at DST with byte value A
 addHelp ->+		N ->+ VAR ...	add N to VAR, append for strings
 addHelp ->-		N ->- VAR ...	subtract N from VAR
-addHelp addressOf	addressOf VAR ... PTR	return address of VAR
+addHelp ref	ref VAR ... PTR	return address of VAR
 addHelp varAction!	A varAction! ...	set varAction to A (use not recommended)
 addHelp varAction@	varAction@ ... A	fetch varAction (use not recommended)
 
@@ -317,8 +317,8 @@ addHelp arrayOf
 addHelp ptrTo
 addHelp struct:
 addHelp ;struct
-addHelp sizeOf
-addHelp offsetOf
+addHelp sizeOf				sizeOf STRUCT_NAME	...	STRUCT_SIZE_IN_BYTES
+addHelp offsetOf			offsetOf STRUCT_NAME FIELD_NAME ... OFFSET_OF_FIELD_IN_BYTES
 addHelp recursive
 addHelp [
 addHelp [compile]

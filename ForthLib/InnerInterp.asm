@@ -7,7 +7,7 @@ include core.inc
 
 PUBLIC	HelloString		; `string'
 
-EXTRN	_iob:BYTE
+;EXTRN	_iob:BYTE
 EXTRN	_filbuf:NEAR
 EXTRN	printf:NEAR
 EXTRN	_chkesp:NEAR
@@ -571,6 +571,24 @@ byteEntry:
 	; fetch local byte
 localByteFetch:
 	sub	edx, 4
+	movsx	ebx, BYTE PTR [eax]
+	mov	[edx], ebx
+	jmp	edi
+
+entry localUByteType
+	; get ptr to byte var into eax
+	mov	eax, [ebp].FCore.FPtr
+	and	ebx, 00FFFFFFh
+	sal	ebx, 2
+	sub	eax, ebx
+	; see if it is a fetch
+ubyteEntry:
+	mov	ebx, [ebp].FCore.varMode
+	or	ebx, ebx
+	jnz	localByte1
+	; fetch local unsigned byte
+localUByteFetch:
+	sub	edx, 4
 	xor	ebx, ebx
 	mov	bl, [eax]
 	mov	[edx], ebx
@@ -623,6 +641,14 @@ localByteActionTable:
 	DD	FLAT:localBytePlusStore
 	DD	FLAT:localByteMinusStore
 
+localUByteActionTable:
+	DD	FLAT:localUByteFetch
+	DD	FLAT:localUByteFetch
+	DD	FLAT:localByteRef
+	DD	FLAT:localByteStore
+	DD	FLAT:localBytePlusStore
+	DD	FLAT:localByteMinusStore
+
 localByte1:
 	cmp	ebx, kVarMinusStore
 	jg	badVarOperation
@@ -639,6 +665,15 @@ entry fieldByteType
 	add	eax, ebx
 	jmp	byteEntry
 
+entry fieldUByteType
+	; get ptr to byte var into eax
+	; TOS is base ptr, ebx is field offset in bytes
+	mov	eax, [edx]
+	add	edx, 4
+	and	ebx, 00FFFFFFh
+	add	eax, ebx
+	jmp	ubyteEntry
+
 entry memberByteType
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
@@ -646,6 +681,14 @@ entry memberByteType
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	byteEntry
+
+entry memberUByteType
+	; get ptr to byte var into eax
+	; this data ptr is base ptr, ebx is field offset in bytes
+	mov	eax, [ebp].FCore.TDPtr
+	and	ebx, 00FFFFFFh
+	add	eax, ebx
+	jmp	ubyteEntry
 
 entry localByteArrayType
 	; get ptr to byte var into eax
@@ -656,6 +699,16 @@ entry localByteArrayType
 	add	eax, [edx]		; add in array index on TOS
 	add	edx, 4
 	jmp	byteEntry
+
+entry localUByteArrayType
+	; get ptr to byte var into eax
+	mov	eax, [ebp].FCore.FPtr
+	and	ebx, 00FFFFFFh
+	sal	ebx, 2
+	sub	eax, ebx
+	add	eax, [edx]		; add in array index on TOS
+	add	edx, 4
+	jmp	ubyteEntry
 
 entry fieldByteArrayType
 	; get ptr to byte var into eax
@@ -668,6 +721,17 @@ entry fieldByteArrayType
 	add	eax, ebx
 	jmp	byteEntry
 
+entry fieldUByteArrayType
+	; get ptr to byte var into eax
+	; TOS is struct base ptr, NOS is index
+	; ebx is field offset in bytes
+	mov	eax, [edx]
+	add	eax, [edx+4]
+	add	edx, 8
+	and	ebx, 00FFFFFFh
+	add	eax, ebx
+	jmp	ubyteEntry
+
 entry memberByteArrayType
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, TOS is index
@@ -678,6 +742,17 @@ entry memberByteArrayType
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	byteEntry
+
+entry memberUByteArrayType
+	; get ptr to byte var into eax
+	; this data ptr is base ptr, TOS is index
+	; ebx is field offset in bytes
+	mov	eax, [ebp].FCore.TDPtr
+	add	eax, [edx]
+	add	edx, 4
+	and	ebx, 00FFFFFFh
+	add	eax, ebx
+	jmp	ubyteEntry
 
 ;-----------------------------------------------
 ;
@@ -698,6 +773,26 @@ shortEntry:
 localShortFetch:
 	sub	edx, 4
 	movsx	ebx, WORD PTR [eax]
+	mov	[edx], ebx
+	jmp	edi
+
+entry localUShortType
+	; get ptr to short var into eax
+	mov	eax, [ebp].FCore.FPtr
+	and	ebx, 00FFFFFFh
+	sal	ebx, 2
+	sub	eax, ebx
+	; see if it is a fetch
+ushortEntry:
+	mov	ebx, [ebp].FCore.varMode
+	or	ebx, ebx
+	jnz	localShort1
+	; fetch local unsigned short
+localUShortFetch:
+	sub	edx, 4
+	movsx	ebx, WORD PTR [eax]
+	xor	ebx, ebx
+	mov	bx, [eax]
 	mov	[edx], ebx
 	jmp	edi
 
@@ -746,6 +841,14 @@ localShortActionTable:
 	DD	FLAT:localShortPlusStore
 	DD	FLAT:localShortMinusStore
 
+localUShortActionTable:
+	DD	FLAT:localUShortFetch
+	DD	FLAT:localUShortFetch
+	DD	FLAT:localShortRef
+	DD	FLAT:localShortStore
+	DD	FLAT:localShortPlusStore
+	DD	FLAT:localShortMinusStore
+
 localShort1:
 	cmp	ebx, kVarMinusStore
 	jg	badVarOperation
@@ -754,7 +857,7 @@ localShort1:
 	jmp	ebx
 
 entry fieldShortType
-	; get ptr to byte var into eax
+	; get ptr to short var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
 	add	edx, 4
@@ -762,13 +865,30 @@ entry fieldShortType
 	add	eax, ebx
 	jmp	shortEntry
 
+entry fieldUShortType
+	; get ptr to unsigned short var into eax
+	; TOS is base ptr, ebx is field offset in bytes
+	mov	eax, [edx]
+	add	edx, 4
+	and	ebx, 00FFFFFFh
+	add	eax, ebx
+	jmp	ushortEntry
+
 entry memberShortType
-	; get ptr to byte var into eax
+	; get ptr to short var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp].FCore.TDPtr
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	shortEntry
+
+entry memberUShortType
+	; get ptr to unsigned short var into eax
+	; this data ptr is base ptr, ebx is field offset in bytes
+	mov	eax, [ebp].FCore.TDPtr
+	and	ebx, 00FFFFFFh
+	add	eax, ebx
+	jmp	ushortEntry
 
 entry localShortArrayType
 	; get ptr to int var into eax
@@ -782,6 +902,18 @@ entry localShortArrayType
 	add	eax, ebx
 	jmp	shortEntry
 
+entry localUShortArrayType
+	; get ptr to int var into eax
+	mov	eax, [ebp].FCore.FPtr
+	and	ebx, 00FFFFFFh	; ebx is frame offset in longs
+	sal	ebx, 2
+	sub	eax, ebx
+	mov	ebx, [edx]		; add in array index on TOS
+	add	edx, 4
+	sal	ebx, 1
+	add	eax, ebx
+	jmp	ushortEntry
+
 entry fieldShortArrayType
 	; get ptr to short var into eax
 	; TOS is struct base ptr, NOS is index
@@ -794,6 +926,18 @@ entry fieldShortArrayType
 	add	eax, ebx		; add in field offset
 	jmp	shortEntry
 
+entry fieldUShortArrayType
+	; get ptr to short var into eax
+	; TOS is struct base ptr, NOS is index
+	; ebx is field offset in bytes
+	mov	eax, [edx+4]	; eax = index
+	sal	eax, 1
+	add	eax, [edx]		; add in struct base ptr
+	add	edx, 8
+	and	ebx, 00FFFFFFh
+	add	eax, ebx		; add in field offset
+	jmp	ushortEntry
+
 entry memberShortArrayType
 	; get ptr to short var into eax
 	; this data ptr is base ptr, TOS is index
@@ -805,6 +949,18 @@ entry memberShortArrayType
 	and	ebx, 00FFFFFFh
 	add	eax, ebx		; add in field offset
 	jmp	shortEntry
+
+entry memberUShortArrayType
+	; get ptr to short var into eax
+	; this data ptr is base ptr, TOS is index
+	; ebx is field offset in bytes
+	mov	eax, [edx]	; eax = index
+	sal	eax, 1
+	add	eax, [ebp].FCore.TDPtr
+	add	edx, 4
+	and	ebx, 00FFFFFFh
+	add	eax, ebx		; add in field offset
+	jmp	ushortEntry
 
 ;-----------------------------------------------
 ;
@@ -1801,6 +1957,21 @@ entry doByteBop
 
 ;-----------------------------------------------
 ;
+; doUByteOp is compiled as the first op in global unsigned byte vars
+; the byte data field is immediately after this op
+;
+entry doUByteBop
+	; get ptr to byte var into eax
+	mov	eax, ecx
+	; pop rstack
+	mov	ebx, [ebp].FCore.RPtr
+	mov	ecx, [ebx]
+	add	ebx, 4
+	mov	[ebp].FCore.RPtr, ebx
+	jmp	ubyteEntry
+
+;-----------------------------------------------
+;
 ; doByteArrayOp is compiled as the first op in global byte arrays
 ; the data array is immediately after this op
 ;
@@ -1816,6 +1987,18 @@ entry doByteArrayBop
 	mov	[ebp].FCore.RPtr, ebx
 	jmp	byteEntry
 
+entry doUByteArrayBop
+	; get ptr to byte var into eax
+	mov	eax, ecx
+	add	eax, [edx]
+	add	edx, 4
+	; pop rstack
+	mov	ebx, [ebp].FCore.RPtr
+	mov	ecx, [ebx]
+	add	ebx, 4
+	mov	[ebp].FCore.RPtr, ebx
+	jmp	ubyteEntry
+
 ;-----------------------------------------------
 ;
 ; doShortOp is compiled as the first op in global short vars
@@ -1830,6 +2013,21 @@ entry doShortBop
 	add	ebx, 4
 	mov	[ebp].FCore.RPtr, ebx
 	jmp	shortEntry
+
+;-----------------------------------------------
+;
+; doUShortOp is compiled as the first op in global unsigned short vars
+; the short data field is immediately after this op
+;
+entry doUShortBop
+	; get ptr to short var into eax
+	mov	eax, ecx
+	; pop rstack
+	mov	ebx, [ebp].FCore.RPtr
+	mov	ecx, [ebx]
+	add	ebx, 4
+	mov	[ebp].FCore.RPtr, ebx
+	jmp	ushortEntry
 
 ;-----------------------------------------------
 ;
@@ -1849,6 +2047,20 @@ entry doShortArrayBop
 	add	ebx, 4
 	mov	[ebp].FCore.RPtr, ebx
 	jmp	shortEntry
+
+entry doUShortArrayBop
+	; get ptr to short var into eax
+	mov	eax, ecx
+	mov	ebx, [edx]		; ebx = array index
+	add	edx, 4
+	sal	ebx, 1
+	add	eax, ebx	
+	; pop rstack
+	mov	ebx, [ebp].FCore.RPtr
+	mov	ecx, [ebx]
+	add	ebx, 4
+	mov	[ebp].FCore.RPtr, ebx
+	jmp	ushortEntry
 
 ;-----------------------------------------------
 ;
@@ -5003,81 +5215,81 @@ entry opTypesTable
 	DD	FLAT:memberRefType			; kOpMemberRef,	
 
 ;	30 - 39
-	DD	FLAT:localByteType
+	DD	FLAT:localByteType			; 30 - 40 : local variables
 	DD	FLAT:localShortType
 	DD	FLAT:localIntType
 	DD	FLAT:localFloatType
 	DD	FLAT:localDoubleType
 	DD	FLAT:localStringType
 	DD	FLAT:localOpType
+	DD	FLAT:localLongType
 	DD	FLAT:localObjectType
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
+	DD	FLAT:localUByteType
 ;	40 - 49
-	DD	FLAT:fieldByteType
-	DD	FLAT:fieldShortType
-	DD	FLAT:fieldIntType
-	DD	FLAT:fieldFloatType
-	DD	FLAT:fieldDoubleType
-	DD	FLAT:fieldStringType
-	DD	FLAT:fieldOpType
-	DD	FLAT:fieldObjectType
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
-;	50 - 59
-	DD	FLAT:localByteArrayType
+	DD	FLAT:localUShortType
+	DD	FLAT:localByteArrayType		; 41 - 51 : local arrays
 	DD	FLAT:localShortArrayType
 	DD	FLAT:localIntArrayType
 	DD	FLAT:localFloatArrayType
 	DD	FLAT:localDoubleArrayType
 	DD	FLAT:localStringArrayType
 	DD	FLAT:localOpArrayType
+	DD	FLAT:localLongArrayType
 	DD	FLAT:localObjectArrayType
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
+;	50 - 59
+	DD	FLAT:localUByteArrayType
+	DD	FLAT:localUShortArrayType
+	DD	FLAT:fieldByteType			; 52 - 62 : field variables
+	DD	FLAT:fieldShortType
+	DD	FLAT:fieldIntType
+	DD	FLAT:fieldFloatType
+	DD	FLAT:fieldDoubleType
+	DD	FLAT:fieldStringType
+	DD	FLAT:fieldOpType
+	DD	FLAT:fieldLongType
 ;	60 - 69
-	DD	FLAT:fieldByteArrayType
+	DD	FLAT:fieldObjectType
+	DD	FLAT:fieldUByteType
+	DD	FLAT:fieldUShortType
+	DD	FLAT:fieldByteArrayType		; 63 - 73 : field arrays
 	DD	FLAT:fieldShortArrayType
 	DD	FLAT:fieldIntArrayType
 	DD	FLAT:fieldFloatArrayType
 	DD	FLAT:fieldDoubleArrayType
 	DD	FLAT:fieldStringArrayType
 	DD	FLAT:fieldOpArrayType
-	DD	FLAT:fieldObjectArrayType
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
 ;	70 - 79
-	DD	FLAT:memberByteType
+	DD	FLAT:fieldLongArrayType
+	DD	FLAT:fieldObjectArrayType
+	DD	FLAT:fieldUByteArrayType
+	DD	FLAT:fieldUShortArrayType
+	DD	FLAT:memberByteType			; 74 - 84 : member variables
 	DD	FLAT:memberShortType
 	DD	FLAT:memberIntType
 	DD	FLAT:memberFloatType
 	DD	FLAT:memberDoubleType
 	DD	FLAT:memberStringType
-	DD	FLAT:memberOpType
-	DD	FLAT:memberObjectType
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
 ;	80 - 89
-	DD	FLAT:memberByteArrayType
+	DD	FLAT:memberOpType
+	DD	FLAT:memberLongType
+	DD	FLAT:memberObjectType
+	DD	FLAT:memberUByteType
+	DD	FLAT:memberUShortType
+	DD	FLAT:memberByteArrayType	; 85 - 95 : member arrays
 	DD	FLAT:memberShortArrayType
 	DD	FLAT:memberIntArrayType
 	DD	FLAT:memberFloatArrayType
 	DD	FLAT:memberDoubleArrayType
+;	90 - 99
 	DD	FLAT:memberStringArrayType
 	DD	FLAT:memberOpArrayType
+	DD	FLAT:memberLongArrayType
 	DD	FLAT:memberObjectArrayType
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
-;	90 - 99
+	DD	FLAT:memberUByteArrayType
+	DD	FLAT:memberUShortArrayType
 	DD	FLAT:methodWithThisType
 	DD	FLAT:methodWithTOSType
 	DD	FLAT:initMemberStringType
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
 	DD	FLAT:extOpType	
 ;	100 - 149
 	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
@@ -5126,10 +5338,8 @@ opsTable:
 	DD	FLAT:doOpBop
 	DD	FLAT:doLongBop
 	DD	FLAT:doObjectBop
-	DD	FLAT:addressOfBop
-	DD	FLAT:intoBop
-	DD	FLAT:addToBop
-	DD	FLAT:subtractFromBop
+	DD	FLAT:doUByteBop
+	DD	FLAT:doUShortBop
 	DD	FLAT:doExitBop
 	DD	FLAT:doExitLBop
 	DD	FLAT:doExitMBop
@@ -5144,6 +5354,8 @@ opsTable:
 	DD	FLAT:doLongArrayBop
 	DD	FLAT:doOpArrayBop
 	DD	FLAT:doObjectArrayBop
+	DD	FLAT:doUByteArrayBop
+	DD	FLAT:doUShortArrayBop
 	DD	FLAT:initStringBop
 	DD	FLAT:extOp					; initStringArrayBop
 	DD	FLAT:plusBop
@@ -5161,6 +5373,10 @@ opsTable:
 	DD	FLAT:dfetchBop
 	DD	FLAT:extOp					; allocObjectBop
 	DD	FLAT:vocabToClassBop
+	DD	FLAT:addressOfBop
+	DD	FLAT:intoBop
+	DD	FLAT:addToBop
+	DD	FLAT:subtractFromBop
 
 	;	
     ; stuff below this line can be rearranged

@@ -1,6 +1,6 @@
 
 autoforget screen
-requires sdlutil
+requires graf2d
 requires sdl_events
 also sdl
 
@@ -36,33 +36,64 @@ SDL_Rect dstPos
   %nl
 ;
 
+: showButtonEvent
+  -> ptrTo SDL_MouseButtonEvent mbe
+  "type" mbe.type %sx "which" mbe.which %sx "button" mbe.button "state" mbe.state %sx
+  "x" mbe.x %sx "y" mbe.y %sx
+  %nl
+;
+
+: showMotionEvent
+  -> ptrTo SDL_MouseMotionEvent mme
+  "type" mme.type %sx "which" mme.which %sx "state" mme.state %sx
+  "x" mme.x %sx "y" mme.y %sx
+  "xrel" mme.xrel %sx "yrel" mme.yrel %sx
+  %nl
+;
+
 : testEvents
   SDL_Event ev
   startSDL
-  80 0 do
-    ev SDL_WaitEvent drop
-    ds
-    ev.type case
-      SDL_KEYDOWN of
-        "key down " %s ev.key showKeyEvent
+
+    false -> int buttonDown
+  sc( -1 )		// draw in white
+  
+  do( 800 0 )
+    SDL_WaitEvent( ev ) drop
+    //ds
+    case( ev.type )
+      of( SDL_KEYDOWN )
+        "key down " %s showKeyEvent( ev.key )
       endof
-      SDL_KEYUP of
-        "key up " %s ev.key showKeyEvent
+      
+      of( SDL_KEYUP )
+        "key up " %s showKeyEvent( ev.key )
       endof
-      SDL_MOUSEMOTION of			// Mouse moved
-        "mouse motion\n" %s
+      
+      of( SDL_MOUSEMOTION )			// Mouse moved
+        "mouse motion " %s showMotionEvent( ev.motion )
+        if( buttonDown )
+          ev.motion.x screenW 2/ + screenH 2/ ev.motion.y - dp
+        endif
       endof
-      SDL_MOUSEBUTTONDOWN of		// Mouse button pressed
-        "mouse up\n" %s
+      
+      of( SDL_MOUSEBUTTONDOWN )		// Mouse button pressed
+        "mouse down " %s showButtonEvent( ev.button )
+        dp( ev.button.x screenW 2/ + screenH 2/ ev.button.y - )
+	    true -> buttonDown
       endof
-      SDL_MOUSEBUTTONUP of		// Mouse button released
-        "mouse down\n" %s
+      
+      of( SDL_MOUSEBUTTONUP )		// Mouse button released
+        "mouse up " %s showButtonEvent( ev.motion )
+	    false -> buttonDown
       endof
+      
       // default:
       "event type 0x" %s %x %bl %bl
-      ev 16 dump
+      dump( ev 16 )
     endcase
   loop
+  
   endSDL
 ;
 previous

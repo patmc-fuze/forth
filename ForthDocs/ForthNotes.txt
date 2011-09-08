@@ -127,7 +127,199 @@ Gotchas with structure and object support:
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-June 10, 2011
+September 7 2011
+
+The main hard drive on my old work machine failed on August 19.  It took me
+several days to get things transferred to my new machine.  After getting
+things working.  It looked like the Forth and Music directories were okay,
+except the CVS file for sdl.txt was lost.
+I just noticed that somehow the change of 'addressOf' to 'ref' in forthops.cpp
+got lost somehow, but the changes in the sandbox scripts are all still there.
+Over the last week or so I added some refcounted containers - rcArray, rcMap,
+rcList and refCounted strings.  They all need testing.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 15 2011
+
+rcArray methods:
+o delete
+  for each element
+    if element.methods is nonzero
+      element.release
+  delete rcArray
+  delete rcArrayStruct
+
+o count
+  return number of elements
+  
+o get( index ) ... object
+  if ( index < elements.size )
+    return element[index]
+  else
+    error( invalid parameter )
+
+o set( object index )
+  if ( index < elements.size )
+    oldObject = element[index]
+    if object is not null
+      object.keep
+    if oldObject is not null
+      oldObject.release
+  else
+    error( invalid parameter )
+
+o findIndex( object ) ... index (-1 if not found)
+  scan array for first occurence of object, return index if found else -1
+  
+o remove( index num )
+  if ( index+num < elements.size )
+    for each element to be removed
+      if element.methods is nonzero
+        element.release
+  else
+    error( invalid parameter )
+    
+o append( object )
+o resize( size )
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 7 2011
+
+Changed 'addressOf' to 'ref'.  Updated all scripts.
+Also changed addref to keep.
+Started to define rcArrary, decided I needed to think it through.  The current
+object bodies are just malloced, if i am going to use stl templates to implement
+this and other reference-counted containers I will be using 'new'.  My current
+thinking is that the object body for a rcArray will be just the refCount and
+a pointer to the std::vector object.
+
+- add autorelease to rcObject
+-> requires the definition of autorelease pool
+? whan do you explicitly autorelease
+  -> when you return a newly generated temporary object
+
+rcArray methods:
+
+INDEX OBJECT set
+INDEX get ... OBJECT
+INDEX ref ... PTR_TO_OBJECT
+count ... NUM_ELEMENTS
+N resize
+OBJECT append
+OBJECT find ... INDEX (-1 if not found)
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 30, 2011
+
+Reverted ForthInner.cpp and ForthStructs.cpp array changes, had to add in
+array support for unsigned byte and short also.
+Added _doUByteArray and _doUShortArray ops, I added the table changes to
+the assembler version, but in the assembler they are just copies of the
+signed version.
+
+I rearranged the ops which have specified positions so that the ops for global
+variables and arrays have the same ordering as the corresponding optypes.
+Before the unsigned byte & short global ops were not with the other ops, which
+made code generation for variable and fields clunky.  To avoid reordering all
+the defines I moved the varop setting ops to the end of the table.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 29, 2011
+
+I started putting back the array opcodes, first I made a backup zip file.
+I got through Forth.h and ForthEngine.cpp.
+
+Also, the new opcodes for 64-bit integer are mixed in with the other changes
+and were never checked in.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 19, 2011
+
+The crash in classtest.txt was because the tests array operations needed to
+be updated to match the change in how arrays work.
+While debugging the changes to array handling, I ran into a few things that
+are making me rethink the whole idea.  For one thing, things involving arrays
+are a good bit clunkier since there can be no field accessors after an array
+access - I didn't think about how painful this would be.
+For example, this
+	2 arrayOf ptrTo rgba gapo
+	1 gapo.g					-> 0 gapo.r
+becomes
+	2 arrayOf ptrTo rgba gapo
+	1 gapo @ d@ <rgba>.g		0 gapo @ d@ -> <rgba>.r
+There really aren't that many extra operations being performed, it is just the
+amount of typing needed that is annoying, plus the loss of clarity.
+
+The reasons for changing arrays was:
+1) it was too easy to mistakenly place a varop so that it was applied to the
+   array index instead of the array element
+2) getting a pointer to array elements with addressOf is a mess
+? maybe just change it from 'addressOf' to 'ref'?
+
+If I keep things the way they are, most likely when array elements are being
+manipulated the element address will be gotten and then immediately assigned
+to a local var whose type is a ptr to the element type.
+
+Removing the array changes and keeping the signed/unsigned changes wouldn't
+be that hard, the worst part would be rearranging the opcodes, since the
+number of optypes is now 11, the tables wouldn't be arranged in neat groups
+of 10 anymore.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 18, 2011
+
+I renamed ellipse.txt to graf2d.txt since it has lines, rectangles and circles.
++ vlistq is broken, it quits well before it has listed all ops
+
+I am going to do 2 related somewhat major changes:
+o support signed and unsigned integer types
+o simplify array support
+---
+The signed/unsigned support mainly means adding unsigned versions of the byte
+and short types which will do sign extension on fetch.  There is also a isUnsigned
+flag in the datatype descriptor.  This will be useful for qsort & bsearch.
+
+One thing that might be painful is that now the mapping from native type to
+optype might be more complicated, unless I define new native types for the
+4 unsigned integer types.
+
+Another gotcha is that previously I defined int and short as signed but byte
+was unsigned, I did this because otherwise I ran into problems when displaying
+characters when sign extension got in the way.  Now by default bytes will be
+signed, so things will have to be declared ubyte to fix it.
+
+- classtest.txt crashes
+---
+The array support change is that array variables/field ops will just produce
+an element address, they won't pay attention to the varmode:
+
+  5 -> 7 arrayOfBytes
+    will become
+  5 7 arrayOfBytes c!
+  
+The interaction between varmode and variables used as array indices was just
+too screwed up.
+
+The kOpLocalXXXArray/kOpFieldXXXArray/kOpMemberXXXArray optypes could all be
+replaced by kOpZZZStructArray, there might be a small performance penalty.
+since now there would be a multiply for any array access.  Alternatively I
+could have 4 special localArray optypes that would support 1, 2, 4 or 8
+bytes per element.
+
++ changed ForthEngine::AddLocalArray to use kOpLocalStructArray
++ changed ForthTypesManager::ProcessSymbol
+  + to not allow non-final tokens to be arrays
++ ForthTypesManager::ProcessMemberSymbol
+- It looks like ForthTypesManager::ProcessMemberSymbol doesn't allow you to
+  access the fields of member structs, only member native types inside method
+  definitions - ProcessSymbol and ProcessMemberSymbol need to be refactored
++ changed ForthBaseType::DefineInstance
+  + to compile different opcodes for unsigned byte & short global vars
++ change byte & short fetches to be signed by default
++ change global array ops to ignore varops
++ remove array action optypes
++ added unsigned byte & short global var opcodes
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 15, 2011
 
 I added generic quicksort and binary search ops.
 
