@@ -167,27 +167,12 @@ ForthShell::~ForthShell()
 // create a new file input stream & push on stack
 //
 bool
-ForthShell::PushInputFile( const char *pFileName )
+ForthShell::PushInputFile( const char *pFilename )
 {
-    FILE *pInFile = NULL;
-    // see if file is an internal file, and if so use it
-    for ( int i = 0; i < mInternalFileCount; i++ )
-    {
-        if ( strcmp( mpInternalFiles[i].pName, pFileName ) == 0 )
-        {
-            // there is an internal file, open this .exe and seek to internal file
-            pInFile = fopen( mpArgs[0], "r" );
-            if ( fseek( pInFile, mpInternalFiles[i].offset, 0 ) != 0 )
-            {
-                fclose( pInFile );
-                pInFile = NULL;
-            }
-            break;
-        }
-    }
+    FILE *pInFile = OpenInternalFile( pFilename );
     if ( pInFile == NULL )
     {
-        pInFile = fopen( pFileName, "r" );
+        pInFile = fopen( pFilename, "r" );
     }
     if ( pInFile != NULL )
     {
@@ -232,7 +217,12 @@ ForthShell::Run( ForthInputStream *pInStream )
     mpInput->PushInputStream( pInStream );
 
     const char* autoloadFilename = "app_autoload.txt";
-    FILE* pFile = fopen( autoloadFilename, "r" );
+	FILE* pFile = OpenInternalFile( autoloadFilename );
+	if ( pFile == NULL )
+	{
+		// no internal file found, try opening app_autoload.txt as a standard file
+	    pFile = fopen( autoloadFilename, "r" );
+	}
     if ( pFile != NULL )
     {
         // there is an app autoload file, use that
@@ -1340,6 +1330,28 @@ void ForthShell::PoundEndif()
         // error - unexpected endif
         mpEngine->SetError( kForthErrorBadPreprocessorDirective, "unexpected #endif" );
     }
+}
+
+
+FILE* ForthShell::OpenInternalFile( const char* pFilename )
+{
+    // see if file is an internal file, and if so use it
+	FILE* pFile = NULL;
+    for ( int i = 0; i < mInternalFileCount; i++ )
+    {
+        if ( strcmp( mpInternalFiles[i].pName, pFilename ) == 0 )
+        {
+            // there is an internal file, open this .exe and seek to internal file
+            pFile = fopen( mpArgs[0], "r" );
+            if ( fseek( pFile, mpInternalFiles[i].offset, 0 ) != 0 )
+            {
+                fclose( pFile );
+                pFile = NULL;
+            }
+            break;
+        }
+    }
+	return pFile;
 }
 
 

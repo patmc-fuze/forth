@@ -127,6 +127,53 @@ Gotchas with structure and object support:
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 17 2011
+
+There were more problems with method definition, derived classes weren't
+really working before.  I think they are mostly fixed now.
+I fixed the method definition problem where a non-method whose name matches
+will terminate the search, potentially causing the method to be assigned a
+new method index instead of the index of the method it is intended to
+override, but it is untested.  As part of the fix I added the ability to
+continue searching vocabularies in general.  While adding this I had to
+change how the search iteration was done so that instead of ending the
+iteration based on the symbol count, now it ends the iteration when the
+entry pointer goes beyond the top of the vobab storage.  There was already
+a mpStorageTop pointer, but nothing was initializing or using it.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 16 2011
+
+rcMap.headIter was always crashing when it tried to assign the map.begin() to
+the c++ iterator in the rcMapIterStruct.  To fix it I had to change the allocation
+of the rcMapIterStruct from malloc to new, because the c++ iterator assignment
+doesn't just copy data, it needs the iterator to be initialized.
+
+rctest.txt tests the containers and their iterators for empty, one element
+and multiple element cases.  If the cleanup op is run, on exiting forth in
+the debugger the object dump is empty.
+
+I made an abstract base class rcIter so that you could define ops that would
+take an iterator object that would work for all three container types.  This
+broke things because as part of this, I had AddBuiltinClass check for the
+methodOp routine being NULL and use badOp as the opcode, which uncovered two
+bugs:
+1) when a class extends another class, its primary inteface is overwritten
+   with the primary interface of the parent class, including the interfaces
+   defining vocabulary - this led to all interfaces of derived classes having
+   their defining vocab be the base 'object' vocabulary
+2) ForthInterface::GetMethodIndex should go through the chain of defining
+   vocabularies and find the first matching symbol which has type method,
+   instead it finds the first matching symbol, and if that is not a method,
+   it returns NULL
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 15 2011
+
+I finished adding refcounted containers (array, list, map) with iterators.
+Map iterators are completely untested.
+I had to add global variables to allow the container classes to create their
+associated iterator classes.
+I put in rudimentary tracking of new/delete/keep/release in global variables.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 7 2011
 
 The main hard drive on my old work machine failed on August 19.  It took me
@@ -137,6 +184,20 @@ I just noticed that somehow the change of 'addressOf' to 'ref' in forthops.cpp
 got lost somehow, but the changes in the sandbox scripts are all still there.
 Over the last week or so I added some refcounted containers - rcArray, rcMap,
 rcList and refCounted strings.  They all need testing.
+
+UGH! if you remove an element from an rcList its refcount is decremented, so
+if the list was the only thing that referenced that object it will be deleted,
+but a non-null reference to the object is left on the stack.  We can't just
+look at the refcount before pushing the object, unless we are requiring that
+all rcObjects have a standard way of accessing the refcount...
+
+I started to change rcList to not expose its link elements as structs and
+instead have an iterator object, but it will take some thought
+? when iteration hits end of list should the user be able to reverse
+  directions and iterate back
+? what should be returned each iteration - just the object, or the object
+  and some end-of-list indicator
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 15 2011
 

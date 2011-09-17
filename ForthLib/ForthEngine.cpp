@@ -422,22 +422,25 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
             {
                 // this entry is a member method
                 // add method routine to builtinOps table
-                long methodOp = AddOp( (long *) pEntries->value, kOpBuiltIn );
-                if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
-                {
-                    gOpNames[mpCore->numBuiltinOps - 1] = pMemberName;
-                }
-
+                long methodOp = OP_BAD_OP;
+				if ( pEntries->value != NULL )
+				{
+					methodOp = AddOp( (long *) pEntries->value, kOpBuiltIn );
+					if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
+					{
+						gOpNames[mpCore->numBuiltinOps - 1] = pMemberName;
+					}
+				}
                 // do "method:"
+                long methodIndex = pVocab->FindMethod( pMemberName );
                 StartOpDefinition( pMemberName, false );
                 long* pEntry = pVocab->GetNewestEntry();
                 // pEntry[0] is initially the opcode for the method, now we replace it with the method index,
                 //  and put the opcode in the method table
-                long methodIndex = pVocab->AddMethod( pMemberName, methodOp );
+				methodIndex = pVocab->AddMethod( pMemberName, methodIndex, methodOp );
                 pEntry[0] = methodIndex;
                 pEntry[1] = pEntries->returnType;
                 TRACE( "Method %s op is 0x%x\n", pMemberName, methodOp );
-                // TBD: support method return values (structs or objects)
 
                 // do ";method"
                 EndOpDefinition( false );

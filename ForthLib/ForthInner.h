@@ -18,7 +18,7 @@ typedef void (*VarAction)( ForthCoreState *pCore );
 #define OPTYPE_ACTION(NAME) static void NAME( ForthCoreState *pCore, ulong opVal )
 
 // right now there are about 250 builtin ops, allow for future expansion
-#define MAX_BUILTIN_OPS 512
+#define MAX_BUILTIN_OPS 1024
 
 
 #if 0

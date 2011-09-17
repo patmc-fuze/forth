@@ -73,8 +73,9 @@ public:
     virtual char    *GetLine( const char *pPrompt );
     virtual bool    IsInteractive( void ) { return false; };
 protected:
-    const char      *mpDataBuffer;
-    const char      *mpDataBufferLimit;
+    char			*mpDataBuffer;
+    char			*mpDataBufferBase;
+    char			*mpDataBufferLimit;
 };
 
 

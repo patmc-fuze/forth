@@ -37,7 +37,7 @@ public:
 	ForthInterface( ForthClassVocabulary* pDefiningClass=NULL );
 	virtual ~ForthInterface();
 
-	void					Copy( ForthInterface* pInterface );
+	void					Copy( ForthInterface* pInterface, bool isPrimaryInterface );
 	void					Implements( ForthClassVocabulary* pClass );
 	ForthClassVocabulary*	GetDefiningClass();
 	long*					GetMethods();
@@ -166,7 +166,8 @@ public:
 
 	bool				IsAbstract( void )		{ return mNumAbstractMethods == 0; }
 
-	long				AddMethod( const char* pName, long op );
+	long				AddMethod( const char* pName, long methodIndex, long op );
+	long				FindMethod( const char* pName );
 	void				Implements( const char* pName );
 	void				EndImplements( void );
 	long				GetClassId( void )		{ return mStructIndex; }

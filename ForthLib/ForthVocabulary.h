@@ -65,6 +65,8 @@ public:
 
     // return pointer to symbol entry, NULL if not found
     virtual long *      FindSymbol( const char *pSymName, ulong serial=0 );
+	// continue searching a vocabulary 
+    virtual long *      FindNextSymbol( const char *pSymName, long* pStartEntry, ulong serial=0 );
     // return pointer to symbol entry, NULL if not found, given its value
     virtual long *      FindSymbolByValue( long val, ulong serial=0 );
 
@@ -72,6 +74,8 @@ public:
     // pSymName is required to be a longword aligned address, and to be padded with 0's
     // to the next longword boundary
     virtual long *      FindSymbol( ForthParseInfo *pInfo, ulong serial=0 );
+	// continue searching a vocabulary 
+    virtual long *      FindNextSymbol( ForthParseInfo *pInfo, long* pStartEntry, ulong serial=0 );
 
     // compile/interpret entry returned by FindSymbol
     virtual eForthResult ProcessEntry( long *pEntry );

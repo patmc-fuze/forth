@@ -130,7 +130,8 @@ void
 ForthVocabulary::Empty( void )
 {
     mNumSymbols = 0;
-    mpStorageBottom = mpStorageBase + mStorageLongs;
+    mpStorageTop = mpStorageBase + mStorageLongs;
+    mpStorageBottom = mpStorageTop;
     mpNewestSymbol = NULL;
 }
 
@@ -194,6 +195,7 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
         mpStorageBase = pBase;
         mStorageLongs = newLen;
         pBase = mpStorageBottom - symSize;
+		mpStorageTop = mpStorageBase + mStorageLongs;
 #ifdef MAP_LOOKUP
         InitLookupMap();
 #endif
@@ -453,6 +455,13 @@ ForthVocabulary::ForgetOp( long op )
 long *
 ForthVocabulary::FindSymbol( const char *pSymName, ulong serial )
 {
+    return FindNextSymbol( pSymName, NULL, serial );
+}
+
+
+long *
+ForthVocabulary::FindNextSymbol( const char *pSymName, long* pEntry, ulong serial )
+{
     long tmpSym[SYM_MAX_LONGS];
     ForthParseInfo parseInfo( tmpSym, SYM_MAX_LONGS );
 
@@ -465,13 +474,19 @@ ForthVocabulary::FindSymbol( const char *pSymName, ulong serial )
 #endif
     parseInfo.SetToken( pSymName );
 
-    return FindSymbol( &parseInfo, serial );
+    return FindNextSymbol( &parseInfo, pEntry, serial );
 }
 
 
 // return ptr to vocabulary entry for symbol
 long *
 ForthVocabulary::FindSymbol( ForthParseInfo *pInfo, ulong serial )
+{
+	return FindNextSymbol( pInfo, NULL, serial );
+}
+
+long *
+ForthVocabulary::FindNextSymbol( ForthParseInfo *pInfo, long* pStartEntry, ulong serial )
 {
     int i, j, symLen;
     long *pEntry, *pTmp;
@@ -486,9 +501,20 @@ ForthVocabulary::FindSymbol( ForthParseInfo *pInfo, ulong serial )
     pToken = pInfo->GetTokenAsLong();
     symLen = pInfo->GetNumLongs();
     
+	if ( pStartEntry != NULL )
+	{
+		// start search after entry pointed to by pStartEntry
+		pEntry = NextEntry( pStartEntry );
+	}
+	else
+	{
+		// start search at newest symbol in vocabulary
+		pEntry = mpStorageBottom;
+	}
+
     // go through the vocabulary looking for match with name
-    pEntry = mpStorageBottom;
-    for ( i = 0; i < mNumSymbols; i++ )
+    //for ( i = 0; i < mNumSymbols; i++ )
+	while ( pEntry < mpStorageTop )
     {
         // skip value field
         pTmp = pEntry + mValueLongs;

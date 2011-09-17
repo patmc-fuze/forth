@@ -200,6 +200,7 @@
 				FavorSizeOrSpeed="1"
 				AdditionalIncludeDirectories="M:\Prj\Forth\ForthLib"
 				PreprocessorDefinitions="INCLUDE_TRACE;_WINDOWS;_ASM_INNER_INTERPRETER"
+				ExceptionHandling="2"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
 				UsePrecompiledHeader="2"

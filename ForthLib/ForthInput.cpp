@@ -269,44 +269,46 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
 
 ForthBufferInputStream::ForthBufferInputStream( const char *pDataBuffer, int dataBufferLen, int bufferLen )
 : ForthInputStream(bufferLen)
-, mpDataBufferLimit( pDataBuffer + dataBufferLen )
-, mpDataBuffer( pDataBuffer )
 {
+	mpDataBufferBase = new char[ dataBufferLen ];
+	memcpy( mpDataBufferBase, pDataBuffer, dataBufferLen );
+	mpDataBuffer = mpDataBufferBase;
+	mpDataBufferLimit = mpDataBuffer + dataBufferLen;
 }
 
 ForthBufferInputStream::~ForthBufferInputStream()
 {
+	delete [] mpDataBufferBase;
 }
 
 
 char *
 ForthBufferInputStream::GetLine( const char *pPrompt )
 {
-    const char *pBuffer;
+    char *pBuffer = NULL;
     char *pDst, c;
 
-    if ( mpDataBuffer >= mpDataBufferLimit )
+    if ( mpDataBuffer < mpDataBufferLimit )
     {
-        return NULL;
+		pDst = mpBufferBase;
+		while ( mpDataBuffer < mpDataBufferLimit )
+		{
+			c = *mpDataBuffer++;
+			if ( (c == '\0') || (c == '\n') || (c == '\r') )
+			{
+				break;
+			} 
+			else
+			{
+				*pDst++ = c;
+			}
+		}
+		*pDst++ = '\0';
+
+		mpBuffer = mpBufferBase;
+		pBuffer = mpBuffer;
     }
 
-    pBuffer = mpDataBuffer;
-    pDst = mpBufferBase;
-    while ( mpDataBuffer < mpDataBufferLimit )
-    {
-        c = *mpDataBuffer++;
-        if ( (c == '\0') || (c == '\n') || (c == '\r') )
-        {
-            break;
-        } 
-        else
-        {
-            *pDst++ = c;
-        }
-    }
-    *pDst++ = '\0';
-
-    mpBuffer = mpBufferBase;
-    return mpBuffer;
+    return pBuffer;
 }
 

@@ -1381,12 +1381,12 @@ ForthClassVocabulary::DoOp( ForthCoreState *pCore )
 
 long
 ForthClassVocabulary::AddMethod( const char*    pName,
+								 long			methodIndex,
                                  long           op )
 {
 	ForthInterface* pCurInterface = mInterfaces[ mCurrentInterface ];
 	// see if method name is already defined - if so, just overwrite the method longword with op
 	// if name is not already defined, add the method name and op
-    long methodIndex = pCurInterface->GetMethodIndex( pName );
     if ( methodIndex < 0 )
     {
         // method name was not found in current interface
@@ -1408,6 +1408,15 @@ ForthClassVocabulary::AddMethod( const char*    pName,
     return methodIndex;
 }
 
+long
+ForthClassVocabulary::FindMethod( const char* pName )
+{
+	ForthInterface* pCurInterface = mInterfaces[ mCurrentInterface ];
+	// see if method name is already defined - if so, just overwrite the method longword with op
+	// if name is not already defined, add the method name and op
+    return pCurInterface->GetMethodIndex( pName );
+}
+
 
 void
 ForthClassVocabulary::Extends( ForthStructVocabulary *pParentStruct )
@@ -1417,13 +1426,14 @@ ForthClassVocabulary::Extends( ForthStructVocabulary *pParentStruct )
 		mpParentClass = reinterpret_cast<ForthClassVocabulary *>(pParentStruct);
 		long numInterfaces = mpParentClass->GetNumInterfaces();
 		mInterfaces.resize( numInterfaces );
+		bool isPrimaryInterface = true;
 		for ( int i = 0; i < numInterfaces; i++ )
 		{
-			if ( i != 0 )
+			if ( !isPrimaryInterface )
 			{
 				mInterfaces[i] = new ForthInterface;
 			}
-			mInterfaces[i]->Copy( mpParentClass->GetInterface( i ) );
+			mInterfaces[i]->Copy( mpParentClass->GetInterface( i ), isPrimaryInterface );
 		}
 	}
 
@@ -1644,9 +1654,12 @@ ForthInterface::~ForthInterface()
 
 
 void
-ForthInterface::Copy( ForthInterface* pInterface )
+ForthInterface::Copy( ForthInterface* pInterface, bool isPrimaryInterface )
 {
-    mpDefiningClass = pInterface->GetDefiningClass();
+	if ( !isPrimaryInterface )
+	{
+	    mpDefiningClass = pInterface->GetDefiningClass();
+	}
     mNumAbstractMethods = pInterface->mNumAbstractMethods;
     int numMethods = pInterface->mMethods.size();
     mMethods.resize( numMethods );
@@ -1740,17 +1753,33 @@ ForthInterface::GetNumAbstractMethods( void )
 long
 ForthInterface::GetMethodIndex( const char* pName )
 {
-    // TBD: lookup method name in defining vocabulary and return its method index
-    long* pEntry = mpDefiningClass->FindSymbol( pName );
-    if ( pEntry )
-    {
-        long typeCode = pEntry[1];
-        if ( CODE_IS_METHOD( typeCode ) )
-        {
-            return pEntry[0];
-        }
-    }
-    return -1;
+	long* pEntry = NULL;
+	bool done = false;
+	long methodIndex = -1;
+	ForthStructVocabulary* pVocab = mpDefiningClass;
+
+	while ( !done )
+	{
+		pEntry = pVocab->FindNextSymbol( pName, pEntry );
+		if ( pEntry )
+		{
+			long typeCode = pEntry[1];
+			if ( CODE_IS_METHOD( typeCode ) )
+			{
+				methodIndex = pEntry[0];
+				done = true;
+			}
+		}
+		else
+		{
+			pVocab = pVocab->BaseVocabulary();
+			if ( (pVocab == NULL) || !pVocab->IsClass() )
+			{
+				done = true;
+			}
+		}
+	}
+	return methodIndex;
 }
 
 

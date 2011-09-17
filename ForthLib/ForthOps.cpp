@@ -2765,18 +2765,20 @@ FORTHOP( methodOp )
     // get next symbol, add it to vocabulary with type "user op"
     const char* pMethodName = pEngine->GetNextSimpleToken();
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+    ForthClassVocabulary* pVocab = pManager->GetNewestClass();
+
+    long methodIndex = pVocab->FindMethod( pMethodName );
     pEngine->StartOpDefinition( pMethodName, true );
     // switch to compile mode
     pEngine->SetCompileState( 1 );
     pEngine->ClearFlag( kEngineFlagHasLocalVars );
     pEngine->SetFlag( kEngineFlagIsMethod );
-    ForthClassVocabulary* pVocab = pManager->GetNewestClass();
     if ( pVocab )
     {
         long* pEntry = pVocab->GetNewestEntry();
         if ( pEntry )
         {
-            long methodIndex = pVocab->AddMethod( pMethodName, pEntry[0] );
+            methodIndex = pVocab->AddMethod( pMethodName, methodIndex, pEntry[0] );
             pEntry[0] = methodIndex;
             pEntry[1] |= kDTIsMethod;
         }
@@ -3325,7 +3327,7 @@ FORTHOP( interpretOp )
     char* pStr = (char *) SPOP;
     if ( pStr != NULL )
     {
-        int len = strlen( pStr );
+        int len = strlen( pStr ) + 1;
         ForthEngine *pEngine = GET_ENGINE;
         pEngine->PushInputBuffer( pStr, len );
     }

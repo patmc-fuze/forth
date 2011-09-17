@@ -146,6 +146,8 @@ public:
     virtual eForthResult    ProcessLine( const char *pSrcLine = NULL );
     virtual char            GetChar();
 
+	virtual FILE*			OpenInternalFile( const char* pFilename );
+
     virtual ForthFileInterface* GetFileInterface();
 
     virtual FILE*           FileOpen( const char* filePath, const char* openMode );
