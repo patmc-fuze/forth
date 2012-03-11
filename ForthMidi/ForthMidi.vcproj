@@ -4,6 +4,7 @@
 	Version="9.00"
 	Name="ForthMidi"
 	ProjectGUID="{F3F5174D-B58C-42EC-B613-DE41577F75D2}"
+	RootNamespace="ForthMidi"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="131072"
 	>
@@ -42,7 +43,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="E:\pat\prj\Forth\ForthLib"
+				AdditionalIncludeDirectories="H:\prj\Forth\ForthLib"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -120,6 +121,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="H:\prj\Forth\ForthLib"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="2"
@@ -171,7 +173,7 @@
 			/>
 		</Configuration>
 		<Configuration
-			Name="ForthMidi Debug|Win32"
+			Name="Debug Midi|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
@@ -197,14 +199,15 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="E:\pat\prj\Forth\ForthLib"
+				AdditionalIncludeDirectories="H:\prj\Forth\ForthLib"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
 				UsePrecompiledHeader="2"
+				AssemblerOutput="4"
 				WarningLevel="3"
-				Detect64BitPortabilityProblems="false"
+				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="4"
 			/>
 			<Tool
@@ -220,7 +223,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="Winmm.lib"
 				OutputFile="$(OutDir)/ForthMidi.exe"
-				LinkIncremental="2"
+				LinkIncremental="1"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(OutDir)/ForthMidi.pdb"
 				SubSystem="1"
@@ -251,7 +254,7 @@
 			/>
 		</Configuration>
 		<Configuration
-			Name="ForthMidi Release|Win32"
+			Name="Release Midi|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
@@ -276,11 +279,12 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="H:\prj\Forth\ForthLib"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="2"
 				WarningLevel="3"
-				Detect64BitPortabilityProblems="false"
+				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="3"
 			/>
 			<Tool
@@ -294,6 +298,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="Winmm.lib"
 				OutputFile="$(OutDir)/ForthMidi.exe"
 				LinkIncremental="1"
 				GenerateDebugInformation="true"
@@ -327,9 +332,13 @@
 			/>
 		</Configuration>
 		<Configuration
-			Name="ForthND Release|Win32"
+			Name="Debug GUI|Win32"
+			OutputDirectory="$(ConfigurationName)"
+			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
 			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
+			UseOfMFC="2"
+			CharacterSet="2"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -348,6 +357,16 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				Optimization="0"
+				AdditionalIncludeDirectories="H:\prj\Forth\ForthLib"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
+				MinimalRebuild="true"
+				BasicRuntimeChecks="3"
+				RuntimeLibrary="3"
+				UsePrecompiledHeader="2"
+				WarningLevel="3"
+				Detect64BitPortabilityProblems="true"
+				DebugInformationFormat="4"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -360,8 +379,14 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				OutputFile="$(OutDir)/ForthMidi.exe"
+				LinkIncremental="2"
+				GenerateDebugInformation="true"
+				ProgramDatabaseFile="$(OutDir)/ForthMidi.pdb"
+				SubSystem="1"
 				RandomizedBaseAddress="1"
 				DataExecutionPrevention="0"
+				TargetMachine="1"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -422,7 +447,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMidi Debug|Win32"
+					Name="Debug Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -430,7 +455,15 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMidi Release|Win32"
+					Name="Release Midi|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="1"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug GUI|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"

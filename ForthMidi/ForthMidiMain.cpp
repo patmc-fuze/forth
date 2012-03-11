@@ -13,11 +13,11 @@
 #endif
 
 
-#define TEST_MIDI
+//#define TEST_MIDI
 #ifdef TEST_MIDI
 
 HMIDIIN MidiInHandle = 0;
-#define MIDI_IN_CHANNEL 12
+#define MIDI_IN_DEVICENUM 8
 
 /* ****************************** closeMidiIn() *****************************
  * Close MIDI In Device if it's open.
@@ -46,7 +46,7 @@ DWORD closeMidiIn(void)
    return(err);
 }
 
-void midiInputEvt( HMIDIIN hMidiIn, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2 )
+void CALLBACK midiInputEvt( HMIDIIN hMidiIn, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2 )
 {
     TRACE( "ForthMidiExtension::HandleMidiIn   msg %x   cbData %x   p1 %x   p2 %x\n",
             wMsg, dwInstance, dwParam1, dwParam2 );
@@ -97,18 +97,14 @@ void midiInputEvt( HMIDIIN hMidiIn, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR d
  * Use midiInGetErrorText to retrieve an error message.
  ************************************************************************ */
 
-DWORD openMidiIn(void)
+DWORD openMidiIn( UINT deviceId )
 {
    DWORD   err;
 
    /* Is it not yet open? */
    if (!MidiInHandle)
    {
-      /* Open MIDI Input and set Windows to call my
-      midiInputEvt() callback function. You may prefer
-      to have something other than CALLBACK_FUNCTION. Also,
-      I open device 0. You may want to give the user a choice */
-      if (!(err = midiInOpen(&MidiInHandle, MIDI_IN_CHANNEL, (DWORD)midiInputEvt, 0, CALLBACK_FUNCTION)))
+      if (!(err = midiInOpen(&MidiInHandle, deviceId, (DWORD)midiInputEvt, 0, CALLBACK_FUNCTION)))
       {
          /* Start recording Midi and return if SUCCESS */
          if (!(err = midiInStart(MidiInHandle)))
@@ -155,7 +151,10 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 	{
 #ifdef TEST_MIDI
         /* Open MIDI In */
-        if ( openMidiIn() == 0 )
+		MIDIINCAPS deviceCaps;
+		UINT deviceId = MIDI_IN_DEVICENUM;
+		MMRESULT result = midiInGetDevCaps( deviceId, &deviceCaps, sizeof(MIDIINCAPS) );
+        if ( openMidiIn( deviceId ) == 0 )
         {
 
             char buffy[256];

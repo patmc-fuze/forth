@@ -42,10 +42,10 @@ FORTHOP( midiOutGetNumDevsOp )
 
 FORTHOP( midiInOpenOp )
 {
-    long deviceId = SPOP;
     long cbData = SPOP;
     long cbOp = SPOP;
-    long result = ForthMidiExtension::GetInstance()->OpenInput( cbOp, cbData, deviceId );
+    long deviceId = SPOP;
+    long result = ForthMidiExtension::GetInstance()->OpenInput( deviceId, cbOp, cbData );
     SPUSH( result );
 }
 
@@ -56,12 +56,34 @@ FORTHOP( midiInCloseOp )
     SPUSH( result );
 }
 
-FORTHOP( midiOutOpenOp )
+FORTHOP( midiInStartOp )
 {
     long deviceId = SPOP;
+    long result = ForthMidiExtension::GetInstance()->StartInput( deviceId );
+    SPUSH( result );
+}
+
+FORTHOP( midiInStopOp )
+{
+    long deviceId = SPOP;
+    long result = ForthMidiExtension::GetInstance()->StopInput( deviceId );
+    SPUSH( result );
+}
+
+FORTHOP( midiInGetErrorTextOp )
+{
+	long buffSize = SPOP;
+	char* buff = (char *) SPOP;
+	long err = SPOP;
+    ForthMidiExtension::GetInstance()->InGetErrorText( err, buff, buffSize );
+}
+
+FORTHOP( midiOutOpenOp )
+{
     long cbData = SPOP;
     long cbOp = SPOP;
-    long result = ForthMidiExtension::GetInstance()->OpenOutput( cbOp, cbData, deviceId );
+    long deviceId = SPOP;
+    long result = ForthMidiExtension::GetInstance()->OpenOutput( deviceId, cbOp, cbData );
     SPUSH( result );
 }
 
@@ -80,6 +102,13 @@ FORTHOP( midiInGetDeviceNameOp )
     SPUSH( result );
 }
 
+FORTHOP( midiInGetDeviceCapabilitiesOp )
+{
+    long deviceNum = SPOP;
+    MIDIINCAPS* pCaps = ForthMidiExtension::GetInstance()->GetInputDeviceCapabilities( (UINT_PTR) deviceNum );
+    SPUSH( (long) pCaps );
+}
+
 FORTHOP( midiOutGetDeviceNameOp )
 {
     long deviceNum = SPOP;
@@ -88,6 +117,57 @@ FORTHOP( midiOutGetDeviceNameOp )
     SPUSH( result );
 }
 
+FORTHOP( midiOutGetDeviceCapabilitiesOp )
+{
+    long deviceNum = SPOP;
+    MIDIOUTCAPS* pCaps = ForthMidiExtension::GetInstance()->GetOutputDeviceCapabilities( (UINT_PTR) deviceNum );
+    SPUSH( (long) pCaps );
+}
+
+FORTHOP( midiOutShortMsgOp )
+{
+    long msg = SPOP;
+    long deviceId = SPOP;
+    long result = ForthMidiExtension::GetInstance()->OutShortMsg( deviceId, msg );
+    SPUSH( result );
+}
+
+FORTHOP( midiHdrSizeOp )
+{
+    SPUSH( sizeof(MIDIHDR) );
+}
+
+FORTHOP( midiOutPrepareHeaderOp )
+{
+    MIDIHDR* pHdr = (MIDIHDR*) SPOP;
+    long deviceId = SPOP;
+    long result = ForthMidiExtension::GetInstance()->OutPrepareHeader( deviceId, pHdr );
+    SPUSH( result );
+}
+
+FORTHOP( midiOutUnprepareHeaderOp )
+{
+    MIDIHDR* pHdr = (MIDIHDR*) SPOP;
+    long deviceId = SPOP;
+    long result = ForthMidiExtension::GetInstance()->OutUnprepareHeader( deviceId, pHdr );
+    SPUSH( result );
+}
+
+FORTHOP( midiOutLongMsgOp )
+{
+    MIDIHDR* pHdr = (MIDIHDR*) SPOP;
+    long deviceId = SPOP;
+    long result = ForthMidiExtension::GetInstance()->OutLongMsg( deviceId, pHdr );
+    SPUSH( result );
+}
+
+FORTHOP( midiOutGetErrorTextOp )
+{
+	long buffSize = SPOP;
+	char* buff = (char *) SPOP;
+	long err = SPOP;
+    ForthMidiExtension::GetInstance()->OutGetErrorText( err, buff, buffSize );
+}
 
 baseDictionaryEntry midiDictionary[] =
 {
@@ -100,10 +180,21 @@ baseDictionaryEntry midiDictionary[] =
     OP_DEF(    midiOutGetNumDevsOp,             "midiOutGetNumDevices" ),
     OP_DEF(    midiInGetDeviceNameOp,           "midiInGetDeviceName" ),
     OP_DEF(    midiOutGetDeviceNameOp,          "midiOutGetDeviceName" ),
+    OP_DEF(    midiInGetDeviceCapabilitiesOp,   "midiInGetDeviceCapabilities" ),
+    OP_DEF(    midiOutGetDeviceCapabilitiesOp,  "midiOutGetDeviceCapabilities" ),
     OP_DEF(    midiInOpenOp,                    "midiInOpen" ),
     OP_DEF(    midiInCloseOp,                   "midiInClose" ),
+    OP_DEF(    midiInStartOp,                   "midiInStart" ),
+    OP_DEF(    midiInStopOp,                    "midiInStop" ),
+    OP_DEF(    midiInGetErrorTextOp,            "midiInGetErrorText" ),
     OP_DEF(    midiOutOpenOp,                   "midiOutOpen" ),
     OP_DEF(    midiOutCloseOp,                  "midiOutClose" ),
+	OP_DEF(    midiHdrSizeOp,					"MIDIHDR_SIZE" ),
+    OP_DEF(    midiOutShortMsgOp,               "midiOutShortMsg" ),
+    OP_DEF(    midiOutPrepareHeaderOp,          "midiOutPrepareHeader" ),
+    OP_DEF(    midiOutUnprepareHeaderOp,        "midiOutUnprepareHeader" ),
+    OP_DEF(    midiOutGetErrorTextOp,           "midiOutGetErrorText" ),
+    OP_DEF(    midiOutLongMsgOp,                "midiOutLongMsg" ),
     // following must be last in table
     OP_DEF(    NULL,                        "" )
 };
@@ -128,6 +219,7 @@ ForthMidiExtension::ForthMidiExtension()
 
 ForthMidiExtension::~ForthMidiExtension()
 {
+	Shutdown();
 }
 
 
@@ -137,7 +229,7 @@ void ForthMidiExtension::Initialize( ForthEngine* pEngine )
     {
         delete mpThread;
     }
-    mpThread = new ForthThread( ForthEngine::GetInstance() );
+	mpThread = ForthEngine::GetInstance()->CreateThread();
     ForthExtension::Initialize( pEngine );
     pEngine->AddBuiltinOps( midiDictionary );
 }
@@ -155,23 +247,18 @@ void ForthMidiExtension::Reset()
 void ForthMidiExtension::Shutdown()
 {
     mbEnabled = false;
+#if 0
+	if ( mpThread != NULL )
+	{
+		ForthEngine::GetInstance()->DestroyThread( mpThread );
+		mpThread = NULL;
+	}
+#endif
 }
 
 
 void ForthMidiExtension::ForgetOp( ulong opNumber )
 {
-#if 0
-    for ( std::vector<ForthMidiExtension::InDeviceInfo>::iterator iter = mInputDevices.begin();
-          iter != mInputDevices.end(); iter++ )
-    {
-        *iter.mCbOp = 0;
-    }
-    for ( std::vector<ForthMidiExtension::OutDeviceInfo>::iterator iter = mOutputDevices.begin();
-          iter != mOutputDevices.end(); iter++ )
-    {
-        *iter.mCbOp = 0;
-    }
-#else
     for ( ulong i = 0; i < mInputDevices.size(); i++ )
     {
         if ( mInputDevices[i].mCbOp >= opNumber )
@@ -186,7 +273,6 @@ void ForthMidiExtension::ForgetOp( ulong opNumber )
             mOutputDevices[i].mCbOp = 0;
         }
     }
-#endif
 }
 
 
@@ -200,9 +286,8 @@ ForthMidiExtension* ForthMidiExtension::GetInstance( void )
 }
 
 
-long ForthMidiExtension::OpenInput( long cbOp, long cbOpData, long deviceId )
+long ForthMidiExtension::OpenInput( long deviceId, long cbOp, long cbOpData )
 {
-    TRACE( "Start OpenInput\n" );
     if ( (size_t) deviceId >= mInputDevices.size() )
     {
         mInputDevices.resize( deviceId + 1 );
@@ -211,19 +296,13 @@ long ForthMidiExtension::OpenInput( long cbOp, long cbOpData, long deviceId )
     midiIn->mCbOp = cbOp;
     midiIn->mCbOpData = (void *) cbOpData;
     midiIn->mDeviceId = (UINT_PTR) deviceId;
-#if 1
     MMRESULT result = midiInOpen( &(midiIn->mHandle), (UINT_PTR) deviceId,
                                   (DWORD_PTR) MidiInCallback, (DWORD_PTR) deviceId, (CALLBACK_FUNCTION | MIDI_IO_STATUS) );
-#else
-    long result = 55;
-    MidiInCallback( midiIn->mHandle, MIM_OPEN, (DWORD_PTR) deviceId, 11, 22 );
-#endif
-    TRACE( "End OpenInput\n" );
     return (long) result;
 }
 
 
-void ForthMidiExtension::MidiInCallback( HMIDIIN hMidiIn, UINT wMsg, DWORD_PTR dwInstance,
+void CALLBACK ForthMidiExtension::MidiInCallback( HMIDIIN hMidiIn, UINT wMsg, DWORD_PTR dwInstance,
                                 DWORD_PTR dwParam1, DWORD_PTR dwParam2 )
 {
     ForthMidiExtension* pThis = ForthMidiExtension::GetInstance();
@@ -233,7 +312,8 @@ void ForthMidiExtension::MidiInCallback( HMIDIIN hMidiIn, UINT wMsg, DWORD_PTR d
 
 void ForthMidiExtension::HandleMidiIn( UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2 )
 {
-    TRACE( "ForthMidiExtension::HandleMidiIn   msg %x   cbData %x   p1 %x   p2 %x\n",
+#if 0
+	TRACE( "ForthMidiExtension::HandleMidiIn   msg %x   cbData %x   p1 %x   p2 %x\n",
             wMsg, dwInstance, dwParam1, dwParam2 );
     switch ( wMsg )
     {
@@ -273,17 +353,28 @@ void ForthMidiExtension::HandleMidiIn( UINT wMsg, DWORD_PTR dwInstance, DWORD_PT
         TRACE( "Output Done\n" );
         break;
     }
-#if 0
-    if ( mbEnabled && (dwInstance < mInputDevices.size()) )
+#endif
+
+	if ( mbEnabled && (dwInstance < mInputDevices.size()) )
     {
         InDeviceInfo* midiIn = &(mInputDevices[dwInstance]);
         if ( midiIn->mCbOp != 0 )
         {
-            mpThread->Push( wMsg );
+			mpThread->Reset();
+			mpThread->SetOp( midiIn->mCbOp );
+			mpThread->Push( wMsg );
             mpThread->Push( (long) (midiIn->mCbOpData) );
-            mpThread->Push( dwParam1 );
-            mpThread->Push( dwParam2 );
-            ForthEngine::GetInstance()->ExecuteOneOp( midiIn->mCbOp, mpThread );
+			mpThread->Push( dwParam1 );
+			mpThread->Push( dwParam2 );
+			mpThread->Run();
+			long* pStack = mpThread->GetCoreState()->SP;
+			TRACE( "MIDI:" );
+			while ( pStack < mpThread->GetCoreState()->ST )
+			{
+				TRACE( " %x", *pStack );
+				pStack++;
+			}
+			TRACE( "\n" );
         }
         else
         {
@@ -301,7 +392,6 @@ void ForthMidiExtension::HandleMidiIn( UINT wMsg, DWORD_PTR dwInstance, DWORD_PT
         TRACE( "ForthMidiExtension::HandleMidiIn enable %d   nInputDevices %d   cbOp  %x\n",
                mbEnabled, mInputDevices.size(), cbOp );
     }
-#endif
 }
 
 
@@ -313,10 +403,33 @@ long ForthMidiExtension::CloseInput( long deviceId )
         result = midiInClose( mInputDevices[deviceId].mHandle );
         mInputDevices[deviceId].mCbOp = 0;
     }
-    return (result == MMSYSERR_NOERROR) ? 1 : 0;
+	return (long) result;
 }
 
-long ForthMidiExtension::OpenOutput( long cbOp, long cbOpData, long deviceId )
+
+long ForthMidiExtension::StartInput( long deviceId )
+{
+    MMRESULT result = MMSYSERR_NOERROR;
+    if ( (size_t) deviceId < mInputDevices.size() )
+    {
+        result = midiInStart( mInputDevices[deviceId].mHandle );
+    }
+	return (long) result;
+}
+
+
+long ForthMidiExtension::StopInput( long deviceId )
+{
+    MMRESULT result = MMSYSERR_NOERROR;
+    if ( (size_t) deviceId < mInputDevices.size() )
+    {
+        result = midiInStop( mInputDevices[deviceId].mHandle );
+    }
+	return (long) result;
+}
+
+
+long ForthMidiExtension::OpenOutput( long deviceId, long cbOp, long cbOpData )
 {
     if ( (size_t) deviceId >= mOutputDevices.size() )
     {
@@ -340,10 +453,10 @@ long ForthMidiExtension::CloseOutput( long deviceId )
         result = midiOutClose( mOutputDevices[deviceId].mHandle );
         mOutputDevices[deviceId].mCbOp = 0;
     }
-    return (result == MMSYSERR_NOERROR) ? 1 : 0;
+	return (long) result;
 }
 
-void ForthMidiExtension::MidiOutCallback( HMIDIOUT hMidiOut, UINT wMsg, DWORD_PTR dwInstance,
+void CALLBACK ForthMidiExtension::MidiOutCallback( HMIDIOUT hMidiOut, UINT wMsg, DWORD_PTR dwInstance,
                                  DWORD_PTR dwParam1, DWORD_PTR dwParam2 )
 {
     ForthMidiExtension* pThis = ForthMidiExtension::GetInstance();
@@ -353,17 +466,23 @@ void ForthMidiExtension::MidiOutCallback( HMIDIOUT hMidiOut, UINT wMsg, DWORD_PT
 
 void ForthMidiExtension::HandleMidiOut( UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2 )
 {
-    if ( mbEnabled && (dwInstance < mOutputDevices.size()) && (mOutputDevices[dwInstance].mCbOp != 0) )
+    if ( mbEnabled && (dwInstance < mOutputDevices.size()) )
     {
-        mpThread->Push( wMsg );
-        mpThread->Push( (long) mOutputDevices[dwInstance].mCbOpData );
-        mpThread->Push( dwParam1 );
-        mpThread->Push( dwParam2 );
-        ForthEngine::GetInstance()->ExecuteOneOp( mOutputDevices[dwInstance].mCbOp, mpThread );
-    }
-    else
-    {
-        // TBD: Error
+        OutDeviceInfo* midiOut = &(mOutputDevices[dwInstance]);
+        if ( midiOut->mCbOp != 0 )
+        {
+			mpThread->Reset();
+			mpThread->SetOp( midiOut->mCbOp );
+			mpThread->Push( wMsg );
+            mpThread->Push( (long) (midiOut->mCbOpData) );
+			mpThread->Push( dwParam1 );
+			mpThread->Push( dwParam2 );
+			mpThread->Run();
+        }
+        else
+        {
+            TRACE( "No registered op for channel %d\n", dwInstance );
+        }
     }
 }
 
@@ -386,22 +505,74 @@ long ForthMidiExtension::OutputDeviceCount()
 
 MIDIOUTCAPS* ForthMidiExtension::GetOutputDeviceCapabilities( UINT_PTR deviceId )
 {
-    if ( deviceId >= mOutputDevices.size() )
+	MMRESULT result = MMSYSERR_BADDEVICEID;
+    if ( (size_t) deviceId >= mOutputDevices.size() )
     {
         mOutputDevices.resize( deviceId + 1 );
     }
-    MMRESULT result = midiOutGetDevCaps( deviceId, &(mOutputDevices[deviceId].mCaps), sizeof(MIDIOUTCAPS) );
+	result = midiOutGetDevCaps( deviceId, &(mOutputDevices[deviceId].mCaps), sizeof(MIDIOUTCAPS) );
     return (result == MMSYSERR_NOERROR) ? &(mOutputDevices[deviceId].mCaps) : NULL;
 }
 
 MIDIINCAPS* ForthMidiExtension::GetInputDeviceCapabilities( UINT_PTR deviceId )
 {
-    if ( deviceId >= mInputDevices.size() )
+	MMRESULT result = MMSYSERR_BADDEVICEID;
+    if ( (size_t) deviceId >= mInputDevices.size() )
     {
         mInputDevices.resize( deviceId + 1 );
     }
-    MMRESULT result = midiInGetDevCaps( deviceId, &(mInputDevices[deviceId].mCaps), sizeof(MIDIINCAPS) );
+    result = midiInGetDevCaps( deviceId, &(mInputDevices[deviceId].mCaps), sizeof(MIDIINCAPS) );
     return (result == MMSYSERR_NOERROR) ? &(mInputDevices[deviceId].mCaps) : NULL;
+}
+
+long ForthMidiExtension::OutShortMsg( UINT_PTR deviceId, DWORD msg )
+{
+	MMRESULT result = MMSYSERR_BADDEVICEID;
+    if ( deviceId < mOutputDevices.size() )
+    {
+	    result = midiOutShortMsg( mOutputDevices[deviceId].mHandle, msg );
+    }
+	return (long) result;
+}
+
+long ForthMidiExtension::OutPrepareHeader( long deviceId, MIDIHDR* pHdr )
+{
+	MMRESULT result = MMSYSERR_BADDEVICEID;
+    if ( deviceId < mOutputDevices.size() )
+    {
+		result = midiOutPrepareHeader( mOutputDevices[deviceId].mHandle, pHdr, sizeof(MIDIHDR) );
+    }
+	return (long) result;
+}
+
+long ForthMidiExtension::OutUnprepareHeader( long deviceId, MIDIHDR* pHdr )
+{
+	MMRESULT result = MMSYSERR_BADDEVICEID;
+    if ( deviceId < mOutputDevices.size() )
+    {
+		result = midiOutUnprepareHeader( mOutputDevices[deviceId].mHandle, pHdr, sizeof(MIDIHDR) );
+    }
+	return (long) result;
+}
+
+long ForthMidiExtension::OutLongMsg( long deviceId, MIDIHDR* pHdr )
+{
+	MMRESULT result = MMSYSERR_BADDEVICEID;
+    if ( deviceId < mOutputDevices.size() )
+    {
+		result = midiOutLongMsg( mOutputDevices[deviceId].mHandle, pHdr, sizeof(MIDIHDR) );
+    }
+	return (long) result;
+}
+
+void ForthMidiExtension::OutGetErrorText( long err, char* buff, long buffSize )
+{
+	midiOutGetErrorText( err, buff, buffSize );
+}
+
+void ForthMidiExtension::InGetErrorText( long err, char* buff, long buffSize )
+{
+	midiInGetErrorText( err, buff, buffSize );
 }
 
 

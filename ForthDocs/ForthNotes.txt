@@ -127,6 +127,93 @@ Gotchas with structure and object support:
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 19 2012
+
+I added the ability for colon-defined ops inside class definitions to access
+class member variables and methods, before only methods could do so.  Colon
+ops don't push/pop the this pointer, they use whatever this ptr is already
+set.  I should make sure that you can't access these colon-ops from outside
+of their own class (and derived) methods.
+
+ForthTypesManager::ProcessMemberSymbol
+  called whenever you are in a class definition to process class member symbols
+  -> ProcessMemberSymbol does iterate down the derivation chain, which is good if
+     we want derived classes to be able to access ancestors colonOps
+ForthTypesManager::ProcessSymbol
+  called when symbol includes a period, symbol first part is used to determine
+  the class
+  -> ProcessSymbol incorrectly generates an offset instruction when it is
+     given "objectInstance.colonOp" .
+     
+If colonOps are only to affect the object already referenced by the this ptr,
+then I don't think "objectInstance.colonOp" ever makes sense, so we can just
+disallow that - only colonOps which have no object instance selector and are
+inside a class definition should be supported.
+-> it would be nice if colonOp names just weren't recognized in these cases,
+   so a colonOp name wouldn't obscure a same-named member in an ancestor class
+-> this would be hard to implement, since FindSymbol always just returns the
+   first symbol found, there is no direct way to have it continue the search
+   after it finds a symbol that the caller rejects.
+   
+It would be useful to have a way to continue a search after finding a match
+that is reject for some reason.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 26 2011
+
+The midi support allows you to define midi in and out callbacks which are done
+as user-defined forthops.  I kept seeing that the top level op of the midi in
+callback would be executed in the inner interpreter, but none of the ops in the
+callback were executed - the problem is because of how threads are created.
+Threads contain a ForthCoreState struct, which includes the opcode dispatch
+tables and table sizes.  When the midiInCallback opcode is executed, it gets
+to the kOpUserDef optype action routine, which first checks that the opcode
+low 24 bits is less than or equal to the maximum defined user opcode, but in
+this case it isn't, because the midi in callback runs in the midi extension
+thread which was created at startup, before any user definitions were loaded.
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 25 2011
+
+After eons of neglect, I decided to try to get ForthMidi working again.  It
+turns out the reason I was getting all those strange crashes in the midi input
+callback was because I didn't have the 'CALLBACK' keyword in the callback
+signature.  DOH!
+I also in a fit of stupidity decided to 'clean up' the msdev project/configurations,
+forgetting that there is no good way to do things the way I want in msdev.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 8 2011
+
+I renamed the class ForthBaseType to ForthNativeType because there was also
+an enumerated type forthBaseType.
+
+I added array indexing to the syntax recognized by the outer interpreter.
+The syntax is SYMBOL[] where SYMBOL is one of:
+  a) a literal integer
+  b) a struct/class typename
+  c) a native type name (excluding string)
+The symantics are defined by the existing kArrayOffset opcode, which is:
+INDEX ARRAY_BASE_ADDRESS TYPE[] ... ARRAY_BASE_ADDRESS+(INDEX * sizeof(TYPE))
+Currently, if SYMBOL is a class name, the size is the storage size, not the
+size of the object reference on stack (always 8 bytes).
+
+Forth crashes when you create an object instance of a class which has no
+methods.  AllocObjectOp gets the primary interface pointer, which exists, but
+it pushes the methods pointer, which is the address of mMethods[1], and the
+std::vector code in debug does bounds checking, and if there are no methods
+then mMethods[1] is out of bounds.
+-> fixed
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 22 2011
+
+I started trying to create a directory iterator class and found a big bug in
+class support.  Inside a method definition compound symbols like MEMBERVAR.METHOD
+don't work at all.
+-> I now push the new class on the vocab stack during class definition
+
+Another problem: the chdir command leaves _system_stdout.txt & _stderr files
+behind it every time and everywhere it is run.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 17 2011
 
 There were more problems with method definition, derived classes weren't
@@ -373,7 +460,7 @@ bytes per element.
 - It looks like ForthTypesManager::ProcessMemberSymbol doesn't allow you to
   access the fields of member structs, only member native types inside method
   definitions - ProcessSymbol and ProcessMemberSymbol need to be refactored
-+ changed ForthBaseType::DefineInstance
++ changed ForthNativeType::DefineInstance
   + to compile different opcodes for unsigned byte & short global vars
 + change byte & short fetches to be signed by default
 + change global array ops to ignore varops
@@ -3002,7 +3089,7 @@ Struct defining stuff is in.  Extension to outer interpreter to handle
 stuff like a.b.c is not in yet.
 
 I'm not completely sure that the handling of pointers is correct.
-I got rid of ForthNativeStringType, merged it back into ForthBaseType.
+I got rid of ForthNativeStringType, merged it back into ForthNativeType.
 I'm not convinced that was a good idea, the code is messy, I was trying to
 avoid duplicating DefineInstance.  Most of the ugliness is because strings
 need to get the maximum string length, and how that is done is different
@@ -3015,7 +3102,7 @@ to use an uninitialized string and get a buffer overrun.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 31 2007
 
-Added ForthBaseType
+Added ForthNativeType
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 26, 2007

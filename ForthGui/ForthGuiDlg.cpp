@@ -128,6 +128,123 @@ void ForthOutRoutine( ForthCoreState *pCore, const char *pBuff )
 }
 
 /////////////////////////////////////////////////////////////////////////////
+#define TEST_MIDI
+#ifdef TEST_MIDI
+
+#include <MMSystem.h>
+HMIDIIN MidiInHandle = 0;
+#define MIDI_IN_DEVICENUM 8
+
+/* ****************************** closeMidiIn() *****************************
+ * Close MIDI In Device if it's open.
+ ************************************************************************** */
+
+DWORD closeMidiIn(void)
+{
+   DWORD   err;
+
+   /* Is the device open? */
+   if ((err = (DWORD)MidiInHandle))
+   {
+      /* Unqueue any buffers we added. If you don't
+      input System Exclusive, you won't need this */
+      midiInReset(MidiInHandle);
+
+      /* Close device */
+      if (!(err = midiInClose(MidiInHandle)))
+      {
+         /* Clear handle so that it's safe to call closeMidiIn() anytime */
+         MidiInHandle = 0;
+      }
+   }
+
+   /* Return the error */
+   return(err);
+}
+
+void CALLBACK midiInputEvt( HMIDIIN hMidiIn, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dwParam1, DWORD_PTR dwParam2 )
+{
+    TRACE( "ForthMidiExtension::HandleMidiIn   msg %x   cbData %x   p1 %x   p2 %x\n",
+            wMsg, dwInstance, dwParam1, dwParam2 );
+    switch ( wMsg )
+    {
+    case MIM_DATA:      // Short message received
+        TRACE( "Data\n" );
+        break;
+
+    case MIM_ERROR:     // Invalid short message received
+        TRACE( "Error\n" );
+        break;
+
+    case MIM_LONGDATA:  // System exclusive message received
+        TRACE( "LongData\n" );
+        break;
+
+    case MIM_LONGERROR: // Invalid system exclusive message received
+        TRACE( "LongError\n" );
+        break;
+
+    case MIM_OPEN:
+        TRACE( "Input Open\n" );
+        break;
+
+    case MIM_CLOSE:
+        TRACE( "Input Close\n" );
+        break;
+
+    case MOM_OPEN:
+        TRACE( "Output Open\n" );
+        break;
+
+    case MOM_CLOSE:
+        TRACE( "Output Close\n" );
+        break;
+
+    case MOM_DONE:
+        TRACE( "Output Done\n" );
+        break;
+    }
+}
+
+/* *************************** openMidiIn() *****************************
+ * Opens MIDI In Device #0. Stores handle in MidiInHandle. Starts
+ * recording. (midiInputEvt is my callback to process input).
+ * Returns 0 if success. Otherwise, an error number.
+ * Use midiInGetErrorText to retrieve an error message.
+ ************************************************************************ */
+
+DWORD openMidiIn( UINT deviceId )
+{
+   DWORD   err;
+
+   /* Is it not yet open? */
+   if (!MidiInHandle)
+   {
+      if (!(err = midiInOpen(&MidiInHandle, deviceId, (DWORD)midiInputEvt, 0, CALLBACK_FUNCTION)))
+      {
+         /* Start recording Midi and return if SUCCESS */
+         if (!(err = midiInStart(MidiInHandle)))
+         {
+            return(0);
+         }
+      }
+
+      /* ============== ERROR ============== */
+
+      /* Close MIDI In and zero handle */
+      closeMidiIn();
+
+      /* Return the error */
+      return(err);
+   }
+
+   return(0);
+}
+
+
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
 // CForthGuiDlg dialog
 
 CForthGuiDlg::CForthGuiDlg(CWnd* pParent /*=NULL*/)
@@ -156,6 +273,21 @@ void CForthGuiDlg::CreateForth()
     mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE );
     mpShell->GetInput()->PushInputStream( mpInStream );
     CreateDialogOps();
+#ifdef TEST_MIDI
+    /* Open MIDI In */
+	MIDIINCAPS deviceCaps;
+	UINT deviceId = MIDI_IN_DEVICENUM;
+	MMRESULT result = midiInGetDevCaps( deviceId, &deviceCaps, sizeof(MIDIINCAPS) );
+    if ( openMidiIn( deviceId ) == 0 )
+    {
+
+        char buffy[256];
+        gets( &(buffy[0]) );
+
+        /* Close any Midi Input device */
+        closeMidiIn();
+    }
+#endif
 }
 
 void CForthGuiDlg::DestroyForth()

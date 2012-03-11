@@ -70,6 +70,6 @@ ForthParseInfo
 ForthShellStack
 ForthVocabularyStack
 ForthInterface
-ForthBaseType
+ForthNativeType
 ForthThreadQueue
 
