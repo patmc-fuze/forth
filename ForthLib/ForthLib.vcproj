@@ -170,162 +170,7 @@
 			/>
 		</Configuration>
 		<Configuration
-			Name="ForthMain Debug|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="4"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			UseOfMFC="2"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="0"
-				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories="M:\Prj\Forth\ForthLib"
-				PreprocessorDefinitions="INCLUDE_TRACE;_WINDOWS;_ASM_INNER_INTERPRETER"
-				ExceptionHandling="2"
-				BasicRuntimeChecks="3"
-				RuntimeLibrary="3"
-				UsePrecompiledHeader="2"
-				PrecompiledHeaderThrough="stdafx.h"
-				PrecompiledHeaderFile=".\Debug/ForthLib.pch"
-				AssemblerOutput="4"
-				AssemblerListingLocation=".\Debug/"
-				ObjectFile=".\Debug/"
-				ProgramDataBaseFileName=".\Debug/"
-				BrowseInformation="1"
-				WarningLevel="3"
-				SuppressStartupBanner="true"
-				DebugInformationFormat="4"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="_DEBUG"
-				Culture="1033"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\Debug\ForthLib.lib"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
-			Name="ForthMain Release|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="4"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			UseOfMFC="2"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="2"
-				InlineFunctionExpansion="1"
-				FavorSizeOrSpeed="1"
-				PreprocessorDefinitions="_WINDOWS;_ASM_INNER_INTERPRETER"
-				StringPooling="true"
-				RuntimeLibrary="2"
-				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="2"
-				PrecompiledHeaderThrough="stdafx.h"
-				PrecompiledHeaderFile=".\Release/ForthLib.pch"
-				ExpandAttributedSource="false"
-				AssemblerOutput="4"
-				AssemblerListingLocation=".\Release/"
-				ObjectFile=".\Release/"
-				ProgramDataBaseFileName=".\Release/"
-				WarningLevel="3"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="NDEBUG"
-				Culture="1033"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\Release\ForthLib.lib"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
-			Name="ForthGui Debug|Win32"
+			Name="Debug Midi|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="4"
@@ -402,7 +247,7 @@
 			/>
 		</Configuration>
 		<Configuration
-			Name="ForthGui Release|Win32"
+			Name="Release Midi|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="4"
@@ -478,7 +323,7 @@
 			/>
 		</Configuration>
 		<Configuration
-			Name="ForthServer Debug|Win32"
+			Name="Debug GUI|Win32"
 			OutputDirectory="$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="4"
@@ -549,448 +394,6 @@
 			/>
 			<Tool
 				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
-			Name="ForthServer Release|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="4"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			UseOfMFC="2"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="2"
-				InlineFunctionExpansion="1"
-				FavorSizeOrSpeed="1"
-				PreprocessorDefinitions="_WINDOWS;_ASM_INNER_INTERPRETER"
-				StringPooling="true"
-				RuntimeLibrary="2"
-				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="2"
-				PrecompiledHeaderThrough="stdafx.h"
-				PrecompiledHeaderFile=".\Release/ForthLib.pch"
-				AssemblerOutput="0"
-				AssemblerListingLocation=".\Release/"
-				ObjectFile=".\Release/"
-				ProgramDataBaseFileName=".\Release/"
-				WarningLevel="3"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="NDEBUG"
-				Culture="1033"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\Release\ForthLib.lib"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
-			Name="ForthClient Debug|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="4"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			UseOfMFC="2"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="0"
-				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories="M:\Prj\Forth\ForthLib"
-				PreprocessorDefinitions="INCLUDE_TRACE;_WINDOWS;_ASM_INNER_INTERPRETER"
-				BasicRuntimeChecks="3"
-				RuntimeLibrary="3"
-				UsePrecompiledHeader="2"
-				PrecompiledHeaderThrough="stdafx.h"
-				PrecompiledHeaderFile=".\Debug/ForthLib.pch"
-				AssemblerOutput="4"
-				AssemblerListingLocation=".\Debug/"
-				ObjectFile=".\Debug/"
-				ProgramDataBaseFileName=".\Debug/"
-				BrowseInformation="1"
-				WarningLevel="3"
-				SuppressStartupBanner="true"
-				DebugInformationFormat="4"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="_DEBUG"
-				Culture="1033"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\Debug\ForthLib.lib"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
-			Name="ForthClient Release|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="4"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			UseOfMFC="2"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="2"
-				InlineFunctionExpansion="1"
-				FavorSizeOrSpeed="1"
-				PreprocessorDefinitions="_WINDOWS;_ASM_INNER_INTERPRETER"
-				StringPooling="true"
-				RuntimeLibrary="2"
-				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="2"
-				PrecompiledHeaderThrough="stdafx.h"
-				PrecompiledHeaderFile=".\Release/ForthLib.pch"
-				AssemblerOutput="0"
-				AssemblerListingLocation=".\Release/"
-				ObjectFile=".\Release/"
-				ProgramDataBaseFileName=".\Release/"
-				WarningLevel="3"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="NDEBUG"
-				Culture="1033"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\Release\ForthLib.lib"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
-			Name="ForthMidi Debug|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="4"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			UseOfMFC="2"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="0"
-				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories="M:\Prj\Forth\ForthLib"
-				PreprocessorDefinitions="INCLUDE_TRACE;_WINDOWS;_ASM_INNER_INTERPRETER"
-				BasicRuntimeChecks="3"
-				RuntimeLibrary="3"
-				UsePrecompiledHeader="2"
-				PrecompiledHeaderThrough="stdafx.h"
-				PrecompiledHeaderFile=".\Debug/ForthLib.pch"
-				AssemblerOutput="4"
-				AssemblerListingLocation=".\Debug/"
-				ObjectFile=".\Debug/"
-				ProgramDataBaseFileName=".\Debug/"
-				BrowseInformation="1"
-				WarningLevel="3"
-				SuppressStartupBanner="true"
-				DebugInformationFormat="4"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="_DEBUG"
-				Culture="1033"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\Debug\ForthLib.lib"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
-			Name="ForthMidi Release|Win32"
-			OutputDirectory="$(ConfigurationName)"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="4"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			UseOfMFC="2"
-			ATLMinimizesCRunTimeLibraryUsage="false"
-			CharacterSet="2"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-				Optimization="2"
-				InlineFunctionExpansion="1"
-				FavorSizeOrSpeed="1"
-				PreprocessorDefinitions="_WINDOWS;_ASM_INNER_INTERPRETER"
-				StringPooling="true"
-				RuntimeLibrary="2"
-				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="2"
-				PrecompiledHeaderThrough="stdafx.h"
-				PrecompiledHeaderFile=".\Release/ForthLib.pch"
-				AssemblerOutput="0"
-				AssemblerListingLocation=".\Release/"
-				ObjectFile=".\Release/"
-				ProgramDataBaseFileName=".\Release/"
-				WarningLevel="3"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-				PreprocessorDefinitions="NDEBUG"
-				Culture="1033"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLibrarianTool"
-				OutputFile=".\Release\ForthLib.lib"
-				SuppressStartupBanner="true"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCPostBuildEventTool"
-			/>
-		</Configuration>
-		<Configuration
-			Name="ForthND Release|Win32"
-			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="1"
-			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
-			>
-			<Tool
-				Name="VCPreBuildEventTool"
-			/>
-			<Tool
-				Name="VCCustomBuildTool"
-			/>
-			<Tool
-				Name="VCXMLDataGeneratorTool"
-			/>
-			<Tool
-				Name="VCWebServiceProxyGeneratorTool"
-			/>
-			<Tool
-				Name="VCMIDLTool"
-			/>
-			<Tool
-				Name="VCCLCompilerTool"
-			/>
-			<Tool
-				Name="VCManagedResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCResourceCompilerTool"
-			/>
-			<Tool
-				Name="VCPreLinkEventTool"
-			/>
-			<Tool
-				Name="VCLinkerTool"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
-			/>
-			<Tool
-				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
-			/>
-			<Tool
-				Name="VCXDCMakeTool"
-			/>
-			<Tool
-				Name="VCBscMakeTool"
-			/>
-			<Tool
-				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -1032,7 +435,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Debug|Win32"
+					Name="Debug Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1043,7 +446,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Release|Win32"
+					Name="Release Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1052,7 +455,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthGui Debug|Win32"
+					Name="Debug GUI|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1060,75 +463,6 @@
 						PreprocessorDefinitions=""
 						BasicRuntimeChecks="3"
 						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthGui Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
 					/>
 				</FileConfiguration>
 			</File>
@@ -1160,7 +494,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Debug|Win32"
+					Name="Debug Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1171,7 +505,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Release|Win32"
+					Name="Release Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1180,7 +514,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthGui Debug|Win32"
+					Name="Debug GUI|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1188,75 +522,6 @@
 						PreprocessorDefinitions=""
 						BasicRuntimeChecks="3"
 						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthGui Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
 					/>
 				</FileConfiguration>
 			</File>
@@ -1284,7 +549,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Debug|Win32"
+					Name="Debug Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1295,7 +560,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Release|Win32"
+					Name="Release Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1304,7 +569,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthGui Debug|Win32"
+					Name="Debug GUI|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1312,75 +577,6 @@
 						PreprocessorDefinitions=""
 						BasicRuntimeChecks="3"
 						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthGui Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
 					/>
 				</FileConfiguration>
 			</File>
@@ -1408,7 +604,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Debug|Win32"
+					Name="Debug Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1419,7 +615,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Release|Win32"
+					Name="Release Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1428,7 +624,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthGui Debug|Win32"
+					Name="Debug GUI|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1436,75 +632,6 @@
 						PreprocessorDefinitions=""
 						BasicRuntimeChecks="3"
 						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthGui Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
 					/>
 				</FileConfiguration>
 			</File>
@@ -1532,7 +659,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Debug|Win32"
+					Name="Debug Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1543,7 +670,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Release|Win32"
+					Name="Release Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1552,7 +679,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthGui Debug|Win32"
+					Name="Debug GUI|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1560,75 +687,6 @@
 						PreprocessorDefinitions=""
 						BasicRuntimeChecks="3"
 						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthGui Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
 					/>
 				</FileConfiguration>
 			</File>
@@ -1664,7 +722,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Debug|Win32"
+					Name="Debug Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1675,7 +733,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Release|Win32"
+					Name="Release Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1684,7 +742,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthGui Debug|Win32"
+					Name="Debug GUI|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1692,75 +750,6 @@
 						PreprocessorDefinitions=""
 						BasicRuntimeChecks="3"
 						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthGui Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
 					/>
 				</FileConfiguration>
 			</File>
@@ -1792,7 +781,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Debug|Win32"
+					Name="Debug Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1803,7 +792,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Release|Win32"
+					Name="Release Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1812,7 +801,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthGui Debug|Win32"
+					Name="Debug GUI|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1820,75 +809,6 @@
 						PreprocessorDefinitions=""
 						BasicRuntimeChecks="3"
 						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthGui Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
 					/>
 				</FileConfiguration>
 			</File>
@@ -1916,7 +836,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Debug|Win32"
+					Name="Debug Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1927,7 +847,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Release|Win32"
+					Name="Release Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1936,7 +856,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthGui Debug|Win32"
+					Name="Debug GUI|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -1944,75 +864,6 @@
 						PreprocessorDefinitions=""
 						BasicRuntimeChecks="3"
 						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthGui Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
 					/>
 				</FileConfiguration>
 			</File>
@@ -2039,7 +890,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Debug|Win32"
+					Name="Debug Midi|Win32"
 					>
 					<Tool
 						Name="VCCustomBuildTool"
@@ -2048,7 +899,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Release|Win32"
+					Name="Release Midi|Win32"
 					>
 					<Tool
 						Name="VCCustomBuildTool"
@@ -2058,78 +909,11 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthGui Debug|Win32"
+					Name="Debug GUI|Win32"
 					>
 					<Tool
 						Name="VCCustomBuildTool"
 						CommandLine="ml /c /Cx /coff &quot;$(InputPath)&quot;&#x0D;&#x0A;move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;&#x0D;&#x0A;"
-						Outputs="$(OutDir)\$(InputName).obj"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthGui Release|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						CommandLine="ml /c /Cx /coff &quot;$(InputPath)&quot;&#x0D;&#x0A;move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;&#x0D;&#x0A;"
-						AdditionalDependencies="core.inc"
-						Outputs="$(OutDir)\$(InputName).obj"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Debug|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						CommandLine="ml /c /Cx /coff &quot;$(InputPath)&quot;&#x0D;&#x0A;move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;&#x0D;&#x0A;"
-						Outputs="$(OutDir)\$(InputName).obj"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Release|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						CommandLine="ml /c /Cx /coff &quot;$(InputPath)&quot;&#x0D;&#x0A;move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;&#x0D;&#x0A;"
-						AdditionalDependencies="core.inc"
-						Outputs="$(OutDir)\$(InputName).obj"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Debug|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						CommandLine="ml /c /Cx /coff &quot;$(InputPath)&quot;&#x0D;&#x0A;move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;&#x0D;&#x0A;"
-						Outputs="$(OutDir)\$(InputName).obj"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Release|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						CommandLine="ml /c /Cx /coff &quot;$(InputPath)&quot;&#x0D;&#x0A;move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;&#x0D;&#x0A;"
-						AdditionalDependencies="core.inc"
-						Outputs="$(OutDir)\$(InputName).obj"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Debug|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						CommandLine="ml /c /Cx /coff &quot;$(InputPath)&quot;&#x0D;&#x0A;move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;&#x0D;&#x0A;"
-						Outputs="$(OutDir)\$(InputName).obj"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Release|Win32"
-					>
-					<Tool
-						Name="VCCustomBuildTool"
-						CommandLine="ml /c /Cx /coff &quot;$(InputPath)&quot;&#x0D;&#x0A;move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;&#x0D;&#x0A;"
-						AdditionalDependencies="core.inc"
 						Outputs="$(OutDir)\$(InputName).obj"
 					/>
 				</FileConfiguration>
@@ -2160,7 +944,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Debug|Win32"
+					Name="Debug Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -2172,7 +956,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthMain Release|Win32"
+					Name="Release Midi|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -2182,7 +966,7 @@
 					/>
 				</FileConfiguration>
 				<FileConfiguration
-					Name="ForthGui Debug|Win32"
+					Name="Debug GUI|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -2191,82 +975,6 @@
 						BasicRuntimeChecks="3"
 						UsePrecompiledHeader="1"
 						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthGui Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						UsePrecompiledHeader="1"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthServer Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						UsePrecompiledHeader="1"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthClient Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="0"
-						PreprocessorDefinitions=""
-						BasicRuntimeChecks="3"
-						UsePrecompiledHeader="1"
-						BrowseInformation="1"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="ForthMidi Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						Optimization="2"
-						PreprocessorDefinitions=""
-						UsePrecompiledHeader="1"
 					/>
 				</FileConfiguration>
 			</File>

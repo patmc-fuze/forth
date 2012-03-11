@@ -45,11 +45,17 @@ public:
     long                Start();
     void                Exit();
 
+	void				Run();
+
     inline ulong        WakeupTime() { return mWakeupTime; };
+
+	inline void			SetIP( long* newIP ) { mCore.IP = newIP; };
 
     friend class ForthEngine;
 
     static unsigned __stdcall RunLoop( void *pThis );
+
+	inline ForthCoreState* GetCoreState() { return &mCore; };
 
 protected:
     ForthEngine         *mpEngine;

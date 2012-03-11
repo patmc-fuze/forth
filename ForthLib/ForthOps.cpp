@@ -29,6 +29,10 @@
 #include "ForthInput.h"
 #include "ForthStructs.h"
 
+#ifdef TRACE_INNER_INTERPRETER
+bool gbTraceEnabled = true;
+#endif
+
 extern "C"
 {
 
@@ -2614,79 +2618,79 @@ FORTHOP( doDConstantOp )
 FORTHOP( byteOp )
 {
     char val = 0;
-	gBaseTypeByte.DefineInstance( GET_ENGINE, &val );
+	gNativeTypeByte.DefineInstance( GET_ENGINE, &val );
 }
 
 FORTHOP( ubyteOp )
 {
     char val = 0;
-	gBaseTypeByte.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned );
+	gNativeTypeByte.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned );
 }
 
 FORTHOP( shortOp )
 {
     short val = 0;
-	gBaseTypeShort.DefineInstance( GET_ENGINE, &val );
+	gNativeTypeShort.DefineInstance( GET_ENGINE, &val );
 }
 
 FORTHOP( ushortOp )
 {
     short val = 0;
-	gBaseTypeShort.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned );
+	gNativeTypeShort.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned );
 }
 
 FORTHOP( intOp )
 {
     int val = 0;
-	gBaseTypeInt.DefineInstance( GET_ENGINE, &val );
+	gNativeTypeInt.DefineInstance( GET_ENGINE, &val );
 }
 
 FORTHOP( uintOp )
 {
     int val = 0;
-	gBaseTypeInt.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned );
+	gNativeTypeInt.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned );
 }
 
 FORTHOP( longOp )
 {
     long long val = 0;
-	gBaseTypeLong.DefineInstance( GET_ENGINE, &val );
+	gNativeTypeLong.DefineInstance( GET_ENGINE, &val );
 }
 
 FORTHOP( ulongOp )
 {
     long long val = 0;
-	gBaseTypeLong.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned  );
+	gNativeTypeLong.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned  );
 }
 
 FORTHOP( floatOp )
 {
     float val = 0.0;
-	gBaseTypeFloat.DefineInstance( GET_ENGINE, &val );
+	gNativeTypeFloat.DefineInstance( GET_ENGINE, &val );
 }
 
 
 FORTHOP( doubleOp )
 {
     double val = 0.0;
-	gBaseTypeDouble.DefineInstance( GET_ENGINE, &val );
+	gNativeTypeDouble.DefineInstance( GET_ENGINE, &val );
 }
 
 FORTHOP( stringOp )
 {
-    gBaseTypeString.DefineInstance( GET_ENGINE, NULL );
+    gNativeTypeString.DefineInstance( GET_ENGINE, NULL );
 }
 
 FORTHOP( opOp )
 {
     int val = OP_BAD_OP;
-	gBaseTypeOp.DefineInstance( GET_ENGINE, &val );
+	gNativeTypeOp.DefineInstance( GET_ENGINE, &val );
 }
 
 //FORTHOP( objectOp )
 //{
 //    long val[2] = { 0, 0  };
-//	gBaseTypeObject.DefineInstance( GET_ENGINE, val );
+//	gNativeTypeObject.DefineInstance( GET_ENGINE, val );
 //}
 
 FORTHOP( voidOp )
@@ -2754,9 +2758,7 @@ FORTHOP( classOp )
 FORTHOP( endclassOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    pEngine->ClearFlag( kEngineFlagInStructDefinition );
-    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
-    pManager->EndClassDefinition();
+    pEngine->EndClassDefinition();
 }
 
 FORTHOP( methodOp )
@@ -3977,25 +3979,46 @@ FORTHOP( systemOp )
 {
     NEEDS(1);
     int result = -1;
+	char outName[ L_tmpnam ];
+	char errName[ L_tmpnam ];
     ForthEngine *pEngine = GET_ENGINE;
 
+	// create temp filenames for stdout and stderr streams
+	if ( tmpnam( outName ) == NULL )
+	{
+        SET_ERROR( kForthErrorFileOpen );
+        pEngine->AddErrorText( "system: failure creating standard out tempfile name" );
+        SPUSH( result );
+        return;
+	}
+	if ( tmpnam( errName ) == NULL )
+	{
+        SET_ERROR( kForthErrorFileOpen );
+        pEngine->AddErrorText( "system: failure creating standard error tempfile name" );
+        SPUSH( result );
+        return;
+	}
+
     // open temp file which will take standard output
-    FILE* outStream = fopen( "_system_stdout.txt", "w" );
+    FILE* outStream = fopen( outName, "w" );
     if ( outStream == NULL )
     {
         SET_ERROR( kForthErrorFileOpen );
-        pEngine->AddErrorText( "system: failure opening _system_stdout.txt\n" );
+        pEngine->AddErrorText( "system: failure opening standard out file " );
+        pEngine->AddErrorText( outName );
         SPUSH( result );
         return;
     }
 
     // open temp file which will take standard error
-    FILE* errStream = fopen( "_system_stderr.txt", "w" );
+    FILE* errStream = fopen( errName, "w" );
     if ( errStream == NULL )
     {
         SET_ERROR( kForthErrorFileOpen );
-        pEngine->AddErrorText( "system: failure opening _system_stderr.txt\n" );
+        pEngine->AddErrorText( "system: failure opening standard error file " );
+        pEngine->AddErrorText( errName );
         fclose( outStream );
+		remove( outName );
         SPUSH( result );
         return;
     }
@@ -4008,6 +4031,8 @@ FORTHOP( systemOp )
         pEngine->AddErrorText( "system: failure dup-ing stdout\n" );
         fclose( outStream );
         fclose( errStream );
+		remove( outName );
+		remove( errName );
         SPUSH( result );
         return;
     }
@@ -4020,6 +4045,8 @@ FORTHOP( systemOp )
         pEngine->AddErrorText( "system: failure dup-ing stderr\n" );
         fclose( outStream );
         fclose( errStream );
+		remove( outName );
+		remove( errName );
         _dup2( oldStdOut, 1 );
         SPUSH( result );
         return;
@@ -4029,7 +4056,7 @@ FORTHOP( systemOp )
     if ( _dup2( _fileno( outStream ), 1 ) == -1 )
     {
         SET_ERROR( kForthErrorFileOpen );
-        pEngine->AddErrorText( "system: failure redirecting stdout to _system_stdout.txt\n" );
+        pEngine->AddErrorText( "system: failure redirecting stdout\n" );
     }
     else
     {
@@ -4037,7 +4064,7 @@ FORTHOP( systemOp )
         if ( _dup2( _fileno( errStream ), 2 ) == -1 )
         {
             SET_ERROR( kForthErrorFileOpen );
-            pEngine->AddErrorText( "system: failure redirecting stderr to _system_stderr.txt\n" );
+            pEngine->AddErrorText( "system: failure redirecting stderr\n" );
         }
         else
         {
@@ -4057,7 +4084,7 @@ FORTHOP( systemOp )
     // dump contents of output and error files using forth console IO routines
     char buff[2];
     buff[1] = 0;
-    outStream = fopen( "_system_stdout.txt", "r" );
+    outStream = fopen( outName, "r" );
     if ( outStream )
     {
         int ch;
@@ -4067,7 +4094,7 @@ FORTHOP( systemOp )
             CONSOLE_STRING_OUT( buff );
         }
         fclose( outStream );
-        errStream = fopen( "_system_stderr.txt", "r" );
+        errStream = fopen( errName, "r" );
         if ( errStream )
         {
             while ( (ch = fgetc( errStream )) != EOF )
@@ -4080,15 +4107,19 @@ FORTHOP( systemOp )
         else
         {
             SET_ERROR( kForthErrorFileOpen );
-            pEngine->AddErrorText( "system: failure reopening _system_stderr.txt\n" );
+            pEngine->AddErrorText( "system: failure reopening standard error file " );
+            pEngine->AddErrorText( errName );
         }
     }
     else
     {
         SET_ERROR( kForthErrorFileOpen );
-        pEngine->AddErrorText( "system: failure reopening _system_stdout.txt\n" );
+        pEngine->AddErrorText( "system: failure reopening standard output file " );
+        pEngine->AddErrorText( outName );
     }
 
+	remove( outName );
+	remove( errName );
     SPUSH( result );
 }
 
@@ -4812,6 +4843,14 @@ FORTHOP( poundEndifOp )
 {
     ForthShell *pShell = GET_ENGINE->GetShell();
     pShell->PoundEndif();
+}
+
+FORTHOP( setTraceOp )
+{
+	long traceOn = SPOP;
+#ifdef TRACE_INNER_INTERPRETER
+	gbTraceEnabled = (traceOn != 0);
+#endif
 }
 
 #ifdef _WINDOWS
@@ -5556,6 +5595,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    describeOp,             "describe" ),
     OP_DEF(    errorOp,                "error" ),
     OP_DEF(    addErrorTextOp,         "addErrorText" ),
+	OP_DEF(    setTraceOp,             "setTrace" ),
 
     ///////////////////////////////////////////
     //  conditional compilation

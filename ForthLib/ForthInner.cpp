@@ -11,6 +11,10 @@
 #include "ForthShell.h"
 #include "ForthVocabulary.h"
 
+#ifdef TRACE_INNER_INTERPRETER
+extern bool gbTraceEnabled;
+#endif
+
 
 extern "C"
 {
@@ -3237,35 +3241,36 @@ InnerInterpreter( ForthCoreState *pCore )
     numBuiltinOps = pCore->numBuiltinOps;
 
     SET_STATE( kResultOk );
-    
-    while ( GET_STATE == kResultOk )
-    {
-        // fetch op at IP, advance IP
-        pIP = GET_IP;
-#ifdef TRACE_INNER_INTERPRETER
-        GET_ENGINE->TraceOp( pCore );
-#endif
-        op = *pIP++;
-#if 0
-        if ( op < pCore->numBuiltinOps )
-        {
-            pCore->builtinOps[ op ]( pCore );
-        }
-        else
-        {
-            SET_IP( pIP );
-            opType = FORTH_OP_TYPE( op );
-            opVal = FORTH_OP_VALUE( op );
-            pCore->optypeAction[ (int) opType ]( pCore, opVal );
-        }
-#else
-        SET_IP( pIP );
-        opType = FORTH_OP_TYPE( op );
-        opVal = FORTH_OP_VALUE( op );
-        pCore->optypeAction[ (int) opType ]( pCore, opVal );
-#endif
-    }
 
+#ifdef TRACE_INNER_INTERPRETER
+	if ( gbTraceEnabled )
+	{
+		while ( GET_STATE == kResultOk )
+		{
+			// fetch op at IP, advance IP
+			pIP = GET_IP;
+			GET_ENGINE->TraceOp( pCore );
+			op = *pIP++;
+			SET_IP( pIP );
+			opType = FORTH_OP_TYPE( op );
+			opVal = FORTH_OP_VALUE( op );
+			pCore->optypeAction[ (int) opType ]( pCore, opVal );
+		}
+	}
+	else
+#endif
+	{
+		while ( GET_STATE == kResultOk )
+		{
+			// fetch op at IP, advance IP
+			pIP = GET_IP;
+			op = *pIP++;
+			SET_IP( pIP );
+			opType = FORTH_OP_TYPE( op );
+			opVal = FORTH_OP_VALUE( op );
+			pCore->optypeAction[ (int) opType ]( pCore, opVal );
+		}
+	}
     return GET_STATE;
 }
 

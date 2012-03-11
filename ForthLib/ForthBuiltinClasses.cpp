@@ -1480,7 +1480,8 @@ namespace
     //
 
     typedef std::vector<ForthObject> rcArray;
-#define DEFAULT_STRING_DATA_BYTES 32
+//#define DEFAULT_STRING_DATA_BYTES 32
+#define DEFAULT_STRING_DATA_BYTES 256
 	int gDefaultRCStringSize = DEFAULT_STRING_DATA_BYTES - 1;
 
 	struct rcString
@@ -1490,11 +1491,13 @@ namespace
 		char		data[DEFAULT_STRING_DATA_BYTES];
 	};
 
+// temp hackaround for a heap corruption when expanding a string
+#define RCSTRING_SLOP 16
 	rcString* CreateRCString( int maxChars )
 	{
 		int dataBytes = ((maxChars  + 4) & ~3);
         size_t nBytes = sizeof(rcString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
-		rcString* str = (rcString *) malloc( nBytes );
+		rcString* str = (rcString *) malloc( nBytes +  RCSTRING_SLOP );
 		str->maxLen = dataBytes - 1;
 		str->curLen = 0;
 		str->data[0] = '\0';
@@ -1595,6 +1598,60 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( rcStringStartsWithMethod )
+    {
+        GET_THIS( rcStringStruct, pString );
+		const char* srcStr = (const char *) SPOP;
+		long result = 0;
+		if ( srcStr != NULL )
+		{
+			long len = (long) strlen( srcStr );
+			if ( (len <= pString->str->curLen)
+				&& (strncmp( pString->str->data, srcStr, len ) == 0 ) )
+			{
+				result = ~0;
+			}
+		}
+		SPUSH( result );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcStringEndsWithMethod )
+    {
+        GET_THIS( rcStringStruct, pString );
+		const char* srcStr = (const char *) SPOP;
+		long result = 0;
+		if ( srcStr != NULL )
+		{
+			long len = (long) strlen( srcStr );
+			if ( len <= pString->str->curLen )
+			{
+				const char* strEnd = pString->str->data + (pString->str->curLen - len);
+				if ( strcmp( strEnd, srcStr ) == 0 )
+				{
+					result = ~0;
+				}
+			}
+		}
+		SPUSH( result );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcStringContainsMethod )
+    {
+        GET_THIS( rcStringStruct, pString );
+		const char* srcStr = (const char *) SPOP;
+		long result = 0;
+		if ( (srcStr != NULL)
+			&& ( (long) strlen( srcStr ) <= pString->str->curLen )
+			&& (strstr( pString->str->data, srcStr ) != NULL ) )
+		{
+			result = ~0;
+		}
+		SPUSH( result );
+        METHOD_RETURN;
+    }
+
 
     baseMethodEntry rcStringMembers[] =
     {
@@ -1606,6 +1663,228 @@ namespace
         METHOD(     "get",                  rcStringGetMethod ),
         METHOD(     "set",                  rcStringSetMethod ),
         METHOD(     "append",               rcStringAppendMethod ),
+        METHOD(     "startsWith",           rcStringStartsWithMethod ),
+        METHOD(     "endsWith",             rcStringEndsWithMethod ),
+        METHOD(     "contains",             rcStringContainsMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 rcPair
+    //
+
+    struct rcPairStruct
+    {
+        ulong       refCount;
+		ForthObject	a;
+		ForthObject	b;
+    };
+
+
+    FORTHOP( rcPairNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+        MALLOCATE_OBJECT( rcPairStruct, pPair );
+        pPair->refCount = 1;
+		pPair->a.pData = NULL;
+		pPair->a.pMethodOps = NULL;
+		pPair->b.pData = NULL;
+		pPair->b.pMethodOps = NULL;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pPair );
+    }
+
+    FORTHOP( rcPairDeleteMethod )
+    {
+        // go through all elements and release any which are not null
+        GET_THIS( rcPairStruct, pPair );
+        ForthObject& oa = pPair->a;
+        SAFE_RELEASE( oa );
+        ForthObject& ob = pPair->b;
+        SAFE_RELEASE( ob );
+        FREE_OBJECT( pPair );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcPairGetAMethod )
+    {
+        GET_THIS( rcPairStruct, pPair );
+		PUSH_OBJECT( pPair->a );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcPairSetAMethod )
+    {
+        GET_THIS( rcPairStruct, pPair );
+        ForthObject newObj;
+        POP_OBJECT( newObj );
+		ForthObject& oldObj = pPair->a;
+        if ( (oldObj.pMethodOps != newObj.pMethodOps) || (oldObj.pData != newObj.pData) )
+        {
+            SAFE_KEEP( newObj );
+            SAFE_RELEASE( oldObj );
+			pPair->a = newObj;
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcPairGetBMethod )
+    {
+        GET_THIS( rcPairStruct, pPair );
+		PUSH_OBJECT( pPair->b );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcPairSetBMethod )
+    {
+        GET_THIS( rcPairStruct, pPair );
+        ForthObject newObj;
+        POP_OBJECT( newObj );
+		ForthObject& oldObj = pPair->b;
+        if ( (oldObj.pMethodOps != newObj.pMethodOps) || (oldObj.pData != newObj.pData) )
+        {
+            SAFE_KEEP( newObj );
+            SAFE_RELEASE( oldObj );
+			pPair->b = newObj;
+        }
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry rcPairMembers[] =
+    {
+        METHOD(     "new",                  rcPairNew ),
+        METHOD(     "delete",               rcPairDeleteMethod ),
+        METHOD(     "setA",                 rcPairSetAMethod ),
+        METHOD(     "getA",                 rcPairGetAMethod ),
+        METHOD(     "setB",                 rcPairSetBMethod ),
+        METHOD(     "getB",                 rcPairGetBMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 rcTriple
+    //
+
+    struct rcTripleStruct
+    {
+        ulong       refCount;
+		ForthObject	a;
+		ForthObject	b;
+		ForthObject	c;
+    };
+
+
+    FORTHOP( rcTripleNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+        MALLOCATE_OBJECT( rcTripleStruct, pTriple );
+        pTriple->refCount = 1;
+		pTriple->a.pData = NULL;
+		pTriple->a.pMethodOps = NULL;
+		pTriple->b.pData = NULL;
+		pTriple->b.pMethodOps = NULL;
+		pTriple->c.pData = NULL;
+		pTriple->c.pMethodOps = NULL;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pTriple );
+    }
+
+    FORTHOP( rcTripleDeleteMethod )
+    {
+        // go through all elements and release any which are not null
+        GET_THIS( rcTripleStruct, pTriple );
+        ForthObject& oa = pTriple->a;
+        SAFE_RELEASE( oa );
+        ForthObject& ob = pTriple->b;
+        SAFE_RELEASE( ob );
+        ForthObject& oc = pTriple->c;
+        SAFE_RELEASE( oc );
+        FREE_OBJECT( pTriple );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcTripleGetAMethod )
+    {
+        GET_THIS( rcTripleStruct, pTriple );
+		PUSH_OBJECT( pTriple->a );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcTripleSetAMethod )
+    {
+        GET_THIS( rcTripleStruct, pTriple );
+        ForthObject newObj;
+        POP_OBJECT( newObj );
+		ForthObject& oldObj = pTriple->a;
+        if ( (oldObj.pMethodOps != newObj.pMethodOps) || (oldObj.pData != newObj.pData) )
+        {
+            SAFE_KEEP( newObj );
+            SAFE_RELEASE( oldObj );
+			pTriple->a = newObj;
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcTripleGetBMethod )
+    {
+        GET_THIS( rcTripleStruct, pTriple );
+		PUSH_OBJECT( pTriple->b );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcTripleSetBMethod )
+    {
+        GET_THIS( rcTripleStruct, pTriple );
+        ForthObject newObj;
+        POP_OBJECT( newObj );
+		ForthObject& oldObj = pTriple->b;
+        if ( (oldObj.pMethodOps != newObj.pMethodOps) || (oldObj.pData != newObj.pData) )
+        {
+            SAFE_KEEP( newObj );
+            SAFE_RELEASE( oldObj );
+			pTriple->b = newObj;
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcTripleGetCMethod )
+    {
+        GET_THIS( rcTripleStruct, pTriple );
+		PUSH_OBJECT( pTriple->c );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcTripleSetCMethod )
+    {
+        GET_THIS( rcTripleStruct, pTriple );
+        ForthObject newObj;
+        POP_OBJECT( newObj );
+		ForthObject& oldObj = pTriple->b;
+        if ( (oldObj.pMethodOps != newObj.pMethodOps) || (oldObj.pData != newObj.pData) )
+        {
+            SAFE_KEEP( newObj );
+            SAFE_RELEASE( oldObj );
+			pTriple->c = newObj;
+        }
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry rcTripleMembers[] =
+    {
+        METHOD(     "new",                  rcTripleNew ),
+        METHOD(     "delete",               rcTripleDeleteMethod ),
+        METHOD(     "setA",                 rcTripleSetAMethod ),
+        METHOD(     "getA",                 rcTripleGetAMethod ),
+        METHOD(     "setB",                 rcTripleSetBMethod ),
+        METHOD(     "getB",                 rcTripleGetBMethod ),
+        METHOD(     "setC",                 rcTripleSetCMethod ),
+        METHOD(     "getC",                 rcTripleGetCMethod ),
         // following must be last in table
         END_MEMBERS
     };
@@ -1616,15 +1895,25 @@ ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
 {
     ForthClassVocabulary* pObjectClass = pEngine->AddBuiltinClass( "object", NULL, objectMembers );
     ForthClassVocabulary* pClassClass = pEngine->AddBuiltinClass( "class", pObjectClass, classMembers );
-    ForthClassVocabulary* pRCObjectClass = pEngine->AddBuiltinClass( "rcObject", pObjectClass, rcObjectMembers );
-    ForthClassVocabulary* pRCIterClass = pEngine->AddBuiltinClass( "rcIter", pRCObjectClass, rcIterMembers );
+
+	ForthClassVocabulary* pRCObjectClass = pEngine->AddBuiltinClass( "rcObject", pObjectClass, rcObjectMembers );
+
+	ForthClassVocabulary* pRCIterClass = pEngine->AddBuiltinClass( "rcIter", pRCObjectClass, rcIterMembers );
+
     ForthClassVocabulary* pRCArrayClass = pEngine->AddBuiltinClass( "rcArray", pRCObjectClass, rcArrayMembers );
     gpArraryIterClassVocab = pEngine->AddBuiltinClass( "rcArrayIter", pRCIterClass, rcArrayIterMembers );
+
     ForthClassVocabulary* pRCListClass = pEngine->AddBuiltinClass( "rcList", pRCObjectClass, rcListMembers );
     gpListIterClassVocab = pEngine->AddBuiltinClass( "rcListIter", pRCIterClass, rcListIterMembers );
+
     ForthClassVocabulary* pRCMapClass = pEngine->AddBuiltinClass( "rcMap", pRCObjectClass, rcMapMembers );
     gpMapIterClassVocab = pEngine->AddBuiltinClass( "rcMapIter", pRCIterClass, rcMapIterMembers );
+
     ForthClassVocabulary* pRCStringClass = pEngine->AddBuiltinClass( "rcString", pRCObjectClass, rcStringMembers );
+
+    ForthClassVocabulary* pRCPairClass = pEngine->AddBuiltinClass( "rcPair", pRCObjectClass, rcPairMembers );
+    ForthClassVocabulary* pRCTripleClass = pEngine->AddBuiltinClass( "rcTriple", pRCObjectClass, rcTripleMembers );
+
     mpClassMethods = pClassClass->GetInterface( 0 )->GetMethods();
 }
 

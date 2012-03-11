@@ -23,35 +23,35 @@
 
 #define STRUCTS_EXPANSION_INCREMENT     16
 
-ForthBaseType gBaseTypeByte( "byte", 1, kBaseTypeByte );
+ForthNativeType gNativeTypeByte( "byte", 1, kBaseTypeByte );
 
-ForthBaseType gBaseTypeShort( "short", 2, kBaseTypeShort );
+ForthNativeType gNativeTypeShort( "short", 2, kBaseTypeShort );
 
-ForthBaseType gBaseTypeInt( "int", 4, kBaseTypeInt );
+ForthNativeType gNativeTypeInt( "int", 4, kBaseTypeInt );
 
-ForthBaseType gBaseTypeFloat( "float", 4, kBaseTypeFloat );
+ForthNativeType gNativeTypeFloat( "float", 4, kBaseTypeFloat );
 
-ForthBaseType gBaseTypeDouble( "double", 8, kBaseTypeDouble );
+ForthNativeType gNativeTypeDouble( "double", 8, kBaseTypeDouble );
 
-ForthBaseType gBaseTypeString( "string", 12, kBaseTypeString );
+ForthNativeType gNativeTypeString( "string", 12, kBaseTypeString );
 
-ForthBaseType gBaseTypeOp( "op", 4, kBaseTypeOp );
+ForthNativeType gNativeTypeOp( "op", 4, kBaseTypeOp );
 
-ForthBaseType gBaseTypeObject( "object", 8, kBaseTypeObject );
+ForthNativeType gNativeTypeObject( "object", 8, kBaseTypeObject );
 
-ForthBaseType gBaseTypeLong( "long", 8, kBaseTypeLong );
+ForthNativeType gNativeTypeLong( "long", 8, kBaseTypeLong );
 
-ForthBaseType *gpBaseTypes[] =
+ForthNativeType *gpNativeTypes[] =
 {
-    &gBaseTypeByte,
-    &gBaseTypeShort,
-    &gBaseTypeInt,
-    &gBaseTypeFloat,
-    &gBaseTypeDouble,
-    &gBaseTypeString,
-    &gBaseTypeOp,
-    &gBaseTypeObject,
-    &gBaseTypeLong
+    &gNativeTypeByte,
+    &gNativeTypeShort,
+    &gNativeTypeInt,
+    &gNativeTypeFloat,
+    &gNativeTypeDouble,
+    &gNativeTypeString,
+    &gNativeTypeOp,
+    &gNativeTypeObject,
+    &gNativeTypeLong
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -243,9 +243,9 @@ ForthTypesManager::GetFieldInfo( long fieldType, long& fieldBytes, long& alignme
         }
         else
         {
-            fieldBytes = gpBaseTypes[subType]->GetSize();
+            fieldBytes = gpNativeTypes[subType]->GetSize();
         }
-        alignment = gpBaseTypes[subType]->GetAlignment();
+        alignment = gpNativeTypes[subType]->GetAlignment();
     }
     else
     {
@@ -504,6 +504,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
         }
         bool isFinal = (pNextToken == NULL);
         pEntry = pStruct->pVocab->FindSymbol( pToken );
+			
         SPEW_STRUCTS( "field %s", pToken );
         if ( pEntry == NULL )
         {
@@ -511,6 +512,15 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
             return false;
         }
         typeCode = pEntry[1];
+        if ( CODE_IS_USER_DEFINITION( typeCode ) )
+        {
+			// we bail out her if the entry found is for an internal colonOp definition.
+			//  class colonOps cannot be applied to an arbitrary object instance since they
+			//  do not set the this pointer, class colonOps can only be used inside a class method
+			//  which has already set the this pointer
+            SPEW_STRUCTS( " not found!\n" );
+            return false;
+        }
         bool isNative = CODE_IS_NATIVE( typeCode );
         isPtr = CODE_IS_PTR( typeCode );
         isArray = CODE_IS_ARRAY( typeCode );
@@ -725,6 +735,11 @@ ForthTypesManager::ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exi
         bool isArray = CODE_IS_ARRAY( typeCode );
         long baseType = CODE_TO_BASE_TYPE( typeCode );
 
+		if ( CODE_IS_USER_DEFINITION( typeCode ) )
+		{
+			// this is a normal forthop, let outer interpreter process it
+			return false;
+		}
         if ( CODE_IS_METHOD( typeCode ) )
         {
             // this is a method invocation on current object
@@ -781,17 +796,25 @@ ForthTypesManager::ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exi
 }
 
 
-forthBaseType
-ForthTypesManager::GetBaseTypeFromName( const char* typeName )
+ForthNativeType*
+ForthTypesManager::GetNativeTypeFromName( const char* typeName )
 {
     for ( int i = 0; i <= kBaseTypeObject; i++ )
     {
-        if ( strcmp( gpBaseTypes[i]->GetName(), typeName ) == 0 )
+        if ( strcmp( gpNativeTypes[i]->GetName(), typeName ) == 0 )
         {
-            return gpBaseTypes[i]->GetBaseType();
+            return gpNativeTypes[i];
         }
     }
-    return kBaseTypeUnknown;
+    return NULL;
+}
+
+
+forthBaseType
+ForthTypesManager::GetBaseTypeFromName( const char* typeName )
+{
+	ForthNativeType* pNative = GetNativeTypeFromName( typeName );
+	return (pNative != NULL) ? pNative->GetBaseType() : kBaseTypeUnknown;
 }
 
 
@@ -800,9 +823,9 @@ ForthTypesManager::GetBaseTypeSizeFromName( const char* typeName )
 {
     for ( int i = 0; i <= kBaseTypeObject; i++ )
     {
-        if ( strcmp( gpBaseTypes[i]->GetName(), typeName ) == 0 )
+        if ( strcmp( gpNativeTypes[i]->GetName(), typeName ) == 0 )
         {
-            return gpBaseTypes[i]->GetSize();
+            return gpNativeTypes[i]->GetSize();
         }
     }
     return -1;
@@ -1056,7 +1079,7 @@ ForthStructVocabulary::GetAlignment( void )
 long
 ForthStructVocabulary::GetSize( void )
 {
-    // return alignment of first field
+    // return size of struct
     return mMaxNumBytes;
 }
 
@@ -1170,7 +1193,7 @@ ForthStructVocabulary::TypecodeToString( long typeCode, char* outBuff, size_t ou
     if ( CODE_IS_NATIVE( typeCode ) )
     {
         int baseType = CODE_TO_BASE_TYPE( typeCode );
-        sprintf( buff2, "%s", gpBaseTypes[baseType]->GetName() );
+        sprintf( buff2, "%s", gpNativeTypes[baseType]->GetName() );
         strcat( buff, buff2 );
         if ( baseType == kBaseTypeString )
         {
@@ -1583,7 +1606,7 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
     if ( CODE_IS_NATIVE( typeCode ) )
     {
         int baseType = CODE_TO_BASE_TYPE( typeCode );
-        sprintf( buff, "%s ", gpBaseTypes[baseType]->GetName() );
+        sprintf( buff, "%s ", gpNativeTypes[baseType]->GetName() );
         CONSOLE_STRING_OUT( buff );
         if ( baseType == kBaseTypeString )
         {
@@ -1680,7 +1703,7 @@ ForthInterface::GetDefiningClass()
 long*
 ForthInterface::GetMethods( void )
 {
-	return &( mMethods[1] );
+	return &(mMethods[0]) + 1;
 }
 
 
@@ -1785,11 +1808,11 @@ ForthInterface::GetMethodIndex( const char* pName )
 
 //////////////////////////////////////////////////////////////////////
 ////
-///     ForthBaseType
+///     ForthNativeType
 //
 //
 
-ForthBaseType::ForthBaseType( const char*       pName,
+ForthNativeType::ForthNativeType( const char*       pName,
                                   int               numBytes,
                                   forthBaseType   baseType )
 : mpName( pName )
@@ -1798,12 +1821,12 @@ ForthBaseType::ForthBaseType( const char*       pName,
 {
 }
 
-ForthBaseType::~ForthBaseType()
+ForthNativeType::~ForthNativeType()
 {
 }
 
 void
-ForthBaseType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long flags )
+ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long flags )
 {
     char *pToken = pEngine->GetNextSimpleToken();
     int nBytes = mNumBytes;

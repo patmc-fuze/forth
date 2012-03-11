@@ -70,6 +70,9 @@ public:
     // ExecuteOps executes a sequence of forth ops
     // The sequence must be terminated with an OP_DONE
     eForthResult        ExecuteOps( long* pOps );
+	// Use this version of ExecuteOps to execute code in a particular thread
+	// Caller must have already set the thread IP to point to a sequens of ops which ends with 'done'
+	eForthResult		ExecuteOps( ForthThread* pThread );
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
     long            AddOp( const long *pOp, forthOpType symType );
@@ -78,6 +81,7 @@ public:
     void            AddBuiltinOps( baseDictionaryEntry *pEntries );
 
     ForthClassVocabulary*   StartClassDefinition( const char* pClassName );
+	void					EndClassDefinition();
     ForthClassVocabulary*   AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseMethodEntry *pEntries );
 
     // forget the specified op and all higher numbered ops, and free the memory where those ops were stored
@@ -87,7 +91,7 @@ public:
 
     // create a thread which will be managed by the engine - the engine destructor will delete all threads
     //  which were created with CreateThread 
-    ForthThread *   CreateThread( long threadLoopOp, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
+    ForthThread *   CreateThread( long threadLoopOp = OP_DONE, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
     void            DestroyThread( ForthThread *pThread );
 
     // return true IFF the last compiled opcode was an integer literal

@@ -175,7 +175,7 @@ ForthEngine::~ForthEngine()
     while ( mpThreads != NULL )
     {
         pNextThread = mpThreads->mpNext;
-        delete [] mpThreads;
+        delete mpThreads;
         mpThreads = pNextThread;
     }
     delete mpEngineScratch;
@@ -384,14 +384,31 @@ ForthClassVocabulary*
 ForthEngine::StartClassDefinition( const char* pClassName )
 {
     SetFlag( kEngineFlagInStructDefinition );
+    SetFlag( kEngineFlagInClassDefinition );
+	
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->StartClassDefinition( pClassName );
+
+	// add new class vocab to top of search order
+	mpVocabStack->DupTop();
+	mpVocabStack->SetTop( pVocab );
+
     CompileOpcode( OP_DO_CLASS_TYPE );
     CompileLong( (long) pVocab );
 
     return pVocab;
 }
 
+void
+ForthEngine::EndClassDefinition()
+{
+	ClearFlag( kEngineFlagInStructDefinition );
+    ClearFlag( kEngineFlagInClassDefinition );
+
+    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+	pManager->EndClassDefinition();
+	mpVocabStack->DropTop();
+}
 
 ForthClassVocabulary*
 ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseMethodEntry *pEntries )
@@ -1512,6 +1529,29 @@ ForthEngine::ExecuteOps( long *pOps )
 }
 
 
+//
+// Use this version of ExecuteOps to execute code in a particular thread
+// Caller must have already set the thread IP to point to a sequens of ops which ends with 'done'
+//
+eForthResult
+ForthEngine::ExecuteOps( ForthThread* pThread )
+{
+    eForthResult exitStatus = kResultOk;
+
+#ifdef _ASM_INNER_INTERPRETER
+    if ( mFastMode )
+    {
+        exitStatus = InnerInterpreterFast( &(pThread->mCore) );
+    }
+    else
+#endif
+    {
+        exitStatus = InnerInterpreter( &(pThread->mCore) );
+    }
+    return exitStatus;
+}
+
+
 void
 ForthEngine::AddErrorText( const char *pString )
 {
@@ -1778,7 +1818,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     }
 
     // check for member variables and methods
-    if ( mCompileState && CheckFlag( kEngineFlagIsMethod ) )
+    if ( mCompileState && CheckFlag( kEngineFlagInClassDefinition ) )
     {
         if ( mpTypesManager->ProcessMemberSymbol( pInfo, exitStatus ) )
         {
@@ -1846,6 +1886,51 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             ////////////////////////////////////
             return exitStatus;
         }
+    }
+
+	// see if this is an array indexing op like structType[] or number[]
+    if ( (len > 2) && (strcmp( "[]", &(pToken[len - 2]) ) == 0) )
+    {
+		// symbol ends with [], see if preceeding token is either a number or a structure type
+		pToken[len - 2] = '\0';
+		int elementSize = 0;
+        ForthStructVocabulary* pStructVocab = mpTypesManager->GetStructVocabulary( pToken );
+        if ( pStructVocab != NULL )
+        {
+			elementSize = pStructVocab->GetSize();
+        }
+		else
+		{
+			ForthNativeType *pNative = mpTypesManager->GetNativeTypeFromName( pToken );
+			if ( pNative != NULL )
+			{
+				// string[] is not supported
+				if ( pNative->GetBaseType() != kBaseTypeString )
+				{
+					elementSize = pNative->GetSize();
+				}
+			}
+			else if ( ScanIntegerToken( pToken, value, lvalue, mpCore->base, isOffset, isSingle ) && isSingle )
+			{
+				elementSize = value;
+			}
+		}
+		pToken[len - 2] = '[';
+		if ( elementSize > 0 )
+		{
+			// compile or execute 
+			if ( mCompileState )
+			{
+				CompileOpcode( elementSize | (kOpArrayOffset << 24) );
+			}
+			else
+			{
+				// in interpret mode, stick the result of array indexing on the stack
+				value = *mpCore->SP++;		// get base address
+				*mpCore->SP = value + (elementSize * (*mpCore->SP));
+			}
+			return kResultOk;
+		}
     }
 
     // try to convert to a number

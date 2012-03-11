@@ -83,8 +83,10 @@ ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnS
 
 ForthThread::~ForthThread()
 {
-    delete [] (mCore.SB - GAURD_AREA);
-    delete [] (mCore.RB - GAURD_AREA);
+    mCore.SB -= GAURD_AREA;
+    delete [] mCore.SB;
+    mCore.RB -= GAURD_AREA;
+    delete [] mCore.RB;
     if ( mHandle != 0 )
     {
         CloseHandle( mHandle );
@@ -157,6 +159,27 @@ unsigned __stdcall ForthThread::RunLoop( void *pUserData )
     }
 
     return 0;
+}
+
+void ForthThread::Run()
+{
+    eForthResult exitStatus;
+
+    mCore.IP = &(mOps[0]);
+	// the user defined ops could have changed since this thread was created, update it to match the engine
+	ForthCoreState* pEngineState = mpEngine->GetCoreState();
+	mCore.userOps = pEngineState->userOps;
+	mCore.numUserOps = pEngineState->numUserOps;
+#ifdef _ASM_INNER_INTERPRETER
+    if ( mpEngine->GetFastMode() )
+    {
+        exitStatus = InnerInterpreterFast( &mCore );
+    }
+    else
+#endif
+    {
+        exitStatus = InnerInterpreter( &mCore );
+    }
 }
 
 long ForthThread::Start()

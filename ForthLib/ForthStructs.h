@@ -12,6 +12,7 @@
 class ForthEngine;
 class ForthStructVocabulary;
 class ForthClassVocabulary;
+class ForthNativeType;
 
 // each new structure type definition is assigned a unique index
 // the struct type index is:
@@ -91,6 +92,7 @@ public:
     ForthStructVocabulary*  GetNewestStruct( void );
     ForthClassVocabulary*   GetNewestClass( void );
     forthBaseType           GetBaseTypeFromName( const char* typeName );
+    ForthNativeType*        GetNativeTypeFromName( const char* typeName );
     long                    GetBaseTypeSizeFromName( const char* typeName );
     long*                   GetClassMethods();
     static long             TypeCodeToOpcodeOffset( long typeCode );
@@ -190,11 +192,11 @@ protected:
     ForthClassObject*           mpClassObject;
 };
 
-class ForthBaseType
+class ForthNativeType
 {
 public:
-    ForthBaseType( const char* pName, int numBytes, forthBaseType nativeType );
-    virtual ~ForthBaseType();
+    ForthNativeType( const char* pName, int numBytes, forthBaseType nativeType );
+    virtual ~ForthNativeType();
     virtual void DefineInstance( ForthEngine *pEngine, void *pInitialVal, long flags=0 );
 
     inline long GetGlobalOp( void ) { return mBaseType + OP_DO_BYTE; };
@@ -212,6 +214,6 @@ protected:
     forthBaseType       mBaseType;
 };
 
-extern ForthBaseType gBaseTypeByte, gBaseTypeShort, gBaseTypeInt, gBaseTypeFloat,
-        gBaseTypeDouble, gBaseTypeString, gBaseTypeOp, gBaseTypeObject, gBaseTypeLong;
+extern ForthNativeType gNativeTypeByte, gNativeTypeShort, gNativeTypeInt, gNativeTypeFloat,
+        gNativeTypeDouble, gNativeTypeString, gNativeTypeOp, gNativeTypeObject, gNativeTypeLong;
 
