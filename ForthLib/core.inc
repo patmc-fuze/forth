@@ -19,6 +19,7 @@ kVocabRemoveEntry		EQU	5t
 kVocabEntryLength		EQU	6t
 kVocabNumEntries		EQU	7t
 kVocabGetClass			EQU	8t
+kVocabRef				EQU 9t
 
 kResultOk		EQU		0t
 kResultDone		EQU		1t

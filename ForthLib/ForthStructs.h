@@ -95,7 +95,6 @@ public:
     ForthNativeType*        GetNativeTypeFromName( const char* typeName );
     long                    GetBaseTypeSizeFromName( const char* typeName );
     long*                   GetClassMethods();
-    static long             TypeCodeToOpcodeOffset( long typeCode );
 
 protected:
     // mpStructInfo points to an array with an entry for each defined structure type
@@ -214,6 +213,7 @@ protected:
     forthBaseType       mBaseType;
 };
 
-extern ForthNativeType gNativeTypeByte, gNativeTypeShort, gNativeTypeInt, gNativeTypeFloat,
-        gNativeTypeDouble, gNativeTypeString, gNativeTypeOp, gNativeTypeObject, gNativeTypeLong;
+extern ForthNativeType gNativeTypeByte, gNativeTypeUByte, gNativeTypeShort, gNativeTypeUShort,
+		gNativeTypeInt, gNativeTypeUInt, gNativeTypeLong, gNativeTypeULong, gNativeTypeFloat,
+        gNativeTypeDouble, gNativeTypeString, gNativeTypeOp, gNativeTypeObject;
 

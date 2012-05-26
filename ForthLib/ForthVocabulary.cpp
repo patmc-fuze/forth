@@ -99,13 +99,11 @@ ForthVocabulary::ForgetCleanup( void *pForgetLimit, long op )
 void
 ForthVocabulary::SetName( const char *pVocabName )
 {
-    int len;
-
     if ( pVocabName != NULL )
     {
-        len = strlen( pVocabName );
-        mpName = new char[len + 1];
-        strcpy( mpName, pVocabName );
+        int len = strlen( pVocabName ) + 1;
+        mpName = new char[len];
+        strcpy_s( mpName, len, pVocabName );
     }
 }
 
@@ -163,13 +161,14 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
     int i, nameLen, symSize, newLen;
 
     nameLen = (pSymName == NULL) ? 0 : strlen( pSymName );
-    if ( nameLen > 255 )
+#define SYMBOL_LEN_MAX 255
+    if ( nameLen > SYMBOL_LEN_MAX )
     {
-        nameLen = 255;
+        nameLen = SYMBOL_LEN_MAX;
     }
     else
     {
-        strcpy( mNewestSymbol, pSymName );
+        strcpy_s( mNewestSymbol, (SYMBOL_LEN_MAX + 1), pSymName );
     }
 
     symSize = mValueLongs + ( ((nameLen + 4) & ~3) >> 2 );
@@ -488,7 +487,7 @@ ForthVocabulary::FindSymbol( ForthParseInfo *pInfo, ulong serial )
 long *
 ForthVocabulary::FindNextSymbol( ForthParseInfo *pInfo, long* pStartEntry, ulong serial )
 {
-    int i, j, symLen;
+    int j, symLen;
     long *pEntry, *pTmp;
     long *pToken;
 
@@ -544,8 +543,15 @@ long *
 ForthVocabulary::FindSymbolByValue( long val, ulong serial )
 
 {
+	return FindNextSymbolByValue( val, mpStorageBottom, serial );
+}
+
+// return pointer to symbol entry, NULL if not found, given its value
+long *
+ForthVocabulary::FindNextSymbolByValue( long val, long* pStartEntry, ulong serial )
+{
     int i;
-    long *pEntry;
+    long *pEntry = pStartEntry;
 
     if ( (serial != 0) && (serial == mLastSerial) )
     {
@@ -554,7 +560,6 @@ ForthVocabulary::FindSymbolByValue( long val, ulong serial )
     }
 
     // go through the vocabulary looking for match with value
-    pEntry = mpStorageBottom;
     for ( i = 0; i < mNumSymbols; i++ )
     {
         if ( *pEntry == val )
@@ -680,6 +685,10 @@ ForthVocabulary::DoOp( ForthCoreState *pCore )
             SPUSH( mNumSymbols );
             break;
 
+        case kVocabRef:
+            SPUSH( (long) this );
+            break;
+
         default:
             mpEngine->SetError( kForthErrorBadVarOperation, " vocabulary operation out of range" );
             break;
@@ -691,12 +700,12 @@ ForthVocabulary::DoOp( ForthCoreState *pCore )
 void
 ForthVocabulary::PrintEntry( long*   pEntry )
 {
-#define BUFF_SIZE 256
+#define BUFF_SIZE 512
     char buff[BUFF_SIZE];
     ForthCoreState* pCore = mpEngine->GetCoreState();
     forthOpType entryType = GetEntryType( pEntry );
     ulong entryValue = GetEntryValue( pEntry );
-    sprintf( buff, "  %02x:%06x    ", entryType, entryValue );
+    sprintf_s( buff, BUFF_SIZE, "  %02x:%06x    ", entryType, entryValue );
     CONSOLE_STRING_OUT( buff );
 
     bool showCodeAddress = false;
@@ -716,12 +725,12 @@ ForthVocabulary::PrintEntry( long*   pEntry )
         // for user defined ops the second entry field is meaningless, just show code address
         if ( entryValue < GET_NUM_USER_OPS )
         {
-            sprintf( buff, "%08x *  ", USER_OP_TABLE[entryValue] );
+            sprintf_s( buff, BUFF_SIZE, "%08x *  ", USER_OP_TABLE[entryValue] );
             CONSOLE_STRING_OUT( buff );
         }
         else
         {
-            sprintf( buff, "%08x - out of range", entryValue );
+            sprintf_s( buff, BUFF_SIZE, "%08x - out of range", entryValue );
             CONSOLE_STRING_OUT( buff );
         }
      }
@@ -729,7 +738,7 @@ ForthVocabulary::PrintEntry( long*   pEntry )
     {
         for ( int j = 1; j < mValueLongs; j++ )
         {
-            sprintf( buff, "%08x    ", pEntry[j] );
+            sprintf_s( buff, BUFF_SIZE, "%08x    ", pEntry[j] );
             CONSOLE_STRING_OUT( buff );
         }
     }
@@ -790,9 +799,9 @@ ForthDLLVocabulary::ForthDLLVocabulary( const char      *pName,
                                         long            op )
 : ForthVocabulary( pName, valueLongs, storageBytes, pForgetLimit, op )
 {
-    int len = strlen( pDLLName );
-    mpDLLName = new char[len + 1];
-    strcpy( mpDLLName, pDLLName );
+    int len = strlen( pDLLName ) + 1;
+    mpDLLName = new char[len];
+    strcpy_s( mpDLLName, len, pDLLName );
 
     mhDLL = LoadLibrary( mpDLLName );
 }

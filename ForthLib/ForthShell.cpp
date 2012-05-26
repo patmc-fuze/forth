@@ -45,14 +45,15 @@ namespace
         {
             return TagStrings[ tag ];
         }
-        sprintf( msg, "UNKNOWN TAG 0x%x", tag );
+        sprintf_s( msg, sizeof(msg), "UNKNOWN TAG 0x%x", tag );
         return msg;
     }
 
     int fileExists( const char* pFilename )
     {
-        FILE* pFile = fopen( pFilename, "r" );
-        int result = (pFile != NULL) ? ~0 : 0;
+		FILE* pFile = NULL;
+		errno_t status = fopen_s( &pFile, pFilename, "r" );
+        int result = (status == 0) ? ~0 : 0;
         if ( pFile != NULL )
         {
             fclose( pFile );
@@ -172,7 +173,7 @@ ForthShell::PushInputFile( const char *pFilename )
     FILE *pInFile = OpenInternalFile( pFilename );
     if ( pInFile == NULL )
     {
-        pInFile = fopen( pFilename, "r" );
+		errno_t status = fopen_s( &pInFile, pFilename, "r" );
     }
     if ( pInFile != NULL )
     {
@@ -221,7 +222,7 @@ ForthShell::Run( ForthInputStream *pInStream )
 	if ( pFile == NULL )
 	{
 		// no internal file found, try opening app_autoload.txt as a standard file
-	    pFile = fopen( autoloadFilename, "r" );
+		errno_t status = fopen_s( &pFile, autoloadFilename, "r" );
 	}
     if ( pFile != NULL )
     {
@@ -297,7 +298,7 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
     char* pLineBuff = mpInput->GetBufferBasePointer();
     if ( pSrcLine != NULL )
 	{
-        strcpy( pLineBuff, pSrcLine );
+		strcpy_s( pLineBuff, mpInput->GetBufferLength(), pSrcLine );
 		mpInput->SetBufferPointer( pLineBuff );
 	}
 
@@ -401,7 +402,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
     pLineBuff = mpInput->GetBufferBasePointer();
     if ( pSrcLine != NULL )
 	{
-        strcpy( pLineBuff, pSrcLine );
+        strcpy_s( pLineBuff, mpInput->GetBufferLength(), pSrcLine );
 		mpInput->SetBufferPointer( pLineBuff );
 	}
     SPEW_SHELL( "*** InterpretLine \"%s\"\n", pLineBuff );
@@ -474,26 +475,26 @@ ForthShell::ReportError( void )
     char errorBuf2[512];
     char *pLastInputToken;
 
-    mpEngine->GetErrorString( errorBuf1 );
+    mpEngine->GetErrorString( errorBuf1, sizeof(errorBuf1) );
     pLastInputToken = mpEngine->GetLastInputToken();
 	ForthCoreState* pCore = mpEngine->GetCoreState();
 
 	if ( pLastInputToken != NULL )
     {
-        sprintf( errorBuf2, "%s, last input token: <%s> last IP 0x%x", errorBuf1, pLastInputToken, pCore->IP );
+        sprintf_s( errorBuf2, sizeof(errorBuf2), "%s, last input token: <%s> last IP 0x%x", errorBuf1, pLastInputToken, pCore->IP );
     }
     else
     {
-        sprintf( errorBuf2, "%s", errorBuf1 );
+        sprintf_s( errorBuf2, sizeof(errorBuf2), "%s", errorBuf1 );
     }
     int lineNumber = mpInput->InputStream()->GetLineNumber();
     if ( lineNumber > 0 )
     {
-        sprintf( errorBuf1, "%s at line number %d", errorBuf2, lineNumber );
+        sprintf_s( errorBuf1, sizeof(errorBuf1), "%s at line number %d", errorBuf2, lineNumber );
     }
     else
     {
-        strcpy( errorBuf1, errorBuf2 );
+        strcpy_s( errorBuf1, sizeof(errorBuf1), errorBuf2 );
     }
     TRACE( "%s", errorBuf1 );
 	pCore->consoleOut( pCore, errorBuf1 );
@@ -507,7 +508,8 @@ ForthShell::ReportError( void )
         {
             *pBuf++ = *pBase++;
         }
-        sprintf( pBuf, "{}%s\n", pLastInputToken );
+		int bufferLimit = sizeof(errorBuf1) - (pBuf - &(errorBuf1[0]));
+        sprintf_s( pBuf, bufferLimit, "{}%s\n", pLastInputToken );
     }
 	TRACE( "%s", errorBuf1 );
 	pCore->consoleOut( pCore, errorBuf1 );
@@ -729,7 +731,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
             }
             else
             {
-                sprintf( mErrorString, "top of shell stack is <%s>, was expecting <string>",
+                sprintf_s( mErrorString, sizeof(mErrorString),  "top of shell stack is <%s>, was expecting <string>",
                          GetTagString( tag ) );
                 mpEngine->SetError( kForthErrorBadSyntax, mErrorString );
             }
@@ -947,9 +949,9 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
     mpArgs = new char *[ argc ];
     while ( i < argc )
     {
-        len = strlen( argv[i] );
-        mpArgs[i] = new char [ len + 1 ];
-        strcpy( mpArgs[i], argv[i] );
+        len = strlen( argv[i] ) + 1;
+        mpArgs[i] = new char [ len ];
+        strcpy_s( mpArgs[i], len, argv[i] );
         i++;
     }
     mNumArgs = argc;
@@ -974,7 +976,8 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
     // 0x34323137
     if ( (argc > 0) && (argv[0] != NULL) )
     {
-        FILE* pFile = fopen( argv[0], "rb" );
+        FILE* pFile = NULL;
+		errno_t err = fopen_s( &pFile, argv[0], "rb" );
         if ( pFile != NULL )
         {
             int res = fseek( pFile, -4, SEEK_END );
@@ -1084,9 +1087,9 @@ ForthShell::SetEnvironmentVars( const char ** envp )
     i = 0;
     while ( i < mNumEnvVars )
     {
-        len = strlen( envp[i] );
-        mpEnvVarNames[i] = new char[ len + 1 ];
-        strcpy( mpEnvVarNames[i], envp[i] );
+        len = strlen( envp[i] ) + 1;
+        mpEnvVarNames[i] = new char[ len ];
+        strcpy_s( mpEnvVarNames[i], len, envp[i] );
         pValue = strchr( mpEnvVarNames[i], '=' );
         if ( pValue != NULL )
         {
@@ -1150,7 +1153,7 @@ ForthShell::CheckSyntaxError( const char *pString, long tag, long desiredTag )
 {
     if ( tag != desiredTag )
     {
-        sprintf( mErrorString, "<%s> preceeded by <%s>, was expecting <%s>",
+        sprintf_s( mErrorString, sizeof(mErrorString), "<%s> preceeded by <%s>, was expecting <%s>",
                  pString, GetTagString( tag ), GetTagString( desiredTag ) );
         mpEngine->SetError( kForthErrorBadSyntax, mErrorString );
         return false;
@@ -1174,7 +1177,9 @@ ForthShell::GetChar()
 FILE*
 ForthShell::FileOpen( const char* filePath, const char* openMode )
 {
-    return fopen( filePath, openMode );
+	FILE* pFile = NULL;
+    fopen_s( &pFile, filePath, openMode );
+	return pFile;
 }
 
 int
@@ -1497,29 +1502,29 @@ ForthShellStack::Peek( void )
 void
 ForthShellStack::PushString( const char *pString )
 {
-   int len = strlen( pString );
-   mSSP -= (len >> 2) + 1;
-   strcpy( (char *) mSSP, pString );
+    int len = strlen( pString );
+    mSSP -= (len >> 2) + 1;
+    strcpy( (char *) mSSP, pString );
     SPEW_SHELL( "Pushed String \"%s\"\n", pString );
-   Push( kShellTagString );
+    Push( kShellTagString );
 }
 
 bool
 ForthShellStack::PopString( char *pString )
 {
-   if ( *mSSP != kShellTagString )
-   {
+    if ( *mSSP != kShellTagString )
+    {
         *pString = '\0';
         SPEW_SHELL( "Failed to pop string\n" );
         return false;
-   }
-   mSSP++;
-   int len = strlen( (char *) mSSP );
-   strcpy( pString, (char *) mSSP );
-   mSSP += (len >> 2) + 1;
+    }
+    mSSP++;
+    int len = strlen( (char *) mSSP );
+    strcpy( pString, (char *) mSSP );
+    mSSP += (len >> 2) + 1;
     SPEW_SHELL( "Popped Tag string\n" );
     SPEW_SHELL( "Popped String \"%s\"\n", pString );
-   return true;
+    return true;
 }
 
 //////////////////////////////////////////////////////////////////////

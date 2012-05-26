@@ -133,7 +133,7 @@ public:
 
     const char *            GetOpTypeName( long opType );
     void                    TraceOp( ForthCoreState* pCore );
-    void                    DescribeOp( long *pOp, char *pBuffer, bool lookupUserDefs=false );
+    void                    DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUserDefs=false );
     long *                  NextOp( long *pOp );
 
     inline long *           GetDP() { return mDictionary.pCurrent; };
@@ -171,7 +171,7 @@ public:
     inline void             SetArraySize( long numElements )        { mNumElements = numElements; };
     inline long             GetArraySize( void )                    { return mNumElements; };
 
-    void                    GetErrorString( char *pString );
+    void                    GetErrorString( char *pBuffer, int bufferSize );
     eForthResult            CheckStacks( void );
     void                    SetError( eForthError e, const char *pString = NULL );
     void                    AddErrorText( const char *pString );
@@ -241,7 +241,8 @@ protected:
 	void*				mpDefaultConsoleOutData;
 
 #ifdef _WINDOWS
-    struct _timeb   mStartTime;
+    //struct _timeb   mStartTime;
+	struct __timeb32	mStartTime;
 #else
     struct timeb    mStartTime;
 #endif

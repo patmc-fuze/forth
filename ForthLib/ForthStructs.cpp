@@ -25,9 +25,19 @@
 
 ForthNativeType gNativeTypeByte( "byte", 1, kBaseTypeByte );
 
+ForthNativeType gNativeTypeUByte( "ubyte", 1, kBaseTypeUByte );
+
 ForthNativeType gNativeTypeShort( "short", 2, kBaseTypeShort );
 
+ForthNativeType gNativeTypeUShort( "ushort", 2, kBaseTypeUShort );
+
 ForthNativeType gNativeTypeInt( "int", 4, kBaseTypeInt );
+
+ForthNativeType gNativeTypeUInt( "uint", 4, kBaseTypeUInt );
+
+ForthNativeType gNativeTypeLong( "long", 8, kBaseTypeLong );
+
+ForthNativeType gNativeTypeULong( "ulong", 8, kBaseTypeULong );
 
 ForthNativeType gNativeTypeFloat( "float", 4, kBaseTypeFloat );
 
@@ -39,19 +49,21 @@ ForthNativeType gNativeTypeOp( "op", 4, kBaseTypeOp );
 
 ForthNativeType gNativeTypeObject( "object", 8, kBaseTypeObject );
 
-ForthNativeType gNativeTypeLong( "long", 8, kBaseTypeLong );
-
 ForthNativeType *gpNativeTypes[] =
 {
     &gNativeTypeByte,
+    &gNativeTypeUByte,
     &gNativeTypeShort,
+    &gNativeTypeUShort,
     &gNativeTypeInt,
+    &gNativeTypeUInt,
+    &gNativeTypeLong,
+    &gNativeTypeULong,
     &gNativeTypeFloat,
     &gNativeTypeDouble,
     &gNativeTypeString,
     &gNativeTypeOp,
-    &gNativeTypeObject,
-    &gNativeTypeLong
+    &gNativeTypeObject
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -291,7 +303,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
     // ProcessSymbol will compile opcodes into temporary buffer mCode
     long *pDst = &(mCode[0]);
 
-    strcpy( mToken, pInfo->GetToken() );
+    strcpy_s( mToken, sizeof(mToken), pInfo->GetToken() );
     // get first token
     char *pToken = &(mToken[0]);
     char *pNextToken = strchr( mToken, '.' );
@@ -572,7 +584,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
             {
                 if ( isNative || isObject )
                 {
-                    opType = ((isArray) ? kOpFieldByteArray : kOpFieldByte) + TypeCodeToOpcodeOffset( typeCode );
+                    opType = ((isArray) ? kOpFieldByteArray : kOpFieldByte) + CODE_TO_BASE_TYPE( typeCode );
                 }
                 else
                 {
@@ -607,7 +619,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
                 default:
                     {
                         // ERROR! method must return object or struct
-                        sprintf( errorMsg, "Method %s return value is not an object or struct", pToken );
+                        sprintf_s( errorMsg, sizeof(errorMsg), "Method %s return value is not an object or struct", pToken );
                         pEngine->SetError( kForthErrorStruct, errorMsg );
                         return false;
                     }
@@ -628,7 +640,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
             if ( isNative )
             {
                 // ERROR! a native field must be a final accessor
-                sprintf( errorMsg, "Native %s used for non-final accessor", pToken );
+                sprintf_s( errorMsg, sizeof(errorMsg), "Native %s used for non-final accessor", pToken );
                 pEngine->SetError( kForthErrorStruct, errorMsg );
                 return false;
             }
@@ -772,7 +784,7 @@ ForthTypesManager::ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exi
                 }
                 else
                 {
-                    opType = ((isArray) ? kOpMemberByteArray : kOpMemberByte) + TypeCodeToOpcodeOffset( typeCode );
+                    opType = ((isArray) ? kOpMemberByteArray : kOpMemberByte) + CODE_TO_BASE_TYPE( typeCode );
                 }
             }
             SPEW_STRUCTS( " opcode 0x%x\n", COMPILED_OP( opType, offset ) );
@@ -839,27 +851,6 @@ ForthTypesManager::GetClassMethods()
     return mpClassMethods;
 }
 
-
-// TypeCodeToOpcodeOffset is needed because there really aren't separate types for unsigned bytes/shorts
-//   but there are distinct opcodes/optypes in dispatch tables - unsigned byte is at offset 9,
-//   unsigned short is at offset 10
-long
-ForthTypesManager::TypeCodeToOpcodeOffset( long typeCode )
-{
-    long baseType = CODE_TO_BASE_TYPE( typeCode );
-    if ( typeCode & kDTIsUnsigned )
-    {
-        if ( baseType == kBaseTypeByte )
-        {
-            baseType = kBaseTypeObject + 1;
-        }
-        else if ( baseType == kBaseTypeShort )
-        {
-            baseType = kBaseTypeObject + 2;
-        }
-    }
-    return baseType;
-}
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -1149,30 +1140,30 @@ ForthStructVocabulary::PrintEntry( long*   pEntry )
     long typeCode = pEntry[1];
 
     // print out the base class stuff - name and value fields
-    sprintf( buff, "  %08x    ", *pEntry );
+    sprintf_s( buff, sizeof(buff), "  %08x    ", *pEntry );
     CONSOLE_STRING_OUT( buff );
 
     for ( int j = 1; j < mValueLongs; j++ )
     {
-        sprintf( buff, "%08x    ", pEntry[j] );
+        sprintf_s( buff, sizeof(buff), "%08x    ", pEntry[j] );
         CONSOLE_STRING_OUT( buff );
     }
 
     GetEntryName( pEntry, nameBuff, sizeof(nameBuff) );
     if ( strlen( nameBuff ) > 32 )
     {
-        sprintf( buff, "%s    ", nameBuff );
+        sprintf_s( buff, sizeof(buff), "%s    ", nameBuff );
     }
     else
     {
-        sprintf( buff, "%32s    ", nameBuff );
+        sprintf_s( buff, sizeof(buff), "%32s    ", nameBuff );
     }
     CONSOLE_STRING_OUT( buff );
 
     TypecodeToString( typeCode, buff, sizeof(buff) );
     CONSOLE_STRING_OUT( buff );
 
-    sprintf( buff, " @ offset %d", pEntry[0] );
+    sprintf_s( buff, sizeof(buff), " @ offset %d", pEntry[0] );
     CONSOLE_STRING_OUT( buff );
 }
 
@@ -1184,21 +1175,21 @@ ForthStructVocabulary::TypecodeToString( long typeCode, char* outBuff, size_t ou
     buff[0] = '\0';
     if ( CODE_IS_ARRAY( typeCode ) )
     {
-        strcpy( buff, "array of " );
+        strcpy_s( buff, sizeof(buff), "array of " );
     }
     if ( CODE_IS_PTR( typeCode ) )
     {
-        strcat( buff, "pointer to " );
+        strcat_s( buff, sizeof(buff), "pointer to " );
     }
     if ( CODE_IS_NATIVE( typeCode ) )
     {
         int baseType = CODE_TO_BASE_TYPE( typeCode );
-        sprintf( buff2, "%s", gpNativeTypes[baseType]->GetName() );
-        strcat( buff, buff2 );
+        sprintf_s( buff2, sizeof(buff2), "%s", gpNativeTypes[baseType]->GetName() );
+        strcat_s( buff, sizeof(buff), buff2 );
         if ( baseType == kBaseTypeString )
         {
-            sprintf( buff2, " strLen=%d", CODE_TO_STRING_BYTES( typeCode ) );
-            strcat( buff, buff2 );
+            sprintf_s( buff2, sizeof(buff2), " strLen=%d", CODE_TO_STRING_BYTES( typeCode ) );
+            strcat_s( buff, sizeof(buff), buff2 );
         }
     }
     else
@@ -1213,31 +1204,31 @@ ForthStructVocabulary::TypecodeToString( long typeCode, char* outBuff, size_t ou
                 ForthTypeInfo* pInfo = ForthTypesManager::GetInstance()->GetStructInfo( structIndex );
                 if ( pInfo )
                 {
-                    sprintf( buff2, "%s", pInfo->pVocab->GetName() );
+                    sprintf_s( buff2, sizeof(buff2), "%s", pInfo->pVocab->GetName() );
                 }
                 else
                 {
-                    sprintf( buff2, "<UNKNOWN STRUCT INDEX %d!>", structIndex );
+                    sprintf_s( buff2, sizeof(buff2), "<UNKNOWN STRUCT INDEX %d!>", structIndex );
                 }
             }
             break;
 
         case kBaseTypeUserDefinition:
-            strcpy( buff2, "user defined forthop" );
+            strcpy_s( buff2, sizeof(buff2), "user defined forthop" );
             break;
 
         case kBaseTypeVoid:
-            strcpy( buff2, "void" );
+            strcpy_s( buff2, sizeof(buff2), "void" );
             break;
 
         default:
-            sprintf( buff2, "UNKNOWN BASE TYPE %d", baseType );
+            sprintf_s( buff2, sizeof(buff2), "UNKNOWN BASE TYPE %d", baseType );
             break;
         }
-        strcat( buff, buff2 );
+        strcat_s( buff, sizeof(buff), buff2 );
     }
     outBuff[ outBuffSize - 1 ] = '\0';
-    strncpy( outBuff, buff, outBuffSize - 1 );
+    strncpy_s( outBuff, outBuffSize, buff, outBuffSize - 1 );
 }
 
 void ForthStructVocabulary::EndDefinition()
@@ -1572,27 +1563,27 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
     ForthCoreState* pCore = mpEngine->GetCoreState();
     ForthInterface* pPrimaryInterface = GetInterface( 0 );
 
-    sprintf( buff, "  %08x    ", methodNum );
+    sprintf_s( buff, sizeof(buff), "  %08x    ", methodNum );
     CONSOLE_STRING_OUT( buff );
 
     for ( int j = 1; j < mValueLongs; j++ )
     {
-        sprintf( buff, "%08x    ", pEntry[j] );
+        sprintf_s( buff, sizeof(buff), "%08x    ", pEntry[j] );
         CONSOLE_STRING_OUT( buff );
     }
 
     GetEntryName( pEntry, nameBuff, sizeof(nameBuff) );
     if ( strlen( nameBuff ) > 32 )
     {
-        sprintf( buff, "%s    ", nameBuff );
+        sprintf_s( buff, sizeof(buff), "%s    ", nameBuff );
     }
     else
     {
-        sprintf( buff, "%32s    ", nameBuff );
+        sprintf_s( buff, sizeof(buff), "%32s    ", nameBuff );
     }
     CONSOLE_STRING_OUT( buff );
 
-    sprintf( buff, "method # %d returning ", methodNum );
+    sprintf_s( buff, sizeof(buff), "method # %d returning ", methodNum );
     CONSOLE_STRING_OUT( buff );
 
     if ( CODE_IS_ARRAY( typeCode ) )
@@ -1606,11 +1597,11 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
     if ( CODE_IS_NATIVE( typeCode ) )
     {
         int baseType = CODE_TO_BASE_TYPE( typeCode );
-        sprintf( buff, "%s ", gpNativeTypes[baseType]->GetName() );
+        sprintf_s( buff, sizeof(buff), "%s ", gpNativeTypes[baseType]->GetName() );
         CONSOLE_STRING_OUT( buff );
         if ( baseType == kBaseTypeString )
         {
-            sprintf( buff, "strLen=%d, ", CODE_TO_STRING_BYTES( typeCode ) );
+            sprintf_s( buff, sizeof(buff), "strLen=%d, ", CODE_TO_STRING_BYTES( typeCode ) );
             CONSOLE_STRING_OUT( buff );
         }
     }
@@ -1626,31 +1617,31 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
                 ForthTypeInfo* pInfo = ForthTypesManager::GetInstance()->GetStructInfo( structIndex );
                 if ( pInfo )
                 {
-                    sprintf( buff, "%s ", pInfo->pVocab->GetName() );
+                    sprintf_s( buff, sizeof(buff), "%s ", pInfo->pVocab->GetName() );
                 }
                 else
                 {
-                    sprintf( buff, "<UNKNOWN STRUCT INDEX %d!> ", structIndex );
+                    sprintf_s( buff, sizeof(buff), "<UNKNOWN STRUCT INDEX %d!> ", structIndex );
                 }
             }
             break;
 
         case kBaseTypeUserDefinition:
-            strcpy( buff, "user defined forthop " );
+            strcpy_s( buff, sizeof(buff), "user defined forthop " );
             break;
 
         case kBaseTypeVoid:
-            strcpy( buff, "void " );
+            strcpy_s( buff, sizeof(buff), "void " );
             break;
 
         default:
-            sprintf( buff, "UNKNOWN BASE TYPE %d ", baseType );
+            sprintf_s( buff, sizeof(buff), "UNKNOWN BASE TYPE %d ", baseType );
             break;
         }
         CONSOLE_STRING_OUT( buff );
     }
     long* pMethod = pPrimaryInterface->GetMethods() + methodNum;
-    sprintf( buff, "opcode=%02x:%06x", GetEntryType(pMethod), GetEntryValue(pMethod) );
+    sprintf_s( buff, sizeof(buff), "opcode=%02x:%06x", GetEntryType(pMethod), GetEntryValue(pMethod) );
     CONSOLE_STRING_OUT( buff );
 }
 
@@ -1927,7 +1918,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             if ( numElements )
             {
                 // define global array
-                pEngine->CompileOpcode( OP_DO_BYTE_ARRAY + ForthTypesManager::TypeCodeToOpcodeOffset( typeCode ) );
+                pEngine->CompileOpcode( OP_DO_BYTE_ARRAY + CODE_TO_BASE_TYPE( typeCode ) );
                 pHere = (char *) (pEngine->GetDP());
                 pEngine->AllotLongs( ((nBytes * numElements) + 3) >> 2 );
                 for ( i = 0; i < numElements; i++ )
@@ -1939,7 +1930,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             else
             {
                 // define global single variable
-                pEngine->CompileOpcode( OP_DO_BYTE + ForthTypesManager::TypeCodeToOpcodeOffset( typeCode ) );
+                pEngine->CompileOpcode( OP_DO_BYTE + CODE_TO_BASE_TYPE( typeCode ) );
                 pHere = (char *) (pEngine->GetDP());
                 pEngine->AllotLongs( (nBytes  + 3) >> 2 );
                 if ( GET_VAR_OPERATION == kVarStore )

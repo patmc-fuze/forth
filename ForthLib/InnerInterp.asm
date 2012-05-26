@@ -4474,11 +4474,20 @@ entry strcmpBop
 	mov	eax, [edx+4]
 	push	eax
 	call	strcmp
+strcmp1:
+	xor	ebx, ebx
+	cmp	eax, ebx
+	jz	strcmp3		; if strings equal, return 0
+	jg	strcmp2
+	sub	ebx, 2
+strcmp2:
+	inc	ebx
+strcmp3:
 	add	esp, 8
 	pop	ecx
 	pop	edx
 	add	edx, 4
-	mov	[edx], eax
+	mov	[edx], ebx
 	jmp	edi
 	
 ;========================================
@@ -4492,12 +4501,7 @@ entry stricmpBop
 	mov	eax, [edx+4]
 	push	eax
 	call	stricmp
-	add	esp, 8
-	pop	ecx
-	pop	edx
-	add	edx, 4
-	mov	[edx], eax
-	jmp	edi
+	jmp	strcmp1
 	
 ;========================================
 
@@ -5177,6 +5181,133 @@ entry dllEntryPointType
 	pop	ebp
 	jmp	interpFunc
 
+;-----------------------------------------------
+;
+; NUM VAROP OP combo ops
+;  
+entry nvoComboType
+	; bits 0..10 are signed integer, bits 11-12 are varop-2, bit 13 is builtin/userdef, bits 14-23 are opcode
+	; ebx holds low-24 bits of opcode
+	mov	eax, ebx
+	sub	edx, 4
+	and	eax,00000400h
+	jnz	nvoNegative
+	; positive constant
+	and	eax,003FFh
+	mov	[edx], ebx
+	jmp	nvoCombo1
+
+nvoNegative:
+	or	ebx, 0FFFFF800h			; sign extend bits 11-31
+	mov	[edx], eax
+nvoCombo1:
+	; set the varop from bits 11-12
+	mov	eax, 000001800h
+	and	eax, ebx
+	sar	eax, 11							; eax = varop - 2
+	add	eax, 2
+	mov	[ebp].FCore.varMode, eax
+	
+	; extract the opcode
+	mov	eax, ebx
+	shl	ebx, 14
+	and	ebx, 0000003FFh			; ebx is 10 bit opcode
+	and	eax, 000002000h			; bit 13 is 0 for builtin ops, 1 for user defined ops
+	jz	interpLoopExecuteEntry
+	add	ebx, 002000000h			; set optype to user defined
+
+	; opcode is in ebx
+	jmp	interpLoopExecuteEntry
+
+;-----------------------------------------------
+;
+; NUM VAROP combo ops
+;  
+entry nvComboType
+	; bits 0..21 are signed integer, bits 22-23 are varop-2
+	; ebx holds low-24 bits of opcode
+	mov	eax, ebx
+	sub	edx, 4
+	and	eax,00020000h
+	jnz	nvNegative
+	; positive constant
+	and	eax,001FFFFFh
+	mov	[edx], ebx
+	jmp	nvCombo1
+
+nvNegative:
+	or	ebx, 0FFE00000h			; sign extend bits 22-31
+	mov	[edx], eax
+nvCombo1:
+	; set the varop from bits 22-23
+	mov	eax, 000C00000h
+	and	eax, ebx
+	sar	eax, 22							; eax = varop - 2
+	add	eax, 2
+	mov	[ebp].FCore.varMode, eax
+
+	jmp edi
+
+;-----------------------------------------------
+;
+; NUM OP combo ops
+;  
+entry noComboType
+	; bits 0..12 are signed integer, bit 13 is builtin/userdef, bits 14-23 are opcode
+	; ebx holds low-24 bits of opcode
+	mov	eax, ebx
+	sub	edx, 4
+	and	eax,000001000h
+	jnz	noNegative
+	; positive constant
+	and	eax,00FFFh
+	mov	[edx], ebx
+	jmp	noCombo1
+
+noNegative:
+	or	ebx, 0FFFFE000h			; sign extend bits 13-31
+	mov	[edx], eax
+noCombo1:
+	; extract the opcode
+	mov	eax, ebx
+	shl	ebx, 14
+	and	ebx, 0000003FFh			; ebx is 10 bit opcode
+	and	eax, 000002000h			; bit 13 is 0 for builtin ops, 1 for user defined ops
+	jz	interpLoopExecuteEntry
+	add	ebx, 002000000h			; set optype to user defined
+
+	; opcode is in ebx
+	jmp	interpLoopExecuteEntry
+	
+;-----------------------------------------------
+;
+; VAROP OP combo ops
+;  
+entry voComboType
+	; bits 0-1 are varop-2, bit 2 is builtin/userdef, bits 3-23 are opcode
+	; ebx holds low-24 bits of opcode
+	; set the varop from bits 0-1
+	mov	eax, 000000003h
+	and	eax, ebx
+	add	eax, 2
+	mov	[ebp].FCore.varMode, eax
+	
+	; extract the opcode
+	mov	eax, ebx
+	shl	ebx, 3
+	and	ebx, 0001FFFFFh			; ebx is 21 bit opcode
+	and	eax, 000000004h			; bit 2 is 0 for builtin ops, 1 for user defined ops
+	jz	interpLoopExecuteEntry
+	add	ebx, 002000000h			; set optype to user defined
+
+	; opcode is in ebx
+	jmp	interpLoopExecuteEntry
+
+;=================================================================================================
+;
+;                                    opType table
+;  
+;=================================================================================================
 entry opTypesTable
 ; TBD: check the order of these
 ; TBD: copy these into base of ForthCoreState, fill unused slots with badOptype
@@ -5215,88 +5346,113 @@ entry opTypesTable
 	DD	FLAT:memberRefType			; kOpMemberRef,	
 
 ;	30 - 39
-	DD	FLAT:localByteType			; 30 - 40 : local variables
+	DD	FLAT:localByteType			; 30 - 42 : local variables
+	DD	FLAT:localUByteType
 	DD	FLAT:localShortType
+	DD	FLAT:localUShortType
 	DD	FLAT:localIntType
+	DD	FLAT:localIntType
+	DD	FLAT:localLongType
+	DD	FLAT:localLongType
 	DD	FLAT:localFloatType
 	DD	FLAT:localDoubleType
+	
+;	40 - 49
 	DD	FLAT:localStringType
 	DD	FLAT:localOpType
-	DD	FLAT:localLongType
 	DD	FLAT:localObjectType
-	DD	FLAT:localUByteType
-;	40 - 49
-	DD	FLAT:localUShortType
-	DD	FLAT:localByteArrayType		; 41 - 51 : local arrays
+	DD	FLAT:localByteArrayType		; 43 - 55 : local arrays
+	DD	FLAT:localUByteArrayType
 	DD	FLAT:localShortArrayType
+	DD	FLAT:localUShortArrayType
 	DD	FLAT:localIntArrayType
+	DD	FLAT:localIntArrayType
+	DD	FLAT:localLongArrayType
+	
+;	50 - 59
+	DD	FLAT:localLongArrayType
 	DD	FLAT:localFloatArrayType
 	DD	FLAT:localDoubleArrayType
 	DD	FLAT:localStringArrayType
 	DD	FLAT:localOpArrayType
-	DD	FLAT:localLongArrayType
 	DD	FLAT:localObjectArrayType
-;	50 - 59
-	DD	FLAT:localUByteArrayType
-	DD	FLAT:localUShortArrayType
-	DD	FLAT:fieldByteType			; 52 - 62 : field variables
+	DD	FLAT:fieldByteType			; 56 - 68 : field variables
+	DD	FLAT:fieldUByteType
 	DD	FLAT:fieldShortType
+	DD	FLAT:fieldUShortType
+	
+;	60 - 69
 	DD	FLAT:fieldIntType
+	DD	FLAT:fieldIntType
+	DD	FLAT:fieldLongType
+	DD	FLAT:fieldLongType
 	DD	FLAT:fieldFloatType
 	DD	FLAT:fieldDoubleType
 	DD	FLAT:fieldStringType
 	DD	FLAT:fieldOpType
-	DD	FLAT:fieldLongType
-;	60 - 69
 	DD	FLAT:fieldObjectType
-	DD	FLAT:fieldUByteType
-	DD	FLAT:fieldUShortType
-	DD	FLAT:fieldByteArrayType		; 63 - 73 : field arrays
+	DD	FLAT:fieldByteArrayType		; 69 - 81 : field arrays
+	
+;	70 - 79
+	DD	FLAT:fieldUByteArrayType
 	DD	FLAT:fieldShortArrayType
+	DD	FLAT:fieldUShortArrayType
 	DD	FLAT:fieldIntArrayType
+	DD	FLAT:fieldIntArrayType
+	DD	FLAT:fieldLongArrayType
+	DD	FLAT:fieldLongArrayType
 	DD	FLAT:fieldFloatArrayType
 	DD	FLAT:fieldDoubleArrayType
 	DD	FLAT:fieldStringArrayType
+	
+;	80 - 89
 	DD	FLAT:fieldOpArrayType
-;	70 - 79
-	DD	FLAT:fieldLongArrayType
 	DD	FLAT:fieldObjectArrayType
-	DD	FLAT:fieldUByteArrayType
-	DD	FLAT:fieldUShortArrayType
-	DD	FLAT:memberByteType			; 74 - 84 : member variables
+	DD	FLAT:memberByteType			; 82 - 94 : member variables
+	DD	FLAT:memberUByteType
 	DD	FLAT:memberShortType
+	DD	FLAT:memberUShortType
 	DD	FLAT:memberIntType
+	DD	FLAT:memberIntType
+	DD	FLAT:memberLongType
+	DD	FLAT:memberLongType
+	
+;	90 - 99
 	DD	FLAT:memberFloatType
 	DD	FLAT:memberDoubleType
 	DD	FLAT:memberStringType
-;	80 - 89
 	DD	FLAT:memberOpType
-	DD	FLAT:memberLongType
 	DD	FLAT:memberObjectType
-	DD	FLAT:memberUByteType
-	DD	FLAT:memberUShortType
-	DD	FLAT:memberByteArrayType	; 85 - 95 : member arrays
+	DD	FLAT:memberByteArrayType	; 95 - 107 : member arrays
+	DD	FLAT:memberUByteArrayType
 	DD	FLAT:memberShortArrayType
+	DD	FLAT:memberUShortArrayType
 	DD	FLAT:memberIntArrayType
+	
+;	100 - 109
+	DD	FLAT:memberIntArrayType
+	DD	FLAT:memberLongArrayType
+	DD	FLAT:memberLongArrayType
 	DD	FLAT:memberFloatArrayType
 	DD	FLAT:memberDoubleArrayType
-;	90 - 99
 	DD	FLAT:memberStringArrayType
 	DD	FLAT:memberOpArrayType
-	DD	FLAT:memberLongArrayType
 	DD	FLAT:memberObjectArrayType
-	DD	FLAT:memberUByteArrayType
-	DD	FLAT:memberUShortArrayType
 	DD	FLAT:methodWithThisType
 	DD	FLAT:methodWithTOSType
+	
+;	110 - 114
 	DD	FLAT:initMemberStringType
-	DD	FLAT:extOpType	
-;	100 - 149
+	DD	FLAT:nvoComboType
+	DD	FLAT:nvComboType
+	DD	FLAT:noComboType
+	DD	FLAT:voComboType
+	
+;	115 - 149
+	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
 	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
 	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
+	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
 ;	150 - 199
 	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
 	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
@@ -5317,6 +5473,11 @@ endOpTypesTable:
 
 
 
+;=================================================================================================
+;
+;                                    builtin op table
+;  
+;=================================================================================================
 opsTable:
 	DD	FLAT:abortBop
 	DD	FLAT:dropBop
@@ -5330,32 +5491,36 @@ opsTable:
 	DD	FLAT:extOp					; endBuildsBop
 	DD	FLAT:doneBop
 	DD	FLAT:doByteBop
+	DD	FLAT:doUByteBop
 	DD	FLAT:doShortBop
+	DD	FLAT:doUShortBop
 	DD	FLAT:doIntBop
+	DD	FLAT:doIntBop
+	DD	FLAT:doLongBop
+	DD	FLAT:doLongBop
 	DD	FLAT:doFloatBop
 	DD	FLAT:doDoubleBop
 	DD	FLAT:doStringBop
 	DD	FLAT:doOpBop
-	DD	FLAT:doLongBop
 	DD	FLAT:doObjectBop
-	DD	FLAT:doUByteBop
-	DD	FLAT:doUShortBop
 	DD	FLAT:doExitBop
 	DD	FLAT:doExitLBop
 	DD	FLAT:doExitMBop
 	DD	FLAT:doExitMLBop
 	DD	FLAT:extOp					; doVocabBop
 	DD	FLAT:doByteArrayBop
+	DD	FLAT:doUByteArrayBop
 	DD	FLAT:doShortArrayBop
+	DD	FLAT:doUShortArrayBop
 	DD	FLAT:doIntArrayBop
+	DD	FLAT:doIntArrayBop
+	DD	FLAT:doLongArrayBop
+	DD	FLAT:doLongArrayBop
 	DD	FLAT:doFloatArrayBop
 	DD	FLAT:doDoubleArrayBop
 	DD	FLAT:doStringArrayBop
-	DD	FLAT:doLongArrayBop
 	DD	FLAT:doOpArrayBop
 	DD	FLAT:doObjectArrayBop
-	DD	FLAT:doUByteArrayBop
-	DD	FLAT:doUShortArrayBop
 	DD	FLAT:initStringBop
 	DD	FLAT:extOp					; initStringArrayBop
 	DD	FLAT:plusBop

@@ -2091,14 +2091,26 @@ FORTHOP( strcmpOp )
 {
     char *pStr2 = (char *) SPOP;
     char *pStr1 = (char *) SPOP;
-    SPUSH( (long) strcmp( pStr1, pStr2 ) );
+	int result = strcmp( pStr1, pStr2 );
+	// only return 1, 0 or -1
+	if ( result != 0 )
+	{
+		result = (result > 0) ? 1 : -1;
+	}
+	SPUSH( (long) result );
 }
 
 FORTHOP( stricmpOp )
 {
     char *pStr2 = (char *) SPOP;
     char *pStr1 = (char *) SPOP;
-    SPUSH( (long) stricmp( pStr1, pStr2 ) );
+	int result = stricmp( pStr1, pStr2 );
+	// only return 1, 0 or -1
+	if ( result != 0 )
+	{
+		result = (result > 0) ? 1 : -1;
+	}
+	SPUSH( (long) result );
 }
 
 
@@ -2624,7 +2636,7 @@ FORTHOP( byteOp )
 FORTHOP( ubyteOp )
 {
     char val = 0;
-	gNativeTypeByte.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned );
+	gNativeTypeUByte.DefineInstance( GET_ENGINE, &val );
 }
 
 FORTHOP( shortOp )
@@ -2636,7 +2648,7 @@ FORTHOP( shortOp )
 FORTHOP( ushortOp )
 {
     short val = 0;
-	gNativeTypeShort.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned );
+	gNativeTypeUShort.DefineInstance( GET_ENGINE, &val );
 }
 
 FORTHOP( intOp )
@@ -2648,7 +2660,7 @@ FORTHOP( intOp )
 FORTHOP( uintOp )
 {
     int val = 0;
-	gNativeTypeInt.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned );
+	gNativeTypeUInt.DefineInstance( GET_ENGINE, &val );
 }
 
 FORTHOP( longOp )
@@ -2660,7 +2672,7 @@ FORTHOP( longOp )
 FORTHOP( ulongOp )
 {
     long long val = 0;
-	gNativeTypeLong.DefineInstance( GET_ENGINE, &val, kDTIsUnsigned  );
+	gNativeTypeULong.DefineInstance( GET_ENGINE, &val );
 }
 
 FORTHOP( floatOp )
@@ -3975,151 +3987,60 @@ FORTHOP( fputsOp )
 
 
 #ifdef _WINDOWS
-FORTHOP( systemOp )
+FORTHOP( removeOp )
 {
-    NEEDS(1);
-    int result = -1;
-	char outName[ L_tmpnam ];
-	char errName[ L_tmpnam ];
-    ForthEngine *pEngine = GET_ENGINE;
+	const char* pFilename = (const char *) (SPOP);
+	int result = remove( pFilename );
+    SPUSH( result );
+}
 
-	// create temp filenames for stdout and stderr streams
-	if ( tmpnam( outName ) == NULL )
+FORTHOP( _dupOp )
+{
+	int fileHandle = SPOP;
+	int result = _dup( fileHandle );
+    SPUSH( result );
+}
+
+FORTHOP( _dup2Op )
+{
+	int dstFileHandle = SPOP;
+	int srcFileHandle = SPOP;
+	int result = _dup2( srcFileHandle, dstFileHandle );
+    SPUSH( result );
+}
+
+FORTHOP( _filenoOp )
+{
+	FILE* pFile = (FILE *) SPOP;
+	int result = _fileno( pFile );
+    SPUSH( result );
+}
+
+FORTHOP( tmpnamOp )
+{
+	char* pOutname = (char *) malloc( L_tmpnam );
+    ForthEngine *pEngine = GET_ENGINE;
+	if ( tmpnam( pOutname ) == NULL )
 	{
         SET_ERROR( kForthErrorFileOpen );
         pEngine->AddErrorText( "system: failure creating standard out tempfile name" );
-        SPUSH( result );
-        return;
+		free( pOutname );
+		pOutname = NULL;
 	}
-	if ( tmpnam( errName ) == NULL )
-	{
-        SET_ERROR( kForthErrorFileOpen );
-        pEngine->AddErrorText( "system: failure creating standard error tempfile name" );
-        SPUSH( result );
-        return;
-	}
+    SPUSH( (long) pOutname );
+}
 
-    // open temp file which will take standard output
-    FILE* outStream = fopen( outName, "w" );
-    if ( outStream == NULL )
-    {
-        SET_ERROR( kForthErrorFileOpen );
-        pEngine->AddErrorText( "system: failure opening standard out file " );
-        pEngine->AddErrorText( outName );
-        SPUSH( result );
-        return;
-    }
+FORTHOP( fflushOp )
+{
+	FILE* pFile = (FILE *) SPOP;
+	int result = fflush( pFile );
+    SPUSH( result );
+}
 
-    // open temp file which will take standard error
-    FILE* errStream = fopen( errName, "w" );
-    if ( errStream == NULL )
-    {
-        SET_ERROR( kForthErrorFileOpen );
-        pEngine->AddErrorText( "system: failure opening standard error file " );
-        pEngine->AddErrorText( errName );
-        fclose( outStream );
-		remove( outName );
-        SPUSH( result );
-        return;
-    }
-
-    // dup standard output file descriptor so we can restore it on exit
-    int oldStdOut = _dup( 1 );
-    if( oldStdOut == -1 )
-    {
-        SET_ERROR( kForthErrorFileOpen );
-        pEngine->AddErrorText( "system: failure dup-ing stdout\n" );
-        fclose( outStream );
-        fclose( errStream );
-		remove( outName );
-		remove( errName );
-        SPUSH( result );
-        return;
-    }
-
-    // dup standard error file descriptor so we can restore it on exit
-    int oldStdErr = _dup( 2 );
-    if( oldStdErr == -1 )
-    {
-        SET_ERROR( kForthErrorFileOpen );
-        pEngine->AddErrorText( "system: failure dup-ing stderr\n" );
-        fclose( outStream );
-        fclose( errStream );
-		remove( outName );
-		remove( errName );
-        _dup2( oldStdOut, 1 );
-        SPUSH( result );
-        return;
-    }
-
-    // redirect standard out to temp output file
-    if ( _dup2( _fileno( outStream ), 1 ) == -1 )
-    {
-        SET_ERROR( kForthErrorFileOpen );
-        pEngine->AddErrorText( "system: failure redirecting stdout\n" );
-    }
-    else
-    {
-        // redirect standard error to temp error file
-        if ( _dup2( _fileno( errStream ), 2 ) == -1 )
-        {
-            SET_ERROR( kForthErrorFileOpen );
-            pEngine->AddErrorText( "system: failure redirecting stderr\n" );
-        }
-        else
-        {
-            // have DOS shell execute command line string pointed to by TOS
-            result = system( (char *) SPOP );
-            fflush( stdout );
-            fflush( stderr );
-            // close standard error stream, then reopen it on oldStdError (console output)
-            _dup2( oldStdErr, 2 );
-        }
-         // close standard output stream, then reopen it on oldStdOut (console output)
-        _dup2( oldStdOut, 1 );
-    }
-    fclose( outStream );
-    fclose( errStream );
-
-    // dump contents of output and error files using forth console IO routines
-    char buff[2];
-    buff[1] = 0;
-    outStream = fopen( outName, "r" );
-    if ( outStream )
-    {
-        int ch;
-        while ( (ch = fgetc( outStream )) != EOF )
-        {
-            buff[0] = (char) ch;
-            CONSOLE_STRING_OUT( buff );
-        }
-        fclose( outStream );
-        errStream = fopen( errName, "r" );
-        if ( errStream )
-        {
-            while ( (ch = fgetc( errStream )) != EOF )
-            {
-                buff[0] = (char) ch;
-                CONSOLE_STRING_OUT( buff );
-            }
-            fclose( errStream );
-        }
-        else
-        {
-            SET_ERROR( kForthErrorFileOpen );
-            pEngine->AddErrorText( "system: failure reopening standard error file " );
-            pEngine->AddErrorText( errName );
-        }
-    }
-    else
-    {
-        SET_ERROR( kForthErrorFileOpen );
-        pEngine->AddErrorText( "system: failure reopening standard output file " );
-        pEngine->AddErrorText( outName );
-    }
-
-	remove( outName );
-	remove( errName );
+FORTHOP( systemOp )
+{
+    NEEDS(1);
+    int result = system( (char *) SPOP );
     SPUSH( result );
 }
 
@@ -4376,6 +4297,95 @@ FORTHOP( fillInBufferOp )
 {
     ForthInputStack* pInput = GET_ENGINE->GetShell()->GetInput();
     SPUSH( (long) (pInput->GetLine( (char *) (SPOP) )) );
+}
+
+FORTHOP( vocNewestEntryOp )
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
+	SPUSH( (long) (pVocab->GetNewestEntry()) );
+}
+
+FORTHOP( vocNextEntryOp )
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
+	long *pEntry = (long *) (SPOP);
+	SPUSH( (long) (pVocab->NextEntry( pEntry )) );
+}
+
+FORTHOP( vocNumEntriesOp )
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
+	SPUSH( (long) (pVocab->GetNumEntries()) );
+}
+
+FORTHOP( vocNameOp )
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
+	SPUSH( (long) (pVocab->GetName()) );
+}
+
+FORTHOP( vocChainHeadOp )
+{
+	SPUSH( (long) (ForthVocabulary::GetVocabularyChainHead()) );
+}
+
+FORTHOP( vocChainNextOp )
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
+	SPUSH( (long) (pVocab->GetNextChainVocabulary()) );
+}
+
+FORTHOP( vocFindEntryOp )
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
+	const char* pName = (const char *) (SPOP);
+	SPUSH( (long) (pVocab->FindSymbol( pName )) );
+}
+
+FORTHOP( vocFindNextEntryOp )
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
+	const char* pName = (const char *) (SPOP);
+	long *pEntry = (long *) (SPOP);
+	SPUSH( (long) (pVocab->FindNextSymbol( pName, pEntry )) );
+}
+
+FORTHOP( vocFindEntryByValueOp )
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
+	long val = SPOP;
+	SPUSH( (long) (pVocab->FindSymbolByValue( val )) );
+}
+
+FORTHOP( vocFindNextEntryByValueOp )
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
+	long val = SPOP;
+	long *pEntry = (long *) (SPOP);
+	SPUSH( (long) (pVocab->FindNextSymbolByValue( val, pEntry )) );
+}
+
+FORTHOP( vocAddEntryOp )
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
+    long opVal = SPOP;
+    long opType = SPOP;
+    char* pSymbol = (char *) (SPOP);
+	bool addToEngineOps = (opType <= kOpDLLEntryPoint);
+    pVocab->AddSymbol( pSymbol, opType, opVal, addToEngineOps );
+}
+
+FORTHOP( vocRemoveEntryOp )
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
+	long *pEntry = (long *) (SPOP);
+	pVocab->DeleteEntry( pEntry );
+}
+
+FORTHOP( vocValueLengthOp )
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
+	SPUSH( (long) (pVocab->GetValueLength()) );
 }
 
 FORTHOP( turboOp )
@@ -4670,12 +4680,11 @@ namespace
 
 FORTHOP( qsortOp )
 {
-    // qsort( ARRAY_ADDR NUM_ELEMENTS ELEMENT_SIZE COMPARE_TYPE SIGNED_FLAG COMPARE_OFFSET )
+    // qsort( ARRAY_ADDR NUM_ELEMENTS ELEMENT_SIZE COMPARE_TYPE COMPARE_OFFSET )
     NEEDS(6);
     qsInfo qs;
 
     qs.offset = SPOP;
-    long signedFlag = SPOP;
     long compareType = SPOP;
     qs.elementSize = SPOP;
     long numElements = SPOP;
@@ -4683,21 +4692,46 @@ FORTHOP( qsortOp )
 
     qs.temp = malloc( qs.elementSize );
 
-    switch ( compareType )
+    switch ( CODE_TO_BASE_TYPE(compareType) )
     {
     case kBaseTypeByte:
         qs.compareSize = 1;
-        qs.compare = (signedFlag) ? s8Compare : u8Compare;
+        qs.compare = s8Compare;
+        break;
+
+    case kBaseTypeUByte:
+        qs.compareSize = 1;
+        qs.compare = u8Compare;
         break;
 
     case kBaseTypeShort:
         qs.compareSize = 2;
-        qs.compare = (signedFlag) ? s16Compare : u16Compare;
+        qs.compare = s16Compare;
+        break;
+
+    case kBaseTypeUShort:
+        qs.compareSize = 2;
+        qs.compare = u16Compare;
         break;
 
     case kBaseTypeInt:
         qs.compareSize = 4;
-        qs.compare = (signedFlag) ? s32Compare : u32Compare;
+        qs.compare = s32Compare;
+        break;
+
+    case kBaseTypeUInt:
+        qs.compareSize = 4;
+        qs.compare = u32Compare;
+        break;
+
+    case kBaseTypeLong:
+        qs.compareSize = 8;
+        qs.compare = s64Compare;
+        break;
+
+    case kBaseTypeULong:
+        qs.compareSize = 8;
+        qs.compare = u64Compare;
         break;
 
     case kBaseTypeFloat:
@@ -4711,13 +4745,8 @@ FORTHOP( qsortOp )
         break;
 
     case kBaseTypeString:
-        qs.compareSize = signedFlag;
+        qs.compareSize = CODE_TO_STRING_BYTES(compareType);
         qs.compare = strCompare;
-        break;
-
-    case kBaseTypeLong:
-        qs.compareSize = 8;
-        qs.compare = (signedFlag) ? s64Compare : u64Compare;
         break;
 
     default:
@@ -4731,34 +4760,58 @@ FORTHOP( qsortOp )
 
 FORTHOP(bsearchOp)
 {
-    // bsearch( ARRAY_ADDR NUM_ELEMENTS ELEMENT_SIZE COMPARE_TYPE SIGNED_FLAG COMPARE_OFFSET KEY_ADDR )
+    // bsearch( KEY_ADDR ARRAY_ADDR NUM_ELEMENTS ELEMENT_SIZE COMPARE_TYPE COMPARE_OFFSET )
     NEEDS(7);
 
-    char* pKey = (char *)(SPOP);
     long offset = SPOP;
-    long signedFlag = SPOP;
     long compareType = SPOP;
     long elementSize = SPOP;
     long numElements = SPOP;
     char* pData = (char *)(SPOP);
+    char* pKey = (char *)(SPOP);
     long compareSize;
     int (*compare)( const void* a, const void* b, int );
 
-    switch ( compareType )
+    switch ( CODE_TO_BASE_TYPE(compareType) )
     {
     case kBaseTypeByte:
         compareSize = 1;
-        compare = (signedFlag) ? s8Compare : u8Compare;
+        compare = s8Compare;
+        break;
+
+    case kBaseTypeUByte:
+        compareSize = 1;
+        compare = u8Compare;
         break;
 
     case kBaseTypeShort:
         compareSize = 2;
-        compare = (signedFlag) ? s16Compare : u16Compare;
+        compare = s16Compare;
+        break;
+
+    case kBaseTypeUShort:
+        compareSize = 2;
+        compare = u16Compare;
         break;
 
     case kBaseTypeInt:
         compareSize = 4;
-        compare = (signedFlag) ? s32Compare : u32Compare;
+        compare = s32Compare;
+        break;
+
+    case kBaseTypeUInt:
+        compareSize = 4;
+        compare = u32Compare;
+        break;
+
+    case kBaseTypeLong:
+        compareSize = 8;
+        compare = s64Compare;
+        break;
+
+    case kBaseTypeULong:
+        compareSize = 8;
+        compare = u64Compare;
         break;
 
     case kBaseTypeFloat:
@@ -4772,13 +4825,8 @@ FORTHOP(bsearchOp)
         break;
 
     case kBaseTypeString:
-        compareSize = signedFlag;
+        compareSize = CODE_TO_STRING_BYTES(compareType);
         compare = strCompare;
-        break;
-
-    case kBaseTypeLong:
-        compareSize = 8;
-        compare = (signedFlag) ? s64Compare : u64Compare;
         break;
 
     default:
@@ -5064,32 +5112,36 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    endBuildsOp,            "_endBuilds" ),
     OP_DEF(    doneOp,                 "done" ),
     OP_DEF(    doByteOp,               "_doByte" ),
+    OP_DEF(    doUByteOp,              "_doUByte" ),
     OP_DEF(    doShortOp,              "_doShort" ),        // 12
+    OP_DEF(    doUShortOp,             "_doUShort" ),
     OP_DEF(    doIntOp,                "_doInt" ),
+    OP_DEF(    doIntOp,                "_doUInt" ),
+    OP_DEF(    doLongOp,               "_doLong" ),
+    OP_DEF(    doLongOp,               "_doULong" ),
     OP_DEF(    doFloatOp,              "_doFloat" ),
     OP_DEF(    doDoubleOp,             "_doDouble" ),
     OP_DEF(    doStringOp,             "_doString" ),       // 16
     OP_DEF(    doOpOp,                 "_doOp" ),
-    OP_DEF(    doLongOp,               "_doLong" ),
     OP_DEF(    doObjectOp,             "_doObject" ),
-    OP_DEF(    doUByteOp,              "_doUByte" ),
-    OP_DEF(    doUShortOp,             "_doUShort" ),
     OP_DEF(    doExitOp,               "_exit" ),      // exit normal op with no vars
     OP_DEF(    doExitLOp,              "_exitL" ),     // exit normal op with local vars
     OP_DEF(    doExitMOp,              "_exitM" ),     // exit method op with no vars
     OP_DEF(    doExitMLOp,             "_exitML" ),    // exit method op with local vars
     OP_DEF(    doVocabOp,              "_doVocab" ),
     OP_DEF(    doByteArrayOp,          "_doByteArray" ),
+    OP_DEF(    doUByteArrayOp,         "_doUByteArray" ),
     OP_DEF(    doShortArrayOp,         "_doShortArray" ),
+    OP_DEF(    doUShortArrayOp,        "_doUShortArray" ),
     OP_DEF(    doIntArrayOp,           "_doIntArray" ),
+    OP_DEF(    doIntArrayOp,           "_doUIntArray" ),
+    OP_DEF(    doLongArrayOp,          "_doLongArray" ),
+    OP_DEF(    doLongArrayOp,          "_doULongArray" ),
     OP_DEF(    doFloatArrayOp,         "_doFloatArray" ),
     OP_DEF(    doDoubleArrayOp,        "_doDoubleArray" ),
     OP_DEF(    doStringArrayOp,        "_doStringArray" ),
     OP_DEF(    doOpArrayOp,            "_doOpArray" ),
-    OP_DEF(    doLongArrayOp,          "_doLongArray" ),
     OP_DEF(    doObjectArrayOp,        "_doObjectArray" ),
-    OP_DEF(    doUByteArrayOp,         "_doUByteArray" ),
-    OP_DEF(    doUShortArrayOp,        "_doUShortArray" ),
     OP_DEF(    initStringOp,           "initString" ),
     OP_DEF(    initStringArrayOp,      "initStringArray" ),
     OP_DEF(    plusOp,                 "+" ),
@@ -5555,6 +5607,23 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    fillInBufferOp,         "fillInBuffer" ),
 
     ///////////////////////////////////////////
+    //  vocabulary ops
+    ///////////////////////////////////////////
+    OP_DEF(    vocNewestEntryOp,       "vocNewestEntry" ),
+    OP_DEF(    vocNextEntryOp,         "vocNextEntry" ),
+    OP_DEF(    vocNumEntriesOp,        "vocNumEntries" ),
+    OP_DEF(    vocNameOp,              "vocName" ),
+    OP_DEF(    vocChainHeadOp,         "vocChainHead" ),
+    OP_DEF(    vocChainNextOp,         "vocChainNext" ),
+    OP_DEF(    vocFindEntryOp,         "vocFindEntry" ),
+    OP_DEF(    vocFindNextEntryOp,     "vocFindNextEntry" ),
+    OP_DEF(    vocFindEntryByValueOp,  "vocFindEntryByValue" ),
+    OP_DEF(    vocFindNextEntryByValueOp,  "vocFindNextEntryByValue" ),
+    OP_DEF(    vocAddEntryOp,          "vocAddEntry" ),
+    OP_DEF(    vocRemoveEntryOp,       "vocRemoveEntry" ),
+    OP_DEF(    vocValueLengthOp,       "vocValueLength" ),
+
+    ///////////////////////////////////////////
     //  DLL support
     ///////////////////////////////////////////
 #ifdef _WINDOWS
@@ -5584,8 +5653,14 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    dstackOp,               "dstack" ),
     OP_DEF(    drstackOp,              "drstack" ),
 #ifdef _WINDOWS
+    OP_DEF(    removeOp,               "remove" ),
+    OP_DEF(    _dupOp,                 "_dup" ),
+    OP_DEF(    _dup2Op,                "_dup2" ),
+    OP_DEF(    _filenoOp,              "_fileno" ),
+    OP_DEF(    tmpnamOp,               "tmpnam" ),
     OP_DEF(    systemOp,               "system" ),
     OP_DEF(    chdirOp,                "chdir" ),
+    OP_DEF(    fflushOp,               "fflush" ),
 #endif
     OP_DEF(    byeOp,                  "bye" ),
     OP_DEF(    argvOp,                 "argv" ),

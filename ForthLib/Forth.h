@@ -25,7 +25,7 @@ typedef enum
     kOpUserDefImmediate,
     kOpUserCode,         // low 24 bits is op number (index into ForthCoreState userOps table)
     kOpUserCodeImmediate,
-    kOpDLLEntryPoint,   // bits 0..18 are index into ForthCoreState userOps table, 19..23 are arg count
+    kOpDLLEntryPoint,   // bits 0:18 are index into ForthCoreState userOps table, 19:23 are arg count
     // 7 - 9 are unused
 
     kOpBranch = 10,          // low 24 bits is signed branch offset
@@ -40,92 +40,109 @@ typedef enum
     kOpArrayOffset,     // low 24 bits is array element size
     kOpAllocLocals,     // low 24 bits is frame size in longs
     kOpLocalRef,
-    kOpInitLocalString,     // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
-    kOpLocalStructArray,   // bits 0..11 are padded struct size in bytes, bits 12..23 are frame offset in longs
+    kOpInitLocalString,     // bits 0:11 are string length in bytes, bits 12:23 are frame offset in longs
+    kOpLocalStructArray,   // bits 0:11 are padded struct size in bytes, bits 12:23 are frame offset in longs
     kOpOffsetFetch,          // low 24 bits is signed offset value
     kOpMemberRef,
 
     kOpLocalByte = 30,
+    kOpLocalUByte,
     kOpLocalShort,
+    kOpLocalUShort,
     kOpLocalInt,
+    kOpLocalUInt,
+    kOpLocalLong,
+    kOpLocalULong,
     kOpLocalFloat,
     kOpLocalDouble,
     kOpLocalString,
     kOpLocalOp,
-    kOpLocalLong,
     kOpLocalObject,
-    kOpLocalUByte,
-    kOpLocalUShort = 40,
 
-    kOpLocalByteArray = 41,
+    kOpLocalByteArray = 43,
+    kOpLocalUByteArray,
     kOpLocalShortArray,
+    kOpLocalUShortArray,
     kOpLocalIntArray,
+    kOpLocalUIntArray,
+    kOpLocalLongArray,
+    kOpLocalULongArray,
     kOpLocalFloatArray,
     kOpLocalDoubleArray,
     kOpLocalStringArray,
     kOpLocalOpArray,
-    kOpLocalLongArray,
     kOpLocalObjectArray,
-    kOpLocalUByteArray,
-    kOpLocalUShortArray = 51,
 
-    kOpFieldByte = 52,
+    kOpFieldByte = 56,
+    kOpFieldUByte,
     kOpFieldShort,
+    kOpFieldUShort,
     kOpFieldInt,
+    kOpFieldUInt,
+    kOpFieldLong,
+    kOpFieldULong,
     kOpFieldFloat,
     kOpFieldDouble,
     kOpFieldString,
     kOpFieldOp,
-    kOpFieldLong,
     kOpFieldObject,
-    kOpFieldUByte,
-    kOpFieldUShort = 62,
 
-    kOpFieldByteArray = 63,
+    kOpFieldByteArray = 69,
+    kOpFieldUByteArray,
     kOpFieldShortArray,
+    kOpFieldUShortArray,
     kOpFieldIntArray,
+    kOpFieldUIntArray,
+    kOpFieldLongArray,
+    kOpFieldULongArray,
     kOpFieldFloatArray,
     kOpFieldDoubleArray,
     kOpFieldStringArray,
     kOpFieldOpArray,
-    kOpFieldLongArray,
     kOpFieldObjectArray,
-    kOpFieldUByteArray,
-    kOpFieldUShortArray = 73,
 
-    kOpMemberByte = 74,
+    kOpMemberByte = 82,
+    kOpMemberUByte,
     kOpMemberShort,
+    kOpMemberUShort,
     kOpMemberInt,
+    kOpMemberUInt,
+    kOpMemberLong,
+    kOpMemberULong,
     kOpMemberFloat,
     kOpMemberDouble,
     kOpMemberString,
     kOpMemberOp,
-    kOpMemberLong,
     kOpMemberObject,
-    kOpMemberUByte,
-    kOpMemberUShort = 84,
 
-    kOpMemberByteArray = 85,
+    kOpMemberByteArray = 95,
+    kOpMemberUByteArray,
     kOpMemberShortArray,
+    kOpMemberUShortArray,
     kOpMemberIntArray,
+    kOpMemberUIntArray,
+    kOpMemberLongArray,
+    kOpMemberULongArray,
     kOpMemberFloatArray,
     kOpMemberDoubleArray,
     kOpMemberStringArray,
     kOpMemberOpArray,
-    kOpMemberLongArray,
     kOpMemberObjectArray,
-    kOpMemberUByteArray,
-    kOpMemberUShortArray= 95,
 
-    kOpMethodWithThis = 96,                 // low 24 bits is method number
+    kOpMethodWithThis = 108,                 // low 24 bits is method number
     kOpMethodWithTOS,                       // low 24 bits is method number
-    kOpInitMemberString,                    // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
-    // 99 is unused
-    kOpLocalUserDefined = 100,             // user can add more optypes starting with this one
+    kOpInitMemberString,                    // bits 0:11 are string length in bytes, bits 12:23 are frame offset in longs
+	kOpNVOCombo,							// NUM VAROP OP combo - bits 0:10 are signed integer, bits 11:12 are varop-2, bit 13 is builtin/userdef, bits 14-23 are opcode
+	kOpNVCombo,								// NUM VAROP combo - bits 0:21 are signed integer, bits 22:23 are varop-2
+	kOpNOCombo,								// NUM OP combo - bits 0:12 are signed integer, bit 13 is builtin/userdef, bits 14:23 are opcode
+	kOpVOCombo,								// VAROP OP combo - bits 0:1 are varop-2, bit 2 is builtin/userdef, bits 3:23 are opcode
+	
+    // 115 is unused
+    kOpLocalUserDefined = 116,             // user can add more optypes starting with this one
     kOpMaxLocalUserDefined = 127,    // maximum user defined optype
 
     kOpUserMethods  = 128
-    // optypes from 128...255 are used to select class methods    
+    // optypes from 128:.255 are used to select class methods    
 } forthOpType;
 
 // there is an action routine with this signature for each forthOpType
@@ -157,6 +174,7 @@ typedef enum {
 typedef enum {
     kVocabSetCurrent = 0,
     kVocabNewestEntry,
+	kVocabRef,				// must be same index as kVarRef
     kVocabFindEntry,
     kVocabFindEntryValue,
     kVocabAddEntry,
@@ -262,53 +280,57 @@ class ForthThread;
 #define OP_END_BUILDS           BUILTIN_OP(9)
 #define OP_DONE                 BUILTIN_OP(10)
 #define OP_DO_BYTE              BUILTIN_OP(11)
-#define OP_DO_SHORT             BUILTIN_OP(12)
-#define OP_DO_INT               BUILTIN_OP(13)
-#define OP_DO_FLOAT             BUILTIN_OP(14)
-#define OP_DO_DOUBLE            BUILTIN_OP(15)
-#define OP_DO_STRING            BUILTIN_OP(16)
-#define OP_DO_OP                BUILTIN_OP(17)
-#define OP_DO_LONG              BUILTIN_OP(18)
-#define OP_DO_OBJECT            BUILTIN_OP(19)
-#define OP_DO_UBYTE             BUILTIN_OP(20)
-#define OP_DO_USHORT            BUILTIN_OP(21)
-#define OP_DO_EXIT              BUILTIN_OP(22)
-#define OP_DO_EXIT_L            BUILTIN_OP(23)
-#define OP_DO_EXIT_M            BUILTIN_OP(24)
-#define OP_DO_EXIT_ML           BUILTIN_OP(25)
-#define OP_DO_VOCAB             BUILTIN_OP(26)
-#define OP_DO_BYTE_ARRAY        BUILTIN_OP(27)
-#define OP_DO_SHORT_ARRAY       BUILTIN_OP(28)
-#define OP_DO_INT_ARRAY         BUILTIN_OP(29)
-#define OP_DO_FLOAT_ARRAY       BUILTIN_OP(30)
-#define OP_DO_DOUBLE_ARRAY      BUILTIN_OP(31)
-#define OP_DO_STRING_ARRAY      BUILTIN_OP(32)
-#define OP_DO_OP_ARRAY          BUILTIN_OP(33)
-#define OP_DO_LONG_ARRAY        BUILTIN_OP(34)
-#define OP_DO_OBJECT_ARRAY      BUILTIN_OP(35)
-#define OP_DO_UBYTE_ARRAY       BUILTIN_OP(36)
-#define OP_DO_USHORT_ARRAY      BUILTIN_OP(37)
-#define OP_INIT_STRING          BUILTIN_OP(38)
-#define OP_INIT_STRING_ARRAY    BUILTIN_OP(39)
-#define OP_PLUS                 BUILTIN_OP(40)
-#define OP_FETCH                BUILTIN_OP(41)
-#define OP_BAD_OP               BUILTIN_OP(42)
-#define OP_DO_STRUCT            BUILTIN_OP(43)
-#define OP_DO_STRUCT_ARRAY      BUILTIN_OP(44)
-#define OP_DO_STRUCT_TYPE       BUILTIN_OP(45)
-#define OP_DO_CLASS_TYPE        BUILTIN_OP(46)
-#define OP_DO_ENUM              BUILTIN_OP(47)
-#define OP_DO_DO                BUILTIN_OP(48)
-#define OP_DO_LOOP              BUILTIN_OP(49)
-#define OP_DO_LOOPN             BUILTIN_OP(50)
-#define OP_DO_NEW               BUILTIN_OP(51)
-#define OP_DFETCH               BUILTIN_OP(52)
-#define OP_ALLOC_OBJECT         BUILTIN_OP(53)
-#define OP_VOCAB_TO_CLASS       BUILTIN_OP(54)
-#define OP_ADDRESS_OF           BUILTIN_OP(55)
-#define OP_INTO                 BUILTIN_OP(56)
-#define OP_INTO_PLUS            BUILTIN_OP(57)
-#define OP_INTO_MINUS           BUILTIN_OP(58)
+#define OP_DO_UBYTE             BUILTIN_OP(12)
+#define OP_DO_SHORT             BUILTIN_OP(13)
+#define OP_DO_USHORT            BUILTIN_OP(14)
+#define OP_DO_INT               BUILTIN_OP(15)
+#define OP_DO_UINT              BUILTIN_OP(16)
+#define OP_DO_LONG              BUILTIN_OP(17)
+#define OP_DO_ULONG             BUILTIN_OP(18)
+#define OP_DO_FLOAT             BUILTIN_OP(19)
+#define OP_DO_DOUBLE            BUILTIN_OP(20)
+#define OP_DO_STRING            BUILTIN_OP(21)
+#define OP_DO_OP                BUILTIN_OP(22)
+#define OP_DO_OBJECT            BUILTIN_OP(23)
+#define OP_DO_EXIT              BUILTIN_OP(24)
+#define OP_DO_EXIT_L            BUILTIN_OP(25)
+#define OP_DO_EXIT_M            BUILTIN_OP(26)
+#define OP_DO_EXIT_ML           BUILTIN_OP(27)
+#define OP_DO_VOCAB             BUILTIN_OP(28)
+#define OP_DO_BYTE_ARRAY        BUILTIN_OP(29)
+#define OP_DO_UBYTE_ARRAY       BUILTIN_OP(30)
+#define OP_DO_SHORT_ARRAY       BUILTIN_OP(31)
+#define OP_DO_USHORT_ARRAY      BUILTIN_OP(32)
+#define OP_DO_INT_ARRAY         BUILTIN_OP(33)
+#define OP_DO_UINT_ARRAY        BUILTIN_OP(34)
+#define OP_DO_LONG_ARRAY        BUILTIN_OP(35)
+#define OP_DO_ULONG_ARRAY       BUILTIN_OP(36)
+#define OP_DO_FLOAT_ARRAY       BUILTIN_OP(37)
+#define OP_DO_DOUBLE_ARRAY      BUILTIN_OP(38)
+#define OP_DO_STRING_ARRAY      BUILTIN_OP(39)
+#define OP_DO_OP_ARRAY          BUILTIN_OP(40)
+#define OP_DO_OBJECT_ARRAY      BUILTIN_OP(41)
+#define OP_INIT_STRING          BUILTIN_OP(42)
+#define OP_INIT_STRING_ARRAY    BUILTIN_OP(43)
+#define OP_PLUS                 BUILTIN_OP(44)
+#define OP_FETCH                BUILTIN_OP(45)
+#define OP_BAD_OP               BUILTIN_OP(46)
+#define OP_DO_STRUCT            BUILTIN_OP(47)
+#define OP_DO_STRUCT_ARRAY      BUILTIN_OP(48)
+#define OP_DO_STRUCT_TYPE       BUILTIN_OP(49)
+#define OP_DO_CLASS_TYPE        BUILTIN_OP(50)
+#define OP_DO_ENUM              BUILTIN_OP(51)
+#define OP_DO_DO                BUILTIN_OP(52)
+#define OP_DO_LOOP              BUILTIN_OP(53)
+#define OP_DO_LOOPN             BUILTIN_OP(54)
+#define OP_DO_NEW               BUILTIN_OP(55)
+#define OP_DFETCH               BUILTIN_OP(56)
+#define OP_ALLOC_OBJECT         BUILTIN_OP(57)
+#define OP_VOCAB_TO_CLASS       BUILTIN_OP(58)
+#define OP_ADDRESS_OF           BUILTIN_OP(59)
+#define OP_INTO                 BUILTIN_OP(60)
+#define OP_INTO_PLUS            BUILTIN_OP(61)
+#define OP_INTO_MINUS           BUILTIN_OP(62)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct
@@ -421,22 +443,26 @@ typedef struct
 // forth native data types
 // NOTE: the order of these have to match the order of forthOpType definitions above which
 //  are related to native types (kOpLocalByte, kOpMemberFloat, kOpLocalIntArray, ...)
-//  as well as the order of actual opcodes used to implement native types (OP_DO_INT, OP_DO_FLOAT, OP_DO_INT_ARRAY, ...)
+//  as well as the order of actual opcodes used to implement native types (, OP_DO_FLOAT, OP_DO_INT_ARRAY, ...)
 typedef enum
 {
     kBaseTypeByte,          // 0 - byte
-    kBaseTypeShort,         // 1 - short
-    kBaseTypeInt,           // 2 - int
-    kBaseTypeFloat,         // 3 - float
-    kBaseTypeDouble,        // 4 - double
-    kBaseTypeString,        // 5 - string
-    kBaseTypeOp,            // 6 - op
-    kBaseTypeLong,          // 7 - long
+    kBaseTypeUByte,         // 1 - ubyte
+    kBaseTypeShort,         // 2 - short
+    kBaseTypeUShort,        // 3 - ushort
+    kBaseTypeInt,           // 4 - int
+    kBaseTypeUInt,          // 5 - uint
+    kBaseTypeLong,          // 6 - long
+    kBaseTypeULong,         // 7 - ulong
+    kBaseTypeFloat,         // 8 - float
+    kBaseTypeDouble,        // 9 - double
+    kBaseTypeString,        // 10 - string
+    kBaseTypeOp,            // 11 - op
     kNumNativeTypes,
-    kBaseTypeObject = kNumNativeTypes,      // 8 - object
-    kBaseTypeStruct,                        // 9 - struct
-    kBaseTypeUserDefinition,                // 10 - user defined forthop
-    kBaseTypeVoid,
+    kBaseTypeObject = kNumNativeTypes,      // 12 - object
+    kBaseTypeStruct,                        // 13 - struct
+    kBaseTypeUserDefinition,                // 14 - user defined forthop
+    kBaseTypeVoid,							// 15 - void
     kNumBaseTypes,
     kBaseTypeUnknown = kNumBaseTypes,
 } forthBaseType;
@@ -447,7 +473,6 @@ typedef enum
     kDTIsPtr        = 16,
     kDTIsArray      = 32,
     kDTIsMethod     = 64,
-    kDTIsUnsigned   = 128,
 } storageDescriptor;
 
 // user-defined structure fields have a 32-bit descriptor with the following format:
@@ -455,7 +480,7 @@ typedef enum
 //   4          is field a pointer
 //   5          is field an array
 //   6          is this a method
-//   7          is unsigned (integer types only)    
+//   7          unused
 // 31...8       depends on base type:
 //      string      length
 //      struct      structIndex

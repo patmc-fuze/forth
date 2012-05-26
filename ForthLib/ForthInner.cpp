@@ -3000,6 +3000,83 @@ OPTYPE_ACTION( InitMemberStringAction )
     *((char *) pStr) = 0;               // terminating null
 }
 
+OPTYPE_ACTION( NVOComboAction )
+{
+	// NUM VAROP OP combo - bits 0:10 are signed integer, bits 11:12 are varop-2, bit 13 is builtin/userdef, bits 14-23 are opcode
+
+	// push signed int in bits 0:10
+	long num = opVal;
+    if ( (opVal & 0x400) != 0 )
+    {
+      num |= 0xFFFFF800;
+    }
+	else
+	{
+		num &= 0x3FF;
+	}
+    SPUSH( num );
+
+	// set varop to bits 11:12 + 2
+	SET_VAR_OPERATION( ((opVal >> 11) & 3) + 2 );
+
+	// execute op in bits 13:23
+	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpBuiltIn), (opVal >> 14) );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+}
+
+OPTYPE_ACTION( NVComboAction )
+{
+	// NUM VAROP combo - bits 0:21 are signed integer, bits 22:23 are varop-2
+
+	// push signed int in bits 0:21
+	long num = opVal;
+    if ( (opVal & 0x200000) != 0 )
+    {
+      num |= 0xFFE00000;
+    }
+	else
+	{
+		num &= 0x1FFFFF;
+	}
+    SPUSH( num );
+
+	// set varop to bits 22:23 + 2
+	SET_VAR_OPERATION( ((opVal >> 22) & 3) + 2 );
+}
+
+OPTYPE_ACTION( NOComboAction )
+{
+	// NUM OP combo - bits 0:12 are signed integer, bit 13 is builtin/userdef, bits 14:23 are opcode
+
+	// push signed int in bits 0:12
+	long num = opVal;
+    if ( (opVal & 0x1000) != 0 )
+    {
+      num |= 0xFFFFE000;
+    }
+	else
+	{
+		num &= 0xFFF;
+	}
+    SPUSH( num );
+
+	// execute op in bits 13:23
+	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpBuiltIn), (opVal >> 14) );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+}
+
+OPTYPE_ACTION( VOComboAction )
+{
+	// VAROP OP combo - bits 0:1 are varop-2, bit 2 is builtin/userdef, bits 3:23 are opcode
+
+	// set varop to bits 0:1 + 2
+	SET_VAR_OPERATION( (opVal & 3) + 2 );
+
+	// execute op in bits 3:23
+	long op = COMPILED_OP( (((opVal & 0x4) != 0) ? kOpUserDef : kOpBuiltIn), (opVal >> 4) );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+}
+
 OPTYPE_ACTION( IllegalOptypeAction )
 {
     SET_ERROR( kForthErrorBadOpcodeType );
@@ -3113,86 +3190,106 @@ optypeActionRoutine builtinOptypeAction[] =
 
     // 30 -39
     LocalByteAction,
+    LocalUByteAction,
     LocalShortAction,
+    LocalUShortAction,
     LocalIntAction,
+    LocalIntAction,
+    LocalLongAction,
+    LocalLongAction,
     LocalFloatAction,
     LocalDoubleAction,
-    LocalStringAction,
-    LocalOpAction,
-    LocalLongAction,
-    LocalObjectAction,
-    LocalUByteAction,
 
     // 40 - 49
-    LocalUShortAction,
+    LocalStringAction,
+    LocalOpAction,
+    LocalObjectAction,
     LocalByteArrayAction,
+    LocalUByteArrayAction,
     LocalShortArrayAction,
+    LocalUShortArrayAction,
     LocalIntArrayAction,
+    LocalIntArrayAction,
+    LocalLongArrayAction,
+
+    // 50 - 59
+    LocalLongArrayAction,
     LocalFloatArrayAction,
     LocalDoubleArrayAction,
     LocalStringArrayAction,
     LocalOpArrayAction,
-    LocalLongArrayAction,
     LocalObjectArrayAction,
-
-    // 50 - 59
-    LocalUByteArrayAction,
-    LocalUShortArrayAction,
     FieldByteAction,
+    FieldUByteAction,
     FieldShortAction,
+    FieldUShortAction,
+
+    // 60 - 69
     FieldIntAction,
+    FieldIntAction,
+    FieldLongAction,
+    FieldLongAction,
     FieldFloatAction,
     FieldDoubleAction,
     FieldStringAction,
     FieldOpAction,
-    FieldLongAction,
-
-    // 60 - 69
     FieldObjectAction,
-    FieldUByteAction,
-    FieldUShortAction,
     FieldByteArrayAction,
+
+    // 70 - 79
+    FieldUByteArrayAction,
     FieldShortArrayAction,
+    FieldUShortArrayAction,
     FieldIntArrayAction,
+    FieldIntArrayAction,
+    FieldLongArrayAction,
+    FieldLongArrayAction,
     FieldFloatArrayAction,
     FieldDoubleArrayAction,
     FieldStringArrayAction,
-    FieldOpArrayAction,
 
-    // 70 - 79
-    FieldLongArrayAction,
+    // 80 - 89
+    FieldOpArrayAction,
     FieldObjectArrayAction,
-    FieldUByteArrayAction,
-    FieldUShortArrayAction,
     MemberByteAction,
+    MemberUByteAction,
     MemberShortAction,
+    MemberUShortAction,
     MemberIntAction,
+    MemberIntAction,
+    MemberLongAction,
+    MemberLongAction,
+
+    // 90 - 99
     MemberFloatAction,
     MemberDoubleAction,
     MemberStringAction,
-
-    // 80 - 89
     MemberOpAction,
-    MemberLongAction,
     MemberObjectAction,
-    MemberUByteAction,
-    MemberUShortAction,
     MemberByteArrayAction,
+    MemberUByteArrayAction,
     MemberShortArrayAction,
+    MemberUShortArrayAction,
     MemberIntArrayAction,
+
+	// 100 - 109
+    MemberIntArrayAction,
+    MemberLongArrayAction,
+    MemberLongArrayAction,
     MemberFloatArrayAction,
     MemberDoubleArrayAction,
-
-    // 90 - 99
     MemberStringArrayAction,
     MemberOpArrayAction,
-    MemberLongArrayAction,
     MemberObjectArrayAction,
-    MemberUByteArrayAction,
-    MemberUShortArrayAction,
     MethodWithThisAction,
     MethodWithTOSAction,
+
+	// 110 -
     InitMemberStringAction,
+	NVOComboAction,
+	NVComboAction,
+	NOComboAction,
+	VOComboAction,
     ReservedOptypeAction,
 
     NULL            // this must be last to end the list

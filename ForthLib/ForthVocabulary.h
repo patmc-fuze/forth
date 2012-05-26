@@ -69,6 +69,8 @@ public:
     virtual long *      FindNextSymbol( const char *pSymName, long* pStartEntry, ulong serial=0 );
     // return pointer to symbol entry, NULL if not found, given its value
     virtual long *      FindSymbolByValue( long val, ulong serial=0 );
+    // return pointer to symbol entry, NULL if not found, given its value
+    virtual long *      FindNextSymbolByValue( long val, long* pStartEntry, ulong serial=0 );
 
     // return pointer to symbol entry, NULL if not found
     // pSymName is required to be a longword aligned address, and to be padded with 0's

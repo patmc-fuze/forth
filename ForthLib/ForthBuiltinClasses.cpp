@@ -40,6 +40,9 @@
 #define SAFE_RELEASE( _obj )    if ( (_obj).pMethodOps != NULL ) { INVOKE_METHOD( (_obj), kMethodRelease ); }
 #define SAFE_KEEP( _obj )       if ( (_obj).pMethodOps != NULL ) { INVOKE_METHOD( (_obj), kMethodKeep ); }
 
+#define OBJECTS_DIFFERENT( OLDOBJ, NEWOBJ ) ( (OLDOBJ.pData != NEWOBJ.pData) || (OLDOBJ.pMethodOps != NEWOBJ.pMethodOps) )
+#define OBJECTS_SAME( OLDOBJ, NEWOBJ ) ( (OLDOBJ.pData == NEWOBJ.pData) && (OLDOBJ.pMethodOps == NEWOBJ.pMethodOps) )
+
 enum
 {
     // all objects have 0..3
@@ -105,9 +108,9 @@ namespace
 
     FORTHOP( objectShowMethod )
     {
-        char buff[128];
+        char buff[512];
         ForthClassObject* pClassObject = (ForthClassObject *)(*((GET_TPM) - 1));
-        sprintf( buff, "object %s  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), GET_TPM, GET_TPD );
+        sprintf_s( buff, sizeof(buff), "object %s  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), GET_TPM, GET_TPD );
         CONSOLE_STRING_OUT( buff );
         METHOD_RETURN;
     }
@@ -252,10 +255,10 @@ namespace
 
     FORTHOP( rcObjectShowMethod )
     {
-        char buff[128];
+        char buff[512];
         ForthClassObject* pClassObject = (ForthClassObject *)(*((GET_TPM) - 1));
         ulong* pRefCount = (ulong*)(GET_TPD);      // member at offset 0 is refcount
-        sprintf( buff, "%s  refCount=%d  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), *pRefCount, GET_TPM, GET_TPD );
+        sprintf_s( buff, sizeof(buff), "%s  refCount=%d  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), *pRefCount, GET_TPM, GET_TPD );
         CONSOLE_STRING_OUT( buff );
         METHOD_RETURN;
     }
@@ -451,9 +454,8 @@ namespace
             ForthObject& oldObj = a[ix];
             ForthObject newObj;
             POP_OBJECT( newObj );
-            if ( (oldObj.pMethodOps != newObj.pMethodOps) || (oldObj.pData != newObj.pData) )
+            if ( OBJECTS_DIFFERENT( oldObj, newObj ) )
             {
-                SAFE_KEEP( newObj );
                 SAFE_RELEASE( oldObj );
             }
             a[ix] = newObj;
@@ -477,23 +479,41 @@ namespace
         for ( ulong i = 0; i < a.size(); i++ )
         {
             ForthObject& o = a[i];
-            if ( (o.pMethodOps == soughtObj.pMethodOps) && (o.pData == soughtObj.pData) )
+            if ( OBJECTS_SAME( o, soughtObj ) )
             {
                 retVal = i;
+                break;
             }
         }
         SPUSH( retVal );
         METHOD_RETURN;
     }
 
-    FORTHOP( rcArrayAddMethod )
+    FORTHOP( rcArrayPushMethod )
     {
 		GET_THIS( rcArrayStruct, pArray );
         rcArray& a = *(pArray->elements);
         ForthObject fobj;
         POP_OBJECT( fobj );
-        SAFE_KEEP( fobj );
         a.push_back( fobj );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcArrayPopMethod )
+    {
+		GET_THIS( rcArrayStruct, pArray );
+        rcArray& a = *(pArray->elements);
+        if ( a.size() > 0 )
+        {
+			ForthObject fobj = a.back();
+			a.pop_back();
+			PUSH_OBJECT( fobj );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " pop of empty rcArray" );
+        }
         METHOD_RETURN;
     }
 
@@ -527,6 +547,30 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( rcArrayCloneMethod )
+    {
+		GET_THIS( rcArrayStruct, pArray );
+        rcArray::iterator iter;
+        rcArray& a = *(pArray->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        // bump reference counts of all valid elements in this array
+        for ( iter = a.begin(); iter != a.end(); ++iter )
+        {
+            ForthObject& o = *iter;
+            SAFE_KEEP( o );
+        }
+        // create clone array and set is size to match this array
+		MALLOCATE_OBJECT( rcArrayStruct, pCloneArray );
+        pCloneArray->refCount = 1;
+        pCloneArray->elements = new rcArray;
+        pCloneArray->elements->resize( a.size() );
+        // copy this array contents to clone array
+        memcpy( &(pCloneArray->elements[0]), &(a[0]), a.size() << 3 );
+        // push cloned array on TOS
+        PUSH_PAIR( GET_TPM, pCloneArray );
+        METHOD_RETURN;
+    }
+
     FORTHOP( rcArrayRemoveMethod )
     {
         METHOD_RETURN;
@@ -542,9 +586,11 @@ namespace
         METHOD(     "get",                  rcArrayGetMethod ),
         METHOD(     "set",                  rcArraySetMethod ),
         METHOD(     "findIndex",            rcArrayFindIndexMethod ),
-        METHOD(     "add",                  rcArrayAddMethod ),
+        METHOD(     "push",                 rcArrayPushMethod ),
+        METHOD(     "pop",                  rcArrayPopMethod ),
         METHOD(     "headIter",             rcArrayHeadIterMethod ),
         METHOD(     "tailIter",             rcArrayTailIterMethod ),
+        METHOD(     "clone",                rcArrayCloneMethod ),
         METHOD(     "remove",               rcArrayRemoveMethod ),
         //METHOD(     "insert",               rcArrayInsertMethod ),
         // following must be last in table
@@ -767,7 +813,6 @@ namespace
         GET_THIS( rcListStruct, pList );
 		MALLOCATE_LINK( rcListElement, newElem );
         POP_OBJECT( newElem->obj );
-		SAFE_KEEP( newElem->obj );
 		newElem->prev = NULL;
 		rcListElement* oldHead = pList->head;
 		if ( oldHead == NULL )
@@ -790,7 +835,6 @@ namespace
         GET_THIS( rcListStruct, pList );
 		MALLOCATE_LINK( rcListElement, newElem );
         POP_OBJECT( newElem->obj );
-		SAFE_KEEP( newElem->obj );
 		newElem->next = NULL;
 		rcListElement* oldTail = pList->tail;
 		if ( oldTail == NULL )
@@ -834,7 +878,6 @@ namespace
 				newHead->prev = NULL;
 				pList->head = newHead;
 			}
-			SAFE_RELEASE( obj );
 			PUSH_OBJECT( obj );
 			FREE_LINK( oldHead );
 		}
@@ -867,7 +910,6 @@ namespace
 				newTail->next = NULL;
 				pList->tail = newTail;
 			}
-			SAFE_RELEASE( obj );
 			PUSH_OBJECT( obj );
 			FREE_LINK( oldTail );
 		}
@@ -921,8 +963,6 @@ namespace
 	/*
 
 
-	Clone
-	  create a copy of the list
 	Cut( rcListIter start, rcListIter end )
 	  remove a sublist from this list
 	  end is one past last element to delete, end==NULL deletes to end of list
@@ -944,13 +984,50 @@ namespace
 		while ( pCur != NULL )
 		{
 			ForthObject& o = pCur->obj;
-			if ( (o.pMethodOps == soughtObj.pMethodOps) && (o.pData == soughtObj.pMethodOps) )
+			if ( OBJECTS_SAME( o, soughtObj ) )
 			{
 				break;
 			}
 			pCur = pCur->next;
 		}
 		SPUSH( (long) pCur );
+    }
+
+    FORTHOP( rcListCloneMethod )
+    {
+		// create an empty list
+		MALLOCATE_OBJECT( rcListStruct, pCloneList );
+        pCloneList->refCount = 1;
+		pCloneList->head = NULL;
+		pCloneList->tail = NULL;
+        // go through all elements and add a reference to any which are not null and add to clone list
+        GET_THIS( rcListStruct, pList );
+        rcListElement* pCur = pList->head;
+		rcListElement* oldTail = NULL;
+		while ( pCur != NULL )
+		{
+			rcListElement* pNext = pCur->next;
+			MALLOCATE_LINK( rcListElement, newElem );
+			newElem->obj = pCur->obj;
+		    SAFE_KEEP( newElem->obj );
+		    if ( oldTail == NULL )
+		    {
+			    pCloneList->head = newElem;
+		    }
+		    else
+		    {
+			    oldTail->next = newElem;
+		    }
+		    newElem->prev = oldTail;
+		    oldTail = newElem;
+			pCur = pNext;
+		}
+		if ( oldTail != NULL )
+		{
+			oldTail->next = NULL;
+		}
+        PUSH_PAIR( GET_TPM, pCloneList );
+        METHOD_RETURN;
     }
 
     baseMethodEntry rcListMembers[] =
@@ -967,6 +1044,7 @@ namespace
         METHOD(     "tailIter",             rcListTailIterMethod ),
         METHOD(     "count",                rcListCountMethod ),
         METHOD(     "find",                 rcListFindMethod ),
+        METHOD(     "clone",                rcListCloneMethod ),
         // following must be last in table
         END_MEMBERS
     };
@@ -1200,11 +1278,13 @@ namespace
         rcMap::iterator iter = a.find( key );
 		if ( newObj.pMethodOps != NULL )
 		{
-            SAFE_KEEP( newObj );
 			if ( iter != a.end() )
 			{
 				ForthObject oldObj = iter->second;
-				SAFE_RELEASE( oldObj );
+				if ( OBJECTS_DIFFERENT( oldObj, newObj ) )
+				{
+					SAFE_RELEASE( oldObj );
+				}
 			}
 			a[key] = newObj;
 		}
@@ -1233,10 +1313,11 @@ namespace
         for ( iter = a.begin(); iter != a.end(); ++iter )
         {
             ForthObject& o = iter->second;
-            if ( (o.pMethodOps == soughtObj.pMethodOps) && (o.pData == soughtObj.pData) )
+			if ( OBJECTS_SAME( o, soughtObj ) )
             {
 				found = 1;
                 retVal = iter->first;
+                break;
             }
         }
         SPUSH( retVal );
@@ -1532,11 +1613,11 @@ namespace
 
     FORTHOP( rcStringShowMethod )
     {
-        char buff[128];
+        char buff[512];
         ForthClassObject* pClassObject = (ForthClassObject *)(*((GET_TPM) - 1));
         GET_THIS( rcStringStruct, pString );
         ulong* pRefCount = (ulong*)(GET_TPD);      // member at offset 0 is refcount
-        sprintf( buff, "%s  [%s] refCount=%d  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), &(pString->str->data[0]), pString->refCount, GET_TPM, GET_TPD );
+        sprintf_s( buff, sizeof(buff), "%s  [%s] refCount=%d  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), &(pString->str->data[0]), pString->refCount, GET_TPM, GET_TPD );
         CONSOLE_STRING_OUT( buff );
         METHOD_RETURN;
     }
@@ -1722,9 +1803,8 @@ namespace
         ForthObject newObj;
         POP_OBJECT( newObj );
 		ForthObject& oldObj = pPair->a;
-        if ( (oldObj.pMethodOps != newObj.pMethodOps) || (oldObj.pData != newObj.pData) )
+        if ( OBJECTS_DIFFERENT( oldObj, newObj ) )
         {
-            SAFE_KEEP( newObj );
             SAFE_RELEASE( oldObj );
 			pPair->a = newObj;
         }
@@ -1744,9 +1824,8 @@ namespace
         ForthObject newObj;
         POP_OBJECT( newObj );
 		ForthObject& oldObj = pPair->b;
-        if ( (oldObj.pMethodOps != newObj.pMethodOps) || (oldObj.pData != newObj.pData) )
+        if ( OBJECTS_DIFFERENT( oldObj, newObj ) )
         {
-            SAFE_KEEP( newObj );
             SAFE_RELEASE( oldObj );
 			pPair->b = newObj;
         }
@@ -1822,9 +1901,8 @@ namespace
         ForthObject newObj;
         POP_OBJECT( newObj );
 		ForthObject& oldObj = pTriple->a;
-        if ( (oldObj.pMethodOps != newObj.pMethodOps) || (oldObj.pData != newObj.pData) )
+        if ( OBJECTS_DIFFERENT( oldObj, newObj ) )
         {
-            SAFE_KEEP( newObj );
             SAFE_RELEASE( oldObj );
 			pTriple->a = newObj;
         }
@@ -1844,9 +1922,8 @@ namespace
         ForthObject newObj;
         POP_OBJECT( newObj );
 		ForthObject& oldObj = pTriple->b;
-        if ( (oldObj.pMethodOps != newObj.pMethodOps) || (oldObj.pData != newObj.pData) )
+        if ( OBJECTS_DIFFERENT( oldObj, newObj ) )
         {
-            SAFE_KEEP( newObj );
             SAFE_RELEASE( oldObj );
 			pTriple->b = newObj;
         }
@@ -1866,9 +1943,8 @@ namespace
         ForthObject newObj;
         POP_OBJECT( newObj );
 		ForthObject& oldObj = pTriple->b;
-        if ( (oldObj.pMethodOps != newObj.pMethodOps) || (oldObj.pData != newObj.pData) )
+        if ( OBJECTS_DIFFERENT( oldObj, newObj ) )
         {
-            SAFE_KEEP( newObj );
             SAFE_RELEASE( oldObj );
 			pTriple->c = newObj;
         }
@@ -1888,6 +1964,1398 @@ namespace
         // following must be last in table
         END_MEMBERS
     };
+
+    
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 rcByteArray
+    //
+
+    typedef std::vector<char> rcByteArray;
+    struct rcByteArrayStruct
+    {
+        ulong       refCount;
+        rcByteArray*    elements;
+    };
+
+	struct rcByteArrayIterStruct
+    {
+        ulong			refCount;
+		ForthObject		parent;
+		ulong			cursor;
+    };
+	static ForthClassVocabulary* gpByteArraryIterClassVocab = NULL;
+
+    FORTHOP( rcByteArrayNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+		MALLOCATE_OBJECT( rcByteArrayStruct, pArray );
+        pArray->refCount = 1;
+        pArray->elements = new rcByteArray;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pArray );
+    }
+
+    FORTHOP( rcByteArrayDeleteMethod )
+    {
+		GET_THIS( rcByteArrayStruct, pArray );
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        delete pArray->elements;
+        FREE_OBJECT( pArray );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayResizeMethod )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+		GET_THIS( rcByteArrayStruct, pArray );
+        rcByteArray& a = *(pArray->elements);
+        ulong newSize = SPOP;
+        ulong oldSize = a.size();
+        a.resize( newSize );
+        if ( oldSize < newSize )
+        {
+            // growing - add null bytes to end of array
+            char* pElement = &(a[oldSize]);
+            memset( pElement, 0, newSize - oldSize );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayClearMethod )
+    {
+        // go through all elements and release any which are not null
+		GET_THIS( rcByteArrayStruct, pArray );
+        rcByteArray& a = *(pArray->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        char* pElement = &(a[0]);
+        memset( pElement, 0, a.size() );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayCountMethod )
+    {
+		GET_THIS( rcByteArrayStruct, pArray );
+		SPUSH( (long) (pArray->elements->size()) );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayGetMethod )
+    {
+		GET_THIS( rcByteArrayStruct, pArray );
+        rcByteArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+	        SPUSH( (long) a[ix] );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArraySetMethod )
+    {
+		GET_THIS( rcByteArrayStruct, pArray );
+        rcByteArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+            a[ix] = (char) SPOP;
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayFindIndexMethod )
+    {
+		GET_THIS( rcByteArrayStruct, pArray );
+        long retVal = -1;
+        char val = (char) SPOP;
+        rcByteArray& a = *(pArray->elements);
+        char* pElement = &(a[0]);
+        char* pFound = (char *) memchr( pElement, val, a.size() );
+        if ( pFound )
+        {
+	        retVal = pFound - pElement;
+        }
+        SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayPushMethod )
+    {
+		GET_THIS( rcByteArrayStruct, pArray );
+        rcByteArray& a = *(pArray->elements);
+        char val = (char) SPOP;
+        a.push_back( val );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayPopMethod )
+    {
+		GET_THIS( rcByteArrayStruct, pArray );
+        rcByteArray& a = *(pArray->elements);
+        if ( a.size() > 0 )
+        {
+			char val = a.back();
+			a.pop_back();
+			SPUSH( (long) val );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " pop of empty rcByteArray" );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayHeadIterMethod )
+    {
+        GET_THIS( rcByteArrayStruct, pArray );
+		pArray->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER( rcByteArrayIterStruct, pIter );
+		pIter->refCount = 1;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pArray);
+		pIter->cursor = 0;
+        ForthInterface* pPrimaryInterface = gpByteArraryIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayTailIterMethod )
+    {
+        GET_THIS( rcByteArrayStruct, pArray );
+		pArray->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER( rcByteArrayIterStruct, pIter );
+		pIter->refCount = 1;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pArray);
+		pIter->cursor = pArray->elements->size();
+        ForthInterface* pPrimaryInterface = gpByteArraryIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayCloneMethod )
+    {
+		GET_THIS( rcByteArrayStruct, pArray );
+        rcByteArray& a = *(pArray->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        // create clone array and set is size to match this array
+		MALLOCATE_OBJECT( rcByteArrayStruct, pCloneArray );
+        pCloneArray->refCount = 1;
+        pCloneArray->elements = new rcByteArray;
+        pCloneArray->elements->resize( a.size() );
+        // copy this array contents to clone array
+        memcpy( &(pCloneArray->elements[0]), &(a[0]), a.size() );
+        // push cloned array on TOS
+        PUSH_PAIR( GET_TPM, pCloneArray );
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry rcByteArrayMembers[] =
+    {
+        METHOD(     "new",                  rcByteArrayNew ),
+        METHOD(     "delete",               rcByteArrayDeleteMethod ),
+        METHOD(     "clear",                rcByteArrayClearMethod ),
+        METHOD(     "resize",               rcByteArrayResizeMethod ),
+        METHOD(     "count",                rcByteArrayCountMethod ),
+        METHOD(     "get",                  rcByteArrayGetMethod ),
+        METHOD(     "set",                  rcByteArraySetMethod ),
+        METHOD(     "findIndex",            rcByteArrayFindIndexMethod ),
+        METHOD(     "push",                 rcByteArrayPushMethod ),
+        METHOD(     "pop",                  rcByteArrayPopMethod ),
+        METHOD(     "headIter",             rcByteArrayHeadIterMethod ),
+        METHOD(     "tailIter",             rcByteArrayTailIterMethod ),
+        METHOD(     "clone",                rcByteArrayCloneMethod ),
+        //METHOD(     "remove",               rcByteArrayRemoveMethod ),
+        //METHOD(     "insert",               rcByteArrayInsertMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 rcByteArrayIter
+    //
+
+    FORTHOP( rcByteArrayIterNew )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        pEngine->SetError( kForthErrorException, " cannot explicitly create a rcByteArrayIter object" );
+    }
+
+    FORTHOP( rcByteArrayIterDeleteMethod )
+    {
+        GET_THIS( rcByteArrayIterStruct, pIter );
+		SAFE_RELEASE( pIter->parent );
+		FREE_ITER( pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayIterSeekNextMethod )
+    {
+        GET_THIS( rcByteArrayIterStruct, pIter );
+		rcByteArrayStruct* pArray = reinterpret_cast<rcByteArrayStruct *>( pIter->parent.pData );
+		if ( pIter->cursor < pArray->elements->size() )
+		{
+			pIter->cursor++;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayIterSeekPrevMethod )
+    {
+        GET_THIS( rcByteArrayIterStruct, pIter );
+		if ( pIter->cursor > 0 )
+		{
+			pIter->cursor--;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayIterSeekHeadMethod )
+    {
+        GET_THIS( rcByteArrayIterStruct, pIter );
+		pIter->cursor = 0;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayIterSeekTailMethod )
+    {
+        GET_THIS( rcByteArrayIterStruct, pIter );
+		rcByteArrayStruct* pArray = reinterpret_cast<rcByteArrayStruct *>( pIter->parent.pData );
+		pIter->cursor = pArray->elements->size();
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayIterNextMethod )
+    {
+        GET_THIS( rcByteArrayIterStruct, pIter );
+		rcByteArrayStruct* pArray = reinterpret_cast<rcByteArrayStruct *>( pIter->parent.pData );
+        rcByteArray& a = *(pArray->elements);
+		if ( pIter->cursor >= a.size() )
+		{
+			SPUSH( 0 );
+		}
+		else
+		{
+			char val = a[ pIter->cursor ];
+			SPUSH( (long) val );
+			pIter->cursor++;
+		    SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayIterPrevMethod )
+    {
+        GET_THIS( rcByteArrayIterStruct, pIter );
+		rcByteArrayStruct* pArray = reinterpret_cast<rcByteArrayStruct *>( pIter->parent.pData );
+        rcByteArray& a = *(pArray->elements);
+		if ( pIter->cursor == 0 )
+		{
+			SPUSH( 0 );
+		}
+		else
+		{
+			pIter->cursor--;
+			char val = a[ pIter->cursor ];
+			SPUSH( (long) val );
+		    SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcByteArrayIterCurrentMethod )
+    {
+        GET_THIS( rcByteArrayIterStruct, pIter );
+		rcByteArrayStruct* pArray = reinterpret_cast<rcByteArrayStruct *>( pIter->parent.pData );
+        rcByteArray& a = *(pArray->elements);
+		if ( pIter->cursor >= a.size() )
+		{
+			SPUSH( 0 );
+		}
+		else
+		{
+			char ch = a[ pIter->cursor ];
+			SPUSH( (long) ch );
+		    SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry rcByteArrayIterMembers[] =
+    {
+        METHOD(     "new",                  rcByteArrayIterNew ),
+        METHOD(     "delete",               rcByteArrayIterDeleteMethod ),
+        METHOD(     "seekNext",             rcByteArrayIterSeekNextMethod ),
+        METHOD(     "seekPrev",             rcByteArrayIterSeekPrevMethod ),
+        METHOD(     "seekHead",             rcByteArrayIterSeekHeadMethod ),
+        METHOD(     "seekTail",             rcByteArrayIterSeekTailMethod ),
+        METHOD(     "next",					rcByteArrayIterNextMethod ),
+        METHOD(     "prev",                 rcByteArrayIterPrevMethod ),
+        METHOD(     "current",				rcByteArrayIterCurrentMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 rcShortArray
+    //
+
+    typedef std::vector<short> rcShortArray;
+    struct rcShortArrayStruct
+    {
+        ulong       refCount;
+        rcShortArray*    elements;
+    };
+
+	struct rcShortArrayIterStruct
+    {
+        ulong			refCount;
+		ForthObject		parent;
+		ulong			cursor;
+    };
+	static ForthClassVocabulary* gpShortArraryIterClassVocab = NULL;
+
+    FORTHOP( rcShortArrayNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+		MALLOCATE_OBJECT( rcShortArrayStruct, pArray );
+        pArray->refCount = 1;
+        pArray->elements = new rcShortArray;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pArray );
+    }
+
+    FORTHOP( rcShortArrayDeleteMethod )
+    {
+		GET_THIS( rcShortArrayStruct, pArray );
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        delete pArray->elements;
+        FREE_OBJECT( pArray );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayResizeMethod )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+		GET_THIS( rcShortArrayStruct, pArray );
+        rcShortArray& a = *(pArray->elements);
+        ulong newSize = SPOP;
+        ulong oldSize = a.size();
+        a.resize( newSize );
+        if ( oldSize < newSize )
+        {
+            // growing - add zeros to end of array
+            short* pElement = &(a[oldSize]);
+            memset( pElement, 0, ((newSize - oldSize) << 1) );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayClearMethod )
+    {
+        // go through all elements and release any which are not null
+		GET_THIS( rcShortArrayStruct, pArray );
+        rcShortArray& a = *(pArray->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        short* pElement = &(a[0]);
+        memset( pElement, 0, (a.size() << 1) );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayCountMethod )
+    {
+		GET_THIS( rcShortArrayStruct, pArray );
+		SPUSH( (long) (pArray->elements->size()) );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayGetMethod )
+    {
+		GET_THIS( rcShortArrayStruct, pArray );
+        rcShortArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+	        SPUSH( (long) a[ix] );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArraySetMethod )
+    {
+		GET_THIS( rcShortArrayStruct, pArray );
+        rcShortArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+            a[ix] = (short) SPOP;
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayFindIndexMethod )
+    {
+		GET_THIS( rcShortArrayStruct, pArray );
+        long retVal = -1;
+        short val = (short) SPOP;
+        rcShortArray& a = *(pArray->elements);
+        for ( ulong i = 0; i < a.size(); i++ )
+        {
+	        if ( val == a[i] )
+	        {
+		        retVal = i;
+		        break;
+	        }
+        }
+        SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayPushMethod )
+    {
+		GET_THIS( rcShortArrayStruct, pArray );
+        rcShortArray& a = *(pArray->elements);
+        short val = (short) SPOP;
+        a.push_back( val );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayPopMethod )
+    {
+		GET_THIS( rcShortArrayStruct, pArray );
+        rcShortArray& a = *(pArray->elements);
+        if ( a.size() > 0 )
+        {
+			short val = a.back();
+			a.pop_back();
+			SPUSH( (long) val );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " pop of empty rcShortArray" );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayHeadIterMethod )
+    {
+        GET_THIS( rcShortArrayStruct, pArray );
+		pArray->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER( rcShortArrayIterStruct, pIter );
+		pIter->refCount = 1;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pArray);
+		pIter->cursor = 0;
+        ForthInterface* pPrimaryInterface = gpShortArraryIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayTailIterMethod )
+    {
+        GET_THIS( rcShortArrayStruct, pArray );
+		pArray->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER( rcShortArrayIterStruct, pIter );
+		pIter->refCount = 1;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pArray);
+		pIter->cursor = pArray->elements->size();
+        ForthInterface* pPrimaryInterface = gpShortArraryIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayCloneMethod )
+    {
+		GET_THIS( rcShortArrayStruct, pArray );
+        rcShortArray& a = *(pArray->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        // create clone array and set is size to match this array
+		MALLOCATE_OBJECT( rcShortArrayStruct, pCloneArray );
+        pCloneArray->refCount = 1;
+        pCloneArray->elements = new rcShortArray;
+        pCloneArray->elements->resize( a.size() );
+        // copy this array contents to clone array
+        memcpy( &(pCloneArray->elements[0]), &(a[0]), a.size() << 1 );
+        // push cloned array on TOS
+        PUSH_PAIR( GET_TPM, pCloneArray );
+        METHOD_RETURN;
+    }
+    
+    baseMethodEntry rcShortArrayMembers[] =
+    {
+        METHOD(     "new",                  rcShortArrayNew ),
+        METHOD(     "delete",               rcShortArrayDeleteMethod ),
+        METHOD(     "clear",                rcShortArrayClearMethod ),
+        METHOD(     "resize",               rcShortArrayResizeMethod ),
+        METHOD(     "count",                rcShortArrayCountMethod ),
+        METHOD(     "get",                  rcShortArrayGetMethod ),
+        METHOD(     "set",                  rcShortArraySetMethod ),
+        METHOD(     "findIndex",            rcShortArrayFindIndexMethod ),
+        METHOD(     "push",                 rcShortArrayPushMethod ),
+        METHOD(     "pop",                  rcShortArrayPopMethod ),
+        METHOD(     "headIter",             rcShortArrayHeadIterMethod ),
+        METHOD(     "tailIter",             rcShortArrayTailIterMethod ),
+        METHOD(     "clone",                rcShortArrayCloneMethod ),
+        //METHOD(     "remove",               rcShortArrayRemoveMethod ),
+        //METHOD(     "insert",               rcShortArrayInsertMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 rcShortArrayIter
+    //
+
+    FORTHOP( rcShortArrayIterNew )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        pEngine->SetError( kForthErrorException, " cannot explicitly create a rcShortArrayIter object" );
+    }
+
+    FORTHOP( rcShortArrayIterDeleteMethod )
+    {
+        GET_THIS( rcShortArrayIterStruct, pIter );
+		SAFE_RELEASE( pIter->parent );
+		FREE_ITER( pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayIterSeekNextMethod )
+    {
+        GET_THIS( rcShortArrayIterStruct, pIter );
+		rcShortArrayStruct* pArray = reinterpret_cast<rcShortArrayStruct *>( pIter->parent.pData );
+		if ( pIter->cursor < pArray->elements->size() )
+		{
+			pIter->cursor++;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayIterSeekPrevMethod )
+    {
+        GET_THIS( rcShortArrayIterStruct, pIter );
+		if ( pIter->cursor > 0 )
+		{
+			pIter->cursor--;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayIterSeekHeadMethod )
+    {
+        GET_THIS( rcShortArrayIterStruct, pIter );
+		pIter->cursor = 0;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayIterSeekTailMethod )
+    {
+        GET_THIS( rcShortArrayIterStruct, pIter );
+		rcShortArrayStruct* pArray = reinterpret_cast<rcShortArrayStruct *>( pIter->parent.pData );
+		pIter->cursor = pArray->elements->size();
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayIterNextMethod )
+    {
+        GET_THIS( rcShortArrayIterStruct, pIter );
+		rcShortArrayStruct* pArray = reinterpret_cast<rcShortArrayStruct *>( pIter->parent.pData );
+        rcShortArray& a = *(pArray->elements);
+		if ( pIter->cursor >= a.size() )
+		{
+			SPUSH( 0 );
+		}
+		else
+		{
+			short val = a[ pIter->cursor ];
+			SPUSH( (long) val );
+			pIter->cursor++;
+		    SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayIterPrevMethod )
+    {
+        GET_THIS( rcShortArrayIterStruct, pIter );
+		rcShortArrayStruct* pArray = reinterpret_cast<rcShortArrayStruct *>( pIter->parent.pData );
+        rcShortArray& a = *(pArray->elements);
+		if ( pIter->cursor == 0 )
+		{
+			SPUSH( 0 );
+		}
+		else
+		{
+			pIter->cursor--;
+			short val = a[ pIter->cursor ];
+			SPUSH( (long) val );
+		    SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcShortArrayIterCurrentMethod )
+    {
+        GET_THIS( rcShortArrayIterStruct, pIter );
+		rcShortArrayStruct* pArray = reinterpret_cast<rcShortArrayStruct *>( pIter->parent.pData );
+        rcShortArray& a = *(pArray->elements);
+		if ( pIter->cursor >= a.size() )
+		{
+			SPUSH( 0 );
+		}
+		else
+		{
+			short val = a[ pIter->cursor ];
+			SPUSH( (long) val );
+		    SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry rcShortArrayIterMembers[] =
+    {
+        METHOD(     "new",                  rcShortArrayIterNew ),
+        METHOD(     "delete",               rcShortArrayIterDeleteMethod ),
+        METHOD(     "seekNext",             rcShortArrayIterSeekNextMethod ),
+        METHOD(     "seekPrev",             rcShortArrayIterSeekPrevMethod ),
+        METHOD(     "seekHead",             rcShortArrayIterSeekHeadMethod ),
+        METHOD(     "seekTail",             rcShortArrayIterSeekTailMethod ),
+        METHOD(     "next",					rcShortArrayIterNextMethod ),
+        METHOD(     "prev",                 rcShortArrayIterPrevMethod ),
+        METHOD(     "current",				rcShortArrayIterCurrentMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 rcIntArray
+    //
+
+    typedef std::vector<int> rcIntArray;
+    struct rcIntArrayStruct
+    {
+        ulong       refCount;
+        rcIntArray*    elements;
+    };
+
+	struct rcIntArrayIterStruct
+    {
+        ulong			refCount;
+		ForthObject		parent;
+		ulong			cursor;
+    };
+	static ForthClassVocabulary* gpIntArraryIterClassVocab = NULL;
+
+    FORTHOP( rcIntArrayNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+		MALLOCATE_OBJECT( rcIntArrayStruct, pArray );
+        pArray->refCount = 1;
+        pArray->elements = new rcIntArray;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pArray );
+    }
+
+    FORTHOP( rcIntArrayDeleteMethod )
+    {
+		GET_THIS( rcIntArrayStruct, pArray );
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        delete pArray->elements;
+        FREE_OBJECT( pArray );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayResizeMethod )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+		GET_THIS( rcIntArrayStruct, pArray );
+        rcIntArray& a = *(pArray->elements);
+        ulong newSize = SPOP;
+        ulong oldSize = a.size();
+        a.resize( newSize );
+        if ( oldSize < newSize )
+        {
+            // growing - add zeros to end of array
+            int* pElement = &(a[oldSize]);
+            memset( pElement, 0, ((newSize - oldSize) << 2) );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayClearMethod )
+    {
+        // go through all elements and release any which are not null
+		GET_THIS( rcIntArrayStruct, pArray );
+        rcIntArray& a = *(pArray->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        int* pElement = &(a[0]);
+        memset( pElement, 0, (a.size() << 2) );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayCountMethod )
+    {
+		GET_THIS( rcIntArrayStruct, pArray );
+		SPUSH( (long) (pArray->elements->size()) );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayGetMethod )
+    {
+		GET_THIS( rcIntArrayStruct, pArray );
+        rcIntArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+	        SPUSH( a[ix] );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArraySetMethod )
+    {
+		GET_THIS( rcIntArrayStruct, pArray );
+        rcIntArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+            a[ix] = SPOP;
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayFindIndexMethod )
+    {
+		GET_THIS( rcIntArrayStruct, pArray );
+        long retVal = -1;
+        int val = SPOP;
+        rcIntArray& a = *(pArray->elements);
+        for ( ulong i = 0; i < a.size(); i++ )
+        {
+	        if ( val == a[i] )
+	        {
+		        retVal = i;
+		        break;
+	        }
+        }
+        SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayPushMethod )
+    {
+		GET_THIS( rcIntArrayStruct, pArray );
+        rcIntArray& a = *(pArray->elements);
+        int val = SPOP;
+        a.push_back( val );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayPopMethod )
+    {
+		GET_THIS( rcIntArrayStruct, pArray );
+        rcIntArray& a = *(pArray->elements);
+        if ( a.size() > 0 )
+        {
+			long val = a.back();
+			a.pop_back();
+			SPUSH( val );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " pop of empty rcIntArray" );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayHeadIterMethod )
+    {
+        GET_THIS( rcIntArrayStruct, pArray );
+		pArray->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER( rcIntArrayIterStruct, pIter );
+		pIter->refCount = 1;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pArray);
+		pIter->cursor = 0;
+        ForthInterface* pPrimaryInterface = gpIntArraryIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayTailIterMethod )
+    {
+        GET_THIS( rcIntArrayStruct, pArray );
+		pArray->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER( rcIntArrayIterStruct, pIter );
+		pIter->refCount = 1;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pArray);
+		pIter->cursor = pArray->elements->size();
+        ForthInterface* pPrimaryInterface = gpIntArraryIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayCloneMethod )
+    {
+		GET_THIS( rcIntArrayStruct, pArray );
+        rcIntArray& a = *(pArray->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        // create clone array and set is size to match this array
+		MALLOCATE_OBJECT( rcIntArrayStruct, pCloneArray );
+        pCloneArray->refCount = 1;
+        pCloneArray->elements = new rcIntArray;
+        pCloneArray->elements->resize( a.size() );
+        // copy this array contents to clone array
+        memcpy( &(pCloneArray->elements[0]), &(a[0]), a.size() << 2 );
+        // push cloned array on TOS
+        PUSH_PAIR( GET_TPM, pCloneArray );
+        METHOD_RETURN;
+    }
+    
+    baseMethodEntry rcIntArrayMembers[] =
+    {
+        METHOD(     "new",                  rcIntArrayNew ),
+        METHOD(     "delete",               rcIntArrayDeleteMethod ),
+        METHOD(     "clear",                rcIntArrayClearMethod ),
+        METHOD(     "resize",               rcIntArrayResizeMethod ),
+        METHOD(     "count",                rcIntArrayCountMethod ),
+        METHOD(     "get",                  rcIntArrayGetMethod ),
+        METHOD(     "set",                  rcIntArraySetMethod ),
+        METHOD(     "findIndex",            rcIntArrayFindIndexMethod ),
+        METHOD(     "push",                 rcIntArrayPushMethod ),
+        METHOD(     "pop",                  rcIntArrayPopMethod ),
+        METHOD(     "headIter",             rcIntArrayHeadIterMethod ),
+        METHOD(     "tailIter",             rcIntArrayTailIterMethod ),
+        METHOD(     "clone",                rcIntArrayCloneMethod ),
+        //METHOD(     "remove",               rcIntArrayRemoveMethod ),
+        //METHOD(     "insert",               rcIntArrayInsertMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 rcIntArrayIter
+    //
+
+    FORTHOP( rcIntArrayIterNew )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        pEngine->SetError( kForthErrorException, " cannot explicitly create a rcIntArrayIter object" );
+    }
+
+    FORTHOP( rcIntArrayIterDeleteMethod )
+    {
+        GET_THIS( rcIntArrayIterStruct, pIter );
+		SAFE_RELEASE( pIter->parent );
+		FREE_ITER( pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayIterSeekNextMethod )
+    {
+        GET_THIS( rcIntArrayIterStruct, pIter );
+		rcIntArrayStruct* pArray = reinterpret_cast<rcIntArrayStruct *>( pIter->parent.pData );
+		if ( pIter->cursor < pArray->elements->size() )
+		{
+			pIter->cursor++;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayIterSeekPrevMethod )
+    {
+        GET_THIS( rcIntArrayIterStruct, pIter );
+		if ( pIter->cursor > 0 )
+		{
+			pIter->cursor--;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayIterSeekHeadMethod )
+    {
+        GET_THIS( rcIntArrayIterStruct, pIter );
+		pIter->cursor = 0;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayIterSeekTailMethod )
+    {
+        GET_THIS( rcIntArrayIterStruct, pIter );
+		rcIntArrayStruct* pArray = reinterpret_cast<rcIntArrayStruct *>( pIter->parent.pData );
+		pIter->cursor = pArray->elements->size();
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayIterNextMethod )
+    {
+        GET_THIS( rcIntArrayIterStruct, pIter );
+		rcIntArrayStruct* pArray = reinterpret_cast<rcIntArrayStruct *>( pIter->parent.pData );
+        rcIntArray& a = *(pArray->elements);
+		if ( pIter->cursor >= a.size() )
+		{
+			SPUSH( 0 );
+		}
+		else
+		{
+			SPUSH( a[ pIter->cursor ] );
+			pIter->cursor++;
+		    SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayIterPrevMethod )
+    {
+        GET_THIS( rcIntArrayIterStruct, pIter );
+		rcIntArrayStruct* pArray = reinterpret_cast<rcIntArrayStruct *>( pIter->parent.pData );
+        rcIntArray& a = *(pArray->elements);
+		if ( pIter->cursor == 0 )
+		{
+			SPUSH( 0 );
+		}
+		else
+		{
+			pIter->cursor--;
+			SPUSH( a[ pIter->cursor ] );
+		    SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcIntArrayIterCurrentMethod )
+    {
+        GET_THIS( rcIntArrayIterStruct, pIter );
+		rcIntArrayStruct* pArray = reinterpret_cast<rcIntArrayStruct *>( pIter->parent.pData );
+        rcIntArray& a = *(pArray->elements);
+		if ( pIter->cursor >= a.size() )
+		{
+			SPUSH( 0 );
+		}
+		else
+		{
+			SPUSH( a[ pIter->cursor ] );
+		    SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry rcIntArrayIterMembers[] =
+    {
+        METHOD(     "new",                  rcIntArrayIterNew ),
+        METHOD(     "delete",               rcIntArrayIterDeleteMethod ),
+        METHOD(     "seekNext",             rcIntArrayIterSeekNextMethod ),
+        METHOD(     "seekPrev",             rcIntArrayIterSeekPrevMethod ),
+        METHOD(     "seekHead",             rcIntArrayIterSeekHeadMethod ),
+        METHOD(     "seekTail",             rcIntArrayIterSeekTailMethod ),
+        METHOD(     "next",					rcIntArrayIterNextMethod ),
+        METHOD(     "prev",                 rcIntArrayIterPrevMethod ),
+        METHOD(     "current",				rcIntArrayIterCurrentMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 rcLongArray
+    //
+
+    typedef std::vector<long long> rcLongArray;
+    struct rcLongArrayStruct
+    {
+        ulong       refCount;
+        rcLongArray*    elements;
+    };
+
+	struct rcLongArrayIterStruct
+    {
+        ulong			refCount;
+		ForthObject		parent;
+		ulong			cursor;
+    };
+	static ForthClassVocabulary* gpLongArraryIterClassVocab = NULL;
+
+    FORTHOP( rcLongArrayNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+		MALLOCATE_OBJECT( rcLongArrayStruct, pArray );
+        pArray->refCount = 1;
+        pArray->elements = new rcLongArray;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pArray );
+    }
+
+    FORTHOP( rcLongArrayDeleteMethod )
+    {
+		GET_THIS( rcLongArrayStruct, pArray );
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        delete pArray->elements;
+        FREE_OBJECT( pArray );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayResizeMethod )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+		GET_THIS( rcLongArrayStruct, pArray );
+        rcLongArray& a = *(pArray->elements);
+        ulong newSize = SPOP;
+        ulong oldSize = a.size();
+        a.resize( newSize );
+        if ( oldSize < newSize )
+        {
+            // growing - add zeros to end of array
+            long long* pElement = &(a[oldSize]);
+            memset( pElement, 0, ((newSize - oldSize) << 3) );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayClearMethod )
+    {
+        // go through all elements and release any which are not null
+		GET_THIS( rcLongArrayStruct, pArray );
+        rcLongArray& a = *(pArray->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        long long* pElement = &(a[0]);
+        memset( pElement, 0, (a.size() << 3) );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayCountMethod )
+    {
+		GET_THIS( rcLongArrayStruct, pArray );
+		SPUSH( (long) (pArray->elements->size()) );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayGetMethod )
+    {
+		GET_THIS( rcLongArrayStruct, pArray );
+        rcLongArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+	        LPUSH( a[ix] );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArraySetMethod )
+    {
+		GET_THIS( rcLongArrayStruct, pArray );
+        rcLongArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+            a[ix] = LPOP;
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayFindIndexMethod )
+    {
+		GET_THIS( rcLongArrayStruct, pArray );
+        long retVal = -1;
+        long long val = LPOP;
+        rcLongArray& a = *(pArray->elements);
+        for ( ulong i = 0; i < a.size(); i++ )
+        {
+	        if ( val == a[i] )
+	        {
+		        retVal = i;
+		        break;
+	        }
+        }
+        SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayPushMethod )
+    {
+		GET_THIS( rcLongArrayStruct, pArray );
+        rcLongArray& a = *(pArray->elements);
+        long long val = LPOP;
+        a.push_back( val );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayPopMethod )
+    {
+		GET_THIS( rcLongArrayStruct, pArray );
+        rcLongArray& a = *(pArray->elements);
+        if ( a.size() > 0 )
+        {
+			long long val = a.back();
+			a.pop_back();
+			LPUSH( val );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " pop of empty rcLongArray" );
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayHeadIterMethod )
+    {
+        GET_THIS( rcLongArrayStruct, pArray );
+		pArray->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER( rcLongArrayIterStruct, pIter );
+		pIter->refCount = 1;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pArray);
+		pIter->cursor = 0;
+        ForthInterface* pPrimaryInterface = gpLongArraryIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayTailIterMethod )
+    {
+        GET_THIS( rcLongArrayStruct, pArray );
+		pArray->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER( rcLongArrayIterStruct, pIter );
+		pIter->refCount = 1;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pArray);
+		pIter->cursor = pArray->elements->size();
+        ForthInterface* pPrimaryInterface = gpLongArraryIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayCloneMethod )
+    {
+		GET_THIS( rcLongArrayStruct, pArray );
+        rcLongArray& a = *(pArray->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        // create clone array and set is size to match this array
+		MALLOCATE_OBJECT( rcLongArrayStruct, pCloneArray );
+        pCloneArray->refCount = 1;
+        pCloneArray->elements = new rcLongArray;
+        pCloneArray->elements->resize( a.size() );
+        // copy this array contents to clone array
+        memcpy( &(pCloneArray->elements[0]), &(a[0]), a.size() << 3 );
+        // push cloned array on TOS
+        PUSH_PAIR( GET_TPM, pCloneArray );
+        METHOD_RETURN;
+    }
+    
+    baseMethodEntry rcLongArrayMembers[] =
+    {
+        METHOD(     "new",                  rcLongArrayNew ),
+        METHOD(     "delete",               rcLongArrayDeleteMethod ),
+        METHOD(     "clear",                rcLongArrayClearMethod ),
+        METHOD(     "resize",               rcLongArrayResizeMethod ),
+        METHOD(     "count",                rcLongArrayCountMethod ),
+        METHOD(     "get",                  rcLongArrayGetMethod ),
+        METHOD(     "set",                  rcLongArraySetMethod ),
+        METHOD(     "findIndex",            rcLongArrayFindIndexMethod ),
+        METHOD(     "push",                 rcLongArrayPushMethod ),
+        METHOD(     "pop",                  rcLongArrayPopMethod ),
+        METHOD(     "headIter",             rcLongArrayHeadIterMethod ),
+        METHOD(     "tailIter",             rcLongArrayTailIterMethod ),
+        METHOD(     "clone",                rcLongArrayCloneMethod ),
+        //METHOD(     "remove",               rcLongArrayRemoveMethod ),
+        //METHOD(     "insert",               rcLongArrayInsertMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 rcLongArrayIter
+    //
+
+    FORTHOP( rcLongArrayIterNew )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        pEngine->SetError( kForthErrorException, " cannot explicitly create a rcLongArrayIter object" );
+    }
+
+    FORTHOP( rcLongArrayIterDeleteMethod )
+    {
+        GET_THIS( rcLongArrayIterStruct, pIter );
+		SAFE_RELEASE( pIter->parent );
+		FREE_ITER( pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayIterSeekNextMethod )
+    {
+        GET_THIS( rcLongArrayIterStruct, pIter );
+		rcLongArrayStruct* pArray = reinterpret_cast<rcLongArrayStruct *>( pIter->parent.pData );
+		if ( pIter->cursor < pArray->elements->size() )
+		{
+			pIter->cursor++;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayIterSeekPrevMethod )
+    {
+        GET_THIS( rcLongArrayIterStruct, pIter );
+		if ( pIter->cursor > 0 )
+		{
+			pIter->cursor--;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayIterSeekHeadMethod )
+    {
+        GET_THIS( rcLongArrayIterStruct, pIter );
+		pIter->cursor = 0;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayIterSeekTailMethod )
+    {
+        GET_THIS( rcLongArrayIterStruct, pIter );
+		rcLongArrayStruct* pArray = reinterpret_cast<rcLongArrayStruct *>( pIter->parent.pData );
+		pIter->cursor = pArray->elements->size();
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayIterNextMethod )
+    {
+        GET_THIS( rcLongArrayIterStruct, pIter );
+		rcLongArrayStruct* pArray = reinterpret_cast<rcLongArrayStruct *>( pIter->parent.pData );
+        rcLongArray& a = *(pArray->elements);
+		if ( pIter->cursor >= a.size() )
+		{
+			SPUSH( 0 );
+		}
+		else
+		{
+			long long val = a[ pIter->cursor ];
+			LPUSH( val );
+			pIter->cursor++;
+		    SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayIterPrevMethod )
+    {
+        GET_THIS( rcLongArrayIterStruct, pIter );
+		rcLongArrayStruct* pArray = reinterpret_cast<rcLongArrayStruct *>( pIter->parent.pData );
+        rcLongArray& a = *(pArray->elements);
+		if ( pIter->cursor == 0 )
+		{
+			SPUSH( 0 );
+		}
+		else
+		{
+			pIter->cursor--;
+			long long val = a[ pIter->cursor ];
+			LPUSH( val );
+		    SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( rcLongArrayIterCurrentMethod )
+    {
+        GET_THIS( rcLongArrayIterStruct, pIter );
+		rcLongArrayStruct* pArray = reinterpret_cast<rcLongArrayStruct *>( pIter->parent.pData );
+        rcLongArray& a = *(pArray->elements);
+		if ( pIter->cursor >= a.size() )
+		{
+			SPUSH( 0 );
+		}
+		else
+		{
+			long long val = a[ pIter->cursor ];
+			LPUSH( val );
+		    SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry rcLongArrayIterMembers[] =
+    {
+        METHOD(     "new",                  rcLongArrayIterNew ),
+        METHOD(     "delete",               rcLongArrayIterDeleteMethod ),
+        METHOD(     "seekNext",             rcLongArrayIterSeekNextMethod ),
+        METHOD(     "seekPrev",             rcLongArrayIterSeekPrevMethod ),
+        METHOD(     "seekHead",             rcLongArrayIterSeekHeadMethod ),
+        METHOD(     "seekTail",             rcLongArrayIterSeekTailMethod ),
+        METHOD(     "next",					rcLongArrayIterNextMethod ),
+        METHOD(     "prev",                 rcLongArrayIterPrevMethod ),
+        METHOD(     "current",				rcLongArrayIterCurrentMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
 }
 
 void
@@ -1913,6 +3381,18 @@ ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
 
     ForthClassVocabulary* pRCPairClass = pEngine->AddBuiltinClass( "rcPair", pRCObjectClass, rcPairMembers );
     ForthClassVocabulary* pRCTripleClass = pEngine->AddBuiltinClass( "rcTriple", pRCObjectClass, rcTripleMembers );
+
+    ForthClassVocabulary* pRCByteArrayClass = pEngine->AddBuiltinClass( "rcByteArray", pRCObjectClass, rcByteArrayMembers );
+    gpByteArraryIterClassVocab = pEngine->AddBuiltinClass( "rcByteArrayIter", pRCIterClass, rcByteArrayIterMembers );
+
+    ForthClassVocabulary* pRCShortArrayClass = pEngine->AddBuiltinClass( "rcShortArray", pRCObjectClass, rcShortArrayMembers );
+    gpShortArraryIterClassVocab = pEngine->AddBuiltinClass( "rcShortArrayIter", pRCIterClass, rcShortArrayIterMembers );
+
+    ForthClassVocabulary* pRCIntArrayClass = pEngine->AddBuiltinClass( "rcIntArray", pRCObjectClass, rcIntArrayMembers );
+    gpIntArraryIterClassVocab = pEngine->AddBuiltinClass( "rcIntArrayIter", pRCIterClass, rcIntArrayIterMembers );
+
+    ForthClassVocabulary* pRCLongArrayClass = pEngine->AddBuiltinClass( "rcLongArray", pRCObjectClass, rcLongArrayMembers );
+    gpLongArraryIterClassVocab = pEngine->AddBuiltinClass( "rcLongArrayIter", pRCIterClass, rcLongArrayIterMembers );
 
     mpClassMethods = pClassClass->GetInterface( 0 )->GetMethods();
 }
