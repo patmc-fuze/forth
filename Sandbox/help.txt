@@ -430,6 +430,20 @@ addHelp setInBufferPointer		ADDR ...							set cursor position in input buffer
 addHelp getInBufferLength		... LEN								return size of input buffer (maximum input line length)
 addHelp fillInBuffer			PROMPT_STRING ... INPUT_BUFFER_ADDR		display prompt, fill input buffer & return input buffer address
 
+addHelp vocNewestEntry	pVocab ... pNewestEntry						get ptr to newest entry in vocabulary
+addHelp vocNextEntry	pEntry pVocab ... pNextEntry				get ptr to next entry in vocabulary (can go past end of vocab)
+addHelp vocNumEntries	pVocab ... numEntries						get number of entries in vocabulary
+addHelp vocName			pVocab ...	pName							get name of vocabulary
+addHelp vocChainHead	... pVocab									get head of chain of all vocabularies
+addHelp vocChainNext	pVocab ... pVocab							get next vocabulary in chain
+addHelp vocFindEntry	pName pVocab ... pEntry						find first entry in vocabulary by name
+addHelp vocFindNextEntry	pEntry pName pVocab ... pEntry			find next entry in vocabulary by name
+addHelp vocFindEntryByValue		value pVocab ... pEntry				find first entry in vocabulary by value
+addHelp vocFindNextEntryByValue		pEntry value pVocab ... pEntry	find next entry in vocabulary by value
+addHelp vocAddEntry		pName opType opValue pVocab ...				add an entry to a vocabulary
+addHelp vocRemoveEntry		pEntry pVocab ...						remove an entry from a vocabulary
+addHelp vocValueLength		pVocab ... valueLengthInLongs			get length of vocabulary value field in longs
+
 addHelp DLLVocabulary			DLLVocabulary VOCAB_NAME			creates a new DLL vocabulary, also loads the dll
 addHelp addDLLEntry				NUM_ARGS "ENTRY_NAME" addDLLEntry	adds a new entry point to current definitions DLL vocabulary
 
@@ -440,8 +454,8 @@ addHelp millitime	... TIME_AS_INT32			returns milliseconds since forth started r
 addHelp rand		... VAL			returns pseudo-random number
 addHelp srand		VAL ...			sets pseudo-random number seed
 addHelp hash		PTR LEN HASHIN ... HASHOUT		generate a 32-bit hashcode for LEN bytes at PTR starting with initial hashcode HASHIN
-addHelp qsort		ARRAY_ADDR NUM_ELEMENTS ELEMENT_SIZE COMPARE_TYPE SIGNED_FLAG COMPARE_OFFSET ...
-addHelp bsearch		ARRAY_ADDR NUM_ELEMENTS ELEMENT_SIZE COMPARE_TYPE SIGNED_FLAG COMPARE_OFFSET KEY_ADDR ... INDEX (-1 if not found)
+addHelp qsort		ARRAY_ADDR NUM_ELEMENTS ELEMENT_SIZE COMPARE_TYPE COMPARE_OFFSET ...		for strings, set COMPARE_TYPE to kBTString + (256 * maxLen)
+addHelp bsearch		KEY_ADDR ARRAY_ADDR NUM_ELEMENTS ELEMENT_SIZE COMPARE_TYPE COMPARE_OFFSET ... INDEX (-1 if not found)
 
 addHelp dstack				display parameter stack
 addHelp drstack				display return stack

@@ -1,8 +1,19 @@
+setTrace( 0 )
+
 autoforget forth_autoload
 : forth_autoload "This is the forth_autoload.txt tools module" %s ;
 
+enum: baseTypes
+	kBTByte		kBTUByte		kBTShort		kBTUShort
+	kBTInt		kBTUInt			kBTLong			kBTULong
+	kBTFloat	kBTDouble		kBTString		kBTOp
+	kBTObject	kBTStruct		kBTUserDef		kBTVoid
+;enum
+ 
 0x7FFFFFFF -> int MAXINT
 0x80000000 -> int MININT
+
+: ds dstack ;
 
 : autoload
   blword find
@@ -73,6 +84,7 @@ false -> int _helpfileLoaded
 addHelp addHelp	addHelp SYMBOL REST_OF_LINE		add help entry
 addHelp $,	STRING_ADDR $,		compiles string (can leave DP unaligned)
 addHelp help	help BLAH		show help for BLAH
+addHelp	ds	ds			dump stack
 
 addHelp cd	cd BLAH			change working directory to BLAH
 : cd
@@ -80,8 +92,161 @@ addHelp cd	cd BLAH			change working directory to BLAH
   if "cd failed!\n" %s endif
 ;
 
+
+: system$
+  -> ptrTo byte commandString
+  true -> int okay
+  null -> ptrTo byte outName
+  null -> ptrTo byte errName
+  null -> int outStream
+  null -> int errStream
+  -1   -> int oldStdOut
+  -1   -> int oldStdErr
+  0    -> int bytesRead
+  2048 -> int readSize
+  malloc( readSize 1+ ) -> ptrTo byte buffer
+  -1   -> int result
+  
+  // create temp filenames for stdout and stderr streams
+  tmpnam -> outName
+  if( outName 0== )
+    error( "system: failure creating standard out tempfile name" )
+    false -> okay
+  endif
+  
+  tmpnam -> errName
+  if( errName 0== )
+    error( "system: failure creating standard error tempfile name" )
+    false -> okay
+  endif
+  
+  // open temp file which will take standard output
+  if( outName )
+    fopen( outName "w" ) -> outStream
+    if( outStream 0== )
+      error( "system: failure opening standard out file " )
+      addErrorText( outName )
+      false -> okay
+    endif
+  endif
+  
+  // open temp file which will take standard error
+  if( errName )
+    fopen( errName "w" ) -> errStream
+    if( errStream 0== )
+      error( "system: failure opening standard error file " )
+      addErrorText( errName )
+      false -> okay
+    endif
+  endif
+  
+  // dup standard output file descriptor so we can restore it on exit
+  if( okay )
+    _dup( 1 ) -> oldStdOut
+    if( oldStdOut -1 == )
+      error( "system: failure dup-ing stdout" )
+      false -> okay
+    endif
+  endif
+    
+  // dup standard error file descriptor so we can restore it on exit
+  if( okay )
+    _dup( 2 ) -> oldStdErr
+    if( oldStdErr -1 == )
+      error( "system: failure dup-ing stderr" )
+      false -> okay
+    endif
+  endif
+
+  //
+  // redirect standard out to temp output file
+  //
+  if( okay )
+    if( _dup2( _fileno( outStream ) 1 ) -1 == )
+      error( "system: failure redirecting stdout" )
+      false -> okay
+    else
+      // redirect standard error to temp error file
+      if( _dup2( _fileno( errStream ) 2 ) -1 == )
+        error( "system: failure redirecting stderr" )
+        false -> okay
+      else
+      
+        // have DOS shell execute command line string pointed to by TOS
+        system( commandString ) -> result
+        
+        fflush( stdout ) drop
+        fflush( stderr ) drop
+        // close standard error stream, then reopen it on oldStdError (console output)
+        _dup2( oldStdErr 2 ) drop
+      endif
+      // close standard output stream, then reopen it on oldStdOut (console output)
+      _dup2( oldStdOut 1 ) drop
+    endif
+    fclose( outStream ) drop
+    null -> outStream
+    fclose( errStream ) drop
+    null -> errStream
+  endif
+
+  //  
+  // dump contents of output and error files using forth console IO routines
+  //
+  if( okay )
+    fopen( outName "r" ) -> outStream
+    if( outStream )
+      begin
+        fread( buffer 1 readSize outStream ) -> bytesRead
+        0 bytesRead buffer byte[] c!
+        buffer %s
+      until( feof( outStream ) )
+      fclose( outStream ) drop
+      null -> outStream
+    else
+      error( "system: failure reopening standard output file " )
+      addErrorText( outName )
+      false -> okay
+    endif
+    
+    fopen( errName "r" ) -> errStream
+    if( errStream )
+      begin
+        fread( buffer 1 readSize errStream ) -> bytesRead
+        0 bytesRead buffer byte[] c!
+        buffer %s
+      until( feof( errStream ) )
+      fclose( errStream ) drop
+      null -> errStream
+    else
+      error( "system: failure reopening standard error file " )
+      addErrorText( errName )
+      false -> okay
+    endif
+  endif
+
+  // cleanup
+  if( outStream )
+    fclose( outStream ) drop
+  endif
+  if( errStream )
+    fclose( errStream ) drop
+  endif
+  if( outName )
+	remove( outName ) drop
+    free( outName )
+  endif
+  if( errName )
+	remove( errName ) drop
+    free( errName )
+  endif
+  free( buffer )
+  
+  result
+;	
+
+
 addHelp pwd	pwd			display working directory
-: pwd "chdir" system drop ;
+: pwd "chdir" system$ drop ;
 
 addHelp dir	dir BLAH		display directory (BLAH is optional filespec)
 : dir
@@ -92,7 +257,7 @@ addHelp dir	dir BLAH		display directory (BLAH is optional filespec)
     strcat( _bb " " )
     strcat( _bb _aa )
   endif
-  _bb system drop
+  _bb system$ drop
 ;
 
 addHelp more more FILENAME	display FILENAME on screen
@@ -133,9 +298,6 @@ addHelp more more FILENAME	display FILENAME on screen
 
 addHelp sys	sys REST_OF_LINE	run rest of line in a DOS shell
 : sys 0 word system drop ;
-
-addHelp	ds	ds			dump stack
-: ds dstack ;
 
 addHelp fileExists	"FILEPATH" fileExists ... true/false		tell if a file exists
 : fileExists "r" fopen dup if fclose drop true else drop false endif ;

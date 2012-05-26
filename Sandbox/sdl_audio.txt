@@ -5,7 +5,7 @@ autoforget sdl_audio
 : sdl_audio ;
 
 also sdl
-vlist
+
 subroutine _sdlAudioCallback
 	// void (SDLCALL *callback)(void *userdata, Uint8 *stream, int len);
 	eax push,
@@ -29,11 +29,10 @@ subroutine _sdlAudioCallback
   ret,
 endcode
 
-vlist
 SDL_AudioSpec desiredSpec
 SDL_AudioSpec actualSpec
 
-: atest
+: atestStart
 
   44100 -> desiredSpec.freq
   AUDIO_U8 -> desiredSpec.format
@@ -47,7 +46,12 @@ SDL_AudioSpec actualSpec
     "SDL_OpenAudio failed!\n" %s %nl
     exit
   endif
-  0 SDL_PauseAudio
+  SDL_PauseAudio( 0 )
+;
+
+: atestEnd
+  SDL_PauseAudio( 1 )
+  SDL_CloseAudio 
 ;
 
 loaddone
