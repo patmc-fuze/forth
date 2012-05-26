@@ -110,7 +110,7 @@ variable .osize               variable .onow
 
 
 : _c,
-  "Assembled " %s dup 0xFF and %x " @ " %s here %x %nl
+  //"Assembled " %s dup 0xFF and %x " @ " %s here %x %nl
   c,
 ;
 
@@ -761,12 +761,14 @@ also forth definitions
 : code
   code
   also assembler		// push assembler vocab on top of search stack
+  sclear
 ;
 
 // subroutines must have a "endcode" after its return instruction to pop assembler stack
 : subroutine
   create
   also assembler		// push assembler vocab on top of search stack
+  sclear
 ;
 
 previous definitions
