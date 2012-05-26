@@ -128,6 +128,70 @@ A native type has:
 ? local array action op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 22 2012
+
+Adding a typeOf operator.
+Part of the motivation for this is to support the qsort/bsearch ops.
+
+typeOf TOKEN
+TOKEN is one of:
+  o name of a class
+  o name of a struct
+  o struct.field
+  o native types
+What new type support is needed:
+o provide info to qsort/bsearch
+  field offset and nativeType
+  
+ForthTypesManager::mpStructInfo is an array of ForthTypeInfo indexed by classId
+
+typedef struct
+{
+    ForthStructVocabulary*      pVocab;
+    long                        op;
+} ForthTypeInfo;
+
+    kBaseTypeByte,          // 0 - byte
+    kBaseTypeUByte,         // 1 - ubyte
+    kBaseTypeShort,         // 2 - short
+    kBaseTypeUShort,        // 3 - ushort
+    kBaseTypeInt,           // 4 - int
+    kBaseTypeUInt,          // 5 - uint
+    kBaseTypeLong,          // 6 - long
+    kBaseTypeULong,         // 7 - ulong
+    kBaseTypeFloat,         // 8 - float
+    kBaseTypeDouble,        // 9 - double
+    kBaseTypeString,        // 10 - string
+    kBaseTypeOp,            // 11 - op
+    kBaseTypeObject,        // 12 - object
+    kBaseTypeStruct,        // 13 - struct
+    kBaseTypeUserDefinition,// 14 - user defined forthop
+    kBaseTypeVoid,			// 15 - void
+// user-defined structure fields have a 32-bit descriptor with the following format:
+// 3...0        base type
+//   4          is field a pointer
+//   5          is field an array
+//   6          is this a method
+//   7          unused
+// 31...8       depends on base type:
+//      string      length
+//      struct      structIndex
+//      object      classId
+
+// user-defined ops vocab entries have the following value fields:
+// - opcode
+// - struct type
+
+// a locals vocab entry has the following value fields:
+// - opcode (which contains frame offset)
+// - struct type
+
+// a struct vocab entry has the following value fields:
+// - field offset in bytes
+// - field type
+// - element count (valid only for array fields)
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 20 2007
 
 Added "union" - when this is executed, it sets the current struct size to 0,

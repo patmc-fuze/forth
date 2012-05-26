@@ -125,7 +125,104 @@ Gotchas with structure and object support:
 2) varAction ops must be the symbol just before a field selector symbol, which
    means that index calculation ops must appear before the varAction op
 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 24 2012
 
+I'm planning on implementing a set of 'combo' optypes which will do 2 or 3
+common operations in a single forthop.  The planned combos:
+  NUM VAROP OP		4 ->+ foo
+  NUM VAROP			22000 ->
+  NUM OP			6134 *
+  VAROP OP			->- woof
+---
+NUM VAROP OP
+  VAROP would need 2 bits (support only ref/->/->+/->-)
+  NUM would have 11 bits
+  OP would have 11 bits
+This would be compiled when compiling an opcode, if the previous two ops
+were an int constant in the suitable range and a varop.
+---
+NUM VAROP
+  VAROP would need 2 bits
+  NUM would have 22 bits
+This would be compiled when compiling an opcode, if the previous two ops
+were an int constant NOT in the suitable range and a varop.
+---
+NUM OP  
+  NUM would have 13 bits
+  OP would have 11 bits
+This would be compiled when compiling an opcode, if the previous op
+was an int constant in the suitable range.
+---
+VAROP OP  
+  VAROP would need 2 bits
+  OP would have 22 bits
+This would be compiled when compiling an opcode, if the previous op
+was a varop, but the op before that wasn't a constant.
+---
++ make the c++ version of the combo optypes code
++ make the assembler version of the combo optypes code
+- test by making some opcodes manually and executing
+- add a peephole optimizer to the engine that compiles the opcodes
+- add combo support to TraceOp/DescribeOp
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 22 2012
+
+I took the existing implementation of 'system' which did a lot of extra stuff
+like redirecting stdout and stderr to files and then spewing them back through
+the forth output stream, and made it do just the call to system, and I made
+forthops for the other system calls which it had been using, and finally I
+implemented system$ in the autoload which did all the redirection stuff.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 19 2012
+
+I'm waffling again about rcobject refcounts.  My current wafflation is that
+all object reference counts on TOS shouldn't be refcounted
+  ? then how does object creation work - putting a new object ref on TOS and
+    giving the object a refcount of 1 is problematic
+    o we could make the convention that all objects are created with refcount 0
+      and must be immediately assigned to a variable to avoid memory leaks
+    o we could also require that you could only create an object into a container,
+      with rcObject being the simplest container
+    o or ALL object creations add an entry to the autorelease pool
+      o maybe there should be a rcObject.create object that takes a ptr on TOS
+-> I think the best approach might be:
+  1) explicit object creation leaves object with refcount 0 on TOS
+  2) temporary object creation leaves object with refcount 1 on TOS, and adds
+     an entry to the autorelease pool
+I think there is still some confusion between a reference counted object and
+the variable that references it in my mind.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 18 2012
+
+I noticed that access violations were crashing forth - to fix it I
+changed the ForthLib project C++ code generation exceptions settings from
+"Yes" to "Yes with SEH Exceptions", otherwise it can only handle C++ generated
+exceptions, not processor exceptions like divide-by-0 or access violations.
+Why did this work before?  Maybe I turned it off after it worked, otherwise
+the debugger doesn't break on exceptions, and when I turned it back on I didn't
+choose SEH exceptions.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 22 2012
+
+I changed how refcounted containers worked - previously whenever an object was
+added to a container its refcount was incremented, and whenever an object was
+removed from a container its refcount was decremented, that was broken because
+it was never treating an object reference on TOS as being counted.  Consider
+this scenario:
+o create an rcObject -> object reference is on TOS, obj.rc is 1
+o add obj to rcArray woof -> obj.rc is 2
+o delete woof -> obj.rc is 1
+The end result is that the object is left dangling.
+Now adding an object to an array doesn't increment its refcount.
+Assigning an object to an element which already contains an object reference
+does decrement the refcount of the old object reference.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 10 2012
+
+I tried to eliminate as many of the new 'unsafe' warnings as I could.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 February 19 2012
 
