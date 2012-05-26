@@ -77,7 +77,7 @@ int _tmain(int argc, _TCHAR* argv[])
                 {
                     // SendLine params:
                     //   string     prompt
-                    char* pPrompt;
+                    const char* pPrompt;
                     int promptLen;
                     if ( pMsgPipe->ReadCountedData( pPrompt, promptLen ) )
                     {
@@ -119,7 +119,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
             case kClientMsgStartLoad:
                 {
-                    char* pFilename;
+                    const char* pFilename;
                     pMsgPipe->ReadString( pFilename );
                     FILE* newInputFile = fopen( pFilename, "r" );
                     int itWorked = 0;
@@ -152,7 +152,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
             case kClientMsgDisplayText:
                 {
-                    char* pText;
+                    const char* pText;
                     int textLen;
                     if ( pMsgPipe->ReadCountedData( pText, textLen ) )
                     {
@@ -184,8 +184,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
             case kClientMsgFileOpen:
                 {
-                    char* pFilename;
-                    char* accessMode;
+                    const char* pFilename;
+                    const char* accessMode;
                     pMsgPipe->ReadString( pFilename );
                     pMsgPipe->ReadString( accessMode );
                     FILE* pFile = fopen( pFilename, accessMode );
@@ -310,7 +310,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
             case kClientMsgFileCheckExists:
                 {
-                    char* pFilename;
+                    const char* pFilename;
                     pMsgPipe->ReadString( pFilename );
                     FILE* pFile = fopen( pFilename, "r" );
                     int result = (pFile != NULL) ? ~0 : 0;

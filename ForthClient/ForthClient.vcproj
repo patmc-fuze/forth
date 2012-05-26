@@ -4,6 +4,7 @@
 	Version="9.00"
 	Name="ForthClient"
 	ProjectGUID="{68C7964A-4824-419D-8663-FCBC515CBE62}"
+	RootNamespace="ForthClient"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="131072"
 	>
@@ -41,8 +42,10 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
+				AdditionalIncludeDirectories="H:\prj\Forth\ForthLib"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_WINDOWS"
 				MinimalRebuild="true"
+				ExceptionHandling="2"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
 				UsePrecompiledHeader="2"
@@ -117,7 +120,9 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
+				AdditionalIncludeDirectories="H:\Prj\Forth\ForthLib"
+				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;_WINDOWS"
+				ExceptionHandling="2"
 				RuntimeLibrary="0"
 				UsePrecompiledHeader="2"
 				WarningLevel="3"
