@@ -11,10 +11,6 @@
 #include "ForthShell.h"
 #include "ForthVocabulary.h"
 
-#ifdef TRACE_INNER_INTERPRETER
-extern bool gbTraceEnabled;
-#endif
-
 
 extern "C"
 {
@@ -3340,18 +3336,25 @@ InnerInterpreter( ForthCoreState *pCore )
     SET_STATE( kResultOk );
 
 #ifdef TRACE_INNER_INTERPRETER
-	if ( gbTraceEnabled )
+	ForthEngine* pEngine = GET_ENGINE;
+	int traceFlags = pEngine->GetTraceFlags();
+	if ( traceFlags & kTraceInnerInterpreter )
 	{
 		while ( GET_STATE == kResultOk )
 		{
 			// fetch op at IP, advance IP
 			pIP = GET_IP;
-			GET_ENGINE->TraceOp( pCore );
+			pEngine->TraceOp( pCore );
 			op = *pIP++;
 			SET_IP( pIP );
 			opType = FORTH_OP_TYPE( op );
 			opVal = FORTH_OP_VALUE( op );
 			pCore->optypeAction[ (int) opType ]( pCore, opVal );
+			if ( traceFlags & kTraceStack )
+			{
+				pEngine->TraceStack( pCore );
+			}
+			pEngine->TraceOut( "\n" );
 		}
 	}
 	else

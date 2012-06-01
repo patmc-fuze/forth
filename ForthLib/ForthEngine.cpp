@@ -111,6 +111,7 @@ ForthEngine::ForthEngine()
 , mpExtension( NULL )
 , mpCore( NULL )
 , mpShell( NULL )
+, mTraceFlags( kTraceShell )
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -936,6 +937,20 @@ ForthEngine::GetOpTypeName( long opType )
 
 static bool lookupUserTraces = true;
 
+
+void
+ForthEngine::TraceOut( const char* pBuff )
+{
+	if ( mTraceFlags & kTraceToConsole )
+	{
+		ConsoleOut( pBuff );
+	}
+	else
+	{
+        TRACE( pBuff );
+	}
+}
+
 void
 ForthEngine::TraceOp( ForthCoreState* pCore )
 {
@@ -951,10 +966,30 @@ ForthEngine::TraceOp( ForthCoreState* pCore )
     char* pIndent = sixteenSpaces + (16 - (rDepth << 1));
     if ( *pOp != OP_DONE )
     {
+		sprintf( buff,  "# 0x%08x ", pOp );
+		TraceOut( buff );
+		TraceOut( pIndent );
         DescribeOp( pOp, buff, sizeof(buff), lookupUserTraces );
-        TRACE( "# 0x%08x %s%s\n", pOp, pIndent, buff );
+		TraceOut( buff );
     }
 #endif
+}
+
+void
+ForthEngine::TraceStack( ForthCoreState* pCore )
+{
+	long *pSP = GET_SP;
+	int nItems = GET_SDEPTH;
+	int i;
+	char buff[64];
+
+	sprintf( buff, "  stack[%d]:", nItems );
+	TraceOut( buff );
+	for ( i = 0; i < nItems; i++ )
+	{
+		sprintf( buff, " %x", *pSP++ );
+		TraceOut( buff );
+	}
 }
 
 void
@@ -1665,6 +1700,16 @@ void ForthEngine::ConsoleOut( const char* pBuff )
     mpCore->consoleOut( mpCore, pBuff );
 }
 
+
+long ForthEngine::GetTraceFlags( void )
+{
+	return mTraceFlags;
+}
+
+void ForthEngine::SetTraceFlags( long flags )
+{
+	mTraceFlags = flags;
+}
 
 ////////////////////////////
 //

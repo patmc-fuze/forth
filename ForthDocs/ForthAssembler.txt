@@ -230,6 +230,50 @@ is in esi and the TOS is in ebx):
          Next
      end-code
      
+
+---
+The bigforth version:
+\ mov                                                  08feb03py
+                                                                
+: mov ( r/m reg / reg r/m / reg -- )
+  imm# @                    
+  IF    assign#  reg?                                           
+    IF    7 and  $B8 or byte? @ 3 << xor  byte? off         
+    ELSE  0 >mod  $C7
+    THEN                              
+  ELSE
+    2dup or $FF >
+    IF  movxr exit
+    THEN                  
+    2dup ?ofax                            
+    IF
+      2drop $A1
+    ELSE
+      2dup swap  ?ofax
+      IF
+        2drop $A3
+      ELSE
+        reg>mod $88 or
+      THEN
+    THEN
+  THEN
+  finishb
+;
+
+The gforth version:
+\ mov                                                  23jan93py
+: mov ( r/m reg / reg r/m / reg -- )
+  2dup or 0> imm# @ and
+  IF    assign#  reg?
+        IF    7 and  $B8 or byte? @ 3 lshift xor  byte? off
+        ELSE  0 >mod  $C7  THEN
+  ELSE  2dup or $FF > IF  movxr exit  THEN
+        2dup ?ofax
+        IF  2drop $A1  ELSE  2dup swap  ?ofax
+            IF  2drop $A3  ELSE  reg>mod $88 or  THEN
+        THEN
+  THEN  finishb ;
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 -> look at "bytes,"
   -> this was leaving an extra 0 on the stack because of a porting bug

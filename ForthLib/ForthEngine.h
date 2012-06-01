@@ -45,6 +45,13 @@ typedef enum {
     //long                *DBase;         // base of dictionary
     //ulong               DLen;           // max size of dictionary memory segment
 
+enum {
+	kTraceInnerInterpreter = 0x01,
+	kTraceShell = 0x02,
+	kTraceStack = 0x04,
+	kTraceToConsole = 0x08
+};
+
 class ForthEngine
 {
 public:
@@ -133,6 +140,7 @@ public:
 
     const char *            GetOpTypeName( long opType );
     void                    TraceOp( ForthCoreState* pCore );
+    void                    TraceStack( ForthCoreState* pCore );
     void                    DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUserDefs=false );
     long *                  NextOp( long *pOp );
 
@@ -193,6 +201,11 @@ public:
     unsigned long           GetElapsedTime( void );
 
     void                    ConsoleOut( const char* pBuff );
+    void                    TraceOut( const char* pBuff );
+
+	long					GetTraceFlags( void );
+	void					SetTraceFlags( long flags );
+
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char* pToken, long& value, long long& lvalue, int base, bool& isOffset, bool& isSingle );
@@ -233,6 +246,7 @@ protected:
 
     long            mCompileFlags;
     long            mNumElements;       // number of elements in next array declared
+	long			mTraceFlags;
 
     long *          mpEnumStackBase;
     long            mNextEnum;

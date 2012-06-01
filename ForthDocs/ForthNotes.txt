@@ -126,6 +126,53 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 30 2012
+
+I think the next steps for object support are:
+
+o make all objects be refcounted
+o change object new to create it on TOS with a refcount of 0
+o change object varop assign to do refcounting
+
+The key idea is that all refcounting is done in terms of containers, and an
+object variable must be treated as the simplest container.
+
+I think I will make this non-backwards compatible and change names to reflect
+this.
+
+o object will become oVar
+o rcXXX will become oXXX
+
+? how should varops interact with containers
+src -> dst
+  increases the refcount of the src object, decreases the refcount of the
+  object dst previously referred to.
+src ->+ dst
+  if dst is an oVar, this is either an exception, or the same as '->'
+  if dst is not an oVar, add src to the container, which increases the
+  refcount of src
+src ->- dst
+  this should probably just be an exception, since doing a remove operation
+  can cause a costly linear search, and should be forced to be explicit
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 27 2012
+
+I was working on sdl_audio, it needs an audio feed callback, I coded it in
+assembler.  I tried gforth assembler (asm_pentium), but it has a bug with
+instructions which load an immediate value into a register - it always
+uses 2 operands on TOS, and in this case there is only one operand - the
+register code.
+I switched over to the kforth assembler (asm_kforth), but it has a different bug,
+this one happens when you use indexed addressing with ESP, in this case it
+generates incorrect opcodes.  There is a note about it not working and it
+looks like it implements a workaroudnd, but the generated code is wrong.
+I looked at the bigForth assembler - it is an older version of the gforth
+one, it doesn't have the change which makes it access undefined data, but that
+change must have been made to fix something.
+I looked at the bigforth assembler, which was done by the same guy as the
+gforth assembler, its mov code has a later date, and it doesn't include the
+ops which access below TOS.  I applied that change and it seems to work.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 24 2012
 
 I'm planning on implementing a set of 'combo' optypes which will do 2 or 3
@@ -165,7 +212,6 @@ was a varop, but the op before that wasn't a constant.
 - test by making some opcodes manually and executing
 - add a peephole optimizer to the engine that compiles the opcodes
 - add combo support to TraceOp/DescribeOp
-
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 22 2012
 
@@ -174,7 +220,6 @@ like redirecting stdout and stderr to files and then spewing them back through
 the forth output stream, and made it do just the call to system, and I made
 forthops for the other system calls which it had been using, and finally I
 implemented system$ in the autoload which did all the redirection stuff.
-
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 19 2012
 

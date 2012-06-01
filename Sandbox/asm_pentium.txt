@@ -67,46 +67,48 @@ octal
 
 // Stack-Buffer fr Extra-Werte                         22dec93py
 
-variable ModR/M               variable ModR/M#
-variable SIB                  variable SIB#
-variable disp                 variable disp#
-variable imm                  variable imm#
-variable Aimm?                variable Adisp?
-variable byte?                variable seg
-variable .asize               variable .anow
-variable .osize               variable .onow
+int ModR/M               int ModR/M#
+int SIB                  int SIB#
+int disp                 int disp#
+int imm                  int imm#
+int Aimm?                int Adisp?
+int byte?                int seg
+int .asize               int .anow
+int .osize               int .onow
 
 
-: off 0 swap ! ;
-: on -1 swap ! ;
+//: off 0 swap ! ;		: on -1 swap ! ;
+
+: setOn -1 -> ;
+: setOff 0 -> ;
 
 : pre-
-  seg off
-  .asize @ .anow !
-  .osize @ .onow !
+  setOff seg
+  .asize -> .anow
+  .osize -> .onow
 ;
 
 : sclear
   pre-
-  Aimm? off
-  Adisp? off
-  ModR/M# off
-  SIB# off
-  disp# off  
-  imm# off  
-  byte? off
+  setOff Aimm?
+  setOff Adisp?
+  setOff ModR/M#
+  setOff SIB#
+  setOff disp#
+  setOff imm#
+  setOff byte?
 ;
 
 : .b
-  1 byte? !
-  imm# @ 1 min imm# !
+  1 -> byte?
+  imm# 1 min -> imm#
 ;
 
-: .w .onow off ;
-: .wa  .anow off ;
+: .w   setOff .onow ;
+: .wa  setOff .anow ;
 
-: .d   .onow on  ;
-: .da  .anow on  ;
+: .d   setOn .onow ;
+: .da  setOn .anow ;
 
 
 : _c,
@@ -127,24 +129,24 @@ variable .osize               variable .onow
 ;
 
 : opcode, // opcode -- 
-  .asize @ .anow @  != if  0x67 _c,  endif
-  .osize @ .onow @  != if  0x66 _c,  endif
-  seg     @ if  seg @ _c,  endif
+  .asize .anow  != if  0x67 _c,  endif
+  .osize .onow  != if  0x66 _c,  endif
+  seg     if  seg _c,  endif
   _c,  pre-
 ;
 
 : finish // opcode --
   opcode,
-  ModR/M# @ if  ModR/M @ _c,  endif
-  SIB#    @ if  SIB    @ _c,  endif
-  Adisp?  @ disp @ disp# @ bytes,
-  Aimm?   @ imm  @ imm#  @ bytes,
+  ModR/M# if  ModR/M _c,  endif
+  SIB#    if  SIB    _c,  endif
+  Adisp?  disp disp# bytes,
+  Aimm?   imm imm#  bytes,
   sclear
 ;
 
 //
 : finishb
-  byte? @ xor  finish
+  byte? xor  finish
 ;
 : 0F,  0x0F opcode, ;
 
@@ -155,7 +157,7 @@ variable .osize               variable .onow
 // Register                                             29mar94py
 
 : regs  // mod n --
-  1+ 0 do  dup constant 11 +  loop  drop
+  1+ 0 do  dup constant 11+  loop  drop
 ;
 
 : breg  // reg --
@@ -164,54 +166,54 @@ variable .osize               variable .onow
 ;
 
 : bregs // mod n --
-  1+ 0 do  dup breg     11 +  loop  drop
+  1+ 0 do  dup breg     11+  loop  drop
 ;
 
 : wadr: ( reg -- )  builds c,  does c@  .wa ;
 
-: wadr  ( mod n -- ) 1+ 0 do  dup wadr:    11 +  loop  drop ;
+: wadr  ( mod n -- ) 1+ 0 do  dup wadr:    11+  loop  drop ;
 
    0 7 wadr [ebx+esi] [ebx+edi] [ebp+esi] [ebp+edi] [esi] [edi] [ebp] [ebx]
  300 7 regs  eax ecx edx ebx esp ebp esi edi
  300 7 bregs al cl dl bl ah ch dh bh
 2300 5 regs eseg cseg sseg dseg fseg gseg
 
-: .386  .asize on   .osize on  sclear ;  .386
+: .386  setOn .asize setOn .osize sclear ;  .386
 
-: .86   .asize off  .osize off sclear ;
+: .86   setOff .asize setOff .osize sclear ;
 
-: asize@  2 .anow @ if  2*  endif ;
+: asize@  2 .anow if  2*  endif ;
 
-: osize@  2 .onow @ if  2*  endif ;
+: osize@  2 .onow if  2*  endif ;
 
 
 // Address modes                                        01may95py
 : #] ( disp -- reg )
-  disp ! .anow @ if  55 4  else  66 2  endif  disp# ! ;
+  -> disp .anow if  55 4  else  66 2  endif  -> disp# ;
 : *2   100 xor ;    : *4   200 xor ;    : *8   300 xor ;
 : index  ( reg1 reg2 -- modr/m )  370 and swap 7 and or ;
-: i] ( reg1 reg2 -- ireg )  .anow @ 0== if "No Index!" error endif
-  *8  index  SIB ! 1 SIB# ! 44 ;
+: i] ( reg1 reg2 -- ireg )  .anow 0== if "No Index!" error endif
+  *8  index  -> SIB 1 -> SIB# 44 ;
 : i#] ( disp32 reg -- ireg ) ebp swap i] swap #] drop ;
 : seg]  ( seg disp -- -1 )
-  disp !  asize@ disp# !  imm ! 2 imm# !  -1 ;
+  -> disp  asize@ -> disp#  -> imm 2 -> imm# -1 ;
 : ]  ( reg -- reg )  dup esp == if dup i] else 77 and endif ;
-: d] ( disp reg -- reg )  ] r< dup disp !  0x80 -0x80 within
-  Adisp? @ or if  200 asize@  else  100 1  endif disp# ! r> or ;
+: d] ( disp reg -- reg )  ] r< dup -> disp  0x80 -0x80 within
+  Adisp? or if  200 asize@  else  100 1  endif -> disp# r> or ;
 : di] ( disp reg1 reg2 -- ireg )  i] d] ;
-: A: ( -- )  Adisp? on ;        : A::  ( -- )  -2 Adisp? ! ;
+: A: ( -- )  setOn Adisp? ;        : A::  ( -- )  -2 -> Adisp? ;
 : a#] ( imm -- )  A: #] ;       : aseg] ( * -- ) A: seg] ;
 
 // # A# rel] CR DR TR ST <ST STP                        01jan98py
-: # ( imm -- ) dup imm !  -0x80 0x80 within  byte? @ or
-  if  1  else  osize@  endif  imm# ! ;
-: L#  ( imm -- )  imm !  osize@ imm# ! ;
-: A#  ( imm -- )  Aimm? on  L# ;
-: rel]  ( addr -- -2 )  disp ! asize@ disp# ! -2 ;
-: l] ( disp reg -- reg ) ] r< disp ! 200 asize@ disp# ! r> or ;
+: # ( imm -- ) dup -> imm  -0x80 0x80 within  byte? or
+  if  1  else  osize@  endif  -> imm# ;
+: L#  ( imm -- )  -> imm  osize@ -> imm# ;
+: A#  ( imm -- )  setOn Aimm?  L# ;
+: rel]  ( addr -- -2 )  -> disp asize@ -> disp# -2 ;
+: l] ( disp reg -- reg ) ] r< -> disp 200 asize@ -> disp# r> or ;
 : li] ( disp reg1 reg2 -- reg ) i] l] ;
 : >>mod ( reg1 reg2 -- mod )  70 and swap 307 and or ;
-: >mod ( reg1 reg2 -- )  >>mod ModR/M !  1 ModR/M# ! ;
+: >mod ( reg1 reg2 -- )  >>mod -> ModR/M  1 -> ModR/M# ;
 
 
 : CR  ( n -- )  7 and 11 *  0x1C0 or ;
@@ -245,7 +247,7 @@ variable .osize               variable .onow
 : bc.b: ( opcode -- )  builds c, does c@ finishb  ;
 : bc0F: ( opcode -- )  builds c, does c@ finish0F ;
 
-: seg:  ( opcode -- )  builds c, does c@ seg ! ;
+: seg:  ( opcode -- )  builds c, does c@ -> seg ;
 
 0x26 seg: eseg:    0x2E seg: cseg:    0x36 seg: sseg:    0x3E seg: dseg:
 0x64 seg: fseg:    0x65 seg: gseg:
@@ -268,13 +270,13 @@ variable .osize               variable .onow
   builds
     c,
   does 			// reg1 reg2 / reg -- 
-    c@ r< imm# @
+    c@ r< imm#
     if
-      imm# @ byte? @ + 1 > over eax == and
+      imm# byte? + 1 > over eax == and
       if
         drop 0x05 r> 70 and or
       else
-        r> >mod 0x81 imm# @ 1 byte? @ + ==
+        r> >mod 0x81 imm# 1 byte? + ==
         if 2+
         endif
       endif
@@ -294,15 +296,15 @@ variable .osize               variable .onow
   builds
     c,
   does			// r/m -- 
-    c@ >mod  imm# @
+    c@ >mod  imm#
     if
-        imm @ 1 ==
+        imm 1 ==
         if
           0xD1 0
         else
           0xC1 1
         endif
-        imm# !
+        -> imm#
     else
       0xD3
     endif
@@ -329,17 +331,18 @@ variable .osize               variable .onow
 
 // mov                                                  23jan93py
 
-: assign#  byte? @ 0== if  osize@ imm# !  else 1 imm# ! endif ;
+: assign#  byte? 0== if  osize@ -> imm#  else 1 -> imm# endif ;
 
-: ?ofax ( reg eax -- flag ) .anow @ if 55 else 66 endif eax d== ;
+: ?ofax ( reg eax -- flag ) .anow if 55 else 66 endif eax d== ;
 
 ( r/m reg / reg r/m / reg -- )
 : mov,
-  ddup or 0> imm# @ and
+  // ddup or 0> imm# and
+  imm#
   if
     assign# reg?
     if
-      7 and  0xB8 or byte? @ 3 << xor  byte? off
+      7 and  0xB8 or byte? 3 << xor  setOff byte?
     else
       0 >mod  0xC7
     endif
@@ -375,14 +378,14 @@ variable .osize               variable .onow
 44 not: mul,     55 not: (imul 66 not: div,     77 not: idiv,
 
 : inc: ( mode -- )  builds c,
-    does  ( r/m -- ) c@ r< reg?  byte? @ 0==  and
+    does  ( r/m -- ) c@ r< reg?  byte? 0==  and
     if    107 and r> 70 and or finish
     else  r> 0xFF modfb   endif ;
 00 inc: inc,     11 inc: dec,
 
 // test shld shrd                                       07feb93py
 
-: test,  ( reg1 reg2 / reg -- )  imm# @
+: test,  ( reg1 reg2 / reg -- )  imm#
   if
     assign#  eax case?
     if  0xA9  else  test#  exit  endif
@@ -393,12 +396,12 @@ variable .osize               variable .onow
 ;
 
 : shd ( r/m reg opcode -- )
-    imm# @ if  1 imm# ! 1-  endif  mod0F ;
+    imm# if  1 -> imm# 1-  endif  mod0F ;
 : shld,  swap 245 shd ;          : shrd,  swap 255 shd ;
 
 : btx: ( r/m reg/# code -- )  builds c,
-    does c@ r< imm# @
-    if    1 imm# !  r> 0xBA
+    does c@ r< imm#
+    if    1 -> imm#  r> 0xBA
     else  swap 203 r> >>mod  endif  mod0F ;
 44 btx: bt,      55 btx: bts,     66 btx: btr,     77 btx: btc,
 
@@ -409,8 +412,8 @@ variable .osize               variable .onow
     30 and 6 or or finish ;
 
 : push,  ( reg -- )
-  imm# @ 1 == if  0x6A finish exit  endif
-  imm# @     if  0x68 finish exit  endif
+  imm# 1 == if  0x6A finish exit  endif
+  imm#     if  0x68 finish exit  endif
   reg?       if  7 and 0x50 or finish exit  endif
   sr?        if  0 pushs  exit  endif
   66 0xFF modf ;
@@ -425,7 +428,7 @@ variable .osize               variable .onow
 
 : aa:  builds c,
     does ( -- ) c@
-    imm# @ 0== if  0x0A imm !  endif  1 imm# ! finish ;
+    imm# 0== if  0x0A -> imm  endif  1 -> imm# finish ;
 0xD4 aa: aam,     0xD5 aa: aad,     0xD6 bc: salc,    0xD7 bc: xlat,
 
 0x60 bc: pusha,   0x61 bc: popa,
@@ -447,10 +450,10 @@ variable .osize               variable .onow
     if "branch offset out of 1-byte range" %s endif ;
 : sb: ( opcode -- )  builds c,
     does ( addr -- ) r<  here 2 + - ?brange
-    disp !  1 disp# !  r> c@ finish ;
+    -> disp  1 -> disp#  r> c@ finish ;
 0xE0 sb: loopne,  0xE1 sb: loope,   0xE2 sb: loop,    0xE3 sb: jcxz,
 
-: (ret ( op -- )  imm# @  if  2 imm# !  1-  endif  finish ;
+: (ret ( op -- )  imm#  if  2 -> imm#  1-  endif  finish ;
 : ret,  ( -- )  0xC3  (ret ;
 : retf, ( -- )  0xCB  (ret ;
 
@@ -458,7 +461,7 @@ variable .osize               variable .onow
 
 : call,			// reg / disp --
   rel? if
-    drop 0xE8 disp @ here 1+ asize@ + - disp !
+    drop 0xE8 disp here 1+ asize@ + - -> disp
     finish exit
   endif
   22 0xFF modf
@@ -474,12 +477,12 @@ variable .osize               variable .onow
 
 : jmp,   		// reg / disp --
   rel? if
-    drop disp @ here 2 + - dup
+    drop disp here 2 + - dup
     -0x80 0x80 within
     if
-      disp ! 1 disp# !  0xEB
+      -> disp 1 -> disp#  0xEB
     else
-      3 - disp ! 0xE9
+      3 - -> disp 0xE9
     endif
     finish
     exit
@@ -508,8 +511,8 @@ variable .osize               variable .onow
 0x10 cond: o  no   b  nb   z  nz   be  nbe  s  ns   pe po   l  nl   le  nle
 : jmpIF  ( addr cond -- )
   swap here 2 + - dup -0x80 0x80 within
-  if            disp ! 0x70 1
-  else  0F,  4 - disp ! 0x80 4  endif  disp# ! or finish ;
+  if            -> disp 0x70 1
+  else  0F,  4 - -> disp 0x80 4  endif  -> disp# or finish ;
 : jmp:  builds c,  does c@ jmpIF ;
 : jmps  0 do  i jmp:  loop ;
 0x10 jmps jo, jno, jb, jnb, jz, jnz, jbe, jnbe, js, jns, jpe, jpo, jl, jnl, jle, jnle,
@@ -523,7 +526,7 @@ variable .osize               variable .onow
 0x10 sets: seto, setno, setb, setnb, sete, setne, setna, seta, sets, setns, setpe, setpo, setl, setge, setle, setg,
 : xchg ( r/m reg / reg r/m -- )
   over eax == if  swap  endif  reg?  0== if  swap  endif  ?reg
-  byte? @ 0==  if eax case?
+  byte? 0==  if eax case?
   if reg? if 7 and 0x90 or finish exit endif  eax  endif endif
   0x87 modfb ;
 
@@ -533,7 +536,7 @@ variable .osize               variable .onow
 
 // misc                                                 16nov97py
 
-: enter, ( imm8 -- ) 2 imm# ! 0xC8 finish c, ;
+: enter, ( imm8 -- ) 2 -> imm# 0xC8 finish c, ;
 : arpl, ( reg r/m -- )  swap 0x63 modf ;
 0x62 modf: BOUND ( mem reg -- )
 
@@ -550,14 +553,14 @@ variable .osize               variable .onow
 
 // misc                                                 20may93py
 
-: imul, ( r/m reg -- )  imm# @ 0==
+: imul, ( r/m reg -- )  imm# 0==
   if  dup eax ==  if  drop (imul exit  endif
       0xAF mod0F exit  endif
-  >mod imm# @ 1 == if  0x6B  else  0x69  endif  finish ;
-: io ( oc -- )  imm# @ if  1 imm# !  else  0x8 +  endif finishb ;
+  >mod imm# 1 == if  0x6B  else  0x69  endif  finish ;
+: io ( oc -- )  imm# if  1 -> imm#  else  0x8 +  endif finishb ;
 : in,  ( -- ) 0xE5 io ;
 : out, ( -- ) 0xE7 io ;
-: int, ( -- ) 1 imm# ! 0xCD finish ;
+: int, ( -- ) 1 -> imm# 0xCD finish ;
 : 0F.0: ( r/m -- ) builds c, does c@ 0x00 mod0F ;
 00 0F.0: sldt,   11 0F.0: str,    22 0F.0: lldt,   33 0F.0: ltr,
 44 0F.0: verr,   55 0F.0: verw,
@@ -680,7 +683,7 @@ variable fsize
 0xDB mod0F: pand,                 0xDF mod0F: pandn,
 0xEB mod0F: por,                  0xEF mod0F: pxor,
 : pshift ( mmx imm/m mod op -- )
-  imm# @ if  1 imm# !  else  + 0x50 +  endif  mod0F ;
+  imm# if  1 -> imm#  else  + 0x50 +  endif  mod0F ;
 : psrlw, ( mmx imm/m -- )  020 0x71 pshift ;
 : psrld, ( mmx imm/m -- )  020 0x72 pshift ;
 : psrlq, ( mmx imm/m -- )  020 0x73 pshift ;
@@ -704,7 +707,7 @@ variable fsize
 : pstd, ( mm m32/r -- ) swap  0x7E mod0F ; // Intel: MOVD m32/r,mm
 
 // 3Dnow! opcodes (K6)                                  21apr00py
-: mod0F# ( code imm -- )  # 1 imm ! mod0F ;
+: mod0F# ( code imm -- )  # 1 -> imm mod0F ;
 : 3Dnow: ( imm -- )  builds c,  does c@ mod0F# ;
 0x0D 3Dnow: pi2fd,                0x1D 3Dnow: pf2id,
 0x90 3Dnow: pfcmpge,              0xA0 3Dnow: pfcmpgt,

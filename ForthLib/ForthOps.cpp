@@ -29,10 +29,6 @@
 #include "ForthInput.h"
 #include "ForthStructs.h"
 
-#ifdef TRACE_INNER_INTERPRETER
-bool gbTraceEnabled = true;
-#endif
-
 extern "C"
 {
 
@@ -4895,10 +4891,8 @@ FORTHOP( poundEndifOp )
 
 FORTHOP( setTraceOp )
 {
-	long traceOn = SPOP;
-#ifdef TRACE_INNER_INTERPRETER
-	gbTraceEnabled = (traceOn != 0);
-#endif
+	int traceFlags = SPOP;
+	GET_ENGINE->SetTraceFlags( traceFlags );
 }
 
 #ifdef _WINDOWS

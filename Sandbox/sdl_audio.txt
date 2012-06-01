@@ -16,7 +16,7 @@ subroutine _sdlAudioCallback
 	0x10 esp d] ebx mov,	// ebx = userdata
 	0x18 esp d] ecx mov,	// ecx = len
 	0x80 # ebx mov,
-	here
+	here 
 	  bl eax ] mov,
 	  2 # ebx add,
 	  1 # eax add,
@@ -55,6 +55,9 @@ SDL_AudioSpec actualSpec
 ;
 
 loaddone
+	0x14 [esp] eax mov,	// eax = stream
+	0x10 [esp] ebx mov,	// ebx = userdata
+	0x18 [esp] ecx mov,	// ecx = len
 
 
 	mov	eax, [edx]	; pop file pointer
