@@ -24,6 +24,7 @@ public:
 	CForthGuiDlg(CWnd* pParent = NULL);	// standard constructor
 	~CForthGuiDlg();
 
+
 // Dialog Data
 	//{{AFX_DATA(CForthGuiDlg)
 	enum { IDD = IDD_FORTHGUI_DIALOG };
@@ -41,11 +42,18 @@ protected:
 	void			CreateForth();
     void            CreateDialogOps();
 	void			DestroyForth();
+	void			ProcessLine( char* pLine );
+	void			SetupTabbedPane( int tabNum, int tabID, LPSTR tabText );
+
 	HICON m_hIcon;
 
     ForthShell*                 mpShell;
     ForthBufferInputStream*     mpInStream;
     char                        mInBuffer[INPUT_BUFFER_SIZE];
+	int							mSelectedTab;
+
+#define NUM_TABBED_PANES 4
+	CRichEditCtrl*				mTabbedPanes[ NUM_TABBED_PANES ];
 	// Generated message map functions
 	//{{AFX_MSG(CForthGuiDlg)
 	virtual BOOL OnInitDialog();
@@ -57,6 +65,11 @@ protected:
 public:
     afx_msg void OnBnClickedOk();
 	CRichEditCtrl mOutputEdit;
+	afx_msg void OnTcnSelchangeTabScript(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnBnClickedButtonRun();
+	afx_msg void OnBnClickedButtonSave();
+	afx_msg void OnBnClickedButtonLoad();
+	afx_msg void OnSize(UINT nType, int cx, int cy);
 };
 
 //{{AFX_INSERT_LOCATION}}

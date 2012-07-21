@@ -11,11 +11,16 @@
 #include "../ForthLib/ForthEngine.h"
 #include ".\forthguidlg.h"
 
+#include "anchor.h"
+#include "dlgman.h"
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #undef THIS_FILE
 static char THIS_FILE[] = __FILE__;
 #endif
+
+CDlgAnchor dlgAnchor;
 
 /////////////////////////////////////////////////////////////////////////////
 // CAboutDlg dialog used for App About
@@ -76,7 +81,18 @@ struct sStreamInScratch
 	int			m_length;
 };
 
-DWORD CALLBACK StreamInCallback( DWORD dwCookie, LPBYTE outBuffer, LONG outBufferLen, LONG* bytesWritten )
+// My callback procedure that writes the rich edit control contents
+// to a file.
+static DWORD CALLBACK 
+FileStreamInCallback(DWORD dwCookie, LPBYTE pbBuff, LONG cb, LONG *pcb)
+{
+    CFile* pFile = (CFile*) dwCookie;
+    *pcb = pFile->Read(pbBuff, cb);
+    return 0;
+}
+
+
+DWORD CALLBACK BufferStreamInCallback( DWORD dwCookie, LPBYTE outBuffer, LONG outBufferLen, LONG* bytesWritten )
 {
 	sStreamInScratch* const scratch = reinterpret_cast<sStreamInScratch*>( dwCookie );
 	*bytesWritten = min( outBufferLen, scratch->m_length );		
@@ -91,6 +107,10 @@ DWORD CALLBACK StreamInCallback( DWORD dwCookie, LPBYTE outBuffer, LONG outBuffe
 
 void StreamToOutputPane( CRichEditCtrl* pOutEdit, const char* pMessage )
 {
+	if ( pOutEdit == NULL )
+	{
+		return;
+	}
 	// Grab the old selection and cursor placement.
 	CHARRANGE oldSelection;
 	pOutEdit->GetSel( oldSelection );
@@ -105,7 +125,7 @@ void StreamToOutputPane( CRichEditCtrl* pOutEdit, const char* pMessage )
 	EDITSTREAM es;
 	sStreamInScratch scratch( pMessage );
 	es.dwCookie = reinterpret_cast<DWORD>( &scratch );
-	es.pfnCallback = StreamInCallback;
+	es.pfnCallback = BufferStreamInCallback;
 	es.dwError = 0;
 	pOutEdit->StreamIn( SF_TEXT | SFF_SELECTION, es );
 
@@ -125,6 +145,11 @@ CRichEditCtrl* gpOutEdit = NULL;
 void ForthOutRoutine( ForthCoreState *pCore, const char *pBuff )
 {
 	StreamToOutputPane( gpOutEdit, pBuff );
+}
+
+void ForthTraceOutRoutine( void *pCBData, const char *pBuff )
+{
+	StreamToOutputPane( (CRichEditCtrl *) pCBData, pBuff );
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -251,6 +276,7 @@ CForthGuiDlg::CForthGuiDlg(CWnd* pParent /*=NULL*/)
 : CDialog(CForthGuiDlg::IDD, pParent)
 , mpShell( NULL )
 , mpInStream( NULL )
+, mSelectedTab( 0 )
 {
 	//{{AFX_DATA_INIT(CForthGuiDlg)
 		// NOTE: the ClassWizard will add member initialization here
@@ -270,6 +296,7 @@ void CForthGuiDlg::CreateForth()
 	ForthEngine* pEngine = mpShell->GetEngine();
 	pEngine->SetConsoleOut( ForthOutRoutine, GetDlgItem( IDC_RICHEDIT_OUTPUT ) );
 	pEngine->ResetConsoleOut( pEngine->GetCoreState() );
+	pEngine->SetTraceOutRoutine( ForthTraceOutRoutine, GetDlgItem( IDC_RICHEDT_DEBUG ) );
     mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE );
     mpShell->GetInput()->PushInputStream( mpInStream );
     CreateDialogOps();
@@ -317,6 +344,11 @@ BEGIN_MESSAGE_MAP(CForthGuiDlg, CDialog)
 	ON_WM_QUERYDRAGICON()
 	//}}AFX_MSG_MAP
     ON_BN_CLICKED(IDOK, OnBnClickedOk)
+	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB_SCRIPT, &CForthGuiDlg::OnTcnSelchangeTabScript)
+	ON_BN_CLICKED(IDC_BUTTON_RUN, &CForthGuiDlg::OnBnClickedButtonRun)
+	ON_BN_CLICKED(IDC_BUTTON_SAVE, &CForthGuiDlg::OnBnClickedButtonSave)
+	ON_BN_CLICKED(IDC_BUTTON_LOAD, &CForthGuiDlg::OnBnClickedButtonLoad)
+	ON_WM_SIZE()
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -351,9 +383,46 @@ BOOL CForthGuiDlg::OnInitDialog()
 	
 	// TODO: Add extra initialization here
 	gpOutEdit = static_cast<CRichEditCtrl*>(GetDlgItem( IDC_RICHEDIT_OUTPUT ));
+
+    dlgAnchor.Init( m_hWnd );
+
+    dlgAnchor.Add( IDC_RICHEDIT_OUTPUT, ANCHOR_ALL );
+
+    dlgAnchor.Add( IDC_BUTTON_RUN, ANCHOR_TOPRIGHT );
+    dlgAnchor.Add( IDC_BUTTON_LOAD, ANCHOR_TOPRIGHT );
+    dlgAnchor.Add( IDC_BUTTON_SAVE, ANCHOR_TOPRIGHT );
+
+    dlgAnchor.Add( IDC_TAB_SCRIPT, ANCHOR_TOPLEFT );
+    dlgAnchor.Add( IDC_EDIT_INPUT, ANCHOR_BOTTOMLEFT | ANCHOR_RIGHT );
+    dlgAnchor.Add( IDCANCEL, ANCHOR_BOTTOMRIGHT );
+    dlgAnchor.Add( IDOK, ANCHOR_BOTTOMRIGHT );
+
+	SetupTabbedPane( 0, IDC_RICHEDT_SCRIPT,		"Script 1" );
+	SetupTabbedPane( 1, IDC_RICHEDT_SCRIPT2,	"Script 2" );
+	SetupTabbedPane( 2, IDC_RICHEDT_SCRATCH,	"Scratch" );
+	SetupTabbedPane( 3, IDC_RICHEDT_DEBUG,		"Trace" );
+
 	CreateForth();
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
+}
+
+void CForthGuiDlg::SetupTabbedPane( int tabNum, int tabID, LPSTR tabText )
+{
+	CTabCtrl* pTabCtrl = (CTabCtrl *) GetDlgItem( IDC_TAB_SCRIPT );
+
+	TCITEM tabItem;
+	tabItem.mask = TCIF_PARAM | TCIF_TEXT;
+	tabItem.lParam = tabNum;
+	tabItem.pszText = tabText;
+	tabItem.iImage = -1;
+	tabItem.cchTextMax = strlen( tabItem.pszText );
+	pTabCtrl->InsertItem( 0, &tabItem );
+
+    dlgAnchor.Add( tabID, ANCHOR_TOP | ANCHOR_LEFT | ANCHOR_RIGHT );
+
+	CRichEditCtrl* pEdit = (CRichEditCtrl*) GetDlgItem( tabID );
+	mTabbedPanes[tabNum] = pEdit;
 }
 
 void CForthGuiDlg::OnSysCommand(UINT nID, LPARAM lParam)
@@ -410,19 +479,33 @@ void CForthGuiDlg::OnBnClickedOk()
     // TODO: Add your control notification handler code here
     //OnOK();
     CEdit *pEdit = (CEdit* )GetDlgItem( IDC_EDIT_INPUT );
-	CRichEditCtrl *pOutEdit = (CRichEditCtrl*) GetDlgItem( IDC_RICHEDIT_OUTPUT );
-	ForthInputStack* pInput = mpShell->GetInput();
-    eForthResult result = kResultOk;
-
 	pEdit->GetWindowText( mInBuffer, INPUT_BUFFER_SIZE - 4 );
+
+	CRichEditCtrl *pOutEdit = (CRichEditCtrl*) GetDlgItem( IDC_RICHEDIT_OUTPUT );
 	StreamToOutputPane( pOutEdit, mInBuffer );
 	StreamToOutputPane( pOutEdit, "\r\n" );
-	pEdit->GetWindowText( mInBuffer, INPUT_BUFFER_SIZE - 4 );
-    result = mpShell->ProcessLine( mInBuffer );
+
+	ProcessLine( &(mInBuffer[0]) );
+
 	StreamToOutputPane( pOutEdit, "\r\n" );
+
 	// clear input buffer
 	pEdit->SetSel( 0, -1 );
 	pEdit->ReplaceSel( "" );
+}
+
+void CForthGuiDlg::ProcessLine( char* pLine )
+{
+	ForthInputStack* pInput = mpShell->GetInput();
+    eForthResult result = kResultOk;
+
+	//pEdit->GetWindowText( mInBuffer, INPUT_BUFFER_SIZE - 4 );
+	char* pEndLine = strchr( pLine, '\r' );
+	if ( pEndLine != NULL )
+	{
+		*pEndLine = '\0';
+	}
+    result = mpShell->ProcessLine( pLine );
 
 	if ( result == kResultOk )
 	{
@@ -432,7 +515,7 @@ void CForthGuiDlg::OnBnClickedOk()
 			// get a line
 			// interpret the line
 			bool bQuit = false;
-			const char*pBuffer = pInput->GetLine( "" );
+			const char* pBuffer = pInput->GetLine( "" );
 			if ( pBuffer == NULL )
 			{
 				bQuit = pInput->PopInputStream();
@@ -495,3 +578,60 @@ void CForthGuiDlg::CreateDialogOps()
     gButton1.SetCheck( 1 );
 */
 
+
+void CForthGuiDlg::OnTcnSelchangeTabScript(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	*pResult = 0;
+
+	mSelectedTab = TabCtrl_GetCurSel( pNMHDR->hwndFrom );
+	CRichEditCtrl *pEdit = NULL;
+
+	for ( int i = 0; i < NUM_TABBED_PANES; i++ )
+	{
+		mTabbedPanes[i]->ShowWindow( i == mSelectedTab );
+	}
+}
+
+void CForthGuiDlg::OnBnClickedButtonRun()
+{
+	// TODO: Add your control notification handler code here
+	CRichEditCtrl* pEdit = mTabbedPanes[ mSelectedTab ];
+	int numLines = pEdit->GetLineCount();
+	for ( int i = 0; i < numLines; i++ )
+	{
+		pEdit->GetLine( i, &(mInBuffer[0]), sizeof(mInBuffer) );
+		ProcessLine( &(mInBuffer[0]) );
+	}
+}
+
+void CForthGuiDlg::OnBnClickedButtonSave()
+{
+	// TODO: Add your control notification handler code here
+}
+
+void CForthGuiDlg::OnBnClickedButtonLoad()
+{
+    CFileDialog dlg( TRUE, "txt", "*.*" );
+    if ( dlg.DoModal() != IDOK ) {
+        return;
+    }
+
+    CString pathname = dlg.GetFileName();
+    CFile inFile( pathname, CFile::modeRead );
+    EDITSTREAM es;
+
+    es.dwCookie = (DWORD) &inFile;
+    es.pfnCallback = FileStreamInCallback; 
+	CRichEditCtrl* pEdit = mTabbedPanes[ mSelectedTab ];
+    pEdit->StreamIn( SF_TEXT, es );
+    pEdit->Invalidate();
+    //int topLine = mScoreEdit.GetFirstVisibleLine();
+    //mScoreEdit.LineScroll( mTrackLines[ mSoloSpinner ] - topLine );
+}
+
+void CForthGuiDlg::OnSize(UINT nType, int cx, int cy)
+{
+	CDialog::OnSize(nType, cx, cy);
+
+    dlgAnchor.OnSize();
+}
