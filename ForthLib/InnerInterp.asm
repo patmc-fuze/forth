@@ -505,6 +505,14 @@ entry allocLocalsType
 	sal	ebx, 2
 	sub	eax, ebx
 	mov	[ebp].FCore.RPtr, eax
+	; clear out allocated storage
+	mov esi, eax
+	xor eax, eax
+alt1:
+	mov [esi], eax
+	add esi, 4
+	sub ebx, 4
+	jnz alt1
 	jmp	edi
 
 ;-----------------------------------------------
@@ -1791,16 +1799,68 @@ localObjectRef:
 	jmp	edi
 	
 localObjectStore:
-	mov	ebx, [edx]
-	mov	[eax], ebx
-	mov	ebx, [edx+4]
-	mov	[eax+4], ebx
+	; TOS is new object, eax points to destination/old object
+	xor	ebx, ebx			; set var operation back to default/fetch
+	mov	[ebp].FCore.varMode, ebx
+	mov esi, eax		; esi -> destination
+	mov eax, [edx+4]	; eax = newObj data
+	mov ebx, [esi+4]	; ebx = olbObj data
+	cmp eax, ebx
+	jz losx				; objects have same data ptr, don't change refcount
+	; handle newObj refcount
+	or eax,eax
+	jz los1				; if newObj data ptr is null, don't try to increment refcount
+	inc byte ptr [eax]	; increment newObj refcount
+	; handle oldObj refcount
+los1:
+	or ebx,ebx
+	jz los2				; if oldObj data ptr is null, don't try to decrement refcount
+	dec byte ptr [ebx]
+	jz los3
+los2:
+	mov	[esi+4], eax	; oldObj.data = newObj.data
+losx:
+	mov	ebx, [edx]		; ebx = newObj methods
+	mov	[esi], ebx		; var.methods = newObj.methods
 	add	edx, 8
-	; set var operation back to fetch
-	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
 	jmp	edi
 
+	; object var held last reference to oldObj, invoke olbObj.delete method
+	; eax = newObj.data
+	; ebx = oldObj.data
+	; [esi] = var.methods
+los3:
+	push edi
+	push eax
+	; TOS is object vtable, NOS is object data ptr
+	; ebx is method number
+
+	; push this ptr pair on return stack
+	mov	edi, [ebp].FCore.RPtr
+	sub	edi, 8
+	mov	[ebp].FCore.RPtr, edi
+	mov	eax, [ebp].FCore.TDPtr
+	mov	[edi+4], eax
+	mov	eax, [ebp].FCore.TMPtr
+	mov	[edi], eax
+	
+	mov	[ebp].FCore.TDPtr, ebx
+	mov	ebx, [esi]
+	mov	[ebp].FCore.TMPtr, ebx
+	
+	mov	ebx, [ebx]	; ebx = method 0 (delete) opcode
+
+	pop eax
+	pop edi
+	
+	mov	[esi+4], eax	; var.data = newObj.data
+	mov	eax, [edx]		; ebx = newObj methods
+	mov	[esi], eax		; var.methods = newObj.methods
+	add	edx, 8
+
+	; execute the delete method opcode which is in ebx
+	jmp	interpLoopExecuteEntry
+	
 localObjectActionTable:
 	DD	FLAT:localObjectFetch
 	DD	FLAT:localObjectFetch

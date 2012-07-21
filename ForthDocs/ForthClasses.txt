@@ -32,7 +32,7 @@
   another class, with the exception of the ultimate root class, "object"?
   ? what methods should "object" define
     ? new
-      - no, this should be a class
+      - no, this should be a class method
     o delete
     o size
     o getclass
@@ -59,6 +59,30 @@
     ? arrays
     ? sets
     ? lists
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 2012
+
+  Changing the object system so that all objects will be refcounted 
+---------------------------------------------------------------------
+
+How should keep and release be implemented?
+Should they be methods?
+Should they be varops?
+
+How should local object variables and object arrays be handled?
+Assigning an object to a local object variable/array will increment its refcount - should there be an automatic release?
+What about object fields in another object - should they be autoreleased?
+-> autoreleasing would require being careful about always nulling out ovars after releasing
+
+
+doObjectOp
+doObjectArrayOp
+LocalObjectAction
+LocalObjectArrayAction
+MemberObjectAction
+MemberObjectArrayAction
+  remember to do the assembler versions too!
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 class

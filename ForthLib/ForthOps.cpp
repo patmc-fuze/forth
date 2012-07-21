@@ -114,8 +114,8 @@ FORTHOP( utimesOp )
 {
     NEEDS(2);
     unsigned long b = SPOP;
-    unsigned long long a = (long long) SPOP;
-    unsigned long long prod = a * b;
+    unsigned long a = SPOP;
+    unsigned long long prod = ((unsigned long long) a) * b;
     LPUSH( prod );
 }
 
@@ -3096,6 +3096,7 @@ FORTHOP( allocObjectOp )
     {
         long nBytes = pClassVocab->GetSize();
         void* pData = malloc( nBytes );
+		memset( pData, 0, nBytes );
         SPUSH( (long) pData );
         SPUSH( (long) (pPrimaryInterface->GetMethods()) );
     }
@@ -3340,6 +3341,9 @@ FORTHOP( interpretOp )
         int len = strlen( pStr ) + 1;
         ForthEngine *pEngine = GET_ENGINE;
         pEngine->PushInputBuffer( pStr, len );
+		ForthShell* pShell = pEngine->GetShell();
+		pShell->ProcessLine( pStr );
+		pEngine->PopInputStream();
     }
 }
 
@@ -3358,10 +3362,10 @@ FORTHOP( stateOp )
     SPUSH( (long) GET_ENGINE->GetCompileStatePtr() );
 }
 
-FORTHOP( tickOp )
+FORTHOP( strTickOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    char *pToken = pEngine->GetNextSimpleToken();
+	char* pToken = (char *) SPOP;
     long *pSymbol = pEngine->FindSymbol( pToken );
     if ( pSymbol != NULL )
     {
@@ -3375,16 +3379,21 @@ FORTHOP( tickOp )
 
 FORTHOP( executeOp )
 {
+	long op = SPOP;
+    ForthEngine *pEngine = GET_ENGINE;
+	pEngine->ExecuteOneOp( op );
+#if 0
     long prog[2];
     long *oldIP = GET_IP;
 
-    // execute the opcode
+	// execute the opcode
     prog[0] = SPOP;
     prog[1] = BUILTIN_OP( OP_DONE );
     
     SET_IP( prog );
     InnerInterpreter( pCore );
     SET_IP( oldIP );
+#endif
 }
 
 // has precedence!
@@ -3543,9 +3552,106 @@ printNumInCurrentBase( ForthCoreState   *pCore,
 }
 
 
+static void
+printLongNumInCurrentBase( ForthCoreState   *pCore,
+						   long long        val )
+{
+    NEEDS(1);
+#define PRINT_NUM_BUFF_CHARS 68
+    char buff[ PRINT_NUM_BUFF_CHARS ];
+    char *pNext = &buff[ PRINT_NUM_BUFF_CHARS ];
+    ldiv_t v;
+    ulong base;
+    bool bIsNegative, bPrintUnsigned;
+    ulong urem;
+	unsigned long long uval;
+	unsigned long long quotient;
+    ePrintSignedMode signMode;
+
+    if ( val == 0L )
+    {
+        strcpy( buff, "0" );
+        pNext = buff;
+    }
+    else
+    {
+        base = (ulong) *(GET_BASE_REF);
+
+        signMode = (ePrintSignedMode) GET_PRINT_SIGNED_NUM_MODE;
+        if ( base == 10 ) 
+        {
+
+            // most common case - print signed decimal
+			switch ( signMode )
+			{
+			case kPrintAllUnsigned:
+	            sprintf( buff, "%ulld", val );
+				break;
+			default:
+	            sprintf( buff, "%lld", val );
+				break;
+			}
+            pNext = buff;
+
+        }
+        else
+        {
+
+            // unsigned or any base other than 10
+
+            *--pNext = 0;
+            bPrintUnsigned = !(signMode == kPrintAllSigned);
+            if ( bPrintUnsigned )
+            {
+                // since div is defined as signed divide/mod, make sure
+                //   that the number is not negative by generating the bottom digit
+                bIsNegative = false;
+				uval = (unsigned long long) val;
+                urem = uval % base;
+                *--pNext = (char) ( (urem < 10) ? (urem + '0') : ((urem - 10) + 'a') );
+                uval = uval / base;
+            }
+            else
+            {
+                bIsNegative = ( val < 0 );
+                if ( bIsNegative )
+                {
+                    uval = (-val);
+                }
+				else
+				{
+					uval = val;
+				}
+            }
+            while ( uval != 0 )
+            {
+                urem = uval % base;
+                *--pNext = (char) ( (urem < 10) ? (urem + '0') : ((urem - 10) + 'a') );
+                uval = uval / base;
+            }
+            if ( bIsNegative )
+            {
+                *--pNext = '-';
+            }
+        }
+    }
+#ifdef TRACE_PRINTS
+    SPEW_PRINTS( "printed %s\n", pNext );
+#endif
+
+    CONSOLE_STRING_OUT( pNext );
+}
+
+
 FORTHOP( printNumOp )
 {
     printNumInCurrentBase( pCore, SPOP );
+}
+
+FORTHOP( printLongNumOp )
+{
+	long long val = LPOP;
+    printLongNumInCurrentBase( pCore, val );
 }
 
 FORTHOP( printNumDecimalOp )
@@ -3740,6 +3846,10 @@ FORTHOP( printStrOp )
 {
     NEEDS(1);
     char *buff = (char *) SPOP;
+	if ( buff == NULL )
+	{
+		buff = "<<<NULL>>>";
+	}
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -3754,6 +3864,11 @@ FORTHOP( printBlockOp )
     buff[1] = 0;
     long count = SPOP;
     const char* pChars = (const char*)(SPOP);
+	if ( pChars == NULL )
+	{
+		pChars = "<<<NULL>>>";
+		count = strlen( pChars );
+	}
     for ( int i = 0; i < count; i++ )
     {
         buff[0] = *pChars++;
@@ -5522,7 +5637,7 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(stateInterpretOp,       "[" ),
     OP_DEF(    stateCompileOp,         "]" ),
     OP_DEF(    stateOp,                "state" ),
-    OP_DEF(    tickOp,                 "\'" ),
+    OP_DEF(    strTickOp,              "$\'" ),
     PRECOP_DEF(compileOp,              "[compile]" ),
     PRECOP_DEF(bracketTickOp,          "[\']" ),
 
@@ -5557,6 +5672,7 @@ baseDictionaryEntry baseDictionary[] =
     //  text display
     ///////////////////////////////////////////
     OP_DEF(    printNumOp,             "." ),
+    OP_DEF(    printLongNumOp,         "l." ),
     OP_DEF(    printNumDecimalOp,      "%d" ),
     OP_DEF(    printNumHexOp,          "%x" ),
     OP_DEF(    printLongDecimalOp,     "%lld" ),

@@ -47,13 +47,13 @@ static const char *opTypeNames[] =
     "BuiltIn", "BuiltInImmediate", "UserDefined", "UserDefinedImmediate", "UserCode", "UserCodeImmediate", "DLLEntryPoint", 0, 0, 0,
     "Branch", "BranchTrue", "BranchFalse", "CaseBranch", 0, 0, 0, 0, 0, 0,
     "Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "InitLocalString", "LocalStructArray", "OffsetFetch", 0,
-    "LocalByte", "LocalShort", "LocalInt", "LocalFloat", "LocalDouble", "LocalString", "LocalOp", "LocalLong", "LocalObject", "LocalUByte",
-    "LocalUShort", "LocalByteArray", "LocalShortArray", "LocalIntArray", "LocalFloatArray", "LocalDoubleArray", "LocalStringArray", "LocalOpArray", "LocalLongArray", "LocalObjectArray",
-    "LocalUByteArray", "LocalUShortArray", "FieldByte", "FieldShort", "FieldInt", "FieldFloat", "FieldDouble", "FieldString", "FieldOp", "FieldLong",
-    "FieldObject", "FieldUByte", "FieldUShort", "FieldByteArray", "FieldShortArray", "FieldIntArray", "FieldFloatArray", "FieldDoubleArray", "FieldStringArray", "FieldOpArray",
-    "FieldLongArray", "FieldObjectArray", "FieldUByteArray", "FieldUShortArray", "MemberByte", "MemberShort", "MemberInt", "MemberFloat", "MemberDouble", "MemberString",
-    "MemberOp", "MemberLong", "MemberObject", "MemberUByte", "MemberUShort", "MemberByteArray", "MemberShortArray", "MemberIntArray", "MemberFloatArray", "MemberDoubleArray",
-    "MemberStringArray", "MemberOpArray", "MemberLongArray", "MemberObjectArray",  "MemberUByteArray", "MemberUShortArray", "MethodWithThis", "MethodWithTOS", "InitMemberString", 0,
+    "LocalByte", "LocalUByte", "LocalShort", "LocalUShort", "LocalInt", "LocalUInt", "LocalLong", "LocalULong", "LocalFloat", "LocalDouble", "LocalString", "LocalOp", "LocalObject",
+    "LocalByteArray", "LocalUByteArray", "LocalShortArray", "LocalUShortArray", "LocalIntArray", "LocalUIntArray", "LocalLongArray", "LocalULongArray", "LocalFloatArray", "LocalDoubleArray", "LocalStringArray", "LocalOpArray", "LocalObjectArray",
+    "FieldByte", "FieldUByte", "FieldShort", "FieldUShort", "FieldInt", "FieldUInt", "FieldLong", "FieldULong", "FieldFloat", "FieldDouble", "FieldString", "FieldOp", "FieldObject",
+	"FieldByteArray", "FieldUByteArray", "FieldShortArray", "FieldUShortArray", "FieldIntArray", "FieldUIntArray", "FieldLongArray", "FieldULongArray", "FieldFloatArray", "FieldDoubleArray", "FieldStringArray", "FieldOpArray", "FieldObjectArray",
+    "MemberByte", "MemberUByte", "MemberShort", "MemberUShort", "MemberInt", "MemberUInt", "MemberLong", "MemberULong", "MemberFloat", "MemberDouble", "MemberString", "MemberOp", "MemberObject",
+	"MemberByteArray", "MemberUByteArray", "MemberShortArray", "MemberUShortArray", "MemberIntArray", "MemberUIntArray", "MemberLongArray", "MemberULongArray", "MemberFloatArray", "MemberDoubleArray", "MemberStringArray", "MemberOpArray", "MemberObjectArray",
+    "MethodWithThis", "MethodWithTOS", "InitMemberString", 0,
     "LocalUserDefined"
 };
 
@@ -85,6 +85,11 @@ static const char *pErrorStrings[] =
     "Bad Preprocessor Directive",
 };
 
+void defaultTraceOutRoutine( void*, const char* pBuff )
+{
+    TRACE( "%s", pBuff );
+}
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -112,6 +117,8 @@ ForthEngine::ForthEngine()
 , mpCore( NULL )
 , mpShell( NULL )
 , mTraceFlags( kTraceShell )
+, mTraceOutRoutine( defaultTraceOutRoutine )
+, mpTraceOutData( NULL )
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -947,9 +954,21 @@ ForthEngine::TraceOut( const char* pBuff )
 	}
 	else
 	{
-        TRACE( pBuff );
+		if ( mTraceOutRoutine != NULL )
+		{
+			mTraceOutRoutine( mpTraceOutData, pBuff );
+		}
 	}
 }
+
+
+void
+ForthEngine::SetTraceOutRoutine( traceOutRoutine traceRoutine, void* pTraceData )
+{
+	mTraceOutRoutine = traceRoutine;
+	mpTraceOutData = pTraceData;
+}
+
 
 void
 ForthEngine::TraceOp( ForthCoreState* pCore )
@@ -971,6 +990,7 @@ ForthEngine::TraceOp( ForthCoreState* pCore )
 		TraceOut( pIndent );
         DescribeOp( pOp, buff, sizeof(buff), lookupUserTraces );
 		TraceOut( buff );
+		TraceOut( " # " );
     }
 #endif
 }
@@ -1405,6 +1425,12 @@ ForthEngine::CompileOpcode( long op )
        mpLastIntoOpcode = mpLastCompiledOpcode;
        
     }
+	if ( mTraceFlags & kTraceCompilation )
+	{
+		char buff[ 256 ];
+		sprintf( buff,  "Compiling 0x%08x @ 0x%08x\n", op, mDictionary.pCurrent );
+		TraceOut( buff );
+	}
     *mDictionary.pCurrent++ = op;
 }
 
@@ -1418,6 +1444,13 @@ ForthEngine::UncompileLastOpcode( void )
             mpLastIntoOpcode = NULL;
 
         }
+		if ( mTraceFlags & kTraceCompilation )
+		{
+			char buff[ 256 ];
+			sprintf( buff,  "Uncompiling from 0x08x to 0x%08x\n", mDictionary.pCurrent, mpLastCompiledOpcode );
+			TraceOut( buff );
+		}
+
         mDictionary.pCurrent = mpLastCompiledOpcode;
         mpLastCompiledOpcode = NULL;
     }
@@ -1537,7 +1570,7 @@ ForthEngine::ExecuteOneOp( long opCode )
 //
 // code at pOps must be terminated with OP_DONE
 //
-eForthResult
+inline eForthResult
 ForthEngine::ExecuteOps( long *pOps )
 {
     long *savedIP;
@@ -1584,6 +1617,25 @@ ForthEngine::ExecuteOps( ForthThread* pThread )
     {
         exitStatus = InnerInterpreter( &(pThread->mCore) );
     }
+    return exitStatus;
+}
+
+
+eForthResult
+ForthEngine::ExecuteOneMethod( ForthObject& obj, long methodNum )
+{
+    long opScratch[2];
+
+	opScratch[0] = obj.pMethodOps[ methodNum ];
+    opScratch[1] = BUILTIN_OP( OP_DONE );
+
+	ForthCoreState* pCore = mpCore;
+	RPUSH( ((long) GET_TPD) );
+    RPUSH( ((long) GET_TPM) );
+    SET_TPM( obj.pMethodOps );
+    SET_TPD( obj.pData );
+
+	eForthResult exitStatus = ExecuteOps( &(opScratch[0]) );
     return exitStatus;
 }
 

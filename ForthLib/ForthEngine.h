@@ -49,7 +49,8 @@ enum {
 	kTraceInnerInterpreter = 0x01,
 	kTraceShell = 0x02,
 	kTraceStack = 0x04,
-	kTraceToConsole = 0x08
+	kTraceToConsole = 0x08,
+	kTraceCompilation = 0x010
 };
 
 class ForthEngine
@@ -80,6 +81,8 @@ public:
 	// Use this version of ExecuteOps to execute code in a particular thread
 	// Caller must have already set the thread IP to point to a sequens of ops which ends with 'done'
 	eForthResult		ExecuteOps( ForthThread* pThread );
+
+    eForthResult        ExecuteOneMethod( ForthObject& obj, long methodNum );
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
     long            AddOp( const long *pOp, forthOpType symType );
@@ -206,6 +209,8 @@ public:
 	long					GetTraceFlags( void );
 	void					SetTraceFlags( long flags );
 
+	void					SetTraceOutRoutine( traceOutRoutine traceRoutine, void* pTraceData );
+
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char* pToken, long& value, long long& lvalue, int base, bool& isOffset, bool& isSingle );
@@ -247,6 +252,9 @@ protected:
     long            mCompileFlags;
     long            mNumElements;       // number of elements in next array declared
 	long			mTraceFlags;
+
+	traceOutRoutine	mTraceOutRoutine;
+	void*			mpTraceOutData;
 
     long *          mpEnumStackBase;
     long            mNextEnum;

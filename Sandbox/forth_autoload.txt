@@ -13,6 +13,8 @@ enum: baseTypes
 0x7FFFFFFF -> int MAXINT
 0x80000000 -> int MININT
 
+: ' blword $' ;
+
 : ds dstack ;
 
 : autoload

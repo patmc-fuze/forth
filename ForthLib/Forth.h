@@ -159,6 +159,9 @@ typedef bool (*interpreterExtensionRoutine)( char *pToken );
 // consoleOutRoutine is used to pass all console output
 typedef void (*consoleOutRoutine) ( ForthCoreState *pCore, const char *pBuff );
 
+// traceOutRoutine is used when overriding builtin trace routines
+typedef void (*traceOutRoutine) ( void *pData, const char *pBuff );
+
 // the varMode state makes variables do something other
 //  than their default behaviour (fetch)
 typedef enum {

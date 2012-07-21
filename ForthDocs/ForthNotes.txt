@@ -108,6 +108,7 @@ cvs update
 cvs log FILENMAE
 	show history of a file
 	
+To revert changes to a file, delete the file then do cvs update FILENAME
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 colonOp
  ForthEngine::StartOpDefinition
@@ -126,6 +127,85 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 20 2012
+
+Added multiple script panes and window resizing to ForthGui.
+Changed trace output to go through a settable traceOutRoutine to allow trace
+output to be sent to a ForthGui pane.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 18 2012
+
+Updated classtest.txt to do some testing of oArray, oList and oMap.
+Completed changes to have refCounts be 0 at creation time and have object
+variable assignment affect refCounts.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 16 2012
+
+Fix bugs in interpret and u* .
+Fix bug with handling of things like obj.method( blah )  or   vocab:op( blah ).
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 13 2012
+
+Added a bunch of tests to forthtest.txt.  In doing so I found thatt'interpret'
+was broken - it didn't invoke the outer interpreter directly, it just stuck
+stuff on the input stack and so the target string wasn't interpreted until
+well after exiting 'interpret'.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 29 2012
+
+I just realized that if a class extends a struct, it can't extend object and
+be refcounted.
+
+I had been thinking about defining okeep, orelease and odrop ops.  odrop would
+be used after you executed a container method that removed an object from a
+container and left it on TOS.  odrop would check the refcount and delete the
+object if 0, otherwise it would just decrement the refcount and remove the
+object from TOS.  This wouldn't work if two containers referred to the same
+object and you popped the object from one container then did an odrop - the
+odrop would leave the object refcount 0 and delete it, but the second container
+would still have a reference to it.
+-> odrop should not affect the refcount, it should just delete the object if
+   its refcount is already 0
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 28 2012
+
+While debugging the object system changes I ran into a painful bug, that was
+caused by another thing I forgot to fix:  if all objects are refcounted, then
+all local object variables must be initialized to NULL, otherwise the first
+time you assign to a local object variable, it will try decrementing the
+refcount of whatever bogus address the local object was pointing to.
+-> zero out ALL local variables when allocating a stack frame - and the same
+   should be done for global variables and member variables
++ AllocLocalsAction
++ allocObjectsOp
++ global vars & arrays - ForthClassVocabulary::DefineInstance already does this
++ global structs & struct arrays - ForthStructVocabulary::DefineInstance already does this
++ assembler versions where they exist (just allocLocalsType)
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 24 2012
+
+I'm having doubts about the new object changes - maybe they are just doubts
+about how to name things.  Specifically, should the root class be called 'object'
+or 'ovar' - the other containers are themselves objects, but an ovar is not an
+object that contains a single object.
+
+When I was looking through the existing container code, I kept seeing cases
+where assigning an object to a container didn't do a keep on the object.
+
+Another odd thing is oListRemoveHead and oListRemoveTail - if I make them
+do a release on the removed object, it will often be destroyed, but leave a
+dangling object reference on TOS - I guess the rule will be that the user
+has to remember to do a release
+? or should the refcount be decremented, but no delete done if it is 0 - this
+  would fit conceptually with having new objects on TOS have refcount 0.
+  -> but if the user wanted to just discard the object, they would first
+     have to assign it to a variable and then release it, doing a release
+     on TOS would fail because the refcount is already 0.
+     
++ I reworked the varop handling routines for all the predefined types to use
+  a common inline function rather than explicitly duplicating the code for
+  each usage scenario of each type
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 30 2012
 
 I think the next steps for object support are:
@@ -140,7 +220,7 @@ object variable must be treated as the simplest container.
 I think I will make this non-backwards compatible and change names to reflect
 this.
 
-o object will become oVar
+o object will become ovar
 o rcXXX will become oXXX
 
 ? how should varops interact with containers

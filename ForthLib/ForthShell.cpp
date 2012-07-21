@@ -728,6 +728,27 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
             if ( mpStack->PopString( pInfo->GetToken() ) )
             {
                  pInfo->SetToken();
+				 pSrc = pInfo->GetToken();
+
+				 // set parseInfo flags for popped token
+				 while ( *pSrc != '\0' )
+				 {
+					 switch ( *pSrc )
+					 {
+					 case '.':
+						 pInfo->SetFlag( PARSE_FLAG_HAS_PERIOD );
+						 break;
+
+					 case ':':
+						pInfo->SetFlag( PARSE_FLAG_HAS_COLON );
+						break;
+
+					 default:
+						 break;
+					 }
+
+					 pSrc++;
+				 }
             }
             else
             {

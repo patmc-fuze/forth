@@ -1,7 +1,8 @@
 autoforget ook
 
 class: ook
-
+  extends object
+  
   int num
 
   32 string name
@@ -234,6 +235,71 @@ class: fakeRgba
   ;implements
 
 ;class
+
+int nextObjId
+
+class: tobj
+  extends object
+  int objId
+  
+  : newTobj
+    _allocObject
+    ddup nextObjId -rot
+    -> <tobj>.objId
+    "|+" %s nextObjId %d
+    1 ->+ nextObjId
+  ;
+
+  ' newTobj tobj.setNew
+  
+  method: delete
+    "|-" %s objId %d
+  ;method
+  
+;class
+
+new tobj -> long ta
+new tobj -> long tb
+new tobj -> long tc
+new tobj -> long td
+new tobj -> long te
+
+tobj va
+tobj vb
+tobj vc
+tobj vd
+tobj ve
+
+ta -> va
+tb -> vb
+tc -> vc
+td -> vd
+te -> ve
+
+// oArray:   clear   resize(N)   count   get(I)   set(O I)   findIndex(O)   push(O)   pop   headIter   tailIter   clone
+// oList:   head   tail   addHead(O)   addTail(O)   removeHead   removeTail   headIter   tailIter   count   find(O)   clone
+// oMap:   clear   count   get(KEY)   set(O KEY)   findIndex(O)   remove(KEY)   headIter   tailIter   
+
+//"(vb=" %s tb <tobj>.refCount %d " before adding to map)" %s
+new oMap -> oMap ma
+ma.set( va 'a' )  ma.set( vb 'b' )  ma.set( vc 'c' )  ma.set( vd 'd' )  ma.set( ve 'e' )
+
+new oList -> oList la
+la.addHead(ma.get( 'b' ))  la.addHead(ma.get( 'c' ))  la.addHead(ma.get( 'd' ))
+
+new oArray -> oArray aa
+aa.push(ma.get( 'a' ))  aa.push(vb)  aa.push(ma.get( 'c' ))
+
+dnull -> va  dnull -> vb  dnull -> vc  dnull -> vd  dnull -> ve
+
+//"{clearing map}" %s
+dnull -> ma   //ma.clear
+
+//"{clearing list}" %s
+dnull -> la
+
+//"{clearing array}" %s
+dnull -> aa // aa.resize( 0 )
 
 loaddone
 

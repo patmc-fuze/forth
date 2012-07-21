@@ -708,9 +708,16 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
         {
             pEngine->UncompileLastOpcode();
         }
+#if 1
+		for ( int i = 0; i < nLongs; i++ )
+		{
+			pEngine->CompileOpcode( mCode[i] );
+		}
+#else
         pDst = pEngine->GetDP();
-        pEngine->AllotLongs( nLongs );
+		pEngine->AllotLongs( nLongs );
         memcpy( pDst, &(mCode[0]), (nLongs << 2) );
+#endif
     }
     else
     {
@@ -1367,8 +1374,14 @@ ForthClassVocabulary::DefineInstance( void )
                 }
                 else
                 {
+					// bump objects refcount
                     *pHere++ = SPOP;
-                    *pHere = SPOP;
+					long* pData = (long *) SPOP;
+					if ( pData != NULL )
+					{
+						*pData += 1;
+					}
+                    *pHere = (long) pData;
                 }
                 CLEAR_VAR_OPERATION;
             }
