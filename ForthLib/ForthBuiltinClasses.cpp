@@ -57,7 +57,7 @@ namespace
     {
         char buff[512];
         ForthClassObject* pClassObject = (ForthClassObject *)(*((GET_TPM) - 1));
-        sprintf_s( buff, sizeof(buff), "object %s  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), GET_TPM, GET_TPD );
+        sprintf( buff, "object %s  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), GET_TPM, GET_TPD );
         CONSOLE_STRING_OUT( buff );
         METHOD_RETURN;
     }
@@ -1535,7 +1535,7 @@ namespace
         ForthClassObject* pClassObject = (ForthClassObject *)(*((GET_TPM) - 1));
         GET_THIS( oStringStruct, pString );
         ulong* pRefCount = (ulong*)(GET_TPD);      // member at offset 0 is refcount
-        sprintf_s( buff, sizeof(buff), "%s  [%s] refCount=%d  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), &(pString->str->data[0]), pString->refCount, GET_TPM, GET_TPD );
+        sprintf( buff, "%s  [%s] refCount=%d  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), &(pString->str->data[0]), pString->refCount, GET_TPM, GET_TPD );
         CONSOLE_STRING_OUT( buff );
         METHOD_RETURN;
     }

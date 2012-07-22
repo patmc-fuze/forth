@@ -542,7 +542,7 @@ ForthEngine::ForgetSymbol( const char *pSym, bool quietMode )
             case kOpBuiltIn:
             case kOpBuiltInImmediate:
                 // sym is built-in op - no way
-                sprintf_s( buff, sizeof(buff),  "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
+                sprintf( buff,  "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
                 break;
 
             case kOpUserDef:
@@ -556,14 +556,14 @@ ForthEngine::ForgetSymbol( const char *pSym, bool quietMode )
 
             default:
                 const char* pStr = GetOpTypeName( opType );
-                sprintf_s( buff, sizeof(buff), "Error - attempt to forget op %s of type %s from %s\n", pSym, pStr, pFoundVocab->GetName() );
+                sprintf( buff, "Error - attempt to forget op %s of type %s from %s\n", pSym, pStr, pFoundVocab->GetName() );
                 break;
 
         }
     }
     else
     {
-        sprintf_s( buff, sizeof(buff), "Error - attempt to forget unknown op %s from %s\n", pSym, GetSearchVocabulary()->GetName() );
+        sprintf( buff, "Error - attempt to forget unknown op %s from %s\n", pSym, GetSearchVocabulary()->GetName() );
     }
     if ( buff[0] != '\0' )
     {
@@ -741,11 +741,11 @@ ForthEngine::DescribeSymbol( const char *pSymName )
         if ( isUserOp )
         {
             ForthStructVocabulary::TypecodeToString( pEntry[1], buff2, sizeof(buff2) );
-            sprintf_s( buff, sizeof(buff), "%s: type %s:%x value 0x%x 0x%x (%s) \n", pSymName, pStr, opValue, pEntry[0], pEntry[1], buff2 );
+            sprintf( buff, "%s: type %s:%x value 0x%x 0x%x (%s) \n", pSymName, pStr, opValue, pEntry[0], pEntry[1], buff2 );
         }
         else
         {
-            sprintf_s( buff, sizeof(buff), "%s: type %s:%x value 0x%x 0x%x \n", pSymName, pStr, opValue, pEntry[0], pEntry[1] );
+            sprintf( buff, "%s: type %s:%x value 0x%x 0x%x \n", pSymName, pStr, opValue, pEntry[0], pEntry[1] );
         }
         ConsoleOut( buff );
         if ( isUserOp )
@@ -755,11 +755,11 @@ ForthEngine::DescribeSymbol( const char *pSymName )
             long* endIP = (opValue == (mpCore->numUserOps - 1)) ? GetDP() : mpCore->userOps[ opValue + 1 ];
             while ( (curIP < endIP) && notDone )
             {
-                sprintf_s( buff, sizeof(buff), "  %08x  ", curIP );
+                sprintf( buff, "  %08x  ", curIP );
                 ConsoleOut( buff );
                 DescribeOp( curIP, buff, sizeof(buff), true );
                 ConsoleOut( buff );
-                sprintf_s( buff, sizeof(buff), "\n" );
+                sprintf( buff, "\n" );
                 ConsoleOut( buff );
                 if ( ((line & 31) == 0) && (mpShell != NULL) && mpShell->GetInput()->InputStream()->IsInteractive() )
                 {
@@ -779,7 +779,7 @@ ForthEngine::DescribeSymbol( const char *pSymName )
     }
     else
     {
-        sprintf_s( buff, sizeof(buff), "Symbol %s not found\n", pSymName );
+        sprintf( buff, "Symbol %s not found\n", pSymName );
         TRACE( buff );
         ConsoleOut( buff );
     }
@@ -1021,12 +1021,12 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
     ForthVocabulary *pFoundVocab = NULL;
     long *pEntry = NULL;
 
-    sprintf_s( pBuffer, buffSize, "%02x:%06x    ", opType, opVal );
+    sprintf( pBuffer, "%02x:%06x    ", opType, opVal );
     pBuffer += 13;
 	buffSize -= 13;
     if ( opType >= (sizeof(opTypeNames) / sizeof(char *)) )
     {
-        sprintf_s( pBuffer, buffSize, "BadOpType" );
+        sprintf( pBuffer, "BadOpType" );
     }
     else
     {
@@ -1042,26 +1042,26 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                     switch( opVal )
                     {
                         case OP_INT_VAL:
-                            sprintf_s( pBuffer, buffSize, "%s 0x%x", gOpNames[opVal], pOp[1] );
+                            sprintf( pBuffer, "%s 0x%x", gOpNames[opVal], pOp[1] );
                             break;
 
                         case OP_FLOAT_VAL:
-                            sprintf_s( pBuffer, buffSize, "%s %f", gOpNames[opVal], *((float *)(&(pOp[1]))) );
+                            sprintf( pBuffer, "%s %f", gOpNames[opVal], *((float *)(&(pOp[1]))) );
                             break;
 
                         case OP_DOUBLE_VAL:
-                            sprintf_s( pBuffer, buffSize, "%s %g", gOpNames[opVal], *((double *)(&(pOp[1]))) );
+                            sprintf( pBuffer, "%s %g", gOpNames[opVal], *((double *)(&(pOp[1]))) );
                             break;
 
                         default:
-                            sprintf_s( pBuffer, buffSize, "%s", gOpNames[opVal] );
+                            sprintf( pBuffer, "%s", gOpNames[opVal] );
                             break;
                     }
                 }
                 else
                 {
                     // op we don't have name pointer for
-                    sprintf_s( pBuffer, buffSize, "%s(%d)", opTypeNames[opType], opVal );
+                    sprintf( pBuffer, "%s(%d)", opTypeNames[opType], opVal );
                 }
                 break;
             
@@ -1087,7 +1087,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 }
                 else
                 {
-                    sprintf_s( pBuffer, buffSize, "%s", opTypeNames[opType] );
+                    sprintf( pBuffer, "%s", opTypeNames[opType] );
                 }
                 break;
 
@@ -1113,11 +1113,11 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
             case kOpMemberObject:        case kOpMemberObjectArray:
             case kOpMemberUByte:         case kOpMemberUByteArray:
             case kOpMemberUShort:        case kOpMemberUShortArray:
-                sprintf_s( pBuffer, buffSize, "%s_%x", opTypeNames[opType], opVal );
+                sprintf( pBuffer, "%s_%x", opTypeNames[opType], opVal );
                 break;
 
             case kOpConstantString:
-                sprintf_s( pBuffer, buffSize, "\"%s\"", (char *)(pOp + 1) );
+                sprintf( pBuffer, "\"%s\"", (char *)(pOp + 1) );
                 break;
             
             case kOpConstant:
@@ -1125,18 +1125,18 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 {
                     opVal |= 0xFF000000;
                 }
-                sprintf_s( pBuffer, buffSize, "%s    %d", opTypeNames[opType], opVal );
+                sprintf( pBuffer, "%s    %d", opTypeNames[opType], opVal );
                 break;
 
             case kOpOffset:
                 if ( opVal & 0x800000 )
                 {
                     opVal |= 0xFF000000;
-                    sprintf_s( pBuffer, buffSize, "%s    %d", opTypeNames[opType], opVal );
+                    sprintf( pBuffer, "%s    %d", opTypeNames[opType], opVal );
                 }
                 else
                 {
-                    sprintf_s( pBuffer, buffSize, "%s    +%d", opTypeNames[opType], opVal );
+                    sprintf( pBuffer, "%s    +%d", opTypeNames[opType], opVal );
                 }
                 break;
 
@@ -1146,39 +1146,39 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 {
                     opVal |= 0xFF000000;
                 }
-                sprintf_s( pBuffer, buffSize, "%s    0x%08x", opTypeNames[opType], opVal + 1 + pOp );
+                sprintf( pBuffer, "%s    0x%08x", opTypeNames[opType], opVal + 1 + pOp );
                 break;
 
             case kOpInitLocalString:   // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
             case kOpInitMemberString:   // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
-                sprintf_s( pBuffer, buffSize, "%s    maxBytes %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
+                sprintf( pBuffer, "%s    maxBytes %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
                 break;
             
             case kOpLocalStructArray:   // bits 0..11 are padded struct size in bytes, bits 12..23 are frame offset in longs
-                sprintf_s( pBuffer, buffSize, "%s    elementSize %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
+                sprintf( pBuffer, "%s    elementSize %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
                 break;
             
             case kOpAllocLocals:
-                sprintf_s( pBuffer, buffSize, "%s    longs %d", opTypeNames[opType], opVal );
+                sprintf( pBuffer, "%s    longs %d", opTypeNames[opType], opVal );
                 break;
             
             case kOpArrayOffset:
-                sprintf_s( pBuffer, buffSize, "%s    elementSize %d", opTypeNames[opType], opVal );
+                sprintf( pBuffer, "%s    elementSize %d", opTypeNames[opType], opVal );
                 break;
             
             case kOpMethodWithThis:
             case kOpMethodWithTOS:
-                sprintf_s( pBuffer, buffSize, "%s    %d", opTypeNames[opType], opVal );
+                sprintf( pBuffer, "%s    %d", opTypeNames[opType], opVal );
                 break;
 
             default:
                 if ( opType >= (unsigned int)(sizeof(opTypeNames) / sizeof(char *)) )
                 {
-                    sprintf_s( pBuffer, buffSize, "BAD OPTYPE!" );
+                    sprintf( pBuffer, "BAD OPTYPE!" );
                 }
                 else
                 {
-                    sprintf_s( pBuffer, buffSize, "%s", opTypeNames[opType] );
+                    sprintf( pBuffer, "%s", opTypeNames[opType] );
                 }
                 break;
         }
@@ -1268,7 +1268,7 @@ ForthEngine::ScanIntegerToken( char         *pToken,
     {
         if ( isSingle )
         {
-            if ( sscanf_s( pToken + 2, "%x", &value ) == 1 )
+            if ( sscanf( pToken + 2, "%x", &value ) == 1 )
             {
                 if ( isNegative )
                 {
@@ -1279,7 +1279,7 @@ ForthEngine::ScanIntegerToken( char         *pToken,
         }
         else
         {
-            if ( sscanf_s( pToken + 2, "%I64x", &lvalue ) == 1 )
+            if ( sscanf( pToken + 2, "%I64x", &lvalue ) == 1 )
             {
                 if ( isNegative )
                 {
@@ -1383,7 +1383,7 @@ bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, b
    case 'd':
    case 'g':
       *pLastChar = 0;
-      if ( sscanf_s( pToken, "%lf", &dvalue ) == 1)
+      if ( sscanf( pToken, "%lf", &dvalue ) == 1)
       {
          retVal = true;
          isSingle = false;
@@ -1392,7 +1392,7 @@ bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, b
       break;
    case 'f':
       *pLastChar = 0;
-      if ( sscanf_s( pToken, "%f", &fvalue ) == 1)
+      if ( sscanf( pToken, "%f", &fvalue ) == 1)
       {
          retVal = true;
          isSingle = true;
@@ -1400,7 +1400,7 @@ bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, b
       *pLastChar = lastChar;
       break;
    default:
-       if ( sscanf_s( pToken, "%f", &fvalue ) == 1)
+       if ( sscanf( pToken, "%f", &fvalue ) == 1)
         {
             retVal = true;
             isSingle = true;
@@ -1643,7 +1643,7 @@ ForthEngine::ExecuteOneMethod( ForthObject& obj, long methodNum )
 void
 ForthEngine::AddErrorText( const char *pString )
 {
-    strcat_s( mpErrorString, (ERROR_STRING_MAX - 1), pString );
+    strcat( mpErrorString, pString );
 }
 
 void
@@ -1652,7 +1652,7 @@ ForthEngine::SetError( eForthError e, const char *pString )
     mpCore->error = e;
     if ( pString )
     {
-	    strcat_s( mpErrorString, (ERROR_STRING_MAX - 1), pString );
+	    strcat( mpErrorString, pString );
     }
     if ( e == kForthErrorNone )
     {
@@ -1672,7 +1672,7 @@ ForthEngine::SetFatalError( eForthError e, const char *pString )
     mpCore->error = e;
     if ( pString )
     {
-        strcpy_s( mpErrorString, (ERROR_STRING_MAX - 1), pString );
+        strcpy( mpErrorString, pString );
     }
 }
 
@@ -1684,16 +1684,16 @@ ForthEngine::GetErrorString( char *pBuffer, int bufferSize )
     {
         if ( mpErrorString[0] != '\0' )
         {
-            sprintf_s( pBuffer, bufferSize, "%s: %s", pErrorStrings[errorNum], mpErrorString );
+            sprintf( pBuffer, "%s: %s", pErrorStrings[errorNum], mpErrorString );
         }
         else
         {
-            strcpy_s( pBuffer, bufferSize, pErrorStrings[errorNum] );
+            strcpy( pBuffer, pErrorStrings[errorNum] );
         }
     }
     else
     {
-        sprintf_s( pBuffer, bufferSize, "Unknown Error %d", errorNum );
+        sprintf( pBuffer, "Unknown Error %d", errorNum );
     }
 }
 
@@ -1852,7 +1852,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         {
             int lenLongs = ((len + 4) & ~3) >> 2;
             CompileOpcode( lenLongs | (kOpConstantString << 24) );
-            strcpy_s( (char *) mDictionary.pCurrent, (len + 1), pToken );
+            strcpy( (char *) mDictionary.pCurrent, pToken );
             mDictionary.pCurrent += lenLongs;
         }
         else
@@ -1866,7 +1866,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
                 mNextStringNum = 0;
             }
             char *pStr = mpStringBufferA + (INTERP_STRINGS_LEN * mNextStringNum);
-            strcpy_s( pStr, (INTERP_STRINGS_LEN - 1), pToken );  // TBD: make string buffer len a symbol
+            strcpy( pStr, pToken );  // TBD: make string buffer len a symbol
 			pStr[ INTERP_STRINGS_LEN - 1 ] = '\0';
             *--mpCore->SP = (long) pStr;
             mNextStringNum++;

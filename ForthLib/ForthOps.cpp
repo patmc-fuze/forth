@@ -175,7 +175,11 @@ FORTHOP( divmodOp )
     ldiv_t v;
     long b = SPOP;
     long a = SPOP;
+#if defined(_WINDOWS)
     v = div( a, b );
+#elif defined(_LINUX)
+    v = ldiv( a, b );
+#endif
     SPUSH( v.rem );
     SPUSH( v.quot );
 }
@@ -2100,7 +2104,11 @@ FORTHOP( stricmpOp )
 {
     char *pStr2 = (char *) SPOP;
     char *pStr1 = (char *) SPOP;
+#if defined(_WINDOWS)
 	int result = stricmp( pStr1, pStr2 );
+#elif defined(_LINUX)
+	int result = strcasecmp( pStr1, pStr2 );
+#endif
 	// only return 1, 0 or -1
 	if ( result != 0 )
 	{
@@ -3534,7 +3542,11 @@ printNumInCurrentBase( ForthCoreState   *pCore,
             }
             while ( val != 0 )
             {
+#if defined(_WINDOWS)
                 v = div( val, base );
+#elif defined(_LINUX)
+                v = ldiv( val, base );
+#endif
                 *--pNext = (char) ( (v.rem < 10) ? (v.rem + '0') : ((v.rem - 10) + 'a') );
                 val = v.quot;
             }

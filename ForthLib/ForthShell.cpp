@@ -45,15 +45,15 @@ namespace
         {
             return TagStrings[ tag ];
         }
-        sprintf_s( msg, sizeof(msg), "UNKNOWN TAG 0x%x", tag );
+        sprintf( msg, "UNKNOWN TAG 0x%x", tag );
         return msg;
     }
 
     int fileExists( const char* pFilename )
     {
 		FILE* pFile = NULL;
-		errno_t status = fopen_s( &pFile, pFilename, "r" );
-        int result = (status == 0) ? ~0 : 0;
+		pFile = fopen( pFilename, "r" );
+        int result = (pFile != 0) ? ~0 : 0;
         if ( pFile != NULL )
         {
             fclose( pFile );
@@ -71,7 +71,11 @@ namespace
     }
 }
 
+#if defined(_WINDOWS)
 DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData );
+#elif defined(_LINUX)
+unsigned long ConsoleInputThreadRoutine( void* pThreadData );
+#endif
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -173,7 +177,7 @@ ForthShell::PushInputFile( const char *pFilename )
     FILE *pInFile = OpenInternalFile( pFilename );
     if ( pInFile == NULL )
     {
-		errno_t status = fopen_s( &pInFile, pFilename, "r" );
+		pInFile = fopen( pFilename, "r" );
     }
     if ( pInFile != NULL )
     {
@@ -222,7 +226,7 @@ ForthShell::Run( ForthInputStream *pInStream )
 	if ( pFile == NULL )
 	{
 		// no internal file found, try opening app_autoload.txt as a standard file
-		errno_t status = fopen_s( &pFile, autoloadFilename, "r" );
+		pFile = fopen( autoloadFilename, "r" );
 	}
     if ( pFile != NULL )
     {
@@ -298,7 +302,7 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
     char* pLineBuff = mpInput->GetBufferBasePointer();
     if ( pSrcLine != NULL )
 	{
-		strcpy_s( pLineBuff, mpInput->GetBufferLength(), pSrcLine );
+		strcpy( pLineBuff, pSrcLine );
 		mpInput->SetBufferPointer( pLineBuff );
 	}
 
@@ -402,7 +406,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
     pLineBuff = mpInput->GetBufferBasePointer();
     if ( pSrcLine != NULL )
 	{
-        strcpy_s( pLineBuff, mpInput->GetBufferLength(), pSrcLine );
+        strcpy( pLineBuff, pSrcLine );
 		mpInput->SetBufferPointer( pLineBuff );
 	}
     SPEW_SHELL( "*** InterpretLine \"%s\"\n", pLineBuff );
@@ -481,20 +485,20 @@ ForthShell::ReportError( void )
 
 	if ( pLastInputToken != NULL )
     {
-        sprintf_s( errorBuf2, sizeof(errorBuf2), "%s, last input token: <%s> last IP 0x%x", errorBuf1, pLastInputToken, pCore->IP );
+        sprintf( errorBuf2, "%s, last input token: <%s> last IP 0x%x", errorBuf1, pLastInputToken, pCore->IP );
     }
     else
     {
-        sprintf_s( errorBuf2, sizeof(errorBuf2), "%s", errorBuf1 );
+        sprintf( errorBuf2, "%s", errorBuf1 );
     }
     int lineNumber = mpInput->InputStream()->GetLineNumber();
     if ( lineNumber > 0 )
     {
-        sprintf_s( errorBuf1, sizeof(errorBuf1), "%s at line number %d", errorBuf2, lineNumber );
+        sprintf( errorBuf1, "%s at line number %d", errorBuf2, lineNumber );
     }
     else
     {
-        strcpy_s( errorBuf1, sizeof(errorBuf1), errorBuf2 );
+        strcpy( errorBuf1, errorBuf2 );
     }
     TRACE( "%s", errorBuf1 );
 	pCore->consoleOut( pCore, errorBuf1 );
@@ -509,7 +513,7 @@ ForthShell::ReportError( void )
             *pBuf++ = *pBase++;
         }
 		int bufferLimit = sizeof(errorBuf1) - (pBuf - &(errorBuf1[0]));
-        sprintf_s( pBuf, bufferLimit, "{}%s\n", pLastInputToken );
+        sprintf( pBuf, "{}%s\n", pLastInputToken );
     }
 	TRACE( "%s", errorBuf1 );
 	pCore->consoleOut( pCore, errorBuf1 );
@@ -752,7 +756,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
             }
             else
             {
-                sprintf_s( mErrorString, sizeof(mErrorString),  "top of shell stack is <%s>, was expecting <string>",
+                sprintf( mErrorString,  "top of shell stack is <%s>, was expecting <string>",
                          GetTagString( tag ) );
                 mpEngine->SetError( kForthErrorBadSyntax, mErrorString );
             }
@@ -972,7 +976,7 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
     {
         len = strlen( argv[i] ) + 1;
         mpArgs[i] = new char [ len ];
-        strcpy_s( mpArgs[i], len, argv[i] );
+        strcpy( mpArgs[i], argv[i] );
         i++;
     }
     mNumArgs = argc;
@@ -998,7 +1002,7 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
     if ( (argc > 0) && (argv[0] != NULL) )
     {
         FILE* pFile = NULL;
-		errno_t err = fopen_s( &pFile, argv[0], "rb" );
+		pFile = fopen( argv[0], "rb" );
         if ( pFile != NULL )
         {
             int res = fseek( pFile, -4, SEEK_END );
@@ -1110,7 +1114,7 @@ ForthShell::SetEnvironmentVars( const char ** envp )
     {
         len = strlen( envp[i] ) + 1;
         mpEnvVarNames[i] = new char[ len ];
-        strcpy_s( mpEnvVarNames[i], len, envp[i] );
+        strcpy( mpEnvVarNames[i], envp[i] );
         pValue = strchr( mpEnvVarNames[i], '=' );
         if ( pValue != NULL )
         {
@@ -1174,7 +1178,7 @@ ForthShell::CheckSyntaxError( const char *pString, long tag, long desiredTag )
 {
     if ( tag != desiredTag )
     {
-        sprintf_s( mErrorString, sizeof(mErrorString), "<%s> preceeded by <%s>, was expecting <%s>",
+        sprintf( mErrorString, "<%s> preceeded by <%s>, was expecting <%s>",
                  pString, GetTagString( tag ), GetTagString( desiredTag ) );
         mpEngine->SetError( kForthErrorBadSyntax, mErrorString );
         return false;
@@ -1199,7 +1203,7 @@ FILE*
 ForthShell::FileOpen( const char* filePath, const char* openMode )
 {
 	FILE* pFile = NULL;
-    fopen_s( &pFile, filePath, openMode );
+    pFile = fopen( filePath, openMode );
 	return pFile;
 }
 
@@ -1554,7 +1558,11 @@ ForthShellStack::PopString( char *pString )
 //                     Windows Thread Procedures
 // 
 
+#if defined(_WINDOWS)
 DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData )
+#elif defined(_LINUX)
+unsigned long ConsoleInputThreadRoutine( void* pThreadData )
+#endif
 {
     ForthShell* pShell = (ForthShell *) pThreadData;
 

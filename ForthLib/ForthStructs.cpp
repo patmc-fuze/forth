@@ -303,7 +303,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
     // ProcessSymbol will compile opcodes into temporary buffer mCode
     long *pDst = &(mCode[0]);
 
-    strcpy_s( mToken, sizeof(mToken), pInfo->GetToken() );
+    strcpy( mToken, pInfo->GetToken() );
     // get first token
     char *pToken = &(mToken[0]);
     char *pNextToken = strchr( mToken, '.' );
@@ -619,7 +619,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
                 default:
                     {
                         // ERROR! method must return object or struct
-                        sprintf_s( errorMsg, sizeof(errorMsg), "Method %s return value is not an object or struct", pToken );
+                        sprintf( errorMsg, "Method %s return value is not an object or struct", pToken );
                         pEngine->SetError( kForthErrorStruct, errorMsg );
                         return false;
                     }
@@ -640,7 +640,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
             if ( isNative )
             {
                 // ERROR! a native field must be a final accessor
-                sprintf_s( errorMsg, sizeof(errorMsg), "Native %s used for non-final accessor", pToken );
+                sprintf( errorMsg, "Native %s used for non-final accessor", pToken );
                 pEngine->SetError( kForthErrorStruct, errorMsg );
                 return false;
             }
@@ -1147,30 +1147,30 @@ ForthStructVocabulary::PrintEntry( long*   pEntry )
     long typeCode = pEntry[1];
 
     // print out the base class stuff - name and value fields
-    sprintf_s( buff, sizeof(buff), "  %08x    ", *pEntry );
+    sprintf( buff, "  %08x    ", *pEntry );
     CONSOLE_STRING_OUT( buff );
 
     for ( int j = 1; j < mValueLongs; j++ )
     {
-        sprintf_s( buff, sizeof(buff), "%08x    ", pEntry[j] );
+        sprintf( buff, "%08x    ", pEntry[j] );
         CONSOLE_STRING_OUT( buff );
     }
 
     GetEntryName( pEntry, nameBuff, sizeof(nameBuff) );
     if ( strlen( nameBuff ) > 32 )
     {
-        sprintf_s( buff, sizeof(buff), "%s    ", nameBuff );
+        sprintf( buff, "%s    ", nameBuff );
     }
     else
     {
-        sprintf_s( buff, sizeof(buff), "%32s    ", nameBuff );
+        sprintf( buff, "%32s    ", nameBuff );
     }
     CONSOLE_STRING_OUT( buff );
 
     TypecodeToString( typeCode, buff, sizeof(buff) );
     CONSOLE_STRING_OUT( buff );
 
-    sprintf_s( buff, sizeof(buff), " @ offset %d", pEntry[0] );
+    sprintf( buff, " @ offset %d", pEntry[0] );
     CONSOLE_STRING_OUT( buff );
 }
 
@@ -1182,21 +1182,21 @@ ForthStructVocabulary::TypecodeToString( long typeCode, char* outBuff, size_t ou
     buff[0] = '\0';
     if ( CODE_IS_ARRAY( typeCode ) )
     {
-        strcpy_s( buff, sizeof(buff), "array of " );
+        strcpy( buff, "array of " );
     }
     if ( CODE_IS_PTR( typeCode ) )
     {
-        strcat_s( buff, sizeof(buff), "pointer to " );
+        strcat( buff, "pointer to " );
     }
     if ( CODE_IS_NATIVE( typeCode ) )
     {
         int baseType = CODE_TO_BASE_TYPE( typeCode );
-        sprintf_s( buff2, sizeof(buff2), "%s", gpNativeTypes[baseType]->GetName() );
-        strcat_s( buff, sizeof(buff), buff2 );
+        sprintf( buff2, "%s", gpNativeTypes[baseType]->GetName() );
+        strcat( buff, buff2 );
         if ( baseType == kBaseTypeString )
         {
-            sprintf_s( buff2, sizeof(buff2), " strLen=%d", CODE_TO_STRING_BYTES( typeCode ) );
-            strcat_s( buff, sizeof(buff), buff2 );
+            sprintf( buff2, " strLen=%d", CODE_TO_STRING_BYTES( typeCode ) );
+            strcat( buff, buff2 );
         }
     }
     else
@@ -1211,31 +1211,31 @@ ForthStructVocabulary::TypecodeToString( long typeCode, char* outBuff, size_t ou
                 ForthTypeInfo* pInfo = ForthTypesManager::GetInstance()->GetStructInfo( structIndex );
                 if ( pInfo )
                 {
-                    sprintf_s( buff2, sizeof(buff2), "%s", pInfo->pVocab->GetName() );
+                    sprintf( buff2, "%s", pInfo->pVocab->GetName() );
                 }
                 else
                 {
-                    sprintf_s( buff2, sizeof(buff2), "<UNKNOWN STRUCT INDEX %d!>", structIndex );
+                    sprintf( buff2, "<UNKNOWN STRUCT INDEX %d!>", structIndex );
                 }
             }
             break;
 
         case kBaseTypeUserDefinition:
-            strcpy_s( buff2, sizeof(buff2), "user defined forthop" );
+            strcpy( buff2, "user defined forthop" );
             break;
 
         case kBaseTypeVoid:
-            strcpy_s( buff2, sizeof(buff2), "void" );
+            strcpy( buff2, "void" );
             break;
 
         default:
-            sprintf_s( buff2, sizeof(buff2), "UNKNOWN BASE TYPE %d", baseType );
+            sprintf( buff2, "UNKNOWN BASE TYPE %d", baseType );
             break;
         }
-        strcat_s( buff, sizeof(buff), buff2 );
+        strcat( buff, buff2 );
     }
     outBuff[ outBuffSize - 1 ] = '\0';
-    strncpy_s( outBuff, outBuffSize, buff, outBuffSize - 1 );
+    strncpy( outBuff, buff, outBuffSize - 1 );
 }
 
 void ForthStructVocabulary::EndDefinition()
@@ -1576,27 +1576,27 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
     ForthCoreState* pCore = mpEngine->GetCoreState();
     ForthInterface* pPrimaryInterface = GetInterface( 0 );
 
-    sprintf_s( buff, sizeof(buff), "  %08x    ", methodNum );
+    sprintf( buff, "  %08x    ", methodNum );
     CONSOLE_STRING_OUT( buff );
 
     for ( int j = 1; j < mValueLongs; j++ )
     {
-        sprintf_s( buff, sizeof(buff), "%08x    ", pEntry[j] );
+        sprintf( buff, "%08x    ", pEntry[j] );
         CONSOLE_STRING_OUT( buff );
     }
 
     GetEntryName( pEntry, nameBuff, sizeof(nameBuff) );
     if ( strlen( nameBuff ) > 32 )
     {
-        sprintf_s( buff, sizeof(buff), "%s    ", nameBuff );
+        sprintf( buff, "%s    ", nameBuff );
     }
     else
     {
-        sprintf_s( buff, sizeof(buff), "%32s    ", nameBuff );
+        sprintf( buff, "%32s    ", nameBuff );
     }
     CONSOLE_STRING_OUT( buff );
 
-    sprintf_s( buff, sizeof(buff), "method # %d returning ", methodNum );
+    sprintf( buff, "method # %d returning ", methodNum );
     CONSOLE_STRING_OUT( buff );
 
     if ( CODE_IS_ARRAY( typeCode ) )
@@ -1610,11 +1610,11 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
     if ( CODE_IS_NATIVE( typeCode ) )
     {
         int baseType = CODE_TO_BASE_TYPE( typeCode );
-        sprintf_s( buff, sizeof(buff), "%s ", gpNativeTypes[baseType]->GetName() );
+        sprintf( buff, "%s ", gpNativeTypes[baseType]->GetName() );
         CONSOLE_STRING_OUT( buff );
         if ( baseType == kBaseTypeString )
         {
-            sprintf_s( buff, sizeof(buff), "strLen=%d, ", CODE_TO_STRING_BYTES( typeCode ) );
+            sprintf( buff, "strLen=%d, ", CODE_TO_STRING_BYTES( typeCode ) );
             CONSOLE_STRING_OUT( buff );
         }
     }
@@ -1630,31 +1630,31 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
                 ForthTypeInfo* pInfo = ForthTypesManager::GetInstance()->GetStructInfo( structIndex );
                 if ( pInfo )
                 {
-                    sprintf_s( buff, sizeof(buff), "%s ", pInfo->pVocab->GetName() );
+                    sprintf( buff, "%s ", pInfo->pVocab->GetName() );
                 }
                 else
                 {
-                    sprintf_s( buff, sizeof(buff), "<UNKNOWN STRUCT INDEX %d!> ", structIndex );
+                    sprintf( buff, "<UNKNOWN STRUCT INDEX %d!> ", structIndex );
                 }
             }
             break;
 
         case kBaseTypeUserDefinition:
-            strcpy_s( buff, sizeof(buff), "user defined forthop " );
+            strcpy( buff, "user defined forthop " );
             break;
 
         case kBaseTypeVoid:
-            strcpy_s( buff, sizeof(buff), "void " );
+            strcpy( buff, "void " );
             break;
 
         default:
-            sprintf_s( buff, sizeof(buff), "UNKNOWN BASE TYPE %d ", baseType );
+            sprintf( buff, "UNKNOWN BASE TYPE %d ", baseType );
             break;
         }
         CONSOLE_STRING_OUT( buff );
     }
     long* pMethod = pPrimaryInterface->GetMethods() + methodNum;
-    sprintf_s( buff, sizeof(buff), "opcode=%02x:%06x", GetEntryType(pMethod), GetEntryValue(pMethod) );
+    sprintf( buff, "opcode=%02x:%06x", GetEntryType(pMethod), GetEntryValue(pMethod) );
     CONSOLE_STRING_OUT( buff );
 }
 
