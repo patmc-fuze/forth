@@ -253,7 +253,11 @@ addHelp pwd	pwd			display working directory
 addHelp dir	dir BLAH		display directory (BLAH is optional filespec)
 : dir
   '\n' word -> _aa
+#ifdef WINDOWS
   "dir" -> _bb
+#else
+  "ls" -> _bb
+#endif
   if( strcmp( _aa "" ) )
     // user specified a directory
     strcat( _bb " " )
@@ -464,6 +468,8 @@ struct: FILETIME
 
 decimal
 
+#ifdef WINDOWS
+
 enum:	WIN32_CONSTANTS
   windowsConstants 4+  @ TCHAR_SIZE
   windowsConstants 8+  @ MAX_PATH
@@ -483,5 +489,7 @@ struct: WIN32_FIND_DATA
   MAX_PATH arrayOf byte fileName
   14 arrayOf byte shortFileName
 ;struct
+
+#endif
 
 loaddone

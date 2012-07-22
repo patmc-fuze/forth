@@ -11,7 +11,8 @@
 #include <conio.h>
 #include <direct.h>
 #include <io.h>
-
+#elif defined(_LINUX)
+#include <unistd.h>
 #endif
 
 #ifdef ARM9
@@ -20,7 +21,9 @@
 
 #include <ctype.h>
 #include <time.h>
+#if defined(_WINDOWS)
 #include <sys\timeb.h>
+#endif
 #include "Forth.h"
 #include "ForthEngine.h"
 #include "ForthThread.h"
@@ -1849,7 +1852,9 @@ FORTHOP(hereOp)
 FORTHOP( mallocOp )
 {
     NEEDS(1);
-    SPUSH(  (long) malloc( SPOP )  );
+    long numBytes = SPOP;
+    void* pMemory = malloc( numBytes );
+    SPUSH( (long) pMemory  );
 }
 
 FORTHOP( reallocOp )
@@ -4109,7 +4114,6 @@ FORTHOP( fputsOp )
 }
 
 
-#ifdef _WINDOWS
 FORTHOP( removeOp )
 {
 	const char* pFilename = (const char *) (SPOP);
@@ -4120,7 +4124,11 @@ FORTHOP( removeOp )
 FORTHOP( _dupOp )
 {
 	int fileHandle = SPOP;
+#if defined( _WINDOWS )
 	int result = _dup( fileHandle );
+#else
+	int result = dup( fileHandle );
+#endif
     SPUSH( result );
 }
 
@@ -4128,14 +4136,22 @@ FORTHOP( _dup2Op )
 {
 	int dstFileHandle = SPOP;
 	int srcFileHandle = SPOP;
+#if defined( _WINDOWS )
 	int result = _dup2( srcFileHandle, dstFileHandle );
+#else
+	int result = dup2( srcFileHandle, dstFileHandle );
+#endif
     SPUSH( result );
 }
 
 FORTHOP( _filenoOp )
 {
 	FILE* pFile = (FILE *) SPOP;
+#if defined( _WINDOWS )
 	int result = _fileno( pFile );
+#else
+	int result = fileno( pFile );
+#endif
     SPUSH( result );
 }
 
@@ -4173,7 +4189,6 @@ FORTHOP( chdirOp )
     int result = chdir( (const char *) SPOP );
     SPUSH( result );
 }
-#endif
 
 
 
@@ -5774,7 +5789,6 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     OP_DEF(    dstackOp,               "dstack" ),
     OP_DEF(    drstackOp,              "drstack" ),
-#ifdef _WINDOWS
     OP_DEF(    removeOp,               "remove" ),
     OP_DEF(    _dupOp,                 "_dup" ),
     OP_DEF(    _dup2Op,                "_dup2" ),
@@ -5783,7 +5797,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    systemOp,               "system" ),
     OP_DEF(    chdirOp,                "chdir" ),
     OP_DEF(    fflushOp,               "fflush" ),
-#endif
     OP_DEF(    byeOp,                  "bye" ),
     OP_DEF(    argvOp,                 "argv" ),
     OP_DEF(    argcOp,                 "argc" ),
@@ -5829,6 +5842,9 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( findCloseOp,                "FindClose" ),
     OP_DEF( windowsConstantsOp,         "windowsConstants" ),
 
+	OP_DEF( trueOp,						"WINDOWS" ),
+#elif defined(_LINUX)
+	OP_DEF( trueOp,						"LINUX" ),
 #endif
 
     // following must be last in table
