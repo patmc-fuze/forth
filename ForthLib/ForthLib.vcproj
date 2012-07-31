@@ -415,6 +415,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ForthClient.cpp"
+				>
+			</File>
+			<File
 				RelativePath="ForthEngine.cpp"
 				>
 				<FileConfiguration
@@ -996,6 +1000,10 @@
 			</File>
 			<File
 				RelativePath=".\ForthBuiltinClasses.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ForthClient.h"
 				>
 			</File>
 			<File

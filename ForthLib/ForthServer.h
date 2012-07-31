@@ -16,6 +16,8 @@
 #define SOCKET  int
 #endif
 
+int ForthServerMainLoop( unsigned short portNum );
+
 class ForthPipe;
 class ForthExtension;
 
