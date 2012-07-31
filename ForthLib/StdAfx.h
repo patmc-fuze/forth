@@ -4,7 +4,7 @@
 //      are changed infrequently
 //
 
-#ifdef _WINDOWS
+#ifdef WIN32
 // compile for Win2K or newer
 #define WINVER 0x0500
 
@@ -29,6 +29,14 @@
 
 #include <assert.h>
 #include <math.h>
+
+#ifdef WIN32
+#include <conio.h>
+#include <direct.h>
+#include <io.h>
+#elif defined(_LINUX)
+#include <unistd.h>
+#endif
 
 #ifndef ulong
 #define ulong unsigned long

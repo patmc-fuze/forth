@@ -78,6 +78,20 @@ struct ForthFileInterface
     int                 (*fileGetLength)( FILE* pFile );
     char*               (*fileGetString)( char* buffer, int bufferLength, FILE* pFile );
     int                 (*filePutString)( const char* buffer, FILE* pFile );
+	int					(*fileRemove)( const char* buffer );
+	int					(*fileDup)( int fileHandle );
+	int					(*fileDup2)( int srcFileHandle, int dstFileHandle );
+	int					(*fileNo)( FILE* pFile );
+	int					(*fileFlush)( FILE* pFile );
+	char*				(*getTmpnam)( char* path );
+	int					(*renameFile)( const char* pOldName, const char* pNewName );
+	int					(*runSystem)( const char* pCmdline );
+	int					(*changeDir)( const char* pPath );
+	int					(*makeDir)( const char* pPath, int mode );
+	int					(*removeDir)( const char* pPath );
+	FILE*				(*getStdIn)();
+	FILE*				(*getStdOut)();
+	FILE*				(*getStdErr)();
 };
 
 struct ForthCoreState

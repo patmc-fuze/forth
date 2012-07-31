@@ -1650,7 +1650,7 @@ OPTYPE_ACTION( MemberRefAction )
 // bits 0..18 are index into ForthCoreState userOps table, 19..23 are arg count
 OPTYPE_ACTION( DLLEntryPointAction )
 {
-#ifdef _WINDOWS
+#ifdef WIN32
     ulong entryIndex = CODE_TO_DLL_ENTRY_INDEX( opVal );
     ulong argCount = CODE_TO_DLL_ENTRY_NUM_ARGS( opVal );
     if ( entryIndex < GET_NUM_USER_OPS )

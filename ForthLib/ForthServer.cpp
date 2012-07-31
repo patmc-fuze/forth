@@ -104,6 +104,89 @@ namespace
         return pShell->FilePutString( pFile, buffer );
     }
 
+	int fileRemove( const char* buffer )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileRemove( buffer );
+    }
+
+	int fileDup( int fileHandle )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileDup( fileHandle );
+    }
+
+	int fileDup2( int srcFileHandle, int dstFileHandle )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileDup2( srcFileHandle, dstFileHandle );
+    }
+
+	int fileNo( FILE* pFile )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileNo( pFile );
+    }
+
+	int fileFlush( FILE* pFile )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->FileFlush( pFile );
+    }
+
+	char* getTmpnam( char* pPath )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->GetTmpnam( pPath );
+    }
+
+	int renameFile( const char* pOldName, const char* pNewName )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->RenameFile( pOldName, pNewName );
+    }
+
+	int runSystem( const char* pCmdline )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->RunSystem( pCmdline );
+    }
+
+	int changeDir( const char* pPath )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->ChangeDir( pPath );
+    }
+
+	int makeDir( const char* pPath, int mode )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->MakeDir( pPath, mode );
+    }
+
+	int removeDir( const char* pPath )
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->RemoveDir( pPath );
+    }
+
+	FILE* getStdIn()
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->GetStdIn();
+    }
+
+	FILE* getStdOut()
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->GetStdOut();
+    }
+
+	FILE* getStdErr()
+    {
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->GetStdErr();
+    }
 
 };
 
@@ -202,6 +285,20 @@ ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, Forth
     mFileInterface.fileGetLength = fileGetLength;
     mFileInterface.fileGetString = fileGetString;
     mFileInterface.filePutString = filePutString;
+	mFileInterface.fileRemove = fileRemove;
+	mFileInterface.fileDup = fileDup;
+	mFileInterface.fileDup2 = fileDup2;
+	mFileInterface.fileNo = fileNo;
+	mFileInterface.fileFlush = fileFlush;
+	mFileInterface.getTmpnam = getTmpnam;
+	mFileInterface.renameFile = renameFile;
+	mFileInterface.runSystem = runSystem;
+	mFileInterface.changeDir = changeDir;
+	mFileInterface.makeDir = makeDir;
+	mFileInterface.removeDir = removeDir;
+	mFileInterface.getStdIn = getStdIn;
+	mFileInterface.getStdOut = getStdOut;
+	mFileInterface.getStdErr = getStdErr;
 }
 
 ForthServerShell::~ForthServerShell()
@@ -241,7 +338,7 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
         if ( !bQuit )
         {
 
-            result = InterpretLine();
+            result = ProcessLine();
 
             switch( result )
             {
@@ -698,5 +795,341 @@ ForthServerShell::FilePutString( FILE* pFile, const char* pBuffer )
         printf( "ForthServerShell::FilePutString unexpected message type %d\n", msgType );
     }
     return result;
+}
+
+int
+ForthServerShell::FileRemove( const char* pBuffer )
+{
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgRemoveFile );
+    mpMsgPipe->WriteString( pBuffer );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileRemove unexpected message type %d\n", msgType );
+    }
+    return result;
+}
+
+int
+ForthServerShell::FileDup( int fileHandle )
+{
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgDupHandle );
+    mpMsgPipe->WriteInt( fileHandle );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileDup unexpected message type %d\n", msgType );
+    }
+    return result;
+}
+
+int
+ForthServerShell::FileDup2( int srcFileHandle, int dstFileHandle )
+{
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgDupHandle2 );
+    mpMsgPipe->WriteInt( srcFileHandle );
+    mpMsgPipe->WriteInt( dstFileHandle );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileDup2 unexpected message type %d\n", msgType );
+    }
+    return result;
+}
+
+int
+ForthServerShell::FileNo( FILE* pFile )
+{
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFileToHandle );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileNo unexpected message type %d\n", msgType );
+    }
+    return result;
+}
+
+int
+ForthServerShell::FileFlush( FILE* pFile )
+{
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgFileFlush );
+    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::FileFlush unexpected message type %d\n", msgType );
+    }
+    return result;
+}
+
+char*
+ForthServerShell::GetTmpnam( char* pBuffer )
+{
+	static_cast<void>( pBuffer );		// we can't use the passed in buffer, size might be different on server
+	// !!! TBD - how should this work?
+    int msgType, msgLen;
+    char* pResult = NULL;
+
+    mpMsgPipe->StartMessage( kClientMsgGetTempFilename );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgGetTmpnamResult )
+    {
+        int numBytes;
+        const char* pData;
+        mpMsgPipe->ReadCountedData( pData, numBytes );
+		if ( numBytes > 0 )
+		{
+			pResult = (char *) malloc( numBytes );
+            memcpy( pResult, pData, numBytes );
+		}
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::GetTmpnam unexpected message type %d\n", msgType );
+    }
+	return pResult;
+}
+
+int
+ForthServerShell::RenameFile( const char* pOldName, const char* pNewName )
+{
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgRenameFile );
+    mpMsgPipe->WriteString( pOldName );
+    mpMsgPipe->WriteString( pNewName );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::RenameFile unexpected message type %d\n", msgType );
+    }
+    return result;
+}
+
+int
+ForthServerShell::RunSystem( const char* pCmdline )
+{
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgRunSystem );
+    mpMsgPipe->WriteString( pCmdline );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::RunSystem unexpected message type %d\n", msgType );
+    }
+    return result;
+}
+
+int
+ForthServerShell::ChangeDir( const char* pPath )
+{
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgChangeDir );
+    mpMsgPipe->WriteString( pPath );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::ChangeDir unexpected message type %d\n", msgType );
+    }
+    return result;
+}
+
+int
+ForthServerShell::MakeDir( const char* pPath, int mode )
+{
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgMakeDir );
+    mpMsgPipe->WriteString( pPath );
+    mpMsgPipe->WriteInt( mode );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::MakeDir unexpected message type %d\n", msgType );
+    }
+    return result;
+}
+
+int
+ForthServerShell::RemoveDir( const char* pPath )
+{
+    int msgType, msgLen;
+    int result = -1;
+
+    mpMsgPipe->StartMessage( kClientMsgRemoveDir );
+    mpMsgPipe->WriteString( pPath );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::RemoveDir unexpected message type %d\n", msgType );
+    }
+    return result;
+}
+
+FILE*
+ForthServerShell::GetStdIn()
+{
+    int msgType, msgLen;
+    int result = -1;
+    FILE* pFile = NULL;
+
+    mpMsgPipe->StartMessage( kClientMsgGetStdIn );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+		pFile = (FILE *) result;
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::kClientMsgStdIn unexpected message type %d\n", msgType );
+    }
+    return pFile;
+}
+
+FILE*
+ForthServerShell::GetStdOut()
+{
+    int msgType, msgLen;
+    int result = -1;
+    FILE* pFile = NULL;
+
+    mpMsgPipe->StartMessage( kClientMsgGetStdOut );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+		pFile = (FILE *) result;
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::kClientMsgStdOut unexpected message type %d\n", msgType );
+    }
+    return pFile;
+}
+
+FILE*
+ForthServerShell::GetStdErr()
+{
+    int msgType, msgLen;
+    int result = -1;
+    FILE* pFile = NULL;
+
+    mpMsgPipe->StartMessage( kClientMsgGetStdErr );
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage( msgType, msgLen );
+    if ( msgType == kServerMsgFileOpResult )
+    {
+        mpMsgPipe->ReadInt( result );
+		pFile = (FILE *) result;
+    }
+    else
+    {
+        // TBD: report error
+        printf( "ForthServerShell::GetStdErr unexpected message type %d\n", msgType );
+    }
+    return pFile;
 }
 

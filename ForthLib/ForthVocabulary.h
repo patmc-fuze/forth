@@ -197,7 +197,7 @@ public:
     virtual const char* GetType( void );
 };
 
-#ifdef _WINDOWS
+#ifdef WIN32
 class ForthDLLVocabulary : public ForthVocabulary
 {
 public:

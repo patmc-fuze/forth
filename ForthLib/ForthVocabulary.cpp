@@ -784,7 +784,7 @@ ForthLocalVocabulary::GetType( void )
     return "local";
 }
 
-#ifdef _WINDOWS
+#ifdef WIN32
 //////////////////////////////////////////////////////////////////////
 ////
 ///     ForthDLLVocabulary

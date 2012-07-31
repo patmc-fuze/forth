@@ -262,7 +262,7 @@ protected:
     consoleOutRoutine   mDefaultConsoleOut;
 	void*				mpDefaultConsoleOutData;
 
-#ifdef _WINDOWS
+#ifdef WIN32
     //struct _timeb   mStartTime;
 	struct __timeb32	mStartTime;
 #else

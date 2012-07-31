@@ -3,7 +3,6 @@
 
 #include "stdafx.h"
 
-
 #include <stdio.h>
 #include <winsock2.h>
 #include <windows.h>
@@ -48,7 +47,7 @@ int _tmain(int argc, _TCHAR* argv[])
     sockaddr_in clientService; 
     clientService.sin_family = AF_INET;
     clientService.sin_addr.s_addr = inet_addr( (argc > 1) ? argv[1] : "127.0.0.1" );
-    clientService.sin_port = htons( 27015 );
+    clientService.sin_port = htons( FORTH_SERVER_PORT );
 
     //----------------------
     // Connect to server.
@@ -366,6 +365,170 @@ int _tmain(int argc, _TCHAR* argv[])
 
                     pMsgPipe->StartMessage( kServerMsgFileOpResult );
                     pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFileFlush:
+                {
+                    int file;
+                    pMsgPipe->ReadInt( file );
+                    int result = fflush( (FILE *) file );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgRemoveFile:
+                {
+                    const char* pString;
+                    pMsgPipe->ReadString( pString );
+                    int result = remove( pString );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgDupHandle:
+                {
+                    int fileHandle;
+                    pMsgPipe->ReadInt( fileHandle );
+                    int result = _dup( fileHandle );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+			case kClientMsgDupHandle2:
+                {
+                    int srcFileHandle;
+                    int dstFileHandle;
+                    pMsgPipe->ReadInt( srcFileHandle );
+                    pMsgPipe->ReadInt( dstFileHandle );
+                    int result = _dup2( srcFileHandle, dstFileHandle );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgFileToHandle:
+                {
+                    int file;
+                    pMsgPipe->ReadInt( file );
+                    int result = _fileno( (FILE *) file );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgGetTempFilename:
+                {
+					char* pBuffer = (char *) malloc( L_tmpnam );
+					char* pResult = tmpnam( pBuffer );
+					int numChars = strlen( pResult ) + 1;
+
+                    pMsgPipe->StartMessage( kServerMsgGetTmpnamResult );
+                    pMsgPipe->WriteString( pResult );
+                    pMsgPipe->SendMessage();
+					free( pBuffer );
+                }
+                break;
+
+            case kClientMsgRenameFile:
+                {
+                    const char* pOldName;
+                    const char* pNewName;
+                    pMsgPipe->ReadString( pOldName );
+                    pMsgPipe->ReadString( pNewName );
+                    int result = rename( pOldName, pNewName );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgRunSystem:
+                {
+                    const char* pString;
+                    pMsgPipe->ReadString( pString );
+                    int result = system( pString );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgChangeDir:
+                {
+                    const char* pString;
+                    pMsgPipe->ReadString( pString );
+                    int result = chdir( pString );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgMakeDir:
+                {
+                    const char* pString;
+					int mode;
+                    pMsgPipe->ReadString( pString );
+                    pMsgPipe->ReadInt( mode );
+                    int result = mkdir( pString );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgRemoveDir:
+                {
+                    const char* pString;
+					int mode;
+                    pMsgPipe->ReadString( pString );
+                    int result = rmdir( pString );
+
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( result );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgGetStdIn:
+				{
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( (int) stdin );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgGetStdOut:
+				{
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( (int) stdout );
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgGetStdErr:
+				{
+                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->WriteInt( (int) stderr );
                     pMsgPipe->SendMessage();
                 }
                 break;

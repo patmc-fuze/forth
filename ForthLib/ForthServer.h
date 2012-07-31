@@ -9,7 +9,7 @@
 #include "ForthShell.h"
 #include "ForthInput.h"
 #include <string.h>
-#ifdef _WINDOWS
+#ifdef WIN32
 #include <winsock2.h>
 #else
 #include <sys/socket.h>
@@ -66,6 +66,20 @@ public:
     virtual int             FileGetPosition( FILE* pFile );
     virtual char*           FileGetString( FILE* pFile, char* dstBuffer, int maxChars );
     virtual int             FilePutString( FILE* pFile, const char* pBuffer );
+	virtual int				FileRemove( const char* buffer );
+	virtual int				FileDup( int fileHandle );
+	virtual int				FileDup2( int srcFileHandle, int dstFileHandle );
+	virtual int				FileNo( FILE* pFile );
+	virtual int				FileFlush( FILE* pFile );
+	virtual char*			GetTmpnam( char* path );
+	virtual int				RenameFile( const char* pOldName, const char* pNewName );
+	virtual int				RunSystem( const char* pCmdline );
+	virtual int				ChangeDir( const char* pPath );
+	virtual int				MakeDir( const char* pPath, int mode );
+	virtual int				RemoveDir( const char* pPath );
+	virtual FILE*			GetStdIn();
+	virtual FILE*			GetStdOut();
+	virtual FILE*			GetStdErr();
 
 protected:
     ForthPipe*              mpMsgPipe;

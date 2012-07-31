@@ -153,6 +153,8 @@ showsection( "Test inline comments" )
 showsection( "Test basic ops - only errors are displayed" )
 decimal
 
+// t[ LINE_OF_STUFF ]
+// LINE_OF_STUFF must evaluate to one or more true (-1) values
 : t[
   sp -> int oldSP
   ']' word -> 250 string ops
@@ -176,35 +178,37 @@ decimal
   loop
 ;
   
-
+loaddone
 // + - * / or and xor not 
-t[ 1 5 + 6 ==   1 -4 + -3 ==   0x80000000 -1 + 0x7fffffff ==   1 5 - -4 ==   1 -4 - 5 ==    0x80000000 -1 - 0x80000001 == ]
-t[ 3 7 * 21 ==   0x101 0x11 * 0x1111 ==   -5 -7 * 35 ==   22 7 / 3 ==   99 11 / 9 ==   -100 7 / -14 ==   -65535 256 / -255 == ]
-t[ true false or   33 7 or 39 ==   0xf0f 0x0f0 or 0xfff ==   0x1234 0x350461 or 0x351675 ==   true false and not ]
-t[ 33 7 and 1 ==   0xf0f 0x0f0 and 0== true false xor   33 7 xor 38 ==   0xf0f 0x0f0 xor 0xfff ==   0x505 0x141 xor 0x444 == ]
+t[ 1 5 + 6 == ] t[ 1 -4 + -3 == ] t[ 0x80000000 -1 + 0x7fffffff == ] t[ 1 5 - -4 == ] t[ 1 -4 - 5 == ] t[ 0x80000000 -1 - 0x80000001 == ]
+t[ 3 7 * 21 == ] t[ 0x101 0x11 * 0x1111 == ] t[ -5 -7 * 35 == ] t[ 22 7 / 3 == ] t[ 99 11 / 9 == ] t[ -100 7 / -14 == ] t[ -65535 256 / -255 == ]
+t[ true false or ] t[ 33 7 or 39 == ] t[ 0xf0f 0x0f0 or 0xfff == ] t[ 0x1234 0x350461 or 0x351675 == ] t[ true false and not ]
+t[ 33 7 and 1 == ] t[ 0xf0f 0x0f0 and 0== ] t[ true false xor   33 7 xor 38 == ] t[ 0xf0f 0x0f0 xor 0xfff == ] t[ 0x505 0x141 xor 0x444 == ]
 
 // u* 2* 4* 8* 2/ 4/ 8/ /mod mod negate
-t[ -5 -7 u* -12 35 l==   243 2* 486 ==   243 4* 972 ==   243 8* 1944 ==   744 2/ 372 ==   744 4/ 186 ==   744 8/ 93 == ]
-t[ 4183 23 /mod 20 181 l==   193747 39 mod 34 ==   -34 negate 34 == ]
+t[ -5 -7 u* -12 35 l== ] t[ 243 2* 486 == ] t[ 243 4* 972 == ] t[ 243 8* 1944 == ] t[ 744 2/ 372 == ] t[ 744 4/ 186 == ] t[ 744 8/ 93 == ]
+t[ 4183 23 /mod 20 181 l== ] t[ 193747 39 mod 34 == ] t[ -34 negate 34 == ]
 
 // f+ f- f* f/ f== f!= f> f>= f< f<= 
-t[ 3.5 4.25 f+ 7.75 f==   8.5 3.25 f- 5.25 f==   3.5 4.5 f* 63.0 4.0 f/ f==   5.0 4.0 f!=   27.3 22.2 f>   27.3 27.3 f> not ]
-t[  27.3 27.3 f>=   7.2 121.9 f<   676.0 676.0 f< not   676.0 676.0 f<= ]
+t[ 3.5 4.25 f+ 7.75 f== ] t[ 8.5 3.25 f- 5.25 f== ] t[ 3.5 4.5 f* 63.0 4.0 f/ f== ] t[ 5.0 4.0 f!= ] t[ 27.3 22.2 f> ] t[ 27.3 27.3 f> not ]
+t[ 27.3 27.3 f>= ] t[ 7.2 121.9 f< ] t[ 676.0 676.0 f< not ] t[ 676.0 676.0 f<= ]
 
 // f0== f0!= f0> f0>= f0< f0<= fwithin fmin fmax
-t[ 0.0 f0==  0.7 f0== not   0.0 f0> not   1.2 f0>   0.0 f0>=   -3.3 f0>= not   5.1 f0>=   9.4 f0< not   0.0 f0<=   -2.3 f0<= ]
-t[ -5.0 -1.0 1.0 fwithin not   0.5 -1.0 1.0 fwithin   7.0 -1.0 1.0 fwithin not   5.0 2.3 fmin 2.3 f==   -10.0 4.3 fmax 4.3 f== ]
+t[ 0.0 f0== ] t[ 0.7 f0== not ] t[ 0.0 f0> not ] t[ 1.2 f0> ] t[  0.0 f0>= ] t[ -3.3 f0>= not ] t[ 5.1 f0>= ] t[ 9.4 f0< not ]
+t[ 0.0 f0<= ] t[  -2.3 f0<= ] t[ -5.0 -1.0 1.0 fwithin not ] t[ 0.5 -1.0 1.0 fwithin ] t[ 7.0 -1.0 1.0 fwithin not ]
+t[ 5.0 2.3 fmin 2.3 f== ] t[ -10.0 4.3 fmax 4.3 f== ]
    
 // d+ d- d* d/ d== d!= d> d>= d< d<= 
-t[ 3.5d 4.25d d+ 7.75d d==   8.5d 3.25d d- 5.25d d==  3.5d 4.5d d* 63.0d 4.0d d/ d==   5.0d 4.0d d!=   27.3d 22.2d d> ]
-t[ 27.3d 27.3d d> not   27.3d 27.3d d>= and  7.2d 121.9d d<   676.0d 676.0d d< not   676.0d 676.0d d<= ]
+t[ 3.5d 4.25d d+ 7.75d d== ] t[ 8.5d 3.25d d- 5.25d d== ] t[ 3.5d 4.5d d* 63.0d 4.0d d/ d== ] t[ 5.0d 4.0d d!= ] t[ 27.3d 22.2d d> ]
+t[ 27.3d 27.3d d> not ] t[ 27.3d 27.3d d>= ] t[ 7.2d 121.9d d< ] t[ 676.0d 676.0d d< not ] t[ 676.0d 676.0d d<= ]
 
 // d0== d0!= d0> d0>= d0< d0<= dwithin dmin dmax
-t[ 0.0d d0==  0.7d d0== not   0.0d d0> not   1.2d d0>   0.0d d0>=   -3.3d d0>= not   5.1d d0>=   9.4d d0< not   0.0d d0<=   -2.3d d0<= ]
-t[ -5.0d -1.0d 1.0d dwithin not   0.5d -1.0d 1.0d dwithin   7.0d -1.0d 1.0d dwithin not   5.0d 2.3d dmin 2.3d d==   -10.0d 4.3d dmax 4.3d d== ]
+t[ 0.0d d0== ] t[ 0.7d d0== not ] t[ 0.0d d0> not ] t[ 1.2d d0> ] t[ 0.0d d0>= ] t[ -3.3d d0>= not ] t[ 5.1d d0>= ]
+t[ 9.4d d0< not ] t[ 0.0d d0<= ] t[  -2.3d d0<= ] t[ -5.0d -1.0d 1.0d dwithin not ] t[ 0.5d -1.0d 1.0d dwithin ]
+t[ 7.0d -1.0d 1.0d dwithin not ] t[ 5.0d 2.3d dmin 2.3d d== ] t[ -10.0d 4.3d dmax 4.3d d== ]
    
 // << >> u>>
-t[ 1 8 << 256 ==   17 2 << 68 ==   -80 3 >> -10 ==   19 2 >> 4 == ]
+t[ 1 8 << 256 == ] t[ 17 2 << 68 == ] t[ -80 3 >> -10 == ] t[ 19 2 >> 4 == ]
 
 // dup ?dup swap over rot pick
 t[ 17 5 dup 2 pick tuck 17 == swap 5 == and rot 5 == rot 17 == 0 drop and rot 17 == ]

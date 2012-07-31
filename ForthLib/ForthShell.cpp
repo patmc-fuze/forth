@@ -69,9 +69,35 @@ namespace
         fseek( pFile, oldPos, SEEK_SET );
         return result;
     }
+
+	FILE* getStdIn()
+	{
+		return stdin;
+	}
+
+	FILE* getStdOut()
+	{
+		return stdout;
+	}
+
+	FILE* getStdErr()
+	{
+		return stderr;
+	}
+
+	int makeDir( const char* pPath, int mode )
+	{
+		return mkdir( pPath );
+	}
+	/*
+	int removeDir( const char* pPath )
+	{
+		return rmdir( pPath );
+	}
+	*/
 }
 
-#if defined(_WINDOWS)
+#if defined(WIN32)
 DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData );
 #elif defined(_LINUX)
 unsigned long ConsoleInputThreadRoutine( void* pThreadData );
@@ -127,6 +153,26 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
     mFileInterface.fileGetLength = fileGetLength;
     mFileInterface.fileGetString = fgets;
     mFileInterface.filePutString = fputs;
+	mFileInterface.fileRemove = remove;
+#if defined( WIN32 )
+	mFileInterface.fileDup = _dup;
+	mFileInterface.fileDup2 = _dup2;
+	mFileInterface.fileNo = _fileno;
+#else
+	mFileInterface.fileDup = dup;
+	mFileInterface.fileDup2 = dup2;
+	mFileInterface.fileNo = fileno;
+#endif
+	mFileInterface.fileFlush = fflush;
+	mFileInterface.getTmpnam = tmpnam;
+	mFileInterface.renameFile = rename;
+	mFileInterface.runSystem = system;
+	mFileInterface.changeDir = chdir;
+	mFileInterface.makeDir = makeDir;
+	mFileInterface.removeDir = rmdir;
+	mFileInterface.getStdIn = getStdIn;
+	mFileInterface.getStdOut = getStdOut;
+	mFileInterface.getStdErr = getStdErr;
 
 #if 0
     mMainThreadId = GetThreadId( GetMainThread() );
@@ -419,7 +465,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
         if ( !bLineEmpty )
 		{
 
-#ifdef _WINDOWS
+#ifdef WIN32
 #ifdef CATCH_EXCEPTIONS
             try
 #endif
@@ -428,7 +474,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
                 result = mpEngine->ProcessToken( &parseInfo );
                 CHECK_STACKS( mpEngine->GetMainThread() );
             }
-#ifdef _WINDOWS
+#ifdef WIN32
 #ifdef CATCH_EXCEPTIONS
             catch(...)
             {
@@ -1290,6 +1336,11 @@ ForthShell::FilePutString( FILE* pFile, const char* pBuffer )
     return fputs( pBuffer, pFile );
 }
 
+/*int
+ForthShell::FileRemove( Fonst char* pFilename )
+{
+    return remove( pFilename );
+}*/
 
 //
 // support for conditional compilation ops
@@ -1558,7 +1609,7 @@ ForthShellStack::PopString( char *pString )
 //                     Windows Thread Procedures
 // 
 
-#if defined(_WINDOWS)
+#if defined(WIN32)
 DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData )
 #elif defined(_LINUX)
 unsigned long ConsoleInputThreadRoutine( void* pThreadData )

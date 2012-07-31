@@ -444,6 +444,8 @@ addHelp demo	 demo is used to both display and interpret a line of text
 precedence demo
 
 
+#ifdef WINDOWS
+
 enum:	WIN32_FILE_ATTRIB
   0x00001	FATTRIB_READONLY
   0x00002	FATTRIB_HIDDEN
@@ -467,8 +469,6 @@ struct: FILETIME
 ;struct
 
 decimal
-
-#ifdef WINDOWS
 
 enum:	WIN32_CONSTANTS
   windowsConstants 4+  @ TCHAR_SIZE

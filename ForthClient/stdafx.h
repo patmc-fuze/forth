@@ -9,6 +9,14 @@
 #include <iostream>
 #include <tchar.h>
 
+#ifdef WIN32
+#include <conio.h>
+#include <direct.h>
+#include <io.h>
+#elif defined(_LINUX)
+#include <unistd.h>
+#endif
+
 // compile for Win2K or newer
 #define WINVER 0x0500
 

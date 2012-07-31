@@ -37,7 +37,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
     {
         ServerInfo.sin_family = AF_INET;
         ServerInfo.sin_addr.s_addr = INADDR_ANY;
-        ServerInfo.sin_port = htons(27015);
+        ServerInfo.sin_port = htons( FORTH_SERVER_PORT );
         iRetVal = bind(ServerSocket, (struct sockaddr*) &ServerInfo, sizeof(struct sockaddr));
         if (iRetVal == SOCKET_ERROR)
         {

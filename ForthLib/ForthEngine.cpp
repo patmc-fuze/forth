@@ -127,7 +127,7 @@ ForthEngine::ForthEngine()
     mpErrorString = new char[ ERROR_STRING_MAX + 1 ];
 
     // remember creation time for elapsed time method
-#ifdef _WINDOWS
+#ifdef WIN32
     _ftime32_s( &mStartTime );
 #endif
 
@@ -1788,7 +1788,7 @@ ForthEngine::EndEnumDefinition( void )
 unsigned long
 ForthEngine::GetElapsedTime( void )
 {
-#ifdef _WINDOWS
+#ifdef WIN32
 #if 0
 	struct _timeb now;
     _ftime( &now );

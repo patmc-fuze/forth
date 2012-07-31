@@ -5,6 +5,9 @@
 //
 //////////////////////////////////////////////////////////////////////
 
+#define FORTH_SERVER_PORT 4
+//#define FORTH_SERVER_PORT 27015
+
 enum
 {
 	// server -> client
@@ -27,6 +30,21 @@ enum
     kClientMsgFileGetPosition,
     kClientMsgFileGetString,
     kClientMsgFilePutString,
+	kClientMsgRemoveFile,
+	kClientMsgDupHandle,
+	kClientMsgDupHandle2,
+	kClientMsgFileToHandle,
+	kClientMsgFileFlush,
+	kClientMsgGetTempFilename,
+	kClientMsgRenameFile,
+	kClientMsgRunSystem,
+	kClientMsgChangeDir,
+	kClientMsgMakeDir,
+	kClientMsgRemoveDir,
+	kClientMsgGetStdIn,
+	kClientMsgGetStdOut,
+	kClientMsgGetStdErr,
+
     kClientMsgLimit,
 
     // client -> server    
@@ -37,6 +55,7 @@ enum
     kServerMsgFileReadResult,
     kServerMsgFileGetStringResult,
     kServerMsgStartLoadResult,      // sent in response to kClientMsgStartLoad
+	kServerMsgGetTmpnamResult,
     kServerMsgLimit
 };
 

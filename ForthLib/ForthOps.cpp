@@ -7,21 +7,13 @@
 #include "stdafx.h"
 
 
-#ifdef _WINDOWS
-#include <conio.h>
-#include <direct.h>
-#include <io.h>
-#elif defined(_LINUX)
-#include <unistd.h>
-#endif
-
 #ifdef ARM9
 #include <nds.h>
 #endif
 
 #include <ctype.h>
 #include <time.h>
-#if defined(_WINDOWS)
+#if defined(WIN32)
 #include <sys\timeb.h>
 #endif
 #include "Forth.h"
@@ -178,7 +170,7 @@ FORTHOP( divmodOp )
     ldiv_t v;
     long b = SPOP;
     long a = SPOP;
-#if defined(_WINDOWS)
+#if defined(WIN32)
     v = div( a, b );
 #elif defined(_LINUX)
     v = ldiv( a, b );
@@ -2109,7 +2101,7 @@ FORTHOP( stricmpOp )
 {
     char *pStr2 = (char *) SPOP;
     char *pStr1 = (char *) SPOP;
-#if defined(_WINDOWS)
+#if defined(WIN32)
 	int result = stricmp( pStr1, pStr2 );
 #elif defined(_LINUX)
 	int result = strcasecmp( pStr1, pStr2 );
@@ -3547,7 +3539,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
             }
             while ( val != 0 )
             {
-#if defined(_WINDOWS)
+#if defined(WIN32)
                 v = div( val, base );
 #elif defined(_LINUX)
                 v = ldiv( val, base );
@@ -3770,7 +3762,7 @@ FORTHOP( printFormattedOp )
     CONSOLE_STRING_OUT( buff );
 }
 
-#ifdef _WINDOWS
+#ifdef WIN32
 extern long fprintfSub( ForthCoreState* pCore );
 extern long sprintfSub( ForthCoreState* pCore );
 extern long fscanfSub( ForthCoreState* pCore );
@@ -4117,18 +4109,14 @@ FORTHOP( fputsOp )
 FORTHOP( removeOp )
 {
 	const char* pFilename = (const char *) (SPOP);
-	int result = remove( pFilename );
+    int result = pCore->pFileFuncs->fileRemove( pFilename );
     SPUSH( result );
 }
 
 FORTHOP( _dupOp )
 {
 	int fileHandle = SPOP;
-#if defined( _WINDOWS )
-	int result = _dup( fileHandle );
-#else
-	int result = dup( fileHandle );
-#endif
+    int result = pCore->pFileFuncs->fileDup( fileHandle );
     SPUSH( result );
 }
 
@@ -4136,22 +4124,14 @@ FORTHOP( _dup2Op )
 {
 	int dstFileHandle = SPOP;
 	int srcFileHandle = SPOP;
-#if defined( _WINDOWS )
-	int result = _dup2( srcFileHandle, dstFileHandle );
-#else
-	int result = dup2( srcFileHandle, dstFileHandle );
-#endif
+    int result = pCore->pFileFuncs->fileDup2( srcFileHandle, dstFileHandle );
     SPUSH( result );
 }
 
 FORTHOP( _filenoOp )
 {
 	FILE* pFile = (FILE *) SPOP;
-#if defined( _WINDOWS )
-	int result = _fileno( pFile );
-#else
-	int result = fileno( pFile );
-#endif
+	int result = pCore->pFileFuncs->fileNo( pFile );
     SPUSH( result );
 }
 
@@ -4159,7 +4139,7 @@ FORTHOP( tmpnamOp )
 {
 	char* pOutname = (char *) malloc( L_tmpnam );
     ForthEngine *pEngine = GET_ENGINE;
-	if ( tmpnam( pOutname ) == NULL )
+	if ( pCore->pFileFuncs->getTmpnam( pOutname ) == NULL )
 	{
         SET_ERROR( kForthErrorFileOpen );
         pEngine->AddErrorText( "system: failure creating standard out tempfile name" );
@@ -4172,24 +4152,49 @@ FORTHOP( tmpnamOp )
 FORTHOP( fflushOp )
 {
 	FILE* pFile = (FILE *) SPOP;
-	int result = fflush( pFile );
+	int result = pCore->pFileFuncs->fileFlush( pFile );
     SPUSH( result );
 }
 
 FORTHOP( systemOp )
 {
     NEEDS(1);
-    int result = system( (char *) SPOP );
+    int result = pCore->pFileFuncs->runSystem( (char *) SPOP );
     SPUSH( result );
 }
 
 FORTHOP( chdirOp )
 {
     NEEDS(1);
-    int result = chdir( (const char *) SPOP );
+    int result = pCore->pFileFuncs->changeDir( (const char *) SPOP );
     SPUSH( result );
 }
 
+FORTHOP( mkdirOp )
+{
+    NEEDS(2);
+	int mode = SPOP;
+	const char* pPath = (const char*) SPOP;
+    int result = pCore->pFileFuncs->makeDir( pPath, mode );
+    SPUSH( result );
+}
+
+FORTHOP( rmdirOp )
+{
+    NEEDS(1);
+	const char* pPath = (const char*) SPOP;
+    int result = pCore->pFileFuncs->removeDir( pPath );
+    SPUSH( result );
+}
+
+FORTHOP( renameOp )
+{
+    NEEDS(2);
+	const char* pDstPath = (const char*) SPOP;
+	const char* pSrcPath = (const char*) SPOP;
+    int result = pCore->pFileFuncs->renameFile( pSrcPath, pDstPath );
+    SPUSH( result );
+}
 
 
 //##############################
@@ -4199,17 +4204,20 @@ FORTHOP( chdirOp )
 
 FORTHOP( stdinOp )
 {
-    SPUSH( (long) stdin );
+    int result = (int) (pCore->pFileFuncs->getStdIn());
+    SPUSH( result );
 }
 
 FORTHOP( stdoutOp )
 {
-    SPUSH( (long) stdout );
+    int result = (int) (pCore->pFileFuncs->getStdOut());
+    SPUSH( result );
 }
 
 FORTHOP( stderrOp )
 {
-    SPUSH( (long) stderr );
+    int result = (int) (pCore->pFileFuncs->getStdErr());
+    SPUSH( result );
 }
 
 FORTHOP( dstackOp )
@@ -4295,7 +4303,7 @@ FORTHOP( describeOp )
     }
 }
 
-#ifdef _WINDOWS
+#ifdef WIN32
 
 FORTHOP( DLLVocabularyOp )
 {
@@ -5037,7 +5045,7 @@ FORTHOP( setTraceOp )
 	GET_ENGINE->SetTraceFlags( traceFlags );
 }
 
-#ifdef _WINDOWS
+#ifdef WIN32
 ///////////////////////////////////////////
 //  Windows support
 ///////////////////////////////////////////
@@ -5763,7 +5771,7 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  DLL support
     ///////////////////////////////////////////
-#ifdef _WINDOWS
+#ifdef WIN32
     OP_DEF(    DLLVocabularyOp,        "DLLVocabulary" ),
     OP_DEF(    addDLLEntryOp,          "addDLLEntry" ),
 #endif
@@ -5796,6 +5804,9 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    tmpnamOp,               "tmpnam" ),
     OP_DEF(    systemOp,               "system" ),
     OP_DEF(    chdirOp,                "chdir" ),
+    OP_DEF(    mkdirOp,                "mkdir" ),
+    OP_DEF(    rmdirOp,                "rmdir" ),
+    OP_DEF(    renameOp,               "rename" ),
     OP_DEF(    fflushOp,               "fflush" ),
     OP_DEF(    byeOp,                  "bye" ),
     OP_DEF(    argvOp,                 "argv" ),
@@ -5816,7 +5827,7 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF( poundElseOp,            "#else" ),
     PRECOP_DEF( poundEndifOp,           "#endif" ),
 
-#ifdef _WINDOWS
+#ifdef WIN32
     ///////////////////////////////////////////
     //  Windows support
     ///////////////////////////////////////////
