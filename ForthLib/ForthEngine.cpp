@@ -234,7 +234,10 @@ ForthEngine::Initialize( ForthShell*        pShell,
     mpCore->maxUserOps = 128;
     mpCore->userOps = (long **) malloc( sizeof(long *) * mpCore->maxUserOps );
 
-    mpTypesManager = new ForthTypesManager();
+	if ( mpTypesManager == NULL )
+	{
+	    mpTypesManager = new ForthTypesManager();
+	}
 
     mpVocabStack = new ForthVocabularyStack;
     mpVocabStack->Initialize();

@@ -14,6 +14,6 @@ int _tmain(int argc, _TCHAR* argv[])
 	unsigned long ipAddr = inet_addr( (argc > 1) ? argv[1] : "127.0.0.1" );
 	unsigned short portNum = FORTH_SERVER_PORT;
 
-	return ForthClientMainLoop( ipAddr, portNum );
+	return ForthClientMainLoop( NULL, ipAddr, portNum );
 }
 

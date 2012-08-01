@@ -189,7 +189,6 @@ namespace
         ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
         return pShell->GetStdErr();
     }
-
 };
 
 
@@ -197,15 +196,13 @@ namespace
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-int ForthServerMainLoop( unsigned short portNum )
+int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short portNum )
 {
     WSADATA WsaData;
     SOCKET ServerSocket;
-    SOCKET ClientSocket;
     struct sockaddr_in ServerInfo;
     int iRetVal = 0;
     ForthServerShell *pShell;
-    ForthInputStream *pInStream;
 
     WSAStartup(0x202, &WsaData);
 
@@ -233,22 +230,16 @@ int ForthServerMainLoop( unsigned short portNum )
             }
             else
             {
-                pShell = new ForthServerShell;
+				ForthShell* pOldShell = pEngine->GetShell();
+                pShell = new ForthServerShell( doAutoload, pEngine );
                 bool notDone = true;
                 while (notDone)
                 {
-                    printf( "Waiting for a client to connect.\n" );
-                    ClientSocket = accept(ServerSocket, NULL, NULL);
-                    printf("Incoming connection accepted!\n");
-
-                    ForthPipe* pMsgPipe = new ForthPipe( ClientSocket, kServerMsgProcessLine, kServerMsgLimit );
-                    pInStream = new ForthServerInputStream( pMsgPipe );
-                    iRetVal = pShell->Run( pInStream );
-                    delete pMsgPipe;
-
-                    closesocket(ClientSocket);
+					iRetVal = pShell->ProcessConnection( ServerSocket );
+					pShell->CloseConnection();
                 }
                 delete pShell;
+				pEngine->SetShell( pOldShell );
             }
         }
     }
@@ -339,6 +330,7 @@ ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, Forth
 :   ForthShell( pEngine, pExtension, pThread, shellStackLongs )
 ,   mDoAutoload( doAutoload )
 ,   mpMsgPipe( NULL )
+,	mClientSocket( -1 )
 {
     mFileInterface.fileOpen = fileOpen;
     mFileInterface.fileClose = fileClose;
@@ -412,6 +404,7 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
             {
 
             case kResultExitShell:
+            case kResultShutdown:
                 // users has typed "bye", exit the shell
                 bQuit = true;
                 retVal = 0;
@@ -445,6 +438,10 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
 
         }
     }
+	if ( result == kResultShutdown )
+	{
+		exit( 0 );
+	}
 
     return retVal;
 }
@@ -1201,3 +1198,24 @@ ForthServerShell::GetStdErr()
     return pFile;
 }
 
+int
+ForthServerShell::ProcessConnection( SOCKET serverSocket )
+{
+    ForthInputStream *pInStream = NULL;
+
+    printf( "Waiting for a client to connect.\n" );
+    mClientSocket = accept( serverSocket, NULL, NULL );
+    printf("Incoming connection accepted!\n");
+
+    ForthPipe* pMsgPipe = new ForthPipe( mClientSocket, kServerMsgProcessLine, kServerMsgLimit );
+    pInStream = new ForthServerInputStream( pMsgPipe );
+	int result = Run( pInStream );
+	delete pMsgPipe;
+    return result;
+}
+
+void
+ForthServerShell::CloseConnection()
+{
+	closesocket( mClientSocket );
+}

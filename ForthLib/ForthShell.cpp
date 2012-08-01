@@ -89,12 +89,6 @@ namespace
 	{
 		return mkdir( pPath );
 	}
-	/*
-	int removeDir( const char* pPath )
-	{
-		return rmdir( pPath );
-	}
-	*/
 }
 
 #if defined(WIN32)
@@ -306,6 +300,7 @@ ForthShell::Run( ForthInputStream *pInStream )
             case kResultOk:
                 break;
 
+            case kResultShutdown:			// what should shutdown do on non-client/server?
             case kResultExitShell:
                 // users has typed "bye", exit the shell
                 bQuit = true;
@@ -489,12 +484,13 @@ ForthShell::InterpretLine( const char *pSrcLine )
             }
             if ( result != kResultOk )
 			{
-                if ( result != kResultExitShell )
+				bool exitingShell = (result == kResultExitShell) || (result == kResultShutdown);
+                if ( !exitingShell )
 				{
                     ReportError();
                 }
 				ErrorReset();
-                if ( !mpInput->InputStream()->IsInteractive() && ( result != kResultExitShell) )
+                if ( !mpInput->InputStream()->IsInteractive() && !exitingShell )
 				{
                     // if the initial input stream was a file, any error
                     //   must be treated as a fatal error

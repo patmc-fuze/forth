@@ -21,12 +21,13 @@ kVocabNumEntries		EQU	7t
 kVocabGetClass			EQU	8t
 kVocabRef				EQU 9t
 
-kResultOk		EQU		0t
-kResultDone		EQU		1t
+kResultOk				EQU		0t
+kResultDone				EQU		1t
 kResultExitShell		EQU		2t
-kResultError		EQU		3t
+kResultError			EQU		3t
 kResultFatalError		EQU		4t
 kResultException		EQU		5t
+kResultShutdown			EQU		6t
 
 
 kForthErrorNone						EQU		0t

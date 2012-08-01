@@ -163,6 +163,7 @@ public:
     inline void             SetDefinitionVocabulary( ForthVocabulary* pVocab )  { mpDefinitionVocab = pVocab; };
     inline ForthVocabulary  *GetLocalVocabulary( void )   { return mpLocalVocab; };
     inline ForthShell       *GetShell( void ) { return mpShell; };
+	inline void				SetShell( ForthShell *pShell ) { mpShell = pShell; };
     inline ForthVocabulary  *GetForthVocabulary( void )   { return mpForthVocab; };
     inline ForthThread      *GetMainThread( void )  { return mpMainThread; };
 

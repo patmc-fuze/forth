@@ -113,6 +113,7 @@ typedef enum {
     kResultError,       // exit because of error
     kResultFatalError,  // exit because of fatal error
     kResultException,   // exit because of uncaught exception
+    kResultShutdown,    // exit because of a "shutdown" opcode
 } eForthResult;
 
 typedef enum {

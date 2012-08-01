@@ -16,5 +16,5 @@
 //int _tmain(int argc, _TCHAR* argv[])
 int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 {
-	return ForthServerMainLoop( FORTH_SERVER_PORT );
+	return ForthServerMainLoop( NULL, true, FORTH_SERVER_PORT );
 }

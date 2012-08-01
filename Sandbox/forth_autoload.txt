@@ -250,8 +250,8 @@ addHelp cd	cd BLAH			change working directory to BLAH
 addHelp pwd	pwd			display working directory
 : pwd "chdir" system$ drop ;
 
-addHelp dir	dir BLAH		display directory (BLAH is optional filespec)
-: dir
+addHelp ls	ls BLAH		display directory (BLAH is optional filespec)
+: ls
   '\n' word -> _aa
 #ifdef WINDOWS
   "dir" -> _bb
@@ -264,6 +264,27 @@ addHelp dir	dir BLAH		display directory (BLAH is optional filespec)
     strcat( _bb _aa )
   endif
   _bb system$ drop
+;
+
+addHelp mv	mv OLDNAME NEWNAME		rename a file
+: mv
+  blword -> _aa
+  blword -> _bb
+  rename( _aa _bb )
+  if( 0!= )
+    error( "mv: failure renaming file " )
+    addErrorText( _aa )
+  endif
+;
+
+addHelp rm	rm FILENAME		remove a file
+: rm
+  blword -> _aa
+  remove( _aa )
+  if( 0!= )
+    error( "rm: failure removing file " )
+    addErrorText( _aa )
+  endif
 ;
 
 addHelp more more FILENAME	display FILENAME on screen
@@ -491,5 +512,8 @@ struct: WIN32_FIND_DATA
 ;struct
 
 #endif
+
+: goclient 0x6701a8c0 client ;
+: goserver server ;
 
 loaddone

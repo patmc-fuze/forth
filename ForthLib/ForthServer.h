@@ -16,7 +16,7 @@
 #define SOCKET  int
 #endif
 
-int ForthServerMainLoop( unsigned short portNum );
+int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short portNum );
 
 class ForthPipe;
 class ForthExtension;
@@ -83,7 +83,11 @@ public:
 	virtual FILE*			GetStdOut();
 	virtual FILE*			GetStdErr();
 
+	int						ProcessConnection( SOCKET serverSocket );
+	void					CloseConnection();
+
 protected:
+
     ForthPipe*              mpMsgPipe;
     bool                    mDoAutoload;
 
@@ -100,5 +104,8 @@ protected:
 
     // threads which are ready to run
     ForthThreadQueue*       mReadyThreads;
+
+    SOCKET					mClientSocket;
+
 };
 

@@ -534,6 +534,7 @@ void CForthGuiDlg::ProcessLine( char* pLine )
 	switch ( result )
 	{
 	case kResultExitShell:
+	case kResultShutdown:		// is this right?
 		// exit program
 		OnCancel();
 		break;

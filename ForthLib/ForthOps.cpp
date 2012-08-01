@@ -23,6 +23,9 @@
 #include "ForthShell.h"
 #include "ForthInput.h"
 #include "ForthStructs.h"
+#include "ForthServer.h"
+#include "ForthClient.h"
+#include "ForthMessages.h"
 
 extern "C"
 {
@@ -5210,6 +5213,30 @@ FORTHOP( windowsConstantsOp )
 
 #endif
 
+///////////////////////////////////////////
+//  Network support
+///////////////////////////////////////////
+
+FORTHOP( clientOp )
+{
+	long ipAddress = SPOP;
+	ForthEngine *pEngine = GET_ENGINE;
+	int result = ForthClientMainLoop( pEngine, ipAddress, FORTH_SERVER_PORT );
+	SPUSH( result );
+}
+
+FORTHOP( serverOp )
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	int result = ForthServerMainLoop( pEngine, false, FORTH_SERVER_PORT );
+	SPUSH( result );
+}
+
+FORTHOP( shutdownOp )
+{
+    SET_STATE( kResultShutdown );
+}
+
 // NOTE: the order of the first few entries in this table must agree
 // with the list near the top of the file!  (look for COMPILED_OP)
 
@@ -5826,6 +5853,13 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF( poundIfndefOp,          "#ifndef" ),
     PRECOP_DEF( poundElseOp,            "#else" ),
     PRECOP_DEF( poundEndifOp,           "#endif" ),
+
+    ///////////////////////////////////////////
+    //  network/client/server
+    ///////////////////////////////////////////
+	OP_DEF(		serverOp,				"server" ),
+	OP_DEF(		clientOp,				"client" ),
+	OP_DEF(		shutdownOp,				"shutdown" ),
 
 #ifdef WIN32
     ///////////////////////////////////////////

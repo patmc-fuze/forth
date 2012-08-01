@@ -6,5 +6,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-int ForthClientMainLoop( unsigned long ipAddress, unsigned short portNum );
+class ForthEngine;
+
+int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned short portNum );
 

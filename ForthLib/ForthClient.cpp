@@ -23,7 +23,7 @@ namespace
 	}
 }
 
-int ForthClientMainLoop( unsigned long ipAddress, unsigned short portNum )
+int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned short portNum )
 {
 	//----------------------
     // Initialize Winsock
