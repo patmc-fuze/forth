@@ -4,7 +4,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "ForthEngine.h"
 #include "ForthVocabulary.h"
 #include "ForthBuiltinClasses.h"

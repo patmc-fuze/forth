@@ -3,7 +3,7 @@
 // ForthClient.cpp: Forth client support
 //
 //////////////////////////////////////////////////////////////////////
-#include "stdafx.h"
+#include "StdAfx.h"
 
 #pragma comment(lib, "wininet.lib")
 

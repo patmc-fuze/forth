@@ -1,10 +1,10 @@
 // ForthMain.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "ForthMain.h"
-#include "..\ForthLib\ForthShell.h"
-#include "..\ForthLib\ForthInput.h"
+#include "../ForthLib/ForthShell.h"
+#include "../ForthLib/ForthInput.h"
 
 #if 0
 #ifdef _DEBUG

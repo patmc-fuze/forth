@@ -3,7 +3,7 @@
 // ForthServer.cpp: Forth server support
 //
 //////////////////////////////////////////////////////////////////////
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "ForthServer.h"
 #include "ForthPipe.h"
 #include "ForthMessages.h"

@@ -4,7 +4,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include "ForthForgettable.h"
 #include "ForthEngine.h"
 #include "ForthShell.h"

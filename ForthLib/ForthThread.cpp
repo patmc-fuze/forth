@@ -2,7 +2,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 #include <process.h>
 #include "ForthThread.h"
 #include "ForthEngine.h"

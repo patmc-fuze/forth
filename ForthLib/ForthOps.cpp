@@ -4,7 +4,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "StdAfx.h"
 
 
 #ifdef ARM9
@@ -14,7 +14,7 @@
 #include <ctype.h>
 #include <time.h>
 #if defined(WIN32)
-#include <sys\timeb.h>
+#include <sys/timeb.h>
 #endif
 #include "Forth.h"
 #include "ForthEngine.h"
