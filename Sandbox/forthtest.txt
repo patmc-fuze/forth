@@ -1,163 +1,40 @@
 
-autoforget showsection
+autoforget testBuff
 
 // empty stack markers - should still be here after all tests done
 0xDEADBEEF 123456789
 
-
-: showsection " ================== " dup %s swap %s %s %nl ;
-
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test if...else...endif" )
-demo : woof  if " true " else " false " endif %s %nl ;
-demo 0 woof 1 woof
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test if...endif" )
-demo : foow if " foow " %s endif ;
-demo "A" %s 1 foow "B" %s 0 foow "C" %s %nl
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test qouted strings and if...else...endif" )
-demo : barney "This is a \"quoted\" test string\n\n\n" %s ;
-demo barney
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test begin...until" )
-demo : fred 5 begin dup . %bl 1 - dup 0== until %nl drop ;
-demo fred
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test begin...while...repeat" )
-demo : wilma 5 begin dup while dup . %bl 1 - repeat %nl drop ;
-demo wilma
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test do...loop" )
-demo : betty 5 0 do  i . %bl loop %nl ;
-demo betty
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test do...+loop with negative loop increment" )
-demo : unbetty -5 0 do  i . %bl -1 +loop %nl ;
-demo unbetty
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test leave & unloop/exit" )
-demo : ookla
-demo   1000 0 do i . %bl leave " burp " %s loop %nl
-demo   1000 0 do i . %nl unloop exit " glurp " %s loop
-demo ;
-demo ookla
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test case statement" )
-demo : casetest
-demo   case
-demo     0 of "zero" endof
-demo     1 of "one" endof
-demo     2 of "two" endof
-demo     drop "whatever"
-demo   endcase
-demo   %s %nl
-demo ;
-
-demo 0 casetest
-demo 1 casetest
-demo 2 casetest
-demo 3 casetest
-demo 5 casetest
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test character constants" )
-demo : pebbles 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl ;
-demo pebbles
-demo "Interpreted: " %s 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test global variables" )
-demo int gaa
-demo : gvtest 0 -> gaa 10 0 do gaa %d %bl 5 ->+ gaa loop %nl ;
-"Should see 0..45 in increments of 5\n" %s gvtest
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test local variables" )
-//: lvtest vars int aa endvars 0 -> aa 10 0 do aa %d %bl 5 ->+ aa loop %nl ;
-demo : lvtest int aa 0 -> aa 10 0 do aa %d %bl 5 ->+ aa loop %nl ;
-"Should see 0..45 in increments of 5\n" %s lvtest
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test fetch & store" )
-demo : buffer builds allot does ;
-demo 20 buffer tb
-demo 0xDEADBEEF tb !
-demo tb c@ %x %bl tb w@ %x %nl
-demo tb sc@ %x %bl tb sw@ %x %nl
-demo tb c@ c2l %x %bl tb w@ w2l %x %nl
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test strings" )
-demo 20 string aaa 20 string bbb
-demo "ajaja" -> aaa "bobobo" -> bbb
-demo aaa strlen %d %bl bbb strlen %d %nl
-demo : showstrs "aaa \"" %s aaa %s "\" bbb \"" %s bbb %s "\"" %s %nl ;
-demo showstrs
-
-demo strcpy( aaa bbb ) showstrs
-demo "blahblah" -> aaa  strncpy( aaa bbb 2 ) showstrs
-
-demo "head" -> aaa "tail" -> bbb strcat( aaa bbb ) showstrs
-demo "head" -> aaa "tail" -> bbb strncat( aaa bbb 3 ) showstrs
-
-demo "blahblah" -> aaa  strchr( aaa 'l' ) %s %nl
-demo "blahblah" -> aaa  strrchr( aaa 'l' ) %s %nl
-demo "blahblah" -> aaa  strchr( aaa 'q' ) %s %nl
-
-demo strcmp( aaa "blahblah" ) %d %nl
-demo strcmp( aaa "BlahblaH" ) %d %nl
-demo stricmp( aaa "BlahblaH" ) %d %nl
-demo stricmp( aaa "Blahbla" ) %d %nl
-
-demo strstr( aaa "ahbl" ) %s %nl
-demo strstr( aaa "ahab" ) %s %nl
-
-// strcpy strncpy strlen strcat strncat strchr strrchr strcmp stricmp strstr strtok
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test inline comments" )
-: _fail_ " FAILED! " %s ;
-: _ok_ %d /* _fail_ */ ;
-"The following line should have \"123456\" on it\n" %s
-( 1 _ok_ ) true -> parenIsComment ( _fail_ ) 2 _ok_ ( _fail_
-3 _ok_ false -> parenIsComment _ok_( 4 ) /* _fail_
-5 _ok_ /* _fail_ */ 6 _ok_ %nl
-
-///////////////////////////////////////////////////////////
-
-showsection( "Test basic ops - only errors are displayed" )
 decimal
+
+//: showsection " ================== " dup %s swap %s %s %nl ;
+
+false -> int testFailed
+
+string( 512 ) testBuff
+string( 512 ) testBuff2
+: clearBuff "" -> testBuff ;
+: addBuff ->+ testBuff ;
+: startTest clearBuff outToString( testBuff ) ;
+
+: checkResult
+  -> ptrTo byte expected
+  outToScreen
+  if( strcmp( testBuff expected ) )
+    "Expected |" %s expected %s "| got |" %s testBuff %s "|" %s %nl
+    testBuff 6 dump
+    false
+    true -> testFailed
+  else
+    true
+  endif
+;
 
 // t[ LINE_OF_STUFF ]
 // LINE_OF_STUFF must evaluate to one or more true (-1) values
 : t[
   sp -> int oldSP
-  ']' word -> 250 string ops
+  ']' word -> string( 250 ) ops
+  //ops %s %nl
   ops interpret
   sp oldSP swap - 4/ -> int numItems
   false -> int failed
@@ -177,8 +54,146 @@ decimal
     drop
   loop
 ;
+
+"aba" -> testBuff
+t[ checkResult( "aba" ) ]
   
-loaddone
+
+///////////////////////////////////////////////////////////
+
+// test special characters in strings and characters
+
+t[ '\0' 0== ] t[ '\a' 7 == ] t[ '\b' 8 == ] t[ '\t' 9 == ] t[ '\n' 0x0a == ] t[ '\v' 0x0b == ]
+t[ '\f' 0x0c == ] t[ '\r' 0x0d == ] t[ '\"' 0x22 == ] t[ '\'' 0x27 == ] t[ '\\' 0x5c == ]
+
+startTest
+'\a' %c '\b' %c '\t' %c '\n' %c '\v' %c '\f' %c '\r' %c '\"' %c '\'' %c  '\\' %c outToScreen
+
+t[ checkResult( "\a\b\t\n\v\f\r\"\'\\" ) ]
+
+// verify that character constants 
+: testCharacterConstants startTest 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl ;
+"" -> testBuff2 outToString( testBuff2 )
+'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl
+t[ testCharacterConstants checkResult( testBuff2 ) ]
+
+///////////////////////////////////////////////////////////
+
+// test control structures
+
+: testIf if "t" addBuff endif ;
+t[ startTest "A" addBuff 1 testIf "B" addBuff 0 testIf "C" addBuff checkResult( "AtBC" ) ]
+
+: testIfElse if 't' else 'f' endif ;
+t[ 1 testIfElse 't' == ]  t[ 0 testIfElse 'f' == ]
+
+: testBeginUntil
+  startTest
+  5 begin dup . %bl 1 - dup 0== until drop
+;
+t[ testBeginUntil checkResult( "5 4 3 2 1 " ) ]
+
+: testBeginWhile
+  startTest
+  5 begin dup while dup . %bl 1- repeat drop
+;
+t[ testBeginWhile checkResult( "5 4 3 2 1 " ) ]
+
+: testDoLoop
+  startTest
+  5 0 do  i . %bl loop
+  -5 0 do  i . %bl -1 +loop
+  1000 0 do i . %bl leave " burp " %s loop
+  1000 0 do i . %bl i 2 == if unloop exit endif loop
+  " should never get here" %s
+;
+t[ testDoLoop checkResult( "0 1 2 3 4 0 -1 -2 -3 -4 -5 0 0 1 2 " ) ]
+
+//testBuff %s '|' %c %nl
+
+: casetest
+  case
+    0 of "zero" endof
+    1 of "one" endof
+    2 of "two" endof
+    drop "whatever"
+  endcase
+  addBuff
+;
+
+t[ startTest 1 casetest   3 casetest   0 casetest   2 casetest   5 casetest  checkResult( "onewhateverzerotwowhatever" ) ]
+
+
+///////////////////////////////////////////////////////////
+
+int gaa
+: testGlobalVars
+  startTest
+  0 -> gaa 7 0 do gaa %d %bl 5 ->+ gaa loop
+;
+t[ testGlobalVars checkResult( "0 5 10 15 20 25 30 " ) ]
+
+: testLocalVars
+  int aa
+  startTest
+  0 -> aa 7 0 do aa %d %bl 5 ->+ aa loop
+;
+t[ testLocalVars checkResult( "0 5 10 15 20 25 30 " ) ]
+
+///////////////////////////////////////////////////////////
+
+// Test fetch & store
+: buffer builds allot does ;
+20 buffer tb
+
+0xDEADBEEF tb !
+t[ startTest tb c@ %x %bl tb w@ %x %bl tb sc@ %x checkResult( "ef beef ffffffef" ) ]
+t[ startTest tb sw@ %x %bl tb c@ c2l %x %bl tb w@ w2l %x checkResult( "ffffbeef ffffffef ffffbeef" ) ]
+
+///////////////////////////////////////////////////////////
+
+// Test strings
+20 string aaa 20 string bbb
+"ajaja" -> aaa "bobobo" -> bbb
+t[ strlen( aaa ) 5 == strlen( bbb ) 6 == ]
+
+t[ strcpy( aaa bbb ) strcmp( aaa "bobobo" ) 0== ]
+t[ "blahblah" -> aaa  strncpy( aaa bbb 2 ) strcmp( aaa "boahblah" ) 0== ]
+
+t[ "head" -> aaa "tail" -> bbb strcat( aaa bbb ) strcmp( aaa "headtail" ) 0== ]
+t[ "head" -> aaa "tail" -> bbb strncat( aaa bbb 3 ) strcmp( aaa "headtai" ) 0== ]
+
+t[ "blahblah" -> aaa  strcmp( strchr( aaa 'l' ) "lahblah" ) 0== ]
+t[ "blahblah" -> aaa  strcmp( strrchr( aaa 'l' ) "lah" ) 0== ]
+t[ "blahblah" -> aaa  strchr( aaa 'q' ) 0== ]
+
+t[ strcmp( aaa "blahblah" ) 0== ]
+t[ strcmp( aaa "BlahblaH" ) 1 == ]
+t[ stricmp( aaa "BlahblaH" ) 0== ]
+t[ stricmp( aaa "Blahbla" ) 1 == ]
+
+t[ strcmp( strstr( aaa "ahbl" ) "ahblah" ) 0== ]
+t[ strstr( aaa "ahab" ) 0== ]
+// strcpy strncpy strlen strcat strncat strchr strrchr strcmp stricmp strstr strtok
+
+///////////////////////////////////////////////////////////
+
+// Test inline comments
+: _fail_ " FAILED! " %s ;
+: _ok_ %d /* _fail_ */ ;
+// "The following line should have \"123456\" on it\n" %s
+startTest
+( 1 _ok_ ) true -> parenIsComment ( _fail_ ) 2 _ok_ ( _fail_
+3 _ok_ false -> parenIsComment _ok_( 4 ) /* _fail_
+5 _ok_ /* _fail_ */ 6 _ok_ %nl
+t[ checkResult( "123456\n" ) ]
+
+///////////////////////////////////////////////////////////
+
+// Test basic ops - only errors are displayed
+decimal
+
+//loaddone
 // + - * / or and xor not 
 t[ 1 5 + 6 == ] t[ 1 -4 + -3 == ] t[ 0x80000000 -1 + 0x7fffffff == ] t[ 1 5 - -4 == ] t[ 1 -4 - 5 == ] t[ 0x80000000 -1 - 0x80000001 == ]
 t[ 3 7 * 21 == ] t[ 0x101 0x11 * 0x1111 == ] t[ -5 -7 * 35 == ] t[ 22 7 / 3 == ] t[ 99 11 / 9 == ] t[ -100 7 / -14 == ] t[ -65535 256 / -255 == ]
@@ -223,6 +238,7 @@ t[ 87 5 ?dup 0 ?dup 0== rot 5 == rot 5 == and and over 87 == rot 87 == ]
 // . %d %x %lld %llx %s %c %block %bl %nl %f %g %fmt
 // printDecimalSigned printAllSigned printAllUnsigned octal decimal hex
 
+
 t[ 0xDEADBEEF 123456789 l== ]	// check for stack underflow or extra items
 
 %nl
@@ -235,12 +251,18 @@ t[ 0xDEADBEEF 123456789 l== ]	// check for stack underflow or extra items
 : bb interpret( "'b' %c" ) cc interpret( "'d' %c" ) ;
 : aa interpret( "'a' %c" ) bb ee interpret( "'z' %c" ) ;
 
-aa " <- should say abcdeyz\n" %s
+//t[ strcmp( aa "abcdeyz" ) 0== ]
 
 ///////////////////////////////////////////////////////////
 
 //%nl %nl "Hit ENTER to exit" %s
 //stdin fgetc
+: finalCheck
+  if( testFailed not )
+    "All tests succeeded\n" %s
+  endif
+;
+finalCheck
 
 loaddone
 
