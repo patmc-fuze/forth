@@ -1702,7 +1702,7 @@ OPTYPE_ACTION( InitMemberStringAction )
     *((char *) pStr) = 0;               // terminating null
 }
 
-OPTYPE_ACTION( NVOComboAction )
+OPTYPE_ACTION( NumVaropOpComboAction )
 {
 	// NUM VAROP OP combo - bits 0:10 are signed integer, bits 11:12 are varop-2, bit 13 is builtin/userdef, bits 14-23 are opcode
 
@@ -1726,7 +1726,7 @@ OPTYPE_ACTION( NVOComboAction )
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
-OPTYPE_ACTION( NVComboAction )
+OPTYPE_ACTION( NumVaropComboAction )
 {
 	// NUM VAROP combo - bits 0:21 are signed integer, bits 22:23 are varop-2
 
@@ -1746,7 +1746,7 @@ OPTYPE_ACTION( NVComboAction )
 	SET_VAR_OPERATION( ((opVal >> 22) & 3) + 2 );
 }
 
-OPTYPE_ACTION( NOComboAction )
+OPTYPE_ACTION( NumOpComboAction )
 {
 	// NUM OP combo - bits 0:12 are signed integer, bit 13 is builtin/userdef, bits 14:23 are opcode
 
@@ -1767,7 +1767,7 @@ OPTYPE_ACTION( NOComboAction )
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
-OPTYPE_ACTION( VOComboAction )
+OPTYPE_ACTION( VaropOpComboAction )
 {
 	// VAROP OP combo - bits 0:1 are varop-2, bit 2 is builtin/userdef, bits 3:23 are opcode
 
@@ -1776,6 +1776,27 @@ OPTYPE_ACTION( VOComboAction )
 
 	// execute op in bits 3:23
 	long op = COMPILED_OP( (((opVal & 0x4) != 0) ? kOpUserDef : kOpBuiltIn), (opVal >> 4) );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+}
+
+OPTYPE_ACTION( LocalRefOpComboAction )
+{
+	// REF_OFFSET OP combo - bits 0:12 are local var offset in longs, bit 13 is builtin/userdef, bits 14:23 are opcode
+    SPUSH( (long)(GET_FP - (opVal & 0xFFF)) );
+
+	// execute op in bits 13:23
+	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpBuiltIn), (opVal >> 14) );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+}
+
+OPTYPE_ACTION( MemberRefOpComboAction )
+{
+	// REF_OFFSET OP combo - bits 0:12 are member offset in bytes, bit 13 is builtin/userdef, bits 14:23 are opcode
+    // opVal is offset in bytes
+    SPUSH( ((long)GET_TPD) + (opVal & 0xFFF) );
+
+	// execute op in bits 13:23
+	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpBuiltIn), (opVal >> 14) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
@@ -1988,10 +2009,12 @@ optypeActionRoutine builtinOptypeAction[] =
 
 	// 110 -
     InitMemberStringAction,
-	NVOComboAction,
-	NVComboAction,
-	NOComboAction,
-	VOComboAction,
+	NumVaropOpComboAction,
+	NumVaropComboAction,
+	NumOpComboAction,
+	VaropOpComboAction,
+	LocalRefOpComboAction,
+	MemberRefOpComboAction,
     ReservedOptypeAction,
 
     NULL            // this must be last to end the list

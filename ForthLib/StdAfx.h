@@ -5,6 +5,7 @@
 //
 
 #ifdef WIN32
+#ifdef MSDEV
 // compile for Win2K or newer
 #define WINVER 0x0500
 
@@ -13,6 +14,17 @@
 #include <afx.h>
 #include <afxwin.h>
 #include <afxtempl.h>
+#else
+#include <windows.h>
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#define ASSERT(x, ...)
+#define TRACE(x, ...)
+
+#endif
 
 #else
 
@@ -34,7 +46,7 @@
 #include <conio.h>
 #include <direct.h>
 #include <io.h>
-#elif defined(_LINUX)
+#elif defined(LINUX)
 #include <unistd.h>
 #endif
 

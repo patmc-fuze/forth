@@ -206,10 +206,13 @@ protected:
 
     int                     mPoundIfDepth;
 
+#ifdef LINUX
+#else
     DWORD                   mMainThreadId;
     DWORD                   mConsoleInputThreadId;
     HANDLE                  mConsoleInputThreadHandle;
     HANDLE                  mConsoleInputEvent;
+#endif
     ForthThreadQueue*       mpReadyThreads;
     ForthThreadQueue*       mpSleepingThreads;
 

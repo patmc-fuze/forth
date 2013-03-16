@@ -80,7 +80,7 @@ ForthInputStack::GetLine( const char *pPrompt )
         {
             *pEndLine = '\0';
         }
-#if defined(_LINUX)
+#if defined(LINUX)
         pEndLine = strchr( pBuffer, '\r' );
         if ( pEndLine )
         {

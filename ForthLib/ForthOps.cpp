@@ -27,6 +27,10 @@
 #include "ForthClient.h"
 #include "ForthMessages.h"
 
+#ifdef LINUX
+#include <strings.h>
+#endif
+
 extern "C"
 {
 
@@ -174,8 +178,12 @@ FORTHOP( divmodOp )
     long b = SPOP;
     long a = SPOP;
 #if defined(WIN32)
+#if defined(MSDEV)
     v = div( a, b );
-#elif defined(_LINUX)
+#else
+    v = ldiv( a, b );
+#endif
+#elif defined(LINUX)
     v = ldiv( a, b );
 #endif
     SPUSH( v.rem );
@@ -1886,6 +1894,26 @@ FORTHOP(fetchOp)
     SPUSH( *pA );
 }
 
+FORTHOP(storeNextOp)
+{
+    NEEDS(2);
+    long **ppB = (long **)(SPOP);
+    long *pB = *ppB;
+    long a = SPOP;
+    *pB++ = a;
+    *ppB = pB;
+}
+
+FORTHOP(fetchNextOp)
+{
+    NEEDS(1);
+    long **ppA = (long **)(SPOP); 
+    long *pA = *ppA;
+    long a = *pA++;
+    SPUSH( a );
+    *ppA = pA;
+}
+
 FORTHOP(cstoreOp)
 {
     NEEDS(2);
@@ -1899,6 +1927,26 @@ FORTHOP(cfetchOp)
     NEEDS(1);
     unsigned char *pA = (unsigned char *) (SPOP);
     SPUSH( (*pA) );
+}
+
+FORTHOP(cstoreNextOp)
+{
+    NEEDS(2);
+    char **ppB = (char **)(SPOP);
+    char *pB = *ppB;
+    long a = SPOP;
+    *pB++ = (char) a;
+    *ppB = pB;
+}
+
+FORTHOP(cfetchNextOp)
+{
+    NEEDS(1);
+    unsigned char **ppA = (unsigned char **)(SPOP); 
+    unsigned char *pA = *ppA;
+    unsigned char a = *pA++;
+    SPUSH( a );
+    *ppA = pA;
 }
 
 // signed char fetch
@@ -1932,6 +1980,26 @@ FORTHOP(wfetchOp)
     SPUSH( *pA );
 }
 
+FORTHOP(wstoreNextOp)
+{
+    NEEDS(2);
+    short **ppB = (short **)(SPOP);
+    short *pB = *ppB;
+    long a = SPOP;
+    *pB++ = (short) a;
+    *ppB = pB;
+}
+
+FORTHOP(wfetchNextOp)
+{
+    NEEDS(1);
+    unsigned short **ppA = (unsigned short **)(SPOP); 
+    unsigned short *pA = *ppA;
+    unsigned short a = *pA++;
+    SPUSH( a );
+    *ppA = pA;
+}
+
 // signed word fetch
 FORTHOP(swfetchOp)
 {
@@ -1961,6 +2029,26 @@ FORTHOP(dfetchOp)
     NEEDS(1);
     double *pA = (double *) (SPOP);
     DPUSH( *pA );
+}
+
+FORTHOP(dstoreNextOp)
+{
+    NEEDS(2);
+    double **ppB = (double **)(SPOP);
+    double *pB = *ppB;
+    double a = DPOP;
+    *pB++ = a;
+    *ppB = pB;
+}
+
+FORTHOP(dfetchNextOp)
+{
+    NEEDS(1);
+    double **ppA = (double **)(SPOP); 
+    double *pA = *ppA;
+    double a = *pA++;
+    DPUSH( a );
+    *ppA = pA;
 }
 
 FORTHOP(memcpyOp)
@@ -2106,7 +2194,7 @@ FORTHOP( stricmpOp )
     char *pStr1 = (char *) SPOP;
 #if defined(WIN32)
 	int result = stricmp( pStr1, pStr2 );
-#elif defined(_LINUX)
+#elif defined(LINUX)
 	int result = strcasecmp( pStr1, pStr2 );
 #endif
 	// only return 1, 0 or -1
@@ -3543,8 +3631,12 @@ printNumInCurrentBase( ForthCoreState   *pCore,
             while ( val != 0 )
             {
 #if defined(WIN32)
+#if defined(MSDEV)
                 v = div( val, base );
-#elif defined(_LINUX)
+#else
+                v = ldiv( val, base );
+#endif
+#elif defined(LINUX)
                 v = ldiv( val, base );
 #endif
                 *--pNext = (char) ( (v.rem < 10) ? (v.rem + '0') : ((v.rem - 10) + 'a') );
@@ -3572,12 +3664,10 @@ printLongNumInCurrentBase( ForthCoreState   *pCore,
 #define PRINT_NUM_BUFF_CHARS 68
     char buff[ PRINT_NUM_BUFF_CHARS ];
     char *pNext = &buff[ PRINT_NUM_BUFF_CHARS ];
-    ldiv_t v;
     ulong base;
     bool bIsNegative, bPrintUnsigned;
     ulong urem;
 	unsigned long long uval;
-	unsigned long long quotient;
     ePrintSignedMode signMode;
 
     if ( val == 0L )
@@ -3765,7 +3855,7 @@ FORTHOP( printFormattedOp )
     CONSOLE_STRING_OUT( buff );
 }
 
-#ifdef WIN32
+#ifdef _ASM_INNER_INTERPRETER
 extern long fprintfSub( ForthCoreState* pCore );
 extern long sprintfSub( ForthCoreState* pCore );
 extern long fscanfSub( ForthCoreState* pCore );
@@ -5536,15 +5626,23 @@ baseDictionaryEntry baseDictionary[] =
     //  memory store/fetch
     ///////////////////////////////////////////
     OP_DEF(    storeOp,                "!" ),
+    OP_DEF(    storeNextOp,            "@!++" ),
+    OP_DEF(    fetchNextOp,            "@@++" ),
     OP_DEF(    cstoreOp,               "c!" ),
     OP_DEF(    cfetchOp,               "c@" ),
+    OP_DEF(    cstoreNextOp,           "c@!++" ),
+    OP_DEF(    cfetchNextOp,           "c@@++" ),
     OP_DEF(    scfetchOp,              "sc@" ),
     OP_DEF(    c2lOp,                  "c2l" ),
     OP_DEF(    wstoreOp,               "w!" ),
     OP_DEF(    wfetchOp,               "w@" ),
+    OP_DEF(    wstoreNextOp,           "w@!++" ),
+    OP_DEF(    wfetchNextOp,           "w@@++" ),
     OP_DEF(    swfetchOp,              "sw@" ),
     OP_DEF(    w2lOp,                  "w2l" ),
     OP_DEF(    dstoreOp,               "d!" ),
+    OP_DEF(    dstoreNextOp,           "d@!++" ),
+    OP_DEF(    dfetchNextOp,           "d@@++" ),
     OP_DEF(    memcpyOp,               "memcpy" ),
     OP_DEF(    memsetOp,               "memset" ),
     OP_DEF(    setVarActionOp,         "varAction!" ),
@@ -5888,7 +5986,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( windowsConstantsOp,         "windowsConstants" ),
 
 	OP_DEF( trueOp,						"WINDOWS" ),
-#elif defined(_LINUX)
+#elif defined(LINUX)
 	OP_DEF( trueOp,						"LINUX" ),
 #endif
 

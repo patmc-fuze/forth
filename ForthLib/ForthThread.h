@@ -7,6 +7,9 @@
 
 #include "Forth.h"
 #include "ForthInner.h"
+#ifdef LINUX
+#include <pthread.h>
+#endif
 
 class ForthEngine;
 
@@ -53,7 +56,11 @@ public:
 
     friend class ForthEngine;
 
+#ifdef LINUX
+    static void* RunLoop( void *pThis );
+#else
     static unsigned __stdcall RunLoop( void *pThis );
+#endif
 
 	inline ForthCoreState* GetCoreState() { return &mCore; };
 
@@ -66,7 +73,12 @@ protected:
     ForthCoreState      mCore;
     long                mOps[2];
     unsigned long       mWakeupTime;
+#ifdef LINUX
+    int                 mHandle;
+    pthread_t           mThread;
+#else
     HANDLE              mHandle;
+#endif
     ulong               mThreadId;
 };
 

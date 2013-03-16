@@ -264,8 +264,12 @@ protected:
 	void*				mpDefaultConsoleOutData;
 
 #ifdef WIN32
+#ifdef MSDEV
     //struct _timeb   mStartTime;
 	struct __timeb32	mStartTime;
+#else
+    struct _timeb    mStartTime;
+#endif
 #else
     struct timeb    mStartTime;
 #endif

@@ -8,44 +8,74 @@
 #pragma comment(lib, "wininet.lib")
 
 #include <stdio.h>
+#ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <errno.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#endif
 #include "ForthPipe.h"
 #include "ForthClient.h"
 #include "ForthMessages.h"
+
+#ifndef SOCKADDR
+#define SOCKADDR struct sockaddr
+#endif
 
 namespace
 {
 	void ErrorExit( const char* message )
 	{
 		//TRACE( "%s\n", message );
+#ifdef WIN32
 		WSACleanup();
+#else
+		// TODO
+#endif
 	}
 }
 
 int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned short portNum )
 {
+    char errorMessage[128];
+#ifdef WIN32
 	//----------------------
     // Initialize Winsock
     WSADATA wsaData;
-    char errorMessage[128];
     int iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
     if (iResult != NO_ERROR)
     {
         printf("Error at WSAStartup()\n");
     }
+#else
+		// TODO
+#endif
 
     //----------------------
     // Create a SOCKET for connecting to server
     SOCKET ConnectSocket;
     //ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     ConnectSocket = socket(AF_INET, SOCK_STREAM, 0);
+#ifdef WIN32
     if (ConnectSocket == INVALID_SOCKET)
     {
         sprintf( errorMessage, "Error at socket(): %ld", WSAGetLastError() );
         ErrorExit( errorMessage );
         return -1;
     }
+#else
+    if (ConnectSocket == -1)
+    {
+        sprintf( errorMessage, "Error at socket(): %d", errno );
+        ErrorExit( errorMessage );
+        return -1;
+    }
+#endif
 
     //----------------------
     // The sockaddr_in structure specifies the address family,
@@ -57,11 +87,19 @@ int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned
 
     //----------------------
     // Connect to server.
+#ifdef WIN32
     if ( connect( ConnectSocket, (SOCKADDR*) &clientService, sizeof(clientService) ) == SOCKET_ERROR) {
         sprintf( errorMessage, "Failed to connect." );
         ErrorExit( errorMessage );
         return -1;
     }
+#else
+    if ( connect( ConnectSocket, (SOCKADDR*) &clientService, sizeof(clientService) ) != 0 ) {
+        sprintf( errorMessage, "Failed to connect." );
+        ErrorExit( errorMessage );
+        return -1;
+    }
+#endif
 
     ForthPipe* pMsgPipe = new ForthPipe( ConnectSocket, kClientMsgDisplayText, kClientMsgLimit );
     bool done = false;
@@ -403,7 +441,11 @@ int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned
                 {
                     int fileHandle;
                     pMsgPipe->ReadInt( fileHandle );
+#ifdef WIN32
                     int result = _dup( fileHandle );
+#else
+                    int result = dup( fileHandle );
+#endif
 
                     pMsgPipe->StartMessage( kServerMsgFileOpResult );
                     pMsgPipe->WriteInt( result );
@@ -417,7 +459,11 @@ int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned
                     int dstFileHandle;
                     pMsgPipe->ReadInt( srcFileHandle );
                     pMsgPipe->ReadInt( dstFileHandle );
+#ifdef WIN32
                     int result = _dup2( srcFileHandle, dstFileHandle );
+#else
+                    int result = dup2( srcFileHandle, dstFileHandle );
+#endif
 
                     pMsgPipe->StartMessage( kServerMsgFileOpResult );
                     pMsgPipe->WriteInt( result );
@@ -429,7 +475,11 @@ int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned
                 {
                     int file;
                     pMsgPipe->ReadInt( file );
+#ifdef WIN32
                     int result = _fileno( (FILE *) file );
+#else
+                    int result = fileno( (FILE *) file );
+#endif
 
                     pMsgPipe->StartMessage( kServerMsgFileOpResult );
                     pMsgPipe->WriteInt( result );
@@ -441,7 +491,6 @@ int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned
                 {
 					char* pBuffer = (char *) malloc( L_tmpnam );
 					char* pResult = tmpnam( pBuffer );
-					int numChars = strlen( pResult ) + 1;
 
                     pMsgPipe->StartMessage( kServerMsgGetTmpnamResult );
                     pMsgPipe->WriteString( pResult );
@@ -494,7 +543,11 @@ int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned
 					int mode;
                     pMsgPipe->ReadString( pString );
                     pMsgPipe->ReadInt( mode );
+#ifdef WIN32
                     int result = mkdir( pString );
+#else
+                    int result = mkdir( pString, mode );
+#endif
 
                     pMsgPipe->StartMessage( kServerMsgFileOpResult );
                     pMsgPipe->WriteInt( result );
@@ -505,7 +558,6 @@ int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned
             case kClientMsgRemoveDir:
                 {
                     const char* pString;
-					int mode;
                     pMsgPipe->ReadString( pString );
                     int result = rmdir( pString );
 
@@ -553,7 +605,11 @@ int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned
 
     }   // end     while ( !done )
 
+#ifdef WIN32
     WSACleanup();
+#else
+    // TODO
+#endif
     delete [] pReadBuffer;
     delete pMsgPipe;
     return 0;

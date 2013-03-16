@@ -3,7 +3,11 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
+#ifdef WIN32
 #include <process.h>
+#else
+#include <pthread.h>
+#endif
 #include "ForthThread.h"
 #include "ForthEngine.h"
 
@@ -87,10 +91,18 @@ ForthThread::~ForthThread()
     delete [] mCore.SB;
     mCore.RB -= GAURD_AREA;
     delete [] mCore.RB;
+#ifdef WIN32
     if ( mHandle != 0 )
     {
         CloseHandle( mHandle );
     }
+#else
+    if ( mHandle != 0 )
+    {
+    	// TODO
+        //CloseHandle( mHandle );
+    }
+#endif
 }
 
 #ifdef CHECK_GAURD_AREAS
@@ -140,6 +152,8 @@ ForthThread::Reset( void )
 }
 
 
+#ifdef WIN32
+
 unsigned __stdcall ForthThread::RunLoop( void *pUserData )
 {
     ForthThread* pThis = (ForthThread*) pUserData;
@@ -160,6 +174,31 @@ unsigned __stdcall ForthThread::RunLoop( void *pUserData )
 
     return 0;
 }
+
+#else
+
+void* ForthThread::RunLoop( void *pUserData )
+{
+    ForthThread* pThis = (ForthThread*) pUserData;
+    eForthResult exitStatus = kResultOk;
+
+    pThis->Reset();
+    pThis->mCore.IP = &(pThis->mOps[0]);
+#ifdef _ASM_INNER_INTERPRETER
+    if ( pThis->mpEngine->GetFastMode() )
+    {
+        exitStatus = InnerInterpreterFast( &(pThis->mCore) );
+    }
+    else
+#endif
+    {
+        exitStatus = InnerInterpreter( &(pThis->mCore) );
+    }
+
+    return NULL;
+}
+
+#endif
 
 void ForthThread::Run()
 {
@@ -184,12 +223,23 @@ void ForthThread::Run()
 
 long ForthThread::Start()
 {
+#ifdef WIN32
     // securityAttribPtr, stackSize, threadCodeAddr, threadUserData, flags, pThreadIdReturn
     if ( mHandle != 0 )
     {
         ::CloseHandle( mHandle );
     }
     mHandle = (HANDLE) _beginthreadex( NULL, 0, ForthThread::RunLoop, this, 0, (unsigned *) &mThreadId );
+#else
+    // securityAttribPtr, stackSize, threadCodeAddr, threadUserData, flags, pThreadIdReturn
+    if ( mHandle != 0 )
+    {
+    	// TODO
+        //::CloseHandle( mHandle );
+    }
+    mHandle = pthread_create( &mThread, NULL, ForthThread::RunLoop, this );
+
+#endif
     return (long) mHandle;
 }
 
@@ -198,7 +248,11 @@ void ForthThread::Exit()
     // TBD: make sure this isn't the main thread
     if ( mpNext != NULL )
     {
+#ifdef WIN32
         _endthreadex( 0 );
+#else
+        pthread_exit( this );
+#endif
     }
 }
 

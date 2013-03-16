@@ -103,7 +103,7 @@ ForthVocabulary::SetName( const char *pVocabName )
     {
         int len = strlen( pVocabName ) + 1;
         mpName = new char[len];
-        strcpy_s( mpName, len, pVocabName );
+        strcpy( mpName, pVocabName );
     }
 }
 
@@ -168,7 +168,7 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
     }
     else
     {
-        strcpy_s( mNewestSymbol, (SYMBOL_LEN_MAX + 1), pSymName );
+        strcpy( mNewestSymbol, pSymName );
     }
 
     symSize = mValueLongs + ( ((nameLen + 4) & ~3) >> 2 );
@@ -235,9 +235,12 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
         *pVC++ = 0;
         nameLen++;
     }
-    
+
+#ifdef WIN32
     assert( (((ulong) pVC) & 3) == 0 );
-    
+#else
+    // TODO
+#endif
     mNumSymbols++;
     
     return mpStorageBottom;
@@ -611,7 +614,11 @@ void
 ForthVocabulary::SmudgeNewestSymbol( void )
 {
     // smudge by setting highest bit of 1st character of name
+#ifdef WIN32
     assert( mpNewestSymbol != NULL );
+#else
+    // TODO
+#endif
     ((char *) mpNewestSymbol)[1 + (mValueLongs << 2)] |= 0x80;
 }
 
@@ -620,7 +627,11 @@ void
 ForthVocabulary::UnSmudgeNewestSymbol( void )
 {
     // unsmudge by clearing highest bit of 1st character of name
+#ifdef WIN32
     assert( mpNewestSymbol != NULL );
+#else
+    // TODO
+#endif
     ((char *) mpNewestSymbol)[1 + (mValueLongs << 2)] &= 0x7F;
 }
 
@@ -705,7 +716,7 @@ ForthVocabulary::PrintEntry( long*   pEntry )
     ForthCoreState* pCore = mpEngine->GetCoreState();
     forthOpType entryType = GetEntryType( pEntry );
     ulong entryValue = GetEntryValue( pEntry );
-    sprintf_s( buff, BUFF_SIZE, "  %02x:%06x    ", entryType, entryValue );
+    sprintf( buff, "  %02x:%06x    ", entryType, entryValue );
     CONSOLE_STRING_OUT( buff );
 
     bool showCodeAddress = false;
@@ -725,12 +736,12 @@ ForthVocabulary::PrintEntry( long*   pEntry )
         // for user defined ops the second entry field is meaningless, just show code address
         if ( entryValue < GET_NUM_USER_OPS )
         {
-            sprintf_s( buff, BUFF_SIZE, "%08x *  ", USER_OP_TABLE[entryValue] );
+            sprintf( buff, "%08x *  ", USER_OP_TABLE[entryValue] );
             CONSOLE_STRING_OUT( buff );
         }
         else
         {
-            sprintf_s( buff, BUFF_SIZE, "%08x - out of range", entryValue );
+            sprintf( buff, "%08x - out of range", entryValue );
             CONSOLE_STRING_OUT( buff );
         }
      }
@@ -738,7 +749,7 @@ ForthVocabulary::PrintEntry( long*   pEntry )
     {
         for ( int j = 1; j < mValueLongs; j++ )
         {
-            sprintf_s( buff, BUFF_SIZE, "%08x    ", pEntry[j] );
+            sprintf( buff, "%08x    ", pEntry[j] );
             CONSOLE_STRING_OUT( buff );
         }
     }
@@ -801,7 +812,7 @@ ForthDLLVocabulary::ForthDLLVocabulary( const char      *pName,
 {
     int len = strlen( pDLLName ) + 1;
     mpDLLName = new char[len];
-    strcpy_s( mpDLLName, len, pDLLName );
+    strcpy( mpDLLName, pDLLName );
 
     mhDLL = LoadLibrary( mpDLLName );
 }

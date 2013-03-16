@@ -4,10 +4,25 @@
 //
 //////////////////////////////////////////////////////////////////////
 #include "StdAfx.h"
+#ifdef WIN32
+//#include <winsock2.h>
+//#include <windows.h>
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <errno.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#endif
 #include "ForthServer.h"
 #include "ForthPipe.h"
 #include "ForthMessages.h"
 #include "ForthExtension.h"
+
+#ifndef SOCKADDR
+#define SOCKADDR struct sockaddr
+#endif
 
 using namespace std;
 
@@ -198,16 +213,26 @@ namespace
 
 int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short portNum )
 {
-    WSADATA WsaData;
+#ifdef WIN32
+	WSADATA WsaData;
+#endif
     SOCKET ServerSocket;
     struct sockaddr_in ServerInfo;
     int iRetVal = 0;
     ForthServerShell *pShell;
 
+#ifdef WIN32
     WSAStartup(0x202, &WsaData);
+#else
+    // TODO
+#endif
 
     ServerSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+#ifdef WIN32
     if (ServerSocket == INVALID_SOCKET)
+#else
+    if (ServerSocket == -1)
+#endif
     {
         printf("error: unable to create the listening socket...\n");
     }
@@ -217,14 +242,22 @@ int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short p
         ServerInfo.sin_addr.s_addr = INADDR_ANY;
         ServerInfo.sin_port = htons( portNum );
         iRetVal = bind(ServerSocket, (struct sockaddr*) &ServerInfo, sizeof(struct sockaddr));
+#ifdef WIN32
         if (iRetVal == SOCKET_ERROR)
+#else
+        if (iRetVal == -1)
+#endif
         {
             printf("error: unable to bind listening socket...\n");
         }
         else
         {
             iRetVal = listen(ServerSocket, 10);
+#ifdef WIN32
             if (iRetVal == SOCKET_ERROR)
+#else
+            if (iRetVal == -1)
+#endif
             {
                 printf("error: unable to listen on listening socket...\n");
             }
@@ -243,8 +276,13 @@ int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short p
             }
         }
     }
+#ifdef WIN32
     closesocket(ServerSocket);
     WSACleanup();
+#else
+    // TODO
+    close( ServerSocket );
+#endif
     return 0;
 }
 
@@ -1217,5 +1255,9 @@ ForthServerShell::ProcessConnection( SOCKET serverSocket )
 void
 ForthServerShell::CloseConnection()
 {
+#ifdef WIN32
 	closesocket( mClientSocket );
+#else
+	close( mClientSocket );
+#endif
 }

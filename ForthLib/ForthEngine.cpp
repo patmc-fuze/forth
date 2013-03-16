@@ -128,7 +128,11 @@ ForthEngine::ForthEngine()
 
     // remember creation time for elapsed time method
 #ifdef WIN32
+#ifdef MSDEV
     _ftime32_s( &mStartTime );
+#else
+    _ftime( &mStartTime );
+#endif
 #endif
 
     // At this point, the main thread does not exist, it will be created later in Initialize, this
@@ -1792,19 +1796,19 @@ unsigned long
 ForthEngine::GetElapsedTime( void )
 {
 #ifdef WIN32
-#if 0
-	struct _timeb now;
-    _ftime( &now );
-
-    long seconds = now.time - mStartTime.time;
-    long milliseconds = now.millitm - mStartTime.millitm;
-    return (unsigned long) ((seconds * 1000) + milliseconds);
-#else
+#ifdef MSDEV
 	struct __timeb32 now;
 
 	_ftime32_s( &now );
 	__time32_t seconds = now.time - mStartTime.time;
     __time32_t milliseconds = now.millitm - mStartTime.millitm;
+    return (unsigned long) ((seconds * 1000) + milliseconds);
+#else
+	struct _timeb now;
+    _ftime( &now );
+
+    long seconds = now.time - mStartTime.time;
+    long milliseconds = now.millitm - mStartTime.millitm;
     return (unsigned long) ((seconds * 1000) + milliseconds);
 #endif
 #else
@@ -1831,14 +1835,15 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     char *pToken = pInfo->GetToken();
     int len = pInfo->GetTokenLength();
     bool isAString = (pInfo->GetFlags() & PARSE_FLAG_QUOTED_STRING) != 0;
+	bool isAQuotedCharacter = (pInfo->GetFlags() & PARSE_FLAG_QUOTED_CHARACTER) != 0;
     bool isSingle, isOffset;
     double* pDPD;
     ForthVocabulary* pFoundVocab = NULL;
 
     mpLastToken = pToken;
-    if ( (pToken == NULL)   ||   ((len == 0) && !isAString) )
+    if ( (pToken == NULL)   ||   ((len == 0) && !(isAString || isAQuotedCharacter)) )
     {
-        // ignore empty tokens, except for the empty quoted string
+        // ignore empty tokens, except for the empty quoted string and null character
         return kResultOk;
     }
     
@@ -1877,7 +1882,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         return kResultOk;
         
     }
-    else if ( pInfo->GetFlags() & PARSE_FLAG_QUOTED_CHARACTER )
+    else if ( isAQuotedCharacter )
     {
         ////////////////////////////////////
         //

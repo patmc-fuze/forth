@@ -5,7 +5,14 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
-
+#ifdef LINUX
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/io.h>
+#else
+#include <io.h>
+#endif
 #include "ForthEngine.h"
 #include "ForthThread.h"
 #include "ForthShell.h"
@@ -87,13 +94,17 @@ namespace
 
 	int makeDir( const char* pPath, int mode )
 	{
+#ifdef WIN32
 		return mkdir( pPath );
+#else
+		return mkdir( pPath, mode );
+#endif
 	}
 }
 
 #if defined(WIN32)
 DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData );
-#elif defined(_LINUX)
+#elif defined(LINUX)
 unsigned long ConsoleInputThreadRoutine( void* pThreadData );
 #endif
 
@@ -576,11 +587,11 @@ backslashChar( char c )
     case 'r':        cResult = '\r';        break;
     case 't':        cResult = '\t';        break;
     case 'v':        cResult = '\v';        break;
+    case '0':        cResult = '\0';        break;
+    case '?':        cResult = '\?';        break;
     case '\\':       cResult = '\\';        break;
-    case '\?':       cResult = '\?';        break;
     case '\'':       cResult = '\'';        break;
     case '\"':       cResult = '\"';        break;
-    case '\0':       cResult = '\0';        break;
 
     default:         cResult = c;           break;
 
@@ -1607,7 +1618,7 @@ ForthShellStack::PopString( char *pString )
 
 #if defined(WIN32)
 DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData )
-#elif defined(_LINUX)
+#elif defined(LINUX)
 unsigned long ConsoleInputThreadRoutine( void* pThreadData )
 #endif
 {
