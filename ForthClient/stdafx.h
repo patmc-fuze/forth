@@ -13,7 +13,7 @@
 #include <conio.h>
 #include <direct.h>
 #include <io.h>
-#elif defined(_LINUX)
+#elif defined(LINUX)
 #include <unistd.h>
 #endif
 
