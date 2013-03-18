@@ -297,7 +297,7 @@ void CForthGuiDlg::CreateForth()
 	pEngine->SetConsoleOut( ForthOutRoutine, GetDlgItem( IDC_RICHEDIT_OUTPUT ) );
 	pEngine->ResetConsoleOut( pEngine->GetCoreState() );
 	pEngine->SetTraceOutRoutine( ForthTraceOutRoutine, GetDlgItem( IDC_RICHEDT_DEBUG ) );
-    mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE );
+    mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE, true );
     mpShell->GetInput()->PushInputStream( mpInStream );
     CreateDialogOps();
 #ifdef TEST_MIDI
