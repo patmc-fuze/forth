@@ -67,15 +67,16 @@ protected:
 class ForthBufferInputStream : public ForthInputStream
 {
 public:
-    ForthBufferInputStream( const char *pDataBuffer, int dataBufferLen, int bufferLen = DEFAULT_INPUT_BUFFER_LEN );
+    ForthBufferInputStream( const char *pDataBuffer, int dataBufferLen, boolean isInteractive = true, int bufferLen = DEFAULT_INPUT_BUFFER_LEN );
     virtual ~ForthBufferInputStream();
 
     virtual char    *GetLine( const char *pPrompt );
-    virtual bool    IsInteractive( void ) { return false; };
+    virtual bool    IsInteractive( void ) { return mIsInteractive; };
 protected:
     char			*mpDataBuffer;
     char			*mpDataBufferBase;
     char			*mpDataBufferLimit;
+	boolean			mIsInteractive;
 };
 
 

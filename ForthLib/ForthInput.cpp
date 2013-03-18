@@ -274,8 +274,9 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
 //                     ForthBufferInputStream
 // 
 
-ForthBufferInputStream::ForthBufferInputStream( const char *pDataBuffer, int dataBufferLen, int bufferLen )
+ForthBufferInputStream::ForthBufferInputStream( const char *pDataBuffer, int dataBufferLen, boolean isInteractive, int bufferLen )
 : ForthInputStream(bufferLen)
+, mIsInteractive(isInteractive)
 {
 	mpDataBufferBase = new char[ dataBufferLen ];
 	memcpy( mpDataBufferBase, pDataBuffer, dataBufferLen );
