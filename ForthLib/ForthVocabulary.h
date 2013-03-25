@@ -197,7 +197,6 @@ public:
     virtual const char* GetType( void );
 };
 
-#ifdef WIN32
 class ForthDLLVocabulary : public ForthVocabulary
 {
 public:
@@ -217,9 +216,13 @@ public:
     long *              AddEntry( const char* pFuncName, long numArgs );
 protected:
     char *              mpDLLName;
+#ifdef WIN32
     HINSTANCE           mhDLL;
-};
 #endif
+#ifdef LINUX
+    void*				mLibHandle;
+#endif
+};
 
 class ForthVocabularyStack
 {

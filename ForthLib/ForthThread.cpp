@@ -251,7 +251,7 @@ void ForthThread::Exit()
 #ifdef WIN32
         _endthreadex( 0 );
 #else
-        pthread_exit( this );
+        pthread_exit( &mExitStatus );
 #endif
     }
 }

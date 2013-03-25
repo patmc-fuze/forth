@@ -76,6 +76,7 @@ protected:
 #ifdef LINUX
     int                 mHandle;
     pthread_t           mThread;
+    int					mExitStatus;
 #else
     HANDLE              mHandle;
 #endif

@@ -4198,6 +4198,29 @@ entry fetchBop
 	
 ;========================================
 
+entry storeNextBop
+	mov	eax, [edx]		; eax -> dst ptr
+	mov	esi, [eax]
+	mov	ebx, [edx+4]
+	add	edx, 8
+	mov	[esi], ebx
+	add	esi, 4
+	mov	[eax], esi
+	jmp	edi
+	
+;========================================
+
+entry fetchNextBop
+	mov	eax, [edx]
+	mov	esi, [eax]
+	mov	ebx, [esi]
+	mov	[edx], ebx
+	add	esi, 4
+	mov	[eax], esi
+	jmp	edi
+	
+;========================================
+
 entry cstoreBop
 	mov	eax, [edx]
 	mov	ebx, [edx+4]
@@ -4212,6 +4235,30 @@ entry cfetchBop
 	xor	ebx, ebx
 	mov	bl, [eax]
 	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+
+entry cstoreNextBop
+	mov	eax, [edx]		; eax -> dst ptr
+	mov	esi, [eax]
+	mov	ebx, [edx+4]
+	add	edx, 8
+	mov	[esi], bl
+	add	esi, 1
+	mov	[eax], esi
+	jmp	edi
+	
+;========================================
+
+entry cfetchNextBop
+	mov	eax, [edx]
+	mov	esi, [eax]
+	xor	ebx, ebx
+	mov	bl, [esi]
+	mov	[edx], ebx
+	add	esi, 1
+	mov	[eax], esi
 	jmp	edi
 	
 ;========================================
@@ -4241,11 +4288,35 @@ entry wstoreBop
 	
 ;========================================
 
+entry wstoreNextBop
+	mov	eax, [edx]		; eax -> dst ptr
+	mov	esi, [eax]
+	mov	ebx, [edx+4]
+	add	edx, 8
+	mov	[esi], bx
+	add	esi, 2
+	mov	[eax], esi
+	jmp	edi
+	
+;========================================
+
 entry wfetchBop
 	mov	eax, [edx]
 	xor	ebx, ebx
 	mov	bx, [eax]
 	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+
+entry wfetchNextBop
+	mov	eax, [edx]
+	mov	esi, [eax]
+	xor	ebx, ebx
+	mov	bx, [esi]
+	mov	[edx], ebx
+	add	esi, 2
+	mov	[eax], esi
 	jmp	edi
 	
 ;========================================
@@ -4277,6 +4348,20 @@ entry dstoreBop
 	
 ;========================================
 
+entry dstoreNextBop
+	mov	eax, [edx]		; eax -> dst ptr
+	mov	esi, [eax]
+	mov	ebx, [edx+4]
+	mov	[esi], ebx
+	mov	ebx, [edx+8]
+	mov	[esi+4], ebx
+	add	esi, 8
+	mov	[eax], esi
+	add	edx, 12
+	jmp	edi
+	
+;========================================
+
 entry dfetchBop
 	mov	eax, [edx]
 	sub	edx, 4
@@ -4284,6 +4369,20 @@ entry dfetchBop
 	mov	[edx], ebx
 	mov	ebx, [eax+4]
 	mov	[edx+4], ebx
+	jmp	edi
+	
+;========================================
+
+entry dfetchNextBop
+	mov	eax, [edx]
+	sub	edx, 4
+	mov	esi, [eax]
+	mov	ebx, [esi]
+	mov	[edx], ebx
+	mov	ebx, [esi+4]
+	mov	[edx+4], ebx
+	add	esi, 8
+	mov	[eax], esi
 	jmp	edi
 	
 ;========================================
@@ -5787,15 +5886,23 @@ opsTable:
 	
 	; memory store/fetch
 	DD	FLAT:storeBop
+	DD	FLAT:storeNextBop
+	DD	FLAT:fetchNextBop
 	DD	FLAT:cstoreBop
 	DD	FLAT:cfetchBop
+	DD	FLAT:cstoreNextBop
+	DD	FLAT:cfetchNextBop
 	DD	FLAT:scfetchBop
 	DD	FLAT:c2lBop
 	DD	FLAT:wstoreBop
 	DD	FLAT:wfetchBop
+	DD	FLAT:wstoreNextBop
+	DD	FLAT:wfetchNextBop
 	DD	FLAT:swfetchBop
 	DD	FLAT:w2lBop
 	DD	FLAT:dstoreBop
+	DD	FLAT:dstoreNextBop
+	DD	FLAT:dfetchNextBop
 	DD	FLAT:memcpyBop
 	DD	FLAT:memsetBop
 	DD	FLAT:setVarActionBop

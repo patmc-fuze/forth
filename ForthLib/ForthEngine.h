@@ -29,7 +29,7 @@ class ForthExtension;
 
 // this is the size of the buffer returned by GetTmpStringBuffer()
 //  which is the buffer used by word and blword
-#define TMP_STRING_BUFFER_LEN 256
+#define TMP_STRING_BUFFER_LEN MAX_STRING_SIZE
 
 typedef enum {
     kEngineFlagHasLocalVars              = 0x01,
@@ -230,6 +230,8 @@ protected:
     ForthVocabularyStack * mpVocabStack;
 
     char        *mpStringBufferA;       // string buffer A is used for quoted strings when in interpreted mode
+    char        *mpStringBufferANext;   // one char past last used in A
+    int         mStringBufferASize;
     char        *mpStringBufferB;       // string buffer B is the buffer which string IO ops append to
 
     long        mCompileState;          // true iff compiling
@@ -239,7 +241,6 @@ protected:
     ForthShell  *   mpShell;
     long *          mpEngineScratch;
     char *          mpLastToken;
-    int             mNextStringNum;
     long *          mpLastCompiledOpcode;
     long *          mpLastIntoOpcode;
     long            mLocalFrameSize;

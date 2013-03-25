@@ -16,8 +16,8 @@ class ForthExtension;
 // these searches are sped up by doing symbol comparisons using longwords
 // instead of characters
 //
-#define TOKEN_BUFF_LONGS    (64)
-#define TOKEN_BUFF_CHARS    (TOKEN_BUFF_LONGS << 2)
+#define TOKEN_BUFF_LONGS    (DEFAULT_INPUT_BUFFER_LEN >> 2)
+#define TOKEN_BUFF_CHARS    DEFAULT_INPUT_BUFFER_LEN
 
 // These are the flags that can be passed to ForthEngine::ProcessToken
 #define PARSE_FLAG_QUOTED_STRING        1

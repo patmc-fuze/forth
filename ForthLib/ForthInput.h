@@ -5,10 +5,10 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-//#include "Forth.h"
+#include "Forth.h"
 
 #ifndef DEFAULT_INPUT_BUFFER_LEN
-#define DEFAULT_INPUT_BUFFER_LEN 1024
+#define DEFAULT_INPUT_BUFFER_LEN MAX_STRING_SIZE
 #endif
 
 class ForthInputStack;
@@ -67,7 +67,7 @@ protected:
 class ForthBufferInputStream : public ForthInputStream
 {
 public:
-    ForthBufferInputStream( const char *pDataBuffer, int dataBufferLen, boolean isInteractive = true, int bufferLen = DEFAULT_INPUT_BUFFER_LEN );
+    ForthBufferInputStream( const char *pDataBuffer, int dataBufferLen, bool isInteractive = true, int bufferLen = DEFAULT_INPUT_BUFFER_LEN );
     virtual ~ForthBufferInputStream();
 
     virtual char    *GetLine( const char *pPrompt );
@@ -76,7 +76,7 @@ protected:
     char			*mpDataBuffer;
     char			*mpDataBufferBase;
     char			*mpDataBufferLimit;
-	boolean			mIsInteractive;
+	bool			mIsInteractive;
 };
 
 

@@ -9,6 +9,9 @@
 #include "ForthEngine.h"
 #include "ForthShell.h"
 #include "ForthForgettable.h"
+#ifdef LINUX
+#include <dlfcn.h>
+#endif
 
 //############################################################################
 //
@@ -795,7 +798,6 @@ ForthLocalVocabulary::GetType( void )
     return "local";
 }
 
-#ifdef WIN32
 //////////////////////////////////////////////////////////////////////
 ////
 ///     ForthDLLVocabulary
@@ -814,34 +816,56 @@ ForthDLLVocabulary::ForthDLLVocabulary( const char      *pName,
     mpDLLName = new char[len];
     strcpy( mpDLLName, pDLLName );
 
+#if defined(WIN32)
     mhDLL = LoadLibrary( mpDLLName );
+#elif defined(LINUX)
+    mLibHandle = dlopen( mpDLLName, RTLD_LAZY );
+#endif
 }
 
 ForthDLLVocabulary::~ForthDLLVocabulary()
 {
-    if ( mhDLL != 0 )
-    {
-        UnloadDLL();
-    }
+    UnloadDLL();
     delete [] mpDLLName;
 }
 
 long ForthDLLVocabulary::LoadDLL( void )
 {
+	UnloadDLL();
+#if defined(WIN32)
     mhDLL = LoadLibrary( mpDLLName );
     return (long) mhDLL;
+#elif defined(LINUX)
+    mLibHandle = dlopen( mpDLLName, RTLD_LAZY );
+    return (long) mLibHandle;
+#endif
 }
 
 void ForthDLLVocabulary::UnloadDLL( void )
 {
-    FreeLibrary( mhDLL );
-    mhDLL = 0;
+#if defined(WIN32)
+    if ( mhDLL != 0 )
+    {
+    	FreeLibrary( mhDLL );
+    	mhDLL = 0;
+    }
+#elif defined(LINUX)
+    if ( mLibHandle != NULL )
+    {
+        dlclose( mLibHandle  );
+        mLibHandle = NULL;
+    }
+#endif
 }
 
 long * ForthDLLVocabulary::AddEntry( const char *pFuncName, long numArgs )
 {
     long *pEntry = NULL;
+#if defined(WIN32)
     long pFunc = (long) GetProcAddress( mhDLL, pFuncName );
+#elif defined(LINUX)
+    long pFunc = (long) dlsym( mLibHandle, pFuncName );
+#endif
     if ( pFunc )
     {
         pEntry = AddSymbol( pFuncName, kOpDLLEntryPoint, pFunc, true );
@@ -862,8 +886,6 @@ ForthDLLVocabulary::GetType( void )
 {
     return "dllOp";
 }
-
-#endif
 
 //////////////////////////////////////////////////////////////////////
 ////

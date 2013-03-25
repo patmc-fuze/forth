@@ -4672,6 +4672,17 @@ FORTHOP( millitimeOp )
     SPUSH( (long) pEngine->GetElapsedTime() );
 }
 
+FORTHOP( millisleepOp )
+{
+#ifdef WIN32
+	DWORD dwMilliseconds = (DWORD)(SPOP);
+    ::Sleep( dwMilliseconds );
+#else
+    int milliseconds = SPOP;
+    usleep( milliseconds * 1000 );
+#endif
+}
+
 
 //##############################
 //
@@ -5138,6 +5149,38 @@ FORTHOP( setTraceOp )
 	GET_ENGINE->SetTraceFlags( traceFlags );
 }
 
+///////////////////////////////////////////
+//  threads
+///////////////////////////////////////////
+
+FORTHOP( createThreadOp )
+{
+    long threadOp  = SPOP;
+    int returnStackSize = (int)(SPOP);
+    int paramStackSize = (int)(SPOP);
+    ForthThread* pThread = GET_ENGINE->CreateThread( threadOp, paramStackSize, returnStackSize );
+    SPUSH( (long) pThread );
+}
+
+FORTHOP( destroyThreadOp )
+{
+    ForthThread* pThread = (ForthThread*)(SPOP);
+    GET_ENGINE->DestroyThread( pThread );
+}
+
+FORTHOP( startThreadOp )
+{
+    ForthThread* pThread = (ForthThread*)(SPOP);
+    long result = pThread->Start();
+    SPUSH( result );
+}
+
+FORTHOP( exitThreadOp )
+{
+    ForthThread* pThread = (ForthThread*)(pCore->pThread);
+    pThread->Exit();
+}
+
 #ifdef WIN32
 ///////////////////////////////////////////
 //  Windows support
@@ -5229,40 +5272,6 @@ FORTHOP( leaveCriticalSectionOp )
 {
     LPCRITICAL_SECTION pCriticalSection = (LPCRITICAL_SECTION)(SPOP);
     ::LeaveCriticalSection( pCriticalSection );
-}
-
-FORTHOP( sleepOp )
-{
-    DWORD dwMilliseconds = (DWORD)(SPOP);
-    ::Sleep( dwMilliseconds );
-}
-
-FORTHOP( createThreadOp )
-{
-    long threadOp  = SPOP;
-    int returnStackSize = (int)(SPOP);
-    int paramStackSize = (int)(SPOP);
-    ForthThread* pThread = GET_ENGINE->CreateThread( threadOp, paramStackSize, returnStackSize );
-    SPUSH( (long) pThread );
-}
-
-FORTHOP( destroyThreadOp )
-{
-    ForthThread* pThread = (ForthThread*)(SPOP);
-    GET_ENGINE->DestroyThread( pThread );
-}
-
-FORTHOP( startThreadOp )
-{
-    ForthThread* pThread = (ForthThread*)(SPOP);
-    long result = pThread->Start();
-    SPUSH( result );
-}
-
-FORTHOP( exitThreadOp )
-{
-    ForthThread* pThread = (ForthThread*)(pCore->pThread);
-    pThread->Exit();
 }
 
 FORTHOP( findFirstFileOp )
@@ -5907,6 +5916,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    timeOp,                 "time" ),
     OP_DEF(    strftimeOp,             "strftime" ),
     OP_DEF(    millitimeOp,            "millitime" ),
+    OP_DEF(    millisleepOp,           "millisleep" ),
 
     ///////////////////////////////////////////
     //  computation utilities - randoms, hashing, sorting and searcing
@@ -5959,6 +5969,14 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF(		clientOp,				"client" ),
 	OP_DEF(		shutdownOp,				"shutdown" ),
 
+    ///////////////////////////////////////////
+    //  threads
+    ///////////////////////////////////////////
+    OP_DEF( createThreadOp,             "createThread" ),
+    OP_DEF( destroyThreadOp,            "destroyThread" ),
+    OP_DEF( startThreadOp,              "startThread" ),
+    OP_DEF( exitThreadOp,               "exitThread" ),
+
 #ifdef WIN32
     ///////////////////////////////////////////
     //  Windows support
@@ -5975,11 +5993,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( deleteCriticalSectionOp,    "DeleteCriticalSection" ),
     OP_DEF( enterCriticalSectionOp,     "EnterCriticalSection" ),
     OP_DEF( leaveCriticalSectionOp,     "LeaveCriticalSection" ),
-    OP_DEF( sleepOp,                    "Sleep" ),
-    OP_DEF( createThreadOp,             "createThread" ),
-    OP_DEF( destroyThreadOp,            "destroyThread" ),
-    OP_DEF( startThreadOp,              "startThread" ),
-    OP_DEF( exitThreadOp,               "exitThread" ),
     OP_DEF( findFirstFileOp,            "FindFirstFile" ),
     OP_DEF( findNextFileOp,             "FindNextFile" ),
     OP_DEF( findCloseOp,                "FindClose" ),

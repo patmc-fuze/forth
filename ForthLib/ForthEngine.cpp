@@ -101,6 +101,8 @@ ForthEngine::ForthEngine()
 , mpLocalVocab( NULL )
 , mpDefinitionVocab( NULL )
 , mpStringBufferA( NULL )
+, mpStringBufferANext( NULL )
+, mStringBufferASize( 0 )
 , mpStringBufferB( NULL )
 , mpThreads( NULL )
 , mpInterpreterExtension( NULL )
@@ -210,9 +212,6 @@ ForthEngine::GetInstance( void )
 //
 //############################################################################
 
-#define NUM_INTERP_STRINGS 32
-#define INTERP_STRINGS_LEN  256
-
 void
 ForthEngine::Initialize( ForthShell*        pShell,
                          int                totalLongs,
@@ -226,8 +225,9 @@ ForthEngine::Initialize( ForthShell*        pShell,
 
     mpForthVocab = new ForthVocabulary( "forth", NUM_FORTH_VOCAB_VALUE_LONGS );
     mpLocalVocab = new ForthLocalVocabulary( "locals", NUM_LOCALS_VOCAB_VALUE_LONGS );
-    mpStringBufferA = new char[INTERP_STRINGS_LEN * NUM_INTERP_STRINGS];
-    mpStringBufferB = new char[TMP_STRING_BUFFER_LEN];
+	mStringBufferASize = 3 *  MAX_STRING_SIZE;
+    mpStringBufferA = new char[mStringBufferASize];
+    mpStringBufferB = new char[MAX_STRING_SIZE];
 
     mpMainThread = CreateThread( 0, MAIN_THREAD_PSTACK_LONGS, MAIN_THREAD_RSTACK_LONGS );
     mpCore = &(mpMainThread->mCore);
@@ -295,7 +295,7 @@ ForthEngine::Reset( void )
 {
     mpVocabStack->Clear();
 
-    mNextStringNum = 0;
+	mpStringBufferANext = mpStringBufferA;
 
     mpLastCompiledOpcode = NULL;
     mpLastIntoOpcode = NULL;
@@ -1869,15 +1869,13 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             //   and leave the address on param stack
             // this hooha turns mpStringBufferA into NUM_INTERP_STRINGS string buffers
             // so that you can user multiple interpretive string buffers
-            if ( mNextStringNum >= NUM_INTERP_STRINGS )
+            if ( (mStringBufferASize - (mpStringBufferANext - mpStringBufferA)) <= (len + 1) )
             {
-                mNextStringNum = 0;
-            }
-            char *pStr = mpStringBufferA + (INTERP_STRINGS_LEN * mNextStringNum);
-            strcpy( pStr, pToken );  // TBD: make string buffer len a symbol
-			pStr[ INTERP_STRINGS_LEN - 1 ] = '\0';
-            *--mpCore->SP = (long) pStr;
-            mNextStringNum++;
+				mpStringBufferANext = mpStringBufferA;
+			}
+			strcpy( mpStringBufferANext, pToken );
+            *--mpCore->SP = (long) mpStringBufferANext;
+			mpStringBufferANext += (len + 1);
         }
         return kResultOk;
         

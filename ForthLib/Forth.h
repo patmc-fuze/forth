@@ -14,6 +14,8 @@ struct ForthCoreState;
 #define ulong   unsigned long
 #endif
 
+#define MAX_STRING_SIZE (8 * 1024)
+
 // these are opcode types, they are held in the top byte of an opcode, and in
 // a vocabulary entry value field
 // NOTE: if you add or reorder op types, make sure that you update ForthEngine::opTypeNames
@@ -187,7 +189,7 @@ typedef enum {
     kVocabGetClass,
 } vocabOperation;
 
-#define DEFAULT_INPUT_BUFFER_LEN   1024
+#define DEFAULT_INPUT_BUFFER_LEN   (16 * 1024)
 
 // these are the results of running the inner interpreter
 typedef enum {
