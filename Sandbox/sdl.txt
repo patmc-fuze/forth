@@ -4,38 +4,15 @@ autoforget sdl
 DLLVocabulary sdl SDL.dll
 also sdl definitions
 
-// entry points can be defined with:
-// ARGUMENT_COUNT addSdlEntry ENTRY_POINT_NAME
-// or use the convenience words sdl0 ... sdl5
-
-: addSdlEntry blword addDLLEntry ;
-
-: sdlEntryType
-  builds
-    ,
-  does
-    @ addSdlEntry
-;
-
-0 sdlEntryType sdl0
-1 sdlEntryType sdl1
-2 sdlEntryType sdl2
-3 sdlEntryType sdl3
-4 sdlEntryType sdl4
-5 sdlEntryType sdl5
-6 sdlEntryType sdl6
-7 sdlEntryType sdl7
-8 sdlEntryType sdl8
-
 //****************** SDL.h
-sdl1    SDL_Init
-sdl0    SDL_Quit
-sdl1    SDL_InitSubSystem
-sdl1    SDL_QuitSubSystem
-sdl0	SDL_GetError
+dll_1    SDL_Init
+dll_0    SDL_Quit
+dll_1    SDL_InitSubSystem
+dll_1    SDL_QuitSubSystem
+dll_0	SDL_GetError
 
 // arg is what systems you want to check for initialization
-sdl1    SDL_WasInit
+dll_1    SDL_WasInit
 
 // flags for SDL_Init, SDL_InitSubSystem & SDL_QuitSubSystem
 enum: eSDLInit
@@ -56,7 +33,7 @@ enum: eSDLInit
 // SDL_APPACTIVE.  If SDL_APPACTIVE is set, then the user is able to
 // see your application, otherwise it has been iconified or disabled.
 
-sdl0    SDL_GetAppState
+dll_0    SDL_GetAppState
 
 enum: eSDLActive
 	0x01        SDL_APPMOUSEFOCUS   // The app has mouse coverage
@@ -150,52 +127,52 @@ enum: eSDL_Surface
 	0x01000000	SDL_PREALLOC
 ;enum
 
-sdl2	SDL_VideoInit
-sdl0	SDL_VideoQuit
-sdl2	SDL_VideoDriverName
-sdl0	SDL_GetVideoSurface
-sdl0	SDL_GetVideoInfo
-sdl4	SDL_VideoModeOK
-sdl2	SDL_ListModes
-sdl4	SDL_SetVideoMode
+dll_2	SDL_VideoInit
+dll_0	SDL_VideoQuit
+dll_2	SDL_VideoDriverName
+dll_0	SDL_GetVideoSurface
+dll_0	SDL_GetVideoInfo
+dll_4	SDL_VideoModeOK
+dll_2	SDL_ListModes
+dll_4	SDL_SetVideoMode
 
-sdl3	SDL_UpdateRects
-sdl5	SDL_UpdateRect
-sdl1	SDL_Flip
+dll_3	SDL_UpdateRects
+dll_5	SDL_UpdateRect
+dll_1	SDL_Flip
 
-sdl3	SDL_SetGamma
-sdl3	SDL_SetGammaRamp
-sdl3	SDL_GetGammaRamp
+dll_3	SDL_SetGamma
+dll_3	SDL_SetGammaRamp
+dll_3	SDL_GetGammaRamp
 
-sdl4	SDL_SetColors
-sdl5	SDL_SetPalette
-sdl4	SDL_MapRGB
-sdl5	SDL_MapRGBA
-sdl5	SDL_GetRGB
-6 addSdlEntry	SDL_GetRGBA
-8 addSdlEntry	SDL_CreateRGBSurface
-9 addSdlEntry	SDL_CreateRGBSurfaceFrom
-sdl1	SDL_FreeSurface
+dll_4	SDL_SetColors
+dll_5	SDL_SetPalette
+dll_4	SDL_MapRGB
+dll_5	SDL_MapRGBA
+dll_5	SDL_GetRGB
+dll_6	SDL_GetRGBA
+dll_8	SDL_CreateRGBSurface
+dll_9	SDL_CreateRGBSurfaceFrom
+dll_1	SDL_FreeSurface
 
-sdl1	SDL_LockSurface
-sdl1	SDL_UnlockSurface
-sdl2	SDL_LoadBMP_RW
-sdl3	SDL_SaveBMP_RW
-sdl3	SDL_SetColorKey
-sdl3	SDL_SetAlpha
-sdl2	SDL_SetClipRect
-sdl2	SDL_GetClipRect
-sdl3	SDL_ConvertSurface
-sdl4	SDL_UpperBlit
-sdl4	SDL_LowerBlit
-sdl3	SDL_FillRect
-sdl1	SDL_DisplayFormat
-sdl1	SDL_DisplayFormatAlpha
-sdl2	SDL_WM_SetCaption
-sdl2	SDL_WM_GetCaption
-sdl2	SDL_WM_SetIcon
-sdl0	SDL_WM_IconifyWindow
-sdl1	SDL_WM_ToggleFullScreen
+dll_1	SDL_LockSurface
+dll_1	SDL_UnlockSurface
+dll_2	SDL_LoadBMP_RW
+dll_3	SDL_SaveBMP_RW
+dll_3	SDL_SetColorKey
+dll_3	SDL_SetAlpha
+dll_2	SDL_SetClipRect
+dll_2	SDL_GetClipRect
+dll_3	SDL_ConvertSurface
+dll_4	SDL_UpperBlit
+dll_4	SDL_LowerBlit
+dll_3	SDL_FillRect
+dll_1	SDL_DisplayFormat
+dll_1	SDL_DisplayFormatAlpha
+dll_2	SDL_WM_SetCaption
+dll_2	SDL_WM_GetCaption
+dll_2	SDL_WM_SetIcon
+dll_0	SDL_WM_IconifyWindow
+dll_1	SDL_WM_ToggleFullScreen
 
 enum: eSDL_GrabMode
 	-1	SDL_GRAB_QUERY
@@ -204,30 +181,30 @@ enum: eSDL_GrabMode
 	SDL_GRAB_FULLSCREEN
 ;enum
 
-sdl1	SDL_WM_GrabInput
+dll_1	SDL_WM_GrabInput
 
 //****************** SDL_timer.h
 
-sdl0    SDL_GetTicks
-sdl1    SDL_Delay
+dll_0    SDL_GetTicks
+dll_1    SDL_Delay
 
 // extern DECLSPEC int SDLCALL SDL_SetTimer(Uint32 interval, SDL_TimerCallback callback);
-sdl2    SDL_SetTimer
+dll_2    SDL_SetTimer
 
 // extern DECLSPEC SDL_TimerID SDLCALL SDL_AddTimer(Uint32 interval, SDL_NewTimerCallback callback, void *param);
-sdl2    SDL_AddTimer
+dll_2    SDL_AddTimer
 
-sdl1    SDL_RemoveTimer
+dll_1    SDL_RemoveTimer
 
 
 
 //****************** SDL_rwops.h
-sdl2	SDL_RWFromFile
-sdl2	SDL_RWFromFP
-sdl2	SDL_RWFromMem
-sdl2	SDL_RWFromConstMem
-sdl0	SDL_AllocRW
-sdl1	SDL_FreeRW
+dll_2	SDL_RWFromFile
+dll_2	SDL_RWFromFP
+dll_2	SDL_RWFromMem
+dll_2	SDL_RWFromConstMem
+dll_0	SDL_AllocRW
+dll_1	SDL_FreeRW
 
 enum: eSDL_Seek
 	RW_SEEK_SET
@@ -235,19 +212,19 @@ enum: eSDL_Seek
 	RW_SEEK_END
 ;enum
 
-sdl1 SDL_ReadLE16
-sdl1 SDL_ReadBE16
-sdl1 SDL_ReadLE32
-sdl1 SDL_ReadBE32
-sdl1 SDL_ReadLE64
-sdl1 SDL_ReadBE64
+dll_1 SDL_ReadLE16
+dll_1 SDL_ReadBE16
+dll_1 SDL_ReadLE32
+dll_1 SDL_ReadBE32
+dll_1 SDL_ReadLE64
+dll_1 SDL_ReadBE64
 
-sdl2 SDL_WriteLE16
-sdl2 SDL_WriteBE16
-sdl2 SDL_WriteLE32
-sdl2 SDL_WriteBE32
-sdl2 SDL_WriteLE64
-sdl2 SDL_WriteBE64
+dll_2 SDL_WriteLE16
+dll_2 SDL_WriteBE16
+dll_2 SDL_WriteLE32
+dll_2 SDL_WriteBE32
+dll_2 SDL_WriteLE64
+dll_2 SDL_WriteBE64
 
 //****************** SDL_keyboard.h
 
@@ -321,13 +298,13 @@ struct: SDL_AudioCVT
 // These functions are used internally, and should not be used unless you
 // have a specific need to specify the audio driver you want to use.
 // You should normally use SDL_Init() or SDL_InitSubSystem().
-sdl1 SDL_AudioInit			// const char *driver_name
-sdl0 SDL_AudioQuit
+dll_1 SDL_AudioInit			// const char *driver_name
+dll_0 SDL_AudioQuit
 
 // This function fills the given character buffer with the name of the
 // current audio driver, and returns a pointer to it if the audio driver has
 // been initialized.  It returns NULL if no driver has been initialized.
-sdl2 SDL_AudioDriverName		// char *namebuf, int maxlen
+dll_2 SDL_AudioDriverName		// char *namebuf, int maxlen
 
 // This function opens the audio device with the desired parameters, and
 // returns 0 if successful, placing the actual hardware parameters in the
@@ -368,7 +345,7 @@ sdl2 SDL_AudioDriverName		// char *namebuf, int maxlen
 // for your audio callback function to be called.  Since the audio driver
 // may modify the requested size of the audio buffer, you should allocate
 // any local mixing buffers after you open the audio device.
-sdl2 SDL_OpenAudio		// SDL_AudioSpec *desired, SDL_AudioSpec *obtained
+dll_2 SDL_OpenAudio		// SDL_AudioSpec *desired, SDL_AudioSpec *obtained
 
 // Get the current audio state:
  enum: eSDLAudioStatus
@@ -376,14 +353,14 @@ sdl2 SDL_OpenAudio		// SDL_AudioSpec *desired, SDL_AudioSpec *obtained
 	SDL_AUDIO_PLAYING
 	SDL_AUDIO_PAUSED
 ;enum
-sdl0 SDL_GetAudioStatus
+dll_0 SDL_GetAudioStatus
 
 // This function pauses and unpauses the audio callback processing.
 // It should be called with a parameter of 0 after opening the audio
 // device to start playing sound.  This is so you can safely initialize
 // data for your callback function after opening the audio device.
 // Silence will be written to the audio device during the pause.
-sdl1 SDL_PauseAudio			// int pause_on
+dll_1 SDL_PauseAudio			// int pause_on
 
 // This function loads a WAVE from the data source, automatically freeing
 // that source if 'freesrc' is non-zero.  For example, to load a WAVE file,
@@ -400,7 +377,7 @@ sdl1 SDL_PauseAudio			// int pause_on
 // This function returns NULL and sets the SDL error message if the 
 // wave file cannot be opened, uses an unknown data format, or is 
 // corrupt.  Currently raw and MS-ADPCM WAVE files are supported.
-sdl5 SDL_LoadWAV_RW		// SDL_RWops *src, int freesrc, SDL_AudioSpec *spec, Uint8 **audio_buf, Uint32 *audio_len
+dll_5 SDL_LoadWAV_RW		// SDL_RWops *src, int freesrc, SDL_AudioSpec *spec, Uint8 **audio_buf, Uint32 *audio_len
 
 // Compatibility convenience function -- loads a WAV from a file
 : SDL_LoadWAV		// file, spec, audio_buf, audio_len
@@ -411,14 +388,14 @@ sdl5 SDL_LoadWAV_RW		// SDL_RWops *src, int freesrc, SDL_AudioSpec *spec, Uint8 
 ;
 
 // This function frees data previously allocated with SDL_LoadWAV_RW()
-sdl1 SDL_FreeWAV		// Uint8 *audio_buf
+dll_1 SDL_FreeWAV		// Uint8 *audio_buf
 
 // This function takes a source format and rate and a destination format
 // and rate, and initializes the 'cvt' structure with information needed
 // by SDL_ConvertAudio() to convert a buffer of audio data from one format
 // to the other.
 // This function returns 0, or -1 if there was an error.
-sdl7 SDL_BuildAudioCVT
+dll_7 SDL_BuildAudioCVT
 // SDL_AudioCVT *cvt,
 //	Uint16 src_format, Uint8 src_channels, int src_rate,
 // Uint16 dst_format, Uint8 dst_channels, int dst_rate
@@ -430,7 +407,7 @@ sdl7 SDL_BuildAudioCVT
 // The data conversion may expand the size of the audio data, so the buffer
 // cvt->buf should be allocated after the cvt structure is initialized by
 // SDL_BuildAudioCVT(), and should be cvt->len*cvt->len_mult bytes long.
-sdl1 SDL_ConvertAudio		// SDL_AudioCVT *cvt
+dll_1 SDL_ConvertAudio		// SDL_AudioCVT *cvt
 
 // This takes two audio buffers of the playing audio format and mixes
 // them, performing addition, volume adjustment, and overflow clipping.
@@ -438,17 +415,17 @@ sdl1 SDL_ConvertAudio		// SDL_AudioCVT *cvt
 // for full audio volume.  Note this does not change hardware volume.
 // This is provided for convenience -- you can mix your own audio data.
 // #define SDL_MIX_MAXVOLUME 128
-sdl4 SDL_MixAudio			// Uint8 *dst, const Uint8 *src, Uint32 len, int volume
+dll_4 SDL_MixAudio			// Uint8 *dst, const Uint8 *src, Uint32 len, int volume
 
 // The lock manipulated by these functions protects the callback function.
 // During a LockAudio/UnlockAudio pair, you can be guaranteed that the
 // callback function is not running.  Do not call these from the callback
 // function or you will cause deadlock.
-sdl0 SDL_LockAudio
-sdl0 SDL_UnlockAudio
+dll_0 SDL_LockAudio
+dll_0 SDL_UnlockAudio
 
 // This function shuts down audio processing and closes the audio device.
-sdl0 SDL_CloseAudio
+dll_0 SDL_CloseAudio
 
 
 previous definitions

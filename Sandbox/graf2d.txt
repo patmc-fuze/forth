@@ -276,9 +276,29 @@ autoforget graf2d
   256 0 do
     i -> pixelColor
 //    i 20 + i 10 + DrawEllipse
-    i 10 + DrawCircle
+    //i 10 + DrawCircle
+    dp( i i )
   loop
   endDraw
+;
+
+3.14159g -> double pi
+
+: test2
+  //beginDraw
+  pi -1.0g d* -> double angle
+  pi 4.0g d* 200.0g d/ -> double dangle
+  
+  100.0g -> double yscale
+  -1 -> pixelColor
+  do( 200 -200 )
+    //i %d
+    //dp( i i )
+    dsin( angle ) -> double y
+    dp( i y y d* y d* yscale d* d2i )
+    dangle ->+ angle
+  loop
+  //endDraw
 ;
 
 previous

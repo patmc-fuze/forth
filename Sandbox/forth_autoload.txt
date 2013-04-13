@@ -371,6 +371,9 @@ int dumpWidth
   repeat
 ;
 
+//######################################################################
+// help support
+
 addHelp	dump		ADDRESS LEN dump	dump memory
 : dump
   0 _dump
@@ -515,5 +518,38 @@ struct: WIN32_FIND_DATA
 
 : goclient 0x6701a8c0 client ;
 : goserver server ;
+
+//######################################################################
+//  DLL support
+
+: _addDLLEntry blword addDLLEntry ;
+
+: _dllEntryType
+  builds
+    ,
+  does
+    @ _addDLLEntry
+;
+
+// entry points can be defined with:
+// ARGUMENT_COUNT _dllEntryType ENTRY_POINT_NAME
+// or use the convenience words dll_0 ... dll_9
+
+0 _dllEntryType dll_0
+1 _dllEntryType dll_1
+2 _dllEntryType dll_2
+3 _dllEntryType dll_3
+4 _dllEntryType dll_4
+5 _dllEntryType dll_5
+6 _dllEntryType dll_6
+7 _dllEntryType dll_7
+8 _dllEntryType dll_8
+9 _dllEntryType dll_9
+10 _dllEntryType dll_10
+11 _dllEntryType dll_11
+12 _dllEntryType dll_12
+13 _dllEntryType dll_13
+14 _dllEntryType dll_14
+15 _dllEntryType dll_15
 
 loaddone

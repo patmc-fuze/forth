@@ -127,11 +127,31 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 17 2013
+
+Resurrected ForthGUI - it had a bug where any error would cause all user
+definitions to be forgotten - this was because it uses ForthBufferInputStream
+which was defined as 'non-interactive' and when errors occur if the main
+input stream is non-interactive, they are promoted to fatal errors which was
+causing the existing forth environment to be destroyed and recreated.
+
+- the output redirection system should be replaced with something object based
+- ForthGUI should display turbo status
+- ForthGUI should load forth_autoload.txt
+- bring Windows/CVS version in sync with Linux version and migrate to Git
+
+Changed forthtest.txt to just print errors.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Octomber - December 2012
+
+Worked on Linux version of Forth
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 28 2012
 
 The client/server version was failing in forthtest.txt in the first 't[' test,
 it was a weird bug whose final cause was that the server shell was written
-before I added ifdef handling to the base shell, so it wasn't causing ProcessLine,
+before I added ifdef handling to the base shell, so it wasn't calling ProcessLine,
 so lines weren't getting skipped when they should, and some lines like the test
 string submitted by 't['were being completely ignored.
 

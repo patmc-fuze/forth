@@ -239,9 +239,24 @@ t[ 87 5 ?dup 0 ?dup 0== rot 5 == rot 5 == and and over 87 == rot 87 == ]
 // printDecimalSigned printAllSigned printAllUnsigned octal decimal hex
 
 
-t[ 0xDEADBEEF 123456789 l== ]	// check for stack underflow or extra items
+//0123456789abcdef012345 
+ "This is a test string" -> testBuff2
+testBuff2 -> int pSrc
+ref pSrc -> int src
+testBuff -> int pDst
+ref pDst -> int dst
+src d@@++ dst d@!++ 
+src c@@++ dst c@!++ 
+src c@@++ dst c@!++ 
+src w@@++ dst w@!++ 
+src @@++ dst @!++ 
+src w@@++ dst w@!++ 
+src c@@++ dst c@!++ 
+src c@@++ dst c@!++ 
+src w@@++ dst w@!++ 
+t[ checkResult( testBuff2 ) ]
 
-%nl
+t[ 0xDEADBEEF 123456789 l== ]	// check for stack underflow or extra items
 
 ///////////////////////////////////////////////////////////
 // test interpret
