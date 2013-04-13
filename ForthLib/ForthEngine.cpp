@@ -1567,7 +1567,7 @@ ForthEngine::ExecuteOneOp( long opCode )
     opScratch[0] = opCode;
     opScratch[1] = BUILTIN_OP( OP_DONE );
 
-	eForthResult exitStatus = ExecuteOps( &(opScratch[0]) );
+    eForthResult exitStatus = ExecuteOps( &(opScratch[0]) );
     return exitStatus;
 }
 

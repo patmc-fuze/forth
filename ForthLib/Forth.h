@@ -263,6 +263,8 @@ typedef struct
 #define FORTH_OP_TYPE( OP )  ( (forthOpType) (((OP) >> 24) & 0xFF) )
 #define FORTH_OP_VALUE( OP ) ( (OP) & OPCODE_VALUE_MASK )
 
+#define DISPATCH_FORTH_OP( _pCore, _op ) 	_pCore->optypeAction[ (int) FORTH_OP_TYPE( _op ) ]( _pCore, FORTH_OP_VALUE( _op ) )
+
 
 #define NEEDS(A)
 #define RNEEDS(A)

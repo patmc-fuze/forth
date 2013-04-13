@@ -2053,21 +2053,6 @@ void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal )
 
 
 
-inline void
-InterpretOneOp( ForthCoreState *pCore )
-{
-    ulong opVal;
-    forthOpType opType;
-    
-	// fetch op at IP, advance IP
-    long* pIP = GET_IP;
-    long op = *pIP++;
-	SET_IP( pIP );
-	
-	opType = FORTH_OP_TYPE( op );
-	opVal = FORTH_OP_VALUE( op );
-	pCore->optypeAction[ (int) opType ]( pCore, opVal );
-}
 
 eForthResult
 InnerInterpreter( ForthCoreState *pCore )
@@ -2083,7 +2068,10 @@ InnerInterpreter( ForthCoreState *pCore )
 		{
 			// fetch op at IP, advance IP
 			pEngine->TraceOp( pCore );
-			InterpretOneOp( pCore );
+			long* pIP = GET_IP;
+			long op = *pIP++;
+			SET_IP( pIP );
+			DISPATCH_FORTH_OP( pCore, op );
 			if ( traceFlags & kTraceStack )
 			{
 				pEngine->TraceStack( pCore );
@@ -2096,8 +2084,38 @@ InnerInterpreter( ForthCoreState *pCore )
 	{
 		while ( GET_STATE == kResultOk )
 		{
-			InterpretOneOp( pCore );
+			long* pIP = GET_IP;
+			long op = *pIP++;
+			SET_IP( pIP );
+			DISPATCH_FORTH_OP( pCore, op );
 		}
+	}
+    return GET_STATE;
+}
+
+eForthResult
+InterpretOneOp( ForthCoreState *pCore, long op )
+{
+    SET_STATE( kResultOk );
+
+#ifdef TRACE_INNER_INTERPRETER
+	ForthEngine* pEngine = GET_ENGINE;
+	int traceFlags = pEngine->GetTraceFlags();
+	if ( traceFlags & kTraceInnerInterpreter )
+	{
+		// fetch op at IP, advance IP
+		pEngine->TraceOp( pCore );
+		DISPATCH_FORTH_OP( pCore, op );
+		if ( traceFlags & kTraceStack )
+		{
+			pEngine->TraceStack( pCore );
+		}
+		pEngine->TraceOut( "\n" );
+	}
+	else
+#endif
+	{
+		DISPATCH_FORTH_OP( pCore, op );
 	}
     return GET_STATE;
 }
