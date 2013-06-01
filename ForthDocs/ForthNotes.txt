@@ -127,6 +127,110 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 30 2013
+
+I'm debugging some code generation bugs I found when trying to add a file class.
+The current ForthTypesManager::ProcessSymbol code generation does not work if
+the first token is a member object, I don't think it will work if the first
+symbol is a local object or struct either.
+There is already a somewhat old description of code generation in ForthStructs.txt,
+but here is another take on what ProcessSymbol should do:
+
+First symbol cases
+
+1) name of a class or structure type in angle brackets
+  a) object on TOS
+  b) ptrTo structure on TOS
+2) global
+  a) global object
+  b) global ptrTo object
+  c) global structure
+  d) global ptrTo structure
+3) local 
+  a) local object
+  b) local ptrTo object
+  c) local structure
+  d) local ptrTo structure
+4) member
+  a) member object
+  b) member ptrTo object
+  c) member structure
+  d) member ptrTo structure
+5) op which returns a reference (not implemented)
+  a) op returns object
+  b) op returns ptrTo object
+  c) op returns ptrTo structure
+
+After first symbol is processed, TOS is one of:
+  a) object
+  b) ptrTo structure
+? is this true - could it be ptrTo object or op?
+
+
+Middle symbol cases
+  1) field
+  2) method which returns a reference
+  3) op which returns a reference (not implemented)
+
+  
+Final symbol cases
+  1) native
+  2) ptrTo anything
+  3) method
+  4) op
+  5) struct
+  
+To be continued...
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 29 2013
+
++ added 'verbose' prefix op for vlist and describe, eliminated vlistq
++ added the ability to disassemble method ops with describe CLASS.METHOD
+- in file.getLine the oByteArray.resize method is getting compiled wrong, the
+  opcode used to prefix global byte variables is being compiled where it should
+  be putting something to fetch the oByteArray member variable
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 28 2013
+
+I started implementing a 'file' class and ran into a few problems
+
++ the file class has an oByteArray member - 4 bytes were allocated for this
+  member, all object references need 8 - fixed
+- the getLine method includes 'new oByteArray' - forth:new isn't executed,
+  instead object:new is compiled as 0x520001ef - 1ef is object:new, but the
+  0x52 opType is MemberByte which makes no sense, the opType should be
+  0x6C opType MethodWithThis.
+  -> the object.new vocab entry type field is 0, it should at least have the
+     method flag (0x40) set, so it is being compiled as a member byte access
+? how to deal with object.new and forth.new confusion
+-> I changed object.new to object.%_new_%
+- there is no way to add non-method ops to class vocabularies - because of
+  how the first entry is defined, they are treated as member variables
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 11 2013
+
+Added 16-bit register definitions to asm_pentium and fixed defs like [edi]
+which were actually using 16-bit addresses to use 32-bit addresses.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 3 2013
+
+I tried to make a DLL vocabulary for libmysql.dll, but when I ran any DLL ops
+I got a low level error with a warning about using inconsistent calling
+conventions.  libmysql uses stdcall, all my previous dll vocabs used cdecl.
+Also, some of the libmysql calls return a 64-bit result, the current dll optype
+always returns a 32 result.
+I added DLLStdCall which sets the current definition dll vocabulary to use
+the stdcall calling convention.
+I added DllVoid which makes the next dll op definition return nothing.
+I added DllLong which makes the next dll op definition return 64-bits - this isn't
+fully tested, mysql_num_rows returns a 64-bit result that looks ok, but it could
+just be that it is accidentally returning 0 for the high part.
+I updated the sdl and sprig libraries to use DLLVoid and tested sdltest and sprigtest.
+
+I got ttf_test.txt working.  When I started, the sdl_ttf dllvocab definition
+kept failing, saying the entry points I was requesting were undefined, this
+stopped happening when I added the libfreetype and zlib dlls.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 17 2013
 
 Resurrected ForthGUI - it had a bug where any error would cause all user

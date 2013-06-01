@@ -233,6 +233,8 @@ Processing first symbol:
     array of ptrs to structs
       compile arrayOffsetOp( 4 )
       compile at op
+  member variable
+    compile member object
 
 Processing symbols after 1st:
   offset += symbol offset
