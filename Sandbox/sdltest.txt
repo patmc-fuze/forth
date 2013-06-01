@@ -19,7 +19,7 @@ SDL_Rect dstPos
 
 : test
   SDL_UpperBlit( worldBM srcPos sdlScreen dstPos ) drop
-  SDL_UpdateRects( sdlScreen 1 dstPos ) drop
+  SDL_UpdateRects( sdlScreen 1 dstPos )
 ;
 #endif
 

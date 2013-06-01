@@ -15,7 +15,7 @@ subroutine _sdlAudioCallback
 	0x14 esp d] eax mov,	// eax = stream
 	0x10 esp d] ebx mov,	// ebx = userdata
 	0x18 esp d] ecx mov,	// ecx = len
-	0x80 # ebx mov,
+
 	here 
 	  bl eax ] mov,
 	  2 # ebx add,

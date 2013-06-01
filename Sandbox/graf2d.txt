@@ -1,8 +1,8 @@
 
-requires sdlutil
+autoforget graf2d
+requires sdl
 also sdl
 
-autoforget graf2d
 : graf2d ;
 
 720 -> screenW
@@ -262,12 +262,12 @@ autoforget graf2d
   curX w - curY DrawLine
   moveTo
 ;
-  
+
 : dp DrawPoint ;
 : dl DrawLine ;
 : de DrawEllipse ;
 : dc DrawCircle ;
-: ds DrawSquare ;
+: dsq DrawSquare ;
 : dr DrawRectangle ;
 : dpl DrawPolyLine ;
 

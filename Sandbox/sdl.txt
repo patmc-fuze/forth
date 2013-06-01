@@ -6,9 +6,9 @@ also sdl definitions
 
 //****************** SDL.h
 dll_1    SDL_Init
-dll_0    SDL_Quit
+DLLVoid dll_0    SDL_Quit
 dll_1    SDL_InitSubSystem
-dll_1    SDL_QuitSubSystem
+DLLVoid dll_1    SDL_QuitSubSystem
 dll_0	SDL_GetError
 
 // arg is what systems you want to check for initialization
@@ -128,7 +128,7 @@ enum: eSDL_Surface
 ;enum
 
 dll_2	SDL_VideoInit
-dll_0	SDL_VideoQuit
+DLLVoid dll_0	SDL_VideoQuit
 dll_2	SDL_VideoDriverName
 dll_0	SDL_GetVideoSurface
 dll_0	SDL_GetVideoInfo
@@ -136,8 +136,8 @@ dll_4	SDL_VideoModeOK
 dll_2	SDL_ListModes
 dll_4	SDL_SetVideoMode
 
-dll_3	SDL_UpdateRects
-dll_5	SDL_UpdateRect
+DLLVoid dll_3	SDL_UpdateRects
+DLLVoid dll_5	SDL_UpdateRect
 dll_1	SDL_Flip
 
 dll_3	SDL_SetGamma
@@ -148,29 +148,29 @@ dll_4	SDL_SetColors
 dll_5	SDL_SetPalette
 dll_4	SDL_MapRGB
 dll_5	SDL_MapRGBA
-dll_5	SDL_GetRGB
-dll_6	SDL_GetRGBA
+DLLVoid dll_5	SDL_GetRGB
+DLLVoid dll_6	SDL_GetRGBA
 dll_8	SDL_CreateRGBSurface
 dll_9	SDL_CreateRGBSurfaceFrom
-dll_1	SDL_FreeSurface
+DLLVoid dll_1	SDL_FreeSurface
 
 dll_1	SDL_LockSurface
-dll_1	SDL_UnlockSurface
+DLLVoid dll_1	SDL_UnlockSurface
 dll_2	SDL_LoadBMP_RW
 dll_3	SDL_SaveBMP_RW
 dll_3	SDL_SetColorKey
 dll_3	SDL_SetAlpha
 dll_2	SDL_SetClipRect
-dll_2	SDL_GetClipRect
+DLLVoid dll_2	SDL_GetClipRect
 dll_3	SDL_ConvertSurface
 dll_4	SDL_UpperBlit
 dll_4	SDL_LowerBlit
 dll_3	SDL_FillRect
 dll_1	SDL_DisplayFormat
 dll_1	SDL_DisplayFormatAlpha
-dll_2	SDL_WM_SetCaption
-dll_2	SDL_WM_GetCaption
-dll_2	SDL_WM_SetIcon
+DLLVoid dll_2	SDL_WM_SetCaption
+DLLVoid dll_2	SDL_WM_GetCaption
+DLLVoid dll_2	SDL_WM_SetIcon
 dll_0	SDL_WM_IconifyWindow
 dll_1	SDL_WM_ToggleFullScreen
 
@@ -186,7 +186,7 @@ dll_1	SDL_WM_GrabInput
 //****************** SDL_timer.h
 
 dll_0    SDL_GetTicks
-dll_1    SDL_Delay
+DLLVoid dll_1    SDL_Delay
 
 // extern DECLSPEC int SDLCALL SDL_SetTimer(Uint32 interval, SDL_TimerCallback callback);
 dll_2    SDL_SetTimer
@@ -204,7 +204,7 @@ dll_2	SDL_RWFromFP
 dll_2	SDL_RWFromMem
 dll_2	SDL_RWFromConstMem
 dll_0	SDL_AllocRW
-dll_1	SDL_FreeRW
+DLLVoid dll_1	SDL_FreeRW
 
 enum: eSDL_Seek
 	RW_SEEK_SET
@@ -299,7 +299,7 @@ struct: SDL_AudioCVT
 // have a specific need to specify the audio driver you want to use.
 // You should normally use SDL_Init() or SDL_InitSubSystem().
 dll_1 SDL_AudioInit			// const char *driver_name
-dll_0 SDL_AudioQuit
+DLLVoid dll_0 SDL_AudioQuit
 
 // This function fills the given character buffer with the name of the
 // current audio driver, and returns a pointer to it if the audio driver has
@@ -360,7 +360,7 @@ dll_0 SDL_GetAudioStatus
 // device to start playing sound.  This is so you can safely initialize
 // data for your callback function after opening the audio device.
 // Silence will be written to the audio device during the pause.
-dll_1 SDL_PauseAudio			// int pause_on
+DLLVoid dll_1 SDL_PauseAudio			// int pause_on
 
 // This function loads a WAVE from the data source, automatically freeing
 // that source if 'freesrc' is non-zero.  For example, to load a WAVE file,
@@ -388,7 +388,7 @@ dll_5 SDL_LoadWAV_RW		// SDL_RWops *src, int freesrc, SDL_AudioSpec *spec, Uint8
 ;
 
 // This function frees data previously allocated with SDL_LoadWAV_RW()
-dll_1 SDL_FreeWAV		// Uint8 *audio_buf
+DLLVoid dll_1 SDL_FreeWAV		// Uint8 *audio_buf
 
 // This function takes a source format and rate and a destination format
 // and rate, and initializes the 'cvt' structure with information needed
@@ -415,17 +415,17 @@ dll_1 SDL_ConvertAudio		// SDL_AudioCVT *cvt
 // for full audio volume.  Note this does not change hardware volume.
 // This is provided for convenience -- you can mix your own audio data.
 // #define SDL_MIX_MAXVOLUME 128
-dll_4 SDL_MixAudio			// Uint8 *dst, const Uint8 *src, Uint32 len, int volume
+DLLVoid dll_4 SDL_MixAudio			// Uint8 *dst, const Uint8 *src, Uint32 len, int volume
 
 // The lock manipulated by these functions protects the callback function.
 // During a LockAudio/UnlockAudio pair, you can be guaranteed that the
 // callback function is not running.  Do not call these from the callback
 // function or you will cause deadlock.
-dll_0 SDL_LockAudio
-dll_0 SDL_UnlockAudio
+DLLVoid dll_0 SDL_LockAudio
+DLLVoid dll_0 SDL_UnlockAudio
 
 // This function shuts down audio processing and closes the audio device.
-dll_0 SDL_CloseAudio
+DLLVoid dll_0 SDL_CloseAudio
 
 
 previous definitions

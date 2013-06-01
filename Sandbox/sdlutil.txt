@@ -39,7 +39,7 @@ SDL_Rect dstPos
 
 : endSDL
   if( _sdlStarted )
-    SDL_Quit drop
+    SDL_Quit
     false -> _sdlStarted
   endif
 ;
@@ -106,8 +106,8 @@ SDL_Rect dstPos
 : endDraw
   1 ->- drawDepth
   drawDepth 0== if
-    SDL_UnlockSurface( sdlScreen ) drop
-    SDL_UpdateRects( sdlScreen 1 dstPos ) drop
+    SDL_UnlockSurface( sdlScreen )
+    SDL_UpdateRects( sdlScreen 1 dstPos )
   else
     drawDepth 0< if
       "endDraw called with drawDepth " %s drawDepth %d %nl

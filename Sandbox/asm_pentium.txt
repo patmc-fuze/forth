@@ -169,12 +169,25 @@ int .osize               int .onow
   1+ 0 do  dup breg     11+  loop  drop
 ;
 
-: wadr: ( reg -- )  builds c,  does c@  .wa ;
+: wreg  // reg --
+  builds c,
+  does c@  .w
+;
 
-: wadr  ( mod n -- ) 1+ 0 do  dup wadr:    11+  loop  drop ;
+: wregs // mod n --
+  1+ 0 do  dup wreg     11+  loop  drop
+;
 
-   0 7 wadr [ebx+esi] [ebx+edi] [ebp+esi] [ebp+edi] [esi] [edi] [ebp] [ebx]
+: wadr ( reg -- )  builds c,  does c@  .wa ;
+: wadrs  ( mod n -- ) 1+ 0 do  dup wadr    11+  loop  drop ;
+
+: dadr ( reg -- )  builds c,  does c@  .da ;
+: dadrs  ( mod n -- ) 1+ 0 do  dup dadr    11+  loop  drop ;
+
+   0 7 dadrs [ebx+esi] [ebx+edi] [ebp+esi] [ebp+edi] [esi] [edi] [ebp] [ebx]
+   0 7 wadrs [bx+si] [bx+di] [bp+si] [bp+di] [si] [di] [bp] [bx]
  300 7 regs  eax ecx edx ebx esp ebp esi edi
+ 300 7 wregs ax cx dx bx sp bp si di
  300 7 bregs al cl dl bl ah ch dh bh
 2300 5 regs eseg cseg sseg dseg fseg gseg
 
@@ -886,4 +899,24 @@ is in esi and the TOS is in ebx):
          4 # esi add,
          Next
      end-code
- 
+
+	0x80 # ebx mov,
+	0x80 # .w ebx mov,
+	0x80 # .w esi mov,
+	0x80 # si mov,
+	0x80 # di mov,
+	0x80 # bp mov,
+	0x80 # sp mov,
+	0x80 # .d ebx mov,
+	0x80 # .b ebx mov,
+	// 
+	[ebx+esi] eax mov,
+	[ebx+edi] eax mov,
+	[ebp+esi] eax mov,
+	[ebp+edi]  eax mov,
+	[esi] eax mov,
+	[edi] eax mov,
+	[ebp] eax mov,
+	[ebx] eax mov,
+
+	
