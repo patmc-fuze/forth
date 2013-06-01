@@ -1647,15 +1647,16 @@ OPTYPE_ACTION( MemberRefAction )
     SPUSH( ((long)GET_TPD) + opVal );
 }
 
-// bits 0..18 are index into ForthCoreState userOps table, 19..23 are arg count
+// bits 0..15 are index into ForthCoreState userOps table, 16..18 are flags, 19..23 are arg count
 OPTYPE_ACTION( DLLEntryPointAction )
 {
 #ifdef WIN32
     ulong entryIndex = CODE_TO_DLL_ENTRY_INDEX( opVal );
     ulong argCount = CODE_TO_DLL_ENTRY_NUM_ARGS( opVal );
+	ulong flags = CODE_TO_DLL_ENTRY_FLAGS( opVal );
     if ( entryIndex < GET_NUM_USER_OPS )
     {
-        CallDLLRoutine( (DLLRoutine)(USER_OP_TABLE[entryIndex]), argCount, pCore );
+        CallDLLRoutine( (DLLRoutine)(USER_OP_TABLE[entryIndex]), argCount, flags, pCore );
     }
     else
     {
@@ -1888,133 +1889,133 @@ optypeActionRoutine builtinOptypeAction[] =
     ReservedOptypeAction,
 
     // 10 - 19
-    BranchAction,
+    BranchAction,				// 0x0A
     BranchNZAction,
     BranchZAction,
     CaseBranchAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
-    ReservedOptypeAction,
+    ReservedOptypeAction,		// 0x10
     ReservedOptypeAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
 
     // 20 - 29
-    ConstantAction,
+    ConstantAction,				// 0x14
     ConstantStringAction,
     OffsetAction,
     ArrayOffsetAction,
-    AllocLocalsAction,
+    AllocLocalsAction,			// 0x18
     LocalRefAction,
     InitLocalStringAction,
     LocalStructArrayAction,
-    OffsetFetchAction,
+    OffsetFetchAction,			// 0x1C
     MemberRefAction,
 
     // 30 -39
     LocalByteAction,
     LocalUByteAction,
-    LocalShortAction,
+    LocalShortAction,			// 0x20
     LocalUShortAction,
     LocalIntAction,
     LocalIntAction,
-    LocalLongAction,
+    LocalLongAction,			// 0x24
     LocalLongAction,
     LocalFloatAction,
     LocalDoubleAction,
 
     // 40 - 49
-    LocalStringAction,
+    LocalStringAction,			// 0x28
     LocalOpAction,
     LocalObjectAction,
     LocalByteArrayAction,
-    LocalUByteArrayAction,
+    LocalUByteArrayAction,		// 0x2C
     LocalShortArrayAction,
     LocalUShortArrayAction,
     LocalIntArrayAction,
-    LocalIntArrayAction,
+    LocalIntArrayAction,		// 0x30
     LocalLongArrayAction,
 
     // 50 - 59
     LocalLongArrayAction,
     LocalFloatArrayAction,
-    LocalDoubleArrayAction,
+    LocalDoubleArrayAction,		// 0x34
     LocalStringArrayAction,
     LocalOpArrayAction,
     LocalObjectArrayAction,
-    FieldByteAction,
+    FieldByteAction,			// 0x38
     FieldUByteAction,
     FieldShortAction,
     FieldUShortAction,
 
     // 60 - 69
-    FieldIntAction,
+    FieldIntAction,				// 0x3C
     FieldIntAction,
     FieldLongAction,
     FieldLongAction,
-    FieldFloatAction,
+    FieldFloatAction,			// 0x40
     FieldDoubleAction,
     FieldStringAction,
     FieldOpAction,
-    FieldObjectAction,
+    FieldObjectAction,			// 0x44
     FieldByteArrayAction,
 
     // 70 - 79
     FieldUByteArrayAction,
     FieldShortArrayAction,
-    FieldUShortArrayAction,
+    FieldUShortArrayAction,		// 0x48
     FieldIntArrayAction,
     FieldIntArrayAction,
     FieldLongArrayAction,
-    FieldLongArrayAction,
+    FieldLongArrayAction,		// 0x4C
     FieldFloatArrayAction,
     FieldDoubleArrayAction,
     FieldStringArrayAction,
 
     // 80 - 89
-    FieldOpArrayAction,
+    FieldOpArrayAction,			// 0x50
     FieldObjectArrayAction,
     MemberByteAction,
     MemberUByteAction,
-    MemberShortAction,
+    MemberShortAction,			// 0x54
     MemberUShortAction,
     MemberIntAction,
     MemberIntAction,
-    MemberLongAction,
+    MemberLongAction,			// 0x58
     MemberLongAction,
 
     // 90 - 99
     MemberFloatAction,
     MemberDoubleAction,
-    MemberStringAction,
+    MemberStringAction,			// 0x5C
     MemberOpAction,
     MemberObjectAction,
     MemberByteArrayAction,
-    MemberUByteArrayAction,
+    MemberUByteArrayAction,		// 0x60
     MemberShortArrayAction,
     MemberUShortArrayAction,
     MemberIntArrayAction,
 
 	// 100 - 109
-    MemberIntArrayAction,
+    MemberIntArrayAction,		// 0x64
     MemberLongArrayAction,
     MemberLongArrayAction,
     MemberFloatArrayAction,
-    MemberDoubleArrayAction,
+    MemberDoubleArrayAction,	// 0x68
     MemberStringArrayAction,
     MemberOpArrayAction,
     MemberObjectArrayAction,
-    MethodWithThisAction,
+    MethodWithThisAction,		// 0x6C
     MethodWithTOSAction,
 
 	// 110 -
     InitMemberStringAction,
 	NumVaropOpComboAction,
-	NumVaropComboAction,
+	NumVaropComboAction,		// 0x70
 	NumOpComboAction,
 	VaropOpComboAction,
 	LocalRefOpComboAction,
-	MemberRefOpComboAction,
+	MemberRefOpComboAction,		// 0x74
     ReservedOptypeAction,
 
     NULL            // this must be last to end the list

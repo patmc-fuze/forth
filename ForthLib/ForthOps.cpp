@@ -2589,6 +2589,7 @@ FORTHOP( vlistOp )
     ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
     ForthVocabulary* pVocab;
     int depth = 0;
+	bool verbose = (GET_VAR_OPERATION != kVarDefaultOp);
     CONSOLE_STRING_OUT( "vocab stack:" ); 
     while ( true )
     {
@@ -2615,47 +2616,10 @@ FORTHOP( vlistOp )
         }
         CONSOLE_STRING_OUT( pVocab->GetName() );
         CONSOLE_STRING_OUT( " vocabulary:\n" );
-        quit = ( ShowVocab( pCore, pVocab, false ) == 'q' );
+        quit = ( ShowVocab( pCore, pVocab, !verbose ) == 'q' );
         depth++;
     }
-}
-
-FORTHOP( vlistqOp )
-{
-    ForthEngine *pEngine = GET_ENGINE;
-    bool quit = false;
-    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
-    ForthVocabulary* pVocab;
-    int depth = 0;
-    CONSOLE_STRING_OUT( "vocab stack:" ); 
-    while ( true )
-    {
-        pVocab = pVocabStack->GetElement( depth );
-        if ( pVocab == NULL )
-        {
-            break;
-        }
-        CONSOLE_STRING_OUT( " " );
-        CONSOLE_STRING_OUT( pVocab->GetName() );
-        depth++;
-    }
-    CONSOLE_STRING_OUT( "\n" );
-    CONSOLE_STRING_OUT( "definitions vocab: " );
-    CONSOLE_STRING_OUT( pEngine->GetDefinitionVocabulary()->GetName() );
-    CONSOLE_STRING_OUT( "\n" );
-    depth = 0;
-    while ( !quit )
-    {
-        pVocab = pVocabStack->GetElement( depth );
-        if ( pVocab == NULL )
-        {
-            return;
-        }
-        CONSOLE_STRING_OUT( pVocab->GetName() );
-        CONSOLE_STRING_OUT( " vocabulary:\n" );
-        quit = ( ShowVocab( pCore, pVocab, true ) == 'q' );
-        depth++;
-    }
+	CLEAR_VAR_OPERATION;
 }
 
 FORTHOP( findOp )
@@ -4368,32 +4332,62 @@ FORTHOP( describeOp )
 {
     char buff[512];
 
+
     ForthEngine *pEngine = GET_ENGINE;
     char* pSym = pEngine->GetNextSimpleToken();
+	strcpy( buff, pSym );
+
+	char* pMethod = strchr( buff, '.' );
+	if ( pMethod != NULL )
+	{
+		*pMethod++ = '\0';
+	}
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
-    ForthStructVocabulary* pVocab = pManager->GetStructVocabulary( pSym );
+    ForthStructVocabulary* pVocab = pManager->GetStructVocabulary( buff );
+	bool verbose = (GET_VAR_OPERATION != kVarDefaultOp);
+
     if ( pVocab )
     {
-        // show structure vocabulary entries
-        while ( pVocab )
-        {
-            sprintf( buff, "%s vocabulary %s:\n", ((pVocab->IsClass() ? "class" : "struct")), pVocab->GetName() );
-            CONSOLE_STRING_OUT( buff );
-            char quit = ShowVocab( pEngine->GetCoreState(), pVocab, true );
-            if ( quit == 'q' )
-            {
-                break;
-            }
-            else
-            {
-                pVocab = pVocab->BaseVocabulary();
-            }
-        }
+		if ( pMethod != NULL )
+		{
+			ForthVocabulary* pFoundVocab = NULL;
+			long* pEntry = pVocab->FindSymbol( pMethod );
+			if ( (pEntry != NULL) && pVocab->IsClass() )
+			{
+				ForthClassVocabulary* pClassVocab = (ForthClassVocabulary*) pVocab;
+				// TBD: support secondary interfaces
+				pEngine->DescribeOp( pSym, pClassVocab->GetInterface(0)->GetMethod(pEntry[0]), pEntry[1] );
+			}
+			else
+			{
+				sprintf( buff, "Failed to find method %s\n", pSym );
+				CONSOLE_STRING_OUT( buff );
+			}
+		}
+		else
+		{
+			// show structure vocabulary entries
+			while ( pVocab )
+			{
+				sprintf( buff, "%s vocabulary %s:\n", ((pVocab->IsClass() ? "class" : "struct")), pVocab->GetName() );
+				CONSOLE_STRING_OUT( buff );
+				char quit = ShowVocab( pEngine->GetCoreState(), pVocab, !verbose );
+				if ( quit == 'q' )
+				{
+					break;
+				}
+				else
+				{
+					pVocab = pVocab->BaseVocabulary();
+				}
+			}
+		}
     }
     else
     {
         pEngine->DescribeSymbol( pSym );
     }
+	CLEAR_VAR_OPERATION;
 }
 
 #ifdef WIN32
@@ -4427,12 +4421,62 @@ FORTHOP( addDLLEntryOp )
     if ( strcmp( pVocab->GetType(), "dllOp" ) )
     {
         pEngine->AddErrorText( pVocab->GetName() );
-        pEngine->SetError( kForthErrorBadParameter, " is not a DLL vocabulary" );
+        pEngine->SetError( kForthErrorBadParameter, " is not a DLL vocabulary - addDllEntry" );
     }
     ulong numArgs = SPOP;
     pVocab->AddEntry( pProcName, numArgs );
 }
 
+FORTHOP( DLLVoidOp )
+{
+	NEEDS( 0 );
+
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthDLLVocabulary* pVocab = (ForthDLLVocabulary *) (pEngine->GetDefinitionVocabulary());
+    if ( strcmp( pVocab->GetType(), "dllOp" ) )
+    {
+        pEngine->AddErrorText( pVocab->GetName() );
+        pEngine->SetError( kForthErrorBadParameter, " is not a DLL vocabulary - DLLVoidOp" );
+    }
+	else
+	{
+		pVocab->SetFlag( DLL_ENTRY_FLAG_RETURN_VOID );
+	}
+}
+
+FORTHOP( DLLLongOp )
+{
+	NEEDS( 0 );
+
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthDLLVocabulary* pVocab = (ForthDLLVocabulary *) (pEngine->GetDefinitionVocabulary());
+    if ( strcmp( pVocab->GetType(), "dllOp" ) )
+    {
+        pEngine->AddErrorText( pVocab->GetName() );
+        pEngine->SetError( kForthErrorBadParameter, " is not a DLL vocabulary - DLLLongOp" );
+    }
+	else
+	{
+		pVocab->SetFlag( DLL_ENTRY_FLAG_RETURN_64BIT );
+	}
+}
+
+FORTHOP( DLLStdCallOp )
+{
+	NEEDS( 0 );
+
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthDLLVocabulary* pVocab = (ForthDLLVocabulary *) (pEngine->GetDefinitionVocabulary());
+    if ( strcmp( pVocab->GetType(), "dllOp" ) )
+    {
+        pEngine->AddErrorText( pVocab->GetName() );
+        pEngine->SetError( kForthErrorBadParameter, " is not a DLL vocabulary - DLLStdCallOp" );
+    }
+	else
+	{
+		pVocab->SetFlag( DLL_ENTRY_FLAG_STDCALL );
+	}
+}
 #endif
 
 FORTHOP( blwordOp )
@@ -5822,7 +5866,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    forgetOp,               "forget" ),
     OP_DEF(    autoforgetOp,           "autoforget" ),
     OP_DEF(    vlistOp,                "vlist" ),
-    OP_DEF(    vlistqOp,               "vlistq" ),
     OP_DEF(    findOp,                 "find" ),
 
     ///////////////////////////////////////////
@@ -5908,6 +5951,9 @@ baseDictionaryEntry baseDictionary[] =
 #ifdef WIN32
     OP_DEF(    DLLVocabularyOp,        "DLLVocabulary" ),
     OP_DEF(    addDLLEntryOp,          "addDLLEntry" ),
+    OP_DEF(    DLLVoidOp,              "DLLVoid" ),
+    OP_DEF(    DLLLongOp,              "DLLLong" ),
+    OP_DEF(    DLLStdCallOp,           "DLLStdCall" ),
 #endif
 
     ///////////////////////////////////////////
@@ -5952,6 +5998,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    errorOp,                "error" ),
     OP_DEF(    addErrorTextOp,         "addErrorText" ),
 	OP_DEF(    setTraceOp,             "setTrace" ),
+    OP_DEF(    intoOp,                 "verbose" ),
 
     ///////////////////////////////////////////
     //  conditional compilation

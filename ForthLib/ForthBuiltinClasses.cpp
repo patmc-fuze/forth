@@ -110,7 +110,7 @@ namespace
 
     baseMethodEntry objectMembers[] =
     {
-        METHOD(     "new",              objectNew ),
+        METHOD(     "_%new%_",          objectNew ),
         METHOD(     "delete",           objectDeleteMethod ),
         METHOD(     "show",             objectShowMethod ),
         METHOD_RET( "getClass",         objectClassMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIClass) ),
@@ -489,7 +489,7 @@ namespace
 
     baseMethodEntry oArrayMembers[] =
     {
-        METHOD(     "new",                  oArrayNew ),
+        METHOD(     "_%new%_",              oArrayNew ),
         METHOD(     "delete",               oArrayDeleteMethod ),
         METHOD(     "clear",                oArrayClearMethod ),
         METHOD(     "resize",               oArrayResizeMethod ),
@@ -619,7 +619,7 @@ namespace
 
     baseMethodEntry oArrayIterMembers[] =
     {
-        METHOD(     "new",                  oArrayIterNew ),
+        METHOD(     "_%new%_",              oArrayIterNew ),
         METHOD(     "delete",               oArrayIterDeleteMethod ),
         METHOD(     "seekNext",             oArrayIterSeekNextMethod ),
         METHOD(     "seekPrev",             oArrayIterSeekPrevMethod ),
@@ -945,7 +945,7 @@ namespace
 
     baseMethodEntry oListMembers[] =
     {
-        METHOD(     "new",                  oListNew ),
+        METHOD(     "_%new%_",              oListNew ),
         METHOD(     "delete",               oListDeleteMethod ),
         METHOD(     "head",                 oListHeadMethod ),
         METHOD(     "tail",                 oListTailMethod ),
@@ -1077,7 +1077,7 @@ namespace
 
     baseMethodEntry oListIterMembers[] =
     {
-        METHOD(     "new",                  oListIterNew ),
+        METHOD(     "_%new%_",              oListIterNew ),
         METHOD(     "delete",               oListIterDeleteMethod ),
         METHOD(     "seekNext",             oListIterSeekNextMethod ),
         METHOD(     "seekPrev",             oListIterSeekPrevMethod ),
@@ -1299,7 +1299,7 @@ namespace
 
     baseMethodEntry oMapMembers[] =
     {
-        METHOD(     "new",                  oMapNew ),
+        METHOD(     "_%new%_",              oMapNew ),
         METHOD(     "delete",               oMapDeleteMethod ),
         METHOD(     "clear",                oMapClearMethod ),
         METHOD(     "count",                oMapCountMethod ),
@@ -1458,7 +1458,7 @@ namespace
 
     baseMethodEntry oMapIterMembers[] =
     {
-        METHOD(     "new",                  oMapIterNew ),
+        METHOD(     "_%new%_",              oMapIterNew ),
         METHOD(     "delete",               oMapIterDeleteMethod ),
         METHOD(     "seekNext",             oMapIterSeekNextMethod ),
         METHOD(     "seekPrev",             oMapIterSeekPrevMethod ),
@@ -1654,7 +1654,7 @@ namespace
 
     baseMethodEntry oStringMembers[] =
     {
-        METHOD(     "new",                  oStringNew ),
+        METHOD(     "_%new%_",              oStringNew ),
         METHOD(     "delete",               oStringDeleteMethod ),
         METHOD(     "show",					oStringShowMethod ),
         METHOD(     "size",                 oStringSizeMethod ),
@@ -1752,7 +1752,7 @@ namespace
 
     baseMethodEntry oPairMembers[] =
     {
-        METHOD(     "new",                  oPairNew ),
+        METHOD(     "_%new%_",              oPairNew ),
         METHOD(     "delete",               oPairDeleteMethod ),
         METHOD(     "setA",                 oPairSetAMethod ),
         METHOD(     "getA",                 oPairGetAMethod ),
@@ -1871,7 +1871,7 @@ namespace
 
     baseMethodEntry oTripleMembers[] =
     {
-        METHOD(     "new",                  oTripleNew ),
+        METHOD(     "_%new%_",              oTripleNew ),
         METHOD(     "delete",               oTripleDeleteMethod ),
         METHOD(     "setA",                 oTripleSetAMethod ),
         METHOD(     "getA",                 oTripleGetAMethod ),
@@ -2082,9 +2082,17 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oByteArrayBaseMethod )
+    {
+		GET_THIS( oByteArrayStruct, pArray );
+        oByteArray& a = *(pArray->elements);
+        SPUSH( (long) &(a[0]) );
+        METHOD_RETURN;
+	}
+
     baseMethodEntry oByteArrayMembers[] =
     {
-        METHOD(     "new",                  oByteArrayNew ),
+        METHOD(     "_%new%_",              oByteArrayNew ),
         METHOD(     "delete",               oByteArrayDeleteMethod ),
         METHOD(     "clear",                oByteArrayClearMethod ),
         METHOD(     "resize",               oByteArrayResizeMethod ),
@@ -2097,6 +2105,7 @@ namespace
         METHOD(     "headIter",             oByteArrayHeadIterMethod ),
         METHOD(     "tailIter",             oByteArrayTailIterMethod ),
         METHOD(     "clone",                oByteArrayCloneMethod ),
+        METHOD(     "base",                 oByteArrayBaseMethod ),
         //METHOD(     "remove",               oByteArrayRemoveMethod ),
         //METHOD(     "insert",               oByteArrayInsertMethod ),
         // following must be last in table
@@ -2217,7 +2226,7 @@ namespace
 
     baseMethodEntry oByteArrayIterMembers[] =
     {
-        METHOD(     "new",                  oByteArrayIterNew ),
+        METHOD(     "_%new%_",              oByteArrayIterNew ),
         METHOD(     "delete",               oByteArrayIterDeleteMethod ),
         METHOD(     "seekNext",             oByteArrayIterSeekNextMethod ),
         METHOD(     "seekPrev",             oByteArrayIterSeekPrevMethod ),
@@ -2432,9 +2441,17 @@ namespace
         METHOD_RETURN;
     }
     
+    FORTHOP( oShortArrayBaseMethod )
+    {
+		GET_THIS( oShortArrayStruct, pArray );
+        oShortArray& a = *(pArray->elements);
+        SPUSH( (long) &(a[0]) );
+        METHOD_RETURN;
+	}
+
     baseMethodEntry oShortArrayMembers[] =
     {
-        METHOD(     "new",                  oShortArrayNew ),
+        METHOD(     "_%new%_",              oShortArrayNew ),
         METHOD(     "delete",               oShortArrayDeleteMethod ),
         METHOD(     "clear",                oShortArrayClearMethod ),
         METHOD(     "resize",               oShortArrayResizeMethod ),
@@ -2447,6 +2464,7 @@ namespace
         METHOD(     "headIter",             oShortArrayHeadIterMethod ),
         METHOD(     "tailIter",             oShortArrayTailIterMethod ),
         METHOD(     "clone",                oShortArrayCloneMethod ),
+        METHOD(     "base",                 oShortArrayBaseMethod ),
         //METHOD(     "remove",               oShortArrayRemoveMethod ),
         //METHOD(     "insert",               oShortArrayInsertMethod ),
         // following must be last in table
@@ -2567,7 +2585,7 @@ namespace
 
     baseMethodEntry oShortArrayIterMembers[] =
     {
-        METHOD(     "new",                  oShortArrayIterNew ),
+        METHOD(     "_%new%_",              oShortArrayIterNew ),
         METHOD(     "delete",               oShortArrayIterDeleteMethod ),
         METHOD(     "seekNext",             oShortArrayIterSeekNextMethod ),
         METHOD(     "seekPrev",             oShortArrayIterSeekPrevMethod ),
@@ -2779,10 +2797,18 @@ namespace
         PUSH_PAIR( GET_TPM, pCloneArray );
         METHOD_RETURN;
     }
+
+    FORTHOP( oIntArrayBaseMethod )
+    {
+		GET_THIS( oIntArrayStruct, pArray );
+        oIntArray& a = *(pArray->elements);
+        SPUSH( (long) &(a[0]) );
+        METHOD_RETURN;
+	}
     
     baseMethodEntry oIntArrayMembers[] =
     {
-        METHOD(     "new",                  oIntArrayNew ),
+        METHOD(     "_%new%_",              oIntArrayNew ),
         METHOD(     "delete",               oIntArrayDeleteMethod ),
         METHOD(     "clear",                oIntArrayClearMethod ),
         METHOD(     "resize",               oIntArrayResizeMethod ),
@@ -2795,6 +2821,7 @@ namespace
         METHOD(     "headIter",             oIntArrayHeadIterMethod ),
         METHOD(     "tailIter",             oIntArrayTailIterMethod ),
         METHOD(     "clone",                oIntArrayCloneMethod ),
+        METHOD(     "base",                 oIntArrayBaseMethod ),
         //METHOD(     "remove",               oIntArrayRemoveMethod ),
         //METHOD(     "insert",               oIntArrayInsertMethod ),
         // following must be last in table
@@ -2912,7 +2939,7 @@ namespace
 
     baseMethodEntry oIntArrayIterMembers[] =
     {
-        METHOD(     "new",                  oIntArrayIterNew ),
+        METHOD(     "_%new%_",              oIntArrayIterNew ),
         METHOD(     "delete",               oIntArrayIterDeleteMethod ),
         METHOD(     "seekNext",             oIntArrayIterSeekNextMethod ),
         METHOD(     "seekPrev",             oIntArrayIterSeekPrevMethod ),
@@ -3125,10 +3152,18 @@ namespace
         PUSH_PAIR( GET_TPM, pCloneArray );
         METHOD_RETURN;
     }
+
+	FORTHOP( oLongArrayBaseMethod )
+    {
+		GET_THIS( oLongArrayStruct, pArray );
+        oLongArray& a = *(pArray->elements);
+        SPUSH( (long) &(a[0]) );
+        METHOD_RETURN;
+	}
     
     baseMethodEntry oLongArrayMembers[] =
     {
-        METHOD(     "new",                  oLongArrayNew ),
+        METHOD(     "_%new%_",              oLongArrayNew ),
         METHOD(     "delete",               oLongArrayDeleteMethod ),
         METHOD(     "clear",                oLongArrayClearMethod ),
         METHOD(     "resize",               oLongArrayResizeMethod ),
@@ -3141,6 +3176,7 @@ namespace
         METHOD(     "headIter",             oLongArrayHeadIterMethod ),
         METHOD(     "tailIter",             oLongArrayTailIterMethod ),
         METHOD(     "clone",                oLongArrayCloneMethod ),
+        METHOD(     "base",                 oLongArrayBaseMethod ),
         //METHOD(     "remove",               oLongArrayRemoveMethod ),
         //METHOD(     "insert",               oLongArrayInsertMethod ),
         // following must be last in table
@@ -3261,7 +3297,7 @@ namespace
 
     baseMethodEntry oLongArrayIterMembers[] =
     {
-        METHOD(     "new",                  oLongArrayIterNew ),
+        METHOD(     "_%new%_",              oLongArrayIterNew ),
         METHOD(     "delete",               oLongArrayIterDeleteMethod ),
         METHOD(     "seekNext",             oLongArrayIterSeekNextMethod ),
         METHOD(     "seekPrev",             oLongArrayIterSeekPrevMethod ),

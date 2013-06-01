@@ -173,7 +173,7 @@ typedef long (*DLLRoutine)();
 // 1) moves arguments from the forth parameter stack to the real stack in reverse order
 // 2) calls the DLL routine
 // 3) leaves the DLL routine result on the forth parameter stack
-extern long CallDLLRoutine( DLLRoutine function, long argCount, ForthCoreState *pCore );
+extern void CallDLLRoutine( DLLRoutine function, long argCount, unsigned long flags, ForthCoreState *pCore );
 
 inline long GetCurrentOp( ForthCoreState *pCore )
 {

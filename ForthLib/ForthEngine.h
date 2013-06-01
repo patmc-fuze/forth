@@ -131,6 +131,7 @@ public:
     // return pointer to symbol entry, NULL if not found
     long *          FindSymbol( const char *pSymName );
     void            DescribeSymbol( const char *pSymName );
+    void            DescribeOp( const char *pSymName, long op, long auxData );
 
     void            StartStructDefinition( void );
     void            EndStructDefinition( void );

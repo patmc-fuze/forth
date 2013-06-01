@@ -265,7 +265,7 @@ ForthTypesManager::GetFieldInfo( long fieldType, long& fieldBytes, long& alignme
         if ( pInfo )
         {
             alignment = pInfo->pVocab->GetAlignment();
-            fieldBytes = pInfo->pVocab->GetSize();
+			fieldBytes = pInfo->pVocab->IsClass() ? sizeof(ForthObject) : pInfo->pVocab->GetSize();
         }
     }
 }
@@ -429,7 +429,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
 
     if ( !explicitTOSCast )
     {
-        SPEW_STRUCTS( "First field %s op 0x%x\n", pToken, pEntry[0] );
+        SPEW_STRUCTS( "First field %s op 0x%x typeCode %x\n", pToken, pEntry[0], typeCode );
         // handle case where previous opcode was varAction setting op (one of addressOf -> ->+ ->-)
         // we need to execute the varAction setting op after the first op, since if the first op is
         // a pointer type, it will use the varAction and clear it, when the varAction is meant to be
@@ -1891,7 +1891,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
         isString = false;
     }
 
-    if ( pEngine->InStructDefinition() )
+    if ( pEngine->InStructDefinition() && !pEngine->IsCompiling() )
     {
         pManager->GetNewestStruct()->AddField( pToken, typeCode, numElements );
         return;

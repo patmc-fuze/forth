@@ -811,6 +811,7 @@ ForthDLLVocabulary::ForthDLLVocabulary( const char      *pName,
                                         void*           pForgetLimit,
                                         long            op )
 : ForthVocabulary( pName, valueLongs, storageBytes, pForgetLimit, op )
+, mDLLFlags( 0 )
 {
     int len = strlen( pDLLName ) + 1;
     mpDLLName = new char[len];
@@ -871,12 +872,14 @@ long * ForthDLLVocabulary::AddEntry( const char *pFuncName, long numArgs )
         pEntry = AddSymbol( pFuncName, kOpDLLEntryPoint, pFunc, true );
         // the opcode at this point is just the opType and dispatch table index or-ed together
         // we need to combine in the argument count
-        *pEntry |= (numArgs << 19);
+        *pEntry |= ((numArgs << 19) | mDLLFlags);
     }
     else
     {
         mpEngine->SetError( kForthErrorUnknownSymbol, " unknown entry point" );
     }
+	// void and 64-bit flags only apply to one vocabulary entry
+	mDLLFlags &= ~(DLL_ENTRY_FLAG_RETURN_VOID | DLL_ENTRY_FLAG_RETURN_64BIT);
 
     return pEntry;
 }
@@ -885,6 +888,12 @@ const char*
 ForthDLLVocabulary::GetType( void )
 {
     return "dllOp";
+}
+
+void
+ForthDLLVocabulary::SetFlag( unsigned long flag )
+{
+	mDLLFlags |= flag;
 }
 
 //////////////////////////////////////////////////////////////////////

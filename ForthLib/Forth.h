@@ -513,7 +513,10 @@ typedef enum
 #define CODE_IS_USER_DEFINITION( CODE )                     (((CODE) & 0x0F) == kBaseTypeUserDefinition)
 
 // bit fields for kOpDLLEntryPoint
-#define DLL_ENTRY_TO_CODE( INDEX, NUM_ARGS )    (((NUM_ARGS) << 19) | (INDEX))
-#define CODE_TO_DLL_ENTRY_INDEX( VAL )          ((VAL) & 0x0007FFFF)
+#define DLL_ENTRY_TO_CODE( INDEX, NUM_ARGS, FLAGS )    (((NUM_ARGS) << 19) | FLAGS | INDEX )
+#define CODE_TO_DLL_ENTRY_INDEX( VAL )          (VAL & 0x0000FFFF)
 #define CODE_TO_DLL_ENTRY_NUM_ARGS( VAL)        (((VAL) & 0x00F80000) >> 19)
-
+#define CODE_TO_DLL_ENTRY_FLAGS( VAL)        (((VAL) & 0x00070000) >> 16)
+#define DLL_ENTRY_FLAG_RETURN_VOID		0x10000
+#define DLL_ENTRY_FLAG_RETURN_64BIT		0x20000
+#define DLL_ENTRY_FLAG_STDCALL			0x40000

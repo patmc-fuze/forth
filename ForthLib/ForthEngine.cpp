@@ -444,7 +444,7 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
         const char* pMemberName = pEntries->name;
         if ( (pEntries->returnType & kDTIsMethod) != 0 )
         {
-            if ( !strcmp( pMemberName, "new" ) )
+            if ( !strcmp( pMemberName, "_%new%_" ) )
             {
                 // this isn't a new method, it is the class constructor op
                 AddBuiltinOp( pMemberName, kOpBuiltIn, pEntries->value );
@@ -728,61 +728,69 @@ ForthEngine::FindSymbol( const char *pSymName )
 }
 
 void
-ForthEngine::DescribeSymbol( const char *pSymName )
+ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
 {
-    long *pEntry = NULL;
     char buff[256];
     char buff2[128];
     char c;
     int line = 1;
     bool notDone = true;
 
+    long opType = FORTH_OP_TYPE( op );
+    long opValue = FORTH_OP_VALUE( op );
+    bool isUserOp = (opType == kOpUserDef) || (opType == kOpUserDefImmediate);
+    const char* pStr = GetOpTypeName( opType );
+    if ( isUserOp )
+    {
+        ForthStructVocabulary::TypecodeToString( auxData, buff2, sizeof(buff2) );
+        sprintf( buff, "%s: type %s:%x value 0x%x 0x%x (%s) \n", pSymName, pStr, opValue, op, auxData, buff2 );
+    }
+    else
+    {
+        sprintf( buff, "%s: type %s:%x value 0x%x 0x%x \n", pSymName, pStr, opValue, op, auxData );
+    }
+    ConsoleOut( buff );
+    if ( isUserOp )
+    {
+        // disassemble the op until IP reaches next newer op
+        long* curIP = mpCore->userOps[ opValue ];
+        long* endIP = (opValue == (mpCore->numUserOps - 1)) ? GetDP() : mpCore->userOps[ opValue + 1 ];
+        while ( (curIP < endIP) && notDone )
+        {
+            sprintf( buff, "  %08x  ", curIP );
+            ConsoleOut( buff );
+            DescribeOp( curIP, buff, sizeof(buff), true );
+            ConsoleOut( buff );
+            sprintf( buff, "\n" );
+            ConsoleOut( buff );
+            if ( ((line & 31) == 0) && (mpShell != NULL) && mpShell->GetInput()->InputStream()->IsInteractive() )
+            {
+                ConsoleOut( "Hit ENTER to continue, 'q' & ENTER to quit\n" );
+                c = mpShell->GetChar();
+
+                if ( (c == 'q') || (c == 'Q') )
+                {
+                    c = mpShell->GetChar();
+                    notDone = false;
+                }
+            }
+            curIP = NextOp( curIP );
+            line++;
+        }
+    }
+}
+
+void
+ForthEngine::DescribeSymbol( const char *pSymName )
+{
+    long *pEntry = NULL;
+    char buff[256];
+
     ForthVocabulary* pFoundVocab = NULL;
     pEntry = GetVocabularyStack()->FindSymbol( pSymName, &pFoundVocab );
     if ( pEntry )
     {
-        long opType = FORTH_OP_TYPE( pEntry[0] );
-        long opValue = FORTH_OP_VALUE( pEntry[0] );
-        bool isUserOp = (opType == kOpUserDef) || (opType == kOpUserDefImmediate);
-        const char* pStr = GetOpTypeName( opType );
-        if ( isUserOp )
-        {
-            ForthStructVocabulary::TypecodeToString( pEntry[1], buff2, sizeof(buff2) );
-            sprintf( buff, "%s: type %s:%x value 0x%x 0x%x (%s) \n", pSymName, pStr, opValue, pEntry[0], pEntry[1], buff2 );
-        }
-        else
-        {
-            sprintf( buff, "%s: type %s:%x value 0x%x 0x%x \n", pSymName, pStr, opValue, pEntry[0], pEntry[1] );
-        }
-        ConsoleOut( buff );
-        if ( isUserOp )
-        {
-            // disassemble the op until IP reaches next newer op
-            long* curIP = mpCore->userOps[ opValue ];
-            long* endIP = (opValue == (mpCore->numUserOps - 1)) ? GetDP() : mpCore->userOps[ opValue + 1 ];
-            while ( (curIP < endIP) && notDone )
-            {
-                sprintf( buff, "  %08x  ", curIP );
-                ConsoleOut( buff );
-                DescribeOp( curIP, buff, sizeof(buff), true );
-                ConsoleOut( buff );
-                sprintf( buff, "\n" );
-                ConsoleOut( buff );
-                if ( ((line & 31) == 0) && (mpShell != NULL) && mpShell->GetInput()->InputStream()->IsInteractive() )
-                {
-                    ConsoleOut( "Hit ENTER to continue, 'q' & ENTER to quit\n" );
-                    c = mpShell->GetChar();
-
-                    if ( (c == 'q') || (c == 'Q') )
-                    {
-                        c = mpShell->GetChar();
-                        notDone = false;
-                    }
-                }
-                curIP = NextOp( curIP );
-                line++;
-            }
-        }
+		DescribeOp( pSymName, pEntry[0], pEntry[1] );
     }
     else
     {

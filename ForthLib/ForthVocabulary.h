@@ -214,8 +214,10 @@ public:
     long                LoadDLL( void );
     void                UnloadDLL( void );
     long *              AddEntry( const char* pFuncName, long numArgs );
+	void				SetFlag( unsigned long flag );
 protected:
     char *              mpDLLName;
+	unsigned long		mDLLFlags;
 #ifdef WIN32
     HINSTANCE           mhDLL;
 #endif
