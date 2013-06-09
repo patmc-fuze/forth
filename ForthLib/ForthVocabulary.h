@@ -161,6 +161,8 @@ public:
         return &(mNewestSymbol[0]);
     };
 
+	virtual bool IsStruct();
+	virtual bool IsClass();
 
 #ifdef MAP_LOOKUP
     void                        InitLookupMap();

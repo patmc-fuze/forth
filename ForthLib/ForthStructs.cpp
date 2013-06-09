@@ -85,10 +85,12 @@ ForthTypesManager::ForthTypesManager()
 {
     ASSERT( mpInstance == NULL );
     mpInstance = this;
+	mpCodeGenerator = new ForthStructCodeGenerator( this );
 }
 
 ForthTypesManager::~ForthTypesManager()
 {
+	delete mpCodeGenerator;
     mpInstance = NULL;
     delete mpStructInfo;
 }
@@ -299,10 +301,10 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
     ForthEngine *pEngine = ForthEngine::GetInstance();
     ForthCoreState* pCore = pEngine->GetCoreState();
     ForthVocabulary *pFoundVocab = NULL;
-
     // ProcessSymbol will compile opcodes into temporary buffer mCode
     long *pDst = &(mCode[0]);
 
+#if 0
     strcpy( mToken, pInfo->GetToken() );
     // get first token
     char *pToken = &(mToken[0]);
@@ -372,6 +374,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
         *pLastChar = '>';
     }
 
+    bool previousWasObject = false;
     if ( !explicitTOSCast )
     {
         //
@@ -399,6 +402,10 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
                     *pDst++ = OP_VOCAB_TO_CLASS;
                     typeCode = OBJECT_TYPE_TO_CODE( 0, kBCIClass );
                 }
+				if ( pEngine->InStructDefinition() && pFoundVocab->IsClass() ) {
+					// this is inside a method definition, and first symbol is a class member
+					previousWasObject = true;
+				}
             }
         }
         if ( pEntry == NULL )
@@ -418,12 +425,15 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
         }
     }   // endif ( !explicitTOSCast )
 
+    ForthTypeInfo* pStruct = GetStructInfo( CODE_TO_STRUCT_INDEX( typeCode ) );
     bool isPtr = CODE_IS_PTR( typeCode );
     bool isArray = CODE_IS_ARRAY( typeCode );
     long baseType = CODE_TO_BASE_TYPE( typeCode );
+    bool isMethod = CODE_IS_METHOD( typeCode );
     bool isObject = (baseType == kBaseTypeObject);
-    bool previousWasObject = false;
     long compileVarop = 0;
+    long offset = 0;
+	long op;
 
     // TBD: there is some wasteful fetching of full object when we just end up dropping method ptr
 
@@ -454,7 +464,116 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
                 compileVarop = OP_ADDRESS_OF + (varMode - kVarRef);
             }
         }
-        *pDst++ = pEntry[0];
+		if ( previousWasObject )
+		{
+			// first symbol is either a member variable or method
+			switch ( baseType )
+			{
+				case kBaseTypeObject:
+					break;
+
+				case kBaseTypeStruct:
+					previousWasObject = true;
+					break;
+
+				default:
+				{
+					// ERROR! must return object or struct
+					sprintf( errorMsg, "Method %s return value is not an object or struct", pToken );
+					pEngine->SetError( kForthErrorStruct, errorMsg );
+					return false;
+				}
+			}
+
+			if ( isMethod )
+			{
+				// this method must return either a struct or an object
+#define COMPILE_OP( _caption, _opType, _opData ) SPEW_STRUCTS( " " ## _caption ## " 0x%x", COMPILED_OP(_opType, _opData) ); *pDst++ = COMPILED_OP(_opType, _opData)
+#define COMPILE_SIMPLE_OP( _caption, _op ) SPEW_STRUCTS( " " ## _caption ## " 0x%x", _op ); *pDst++ = _op
+				COMPILE_OP( "method with this", kOpMethodWithThis, pEntry[0] );
+				pStruct = GetStructInfo( CODE_TO_STRUCT_INDEX( typeCode ) );
+				if ( pStruct == NULL )
+				{
+					pEngine->SetError( kForthErrorStruct, "Method return type not found by type manager" );
+					return false;
+				}
+			}
+			else
+			{
+				// first symbol is non-final member variable
+				// struct: do nothing (offset already added in)
+				// ptr to struct: compile offset, compile @
+				// array of structs: compile offset, compile array offset
+				// array of ptrs to structs: compile offset, compile array offset, compile at
+				// object: compile offset, compile d@
+				// ptr to object: compile offset, compile @, compile d@
+				// array of objects: compile offset, compile array offset, compile d@
+				// array of ptrs to objects: compile offset, compile array offset, compile at, compile d@
+				if ( isArray )
+				{
+					if ( isObject )
+					{
+						if ( isPtr )
+						{
+							COMPILE_OP( "object ptr array", kOpMemberIntArray, pEntry[0] );
+							COMPILE_SIMPLE_OP( "dfetch", OP_DFETCH );
+						}
+						else
+						{
+							COMPILE_OP( "object array", kOpMemberObjectArray, pEntry[0] );
+						}
+					}
+					else
+					{
+						// member struct
+						if ( isPtr )
+						{
+							COMPILE_OP( "member struct ptr array", kOpMemberIntArray, pEntry[0] );
+							COMPILE_SIMPLE_OP( "fetch", OP_FETCH );
+						}
+						else
+						{
+							COMPILE_OP( "member struct array", kOpMemberRef, pEntry[0] );
+							COMPILE_OP( "arrayOffsetOp", kOpArrayOffset, pEntry[2] );
+						}
+					}
+				}
+				else
+				{
+					if ( isObject )
+					{
+						if ( isPtr )
+						{
+							COMPILE_OP( "object ptr", kOpMemberInt, pEntry[0] );
+							COMPILE_SIMPLE_OP( "dfetch", OP_DFETCH );
+						}
+						else
+						{
+							COMPILE_OP( "object", kOpMemberObject, pEntry[0] );
+						}
+					}
+					else
+					{
+						if ( isPtr )
+						{
+							// just a struct
+							COMPILE_OP( "member struct ptr", kOpMemberRef, pEntry[0] );
+							COMPILE_SIMPLE_OP( "fetch", OP_FETCH );
+						}
+						else
+						{
+							// just a struct
+							COMPILE_OP( "member struct", kOpMemberRef, pEntry[0] );
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			// first symbol is a global or local variable
+			*pDst++ = pEntry[0];
+		}
         if ( isObject && isPtr )
         {
             *pDst++ = OP_DFETCH;
@@ -484,7 +603,6 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
     }
 #endif
 
-    ForthTypeInfo* pStruct = GetStructInfo( CODE_TO_STRUCT_INDEX( typeCode ) );
     if ( pStruct == NULL )
     {
         SPEW_STRUCTS( "First field not found by types manager\n" );
@@ -494,11 +612,6 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
     {
         SPEW_STRUCTS( "First field of type %s\n", pStruct->pVocab->GetName() );
     }
-    if ( pStruct->pVocab->IsClass() )
-    {
-        previousWasObject = true;
-    }
-    long offset = 0;
 
     ///////////////////////////////////
     //
@@ -538,7 +651,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
         isArray = CODE_IS_ARRAY( typeCode );
         baseType = CODE_TO_BASE_TYPE( typeCode );
         isObject = (baseType == kBaseTypeObject);
-        bool isMethod = CODE_IS_METHOD( typeCode );
+        isMethod = CODE_IS_METHOD( typeCode );
         long opType;
         offset += pEntry[0];
         SPEW_STRUCTS( " offset %d", offset );
@@ -555,7 +668,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
             if ( !isMethod )
             {
                 // TOS is object pair, discard vtable ptr since this is a member field access
-                *pDst++ = OP_DROP;
+				COMPILE_SIMPLE_OP( "discard object vtable", OP_DROP );
                 previousWasObject = false;
             }
         }
@@ -567,7 +680,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
             if ( compileVarop != 0 )
             {
                 // compile variable-mode setting op just before final field
-                *pDst++ = compileVarop;
+				COMPILE_SIMPLE_OP( "add varop before final", compileVarop );
             }
             SPEW_STRUCTS( " FINAL" );
             if ( isMethod )
@@ -590,13 +703,12 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
                 {
                     if ( isArray )
                     {
-                        *pDst++ = COMPILED_OP( kOpArrayOffset, pEntry[2] );
+                        COMPILE_OP( "array offset", kOpArrayOffset, pEntry[2] );
                     }
                     opType = kOpOffset;
                 }
             }
-            SPEW_STRUCTS( " opcode 0x%x\n", COMPILED_OP( opType, offset ) );
-            *pDst++ = COMPILED_OP( opType, offset );
+            COMPILE_OP( "final op", opType, offset );
         }
         else if ( isMethod )
         {
@@ -604,8 +716,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
             // this method must return either a struct or an object
             opType = kOpMethodWithTOS;
             offset = pEntry[0];
-            SPEW_STRUCTS( " opcode 0x%x\n", COMPILED_OP( opType, offset ) );
-            *pDst++ = COMPILED_OP( opType, offset );
+            COMPILE_OP( "non final method", opType, offset );
             offset = 0;
             switch ( baseType )
             {
@@ -656,25 +767,21 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
             {
                 if ( offset )
                 {
-                    SPEW_STRUCTS( " offsetOp 0x%x", COMPILED_OP( kOpOffset, offset ) );
-                    *pDst++ = COMPILED_OP( kOpOffset, offset );
+		            COMPILE_OP( "non final offsetOp", kOpOffset, offset );
                     offset = 0;
                 }
                 if ( isArray )
                 {
                     // TBD: verify the element size for arrays of ptrs to structs is 4
-                    SPEW_STRUCTS( " arrayOffsetOp 0x%x", COMPILED_OP( kOpArrayOffset, pEntry[2] ) );
-                    *pDst++ = COMPILED_OP( kOpArrayOffset, pEntry[2] );
+		            COMPILE_OP( "non final arrayOffsetOp", kOpOffset, pEntry[2] );
                 }
                 if ( isPtr )
                 {
-                    SPEW_STRUCTS( " fetchOp 0x%x", BUILTIN_OP( OP_FETCH ) );
-                    *pDst++ = BUILTIN_OP( OP_FETCH );
+                    COMPILE_SIMPLE_OP( "fetch", OP_FETCH );
                 }
                 if ( isObject )
                 {
-                    SPEW_STRUCTS( " dfetchOp 0x%x", BUILTIN_OP( OP_DFETCH ) );
-                    *pDst++ = BUILTIN_OP( OP_DFETCH );
+                    COMPILE_SIMPLE_OP( "dfetch", OP_DFETCH );
                     previousWasObject = true;
                 }
             }
@@ -682,12 +789,10 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
             {
                 if ( offset )
                 {
-                    SPEW_STRUCTS( " offsetOp 0x%x", COMPILED_OP( kOpOffset, offset ) );
-                    *pDst++ = COMPILED_OP( kOpOffset, offset );
+		            COMPILE_OP( "non final object offsetOp", kOpOffset, offset );
                     offset = 0;
                 }
-                SPEW_STRUCTS( " dfetchOp 0x%x", BUILTIN_OP( OP_DFETCH ) );
-                *pDst++ = BUILTIN_OP( OP_DFETCH );
+                COMPILE_SIMPLE_OP( "dfetch", OP_DFETCH );
                 previousWasObject = true;
             }
             pStruct = GetStructInfo( CODE_TO_STRUCT_INDEX( typeCode ) );
@@ -699,7 +804,6 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
         }
         pToken = pNextToken;
     }
-
     // when done, either compile (copy) or execute code in mCode buffer
     if ( pEngine->IsCompiling() )
     {
@@ -725,6 +829,31 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
         exitStatus = pEngine->ExecuteOps( &(mCode[0]) );
     }
     return true;
+#else
+	bool result = mpCodeGenerator->Generate( pInfo, pDst, MAX_ACCESSOR_LONGS );
+	if ( result )
+	{
+		// when done, either compile (copy) or execute code in mCode buffer
+		if ( pEngine->IsCompiling() )
+		{
+			int nLongs = pDst - &(mCode[0]);
+			if ( mpCodeGenerator->UncompileLastOpcode() )
+			{
+				pEngine->UncompileLastOpcode();
+			}
+			for ( int i = 0; i < nLongs; i++ )
+			{
+				pEngine->CompileOpcode( mCode[i] );
+			}
+		}
+		else
+		{
+			*pDst++ = BUILTIN_OP( OP_DONE );
+			exitStatus = pEngine->ExecuteOps( &(mCode[0]) );
+		}
+	}
+#endif
+    return result;
 }
 
 // compile symbol if it is a member variable or method
@@ -1131,12 +1260,6 @@ ForthStructVocabulary::FindSymbol( const char *pSymName, ulong serial )
     return NULL;
 }
 
-bool
-ForthStructVocabulary::IsClass( void )
-{
-    return false;
-}
-
 void
 ForthStructVocabulary::PrintEntry( long*   pEntry )
 {
@@ -1242,6 +1365,13 @@ void ForthStructVocabulary::EndDefinition()
 {
     mNumBytes = mMaxNumBytes;
 }
+
+bool
+ForthStructVocabulary::IsStruct()
+{
+	return true;
+}
+
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -1515,8 +1645,6 @@ ForthClassVocabulary::EndImplements()
 	// TBD: report error if not all methods implemented
     mCurrentInterface = 0;
 }
-
-
 
 bool
 ForthClassVocabulary::IsClass( void )
@@ -2035,3 +2163,5 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
         }
     }
 }
+
+

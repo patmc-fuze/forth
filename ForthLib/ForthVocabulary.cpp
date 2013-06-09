@@ -775,6 +775,18 @@ ForthVocabulary* ForthVocabulary::FindVocabulary( const char* pName )
     return pVocab;
 }
 
+bool
+ForthVocabulary::IsStruct()
+{
+	return false;
+}
+
+bool
+ForthVocabulary::IsClass()
+{
+	return false;
+}
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///     ForthLocalVocabulary

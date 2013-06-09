@@ -4,10 +4,22 @@ autoforget forth_autoload
 : forth_autoload "This is the forth_autoload.txt tools module" %s ;
 
 enum: baseTypes
-	kBTByte		kBTUByte		kBTShort		kBTUShort
-	kBTInt		kBTUInt			kBTLong			kBTULong
-	kBTFloat	kBTDouble		kBTString		kBTOp
-	kBTObject	kBTStruct		kBTUserDef		kBTVoid
+	0	kBTByte
+	1	kBTUByte
+	2	kBTShort
+	3	kBTUShort
+	4	kBTInt
+	5	kBTUInt	
+	6	kBTLong
+	7	kBTULong
+	8	kBTFloat
+	9	kBTDouble
+	0xa	kBTString
+	0xb	kBTOp
+	0xc	kBTObject
+	0xd	kBTStruct
+	0xe	kBTUserDef
+	0xf	kBTVoid
 ;enum
  
 0x7FFFFFFF -> int MAXINT
@@ -515,6 +527,36 @@ struct: WIN32_FIND_DATA
 ;struct
 
 #endif
+
+//######################################################################
+// debug and trace statements
+// stuff in d[ ... ] is only compiled if compileDebug is true
+// stuff in t[ ... ] is only compiled if compileTrace is true, and is only executed if runTrace is true
+
+0 -> int compileDebug
+
+0 -> int compileTrace
+0 -> int runTrace
+
+: d[
+  ']' word -> string( 250 ) ops
+  if( compileDebug )
+    ops interpret
+  endif
+;
+precedence d[
+
+: t[
+  ']' word -> string( 250 ) ops
+  if( compileTrace )
+    "runTrace if" interpret
+    ops interpret
+    "endif" interpret
+  endif
+;
+precedence t[
+
+//######################################################################
 
 : goclient 0x6701a8c0 client ;
 : goserver server ;

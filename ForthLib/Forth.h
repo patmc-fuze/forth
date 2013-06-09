@@ -39,12 +39,12 @@ typedef enum
     kOpConstant = 20,    // low 24 bits is signed symbol value
     kOpConstantString,
     kOpOffset,          // low 24 bits is signed offset value
-    kOpArrayOffset,     // low 24 bits is array element size
+    kOpArrayOffset,     // low 24 bits is array element size, TOS is array base, NTOS is index
     kOpAllocLocals,     // low 24 bits is frame size in longs
     kOpLocalRef,
     kOpInitLocalString,     // bits 0:11 are string length in bytes, bits 12:23 are frame offset in longs
     kOpLocalStructArray,   // bits 0:11 are padded struct size in bytes, bits 12:23 are frame offset in longs
-    kOpOffsetFetch,          // low 24 bits is signed offset value
+    kOpOffsetFetch,          // low 24 bits is signed offset in longs, TOS is long ptr
     kOpMemberRef,
 
     kOpLocalByte = 30,

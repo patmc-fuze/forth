@@ -127,6 +127,12 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 8 2013
+
+I split out the struct/class code generation from ForthStructs into ForthStructCodeGenerator,
+it works well enough for classtest.txt to run without crashing.
+I also reintroduced the debug and trace user definitions.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 30 2013
 
 I'm debugging some code generation bugs I found when trying to add a file class.

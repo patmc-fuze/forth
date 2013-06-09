@@ -7,12 +7,15 @@
 
 #include "Forth.h"
 #include "ForthForgettable.h"
+#include "ForthStructCodeGenerator.h"
 #include <vector>
 
 class ForthEngine;
 class ForthStructVocabulary;
 class ForthClassVocabulary;
 class ForthNativeType;
+class ForthTypesManager;
+class ForthStructCodeGenerator;
 
 // each new structure type definition is assigned a unique index
 // the struct type index is:
@@ -106,6 +109,7 @@ protected:
     char                            mToken[ DEFAULT_INPUT_BUFFER_LEN ];
     long                            mCode[ MAX_ACCESSOR_LONGS ];
     long*                           mpClassMethods;
+	ForthStructCodeGenerator*		mpCodeGenerator;
 };
 
 class ForthStructVocabulary : public ForthVocabulary
@@ -132,7 +136,7 @@ public:
     // handle invocation of a struct op - define a local/global struct or struct array, or define a field
     virtual void	    DefineInstance( void );
 
-	virtual bool		IsClass( void );
+	virtual bool		IsStruct( void );
 
     void                AddField( const char* pName, long fieldType, int numElements );
     long                GetAlignment( void );

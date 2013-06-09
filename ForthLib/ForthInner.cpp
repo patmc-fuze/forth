@@ -1584,7 +1584,7 @@ OPTYPE_ACTION( OffsetFetchAction )
     {
       opVal |= 0xFF000000;
     }
-    long v = *((long *)(SPOP + opVal));
+    long v = *(((long *)(SPOP)) + opVal);
     SPUSH( v );
 }
 

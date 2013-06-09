@@ -761,6 +761,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\ForthStructCodeGenerator.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\ForthStructs.cpp"
 				>
 			</File>
@@ -1044,6 +1048,10 @@
 			</File>
 			<File
 				RelativePath="ForthShell.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ForthStructCodeGenerator.h"
 				>
 			</File>
 			<File
