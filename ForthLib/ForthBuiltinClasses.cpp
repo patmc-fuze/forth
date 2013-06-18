@@ -106,10 +106,13 @@ namespace
         {
             METHOD_RETURN;
 		}
-        ForthEngine *pEngine = ForthEngine::GetInstance();
-        ulong deleteOp = GET_TPM[ kMethodDelete ];
-        pEngine->ExecuteOneOp( deleteOp );
-        // we are effectively chaining to the delete op, its method return will pop TPM & TPD for us
+		else
+		{
+			ForthEngine *pEngine = ForthEngine::GetInstance();
+			ulong deleteOp = GET_TPM[ kMethodDelete ];
+			pEngine->ExecuteOneOp( deleteOp );
+			// we are effectively chaining to the delete op, its method return will pop TPM & TPD for us
+		}
     }
 
     baseMethodEntry objectMembers[] =

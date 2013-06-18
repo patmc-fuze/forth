@@ -127,6 +127,20 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 15 2013
+
+I did a log file scanner for work to process 600+ MB stderr files to get the
+unique exceptions using the builtin classes and the file class.  I found a
+few bugs, the biggest being that I forgot that delete doesn't automatically
+propagate - to support this, I had a way to do 'super.delete'.  I added a
+super opcode and added support for it as the first symbol to the struct code
+generator.  Adding that made the number of unfreed object on exit become 0.
+I added a built in hashing function to oString, the hash is generated the
+first time you request it with oString.hash, and is only regenerated if it
+has been invalidated by a set or append operation.
+I added 'ofif' a case op which is like 'of' except it is preceeded by an
+arbitrary boolean expression, not a constant.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 8 2013
 
 I split out the struct/class code generation from ForthStructs into ForthStructCodeGenerator,
