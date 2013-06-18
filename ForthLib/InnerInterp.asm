@@ -5726,6 +5726,7 @@ opsTable:
 	DD	FLAT:intoBop
 	DD	FLAT:addToBop
 	DD	FLAT:subtractFromBop
+	DD	FLAT:extOp					; super
 
 	;	
     ; stuff below this line can be rearranged

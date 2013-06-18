@@ -41,7 +41,9 @@ namespace
         "paren",
         "string",
         "colon",
-        "poundDirective"
+        "poundDirective",
+		"of",
+		"ofif"
     };
 
     const char * GetTagString( long tag )

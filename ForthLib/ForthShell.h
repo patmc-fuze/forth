@@ -65,6 +65,8 @@ typedef enum
    kShellTagString   = 8,
    kShellTagColon    = 9,
    kShellTagPoundIf  = 10,
+   kShellTagOf       = 11,
+   kShellTagOfIf     = 12,
    // if you add tags, remember to update TagStrings in ForthShell.cpp
    kNumShellTags
 } eShellTag;

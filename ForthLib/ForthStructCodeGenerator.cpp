@@ -180,21 +180,39 @@ bool ForthStructCodeGenerator::HandleFirst()
     bool explicitTOSCast = false;
     bool isClassReference = false;
     char* pLastChar = mpNextToken - 2;
-    if ( (pEntry == NULL) && (*mpToken == '<') && (*pLastChar == '>') )
-    {
-        ////////////////////////////////////
-        //
-        // symbol may be of form <STRUCTTYPE>.STUFF
-        //
-        ////////////////////////////////////
-        *pLastChar = '\0';
-        ForthStructVocabulary* pCastVocab = mpTypeManager->GetStructVocabulary( mpToken + 1 );
-        if ( pCastVocab != NULL )
-        {
-            explicitTOSCast = true;
-            mTypeCode = STRUCT_TYPE_TO_CODE( kDTIsPtr, pCastVocab->GetTypeIndex() );
-        }
-        *pLastChar = '>';
+	if ( pEntry == NULL )
+	{
+		if ( strcmp( mpToken, "super") == 0 )
+		{
+			ForthStructVocabulary* pSuperVocab = mpTypeManager->GetNewestClass()->ParentClass();
+			if ( pSuperVocab != NULL )
+			{
+				explicitTOSCast = true;
+				mTypeCode = STRUCT_TYPE_TO_CODE( kDTIsPtr, pSuperVocab->GetTypeIndex() );
+				*mpDst++ = OP_SUPER;
+			}
+			else
+			{
+                SPEW_STRUCTS( "Invalid use of super\n" );
+                return false;
+			}
+		}
+		else if ( (*mpToken == '<') && (*pLastChar == '>') )
+		{
+			////////////////////////////////////
+			//
+			// symbol may be of form <STRUCTTYPE>.STUFF
+			//
+			////////////////////////////////////
+			*pLastChar = '\0';
+			ForthStructVocabulary* pCastVocab = mpTypeManager->GetStructVocabulary( mpToken + 1 );
+			if ( pCastVocab != NULL )
+			{
+				explicitTOSCast = true;
+				mTypeCode = STRUCT_TYPE_TO_CODE( kDTIsPtr, pCastVocab->GetTypeIndex() );
+			}
+			*pLastChar = '>';
+		}
     }
 
 	bool isMember = false;
@@ -217,6 +235,7 @@ bool ForthStructCodeGenerator::HandleFirst()
                 ForthStructVocabulary* pClassVocab = mpTypeManager->GetStructVocabulary( mpToken );
                 if ( (pClassVocab != NULL) && pClassVocab->IsClass() )
                 {
+					// TODO! this doesn't work currently, need to compile the vocabulary op, at least
                     // this is invoking a class method on a class object (IE object.new)
                     // the first compiled opcode is the varop 'vocabToClass', which will be
                     // followed by the opcode for the class vocabulary, ForthVocabulary::DoOp

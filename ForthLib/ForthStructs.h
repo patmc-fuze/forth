@@ -183,6 +183,7 @@ public:
 	long				GetNumInterfaces( void );
     virtual void        Extends( ForthStructVocabulary *pParentStruct );
     ForthClassObject*   GetClassObject( void );
+    ForthClassVocabulary* ParentClass( void );
 
     virtual void        PrintEntry( long*   pEntry );
 

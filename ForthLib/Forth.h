@@ -339,6 +339,7 @@ class ForthThread;
 #define OP_INTO                 BUILTIN_OP(60)
 #define OP_INTO_PLUS            BUILTIN_OP(61)
 #define OP_INTO_MINUS           BUILTIN_OP(62)
+#define OP_SUPER				BUILTIN_OP(63)
 
 #define BASE_DICT_PRECEDENCE_FLAG 0x100
 typedef struct

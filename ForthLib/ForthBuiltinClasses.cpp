@@ -21,6 +21,10 @@ long gStatKeeps = 0;
 long gStatReleases = 0;
 #endif
 
+extern "C" {
+	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
+};
+
 namespace
 {
 
@@ -1505,8 +1509,9 @@ namespace
 
     struct oStringStruct
     {
-        ulong       refCount;
-        oString*   str;
+        ulong		refCount;
+		ulong		hash;
+        oString*	str;
     };
 
 
@@ -1516,6 +1521,7 @@ namespace
         ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
         MALLOCATE_OBJECT( oStringStruct, pString );
         pString->refCount = 0;
+        pString->hash = 0;
 		pString->str = CreateRCString( gDefaultRCStringSize );
         PUSH_PAIR( pPrimaryInterface->GetMethods(), pString );
     }
@@ -1572,9 +1578,11 @@ namespace
 			// enlarge string
 			free( dst );
 			dst = CreateRCString( len );
+			pString->str = dst;
 		}
 		dst->curLen = len;
 		memcpy( &(dst->data[0]), srcStr, len + 1 );
+		pString->hash = 0;
         METHOD_RETURN;
     }
 
@@ -1588,12 +1596,34 @@ namespace
 		if ( newLen > dst->maxLen )
 		{
 			// enlarge string
-			int dataBytes = ((newLen  + 4) & ~3);
+			//int dataBytes = ((((newLen * 6) >> 2)  + 4) & ~3);
+			int dataBytes = ((newLen + 4) & ~3);
 	        size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
 			dst = (oString *) realloc( dst, nBytes );
+			dst->maxLen = dataBytes - 1;
+			pString->str = dst;
 		}
 		memcpy( &(dst->data[dst->curLen]), srcStr, len + 1 );
 		dst->curLen = newLen;
+		pString->hash = 0;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oStringResizeMethod )
+    {
+        GET_THIS( oStringStruct, pString );
+		long newLen = SPOP;
+		oString* dst = pString->str;
+		int dataBytes = ((newLen + 4) & ~3);
+        size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
+		dst = (oString *) realloc( dst, nBytes );
+		dst->maxLen = dataBytes - 1;
+		pString->str = dst;
+		if ( dst->curLen > dst->maxLen )
+		{
+			dst->curLen = dst->maxLen;
+			pString->hash = 0;
+		}
         METHOD_RETURN;
     }
 
@@ -1651,6 +1681,53 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oStringClearMethod )
+    {
+        GET_THIS( oStringStruct, pString );
+		pString->hash = 0;
+		oString* dst = pString->str;
+		dst->curLen = 0;
+		dst->data[0] = '\0';
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oStringHashMethod )
+    {
+        GET_THIS( oStringStruct, pString );
+		pString->hash = 0;
+		oString* dst = pString->str;
+		if ( dst->curLen != 0 )
+		{
+			pString->hash = SuperFastHash( &(dst->data[0]), dst->curLen, 0 );
+		}
+		SPUSH( (long)(pString->hash) );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oStringAppendCharMethod )
+    {
+        GET_THIS( oStringStruct, pString );
+		char c = (char) SPOP;
+		oString* dst = pString->str;
+		long newLen = dst->curLen + 1;
+		if ( newLen > dst->maxLen )
+		{
+			// enlarge string
+			//int dataBytes = ((((newLen * 6) >> 2)  + 4) & ~3);
+			int dataBytes = ((newLen + 4) & ~3);
+	        size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
+			dst = (oString *) realloc( dst, nBytes );
+			dst->maxLen = dataBytes - 1;
+			pString->str = dst;
+		}
+		char* pDst = &(dst->data[dst->curLen]);
+		*pDst++ = c;
+		*pDst = '\0';
+		dst->curLen = newLen;
+		pString->hash = 0;
+        METHOD_RETURN;
+    }
+
 
     baseMethodEntry oStringMembers[] =
     {
@@ -1662,9 +1739,13 @@ namespace
         METHOD(     "get",                  oStringGetMethod ),
         METHOD(     "set",                  oStringSetMethod ),
         METHOD(     "append",               oStringAppendMethod ),
+        METHOD(     "resize",               oStringResizeMethod ),
         METHOD(     "startsWith",           oStringStartsWithMethod ),
         METHOD(     "endsWith",             oStringEndsWithMethod ),
         METHOD(     "contains",             oStringContainsMethod ),
+        METHOD(     "clear",                oStringClearMethod ),
+        METHOD(     "hash",                 oStringHashMethod ),
+        METHOD(     "appendChar",           oStringAppendCharMethod ),
         // following must be last in table
         END_MEMBERS
     };

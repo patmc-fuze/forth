@@ -1072,9 +1072,32 @@ FORTHOP( ofOp )
 
     // save address for endof
     pShellStack->Push( (long)GET_DP );
+    pShellStack->Push( kShellTagOf );
     pShellStack->Push( kShellTagCase );
     // this will be set to a caseBranch by endof
     pEngine->CompileOpcode( OP_ABORT );
+}
+
+
+// ofif - has precedence
+FORTHOP( ofifOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    if ( !pShell->CheckSyntaxError( "ofif", pShellStack->Pop(), kShellTagCase ) )
+    {
+        return;
+    }
+
+    // save address for endof
+    pShellStack->Push( (long)GET_DP );
+    pShellStack->Push( kShellTagOfIf );
+    pShellStack->Push( kShellTagCase );
+    // this will be set to a zBranch by endof
+    pEngine->CompileOpcode( OP_ABORT );
+	// if the ofif test succeeded, we need to dispose of the switch input value
+    pEngine->CompileOpcode( OP_DROP );
 }
 
 
@@ -1094,14 +1117,27 @@ FORTHOP( endofOp )
     {
         return;
     }
-    long *pOfOp = (long *) pShellStack->Pop();
+    long tag = pShellStack->Pop();
+    long *pOp = (long *) pShellStack->Pop();
     // fill in the branch taken when case doesn't match
-    *pOfOp = COMPILED_OP( kOpCaseBranch, (GET_DP - pOfOp) - 1 );
+	if ( tag == kShellTagOfIf )
+	{
+        *pOp = COMPILED_OP( kOpBranchZ, (GET_DP - pOp) - 1 );
+	}
+	else if ( pShell->CheckSyntaxError( "endof", tag, kShellTagOf ) )
+	{
+	    *pOp = COMPILED_OP( kOpCaseBranch, (GET_DP - pOp) - 1 );
+	}
+	else
+	{
+		return;
+	}
 
     // save address for endcase
     pShellStack->Push( (long) pDP );
     pShellStack->Push( kShellTagCase );
 }
+
 
 // endcase - has precedence
 FORTHOP( endcaseOp )
@@ -1847,9 +1883,35 @@ FORTHOP( cCommaOp )
     pEngine->SetDP( (long *) pChar);
 }        
 
-FORTHOP(hereOp)
+FORTHOP( hereOp )
 {
-    SPUSH( (long) GET_DP );
+    ForthEngine *pEngine = GET_ENGINE;
+    char *pChar = (char *)GET_DP;
+
+	switch( GET_VAR_OPERATION )
+	{
+		case kVarDefaultOp:
+		case kVarFetch:
+		    SPUSH( (long) pChar );
+			break;
+		case kVarStore:
+		    pEngine->SetDP( (long *) (SPOP) );
+			break;
+		case kVarPlusStore:
+			pChar += SPOP;
+		    pEngine->SetDP( (long *) pChar );
+			break;
+		case kVarMinusStore:
+			pChar -= SPOP;
+		    pEngine->SetDP( (long *) pChar );
+			break;
+		case kVarRef:
+		    SPUSH( (long) &(pCore->pDictionary->pCurrent) );
+			break;
+		default:
+            SET_ERROR( kForthErrorBadVarOperation );
+	}
+	CLEAR_VAR_OPERATION;
 }
 
 FORTHOP( mallocOp )
@@ -3082,6 +3144,18 @@ FORTHOP( offsetOfOp )
     {
         pEngine->SetError( kForthErrorUnknownSymbol, pType );
     }
+}
+
+FORTHOP( superOp )
+{
+	// push version of this which has current objects data pointer and super class method pointer
+    SPUSH( ((long) GET_TPD) );
+	long* pMethods = GET_TPM;
+	// the long before method 0 holds the class object pointer
+	ForthClassObject* pClassObject = (ForthClassObject*) pMethods[-1];
+	// TBD: some error checking here might be nice
+	pMethods = pClassObject->pVocab->ParentClass()->GetInterface(0)->GetMethods();
+    SPUSH( ((long) pMethods) );
 }
 
 FORTHOP( thisOp )
@@ -5478,6 +5552,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    intoOp,                 "->" ),
     OP_DEF(    addToOp,                "->+" ),
     OP_DEF(    subtractFromOp,         "->-" ),
+    OP_DEF(    superOp,                "super" ),
 
     // stuff below this line can be rearranged
     OP_DEF(    thisOp,                 "this" ),
@@ -5790,6 +5865,7 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(againOp,                "again" ),
     PRECOP_DEF(caseOp,                 "case" ),
     PRECOP_DEF(ofOp,                   "of" ),
+    PRECOP_DEF(ofifOp,                 "ofif" ),
     PRECOP_DEF(endofOp,                "endof" ),
     PRECOP_DEF(endcaseOp,              "endcase" ),
 

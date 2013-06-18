@@ -1259,6 +1259,12 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
     CONSOLE_STRING_OUT( buff );
 }
 
+ForthClassVocabulary*
+ForthClassVocabulary::ParentClass( void )
+{
+	return mpSearchNext->IsClass() ? (ForthClassVocabulary *) mpSearchNext : NULL;
+}
+
 // TBD: implement FindSymbol which iterates over all interfaces
 
 //////////////////////////////////////////////////////////////////////
