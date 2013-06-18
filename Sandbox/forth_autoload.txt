@@ -21,6 +21,22 @@ enum: baseTypes
 	0xe	kBTUserDef
 	0xf	kBTVoid
 ;enum
+
+enum: shellTags
+	kShellTagNothing	// 0
+	kShellTagDo
+	kShellTagBegin
+	kShellTagWhile
+	kShellTagCase		// 4
+	kShellTagIf
+	kShellTagElse
+	kShellTagParen
+	kShellTagString		// 8
+	kShellTagColon
+	kShellTagPoundIf
+	kShellTagOf
+	kShellTagOfIf		// 12
+;enum
  
 0x7FFFFFFF -> int MAXINT
 0x80000000 -> int MININT
@@ -45,6 +61,11 @@ enum: baseTypes
   // TOS is ptr to nul terminated string at DP
   here over strlen 1+ callot
   swap strcpy
+;
+
+// return hash of a string
+: $hash
+  dup strlen 0 hash
 ;
 
 0 -> int helpChain
@@ -530,8 +551,8 @@ struct: WIN32_FIND_DATA
 
 //######################################################################
 // debug and trace statements
-// stuff in d[ ... ] is only compiled if compileDebug is true
-// stuff in t[ ... ] is only compiled if compileTrace is true, and is only executed if runTrace is true
+// stuff in d[ ... ]d is only compiled if compileDebug is true
+// stuff in t[ ... ]t is only compiled if compileTrace is true, and is only executed if runTrace is true
 
 0 -> int compileDebug
 
@@ -539,22 +560,36 @@ struct: WIN32_FIND_DATA
 0 -> int runTrace
 
 : d[
-  ']' word -> string( 250 ) ops
-  if( compileDebug )
-    ops interpret
-  endif
+  // remember start of debug section in case we need to uncompile it
+  here
 ;
 precedence d[
 
+: ]d
+  // TOS is dp when d[ was executed - start of debug section
+  if( compileDebug )
+    // leave debug section as is
+    drop
+  else
+    // uncompile debug section
+    -> here
+  endif
+;
+precedence ]d
+
 : t[
-  ']' word -> string( 250 ) ops
   if( compileTrace )
-    "runTrace if" interpret
-    ops interpret
-    "endif" interpret
+    [compile] runTrace [compile] if
   endif
 ;
 precedence t[
+
+: ]t
+  if( compileTrace )
+    [compile] endif
+  endif
+;
+precedence ]t
 
 //######################################################################
 

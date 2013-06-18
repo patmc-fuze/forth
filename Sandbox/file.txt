@@ -1,0 +1,360 @@
+
+autoforget file
+
+class: file extends object
+
+  int fp
+  oByteArray buffer		// line buffer for getLine
+  byte readOnly
+  byte unixEol			// end-of-line for putLine
+  byte noTrimEol		// defined bass-ackwards so it will default to 'trim eol' IE remove trailing CR and/or LF in getLine
+  byte stdHandle		// true if file is stdin, stdout or stderr, used to prevent mistakenly closing stdout
+  
+  method: error
+    "error in file." %s %s %nl
+  ;method
+
+  method: show
+    "fp " %s fp %x
+    "  buffer " %s buffer %x 
+    "  unixEol " %s unixEol %d
+    "  noTrimEol " %s noTrimEol %d
+    "  stdHandle " %s stdHandle %d %nl
+  ;method
+  
+  method: delete
+    if( fp )
+      fclose( fp )
+    endif
+    if( buffer l0!= )
+      buffer.delete
+    endif
+    super.delete
+  ;method
+    
+  method: close
+    if( fp )
+      if( not( stdHandle ) )
+        fclose( fp )
+        if
+          error( "close" )
+        endif
+      endif
+      null -> fp
+    else
+      error( "close - not open" )
+    endif
+  ;method
+  
+  // open( "path" "mode" ) ... t/f  
+  method: open
+    -> ptrTo byte mode
+    -> ptrTo byte path
+    
+    if( fp )
+      close
+    endif
+    mode c@ 'r' == -> readOnly   // yeah, this is probably wrong
+
+    if( path c@ '<' == )
+      if( strcmp( "<stdin>" path ) 0== )
+        if( not( readOnly ) )
+          error( "open - can't open stdin for write" )
+          exit
+        endif
+        stdin -> fp
+        true -> stdHandle
+      endif
+      if( strcmp( "<stdout>" path ) 0== )
+        if( readOnly )
+          error( "open - can't open stdout for read" )
+          exit
+        endif
+        stdout -> fp
+        true -> stdHandle
+      endif
+      if( strcmp( "<stderr>" path ) 0== )
+        if( readOnly )
+          error( "open - can't open stderr for read" )
+          exit
+        endif
+        stderr -> fp
+        true -> stdHandle
+      endif
+    endif
+    
+    if( fp null == )
+      fopen( path mode ) -> fp
+    endif
+    
+    if( fp )
+      true
+    else
+      error( "open" )
+      false
+    endif
+  ;method
+
+  method: getByte
+    if( fp )
+      fgetc( fp )
+      if( dup -1 == )
+        error( "getByte" )
+      endif
+    else
+      error( "getByte - not open" )
+      0
+    endif
+  ;method
+
+  method: getShort
+    0 -> short val
+    if( fp )
+      fread( ref val 2 1 fp )
+      if( 1 != )
+        error( "getShort" )
+      endif
+    else
+      error( "getShort - not open" )
+    endif
+    val
+  ;method
+        
+  method: getInt
+    0 -> int val
+    if( fp )
+      fread( ref val 4 1 fp )
+      if( 1 != )
+        error( "getInt" )
+      endif
+    else
+      error( "getInt - not open" )
+    endif
+    val
+  ;method
+        
+  method: getLong
+    dnull -> long val
+    if( fp )
+      fread( ref val 8 1 fp )
+      if( 1 != )
+        error( "getLong" )
+      endif
+    else
+      error( "getLong - not open" )
+    endif
+    val
+  ;method
+        
+  method: putByte
+    if( fp )
+      if( readOnly )
+        error( "putByte - readOnly" )
+      else
+        fputc( fp )
+        if( -1 == )
+          error( "putByte" )
+        endif
+      endif
+    else
+      error( "putByte - not open" )
+      drop
+    endif
+  ;method
+
+  method: putShort
+    -> short val
+    if( fp )
+      if( readOnly )
+        error( "putShort - readOnly" )
+      else
+        fwrite( ref val 2 1 fp )
+        if( 1 != )
+          error( "putShort" )
+        endif
+      endif
+    else
+      error( "putShort - not open" )
+    endif
+  ;method
+        
+  method: putInt
+    -> int val
+    if( fp )
+      if( readOnly )
+        error( "putInt - readOnly" )
+      else
+        fwrite( ref val 4 1 fp )
+        if( 1 != )
+          error( "putInt" )
+        endif
+      endif
+    else
+      error( "putInt - not open" )
+    endif
+  ;method
+        
+  method: putLong
+    -> long val
+    if( fp )
+      if( readOnly )
+        error( "putLong - readOnly" )
+      else
+        fwrite( ref val 8 1 fp )
+        if( 1 != )
+          error( "putLong" )
+        endif
+      endif
+    else
+      error( "putLong - not open" )
+    endif
+  ;method
+  
+  method: putLine
+    if( fp )
+      if( readOnly )
+        error( "putLine - readOnly" )
+      else
+        fputs( fp )
+        if( -1 == )
+          error( "putLine" )
+        else
+          if( unixEol )
+            putByte( 0x0A )
+          else
+            putShort( 0x0A0D )
+          endif
+        endif
+      endif
+    else
+      error( "putLine - not open" )
+      drop
+    endif
+  ;method
+
+  method: getLine
+    null -> ptrTo byte result
+    if( fp )
+      ftell( fp ) -> int pos
+      
+      if( buffer l0== )
+        d[ "file.getLine allocating buffer\n" %s ]d
+        new oByteArray -> buffer
+        buffer.resize( 8 )
+        //buffer.resize( 32000 )
+      endif
+      //buffer.resize( 1 )			// just for testing
+      
+      // loop until an end-of-line is read (or eof)
+      false -> int done
+      buffer.base -> ptrTo byte pDst
+      buffer.count -> int charsToGet
+      begin
+        if( fgets( pDst charsToGet fp )  )
+          buffer.base -> pDst
+          pDst -> result
+          d[ t[ "file.getLine got {" %s pDst %s "}\n" %s ]t ]d
+          do( buffer.count 0 )
+            pDst c@ -> byte c
+            if( c 0== )
+              // buffer didn't have newline, resize buffer and try again
+              buffer.resize( buffer.count 5 * 2 >> )	// increase to 5/4 current size
+              buffer.base i + -> pDst
+              buffer.count i - -> charsToGet
+              leave
+            else
+              if( c 0x0D == )
+                if( not( noTrimEol ) )
+                  0 pDst c!
+                endif
+              else
+                if( c 0x0A == )
+                  if( not( noTrimEol ) )
+                    0 pDst c!
+                  endif
+                  true -> done
+                  leave
+                endif
+              endif
+            endif
+            1 ->+ pDst
+          loop
+        else
+          //error( "getLine fgets" )
+          true -> done
+        endif
+      until( or( done feof( fp ) ) )
+    else
+      error( "getLine - not open" )
+    endif
+    
+    result
+  ;method
+
+  method: setUnixEol
+    -> unixEol
+  ;method
+  
+  method: getUnixEol
+    unixEol
+  ;method
+  
+  method: setTrimEol
+    not -> noTrimEol
+  ;method
+
+  method: getTrimEol
+    noTrimEol not
+  ;method
+    
+  method: eof
+    feof( fp )
+  ;method
+
+  method: len
+    flen( fp )
+  ;method
+  
+  method: tell
+    ftell( fp )
+  ;method
+  
+  method: seekAbs
+    if( fseek( fp swap 0 ) )
+      error( "seekAbs" )
+    endif
+  ;method
+  
+  method: seekRel
+    if( fseek( fp swap 1 ) )
+      error( "seekAbs" )
+    endif
+  ;method
+  
+  method: seekEnd
+    if( fseek( fp swap 2 ) )
+      error( "seekAbs" )
+    endif
+  ;method
+  
+  method: redirectOutput
+    if( readOnly )
+      error( "redirectOutput - readOnly" )
+    else
+      outToFile( fp )
+    endif
+  ;method
+
+  method: setBufferSize
+    if( buffer l0== )
+      new oByteArray -> buffer
+    endif
+    buffer.resize
+  ;method
+    
+;class
+
+
+
+loaddone
+
