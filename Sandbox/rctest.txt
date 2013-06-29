@@ -1,0 +1,200 @@
+autoforget rctest
+: rctest ;
+
+// add ndrop
+// fix bug where apps which contain app_autoload.txt only run it if there is an app_autoload.txt file also
+// is there a bug where an embedded app_autoload.txt which has no loaddone gets an error at eof?
+// see if builtin classes have a 'new' method
+: ndrop 0 do drop loop ;
+
+// N_STRINGS N oString makeStr ... oString object
+: makeStr
+  -> oString str
+  -> int nStrings
+  do( 0 nStrings 1- )
+    //i %d %nl
+    str.append( i pick )
+  +loop( -1 )
+  ndrop( nStrings )
+  str.release
+;
+
+: ninterpret
+  new oString -> oString foo
+  makeStr( foo )
+  interpret( foo.get )
+  //foo.get %s %nl
+  foo.release
+;
+
+: obj  // obj TYPE_NAME INSTANCE_NAME  - defines obj var and creates instance
+  256 string typeName
+  blword -> typeName
+  256 string instName
+  blword -> instName
+  r[ "new "  typeName " -> " typeName " " instName ]r ninterpret
+;
+
+: str  // STRING_PTR str INSTANCE_NAME  - defines oString var and creates instance & initializes value to STRING_PTR
+  new oString -> oString instName
+  blword instName.set
+  r[ "new oString -> oString " instName.get " " instName.get ".set" ]r ninterpret
+  instName.release
+;
+
+
+: showContainer
+//ddup <object>.show
+  -> oIter iter
+  begin
+    iter.next
+  while
+    ddup <oString>.get %s %bl <object>.show %nl
+  repeat
+;
+
+: showContainerR
+//ddup <object>.show
+  -> oIter iter
+  begin
+    iter.prev
+  while
+    ddup <oString>.get %s %bl <object>.show %nl
+  repeat
+;
+
+: showArray
+  <oArray>.headIter ddup showContainer
+  <oIter>.release
+;
+
+: showArrayR
+  <oArray>.tailIter ddup showContainerR
+  <oIter>.release
+;
+
+: showList
+  <oList>.headIter ddup showContainer
+  <oIter>.release
+;
+
+: showListR
+  <oList>.tailIter ddup showContainerR
+  <oIter>.release
+;
+
+: showMap
+  <oMap>.headIter -> oMapIter iter
+  begin
+    iter.nextPair
+  while
+    "key=" %s %d %bl ddup <oString>.get %s %bl <object>.show %nl
+  repeat
+  iter.release
+;
+
+: showMapR
+  <oMap>.tailIter -> oMapIter iter
+  begin
+    iter.prevPair
+  while
+    "key=" %s %d %bl ddup <oString>.get %s %bl <object>.show %nl
+  repeat
+  iter.release
+;
+
+"alsatian" str dogA
+"beagle" str dogB
+"corgie" str dogC
+obj oArray adogs
+obj oList ldogs
+obj oMap mdogs
+
+
+: test
+  "using arrays:\n" %s
+
+  "empty\n" %s
+  adogs showArray  adogs showArrayR
+  dogA adogs.push
+  "one element\n" %s
+  adogs showArray  adogs showArrayR
+  dogB adogs.push
+  dogC adogs.push
+  "three elements\n" %s
+  adogs showArray  adogs showArrayR
+
+
+  %nl %nl
+  "using lists:\n" %s
+
+  "empty\n" %s
+  ldogs showList  ldogs showListR
+  dogC ldogs.addHead
+  "one element\n" %s
+  ldogs showList  ldogs showListR
+  dogA ldogs.addTail
+  dogB ldogs.addHead
+  "three elements\n" %s
+  ldogs showList  ldogs showListR
+
+
+  %nl %nl
+  "using maps:\n" %s
+  "empty\n" %s
+  mdogs showMap  mdogs showMapR
+  dogA 1 mdogs.set
+  "one element\n" %s
+  mdogs showMap  mdogs showMapR
+  dogB 2 mdogs.set
+  dogC 3 mdogs.set
+  "three elements\n" %s
+  mdogs showMap  mdogs showMapR
+  %nl %nl
+;
+
+#if 0
+
+class: animal extends object
+;class
+
+
+class: zoo extends object
+  oString name
+  oArray cages
+  
+  // ZOO_NAME ...
+  method: init
+    new oString -> name
+    new oArray -> cages
+    name.set
+  ;method
+  
+  method: delete
+    super.delete
+  ;method
+  
+  // CAGE_NAME ...
+  method: addCage
+    new oPair -> oPair newCage
+    newCage.setA
+    newCage cages.push
+  ;method
+  
+  method: show
+  ;method
+  
+  
+;class
+
+#endif
+
+
+: cleanup
+  dogA.release dogB.release dogC.release
+  adogs.release
+  ldogs.release
+  mdogs.release
+;
+
+loaddone
