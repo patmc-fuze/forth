@@ -46,14 +46,14 @@ static const char *opTypeNames[] =
 {
     "BuiltIn", "BuiltInImmediate", "UserDefined", "UserDefinedImmediate", "UserCode", "UserCodeImmediate", "DLLEntryPoint", 0, 0, 0,
     "Branch", "BranchTrue", "BranchFalse", "CaseBranch", 0, 0, 0, 0, 0, 0,
-    "Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "InitLocalString", "LocalStructArray", "OffsetFetch", 0,
+    "Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "LocalStringInit", "LocalStructArray", "OffsetFetch", 0,
     "LocalByte", "LocalUByte", "LocalShort", "LocalUShort", "LocalInt", "LocalUInt", "LocalLong", "LocalULong", "LocalFloat", "LocalDouble", "LocalString", "LocalOp", "LocalObject",
     "LocalByteArray", "LocalUByteArray", "LocalShortArray", "LocalUShortArray", "LocalIntArray", "LocalUIntArray", "LocalLongArray", "LocalULongArray", "LocalFloatArray", "LocalDoubleArray", "LocalStringArray", "LocalOpArray", "LocalObjectArray",
     "FieldByte", "FieldUByte", "FieldShort", "FieldUShort", "FieldInt", "FieldUInt", "FieldLong", "FieldULong", "FieldFloat", "FieldDouble", "FieldString", "FieldOp", "FieldObject",
 	"FieldByteArray", "FieldUByteArray", "FieldShortArray", "FieldUShortArray", "FieldIntArray", "FieldUIntArray", "FieldLongArray", "FieldULongArray", "FieldFloatArray", "FieldDoubleArray", "FieldStringArray", "FieldOpArray", "FieldObjectArray",
     "MemberByte", "MemberUByte", "MemberShort", "MemberUShort", "MemberInt", "MemberUInt", "MemberLong", "MemberULong", "MemberFloat", "MemberDouble", "MemberString", "MemberOp", "MemberObject",
 	"MemberByteArray", "MemberUByteArray", "MemberShortArray", "MemberUShortArray", "MemberIntArray", "MemberUIntArray", "MemberLongArray", "MemberULongArray", "MemberFloatArray", "MemberDoubleArray", "MemberStringArray", "MemberOpArray", "MemberObjectArray",
-    "MethodWithThis", "MethodWithTOS", "InitMemberString", 0,
+	"MethodWithThis", "MethodWithTOS", "MemberStringInit", "NVOCombo", "NVCombo", "NOCombo", "VOCombo", 0,
     "LocalUserDefined"
 };
 
@@ -435,7 +435,7 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
     if ( pParentClass )
     {
         // do "extends" - tie into parent class
-        pManager->GetNewestStruct()->Extends( pParentClass );
+        pManager->GetNewestClass()->Extends( pParentClass );
     }
 
     // loop through pEntries, adding ops to builtinOps table and adding methods to class
@@ -1164,8 +1164,8 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 sprintf( pBuffer, "%s    0x%08x", opTypeNames[opType], opVal + 1 + pOp );
                 break;
 
-            case kOpInitLocalString:   // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
-            case kOpInitMemberString:   // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
+            case kOpLocalStringInit:    // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
+            case kOpMemberStringInit:   // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
                 sprintf( pBuffer, "%s    maxBytes %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
                 break;
             
@@ -1615,7 +1615,7 @@ ForthEngine::ExecuteOps( long *pOps )
 
 //
 // Use this version of ExecuteOps to execute code in a particular thread
-// Caller must have already set the thread IP to point to a sequens of ops which ends with 'done'
+// Caller must have already set the thread IP to point to a sequence of ops which ends with 'done'
 //
 eForthResult
 ForthEngine::ExecuteOps( ForthThread* pThread )

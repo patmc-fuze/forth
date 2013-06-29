@@ -3050,12 +3050,41 @@ FORTHOP( extendsOp )
         ForthStructVocabulary* pParentVocab = pManager->GetStructVocabulary( pEntry[0] );
         if ( pParentVocab )
         {
-            pManager->GetNewestStruct()->Extends( pParentVocab );
+			if ( pEngine->CheckFlag( kEngineFlagInClassDefinition ) )
+			{
+				if ( pParentVocab->IsClass() )
+				{
+					ForthClassVocabulary* pParentClassVocab = reinterpret_cast<ForthClassVocabulary *>(pParentVocab);
+					pManager->GetNewestClass()->Extends( pParentClassVocab );
+				}
+				else
+				{
+					pEngine->SetError( kForthErrorBadSyntax, "extend class from struct is illegal" );
+				}
+			}
+			else
+			{
+				if ( pEngine->CheckFlag( kEngineFlagInStructDefinition ) )
+				{
+					if ( pParentVocab->IsClass() )
+					{
+						pEngine->SetError( kForthErrorBadSyntax, "extend struct from class is illegal" );
+					}
+					else
+					{
+						pManager->GetNewestStruct()->Extends( pParentVocab );
+					}
+				}
+				else
+				{
+					pEngine->SetError( kForthErrorBadSyntax, "extends must be used in a class or struct definition" );
+				}
+			}
         }
         else
         {
-            pEngine->AddErrorText( pSym );
-            pEngine->SetError( kForthErrorUnknownSymbol, " is not a structure" );
+            pEngine->SetError( kForthErrorUnknownSymbol, pSym );
+            pEngine->AddErrorText( " is not a structure" );
         }
     }
     else
@@ -3215,7 +3244,7 @@ FORTHOP( newOp )
 
 FORTHOP( doNewOp )
 {
-    // IP points to data field
+	// this op is compiled for 'new foo', the class vocabulary ptr is compiled immediately after it
     ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (*pCore->IP++);
     SPUSH( (long) pClassVocab );
     ForthEngine *pEngine = GET_ENGINE;
@@ -3224,6 +3253,8 @@ FORTHOP( doNewOp )
 
 FORTHOP( allocObjectOp )
 {
+	// allocObject is the default new op, it is used only for classes which don't define their
+	//   own 'new' op, or extend a class that does
     ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
     ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
     if ( pPrimaryInterface )
@@ -3252,7 +3283,7 @@ FORTHOP( initMemberStringOp )
 
     if ( !pEngine->CheckFlag( kEngineFlagIsMethod ) || (pVocab == NULL) )
     {
-        pEngine->SetError( kForthErrorBadSyntax, "initMemberStringOp can only be used inside a method" );
+        pEngine->SetError( kForthErrorBadSyntax, "initMemberString can only be used inside a method" );
         return;
     }
     pEntry = pVocab->FindSymbol( pString );
@@ -3266,13 +3297,26 @@ FORTHOP( initMemberStringOp )
     long typeCode = pEntry[1];
     if ( !CODE_IS_SIMPLE(typeCode) || !CODE_IS_NATIVE(typeCode) || (CODE_TO_BASE_TYPE(typeCode) != kBaseTypeString) )
     {
-        pEngine->SetError( kForthErrorBadSyntax, "initMemberStringOp can only be used on a simple string" );
+        pEngine->SetError( kForthErrorBadSyntax, "initMemberString can only be used on a simple string" );
         return;
     }
+	// pEntry[2] is the total string struct length in bytes, subtract 9 for maxLen, curLen and terminating null
     long len = pEntry[2] - 9;
+	if ( len > 4095 )
+    {
+        pEngine->SetError( kForthErrorBadParameter, "initMemberString can not be used on string with size > 4095" );
+        return;
+    }
+	if ( pEntry[0] > 4095 )
+    {
+        pEngine->SetError( kForthErrorBadParameter, "initMemberString can not be used on string with member offset > 4095" );
+        return;
+    }
+
+	// only shift up by 10 bits since pEntry[0] is member byte offset, opcode holds member offset in longs
     long varOffset = (pEntry[0] << 10) | len;
 
-    pEngine->CompileOpcode( COMPILED_OP( kOpInitMemberString, varOffset ) );
+    pEngine->CompileOpcode( COMPILED_OP( kOpMemberStringInit, varOffset ) );
 }
 
 FORTHOP( enumOp )
@@ -3508,6 +3552,7 @@ FORTHOP( strTickOp )
     else
     {
         SET_ERROR( kForthErrorUnknownSymbol );
+        pEngine->AddErrorText( pToken );
     }
 }
 
@@ -4429,8 +4474,20 @@ FORTHOP( describeOp )
 			if ( (pEntry != NULL) && pVocab->IsClass() )
 			{
 				ForthClassVocabulary* pClassVocab = (ForthClassVocabulary*) pVocab;
-				// TBD: support secondary interfaces
-				pEngine->DescribeOp( pSym, pClassVocab->GetInterface(0)->GetMethod(pEntry[0]), pEntry[1] );
+				long typeCode = pEntry[1];
+				if ( CODE_IS_METHOD( typeCode ) )
+				{
+					// TBD: support secondary interfaces
+					pEngine->DescribeOp( pSym, pClassVocab->GetInterface(0)->GetMethod(pEntry[0]), pEntry[1] );
+				}
+				else if ( CODE_TO_BASE_TYPE( typeCode ) == kBaseTypeUserDefinition )
+				{
+					pEngine->DescribeOp( pSym, pEntry[0], pEntry[1] );
+				}
+				else
+				{
+					pVocab->PrintEntry( pEntry );
+				}
 			}
 			else
 			{
@@ -5286,6 +5343,30 @@ FORTHOP( destroyThreadOp )
     GET_ENGINE->DestroyThread( pThread );
 }
 
+FORTHOP( threadGetStateOp )
+{
+    ForthThread* pThread = (ForthThread*)(SPOP);
+	SPUSH( (long) (pThread->GetCoreState()) );
+}
+
+FORTHOP( stepThreadOp )
+{
+    ForthThread* pThread = (ForthThread*)(SPOP);
+	ForthCoreState* pThreadCore = pThread->GetCoreState();
+	long op = *(pThreadCore->IP)++;
+    long result;
+    ForthEngine *pEngine = GET_ENGINE;
+	if ( pEngine->GetFastMode() )
+	{
+		result = (long) InterpretOneOpFast( pCore, op );
+	}
+	else
+	{
+		result = (long) InterpretOneOp( pCore, op );
+	}
+    SPUSH( result );
+}
+
 FORTHOP( startThreadOp )
 {
     ForthThread* pThread = (ForthThread*)(SPOP);
@@ -5500,56 +5581,56 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    endBuildsOp,            "_endBuilds" ),
     OP_DEF(    doneOp,                 "done" ),
     OP_DEF(    doByteOp,               "_doByte" ),
-    OP_DEF(    doUByteOp,              "_doUByte" ),
-    OP_DEF(    doShortOp,              "_doShort" ),        // 12
+    OP_DEF(    doUByteOp,              "_doUByte" ),        // 12
+    OP_DEF(    doShortOp,              "_doShort" ),
     OP_DEF(    doUShortOp,             "_doUShort" ),
     OP_DEF(    doIntOp,                "_doInt" ),
-    OP_DEF(    doIntOp,                "_doUInt" ),
+    OP_DEF(    doIntOp,                "_doUInt" ),		    // 16
     OP_DEF(    doLongOp,               "_doLong" ),
     OP_DEF(    doLongOp,               "_doULong" ),
     OP_DEF(    doFloatOp,              "_doFloat" ),
-    OP_DEF(    doDoubleOp,             "_doDouble" ),
-    OP_DEF(    doStringOp,             "_doString" ),       // 16
+    OP_DEF(    doDoubleOp,             "_doDouble" ),		// 20
+    OP_DEF(    doStringOp,             "_doString" ),
     OP_DEF(    doOpOp,                 "_doOp" ),
     OP_DEF(    doObjectOp,             "_doObject" ),
     OP_DEF(    doExitOp,               "_exit" ),      // exit normal op with no vars
     OP_DEF(    doExitLOp,              "_exitL" ),     // exit normal op with local vars
     OP_DEF(    doExitMOp,              "_exitM" ),     // exit method op with no vars
     OP_DEF(    doExitMLOp,             "_exitML" ),    // exit method op with local vars
-    OP_DEF(    doVocabOp,              "_doVocab" ),
+    OP_DEF(    doVocabOp,              "_doVocab" ),		// 28
     OP_DEF(    doByteArrayOp,          "_doByteArray" ),
     OP_DEF(    doUByteArrayOp,         "_doUByteArray" ),
     OP_DEF(    doShortArrayOp,         "_doShortArray" ),
-    OP_DEF(    doUShortArrayOp,        "_doUShortArray" ),
+    OP_DEF(    doUShortArrayOp,        "_doUShortArray" ),	// 32
     OP_DEF(    doIntArrayOp,           "_doIntArray" ),
     OP_DEF(    doIntArrayOp,           "_doUIntArray" ),
     OP_DEF(    doLongArrayOp,          "_doLongArray" ),
-    OP_DEF(    doLongArrayOp,          "_doULongArray" ),
+    OP_DEF(    doLongArrayOp,          "_doULongArray" ),	// 36
     OP_DEF(    doFloatArrayOp,         "_doFloatArray" ),
     OP_DEF(    doDoubleArrayOp,        "_doDoubleArray" ),
     OP_DEF(    doStringArrayOp,        "_doStringArray" ),
-    OP_DEF(    doOpArrayOp,            "_doOpArray" ),
+    OP_DEF(    doOpArrayOp,            "_doOpArray" ),		// 40
     OP_DEF(    doObjectArrayOp,        "_doObjectArray" ),
     OP_DEF(    initStringOp,           "initString" ),
     OP_DEF(    initStringArrayOp,      "initStringArray" ),
-    OP_DEF(    plusOp,                 "+" ),
+    OP_DEF(    plusOp,                 "+" ),				// 44
     OP_DEF(    fetchOp,                "@" ),
     OP_DEF(    badOpOp,                "badOp" ),
     OP_DEF(    doStructOp,             "_doStruct" ),
-    OP_DEF(    doStructArrayOp,        "_doStructArray" ),
+    OP_DEF(    doStructArrayOp,        "_doStructArray" ),	// 48
     OP_DEF(    doStructTypeOp,         "_doStructType" ),
     OP_DEF(    doClassTypeOp,          "_doClassType" ),
     PRECOP_DEF(doEnumOp,               "_doEnum" ),
-    OP_DEF(    doDoOp,                 "_do" ),
+    OP_DEF(    doDoOp,                 "_do" ),				// 52
     OP_DEF(    doLoopOp,               "_loop" ),
     OP_DEF(    doLoopNOp,              "_+loop" ),
     OP_DEF(    doNewOp,                "_doNew" ),
-    OP_DEF(    dfetchOp,               "d@" ),
+    OP_DEF(    dfetchOp,               "d@" ),				// 56
     OP_DEF(    allocObjectOp,          "_allocObject" ),
     OP_DEF(    vocabToClassOp,         "vocabToClass" ),
     // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
     OP_DEF(    addressOfOp,            "ref" ),
-    OP_DEF(    intoOp,                 "->" ),
+    OP_DEF(    intoOp,                 "->" ),				// 60
     OP_DEF(    addToOp,                "->+" ),
     OP_DEF(    subtractFromOp,         "->-" ),
     OP_DEF(    superOp,                "super" ),
@@ -6097,6 +6178,8 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     OP_DEF( createThreadOp,             "createThread" ),
     OP_DEF( destroyThreadOp,            "destroyThread" ),
+    OP_DEF( threadGetStateOp,           "threadGetState" ),
+    OP_DEF( stepThreadOp,               "stepThread" ),
     OP_DEF( startThreadOp,              "startThread" ),
     OP_DEF( exitThreadOp,               "exitThread" ),
 

@@ -851,6 +851,7 @@ ForthStructVocabulary::IsStruct()
 ///     ForthClassVocabulary
 //
 //
+ForthClassVocabulary* ForthClassVocabulary::smpObjectClass = NULL;
 
 ForthClassVocabulary::ForthClassVocabulary( const char*     pName,
                                             int             typeIndex )
@@ -863,6 +864,18 @@ ForthClassVocabulary::ForthClassVocabulary( const char*     pName,
     mpClassObject->newOp = OP_ALLOC_OBJECT;
     ForthInterface* pPrimaryInterface = new ForthInterface( this );
     mInterfaces.push_back( pPrimaryInterface );
+
+	if ( strcmp( pName, "object" ) == 0 )
+	{
+		smpObjectClass = this;
+	}
+	else
+	{
+		if ( strcmp( pName, "class" ) != 0 )
+		{
+			Extends( smpObjectClass );
+		}
+	}
 }
 
 
@@ -908,12 +921,6 @@ ForthClassVocabulary::DefineInstance( void )
         isPtr = true;
     }
 
-    if ( mpEngine->CheckFlag( kEngineFlagInStructDefinition | kEngineFlagIsMethod ) == kEngineFlagInStructDefinition )
-    {
-        pManager->GetNewestStruct()->AddField( pToken, typeCode, numElements );
-        return;
-    }
-
     // get next symbol, add it to vocabulary with type "user op"
     if ( mpEngine->IsCompiling() )
     {
@@ -940,6 +947,12 @@ ForthClassVocabulary::DefineInstance( void )
     }
     else
     {
+		if ( mpEngine->CheckFlag( kEngineFlagInStructDefinition ) )
+		{
+			pManager->GetNewestStruct()->AddField( pToken, typeCode, numElements );
+			return;
+		}
+
         // define global object(s)
         mpEngine->AddUserOp( pToken );
         pEntry = mpEngine->GetDefinitionVocabulary()->GetNewestEntry();
@@ -1049,12 +1062,18 @@ ForthClassVocabulary::FindMethod( const char* pName )
 
 
 void
-ForthClassVocabulary::Extends( ForthStructVocabulary *pParentStruct )
+ForthClassVocabulary::Extends( ForthClassVocabulary *pParentClass )
 {
-	if ( pParentStruct->IsClass() )
+	if ( pParentClass->IsClass() )
 	{
-		mpParentClass = reinterpret_cast<ForthClassVocabulary *>(pParentStruct);
-		long numInterfaces = mpParentClass->GetNumInterfaces();
+		long numInterfaces = pParentClass->GetNumInterfaces();
+		for ( int i = 1; i < numInterfaces; i++ )
+		{
+			delete mInterfaces[i];
+			mInterfaces[i] = NULL;
+		}
+		mpParentClass = pParentClass;
+		numInterfaces = mpParentClass->GetNumInterfaces();
 		mInterfaces.resize( numInterfaces );
 		bool isPrimaryInterface = true;
 		for ( int i = 0; i < numInterfaces; i++ )
@@ -1067,7 +1086,7 @@ ForthClassVocabulary::Extends( ForthStructVocabulary *pParentStruct )
 		}
 	}
 
-	ForthStructVocabulary::Extends( pParentStruct );
+	ForthStructVocabulary::Extends( pParentClass );
 }
 
 
@@ -1593,7 +1612,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
                 // compile initLocalString op
                 varOffset = (varOffset << 12) | len;
                 // NOTE: do not use CompileOpcode here - it would screw up the OP_INTO check just below
-                pEngine->CompileOpcode( COMPILED_OP( kOpInitLocalString, varOffset ) );
+                pEngine->CompileOpcode( COMPILED_OP( kOpLocalStringInit, varOffset ) );
                 long* pLastIntoOp = pEngine->GetLastCompiledIntoPtr();
                 if ( pLastIntoOp == (((long *) pHere) - 1) )
                 {

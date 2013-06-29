@@ -209,7 +209,8 @@ bool ForthStructCodeGenerator::HandleFirst()
 			if ( pCastVocab != NULL )
 			{
 				explicitTOSCast = true;
-				mTypeCode = STRUCT_TYPE_TO_CODE( kDTIsPtr, pCastVocab->GetTypeIndex() );
+				mTypeCode = pCastVocab->IsClass() ? OBJECT_TYPE_TO_CODE( kDTIsPtr, pCastVocab->GetTypeIndex() )
+												  : STRUCT_TYPE_TO_CODE( kDTIsPtr, pCastVocab->GetTypeIndex() );
 			}
 			*pLastChar = '>';
 		}

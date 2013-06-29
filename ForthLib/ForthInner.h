@@ -183,27 +183,27 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 
 
 #define GET_IP                          (pCore->IP)
-#define SET_IP( A )                     (pCore->IP = A)
+#define SET_IP( A )                     (pCore->IP = (A))
 
 #define GET_SP                          (pCore->SP)
-#define SET_SP( A )                     (pCore->SP = A)
+#define SET_SP( A )                     (pCore->SP = (A))
 
 #define GET_RP                          (pCore->RP)
-#define SET_RP( A )                     (pCore->RP = A)
+#define SET_RP( A )                     (pCore->RP = (A))
 
 #define GET_FP                          (pCore->FP)
-#define SET_FP( A )                     (pCore->FP = A)
+#define SET_FP( A )                     (pCore->FP = (A))
 
 #define GET_TPM                         (pCore->TPM)
 #define GET_TPD                         (pCore->TPD)
-#define SET_TPM( A )                    (pCore->TPM = A)
-#define SET_TPD( A )                    (pCore->TPD = A)
+#define SET_TPM( A )                    (pCore->TPM = (A))
+#define SET_TPD( A )                    (pCore->TPD = (A))
 
 #define GET_DP                          (pCore->pDictionary->pCurrent)
-#define SET_DP( A )                     (pCore->pDictionary->pCurrent = A)
+#define SET_DP( A )                     (pCore->pDictionary->pCurrent = (A))
 
 #define SPOP                            (*pCore->SP++)
-#define SPUSH( A )                      (*--pCore->SP = A)
+#define SPUSH( A )                      (*--pCore->SP = (A))
 #define SDROP                           (pCore->SP++)
 
 #define FPOP                            (*(float *)pCore->SP++)
@@ -216,19 +216,19 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define LPUSH( A )                      pCore->SP -= 2; *((long long *)(pCore->SP)) = A
 
 #define RPOP                            (*pCore->RP++)
-#define RPUSH( A )                      (*--pCore->RP = A)
+#define RPUSH( A )                      (*--pCore->RP = (A))
 
 #define GET_SDEPTH                      (pCore->ST - pCore->SP)
 #define GET_RDEPTH                      (pCore->RT - pCore->RP)
 
 #define GET_STATE                       (eForthResult)(pCore->state)
-#define SET_STATE( A )                  (pCore->state = A)
+#define SET_STATE( A )                  (pCore->state = (A))
 
 #define GET_ENGINE                      ((ForthEngine *) (pCore->pEngine))
 //#define GET_ENGINE                      (ForthEngine::GetInstance())
 
 #define GET_VAR_OPERATION               (pCore->varMode)
-#define SET_VAR_OPERATION( A )          (pCore->varMode = A)
+#define SET_VAR_OPERATION( A )          (pCore->varMode = (A))
 #define CLEAR_VAR_OPERATION             (pCore->varMode = kVarDefaultOp)
 
 #define GET_NUM_USER_OPS                (pCore->numUserOps)
@@ -241,17 +241,17 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define SET_FATAL_ERROR( A )            CoreSetError( pCore, A, true )
 
 #define GET_CON_OUT_DATA                (pCore->pConOutData)
-#define SET_CON_OUT_DATA( A )           (pCore->pConOutData = A)
-#define SET_CON_OUT_ROUTINE( A )        (pCore->consoleOut = A)
+#define SET_CON_OUT_DATA( A )           (pCore->pConOutData = (A))
+#define SET_CON_OUT_ROUTINE( A )        (pCore->consoleOut = (A))
 #define CONSOLE_STRING_OUT( A )         (pCore->consoleOut( pCore, A ))
 
 #define GET_CON_OUT_OP                  (pCore->consoleOutOp)
-#define SET_CON_OUT_OP( A )             (pCore->consoleOutOp = A)
+#define SET_CON_OUT_OP( A )             (pCore->consoleOutOp = (A))
 
 #define GET_BASE_REF                    (&pCore->base)
 
 #define GET_PRINT_SIGNED_NUM_MODE       (pCore->signedPrintMode)
-#define SET_PRINT_SIGNED_NUM_MODE( A )  (pCore->signedPrintMode = A)
+#define SET_PRINT_SIGNED_NUM_MODE( A )  (pCore->signedPrintMode = (A))
 
 };      // end extern "C"
 

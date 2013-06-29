@@ -158,6 +158,29 @@ InitAsmTables ENDP
 
 ;-----------------------------------------------
 ;
+; single step a thread
+;
+; extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, long op );
+PUBLIC InterpretOneOpFast
+InterpretOneOpFast PROC near C public uses ebx ecx edx esi edi ebp,
+	core:PTR,
+	op:DWORD
+	mov	ebp, DWORD PTR core
+	mov	eax, op
+	mov	ecx, [ebp].FCore.IPtr
+	mov	edx, [ebp].FCore.SPtr
+	mov	edi, InterpretOneOpFastExit
+	
+	jmp	interpLoopExecuteEntry
+
+InterpretOneOpFastExit:
+	mov	[ebp].FCore.IPtr, ecx
+	mov	[ebp].FCore.SPtr, edx
+	ret
+InterpretOneOpFast ENDP
+
+;-----------------------------------------------
+;
 ; inner interpreter C entry point
 ;
 ; extern eForthResult InnerInterpreterFast( ForthCoreState *pCore );
@@ -174,14 +197,14 @@ InnerInterpreterFast ENDP
 ;-----------------------------------------------
 ;
 ; inner interpreter
-;	jump to interpFunc if you nead to reload IP, SP, interpLoop
+;	jump to interpFunc if you need to reload IP, SP, interpLoop
 entry interpFunc
 	mov	ecx, [ebp].FCore.IPtr
 	mov	edx, [ebp].FCore.SPtr
 	mov	edi, interpLoop
 
 entry interpLoop
-	mov	ebx, [ecx]		; eax is opcode
+	mov	ebx, [ecx]		; ebx is opcode
 	add	ecx, 4			; advance IP
 	; interpLoopExecuteEntry is entry for executeBop - expects opcode in ebx
 PUBLIC	interpLoopExecuteEntry
@@ -1980,7 +2003,7 @@ entry methodWithTOSType
 ;
 ; member string init ops
 ;
-entry initMemberStringType
+entry memberStringInitType
    ; bits 0..11 are string length in bytes, bits 12..23 are member offset in longs
    ; init the current & max length fields of a member string
 	mov	eax, 00FFF000h
@@ -5524,7 +5547,7 @@ entry opTypesTable
 	DD	FLAT:arrayOffsetType		; kOpArrayOffset,     
 	DD	FLAT:allocLocalsType		; kOpAllocLocals,     
 	DD	FLAT:localRefType			; kOpLocalRef,
-	DD	FLAT:initLocalStringType	; kOpInitLocalString, 
+	DD	FLAT:initLocalStringType	; kOpLocalStringInit, 
 	DD	FLAT:localStructArrayType	; kOpLocalStructArray,
 	DD	FLAT:offsetFetchType		; kOpOffsetFetch,          
 	DD	FLAT:memberRefType			; kOpMemberRef,	
@@ -5626,7 +5649,7 @@ entry opTypesTable
 	DD	FLAT:methodWithTOSType
 	
 ;	110 - 114
-	DD	FLAT:initMemberStringType
+	DD	FLAT:memberStringInitType
 	DD	FLAT:nvoComboType
 	DD	FLAT:nvComboType
 	DD	FLAT:noComboType

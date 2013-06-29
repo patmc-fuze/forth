@@ -1,7 +1,6 @@
 autoforget ook
 
 class: ook
-  extends object
   
   int num
 
@@ -51,6 +50,7 @@ new kool -> kool kk
 kk.init
 kk.bowwow
 kk.boohoo
+43 -> kk.num
 
 "I am kk" kk.setstr
 
@@ -71,23 +71,25 @@ struct: sRGBA
 ;struct
 
 class: rgba
-  extends sRGBA
+  sRGBA s
+  int num
   
   method: set
-	  -> alpha -> b -> g -> r
+	  -> s.alpha -> s.b -> s.g -> s.r
   ;method
   
   method: show
-	  r %d %bl g %d %bl b %d %bl alpha %d %bl %nl
+	  s.r %d %bl s.g %d %bl s.b %d %bl s.alpha %d %bl %nl
   ;method
   
   method: add
     // TOS is object to add
     -> rgba t
-    t.r ->+ r
-    t.g ->+ g
-    t.b ->+ b
-    t.alpha ->+ alpha
+    t.s.r ->+ s.r
+    t.s.g ->+ s.g
+    t.s.b ->+ s.b
+    t.s.alpha ->+ s.alpha
+    dnull -> t
   ;method
   
 ;class
@@ -99,12 +101,12 @@ class: rgba
 ptrTo rgba gpp
 : %grgb32
   -> gpp
-  gpp.r . %bl gpp.g . %bl gpp.b . %bl gpp.alpha . %nl
+  gpp.s.r . %bl gpp.s.g . %bl gpp.s.b . %bl gpp.s.alpha . %nl
 ;
 
 : gsetrgb32
   -> gpp
-  -> gpp.alpha -> gpp.b -> gpp.g -> gpp.r
+  -> gpp.s.alpha -> gpp.s.b -> gpp.s.g -> gpp.s.r
 ;
 
 // test global arrayOf pointers to objects
@@ -112,25 +114,27 @@ here
 2 arrayOf ptrTo rgba gapo		// expected size 12: gapo opcode (4) + pointers (2 x 4)
 new rgba -> rgba go0			// expected size 12: opcode (4) + object reference (8)
 new rgba -> rgba go1			// expected size 12: opcode (4) + object reference (8)
+128 -> go0.num
+256 -> go1.num
 
 here swap - "Expected size: 36 Actual size: " %s %d %nl
 
 2 arrayOf rgba ago
-: ll go0.g gpp.g 1 ago.g 1 gapo.g ;
-: ll2 rgba hh ptrTo rgba phh 4 arrayOf rgba ahh 4 arrayOf ptrTo rgba pahh   hh.g phh.g 1 ahh.g 1 pahh.g ;
+: ll go0.s.g gpp.s.g 1 ago.s.g 1 gapo.s.g ;
+: ll2 rgba hh ptrTo rgba phh 4 arrayOf rgba ahh 4 arrayOf ptrTo rgba pahh   hh.s.g phh.s.g 1 ahh.s.g 1 pahh.s.g ;
 
 : testGAPO
-  1 2 3 4 ref go0 gsetrgb32
+  71 2 3 4 ref go0 gsetrgb32
   5 6 7 8 ref go1 gsetrgb32
   ref go0 -> 0 gapo
   ref go1 -> 1 gapo
   0 gapo %grgb32
   1 gapo %grgb32
   // test assignment through pointers
-  22 0 -> gapo.g
-  55 1 -> gapo.r
-  33 -> go0.b
-  10 ->+( 0 ) gapo.r
+  22 0 -> gapo.s.g
+  55 1 -> gapo.s.r
+  33 -> go0.s.b
+  10 ->+( 0 ) gapo.s.r
   0 gapo.show
   1 gapo.show
   go1 0 gapo.add
@@ -143,12 +147,12 @@ testGAPO
 // test local pointer to structs
 : %rgba
   -> ptrTo rgba pp
-  pp.r %d %bl pp.g %d %bl pp.b %d %bl pp.alpha %d %bl %nl
+  pp.s.r %d %bl pp.s.g %d %bl pp.s.b %d %bl pp.s.alpha %d %bl %nl
 ;
 
 : setrgb32
   -> ptrTo rgba pp
-  -> pp.alpha -> pp.b -> pp.g -> pp.r
+  -> pp.s.alpha -> pp.s.b -> pp.s.g -> pp.s.r
 ;
 
 // test local arrayOf pointers to objects
@@ -156,22 +160,25 @@ testGAPO
   2 arrayOf ptrTo rgba lapo
   new rgba -> rgba lo0
   new rgba -> rgba lo1
-  1 2 3 4 ref lo0 setrgb32
+  41 2 3 4 ref lo0 setrgb32
   5 6 7 8 ref lo1 setrgb32
   ref lo0 -> 0 lapo
   ref lo1 -> 1 lapo
   0 lapo %rgba
   1 lapo %rgba
   // test assignment through pointers
-  22 ->( 0 ) lapo.g
-  55 ->( 1 ) lapo.r
-  33 -> lo0.b
-  10 ->+( 0 ) lapo.r
+  22 ->( 0 ) lapo.s.g
+  55 ->( 1 ) lapo.s.r
+  33 -> lo0.s.b
+  10 ->+( 0 ) lapo.s.r
   
   0 lapo.show
   1 lapo.show
   lo1 0 lapo.add
   lo0.show
+  
+  dnull -> lo0
+  dnull -> lo1
 ;
 
 testLAPO
@@ -190,11 +197,12 @@ class: urg
 ;class
 
 new rgba -> rgba mm
+
 new urg -> urg nn
 
 mm -> nn.partner
 
-1 2 3 4 mm.set
+11 2 3 4 mm.set
 mm.show
 
 : krunk nn.partner.show ;
@@ -202,6 +210,8 @@ mm.show
 
 krunk
 klunk
+
+100 -> nn.s.r
 
 class: fakeRgba
   int rrr
@@ -226,10 +236,10 @@ class: fakeRgba
   method: add
     // TOS is object to add
     -> rgba t
-    t.r ->+ rrr
-    t.g ->+ ggg
-    t.b ->+ bbb
-    t.alpha ->+ aaa
+    t.s.r ->+ rrr
+    t.s.g ->+ ggg
+    t.s.b ->+ bbb
+    t.s.alpha ->+ aaa
   ;method
 
   ;implements
@@ -237,15 +247,19 @@ class: fakeRgba
 ;class
 
 int nextObjId
+55 %x
 
 class: tobj
-  extends object
+extends object
   int objId
-  
+
+  method: setObjId
+    -> objId
+  ;method
+    
   : newTobj
     _allocObject
-    ddup nextObjId -rot
-    -> <tobj>.objId
+    ddup nextObjId -rot -> <tobj>.objId
     "|+" %s nextObjId %d
     1 ->+ nextObjId
   ;
@@ -254,27 +268,16 @@ class: tobj
   
   method: delete
     "|-" %s objId %d
+    super.delete
   ;method
   
 ;class
 
-new tobj -> long ta
-new tobj -> long tb
-new tobj -> long tc
-new tobj -> long td
-new tobj -> long te
-
-tobj va
-tobj vb
-tobj vc
-tobj vd
-tobj ve
-
-ta -> va
-tb -> vb
-tc -> vc
-td -> vd
-te -> ve
+new tobj -> tobj va
+new tobj -> tobj vb
+new tobj -> tobj vc
+new tobj -> tobj vd
+new tobj -> tobj ve
 
 // oArray:   clear   resize(N)   count   get(I)   set(O I)   findIndex(O)   push(O)   pop   headIter   tailIter   clone
 // oList:   head   tail   addHead(O)   addTail(O)   removeHead   removeTail   headIter   tailIter   count   find(O)   clone
@@ -290,8 +293,6 @@ la.addHead(ma.get( 'b' ))  la.addHead(ma.get( 'c' ))  la.addHead(ma.get( 'd' ))
 new oArray -> oArray aa
 aa.push(ma.get( 'a' ))  aa.push(vb)  aa.push(ma.get( 'c' ))
 
-dnull -> va  dnull -> vb  dnull -> vc  dnull -> vd  dnull -> ve
-
 //"{clearing map}" %s
 dnull -> ma   //ma.clear
 
@@ -300,6 +301,17 @@ dnull -> la
 
 //"{clearing array}" %s
 dnull -> aa // aa.resize( 0 )
+
+dnull -> va  dnull -> vb  dnull -> vc  dnull -> vd  dnull -> ve
+
+: cleanup
+  dnull -> kk
+  dnull -> go0
+  dnull -> go1
+  dnull -> mm
+  dnull -> nn.partner
+  dnull -> nn
+;
 
 loaddone
 

@@ -181,7 +181,7 @@ public:
     long                FindInterfaceIndex( long classId );
 	virtual bool		IsClass( void );
 	long				GetNumInterfaces( void );
-    virtual void        Extends( ForthStructVocabulary *pParentStruct );
+    virtual void        Extends( ForthClassVocabulary *pParentClass );
     ForthClassObject*   GetClassObject( void );
     ForthClassVocabulary* ParentClass( void );
 
@@ -194,6 +194,8 @@ protected:
 	ForthClassVocabulary*       mpParentClass;
 	std::vector<ForthInterface *>	mInterfaces;
     ForthClassObject*           mpClassObject;
+
+	static ForthClassVocabulary* smpObjectClass;
 };
 
 class ForthNativeType

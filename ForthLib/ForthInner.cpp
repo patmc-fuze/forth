@@ -1692,9 +1692,9 @@ OPTYPE_ACTION( MethodWithTOSAction )
     pEngine->ExecuteOneOp( pMethods[ opVal ] );
 }
 
-OPTYPE_ACTION( InitMemberStringAction )
+OPTYPE_ACTION( MemberStringInitAction )
 {
-    // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
+    // bits 0..11 are string length in bytes, bits 12..23 are member offset in longs
     // init the current & max length fields of a local string
     long* pThis = GET_TPD;
     long* pStr = pThis + (opVal >> 12);
@@ -2009,7 +2009,7 @@ optypeActionRoutine builtinOptypeAction[] =
     MethodWithTOSAction,
 
 	// 110 -
-    InitMemberStringAction,
+    MemberStringInitAction,
 	NumVaropOpComboAction,
 	NumVaropComboAction,		// 0x70
 	NumOpComboAction,

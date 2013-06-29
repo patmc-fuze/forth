@@ -1498,7 +1498,8 @@ namespace
 	};
 
 // temp hackaround for a heap corruption when expanding a string
-#define RCSTRING_SLOP 16
+//#define RCSTRING_SLOP 16
+#define RCSTRING_SLOP 0
 	oString* CreateRCString( int maxChars )
 	{
 		int dataBytes = ((maxChars  + 4) & ~3);
@@ -3394,7 +3395,155 @@ namespace
         END_MEMBERS
     };
 
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oThread
+    //
+
+    typedef std::vector<ForthObject> oArray;
+    struct oThreadStruct
+    {
+        ulong			refCount;
+        ForthThread		*pThread;
+    };
+
+	// TBD: add tracking of run state of thread - this should be done inside ForthThread, not here
+    FORTHOP( oThreadNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+		MALLOCATE_OBJECT( oThreadStruct, pThreadStruct );
+        pThreadStruct->refCount = 0;
+		pThreadStruct->pThread = NULL;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pThreadStruct );
+    }
+
+    FORTHOP( oThreadDeleteMethod )
+    {
+		GET_THIS( oThreadStruct, pThreadStruct );
+		if ( pThreadStruct->pThread != NULL )
+		{
+			GET_ENGINE->DestroyThread( pThreadStruct->pThread );
+			pThreadStruct->pThread = NULL;
+		}
+        FREE_OBJECT( pThreadStruct );
+        METHOD_RETURN;
+    }
+
+	FORTHOP( oThreadInitMethod )
+	{
+		GET_THIS( oThreadStruct, pThreadStruct );
+		ForthEngine* pEngine = GET_ENGINE;
+		if ( pThreadStruct->pThread != NULL )
+		{
+			pEngine->DestroyThread( pThreadStruct->pThread );
+		}
+		long threadOp  = SPOP;
+		int returnStackSize = (int)(SPOP);
+		int paramStackSize = (int)(SPOP);
+		pThreadStruct->pThread = GET_ENGINE->CreateThread( threadOp, paramStackSize, returnStackSize );
+		pThreadStruct->pThread->Reset();
+        METHOD_RETURN;
+	}
+
+	FORTHOP( oThreadStartMethod )
+	{
+		GET_THIS( oThreadStruct, pThreadStruct );
+		long result = pThreadStruct->pThread->Start();
+        METHOD_RETURN;
+	}
+
+	FORTHOP( oThreadExitMethod )
+	{
+		GET_THIS( oThreadStruct, pThreadStruct );
+		pThreadStruct->pThread->Exit();
+        METHOD_RETURN;
+	}
+
+	FORTHOP( oThreadPushMethod )
+	{
+		GET_THIS( oThreadStruct, pThreadStruct );
+		pThreadStruct->pThread->Push( SPOP );
+        METHOD_RETURN;
+	}
+
+	FORTHOP( oThreadPopMethod )
+	{
+		GET_THIS( oThreadStruct, pThreadStruct );
+		long val = pThreadStruct->pThread->Pop();
+		SPUSH( val );
+        METHOD_RETURN;
+	}
+
+	FORTHOP( oThreadRPushMethod )
+	{
+		GET_THIS( oThreadStruct, pThreadStruct );
+		pThreadStruct->pThread->RPush( SPOP );
+        METHOD_RETURN;
+	}
+
+	FORTHOP( oThreadRPopMethod )
+	{
+		GET_THIS( oThreadStruct, pThreadStruct );
+		long val = pThreadStruct->pThread->RPop();
+		SPUSH( val );
+        METHOD_RETURN;
+	}
+
+	FORTHOP( oThreadGetStateMethod )
+	{
+		GET_THIS( oThreadStruct, pThreadStruct );
+		SPUSH( (long) (pThreadStruct->pThread->GetCoreState()) );
+        METHOD_RETURN;
+	}
+
+	FORTHOP( oThreadStepMethod )
+	{
+		GET_THIS( oThreadStruct, pThreadStruct );
+		ForthThread* pThread = pThreadStruct->pThread;
+		ForthCoreState* pThreadCore = pThread->GetCoreState();
+		long op = *(pThreadCore->IP)++;
+		long result;
+		ForthEngine *pEngine = GET_ENGINE;
+		if ( pEngine->GetFastMode() )
+		{
+			result = (long) InterpretOneOpFast( pThreadCore, op );
+		}
+		else
+		{
+			result = (long) InterpretOneOp( pThreadCore, op );
+		}
+		SPUSH( result );
+        METHOD_RETURN;
+	}
+
+	FORTHOP( oThreadResetMethod )
+	{
+		GET_THIS( oThreadStruct, pThreadStruct );
+		pThreadStruct->pThread->Reset();
+        METHOD_RETURN;
+	}
+
+    baseMethodEntry oThreadMembers[] =
+    {
+        METHOD(     "_%new%_",              oThreadNew ),
+        METHOD(     "delete",               oThreadDeleteMethod ),
+        METHOD(     "init",                 oThreadInitMethod ),
+        METHOD(     "start",                oThreadStartMethod ),
+        METHOD(     "exit",                 oThreadExitMethod ),
+        METHOD(     "push",                 oThreadPushMethod ),
+        METHOD(     "pop",                  oThreadPopMethod ),
+        METHOD(     "rpush",                oThreadRPushMethod ),
+        METHOD(     "rpop",                 oThreadRPopMethod ),
+        METHOD(     "getState",             oThreadGetStateMethod ),
+        METHOD(     "step",                 oThreadStepMethod ),
+        METHOD(     "reset",                oThreadResetMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
 }
+
 
 void
 ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
@@ -3429,6 +3578,8 @@ ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
 
     ForthClassVocabulary* pOLongArrayClass = pEngine->AddBuiltinClass( "oLongArray", pObjectClass, oLongArrayMembers );
     gpLongArraryIterClassVocab = pEngine->AddBuiltinClass( "oLongArrayIter", pOIterClass, oLongArrayIterMembers );
+
+    ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass( "oThread", pObjectClass, oThreadMembers );
 
     mpClassMethods = pClassClass->GetInterface( 0 )->GetMethods();
 }

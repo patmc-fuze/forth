@@ -69,7 +69,7 @@ kOpOffset		EQU		7t
 kOpArrayOffset		EQU		8t
 kOpConstantString		EQU		9t
 kOpAllocLocals		EQU		10t
-kOpInitLocalString		EQU		11t
+kOpLocalStringInit		EQU		11t
 kOpLocalInt		EQU		12t
 kOpLocalFloat		EQU		13t
 kOpLocalDouble		EQU		14t

@@ -149,6 +149,7 @@ ForthThread::Reset( void )
     mCore.varMode = kVarDefaultOp;
     mCore.base = 10;
     mCore.signedPrintMode = kPrintSignedDecimal;
+	mCore.IP = &(mOps[0]);
 }
 
 

@@ -36,18 +36,18 @@ typedef enum
     kOpCaseBranch,
     // 14 - 19 are unused
 
-    kOpConstant = 20,    // low 24 bits is signed symbol value
-    kOpConstantString,
-    kOpOffset,          // low 24 bits is signed offset value
+    kOpConstant = 20,   // low 24 bits is signed symbol value
+    kOpConstantString,  // low 24 bits is number of longwords to skip over
+    kOpOffset,          // low 24 bits is signed offset value, TOS is number to add it to
     kOpArrayOffset,     // low 24 bits is array element size, TOS is array base, NTOS is index
     kOpAllocLocals,     // low 24 bits is frame size in longs
-    kOpLocalRef,
-    kOpInitLocalString,     // bits 0:11 are string length in bytes, bits 12:23 are frame offset in longs
+    kOpLocalRef,        // low 24 bits is offset in bytes
+    kOpLocalStringInit,     // bits 0:11 are string length in bytes, bits 12:23 are frame offset in longs
     kOpLocalStructArray,   // bits 0:11 are padded struct size in bytes, bits 12:23 are frame offset in longs
     kOpOffsetFetch,          // low 24 bits is signed offset in longs, TOS is long ptr
-    kOpMemberRef,
+    kOpMemberRef,		// low 24 bits is offset in bytes
 
-    kOpLocalByte = 30,
+    kOpLocalByte = 30,	// low 24 bits is offset in bytes
     kOpLocalUByte,
     kOpLocalShort,
     kOpLocalUShort,
@@ -61,7 +61,7 @@ typedef enum
     kOpLocalOp,
     kOpLocalObject,
 
-    kOpLocalByteArray = 43,
+    kOpLocalByteArray = 43,	// low 24 bits is offset in bytes, TOS is index
     kOpLocalUByteArray,
     kOpLocalShortArray,
     kOpLocalUShortArray,
@@ -133,7 +133,7 @@ typedef enum
 
     kOpMethodWithThis = 108,                 // low 24 bits is method number
     kOpMethodWithTOS,                       // low 24 bits is method number
-    kOpInitMemberString,                    // bits 0:11 are string length in bytes, bits 12:23 are frame offset in longs
+    kOpMemberStringInit,                    // bits 0:11 are string length in bytes, bits 12:23 are memeber offset in longs
 	kOpNVOCombo,							// NUM VAROP OP combo - bits 0:10 are signed integer, bits 11:12 are varop-2, bit 13 is builtin/userdef, bits 14-23 are opcode
 	kOpNVCombo,								// NUM VAROP combo - bits 0:21 are signed integer, bits 22:23 are varop-2
 	kOpNOCombo,								// NUM OP combo - bits 0:12 are signed integer, bit 13 is builtin/userdef, bits 14:23 are opcode
@@ -202,10 +202,13 @@ typedef enum {
     kResultShutdown,    // exit because of a "shutdown" opcode
 } eForthResult;
 
+// Nothing uses these
+/*
 #define FLAG_DONE           1
 #define FLAG_BYE            (1 << 1)
 #define FLAG_ERROR          (1 << 2)
 #define FLAG_FATAL_ERROR    (1 << 3)
+*/
 
 typedef enum {
     kForthErrorNone,

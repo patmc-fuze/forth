@@ -127,6 +127,39 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 22 2013
+
+It looks like supporting classes that extend structs and classes that aren't
+descendants of object is too painful and error prone.
++ only allow classes to extend classes and struct to extend structs
++ change class: to do an implicit 'extends object'
+
+I had to change classtest.txt, since it used classes extending structures,
+and when I did I ran into a code generation bug - if you do <CLASS>.MEMBER_INT
+the code generated should be 'drop FIELD_INT:OFFSET', the drop isn't being
+generated.
+-> the <TYPE> code generator was not checking if TYPE was a struct or class, fixed
+
+At the end of the day, both classtest and rctest run with no errors and no leaks.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 21 2013
+
++ added a oThread class
+
+I added an enum of opcode types in forth_optype.txt, I ran into a problem
+because one of the optype names was also the name of an operator with
+precedence - initMemberString.  I changed the optype name to memberStringInit.
+
+Look at ForthInner.cpp:MemberStringInitAction and ForthOps.cpp:initMemberStringOp
+to verify that they match up.  Also consider changing the allocation of bits,
+or at least verifying that everything is expressed in terms of longs.
+-> they did match up, member offset is longs, max string len is bytes
+
+There are memory leaks from classtest.txt, there were several global objects
+that weren't being released, when I tried to fix that I couldn't because one
+of the classes extends a struct, not an object.  Things that extend a struct
+don't inherit objects delete method.  I guess they could define their 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 15 2013
 
 I did a log file scanner for work to process 600+ MB stderr files to get the
@@ -138,7 +171,7 @@ generator.  Adding that made the number of unfreed object on exit become 0.
 I added a built in hashing function to oString, the hash is generated the
 first time you request it with oString.hash, and is only regenerated if it
 has been invalidated by a set or append operation.
-I added 'ofif' a case op which is like 'of' except it is preceeded by an
+I added 'ofif', a case op which is like 'of' except it is preceeded by an
 arbitrary boolean expression, not a constant.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 8 2013

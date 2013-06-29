@@ -3,41 +3,6 @@ setTrace( 0 )
 autoforget forth_autoload
 : forth_autoload "This is the forth_autoload.txt tools module" %s ;
 
-enum: baseTypes
-	0	kBTByte
-	1	kBTUByte
-	2	kBTShort
-	3	kBTUShort
-	4	kBTInt
-	5	kBTUInt	
-	6	kBTLong
-	7	kBTULong
-	8	kBTFloat
-	9	kBTDouble
-	0xa	kBTString
-	0xb	kBTOp
-	0xc	kBTObject
-	0xd	kBTStruct
-	0xe	kBTUserDef
-	0xf	kBTVoid
-;enum
-
-enum: shellTags
-	kShellTagNothing	// 0
-	kShellTagDo
-	kShellTagBegin
-	kShellTagWhile
-	kShellTagCase		// 4
-	kShellTagIf
-	kShellTagElse
-	kShellTagParen
-	kShellTagString		// 8
-	kShellTagColon
-	kShellTagPoundIf
-	kShellTagOf
-	kShellTagOfIf		// 12
-;enum
- 
 0x7FFFFFFF -> int MAXINT
 0x80000000 -> int MININT
 
@@ -609,8 +574,8 @@ precedence ]t
 ;
 
 // entry points can be defined with:
-// ARGUMENT_COUNT _dllEntryType ENTRY_POINT_NAME
-// or use the convenience words dll_0 ... dll_9
+// ARGUMENT_COUNT _addDLLEntry ENTRY_POINT_NAME
+// or use the convenience words dll_0 ... dll_15
 
 0 _dllEntryType dll_0
 1 _dllEntryType dll_1
