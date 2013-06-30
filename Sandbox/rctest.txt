@@ -44,43 +44,23 @@ autoforget rctest
 
 
 : showContainer
-//ddup <object>.show
-  -> oIter iter
+  <oIterable>.headIter -> oIter iter
   begin
     iter.next
   while
     ddup <oString>.get %s %bl <object>.show %nl
   repeat
+  dnull -> iter
 ;
 
 : showContainerR
-//ddup <object>.show
-  -> oIter iter
+  <oIterable>.tailIter -> oIter iter
   begin
     iter.prev
   while
     ddup <oString>.get %s %bl <object>.show %nl
   repeat
-;
-
-: showArray
-  <oArray>.headIter ddup showContainer
-  <oIter>.release
-;
-
-: showArrayR
-  <oArray>.tailIter ddup showContainerR
-  <oIter>.release
-;
-
-: showList
-  <oList>.headIter ddup showContainer
-  <oIter>.release
-;
-
-: showListR
-  <oList>.tailIter ddup showContainerR
-  <oIter>.release
+  dnull -> iter
 ;
 
 : showMap
@@ -115,41 +95,41 @@ obj oMap mdogs
   "using arrays:\n" %s
 
   "empty\n" %s
-  adogs showArray  adogs showArrayR
+  adogs showContainer  adogs showContainerR
   dogA adogs.push
   "one element\n" %s
-  adogs showArray  adogs showArrayR
+  adogs showContainer  adogs showContainerR
   dogB adogs.push
   dogC adogs.push
   "three elements\n" %s
-  adogs showArray  adogs showArrayR
+  adogs showContainer  adogs showContainerR
 
 
   %nl %nl
   "using lists:\n" %s
 
   "empty\n" %s
-  ldogs showList  ldogs showListR
+  ldogs showContainer  ldogs showContainerR
   dogC ldogs.addHead
   "one element\n" %s
-  ldogs showList  ldogs showListR
+  ldogs showContainer  ldogs showContainerR
   dogA ldogs.addTail
   dogB ldogs.addHead
   "three elements\n" %s
-  ldogs showList  ldogs showListR
+  ldogs showContainer  ldogs showContainerR
 
 
   %nl %nl
   "using maps:\n" %s
   "empty\n" %s
-  mdogs showMap  mdogs showMapR
+  mdogs showContainer  mdogs showContainerR
   dogA 1 mdogs.set
   "one element\n" %s
-  mdogs showMap  mdogs showMapR
+  mdogs showContainer  mdogs showContainerR
   dogB 2 mdogs.set
   dogC 3 mdogs.set
   "three elements\n" %s
-  mdogs showMap  mdogs showMapR
+  mdogs showContainer  mdogs showContainerR
   %nl %nl
 ;
 

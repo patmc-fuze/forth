@@ -240,6 +240,22 @@ namespace
 
     //////////////////////////////////////////////////////////////////////
     ///
+    //                 oIterable
+    //
+
+	// oIterable is an abstract iterable class, containers should be derived from oIterable
+
+    baseMethodEntry oIterableMembers[] =
+    {
+        METHOD(     "headIter",             NULL ),
+        METHOD(     "tailIter",             NULL ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
     //                 oArray
     //
 
@@ -1767,6 +1783,14 @@ namespace
 		ForthObject	b;
     };
 
+	struct oPairIterStruct
+    {
+        ulong				refCount;
+		ForthObject			parent;
+		int					cursor;
+    };
+	static ForthClassVocabulary* gpPairIterClassVocab = NULL;
+
 
     FORTHOP( oPairNew )
     {
@@ -1835,6 +1859,39 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oPairHeadIterMethod )
+    {
+        GET_THIS( oPairStruct, pPair );
+		pPair->refCount++;
+		TRACK_KEEP;
+		oPairIterStruct* pIter = new oPairIterStruct;
+		TRACK_ITER_NEW;
+		pIter->refCount = 0;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pPair);
+		pIter->cursor = 0;
+        ForthInterface* pPrimaryInterface = gpPairIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oPairTailIterMethod )
+    {
+        GET_THIS( oPairStruct, pPair );
+		pPair->refCount++;
+		TRACK_KEEP;
+		oPairIterStruct* pIter = new oPairIterStruct;
+		TRACK_ITER_NEW;
+		pIter->refCount = 0;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pPair);
+		pIter->cursor = 2;
+        ForthInterface* pPrimaryInterface = gpPairIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+        METHOD_RETURN;
+    }
+
+
     baseMethodEntry oPairMembers[] =
     {
         METHOD(     "_%new%_",              oPairNew ),
@@ -1843,10 +1900,148 @@ namespace
         METHOD(     "getA",                 oPairGetAMethod ),
         METHOD(     "setB",                 oPairSetBMethod ),
         METHOD(     "getB",                 oPairGetBMethod ),
+        METHOD(     "headIter",             oPairHeadIterMethod ),
+        METHOD(     "tailIter",             oPairTailIterMethod ),
         // following must be last in table
         END_MEMBERS
     };
 
+
+	//////////////////////////////////////////////////////////////////////
+    ///
+    //                 oPairIter
+    //
+
+    FORTHOP( oPairIterNew )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        pEngine->SetError( kForthErrorException, " cannot explicitly create a oPairIter object" );
+    }
+
+    FORTHOP( oPairIterDeleteMethod )
+    {
+        GET_THIS( oPairIterStruct, pIter );
+		SAFE_RELEASE( pIter->parent );
+		delete pIter;
+		TRACK_ITER_DELETE;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oPairIterSeekNextMethod )
+    {
+        GET_THIS( oPairIterStruct, pIter );
+		if ( pIter->cursor < 2 )
+		{
+			pIter->cursor++;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oPairIterSeekPrevMethod )
+    {
+        GET_THIS( oPairIterStruct, pIter );
+		if ( pIter->cursor > 0 )
+		{
+			pIter->cursor--;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oPairIterSeekHeadMethod )
+    {
+        GET_THIS( oPairIterStruct, pIter );
+		pIter->cursor = 0;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oPairIterSeekTailMethod )
+    {
+        GET_THIS( oPairIterStruct, pIter );
+		pIter->cursor = 2;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oPairIterNextMethod )
+    {
+        GET_THIS( oPairIterStruct, pIter );
+		oPairStruct* pPair = reinterpret_cast<oPairStruct *>( &(pIter->parent) );
+		switch ( pIter->cursor )
+		{
+		case 0:
+			pIter->cursor++;
+			PUSH_OBJECT( pPair->a );
+		    SPUSH( ~0 );
+			break;
+		case 1:
+			pIter->cursor++;
+			PUSH_OBJECT( pPair->b );
+		    SPUSH( ~0 );
+			break;
+		default:
+			SPUSH( 0 );
+			break;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oPairIterPrevMethod )
+    {
+        GET_THIS( oPairIterStruct, pIter );
+		oPairStruct* pPair = reinterpret_cast<oPairStruct *>( &(pIter->parent) );
+		switch ( pIter->cursor )
+		{
+		case 1:
+			pIter->cursor--;
+			PUSH_OBJECT( pPair->a );
+		    SPUSH( ~0 );
+			break;
+		case 2:
+			pIter->cursor--;
+			PUSH_OBJECT( pPair->b );
+		    SPUSH( ~0 );
+			break;
+		default:
+			SPUSH( 0 );
+			break;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oPairIterCurrentMethod )
+    {
+        GET_THIS( oPairIterStruct, pIter );
+		oPairStruct* pPair = reinterpret_cast<oPairStruct *>( &(pIter->parent) );
+		switch ( pIter->cursor )
+		{
+		case 0:
+			PUSH_OBJECT( pPair->a );
+		    SPUSH( ~0 );
+			break;
+		case 1:
+			PUSH_OBJECT( pPair->b );
+		    SPUSH( ~0 );
+			break;
+		default:
+			SPUSH( 0 );
+			break;
+		}
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oPairIterMembers[] =
+    {
+        METHOD(     "_%new%_",              oPairIterNew ),
+        METHOD(     "delete",               oPairIterDeleteMethod ),
+        METHOD(     "seekNext",             oPairIterSeekNextMethod ),
+        METHOD(     "seekPrev",             oPairIterSeekPrevMethod ),
+        METHOD(     "seekHead",             oPairIterSeekHeadMethod ),
+        METHOD(     "seekTail",             oPairIterSeekTailMethod ),
+        METHOD(     "next",					oPairIterNextMethod ),
+        METHOD(     "prev",                 oPairIterPrevMethod ),
+        METHOD(     "current",				oPairIterCurrentMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
 
     //////////////////////////////////////////////////////////////////////
     ///
@@ -1860,6 +2055,14 @@ namespace
 		ForthObject	b;
 		ForthObject	c;
     };
+
+	struct oTripleIterStruct
+    {
+        ulong				refCount;
+		ForthObject			parent;
+		int					cursor;
+    };
+	static ForthClassVocabulary* gpTripleIterClassVocab = NULL;
 
 
     FORTHOP( oTripleNew )
@@ -1954,6 +2157,38 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oTripleHeadIterMethod )
+    {
+        GET_THIS( oTripleStruct, pTriple );
+		pTriple->refCount++;
+		TRACK_KEEP;
+		oTripleIterStruct* pIter = new oTripleIterStruct;
+		TRACK_ITER_NEW;
+		pIter->refCount = 0;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pTriple);
+		pIter->cursor = 0;
+        ForthInterface* pPrimaryInterface = gpTripleIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oTripleTailIterMethod )
+    {
+        GET_THIS( oTripleStruct, pTriple );
+		pTriple->refCount++;
+		TRACK_KEEP;
+		oTripleIterStruct* pIter = new oTripleIterStruct;
+		TRACK_ITER_NEW;
+		pIter->refCount = 0;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pTriple);
+		pIter->cursor = 3;
+        ForthInterface* pPrimaryInterface = gpTripleIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+        METHOD_RETURN;
+    }
+
     baseMethodEntry oTripleMembers[] =
     {
         METHOD(     "_%new%_",              oTripleNew ),
@@ -1964,11 +2199,164 @@ namespace
         METHOD(     "getB",                 oTripleGetBMethod ),
         METHOD(     "setC",                 oTripleSetCMethod ),
         METHOD(     "getC",                 oTripleGetCMethod ),
+        METHOD(     "headIter",             oTripleHeadIterMethod ),
+        METHOD(     "tailIter",             oTripleTailIterMethod ),
         // following must be last in table
         END_MEMBERS
     };
 
     
+	//////////////////////////////////////////////////////////////////////
+    ///
+    //                 oTripleIter
+    //
+
+    FORTHOP( oTripleIterNew )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        pEngine->SetError( kForthErrorException, " cannot explicitly create a oTripleIter object" );
+    }
+
+    FORTHOP( oTripleIterDeleteMethod )
+    {
+        GET_THIS( oTripleIterStruct, pIter );
+		SAFE_RELEASE( pIter->parent );
+		delete pIter;
+		TRACK_ITER_DELETE;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oTripleIterSeekNextMethod )
+    {
+        GET_THIS( oTripleIterStruct, pIter );
+		if ( pIter->cursor < 3 )
+		{
+			pIter->cursor++;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oTripleIterSeekPrevMethod )
+    {
+        GET_THIS( oTripleIterStruct, pIter );
+		if ( pIter->cursor > 0 )
+		{
+			pIter->cursor--;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oTripleIterSeekHeadMethod )
+    {
+        GET_THIS( oTripleIterStruct, pIter );
+		pIter->cursor = 0;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oTripleIterSeekTailMethod )
+    {
+        GET_THIS( oTripleIterStruct, pIter );
+		pIter->cursor = 3;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oTripleIterNextMethod )
+    {
+        GET_THIS( oTripleIterStruct, pIter );
+		oTripleStruct* pTriple = reinterpret_cast<oTripleStruct *>( &(pIter->parent) );
+		switch ( pIter->cursor )
+		{
+		case 0:
+			pIter->cursor++;
+			PUSH_OBJECT( pTriple->a );
+		    SPUSH( ~0 );
+			break;
+		case 1:
+			pIter->cursor++;
+			PUSH_OBJECT( pTriple->b );
+		    SPUSH( ~0 );
+			break;
+		case 2:
+			pIter->cursor++;
+			PUSH_OBJECT( pTriple->c );
+		    SPUSH( ~0 );
+			break;
+		default:
+			SPUSH( 0 );
+			break;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oTripleIterPrevMethod )
+    {
+        GET_THIS( oTripleIterStruct, pIter );
+		oTripleStruct* pTriple = reinterpret_cast<oTripleStruct *>( &(pIter->parent) );
+		switch ( pIter->cursor )
+		{
+		case 1:
+			pIter->cursor--;
+			PUSH_OBJECT( pTriple->a );
+		    SPUSH( ~0 );
+			break;
+		case 2:
+			pIter->cursor--;
+			PUSH_OBJECT( pTriple->b );
+		    SPUSH( ~0 );
+			break;
+		case 3:
+			pIter->cursor--;
+			PUSH_OBJECT( pTriple->c );
+		    SPUSH( ~0 );
+			break;
+		default:
+			SPUSH( 0 );
+			break;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oTripleIterCurrentMethod )
+    {
+        GET_THIS( oTripleIterStruct, pIter );
+		oTripleStruct* pTriple = reinterpret_cast<oTripleStruct *>( &(pIter->parent) );
+		switch ( pIter->cursor )
+		{
+		case 0:
+			PUSH_OBJECT( pTriple->a );
+		    SPUSH( ~0 );
+			break;
+		case 1:
+			PUSH_OBJECT( pTriple->b );
+		    SPUSH( ~0 );
+			break;
+		case 2:
+			PUSH_OBJECT( pTriple->c );
+		    SPUSH( ~0 );
+			break;
+		default:
+			SPUSH( 0 );
+			break;
+		}
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oTripleIterMembers[] =
+    {
+        METHOD(     "_%new%_",              oTripleIterNew ),
+        METHOD(     "delete",               oTripleIterDeleteMethod ),
+        METHOD(     "seekNext",             oTripleIterSeekNextMethod ),
+        METHOD(     "seekPrev",             oTripleIterSeekPrevMethod ),
+        METHOD(     "seekHead",             oTripleIterSeekHeadMethod ),
+        METHOD(     "seekTail",             oTripleIterSeekTailMethod ),
+        METHOD(     "next",					oTripleIterNextMethod ),
+        METHOD(     "prev",                 oTripleIterPrevMethod ),
+        METHOD(     "current",				oTripleIterCurrentMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
     //////////////////////////////////////////////////////////////////////
     ///
     //                 oByteArray
@@ -3552,31 +3940,35 @@ ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
     ForthClassVocabulary* pClassClass = pEngine->AddBuiltinClass( "class", pObjectClass, classMembers );
 
 	ForthClassVocabulary* pOIterClass = pEngine->AddBuiltinClass( "oIter", pObjectClass, oIterMembers );
+	ForthClassVocabulary* pOIterableClass = pEngine->AddBuiltinClass( "oIterable", pObjectClass, oIterableMembers );
 
-    ForthClassVocabulary* pOArrayClass = pEngine->AddBuiltinClass( "oArray", pObjectClass, oArrayMembers );
+    ForthClassVocabulary* pOArrayClass = pEngine->AddBuiltinClass( "oArray", pOIterableClass, oArrayMembers );
     gpArraryIterClassVocab = pEngine->AddBuiltinClass( "oArrayIter", pOIterClass, oArrayIterMembers );
 
-    ForthClassVocabulary* pOListClass = pEngine->AddBuiltinClass( "oList", pObjectClass, oListMembers );
+    ForthClassVocabulary* pOListClass = pEngine->AddBuiltinClass( "oList", pOIterableClass, oListMembers );
     gpListIterClassVocab = pEngine->AddBuiltinClass( "oListIter", pOIterClass, oListIterMembers );
 
-    ForthClassVocabulary* pOMapClass = pEngine->AddBuiltinClass( "oMap", pObjectClass, oMapMembers );
+    ForthClassVocabulary* pOMapClass = pEngine->AddBuiltinClass( "oMap", pOIterableClass, oMapMembers );
     gpMapIterClassVocab = pEngine->AddBuiltinClass( "oMapIter", pOIterClass, oMapIterMembers );
 
     ForthClassVocabulary* pOStringClass = pEngine->AddBuiltinClass( "oString", pObjectClass, oStringMembers );
 
-    ForthClassVocabulary* pOPairClass = pEngine->AddBuiltinClass( "oPair", pObjectClass, oPairMembers );
-    ForthClassVocabulary* pOTripleClass = pEngine->AddBuiltinClass( "oTriple", pObjectClass, oTripleMembers );
+    ForthClassVocabulary* pOPairClass = pEngine->AddBuiltinClass( "oPair", pOIterableClass, oPairMembers );
+    gpPairIterClassVocab = pEngine->AddBuiltinClass( "oPairIter", pOIterClass, oPairIterMembers );
 
-    ForthClassVocabulary* pOByteArrayClass = pEngine->AddBuiltinClass( "oByteArray", pObjectClass, oByteArrayMembers );
+	ForthClassVocabulary* pOTripleClass = pEngine->AddBuiltinClass( "oTriple", pOIterableClass, oTripleMembers );
+    gpTripleIterClassVocab = pEngine->AddBuiltinClass( "oTripleIter", pOIterClass, oTripleIterMembers );
+
+    ForthClassVocabulary* pOByteArrayClass = pEngine->AddBuiltinClass( "oByteArray", pOIterableClass, oByteArrayMembers );
     gpByteArraryIterClassVocab = pEngine->AddBuiltinClass( "oByteArrayIter", pOIterClass, oByteArrayIterMembers );
 
-    ForthClassVocabulary* pOShortArrayClass = pEngine->AddBuiltinClass( "oShortArray", pObjectClass, oShortArrayMembers );
+    ForthClassVocabulary* pOShortArrayClass = pEngine->AddBuiltinClass( "oShortArray", pOIterableClass, oShortArrayMembers );
     gpShortArraryIterClassVocab = pEngine->AddBuiltinClass( "oShortArrayIter", pOIterClass, oShortArrayIterMembers );
 
-    ForthClassVocabulary* pOIntArrayClass = pEngine->AddBuiltinClass( "oIntArray", pObjectClass, oIntArrayMembers );
+    ForthClassVocabulary* pOIntArrayClass = pEngine->AddBuiltinClass( "oIntArray", pOIterableClass, oIntArrayMembers );
     gpIntArraryIterClassVocab = pEngine->AddBuiltinClass( "oIntArrayIter", pOIterClass, oIntArrayIterMembers );
 
-    ForthClassVocabulary* pOLongArrayClass = pEngine->AddBuiltinClass( "oLongArray", pObjectClass, oLongArrayMembers );
+    ForthClassVocabulary* pOLongArrayClass = pEngine->AddBuiltinClass( "oLongArray", pOIterableClass, oLongArrayMembers );
     gpLongArraryIterClassVocab = pEngine->AddBuiltinClass( "oLongArrayIter", pOIterClass, oLongArrayIterMembers );
 
     ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass( "oThread", pObjectClass, oThreadMembers );
