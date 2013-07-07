@@ -19,6 +19,7 @@
 #include "ForthInput.h"
 #include "ForthVocabulary.h"
 #include "ForthExtension.h"
+#include "dirent.h"
 
 #define CATCH_EXCEPTIONS
 
@@ -104,6 +105,28 @@ namespace
 	}
 }
 
+// return is a DIR*
+void* openDir( const char* pPath )
+{
+	return opendir( pPath );
+}
+
+// return is a struct dirent*
+void* readDir( void* pDir )
+{
+	return readdir( (DIR*) pDir );
+}
+
+int closeDir( void* pDir )
+{
+	return closedir( (DIR*) pDir );
+}
+
+void rewindDir( void* pDir )
+{
+	rewinddir( (DIR*) pDir );
+}
+
 #if defined(WIN32)
 DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData );
 #elif defined(LINUX)
@@ -180,6 +203,11 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 	mFileInterface.getStdIn = getStdIn;
 	mFileInterface.getStdOut = getStdOut;
 	mFileInterface.getStdErr = getStdErr;
+	mFileInterface.openDir = openDir;
+	mFileInterface.readDir = readDir;
+	mFileInterface.closeDir = closeDir;
+	mFileInterface.rewindDir = rewindDir;
+
 
 #if 0
     mMainThreadId = GetThreadId( GetMainThread() );

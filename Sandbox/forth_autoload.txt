@@ -13,7 +13,7 @@ autoforget forth_autoload
 : autoload
   blword find
   if( 0== )
-    blword load$
+    $load( blword )
   else
     blword drop
   endif
@@ -70,15 +70,12 @@ false -> int _helpfileLoaded
 
 
 : help
-  blword -> _aa
-  _aa
   if( _helpfileLoaded not )
-    "help.txt" load$
+    $load( "help.txt"  )
     true -> _helpfileLoaded
-    // there is a help$ at end of help.txt that will complete the lookup
-  else
-    $help
+    // there is a $help at end of help.txt that will complete the lookup
   endif
+  $help( blword )
 ;
 
 addHelp addHelp	addHelp SYMBOL REST_OF_LINE		add help entry
@@ -93,7 +90,7 @@ addHelp cd	cd BLAH			change working directory to BLAH
 ;
 
 
-: system$
+: $system
   -> ptrTo byte commandString
   true -> int okay
   null -> ptrTo byte outName
@@ -246,7 +243,7 @@ addHelp cd	cd BLAH			change working directory to BLAH
 
 
 addHelp pwd	pwd			display working directory
-: pwd "chdir" system$ drop ;
+: pwd $system( "chdir" ) drop ;
 
 addHelp ls	ls BLAH		display directory (BLAH is optional filespec)
 : ls
@@ -261,7 +258,7 @@ addHelp ls	ls BLAH		display directory (BLAH is optional filespec)
     strcat( _bb " " )
     strcat( _bb _aa )
   endif
-  _bb system$ drop
+  $system( _bb ) drop
 ;
 
 addHelp mv	mv OLDNAME NEWNAME		rename a file
@@ -322,7 +319,7 @@ addHelp more more FILENAME	display FILENAME on screen
 ;
 
 addHelp sys	sys REST_OF_LINE	run rest of line in a DOS shell
-: sys 0 word system drop ;
+: sys system( 0 word ) drop ;
 
 addHelp fileExists	"FILEPATH" fileExists ... true/false		tell if a file exists
 : fileExists "r" fopen dup if fclose drop true else drop false endif ;
@@ -510,6 +507,14 @@ struct: WIN32_FIND_DATA
   int		reserved1
   MAX_PATH arrayOf byte fileName
   14 arrayOf byte shortFileName
+;struct
+
+struct: dirent
+  int	d_ino
+  short	d_reclen
+  int	d_namlen
+  int	d_type
+  MAX_PATH arrayOf byte d_name
 ;struct
 
 #endif

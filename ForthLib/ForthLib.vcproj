@@ -999,6 +999,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\dirent.h"
+				>
+			</File>
+			<File
 				RelativePath="Forth.h"
 				>
 			</File>

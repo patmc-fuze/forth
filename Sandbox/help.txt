@@ -358,7 +358,7 @@ addHelp ;enum							ends an enumerated type definition
 addHelp recursize						used inside a colon definition, allows it to invoke itself recursively
 addHelp precedence						used inside a colon definition, makes it have precedence (execute in compile mode)
 addHelp load		load PATH			start loading a forth source file whose name immediately follows "load"
-addHelp load$		PATH load$			start loading a forth source file whose name is on TOS
+addHelp $load		PATH $load			start loading a forth source file whose name is on TOS
 addHelp loaddone						terminate loading a forth source file before the end of file
 addHelp requires	requires NAME		if forthop NAME exists do nothing, if not load NAME.txt
 addHelp interpret	STR interpret		interpret string on TOS
@@ -502,4 +502,4 @@ addHelp windowsConstants	... PTR_TO_CONSTANTS
 
 // THIS NEXT LINE MUST BE THE LAST IN THIS FILE!
 
-$help
+//$help

@@ -82,6 +82,10 @@ public:
 	virtual FILE*			GetStdIn();
 	virtual FILE*			GetStdOut();
 	virtual FILE*			GetStdErr();
+	virtual void*			OpenDir( const char* pPath );
+	virtual void*			ReadDir( void* pDir );
+	virtual int				CloseDir( void* pDir );
+	virtual void			RewindDir( void* pDir );
 
 	int						ProcessConnection( SOCKET serverSocket );
 	void					CloseConnection();

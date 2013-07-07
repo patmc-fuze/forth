@@ -63,6 +63,26 @@ autoforget rctest
   dnull -> iter
 ;
 
+: showArray
+  <oArray>.headIter ddup showContainer
+  <oIter>.release
+;
+
+: showArrayR
+  <oArray>.tailIter ddup showContainerR
+  <oIter>.release
+;
+
+: showList
+  <oList>.headIter ddup showContainer
+  <oIter>.release
+;
+
+: showListR
+  <oList>.tailIter ddup showContainerR
+  <oIter>.release
+;
+
 : showMap
   <oMap>.headIter -> oMapIter iter
   begin

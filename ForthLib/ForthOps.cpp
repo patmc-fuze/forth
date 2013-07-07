@@ -3460,7 +3460,7 @@ FORTHOP( precedenceOp )
     }
 }
 
-FORTHOP( loadStrOp )
+FORTHOP( strLoadOp )
 {
     char *pFileName = ((char *) (SPOP));
 
@@ -3482,7 +3482,7 @@ FORTHOP( loadOp )
     ForthEngine *pEngine = GET_ENGINE;
     char *pFileName = pEngine->GetNextSimpleToken();
     SPUSH( ((long) pFileName) );
-    loadStrOp( pCore );
+    strLoadOp( pCore );
 }
 
 FORTHOP( loadDoneOp )
@@ -4279,6 +4279,39 @@ FORTHOP( fputsOp )
     char* pBuffer = (char *) SPOP;
     int result = pCore->pFileFuncs->filePutString( pBuffer, pFile );
     SPUSH( result );
+}
+
+FORTHOP( opendirOp )
+{
+    NEEDS(1);
+	const char* pPath = (const char*) SPOP;
+    int result = (int) (pCore->pFileFuncs->openDir( pPath ));
+	// result is actually a DIR*
+    SPUSH( result );
+}
+
+FORTHOP( readdirOp )
+{
+    NEEDS(1);
+	void* pDir = (void *) SPOP;
+    int result = (int)(pCore->pFileFuncs->readDir( pDir ));
+	// result is actually a struct dirent*
+    SPUSH( result );
+}
+
+FORTHOP( closedirOp )
+{
+    NEEDS(1);
+	void* pDir = (void *) SPOP;
+    int result = pCore->pFileFuncs->closeDir( pDir );
+    SPUSH( result );
+}
+
+FORTHOP( rewinddirOp )
+{
+    NEEDS(1);
+	void* pDir = (void *) SPOP;
+    pCore->pFileFuncs->rewindDir( pDir );
 }
 
 
@@ -5894,6 +5927,15 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    stdinOp,                "stdin" ),
     OP_DEF(    stdoutOp,               "stdout" ),
     OP_DEF(    stderrOp,               "stderr" ),
+    OP_DEF(    chdirOp,                "chdir" ),
+    OP_DEF(    mkdirOp,                "mkdir" ),
+    OP_DEF(    rmdirOp,                "rmdir" ),
+    OP_DEF(    renameOp,               "rename" ),
+	OP_DEF(    opendirOp,              "opendir" ),
+	OP_DEF(    readdirOp,              "readdir" ),
+	OP_DEF(    closedirOp,             "closedir" ),
+	OP_DEF(    rewinddirOp,            "rewinddir" ),
+    OP_DEF(    fflushOp,               "fflush" ),
     
     ///////////////////////////////////////////
     //  64-bit integer math & conversions
@@ -5999,7 +6041,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    endenumOp,              ";enum" ),
     PRECOP_DEF(recursiveOp,            "recursive" ),
     OP_DEF(    precedenceOp,           "precedence" ),
-    OP_DEF(    loadStrOp,              "load$" ),
+    OP_DEF(    strLoadOp,              "$load" ),
     OP_DEF(    loadOp,                 "load" ),
     OP_DEF(    loadDoneOp,             "loaddone" ),
     OP_DEF(    requiresOp,             "requires" ),
@@ -6141,11 +6183,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    _filenoOp,              "_fileno" ),
     OP_DEF(    tmpnamOp,               "tmpnam" ),
     OP_DEF(    systemOp,               "system" ),
-    OP_DEF(    chdirOp,                "chdir" ),
-    OP_DEF(    mkdirOp,                "mkdir" ),
-    OP_DEF(    rmdirOp,                "rmdir" ),
-    OP_DEF(    renameOp,               "rename" ),
-    OP_DEF(    fflushOp,               "fflush" ),
     OP_DEF(    byeOp,                  "bye" ),
     OP_DEF(    argvOp,                 "argv" ),
     OP_DEF(    argcOp,                 "argc" ),

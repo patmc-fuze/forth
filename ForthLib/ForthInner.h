@@ -92,6 +92,10 @@ struct ForthFileInterface
 	FILE*				(*getStdIn)();
 	FILE*				(*getStdOut)();
 	FILE*				(*getStdErr)();
+	void*				(*openDir)( const char* pPath );	// returns DIR*, which is pDir in readDir, closeDir, rewindDir
+	void*				(*readDir)( void* pDir );			// return is a struct dirent*
+	int					(*closeDir)( void* pDir );
+	void				(*rewindDir)( void* pDir );
 };
 
 struct ForthCoreState

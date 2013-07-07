@@ -204,6 +204,31 @@ namespace
         ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
         return pShell->GetStdErr();
     }
+
+	void* serverOpenDir( const char* pPath )
+	{
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->OpenDir( pPath );
+	}
+
+	void* serverReadDir( void* pDir )
+	{
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->ReadDir( pDir );
+	}
+
+	int serverCloseDir( void* pDir )
+	{
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        return pShell->CloseDir( pDir );
+	}
+
+	void serverRewindDir( void* pDir )
+	{
+        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
+        pShell->RewindDir( pDir );
+	}
+
 };
 
 
@@ -397,6 +422,10 @@ ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, Forth
 	mFileInterface.getStdIn = getStdIn;
 	mFileInterface.getStdOut = getStdOut;
 	mFileInterface.getStdErr = getStdErr;
+	mFileInterface.openDir = serverOpenDir;
+	mFileInterface.readDir = serverReadDir;
+	mFileInterface.closeDir = serverCloseDir;
+	mFileInterface.rewindDir = serverRewindDir;
 }
 
 ForthServerShell::~ForthServerShell()
@@ -1234,6 +1263,29 @@ ForthServerShell::GetStdErr()
         printf( "ForthServerShell::GetStdErr unexpected message type %d\n", msgType );
     }
     return pFile;
+}
+
+void *
+ForthServerShell::OpenDir( const char* pPath )
+{
+	return NULL;
+}
+
+void *
+ForthServerShell::ReadDir( void* pDir )
+{
+	return NULL;
+}
+
+int
+ForthServerShell::CloseDir( void* pDir )
+{
+	return -1;
+}
+
+void
+ForthServerShell::RewindDir( void* pDir )
+{
 }
 
 int
