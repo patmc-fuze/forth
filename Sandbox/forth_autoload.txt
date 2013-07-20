@@ -70,12 +70,15 @@ false -> int _helpfileLoaded
 
 
 : help
+  blword -> _aa
   if( _helpfileLoaded not )
     $load( "help.txt"  )
     true -> _helpfileLoaded
     // there is a $help at end of help.txt that will complete the lookup
+    _aa
+  else
+    $help( _aa )
   endif
-  $help( blword )
 ;
 
 addHelp addHelp	addHelp SYMBOL REST_OF_LINE		add help entry

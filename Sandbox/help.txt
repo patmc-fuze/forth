@@ -502,4 +502,4 @@ addHelp windowsConstants	... PTR_TO_CONSTANTS
 
 // THIS NEXT LINE MUST BE THE LAST IN THIS FILE!
 
-//$help
+$help
