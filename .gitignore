@@ -39,7 +39,7 @@ ForthLib/MakefileProject
 ForthLib/NewFolder
 Junk
 rel
-Sandbox/*.h
+Sandbox
 TestDLL
 Unused
 */Debug
