@@ -357,6 +357,23 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oArrayRefMethod )
+    {
+		GET_THIS( oArrayStruct, pArray );
+        oArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+	        SPUSH( (long) &(a[ix]) );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
     FORTHOP( oArrayGetMethod )
     {
 		GET_THIS( oArrayStruct, pArray );
@@ -517,6 +534,7 @@ namespace
         METHOD(     "clear",                oArrayClearMethod ),
         METHOD(     "resize",               oArrayResizeMethod ),
         METHOD(     "count",                oArrayCountMethod ),
+        METHOD(     "ref",                  oArrayRefMethod ),
         METHOD(     "get",                  oArrayGetMethod ),
         METHOD(     "set",                  oArraySetMethod ),
         METHOD(     "findIndex",            oArrayFindIndexMethod ),
@@ -2431,6 +2449,23 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oByteArrayRefMethod )
+    {
+		GET_THIS( oByteArrayStruct, pArray );
+        oByteArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+	        SPUSH( (long) &(a[ix]) );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
     FORTHOP( oByteArrayGetMethod )
     {
 		GET_THIS( oByteArrayStruct, pArray );
@@ -2570,6 +2605,7 @@ namespace
         METHOD(     "clear",                oByteArrayClearMethod ),
         METHOD(     "resize",               oByteArrayResizeMethod ),
         METHOD(     "count",                oByteArrayCountMethod ),
+        METHOD(     "ref",                  oByteArrayRefMethod ),
         METHOD(     "get",                  oByteArrayGetMethod ),
         METHOD(     "set",                  oByteArraySetMethod ),
         METHOD(     "findIndex",            oByteArrayFindIndexMethod ),
@@ -2788,6 +2824,23 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oShortArrayRefMethod )
+    {
+		GET_THIS( oShortArrayStruct, pArray );
+        oShortArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+	        SPUSH( (long) &(a[ix]) );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
     FORTHOP( oShortArrayGetMethod )
     {
 		GET_THIS( oShortArrayStruct, pArray );
@@ -2929,6 +2982,7 @@ namespace
         METHOD(     "clear",                oShortArrayClearMethod ),
         METHOD(     "resize",               oShortArrayResizeMethod ),
         METHOD(     "count",                oShortArrayCountMethod ),
+        METHOD(     "ref",                  oShortArrayRefMethod ),
         METHOD(     "get",                  oShortArrayGetMethod ),
         METHOD(     "set",                  oShortArraySetMethod ),
         METHOD(     "findIndex",            oShortArrayFindIndexMethod ),
@@ -3145,6 +3199,23 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oIntArrayRefMethod )
+    {
+		GET_THIS( oIntArrayStruct, pArray );
+        oIntArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+	        SPUSH( (long) &(a[ix]) );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
     FORTHOP( oIntArrayGetMethod )
     {
 		GET_THIS( oIntArrayStruct, pArray );
@@ -3286,6 +3357,7 @@ namespace
         METHOD(     "clear",                oIntArrayClearMethod ),
         METHOD(     "resize",               oIntArrayResizeMethod ),
         METHOD(     "count",                oIntArrayCountMethod ),
+        METHOD(     "ref",                  oIntArrayRefMethod ),
         METHOD(     "get",                  oIntArrayGetMethod ),
         METHOD(     "set",                  oIntArraySetMethod ),
         METHOD(     "findIndex",            oIntArrayFindIndexMethod ),
@@ -3500,6 +3572,23 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oLongArrayRefMethod )
+    {
+		GET_THIS( oLongArrayStruct, pArray );
+        oLongArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+	        SPUSH( (long) &(a[ix]) );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
     FORTHOP( oLongArrayGetMethod )
     {
 		GET_THIS( oLongArrayStruct, pArray );
@@ -3641,6 +3730,7 @@ namespace
         METHOD(     "clear",                oLongArrayClearMethod ),
         METHOD(     "resize",               oLongArrayResizeMethod ),
         METHOD(     "count",                oLongArrayCountMethod ),
+        METHOD(     "ref",                  oLongArrayRefMethod ),
         METHOD(     "get",                  oLongArrayGetMethod ),
         METHOD(     "set",                  oLongArraySetMethod ),
         METHOD(     "findIndex",            oLongArrayFindIndexMethod ),
