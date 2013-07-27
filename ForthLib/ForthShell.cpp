@@ -209,6 +209,15 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 	mFileInterface.rewindDir = rewindDir;
 
 
+#if defined( WIN32 )
+	DWORD result = GetCurrentDirectory( MAX_PATH, mWorkingDirPath );
+	if ( result == 0 )
+	{
+		mWorkingDirPath[0] = '\0';
+	}
+#else
+#endif
+
 #if 0
     mMainThreadId = GetThreadId( GetMainThread() );
     mConsoleInputThreadId = 0;
@@ -255,11 +264,7 @@ ForthShell::~ForthShell()
 bool
 ForthShell::PushInputFile( const char *pFilename )
 {
-    FILE *pInFile = OpenInternalFile( pFilename );
-    if ( pInFile == NULL )
-    {
-		pInFile = fopen( pFilename, "r" );
-    }
+    FILE *pInFile = OpenForthFile( pFilename );
     if ( pInFile != NULL )
     {
         mpInput->PushInputStream( new ForthFileInputStream( pInFile ) );
@@ -1468,6 +1473,43 @@ FILE* ForthShell::OpenInternalFile( const char* pFilename )
             }
             break;
         }
+    }
+	return pFile;
+}
+
+
+FILE* ForthShell::OpenForthFile( const char* pPath )
+{
+    // see if file is an internal file, and if so use it
+    FILE *pFile = OpenInternalFile( pPath );
+    if ( pFile == NULL )
+    {
+		pFile = fopen( pPath, "r" );
+    }
+	bool pathIsRelative = true;
+#if defined( WIN32 )
+	if ( strchr( pPath, ':' ) != NULL )
+	{
+		pathIsRelative = false;
+	}
+#elif defined( LINUX )
+	if ( *pPath == '/' )
+	{
+		pathIsRelative = false;
+	}
+#endif
+    if ( (pFile == NULL) && pathIsRelative )
+    {
+		char* pSysPath = new char[ strlen(mWorkingDirPath) + strlen(pPath) + 16 ];
+		strcpy( pSysPath, mWorkingDirPath );
+#if defined( WIN32 )
+		strcat( pSysPath, "\\system\\" );
+#elif defined( LINUX )
+		strcat( pSysPath, "/system/" );
+#endif
+		strcat( pSysPath, pPath );
+		pFile = fopen( pSysPath, "r" );
+		delete pSysPath;
     }
 	return pFile;
 }

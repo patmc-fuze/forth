@@ -149,6 +149,7 @@ public:
     virtual char            GetChar();
 
 	virtual FILE*			OpenInternalFile( const char* pFilename );
+	virtual FILE*			OpenForthFile( const char* pFilename );
 
     virtual ForthFileInterface* GetFileInterface();
 
@@ -215,6 +216,7 @@ protected:
     HANDLE                  mConsoleInputThreadHandle;
     HANDLE                  mConsoleInputEvent;
 #endif
+	char					mWorkingDirPath[MAX_PATH + 1];
     ForthThreadQueue*       mpReadyThreads;
     ForthThreadQueue*       mpSleepingThreads;
 
