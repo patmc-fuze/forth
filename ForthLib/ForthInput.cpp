@@ -38,6 +38,8 @@ ForthInputStack::PushInputStream( ForthInputStream *pNewStream )
     pOldStream = mpHead;
     mpHead = pNewStream;
     mpHead->mpNext = pOldStream;
+
+	TRACE( "PushInputStream %s\n", pNewStream->GetType() );
 }
 
 
@@ -55,6 +57,8 @@ ForthInputStack::PopInputStream( void )
     pNext = mpHead->mpNext;
     delete mpHead;
     mpHead = pNext;
+
+	TRACE( "PopInputStream %s\n", (mpHead == NULL) ? "NULL" : mpHead->GetType() );
 
     return false;
 }
@@ -196,6 +200,12 @@ ForthInputStream::GetLineNumber( void )
     return -1;
 }
 
+const char*
+ForthInputStream::GetType( void )
+{
+    return "Base";
+}
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -239,6 +249,13 @@ ForthFileInputStream::GetLineNumber( void )
 }
 
 
+const char*
+ForthFileInputStream::GetType( void )
+{
+    return "File";
+}
+
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -265,6 +282,13 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
 
     mpBuffer = mpBufferBase;
     return pBuffer;
+}
+
+
+const char*
+ForthConsoleInputStream::GetType( void )
+{
+    return "Console";
 }
 
 
@@ -319,4 +343,12 @@ ForthBufferInputStream::GetLine( const char *pPrompt )
 
     return pBuffer;
 }
+
+
+const char*
+ForthBufferInputStream::GetType( void )
+{
+    return "Buffer";
+}
+
 
