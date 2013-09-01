@@ -4,6 +4,7 @@
 	Version="9.00"
 	Name="ForthDocs"
 	ProjectGUID="{360D0E7C-0868-46BC-BD8C-2B4ADE8EAF73}"
+	RootNamespace="ForthDocs"
 	Keyword="MakeFileProj"
 	TargetFrameworkVersion="131072"
 	>
@@ -269,6 +270,10 @@
 		</File>
 		<File
 			RelativePath=".\ForthAssembler.txt"
+			>
+		</File>
+		<File
+			RelativePath=".\ForthBuiltinClasses.txt"
 			>
 		</File>
 		<File

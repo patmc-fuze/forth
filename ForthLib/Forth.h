@@ -231,6 +231,7 @@ typedef enum {
     kForthErrorUserDefined,
     kForthErrorBadSyntax,
     kForthErrorBadPreprocessorDirective,
+    kForthErrorUnimplementedMethod,
     // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
 } eForthError;

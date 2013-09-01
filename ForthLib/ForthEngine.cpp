@@ -83,6 +83,7 @@ static const char *pErrorStrings[] =
     "Error In User-Defined Op",
     "Syntax error",
     "Bad Preprocessor Directive",
+	"Unimplemented Method",
 };
 
 void defaultTraceOutRoutine( void*, const char* pBuff )

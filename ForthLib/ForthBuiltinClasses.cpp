@@ -25,6 +25,8 @@ extern "C" {
 	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
 };
 
+extern void unimplementedMethodOp( ForthCoreState *pCore );
+
 namespace
 {
 
@@ -124,7 +126,7 @@ namespace
         METHOD_RET( "compare",          objectCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "keep",				objectKeepMethod ),
         METHOD(     "release",			objectReleaseMethod ),
-        MEMBER_VAR( "refCount",             NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        MEMBER_VAR( "refCount",         NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -226,13 +228,16 @@ namespace
 
     baseMethodEntry oIterMembers[] =
     {
-        METHOD(     "seekNext",             NULL ),
-        METHOD(     "seekPrev",             NULL ),
-        METHOD(     "seekHead",             NULL ),
-        METHOD(     "seekTail",             NULL ),
-        METHOD(     "next",					NULL ),
-        METHOD(     "prev",                 NULL ),
-        METHOD(     "current",				NULL ),
+        METHOD(     "seekNext",             unimplementedMethodOp ),
+        METHOD(     "seekPrev",             unimplementedMethodOp ),
+        METHOD(     "seekHead",             unimplementedMethodOp ),
+        METHOD(     "seekTail",             unimplementedMethodOp ),
+        METHOD_RET( "next",					unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "prev",                 unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "current",				unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD(     "remove",				unimplementedMethodOp ),
+        METHOD_RET( "findNext",				unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "clone",                unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIter) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -247,8 +252,12 @@ namespace
 
     baseMethodEntry oIterableMembers[] =
     {
-        METHOD(     "headIter",             NULL ),
-        METHOD(     "tailIter",             NULL ),
+        METHOD_RET( "headIter",             unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIter) ),
+        METHOD_RET( "tailIter",             unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIter) ),
+        METHOD_RET( "find",                 unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIter) ),
+        METHOD_RET( "clone",                unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIterable) ),
+        METHOD_RET( "count",                unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+		METHOD( "clear",                    unimplementedMethodOp ),
         // following must be last in table
         END_MEMBERS
     };
@@ -498,6 +507,43 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oArrayFindMethod )
+    {
+		GET_THIS( oArrayStruct, pArray );
+        long retVal = -1;
+        ForthObject soughtObj;
+        POP_OBJECT( soughtObj );
+        oArray::iterator iter;
+        oArray& a = *(pArray->elements);
+        for ( ulong i = 0; i < a.size(); i++ )
+        {
+            ForthObject& o = a[i];
+            if ( OBJECTS_SAME( o, soughtObj ) )
+            {
+                retVal = i;
+                break;
+            }
+        }
+		if ( retVal < 0 )
+		{
+	        SPUSH( 0 );
+		}
+		else
+		{
+			pArray->refCount++;
+			TRACK_KEEP;
+			MALLOCATE_ITER( oArrayIterStruct, pIter );
+			pIter->refCount = 0;
+			pIter->parent.pMethodOps = GET_TPM;
+			pIter->parent.pData = reinterpret_cast<long *>(pArray);
+			pIter->cursor = retVal;
+			ForthInterface* pPrimaryInterface = gpArraryIterClassVocab->GetInterface( 0 );
+			PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+	        SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
     FORTHOP( oArrayCloneMethod )
     {
 		GET_THIS( oArrayStruct, pArray );
@@ -522,33 +568,28 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oArrayRemoveMethod )
-    {
-        METHOD_RETURN;
-    }
-
     baseMethodEntry oArrayMembers[] =
     {
         METHOD(     "_%new%_",              oArrayNew ),
         METHOD(     "delete",               oArrayDeleteMethod ),
+
+		METHOD_RET( "headIter",             oArrayHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArrayIter) ),
+        METHOD_RET( "tailIter",             oArrayTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArrayIter) ),
+        METHOD_RET( "find",                 oArrayFindMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArrayIter) ),
+        METHOD_RET( "clone",                oArrayCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArray) ),
+        METHOD_RET( "count",                oArrayCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "clear",                oArrayClearMethod ),
+
         METHOD(     "resize",               oArrayResizeMethod ),
-        METHOD(     "count",                oArrayCountMethod ),
-        METHOD(     "ref",                  oArrayRefMethod ),
-        METHOD(     "get",                  oArrayGetMethod ),
+        METHOD_RET( "ref",                  oArrayRefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject | kDTIsPtr) ),
+        METHOD_RET( "get",                  oArrayGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         METHOD(     "set",                  oArraySetMethod ),
-        METHOD(     "findIndex",            oArrayFindIndexMethod ),
+        METHOD_RET( "findIndex",            oArrayFindIndexMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "push",                 oArrayPushMethod ),
-        METHOD(     "pop",                  oArrayPopMethod ),
-        METHOD(     "headIter",             oArrayHeadIterMethod ),
-        METHOD(     "tailIter",             oArrayTailIterMethod ),
-        METHOD(     "clone",                oArrayCloneMethod ),
-        //METHOD(     "remove",               oArrayRemoveMethod ),
-        //METHOD(     "insert",               oArrayInsertMethod ),
+        METHOD_RET( "pop",                  oArrayPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         // following must be last in table
         END_MEMBERS
     };
-
 
     //////////////////////////////////////////////////////////////////////
     ///
@@ -658,17 +699,74 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oArrayIterRemoveMethod )
+    {
+        GET_THIS( oArrayIterStruct, pIter );
+		oArrayStruct* pArray = reinterpret_cast<oArrayStruct *>( pIter->parent.pData );
+        oArray& a = *(pArray->elements);
+		if ( pIter->cursor < a.size() )
+		{
+			// TBD!
+			ForthObject o = a[ pIter->cursor ];
+            SAFE_RELEASE( o );
+			pArray->elements->erase( pArray->elements->begin() + pIter->cursor );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oArrayIterFindNextMethod )
+    {
+        GET_THIS( oArrayIterStruct, pIter );
+        long retVal = 0;
+        ForthObject soughtObj;
+        POP_OBJECT( soughtObj );
+		oArrayStruct* pArray = reinterpret_cast<oArrayStruct *>( pIter->parent.pData );
+        oArray& a = *(pArray->elements);
+		unsigned int i = pIter->cursor;
+		while ( i < a.size() )
+		{
+            ForthObject& o = a[i];
+            if ( OBJECTS_SAME( o, soughtObj ) )
+            {
+                retVal = ~0;
+				pIter->cursor = i;
+                break;
+            }
+		}
+		SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oArrayIterCloneMethod )
+    {
+        GET_THIS( oArrayIterStruct, pIter );
+		MALLOCATE_ITER( oArrayIterStruct, pNewIter );
+		pNewIter->refCount = 0;
+		pNewIter->parent.pMethodOps = pIter->parent.pMethodOps;
+		pNewIter->parent.pData = pIter->parent.pData;
+		oArrayStruct* pArray = reinterpret_cast<oArrayStruct *>( pIter->parent.pData );
+		pArray->refCount++;
+		TRACK_KEEP;
+		pNewIter->cursor = pIter->cursor;
+        PUSH_PAIR( GET_TPM, pNewIter );
+        METHOD_RETURN;
+    }
+
     baseMethodEntry oArrayIterMembers[] =
     {
         METHOD(     "_%new%_",              oArrayIterNew ),
         METHOD(     "delete",               oArrayIterDeleteMethod ),
+
         METHOD(     "seekNext",             oArrayIterSeekNextMethod ),
         METHOD(     "seekPrev",             oArrayIterSeekPrevMethod ),
         METHOD(     "seekHead",             oArrayIterSeekHeadMethod ),
         METHOD(     "seekTail",             oArrayIterSeekTailMethod ),
-        METHOD(     "next",					oArrayIterNextMethod ),
-        METHOD(     "prev",                 oArrayIterPrevMethod ),
-        METHOD(     "current",				oArrayIterCurrentMethod ),
+        METHOD_RET( "next",					oArrayIterNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "prev",                 oArrayIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "current",				oArrayIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD(     "remove",				oArrayIterRemoveMethod ),
+        METHOD_RET( "findNext",				oArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "clone",                oArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArrayIter) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -900,6 +998,41 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oListFindMethod )
+    {
+        GET_THIS( oListStruct, pList );
+        oListElement* pCur = pList->head;
+        ForthObject soughtObj;
+        POP_OBJECT( soughtObj );
+		while ( pCur != NULL )
+		{
+			ForthObject& o = pCur->obj;
+			if ( OBJECTS_SAME( o, soughtObj ) )
+			{
+				break;
+			}
+			pCur = pCur->next;
+		}
+		if ( pCur == NULL )
+		{
+	        SPUSH( 0 );
+		}
+		else
+		{
+			pList->refCount++;
+			TRACK_KEEP;
+			MALLOCATE_ITER( oListIterStruct, pIter );
+			pIter->refCount = 0;
+			pIter->parent.pMethodOps = GET_TPM;
+			pIter->parent.pData = reinterpret_cast<long *>(pList);
+			pIter->cursor = pCur;
+			ForthInterface* pPrimaryInterface = gpListIterClassVocab->GetInterface( 0 );
+			PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+	        SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
     FORTHOP( oListCountMethod )
     {
         GET_THIS( oListStruct, pList );
@@ -911,6 +1044,23 @@ namespace
 			pCur = pCur->next;
 		}
         SPUSH( count );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oListClearMethod )
+    {
+        // go through all elements and release any which are not null
+        GET_THIS( oListStruct, pList );
+        oListElement* pCur = pList->head;
+		while ( pCur != NULL )
+		{
+			oListElement* pNext = pCur->next;
+			SAFE_RELEASE( pCur->obj );
+			FREE_LINK( pCur );
+			pCur = pNext;
+		}
+		pList->head = NULL;
+		pList->tail = NULL;
         METHOD_RETURN;
     }
 
@@ -928,24 +1078,6 @@ namespace
 	? replace an elements object
 	? isEmpty
 	*/
-
-    FORTHOP( oListFindMethod )
-    {
-        GET_THIS( oListStruct, pList );
-        oListElement* pCur = pList->head;
-        ForthObject soughtObj;
-        POP_OBJECT( soughtObj );
-		while ( pCur != NULL )
-		{
-			ForthObject& o = pCur->obj;
-			if ( OBJECTS_SAME( o, soughtObj ) )
-			{
-				break;
-			}
-			pCur = pCur->next;
-		}
-		SPUSH( (long) pCur );
-    }
 
     FORTHOP( oListCloneMethod )
     {
@@ -988,17 +1120,20 @@ namespace
     {
         METHOD(     "_%new%_",              oListNew ),
         METHOD(     "delete",               oListDeleteMethod ),
-        METHOD(     "head",                 oListHeadMethod ),
-        METHOD(     "tail",                 oListTailMethod ),
+
+        METHOD_RET( "headIter",             oListHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIListIter) ),
+        METHOD_RET( "tailIter",             oListTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIListIter) ),
+        METHOD_RET( "find",                 oListFindMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIListIter) ),
+        METHOD_RET( "clone",                oListCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIList) ),
+        METHOD_RET( "count",                oListCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD(     "clear",                oListClearMethod ),
+
+		METHOD_RET( "head",                 oListHeadMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
+        METHOD_RET( "tail",                 oListTailMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         METHOD(     "addHead",              oListAddHeadMethod ),
         METHOD(     "addTail",              oListAddTailMethod ),
-        METHOD(     "removeHead",           oListRemoveHeadMethod ),
-        METHOD(     "removeTail",           oListRemoveTailMethod ),
-        METHOD(     "headIter",             oListHeadIterMethod ),
-        METHOD(     "tailIter",             oListTailIterMethod ),
-        METHOD(     "count",                oListCountMethod ),
-        METHOD(     "find",                 oListFindMethod ),
-        METHOD(     "clone",                oListCloneMethod ),
+        METHOD(     "removeHead",           oListRemoveHeadMethod ),	// TBD
+        METHOD(     "removeTail",           oListRemoveTailMethod ),	// TBD
         // following must be last in table
         END_MEMBERS
     };
@@ -1043,6 +1178,42 @@ namespace
 		else
 		{
 			pIter->cursor = reinterpret_cast<oListStruct *>(pIter->parent.pData)->tail;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oListIterSwapNextMethod )
+    {
+        GET_THIS( oListIterStruct, pIter );
+		oListElement* pCursor = pIter->cursor;
+		if ( pCursor != NULL )
+		{
+			oListElement* pNext = pCursor->next;
+			if ( pNext != NULL )
+			{
+				ForthObject nextObj = pNext->obj;
+				ForthObject obj = pCursor->obj;
+				pCursor->obj = nextObj;
+				pNext->obj = obj;
+			}
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oListIterSwapPrevMethod )
+    {
+        GET_THIS( oListIterStruct, pIter );
+		oListElement* pCursor = pIter->cursor;
+		if ( pCursor != NULL )
+		{
+			oListElement* pPrev = pCursor->prev;
+			if ( pPrev != NULL )
+			{
+				ForthObject prevObj = pPrev->obj;
+				ForthObject obj = pCursor->obj;
+				pCursor->obj = prevObj;
+				pPrev->obj = obj;
+			}
 		}
         METHOD_RETURN;
     }
@@ -1116,17 +1287,130 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oListIterRemoveMethod )
+    {
+        GET_THIS( oListIterStruct, pIter );
+        oListElement* pCur = pIter->cursor;
+		if ( pCur != NULL )
+		{
+			oListStruct* pList = reinterpret_cast<oListStruct *>(pIter->parent.pData);
+			oListElement* pPrev = pCur->prev;
+			oListElement* pNext = pCur->next;
+			if ( pCur == pList->head )
+			{
+				pList->head = pNext;
+			}
+			if ( pCur == pList->tail )
+			{
+				pList->tail = pPrev;
+			}
+			if ( pNext != NULL )
+			{
+				pNext->prev = pPrev;
+			}
+			if ( pPrev != NULL )
+			{
+				pPrev->next = pNext;
+			}
+			pIter->cursor = pNext;
+			SAFE_RELEASE( pCur->obj );
+			FREE_LINK( pCur );
+		}
+        METHOD_RETURN;
+	}
+
+    FORTHOP( oListIterFindNextMethod )
+    {
+        GET_THIS( oListIterStruct, pIter );
+		oListStruct* pList = reinterpret_cast<oListStruct *>( pIter->parent.pData );
+		oListElement* pCur = pIter->cursor;
+        ForthObject soughtObj;
+        POP_OBJECT( soughtObj );
+		if ( pCur != NULL )
+		{
+			pCur = pCur->next;
+		}
+		while ( pCur != NULL )
+		{
+			ForthObject& o = pCur->obj;
+			if ( OBJECTS_SAME( o, soughtObj ) )
+			{
+				break;
+			}
+			pCur = pCur->next;
+		}
+		if ( pCur == NULL )
+		{
+	        SPUSH( 0 );
+		}
+		else
+		{
+			pIter->cursor = pCur;
+	        SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oListIterSplitMethod )
+    {
+        GET_THIS( oListIterStruct, pIter );
+
+		// create an empty list
+		MALLOCATE_OBJECT( oListStruct, pNewList );
+        pNewList->refCount = 0;
+		pNewList->head = NULL;
+		pNewList->tail = NULL;
+
+		oListElement* pCursor = pIter->cursor;
+		oListStruct* pOldList = reinterpret_cast<oListStruct *>(pIter->parent.pData);
+		// if pCursor is NULL, iter cursor is past tail, new list is just empty list, leave old list alone
+		if ( pCursor != NULL )
+		{
+			if ( pCursor == pOldList->head )
+			{
+				// iter cursor is start of list, make old list empty, new list is entire old list
+				pNewList->head = pOldList->head;
+				pNewList->tail = pOldList->tail;
+				pOldList->head = NULL;
+				pOldList->tail = NULL;
+			}
+			else
+			{
+				// head of new list is iter cursor
+				pNewList->head = pCursor;
+				pNewList->tail = pOldList->tail;
+				// fix old list tail
+				pOldList->tail = pNewList->head->prev;
+				pOldList->tail->next = NULL;
+			}
+		}
+
+		// split leaves iter cursor past tail
+		pIter->cursor = NULL;
+
+		PUSH_PAIR( pIter->parent.pMethodOps, pNewList );
+        METHOD_RETURN;
+    }
+
     baseMethodEntry oListIterMembers[] =
     {
         METHOD(     "_%new%_",              oListIterNew ),
         METHOD(     "delete",               oListIterDeleteMethod ),
-        METHOD(     "seekNext",             oListIterSeekNextMethod ),
+
+		METHOD(     "seekNext",             oListIterSeekNextMethod ),
         METHOD(     "seekPrev",             oListIterSeekPrevMethod ),
         METHOD(     "seekHead",             oListIterSeekHeadMethod ),
         METHOD(     "seekTail",             oListIterSeekTailMethod ),
-        METHOD(     "next",					oListIterNextMethod ),
-        METHOD(     "prev",                 oListIterPrevMethod ),
-        METHOD(     "current",				oListIterCurrentMethod ),
+        METHOD_RET( "next",					oListIterNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "prev",                 oListIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "current",				oListIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD(     "remove",				oListIterRemoveMethod ),
+        METHOD_RET( "findNext",				oListIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        //METHOD_RET( "clone",                oListIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIListIter) ),
+
+		METHOD(     "swapNext",             oListIterSwapNextMethod ),
+        METHOD(     "swapPrev",             oListIterSwapPrevMethod ),
+        METHOD(     "split",                oListIterSplitMethod ),
         // following must be last in table
         END_MEMBERS
     };
@@ -1260,7 +1544,7 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oMapFindIndexMethod )
+    FORTHOP( oMapFindKeyMethod )
     {
         GET_THIS( oMapStruct, pMap );
         long retVal = -1;
@@ -1337,20 +1621,63 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oMapFindMethod )
+    {
+        GET_THIS( oMapStruct, pMap );
+		bool found = false;
+        ForthObject soughtObj;
+        POP_OBJECT( soughtObj );
+        oMap::iterator iter;
+        oMap& a = *(pMap->elements);
+        for ( iter = a.begin(); iter != a.end(); ++iter )
+        {
+            ForthObject& o = iter->second;
+			if ( OBJECTS_SAME( o, soughtObj ) )
+            {
+				found = true;
+                break;
+            }
+        }
+		if ( found )
+		{
+			pMap->refCount++;
+			TRACK_KEEP;
+			// needed to use new instead of malloc otherwise the iterator isn't setup right and
+			//   a crash happens when you assign to it
+			oMapIterStruct* pIter = new oMapIterStruct;
+			TRACK_ITER_NEW;
+			pIter->refCount = 0;
+			pIter->parent.pMethodOps = GET_TPM;
+			pIter->parent.pData = reinterpret_cast<long *>(pMap);
+			pIter->cursor = iter;
+			ForthInterface* pPrimaryInterface = gpMapIterClassVocab->GetInterface( 0 );
+			PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+	        SPUSH( ~0 );
+		}
+		else
+		{
+	        SPUSH( 0 );
+		}
+        METHOD_RETURN;
+    }
+
 
     baseMethodEntry oMapMembers[] =
     {
         METHOD(     "_%new%_",              oMapNew ),
         METHOD(     "delete",               oMapDeleteMethod ),
+
+        METHOD_RET( "headIter",             oMapHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter) ),
+        METHOD_RET( "tailIter",             oMapTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter) ),
+        METHOD_RET( "find",                 oMapFindMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter) ),
+        //METHOD_RET( "clone",                oMapCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMap) ),
+        METHOD_RET( "count",                oMapCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "clear",                oMapClearMethod ),
-        METHOD(     "count",                oMapCountMethod ),
-        METHOD(     "get",                  oMapGetMethod ),
+
+        METHOD_RET( "get",                  oMapGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         METHOD(     "set",                  oMapSetMethod ),
-        METHOD(     "findIndex",            oMapFindIndexMethod ),
+        METHOD_RET( "findKey",              oMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "remove",               oMapRemoveMethod ),
-        METHOD(     "headIter",             oMapHeadIterMethod ),
-        METHOD(     "tailIter",             oMapTailIterMethod ),
-        //METHOD(     "insert",               oMapInsertMethod ),
         // following must be last in table
         END_MEMBERS
     };
@@ -1459,6 +1786,26 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oMapIterRemoveMethod )
+    {
+        GET_THIS( oMapIterStruct, pIter );
+		oMapStruct* pMap = reinterpret_cast<oMapStruct *>( pIter->parent.pData );
+		if ( pIter->cursor != pMap->elements->end() )
+		{
+            ForthObject& o = pIter->cursor->second;
+            SAFE_RELEASE( o );
+			pMap->elements->erase( pIter->cursor );
+			pIter->cursor++;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oMapIterFindNextMethod )
+    {
+	    SPUSH( 0 );
+        METHOD_RETURN;
+	}
+
     FORTHOP( oMapIterNextPairMethod )
     {
         GET_THIS( oMapIterStruct, pIter );
@@ -1501,15 +1848,20 @@ namespace
     {
         METHOD(     "_%new%_",              oMapIterNew ),
         METHOD(     "delete",               oMapIterDeleteMethod ),
-        METHOD(     "seekNext",             oMapIterSeekNextMethod ),
+
+		METHOD(     "seekNext",             oMapIterSeekNextMethod ),
         METHOD(     "seekPrev",             oMapIterSeekPrevMethod ),
         METHOD(     "seekHead",             oMapIterSeekHeadMethod ),
         METHOD(     "seekTail",             oMapIterSeekTailMethod ),
-        METHOD(     "next",					oMapIterNextMethod ),
-        METHOD(     "prev",                 oMapIterPrevMethod ),
-        METHOD(     "current",				oMapIterCurrentMethod ),
-		METHOD(     "nextPair",				oMapIterNextPairMethod ),
-        METHOD(     "prevPair",             oMapIterPrevPairMethod ),
+        METHOD_RET( "next",					oMapIterNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "prev",                 oMapIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "current",				oMapIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD(     "remove",				oMapIterRemoveMethod ),
+        METHOD_RET( "findNext",				oMapIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        //METHOD_RET( "clone",                oMapIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter) ),
+
+		METHOD_RET( "nextPair",				oMapIterNextPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "prevPair",             oMapIterPrevPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -1914,12 +2266,18 @@ namespace
     {
         METHOD(     "_%new%_",              oPairNew ),
         METHOD(     "delete",               oPairDeleteMethod ),
+
+        METHOD_RET( "headIter",             oPairHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIPairIter) ),
+        METHOD_RET( "tailIter",             oPairTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIPairIter) ),
+        //METHOD_RET( "find",                 oPairFindMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIPairIter) ),
+        //METHOD_RET( "clone",                oPairCloneMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIPair) ),
+        //METHOD_RET( "count",                oPairCountMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        //METHOD(     "clear",                oPairClearMethod ),
+
         METHOD(     "setA",                 oPairSetAMethod ),
-        METHOD(     "getA",                 oPairGetAMethod ),
+        METHOD_RET( "getA",                 oPairGetAMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) ),
         METHOD(     "setB",                 oPairSetBMethod ),
-        METHOD(     "getB",                 oPairGetBMethod ),
-        METHOD(     "headIter",             oPairHeadIterMethod ),
-        METHOD(     "tailIter",             oPairTailIterMethod ),
+        METHOD_RET( "getB",                 oPairGetBMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -2050,13 +2408,17 @@ namespace
     {
         METHOD(     "_%new%_",              oPairIterNew ),
         METHOD(     "delete",               oPairIterDeleteMethod ),
+
         METHOD(     "seekNext",             oPairIterSeekNextMethod ),
         METHOD(     "seekPrev",             oPairIterSeekPrevMethod ),
         METHOD(     "seekHead",             oPairIterSeekHeadMethod ),
         METHOD(     "seekTail",             oPairIterSeekTailMethod ),
-        METHOD(     "next",					oPairIterNextMethod ),
-        METHOD(     "prev",                 oPairIterPrevMethod ),
-        METHOD(     "current",				oPairIterCurrentMethod ),
+        METHOD_RET( "next",					oPairIterNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "prev",                 oPairIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "current",				oPairIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        //METHOD(     "remove",				oPairIterRemoveMethod ),
+        //METHOD_RET( "findNext",				oPairIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        //METHOD_RET( "clone",                oPairIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIPairIter) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -2211,14 +2573,20 @@ namespace
     {
         METHOD(     "_%new%_",              oTripleNew ),
         METHOD(     "delete",               oTripleDeleteMethod ),
+
+        METHOD_RET( "headIter",             oTripleHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCITripleIter) ),
+        METHOD_RET( "tailIter",             oTripleTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCITripleIter) ),
+        //METHOD_RET( "find",                 oTripleFindMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCITripleIter) ),
+        //METHOD_RET( "clone",                oTripleCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCITriple) ),
+        //METHOD_RET( "count",                oTripleCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        //METHOD(     "clear",                oTripleClearMethod ),
+
         METHOD(     "setA",                 oTripleSetAMethod ),
-        METHOD(     "getA",                 oTripleGetAMethod ),
+        METHOD_RET( "getA",                 oTripleGetAMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) ),
         METHOD(     "setB",                 oTripleSetBMethod ),
-        METHOD(     "getB",                 oTripleGetBMethod ),
+        METHOD_RET( "getB",                 oTripleGetBMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) ),
         METHOD(     "setC",                 oTripleSetCMethod ),
-        METHOD(     "getC",                 oTripleGetCMethod ),
-        METHOD(     "headIter",             oTripleHeadIterMethod ),
-        METHOD(     "tailIter",             oTripleTailIterMethod ),
+        METHOD_RET( "getC",                 oTripleGetCMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -2363,13 +2731,17 @@ namespace
     {
         METHOD(     "_%new%_",              oTripleIterNew ),
         METHOD(     "delete",               oTripleIterDeleteMethod ),
+
         METHOD(     "seekNext",             oTripleIterSeekNextMethod ),
         METHOD(     "seekPrev",             oTripleIterSeekPrevMethod ),
         METHOD(     "seekHead",             oTripleIterSeekHeadMethod ),
         METHOD(     "seekTail",             oTripleIterSeekTailMethod ),
-        METHOD(     "next",					oTripleIterNextMethod ),
-        METHOD(     "prev",                 oTripleIterPrevMethod ),
-        METHOD(     "current",				oTripleIterCurrentMethod ),
+        METHOD_RET( "next",					oTripleIterNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "prev",                 oTripleIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "current",				oTripleIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        //METHOD(     "remove",				oTripleIterRemoveMethod ),
+        //METHOD_RET( "findNext",				oTripleIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        //METHOD_RET( "clone",                oTripleIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCITripleIter) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -2573,6 +2945,41 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oByteArrayFindMethod )
+    {
+		GET_THIS( oByteArrayStruct, pArray );
+        long retVal = -1;
+		char soughtByte = (char)(SPOP);
+        oByteArray::iterator iter;
+        oByteArray& a = *(pArray->elements);
+        for ( unsigned int i = 0; i < a.size(); i++ )
+        {
+			if ( soughtByte == a[i] )
+			{
+                retVal = i;
+                break;
+            }
+        }
+		if ( retVal < 0 )
+		{
+	        SPUSH( 0 );
+		}
+		else
+		{
+			pArray->refCount++;
+			TRACK_KEEP;
+			MALLOCATE_ITER( oByteArrayIterStruct, pIter );
+			pIter->refCount = 0;
+			pIter->parent.pMethodOps = GET_TPM;
+			pIter->parent.pData = reinterpret_cast<long *>(pArray);
+			pIter->cursor = retVal;
+			ForthInterface* pPrimaryInterface = gpByteArraryIterClassVocab->GetInterface( 0 );
+			PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+	        SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
     FORTHOP( oByteArrayCloneMethod )
     {
 		GET_THIS( oByteArrayStruct, pArray );
@@ -2602,21 +3009,22 @@ namespace
     {
         METHOD(     "_%new%_",              oByteArrayNew ),
         METHOD(     "delete",               oByteArrayDeleteMethod ),
-        METHOD(     "clear",                oByteArrayClearMethod ),
+
+        METHOD_RET( "headIter",             oByteArrayHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIByteArrayIter) ),
+        METHOD_RET( "tailIter",             oByteArrayTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIByteArrayIter) ),
+        METHOD_RET( "find",                 oByteArrayFindMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIByteArrayIter) ),
+        METHOD_RET( "clone",                oByteArrayCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIByteArray) ),
+        METHOD_RET( "count",                oByteArrayCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+		METHOD(     "clear",                oByteArrayClearMethod ),
+
         METHOD(     "resize",               oByteArrayResizeMethod ),
-        METHOD(     "count",                oByteArrayCountMethod ),
-        METHOD(     "ref",                  oByteArrayRefMethod ),
-        METHOD(     "get",                  oByteArrayGetMethod ),
+        METHOD_RET( "ref",                  oByteArrayRefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte|kDTIsPtr) ),
+        METHOD_RET( "get",                  oByteArrayGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte) ),
         METHOD(     "set",                  oByteArraySetMethod ),
-        METHOD(     "findIndex",            oByteArrayFindIndexMethod ),
+        METHOD_RET( "findIndex",            oByteArrayFindIndexMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "push",                 oByteArrayPushMethod ),
-        METHOD(     "pop",                  oByteArrayPopMethod ),
-        METHOD(     "headIter",             oByteArrayHeadIterMethod ),
-        METHOD(     "tailIter",             oByteArrayTailIterMethod ),
-        METHOD(     "clone",                oByteArrayCloneMethod ),
-        METHOD(     "base",                 oByteArrayBaseMethod ),
-        //METHOD(     "remove",               oByteArrayRemoveMethod ),
-        //METHOD(     "insert",               oByteArrayInsertMethod ),
+        METHOD_RET( "pop",                  oByteArrayPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte) ),
+        METHOD_RET( "base",                 oByteArrayBaseMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte|kDTIsPtr) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -2733,17 +3141,70 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oByteArrayIterRemoveMethod )
+    {
+        GET_THIS( oByteArrayIterStruct, pIter );
+		oByteArrayStruct* pArray = reinterpret_cast<oByteArrayStruct *>( pIter->parent.pData );
+        oByteArray& a = *(pArray->elements);
+		if ( pIter->cursor < a.size() )
+		{
+			pArray->elements->erase( pArray->elements->begin() + pIter->cursor );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oByteArrayIterFindNextMethod )
+    {
+        GET_THIS( oByteArrayIterStruct, pIter );
+        long retVal = 0;
+		char soughtByte = (char)(SPOP);
+		oByteArrayStruct* pArray = reinterpret_cast<oByteArrayStruct *>( pIter->parent.pData );
+        oByteArray& a = *(pArray->elements);
+		unsigned int i = pIter->cursor;
+		while ( i < a.size() )
+		{
+			if ( a[i] == soughtByte )
+            {
+                retVal = ~0;
+				pIter->cursor = i;
+                break;
+            }
+		}
+		SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oByteArrayIterCloneMethod )
+    {
+        GET_THIS( oByteArrayIterStruct, pIter );
+		oByteArrayStruct* pArray = reinterpret_cast<oByteArrayStruct *>( pIter->parent.pData );
+		pArray->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER( oByteArrayIterStruct, pNewIter );
+		pNewIter->refCount = 0;
+		pNewIter->parent.pMethodOps = pIter->parent.pMethodOps ;
+		pNewIter->parent.pData = reinterpret_cast<long *>(pArray);
+		pNewIter->cursor = pIter->cursor;
+        ForthInterface* pPrimaryInterface = gpByteArraryIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( GET_TPM, pNewIter );
+        METHOD_RETURN;
+    }
+
     baseMethodEntry oByteArrayIterMembers[] =
     {
         METHOD(     "_%new%_",              oByteArrayIterNew ),
         METHOD(     "delete",               oByteArrayIterDeleteMethod ),
+
         METHOD(     "seekNext",             oByteArrayIterSeekNextMethod ),
         METHOD(     "seekPrev",             oByteArrayIterSeekPrevMethod ),
         METHOD(     "seekHead",             oByteArrayIterSeekHeadMethod ),
         METHOD(     "seekTail",             oByteArrayIterSeekTailMethod ),
-        METHOD(     "next",					oByteArrayIterNextMethod ),
-        METHOD(     "prev",                 oByteArrayIterPrevMethod ),
-        METHOD(     "current",				oByteArrayIterCurrentMethod ),
+        METHOD_RET( "next",					oByteArrayIterNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "prev",                 oByteArrayIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "current",				oByteArrayIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD(     "remove",				oByteArrayIterRemoveMethod ),
+        METHOD_RET( "findNext",				oByteArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "clone",                oByteArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIByteArrayIter) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -2950,6 +3411,41 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oShortArrayFindMethod )
+    {
+		GET_THIS( oShortArrayStruct, pArray );
+        long retVal = -1;
+		short soughtShort = (short)(SPOP);
+        oShortArray::iterator iter;
+        oShortArray& a = *(pArray->elements);
+        for ( unsigned int i = 0; i < a.size(); i++ )
+        {
+			if ( soughtShort == a[i] )
+			{
+                retVal = i;
+                break;
+            }
+        }
+		if ( retVal < 0 )
+		{
+	        SPUSH( 0 );
+		}
+		else
+		{
+			pArray->refCount++;
+			TRACK_KEEP;
+			MALLOCATE_ITER( oShortArrayIterStruct, pIter );
+			pIter->refCount = 0;
+			pIter->parent.pMethodOps = GET_TPM;
+			pIter->parent.pData = reinterpret_cast<long *>(pArray);
+			pIter->cursor = retVal;
+			ForthInterface* pPrimaryInterface = gpShortArraryIterClassVocab->GetInterface( 0 );
+			PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+	        SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
     FORTHOP( oShortArrayCloneMethod )
     {
 		GET_THIS( oShortArrayStruct, pArray );
@@ -2979,21 +3475,22 @@ namespace
     {
         METHOD(     "_%new%_",              oShortArrayNew ),
         METHOD(     "delete",               oShortArrayDeleteMethod ),
+
+        METHOD_RET( "headIter",             oShortArrayHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIShortArrayIter) ),
+        METHOD_RET( "tailIter",             oShortArrayTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIShortArrayIter) ),
+        METHOD_RET( "find",                 oShortArrayFindMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIShortArrayIter) ),
+        METHOD_RET( "clone",                oShortArrayCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIShortArray) ),
+        METHOD_RET( "count",                oShortArrayCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "clear",                oShortArrayClearMethod ),
+
         METHOD(     "resize",               oShortArrayResizeMethod ),
-        METHOD(     "count",                oShortArrayCountMethod ),
-        METHOD(     "ref",                  oShortArrayRefMethod ),
-        METHOD(     "get",                  oShortArrayGetMethod ),
+        METHOD_RET( "ref",                  oShortArrayRefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeShort|kDTIsPtr) ),
+        METHOD_RET( "get",                  oShortArrayGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeShort) ),
         METHOD(     "set",                  oShortArraySetMethod ),
-        METHOD(     "findIndex",            oShortArrayFindIndexMethod ),
+        METHOD_RET( "findIndex",            oShortArrayFindIndexMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "push",                 oShortArrayPushMethod ),
-        METHOD(     "pop",                  oShortArrayPopMethod ),
-        METHOD(     "headIter",             oShortArrayHeadIterMethod ),
-        METHOD(     "tailIter",             oShortArrayTailIterMethod ),
-        METHOD(     "clone",                oShortArrayCloneMethod ),
-        METHOD(     "base",                 oShortArrayBaseMethod ),
-        //METHOD(     "remove",               oShortArrayRemoveMethod ),
-        //METHOD(     "insert",               oShortArrayInsertMethod ),
+        METHOD_RET( "pop",                  oShortArrayPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeShort) ),
+        METHOD_RET( "base",                 oShortArrayBaseMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeShort|kDTIsPtr) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -3110,6 +3607,55 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oShortArrayIterRemoveMethod )
+    {
+        GET_THIS( oShortArrayIterStruct, pIter );
+		oShortArrayStruct* pArray = reinterpret_cast<oShortArrayStruct *>( pIter->parent.pData );
+        oShortArray& a = *(pArray->elements);
+		if ( pIter->cursor < a.size() )
+		{
+			pArray->elements->erase( pArray->elements->begin() + pIter->cursor );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oShortArrayIterFindNextMethod )
+    {
+        GET_THIS( oShortArrayIterStruct, pIter );
+        long retVal = 0;
+		char soughtShort = (char)(SPOP);
+		oShortArrayStruct* pArray = reinterpret_cast<oShortArrayStruct *>( pIter->parent.pData );
+        oShortArray& a = *(pArray->elements);
+		unsigned int i = pIter->cursor;
+		while ( i < a.size() )
+		{
+			if ( a[i] == soughtShort )
+            {
+                retVal = ~0;
+				pIter->cursor = i;
+                break;
+            }
+		}
+		SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oShortArrayIterCloneMethod )
+    {
+        GET_THIS( oShortArrayIterStruct, pIter );
+		oShortArrayStruct* pArray = reinterpret_cast<oShortArrayStruct *>( pIter->parent.pData );
+		pArray->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER( oShortArrayIterStruct, pNewIter );
+		pNewIter->refCount = 0;
+		pNewIter->parent.pMethodOps = pIter->parent.pMethodOps ;
+		pNewIter->parent.pData = reinterpret_cast<long *>(pArray);
+		pNewIter->cursor = pIter->cursor;
+        ForthInterface* pPrimaryInterface = gpShortArraryIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( GET_TPM, pNewIter );
+        METHOD_RETURN;
+    }
+
     baseMethodEntry oShortArrayIterMembers[] =
     {
         METHOD(     "_%new%_",              oShortArrayIterNew ),
@@ -3118,9 +3664,12 @@ namespace
         METHOD(     "seekPrev",             oShortArrayIterSeekPrevMethod ),
         METHOD(     "seekHead",             oShortArrayIterSeekHeadMethod ),
         METHOD(     "seekTail",             oShortArrayIterSeekTailMethod ),
-        METHOD(     "next",					oShortArrayIterNextMethod ),
-        METHOD(     "prev",                 oShortArrayIterPrevMethod ),
-        METHOD(     "current",				oShortArrayIterCurrentMethod ),
+        METHOD_RET( "next",					oShortArrayIterNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "prev",                 oShortArrayIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "current",				oShortArrayIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD(     "remove",				oShortArrayIterRemoveMethod ),
+        METHOD_RET( "findNext",				oShortArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "clone",                oShortArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIShortArrayIter) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -3325,6 +3874,41 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oIntArrayFindMethod )
+    {
+		GET_THIS( oIntArrayStruct, pArray );
+        long retVal = -1;
+		int soughtInt = SPOP;
+        oIntArray::iterator iter;
+        oIntArray& a = *(pArray->elements);
+        for ( unsigned int i = 0; i < a.size(); i++ )
+        {
+			if ( soughtInt == a[i] )
+			{
+                retVal = i;
+                break;
+            }
+        }
+		if ( retVal < 0 )
+		{
+	        SPUSH( 0 );
+		}
+		else
+		{
+			pArray->refCount++;
+			TRACK_KEEP;
+			MALLOCATE_ITER( oIntArrayIterStruct, pIter );
+			pIter->refCount = 0;
+			pIter->parent.pMethodOps = GET_TPM;
+			pIter->parent.pData = reinterpret_cast<long *>(pArray);
+			pIter->cursor = retVal;
+			ForthInterface* pPrimaryInterface = gpIntArraryIterClassVocab->GetInterface( 0 );
+			PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+	        SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
     FORTHOP( oIntArrayCloneMethod )
     {
 		GET_THIS( oIntArrayStruct, pArray );
@@ -3354,21 +3938,22 @@ namespace
     {
         METHOD(     "_%new%_",              oIntArrayNew ),
         METHOD(     "delete",               oIntArrayDeleteMethod ),
+
+        METHOD_RET( "headIter",             oIntArrayHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIntArrayIter) ),
+        METHOD_RET( "tailIter",             oIntArrayTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIntArrayIter) ),
+        METHOD_RET( "find",                 oIntArrayFindMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIntArrayIter) ),
+        METHOD_RET( "clone",                oIntArrayCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIntArray) ),
+        METHOD_RET( "count",                oIntArrayCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "clear",                oIntArrayClearMethod ),
+
         METHOD(     "resize",               oIntArrayResizeMethod ),
-        METHOD(     "count",                oIntArrayCountMethod ),
-        METHOD(     "ref",                  oIntArrayRefMethod ),
-        METHOD(     "get",                  oIntArrayGetMethod ),
+        METHOD_RET( "ref",                  oIntArrayRefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt|kDTIsPtr) ),
+        METHOD_RET( "get",                  oIntArrayGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "set",                  oIntArraySetMethod ),
-        METHOD(     "findIndex",            oIntArrayFindIndexMethod ),
+        METHOD_RET( "findIndex",            oIntArrayFindIndexMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "push",                 oIntArrayPushMethod ),
-        METHOD(     "pop",                  oIntArrayPopMethod ),
-        METHOD(     "headIter",             oIntArrayHeadIterMethod ),
-        METHOD(     "tailIter",             oIntArrayTailIterMethod ),
-        METHOD(     "clone",                oIntArrayCloneMethod ),
-        METHOD(     "base",                 oIntArrayBaseMethod ),
-        //METHOD(     "remove",               oIntArrayRemoveMethod ),
-        //METHOD(     "insert",               oIntArrayInsertMethod ),
+        METHOD_RET( "pop",                  oIntArrayPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "base",                 oIntArrayBaseMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt|kDTIsPtr) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -3482,6 +4067,55 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oIntArrayIterRemoveMethod )
+    {
+        GET_THIS( oIntArrayIterStruct, pIter );
+		oIntArrayStruct* pArray = reinterpret_cast<oIntArrayStruct *>( pIter->parent.pData );
+        oIntArray& a = *(pArray->elements);
+		if ( pIter->cursor < a.size() )
+		{
+			pArray->elements->erase( pArray->elements->begin() + pIter->cursor );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oIntArrayIterFindNextMethod )
+    {
+        GET_THIS( oIntArrayIterStruct, pIter );
+        long retVal = 0;
+		char soughtInt = (char)(SPOP);
+		oIntArrayStruct* pArray = reinterpret_cast<oIntArrayStruct *>( pIter->parent.pData );
+        oIntArray& a = *(pArray->elements);
+		unsigned int i = pIter->cursor;
+		while ( i < a.size() )
+		{
+			if ( a[i] == soughtInt )
+            {
+                retVal = ~0;
+				pIter->cursor = i;
+                break;
+            }
+		}
+		SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oIntArrayIterCloneMethod )
+    {
+        GET_THIS( oIntArrayIterStruct, pIter );
+		oIntArrayStruct* pArray = reinterpret_cast<oIntArrayStruct *>( pIter->parent.pData );
+		pArray->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER( oIntArrayIterStruct, pNewIter );
+		pNewIter->refCount = 0;
+		pNewIter->parent.pMethodOps = pIter->parent.pMethodOps ;
+		pNewIter->parent.pData = reinterpret_cast<long *>(pArray);
+		pNewIter->cursor = pIter->cursor;
+        ForthInterface* pPrimaryInterface = gpIntArraryIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( GET_TPM, pNewIter );
+        METHOD_RETURN;
+    }
+
     baseMethodEntry oIntArrayIterMembers[] =
     {
         METHOD(     "_%new%_",              oIntArrayIterNew ),
@@ -3490,9 +4124,12 @@ namespace
         METHOD(     "seekPrev",             oIntArrayIterSeekPrevMethod ),
         METHOD(     "seekHead",             oIntArrayIterSeekHeadMethod ),
         METHOD(     "seekTail",             oIntArrayIterSeekTailMethod ),
-        METHOD(     "next",					oIntArrayIterNextMethod ),
-        METHOD(     "prev",                 oIntArrayIterPrevMethod ),
-        METHOD(     "current",				oIntArrayIterCurrentMethod ),
+        METHOD_RET( "next",					oIntArrayIterNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "prev",                 oIntArrayIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "current",				oIntArrayIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD(     "remove",				oIntArrayIterRemoveMethod ),
+        METHOD_RET( "findNext",				oIntArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "clone",                oIntArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIntArrayIter) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -3698,6 +4335,41 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oLongArrayFindMethod )
+    {
+		GET_THIS( oLongArrayStruct, pArray );
+        long retVal = -1;
+		long long soughtLong = LPOP;
+        oLongArray::iterator iter;
+        oLongArray& a = *(pArray->elements);
+        for ( unsigned int i = 0; i < a.size(); i++ )
+        {
+			if ( soughtLong == a[i] )
+			{
+                retVal = i;
+                break;
+            }
+        }
+		if ( retVal < 0 )
+		{
+	        SPUSH( 0 );
+		}
+		else
+		{
+			pArray->refCount++;
+			TRACK_KEEP;
+			MALLOCATE_ITER( oLongArrayIterStruct, pIter );
+			pIter->refCount = 0;
+			pIter->parent.pMethodOps = GET_TPM;
+			pIter->parent.pData = reinterpret_cast<long *>(pArray);
+			pIter->cursor = retVal;
+			ForthInterface* pPrimaryInterface = gpLongArraryIterClassVocab->GetInterface( 0 );
+			PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
+	        SPUSH( ~0 );
+		}
+        METHOD_RETURN;
+    }
+
     FORTHOP( oLongArrayCloneMethod )
     {
 		GET_THIS( oLongArrayStruct, pArray );
@@ -3727,21 +4399,22 @@ namespace
     {
         METHOD(     "_%new%_",              oLongArrayNew ),
         METHOD(     "delete",               oLongArrayDeleteMethod ),
+
+        METHOD_RET( "headIter",             oLongArrayHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCILongArrayIter) ),
+        METHOD_RET( "tailIter",             oLongArrayTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCILongArrayIter) ),
+        METHOD_RET( "find",                 oLongArrayFindMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCILongArrayIter) ),
+        METHOD_RET( "clone",                oLongArrayCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCILongArray) ),
+        METHOD_RET( "count",                oLongArrayCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "clear",                oLongArrayClearMethod ),
+
         METHOD(     "resize",               oLongArrayResizeMethod ),
-        METHOD(     "count",                oLongArrayCountMethod ),
-        METHOD(     "ref",                  oLongArrayRefMethod ),
-        METHOD(     "get",                  oLongArrayGetMethod ),
+        METHOD_RET( "ref",                  oLongArrayRefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong|kDTIsPtr) ),
+        METHOD_RET( "get",                  oLongArrayGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong) ),
         METHOD(     "set",                  oLongArraySetMethod ),
-        METHOD(     "findIndex",            oLongArrayFindIndexMethod ),
+        METHOD_RET( "findIndex",            oLongArrayFindIndexMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "push",                 oLongArrayPushMethod ),
-        METHOD(     "pop",                  oLongArrayPopMethod ),
-        METHOD(     "headIter",             oLongArrayHeadIterMethod ),
-        METHOD(     "tailIter",             oLongArrayTailIterMethod ),
-        METHOD(     "clone",                oLongArrayCloneMethod ),
-        METHOD(     "base",                 oLongArrayBaseMethod ),
-        //METHOD(     "remove",               oLongArrayRemoveMethod ),
-        //METHOD(     "insert",               oLongArrayInsertMethod ),
+        METHOD_RET( "pop",                  oLongArrayPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong) ),
+        METHOD_RET( "base",                 oLongArrayBaseMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong|kDTIsPtr) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -3858,17 +4531,70 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oLongArrayIterRemoveMethod )
+    {
+        GET_THIS( oLongArrayIterStruct, pIter );
+		oLongArrayStruct* pArray = reinterpret_cast<oLongArrayStruct *>( pIter->parent.pData );
+        oLongArray& a = *(pArray->elements);
+		if ( pIter->cursor < a.size() )
+		{
+			pArray->elements->erase( pArray->elements->begin() + pIter->cursor );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oLongArrayIterFindNextMethod )
+    {
+        GET_THIS( oLongArrayIterStruct, pIter );
+        long retVal = 0;
+		long long soughtLong = LPOP;
+		oLongArrayStruct* pArray = reinterpret_cast<oLongArrayStruct *>( pIter->parent.pData );
+        oLongArray& a = *(pArray->elements);
+		unsigned int i = pIter->cursor;
+		while ( i < a.size() )
+		{
+			if ( a[i] == soughtLong )
+            {
+                retVal = ~0;
+				pIter->cursor = i;
+                break;
+            }
+		}
+		SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oLongArrayIterCloneMethod )
+    {
+        GET_THIS( oLongArrayIterStruct, pIter );
+		oLongArrayStruct* pArray = reinterpret_cast<oLongArrayStruct *>( pIter->parent.pData );
+		pArray->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER( oLongArrayIterStruct, pNewIter );
+		pNewIter->refCount = 0;
+		pNewIter->parent.pMethodOps = pIter->parent.pMethodOps ;
+		pNewIter->parent.pData = reinterpret_cast<long *>(pArray);
+		pNewIter->cursor = pIter->cursor;
+        ForthInterface* pPrimaryInterface = gpLongArraryIterClassVocab->GetInterface( 0 );
+        PUSH_PAIR( GET_TPM, pNewIter );
+        METHOD_RETURN;
+    }
+
     baseMethodEntry oLongArrayIterMembers[] =
     {
         METHOD(     "_%new%_",              oLongArrayIterNew ),
         METHOD(     "delete",               oLongArrayIterDeleteMethod ),
+
         METHOD(     "seekNext",             oLongArrayIterSeekNextMethod ),
         METHOD(     "seekPrev",             oLongArrayIterSeekPrevMethod ),
         METHOD(     "seekHead",             oLongArrayIterSeekHeadMethod ),
         METHOD(     "seekTail",             oLongArrayIterSeekTailMethod ),
-        METHOD(     "next",					oLongArrayIterNextMethod ),
-        METHOD(     "prev",                 oLongArrayIterPrevMethod ),
-        METHOD(     "current",				oLongArrayIterCurrentMethod ),
+        METHOD_RET( "next",					oLongArrayIterNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "prev",                 oLongArrayIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "current",				oLongArrayIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD(     "remove",				oLongArrayIterRemoveMethod ),
+        METHOD_RET( "findNext",				oLongArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "clone",                oLongArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCILongArrayIter) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -3928,6 +4654,7 @@ namespace
 	{
 		GET_THIS( oThreadStruct, pThreadStruct );
 		long result = pThreadStruct->pThread->Start();
+		SPUSH( result );
         METHOD_RETURN;
 	}
 
@@ -4007,14 +4734,14 @@ namespace
         METHOD(     "_%new%_",              oThreadNew ),
         METHOD(     "delete",               oThreadDeleteMethod ),
         METHOD(     "init",                 oThreadInitMethod ),
-        METHOD(     "start",                oThreadStartMethod ),
+        METHOD_RET( "start",                oThreadStartMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "exit",                 oThreadExitMethod ),
         METHOD(     "push",                 oThreadPushMethod ),
-        METHOD(     "pop",                  oThreadPopMethod ),
+        METHOD_RET( "pop",                  oThreadPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "rpush",                oThreadRPushMethod ),
-        METHOD(     "rpop",                 oThreadRPopMethod ),
-        METHOD(     "getState",             oThreadGetStateMethod ),
-        METHOD(     "step",                 oThreadStepMethod ),
+        METHOD_RET( "rpop",                 oThreadRPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "getState",             oThreadGetStateMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "step",                 oThreadStepMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "reset",                oThreadResetMethod ),
         // following must be last in table
         END_MEMBERS

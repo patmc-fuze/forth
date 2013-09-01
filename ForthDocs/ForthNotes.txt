@@ -127,6 +127,30 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 30 2013
+
+Add unimplementedMethod op
+Add remove, findNext, clone to oIter and derived classes
+Add find, clone, count to oIterable and derived classes
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 26 2013
+
+The builtin class collections operations which remove an object from the
+collection and leave it on TOS need to be changed - if you do a oArray.push
+of a new object, followed by a oArray.pop, it will leave an object reference
+on TOS, but the object will have been deleted.
+The problem is that if the collection was the only thing that had a reference
+to the object, removing it from the collection will delete the object.
+The options:
+1) get rid of oArray.pop, oList.removeHead and oList.removeTail, and do the
+   equivalent with multiple operations
+2) have the 'pop' methods leave an object on TOS which has refCount 0, but has
+   not been deleted - just like what happens when an object is created
+3) have the 'pop' methods take a reference to the object variable which will
+   receive the popped object
+4) have the 'pop' methods leave the refCount alone, but add a reference to
+   the popped object to the autorelease pool
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 22 2013
 
 It looks like supporting classes that extend structs and classes that aren't

@@ -72,6 +72,13 @@ FORTHOP( badOpOp )
     SET_ERROR( kForthErrorBadOpcode );
 }
 
+// abort is a user command which causes the entire forth engine to exit,
+//   and indicates that a fatal error has occured
+FORTHOP( unimplementedMethodOp )
+{
+    SET_ERROR( kForthErrorUnimplementedMethod );
+}
+
 FORTHOP( argvOp )
 {
     NEEDS( 1 );
@@ -6191,6 +6198,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    describeOp,             "describe" ),
     OP_DEF(    errorOp,                "error" ),
     OP_DEF(    addErrorTextOp,         "addErrorText" ),
+    OP_DEF(    unimplementedMethodOp,  "unimplementedMethod" ),
 	OP_DEF(    setTraceOp,             "setTrace" ),
     OP_DEF(    intoOp,                 "verbose" ),
 

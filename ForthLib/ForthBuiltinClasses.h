@@ -9,6 +9,28 @@
 typedef enum {
     kBCIObject,
     kBCIClass,
+	kBCIIter,
+	kBCIIterable,
+	kBCIArray,
+	kBCIArrayIter,
+	kBCIList,
+	kBCIListIter,
+	kBCIMap,
+	kBCIMapIter,
+	kBCIString,
+	kBCIPair,
+	kBCIPairIter,
+	kBCITriple,
+	kBCITripleIter,
+	kBCIByteArray,
+	kBCIByteArrayIter,
+	kBCIShortArray,
+	kBCIShortArrayIter,
+	kBCIIntArray,
+	kBCIIntArrayIter,
+	kBCILongArray,
+	kBCILongArrayIter,
+	kBCIThread
 } kBuiltinClassIndex;
 
 #define TRACK_OBJECT_ALLOCATIONS
