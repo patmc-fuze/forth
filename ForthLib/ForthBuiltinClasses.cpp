@@ -23,9 +23,9 @@ long gStatReleases = 0;
 
 extern "C" {
 	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
+	extern void unimplementedMethodOp( ForthCoreState *pCore );
 };
 
-extern void unimplementedMethodOp( ForthCoreState *pCore );
 
 namespace
 {
@@ -4601,6 +4601,290 @@ namespace
 
     //////////////////////////////////////////////////////////////////////
     ///
+    //                 oInt
+    //
+
+    struct oIntStruct
+    {
+        ulong       refCount;
+		int			val;
+    };
+
+
+    FORTHOP( oIntNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+        MALLOCATE_OBJECT( oIntStruct, pInt );
+        pInt->refCount = 0;
+		pInt->val = 0;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pInt );
+    }
+
+    FORTHOP( oIntGetMethod )
+    {
+        GET_THIS( oIntStruct, pInt );
+		SPUSH( pInt->val );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oIntSetMethod )
+    {
+        GET_THIS( oIntStruct, pInt );
+		pInt->val = SPOP;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oIntShowMethod )
+    {
+        char buff[16];
+        GET_THIS( oIntStruct, pInt );
+        sprintf( buff, "%d", pInt->val );
+        CONSOLE_STRING_OUT( buff );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oIntCompareMethod )
+    {
+        GET_THIS( oIntStruct, pInt );
+		int comparisonVal = SPOP;
+		int retVal = 0;
+		if ( pInt->val != comparisonVal )
+		{
+			retVal = (pInt->val > comparisonVal) ? 1 : -1;
+		}
+		SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oIntMembers[] =
+    {
+        METHOD(     "_%new%_",              oIntNew ),
+
+        METHOD(     "set",                  oIntSetMethod ),
+        METHOD_RET( "get",                  oIntGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD(     "show",                 oIntShowMethod ),
+        METHOD_RET( "compare",              oIntCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oLong
+    //
+
+    struct oLongStruct
+    {
+        ulong       refCount;
+		long long	val;
+    };
+
+
+    FORTHOP( oLongNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+        MALLOCATE_OBJECT( oLongStruct, pLong );
+        pLong->refCount = 0;
+		pLong->val = 0;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pLong );
+    }
+
+    FORTHOP( oLongGetMethod )
+    {
+        GET_THIS( oLongStruct, pLong );
+		LPUSH( pLong->val );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oLongSetMethod )
+    {
+        GET_THIS( oLongStruct, pLong );
+		pLong->val = LPOP;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oLongShowMethod )
+    {
+        char buff[32];
+        GET_THIS( oLongStruct, pLong );
+        sprintf( buff, "%I64d", pLong->val );
+        CONSOLE_STRING_OUT( buff );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oLongCompareMethod )
+    {
+        GET_THIS( oLongStruct, pLong );
+		long long comparisonVal = LPOP;
+		int retVal = 0;
+		if ( pLong->val != comparisonVal )
+		{
+			retVal = (pLong->val > comparisonVal) ? 1 : -1;
+		}
+		SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oLongMembers[] =
+    {
+        METHOD(     "_%new%_",              oLongNew ),
+
+        METHOD(     "set",                  oLongSetMethod ),
+        METHOD_RET( "get",                  oLongGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong) ),
+        METHOD(     "show",                 oLongShowMethod ),
+        METHOD_RET( "compare",              oLongCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oFloat
+    //
+
+    struct oFloatStruct
+    {
+        ulong       refCount;
+		float		val;
+    };
+
+
+    FORTHOP( oFloatNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+        MALLOCATE_OBJECT( oFloatStruct, pFloat );
+        pFloat->refCount = 0;
+		pFloat->val = 0.0f;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pFloat );
+    }
+
+    FORTHOP( oFloatGetMethod )
+    {
+        GET_THIS( oFloatStruct, pFloat );
+		FPUSH( pFloat->val );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFloatSetMethod )
+    {
+        GET_THIS( oFloatStruct, pFloat );
+		pFloat->val = FPOP;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFloatShowMethod )
+    {
+        char buff[32];
+        GET_THIS( oFloatStruct, pFloat );
+        sprintf( buff, "%f", pFloat->val );
+        CONSOLE_STRING_OUT( buff );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFloatCompareMethod )
+    {
+        GET_THIS( oFloatStruct, pFloat );
+		float comparisonVal = FPOP;
+		int retVal = 0;
+		if ( pFloat->val != comparisonVal )
+		{
+			retVal = (pFloat->val > comparisonVal) ? 1 : -1;
+		}
+		SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oFloatMembers[] =
+    {
+        METHOD(     "_%new%_",              oFloatNew ),
+
+        METHOD(     "set",                  oFloatSetMethod ),
+        METHOD_RET( "get",                  oFloatGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeFloat) ),
+        METHOD(     "show",                 oFloatShowMethod ),
+        METHOD_RET( "compare",              oFloatCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oDouble
+    //
+
+    struct oDoubleStruct
+    {
+        ulong       refCount;
+		double		val;
+    };
+
+
+    FORTHOP( oDoubleNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+        MALLOCATE_OBJECT( oDoubleStruct, pDouble );
+        pDouble->refCount = 0;
+		pDouble->val = 0.0;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pDouble );
+    }
+
+    FORTHOP( oDoubleGetMethod )
+    {
+        GET_THIS( oDoubleStruct, pDouble );
+		DPUSH( pDouble->val );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oDoubleSetMethod )
+    {
+        GET_THIS( oDoubleStruct, pDouble );
+		pDouble->val = DPOP;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oDoubleShowMethod )
+    {
+        char buff[32];
+        GET_THIS( oDoubleStruct, pDouble );
+        sprintf( buff, "%g", pDouble->val );
+        CONSOLE_STRING_OUT( buff );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oDoubleCompareMethod )
+    {
+        GET_THIS( oDoubleStruct, pDouble );
+		double comparisonVal = DPOP;
+		int retVal = 0;
+		if ( pDouble->val != comparisonVal )
+		{
+			retVal = (pDouble->val > comparisonVal) ? 1 : -1;
+		}
+		SPUSH( retVal );
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oDoubleMembers[] =
+    {
+        METHOD(     "_%new%_",              oDoubleNew ),
+
+        METHOD(     "set",                  oDoubleSetMethod ),
+        METHOD_RET( "get",                  oDoubleGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeDouble) ),
+        METHOD(     "show",                 oDoubleShowMethod ),
+        METHOD_RET( "compare",              oDoubleCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
     //                 oThread
     //
 
@@ -4787,6 +5071,11 @@ ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
 
     ForthClassVocabulary* pOLongArrayClass = pEngine->AddBuiltinClass( "oLongArray", pOIterableClass, oLongArrayMembers );
     gpLongArraryIterClassVocab = pEngine->AddBuiltinClass( "oLongArrayIter", pOIterClass, oLongArrayIterMembers );
+
+    ForthClassVocabulary* pOIntClass = pEngine->AddBuiltinClass( "oInt", pObjectClass, oIntMembers );
+    ForthClassVocabulary* pOLongClass = pEngine->AddBuiltinClass( "oLong", pObjectClass, oLongMembers );
+    ForthClassVocabulary* pOFloatClass = pEngine->AddBuiltinClass( "oFloat", pObjectClass, oFloatMembers );
+    ForthClassVocabulary* pODoubleClass = pEngine->AddBuiltinClass( "oDouble", pObjectClass, oDoubleMembers );
 
     ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass( "oThread", pObjectClass, oThreadMembers );
 

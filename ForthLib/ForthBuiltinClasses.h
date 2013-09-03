@@ -30,6 +30,10 @@ typedef enum {
 	kBCIIntArrayIter,
 	kBCILongArray,
 	kBCILongArrayIter,
+	kBCIInt,
+	kBCILong,
+	kBCIFloat,
+	kBCIDouble,
 	kBCIThread
 } kBuiltinClassIndex;
 
