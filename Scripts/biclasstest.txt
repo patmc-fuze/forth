@@ -1,0 +1,173 @@
+autoforget builtinClassTest
+
+requires testbase
+
+: builtinClassTest ;
+
+// object: delete show getClass compare(OBJ) keep release refCount
+
+// oIterable: headIter tailIter find clone count clear
+// oIter: seekNext seekPrev seekHead seekTail next prev current remove findNext(OBJ) clone
+
+// oArray: resize(N) ref(N) get(N) set(OBJ N) findIndex(OBJ) push(OBJ) pop
+// oArrayIter:
+// oList: head tail addHead(OBJ) addTail(OBJ) removeHead removeTail
+// oListIter: swapNext swapPrev split
+// oMap: get(KEY) set(OBJ KEY) findKey(OBJ) remove(KEY)
+// oMapIter: nextPair prevPair
+
+// oString: size length get set(STR) append(STR) resize(N) startsWith(STR) endsWith(STR) contains(STR) clear hash appendChar(CHAR)
+
+// oPair: setA(OBJ) getA setB(OBJ) getB   (no find, clone, count, clear)
+// oPairIter: (no remove, findNext, clone)
+// oTriple: setA(OBJ) getA setB(OBJ) getB setC(OBJ) getC   (no find, clone, count, clear)
+// oTripleIter: (no remove, findNext, clone)
+
+// oByteArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
+// oByteArrayIter: 
+// oShortArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
+// oShortArrayIter: 
+// oIntArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
+// oIntArrayIter: 
+// oLongArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
+// oLongArrayIter: 
+
+// oInt: get set(N) show compare(N)
+// oLong: get set(N) show compare(N)
+// oFloat: get set(N) show compare(N)
+// oDouble: get set(N) show compare(N)
+
+// oThread: init(PSTACK_SIZE RSTACK_SIZE OP) start push(N) pop rpush(N) rpop getState step reset
+
+int nextObjId
+
+class: tobj
+extends object
+  int objId
+
+  method: setObjId
+    -> objId
+  ;method
+    
+  : newTobj
+    _allocObject
+    ddup nextObjId -rot -> <tobj>.objId
+    "|+" %s nextObjId %d
+    1 ->+ nextObjId
+  ;
+
+  ' newTobj tobj.setNew
+  
+  method: delete
+    "|-" %s objId %d
+    super.delete
+  ;method
+  
+;class
+
+new tobj -> tobj va
+new tobj -> tobj vb
+new tobj -> tobj vc
+new tobj -> tobj vd
+new tobj -> tobj ve
+
+// oArray:   clear   resize(N)   count   get(I)   set(O I)   findIndex(O)   push(O)   pop   headIter   tailIter   clone
+// oList:   head   tail   addHead(O)   addTail(O)   removeHead   removeTail   headIter   tailIter   count   find(O)   clone
+// oMap:   clear   count   get(KEY)   set(O KEY)   findIndex(O)   remove(KEY)   headIter   tailIter   
+
+//"(vb=" %s tb <tobj>.refCount %d " before adding to map)" %s
+new oMap -> oMap ma
+ma.set( va 'a' )  ma.set( vb 'b' )  ma.set( vc 'c' )  ma.set( vd 'd' )  ma.set( ve 'e' )
+
+new oList -> oList la
+la.addHead(ma.get( 'b' ))  la.addHead(ma.get( 'c' ))  la.addHead(ma.get( 'd' ))
+
+new oArray -> oArray aa
+aa.push(ma.get( 'a' ))  aa.push(vb)  aa.push(ma.get( 'c' ))
+
+//"{clearing map}" %s
+dnull -> ma   //ma.clear
+
+//"{clearing list}" %s
+dnull -> la
+
+//"{clearing array}" %s
+dnull -> aa // aa.resize( 0 )
+
+dnull -> va  dnull -> vb  dnull -> vc  dnull -> vd  dnull -> ve
+
+new oList -> oList zz
+new oString -> oString za
+new oString -> oString zb
+new oString -> oString zc
+new oString -> oString zd
+new oString -> oString zr
+za.set( "a" )
+zb.set( "b" )
+zc.set( "c" )
+zd.set( "d" )
+zr.set( "r" )
+zz.addTail( za ) zz.addTail( zb ) zz.addTail( zr ) zz.addTail( za ) 
+zz.addTail( zc ) zz.addTail( za ) zz.addTail( zd ) 
+zz.addTail( za ) zz.addTail( zb ) zz.addTail( zr ) zz.addTail( za ) 
+
+zz.clone -> oList zz2
+
+: so
+  drop dup %x %bl @ %d %bl
+;
+
+// abra cad abra
+: ff
+  -> oIterable oi
+  "list " %s oi so %nl
+  oi.headIter -> oIter iter
+  begin
+  while( iter.next )
+    -> oString ss
+    ss so
+    ss.get %s %nl
+    dnull -> ss
+  repeat
+  %nl
+  dnull -> oi
+;
+
+// oIterable: headIter tailIter find clone count clear
+// oIter: seekNext seekPrev seekHead seekTail next prev current remove findNext(OBJ) clone
+
+// oArray: resize(N) ref(N) get(N) set(OBJ N) findIndex(OBJ) push(OBJ) pop
+// oArrayIter:
+
+: testArray
+  new oArray -> oArray aa
+  r[ 1 17 42 53 89 ]r
+  -> int nItems
+  do( nItems 0 )
+  loop
+  dnull -> aa
+;
+
+: test
+  new oArray -> oArray aa
+  new oList -> oList la
+  do( 15 0 )
+    new oInt -> oInt bob
+    bob.set( i )
+    aa.push( bob )
+    la.addTail( bob )
+    dnull -> bob
+  loop
+  dnull -> aa
+  dnull -> la
+;
+
+test
+"run cleanup to free objects" %s %nl
+
+: cleanup
+  dnull -> zz
+  dnull -> zz2
+;
+
+loaddone
