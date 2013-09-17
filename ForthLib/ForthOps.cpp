@@ -1777,12 +1777,29 @@ FORTHOP(rollOp)
     // 2 roll is the same as rot
     long n = (SPOP);
     long *pSP = GET_SP;
-    long a = pSP[n];
-    for ( int i = n; i != 0; i-- )
-    {
-        pSP[i] = pSP[i - 1];
-    }
-    *pSP = a;
+    long a;
+	if ( n != 0 )
+	{
+		if ( n > 0 )
+		{
+			a = pSP[n];
+			for ( int i = n; i != 0; i-- )
+			{
+				pSP[i] = pSP[i - 1];
+			}
+			*pSP = a;
+		}
+		else
+		{
+			a = *pSP;
+			n = -n;
+			for ( int i = 0; i < n; i++ )
+			{
+				pSP[i] = pSP[i + 1];
+			}
+			pSP[n] = a;
+		}
+	}
 }
 
 FORTHOP(spOp)
@@ -1845,6 +1862,81 @@ FORTHOP(drotOp)
     pDsp[0] = a;
 }
 
+#if 0
+FORTHOP(dreverseRotOp)
+{
+    NEEDS(3);
+    double *pDsp = (double *)(GET_SP);
+    double a, b, c;
+    a = pDsp[2];
+    b = pDsp[1];
+    c = pDsp[0];
+    pDsp[2] = c;
+    pDsp[1] = a;
+    pDsp[0] = b;
+}
+
+FORTHOP(dnipOp)
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPOP;
+    DPUSH( a );
+}
+
+FORTHOP(dtuckOp)
+{
+    NEEDS(2);
+    double *pDsp = (double *)(GET_SP);
+    double a = *pDsp;
+    double b = pDsp[1];
+    DPUSH( a );
+    *pDsp = b;
+    pDsp[1] = a;
+}
+
+FORTHOP(dpickOp)
+{
+    NEEDS(1);
+    long n = SPOP;
+    double *pDsp = (double *)(GET_SP);
+    double a = pDsp[n];
+	DPUSH( a );
+}
+
+FORTHOP(drollOp)
+{
+    // TBD: moves the Nth element to TOS
+    // 1 droll is the same as dswap
+    // 2 droll is the same as drot
+    long n = (SPOP);
+    double *pDsp = (double *)(GET_SP);
+    double a;
+	if ( n != 0 )
+	{
+		if ( n > 0 )
+		{
+			a = pDsp[n];
+			for ( int i = n; i != 0; i-- )
+			{
+				pDsp[i] = pDsp[i - 1];
+			}
+			*pDsp = a;
+		}
+		else
+		{
+			a = *pDsp;
+			n = -n;
+			for ( int i = 0; i < n; i++ )
+			{
+				pDsp[i] = pDsp[i + 1];
+			}
+			pDsp[n] = a;
+		}
+	}
+}
+#endif
+
 FORTHOP(startTupleOp)
 {
     long pSP = (long) (GET_SP);
@@ -1858,6 +1950,47 @@ FORTHOP(endTupleOp)
     long count = pOldSP - pSP;
     SPUSH( count );
 }
+
+#if 0
+FORTHOP(ndropOp)
+{
+    NEEDS(1);
+	int n = SPOP;
+    SET_SP( GET_SP + n );
+}
+
+FORTHOP(ndupOp)
+{
+    NEEDS(1);
+	int n = (SPOP) - 1;
+    long* pSP = (GET_SP) + n;
+	for ( int i = 0; i <= n; i++ )
+	{
+		long v = *pSP--;
+		SPUSH( v );
+	}
+}
+
+FORTHOP(npickOp)
+{
+    NEEDS(1);
+	int n = (SPOP) - 1;
+	int offset = (SPOP);
+    long* pSP = (GET_SP) + offset + n;
+	for ( int i = 0; i <= n; i++ )
+	{
+		long v = *pSP--;
+		SPUSH( v );
+	}
+	/*
+	for ( int i = 0; i <= n; i++ )
+	{
+      long* pSP = (GET_SP);
+	  SPUSH( pSP[offset] );
+	}
+	*/
+}
+#endif
 
 // align (upwards) DP to longword boundary
 FORTHOP( alignOp )
@@ -5870,6 +6003,16 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    drotOp,                 "drot" ),
     OP_DEF(    startTupleOp,           "r[" ),
     OP_DEF(    endTupleOp,             "]r" ),
+#if 0
+    OP_DEF(    dreverseRotOp,          "-drot" ),
+    OP_DEF(    dnipOp,                 "dnip" ),
+    OP_DEF(    dtuckOp,                "dtuck" ),
+    OP_DEF(    dpickOp,                "dpick" ),
+    OP_DEF(    drollOp,                "droll" ),
+    OP_DEF(    ndropOp,                "ndrop" ),
+    OP_DEF(    ndupOp,                 "ndup" ),
+    OP_DEF(    npickOp,                "npick" ),
+#endif
 
     ///////////////////////////////////////////
     //  memory store/fetch

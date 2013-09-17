@@ -127,6 +127,25 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 15 2013
+
+I think it would be good to get rid of many of the builtinOps, move them to
+external assembler ops.  Right now non-builtin assembler ops take an additional
+6 instructions of overhead for the userCodeType dispatcher over builtin
+assembler ops.  To eliminate this, I could make user assembler ops have optype 0
+same as builtin ops.
+I think I made user assembler ops a different type from builtin ops because that
+way optype 0 in turbo mode always meant builtin assembler ops, and optype 0 in
+non-turbo mode always meant builtin C ops.  This change would mean that in
+non-turbo mode the C inner interpreter would need to be able to invoke user
+defined assembler ops, not just C ops.
+
+o builtin op tables would have to be expanded as user ops were added
+o a UserCodeAction entry would need to be added to the C ops table for each
+  user assembler op to keep non-turbo mode working
+o 'forget' would need to distinguish between builtin ops and user assembler ops
+  having the same optype
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 30 2013
 
 Add unimplementedMethod op

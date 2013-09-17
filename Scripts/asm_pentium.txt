@@ -520,8 +520,8 @@ int .osize               int .onow
 
 : cond: 0 do  i constant  loop ;
 
-0x10 cond: vs vc   u< u>=  0== 0<>  u<= u>   0< 0>=  ps pc   <  >=   <=  >
-0x10 cond: o  no   b  nb   z  nz   be  nbe  s  ns   pe po   l  nl   le  nle
+0x10 cond: vs, vc,   u<, u>=,  0==, 0<>,  u<=, u>,   0<, 0>=,  ps, pc,   <,  >=,   <=,  >,
+0x10 cond: o,  no,   b,  nb,   z,  nz,    be,  nbe,  s,  ns,   pe, po,   l,  nl,   le,  nle,
 : jmpIF  ( addr cond -- )
   swap here 2 + - dup -0x80 0x80 within
   if            -> disp 0x70 1
@@ -799,6 +799,35 @@ previous definitions
 : endcode
   previous				// pop assembler vocab off search stack
 ;
+
+enum: eForthCore
+  0x00 _optypeAction
+  0x04 _builtinOps
+  0x08 _numBuiltinOps
+  0x0C _numAsmBuiltinOps
+  0x10 _userOps
+  0x14 _numUserOps
+  0x18 _maxUserOps
+  0x1C _pEngine
+  0x20 _IPtr
+  0x24 _SPtr
+  0x28 _RPtr
+  0x2C _FPtr
+  0x30 _TMPtr
+  0x34 _TDPtr
+  0x38 _varMode
+  0x3C _state
+  0x40 _error
+  0x44 _SBPtr
+  0x48 _STPtr
+  0x4C _SLen
+  0x50 _RBPtr
+  0x54 _RTPtr
+  0x58 _RLen
+  0x5C _pThread
+  0x60 _pDictionary
+  0x64 _fileFuncs
+;enum
 
 base !
 -> parenIsComment

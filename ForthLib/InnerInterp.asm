@@ -2553,9 +2553,6 @@ entry fplusBop
 	fld	DWORD PTR [edx+4]
 	fadd	DWORD PTR [edx]
 	add	edx,4
-	; set var operation back to fetch
-	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
 	fstp	DWORD PTR [edx]
 	jmp	edi
 	
@@ -2565,9 +2562,6 @@ entry fminusBop
 	fld	DWORD PTR [edx+4]
 	fsub	DWORD PTR [edx]
 	add	edx,4
-	; set var operation back to fetch
-	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
 	fstp	DWORD PTR [edx]
 	jmp	edi
 	
@@ -2577,9 +2571,6 @@ entry ftimesBop
 	fld	DWORD PTR [edx+4]
 	fmul	DWORD PTR [edx]
 	add	edx,4
-	; set var operation back to fetch
-	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
 	fstp	DWORD PTR [edx]
 	jmp	edi
 	
@@ -2589,9 +2580,6 @@ entry fdivideBop
 	fld	DWORD PTR [edx+4]
 	fdiv	DWORD PTR [edx]
 	add	edx,4
-	; set var operation back to fetch
-	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
 	fstp	DWORD PTR [edx]
 	jmp	edi
 	
@@ -2787,9 +2775,6 @@ entry dplusBop
 	fld	QWORD PTR [edx+8]
 	fadd	QWORD PTR [edx]
 	add	edx,8
-	; set var operation back to fetch
-	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
 	fstp	QWORD PTR [edx]
 	jmp	edi
 	
@@ -2799,9 +2784,6 @@ entry dminusBop
 	fld	QWORD PTR [edx+8]
 	fsub	QWORD PTR [edx]
 	add	edx,8
-	; set var operation back to fetch
-	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
 	fstp	QWORD PTR [edx]
 	jmp	edi
 	
@@ -2811,9 +2793,6 @@ entry dtimesBop
 	fld	QWORD PTR [edx+8]
 	fmul	QWORD PTR [edx]
 	add	edx,8
-	; set var operation back to fetch
-	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
 	fstp	QWORD PTR [edx]
 	jmp	edi
 	
@@ -2823,9 +2802,6 @@ entry ddivideBop
 	fld	QWORD PTR [edx+8]
 	fdiv	QWORD PTR [edx]
 	add	edx,8
-	; set var operation back to fetch
-	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
 	fstp	QWORD PTR [edx]
 	jmp	edi
 	
@@ -3392,9 +3368,6 @@ entry ltimesBop
 	fld	QWORD PTR [edx+8]
 	fmul	QWORD PTR [edx]
 	add	edx,8
-	; set var operation back to fetch
-	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
 	fstp	QWORD PTR [edx]
 	jmp	edi
 	
@@ -3404,9 +3377,6 @@ entry ldivideBop
 	fld	QWORD PTR [edx+8]
 	fdiv	QWORD PTR [edx]
 	add	edx,8
-	; set var operation back to fetch
-	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
 	fstp	QWORD PTR [edx]
 	jmp	edi
 	
