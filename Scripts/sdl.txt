@@ -381,7 +381,7 @@ dll_5 SDL_LoadWAV_RW		// SDL_RWops *src, int freesrc, SDL_AudioSpec *spec, Uint8
 
 // Compatibility convenience function -- loads a WAV from a file
 : SDL_LoadWAV		// file, spec, audio_buf, audio_len
-  r< r< r<
+  >r >r >r
   "rb" SDL_RWFromFile 1
   r> r> r>
   SDL_LoadWAV_RW

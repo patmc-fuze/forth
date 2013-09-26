@@ -127,6 +127,28 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 23 2013
+
+In a fit of extreme stupidity, I decided to change the names of the 64-bit
+stack manipulation words (ddup, ddrop, d!, etc) to be ansi compliant (2dup, 2drop),
+along with changing the == and != ops to = and <>.  This required updating
+every script file, or close to every.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 20 2013
+
+I started porting the kforth chess player, one thing I noticed is that 'allot'
+on standard forth systems takes a byte count, while mine takes a cell count.
+Along the way I added the standard forth numeric printing system from gforth.
+While doing that I found out that gforth stores 64-bit numbers on the stack
+in the opposite order from my forth, which caused a bug in the sign op which
+was checking the wrong word for the sign.
+After a lot of mucking about, I got chess to run, but it fails shortly
+after starting - if you tell it to pick the move, it makes one pawn move and
+then announces that you are in check.  If you pick the move, an access violation
+occurs.  I don't know if debugging it is worth the effort.
+Something I might want to do is change ops like ddup, ddrop and so on to
+the more standard 2dup, 2drop and so on.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 15 2013
 
 I think it would be good to get rid of many of the builtinOps, move them to

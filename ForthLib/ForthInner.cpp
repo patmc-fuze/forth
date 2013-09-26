@@ -104,6 +104,12 @@ GFORTHOP( doByteOp )
     SET_IP( (long *) (RPOP) );
 }
 
+GFORTHOP( byteVarActionOp )
+{
+    signed char* pVar = (signed char *)(SPOP);
+	_doByteVarop( pCore, pVar );
+}
+
 VAR_ACTION( doUByteFetch ) 
 {
     // IP points to data field
@@ -154,6 +160,12 @@ GFORTHOP( doUByteOp )
 
 	_doUByteVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
+}
+
+GFORTHOP( ubyteVarActionOp )
+{
+    unsigned char* pVar = (unsigned char *)(SPOP);
+	_doUByteVarop( pCore, pVar );
 }
 
 OPTYPE_ACTION( LocalByteAction )
@@ -353,6 +365,12 @@ GFORTHOP( doShortOp )
     SET_IP( (long *) (RPOP) );
 }
 
+GFORTHOP( shortVarActionOp )
+{
+    short* pVar = (short *)(SPOP);
+	_doShortVarop( pCore, pVar );
+}
+
 VAR_ACTION( doUShortFetch )
 {
     // IP points to data field
@@ -403,6 +421,12 @@ GFORTHOP( doUShortOp )
 
 	_doUShortVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
+}
+
+GFORTHOP( ushortVarActionOp )
+{
+    unsigned short* pVar = (unsigned short *)(SPOP);
+	_doUShortVarop( pCore, pVar );
 }
 
 OPTYPE_ACTION( LocalShortAction )
@@ -604,6 +628,17 @@ GFORTHOP( doIntOp )
     SET_IP( (long *) (RPOP) );
 }
 
+void intVarAction( ForthCoreState* pCore, int* pVar )
+{
+	_doIntVarop( pCore, pVar );
+}
+
+GFORTHOP( intVarActionOp )
+{
+    int* pVar = (int *)(SPOP);
+	intVarAction( pCore, pVar );
+}
+
 OPTYPE_ACTION( LocalIntAction )
 {
     int* pVar = (int *)(GET_FP - opVal);
@@ -725,6 +760,12 @@ GFORTHOP( doFloatOp )
 
 	_doFloatVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
+}
+
+GFORTHOP( floatVarActionOp )
+{
+    float* pVar = (float *)(SPOP);
+	_doFloatVarop( pCore, pVar );
 }
 
 OPTYPE_ACTION( LocalFloatAction )
@@ -861,6 +902,12 @@ GFORTHOP( doDoubleOp )
 
 	_doDoubleVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
+}
+
+GFORTHOP( doubleVarActionOp )
+{
+    double* pVar = (double *)(SPOP);
+	_doDoubleVarop( pCore, pVar );
 }
 
 OPTYPE_ACTION( LocalDoubleAction )
@@ -1020,6 +1067,12 @@ GFORTHOP( doStringOp )
     SET_IP( (long *) (RPOP) );
 }
 
+GFORTHOP( stringVarActionOp )
+{
+    char* pVar = (char *)(SPOP);
+	_doStringVarop( pCore, pVar );
+}
+
 OPTYPE_ACTION( LocalStringAction )
 {
     char* pVar = (char *) (GET_FP - opVal);
@@ -1144,6 +1197,12 @@ GFORTHOP( doOpOp )
     SET_IP( (long *) (RPOP) );
 }
 
+GFORTHOP( opVarActionOp )
+{
+    long* pVar = (long *)(SPOP);
+	_doOpVarop( pCore, pVar );
+}
+
 OPTYPE_ACTION( LocalOpAction )
 {
     long* pVar = (long *)(GET_FP - opVal);
@@ -1265,6 +1324,12 @@ GFORTHOP( doObjectOp )
 
 	_doObjectVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
+}
+
+GFORTHOP( objectVarActionOp )
+{
+    ForthObject* pVar = (ForthObject *)(SPOP);
+	_doObjectVarop( pCore, pVar );
 }
 
 OPTYPE_ACTION( LocalObjectAction )
@@ -1405,6 +1470,12 @@ GFORTHOP( doLongOp )
 
 	_doLongVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
+}
+
+GFORTHOP( longVarActionOp )
+{
+    long long* pVar = (long long *)(SPOP);
+	_doLongVarop( pCore, pVar );
 }
 
 OPTYPE_ACTION( LocalLongAction )

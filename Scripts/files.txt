@@ -6,18 +6,18 @@ int _infile
 0 -> _infile
 
 int _inbuff
-here 1024 allot -> _inbuff
+here 4096 allot -> _inbuff
 
 // open for read
 : openr
   "rb" fopen -> _infile
-  _infile 0== if
+  _infile 0= if
     "open failure" %s %nl
   endif
 ;
 
 : closer
-  _infile 0!= if
+  _infile 0<> if
     fclose drop
     0 -> _infile
   endif
@@ -30,7 +30,7 @@ here 1024 allot -> _inbuff
 
 : getw
   _inbuff 1 2 _infile fread
-  0== if
+  0= if
     "getw read failure" %nl
   endif
   _inbuff w@
@@ -38,15 +38,15 @@ here 1024 allot -> _inbuff
 
 : getl
   _inbuff 1 4 _infile fread
-  0== if
+  0= if
     "getl read failure" %nl
   endif
   _inbuff @
 ;
 
 
-: charArray builds allot does + ;
-: longArray builds allot does swap 2 << + ;
+: charArray builds allot align does + ;
+: longArray builds 4* allot does swap 2 << + ;
 
 1000 charArray specialNames
 int specialNamesNext   0 specialNames -> specialNamesNext
@@ -73,7 +73,7 @@ int nameIndexNext   0 -> nameIndexNext
   0 -> foundIt
   nameIndexNext 0 do
     i nameIndex @ name strcmp
-    0== if
+    0= if
       1 -> foundIt
       leave
     endif
@@ -88,7 +88,7 @@ int nameIndexNext   0 -> nameIndexNext
   _infile ftell %x %bl
   getl dup %d %bl
   _inbuff over 1 _infile fread
-  0== if
+  0= if
     "getq read failure" %nl
   endif
   0 swap _inbuff + c!
@@ -97,7 +97,7 @@ int nameIndexNext   0 -> nameIndexNext
   if
     getl
     _inbuff over 1 _infile fread
-    0== if
+    0= if
       "getq read failure" %nl
     endif
     0 swap _inbuff + c!

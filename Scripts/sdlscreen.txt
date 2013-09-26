@@ -42,7 +42,7 @@ class: sdlScreen
     240  -> bottomLimit
     
     ['] dummyFetchOp -> pixel@
-    ['] ddrop -> pixel!
+    ['] 2drop -> pixel!
     0x00FFFF00 -> pixelColor
 
     width 2/ -> centerX
@@ -72,7 +72,7 @@ class: sdlScreen
   
     SDL_Init( SDL_INIT_VIDEO ) "SDL_Init returns " %s %d %nl
     SDL_SetVideoMode( width height 0 SDL_SWSURFACE ) -> surface
-    if( surface 0== )
+    if( surface 0= )
       "SDL_SetVideoMode failed!\n" %s abort
     else
       surface.format.BitsPerPixel
@@ -95,7 +95,7 @@ class: sdlScreen
         endof
         // unhandled pixel size
         lit dummyFetchOp -> pixel@
-        lit ddrop -> pixel!
+        lit 2drop -> pixel!
         "startSDL: Unhandled pixel size " %s %d %nl
       endcase
     
@@ -116,7 +116,7 @@ class: sdlScreen
   ;method
 
   : beginDraw
-    if( drawDepth 0== )
+    if( drawDepth 0= )
       SDL_LockSurface( surface ) drop
     endif
     1 ->+ drawDepth
@@ -124,7 +124,7 @@ class: sdlScreen
 
   : endDraw
     1 ->- drawDepth
-    if( drawDepth 0== )
+    if( drawDepth 0= )
       SDL_UnlockSurface( surface )
       SDL_UpdateRects( surface 1 dstPos )
     else
@@ -200,7 +200,7 @@ class: sdlScreen
     curY negate -> int y0
     curX -> int x0
   
-    ddup -> curY -> curX
+    2dup -> curY -> curX
   
     negate -> int y1
     -> int x1
@@ -238,7 +238,7 @@ class: sdlScreen
     if( dx dy > )
       dy dx 2/ - -> fraction
       begin
-      while( x0 x1 != )
+      while( x0 x1 <> )
         if( fraction 0>= )
           stepy ->+ y0
           dx ->- fraction
@@ -252,7 +252,7 @@ class: sdlScreen
     else
       dx dy 2/ - -> fraction
       begin
-      while( y0 y1 != )
+      while( y0 y1 <> )
         if( fraction 0>= )
           stepx ->+ x0
           dy ->- fraction
@@ -278,13 +278,13 @@ class: sdlScreen
   // XYPAIRS NUM_LINES drawMultiLine
   method: drawMultiLine
     0 do
-      dswap moveTo drawLine
+      2swap moveTo drawLine
     loop
   ;method
 
   // X Y _draw4EllipsePoints ...
   : _draw4EllipsePoints
-    ddup
+    2dup
     -> int y
     -> int x
     negate -> int ny
@@ -364,18 +364,18 @@ class: sdlScreen
 
 
   : _drawCirclePoints
-    ddup
+    2dup
     -> int y
     -> int x
     negate -> int ny
     negate -> int nx
-    if( x 0== )
+    if( x 0= )
       0 y drawPixelRelative
       0 ny drawPixelRelative
       y 0 drawPixelRelative
       ny 0 drawPixelRelative
     else
-      if( x y == )
+      if( x y = )
         x y drawPixelRelative
         nx y drawPixelRelative
         x ny drawPixelRelative
@@ -453,7 +453,7 @@ sdlScreen _screen
 ;
 
 : endSDL
-  if( _screen l0!= )
+  if( _screen l0<> )
     _screen.endSDL
     dnull -> _screen
   endif

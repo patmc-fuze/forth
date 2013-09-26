@@ -1,4 +1,7 @@
 
+autoforget forth_optype
+: forth_optype ;
+
 vocabulary opType
 also opType
 definitions
@@ -23,9 +26,9 @@ enum: _opType
   
   // 14 - 19 are unused
      
-  20 constant				// low 24 bits is signed symbol value
-  constantString			// low 24 bits is number of longwords to skip over
-  offset					// low 24 bits is signed offset value
+  20 litInt					// low 24 bits is signed symbol value
+  litString					// low 24 bits is number of longwords to skip over
+  addOffset					// low 24 bits is signed offset value
   arrayOffset				// low 24 bits is array element size TOS is array base NTOS is index
   allocLocals				// low 24 bits is frame size in longs
   localRef					// low 24 bits is offset in bytes

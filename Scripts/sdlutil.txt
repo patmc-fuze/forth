@@ -17,7 +17,7 @@ null  -> ptrTo SDL_Surface sdlScreen
 : dummyFetchOp drop 0 ;
 
 ' dummyFetchOp -> op pixel@
-' ddrop -> op pixel!
+' 2drop -> op pixel!
 
 0x00FFFF00 -> int pixelColor
 
@@ -53,7 +53,7 @@ SDL_Rect dstPos
   
   SDL_Init( SDL_INIT_VIDEO ) "SDL_Init returns " %s %d %nl
   SDL_SetVideoMode( screenW screenH 0 SDL_SWSURFACE ) -> sdlScreen
-  if( sdlScreen 0== )
+  if( sdlScreen 0= )
     "SDL_SetVideoMode failed!\n" %s abort
   else
     sdlScreen.format.BitsPerPixel
@@ -76,7 +76,7 @@ SDL_Rect dstPos
       endof
       // unhandled pixel size
       lit dummyFetchOp -> pixel@
-      lit ddrop -> pixel!
+      lit 2drop -> pixel!
       "startSDL: Unhandled pixel size " %s %d %nl
     endcase
     
@@ -97,7 +97,7 @@ SDL_Rect dstPos
 ;
 
 : beginDraw
-  drawDepth 0== if
+  drawDepth 0= if
     SDL_LockSurface( sdlScreen ) drop
   endif
   1 ->+ drawDepth
@@ -105,7 +105,7 @@ SDL_Rect dstPos
 
 : endDraw
   1 ->- drawDepth
-  drawDepth 0== if
+  drawDepth 0= if
     SDL_UnlockSurface( sdlScreen )
     SDL_UpdateRects( sdlScreen 1 dstPos )
   else

@@ -11,11 +11,12 @@ autoforget data_tables
 
 : buildByteTable
   here -> int pBase
-  dup  callot -> int tableSize
+  dup  allot -> int tableSize
   tableSize 1-  pBase + -> int pDst
   tableSize 0 do
     pDst c! 1 ->- pDst
   loop
+  align
 ;
 
 : byteTable
@@ -29,11 +30,12 @@ autoforget data_tables
 
 : buildWordTable
   here -> int pBase
-  dup 2* callot -> int tableSize
+  dup 2* allot -> int tableSize
   tableSize 1- 2* pBase + -> int pDst
   tableSize 0 do
     pDst w! 2 ->- pDst
   loop
+  align
 ;
 
 : wordTable
@@ -47,12 +49,11 @@ autoforget data_tables
 
 : buildIntTable
   here -> int pBase
-  dup allot -> int tableSize
+  dup 4* allot -> int tableSize
   tableSize 1- 4* pBase + -> int pDst
   tableSize 0 do
     pDst ! 4 ->- pDst
   loop
-  dstack
 ;
 
 : intTable
@@ -75,10 +76,10 @@ autoforget data_tables
 
 : buildDoubleTable
   here -> int pBase
-  dup 8* callot -> int tableSize
+  dup 8* allot -> int tableSize
   tableSize 1- 8* pBase + -> int pDst
   tableSize 0 do
-    pDst d! 8 ->- pDst
+    pDst 2! 8 ->- pDst
   loop
   dstack
 ;
@@ -87,14 +88,15 @@ autoforget data_tables
   builds
     buildDoubleTable
   does
-    swap 8* + d@
+    swap 8* + 2@
 ;
 
 // ====================== strings ======================
 
 : buildStringTable
   here -> int pBase
-  dup allot -> int tableSize
+  dup -> int tableSize
+  4 * allot
   tableSize 1- 4* pBase + -> int pDst
   int pSrc
   // create the table of string pointers
@@ -104,14 +106,15 @@ autoforget data_tables
   loop
   // now copy the string data after the string pointer table
   tableSize 0 do
-    here -> pDst
+    here dup -> pDst
     pBase @ -> pSrc
+    pBase !
     // pSrc dup %x %bl %s %nl
-    callot( strlen( pSrc ) 1+ )
+    allot( strlen( pSrc ) 1+ )
     strcpy( pDst pSrc )
      4 ->+ pBase
   loop
-  dstack
+  align
 ;
 
 : stringTable

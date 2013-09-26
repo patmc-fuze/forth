@@ -22,7 +22,7 @@ also sdl
   curY negate -> int y0
   curX -> int x0
   
-  ddup -> curY -> curX
+  2dup -> curY -> curX
   
   negate -> int y1
   -> int x1
@@ -60,7 +60,7 @@ also sdl
   if( dx dy > )
     dy dx 2/ - -> fraction
     begin
-      x0 x1 !=
+      x0 x1 <>
     while
       if( fraction 0>= )
         stepy ->+ y0
@@ -75,7 +75,7 @@ also sdl
   else
     dx dy 2/ - -> fraction
     begin
-      y0 y1 !=
+      y0 y1 <>
     while
       if( fraction 0>= )
         stepx ->+ x0
@@ -100,7 +100,7 @@ also sdl
 
 // X Y _draw4EllipsePoints ...
 : _draw4EllipsePoints
-  ddup
+  2dup
   -> int y
   -> int x
   negate -> int ny
@@ -182,18 +182,18 @@ also sdl
 
 
 : _drawCirclePoints
-  ddup
+  2dup
   -> int y
   -> int x
   negate -> int ny
   negate -> int nx
-  if( x 0== )
+  if( x 0= )
     0 y drawPixelRelative
     0 ny drawPixelRelative
     y 0 drawPixelRelative
     ny 0 drawPixelRelative
   else
-    if( x y == )
+    if( x y = )
       x y drawPixelRelative
       nx y drawPixelRelative
       x ny drawPixelRelative

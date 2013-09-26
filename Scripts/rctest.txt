@@ -48,7 +48,7 @@ autoforget rctest
   begin
     iter.next
   while
-    ddup <oString>.get %s %bl <object>.show %nl
+    2dup <oString>.get %s %bl <object>.show %nl
   repeat
   dnull -> iter
 ;
@@ -58,28 +58,28 @@ autoforget rctest
   begin
     iter.prev
   while
-    ddup <oString>.get %s %bl <object>.show %nl
+    2dup <oString>.get %s %bl <object>.show %nl
   repeat
   dnull -> iter
 ;
 
 : showArray
-  <oArray>.headIter ddup showContainer
+  <oArray>.headIter 2dup showContainer
   <oIter>.release
 ;
 
 : showArrayR
-  <oArray>.tailIter ddup showContainerR
+  <oArray>.tailIter 2dup showContainerR
   <oIter>.release
 ;
 
 : showList
-  <oList>.headIter ddup showContainer
+  <oList>.headIter 2dup showContainer
   <oIter>.release
 ;
 
 : showListR
-  <oList>.tailIter ddup showContainerR
+  <oList>.tailIter 2dup showContainerR
   <oIter>.release
 ;
 
@@ -88,7 +88,7 @@ autoforget rctest
   begin
     iter.nextPair
   while
-    "key=" %s %d %bl ddup <oString>.get %s %bl <object>.show %nl
+    "key=" %s %d %bl 2dup <oString>.get %s %bl <object>.show %nl
   repeat
   iter.release
 ;
@@ -98,7 +98,7 @@ autoforget rctest
   begin
     iter.prevPair
   while
-    "key=" %s %d %bl ddup <oString>.get %s %bl <object>.show %nl
+    "key=" %s %d %bl 2dup <oString>.get %s %bl <object>.show %nl
   repeat
   iter.release
 ;

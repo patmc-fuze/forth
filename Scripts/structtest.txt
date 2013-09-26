@@ -30,8 +30,8 @@ pp.x %d %bl pp.y %d %bl %nl
 
 : %point
   -> ptrTo point q
-  "x==" %s q.x %d
-  " y==" %s q.y %d
+  "x=" %s q.x %d
+  " y=" %s q.y %d
   %nl
 ;
 

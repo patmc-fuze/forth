@@ -56,7 +56,7 @@ addHelp _do				INTERNAL	compiled at start of do loop
 addHelp _loop			INTERNAL	compiled at end of do loop
 addHelp _+loop			INTERNAL	compiled at end of do +loop
 addHelp _doNew			INTERNAL	compiled by 'new', immediately following word is class vocab ptr, executes class 'new' operator
-addHelp d@				PTR ... DA	fetch double from address PTR
+addHelp 2@				PTR ... DA	fetch double from address PTR
 addHelp _allocObject	INTERNAL	default class 'new' operator, mallocs spaces for a new object instance and pushes new object
 addHelp vocabToClass	INTERNAL	varop setter, putting this before a vocab op makes it return vocabs class object
 addHelp ref				ref VAR ... PTR	return address of VAR
@@ -101,14 +101,14 @@ addHelp f-	FA FB ... (FA-FB)	subtract top two floating point items
 addHelp f*	FA FB ... (FA*FB)	multiply top two floating point items
 addHelp f/	FA FB ... (FA/FB)	divide top two floating point items
 
-addHelp f==	FA FB ... FA==FB
-addHelp f!=	FA FB ... FA!=FB
+addHelp f=	FA FB ... FA=FB
+addHelp f<>	FA FB ... FA<>FB
 addHelp f>	FA FB ... FA>FB
 addHelp f>=	FA FB ... FA>=FB
 addHelp f<	FA FB ... FA<FB
 addHelp f<=	FA FB ... FA<=FB
-addHelp f0==	FA ... FA==0
-addHelp f0!=	FA ... FA!=0
+addHelp f0=	FA ... FA=0
+addHelp f0<>	FA ... FA<>0
 addHelp f0>	FA ... FA>0
 addHelp f0>=	FA ... FA>=0
 addHelp f0<	FA ... FA<0
@@ -121,14 +121,14 @@ addHelp d+	DA DB ... (DA+DB)	add top two double floating point items
 addHelp d-	DA DB ... (DA-DB)	subtract top two double floating point items
 addHelp d*	DA DB ... (DA*DB)	multiply top two double floating point items
 addHelp d/	DA DB ... (DA/DB)	divide top two double floating point items
-addHelp d==	DA DB ... DA==DB
-addHelp d!=	DA DB ... DA!=DB
+addHelp d=	DA DB ... DA=DB
+addHelp d<>	DA DB ... DA<>DB
 addHelp d>	DA DB ... DA>DB
 addHelp d>=	DA DB ... DA>=DB
 addHelp d<	DA DB ... DA<DB
 addHelp d<=	DA DB ... DA<=DB
-addHelp d0==	DA ... DA==0
-addHelp d0!=	DA ... DA!=0
+addHelp d0=	DA ... DA=0
+addHelp d0<>	DA ... DA<>0
 addHelp d0>	DA ... DA>0
 addHelp d0>=	DA ... DA>=0
 addHelp d0<	DA ... DA<0
@@ -177,14 +177,14 @@ addHelp true	    ... -1
 addHelp false	    ... 0
 addHelp null	    ... 0
 
-addHelp ==		A B ... A==B
-addHelp !=		A B ... A!=B
+addHelp =		A B ... A=B
+addHelp <>		A B ... A<>B
 addHelp >		A B ... A>B
 addHelp >=		A B ... A>=B
 addHelp <		A B ... A<B
 addHelp <=		A B ... A<=B
-addHelp 0==		A   ... A==0
-addHelp 0!=		A   ... A!=0
+addHelp 0=		A   ... A=0
+addHelp 0<>		A   ... A<>0
 addHelp 0>		A   ... A>0
 addHelp 0>=		A   ... A>=0
 addHelp 0<		A   ... A<0
@@ -195,7 +195,7 @@ addHelp within	VAL LO HI ... (LO<=VAL<HI)
 addHelp min	A B ... min(A,B)
 addHelp max	A B ... max(A,B)
 
-addHelp r<		A ...		pushes top of param stack on top of return stack
+addHelp >r		A ...		pushes top of param stack on top of return stack
 addHelp r>		... A		pops top of return stack to top of param stack
 addHelp rdrop	...		drops top of return stack
 addHelp rp		... RETURN_STACK_PTR
@@ -214,11 +214,11 @@ addHelp roll	N ...		rolls Nth item to top of params stack
 addHelp sp		... PARAM_STACK_PTR
 addHelp s0		... EMPTY_PARAM_STACK_PTR
 addHelp fp		... LOCAL_VAR_FRAME_PTR
-addHelp ddup	DA ...	DA DA
-addHelp dswap	DA DB ... DB DA
-addHelp ddrop	DA ...
-addHelp dover	DA DB ... DA DB DA
-addHelp drot	DA DB DC ... DB DC DA
+addHelp 2dup	DA ...	DA DA
+addHelp 2swap	DA DB ... DB DA
+addHelp 2drop	DA ...
+addHelp 2over	DA DB ... DA DB DA
+addHelp 2rot	DA DB DC ... DB DC DA
 addHelp r[		push SP on rstack, used with ]r to count a variable number of arguments
 addHelp ]r		remove old SP from rstack, push count of elements since r[ on TOS
 
@@ -231,7 +231,7 @@ addHelp w!		A PTR ...	stores word A at address PTR
 addHelp w@		PTR ... A	fetches unsigned word from address PTR
 addHelp sw@		PTR ... A	fetches signed word from address PTR
 addHelp w2l		WA ... LA	sign extends word to long
-addHelp d!		DA PTR ...	store double at address PTR
+addHelp 2!		DA PTR ...	store double at address PTR
 addHelp memcpy	DST SRC N ...	copy N bytes from SRC to DST
 addHelp memset	DST A N ...		fill N bytes at DST with byte value A
 addHelp varAction!	A varAction! ...	set varAction to A (use not recommended)
@@ -244,8 +244,8 @@ addHelp strcat	STRA STRB ...	appends STRB to string at STRA
 addHelp strncat	STRA STRB N ...	appends up to N chars from STRB to STRA
 addHelp strchr	STR CHAR ... PTR	returns ptr to first occurence of CHAR in string STR
 addHelp strrchr	STR CHAR ... PTR	`returns ptr to last occurence of CHAR is string STR
-addHelp strcmp	STRA STRB ... N		returns 0 iff STRA == STRB, else result of last char comparison
-addHelp stricmp	STRA STRB ... N		returns 0 iff STRA == STRB ignoring case, else result of last char comparison,
+addHelp strcmp	STRA STRB ... N		returns 0 iff STRA = STRB, else result of last char comparison
+addHelp stricmp	STRA STRB ... N		returns 0 iff STRA = STRB ignoring case, else result of last char comparison,
 addHelp strstr	STRA STRB ... PTR	returns ptr to first occurence of STRB in string STRA
 addHelp strtok	STRA STRB ... PTR	returns ptr to next token in STRA, delimited by a char in STRB, modifies STRA, pass 0 for STRA after first call
 
@@ -280,14 +280,14 @@ addHelp l2d		LONGA ... DOUBLEA	convert signed 64-bit int to 64-bit float
 addHelp f2l		FLOATA ... LONGA	convert 32-bit float to signed 64-bit int
 addHelp d2l		DOUBLEA ... LONGA	convert 64-bit float to signed 64-bit int
 
-addHelp l==		LA LB ... LA==LB
-addHelp l!=		LA LB ... LA!=LB
+addHelp l=		LA LB ... LA=LB
+addHelp l<>		LA LB ... LA<>LB
 addHelp l>		LA LB ... LA>LB
 addHelp l>=		LA LB ... LA>=LB
 addHelp l<		LA LB ... LA<LB
 addHelp l<=		LA LB ... LA<=LB
-addHelp l0==	LA ... LA==0
-addHelp l0!=	LA ... LA!=0
+addHelp l0=		LA ... LA=0
+addHelp l0<>	LA ... LA<>0
 addHelp l0>		LA ... LA>0
 addHelp l0>=	LA ... LA>=0
 addHelp l0<		LA ... LA<0
@@ -382,8 +382,7 @@ addHelp vlistq				display current search vocabulary
 addHelp find
 
 addHelp align	...		aligns DP to a lonword boundary
-addHelp allot	A ...	adds A*4 to DP
-addHelp callot	A ...	adds A to DP
+addHelp allot	A ...	adds A to DP
 addHelp ,		A ...	compiles longword A
 addHelp c,		A ...	compiles byte A
 addHelp malloc	A ... PTR	allocates a block of memory with A bytes

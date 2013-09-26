@@ -3947,6 +3947,15 @@ entry rpopBop
 	
 ;========================================
 
+entry rpeekBop
+	mov	eax, [ebp].FCore.RPtr
+	mov	ebx, [eax]
+	sub	edx, 4
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+
 entry rdropBop
 	mov	eax, [ebp].FCore.RPtr
 	add	eax, 4
@@ -3956,10 +3965,8 @@ entry rdropBop
 ;========================================
 
 entry rpBop
-	mov	eax, [ebp].FCore.RPtr
-	sub	edx, 4
-	mov	[edx], eax
-	jmp	edi
+	lea	eax, [ebp].FCore.RPtr
+	jmp	intEntry
 	
 ;========================================
 
@@ -4064,10 +4071,54 @@ entry pickBop
 ;========================================
 
 entry spBop
+	; this is overkill to make sp look like other vars
+	mov	ebx, [ebp].FCore.varMode
+	xor	eax, eax
+	mov	[ebp].FCore.varMode, eax
+	cmp	ebx, kVarMinusStore
+	jg	badVarOperation
+	; dispatch based on value in ebx
+	mov	ebx, DWORD PTR spActionTable[ebx*4]
+	jmp	ebx
+	
+spFetch:
 	mov	eax, edx
 	sub	edx, 4
 	mov	[edx], eax
 	jmp	edi
+
+spRef:
+	; returns address of SP shadow copy
+	lea	eax, [ebp].FCore.SPtr
+	sub	edx, 4
+	mov	[edx], eax
+	jmp	edi
+	
+spStore:
+	mov	ebx, [edx]
+	mov	edx, ebx
+	jmp	edi
+
+spPlusStore:
+	mov	eax, [edx]
+	add	edx, 4
+	add	edx, eax
+	jmp	edi
+
+spMinusStore:
+	mov	eax, [edx]
+	add	edx, 4
+	sub	edx, eax
+	jmp	edi
+
+spActionTable:
+	DD	FLAT:spFetch
+	DD	FLAT:spFetch
+	DD	FLAT:spRef
+	DD	FLAT:spStore
+	DD	FLAT:spPlusStore
+	DD	FLAT:spMinusStore
+
 	
 ;========================================
 
@@ -4080,9 +4131,23 @@ entry szeroBop
 ;========================================
 
 entry fpBop
-	mov	eax, [ebp].FCore.FPtr
-	sub	edx, 4
-	mov	[edx], eax
+	lea	eax, [ebp].FCore.FPtr
+	jmp	intEntry
+	
+;========================================
+
+entry ipBop
+	; let the common intVarAction code change the shadow copy of IP,
+	; then jump back to ipFixup to copy the shadow copy of IP into IP register (ecx)
+	push	edi
+	mov	[ebp].FCore.IPtr, ecx
+	lea	eax, [ebp].FCore.IPtr
+	mov	edi, ipFixup
+	jmp	intEntry
+	
+entry	ipFixup	
+	mov	ecx, [ebp].FCore.IPtr
+	pop	edi
 	jmp	edi
 	
 ;========================================
@@ -4476,8 +4541,8 @@ entry vocabToClassBop
 ;========================================
 
 entry setVarActionBop
-   mov   eax, [edx]
-   add   edx, 4
+	mov   eax, [edx]
+	add   edx, 4
 	mov	[ebp].FCore.varMode, eax
 	jmp	edi
 
@@ -4485,10 +4550,87 @@ entry setVarActionBop
 
 entry getVarActionBop
 	mov	eax, [ebp].FCore.varMode
-   sub   edx, 4
-   mov   [edx], eax
+	sub   edx, 4
+	mov   [edx], eax
 	jmp	edi
 
+;========================================
+
+entry byteVarActionBop
+	mov	eax,[edx]
+	add	edx, 4
+	jmp	byteEntry
+	
+;========================================
+
+entry ubyteVarActionBop
+	mov	eax,[edx]
+	add	edx, 4
+	jmp	ubyteEntry
+	
+;========================================
+
+entry shortVarActionBop
+	mov	eax,[edx]
+	add	edx, 4
+	jmp	shortEntry
+	
+;========================================
+
+entry ushortVarActionBop
+	mov	eax,[edx]
+	add	edx, 4
+	jmp	ushortEntry
+	
+;========================================
+
+entry intVarActionBop
+	mov	eax,[edx]
+	add	edx, 4
+	jmp	intEntry
+	
+;========================================
+
+entry floatVarActionBop
+	mov	eax,[edx]
+	add	edx, 4
+	jmp	floatEntry
+	
+;========================================
+
+entry doubleVarActionBop
+	mov	eax,[edx]
+	add	edx, 4
+	jmp	doubleEntry
+	
+;========================================
+
+entry longVarActionBop
+	mov	eax,[edx]
+	add	edx, 4
+	jmp	longEntry
+	
+;========================================
+
+entry opVarActionBop
+	mov	eax,[edx]
+	add	edx, 4
+	jmp	opEntry
+	
+;========================================
+
+entry objectVarActionBop
+	mov	eax,[edx]
+	add	edx, 4
+	jmp	objectEntry
+	
+;========================================
+
+entry stringVarActionBop
+	mov	eax,[edx]
+	add	edx, 4
+	jmp	stringEntry
+	
 ;========================================
 
 entry strcpyBop
@@ -5879,6 +6021,7 @@ opsTable:
 	; stack manipulation
 	DD	FLAT:rpushBop
 	DD	FLAT:rpopBop
+	DD	FLAT:rpeekBop
 	DD	FLAT:rdropBop
 	DD	FLAT:rpBop
 	DD	FLAT:rzeroBop
@@ -5895,6 +6038,7 @@ opsTable:
 	DD	FLAT:spBop
 	DD	FLAT:szeroBop
 	DD	FLAT:fpBop
+	DD	FLAT:ipBop
 	DD	FLAT:ddupBop
 	DD	FLAT:dswapBop
 	DD	FLAT:ddropBop
@@ -5926,6 +6070,17 @@ opsTable:
 	DD	FLAT:memsetBop
 	DD	FLAT:setVarActionBop
 	DD	FLAT:getVarActionBop
+	DD	FLAT:byteVarActionBop
+	DD	FLAT:ubyteVarActionBop
+	DD	FLAT:shortVarActionBop
+	DD	FLAT:ushortVarActionBop
+	DD	FLAT:intVarActionBop
+	DD	FLAT:longVarActionBop
+	DD	FLAT:floatVarActionBop
+	DD	FLAT:doubleVarActionBop
+	DD	FLAT:stringVarActionBop
+	DD	FLAT:opVarActionBop
+	DD	FLAT:objectVarActionBop
 	
 	; string manipulation
 	DD	FLAT:strcpyBop

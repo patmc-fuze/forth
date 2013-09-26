@@ -42,7 +42,7 @@ SDL_AudioSpec actualSpec
   null -> desiredSpec.userdata
   
   SDL_OpenAudio( desiredSpec null )
-  0!= if
+  0<> if
     "SDL_OpenAudio failed!\n" %s %nl
     exit
   endif

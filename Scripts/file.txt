@@ -26,7 +26,7 @@ class: file extends object
     if( fp )
       fclose( fp )
     endif
-    if( buffer l0!= )
+    if( buffer l0<> )
       buffer.delete
     endif
     super.delete
@@ -54,10 +54,10 @@ class: file extends object
     if( fp )
       close
     endif
-    mode c@ 'r' == -> readOnly   // yeah, this is probably wrong
+    mode c@ 'r' = -> readOnly   // yeah, this is probably wrong
 
-    if( path c@ '<' == )
-      if( strcmp( "<stdin>" path ) 0== )
+    if( path c@ '<' = )
+      if( strcmp( "<stdin>" path ) 0= )
         if( not( readOnly ) )
           error( "open - can't open stdin for write" )
           exit
@@ -65,7 +65,7 @@ class: file extends object
         stdin -> fp
         true -> stdHandle
       endif
-      if( strcmp( "<stdout>" path ) 0== )
+      if( strcmp( "<stdout>" path ) 0= )
         if( readOnly )
           error( "open - can't open stdout for read" )
           exit
@@ -73,7 +73,7 @@ class: file extends object
         stdout -> fp
         true -> stdHandle
       endif
-      if( strcmp( "<stderr>" path ) 0== )
+      if( strcmp( "<stderr>" path ) 0= )
         if( readOnly )
           error( "open - can't open stderr for read" )
           exit
@@ -83,7 +83,7 @@ class: file extends object
       endif
     endif
     
-    if( fp null == )
+    if( fp null = )
       fopen( path mode ) -> fp
     endif
     
@@ -98,7 +98,7 @@ class: file extends object
   method: getByte
     if( fp )
       fgetc( fp )
-      if( dup -1 == )
+      if( dup -1 = )
         error( "getByte" )
       endif
     else
@@ -111,7 +111,7 @@ class: file extends object
     0 -> short val
     if( fp )
       fread( ref val 2 1 fp )
-      if( 1 != )
+      if( 1 <> )
         error( "getShort" )
       endif
     else
@@ -124,7 +124,7 @@ class: file extends object
     0 -> int val
     if( fp )
       fread( ref val 4 1 fp )
-      if( 1 != )
+      if( 1 <> )
         error( "getInt" )
       endif
     else
@@ -137,7 +137,7 @@ class: file extends object
     dnull -> long val
     if( fp )
       fread( ref val 8 1 fp )
-      if( 1 != )
+      if( 1 <> )
         error( "getLong" )
       endif
     else
@@ -152,7 +152,7 @@ class: file extends object
         error( "putByte - readOnly" )
       else
         fputc( fp )
-        if( -1 == )
+        if( -1 = )
           error( "putByte" )
         endif
       endif
@@ -169,7 +169,7 @@ class: file extends object
         error( "putShort - readOnly" )
       else
         fwrite( ref val 2 1 fp )
-        if( 1 != )
+        if( 1 <> )
           error( "putShort" )
         endif
       endif
@@ -185,7 +185,7 @@ class: file extends object
         error( "putInt - readOnly" )
       else
         fwrite( ref val 4 1 fp )
-        if( 1 != )
+        if( 1 <> )
           error( "putInt" )
         endif
       endif
@@ -201,7 +201,7 @@ class: file extends object
         error( "putLong - readOnly" )
       else
         fwrite( ref val 8 1 fp )
-        if( 1 != )
+        if( 1 <> )
           error( "putLong" )
         endif
       endif
@@ -216,7 +216,7 @@ class: file extends object
         error( "putLine - readOnly" )
       else
         fputs( fp )
-        if( -1 == )
+        if( -1 = )
           error( "putLine" )
         else
           if( unixEol )
@@ -237,7 +237,7 @@ class: file extends object
     if( fp )
       ftell( fp ) -> int pos
       
-      if( buffer l0== )
+      if( buffer l0= )
         d[ "file.getLine allocating buffer\n" %s ]d
         new oByteArray -> buffer
         buffer.resize( 8 )
@@ -256,19 +256,19 @@ class: file extends object
           d[ t[ "file.getLine got {" %s pDst %s "}\n" %s ]t ]d
           do( buffer.count 0 )
             pDst c@ -> byte c
-            if( c 0== )
+            if( c 0= )
               // buffer didn't have newline, resize buffer and try again
               buffer.resize( buffer.count 5 * 2 >> )	// increase to 5/4 current size
               buffer.base i + -> pDst
               buffer.count i - -> charsToGet
               leave
             else
-              if( c 0x0D == )
+              if( c 0x0D = )
                 if( not( noTrimEol ) )
                   0 pDst c!
                 endif
               else
-                if( c 0x0A == )
+                if( c 0x0A = )
                   if( not( noTrimEol ) )
                     0 pDst c!
                   endif
@@ -346,7 +346,7 @@ class: file extends object
   ;method
 
   method: setBufferSize
-    if( buffer l0== )
+    if( buffer l0= )
       new oByteArray -> buffer
     endif
     buffer.resize

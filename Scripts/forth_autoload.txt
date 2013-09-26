@@ -12,7 +12,7 @@ autoforget forth_autoload
 
 : autoload
   blword find
-  if( 0== )
+  if( 0= )
     $load( blword )
   else
     blword drop
@@ -24,7 +24,7 @@ autoforget forth_autoload
 
 : $,
   // TOS is ptr to nul terminated string at DP
-  here over strlen 1+ callot
+  here over strlen 1+ allot
   swap strcpy
 ;
 
@@ -46,7 +46,7 @@ false -> int _helpfileLoaded
 : $help
   -> ptrTo byte s
   helpChain	-> int pNext
-  if( s strlen 0== )
+  if( s strlen 0= )
     // line was empty, just list all help
     begin
     while( pNext )
@@ -59,7 +59,7 @@ false -> int _helpfileLoaded
 
   begin
   while( pNext )
-    if( pNext 4+ s strcmp 0== )
+    if( pNext 4+ s strcmp 0= )
       pNext 4+ dup strlen 1+ + %s
       exit
     endif
@@ -109,13 +109,13 @@ addHelp cd	cd BLAH			change working directory to BLAH
   
   // create temp filenames for stdout and stderr streams
   tmpnam -> outName
-  if( outName 0== )
+  if( outName 0= )
     error( "system: failure creating standard out tempfile name" )
     false -> okay
   endif
   
   tmpnam -> errName
-  if( errName 0== )
+  if( errName 0= )
     error( "system: failure creating standard error tempfile name" )
     false -> okay
   endif
@@ -123,7 +123,7 @@ addHelp cd	cd BLAH			change working directory to BLAH
   // open temp file which will take standard output
   if( outName )
     fopen( outName "w" ) -> outStream
-    if( outStream 0== )
+    if( outStream 0= )
       error( "system: failure opening standard out file " )
       addErrorText( outName )
       false -> okay
@@ -133,7 +133,7 @@ addHelp cd	cd BLAH			change working directory to BLAH
   // open temp file which will take standard error
   if( errName )
     fopen( errName "w" ) -> errStream
-    if( errStream 0== )
+    if( errStream 0= )
       error( "system: failure opening standard error file " )
       addErrorText( errName )
       false -> okay
@@ -143,7 +143,7 @@ addHelp cd	cd BLAH			change working directory to BLAH
   // dup standard output file descriptor so we can restore it on exit
   if( okay )
     _dup( 1 ) -> oldStdOut
-    if( oldStdOut -1 == )
+    if( oldStdOut -1 = )
       error( "system: failure dup-ing stdout" )
       false -> okay
     endif
@@ -152,7 +152,7 @@ addHelp cd	cd BLAH			change working directory to BLAH
   // dup standard error file descriptor so we can restore it on exit
   if( okay )
     _dup( 2 ) -> oldStdErr
-    if( oldStdErr -1 == )
+    if( oldStdErr -1 = )
       error( "system: failure dup-ing stderr" )
       false -> okay
     endif
@@ -162,12 +162,12 @@ addHelp cd	cd BLAH			change working directory to BLAH
   // redirect standard out to temp output file
   //
   if( okay )
-    if( _dup2( _fileno( outStream ) 1 ) -1 == )
+    if( _dup2( _fileno( outStream ) 1 ) -1 = )
       error( "system: failure redirecting stdout" )
       false -> okay
     else
       // redirect standard error to temp error file
-      if( _dup2( _fileno( errStream ) 2 ) -1 == )
+      if( _dup2( _fileno( errStream ) 2 ) -1 = )
         error( "system: failure redirecting stderr" )
         false -> okay
       else
@@ -269,7 +269,7 @@ addHelp mv	mv OLDNAME NEWNAME		rename a file
   blword -> _aa
   blword -> _bb
   rename( _aa _bb )
-  if( 0!= )
+  if( 0<> )
     error( "mv: failure renaming file " )
     addErrorText( _aa )
   endif
@@ -279,7 +279,7 @@ addHelp rm	rm FILENAME		remove a file
 : rm
   blword -> _aa
   remove( _aa )
-  if( 0!= )
+  if( 0<> )
     error( "rm: failure removing file " )
     addErrorText( _aa )
   endif
@@ -289,7 +289,7 @@ addHelp more more FILENAME	display FILENAME on screen
 : more
   255 string linebuff
   fopen( blword "r" ) -> int infile
-  if( infile null == )
+  if( infile null = )
     exit
   endif
   false -> int done
@@ -297,7 +297,7 @@ addHelp more more FILENAME	display FILENAME on screen
   begin
     fgets( linebuff 250 infile ) -> int result
     
-    if( result null == )
+    if( result null = )
       true -> done
     else
       result %s
@@ -307,7 +307,7 @@ addHelp more more FILENAME	display FILENAME on screen
         0 -> lineCounter
         "Hit q to quit, any other key to continue\n" %s
         fgetc( stdin ) dup
-        if( 'q' == swap 'Q' == or )
+        if( 'q' = swap 'Q' = or )
           true -> done
         endif
       endif
@@ -384,21 +384,21 @@ addHelp fdump	FILENAME OFFSET LEN fdump	dump file contents
   "rb" fopen -> int infile
   int buff
 
-  if( infile 0== )
+  if( infile 0= )
     "open failure" %s %nl
     exit
   endif
-  if( len 0== )
+  if( len 0= )
     // read entire file
     infile flen -> len
   endif
   len malloc -> buff
   infile offset 0 fseek
-  if( 0 != )
+  if( 0 <> )
     "fdump fseek failure" %nl exit
   endif
   buff len 1 infile fread
-  if( 0== )
+  if( 0= )
     "fdump read failure" %s %nl
   else
     buff len buff _dump
@@ -413,13 +413,13 @@ addHelp comparefiles	FILENAME1 FILENAME2 comparefiles TRUE_IF_EQUAL
   -> ptrTo byte fname1
   
   fname2 "rb" fopen -> int infile2
-  if( infile2 0== )
+  if( infile2 0= )
     "failed to open " %s fname2 %s %nl
     false exit
   endif
   
   fname1 "rb" fopen -> int infile1
-  if( infile1 0== )
+  if( infile1 0= )
     "failed to open " %s fname1 %s %nl
     infile2 fclose drop
     false exit
@@ -430,13 +430,13 @@ addHelp comparefiles	FILENAME1 FILENAME2 comparefiles TRUE_IF_EQUAL
   begin
     infile1 fgetc -> int b1
     infile2 fgetc -> int b2
-    if( b1 b2 != )
+    if( b1 b2 <> )
       infile1 fclose drop
       infile2 fclose drop
       "mismatch at line " %s linenum %d %nl
       false exit
     endif
-    if( b1 '\n' == )
+    if( b1 '\n' = )
       1 ->+ linenum
     endif
   until( infile1 feof )

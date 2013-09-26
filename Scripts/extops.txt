@@ -36,7 +36,7 @@ code roll
   ecx pop,
   next,
   
-code ddup
+code 2dup
   edx ] eax mov,
   4 edx d] ebx mov,
   8 # edx sub,
@@ -44,7 +44,7 @@ code ddup
   ebx 4 edx d] mov,
   next,
   
-code dswap
+code 2swap
   edx ] eax mov,
   8 edx d] ebx mov,
   eax 8 edx d] mov,
@@ -55,7 +55,7 @@ code dswap
   ebx 4 edx d] mov,
   next,
   
-code ddrop
+code 2drop
   8 # edx add,
   next,
 
@@ -81,7 +81,7 @@ code ndup
   ecx pop,
   next,
   
-code dover
+code 2over
   8 edx d] eax mov,
   12 edx d] ebx mov,
   8 # edx sub,
@@ -90,7 +90,7 @@ code dover
   next,
   
 // 5 -> 1 4 -> 0 3 -> 5 2 -> 4 1 -> 3 0 -> 2
-code drot
+code 2rot
   20 edx d] eax mov,
   12 edx d] ebx mov,
   ebx 20 edx d] mov,
@@ -106,7 +106,7 @@ code drot
   next,
   
 // 5 -> 3 4 -> 2 3 -> 1 2 -> 0 1 -> 5 0 -> 4
-code -drot
+code -2rot
   20 edx d] eax mov,
   4 edx d] ebx mov,
   ebx 20 edx d] mov,	// 1->5 complete
@@ -121,7 +121,7 @@ code -drot
   eax 8 edx d] mov,	// 4->2
   next,
 
-code dnip
+code 2nip
   edx ] eax mov,
   4 edx d] ebx mov,
   8 # edx add,
@@ -129,7 +129,7 @@ code dnip
   ebx 4 edx d] mov,
   next,
   
-code dtuck
+code 2tuck
   8 # edx sub,
   8 edx d] eax mov,
   eax edx ] mov,
@@ -143,7 +143,7 @@ code dtuck
   ebx 12 edx d] mov,
   next,
   
-code dpick
+code 2pick
   edx ] eax mov,
   1 # eax add,
   4 # edx sub,
@@ -153,7 +153,7 @@ code dpick
   ebx 4 edx d] mov,
   next,
   
-code droll
+code 2roll
   ecx push,
   edi push,
   edx ] ecx mov,
@@ -363,10 +363,10 @@ code l/
     eax 4 edx d] mov,
   else,
     // bail if denominator is zero
-    0==, if,
+    0=, if,
       edx ] eax mov,
       eax eax or,
-      0==, if,
+      0=, if,
         // TODO: set divide-by-zero status
         16 # edx add,
         next,

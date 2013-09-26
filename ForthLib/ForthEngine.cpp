@@ -2150,9 +2150,44 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     }
     else
     {
-        TRACE( "Unknown symbol %s\n", pToken );
-        mpCore->error = kForthErrorUnknownSymbol;
-        exitStatus = kResultError;
+		// last chance - for compatability with other forths which make kernel words be upper case,
+		// try lowercasing the token and looking it up in the forth vocab
+		char loweredToken[32];
+		if ( len < sizeof(loweredToken) )
+		{
+			bool allUpper = true;
+			for ( int i = 0; i < len; i++ )
+			{
+				char c = pToken[i];
+				if ( islower(c) )
+				{
+					allUpper = false;
+					break;
+				}
+				else
+				{
+					loweredToken[i] = tolower( c );
+				}
+			}
+			loweredToken[len] = '\0';
+			if ( allUpper )
+			{
+				pEntry = GetForthVocabulary()->FindSymbol( loweredToken );
+				if ( pEntry != NULL )
+				{
+					////////////////////////////////////
+					//
+					// symbol is a forth op that needed to be lowercased
+					//
+					////////////////////////////////////
+					SPEW_OUTER_INTERPRETER( "Forth op [%s] in vocabulary forth (after lowercasing)\n", pToken );
+					return GetForthVocabulary()->ProcessEntry( pEntry );
+				}
+			}
+		}
+		TRACE( "Unknown symbol %s\n", pToken );
+		mpCore->error = kForthErrorUnknownSymbol;
+		exitStatus = kResultError;
     }
 
     // TBD: return exit-shell flag

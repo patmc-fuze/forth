@@ -38,6 +38,19 @@ extern "C"
 // top 8 bits are opcode type (opType)
 // bottom 24 bits are immediate operand
 
+extern void intVarAction( ForthCoreState* pCore, int* pVar );
+extern GFORTHOP( byteVarActionOp );
+extern GFORTHOP( ubyteVarActionOp );
+extern GFORTHOP( shortVarActionOp );
+extern GFORTHOP( ushortVarActionOp );
+extern GFORTHOP( intVarActionOp );
+extern GFORTHOP( longVarActionOp );
+extern GFORTHOP( floatVarActionOp );
+extern GFORTHOP( doubleVarActionOp );
+extern GFORTHOP( stringVarActionOp );
+extern GFORTHOP( opVarActionOp );
+extern GFORTHOP( objectVarActionOp );
+
 //############################################################################
 //
 //   normal forth ops
@@ -465,8 +478,19 @@ FORTHOP( ldivmodOp )
     NEEDS(4);
     long long b = LPOP;
     long long a = LPOP;
-    LPUSH( a / b );
     LPUSH( a % b );
+    LPUSH( a / b );
+}
+
+FORTHOP( udivmodOp )
+{
+    NEEDS(3);
+    unsigned long b = (unsigned long) SPOP;
+    unsigned long long a = LPOP;
+    unsigned long long quotient = a / b;
+	unsigned long remainder = a % b;
+    SPUSH( ((long) remainder) );
+    LPUSH( ((long long) quotient) );
 }
 
 FORTHOP( lnegateOp )
@@ -474,6 +498,17 @@ FORTHOP( lnegateOp )
     NEEDS(2);
     long long a = LPOP;
     LPUSH( -a );
+}
+
+FORTHOP( labsOp )
+{
+    NEEDS(2);
+    long long a = LPOP;
+	if ( a < 0L )
+	{
+	    a = -a;
+	}
+    LPUSH( a );
 }
 
 //##############################
@@ -1660,6 +1695,11 @@ FORTHOP(rpopOp)
     SPUSH( RPOP );
 }
 
+FORTHOP(rpeekOp)
+{
+    SPUSH( *(GET_RP) );
+}
+
 FORTHOP(rdropOp)
 {
     RNEEDS(1);
@@ -1668,8 +1708,7 @@ FORTHOP(rdropOp)
 
 FORTHOP(rpOp)
 {
-    long pRP = (long) (GET_RP);
-    SPUSH( pRP );
+	intVarAction( pCore, (int *)&(pCore->RP) );
 }
 
 FORTHOP(rzeroOp)
@@ -1804,8 +1843,7 @@ FORTHOP(rollOp)
 
 FORTHOP(spOp)
 {
-    long pSP = (long) (GET_SP);
-    SPUSH( pSP );
+	intVarAction( pCore, (int *)&(pCore->SP) );
 }
 
 FORTHOP(szeroOp)
@@ -1816,8 +1854,12 @@ FORTHOP(szeroOp)
 
 FORTHOP(fpOp)
 {
-    long pFP = (long) (GET_FP);
-    SPUSH( pFP );
+	intVarAction( pCore, (int *)&(pCore->FP) );
+}
+
+FORTHOP(ipOp)
+{
+	intVarAction( pCore, (int *)&(pCore->IP) );
 }
 
 FORTHOP(ddupOp)
@@ -2001,13 +2043,6 @@ FORTHOP( alignOp )
 FORTHOP( allotOp )
 {
     GET_ENGINE->AllotLongs( SPOP );
-}        
-
-FORTHOP( callotOp )
-{
-    char *pNewDP = ((char *)GET_DP) + SPOP;
-    // NOTE: this could leave DP not longword aligned
-    SET_DP( (long *) pNewDP );
 }        
 
 FORTHOP( commaOp )
@@ -4886,6 +4921,18 @@ FORTHOP( fillInBufferOp )
     SPUSH( (long) (pInput->GetLine( (char *) (SPOP) )) );
 }
 
+FORTHOP( keyOp )
+{
+	int key = getch();
+    SPUSH( key );
+}
+
+FORTHOP( keyHitOp )
+{
+	int keyHit = kbhit();
+    SPUSH( keyHit );
+}
+
 FORTHOP( vocNewestEntryOp )
 {
 	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
@@ -5798,7 +5845,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    doLoopOp,               "_loop" ),
     OP_DEF(    doLoopNOp,              "_+loop" ),
     OP_DEF(    doNewOp,                "_doNew" ),
-    OP_DEF(    dfetchOp,               "d@" ),				// 56
+    OP_DEF(    dfetchOp,               "2@" ),				// 56
     OP_DEF(    allocObjectOp,          "_allocObject" ),
     OP_DEF(    vocabToClassOp,         "vocabToClass" ),
     // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
@@ -5857,14 +5904,14 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  single-precision fp comparisons
     ///////////////////////////////////////////
-    OP_DEF(    fEqualsOp,               "f==" ),
-    OP_DEF(    fNotEqualsOp,            "f!=" ),
+    OP_DEF(    fEqualsOp,               "f=" ),
+    OP_DEF(    fNotEqualsOp,            "f<>" ),
     OP_DEF(    fGreaterThanOp,          "f>" ),
     OP_DEF(    fGreaterEqualsOp,        "f>=" ),
     OP_DEF(    fLessThanOp,             "f<" ),
     OP_DEF(    fLessEqualsOp,           "f<=" ),
-    OP_DEF(    fEqualsZeroOp,           "f0==" ),
-    OP_DEF(    fNotEqualsZeroOp,        "f0!=" ),
+    OP_DEF(    fEqualsZeroOp,           "f0=" ),
+    OP_DEF(    fNotEqualsZeroOp,        "f0<>" ),
     OP_DEF(    fGreaterThanZeroOp,      "f0>" ),
     OP_DEF(    fGreaterEqualsZeroOp,    "f0>=" ),
     OP_DEF(    fLessThanZeroOp,         "f0<" ),
@@ -5885,14 +5932,14 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  double-precision fp comparisons
     ///////////////////////////////////////////
-    OP_DEF(    dEqualsOp,               "d==" ),
-    OP_DEF(    dNotEqualsOp,            "d!=" ),
+    OP_DEF(    dEqualsOp,               "d=" ),
+    OP_DEF(    dNotEqualsOp,            "d<>" ),
     OP_DEF(    dGreaterThanOp,          "d>" ),
     OP_DEF(    dGreaterEqualsOp,        "d>=" ),
     OP_DEF(    dLessThanOp,             "d<" ),
     OP_DEF(    dLessEqualsOp,           "d<=" ),
-    OP_DEF(    dEqualsZeroOp,           "d0==" ),
-    OP_DEF(    dNotEqualsZeroOp,        "d0!=" ),
+    OP_DEF(    dEqualsZeroOp,           "d0=" ),
+    OP_DEF(    dNotEqualsZeroOp,        "d0<>" ),
     OP_DEF(    dGreaterThanZeroOp,      "d0>" ),
     OP_DEF(    dGreaterEqualsZeroOp,    "d0>=" ),
     OP_DEF(    dLessThanZeroOp,         "d0<" ),
@@ -5957,14 +6004,14 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  integer comparisons
     ///////////////////////////////////////////
-    OP_DEF(    equalsOp,               "==" ),
-    OP_DEF(    notEqualsOp,            "!=" ),
+    OP_DEF(    equalsOp,               "=" ),
+    OP_DEF(    notEqualsOp,            "<>" ),
     OP_DEF(    greaterThanOp,          ">" ),
     OP_DEF(    greaterEqualsOp,        ">=" ),
     OP_DEF(    lessThanOp,             "<" ),
     OP_DEF(    lessEqualsOp,           "<=" ),
-    OP_DEF(    equalsZeroOp,           "0==" ),
-    OP_DEF(    notEqualsZeroOp,        "0!=" ),
+    OP_DEF(    equalsZeroOp,           "0=" ),
+    OP_DEF(    notEqualsZeroOp,        "0<>" ),
     OP_DEF(    greaterThanZeroOp,      "0>" ),
     OP_DEF(    greaterEqualsZeroOp,    "0>=" ),
     OP_DEF(    lessThanZeroOp,         "0<" ),
@@ -5978,8 +6025,9 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  stack manipulation
     ///////////////////////////////////////////
-    OP_DEF(    rpushOp,                "r<" ),
+    OP_DEF(    rpushOp,                ">r" ),
     OP_DEF(    rpopOp,                 "r>" ),
+    OP_DEF(    rpeekOp,                "r@" ),
     OP_DEF(    rdropOp,                "rdrop" ),
     OP_DEF(    rpOp,                   "rp" ),
     OP_DEF(    rzeroOp,                "r0" ),
@@ -5996,19 +6044,20 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    spOp,                   "sp" ),
     OP_DEF(    szeroOp,                "s0" ),
     OP_DEF(    fpOp,                   "fp" ),
-    OP_DEF(    ddupOp,                 "ddup" ),
-    OP_DEF(    dswapOp,                "dswap" ),
-    OP_DEF(    ddropOp,                "ddrop" ),
-    OP_DEF(    doverOp,                "dover" ),
-    OP_DEF(    drotOp,                 "drot" ),
+    OP_DEF(    ipOp,                   "ip" ),
+    OP_DEF(    ddupOp,                 "2dup" ),
+    OP_DEF(    dswapOp,                "2swap" ),
+    OP_DEF(    ddropOp,                "2drop" ),
+    OP_DEF(    doverOp,                "2over" ),
+    OP_DEF(    drotOp,                 "2rot" ),
     OP_DEF(    startTupleOp,           "r[" ),
     OP_DEF(    endTupleOp,             "]r" ),
 #if 0
-    OP_DEF(    dreverseRotOp,          "-drot" ),
-    OP_DEF(    dnipOp,                 "dnip" ),
-    OP_DEF(    dtuckOp,                "dtuck" ),
-    OP_DEF(    dpickOp,                "dpick" ),
-    OP_DEF(    drollOp,                "droll" ),
+    OP_DEF(    dreverseRotOp,          "-2rot" ),
+    OP_DEF(    dnipOp,                 "2nip" ),
+    OP_DEF(    dtuckOp,                "2tuck" ),
+    OP_DEF(    dpickOp,                "2pick" ),
+    OP_DEF(    drollOp,                "2roll" ),
     OP_DEF(    ndropOp,                "ndrop" ),
     OP_DEF(    ndupOp,                 "ndup" ),
     OP_DEF(    npickOp,                "npick" ),
@@ -6032,13 +6081,24 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    wfetchNextOp,           "w@@++" ),
     OP_DEF(    swfetchOp,              "sw@" ),
     OP_DEF(    w2lOp,                  "w2l" ),
-    OP_DEF(    dstoreOp,               "d!" ),
-    OP_DEF(    dstoreNextOp,           "d@!++" ),
-    OP_DEF(    dfetchNextOp,           "d@@++" ),
+    OP_DEF(    dstoreOp,               "2!" ),
+    OP_DEF(    dstoreNextOp,           "2@!++" ),
+    OP_DEF(    dfetchNextOp,           "2@@++" ),
     OP_DEF(    memcpyOp,               "memcpy" ),
     OP_DEF(    memsetOp,               "memset" ),
     OP_DEF(    setVarActionOp,         "varAction!" ),
     OP_DEF(    getVarActionOp,         "varAction@" ),
+    OP_DEF(    byteVarActionOp,        "byteVarAction" ),
+    OP_DEF(    ubyteVarActionOp,       "ubyteVarAction" ),
+    OP_DEF(    shortVarActionOp,       "shortVarAction" ),
+    OP_DEF(    ushortVarActionOp,      "ushortVarAction" ),
+    OP_DEF(    intVarActionOp,         "intVarAction" ),
+    OP_DEF(    longVarActionOp,        "longVarAction" ),
+    OP_DEF(    floatVarActionOp,       "floatVarAction" ),
+    OP_DEF(    doubleVarActionOp,      "doubleVarAction" ),
+    OP_DEF(    stringVarActionOp,      "stringVarAction" ),
+    OP_DEF(    opVarActionOp,          "opVarAction" ),
+    OP_DEF(    objectVarActionOp,      "objectVarAction" ),
 
     ///////////////////////////////////////////
     //  string manipulation
@@ -6097,6 +6157,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    lmodOp,                 "lmod" ),
     OP_DEF(    ldivmodOp,              "l/mod" ),
     OP_DEF(    lnegateOp,              "lnegate" ),
+    OP_DEF(    labsOp,                 "labs" ),
+    OP_DEF(    udivmodOp,              "ud/mod" ),
     OP_DEF(    i2lOp,                  "i2l" ), 
     OP_DEF(    l2fOp,                  "l2f" ), 
     OP_DEF(    l2dOp,                  "l2d" ), 
@@ -6106,14 +6168,14 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  64-bit integer comparisons
     ///////////////////////////////////////////
-    OP_DEF(    lEqualsOp,               "l==" ),
-    OP_DEF(    lNotEqualsOp,            "l!=" ),
+    OP_DEF(    lEqualsOp,               "l=" ),
+    OP_DEF(    lNotEqualsOp,            "l<>" ),
     OP_DEF(    lGreaterThanOp,          "l>" ),
     OP_DEF(    lGreaterEqualsOp,        "l>=" ),
     OP_DEF(    lLessThanOp,             "l<" ),
     OP_DEF(    lLessEqualsOp,           "l<=" ),
-    OP_DEF(    lEqualsZeroOp,           "l0==" ),
-    OP_DEF(    lNotEqualsZeroOp,        "l0!=" ),
+    OP_DEF(    lEqualsZeroOp,           "l0=" ),
+    OP_DEF(    lNotEqualsZeroOp,        "l0<>" ),
     OP_DEF(    lGreaterThanZeroOp,      "l0>" ),
     OP_DEF(    lGreaterEqualsZeroOp,    "l0>=" ),
     OP_DEF(    lLessThanZeroOp,         "l0<" ),
@@ -6222,7 +6284,6 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     OP_DEF(    alignOp,                "align" ),
     OP_DEF(    allotOp,                "allot" ),
-    OP_DEF(    callotOp,               "callot" ),
     OP_DEF(    commaOp,                "," ),
     OP_DEF(    cCommaOp,               "c," ),
     OP_DEF(    mallocOp,               "malloc" ),
@@ -6276,6 +6337,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    setInBufferPointerOp,   "setInBufferPointer" ),
     OP_DEF(    getInBufferLengthOp,    "getInBufferLength" ),
     OP_DEF(    fillInBufferOp,         "fillInBuffer" ),
+    OP_DEF(    keyOp,                  "key" ),
+    OP_DEF(    keyHitOp,               "key?" ),
 
     ///////////////////////////////////////////
     //  vocabulary ops
