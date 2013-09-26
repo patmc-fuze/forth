@@ -3530,7 +3530,7 @@ entry gotoBop
 ;
 ; TOS is start-index
 ; TOS+4 is end-index
-; the op right after this one should be a branch
+; the op right after this one should be a branch just past end of loop (used by leave)
 ; 
 entry doDoBop
 	mov	ebx, [ebp].FCore.RPtr
@@ -3546,6 +3546,32 @@ entry doDoBop
 	mov	eax, [edx]
 	mov	[ebx], eax
 	add	edx, 8
+	jmp	edi
+	
+;========================================
+;
+; TOS is start-index
+; TOS+4 is end-index
+; the op right after this one should be a branch just past end of loop (used by leave)
+; 
+entry doCheckDoBop
+	mov	eax, [edx]		; eax is start index
+	mov	esi, [edx+4]	; esi is end index
+	add	edx, 8
+	cmp	eax,esi
+	jge	doCheckDoBop1
+	
+	mov	ebx, [ebp].FCore.RPtr
+	sub	ebx, 12
+	mov	[ebp].FCore.RPtr, ebx
+	; @RP-2 holds top-of-loop-IP
+	add	ecx, 4    ; skip over loop exit branch right after this op
+	mov	[ebx+8], ecx
+	; @RP-1 holds end-index
+	mov	[ebx+4], esi
+	; @RP holds current-index
+	mov	[ebx], eax
+doCheckDoBop1:
 	jmp	edi
 	
 ;========================================
@@ -5862,7 +5888,8 @@ opsTable:
 	DD	FLAT:addToBop
 	DD	FLAT:subtractFromBop
 	DD	FLAT:extOp					; super
-
+	DD	FLAT:doCheckDoBop
+	
 	;	
     ; stuff below this line can be rearranged
     ;

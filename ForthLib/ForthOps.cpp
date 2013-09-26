@@ -805,6 +805,22 @@ FORTHOP(doOp)
     NEEDS(2);
     ForthEngine *pEngine = GET_ENGINE;
     ForthShellStack *pShellStack = pEngine->GetShell()->GetShellStack();
+    pShellStack->Push( OP_DO_DO );
+    // save address for loop/+loop
+    pShellStack->Push( (long)GET_DP );
+    pShellStack->Push( kShellTagDo );
+    // this will be fixed by loop/+loop
+    pEngine->CompileOpcode( OP_ABORT );
+    pEngine->CompileLong( 0 );
+}
+
+// has precedence!
+FORTHOP(checkDoOp)
+{
+    NEEDS(2);
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthShellStack *pShellStack = pEngine->GetShell()->GetShellStack();
+    pShellStack->Push( OP_DO_CHECKDO );
     // save address for loop/+loop
     pShellStack->Push( (long)GET_DP );
     pShellStack->Push( kShellTagDo );
@@ -825,7 +841,8 @@ FORTHOP(loopOp)
         return;
     }
     long *pDoOp = (long *) pShellStack->Pop();
-    *pDoOp++ = OP_DO_DO;
+	long doOpcode = pShellStack->Pop();
+    *pDoOp++ = doOpcode;
     // compile the "_loop" opcode
     pEngine->CompileOpcode( OP_DO_LOOP );
     // fill in the branch to after loop opcode
@@ -844,7 +861,8 @@ FORTHOP(loopNOp)
         return;
     }
     long *pDoOp = (long *) pShellStack->Pop();
-    *pDoOp++ = OP_DO_DO;
+	long doOpcode = pShellStack->Pop();
+    *pDoOp++ = doOpcode;
     // compile the "_loop" opcode
     pEngine->CompileOpcode( OP_DO_LOOPN );
     // fill in the branch to after loop opcode
@@ -864,6 +882,24 @@ FORTHOP(doDoOp)
     RPUSH( startIndex );
     // top of rstack is current index, next is end index,
     //  next is looptop IP
+}
+
+FORTHOP(doCheckDoOp)
+{
+    NEEDS(2);
+    long startIndex = SPOP;
+    long endIndex = SPOP;
+    // skip over loop exit IP right after this op
+	if ( startIndex < endIndex)
+	{
+	    long *newIP = (GET_IP + 1);
+		RPUSH( (long) newIP );
+		RPUSH( endIndex );
+		RPUSH( startIndex );
+		// top of rstack is current index, next is end index,
+		//  next is looptop IP
+	    SET_IP( newIP );
+	}
 }
 
 FORTHOP(doLoopOp)
@@ -5854,6 +5890,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    addToOp,                "->+" ),
     OP_DEF(    subtractFromOp,         "->-" ),
     OP_DEF(    superOp,                "super" ),
+	OP_DEF(    doCheckDoOp,            "_?do" ),
 
     // stuff below this line can be rearranged
     OP_DEF(    thisOp,                 "this" ),
@@ -6188,6 +6225,7 @@ baseDictionaryEntry baseDictionary[] =
     //  control flow
     ///////////////////////////////////////////
     PRECOP_DEF(doOp,                   "do" ),
+    PRECOP_DEF(checkDoOp,              "?do" ),
     PRECOP_DEF(loopOp,                 "loop" ),
     PRECOP_DEF(loopNOp,                "+loop" ),
     PRECOP_DEF(ifOp,                   "if" ),

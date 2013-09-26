@@ -127,6 +127,11 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 25 2013
+
+I added the ?do op, adding this made the kforth chess game work, for the few
+moves I tried at least.  The game does still crash in turbo mode.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 23 2013
 
 In a fit of extreme stupidity, I decided to change the names of the 64-bit

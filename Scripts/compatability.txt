@@ -1,0 +1,64 @@
+// ansi forth compatability words
+
+autoforget compatability
+: compatability ;
+
+: cells 4* ;
+: cell+ 4+ ;
+: spaces 0 do %bl loop ;
+: char blword c@ ;
+: compileStringLiteral
+  -> ptrTo byte src
+  src strlen -> int len
+  len 4+ 0xFFFFFFFC and 2 >> -> int lenLongs
+  lenLongs opType:litString 24 << or ,		// compile literal string opcode
+  strcpy( here src )
+  lenLongs allot
+;
+: ."
+  '"' word state @
+  if
+    compileStringLiteral
+    ['] %s ,
+  else
+    %s
+  endif
+;
+precedence ."
+
+: .(
+  ')' word state @
+  if
+    compileStringLiteral
+    ['] %s ,
+  else
+    %s
+  endif
+;
+precedence .(
+
+: s"
+  '"' word state @
+  if
+    compileStringLiteral
+  endif
+;
+precedence s"
+: accept stdin fgets strlen ;
+: quit r0 -> rp done ;
+: +! dup @ rot + swap ! ;
+: erase 0 do 0 over c! 1+ loop drop ;
+: abs dup 0< if negate endif ;
+: bl ' ' ;
+: emit %c ;
+: does> [compile] does ; precedence does>
+: lshift << ;
+: rshift >> ;
+: then [compile] endif ; precedence then
+: evaluate interpret ;
+: [char]  blword c@ opType:litInt 24 << or , ; precedence [char]
+: cr %nl ;
+: */ * / ;
+: char+ + ;
+: count dup strlen swap ;
+: \ 0 word drop ; precedence \
