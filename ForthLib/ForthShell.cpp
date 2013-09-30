@@ -534,6 +534,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
                 if ( !exitingShell )
 				{
                     ReportError();
+					mpEngine->DumpCrashState();
                 }
 				ErrorReset();
                 if ( !mpInput->InputStream()->IsInteractive() && !exitingShell )

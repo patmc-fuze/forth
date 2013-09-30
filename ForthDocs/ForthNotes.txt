@@ -127,6 +127,17 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 29 2013
+
+The chess turbo mode crash was caused by rpop accessing the param stack instead
+of the return stack.  I never noticed it because I use local variables instead
+of pushing/popping the return stack.
+I added a crash dump, which shows the stacks, frame pointers and what ops
+the IPs on the return stack refer to.
+I started adding a debug mode for the assembler inner interpreter, where it
+saves IP & SP in the core state after every op execution.  Currently it is
+always on, I need to add a way to toggle it.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 25 2013
 
 I added the ?do op, adding this made the kforth chess game work, for the few

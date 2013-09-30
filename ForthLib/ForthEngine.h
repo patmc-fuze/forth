@@ -86,7 +86,7 @@ public:
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
     long            AddOp( const long *pOp, forthOpType symType );
-    long            AddUserOp( const char *pSymbol, bool smudgeIt=false );
+    long            AddUserOp( const char *pSymbol, long** pEntryOut=NULL, bool smudgeIt=false );
     void            AddBuiltinOp( const char* name, ulong flags, ulong value );
     void            AddBuiltinOps( baseDictionaryEntry *pEntries );
 
@@ -213,11 +213,16 @@ public:
 
 	void					SetTraceOutRoutine( traceOutRoutine traceRoutine, void* pTraceData );
 
+	void					DumpCrashState();
+
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char* pToken, long& value, long long& lvalue, int base, bool& isOffset, bool& isSingle );
     // NOTE: temporarily modifies string @pToken
     bool                    ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle );
+
+	long*					FindUserDefinition( long* pIP, long*& pBase );
+	void					DisplayUserDefCrash( long *pRVal, char* buff );
 
 protected:
     ForthCoreState*  mpCore;             // core inner interpreter state

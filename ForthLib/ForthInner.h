@@ -143,11 +143,14 @@ struct ForthCoreState
     long                *RT;            // empty return stack pointer
 
     ulong               RLen;           // size of return stack in longwords
+
     // *** end of stuff which is per thread ***
     void                *pThread;
 
     ForthMemorySection* pDictionary;
     ForthFileInterface* pFileFuncs;
+
+	void				*innerLoop;		// inner loop reentry point for assembler inner interpreter
 
     void                *pConOutData;
     consoleOutRoutine   consoleOut;

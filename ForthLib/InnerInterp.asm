@@ -149,6 +149,11 @@ InitAsm2:
 	or	edx, edx
 	jnz	InitAsm2
 	
+	; setup normal (non-debug) inner interpreter re-entry point
+	;mov	ebx, interpLoop
+	mov	ebx, interpLoopDebug
+	mov	[ebp].FCore.innerLoop, ebx
+	
 	dec	eax
 	mov	[ebp].FCore.numAsmBuiltinOps, eax
 	ret
@@ -201,8 +206,15 @@ InnerInterpreterFast ENDP
 entry interpFunc
 	mov	ecx, [ebp].FCore.IPtr
 	mov	edx, [ebp].FCore.SPtr
-	mov	edi, interpLoop
+	;mov	edi, interpLoopDebug
+	mov	edi, [ebp].FCore.innerLoop
+	jmp	edi
 
+entry interpLoopDebug
+	; while debugging, store IP,SP in corestate shadow copies after every instruction
+	;   so crash stacktrace will be more accurate (off by only one instruction)
+	mov	[ebp].FCore.IPtr, ecx
+	mov	[ebp].FCore.SPtr, edx
 entry interpLoop
 	mov	ebx, [ecx]		; ebx is opcode
 	add	ecx, 4			; advance IP
@@ -210,7 +222,7 @@ entry interpLoop
 PUBLIC	interpLoopExecuteEntry
 interpLoopExecuteEntry:
 	cmp	ebx, [ebp].FCore.numAsmBuiltinOps
-	jge	notBuiltin
+	jae	notBuiltin
 	mov	eax, opsTable[ebx*4]
 	jmp	eax
 
@@ -3964,7 +3976,7 @@ entry rpushBop
 
 entry rpopBop
 	mov	eax, [ebp].FCore.RPtr
-	mov	ebx, [edx]
+	mov	ebx, [eax]
 	add	eax, 4
 	mov	[ebp].FCore.RPtr, eax
 	sub	edx, 4

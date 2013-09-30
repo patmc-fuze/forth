@@ -2561,10 +2561,12 @@ static long    *gpSavedDP;
 FORTHOP(buildsOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
+	long *pEntry;
 
     // get next symbol, add it to vocabulary with type "builds/does"
     pEngine->AlignDP();
-    pEngine->AddUserOp( pEngine->GetNextSimpleToken(), true );
+    pEngine->AddUserOp( pEngine->GetNextSimpleToken(), &pEntry, true );
+    pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     // remember current DP (for does)
     gpSavedDP = GET_DP;
     // compile dummy word at DP, will be filled in by does

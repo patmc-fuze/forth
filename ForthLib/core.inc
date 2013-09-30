@@ -120,6 +120,7 @@ RLen				DWORD		?
 ThreadPtr			DWORD		?
 DictionaryPtr		DWORD		?
 FileFuncs			DWORD		?
+innerLoop			DWORD		?
 ForthCoreState		ENDS
 
 ForthFileInterface	STRUCT	2t

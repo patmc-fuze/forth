@@ -347,10 +347,14 @@ ForthEngine::AddOp( const long *pOp, forthOpType symType )
 
 // add an op to dictionary and corresponding symbol to current vocabulary
 long
-ForthEngine::AddUserOp( const char *pSymbol, bool smudgeIt )
+ForthEngine::AddUserOp( const char *pSymbol, long** pEntryOut, bool smudgeIt )
 {
     AlignDP();
-    mpDefinitionVocab->AddSymbol( pSymbol, kOpUserDef, (long) mDictionary.pCurrent, true );
+    long* pEntry = mpDefinitionVocab->AddSymbol( pSymbol, kOpUserDef, (long) mDictionary.pCurrent, true );
+	if ( pEntryOut != NULL )
+	{
+		*pEntryOut = pEntry;
+	}
     if ( smudgeIt )
     {
         mpDefinitionVocab->SmudgeNewestSymbol();
@@ -755,10 +759,11 @@ ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
     {
         // disassemble the op until IP reaches next newer op
         long* curIP = mpCore->userOps[ opValue ];
+		long* baseIP = curIP;
         long* endIP = (opValue == (mpCore->numUserOps - 1)) ? GetDP() : mpCore->userOps[ opValue + 1 ];
         while ( (curIP < endIP) && notDone )
         {
-            sprintf( buff, "  %08x  ", curIP );
+            sprintf( buff, "  +%04x  %08x  ", (curIP - baseIP), curIP );
             ConsoleOut( buff );
             DescribeOp( curIP, buff, sizeof(buff), true );
             ConsoleOut( buff );
@@ -1824,6 +1829,134 @@ ForthEngine::GetElapsedTime( void )
     return 0;
 #endif
 }
+
+
+void
+ForthEngine::DumpCrashState()
+{
+	char buff[256];
+
+	long* pSP = mpCore->SP;
+	if ( (pSP < mpCore->ST) && (pSP > mpCore->SB) )
+	{
+		int numToShow = 16;
+		int depth = mpCore->ST - pSP;
+		if ( depth < numToShow )
+		{
+			numToShow = depth;
+		}
+		for ( int i = 0; i < numToShow; i++ )
+		{
+			sprintf( buff, "S[%2d] 0x%08x  %d\n", depth - (i + 1), pSP[i], pSP[i] );
+			ConsoleOut( buff );
+		}
+	}
+
+	sprintf( buff, "\n   IP 0x%08x   ", mpCore->IP );
+	ConsoleOut( buff );
+	DisplayUserDefCrash( mpCore->IP, buff );
+	ConsoleOut( "\n" );
+
+	long* pRP = mpCore->RP;
+	if ( (pRP < mpCore->RT) && (pRP > mpCore->RB) )
+	{
+		int numToShow = 16;
+		int depth = mpCore->RT - pRP;
+		long* pFP = mpCore->FP;
+		if ( depth < numToShow )
+		{
+			numToShow = depth;
+		}
+		for ( int i = 0; i < numToShow; i++ )
+		{
+			unsigned long rVal = (unsigned long)(pRP[i]);
+			long* pRVal = (long *) rVal;
+			sprintf( buff, "R[%2d] 0x%08x   ", depth - (i + 1), rVal );
+			ConsoleOut( buff );
+			if ( (pRP + i) == pFP )
+			{
+				ConsoleOut( "<FP>" );
+				pFP = (long *)pRVal;
+			}
+			else
+			{
+				DisplayUserDefCrash( pRVal, buff );
+			}
+			ConsoleOut( "\n" );
+		}
+	}
+
+}
+
+void ForthEngine::DisplayUserDefCrash( long *pRVal, char* buff )
+{
+	if ( (pRVal >= mDictionary.pBase) && (pRVal < mDictionary.pCurrent) )
+	{
+		long* pDefBase;
+		long* pClosest = FindUserDefinition( pRVal, pDefBase );
+		if ( pClosest != NULL )
+		{
+			ForthVocabulary* pVocab = GetSearchVocabulary();
+			const char* pName = pVocab->GetEntryName( pClosest );
+			int len = (int) pName[-1];
+			for ( int i = 0; i < len; i++ )
+			{
+				buff[i] = pName[i];
+			}
+			buff[len] = '\0';
+			ConsoleOut( buff );
+			sprintf( buff, " + 0x%04x", pRVal - pDefBase );
+		}
+		else
+		{
+			strcpy( buff, "*user def* " );
+		}
+	}
+	else
+	{
+		sprintf( buff, "%d", (long) pRVal );
+	}
+	ConsoleOut( buff );
+}
+
+long * ForthEngine::FindUserDefinition( long* pIP, long*& pBase )
+{
+	long* pClosest = NULL;
+	long* pClosestIP = NULL;
+	ForthVocabulary* pVocab = GetSearchVocabulary();
+	long* pEntry = pVocab->GetNewestEntry();
+
+	for ( int i = 0; i < pVocab->GetNumEntries(); i++ )
+	{
+		if ( CODE_TO_BASE_TYPE(pEntry[1]) == kBaseTypeUserDefinition )
+		{
+			switch ( FORTH_OP_TYPE( *pEntry ) )
+			{
+				case kOpUserDef:
+				case kOpUserDefImmediate:
+					{
+						long opcode = FORTH_OP_VALUE( *pEntry );
+						if ( opcode < mpCore->numUserOps )
+						{
+							long* pDef = mpCore->userOps[opcode];
+							if ( (pDef > pClosestIP) && (pDef <= pIP) )
+							{
+								pClosestIP = pDef;
+								pClosest = pEntry;
+								pBase = pDef;
+							}
+						}
+					}
+					break;
+				default:
+					break;
+			}
+		}
+		pEntry = pVocab->NextEntry( pEntry );
+	}
+	return pClosest;
+}
+
 
 //############################################################################
 //
