@@ -33,7 +33,10 @@
 build
 CVS
 Debug
+ForthCalc
 ForthDLL
+ForthGenericDialog
+FotheGuiApp
 ForthLib/ForthNDRelease
 ForthLib/MakefileProject
 ForthLib/NewFolder
