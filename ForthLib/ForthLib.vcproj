@@ -1015,10 +1015,6 @@
 				>
 			</File>
 			<File
-				RelativePath="ForthCore.h"
-				>
-			</File>
-			<File
 				RelativePath="ForthEngine.h"
 				>
 			</File>

@@ -2590,7 +2590,7 @@ FORTHOP( doesOp )
     pEngine->CompileBuiltinOpcode( OP_END_BUILDS );
     pEngine->CompileLong( 0 );
     // create a nameless vocabulary entry for does-body opcode
-    newUserOp = pEngine->AddOp( GET_DP, kOpUserDef );
+    newUserOp = pEngine->AddOp( GET_DP );
     newUserOp = COMPILED_OP( kOpUserDef, newUserOp );
     pEngine->CompileBuiltinOpcode( OP_DO_DOES );
     // stuff does-body opcode in dummy word

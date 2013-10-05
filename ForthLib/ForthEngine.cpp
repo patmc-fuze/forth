@@ -316,7 +316,7 @@ ForthEngine::ErrorReset( void )
 
 // add an op to engine dispatch table
 long
-ForthEngine::AddOp( const long *pOp, forthOpType symType )
+ForthEngine::AddOp( const long *pOp )
 {
     long newOp;
 
@@ -365,6 +365,7 @@ ForthEngine::AddBuiltinOp( const char* name, ulong flags, ulong value )
     {
         gOpNames[index] = name;
     }
+	mpCore->numBuiltinOps = mpCore->numOps;
 //#endif
 	return pEntry;
 }
@@ -439,8 +440,8 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
             if ( !strcmp( pMemberName, "_%new%_" ) )
             {
                 // this isn't a new method, it is the class constructor op
-                AddBuiltinOp( pMemberName, kOpCCode, pEntries->value );
-                pVocab->GetClassObject()->newOp = mpCore->numBuiltinOps - 1;
+                long* pEntry = AddBuiltinOp( pMemberName, kOpCCode, pEntries->value );
+                pVocab->GetClassObject()->newOp = *pEntry;
             }
             else
             {
@@ -449,10 +450,11 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
                 long methodOp = gCompiledOps[OP_BAD_OP];
 				if ( pEntries->value != NULL )
 				{
-					methodOp = AddOp( (long *) pEntries->value, kOpCCode );
-					if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
+					methodOp = AddOp( (long *) pEntries->value );
+					methodOp = COMPILED_OP( kOpCCode, methodOp );
+					if ( (mpCore->numOps - 1) < NUM_TRACEABLE_OPS )
 					{
-						gOpNames[mpCore->numBuiltinOps - 1] = pMemberName;
+						gOpNames[mpCore->numOps - 1] = pMemberName;
 					}
 				}
                 // do "method:"
@@ -479,9 +481,9 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
 
 #ifdef TRACE_INNER_INTERPRETER
         // add built-in op names to table for TraceOp
-        if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
+        if ( (mpCore->numOps - 1) < NUM_TRACEABLE_OPS )
         {
-            gOpNames[mpCore->numBuiltinOps - 1] = pEntries->name;
+            gOpNames[mpCore->numOps - 1] = pEntries->name;
         }
 #endif
         pEntries++;
@@ -536,7 +538,7 @@ ForthEngine::ForgetSymbol( const char *pSym, bool quietMode )
     {
         op = ForthVocabulary::GetEntryValue( pEntry );
         opType = ForthVocabulary::GetEntryType( pEntry );
-		int opIndex = FORTH_OP_VALUE( op );
+		unsigned long opIndex = ((unsigned long)FORTH_OP_VALUE( op ));
         switch ( opType )
         {
             case kOpNative:
@@ -1935,7 +1937,7 @@ long * ForthEngine::FindUserDefinition( long* pIP, long*& pBase )
 				case kOpUserDef:
 				case kOpUserDefImmediate:
 					{
-						long opcode = FORTH_OP_VALUE( *pEntry );
+						unsigned long opcode = ((unsigned long)FORTH_OP_VALUE( *pEntry ));
 						if ( opcode < mpCore->numOps )
 						{
 							long* pDef = mpCore->ops[opcode];

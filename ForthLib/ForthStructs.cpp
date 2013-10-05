@@ -296,8 +296,6 @@ ForthTypesManager::GetNewestClass( void )
 bool
 ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus )
 {
-    long typeCode;
-    char errorMsg[256];
     ForthEngine *pEngine = ForthEngine::GetInstance();
     ForthCoreState* pCore = pEngine->GetCoreState();
     ForthVocabulary *pFoundVocab = NULL;
@@ -322,7 +320,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
 		}
 		else
 		{
-			*pDst++ = BUILTIN_OP( OP_DONE );
+			*pDst++ = gCompiledOps[ OP_DONE ];
 			exitStatus = pEngine->ExecuteOps( &(mCode[0]) );
 		}
 	}

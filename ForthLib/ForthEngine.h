@@ -85,7 +85,7 @@ public:
     eForthResult        ExecuteOneMethod( ForthObject& obj, long methodNum );
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
-    long            AddOp( const long *pOp, forthOpType symType );
+    long            AddOp( const long *pOp );
     long            AddUserOp( const char *pSymbol, long** pEntryOut=NULL, bool smudgeIt=false );
     long*           AddBuiltinOp( const char* name, ulong flags, ulong value );
     void            AddBuiltinOps( baseDictionaryEntry *pEntries );

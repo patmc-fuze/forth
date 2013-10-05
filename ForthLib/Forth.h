@@ -276,7 +276,6 @@ typedef struct
 class ForthThread;
 
 #define COMPILED_OP( OP_TYPE, VALUE ) (((OP_TYPE) << 24) | ((VALUE) & OPCODE_VALUE_MASK))
-#define BUILTIN_OP( INDEX )   INDEX //COMPILED_OP( kOpBuiltIn, INDEX )
 // These are opcodes that built-in ops must compile directly
 // NOTE: the index field of these opcodes must agree with the
 //  order of builtin dictionary entries in the ForthOps.cpp file

@@ -207,7 +207,7 @@ ForthVocabulary::AddSymbol( const char      *pSymName,
     {        
         // for executable ops, add the IP of symbol to op table
         // value of symbol is index into op table, not IP
-        symValue = mpEngine->AddOp( (long *) symValue, (forthOpType) symType );
+        symValue = mpEngine->AddOp( (long *) symValue );
     }
     
     SPEW_VOCABULARY( "Adding symbol %s type %d value 0x%x to %s\n",
@@ -324,7 +324,7 @@ ForthVocabulary::ForgetSymbol( const char *pSymName )
     {
 
         opType = GetEntryType( pEntry );
-		int opIndex = FORTH_OP_VALUE( *pEntry );
+		unsigned long opIndex = FORTH_OP_VALUE( *pEntry );
 		if ( opIndex < mpEngine->GetCoreState()->numBuiltinOps )
         {
             // sym is unknown, or in built-in ops - no way
@@ -389,7 +389,7 @@ ForthVocabulary::ForgetOp( long op )
     pNewBottom = NULL;
     // how many symbols are left after forget
     symbolsLeft = mNumSymbols;
-	int opIndex;
+	unsigned long opIndex;
 
     while ( symbolsLeft > 0 )
     {
@@ -738,7 +738,7 @@ ForthVocabulary::PrintEntry( long*   pEntry )
         break;
     case kOpNative:
     case kOpNativeImmediate:
-		if ( FORTH_OP_VALUE( *pEntry ) >= mpEngine->GetCoreState()->numBuiltinOps )
+		if ( ((unsigned long) FORTH_OP_VALUE( *pEntry )) >= mpEngine->GetCoreState()->numBuiltinOps )
 		{
 			showCodeAddress = true;
 		}

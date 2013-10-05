@@ -12,14 +12,14 @@ kVarMinusStore		EQU		5t
 
 kVocabSetCurrent		EQU	0t
 kVocabNewestEntry		EQU	1t
-kVocabFindEntry			EQU	2t
-kVocabFindEntryValue	EQU	3t
-kVocabAddEntry			EQU	4t
-kVocabRemoveEntry		EQU	5t
-kVocabEntryLength		EQU	6t
-kVocabNumEntries		EQU	7t
-kVocabGetClass			EQU	8t
-kVocabRef				EQU 9t
+kVocabRef				EQU 2t
+kVocabFindEntry			EQU	3t
+kVocabFindEntryValue	EQU	4t
+kVocabAddEntry			EQU	5t
+kVocabRemoveEntry		EQU	6t
+kVocabEntryLength		EQU	7t
+kVocabNumEntries		EQU	8t
+kVocabGetClass			EQU	9t
 
 kResultOk				EQU		0t
 kResultDone				EQU		1t
@@ -49,8 +49,9 @@ kForthErrorMissingSize				EQU		15t
 kForthErrorStruct					EQU		16t
 kForthErrorUserDefined				EQU		17t
 kForthErrorBadSyntax				EQU		18t
-kForthNumErrors						EQU		19t
-
+kForthErrorBadPreprocessorDirective	EQU		19t
+kForthErrorUnimplementedMethod		EQU		20t
+kForthNumErrors						EQU		21t
 
 
 kPrintSignedDecimal		EQU		0t
@@ -58,34 +59,34 @@ kPrintAllSigned		EQU		1t
 kPrintAllUnsigned		EQU		2t
 
 ; the kOp definitions are all out of date, bogus and luckily unused
-kOpNative		EQU		0t
-kOpUserDef		EQU		1t
-kOpBranch		EQU		2t
-kOpBranchNZ		EQU		3t
-kOpBranchZ		EQU		4t
-kOpCaseBranch		EQU		5t
-kOpConstant		EQU		6t
-kOpOffset		EQU		7t
-kOpArrayOffset		EQU		8t
-kOpConstantString		EQU		9t
-kOpAllocLocals		EQU		10t
-kOpLocalStringInit		EQU		11t
-kOpLocalInt		EQU		12t
-kOpLocalFloat		EQU		13t
-kOpLocalDouble		EQU		14t
-kOpLocalString		EQU		15t
-kOpFieldInt		EQU		16t
-kOpFieldFloat		EQU		17t
-kOpFieldDouble		EQU		18t
-kOpFieldString		EQU		19t
-kOpMethodWithThis		EQU		20t
-kOpMemberInt		EQU		21t
-kOpMemberFloat		EQU		22t
-kOpMemberDouble		EQU		23t
-kOpMemberString		EQU		24t
-kOpLocalUserDefined		EQU		25t
-kOpMaxLocalUserDefined		EQU		127t
-kOpUserMethods		EQU		128t
+;kOpNative		EQU		0t
+;kOpUserDef		EQU		1t
+;kOpBranch		EQU		2t
+;kOpBranchNZ		EQU		3t
+;kOpBranchZ		EQU		4t
+;kOpCaseBranch		EQU		5t
+;kOpConstant		EQU		6t
+;kOpOffset		EQU		7t
+;kOpArrayOffset		EQU		8t
+;kOpConstantString		EQU		9t
+;kOpAllocLocals		EQU		10t
+;kOpLocalStringInit		EQU		11t
+;kOpLocalInt		EQU		12t
+;kOpLocalFloat		EQU		13t
+;kOpLocalDouble		EQU		14t
+;kOpLocalString		EQU		15t
+;kOpFieldInt		EQU		16t
+;kOpFieldFloat		EQU		17t
+;kOpFieldDouble		EQU		18t
+;kOpFieldString		EQU		19t
+;kOpMethodWithThis		EQU		20t
+;kOpMemberInt		EQU		21t
+;kOpMemberFloat		EQU		22t
+;kOpMemberDouble		EQU		23t
+;kOpMemberString		EQU		24t
+;kOpLocalUserDefined		EQU		25t
+;kOpMaxLocalUserDefined		EQU		127t
+;kOpUserMethods		EQU		128t
 
 ForthMemorySection	STRUCT 2t
 pCurrent			DWORD	?
