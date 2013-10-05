@@ -1,0 +1,189 @@
+
+Forth Built-in Classes
+
+object
+class
+oIterable
+oIter
+oArray
+oArrayIter
+oList
+oListIter
+oMap
+oMapIter
+oString
+oPair
+oPairIter
+oTriple
+oTripleIter
+oByteArray
+oByteArrayIter
+oShortArray
+oShortArrayIter
+oIntArray
+oIntArrayIter
+oLongArray
+oLongArrayIter
+oThread
+
+===========================================================================
+Builtin Class TBDs:
+
+- deal with oArray.pop/oList.removeHead/oList.removeTail leaving dangling objects
+- make 'find' a standard oIterable method which returns an oIter positioned on the found object
++ add oListIter.split
++ add oListIter.swapNext, oListIter.swapPrev 
+- oIter.remove
+- add oString character iterator
+- add static strings
+- add int/float/double/long types
+- add string iterator
+===========================================================================
+object
+	_%new%_
+	delete
+	show
+	getClass
+		returns class object
+	compare
+		takes object to compare to
+		returns int
+	keep
+	release
+	refCount
+		member variable, int at offset 0
+---------------------------------------------------------------------------
+class
+
+	delete
+	create
+		returns object of this class
+	getParent
+		returns parent class object
+	getName
+		returns pointer to string name of this class
+	getVocabulary
+		returns pointer to vocabulary for this class
+	getInterface
+		takes pointer to string name of interface
+		returns object with method pointer of desired interface, data pointer same as this object
+		** this seems pretty bogus **
+	setNew
+		takes 'new' operator
+---------------------------------------------------------------------------
+oIterable
+
+	headIter
+	tailIter
+---------------------------------------------------------------------------
+oIter
+
+	seekNext
+	seekPrev
+	seekHead
+	seekTail
+	next
+		returns 0 if iterator is at end of collection
+		returns ~0, next object otherwise
+	prev
+		returns 0 if iterator is at head of collection
+		returns ~0, previous object otherwise
+	current
+		returns 0 if iterator is at end of collection
+		returns ~0, current object otherwise
+---------------------------------------------------------------------------
+oArray
+
+	resize
+		takes new number of elements
+	clear
+	count
+		returns number of elements
+	ref
+		takes element index
+		returns ptr to element object
+	get
+		takes element index
+		returns element object
+	set
+		takes element index, object
+		replaces element with object
+	findIndex
+		takes object
+		returns index of element in array, -1 if not found
+	push
+		takes object, adds to end of array
+	pop
+		returns object on end of array, and removes it from array
+	headIter
+		returns iterator positioned at head of array (element 0)
+	tailIter
+		returns iterator positioned at tail of array (just past last element)
+	clone
+		returns cloned array object		
+---------------------------------------------------------------------------
+oArrayIter
+---------------------------------------------------------------------------
+oList
+	head
+		returns head object
+	tail
+		returns tail object
+	addHead
+		takes object
+	addTail
+		takes object
+	removeHead
+		returns head object
+		*I think this doesn't update reference counts correctly*
+	removeTail
+		returns tail object
+	headIter
+		returns iterator positioned at head of list
+	tailIter
+		returns iterator positioned at tail of list
+	count
+		returns number of objects in list
+	find
+		takes object
+		returns ptr to list element
+		*this is bogus*
+	clone
+		returns cloned list object
+---------------------------------------------------------------------------
+oListIter
+---------------------------------------------------------------------------
+oMap
+---------------------------------------------------------------------------
+oMapIter
+---------------------------------------------------------------------------
+oString
+---------------------------------------------------------------------------
+oPair
+---------------------------------------------------------------------------
+oPairIter
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+oTriple
+---------------------------------------------------------------------------
+oTripleIter
+---------------------------------------------------------------------------
+oByteArray
+---------------------------------------------------------------------------
+oByteArrayIter
+---------------------------------------------------------------------------
+oShortArray
+---------------------------------------------------------------------------
+oShortArrayIter
+---------------------------------------------------------------------------
+oIntArray
+---------------------------------------------------------------------------
+oIntArrayIter
+---------------------------------------------------------------------------
+oLongArray
+---------------------------------------------------------------------------
+oLongArrayIter
+---------------------------------------------------------------------------
+oThread
+---------------------------------------------------------------------------
+
