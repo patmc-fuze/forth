@@ -35,8 +35,8 @@ CVS
 Debug
 ForthCalc
 ForthDLL
-ForthGenericDialog
-FotheGuiApp
+ForthGenericDialogApp
+ForthGuiApp
 ForthLib/ForthNDRelease
 ForthLib/MakefileProject
 ForthLib/NewFolder
