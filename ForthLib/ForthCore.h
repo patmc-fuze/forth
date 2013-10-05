@@ -157,12 +157,12 @@ struct ForthCoreState
 {
     optypeActionRoutine  optypeAction[ 256 ];
 
-    ForthOp             *builtinOps;
+    //ForthOp             *builtinOps;
     ulong               numBuiltinOps;
 
-    long                **userOps;
-    ulong               numUserOps;
-    ulong               maxUserOps;     // current size of table at pUserOps
+    long                **ops;
+    ulong               numOps;
+    ulong               maxOps;     // current size of table at pUserOps
 
     ForthEngine         *pEngine;
 

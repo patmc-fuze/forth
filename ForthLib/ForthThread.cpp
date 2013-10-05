@@ -62,11 +62,10 @@ ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnS
     }
 #endif
     mCore.optypeAction = NULL;
-    mCore.builtinOps = NULL;
     mCore.numBuiltinOps = 0;
-    mCore.userOps = NULL;
-    mCore.numUserOps = 0;
-    mCore.maxUserOps = 0;
+    mCore.ops = NULL;
+    mCore.numOps = 0;
+    mCore.maxOps = 0;
     mCore.IP = NULL;
     mCore.pEngine = pEngine;
 
@@ -208,8 +207,8 @@ void ForthThread::Run()
     mCore.IP = &(mOps[0]);
 	// the user defined ops could have changed since this thread was created, update it to match the engine
 	ForthCoreState* pEngineState = mpEngine->GetCoreState();
-	mCore.userOps = pEngineState->userOps;
-	mCore.numUserOps = pEngineState->numUserOps;
+	mCore.ops = pEngineState->ops;
+	mCore.numOps = pEngineState->numOps;
 #ifdef _ASM_INNER_INTERPRETER
     if ( mpEngine->GetFastMode() )
     {

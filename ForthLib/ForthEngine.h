@@ -87,7 +87,7 @@ public:
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
     long            AddOp( const long *pOp, forthOpType symType );
     long            AddUserOp( const char *pSymbol, long** pEntryOut=NULL, bool smudgeIt=false );
-    void            AddBuiltinOp( const char* name, ulong flags, ulong value );
+    long*           AddBuiltinOp( const char* name, ulong flags, ulong value );
     void            AddBuiltinOps( baseDictionaryEntry *pEntries );
 
     ForthClassVocabulary*   StartClassDefinition( const char* pClassName );
@@ -153,6 +153,7 @@ public:
     inline void             CompileLong( long v ) { *mDictionary.pCurrent++ = v; };
     inline void             CompileDouble( double v ) { *((double *) mDictionary.pCurrent) = v; mDictionary.pCurrent += 2; };
     void                    CompileOpcode( long v );
+    void                    CompileBuiltinOpcode( long v );
     void                    UncompileLastOpcode( void );
     void                    ProcessConstant( long value, bool isOffset=false );
     void                    ProcessLongConstant( long long value );

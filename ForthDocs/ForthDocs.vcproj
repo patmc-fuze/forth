@@ -265,10 +265,6 @@
 			</Filter>
 		</Filter>
 		<File
-			RelativePath="..\ForthLib\core.h"
-			>
-		</File>
-		<File
 			RelativePath=".\ForthAssembler.txt"
 			>
 		</File>

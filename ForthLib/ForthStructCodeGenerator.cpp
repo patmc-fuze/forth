@@ -116,7 +116,7 @@ void ForthStructCodeGenerator::HandlePreceedingVarop()
     {
         long *pLastOp = pEngine->GetLastCompiledOpcodePtr();
         if ( pLastOp && ((pLastOp + 1) == GET_DP)
-            && (*pLastOp >= OP_ADDRESS_OF) && (*pLastOp <= OP_INTO_MINUS) )
+            && (*pLastOp >= gCompiledOps[OP_REF]) && (*pLastOp <= gCompiledOps[OP_INTO_MINUS]) )
         {
             // overwrite the varAction setting op with first accessor op
             mCompileVarop = *pLastOp;
@@ -129,7 +129,7 @@ void ForthStructCodeGenerator::HandlePreceedingVarop()
         if ( varMode )
         {
             CLEAR_VAR_OPERATION;
-            mCompileVarop = OP_ADDRESS_OF + (varMode - kVarRef);
+            mCompileVarop = gCompiledOps[OP_REF] + (varMode - kVarRef);
         }
     }
 }
@@ -189,7 +189,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 			{
 				explicitTOSCast = true;
 				mTypeCode = STRUCT_TYPE_TO_CODE( kDTIsPtr, pSuperVocab->GetTypeIndex() );
-				*mpDst++ = OP_SUPER;
+				*mpDst++ = gCompiledOps[OP_SUPER];
 			}
 			else
 			{
@@ -242,7 +242,7 @@ bool ForthStructCodeGenerator::HandleFirst()
                     // followed by the opcode for the class vocabulary, ForthVocabulary::DoOp
                     // will do the pushing of the class object
                     isClassReference = true;
-                    *mpDst++ = OP_VOCAB_TO_CLASS;
+                    *mpDst++ = gCompiledOps[OP_VOCAB_TO_CLASS];
                     mTypeCode = OBJECT_TYPE_TO_CODE( 0, kBCIClass );
                 }
 				if ( pFoundVocab != NULL )
@@ -331,7 +331,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 						if ( isPtr )
 						{
 							COMPILE_OP( "object ptr array", kOpMemberIntArray, pEntry[0] );
-							COMPILE_SIMPLE_OP( "dfetch", OP_DFETCH );
+							COMPILE_SIMPLE_OP( "dfetch", gCompiledOps[OP_DFETCH] );
 						}
 						else
 						{
@@ -344,7 +344,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 						if ( isPtr )
 						{
 							COMPILE_OP( "member struct ptr array", kOpMemberIntArray, pEntry[0] );
-							COMPILE_SIMPLE_OP( "fetch", OP_FETCH );
+							COMPILE_SIMPLE_OP( "fetch", gCompiledOps[OP_FETCH] );
 						}
 						else
 						{
@@ -360,7 +360,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 						if ( isPtr )
 						{
 							COMPILE_OP( "object ptr", kOpMemberInt, pEntry[0] );
-							COMPILE_SIMPLE_OP( "dfetch", OP_DFETCH );
+							COMPILE_SIMPLE_OP( "dfetch", gCompiledOps[OP_DFETCH] );
 						}
 						else
 						{
@@ -373,7 +373,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 						{
 							// just a struct
 							COMPILE_OP( "member struct ptr", kOpMemberRef, pEntry[0] );
-							COMPILE_SIMPLE_OP( "fetch", OP_FETCH );
+							COMPILE_SIMPLE_OP( "fetch", gCompiledOps[OP_FETCH] );
 						}
 						else
 						{
@@ -391,7 +391,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 		}
         if ( isObject && isPtr )
         {
-            *mpDst++ = OP_DFETCH;
+            *mpDst++ = gCompiledOps[OP_DFETCH];
         }
     }
 
@@ -461,7 +461,7 @@ bool ForthStructCodeGenerator::HandleMiddle()
         if ( !isMethod )
         {
             // TOS is object pair, discard vtable ptr since this is a member field access
-            *mpDst++ = OP_DROP;
+            *mpDst++ = gCompiledOps[OP_DROP];
         }
     }
     if ( isMethod )
@@ -536,13 +536,13 @@ bool ForthStructCodeGenerator::HandleMiddle()
             }
             if ( isPtr )
             {
-                SPEW_STRUCTS( " fetchOp 0x%x", BUILTIN_OP( OP_FETCH ) );
-                *mpDst++ = BUILTIN_OP( OP_FETCH );
+                SPEW_STRUCTS( " fetchOp 0x%x", gCompiledOps[OP_FETCH] );
+                *mpDst++ = gCompiledOps[OP_FETCH];
             }
             if ( isObject )
             {
-                SPEW_STRUCTS( " dfetchOp 0x%x", BUILTIN_OP( OP_DFETCH ) );
-                *mpDst++ = BUILTIN_OP( OP_DFETCH );
+                SPEW_STRUCTS( " dfetchOp 0x%x", gCompiledOps[OP_DFETCH] );
+                *mpDst++ = gCompiledOps[OP_DFETCH];
             }
         }
         else if ( isObject )
@@ -553,8 +553,8 @@ bool ForthStructCodeGenerator::HandleMiddle()
                 *mpDst++ = COMPILED_OP( kOpOffset, mOffset );
                 mOffset = 0;
             }
-            SPEW_STRUCTS( " dfetchOp 0x%x", BUILTIN_OP( OP_DFETCH ) );
-            *mpDst++ = BUILTIN_OP( OP_DFETCH );
+            SPEW_STRUCTS( " dfetchOp 0x%x", gCompiledOps[OP_DFETCH] );
+            *mpDst++ = gCompiledOps[OP_DFETCH];
         }
 	    ForthTypeInfo* pStructInfo = mpTypeManager->GetStructInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
 	    if ( pStructInfo == NULL )
@@ -622,7 +622,7 @@ bool ForthStructCodeGenerator::HandleLast()
         if ( !isMethod )
         {
             // TOS is object pair, discard vtable ptr since this is a member field access
-            *mpDst++ = OP_DROP;
+            *mpDst++ = gCompiledOps[OP_DROP];
         }
     }
     

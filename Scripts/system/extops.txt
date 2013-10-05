@@ -3,9 +3,62 @@
 autoforget extops
 
 requires asm_pentium
+requires forth_internals
 
 : extops ;
 
+code _doDoesCode
+  // RTOS is data ptr, RTOS+1 is IP, ecx points to asm code for does action
+  ecx esi mov,				// esi is does action code
+  _RPtr ebp d] ebx mov,
+  ebx ] eax mov,			// eax is data ptr
+  4 ebx d] ecx mov,
+  8 # ebx add,				// cleanup rstack
+  ebx _RPtr ebp d] mov,
+  esi jmp,
+  endcode
+  
+: doescode
+  [compile] does
+  ['] _doDoesCode here 4- !
+  also assembler
+  0 state !
+  [compile] recursive
+;
+precedence doescode
+
+#if( 0 )
+// sample usage
+: adder
+  builds
+    ,
+  doescode
+    // eax is data ptr
+    eax ] ebx mov,
+    edx ] ebx add,
+    ebx edx ] mov,
+    next,
+
+5 adder add5
+#endif
+    
+code abs
+  edx ] eax mov,
+  eax eax or,
+  0<, if,
+    eax neg,
+    eax edx ] mov,
+  endif,
+  next,
+  
+code +!
+  edx ] eax mov,
+  4 edx d] ebx mov,
+  eax ] ebx add,
+  ebx eax ] mov,
+  8 # edx add,
+  next,
+  
 code roll
   ecx push,
   edx ] ecx mov,

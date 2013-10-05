@@ -75,7 +75,7 @@ entry extOp
 	; ebx holds the opcode which was just dispatched, use its low 24-bits as index into builtinOps table of ops defined in C/C++
 	mov	eax, ebx
 	and	eax, 00FFFFFFh
-	mov	ebx, [ebp].FCore.builtinOps
+	mov	ebx, [ebp].FCore.ops
 	mov	eax, [ebx+eax*4]				; eax is C routine to dispatch to
 	; save current IP and SP	
 	mov	[ebp].FCore.IPtr, ecx
@@ -133,33 +133,20 @@ entry extOpType
 
 ;-----------------------------------------------
 ;
-; InitAsmTables - initializes FCore.numAsmBuiltinOps
+; InitAsmTables1 - initializes first part of optable, where op positions are referenced by constants
 ;
 PUBLIC InitAsmTables
-InitAsmTables PROC near C public uses ebx ecx edx edi ebp,
+InitAsmTables PROC near C public uses ebx ecx edx edi ebp esi,
 	core:PTR
 	mov	ebp, DWORD PTR core
 
-	mov	ebx, opsTable
-	xor	eax, eax
-InitAsm2:
-	mov	edx, [ebx]
-	add	ebx, 4
-	inc	eax
-	or	edx, edx
-	jnz	InitAsm2
-	
 	; setup normal (non-debug) inner interpreter re-entry point
 	;mov	ebx, interpLoop
 	mov	ebx, interpLoopDebug
 	mov	[ebp].FCore.innerLoop, ebx
 	
-	dec	eax
-	mov	[ebp].FCore.numAsmBuiltinOps, eax
 	ret
-
 InitAsmTables ENDP
-
 
 ;-----------------------------------------------
 ;
@@ -221,10 +208,11 @@ entry interpLoop
 	; interpLoopExecuteEntry is entry for executeBop - expects opcode in ebx
 PUBLIC	interpLoopExecuteEntry
 interpLoopExecuteEntry:
-	cmp	ebx, [ebp].FCore.numAsmBuiltinOps
-	jae	notBuiltin
-	mov	eax, opsTable[ebx*4]
-	jmp	eax
+	cmp	ebx, [ebp].FCore.numOps
+	jae	notNative
+	mov eax, [ebp].FCore.ops
+	mov	esi, [eax+ebx*4]
+	jmp	esi
 
 PUBLIC	interpLoopExit
 interpLoopExit:
@@ -263,57 +251,63 @@ interpLoopFatalErrorExit:
 	mov	eax, kResultFatalError
 	jmp	interpLoopExit
 	
-; op (in ebx) is not a builtin, dispatch through optype table
-PUBLIC notBuiltin
-notBuiltin:
+; op (in ebx) is not defined in assembler, dispatch through optype table
+PUBLIC notNative
+notNative:
 	mov	eax, ebx			; leave full opcode in ebx
 	shr	eax, 24			; eax is 8-bit optype
 	mov	eax, opTypesTable[eax*4]
 	jmp	eax
 
-PUBLIC builtInImmediate
-builtInImmediate:
+PUBLIC nativeImmediate
+nativeImmediate:
 	and	ebx, 00FFFFFFh
-	cmp	ebx, [ebp].FCore.numAsmBuiltinOps
-	jge	extOp
-	mov	eax, opsTable[ebx*4]
-	jmp	eax
+	cmp	ebx, [ebp].FCore.numOps
+	jae	badOpcode
+	mov eax, [ebp].FCore.ops
+	mov	esi, [eax+ebx*4]
+	jmp	esi
 
 ; externalBuiltin is invoked when a builtin op which is outside of range of table is invoked
 PUBLIC externalBuiltin
 externalBuiltin:
+	; it should be impossible to get here now
+	jmp	badOpcode
+	
+PUBLIC cCodeType
+cCodeType:
 	and	ebx, 00FFFFFFh
 	; dispatch to C version if valid
-	cmp	ebx, [ebp].FCore.numBuiltinOps
-	jl	extOp
-	jmp	badOpcode
+	cmp	ebx, [ebp].FCore.numOps
+	jae	badOpcode
+	jmp	extOp
 
-
-; extern void UserCodeAction( ForthCoreState *pCore, ulong opVal );
+; extern void NativeAction( ForthCoreState *pCore, ulong opVal );
 ;-----------------------------------------------
 ;
-; inner interpreter entry point for user ops defined in assembler
+; inner interpreter entry point for ops defined in assembler
 ;
-PUBLIC	UserCodeAction
-UserCodeAction PROC near C public uses ebx ecx edx esi edi ebp,
+PUBLIC	NativeAction
+NativeAction PROC near C public uses ebx ecx edx esi edi ebp,
 	core:PTR,
 	opVal:DWORD
-; TBD!
 	mov	eax, opVal
 	mov	ebp, DWORD PTR core
-	; TBD: fetch dispatch address from userOps
+	call	native1
+	ret
+NativeAction ENDP
+
+entry native1
 	mov	ecx, [ebp].FCore.IPtr
 	mov	edx, [ebp].FCore.SPtr
-	mov	esi, [ebp].FCore.userOps
-	mov	edi, userCodeFuncExit
+	mov	esi, [ebp].FCore.ops
+	mov	edi, nativeActionExit
 	mov	eax, [esi+eax*4]
 	jmp	eax
-userCodeFuncExit:
+nativeActionExit:
 	mov	[ebp].FCore.IPtr, ecx
 	mov	[ebp].FCore.SPtr, edx
 	ret
-UserCodeAction ENDP
-
 ;-----------------------------------------------
 ;
 ; user-defined ops (forth words defined with colon)
@@ -321,7 +315,7 @@ UserCodeAction ENDP
 entry userDefType
 	; get low-24 bits of opcode & check validity
 	and	ebx, 00FFFFFFh
-	cmp	ebx, [ebp].FCore.numUserOps
+	cmp	ebx, [ebp].FCore.numOps
 	jge	badUserDef
 	; push IP on rstack
 	mov	eax, [ebp].FCore.RPtr
@@ -329,7 +323,7 @@ entry userDefType
 	mov	[eax], ecx
 	mov	[ebp].FCore.RPtr, eax
 	; get new IP
-	mov	eax, [ebp].FCore.userOps
+	mov	eax, [ebp].FCore.ops
 	mov	ecx, [eax+ebx*4]
 	jmp	edi
 
@@ -337,19 +331,6 @@ badUserDef:
 	mov	eax, kForthErrorBadOpcode
 	jmp	interpLoopErrorExit
 
-;-----------------------------------------------
-;
-; user-defined code ops
-;
-entry userCodeType
-	; get low-24 bits of opcode & check validity
-	and	ebx, 00FFFFFFh
-	cmp	ebx, [ebp].FCore.numUserOps
-	jge	badUserDef
-	mov	eax,[ebp].FCore.userOps
-	mov	eax, [eax+ebx*4]
-	jmp	eax
-	
 ;-----------------------------------------------
 ;
 ; unconditional branch ops
@@ -5520,7 +5501,7 @@ entry dllEntryPointType
 	mov	[ebp].FCore.SPtr, edx
 	mov	eax, ebx
 	and	eax, 0007FFFFh
-	cmp	eax, [ebp].FCore.numUserOps
+	cmp	eax, [ebp].FCore.numOps
 	jge	badUserDef
 	; push core ptr
 	push	ebp
@@ -5530,7 +5511,7 @@ entry dllEntryPointType
 	sar	ecx, 19
 	push	ecx
 	; push entry point address
-	mov	ecx, [ebp].FCore.userOps
+	mov	ecx, [ebp].FCore.ops
 	mov	edx, [ecx+eax*4]
 	push	edx
 	call	CallDLLRoutine
@@ -5669,12 +5650,12 @@ entry opTypesTable
 ; TBD: check the order of these
 ; TBD: copy these into base of ForthCoreState, fill unused slots with badOptype
 ;	00 - 09
-	DD	FLAT:externalBuiltin		; kOpBuiltIn = 0,
-	DD	FLAT:builtInImmediate		; kOpBuiltInImmediate,
+	DD	FLAT:externalBuiltin		; kOpNative = 0,
+	DD	FLAT:nativeImmediate		; kOpNativeImmediate,
 	DD	FLAT:userDefType			; kOpUserDef,
 	DD	FLAT:userDefType			; kOpUserDefImmediate,
-	DD	FLAT:userCodeType			; kOpUserCode,         
-	DD	FLAT:userCodeType			; kOpUserCodeImmediate,
+	DD	FLAT:cCodeType				; kOpCCode,         
+	DD	FLAT:cCodeType				; kOpCCodeImmediate,
 	DD	FLAT:dllEntryPointType		; kOpDLLEntryPoint,
 	DD	FLAT:extOpType	
 	DD	FLAT:extOpType	
@@ -5829,328 +5810,5 @@ endOpTypesTable:
 	DD	0
 
 
-
-;=================================================================================================
-;
-;                                    builtin op table
-;  
-;=================================================================================================
-opsTable:
-	DD	FLAT:abortBop
-	DD	FLAT:dropBop
-	DD	FLAT:doDoesBop
-	DD	FLAT:litBop
-	DD	FLAT:litBop
-	DD	FLAT:dlitBop
-	DD	FLAT:doVariableBop
-	DD	FLAT:doConstantBop
-	DD	FLAT:doDConstantBop
-	DD	FLAT:extOp					; endBuildsBop
-	DD	FLAT:doneBop
-	DD	FLAT:doByteBop
-	DD	FLAT:doUByteBop
-	DD	FLAT:doShortBop
-	DD	FLAT:doUShortBop
-	DD	FLAT:doIntBop
-	DD	FLAT:doIntBop
-	DD	FLAT:doLongBop
-	DD	FLAT:doLongBop
-	DD	FLAT:doFloatBop
-	DD	FLAT:doDoubleBop
-	DD	FLAT:doStringBop
-	DD	FLAT:doOpBop
-	DD	FLAT:doObjectBop
-	DD	FLAT:doExitBop
-	DD	FLAT:doExitLBop
-	DD	FLAT:doExitMBop
-	DD	FLAT:doExitMLBop
-	DD	FLAT:extOp					; doVocabBop
-	DD	FLAT:doByteArrayBop
-	DD	FLAT:doUByteArrayBop
-	DD	FLAT:doShortArrayBop
-	DD	FLAT:doUShortArrayBop
-	DD	FLAT:doIntArrayBop
-	DD	FLAT:doIntArrayBop
-	DD	FLAT:doLongArrayBop
-	DD	FLAT:doLongArrayBop
-	DD	FLAT:doFloatArrayBop
-	DD	FLAT:doDoubleArrayBop
-	DD	FLAT:doStringArrayBop
-	DD	FLAT:doOpArrayBop
-	DD	FLAT:doObjectArrayBop
-	DD	FLAT:initStringBop
-	DD	FLAT:extOp					; initStringArrayBop
-	DD	FLAT:plusBop
-	DD	FLAT:fetchBop
-	DD	FLAT:extOp					; badOpBop
-	DD	FLAT:doStructBop
-	DD	FLAT:doStructArrayBop
-	DD	FLAT:extOp					; doStructTypeBop
-	DD	FLAT:extOp					; doClassTypeBop
-	DD	FLAT:extOp					; doEnumBop
-	DD	FLAT:doDoBop
-	DD	FLAT:doLoopBop
-	DD	FLAT:doLoopNBop
-	DD	FLAT:extOp					; doNewBop
-	DD	FLAT:dfetchBop
-	DD	FLAT:extOp					; allocObjectBop
-	DD	FLAT:vocabToClassBop
-	DD	FLAT:addressOfBop
-	DD	FLAT:intoBop
-	DD	FLAT:addToBop
-	DD	FLAT:subtractFromBop
-	DD	FLAT:extOp					; super
-	DD	FLAT:doCheckDoBop
-	
-	;	
-    ; stuff below this line can be rearranged
-    ;
-	DD	FLAT:thisBop
-	DD	FLAT:thisDataBop
-	DD	FLAT:thisMethodsBop
-	DD	FLAT:executeBop
-	; runtime control flow stuff
-	DD	FLAT:callBop
-	DD	FLAT:gotoBop
-	DD	FLAT:iBop
-	DD	FLAT:jBop
-	DD	FLAT:unloopBop
-	DD	FLAT:leaveBop
-	DD	FLAT:hereBop
-	DD	FLAT:addressOfBop
-	DD	FLAT:intoBop
-	DD	FLAT:addToBop
-	DD	FLAT:subtractFromBop
-	DD	FLAT:removeEntryBop
-	DD	FLAT:entryLengthBop
-	DD	FLAT:numEntriesBop
-	
-	
-	; integer math
-	DD	FLAT:minusBop
-	DD	FLAT:timesBop
-	DD	FLAT:utimesBop
-	DD	FLAT:times2Bop
-	DD	FLAT:times4Bop
-	DD	FLAT:times8Bop
-	DD	FLAT:divideBop
-	DD	FLAT:divide2Bop
-	DD	FLAT:divide4Bop
-	DD	FLAT:divide8Bop
-	DD	FLAT:divmodBop
-	DD	FLAT:modBop
-	DD	FLAT:negateBop
-	
-	; single precision fp math
-	DD	FLAT:fplusBop
-	DD	FLAT:fminusBop
-	DD	FLAT:ftimesBop
-	DD	FLAT:fdivideBop
-	
-   ; single precision fp comparisons
-    DD	FLAT:fEqualsBop
-    DD	FLAT:fNotEqualsBop
-    DD	FLAT:fGreaterThanBop
-    DD	FLAT:fGreaterEqualsBop
-    DD	FLAT:fLessThanBop
-    DD	FLAT:fLessEqualsBop
-    DD	FLAT:fEqualsZeroBop
-    DD	FLAT:fNotEqualsZeroBop
-    DD	FLAT:fGreaterThanZeroBop
-    DD	FLAT:fGreaterEqualsZeroBop
-    DD	FLAT:fLessThanZeroBop
-    DD	FLAT:fLessEqualsZeroBop
-    DD	FLAT:fWithinBop
-    DD	FLAT:fMinBop
-    DD	FLAT:fMaxBop
-
-	; double precision fp math
-	DD	FLAT:dplusBop
-	DD	FLAT:dminusBop
-	DD	FLAT:dtimesBop
-	DD	FLAT:ddivideBop
-
-    ; double precision fp comparisons
-    DD	FLAT:dEqualsBop
-    DD	FLAT:dNotEqualsBop
-    DD	FLAT:dGreaterThanBop
-    DD	FLAT:dGreaterEqualsBop
-    DD	FLAT:dLessThanBop
-    DD	FLAT:dLessEqualsBop
-    DD	FLAT:dEqualsZeroBop
-    DD	FLAT:dNotEqualsZeroBop
-    DD	FLAT:dGreaterThanZeroBop
-    DD	FLAT:dGreaterEqualsZeroBop
-    DD	FLAT:dLessThanZeroBop
-    DD	FLAT:dLessEqualsZeroBop
-    DD	FLAT:dWithinBop
-    DD	FLAT:dMinBop
-    DD	FLAT:dMaxBop
-
-	; double precision fp functions	
-	DD	FLAT:dsinBop
-	DD	FLAT:dasinBop
-	DD	FLAT:dcosBop
-	DD	FLAT:dacosBop
-	DD	FLAT:dtanBop
-	DD	FLAT:datanBop
-	DD	FLAT:datan2Bop
-	DD	FLAT:dexpBop
-	DD	FLAT:dlnBop
-	DD	FLAT:dlog10Bop
-	DD	FLAT:dpowBop
-	DD	FLAT:dsqrtBop
-	DD	FLAT:dceilBop
-	DD	FLAT:dfloorBop
-	DD	FLAT:dabsBop
-	DD	FLAT:dldexpBop
-	DD	FLAT:dfrexpBop
-	DD	FLAT:dmodfBop
-	DD	FLAT:dfmodBop
-	
-	; long math (64-bit integer
-	;DD	FLAT:lplusBop
-	;DD	FLAT:lminusBop
-	;DD	FLAT:ltimesBop
-	;DD	FLAT:ldivideBop
-	
-	; int/float/double conversions
-	DD	FLAT:i2fBop
-	DD	FLAT:i2dBop
-	DD	FLAT:f2iBop
-	DD	FLAT:f2dBop
-	DD	FLAT:d2iBop
-	DD	FLAT:d2fBop
-	
-	; bit-vector logic
-	DD	FLAT:orBop
-	DD	FLAT:andBop
-	DD	FLAT:xorBop
-	DD	FLAT:invertBop
-	DD	FLAT:lshiftBop
-	DD	FLAT:rshiftBop
-	DD	FLAT:urshiftBop
-	
-	; boolean logic
-	DD	FLAT:notBop
-	DD	FLAT:trueBop
-	DD	FLAT:falseBop
-	DD	FLAT:nullBop
-	DD	FLAT:dnullBop
-	
-	; integer comparisons
-	DD	FLAT:equalsBop
-	DD	FLAT:notEqualsBop
-	DD	FLAT:greaterThanBop
-	DD	FLAT:greaterEqualsBop
-	DD	FLAT:lessThanBop
-	DD	FLAT:lessEqualsBop
-	DD	FLAT:equalsZeroBop
-	DD	FLAT:notEqualsZeroBop
-	DD	FLAT:greaterThanZeroBop
-	DD	FLAT:greaterEqualsZeroBop
-	DD	FLAT:lessThanZeroBop
-	DD	FLAT:lessEqualsZeroBop
-	DD	FLAT:unsignedGreaterThanBop
-	DD	FLAT:unsignedLessThanBop
-	DD	FLAT:withinBop
-	DD	FLAT:minBop
-	DD	FLAT:maxBop
-	
-	; stack manipulation
-	DD	FLAT:rpushBop
-	DD	FLAT:rpopBop
-	DD	FLAT:rpeekBop
-	DD	FLAT:rdropBop
-	DD	FLAT:rpBop
-	DD	FLAT:rzeroBop
-	DD	FLAT:dupBop
-	DD	FLAT:dupNonZeroBop
-	DD	FLAT:swapBop
-	DD	FLAT:overBop
-	DD	FLAT:rotBop
-	DD	FLAT:reverseRotBop
-	DD	FLAT:nipBop
-	DD	FLAT:tuckBop
-	DD	FLAT:pickBop
-	DD	FLAT:extOp					; rollBop
-	DD	FLAT:spBop
-	DD	FLAT:szeroBop
-	DD	FLAT:fpBop
-	DD	FLAT:ipBop
-	DD	FLAT:ddupBop
-	DD	FLAT:dswapBop
-	DD	FLAT:ddropBop
-	DD	FLAT:doverBop
-	DD	FLAT:drotBop
-	DD	FLAT:startTupleBop
-	DD	FLAT:endTupleBop
-	
-	; memory store/fetch
-	DD	FLAT:storeBop
-	DD	FLAT:storeNextBop
-	DD	FLAT:fetchNextBop
-	DD	FLAT:cstoreBop
-	DD	FLAT:cfetchBop
-	DD	FLAT:cstoreNextBop
-	DD	FLAT:cfetchNextBop
-	DD	FLAT:scfetchBop
-	DD	FLAT:c2lBop
-	DD	FLAT:wstoreBop
-	DD	FLAT:wfetchBop
-	DD	FLAT:wstoreNextBop
-	DD	FLAT:wfetchNextBop
-	DD	FLAT:swfetchBop
-	DD	FLAT:w2lBop
-	DD	FLAT:dstoreBop
-	DD	FLAT:dstoreNextBop
-	DD	FLAT:dfetchNextBop
-	DD	FLAT:memcpyBop
-	DD	FLAT:memsetBop
-	DD	FLAT:setVarActionBop
-	DD	FLAT:getVarActionBop
-	DD	FLAT:byteVarActionBop
-	DD	FLAT:ubyteVarActionBop
-	DD	FLAT:shortVarActionBop
-	DD	FLAT:ushortVarActionBop
-	DD	FLAT:intVarActionBop
-	DD	FLAT:longVarActionBop
-	DD	FLAT:floatVarActionBop
-	DD	FLAT:doubleVarActionBop
-	DD	FLAT:stringVarActionBop
-	DD	FLAT:opVarActionBop
-	DD	FLAT:objectVarActionBop
-	
-	; string manipulation
-	DD	FLAT:strcpyBop
-	DD	FLAT:strncpyBop
-	DD	FLAT:strlenBop
-	DD	FLAT:strcatBop
-	DD	FLAT:strncatBop
-	DD	FLAT:strchrBop
-	DD	FLAT:strrchrBop
-	DD	FLAT:strcmpBop
-	DD	FLAT:stricmpBop
-	DD	FLAT:strstrBop
-	DD	FLAT:strtokBop
-	
-	; file manipulation
-	DD	FLAT:fopenBop
-	DD	FLAT:fcloseBop
-	DD	FLAT:fseekBop
-	DD	FLAT:freadBop
-	DD	FLAT:fwriteBop
-	DD	FLAT:fgetcBop
-	DD	FLAT:fputcBop
-	DD	FLAT:feofBop
-	DD	FLAT:fexistsBop
-	DD	FLAT:ftellBop
-	DD	FLAT:flenBop
-	DD	FLAT:fgetsBop
-	DD	FLAT:fputsBop
-
-endOpsTable:
-	DD	0
-	
 _TEXT	ENDS
 END

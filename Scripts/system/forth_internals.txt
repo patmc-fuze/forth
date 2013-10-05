@@ -144,6 +144,9 @@ struct: ForthCoreState
   ptrTo int     RT                     // empty return stack pointer
 
   int           RLen                   // size of return stack in longwords
+  
+  ptrTo int		innerLoop              // inner interpreter re-entry point for assembler
+  
   // *** end of stuff which is per thread ***
   ptrTo int     pThread                // ForthThread*
 

@@ -579,11 +579,11 @@ ForthStructVocabulary::DefineInstance( void )
             }
             if ( isPtr )
             {
-                mpEngine->CompileOpcode( OP_DO_INT_ARRAY );
+                mpEngine->CompileBuiltinOpcode( OP_DO_INT_ARRAY );
             }
             else
             {
-                mpEngine->CompileOpcode( OP_DO_STRUCT_ARRAY );
+                mpEngine->CompileBuiltinOpcode( OP_DO_STRUCT_ARRAY );
                 mpEngine->CompileLong( nBytes + padding );
             }
             pHere = (char *) (mpEngine->GetDP());
@@ -592,7 +592,7 @@ ForthStructVocabulary::DefineInstance( void )
         }
         else
         {
-            mpEngine->CompileOpcode( isPtr ? OP_DO_INT : OP_DO_STRUCT );
+            mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_INT : OP_DO_STRUCT );
             pHere = (char *) (mpEngine->GetDP());
             mpEngine->AllotLongs( (nBytes  + 3) >> 2 );
             memset( pHere, 0, nBytes );
@@ -861,7 +861,7 @@ ForthClassVocabulary::ForthClassVocabulary( const char*     pName,
 {
     mpClassObject = new ForthClassObject;
     mpClassObject->pVocab = this;
-    mpClassObject->newOp = OP_ALLOC_OBJECT;
+    mpClassObject->newOp = gCompiledOps[OP_ALLOC_OBJECT];
     ForthInterface* pPrimaryInterface = new ForthInterface( this );
     mInterfaces.push_back( pPrimaryInterface );
 
@@ -958,7 +958,7 @@ ForthClassVocabulary::DefineInstance( void )
         pEntry = mpEngine->GetDefinitionVocabulary()->GetNewestEntry();
         if ( isArray )
         {
-            mpEngine->CompileOpcode( isPtr ? OP_DO_INT_ARRAY : OP_DO_OBJECT_ARRAY );
+            mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_INT_ARRAY : OP_DO_OBJECT_ARRAY );
             pHere = mpEngine->GetDP();
             mpEngine->AllotLongs( (nBytes * numElements) >> 2 );
             memset( pHere, 0, (nBytes * numElements) );
@@ -973,7 +973,7 @@ ForthClassVocabulary::DefineInstance( void )
         }
         else
         {
-            mpEngine->CompileOpcode( isPtr ? OP_DO_INT : OP_DO_OBJECT );
+            mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_INT : OP_DO_OBJECT );
             pHere = mpEngine->GetDP();
             mpEngine->AllotLongs( nBytes >> 2 );
             memset( pHere, 0, nBytes );
@@ -1352,7 +1352,7 @@ ForthInterface::SetMethod( long index, long method )
     index++;
     if ( mMethods[index] != method )
     {
-        if ( method != OP_BAD_OP )
+		if ( method != gCompiledOps[OP_BAD_OP] )
         {
             mNumAbstractMethods--;
         }
@@ -1370,7 +1370,7 @@ ForthInterface::Implements( ForthClassVocabulary* pVocab )
     mMethods.resize( numMethods );
 	for ( int i = 1; i < numMethods; i++ )
 	{
-		mMethods[i] = OP_BAD_OP;	// TBD: make this "unimplemented method" opcode
+		mMethods[i] = gCompiledOps[OP_BAD_OP];	// TBD: make this "unimplemented method" opcode
 	}
     mNumAbstractMethods = numMethods;
 }
@@ -1381,7 +1381,7 @@ ForthInterface::AddMethod( long method )
 {
     long methodIndex = mMethods.size() - 1;
 	mMethods.push_back( method );
-    if ( method == OP_BAD_OP )
+    if ( method == gCompiledOps[OP_BAD_OP] )
     {
         mNumAbstractMethods++;
     }
@@ -1557,7 +1557,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             if ( numElements )
             {
                 // define global array
-                pEngine->CompileOpcode( OP_DO_BYTE_ARRAY + CODE_TO_BASE_TYPE( typeCode ) );
+                pEngine->CompileBuiltinOpcode( OP_DO_BYTE_ARRAY + CODE_TO_BASE_TYPE( typeCode ) );
                 pHere = (char *) (pEngine->GetDP());
                 pEngine->AllotLongs( ((nBytes * numElements) + 3) >> 2 );
                 for ( i = 0; i < numElements; i++ )
@@ -1569,7 +1569,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             else
             {
                 // define global single variable
-                pEngine->CompileOpcode( OP_DO_BYTE + CODE_TO_BASE_TYPE( typeCode ) );
+                pEngine->CompileBuiltinOpcode( OP_DO_BYTE + CODE_TO_BASE_TYPE( typeCode ) );
                 pHere = (char *) (pEngine->GetDP());
                 pEngine->AllotLongs( (nBytes  + 3) >> 2 );
                 if ( GET_VAR_OPERATION == kVarStore )
@@ -1602,7 +1602,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
                 pEngine->CompileOpcode( COMPILED_OP( kOpConstant, numElements ) );
                 pEngine->CompileOpcode( COMPILED_OP( kOpConstant, len ) );
                 pEngine->CompileOpcode( COMPILED_OP( kOpLocalRef, varOffset - 2) );
-                pEngine->CompileOpcode( OP_INIT_STRING_ARRAY );
+                pEngine->CompileBuiltinOpcode( OP_INIT_STRING_ARRAY );
             }
             else
             {
@@ -1630,7 +1630,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             if ( numElements )
             {
                 // define global string array
-                pEngine->CompileOpcode( OP_DO_STRING_ARRAY );
+                pEngine->CompileBuiltinOpcode( OP_DO_STRING_ARRAY );
                 for ( i = 0; i < numElements; i++ )
                 {
                     pEngine->CompileLong( len );
@@ -1644,7 +1644,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             else
             {
                 // define global string variable
-                pEngine->CompileOpcode( OP_DO_STRING );
+                pEngine->CompileBuiltinOpcode( OP_DO_STRING );
                 pEngine->CompileLong( len );
                 pEngine->CompileLong( 0 );
                 pStr = (char *) (pEngine->GetDP());

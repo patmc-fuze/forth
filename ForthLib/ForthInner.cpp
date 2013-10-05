@@ -16,8 +16,8 @@ extern "C"
 {
 
 #ifdef _ASM_INNER_INTERPRETER
-// UserCodeAction is used to execute user ops which are defined in assembler
-extern void UserCodeAction( ForthCoreState *pCore, ulong opVal );
+// NativeAction is used to execute user ops which are defined in assembler
+extern void NativeAction( ForthCoreState *pCore, ulong opVal );
 #endif
 
 //////////////////////////////////////////////////////////////////////
@@ -1542,13 +1542,13 @@ OPTYPE_ACTION( MemberLongArrayAction )
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-OPTYPE_ACTION( BuiltinAction )
+OPTYPE_ACTION( CCodeAction )
 {
     ForthOp opRoutine;
     // op is builtin
-    if ( opVal < pCore->numBuiltinOps )
+    if ( opVal < pCore->numOps )
     {
-        opRoutine = pCore->builtinOps[opVal];
+        opRoutine = (ForthOp)(pCore->ops[opVal]);
         opRoutine( pCore );
     }
     else
@@ -1561,10 +1561,10 @@ OPTYPE_ACTION( UserDefAction )
 {
     // op is normal user-defined, push IP on rstack, lookup new IP
     //  in table of user-defined ops
-    if ( opVal < GET_NUM_USER_OPS )
+    if ( opVal < GET_NUM_OPS )
     {
         RPUSH( (long) GET_IP );
-        SET_IP( USER_OP_TABLE[opVal] );
+        SET_IP( OP_TABLE[opVal] );
     }
     else
     {
@@ -1725,9 +1725,9 @@ OPTYPE_ACTION( DLLEntryPointAction )
     ulong entryIndex = CODE_TO_DLL_ENTRY_INDEX( opVal );
     ulong argCount = CODE_TO_DLL_ENTRY_NUM_ARGS( opVal );
 	ulong flags = CODE_TO_DLL_ENTRY_FLAGS( opVal );
-    if ( entryIndex < GET_NUM_USER_OPS )
+    if ( entryIndex < GET_NUM_OPS )
     {
-        CallDLLRoutine( (DLLRoutine)(USER_OP_TABLE[entryIndex]), argCount, flags, pCore );
+        CallDLLRoutine( (DLLRoutine)(OP_TABLE[entryIndex]), argCount, flags, pCore );
     }
     else
     {
@@ -1794,7 +1794,7 @@ OPTYPE_ACTION( NumVaropOpComboAction )
 	SET_VAR_OPERATION( ((opVal >> 11) & 3) + 2 );
 
 	// execute op in bits 13:23
-	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpBuiltIn), (opVal >> 14) );
+	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpNative), (opVal >> 14) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
@@ -1835,7 +1835,7 @@ OPTYPE_ACTION( NumOpComboAction )
     SPUSH( num );
 
 	// execute op in bits 13:23
-	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpBuiltIn), (opVal >> 14) );
+	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpNative), (opVal >> 14) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
@@ -1847,7 +1847,7 @@ OPTYPE_ACTION( VaropOpComboAction )
 	SET_VAR_OPERATION( (opVal & 3) + 2 );
 
 	// execute op in bits 3:23
-	long op = COMPILED_OP( (((opVal & 0x4) != 0) ? kOpUserDef : kOpBuiltIn), (opVal >> 4) );
+	long op = COMPILED_OP( (((opVal & 0x4) != 0) ? kOpUserDef : kOpNative), (opVal >> 4) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
@@ -1857,7 +1857,7 @@ OPTYPE_ACTION( LocalRefOpComboAction )
     SPUSH( (long)(GET_FP - (opVal & 0xFFF)) );
 
 	// execute op in bits 13:23
-	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpBuiltIn), (opVal >> 14) );
+	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpNative), (opVal >> 14) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
@@ -1868,7 +1868,7 @@ OPTYPE_ACTION( MemberRefOpComboAction )
     SPUSH( ((long)GET_TPD) + (opVal & 0xFFF) );
 
 	// execute op in bits 13:23
-	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpBuiltIn), (opVal >> 14) );
+	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpNative), (opVal >> 14) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
@@ -1943,17 +1943,12 @@ FORTHOP( BadOpcodeOp )
 optypeActionRoutine builtinOptypeAction[] =
 {
     // 00 - 09
-    BuiltinAction,
-    BuiltinAction,          // immediate
+    NativeAction,
+    NativeAction,          // immediate
     UserDefAction,
     UserDefAction,          // immediate
-#ifdef _ASM_INNER_INTERPRETER
-    UserCodeAction,
-    UserCodeAction,         // immediate
-#else
-    ReservedOptypeAction,
-    ReservedOptypeAction,
-#endif
+    CCodeAction,
+    CCodeAction,         // immediate
     DLLEntryPointAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
@@ -2103,7 +2098,7 @@ void InitDispatchTables( ForthCoreState* pCore )
 
     for ( i = 0; i < MAX_BUILTIN_OPS; i++ )
     {
-        pCore->builtinOps[i] = BadOpcodeOp;
+        pCore->ops[i] = (long *)(BadOpcodeOp);
     }
     for ( i = 0; builtinOptypeAction[i] != NULL; i++ )
     {
@@ -2159,7 +2154,10 @@ InnerInterpreter( ForthCoreState *pCore )
 			long* pIP = GET_IP;
 			long op = *pIP++;
 			SET_IP( pIP );
-			DISPATCH_FORTH_OP( pCore, op );
+			//DISPATCH_FORTH_OP( pCore, op );
+//#define DISPATCH_FORTH_OP( _pCore, _op ) 	_pCore->optypeAction[ (int) FORTH_OP_TYPE( _op ) ]( _pCore, FORTH_OP_VALUE( _op ) )
+			optypeActionRoutine typeAction = pCore->optypeAction[ (int) FORTH_OP_TYPE( op ) ];
+			typeAction( pCore, FORTH_OP_VALUE( op ) );
 		}
 	}
     return GET_STATE;

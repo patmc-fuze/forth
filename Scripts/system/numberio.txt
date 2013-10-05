@@ -1,0 +1,107 @@
+
+requires compatability
+
+autoforget numberio
+: numberio ;
+
+variable pad 84 allot
+
+variable holdbuf 84 allot
+align
+holdbuf 83+ -> int holdbuf-end
+int holdptr
+int holdend
+
+// hold <# #> sign # #s                                 25jan92py
+
+// add char on tos to numeric output buffer
+: hold 
+  1 ->- holdptr
+  if( holdptr holdbuf u< )
+    drop
+    1 ->+ holdptr
+    error( 0 ) addErrorText( "numeric output overflow in hold" )
+  else
+    holdptr c!
+  endif
+;
+
+// clear the numeric output string
+: <# holdbuf-end dup -> holdptr -> holdend ;
+<#
+
+// finish numeric output and return the address and length of string
+: #> 2drop holdptr holdend over - ;
+
+// start a nested numeric output
+: <<#
+  holdend holdptr - hold
+  holdptr -> holdend
+;
+
+// end a nested numeric output
+: #>>
+  if( holdend holdbuf-end u< not )
+    error( 0 ) addErrorText( "bounds error in #>>" )
+  else
+    holdend dup strlen + holdend -> holdptr -> holdend
+  endif
+;
+
+: sign
+  if( 0< )
+    hold( '-' )
+  endif
+;
+
+// generate one digit of numeric output
+// takes unsigned 64-bit on TOS, leaves same after dividing by base
+: #
+  base @ ud/mod rot 9 over
+  if( < )
+    'A' '9' - 1- +
+  endif
+  hold( '0' + )
+;
+
+// generate all remaining numeric output digits
+// takes unsigned 64-bit on TOS, leaves 64-bit zero
+: #s      //( ud -- 0 0 ) \ core	number-sign-s
+  begin
+    #
+  until( 2dup l0= )
+;
+
+// ( D WIDTH -- )   display signed long number D in a filed WIDTH characters wide
+: d.r
+  >r dup -rot labs  <<# #s  rot sign #>
+  r> over - spaces  %block #>>
+;
+    
+// (UD WIDTH --)   display unsigned long number UD in a filed WIDTH characters wide
+: ud.r >r <<# #s #> r> over - spaces %block #>> ;
+
+: .r // n1 n2 -- ) \ core-ext	dot-r
+    // Display @var{n1} right-aligned in a field @var{n2} characters wide. If more than
+    // @var{n2} characters are needed to display the number, all digits are displayed.
+    // If appropriate, @var{n2} must include a character for a leading ``-''.
+    >r i2l r> d.r ;
+
+: u.r // u n -- )  \ core-ext	u-dot-r
+    // Display @var{u} right-aligned in a field @var{n} characters wide. If more than
+    // @var{n} characters are needed to display the number, all digits are displayed.
+    0 swap ud.r ;
+
+// display unsigned long number in free format followed by space
+: d. 0 d.r %bl ;
+
+// display unsigned long number in free format followed by space
+: ud. 0 ud.r %bl ;
+    
+// display signed single number in free format followed by space
+: . i2l d. ;
+    
+
+// display unsigned single number in free format followed by space
+: u. 0 ud. ;
+

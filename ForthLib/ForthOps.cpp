@@ -31,6 +31,8 @@
 #include <strings.h>
 #endif
 
+long gCompiledOps[NUM_COMPILED_OPS];
+
 extern "C"
 {
 
@@ -805,12 +807,12 @@ FORTHOP(doOp)
     NEEDS(2);
     ForthEngine *pEngine = GET_ENGINE;
     ForthShellStack *pShellStack = pEngine->GetShell()->GetShellStack();
-    pShellStack->Push( OP_DO_DO );
+    pShellStack->Push( gCompiledOps[ OP_DO_DO ] );
     // save address for loop/+loop
     pShellStack->Push( (long)GET_DP );
     pShellStack->Push( kShellTagDo );
     // this will be fixed by loop/+loop
-    pEngine->CompileOpcode( OP_ABORT );
+    pEngine->CompileBuiltinOpcode( OP_ABORT );
     pEngine->CompileLong( 0 );
 }
 
@@ -820,12 +822,12 @@ FORTHOP(checkDoOp)
     NEEDS(2);
     ForthEngine *pEngine = GET_ENGINE;
     ForthShellStack *pShellStack = pEngine->GetShell()->GetShellStack();
-    pShellStack->Push( OP_DO_CHECKDO );
+    pShellStack->Push( gCompiledOps[ OP_DO_CHECKDO ] );
     // save address for loop/+loop
     pShellStack->Push( (long)GET_DP );
     pShellStack->Push( kShellTagDo );
     // this will be fixed by loop/+loop
-    pEngine->CompileOpcode( OP_ABORT );
+    pEngine->CompileBuiltinOpcode( OP_ABORT );
     pEngine->CompileLong( 0 );
 }
 
@@ -844,7 +846,7 @@ FORTHOP(loopOp)
 	long doOpcode = pShellStack->Pop();
     *pDoOp++ = doOpcode;
     // compile the "_loop" opcode
-    pEngine->CompileOpcode( OP_DO_LOOP );
+    pEngine->CompileBuiltinOpcode( OP_DO_LOOP );
     // fill in the branch to after loop opcode
     *pDoOp = COMPILED_OP( kOpBranch, (GET_DP - pDoOp) - 1 );
 }
@@ -864,7 +866,7 @@ FORTHOP(loopNOp)
 	long doOpcode = pShellStack->Pop();
     *pDoOp++ = doOpcode;
     // compile the "_loop" opcode
-    pEngine->CompileOpcode( OP_DO_LOOPN );
+    pEngine->CompileBuiltinOpcode( OP_DO_LOOPN );
     // fill in the branch to after loop opcode
     *pDoOp = COMPILED_OP( kOpBranch, (GET_DP - pDoOp) - 1 );
 }
@@ -992,7 +994,7 @@ FORTHOP( ifOp )
     // flag that this is the "if" branch
     pShellStack->Push( kShellTagIf );
     // this will be fixed by else/endif
-    pEngine->CompileOpcode( OP_ABORT );
+    pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
 
 
@@ -1013,7 +1015,7 @@ FORTHOP( elseOp )
     // flag that this is the "else" branch
     pShellStack->Push( kShellTagElse );
     // this will be fixed by endif
-    pEngine->CompileOpcode( OP_ABORT );
+    pEngine->CompileBuiltinOpcode( OP_ABORT );
     // fill in the branch taken when "if" arg is false
     *pIfOp = COMPILED_OP( kOpBranchZ, (GET_DP - pIfOp) - 1 );
 }
@@ -1087,7 +1089,7 @@ FORTHOP( whileOp )
     pShellStack->Push( (long) GET_DP );
     pShellStack->Push( kShellTagWhile );
     // repeat will fill this in
-    pEngine->CompileOpcode( OP_ABORT );
+    pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
 
 
@@ -1153,7 +1155,7 @@ FORTHOP( ofOp )
     pShellStack->Push( kShellTagOf );
     pShellStack->Push( kShellTagCase );
     // this will be set to a caseBranch by endof
-    pEngine->CompileOpcode( OP_ABORT );
+    pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
 
 
@@ -1173,9 +1175,9 @@ FORTHOP( ofifOp )
     pShellStack->Push( kShellTagOfIf );
     pShellStack->Push( kShellTagCase );
     // this will be set to a zBranch by endof
-    pEngine->CompileOpcode( OP_ABORT );
+    pEngine->CompileBuiltinOpcode( OP_ABORT );
 	// if the ofif test succeeded, we need to dispose of the switch input value
-    pEngine->CompileOpcode( OP_DROP );
+    pEngine->CompileBuiltinOpcode( OP_DROP );
 }
 
 
@@ -1189,7 +1191,7 @@ FORTHOP( endofOp )
     long *pDP = GET_DP;
 
     // this will be fixed by endcase
-    pEngine->CompileOpcode( OP_ABORT );
+    pEngine->CompileBuiltinOpcode( OP_ABORT );
 
     if ( !pShell->CheckSyntaxError( "endof", pShellStack->Pop(), kShellTagCase ) )
     {
@@ -1235,7 +1237,7 @@ FORTHOP( endcaseOp )
     {
         // there is no default case, we must compile a "drop" to
         //   dispose of the case selector on TOS
-        pEngine->CompileOpcode( OP_DROP );
+        pEngine->CompileBuiltinOpcode( OP_DROP );
     }
     // patch branches from end-of-case to common exit point
     while ( (pEndofOp = (long *) (pShellStack->Pop())) != NULL )
@@ -2585,12 +2587,12 @@ FORTHOP( doesOp )
     ForthEngine *pEngine = GET_ENGINE;
     
     // compile dodoes opcode & dummy word
-    pEngine->CompileOpcode( OP_END_BUILDS );
+    pEngine->CompileBuiltinOpcode( OP_END_BUILDS );
     pEngine->CompileLong( 0 );
     // create a nameless vocabulary entry for does-body opcode
     newUserOp = pEngine->AddOp( GET_DP, kOpUserDef );
     newUserOp = COMPILED_OP( kOpUserDef, newUserOp );
-    pEngine->CompileOpcode( OP_DO_DOES );
+    pEngine->CompileBuiltinOpcode( OP_DO_DOES );
     // stuff does-body opcode in dummy word
     GET_DP[-2] = newUserOp;
     // compile local vars allocation op (if needed)
@@ -2635,19 +2637,19 @@ FORTHOP( exitOp )
     {
     case 0:
         // normal definition, no local vars, not a method
-        pEngine->CompileOpcode( OP_DO_EXIT );
+        pEngine->CompileBuiltinOpcode( OP_DO_EXIT );
         break;
     case kEngineFlagHasLocalVars:
         // normal definition with local vars
-        pEngine->CompileOpcode( OP_DO_EXIT_L );
+        pEngine->CompileBuiltinOpcode( OP_DO_EXIT_L );
         break;
     case kEngineFlagIsMethod:
         // method definition, no local vars
-        pEngine->CompileOpcode( OP_DO_EXIT_M );
+        pEngine->CompileBuiltinOpcode( OP_DO_EXIT_M );
         break;
     case (kEngineFlagHasLocalVars | kEngineFlagIsMethod):
         // method definition, with local vars
-        pEngine->CompileOpcode( OP_DO_EXIT_ML );
+        pEngine->CompileBuiltinOpcode( OP_DO_EXIT_ML );
         break;
     }
 }
@@ -2684,7 +2686,7 @@ FORTHOP( codeOp )
     long* pEntry = pEngine->StartOpDefinition( NULL, false );
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     long newestOp = *pEntry;
-    *pEntry = COMPILED_OP( kOpUserCode, FORTH_OP_VALUE( newestOp ) );
+    *pEntry = COMPILED_OP( kOpNative, FORTH_OP_VALUE( newestOp ) );
 }
 
 FORTHOP( createOp )
@@ -2693,7 +2695,7 @@ FORTHOP( createOp )
     // get next symbol, add it to vocabulary with type "user op"
     long* pEntry = pEngine->StartOpDefinition( NULL, false );
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
-    pEngine->CompileOpcode( OP_DO_VAR );
+    pEngine->CompileBuiltinOpcode( OP_DO_VAR );
 }
 
 FORTHOP( forthVocabOp )
@@ -2741,7 +2743,7 @@ FORTHOP( vocabularyOp )
     char* pVocabName = pEngine->GetNextSimpleToken();
     long* pEntry = pEngine->StartOpDefinition( pVocabName );
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
-    pEngine->CompileOpcode( OP_DO_VOCAB );
+    pEngine->CompileBuiltinOpcode( OP_DO_VOCAB );
     ForthVocabulary* pVocab = new ForthVocabulary( pVocabName,
                                                    NUM_FORTH_VOCAB_VALUE_LONGS,
                                                    512,
@@ -2914,7 +2916,7 @@ FORTHOP( variableOp )
     // get next symbol, add it to vocabulary with type "user op"
     long* pEntry = pEngine->StartOpDefinition();
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
-    pEngine->CompileOpcode( OP_DO_VAR );
+    pEngine->CompileBuiltinOpcode( OP_DO_VAR );
     pEngine->CompileLong( 0 );
 }
 
@@ -2930,7 +2932,7 @@ FORTHOP( constantOp )
     ForthEngine *pEngine = GET_ENGINE;
     long* pEntry = pEngine->StartOpDefinition();
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
-    pEngine->CompileOpcode( OP_DO_CONSTANT );
+    pEngine->CompileBuiltinOpcode( OP_DO_CONSTANT );
     pEngine->CompileLong( SPOP );
 }
 
@@ -2946,7 +2948,7 @@ FORTHOP( dconstantOp )
     ForthEngine *pEngine = GET_ENGINE;
     long* pEntry = pEngine->StartOpDefinition();
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
-    pEngine->CompileOpcode( OP_DO_DCONSTANT );
+    pEngine->CompileBuiltinOpcode( OP_DO_DCONSTANT );
     double d = DPOP;
     pEngine->CompileDouble( d );
 }
@@ -3026,7 +3028,7 @@ FORTHOP( stringOp )
 
 FORTHOP( opOp )
 {
-    int val = OP_BAD_OP;
+    int val = gCompiledOps[ OP_BAD_OP] ;
 	gNativeTypeOp.DefineInstance( GET_ENGINE, &val );
 }
 
@@ -3080,7 +3082,7 @@ FORTHOP( structOp )
     pEngine->SetFlag( kEngineFlagInStructDefinition );
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthStructVocabulary* pVocab = pManager->StartStructDefinition( pEngine->GetNextSimpleToken() );
-    pEngine->CompileOpcode( OP_DO_STRUCT_TYPE );
+    pEngine->CompileBuiltinOpcode( OP_DO_STRUCT_TYPE );
     pEngine->CompileLong( (long) pVocab );
 }
 
@@ -3434,7 +3436,7 @@ FORTHOP( newOp )
         {
             if ( pEngine->IsCompiling() )
             {
-                pEngine->CompileOpcode( OP_DO_NEW );
+                pEngine->CompileBuiltinOpcode( OP_DO_NEW );
                 pEngine->CompileLong( (long) pClassVocab );
             }
             else
@@ -3543,7 +3545,7 @@ FORTHOP( enumOp )
     pEngine->StartEnumDefinition();
     long* pEntry = pEngine->StartOpDefinition();
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
-    pEngine->CompileOpcode( OP_DO_ENUM );
+    pEngine->CompileBuiltinOpcode( OP_DO_ENUM );
 }
 
 FORTHOP( endenumOp )
@@ -3645,16 +3647,16 @@ FORTHOP( precedenceOp )
         ulong opVal = FORTH_OP_VALUE( op );
         switch ( FORTH_OP_TYPE( op ) )
         {
-            case kOpBuiltIn:
-                *pEntry = COMPILED_OP( kOpBuiltInImmediate, opVal );
+            case kOpNative:
+                *pEntry = COMPILED_OP( kOpNativeImmediate, opVal );
                 break;
 
             case kOpUserDef:
                 *pEntry = COMPILED_OP( kOpUserDefImmediate, opVal );
                 break;
 
-            case kOpUserCode:
-                *pEntry = COMPILED_OP( kOpUserCodeImmediate, opVal );
+            case kOpCCode:
+                *pEntry = COMPILED_OP( kOpCCodeImmediate, opVal );
                 break;
 
             default:
@@ -3780,7 +3782,7 @@ FORTHOP( executeOp )
 
 	// execute the opcode
     prog[0] = SPOP;
-    prog[1] = BUILTIN_OP( OP_DONE );
+    prog[1] = gCompiledOps[ OP_DONE] ;
     
     SET_IP( prog );
     InnerInterpreter( pCore );
@@ -3813,7 +3815,7 @@ FORTHOP( bracketTickOp )
     long *pSymbol = pEngine->FindSymbol( pToken );
     if ( pSymbol != NULL )
     {
-        pEngine->CompileOpcode( OP_INT_VAL );
+        pEngine->CompileBuiltinOpcode( OP_INT_VAL );
         pEngine->CompileLong( *pSymbol );
     }
     else
@@ -4689,7 +4691,7 @@ FORTHOP( statsOp )
              pCore->SP, pCore->ST, pCore->SLen,
              pCore->RP, pCore->RT, pCore->RLen );
     CONSOLE_STRING_OUT( buff );
-    sprintf( buff, "%d builtins    %d userops\n", pCore->numBuiltinOps, pCore->numUserOps );
+    sprintf( buff, "%d builtins    %d userops\n", pCore->numBuiltinOps, pCore->numOps );
     CONSOLE_STRING_OUT( buff );
 }
 
@@ -4783,7 +4785,7 @@ FORTHOP( DLLVocabularyOp )
                                                          512,
                                                          GET_DP,
                                                          ForthVocabulary::GetEntryValue( pDefinitionsVocab->GetNewestEntry() ) );
-    pEngine->CompileOpcode( OP_DO_VOCAB );
+    pEngine->CompileBuiltinOpcode( OP_DO_VOCAB );
     pVocab->LoadDLL();
     pEngine->CompileLong( (long) pVocab );
 }
@@ -5821,355 +5823,422 @@ extern GFORTHOP( doOpArrayOp );
 extern GFORTHOP( doLongArrayOp );
 extern GFORTHOP( doObjectArrayOp );
 
+typedef struct {
+   const char       *name;
+   ulong            flags;
+   ulong            value;
+   int				index;
+} baseDictionaryCompiledEntry;
+
+// helper macro for built-in op entries in baseDictionary
+#define NATIVE_DEF( func, funcName )  { funcName, kOpNative, (ulong) func }
+#define NATIVE_COMPILED_DEF( func, funcName, index )  { funcName, kOpNative, (ulong) func, index }
+
+// helper macro for built-in op entries in baseDictionary
+#define OP_DEF( func, funcName )  { funcName, kOpCCode, (ulong) func }
+#define OP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCode, (ulong) func, index }
+
+// helper macro for ops which have precedence (execute at compile time)
+#define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate, (ulong) func }
+#define PRECOP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCodeImmediate, (ulong) func }
+
+extern GFORTHOP( abortBop ); extern GFORTHOP( dropBop ); extern GFORTHOP( doDoesBop ); extern GFORTHOP( litBop ); extern GFORTHOP( dlitBop ); extern GFORTHOP( doVariableBop );
+extern GFORTHOP( doConstantBop ); extern GFORTHOP( doDConstantBop ); extern GFORTHOP( doneBop ); extern GFORTHOP( doByteBop ); extern GFORTHOP( doUByteBop ); extern GFORTHOP( doShortBop );
+extern GFORTHOP( doUShortBop ); extern GFORTHOP( doIntBop ); extern GFORTHOP( doLongBop ); extern GFORTHOP( doFloatBop );
+extern GFORTHOP( doDoubleBop ); extern GFORTHOP( doStringBop ); extern GFORTHOP( doOpBop ); extern GFORTHOP( doObjectBop ); extern GFORTHOP( doExitBop ); extern GFORTHOP( doExitLBop );
+extern GFORTHOP( doExitMBop ); extern GFORTHOP( doExitMLBop ); extern GFORTHOP( doByteArrayBop ); extern GFORTHOP( doUByteArrayBop ); extern GFORTHOP( doShortArrayBop ); extern GFORTHOP( doUShortArrayBop );
+extern GFORTHOP( doIntArrayBop ); extern GFORTHOP( doIntArrayBop ); extern GFORTHOP( doLongArrayBop ); extern GFORTHOP( doLongArrayBop ); extern GFORTHOP( doFloatArrayBop ); extern GFORTHOP( doDoubleArrayBop );
+extern GFORTHOP( doStringArrayBop ); extern GFORTHOP( doOpArrayBop ); extern GFORTHOP( doObjectArrayBop ); extern GFORTHOP( initStringBop ); extern GFORTHOP( plusBop ); extern GFORTHOP( fetchBop );
+extern GFORTHOP( doStructBop ); extern GFORTHOP( doStructArrayBop ); extern GFORTHOP( doDoBop ); extern GFORTHOP( doLoopBop ); extern GFORTHOP( doLoopNBop ); extern GFORTHOP( dfetchBop );
+extern GFORTHOP( vocabToClassBop ); extern GFORTHOP( addressOfBop ); extern GFORTHOP( intoBop ); extern GFORTHOP( addToBop ); extern GFORTHOP( subtractFromBop ); extern GFORTHOP( doCheckDoBop );
+extern GFORTHOP( thisBop ); extern GFORTHOP( thisDataBop ); extern GFORTHOP( thisMethodsBop ); extern GFORTHOP( executeBop ); extern GFORTHOP( callBop ); extern GFORTHOP( gotoBop );
+extern GFORTHOP( iBop ); extern GFORTHOP( jBop ); extern GFORTHOP( unloopBop ); extern GFORTHOP( leaveBop ); extern GFORTHOP( hereBop ); extern GFORTHOP( addressOfBop );
+extern GFORTHOP( intoBop ); extern GFORTHOP( addToBop ); extern GFORTHOP( subtractFromBop ); extern GFORTHOP( removeEntryBop ); extern GFORTHOP( entryLengthBop ); extern GFORTHOP( numEntriesBop );
+extern GFORTHOP( minusBop ); extern GFORTHOP( timesBop ); extern GFORTHOP( utimesBop ); extern GFORTHOP( times2Bop ); extern GFORTHOP( times4Bop ); extern GFORTHOP( times8Bop );
+extern GFORTHOP( divideBop ); extern GFORTHOP( divide2Bop ); extern GFORTHOP( divide4Bop ); extern GFORTHOP( divide8Bop ); extern GFORTHOP( divmodBop ); extern GFORTHOP( modBop );
+extern GFORTHOP( negateBop ); extern GFORTHOP( fplusBop ); extern GFORTHOP( fminusBop ); extern GFORTHOP( ftimesBop ); extern GFORTHOP( fdivideBop ); extern GFORTHOP( fEqualsBop );
+extern GFORTHOP( fNotEqualsBop ); extern GFORTHOP( fGreaterThanBop ); extern GFORTHOP( fGreaterEqualsBop ); extern GFORTHOP( fLessThanBop ); extern GFORTHOP( fLessEqualsBop ); extern GFORTHOP( fEqualsZeroBop );
+extern GFORTHOP( fNotEqualsZeroBop ); extern GFORTHOP( fGreaterThanZeroBop ); extern GFORTHOP( fGreaterEqualsZeroBop ); extern GFORTHOP( fLessThanZeroBop ); extern GFORTHOP( fLessEqualsZeroBop ); extern GFORTHOP( fWithinBop );
+extern GFORTHOP( fMinBop ); extern GFORTHOP( fMaxBop ); extern GFORTHOP( dplusBop ); extern GFORTHOP( dminusBop ); extern GFORTHOP( dtimesBop ); extern GFORTHOP( ddivideBop );
+extern GFORTHOP( dEqualsBop ); extern GFORTHOP( dNotEqualsBop ); extern GFORTHOP( dGreaterThanBop ); extern GFORTHOP( dGreaterEqualsBop ); extern GFORTHOP( dLessThanBop ); extern GFORTHOP( dLessEqualsBop );
+extern GFORTHOP( dEqualsZeroBop ); extern GFORTHOP( dNotEqualsZeroBop ); extern GFORTHOP( dGreaterThanZeroBop ); extern GFORTHOP( dGreaterEqualsZeroBop ); extern GFORTHOP( dLessThanZeroBop ); extern GFORTHOP( dLessEqualsZeroBop );
+extern GFORTHOP( dWithinBop ); extern GFORTHOP( dMinBop ); extern GFORTHOP( dMaxBop ); extern GFORTHOP( dsinBop ); extern GFORTHOP( dasinBop ); extern GFORTHOP( dcosBop );
+extern GFORTHOP( dacosBop ); extern GFORTHOP( dtanBop ); extern GFORTHOP( datanBop ); extern GFORTHOP( datan2Bop ); extern GFORTHOP( dexpBop ); extern GFORTHOP( dlnBop );
+extern GFORTHOP( dlog10Bop ); extern GFORTHOP( dpowBop ); extern GFORTHOP( dsqrtBop ); extern GFORTHOP( dceilBop ); extern GFORTHOP( dfloorBop ); extern GFORTHOP( dabsBop );
+extern GFORTHOP( dldexpBop ); extern GFORTHOP( dfrexpBop ); extern GFORTHOP( dmodfBop ); extern GFORTHOP( dfmodBop ); extern GFORTHOP( i2fBop ); extern GFORTHOP( i2dBop );
+extern GFORTHOP( f2iBop ); extern GFORTHOP( f2dBop ); extern GFORTHOP( d2iBop ); extern GFORTHOP( d2fBop ); extern GFORTHOP( orBop ); extern GFORTHOP( andBop );
+extern GFORTHOP( xorBop ); extern GFORTHOP( invertBop ); extern GFORTHOP( lshiftBop ); extern GFORTHOP( rshiftBop ); extern GFORTHOP( urshiftBop ); extern GFORTHOP( notBop );
+extern GFORTHOP( trueBop ); extern GFORTHOP( falseBop ); extern GFORTHOP( nullBop ); extern GFORTHOP( dnullBop ); extern GFORTHOP( equalsBop ); extern GFORTHOP( notEqualsBop );
+extern GFORTHOP( greaterThanBop ); extern GFORTHOP( greaterEqualsBop ); extern GFORTHOP( lessThanBop ); extern GFORTHOP( lessEqualsBop ); extern GFORTHOP( equalsZeroBop ); extern GFORTHOP( notEqualsZeroBop );
+extern GFORTHOP( greaterThanZeroBop ); extern GFORTHOP( greaterEqualsZeroBop ); extern GFORTHOP( lessThanZeroBop ); extern GFORTHOP( lessEqualsZeroBop ); extern GFORTHOP( unsignedGreaterThanBop ); extern GFORTHOP( unsignedLessThanBop );
+extern GFORTHOP( withinBop ); extern GFORTHOP( minBop ); extern GFORTHOP( maxBop ); extern GFORTHOP( rpushBop ); extern GFORTHOP( rpopBop ); extern GFORTHOP( rpeekBop );
+extern GFORTHOP( rdropBop ); extern GFORTHOP( rpBop ); extern GFORTHOP( rzeroBop ); extern GFORTHOP( dupBop ); extern GFORTHOP( dupNonZeroBop ); extern GFORTHOP( swapBop );
+extern GFORTHOP( overBop ); extern GFORTHOP( rotBop ); extern GFORTHOP( reverseRotBop ); extern GFORTHOP( nipBop ); extern GFORTHOP( tuckBop ); extern GFORTHOP( pickBop );
+extern GFORTHOP( spBop ); extern GFORTHOP( szeroBop ); extern GFORTHOP( fpBop ); extern GFORTHOP( ipBop ); extern GFORTHOP( ddupBop );
+extern GFORTHOP( dswapBop ); extern GFORTHOP( ddropBop ); extern GFORTHOP( doverBop ); extern GFORTHOP( drotBop ); extern GFORTHOP( startTupleBop ); extern GFORTHOP( endTupleBop );
+extern GFORTHOP( storeBop ); extern GFORTHOP( storeNextBop ); extern GFORTHOP( fetchNextBop ); extern GFORTHOP( cstoreBop ); extern GFORTHOP( cfetchBop ); extern GFORTHOP( cstoreNextBop );
+extern GFORTHOP( cfetchNextBop ); extern GFORTHOP( scfetchBop ); extern GFORTHOP( c2lBop ); extern GFORTHOP( wstoreBop ); extern GFORTHOP( wfetchBop ); extern GFORTHOP( wstoreNextBop );
+extern GFORTHOP( wfetchNextBop ); extern GFORTHOP( swfetchBop ); extern GFORTHOP( w2lBop ); extern GFORTHOP( dstoreBop ); extern GFORTHOP( dstoreNextBop ); extern GFORTHOP( dfetchNextBop );
+extern GFORTHOP( memcpyBop ); extern GFORTHOP( memsetBop ); extern GFORTHOP( setVarActionBop ); extern GFORTHOP( getVarActionBop ); extern GFORTHOP( byteVarActionBop ); extern GFORTHOP( ubyteVarActionBop );
+extern GFORTHOP( shortVarActionBop ); extern GFORTHOP( ushortVarActionBop ); extern GFORTHOP( intVarActionBop ); extern GFORTHOP( longVarActionBop ); extern GFORTHOP( floatVarActionBop ); extern GFORTHOP( doubleVarActionBop );
+extern GFORTHOP( stringVarActionBop ); extern GFORTHOP( opVarActionBop ); extern GFORTHOP( objectVarActionBop ); extern GFORTHOP( strcpyBop ); extern GFORTHOP( strncpyBop ); extern GFORTHOP( strlenBop );
+extern GFORTHOP( strcatBop ); extern GFORTHOP( strncatBop ); extern GFORTHOP( strchrBop ); extern GFORTHOP( strrchrBop ); extern GFORTHOP( strcmpBop ); extern GFORTHOP( stricmpBop );
+extern GFORTHOP( strstrBop ); extern GFORTHOP( strtokBop ); extern GFORTHOP( fopenBop ); extern GFORTHOP( fcloseBop ); extern GFORTHOP( fseekBop ); extern GFORTHOP( freadBop );
+extern GFORTHOP( fwriteBop ); extern GFORTHOP( fgetcBop ); extern GFORTHOP( fputcBop ); extern GFORTHOP( feofBop ); extern GFORTHOP( fexistsBop ); extern GFORTHOP( ftellBop );
+extern GFORTHOP( flenBop ); extern GFORTHOP( fgetsBop ); extern GFORTHOP( fputsBop );
+
+baseDictionaryCompiledEntry baseCompiledDictionary[] =
+{
+	NATIVE_COMPILED_DEF(    abortBop,                "abort",			OP_ABORT ),
+    NATIVE_COMPILED_DEF(    dropBop,                 "drop",			OP_DROP ),
+    NATIVE_COMPILED_DEF(    doDoesBop,               "_doDoes",			OP_DO_DOES ),
+    NATIVE_COMPILED_DEF(    litBop,                  "lit",				OP_INT_VAL ),
+    NATIVE_COMPILED_DEF(    litBop,                  "flit",			OP_FLOAT_VAL ),
+    NATIVE_COMPILED_DEF(    dlitBop,                 "dlit",			OP_DOUBLE_VAL ),
+    NATIVE_COMPILED_DEF(    dlitBop,                 "2lit",			OP_LONG_VAL ),
+    NATIVE_COMPILED_DEF(    doVariableBop,           "_doVariable",		OP_DO_VAR ),
+    NATIVE_COMPILED_DEF(    doConstantBop,           "_doConstant",		OP_DO_CONSTANT ),
+    NATIVE_COMPILED_DEF(    doDConstantBop,          "_doDConstant",	OP_DO_DCONSTANT ),
+    NATIVE_COMPILED_DEF(    doneBop,                 "done",			OP_DONE ),
+    NATIVE_COMPILED_DEF(    doByteBop,               "_doByte",			OP_DO_BYTE ),
+    NATIVE_COMPILED_DEF(    doUByteBop,              "_doUByte",		OP_DO_UBYTE ),
+    NATIVE_COMPILED_DEF(    doShortBop,              "_doShort",		OP_DO_SHORT ),
+	NATIVE_COMPILED_DEF(    doUShortBop,             "_doUShort",		OP_DO_USHORT ),
+    NATIVE_COMPILED_DEF(    doIntBop,                "_doInt",			OP_DO_INT ),
+    NATIVE_COMPILED_DEF(    doIntBop,                "_doUInt",			OP_DO_UINT ),
+    NATIVE_COMPILED_DEF(    doLongBop,               "_doLong",			OP_DO_LONG ),
+    NATIVE_COMPILED_DEF(    doLongBop,               "_doULong",		OP_DO_ULONG ),
+    NATIVE_COMPILED_DEF(    doFloatBop,              "_doFloat",		OP_DO_FLOAT ),
+    NATIVE_COMPILED_DEF(    doDoubleBop,             "_doDouble",		OP_DO_DOUBLE ),
+    NATIVE_COMPILED_DEF(    doStringBop,             "_doString",		OP_DO_STRING ),
+    NATIVE_COMPILED_DEF(    doOpBop,                 "_doOp",			OP_DO_OP ),
+    NATIVE_COMPILED_DEF(    doObjectBop,             "_doObject",		OP_DO_OBJECT ),
+    NATIVE_COMPILED_DEF(    doExitBop,               "_exit",			OP_DO_EXIT ),      // exit normal op with no vars
+    NATIVE_COMPILED_DEF(    doExitLBop,              "_exitL",			OP_DO_EXIT_L ),    // exit normal op with local vars
+    NATIVE_COMPILED_DEF(    doExitMBop,              "_exitM",			OP_DO_EXIT_M ),    // exit method op with no vars
+    NATIVE_COMPILED_DEF(    doExitMLBop,             "_exitML",			OP_DO_EXIT_ML ),   // exit method op with local vars
+	NATIVE_COMPILED_DEF(    doByteArrayBop,          "_doByteArray",	OP_DO_BYTE_ARRAY ),
+    NATIVE_COMPILED_DEF(    doUByteArrayBop,         "_doUByteArray",	OP_DO_UBYTE_ARRAY ),
+    NATIVE_COMPILED_DEF(    doShortArrayBop,         "_doShortArray",	OP_DO_SHORT_ARRAY ),
+    NATIVE_COMPILED_DEF(    doUShortArrayBop,        "_doUShortArray",	OP_DO_USHORT_ARRAY ),	// 32
+    NATIVE_COMPILED_DEF(    doIntArrayBop,           "_doIntArray",		OP_DO_INT_ARRAY ),
+    NATIVE_COMPILED_DEF(    doIntArrayBop,           "_doUIntArray",	OP_DO_UINT_ARRAY ),
+    NATIVE_COMPILED_DEF(    doLongArrayBop,          "_doLongArray",	OP_DO_LONG_ARRAY ),
+    NATIVE_COMPILED_DEF(    doLongArrayBop,          "_doULongArray",	OP_DO_ULONG_ARRAY ),	// 36
+    NATIVE_COMPILED_DEF(    doFloatArrayBop,         "_doFloatArray",	OP_DO_FLOAT_ARRAY ),
+    NATIVE_COMPILED_DEF(    doDoubleArrayBop,        "_doDoubleArray",	OP_DO_DOUBLE_ARRAY ),
+    NATIVE_COMPILED_DEF(    doStringArrayBop,        "_doStringArray",	OP_DO_STRING_ARRAY ),
+    NATIVE_COMPILED_DEF(    doOpArrayBop,            "_doOpArray",		OP_DO_OP_ARRAY ),		// 40
+    NATIVE_COMPILED_DEF(    doObjectArrayBop,        "_doObjectArray",	OP_DO_OBJECT_ARRAY ),
+	NATIVE_COMPILED_DEF(    initStringBop,           "initString",		OP_INIT_STRING ),
+    NATIVE_COMPILED_DEF(    plusBop,                 "+",				OP_PLUS ),				// 44
+    NATIVE_COMPILED_DEF(    fetchBop,                "@",				OP_FETCH ),
+    NATIVE_COMPILED_DEF(    doStructBop,             "_doStruct",		OP_DO_STRUCT ),
+    NATIVE_COMPILED_DEF(    doStructArrayBop,        "_doStructArray",	OP_DO_STRUCT_ARRAY ),	// 48
+    NATIVE_COMPILED_DEF(    doDoBop,                 "_do",				OP_DO_DO ),				// 52
+    NATIVE_COMPILED_DEF(    doLoopBop,               "_loop",			OP_DO_LOOP ),
+    NATIVE_COMPILED_DEF(    doLoopNBop,              "_+loop",			OP_DO_LOOPN ),
+    NATIVE_COMPILED_DEF(    dfetchBop,               "2@",				OP_DFETCH ),				// 56
+    NATIVE_COMPILED_DEF(    vocabToClassBop,         "vocabToClass",	OP_VOCAB_TO_CLASS ),
+    // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
+    NATIVE_COMPILED_DEF(    addressOfBop,            "ref",				OP_REF ),
+	NATIVE_COMPILED_DEF(    intoBop,                 "->",				OP_INTO ),				// 60
+    NATIVE_COMPILED_DEF(    addToBop,                "->+",				OP_INTO_PLUS ),
+    NATIVE_COMPILED_DEF(    subtractFromBop,         "->-",				OP_INTO_MINUS ),
+	NATIVE_COMPILED_DEF(    doCheckDoBop,            "_?do",			OP_DO_CHECKDO ),
+
+	OP_COMPILED_DEF(		doVocabOp,              "_doVocab",			OP_DO_VOCAB ),
+	OP_COMPILED_DEF(		initStringArrayOp,      "initStringArray",	OP_INIT_STRING_ARRAY ),
+    OP_COMPILED_DEF(		badOpOp,                "badOp",			OP_BAD_OP ),
+	OP_COMPILED_DEF(		doStructTypeOp,         "_doStructType",	OP_DO_STRUCT_TYPE ),
+    OP_COMPILED_DEF(		doClassTypeOp,          "_doClassType",		OP_DO_CLASS_TYPE ),
+    PRECOP_COMPILED_DEF(	doEnumOp,               "_doEnum",			OP_DO_ENUM ),
+    OP_COMPILED_DEF(		doNewOp,                "_doNew",			OP_DO_NEW ),
+    OP_COMPILED_DEF(		allocObjectOp,          "_allocObject",		OP_ALLOC_OBJECT ),
+	OP_COMPILED_DEF(		superOp,                "super",			OP_SUPER ),
+    OP_COMPILED_DEF(		endBuildsOp,            "_endBuilds",		OP_END_BUILDS ),
+    // following must be last in table
+    OP_COMPILED_DEF(		NULL,                   NULL,					-1 )
+};
+
+
+
 baseDictionaryEntry baseDictionary[] =
 {
-    ///////////////////////////////////////////
-    //  STUFF WHICH IS COMPILED BY OTHER WORDS
-    //   DO NOT REARRANGE UNDER PAIN OF DEATH
-    ///////////////////////////////////////////
-    OP_DEF(    abortOp,                "abort" ),           // 0
-    OP_DEF(    dropOp,                 "drop" ),
-    OP_DEF(    doDoesOp,               "_doDoes" ),
-    OP_DEF(    litOp,                  "lit" ),
-    OP_DEF(    litOp,                  "flit" ),            // 4
-    OP_DEF(    dlitOp,                 "dlit" ),
-    OP_DEF(    doVariableOp,           "_doVariable" ),
-    OP_DEF(    doConstantOp,           "_doConstant" ),
-    OP_DEF(    doDConstantOp,          "_doDConstant" ),    // 8
-    OP_DEF(    endBuildsOp,            "_endBuilds" ),
-    OP_DEF(    doneOp,                 "done" ),
-    OP_DEF(    doByteOp,               "_doByte" ),
-    OP_DEF(    doUByteOp,              "_doUByte" ),        // 12
-    OP_DEF(    doShortOp,              "_doShort" ),
-    OP_DEF(    doUShortOp,             "_doUShort" ),
-    OP_DEF(    doIntOp,                "_doInt" ),
-    OP_DEF(    doIntOp,                "_doUInt" ),		    // 16
-    OP_DEF(    doLongOp,               "_doLong" ),
-    OP_DEF(    doLongOp,               "_doULong" ),
-    OP_DEF(    doFloatOp,              "_doFloat" ),
-    OP_DEF(    doDoubleOp,             "_doDouble" ),		// 20
-    OP_DEF(    doStringOp,             "_doString" ),
-    OP_DEF(    doOpOp,                 "_doOp" ),
-    OP_DEF(    doObjectOp,             "_doObject" ),
-    OP_DEF(    doExitOp,               "_exit" ),      // exit normal op with no vars
-    OP_DEF(    doExitLOp,              "_exitL" ),     // exit normal op with local vars
-    OP_DEF(    doExitMOp,              "_exitM" ),     // exit method op with no vars
-    OP_DEF(    doExitMLOp,             "_exitML" ),    // exit method op with local vars
-    OP_DEF(    doVocabOp,              "_doVocab" ),		// 28
-    OP_DEF(    doByteArrayOp,          "_doByteArray" ),
-    OP_DEF(    doUByteArrayOp,         "_doUByteArray" ),
-    OP_DEF(    doShortArrayOp,         "_doShortArray" ),
-    OP_DEF(    doUShortArrayOp,        "_doUShortArray" ),	// 32
-    OP_DEF(    doIntArrayOp,           "_doIntArray" ),
-    OP_DEF(    doIntArrayOp,           "_doUIntArray" ),
-    OP_DEF(    doLongArrayOp,          "_doLongArray" ),
-    OP_DEF(    doLongArrayOp,          "_doULongArray" ),	// 36
-    OP_DEF(    doFloatArrayOp,         "_doFloatArray" ),
-    OP_DEF(    doDoubleArrayOp,        "_doDoubleArray" ),
-    OP_DEF(    doStringArrayOp,        "_doStringArray" ),
-    OP_DEF(    doOpArrayOp,            "_doOpArray" ),		// 40
-    OP_DEF(    doObjectArrayOp,        "_doObjectArray" ),
-    OP_DEF(    initStringOp,           "initString" ),
-    OP_DEF(    initStringArrayOp,      "initStringArray" ),
-    OP_DEF(    plusOp,                 "+" ),				// 44
-    OP_DEF(    fetchOp,                "@" ),
-    OP_DEF(    badOpOp,                "badOp" ),
-    OP_DEF(    doStructOp,             "_doStruct" ),
-    OP_DEF(    doStructArrayOp,        "_doStructArray" ),	// 48
-    OP_DEF(    doStructTypeOp,         "_doStructType" ),
-    OP_DEF(    doClassTypeOp,          "_doClassType" ),
-    PRECOP_DEF(doEnumOp,               "_doEnum" ),
-    OP_DEF(    doDoOp,                 "_do" ),				// 52
-    OP_DEF(    doLoopOp,               "_loop" ),
-    OP_DEF(    doLoopNOp,              "_+loop" ),
-    OP_DEF(    doNewOp,                "_doNew" ),
-    OP_DEF(    dfetchOp,               "2@" ),				// 56
-    OP_DEF(    allocObjectOp,          "_allocObject" ),
-    OP_DEF(    vocabToClassOp,         "vocabToClass" ),
-    // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
-    OP_DEF(    addressOfOp,            "ref" ),
-    OP_DEF(    intoOp,                 "->" ),				// 60
-    OP_DEF(    addToOp,                "->+" ),
-    OP_DEF(    subtractFromOp,         "->-" ),
-    OP_DEF(    superOp,                "super" ),
-	OP_DEF(    doCheckDoOp,            "_?do" ),
-
-    // stuff below this line can be rearranged
-    OP_DEF(    thisOp,                 "this" ),
-    OP_DEF(    thisDataOp,             "thisData" ),
-    OP_DEF(    thisMethodsOp,          "thisMethods" ),
-    OP_DEF(    executeOp,              "execute" ),
-    OP_DEF(    callOp,                 "call" ),
-    OP_DEF(    gotoOp,                 "goto" ),
-    OP_DEF(    iOp,                    "i" ),
-    OP_DEF(    jOp,                    "j" ),
-    OP_DEF(    unloopOp,               "unloop" ),
-    OP_DEF(    leaveOp,                "leave" ),
-    OP_DEF(    hereOp,                 "here" ),
+	NATIVE_DEF(    thisBop,                 "this" ),
+    NATIVE_DEF(    thisDataBop,             "thisData" ),
+    NATIVE_DEF(    thisMethodsBop,          "thisMethods" ),
+    NATIVE_DEF(    executeBop,              "execute" ),
+    NATIVE_DEF(    callBop,                 "call" ),
+    NATIVE_DEF(    gotoBop,                 "goto" ),
+    NATIVE_DEF(    iBop,                    "i" ),
+    NATIVE_DEF(    jBop,                    "j" ),
+    NATIVE_DEF(    unloopBop,               "unloop" ),
+    NATIVE_DEF(    leaveBop,                "leave" ),
+    NATIVE_DEF(    hereBop,                 "here" ),
     // vocabulary varActions
-    OP_DEF(    addressOfOp,            "getNewest" ),
-    OP_DEF(    intoOp,                 "findEntry" ),
-    OP_DEF(    addToOp,                "findEntryValue" ),
-    OP_DEF(    subtractFromOp,         "addEntry" ),
-    OP_DEF(    removeEntryOp,          "removeEntry" ),
-    OP_DEF(    entryLengthOp,          "entryLength" ),
-    OP_DEF(    numEntriesOp,           "numEntries" ),
+    NATIVE_DEF(    addressOfBop,            "getNewest" ),
+    NATIVE_DEF(    intoBop,                 "findEntry" ),
+    NATIVE_DEF(    addToBop,                "findEntryValue" ),
+    NATIVE_DEF(    subtractFromBop,         "addEntry" ),
+    NATIVE_DEF(    removeEntryBop,          "removeEntry" ),
+    NATIVE_DEF(    entryLengthBop,          "entryLength" ),
+    NATIVE_DEF(    numEntriesBop,           "numEntries" ),
     
     ///////////////////////////////////////////
     //  integer math
     ///////////////////////////////////////////
-    OP_DEF(    minusOp,                "-" ),
-    OP_DEF(    timesOp,                "*" ),
-    OP_DEF(    utimesOp,               "u*" ),
-    OP_DEF(    times2Op,               "2*" ),
-    OP_DEF(    times4Op,               "4*" ),
-    OP_DEF(    times8Op,               "8*" ),
-    OP_DEF(    divideOp,               "/" ),
-    OP_DEF(    divide2Op,              "2/" ),
-    OP_DEF(    divide4Op,              "4/" ),
-    OP_DEF(    divide8Op,              "8/" ),
-    OP_DEF(    divmodOp,               "/mod" ),
-    OP_DEF(    modOp,                  "mod" ),
-    OP_DEF(    negateOp,               "negate" ),
+    NATIVE_DEF(    minusBop,                "-" ),
+    NATIVE_DEF(    timesBop,                "*" ),
+    NATIVE_DEF(    utimesBop,               "u*" ),
+    NATIVE_DEF(    times2Bop,               "2*" ),
+    NATIVE_DEF(    times4Bop,               "4*" ),
+    NATIVE_DEF(    times8Bop,               "8*" ),
+    NATIVE_DEF(    divideBop,               "/" ),
+    NATIVE_DEF(    divide2Bop,              "2/" ),
+    NATIVE_DEF(    divide4Bop,              "4/" ),
+    NATIVE_DEF(    divide8Bop,              "8/" ),
+    NATIVE_DEF(    divmodBop,               "/mod" ),
+    NATIVE_DEF(    modBop,                  "mod" ),
+    NATIVE_DEF(    negateBop,               "negate" ),
     
     ///////////////////////////////////////////
     //  single-precision fp math
     ///////////////////////////////////////////
-    OP_DEF(    fplusOp,                "f+" ),
-    OP_DEF(    fminusOp,               "f-" ),
-    OP_DEF(    ftimesOp,               "f*" ),
-    OP_DEF(    fdivideOp,              "f/" ),
+    NATIVE_DEF(    fplusBop,                "f+" ),
+    NATIVE_DEF(    fminusBop,               "f-" ),
+    NATIVE_DEF(    ftimesBop,               "f*" ),
+    NATIVE_DEF(    fdivideBop,              "f/" ),
     
     ///////////////////////////////////////////
     //  single-precision fp comparisons
     ///////////////////////////////////////////
-    OP_DEF(    fEqualsOp,               "f=" ),
-    OP_DEF(    fNotEqualsOp,            "f<>" ),
-    OP_DEF(    fGreaterThanOp,          "f>" ),
-    OP_DEF(    fGreaterEqualsOp,        "f>=" ),
-    OP_DEF(    fLessThanOp,             "f<" ),
-    OP_DEF(    fLessEqualsOp,           "f<=" ),
-    OP_DEF(    fEqualsZeroOp,           "f0=" ),
-    OP_DEF(    fNotEqualsZeroOp,        "f0<>" ),
-    OP_DEF(    fGreaterThanZeroOp,      "f0>" ),
-    OP_DEF(    fGreaterEqualsZeroOp,    "f0>=" ),
-    OP_DEF(    fLessThanZeroOp,         "f0<" ),
-    OP_DEF(    fLessEqualsZeroOp,       "f0<=" ),
-    OP_DEF(    fWithinOp,               "fwithin" ),
-    OP_DEF(    fMinOp,                  "fmin" ),
-    OP_DEF(    fMaxOp,                  "fmax" ),
+    NATIVE_DEF(    fEqualsBop,               "f=" ),
+    NATIVE_DEF(    fNotEqualsBop,            "f<>" ),
+    NATIVE_DEF(    fGreaterThanBop,          "f>" ),
+    NATIVE_DEF(    fGreaterEqualsBop,        "f>=" ),
+    NATIVE_DEF(    fLessThanBop,             "f<" ),
+    NATIVE_DEF(    fLessEqualsBop,           "f<=" ),
+    NATIVE_DEF(    fEqualsZeroBop,           "f0=" ),
+    NATIVE_DEF(    fNotEqualsZeroBop,        "f0<>" ),
+    NATIVE_DEF(    fGreaterThanZeroBop,      "f0>" ),
+    NATIVE_DEF(    fGreaterEqualsZeroBop,    "f0>=" ),
+    NATIVE_DEF(    fLessThanZeroBop,         "f0<" ),
+    NATIVE_DEF(    fLessEqualsZeroBop,       "f0<=" ),
+    NATIVE_DEF(    fWithinBop,               "fwithin" ),
+    NATIVE_DEF(    fMinBop,                  "fmin" ),
+    NATIVE_DEF(    fMaxBop,                  "fmax" ),
 
     ///////////////////////////////////////////
     //  double-precision fp math
     ///////////////////////////////////////////
-    OP_DEF(    dplusOp,                "d+" ),
-    OP_DEF(    dminusOp,               "d-" ),
-    OP_DEF(    dtimesOp,               "d*" ),
-    OP_DEF(    ddivideOp,              "d/" ),
+    NATIVE_DEF(    dplusBop,                "d+" ),
+    NATIVE_DEF(    dminusBop,               "d-" ),
+    NATIVE_DEF(    dtimesBop,               "d*" ),
+    NATIVE_DEF(    ddivideBop,              "d/" ),
 
 
     ///////////////////////////////////////////
     //  double-precision fp comparisons
     ///////////////////////////////////////////
-    OP_DEF(    dEqualsOp,               "d=" ),
-    OP_DEF(    dNotEqualsOp,            "d<>" ),
-    OP_DEF(    dGreaterThanOp,          "d>" ),
-    OP_DEF(    dGreaterEqualsOp,        "d>=" ),
-    OP_DEF(    dLessThanOp,             "d<" ),
-    OP_DEF(    dLessEqualsOp,           "d<=" ),
-    OP_DEF(    dEqualsZeroOp,           "d0=" ),
-    OP_DEF(    dNotEqualsZeroOp,        "d0<>" ),
-    OP_DEF(    dGreaterThanZeroOp,      "d0>" ),
-    OP_DEF(    dGreaterEqualsZeroOp,    "d0>=" ),
-    OP_DEF(    dLessThanZeroOp,         "d0<" ),
-    OP_DEF(    dLessEqualsZeroOp,       "d0<=" ),
-    OP_DEF(    dWithinOp,               "dwithin" ),
-    OP_DEF(    dMinOp,                  "dmin" ),
-    OP_DEF(    dMaxOp,                  "dmax" ),
+    NATIVE_DEF(    dEqualsBop,               "d=" ),
+    NATIVE_DEF(    dNotEqualsBop,            "d<>" ),
+    NATIVE_DEF(    dGreaterThanBop,          "d>" ),
+    NATIVE_DEF(    dGreaterEqualsBop,        "d>=" ),
+    NATIVE_DEF(    dLessThanBop,             "d<" ),
+    NATIVE_DEF(    dLessEqualsBop,           "d<=" ),
+    NATIVE_DEF(    dEqualsZeroBop,           "d0=" ),
+    NATIVE_DEF(    dNotEqualsZeroBop,        "d0<>" ),
+    NATIVE_DEF(    dGreaterThanZeroBop,      "d0>" ),
+    NATIVE_DEF(    dGreaterEqualsZeroBop,    "d0>=" ),
+    NATIVE_DEF(    dLessThanZeroBop,         "d0<" ),
+    NATIVE_DEF(    dLessEqualsZeroBop,       "d0<=" ),
+    NATIVE_DEF(    dWithinBop,               "dwithin" ),
+    NATIVE_DEF(    dMinBop,                  "dmin" ),
+    NATIVE_DEF(    dMaxBop,                  "dmax" ),
 
     ///////////////////////////////////////////
     //  double-precision fp functions
     ///////////////////////////////////////////
-    OP_DEF(    dsinOp,                 "dsin" ),
-    OP_DEF(    dasinOp,                "darcsin" ),
-    OP_DEF(    dcosOp,                 "dcos" ),
-    OP_DEF(    dacosOp,                "darccos" ),
-    OP_DEF(    dtanOp,                 "dtan" ),
-    OP_DEF(    datanOp,                "darctan" ),
-    OP_DEF(    datan2Op,               "darctan2" ),
-    OP_DEF(    dexpOp,                 "dexp" ),
-    OP_DEF(    dlnOp,                  "dln" ),
-    OP_DEF(    dlog10Op,               "dlog10" ),
-    OP_DEF(    dpowOp,                 "dpow" ),
-    OP_DEF(    dsqrtOp,                "dsqrt" ),
-    OP_DEF(    dceilOp,                "dceil" ),
-    OP_DEF(    dfloorOp,               "dfloor" ),
-    OP_DEF(    dabsOp,                 "dabs" ),
-    OP_DEF(    dldexpOp,               "dldexp" ),
-    OP_DEF(    dfrexpOp,               "dfrexp" ),
-    OP_DEF(    dmodfOp,                "dmodf" ),
-    OP_DEF(    dfmodOp,                "dfmod" ),
+    NATIVE_DEF(    dsinBop,                 "dsin" ),
+    NATIVE_DEF(    dasinBop,                "darcsin" ),
+    NATIVE_DEF(    dcosBop,                 "dcos" ),
+    NATIVE_DEF(    dacosBop,                "darccos" ),
+    NATIVE_DEF(    dtanBop,                 "dtan" ),
+    NATIVE_DEF(    datanBop,                "darctan" ),
+    NATIVE_DEF(    datan2Bop,               "darctan2" ),
+    NATIVE_DEF(    dexpBop,                 "dexp" ),
+    NATIVE_DEF(    dlnBop,                  "dln" ),
+    NATIVE_DEF(    dlog10Bop,               "dlog10" ),
+    NATIVE_DEF(    dpowBop,                 "dpow" ),
+    NATIVE_DEF(    dsqrtBop,                "dsqrt" ),
+    NATIVE_DEF(    dceilBop,                "dceil" ),
+    NATIVE_DEF(    dfloorBop,               "dfloor" ),
+    NATIVE_DEF(    dabsBop,                 "dabs" ),
+    NATIVE_DEF(    dldexpBop,               "dldexp" ),
+    NATIVE_DEF(    dfrexpBop,               "dfrexp" ),
+    NATIVE_DEF(    dmodfBop,                "dmodf" ),
+    NATIVE_DEF(    dfmodBop,                "dfmod" ),
     
     ///////////////////////////////////////////
     //  integer/long/float/double conversion
     ///////////////////////////////////////////
-    OP_DEF(    i2fOp,                  "i2f" ), 
-    OP_DEF(    i2dOp,                  "i2d" ),
-    OP_DEF(    f2iOp,                  "f2i" ),
-    OP_DEF(    f2dOp,                  "f2d" ),
-    OP_DEF(    d2iOp,                  "d2i" ),
-    OP_DEF(    d2fOp,                  "d2f" ),
+    NATIVE_DEF(    i2fBop,                  "i2f" ), 
+    NATIVE_DEF(    i2dBop,                  "i2d" ),
+    NATIVE_DEF(    f2iBop,                  "f2i" ),
+    NATIVE_DEF(    f2dBop,                  "f2d" ),
+    NATIVE_DEF(    d2iBop,                  "d2i" ),
+    NATIVE_DEF(    d2fBop,                  "d2f" ),
     
     ///////////////////////////////////////////
     //  bit-vector logic
     ///////////////////////////////////////////
-    OP_DEF(    orOp,                   "or" ),
-    OP_DEF(    andOp,                  "and" ),
-    OP_DEF(    xorOp,                  "xor" ),
-    OP_DEF(    invertOp,               "~" ),
-    OP_DEF(    lshiftOp,               "<<" ),
-    OP_DEF(    rshiftOp,               ">>" ),
-    OP_DEF(    urshiftOp,              "u>>" ),
+    NATIVE_DEF(    orBop,                   "or" ),
+    NATIVE_DEF(    andBop,                  "and" ),
+    NATIVE_DEF(    xorBop,                  "xor" ),
+    NATIVE_DEF(    invertBop,               "~" ),
+    NATIVE_DEF(    lshiftBop,               "<<" ),
+    NATIVE_DEF(    rshiftBop,               ">>" ),
+    NATIVE_DEF(    urshiftBop,              "u>>" ),
 
     ///////////////////////////////////////////
     //  boolean logic
     ///////////////////////////////////////////
-    OP_DEF(    notOp,                  "not" ),
-    OP_DEF(    trueOp,                 "true" ),
-    OP_DEF(    falseOp,                "false" ),
-    OP_DEF(    nullOp,                 "null" ),
-    OP_DEF(    dnullOp,                "dnull" ),
+    NATIVE_DEF(    notBop,                  "not" ),
+    NATIVE_DEF(    trueBop,                 "true" ),
+    NATIVE_DEF(    falseBop,                "false" ),
+    NATIVE_DEF(    nullBop,                 "null" ),
+    NATIVE_DEF(    dnullBop,                "dnull" ),
 
     ///////////////////////////////////////////
     //  integer comparisons
     ///////////////////////////////////////////
-    OP_DEF(    equalsOp,               "=" ),
-    OP_DEF(    notEqualsOp,            "<>" ),
-    OP_DEF(    greaterThanOp,          ">" ),
-    OP_DEF(    greaterEqualsOp,        ">=" ),
-    OP_DEF(    lessThanOp,             "<" ),
-    OP_DEF(    lessEqualsOp,           "<=" ),
-    OP_DEF(    equalsZeroOp,           "0=" ),
-    OP_DEF(    notEqualsZeroOp,        "0<>" ),
-    OP_DEF(    greaterThanZeroOp,      "0>" ),
-    OP_DEF(    greaterEqualsZeroOp,    "0>=" ),
-    OP_DEF(    lessThanZeroOp,         "0<" ),
-    OP_DEF(    lessEqualsZeroOp,       "0<=" ),
-    OP_DEF(    unsignedGreaterThanOp,  "u>" ),
-    OP_DEF(    unsignedLessThanOp,     "u<" ),
-    OP_DEF(    withinOp,               "within" ),
-    OP_DEF(    minOp,                  "min" ),
-    OP_DEF(    maxOp,                  "max" ),
+    NATIVE_DEF(    equalsBop,               "=" ),
+    NATIVE_DEF(    notEqualsBop,            "<>" ),
+    NATIVE_DEF(    greaterThanBop,          ">" ),
+    NATIVE_DEF(    greaterEqualsBop,        ">=" ),
+    NATIVE_DEF(    lessThanBop,             "<" ),
+    NATIVE_DEF(    lessEqualsBop,           "<=" ),
+    NATIVE_DEF(    equalsZeroBop,           "0=" ),
+    NATIVE_DEF(    notEqualsZeroBop,        "0<>" ),
+    NATIVE_DEF(    greaterThanZeroBop,      "0>" ),
+    NATIVE_DEF(    greaterEqualsZeroBop,    "0>=" ),
+    NATIVE_DEF(    lessThanZeroBop,         "0<" ),
+    NATIVE_DEF(    lessEqualsZeroBop,       "0<=" ),
+    NATIVE_DEF(    unsignedGreaterThanBop,  "u>" ),
+    NATIVE_DEF(    unsignedLessThanBop,     "u<" ),
+    NATIVE_DEF(    withinBop,               "within" ),
+    NATIVE_DEF(    minBop,                  "min" ),
+    NATIVE_DEF(    maxBop,                  "max" ),
     
     ///////////////////////////////////////////
     //  stack manipulation
     ///////////////////////////////////////////
-    OP_DEF(    rpushOp,                ">r" ),
-    OP_DEF(    rpopOp,                 "r>" ),
-    OP_DEF(    rpeekOp,                "r@" ),
-    OP_DEF(    rdropOp,                "rdrop" ),
-    OP_DEF(    rpOp,                   "rp" ),
-    OP_DEF(    rzeroOp,                "r0" ),
-    OP_DEF(    dupOp,                  "dup" ),
-    OP_DEF(    dupNonZeroOp,           "?dup" ),
-    OP_DEF(    swapOp,                 "swap" ),
-    OP_DEF(    overOp,                 "over" ),
-    OP_DEF(    rotOp,                  "rot" ),
-    OP_DEF(    reverseRotOp,           "-rot" ),
-    OP_DEF(    nipOp,                  "nip" ),
-    OP_DEF(    tuckOp,                 "tuck" ),
-    OP_DEF(    pickOp,                 "pick" ),
-    OP_DEF(    rollOp,                 "roll" ),
-    OP_DEF(    spOp,                   "sp" ),
-    OP_DEF(    szeroOp,                "s0" ),
-    OP_DEF(    fpOp,                   "fp" ),
-    OP_DEF(    ipOp,                   "ip" ),
-    OP_DEF(    ddupOp,                 "2dup" ),
-    OP_DEF(    dswapOp,                "2swap" ),
-    OP_DEF(    ddropOp,                "2drop" ),
-    OP_DEF(    doverOp,                "2over" ),
-    OP_DEF(    drotOp,                 "2rot" ),
-    OP_DEF(    startTupleOp,           "r[" ),
-    OP_DEF(    endTupleOp,             "]r" ),
+    NATIVE_DEF(    rpushBop,                ">r" ),
+    NATIVE_DEF(    rpopBop,                 "r>" ),
+    NATIVE_DEF(    rpeekBop,                "r@" ),
+    NATIVE_DEF(    rdropBop,                "rdrop" ),
+    NATIVE_DEF(    rpBop,                   "rp" ),
+    NATIVE_DEF(    rzeroBop,                "r0" ),
+    NATIVE_DEF(    dupBop,                  "dup" ),
+    NATIVE_DEF(    dupNonZeroBop,           "?dup" ),
+    NATIVE_DEF(    swapBop,                 "swap" ),
+    NATIVE_DEF(    overBop,                 "over" ),
+    NATIVE_DEF(    rotBop,                  "rot" ),
+    NATIVE_DEF(    reverseRotBop,           "-rot" ),
+    NATIVE_DEF(    nipBop,                  "nip" ),
+    NATIVE_DEF(    tuckBop,                 "tuck" ),
+    NATIVE_DEF(    pickBop,                 "pick" ),
+    NATIVE_DEF(    spBop,                   "sp" ),
+    NATIVE_DEF(    szeroBop,                "s0" ),
+    NATIVE_DEF(    fpBop,                   "fp" ),
+    NATIVE_DEF(    ipBop,                   "ip" ),
+    NATIVE_DEF(    ddupBop,                 "2dup" ),
+    NATIVE_DEF(    dswapBop,                "2swap" ),
+    NATIVE_DEF(    ddropBop,                "2drop" ),
+    NATIVE_DEF(    doverBop,                "2over" ),
+    NATIVE_DEF(    drotBop,                 "2rot" ),
+    NATIVE_DEF(    startTupleBop,           "r[" ),
+    NATIVE_DEF(    endTupleBop,             "]r" ),
 #if 0
-    OP_DEF(    dreverseRotOp,          "-2rot" ),
-    OP_DEF(    dnipOp,                 "2nip" ),
-    OP_DEF(    dtuckOp,                "2tuck" ),
-    OP_DEF(    dpickOp,                "2pick" ),
-    OP_DEF(    drollOp,                "2roll" ),
-    OP_DEF(    ndropOp,                "ndrop" ),
-    OP_DEF(    ndupOp,                 "ndup" ),
-    OP_DEF(    npickOp,                "npick" ),
+    NATIVE_DEF(    dreverseRotBop,          "-2rot" ),
+    NATIVE_DEF(    dnipBop,                 "2nip" ),
+    NATIVE_DEF(    dtuckBop,                "2tuck" ),
+    NATIVE_DEF(    dpickBop,                "2pick" ),
+    NATIVE_DEF(    drollBop,                "2roll" ),
+    NATIVE_DEF(    ndropBop,                "ndrop" ),
+    NATIVE_DEF(    ndupBop,                 "ndup" ),
+    NATIVE_DEF(    npickBop,                "npick" ),
 #endif
 
     ///////////////////////////////////////////
     //  memory store/fetch
     ///////////////////////////////////////////
-    OP_DEF(    storeOp,                "!" ),
-    OP_DEF(    storeNextOp,            "@!++" ),
-    OP_DEF(    fetchNextOp,            "@@++" ),
-    OP_DEF(    cstoreOp,               "c!" ),
-    OP_DEF(    cfetchOp,               "c@" ),
-    OP_DEF(    cstoreNextOp,           "c@!++" ),
-    OP_DEF(    cfetchNextOp,           "c@@++" ),
-    OP_DEF(    scfetchOp,              "sc@" ),
-    OP_DEF(    c2lOp,                  "c2l" ),
-    OP_DEF(    wstoreOp,               "w!" ),
-    OP_DEF(    wfetchOp,               "w@" ),
-    OP_DEF(    wstoreNextOp,           "w@!++" ),
-    OP_DEF(    wfetchNextOp,           "w@@++" ),
-    OP_DEF(    swfetchOp,              "sw@" ),
-    OP_DEF(    w2lOp,                  "w2l" ),
-    OP_DEF(    dstoreOp,               "2!" ),
-    OP_DEF(    dstoreNextOp,           "2@!++" ),
-    OP_DEF(    dfetchNextOp,           "2@@++" ),
-    OP_DEF(    memcpyOp,               "memcpy" ),
-    OP_DEF(    memsetOp,               "memset" ),
-    OP_DEF(    setVarActionOp,         "varAction!" ),
-    OP_DEF(    getVarActionOp,         "varAction@" ),
-    OP_DEF(    byteVarActionOp,        "byteVarAction" ),
-    OP_DEF(    ubyteVarActionOp,       "ubyteVarAction" ),
-    OP_DEF(    shortVarActionOp,       "shortVarAction" ),
-    OP_DEF(    ushortVarActionOp,      "ushortVarAction" ),
-    OP_DEF(    intVarActionOp,         "intVarAction" ),
-    OP_DEF(    longVarActionOp,        "longVarAction" ),
-    OP_DEF(    floatVarActionOp,       "floatVarAction" ),
-    OP_DEF(    doubleVarActionOp,      "doubleVarAction" ),
-    OP_DEF(    stringVarActionOp,      "stringVarAction" ),
-    OP_DEF(    opVarActionOp,          "opVarAction" ),
-    OP_DEF(    objectVarActionOp,      "objectVarAction" ),
+    NATIVE_DEF(    storeBop,                "!" ),
+    NATIVE_DEF(    storeNextBop,            "@!++" ),
+    NATIVE_DEF(    fetchNextBop,            "@@++" ),
+    NATIVE_DEF(    cstoreBop,               "c!" ),
+    NATIVE_DEF(    cfetchBop,               "c@" ),
+    NATIVE_DEF(    cstoreNextBop,           "c@!++" ),
+    NATIVE_DEF(    cfetchNextBop,           "c@@++" ),
+    NATIVE_DEF(    scfetchBop,              "sc@" ),
+    NATIVE_DEF(    c2lBop,                  "c2l" ),
+    NATIVE_DEF(    wstoreBop,               "w!" ),
+    NATIVE_DEF(    wfetchBop,               "w@" ),
+    NATIVE_DEF(    wstoreNextBop,           "w@!++" ),
+    NATIVE_DEF(    wfetchNextBop,           "w@@++" ),
+    NATIVE_DEF(    swfetchBop,              "sw@" ),
+    NATIVE_DEF(    w2lBop,                  "w2l" ),
+    NATIVE_DEF(    dstoreBop,               "2!" ),
+    NATIVE_DEF(    dstoreNextBop,           "2@!++" ),
+    NATIVE_DEF(    dfetchNextBop,           "2@@++" ),
+    NATIVE_DEF(    memcpyBop,               "memcpy" ),
+    NATIVE_DEF(    memsetBop,               "memset" ),
+    NATIVE_DEF(    setVarActionBop,         "varAction!" ),
+    NATIVE_DEF(    getVarActionBop,         "varAction@" ),
+    NATIVE_DEF(    byteVarActionBop,        "byteVarAction" ),
+    NATIVE_DEF(    ubyteVarActionBop,       "ubyteVarAction" ),
+    NATIVE_DEF(    shortVarActionBop,       "shortVarAction" ),
+    NATIVE_DEF(    ushortVarActionBop,      "ushortVarAction" ),
+    NATIVE_DEF(    intVarActionBop,         "intVarAction" ),
+    NATIVE_DEF(    longVarActionBop,        "longVarAction" ),
+    NATIVE_DEF(    floatVarActionBop,       "floatVarAction" ),
+    NATIVE_DEF(    doubleVarActionBop,      "doubleVarAction" ),
+    NATIVE_DEF(    stringVarActionBop,      "stringVarAction" ),
+    NATIVE_DEF(    opVarActionBop,          "opVarAction" ),
+    NATIVE_DEF(    objectVarActionBop,      "objectVarAction" ),
 
     ///////////////////////////////////////////
     //  string manipulation
     ///////////////////////////////////////////
-    OP_DEF(    strcpyOp,               "strcpy" ),
-    OP_DEF(    strncpyOp,              "strncpy" ),
-    OP_DEF(    strlenOp,               "strlen" ),
-    OP_DEF(    strcatOp,               "strcat" ),
-    OP_DEF(    strncatOp,              "strncat" ),
-    OP_DEF(    strchrOp,               "strchr" ),
-    OP_DEF(    strrchrOp,              "strrchr" ),
-    OP_DEF(    strcmpOp,               "strcmp" ),
-    OP_DEF(    stricmpOp,              "stricmp" ),
-    OP_DEF(    strstrOp,               "strstr" ),
-    OP_DEF(    strtokOp,               "strtok" ),
+    NATIVE_DEF(    strcpyBop,               "strcpy" ),
+    NATIVE_DEF(    strncpyBop,              "strncpy" ),
+    NATIVE_DEF(    strlenBop,               "strlen" ),
+    NATIVE_DEF(    strcatBop,               "strcat" ),
+    NATIVE_DEF(    strncatBop,              "strncat" ),
+    NATIVE_DEF(    strchrBop,               "strchr" ),
+    NATIVE_DEF(    strrchrBop,              "strrchr" ),
+    NATIVE_DEF(    strcmpBop,               "strcmp" ),
+    NATIVE_DEF(    stricmpBop,              "stricmp" ),
+    NATIVE_DEF(    strstrBop,               "strstr" ),
+    NATIVE_DEF(    strtokBop,               "strtok" ),
 
     ///////////////////////////////////////////
     //  file manipulation
     ///////////////////////////////////////////
-    OP_DEF(    fopenOp,                "fopen" ),
-    OP_DEF(    fcloseOp,               "fclose" ),
-    OP_DEF(    fseekOp,                "fseek" ),
-    OP_DEF(    freadOp,                "fread" ),
-    OP_DEF(    fwriteOp,               "fwrite" ),
-    OP_DEF(    fgetcOp,                "fgetc" ),
-    OP_DEF(    fputcOp,                "fputc" ),
-    OP_DEF(    feofOp,                 "feof" ),
-    OP_DEF(    fexistsOp,              "fexists" ),
-    OP_DEF(    ftellOp,                "ftell" ),
-    OP_DEF(    flenOp,                 "flen" ),
-    OP_DEF(    fgetsOp,                "fgets" ),
-    OP_DEF(    fputsOp,                "fputs" ),
+    NATIVE_DEF(    fopenBop,                "fopen" ),
+    NATIVE_DEF(    fcloseBop,               "fclose" ),
+    NATIVE_DEF(    fseekBop,                "fseek" ),
+    NATIVE_DEF(    freadBop,                "fread" ),
+    NATIVE_DEF(    fwriteBop,               "fwrite" ),
+    NATIVE_DEF(    fgetcBop,                "fgetc" ),
+    NATIVE_DEF(    fputcBop,                "fputc" ),
+    NATIVE_DEF(    feofBop,                 "feof" ),
+    NATIVE_DEF(    fexistsBop,              "fexists" ),
+    NATIVE_DEF(    ftellBop,                "ftell" ),
+    NATIVE_DEF(    flenBop,                 "flen" ),
+    NATIVE_DEF(    fgetsBop,                "fgets" ),
+    NATIVE_DEF(    fputsBop,                "fputs" ),
 
     // everything below this line does not have an assembler version
 
@@ -6501,7 +6570,7 @@ baseDictionaryEntry baseDictionary[] =
 #endif
 
     // following must be last in table
-    OP_DEF(    NULL,                   "" )
+    OP_DEF(    NULL,                   NULL )
 };
 
 
@@ -6518,6 +6587,27 @@ void audioCallback(void *userdata, unsigned char *stream, int len)
         *stream++ = (i & 1) ? 127 : -128;
     }
 }
+
+void AddForthOps( ForthEngine* pEngine )
+{
+	baseDictionaryCompiledEntry* pCompEntry = baseCompiledDictionary;
+
+	while ( pCompEntry->name != NULL )
+	{
+		long* pEntry = pEngine->AddBuiltinOp( pCompEntry->name, pCompEntry->flags, pCompEntry->value );
+		gCompiledOps[ pCompEntry->index ] = *pEntry;
+		pCompEntry++;
+	}
+
+	baseDictionaryEntry* pDictEntry = baseDictionary;
+
+	while ( pDictEntry->name != NULL )
+	{
+		long* pEntry = pEngine->AddBuiltinOp( pDictEntry->name, pDictEntry->flags, pDictEntry->value );
+		pDictEntry++;
+	}
+}
+
 };  // end extern "C"
 
 

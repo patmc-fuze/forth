@@ -22,8 +22,9 @@ o inside assembler op:
   o ebp is core state ptr
   o edi holds address to jump to reenter inner interpreter
 
-UserCodeAction is an assembly routine in InnerInterp.asm that is called from
-the C++ inner interpreter to execute user code ops.
+NativeAction (this was called UserCodeAction previously) is an assembly routine
+in InnerInterp.asm that is called from the C++ inner interpreter to execute ops
+defined in assembler, both builtin and user code ops.
 
 userCodeType is an assembly routine in InnerInterp.asm that is called from the
 native code inner interpreter to execute user code ops.

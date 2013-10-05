@@ -127,6 +127,29 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 5 2013
+
+I changed how turbo mode works pretty significantly:
+o optype 0 is used for both builtin asm ops and user asm ops
+o builtin ops defined in C are now type kOpCCode
+o there are no duplicate op definitions - builtin ops are defined in asm or C, not both
+o the opcode definitions in Forth.h like OP_FETCH don't need to be kept in
+  sync with the order of op definitions - they are now indices into an array of
+  opcodes
+forthtest and chess work, there is still a crash in biclasstest.
+
+After getting it working I realized I hadn't saved a version of the executables
+from before these changes to compare to, so I backed out my changes, built
+release and debug versions and saved them along with a copy of the scripts.
+I re-added my changes, and decided to change the executable names from both
+debug and release being named ForthMain.exe to being Forth.exe and ForthDebug.exe.
+After doing this, Forth.exe crashes on startup.  I tried reverting the name back
+to ForthMain.exe, but the crash is still there.  After crawling around in map
+files and adding printfs, the crash was because the terminating entry of the
+builtin op list had an empty string instead of a null for its name, I don't know
+why it didn't crash the first time I built it.  Oh well.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 29 2013
 
 The chess turbo mode crash was caused by rpop accessing the param stack instead

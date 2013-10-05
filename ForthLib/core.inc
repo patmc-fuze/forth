@@ -58,7 +58,7 @@ kPrintAllSigned		EQU		1t
 kPrintAllUnsigned		EQU		2t
 
 ; the kOp definitions are all out of date, bogus and luckily unused
-kOpBuiltIn		EQU		0t
+kOpNative		EQU		0t
 kOpUserDef		EQU		1t
 kOpBranch		EQU		2t
 kOpBranchNZ		EQU		3t
@@ -95,12 +95,10 @@ ForthMemorySection	ENDS
 
 ForthCoreState		STRUCT 2t
 optypeAction		DWORD		?
-builtinOps			DWORD		?
 numBuiltinOps		DWORD		?
-numAsmBuiltinOps	DWORD		?
-userOps				DWORD		?
-numUserOps			DWORD		?
-maxUserOps			DWORD		?
+ops					DWORD		?
+numOps				DWORD		?
+maxOps				DWORD		?
 pEngine				DWORD		?
 IPtr				DWORD		?
 SPtr				DWORD		?

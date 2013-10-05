@@ -102,14 +102,12 @@ struct ForthCoreState
 {
     optypeActionRoutine  *optypeAction;
 
-    ForthOp             *builtinOps;
+    //ForthOp             *builtinOps;
     ulong               numBuiltinOps;
 
-    ulong               numAsmBuiltinOps;
-
-    long                **userOps;
-    ulong               numUserOps;
-    ulong               maxUserOps;     // current size of table at pUserOps
+    long                **ops;
+    ulong               numOps;
+    ulong               maxOps;     // current size of table at pUserOps
 
     //ForthEngine         *pEngine;
    void                 *pEngine;
@@ -238,11 +236,11 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define SET_VAR_OPERATION( A )          (pCore->varMode = (A))
 #define CLEAR_VAR_OPERATION             (pCore->varMode = kVarDefaultOp)
 
-#define GET_NUM_USER_OPS                (pCore->numUserOps)
+#define GET_NUM_OPS		                (pCore->numOps)
 
 #define GET_CURRENT_OP                  GetCurrentOp( pCore )
 
-#define USER_OP_TABLE                   (pCore->userOps)
+#define OP_TABLE                        (pCore->ops)
 
 #define SET_ERROR( A )                  CoreSetError( pCore, A, false )
 #define SET_FATAL_ERROR( A )            CoreSetError( pCore, A, true )

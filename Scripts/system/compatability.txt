@@ -1,5 +1,7 @@
 // ansi forth compatability words
 
+requires extops
+
 autoforget compatability
 : compatability ;
 
@@ -19,7 +21,7 @@ autoforget compatability
   '"' word state @
   if
     compileStringLiteral
-    ['] %s ,
+    lit %s ,
   else
     %s
   endif
@@ -30,7 +32,7 @@ precedence ."
   ')' word state @
   if
     compileStringLiteral
-    ['] %s ,
+    lit %s ,
   else
     %s
   endif
@@ -46,9 +48,7 @@ precedence .(
 precedence s"
 : accept stdin fgets strlen ;
 : quit r0 -> rp done ;
-: +! dup @ rot + swap ! ;
-: erase 0 do 0 over c! 1+ loop drop ;
-: abs dup 0< if negate endif ;
+: erase 0 swap memset ;
 : bl ' ' ;
 : emit %c ;
 : does> [compile] does ; precedence does>
@@ -62,3 +62,7 @@ precedence s"
 : char+ + ;
 : count dup strlen swap ;
 : \ 0 word drop ; precedence \
+: type %block ;
+: spaces ?dup if 0 do %bl loop endif ;
+: space %bl ;
+

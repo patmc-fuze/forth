@@ -205,8 +205,8 @@ public:
     virtual ~ForthNativeType();
     virtual void DefineInstance( ForthEngine *pEngine, void *pInitialVal, long flags=0 );
 
-    inline long GetGlobalOp( void ) { return mBaseType + OP_DO_BYTE; };
-    inline long GetGlobalArrayOp( void ) { return mBaseType + OP_DO_BYTE_ARRAY; };
+    inline long GetGlobalOp( void ) { return mBaseType + gCompiledOps[OP_DO_BYTE]; };
+    inline long GetGlobalArrayOp( void ) { return mBaseType + gCompiledOps[OP_DO_BYTE_ARRAY]; };
     inline long GetLocalOp( void ) { return mBaseType + kOpLocalByte; };
     inline long GetFieldOp( void ) { return mBaseType + kOpFieldByte; };
     inline long GetAlignment( void ) { return (mNumBytes > 4) ? 4 : mNumBytes; };

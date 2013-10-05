@@ -9,12 +9,12 @@ definitions
 decimal
 
 enum: _opType
-  builtIn
-  builtInImmediate
+  native
+  nativeInImmediate
   userDef					// low 24 bits is op number (index into ForthCoreState userOps table)
   userDefImmediate
-  userCode					// low 24 bits is op number (index into ForthCoreState userOps table)
-  userCodeImmediate
+  CCode					// low 24 bits is op number (index into ForthCoreState userOps table)
+  CCodeImmediate
   dllEntryPoint				// bits 0:18 are index into ForthCoreState userOps table 19:23 are arg count
   
   // 7 - 9 are unused

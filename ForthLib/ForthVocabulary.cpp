@@ -324,7 +324,8 @@ ForthVocabulary::ForgetSymbol( const char *pSymName )
     {
 
         opType = GetEntryType( pEntry );
-        if ( (opType == kOpBuiltIn) || (opType == kOpBuiltInImmediate) )
+		int opIndex = FORTH_OP_VALUE( *pEntry );
+		if ( opIndex < mpEngine->GetCoreState()->numBuiltinOps )
         {
             // sym is unknown, or in built-in ops - no way
             TRACE( "Error - attempt to forget builtin op %s from %s\n", pSymName, GetName() );
@@ -388,6 +389,7 @@ ForthVocabulary::ForgetOp( long op )
     pNewBottom = NULL;
     // how many symbols are left after forget
     symbolsLeft = mNumSymbols;
+	int opIndex;
 
     while ( symbolsLeft > 0 )
     {
@@ -395,28 +397,33 @@ ForthVocabulary::ForgetOp( long op )
         opType = GetEntryType( pEntry );
         switch ( opType )
         {
-            case kOpBuiltIn:
-            case kOpBuiltInImmediate:
-                // can't forget builtin ops
-                symbolsLeft = 0;
-                break;
-
+            case kOpNative:
+            case kOpNativeImmediate:
             case kOpUserDef:
             case kOpUserDefImmediate:
-            case kOpUserCode:
-            case kOpUserCodeImmediate:
-                opVal = GetEntryValue( pEntry );
-                if ( opVal >= op )
-                {
-                    pEntry = NextEntry( pEntry );
-                    mpStorageBottom = pEntry;
-                    mNumSymbols = symbolsLeft;
-                }
-                else
-                {
-                    // this symbol was defined before the forgotten op, so we are done with this vocab
-                    symbolsLeft = 0;
-                }
+            case kOpCCode:
+            case kOpCCodeImmediate:
+				opIndex = FORTH_OP_VALUE( *pEntry );
+				if ( opIndex < mpEngine->GetCoreState()->numBuiltinOps )
+				{
+					opVal = GetEntryValue( pEntry );
+					if ( opVal >= op )
+					{
+						pEntry = NextEntry( pEntry );
+						mpStorageBottom = pEntry;
+						mNumSymbols = symbolsLeft;
+					}
+					else
+					{
+						// this symbol was defined before the forgotten op, so we are done with this vocab
+						symbolsLeft = 0;
+					}
+				}
+				else
+				{
+					// can't forget builtin ops
+					symbolsLeft = 0;
+				}
                 break;
 
              case kOpConstant:
@@ -591,9 +598,9 @@ ForthVocabulary::ProcessEntry( long* pEntry )
     {
         switch ( FORTH_OP_TYPE( *pEntry ) )
         {
-            case kOpBuiltInImmediate:
+            case kOpNativeImmediate:
             case kOpUserDefImmediate:
-            case kOpUserCodeImmediate:
+            case kOpCCodeImmediate:
                 break;
             default:
                 compileIt = true;
@@ -727,9 +734,14 @@ ForthVocabulary::PrintEntry( long*   pEntry )
     {
     case kOpUserDef:
     case kOpUserDefImmediate:
-    case kOpUserCode:
-    case kOpUserCodeImmediate:
         showCodeAddress = CODE_IS_USER_DEFINITION( pEntry[1] );
+        break;
+    case kOpNative:
+    case kOpNativeImmediate:
+		if ( FORTH_OP_VALUE( *pEntry ) >= mpEngine->GetCoreState()->numBuiltinOps )
+		{
+			showCodeAddress = true;
+		}
         break;
     default:
         break;
@@ -737,9 +749,9 @@ ForthVocabulary::PrintEntry( long*   pEntry )
     if ( showCodeAddress )
     {
         // for user defined ops the second entry field is meaningless, just show code address
-        if ( entryValue < GET_NUM_USER_OPS )
+        if ( entryValue < GET_NUM_OPS )
         {
-            sprintf( buff, "%08x *  ", USER_OP_TABLE[entryValue] );
+            sprintf( buff, "%08x *  ", OP_TABLE[entryValue] );
             CONSOLE_STRING_OUT( buff );
         }
         else

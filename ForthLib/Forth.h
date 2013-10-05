@@ -21,12 +21,12 @@ struct ForthCoreState;
 // NOTE: if you add or reorder op types, make sure that you update ForthEngine::opTypeNames
 typedef enum
 {
-    kOpBuiltIn = 0,
-    kOpBuiltInImmediate,
+    kOpNative = 0,
+    kOpNativeImmediate,
     kOpUserDef,         // low 24 bits is op number (index into ForthCoreState userOps table)
     kOpUserDefImmediate,
-    kOpUserCode,         // low 24 bits is op number (index into ForthCoreState userOps table)
-    kOpUserCodeImmediate,
+    kOpCCode,         // low 24 bits is op number (index into ForthCoreState userOps table)
+    kOpCCodeImmediate,
     kOpDLLEntryPoint,   // bits 0:18 are index into ForthCoreState userOps table, 19:23 are arg count
     // 7 - 9 are unused
 
@@ -276,77 +276,91 @@ typedef struct
 class ForthThread;
 
 #define COMPILED_OP( OP_TYPE, VALUE ) (((OP_TYPE) << 24) | ((VALUE) & OPCODE_VALUE_MASK))
-#define BUILTIN_OP( INDEX )   COMPILED_OP( kOpBuiltIn, INDEX )
+#define BUILTIN_OP( INDEX )   INDEX //COMPILED_OP( kOpBuiltIn, INDEX )
 // These are opcodes that built-in ops must compile directly
 // NOTE: the index field of these opcodes must agree with the
 //  order of builtin dictionary entries in the ForthOps.cpp file
-#define OP_ABORT                BUILTIN_OP(0)
-#define OP_DROP                 BUILTIN_OP(1)
-#define OP_DO_DOES              BUILTIN_OP(2)
-#define OP_INT_VAL              BUILTIN_OP(3)
-#define OP_FLOAT_VAL            BUILTIN_OP(4)
-#define OP_DOUBLE_VAL           BUILTIN_OP(5)
-#define OP_DO_VAR               BUILTIN_OP(6)
-#define OP_DO_CONSTANT          BUILTIN_OP(7)
-#define OP_DO_DCONSTANT         BUILTIN_OP(8)
-#define OP_END_BUILDS           BUILTIN_OP(9)
-#define OP_DONE                 BUILTIN_OP(10)
-#define OP_DO_BYTE              BUILTIN_OP(11)
-#define OP_DO_UBYTE             BUILTIN_OP(12)
-#define OP_DO_SHORT             BUILTIN_OP(13)
-#define OP_DO_USHORT            BUILTIN_OP(14)
-#define OP_DO_INT               BUILTIN_OP(15)
-#define OP_DO_UINT              BUILTIN_OP(16)
-#define OP_DO_LONG              BUILTIN_OP(17)
-#define OP_DO_ULONG             BUILTIN_OP(18)
-#define OP_DO_FLOAT             BUILTIN_OP(19)
-#define OP_DO_DOUBLE            BUILTIN_OP(20)
-#define OP_DO_STRING            BUILTIN_OP(21)
-#define OP_DO_OP                BUILTIN_OP(22)
-#define OP_DO_OBJECT            BUILTIN_OP(23)
-#define OP_DO_EXIT              BUILTIN_OP(24)
-#define OP_DO_EXIT_L            BUILTIN_OP(25)
-#define OP_DO_EXIT_M            BUILTIN_OP(26)
-#define OP_DO_EXIT_ML           BUILTIN_OP(27)
-#define OP_DO_VOCAB             BUILTIN_OP(28)
-#define OP_DO_BYTE_ARRAY        BUILTIN_OP(29)
-#define OP_DO_UBYTE_ARRAY       BUILTIN_OP(30)
-#define OP_DO_SHORT_ARRAY       BUILTIN_OP(31)
-#define OP_DO_USHORT_ARRAY      BUILTIN_OP(32)
-#define OP_DO_INT_ARRAY         BUILTIN_OP(33)
-#define OP_DO_UINT_ARRAY        BUILTIN_OP(34)
-#define OP_DO_LONG_ARRAY        BUILTIN_OP(35)
-#define OP_DO_ULONG_ARRAY       BUILTIN_OP(36)
-#define OP_DO_FLOAT_ARRAY       BUILTIN_OP(37)
-#define OP_DO_DOUBLE_ARRAY      BUILTIN_OP(38)
-#define OP_DO_STRING_ARRAY      BUILTIN_OP(39)
-#define OP_DO_OP_ARRAY          BUILTIN_OP(40)
-#define OP_DO_OBJECT_ARRAY      BUILTIN_OP(41)
-#define OP_INIT_STRING          BUILTIN_OP(42)
-#define OP_INIT_STRING_ARRAY    BUILTIN_OP(43)
-#define OP_PLUS                 BUILTIN_OP(44)
-#define OP_FETCH                BUILTIN_OP(45)
-#define OP_BAD_OP               BUILTIN_OP(46)
-#define OP_DO_STRUCT            BUILTIN_OP(47)
-#define OP_DO_STRUCT_ARRAY      BUILTIN_OP(48)
-#define OP_DO_STRUCT_TYPE       BUILTIN_OP(49)
-#define OP_DO_CLASS_TYPE        BUILTIN_OP(50)
-#define OP_DO_ENUM              BUILTIN_OP(51)
-#define OP_DO_DO                BUILTIN_OP(52)
-#define OP_DO_LOOP              BUILTIN_OP(53)
-#define OP_DO_LOOPN             BUILTIN_OP(54)
-#define OP_DO_NEW               BUILTIN_OP(55)
-#define OP_DFETCH               BUILTIN_OP(56)
-#define OP_ALLOC_OBJECT         BUILTIN_OP(57)
-#define OP_VOCAB_TO_CLASS       BUILTIN_OP(58)
-#define OP_ADDRESS_OF           BUILTIN_OP(59)
-#define OP_INTO                 BUILTIN_OP(60)
-#define OP_INTO_PLUS            BUILTIN_OP(61)
-#define OP_INTO_MINUS           BUILTIN_OP(62)
-#define OP_SUPER				BUILTIN_OP(63)
-#define OP_DO_CHECKDO           BUILTIN_OP(64)
+enum {
+	OP_ABORT = 0,
+	OP_DROP,
+	OP_DO_DOES,
+	OP_INT_VAL,
+	OP_FLOAT_VAL,
+	OP_DOUBLE_VAL,
+	OP_LONG_VAL,
+	OP_DO_VAR,
 
-#define BASE_DICT_PRECEDENCE_FLAG 0x100
+	OP_DO_CONSTANT,
+	OP_DO_DCONSTANT,
+	OP_DONE,
+	OP_DO_BYTE,
+	OP_DO_UBYTE,
+	OP_DO_SHORT,
+	OP_DO_USHORT,
+	OP_DO_INT,
+
+	OP_DO_UINT,			// 0x10
+	OP_DO_LONG,
+	OP_DO_ULONG,
+	OP_DO_FLOAT,
+	OP_DO_DOUBLE,
+	OP_DO_STRING,
+	OP_DO_OP,
+	OP_DO_OBJECT,
+
+	OP_DO_EXIT,
+	OP_DO_EXIT_L,
+	OP_DO_EXIT_M,
+	OP_DO_EXIT_ML,
+	OP_DO_BYTE_ARRAY,
+	OP_DO_UBYTE_ARRAY,
+	OP_DO_SHORT_ARRAY,
+	OP_DO_USHORT_ARRAY,
+
+	OP_DO_INT_ARRAY,	// 0x20
+	OP_DO_UINT_ARRAY,
+	OP_DO_LONG_ARRAY,
+	OP_DO_ULONG_ARRAY,
+	OP_DO_FLOAT_ARRAY,
+	OP_DO_DOUBLE_ARRAY,
+	OP_DO_STRING_ARRAY,
+	OP_DO_OP_ARRAY,
+
+	OP_DO_OBJECT_ARRAY,
+	OP_INIT_STRING,
+	OP_PLUS,
+	OP_FETCH,
+	OP_DO_STRUCT,
+	OP_DO_STRUCT_ARRAY,
+	OP_DO_DO,
+	OP_DO_LOOP,
+
+	OP_DO_LOOPN,		// 0x30
+	OP_DFETCH,
+	OP_VOCAB_TO_CLASS,
+	OP_REF,
+	OP_INTO,
+	OP_INTO_PLUS,
+	OP_INTO_MINUS,
+	OP_DO_CHECKDO,
+
+	OP_DO_VOCAB,
+	// below this line are ops defined in C
+	OP_INIT_STRING_ARRAY,
+	OP_BAD_OP,
+	OP_DO_STRUCT_TYPE,
+	OP_DO_CLASS_TYPE,
+	OP_DO_ENUM,
+	OP_DO_NEW,
+	OP_ALLOC_OBJECT,
+
+	OP_SUPER,		// 0x40
+	OP_END_BUILDS,
+	NUM_COMPILED_OPS
+};
+
+extern long gCompiledOps[];
+
 typedef struct
 {
    const char       *name;
@@ -355,10 +369,10 @@ typedef struct
 } baseDictionaryEntry;
 
 // helper macro for built-in op entries in baseDictionary
-#define OP_DEF( func, funcName )  { funcName, kOpBuiltIn, (ulong) func }
+#define OP_DEF( func, funcName )  { funcName, kOpCCode, (ulong) func }
 
 // helper macro for ops which have precedence (execute at compile time)
-#define PRECOP_DEF( func, funcName )  { funcName, kOpBuiltInImmediate, (ulong) func }
+#define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate, (ulong) func }
 
 
 typedef struct

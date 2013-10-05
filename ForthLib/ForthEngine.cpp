@@ -18,6 +18,7 @@ extern "C"
 {
 
     extern baseDictionaryEntry baseDictionary[];
+	extern void AddForthOps( ForthEngine* pEngine );
 #ifdef _ASM_INNER_INTERPRETER
     extern void InitAsmTables(  ForthCoreState *pCore );
 #endif
@@ -177,13 +178,9 @@ ForthEngine::~ForthEngine()
     {
         free( mpCore->optypeAction );
     }
-    if ( mpCore->builtinOps )
+    if ( mpCore->ops )
     {
-        free( mpCore->builtinOps );
-    }
-    if ( mpCore->userOps )
-    {
-        free( mpCore->userOps );
+        free( mpCore->ops );
     }
 
     // delete all threads;
@@ -234,10 +231,9 @@ ForthEngine::Initialize( ForthShell*        pShell,
     mpCore = &(mpMainThread->mCore);
     mpCore->optypeAction = (optypeActionRoutine *) malloc( sizeof(optypeActionRoutine) * 256 );
     mpCore->numBuiltinOps = 0;
-    mpCore->builtinOps = (ForthOp *) malloc( sizeof(ForthOp) * MAX_BUILTIN_OPS );
-    mpCore->numUserOps = 0;
-    mpCore->maxUserOps = 128;
-    mpCore->userOps = (long **) malloc( sizeof(long *) * mpCore->maxUserOps );
+    mpCore->numOps = 0;
+    mpCore->maxOps = 1024;
+    mpCore->ops = (long **) malloc( sizeof(long *) * mpCore->maxOps );
 
 	if ( mpTypesManager == NULL )
 	{
@@ -260,9 +256,10 @@ ForthEngine::Initialize( ForthShell*        pShell,
 
     if ( bAddBaseOps )
     {
-        AddBuiltinOps( baseDictionary );
+		AddForthOps( this );
         mpTypesManager->AddBuiltinClasses( this );
     }
+
     if ( pExtension != NULL )
     {
         mpExtension = pExtension;
@@ -323,25 +320,16 @@ ForthEngine::AddOp( const long *pOp, forthOpType symType )
 {
     long newOp;
 
-    if ( (symType == kOpBuiltIn) || (symType == kOpBuiltInImmediate) )
+    if ( mpCore->numOps == mpCore->maxOps )
     {
-        ASSERT( mpCore->numBuiltinOps < MAX_BUILTIN_OPS );
-        mpCore->builtinOps[ mpCore->numBuiltinOps++ ] = (ForthOp) pOp;
-
-        newOp = mpCore->numBuiltinOps - 1;
+        mpCore->maxOps += 128;
+        mpCore->ops = (long **) realloc( mpCore->ops, sizeof(long *) * mpCore->maxOps );
     }
-    else
-    {
-        if ( mpCore->numUserOps == mpCore->maxUserOps )
-        {
-            mpCore->maxUserOps += 128;
-            mpCore->userOps = (long **) realloc( mpCore->userOps, sizeof(long *) * mpCore->maxUserOps );
-        }
-        mpCore->userOps[ mpCore->numUserOps++ ] = (long *) pOp;
+    mpCore->ops[ mpCore->numOps++ ] = (long *) pOp;
 
-        newOp = mpCore->numUserOps - 1;
-    }
-    return newOp;
+    newOp = mpCore->numOps - 1;
+
+	return newOp;
 }
 
 
@@ -360,26 +348,25 @@ ForthEngine::AddUserOp( const char *pSymbol, long** pEntryOut, bool smudgeIt )
         mpDefinitionVocab->SmudgeNewestSymbol();
     }
 
-    return mpCore->numUserOps - 1;
+    return mpCore->numOps - 1;
 }
 
 
-void
+long*
 ForthEngine::AddBuiltinOp( const char* name, ulong flags, ulong value )
 {
     // AddSymbol will call ForthEngine::AddOp to add the operators to op table
-    mpDefinitionVocab->AddSymbol( name, flags, value, true );
+    long *pEntry = mpDefinitionVocab->AddSymbol( name, flags, value, true );
 
 //#ifdef TRACE_INNER_INTERPRETER
     // add built-in op names to table for TraceOp
-    if ( (flags == kOpBuiltIn) || ((flags == kOpBuiltInImmediate)) )
+	int index = mpCore->numOps - 1;
+    if ( index < NUM_TRACEABLE_OPS )
     {
-        if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
-        {
-            gOpNames[mpCore->numBuiltinOps - 1] = name;
-        }
+        gOpNames[index] = name;
     }
 //#endif
+	return pEntry;
 }
 
 
@@ -395,7 +382,7 @@ ForthEngine::AddBuiltinOps( baseDictionaryEntry *pEntries )
 
         AddBuiltinOp( pEntries->name, pEntries->flags, pEntries->value);
         pEntries++;
-
+		//mpCore->numOps++;
     }
 }
 
@@ -413,7 +400,7 @@ ForthEngine::StartClassDefinition( const char* pClassName )
 	mpVocabStack->DupTop();
 	mpVocabStack->SetTop( pVocab );
 
-    CompileOpcode( OP_DO_CLASS_TYPE );
+    CompileBuiltinOpcode( OP_DO_CLASS_TYPE );
     CompileLong( (long) pVocab );
 
     return pVocab;
@@ -452,17 +439,17 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
             if ( !strcmp( pMemberName, "_%new%_" ) )
             {
                 // this isn't a new method, it is the class constructor op
-                AddBuiltinOp( pMemberName, kOpBuiltIn, pEntries->value );
+                AddBuiltinOp( pMemberName, kOpCCode, pEntries->value );
                 pVocab->GetClassObject()->newOp = mpCore->numBuiltinOps - 1;
             }
             else
             {
                 // this entry is a member method
                 // add method routine to builtinOps table
-                long methodOp = OP_BAD_OP;
+                long methodOp = gCompiledOps[OP_BAD_OP];
 				if ( pEntries->value != NULL )
 				{
-					methodOp = AddOp( (long *) pEntries->value, kOpBuiltIn );
+					methodOp = AddOp( (long *) pEntries->value, kOpCCode );
 					if ( (mpCore->numBuiltinOps - 1) < NUM_TRACEABLE_OPS )
 					{
 						gOpNames[mpCore->numBuiltinOps - 1] = pMemberName;
@@ -512,17 +499,17 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
 void
 ForthEngine::ForgetOp( ulong opNumber, bool quietMode )
 {
-    if ( opNumber < mpCore->numUserOps )
+    if ( opNumber < mpCore->numOps )
     {
-        mDictionary.pCurrent = mpCore->userOps[ opNumber ];
-        mpCore->numUserOps = opNumber;
+        mDictionary.pCurrent = mpCore->ops[ opNumber ];
+        mpCore->numOps = opNumber;
     }
     else
     {
         if ( !quietMode )
         {
-            TRACE( "ForthEngine::ForgetOp error - attempt to forget bogus op # %d, only %d ops exist\n", opNumber, mpCore->numUserOps );
-            printf( "ForthEngine::ForgetOp error - attempt to forget bogus op # %d, only %d ops exist\n", opNumber, mpCore->numUserOps );
+            TRACE( "ForthEngine::ForgetOp error - attempt to forget bogus op # %d, only %d ops exist\n", opNumber, mpCore->numOps );
+            printf( "ForthEngine::ForgetOp error - attempt to forget bogus op # %d, only %d ops exist\n", opNumber, mpCore->numOps );
         }
     }
     if ( mpExtension != NULL )
@@ -549,18 +536,28 @@ ForthEngine::ForgetSymbol( const char *pSym, bool quietMode )
     {
         op = ForthVocabulary::GetEntryValue( pEntry );
         opType = ForthVocabulary::GetEntryType( pEntry );
+		int opIndex = FORTH_OP_VALUE( op );
         switch ( opType )
         {
-            case kOpBuiltIn:
-            case kOpBuiltInImmediate:
-                // sym is built-in op - no way
-                sprintf( buff,  "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
+            case kOpNative:
+            case kOpNativeImmediate:
+            case kOpCCode:
+            case kOpCCodeImmediate:
+				if ( opIndex > mpCore->numBuiltinOps )
+				{
+					ForgetOp( op, quietMode );
+					ForthForgettable::ForgetPropagate( mDictionary.pCurrent, op );
+					forgotIt = true;
+				}
+				else
+				{
+					// sym is built-in op - no way
+					sprintf( buff,  "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
+				}
                 break;
 
             case kOpUserDef:
             case kOpUserDefImmediate:
-            case kOpUserCode:
-            case kOpUserCodeImmediate:
                 ForgetOp( op, quietMode );
                 ForthForgettable::ForgetPropagate( mDictionary.pCurrent, op );
                 forgotIt = true;
@@ -603,10 +600,9 @@ ForthEngine::CreateThread( long threadOp, int paramStackSize, int returnStackSiz
         // fill in optype & opcode action tables from engine thread
         pNewThread->mCore.optypeAction = mpCore->optypeAction;
         pNewThread->mCore.numBuiltinOps = mpCore->numBuiltinOps;
-        pNewThread->mCore.builtinOps = mpCore->builtinOps;
-        pNewThread->mCore.numUserOps = mpCore->numUserOps;
-        pNewThread->mCore.maxUserOps = mpCore->maxUserOps;
-        pNewThread->mCore.userOps = mpCore->userOps;
+        pNewThread->mCore.numOps = mpCore->numOps;
+        pNewThread->mCore.maxOps = mpCore->maxOps;
+        pNewThread->mCore.ops = mpCore->ops;
     }
 
     pNewThread->mpNext = mpThreads;
@@ -758,9 +754,9 @@ ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
     if ( isUserOp )
     {
         // disassemble the op until IP reaches next newer op
-        long* curIP = mpCore->userOps[ opValue ];
+        long* curIP = mpCore->ops[ opValue ];
 		long* baseIP = curIP;
-        long* endIP = (opValue == (mpCore->numUserOps - 1)) ? GetDP() : mpCore->userOps[ opValue + 1 ];
+        long* endIP = (opValue == (mpCore->numOps - 1)) ? GetDP() : mpCore->ops[ opValue + 1 ];
         while ( (curIP < endIP) && notDone )
         {
             sprintf( buff, "  +%04x  %08x  ", (curIP - baseIP), curIP );
@@ -815,23 +811,16 @@ ForthEngine::NextOp( long *pOp )
 
     switch ( opType )
     {
-        case kOpBuiltIn:
-            switch( opVal )
-            {
-                case OP_INT_VAL:
-                case OP_FLOAT_VAL:
-                case OP_DO_DO:
-                case OP_DO_STRUCT_ARRAY:
-                    pOp++;
-                    break;
-
-                case OP_DOUBLE_VAL:
-                    pOp += 2;
-                    break;
-
-                default:
-                    break;
-            }
+        case kOpNative:
+			if ( (opVal == gCompiledOps[OP_INT_VAL]) || (opVal == gCompiledOps[OP_FLOAT_VAL])
+				|| (opVal == gCompiledOps[OP_DO_DO]) ||  (opVal == gCompiledOps[OP_DO_STRUCT_ARRAY]) )
+			{
+				pOp++;
+			}
+			else if ( (opVal == gCompiledOps[OP_LONG_VAL]) || (opVal == gCompiledOps[OP_DOUBLE_VAL]) )
+			{
+				pOp += 2;
+			}
             break;
 
         case kOpConstantString:
@@ -1055,29 +1044,33 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
         switch( opType )
         {
 
-            case kOpBuiltIn:
-            case kOpBuiltInImmediate:
+            case kOpNative:
+            case kOpNativeImmediate:
+            case kOpCCode:
+            case kOpCCodeImmediate:
                 if ( (opVal < NUM_TRACEABLE_OPS) && (gOpNames[opVal] != NULL) )
                 {
                     // traceable built-in op
-                    switch( opVal )
-                    {
-                        case OP_INT_VAL:
-                            sprintf( pBuffer, "%s 0x%x", gOpNames[opVal], pOp[1] );
-                            break;
-
-                        case OP_FLOAT_VAL:
-                            sprintf( pBuffer, "%s %f", gOpNames[opVal], *((float *)(&(pOp[1]))) );
-                            break;
-
-                        case OP_DOUBLE_VAL:
-                            sprintf( pBuffer, "%s %g", gOpNames[opVal], *((double *)(&(pOp[1]))) );
-                            break;
-
-                        default:
-                            sprintf( pBuffer, "%s", gOpNames[opVal] );
-                            break;
-                    }
+					if ( opVal == gCompiledOps[OP_INT_VAL] )
+					{
+						sprintf( pBuffer, "%s 0x%x", gOpNames[opVal], pOp[1] );
+					}
+					else if ( opVal == gCompiledOps[OP_FLOAT_VAL] )
+					{
+						sprintf( pBuffer, "%s %f", gOpNames[opVal], *((float *)(&(pOp[1]))) );
+					}
+					else if ( opVal == gCompiledOps[OP_DOUBLE_VAL] )
+					{
+						sprintf( pBuffer, "%s %g", gOpNames[opVal], *((double *)(&(pOp[1]))) );
+					}
+					else if ( opVal == gCompiledOps[OP_LONG_VAL] )
+					{
+						sprintf( pBuffer, "%s 0x%llx", gOpNames[opVal], *((long long *)(&(pOp[1]))) );
+					}
+					else
+					{
+						sprintf( pBuffer, "%s", gOpNames[opVal] );
+					}
                 }
                 else
                 {
@@ -1088,8 +1081,6 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
             
             case kOpUserDef:
             case kOpUserDefImmediate:
-            case kOpUserCode:
-            case kOpUserCodeImmediate:
             case kOpDLLEntryPoint:
                 if ( lookupUserDefs )
                 {
@@ -1456,6 +1447,15 @@ ForthEngine::CompileOpcode( long op )
 }
 
 void
+ForthEngine::CompileBuiltinOpcode( long op )
+{
+	if ( op < NUM_COMPILED_OPS )
+	{
+		CompileOpcode( gCompiledOps[op] );
+	}
+}
+
+void
 ForthEngine::UncompileLastOpcode( void )
 {
     if ( mpLastCompiledOpcode != NULL )
@@ -1506,13 +1506,13 @@ ForthEngine::ProcessConstant( long value, bool isOffset )
             // value too big, must go in next longword
             if ( isOffset )
             {
-                CompileOpcode( OP_INT_VAL );
+                CompileBuiltinOpcode( OP_INT_VAL );
                 *mDictionary.pCurrent++ = value;
-                CompileOpcode( OP_PLUS );
+                CompileBuiltinOpcode( OP_PLUS );
             }
             else
             {
-                CompileOpcode( OP_INT_VAL );
+                CompileBuiltinOpcode( OP_INT_VAL );
                 *mDictionary.pCurrent++ = value;
             }
         }
@@ -1539,7 +1539,7 @@ ForthEngine::ProcessLongConstant( long long value )
     if ( mCompileState )
     {
         // compile the literal value
-        CompileOpcode( OP_DOUBLE_VAL );
+        CompileBuiltinOpcode( OP_DOUBLE_VAL );
         long long* pDP = (long long *) mDictionary.pCurrent;
         *pDP++ = value;
         mDictionary.pCurrent = (long *) pDP;
@@ -1579,7 +1579,7 @@ ForthEngine::ExecuteOneOp( long opCode )
     long opScratch[2];
 
     opScratch[0] = opCode;
-    opScratch[1] = BUILTIN_OP( OP_DONE );
+    opScratch[1] = gCompiledOps[OP_DONE];
 
     eForthResult exitStatus = ExecuteOps( &(opScratch[0]) );
     return exitStatus;
@@ -1648,7 +1648,7 @@ ForthEngine::ExecuteOneMethod( ForthObject& obj, long methodNum )
     long opScratch[2];
 
 	opScratch[0] = obj.pMethodOps[ methodNum ];
-    opScratch[1] = BUILTIN_OP( OP_DONE );
+    opScratch[1] = gCompiledOps[OP_DONE];
 
 	ForthCoreState* pCore = mpCore;
 	RPUSH( ((long) GET_TPD) );
@@ -1936,9 +1936,9 @@ long * ForthEngine::FindUserDefinition( long* pIP, long*& pBase )
 				case kOpUserDefImmediate:
 					{
 						long opcode = FORTH_OP_VALUE( *pEntry );
-						if ( opcode < mpCore->numUserOps )
+						if ( opcode < mpCore->numOps )
 						{
-							long* pDef = mpCore->userOps[opcode];
+							long* pDef = mpCore->ops[opcode];
 							if ( (pDef > pClosestIP) && (pDef <= pIP) )
 							{
 								pClosestIP = pDef;
@@ -2208,7 +2208,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
           if ( mCompileState )
           {
               // compile the literal value
-              CompileOpcode( OP_FLOAT_VAL );
+              CompileBuiltinOpcode( OP_FLOAT_VAL );
               *(float *) mDictionary.pCurrent++ = fvalue;
           }
           else
@@ -2228,7 +2228,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
           if ( mCompileState )
           {
               // compile the literal value
-              CompileOpcode( OP_DOUBLE_VAL );
+              CompileBuiltinOpcode( OP_DOUBLE_VAL );
               pDPD = (double *) mDictionary.pCurrent;
               *pDPD++ = dvalue;
               mDictionary.pCurrent = (long *) pDPD;
@@ -2276,7 +2276,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         {
             // number is out of range of kOpConstant, need to define a user op
             StartOpDefinition( pToken );
-            CompileOpcode( OP_DO_CONSTANT );
+            CompileBuiltinOpcode( OP_DO_CONSTANT );
             CompileLong( mNextEnum );
         }
         mNextEnum++;
