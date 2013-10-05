@@ -1731,3 +1731,20 @@ DECIMAL
 
 false -> parenIsComment
 
+loaddone
+
+code bd!
+  board # eax mov,
+  edx ] eax add, 
+  4 edx ] ebx mov,
+  ebx eax ] mov,
+  8 # edx add,
+  next,
+  
+code bd@
+  board # eax mov,
+  edx ] eax add, 
+  eax ] ebx mov,
+  ebx edx ] mov,
+  next,
+

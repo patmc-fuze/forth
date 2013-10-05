@@ -1,7 +1,5 @@
 autoforget builtinClassTest
 
-requires testbase
-
 : builtinClassTest ;
 
 // object: delete show getClass compare(OBJ) keep release refCount

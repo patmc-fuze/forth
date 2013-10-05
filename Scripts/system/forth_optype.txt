@@ -10,7 +10,7 @@ decimal
 
 enum: _opType
   native
-  nativeInImmediate
+  nativeImmediate
   userDef					// low 24 bits is op number (index into ForthCoreState userOps table)
   userDefImmediate
   CCode					// low 24 bits is op number (index into ForthCoreState userOps table)

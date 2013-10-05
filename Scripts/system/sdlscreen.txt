@@ -33,8 +33,8 @@ class: sdlScreen
   method: init
     null -> surface
     
-    640  -> width
-    480  -> height
+    512  -> width
+    512  -> height
     
     -320 -> leftLimit
     320  -> rightLimit
@@ -472,11 +472,19 @@ sdlScreen _screen
 : dml _screen.drawMultiLine ;
 
 : test
+  sc( 0xFFFF00 )
+  de( 100 200 )
+  sc( 0x00FFFF )
+  dsq( 55 )
   do( 256 0 )
     sc( i )
-//    drawEllipse( i 20 +   i 10 + )
-    //drawCircle( i 10 + )
     dp( i i )
+    sc( <<( i  8 ) )
+    dp( i negate i )
+    sc( <<( i  16 ) )
+    dp( i i negate )
+    sc( i 0x10101 * )
+    dp( i negate i negate )
   loop
 ;
 
