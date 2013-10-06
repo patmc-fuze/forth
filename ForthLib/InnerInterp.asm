@@ -3332,48 +3332,6 @@ entry dfmodBop
 	jmp	edi
 	
 ;========================================
-	
-entry lplusBop
-	mov	ebx, [edx+4]
-	mov	eax, [edx]
-	add	edx, 8
-	add	ebx, [edx+4]
-	adc	eax, [edx]
-	mov	[edx+4], ebx
-	mov	[edx], eax
-	jmp	edi
-	
-;========================================
-	
-entry lminusBop
-	mov	ebx, [edx+12]
-	mov	eax, [edx+8]
-	sub	ebx, [edx+4]
-	sbb	eax, [edx]
-	add	edx, 8
-	mov	[edx+4], ebx
-	mov	[edx], eax
-	jmp	edi
-	
-;========================================
-	
-entry ltimesBop
-	fld	QWORD PTR [edx+8]
-	fmul	QWORD PTR [edx]
-	add	edx,8
-	fstp	QWORD PTR [edx]
-	jmp	edi
-	
-;========================================
-	
-entry ldivideBop
-	fld	QWORD PTR [edx+8]
-	fdiv	QWORD PTR [edx]
-	add	edx,8
-	fstp	QWORD PTR [edx]
-	jmp	edi
-	
-;========================================
 
 entry i2fBop
 	fild	DWORD PTR [edx]

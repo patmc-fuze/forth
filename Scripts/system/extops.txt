@@ -297,6 +297,20 @@ code lnegate
   eax edx ] mov,
   next,
   
+code labs
+  4 edx d] ebx mov,
+  ebx ebx or,
+  0<, if,
+    edx ] eax mov,
+    eax not,
+    ebx not,
+    1 # eax add,
+    0 # ebx adc,
+    ebx 4 edx d] mov,
+    eax edx ] mov,
+  endif,
+  next,
+  
 // http://stackoverflow.com/questions/1131833/how-do-you-multiply-two-64-bit-numbers-in-x86-assembler
 // http://www.plantation-productions.com/Webster/www.artofasm.com/Windows/HTML/AdvancedArithmetica2.html#1007619
 

@@ -129,6 +129,22 @@ Gotchas with structure and object support:
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 5 2013
 
+There was still a crash in biclasstest, the builtin class definition code
+wasn't setting the optype of methods defined in C so they were being executed
+as if they were native ops.
+
+It looks like everything might back to where it was before the turbo changes.
+
+I changed turbo mode so that now it is the default, and the prompt for turbo
+mode is 'ok>' and non-turbo mode is 'OK>'.  The only difference between turbo
+and non-turbo now should be that in non-turbo mode the inner interpreter is
+still the C version, so non-native optypes will use the C optype action routines,
+and native optypes will be sent to the native interpreter one opcode at a
+time.  Should I get rid of the C optype action routines, and have all optypes
+except the CCode optypes be sent to the native inner interpreter?
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 4 2013
+
 I changed how turbo mode works pretty significantly:
 o optype 0 is used for both builtin asm ops and user asm ops
 o builtin ops defined in C are now type kOpCCode
