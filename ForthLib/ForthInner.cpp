@@ -1776,7 +1776,7 @@ OPTYPE_ACTION( MemberStringInitAction )
 
 OPTYPE_ACTION( NumVaropOpComboAction )
 {
-	// NUM VAROP OP combo - bits 0:10 are signed integer, bits 11:12 are varop-2, bit 13 is builtin/userdef, bits 14-23 are opcode
+	// NUM VAROP OP combo - bits 0:10 are signed integer, bits 11:12 are varop-2, bits 13-23 are opcode
 
 	// push signed int in bits 0:10
 	long num = opVal;
@@ -1794,7 +1794,7 @@ OPTYPE_ACTION( NumVaropOpComboAction )
 	SET_VAR_OPERATION( ((opVal >> 11) & 3) + 2 );
 
 	// execute op in bits 13:23
-	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpNative), (opVal >> 14) );
+	long op = COMPILED_OP( kOpNative, (opVal >> 13) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
@@ -1835,40 +1835,40 @@ OPTYPE_ACTION( NumOpComboAction )
     SPUSH( num );
 
 	// execute op in bits 13:23
-	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpNative), (opVal >> 14) );
+	long op = COMPILED_OP( kOpNative, (opVal >> 13) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
 OPTYPE_ACTION( VaropOpComboAction )
 {
-	// VAROP OP combo - bits 0:1 are varop-2, bit 2 is builtin/userdef, bits 3:23 are opcode
+	// VAROP OP combo - bits 0:1 are varop-2, bits 2:23 are opcode
 
 	// set varop to bits 0:1 + 2
 	SET_VAR_OPERATION( (opVal & 3) + 2 );
 
-	// execute op in bits 3:23
-	long op = COMPILED_OP( (((opVal & 0x4) != 0) ? kOpUserDef : kOpNative), (opVal >> 4) );
+	// execute op in bits 2:23
+	long op = COMPILED_OP( kOpNative, (opVal >> 2) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
 OPTYPE_ACTION( LocalRefOpComboAction )
 {
-	// REF_OFFSET OP combo - bits 0:12 are local var offset in longs, bit 13 is builtin/userdef, bits 14:23 are opcode
+	// REF_OFFSET OP combo - bits 0:11 are local var offset in longs, bits 12:23 are opcode
     SPUSH( (long)(GET_FP - (opVal & 0xFFF)) );
 
-	// execute op in bits 13:23
-	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpNative), (opVal >> 14) );
+	// execute op in bits 12:23
+	long op = COMPILED_OP( kOpNative, (opVal >> 12) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
 OPTYPE_ACTION( MemberRefOpComboAction )
 {
-	// REF_OFFSET OP combo - bits 0:12 are member offset in bytes, bit 13 is builtin/userdef, bits 14:23 are opcode
+	// REF_OFFSET OP combo - bits 0:11 are member offset in bytes, bits 12:23 are opcode
     // opVal is offset in bytes
     SPUSH( ((long)GET_TPD) + (opVal & 0xFFF) );
 
-	// execute op in bits 13:23
-	long op = COMPILED_OP( (((opVal & 0x2000) != 0) ? kOpUserDef : kOpNative), (opVal >> 14) );
+	// execute op in bits 12:23
+	long op = COMPILED_OP( kOpNative, (opVal >> 12) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 

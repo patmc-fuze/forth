@@ -4140,7 +4140,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    rpBop,                   "rp" ),
     NATIVE_DEF(    rzeroBop,                "r0" ),
     NATIVE_DEF(    dupBop,                  "dup" ),
-    NATIVE_DEF(    dupNonZeroBop,           "?dup" ),
+    NATIVE_DEF(    checkDupBop,             "?dup" ),
     NATIVE_DEF(    swapBop,                 "swap" ),
     NATIVE_DEF(    overBop,                 "over" ),
     NATIVE_DEF(    rotBop,                  "rot" ),

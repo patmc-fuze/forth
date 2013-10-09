@@ -3963,7 +3963,7 @@ entry dupBop
 
 ;========================================
 
-entry dupNonZeroBop
+entry checkDupBop
 	mov	eax, [edx]
 	or	eax, eax
 	jz	dupNonZeroBop1
@@ -5482,36 +5482,32 @@ entry dllEntryPointType
 ; NUM VAROP OP combo ops
 ;  
 entry nvoComboType
-	; bits 0..10 are signed integer, bits 11-12 are varop-2, bit 13 is builtin/userdef, bits 14-23 are opcode
-	; ebx holds low-24 bits of opcode
+	; ebx: bits 0..10 are signed integer, bits 11-12 are varop-2, bit 13-23 are opcode
 	mov	eax, ebx
 	sub	edx, 4
 	and	eax,00000400h
 	jnz	nvoNegative
 	; positive constant
+	mov	eax, ebx
 	and	eax,003FFh
-	mov	[edx], ebx
 	jmp	nvoCombo1
 
 nvoNegative:
-	or	ebx, 0FFFFF800h			; sign extend bits 11-31
-	mov	[edx], eax
+	mov	eax, ebx
+	or	eax, 0FFFFF800h			; sign extend bits 11-31
 nvoCombo1:
+	mov	[edx], eax
 	; set the varop from bits 11-12
-	mov	eax, 000001800h
-	and	eax, ebx
-	sar	eax, 11							; eax = varop - 2
+	shr	ebx, 11
+	mov	eax, ebx
+	
+	and	eax, 3							; eax = varop - 2
 	add	eax, 2
 	mov	[ebp].FCore.varMode, eax
 	
 	; extract the opcode
-	mov	eax, ebx
-	shl	ebx, 14
-	and	ebx, 0000003FFh			; ebx is 10 bit opcode
-	and	eax, 000002000h			; bit 13 is 0 for builtin ops, 1 for user defined ops
-	jz	interpLoopExecuteEntry
-	add	ebx, 002000000h			; set optype to user defined
-
+	shr	ebx, 2
+	and	ebx, 0000007FFh			; ebx is 11 bit opcode
 	; opcode is in ebx
 	jmp	interpLoopExecuteEntry
 
@@ -5520,27 +5516,26 @@ nvoCombo1:
 ; NUM VAROP combo ops
 ;  
 entry nvComboType
-	; bits 0..21 are signed integer, bits 22-23 are varop-2
-	; ebx holds low-24 bits of opcode
+	; ebx: bits 0..21 are signed integer, bits 22-23 are varop-2
 	mov	eax, ebx
 	sub	edx, 4
-	and	eax,00020000h
+	and	eax,00200000h
 	jnz	nvNegative
 	; positive constant
+	mov	eax, ebx
 	and	eax,001FFFFFh
-	mov	[edx], ebx
 	jmp	nvCombo1
 
 nvNegative:
+	mov	eax, ebx
 	or	ebx, 0FFE00000h			; sign extend bits 22-31
-	mov	[edx], eax
 nvCombo1:
+	mov	[edx], eax
 	; set the varop from bits 22-23
-	mov	eax, 000C00000h
-	and	eax, ebx
-	sar	eax, 22							; eax = varop - 2
-	add	eax, 2
-	mov	[ebp].FCore.varMode, eax
+	shr	ebx, 22							; ebx = varop - 2
+	and	ebx, 3
+	add	ebx, 2
+	mov	[ebp].FCore.varMode, ebx
 
 	jmp edi
 
@@ -5549,29 +5544,24 @@ nvCombo1:
 ; NUM OP combo ops
 ;  
 entry noComboType
-	; bits 0..12 are signed integer, bit 13 is builtin/userdef, bits 14-23 are opcode
-	; ebx holds low-24 bits of opcode
+	; ebx: bits 0..12 are signed integer, bits 13-23 are opcode
 	mov	eax, ebx
 	sub	edx, 4
 	and	eax,000001000h
 	jnz	noNegative
 	; positive constant
+	mov	eax, ebx
 	and	eax,00FFFh
-	mov	[edx], ebx
 	jmp	noCombo1
 
 noNegative:
-	or	ebx, 0FFFFE000h			; sign extend bits 13-31
-	mov	[edx], eax
+	or	eax, 0FFFFE000h			; sign extend bits 13-31
 noCombo1:
+	mov	[edx], eax
 	; extract the opcode
 	mov	eax, ebx
-	shl	ebx, 14
-	and	ebx, 0000003FFh			; ebx is 10 bit opcode
-	and	eax, 000002000h			; bit 13 is 0 for builtin ops, 1 for user defined ops
-	jz	interpLoopExecuteEntry
-	add	ebx, 002000000h			; set optype to user defined
-
+	shr	ebx, 13
+	and	ebx, 0000007FFh			; ebx is 11 bit opcode
 	; opcode is in ebx
 	jmp	interpLoopExecuteEntry
 	
@@ -5580,8 +5570,7 @@ noCombo1:
 ; VAROP OP combo ops
 ;  
 entry voComboType
-	; bits 0-1 are varop-2, bit 2 is builtin/userdef, bits 3-23 are opcode
-	; ebx holds low-24 bits of opcode
+	; ebx: bits 0-1 are varop-2, bits 2-23 are opcode
 	; set the varop from bits 0-1
 	mov	eax, 000000003h
 	and	eax, ebx
@@ -5589,15 +5578,41 @@ entry voComboType
 	mov	[ebp].FCore.varMode, eax
 	
 	; extract the opcode
-	mov	eax, ebx
-	shl	ebx, 3
-	and	ebx, 0001FFFFFh			; ebx is 21 bit opcode
-	and	eax, 000000004h			; bit 2 is 0 for builtin ops, 1 for user defined ops
-	jz	interpLoopExecuteEntry
-	add	ebx, 002000000h			; set optype to user defined
+	shr	ebx, 2
+	and	ebx, 0003FFFFFh			; ebx is 22 bit opcode
 
 	; opcode is in ebx
 	jmp	interpLoopExecuteEntry
+
+;-----------------------------------------------
+;
+; OP ZBRANCH combo ops
+;  
+entry ozbComboType
+	; ebx: bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
+	mov	eax, ebx
+	shr	eax,10
+	and	eax, 00003FFCh
+	push	eax
+	push	edi
+	mov	edi, ozbCombo1
+	and	ebx,00000FFFh
+	; opcode is in ebx
+	jmp	interpLoopExecuteEntry
+	
+ozbCombo1:
+	pop	edi
+	pop	eax
+	mov	ebx, eax
+	and	eax,00002000h
+	jnz	ozbNegative
+	; positive branch
+	or	ebx,ffffc000h
+
+ozbNegative:
+	add	ecx, ex
+	jmp	edi
+	
 
 ;=================================================================================================
 ;
