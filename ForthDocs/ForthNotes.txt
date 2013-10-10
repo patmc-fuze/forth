@@ -127,6 +127,25 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 10 2013
+
+I decided to get my forth running on the raspberry pi ARM machine.  I already
+have an old arm7/arm9 Nintendo DS version with an assembler inner interpreter, but
+to get it running initially I decided to use a C-only version, so I am getting
+the windows C-only version running.
+
+To turn C-Only mode on, you need to manually:
+
+o remove ASM_INNER_INTERPRETER from ForthLib C++ preprocessor definitions
+
+o remove ASM_INNER_INTERPRETER from the custom build rule for InnerInterp.asm
+If ASM_INNER_INTERPRETER is not defined, the only things that are assembled
+are CallDLLRoutine to allow DLL ops to work, and NativeAction, which is used 
+not part of the build configuration.
+
+Just to keep things interesting, I changed the _ASM_INNER_INTERPRETER define
+to be ASM_INNER_INTERPRETER.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 5 2013
 
 There was still a crash in biclasstest, the builtin class definition code

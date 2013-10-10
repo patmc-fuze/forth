@@ -4994,11 +4994,13 @@ namespace
 		long op = *(pThreadCore->IP)++;
 		long result;
 		ForthEngine *pEngine = GET_ENGINE;
+#ifdef ASM_INNER_INTERPRETER
 		if ( pEngine->GetFastMode() )
 		{
 			result = (long) InterpretOneOpFast( pThreadCore, op );
 		}
 		else
+#endif
 		{
 			result = (long) InterpretOneOp( pThreadCore, op );
 		}

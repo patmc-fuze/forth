@@ -79,7 +79,7 @@ ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnS
 
     pEngine->ResetConsoleOut( &mCore );
 
-    mOps[1] = OP_DONE;
+    mOps[1] = gCompiledOps[OP_DONE];
 
     Reset();
 }
@@ -161,7 +161,7 @@ unsigned __stdcall ForthThread::RunLoop( void *pUserData )
 
     pThis->Reset();
     pThis->mCore.IP = &(pThis->mOps[0]);
-#ifdef _ASM_INNER_INTERPRETER
+#ifdef ASM_INNER_INTERPRETER
     if ( pThis->mpEngine->GetFastMode() )
     {
         exitStatus = InnerInterpreterFast( &(pThis->mCore) );
@@ -184,7 +184,7 @@ void* ForthThread::RunLoop( void *pUserData )
 
     pThis->Reset();
     pThis->mCore.IP = &(pThis->mOps[0]);
-#ifdef _ASM_INNER_INTERPRETER
+#ifdef ASM_INNER_INTERPRETER
     if ( pThis->mpEngine->GetFastMode() )
     {
         exitStatus = InnerInterpreterFast( &(pThis->mCore) );
@@ -209,7 +209,7 @@ void ForthThread::Run()
 	ForthCoreState* pEngineState = mpEngine->GetCoreState();
 	mCore.ops = pEngineState->ops;
 	mCore.numOps = pEngineState->numOps;
-#ifdef _ASM_INNER_INTERPRETER
+#ifdef ASM_INNER_INTERPRETER
     if ( mpEngine->GetFastMode() )
     {
         exitStatus = InnerInterpreterFast( &mCore );

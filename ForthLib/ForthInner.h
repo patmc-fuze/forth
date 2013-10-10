@@ -163,7 +163,7 @@ struct ForthCoreState
 
 extern eForthResult InnerInterpreter( ForthCoreState *pCore );
 extern eForthResult InterpretOneOp( ForthCoreState *pCore, long op );
-#ifdef _ASM_INNER_INTERPRETER
+#ifdef ASM_INNER_INTERPRETER
 extern eForthResult InnerInterpreterFast( ForthCoreState *pCore );
 extern void InitAsmTables( ForthCoreState *pCore );
 extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, long op );

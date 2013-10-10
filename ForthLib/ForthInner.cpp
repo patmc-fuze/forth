@@ -15,10 +15,8 @@
 extern "C"
 {
 
-#ifdef _ASM_INNER_INTERPRETER
 // NativeAction is used to execute user ops which are defined in assembler
 extern void NativeAction( ForthCoreState *pCore, ulong opVal );
-#endif
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -94,8 +92,9 @@ inline void _doByteVarop( ForthCoreState* pCore, signed char* pVar )
     }
 }
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each byte variable
-GFORTHOP( doByteOp )
+GFORTHOP( doByteBop )
 {
     // IP points to data field
     signed char* pVar = (signed char *)(GET_IP);
@@ -104,11 +103,12 @@ GFORTHOP( doByteOp )
     SET_IP( (long *) (RPOP) );
 }
 
-GFORTHOP( byteVarActionOp )
+GFORTHOP( byteVarActionBop )
 {
     signed char* pVar = (signed char *)(SPOP);
 	_doByteVarop( pCore, pVar );
 }
+#endif
 
 VAR_ACTION( doUByteFetch ) 
 {
@@ -152,8 +152,9 @@ inline void _doUByteVarop( ForthCoreState* pCore, unsigned char* pVar )
     }
 }
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each unsigned byte variable
-GFORTHOP( doUByteOp )
+GFORTHOP( doUByteBop )
 {
     // IP points to data field
     unsigned char* pVar = (unsigned char *)(GET_IP);
@@ -162,11 +163,12 @@ GFORTHOP( doUByteOp )
     SET_IP( (long *) (RPOP) );
 }
 
-GFORTHOP( ubyteVarActionOp )
+GFORTHOP( ubyteVarActionBop )
 {
     unsigned char* pVar = (unsigned char *)(SPOP);
 	_doUByteVarop( pCore, pVar );
 }
+#endif
 
 OPTYPE_ACTION( LocalByteAction )
 {
@@ -210,8 +212,9 @@ OPTYPE_ACTION( MemberUByteAction )
 	_doUByteVarop( pCore, pVar );
 }
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each byte array
-GFORTHOP( doByteArrayOp )
+GFORTHOP( doByteArrayBop )
 {
     signed char* pVar = (signed char *)(SPOP + (long)(GET_IP));
 
@@ -220,13 +223,14 @@ GFORTHOP( doByteArrayOp )
 }
 
 // this is an internal op that is compiled before the data field of each unsigned byte array
-GFORTHOP( doUByteArrayOp )
+GFORTHOP( doUByteArrayBop )
 {
     unsigned char* pVar = (unsigned char *)(SPOP + (long)(GET_IP));
 
 	_doUByteVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
 }
+#endif
 
 OPTYPE_ACTION( LocalByteArrayAction )
 {
@@ -355,8 +359,9 @@ inline void _doShortVarop( ForthCoreState* pCore, short* pVar )
     }
 }
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each short variable
-GFORTHOP( doShortOp )
+GFORTHOP( doShortBop )
 {
     // IP points to data field
     short* pVar = (short *)(GET_IP);
@@ -365,11 +370,12 @@ GFORTHOP( doShortOp )
     SET_IP( (long *) (RPOP) );
 }
 
-GFORTHOP( shortVarActionOp )
+GFORTHOP( shortVarActionBop )
 {
     short* pVar = (short *)(SPOP);
 	_doShortVarop( pCore, pVar );
 }
+#endif
 
 VAR_ACTION( doUShortFetch )
 {
@@ -413,8 +419,9 @@ inline void _doUShortVarop( ForthCoreState* pCore, unsigned short* pVar )
     }
 }
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each unsigned short variable
-GFORTHOP( doUShortOp )
+GFORTHOP( doUShortBop )
 {
     // IP points to data field
     unsigned short* pVar = (unsigned short *)(GET_IP);
@@ -423,11 +430,12 @@ GFORTHOP( doUShortOp )
     SET_IP( (long *) (RPOP) );
 }
 
-GFORTHOP( ushortVarActionOp )
+GFORTHOP( ushortVarActionBop )
 {
     unsigned short* pVar = (unsigned short *)(SPOP);
 	_doUShortVarop( pCore, pVar );
 }
+#endif
 
 OPTYPE_ACTION( LocalShortAction )
 {
@@ -471,8 +479,9 @@ OPTYPE_ACTION( MemberUShortAction )
 	_doUShortVarop( pCore, pVar );
 }
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each short array
-GFORTHOP( doShortArrayOp )
+GFORTHOP( doShortArrayBop )
 {
     // IP points to data field
     short* pVar = ((short *) (GET_IP)) + SPOP;
@@ -481,7 +490,7 @@ GFORTHOP( doShortArrayOp )
     SET_IP( (long *) (RPOP) );
 }
 
-GFORTHOP( doUShortArrayOp )
+GFORTHOP( doUShortArrayBop )
 {
     // IP points to data field
     unsigned short* pVar = ((unsigned short *) (GET_IP)) + SPOP;
@@ -489,6 +498,7 @@ GFORTHOP( doUShortArrayOp )
 	_doUShortVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
 }
+#endif
 
 OPTYPE_ACTION( LocalShortArrayAction )
 {
@@ -618,8 +628,14 @@ inline void _doIntVarop( ForthCoreState* pCore, int* pVar )
     }
 }
 
+void intVarAction( ForthCoreState* pCore, int* pVar )
+{
+	_doIntVarop( pCore, pVar );
+}
+
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each int variable
-GFORTHOP( doIntOp )
+GFORTHOP( doIntBop )
 {
     // IP points to data field
     int* pVar = (int *)(GET_IP);
@@ -628,16 +644,12 @@ GFORTHOP( doIntOp )
     SET_IP( (long *) (RPOP) );
 }
 
-void intVarAction( ForthCoreState* pCore, int* pVar )
-{
-	_doIntVarop( pCore, pVar );
-}
-
-GFORTHOP( intVarActionOp )
+GFORTHOP( intVarActionBop )
 {
     int* pVar = (int *)(SPOP);
 	intVarAction( pCore, pVar );
 }
+#endif
 
 OPTYPE_ACTION( LocalIntAction )
 {
@@ -661,8 +673,9 @@ OPTYPE_ACTION( MemberIntAction )
 	_doIntVarop( pCore, pVar );
 }
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each array
-GFORTHOP( doIntArrayOp )
+GFORTHOP( doIntArrayBop )
 {
     // IP points to data field
     int* pVar = ((int *) (GET_IP)) + SPOP;
@@ -670,6 +683,7 @@ GFORTHOP( doIntArrayOp )
 	_doIntVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
 }
+#endif
 
 OPTYPE_ACTION( LocalIntArrayAction )
 {
@@ -753,7 +767,8 @@ inline void _doFloatVarop( ForthCoreState* pCore, float* pVar )
     }
 }
 
-GFORTHOP( doFloatOp )
+#ifndef ASM_INNER_INTERPRETER
+GFORTHOP( doFloatBop )
 {    
     // IP points to data field
     float* pVar = (float *)(GET_IP);
@@ -762,11 +777,12 @@ GFORTHOP( doFloatOp )
     SET_IP( (long *) (RPOP) );
 }
 
-GFORTHOP( floatVarActionOp )
+GFORTHOP( floatVarActionBop )
 {
     float* pVar = (float *)(SPOP);
 	_doFloatVarop( pCore, pVar );
 }
+#endif
 
 OPTYPE_ACTION( LocalFloatAction )
 {
@@ -789,14 +805,16 @@ OPTYPE_ACTION( MemberFloatAction )
 	_doFloatVarop( pCore, pVar );
 }
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each array
-GFORTHOP( doFloatArrayOp )
+GFORTHOP( doFloatArrayBop )
 {
     // IP points to data field
     float* pVar = ((float *) (GET_IP)) + SPOP;
 
 	_doFloatVarop( pCore, pVar );
 }
+#endif
 
 OPTYPE_ACTION( LocalFloatArrayAction )
 {
@@ -895,7 +913,8 @@ inline void _doDoubleVarop( ForthCoreState* pCore, double* pVar )
     }
 }
 
-GFORTHOP( doDoubleOp )
+#ifndef ASM_INNER_INTERPRETER
+GFORTHOP( doDoubleBop )
 {
     // IP points to data field
     double* pVar = (double *)(GET_IP);
@@ -904,11 +923,12 @@ GFORTHOP( doDoubleOp )
     SET_IP( (long *) (RPOP) );
 }
 
-GFORTHOP( doubleVarActionOp )
+GFORTHOP( doubleVarActionBop )
 {
     double* pVar = (double *)(SPOP);
 	_doDoubleVarop( pCore, pVar );
 }
+#endif
 
 OPTYPE_ACTION( LocalDoubleAction )
 {
@@ -933,8 +953,9 @@ OPTYPE_ACTION( MemberDoubleAction )
 	_doDoubleVarop( pCore, pVar );
 }
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each array
-GFORTHOP( doDoubleArrayOp )
+GFORTHOP( doDoubleArrayBop )
 {
     // IP points to data field
     double* pVar = ((double *) (GET_IP)) + SPOP;
@@ -942,6 +963,7 @@ GFORTHOP( doDoubleArrayOp )
 	_doDoubleVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
 }
+#endif
 
 OPTYPE_ACTION( LocalDoubleArrayAction )
 {
@@ -1059,7 +1081,8 @@ inline void _doStringVarop( ForthCoreState* pCore, char* pVar )
     }
 }
 
-GFORTHOP( doStringOp )
+#ifndef ASM_INNER_INTERPRETER
+GFORTHOP( doStringBop )
 {
     char* pVar = (char *) (GET_IP);
 
@@ -1067,11 +1090,12 @@ GFORTHOP( doStringOp )
     SET_IP( (long *) (RPOP) );
 }
 
-GFORTHOP( stringVarActionOp )
+GFORTHOP( stringVarActionBop )
 {
     char* pVar = (char *)(SPOP);
 	_doStringVarop( pCore, pVar );
 }
+#endif
 
 OPTYPE_ACTION( LocalStringAction )
 {
@@ -1096,8 +1120,9 @@ OPTYPE_ACTION( MemberStringAction )
 	_doStringVarop( pCore, pVar );
 }
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each array
-GFORTHOP( doStringArrayOp )
+GFORTHOP( doStringArrayBop )
 {
     // IP points to data field
     long *pLongs = GET_IP;
@@ -1108,6 +1133,7 @@ GFORTHOP( doStringArrayOp )
 	_doStringVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
 }
+#endif
 
 OPTYPE_ACTION( LocalStringArrayAction )
 {
@@ -1188,7 +1214,8 @@ inline void _doOpVarop( ForthCoreState* pCore, long* pVar )
     }
 }
 
-GFORTHOP( doOpOp )
+#ifndef ASM_INNER_INTERPRETER
+GFORTHOP( doOpBop )
 {    
     // IP points to data field
     long* pVar = (long *)(GET_IP);
@@ -1197,11 +1224,12 @@ GFORTHOP( doOpOp )
     SET_IP( (long *) (RPOP) );
 }
 
-GFORTHOP( opVarActionOp )
+GFORTHOP( opVarActionBop )
 {
     long* pVar = (long *)(SPOP);
 	_doOpVarop( pCore, pVar );
 }
+#endif
 
 OPTYPE_ACTION( LocalOpAction )
 {
@@ -1226,8 +1254,9 @@ OPTYPE_ACTION( MemberOpAction )
 	_doOpVarop( pCore, pVar );
 }
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each array
-GFORTHOP( doOpArrayOp )
+GFORTHOP( doOpArrayBop )
 {
     // IP points to data field
     long* pVar = ((long *) (GET_IP)) + SPOP;
@@ -1235,6 +1264,7 @@ GFORTHOP( doOpArrayOp )
 	_doOpVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
 }
+#endif
 
 OPTYPE_ACTION( LocalOpArrayAction )
 {
@@ -1317,7 +1347,8 @@ inline void _doObjectVarop( ForthCoreState* pCore, ForthObject* pVar )
 	}
 }
 
-GFORTHOP( doObjectOp )
+#ifndef ASM_INNER_INTERPRETER
+GFORTHOP( doObjectBop )
 {
     // IP points to data field
 	ForthObject* pVar = (ForthObject *)(GET_IP);
@@ -1326,11 +1357,12 @@ GFORTHOP( doObjectOp )
     SET_IP( (long *) (RPOP) );
 }
 
-GFORTHOP( objectVarActionOp )
+GFORTHOP( objectVarActionBop )
 {
     ForthObject* pVar = (ForthObject *)(SPOP);
 	_doObjectVarop( pCore, pVar );
 }
+#endif
 
 OPTYPE_ACTION( LocalObjectAction )
 {
@@ -1356,8 +1388,9 @@ OPTYPE_ACTION( MemberObjectAction )
 }
 
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each array
-GFORTHOP( doObjectArrayOp )
+GFORTHOP( doObjectArrayBop )
 {
     // IP points to data field
 	ForthObject* pVar = ((ForthObject *) (GET_IP)) + SPOP;
@@ -1365,7 +1398,7 @@ GFORTHOP( doObjectArrayOp )
 	_doObjectVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
 }
-
+#endif
 
 OPTYPE_ACTION( LocalObjectArrayAction )
 {
@@ -1463,7 +1496,8 @@ inline void _doLongVarop( ForthCoreState* pCore, long long* pVar )
     }
 }
 
-GFORTHOP( doLongOp )
+#ifndef ASM_INNER_INTERPRETER
+GFORTHOP( doLongBop )
 {
     // IP points to data field
     long long* pVar = (long long *)(GET_IP);
@@ -1472,11 +1506,12 @@ GFORTHOP( doLongOp )
     SET_IP( (long *) (RPOP) );
 }
 
-GFORTHOP( longVarActionOp )
+GFORTHOP( longVarActionBop )
 {
     long long* pVar = (long long *)(SPOP);
 	_doLongVarop( pCore, pVar );
 }
+#endif
 
 OPTYPE_ACTION( LocalLongAction )
 {
@@ -1501,8 +1536,9 @@ OPTYPE_ACTION( MemberLongAction )
 	_doLongVarop( pCore, pVar );
 }
 
+#ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each array
-GFORTHOP( doLongArrayOp )
+GFORTHOP( doLongArrayBop )
 {
     // IP points to data field
     long long* pVar = ((long long *) (GET_IP)) + SPOP;
@@ -1510,6 +1546,7 @@ GFORTHOP( doLongArrayOp )
 	_doLongVarop( pCore, pVar );
     SET_IP( (long *) (RPOP) );
 }
+#endif
 
 OPTYPE_ACTION( LocalLongArrayAction )
 {

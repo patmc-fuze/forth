@@ -19,7 +19,7 @@ extern "C"
 
     extern baseDictionaryEntry baseDictionary[];
 	extern void AddForthOps( ForthEngine* pEngine );
-#ifdef _ASM_INNER_INTERPRETER
+#ifdef ASM_INNER_INTERPRETER
     extern void InitAsmTables(  ForthCoreState *pCore );
 #endif
     extern eForthResult InnerInterp( ForthCoreState *pCore );
@@ -250,7 +250,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
     // build dispatch table for different opcode types
     //
     InitDispatchTables( mpCore );
-#ifdef _ASM_INNER_INTERPRETER
+#ifdef ASM_INNER_INTERPRETER
     InitAsmTables( mpCore );
 #endif
 
@@ -995,7 +995,7 @@ ForthEngine::TraceOp( ForthCoreState* pCore )
     }
     char* sixteenSpaces = "                ";     // 16 spaces
     char* pIndent = sixteenSpaces + (16 - (rDepth << 1));
-    if ( *pOp != OP_DONE )
+    if ( *pOp != gCompiledOps[OP_DONE] )
     {
 		sprintf( buff,  "# 0x%08x ", pOp );
 		TraceOut( buff );
@@ -1433,7 +1433,7 @@ void
 ForthEngine::CompileOpcode( long op )
 {
     mpLastCompiledOpcode = mDictionary.pCurrent;
-    if ( op == OP_INTO )
+    if ( op == gCompiledOps[OP_INTO] )
     {
        // we need this to support initialization of local string vars (ugh)
        mpLastIntoOpcode = mpLastCompiledOpcode;
@@ -1601,7 +1601,7 @@ ForthEngine::ExecuteOps( long *pOps )
 
     savedIP = mpCore->IP;
     mpCore->IP = pOps;
-#ifdef _ASM_INNER_INTERPRETER
+#ifdef ASM_INNER_INTERPRETER
     if ( mFastMode )
     {
         exitStatus = InnerInterpreterFast( mpCore );
@@ -1630,7 +1630,7 @@ ForthEngine::ExecuteOps( ForthThread* pThread )
 {
     eForthResult exitStatus = kResultOk;
 
-#ifdef _ASM_INNER_INTERPRETER
+#ifdef ASM_INNER_INTERPRETER
     if ( mFastMode )
     {
         exitStatus = InnerInterpreterFast( &(pThread->mCore) );

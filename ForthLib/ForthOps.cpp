@@ -41,17 +41,17 @@ extern "C"
 // bottom 24 bits are immediate operand
 
 extern void intVarAction( ForthCoreState* pCore, int* pVar );
-extern GFORTHOP( byteVarActionOp );
-extern GFORTHOP( ubyteVarActionOp );
-extern GFORTHOP( shortVarActionOp );
-extern GFORTHOP( ushortVarActionOp );
-extern GFORTHOP( intVarActionOp );
-extern GFORTHOP( longVarActionOp );
-extern GFORTHOP( floatVarActionOp );
-extern GFORTHOP( doubleVarActionOp );
-extern GFORTHOP( stringVarActionOp );
-extern GFORTHOP( opVarActionOp );
-extern GFORTHOP( objectVarActionOp );
+extern GFORTHOP( byteVarActionBop );
+extern GFORTHOP( ubyteVarActionBop );
+extern GFORTHOP( shortVarActionBop );
+extern GFORTHOP( ushortVarActionBop );
+extern GFORTHOP( intVarActionBop );
+extern GFORTHOP( longVarActionBop );
+extern GFORTHOP( floatVarActionBop );
+extern GFORTHOP( doubleVarActionBop );
+extern GFORTHOP( stringVarActionBop );
+extern GFORTHOP( opVarActionBop );
+extern GFORTHOP( objectVarActionBop );
 
 //############################################################################
 //
@@ -655,37 +655,6 @@ FORTHOP( cCommaOp )
     pEngine->SetDP( (long *) pChar);
 }        
 
-FORTHOP( hereOp )
-{
-    ForthEngine *pEngine = GET_ENGINE;
-    char *pChar = (char *)GET_DP;
-
-	switch( GET_VAR_OPERATION )
-	{
-		case kVarDefaultOp:
-		case kVarFetch:
-		    SPUSH( (long) pChar );
-			break;
-		case kVarStore:
-		    pEngine->SetDP( (long *) (SPOP) );
-			break;
-		case kVarPlusStore:
-			pChar += SPOP;
-		    pEngine->SetDP( (long *) pChar );
-			break;
-		case kVarMinusStore:
-			pChar -= SPOP;
-		    pEngine->SetDP( (long *) pChar );
-			break;
-		case kVarRef:
-		    SPUSH( (long) &(pCore->pDictionary->pCurrent) );
-			break;
-		default:
-            SET_ERROR( kForthErrorBadVarOperation );
-	}
-	CLEAR_VAR_OPERATION;
-}
-
 FORTHOP( mallocOp )
 {
     NEEDS(1);
@@ -706,26 +675,6 @@ FORTHOP( freeOp )
 {
     NEEDS(1);
     free( (void *) SPOP );
-}
-
-FORTHOP( removeEntryOp )
-{
-    SET_VAR_OPERATION( kVocabRemoveEntry );
-}
-
-FORTHOP( entryLengthOp )
-{
-    SET_VAR_OPERATION( kVocabEntryLength );
-}
-
-FORTHOP( numEntriesOp )
-{
-    SET_VAR_OPERATION( kVocabNumEntries );
-}
-
-FORTHOP( vocabToClassOp )
-{
-    SET_VAR_OPERATION( kVocabGetClass );
 }
 
 FORTHOP( initStringArrayOp )
@@ -1109,13 +1058,6 @@ FORTHOP( variableOp )
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_VAR );
     pEngine->CompileLong( 0 );
-}
-
-FORTHOP( doVariableOp )
-{
-    // IP points to data field
-    SPUSH( (long) GET_IP );
-    SET_IP( (long *) (RPOP) );
 }
 
 FORTHOP( constantOp )
@@ -2274,7 +2216,7 @@ FORTHOP( printFormattedOp )
     CONSOLE_STRING_OUT( buff );
 }
 
-#ifdef _ASM_INNER_INTERPRETER
+#ifdef ASM_INNER_INTERPRETER
 extern long fprintfSub( ForthCoreState* pCore );
 extern long sprintfSub( ForthCoreState* pCore );
 extern long fscanfSub( ForthCoreState* pCore );
@@ -3615,11 +3557,13 @@ FORTHOP( stepThreadOp )
 	long op = *(pThreadCore->IP)++;
     long result;
     ForthEngine *pEngine = GET_ENGINE;
+#ifdef ASM_INNER_INTERPRETER
 	if ( pEngine->GetFastMode() )
 	{
 		result = (long) InterpretOneOpFast( pCore, op );
 	}
 	else
+#endif
 	{
 		result = (long) InterpretOneOp( pCore, op );
 	}
@@ -3794,33 +3738,2041 @@ FORTHOP( shutdownOp )
     SET_STATE( kResultShutdown );
 }
 
+
+#ifndef ASM_INNER_INTERPRETER
+
+
+// done is used by the outer interpreter to make the inner interpreter
+//  exit after interpreting a single opcode
+FORTHOP( doneBop )
+{
+    SET_STATE( kResultDone );
+}
+
+// abort is a user command which causes the entire forth engine to exit,
+//   and indicates that a fatal error has occured
+FORTHOP( abortBop )
+{
+    SET_FATAL_ERROR( kForthErrorAbort );
+}
+
+FORTHOP( doVariableBop )
+{
+    // IP points to data field
+    SPUSH( (long) GET_IP );
+    SET_IP( (long *) (RPOP) );
+}
+
+//##############################
+//
+// math ops
+//
+
+FORTHOP( plusBop )
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( a + b );
+}
+
+FORTHOP( minusBop )
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( a - b );
+}
+
+FORTHOP( timesBop )
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( a * b );
+}
+
+FORTHOP( utimesBop )
+{
+    NEEDS(2);
+    unsigned long b = SPOP;
+    unsigned long a = SPOP;
+    unsigned long long prod = ((unsigned long long) a) * b;
+    LPUSH( prod );
+}
+
+FORTHOP( times2Bop )
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( a << 1 );
+}
+
+FORTHOP( times4Bop )
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( a << 2 );
+}
+
+FORTHOP( times8Bop )
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( a << 3 );
+}
+
+FORTHOP( divideBop )
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( a / b );
+}
+
+FORTHOP( divide2Bop )
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( a >> 1 );
+}
+
+FORTHOP( divide4Bop )
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( a >> 2 );
+}
+
+FORTHOP( divide8Bop )
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( a >> 3 );
+}
+
+FORTHOP( divmodBop )
+{
+    NEEDS(2);
+    ldiv_t v;
+    long b = SPOP;
+    long a = SPOP;
+#if defined(WIN32)
+#if defined(MSDEV)
+    v = div( a, b );
+#else
+    v = ldiv( a, b );
+#endif
+#elif defined(LINUX)
+    v = ldiv( a, b );
+#endif
+    SPUSH( v.rem );
+    SPUSH( v.quot );
+}
+
+FORTHOP( modBop )
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( a % b );
+}
+
+FORTHOP( negateBop )
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( -a );
+}
+
+FORTHOP( fplusBop )
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    FPUSH( a + b );
+}
+
+FORTHOP( fminusBop )
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    FPUSH( a - b );
+}
+
+FORTHOP( ftimesBop )
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    FPUSH( a * b );
+}
+
+FORTHOP( fdivideBop )
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    FPUSH( a / b );
+}
+
+
+FORTHOP( dplusBop )
+{
+    NEEDS(4);
+    double b = DPOP;
+    double a = DPOP;
+    DPUSH( a + b );
+}
+
+FORTHOP( dminusBop )
+{
+    NEEDS(4);
+    double b = DPOP;
+    double a = DPOP;
+    DPUSH( a - b );
+}
+
+FORTHOP( dtimesBop )
+{
+    NEEDS(4);
+    double b = DPOP;
+    double a = DPOP;
+    DPUSH( a * b );
+}
+
+FORTHOP( ddivideBop )
+{
+    NEEDS(4);
+    double b = DPOP;
+    double a = DPOP;
+    DPUSH( a / b );
+}
+
+
+FORTHOP( dsinBop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( sin(a) );
+}
+
+FORTHOP( dasinBop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( asin(a) );
+}
+
+FORTHOP( dcosBop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( cos(a) );
+}
+
+FORTHOP( dacosBop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( acos(a) );
+}
+
+FORTHOP( dtanBop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( tan(a) );
+}
+
+FORTHOP( datanBop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( atan(a) );
+}
+
+FORTHOP( datan2Bop )
+{
+    NEEDS(4);
+    double b = DPOP;
+    double a = DPOP;
+    DPUSH( atan2(a, b) );
+}
+
+FORTHOP( dexpBop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( exp(a) );
+}
+
+FORTHOP( dlnBop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( log(a) );
+}
+
+FORTHOP( dlog10Bop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( log10(a) );
+}
+
+FORTHOP( dpowBop )
+{
+    NEEDS(4);
+    double b = DPOP;
+    double a = DPOP;
+    DPUSH( pow(a, b) );
+}
+
+FORTHOP( dsqrtBop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( sqrt(a) );
+}
+
+FORTHOP( dceilBop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( ceil(a) );
+}
+
+FORTHOP( dfloorBop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( floor(a) );
+}
+
+FORTHOP( dabsBop )
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPUSH( fabs(a) );
+}
+
+FORTHOP( dldexpBop )
+{
+    NEEDS(3);
+    int n = SPOP;
+    double a = DPOP;
+    DPUSH( ldexp(a, n) );
+}
+
+FORTHOP( dfrexpBop )
+{
+    NEEDS(2);
+    int n;
+    double a = DPOP;
+    DPUSH( frexp( a, &n ) );
+    SPUSH( n );
+}
+
+FORTHOP( dmodfBop )
+{
+    NEEDS(2);
+    double b;
+    double a = DPOP;
+    a = modf( a, &b );
+    DPUSH( b );
+    DPUSH( a );
+}
+
+FORTHOP( dfmodBop )
+{
+    NEEDS(4);
+    double b = DPOP;
+    double a = DPOP;
+    DPUSH( fmod( a, b ) );
+}
+
+FORTHOP( i2fBop )
+{
+    NEEDS(1);
+    float a = (float) SPOP;
+    FPUSH( a );
+}
+
+FORTHOP( i2dBop )
+{
+    NEEDS(1);
+    double a = SPOP;
+    DPUSH( a );
+}
+
+FORTHOP( f2iBop )
+{
+    NEEDS(1);
+    int a = (int) FPOP;
+    SPUSH( a );
+}
+
+FORTHOP( f2dBop )
+{
+    NEEDS(1);
+    double a = FPOP;
+    DPUSH( a );
+}
+
+FORTHOP( d2iBop )
+{
+    NEEDS(2);
+    int a = (int) DPOP;
+    SPUSH( a );
+}
+
+FORTHOP( d2fBop )
+{
+    NEEDS(2);
+    float a = (float) DPOP;
+    FPUSH( a );
+}
+
+//##############################
+//
+// control ops
+//
+// TBD: replace branch, tbranch, fbranch with immediate ops
+// exit normal op with no local vars
+FORTHOP(doExitBop)
+{
+    // rstack: oldIP
+    if ( GET_RDEPTH < 1 )
+    {
+        SET_ERROR( kForthErrorReturnStackUnderflow );
+    }
+    else
+    {
+        SET_IP( (long *) RPOP );
+    }
+}
+
+// exit normal op with local vars
+FORTHOP(doExitLBop)
+{
+    // rstack: local_var_storage oldFP oldIP
+    // FP points to oldFP
+    SET_RP( GET_FP );
+    SET_FP( (long *) (RPOP) );
+    if ( GET_RDEPTH < 1 )
+    {
+        SET_ERROR( kForthErrorReturnStackUnderflow );
+    }
+    else
+    {
+        SET_IP( (long *) RPOP );
+    }
+}
+
+// exit method op with no local vars
+FORTHOP(doExitMBop)
+{
+    // rstack: oldIP oldTP
+    if ( GET_RDEPTH < 3 )
+    {
+        SET_ERROR( kForthErrorReturnStackUnderflow );
+    }
+    else
+    {
+        SET_IP( (long *) RPOP );
+        SET_TPM( (long *) RPOP );
+        SET_TPD( (long *) RPOP );
+    }
+}
+
+// exit method op with local vars
+FORTHOP(doExitMLBop)
+{
+    // rstack: local_var_storage oldFP oldIP oldTP
+    // FP points to oldFP
+    SET_RP( GET_FP );
+    SET_FP( (long *) (RPOP) );
+    if ( GET_RDEPTH < 3 )
+    {
+        SET_ERROR( kForthErrorReturnStackUnderflow );
+    }
+    else
+    {
+        SET_IP( (long *) RPOP );
+        SET_TPM( (long *) RPOP );
+        SET_TPD( (long *) RPOP );
+    }
+}
+
+FORTHOP(callBop)
+{
+    RPUSH( (long) GET_IP );
+    SET_IP( (long *) SPOP );
+}
+
+FORTHOP(gotoBop)
+{
+    SET_IP( (long *) SPOP );
+}
+
+FORTHOP(doDoBop)
+{
+    NEEDS(2);
+    long startIndex = SPOP;
+    // skip over loop exit IP right after this op
+    long *newIP = (GET_IP) + 1;
+    SET_IP( newIP );
+
+    RPUSH( (long) newIP );
+    RPUSH( SPOP );
+    RPUSH( startIndex );
+    // top of rstack is current index, next is end index,
+    //  next is looptop IP
+}
+
+FORTHOP(doCheckDoBop)
+{
+    NEEDS(2);
+    long startIndex = SPOP;
+    long endIndex = SPOP;
+    // skip over loop exit IP right after this op
+	if ( startIndex < endIndex)
+	{
+	    long *newIP = (GET_IP + 1);
+		RPUSH( (long) newIP );
+		RPUSH( endIndex );
+		RPUSH( startIndex );
+		// top of rstack is current index, next is end index,
+		//  next is looptop IP
+	    SET_IP( newIP );
+	}
+}
+
+FORTHOP(doLoopBop)
+{
+    RNEEDS(3);
+
+    long *pRP = GET_RP;
+    long newIndex = (*pRP) + 1;
+
+    if ( newIndex >= pRP[1] )
+    {
+        // loop has ended, drop end, current indices, loopIP
+        SET_RP( pRP + 3 );
+    }
+    else
+    {
+        // loop again
+        *pRP = newIndex;
+        SET_IP( (long *) (pRP[2]) );
+    }
+}
+
+FORTHOP(doLoopNBop)
+{
+    RNEEDS(3);
+    NEEDS(1);
+
+    long *pRP = GET_RP;
+    long increment = SPOP;
+    long newIndex = (*pRP) + increment;
+    bool done;
+
+    done = (increment > 0) ? (newIndex >= pRP[1]) : (newIndex < pRP[1]);
+    if ( done )
+    {
+        // loop has ended, drop end, current indices, loopIP
+        SET_RP( pRP + 3 );
+    }
+    else
+    {
+        // loop again
+        *pRP = newIndex;
+        SET_IP( (long *) (pRP[2]) );
+    }
+}
+
+FORTHOP(iBop)
+{
+    SPUSH( *(GET_RP) );
+}
+
+FORTHOP(jBop)
+{
+    SPUSH( GET_RP[3] );
+}
+
+
+// discard stuff "do" put on rstack in preparation for an "exit"
+//   of the current op from inside a do loop
+FORTHOP( unloopBop )
+{
+    RNEEDS(3);
+    // loop has ended, drop end, current indices, loopIP
+    SET_RP( GET_RP + 3 );
+}
+
+
+// exit loop immediately
+FORTHOP( leaveBop )
+{
+    RNEEDS(3);
+    long *pRP = GET_RP;
+    long *newIP = (long *) (pRP[2]) - 1;
+
+    // loop has ended, drop end, current indices, loopIP
+    SET_RP( pRP + 3 );
+    // point IP back to the branch op just after the _do opcode
+    SET_IP( newIP );
+}
+
+///////////////////////////////////////////
+//  bit-vector logic ops
+///////////////////////////////////////////
+FORTHOP( orBop )
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( a | b );
+}
+
+FORTHOP( andBop )
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( a & b );
+}
+
+FORTHOP( xorBop )
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( a ^ b );
+}
+
+FORTHOP( invertBop )
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( ~a );
+}
+
+FORTHOP( lshiftBop )
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( a << b );
+}
+
+FORTHOP( rshiftBop )
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( a >> b );
+}
+
+
+FORTHOP( urshiftBop )
+{
+    NEEDS(2);
+    long b = SPOP;
+    unsigned long a = (unsigned long) (SPOP);
+    SPUSH( a >> b );
+}
+
+
+///////////////////////////////////////////
+//  boolean ops
+///////////////////////////////////////////
+FORTHOP( notBop )
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( ~a );
+}
+
+FORTHOP( trueBop )
+{
+    SPUSH( ~0 );
+}
+
+FORTHOP( falseBop )
+{
+    SPUSH( 0 );
+}
+
+FORTHOP( nullBop )
+{
+    SPUSH( 0 );
+}
+
+FORTHOP( dnullBop )
+{
+    SPUSH( 0 );
+    SPUSH( 0 );
+}
+
+//##############################
+//
+// integer comparison ops
+//
+
+FORTHOP(equalsBop)
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( ( a == b ) ? -1L : 0 );
+}
+
+FORTHOP(notEqualsBop)
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( ( a != b ) ? -1L : 0 );
+}
+
+FORTHOP(greaterThanBop)
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( ( a > b ) ? -1L : 0 );
+}
+
+FORTHOP(greaterEqualsBop)
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( ( a >= b ) ? -1L : 0 );
+}
+
+FORTHOP(lessThanBop)
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( ( a < b ) ? -1L : 0 );
+}
+
+FORTHOP(lessEqualsBop)
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( ( a <= b ) ? -1L : 0 );
+}
+
+FORTHOP(equalsZeroBop)
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( ( a == 0 ) ? -1L : 0 );
+}
+
+FORTHOP(notEqualsZeroBop)
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( ( a != 0 ) ? -1L : 0 );
+}
+
+FORTHOP(greaterThanZeroBop)
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( ( a > 0 ) ? -1L : 0 );
+}
+
+FORTHOP(greaterEqualsZeroBop)
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( ( a >= 0 ) ? -1L : 0 );
+}
+
+FORTHOP(lessThanZeroBop)
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( ( a < 0 ) ? -1L : 0 );
+}
+
+FORTHOP(lessEqualsZeroBop)
+{
+    NEEDS(1);
+    long a = SPOP;
+    SPUSH( ( a <= 0 ) ? -1L : 0 );
+}
+
+FORTHOP(unsignedGreaterThanBop)
+{
+    NEEDS(2);
+    ulong b = (ulong) SPOP;
+    ulong a = (ulong) SPOP;
+    SPUSH( ( a > b ) ? -1L : 0 );
+}
+
+FORTHOP(unsignedLessThanBop)
+{
+    NEEDS(2);
+    ulong b = (ulong) SPOP;
+    ulong a = (ulong) SPOP;
+    SPUSH( ( a < b ) ? -1L : 0 );
+}
+
+FORTHOP(withinBop)
+{
+    NEEDS(3);
+    long hiLimit = SPOP;
+    long loLimit = SPOP;
+    long val = SPOP;
+    SPUSH( ( (loLimit <= val) && (val < hiLimit) ) ? -1L : 0 );
+}
+
+FORTHOP(minBop)
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( ( a < b ) ? a : b );
+}
+
+FORTHOP(maxBop)
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    SPUSH( ( a > b ) ? a : b );
+}
+
+
+//##############################
+//
+// single-precision fp comparison ops
+//
+
+FORTHOP(fEqualsBop)
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    SPUSH( ( a == b ) ? -1L : 0 );
+}
+
+FORTHOP(fNotEqualsBop)
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    SPUSH( ( a != b ) ? -1L : 0 );
+}
+
+FORTHOP(fGreaterThanBop)
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    SPUSH( ( a > b ) ? -1L : 0 );
+}
+
+FORTHOP(fGreaterEqualsBop)
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    SPUSH( ( a >= b ) ? -1L : 0 );
+}
+
+FORTHOP(fLessThanBop)
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    SPUSH( ( a < b ) ? -1L : 0 );
+}
+
+FORTHOP(fLessEqualsBop)
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    SPUSH( ( a <= b ) ? -1L : 0 );
+}
+
+FORTHOP(fEqualsZeroBop)
+{
+    NEEDS(1);
+    float a = FPOP;
+    SPUSH( ( a == 0.0f ) ? -1L : 0 );
+}
+
+FORTHOP(fNotEqualsZeroBop)
+{
+    NEEDS(1);
+    float a = FPOP;
+    SPUSH( ( a != 0.0f ) ? -1L : 0 );
+}
+
+FORTHOP(fGreaterThanZeroBop)
+{
+    NEEDS(1);
+    float a = FPOP;
+    SPUSH( ( a > 0.0f ) ? -1L : 0 );
+}
+
+FORTHOP(fGreaterEqualsZeroBop)
+{
+    NEEDS(1);
+    float a = FPOP;
+    SPUSH( ( a >= 0.0f ) ? -1L : 0 );
+}
+
+FORTHOP(fLessThanZeroBop)
+{
+    NEEDS(1);
+    float a = FPOP;
+    SPUSH( ( a < 0.0f ) ? -1L : 0 );
+}
+
+FORTHOP(fLessEqualsZeroBop)
+{
+    NEEDS(1);
+    float a = FPOP;
+    SPUSH( ( a <= 0.0f ) ? -1L : 0 );
+}
+
+FORTHOP(fWithinBop)
+{
+    NEEDS(3);
+    float hiLimit = FPOP;
+    float loLimit = FPOP;
+    float val = FPOP;
+    SPUSH( ( (loLimit <= val) && (val < hiLimit) ) ? -1L : 0 );
+}
+
+FORTHOP(fMinBop)
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    FPUSH( ( a < b ) ? a : b );
+}
+
+FORTHOP(fMaxBop)
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    FPUSH( ( a > b ) ? a : b );
+}
+
+//##############################
+//
+// double-precision fp comparison ops
+//
+
+FORTHOP(dEqualsBop)
+{
+    NEEDS(2);
+    double b = DPOP;
+    double a = DPOP;
+    SPUSH( ( a == b ) ? -1L : 0 );
+}
+
+FORTHOP(dNotEqualsBop)
+{
+    NEEDS(2);
+    double b = DPOP;
+    double a = DPOP;
+    SPUSH( ( a != b ) ? -1L : 0 );
+}
+
+FORTHOP(dGreaterThanBop)
+{
+    NEEDS(2);
+    double b = DPOP;
+    double a = DPOP;
+    SPUSH( ( a > b ) ? -1L : 0 );
+}
+
+FORTHOP(dGreaterEqualsBop)
+{
+    NEEDS(2);
+    double b = DPOP;
+    double a = DPOP;
+    SPUSH( ( a >= b ) ? -1L : 0 );
+}
+
+FORTHOP(dLessThanBop)
+{
+    NEEDS(2);
+    double b = DPOP;
+    double a = DPOP;
+    SPUSH( ( a < b ) ? -1L : 0 );
+}
+
+FORTHOP(dLessEqualsBop)
+{
+    NEEDS(2);
+    double b = DPOP;
+    double a = DPOP;
+    SPUSH( ( a <= b ) ? -1L : 0 );
+}
+
+FORTHOP(dEqualsZeroBop)
+{
+    NEEDS(1);
+    double a = DPOP;
+    SPUSH( ( a == 0.0 ) ? -1L : 0 );
+}
+
+FORTHOP(dNotEqualsZeroBop)
+{
+    NEEDS(1);
+    double a = DPOP;
+    SPUSH( ( a != 0.0 ) ? -1L : 0 );
+}
+
+FORTHOP(dGreaterThanZeroBop)
+{
+    NEEDS(1);
+    double a = DPOP;
+    SPUSH( ( a > 0.0 ) ? -1L : 0 );
+}
+
+FORTHOP(dGreaterEqualsZeroBop)
+{
+    NEEDS(1);
+    double a = DPOP;
+    SPUSH( ( a >= 0.0 ) ? -1L : 0 );
+}
+
+FORTHOP(dLessThanZeroBop)
+{
+    NEEDS(1);
+    double a = DPOP;
+    SPUSH( ( a < 0.0 ) ? -1L : 0 );
+}
+
+FORTHOP(dLessEqualsZeroBop)
+{
+    NEEDS(1);
+    double a = DPOP;
+    SPUSH( ( a <= 0.0 ) ? -1L : 0 );
+}
+
+FORTHOP(dWithinBop)
+{
+    NEEDS(3);
+    double hiLimit = DPOP;
+    double loLimit = DPOP;
+    double val = DPOP;
+    SPUSH( ( (loLimit <= val) && (val < hiLimit) ) ? -1L : 0 );
+}
+
+FORTHOP(dMinBop)
+{
+    NEEDS(2);
+    double b = DPOP;
+    double a = DPOP;
+    DPUSH( ( a < b ) ? a : b );
+}
+
+FORTHOP(dMaxBop)
+{
+    NEEDS(2);
+    double b = DPOP;
+    double a = DPOP;
+    DPUSH( ( a > b ) ? a : b );
+}
+
+
+//##############################
+//
+// stack manipulation
+//
+
+FORTHOP(rpushBop)
+{
+    NEEDS(1);
+    RPUSH( SPOP );
+}
+
+FORTHOP(rpopBop)
+{
+    RNEEDS(1);
+    SPUSH( RPOP );
+}
+
+FORTHOP(rpeekBop)
+{
+    SPUSH( *(GET_RP) );
+}
+
+FORTHOP(rdropBop)
+{
+    RNEEDS(1);
+    RPOP;
+}
+
+FORTHOP(rpBop)
+{
+	intVarAction( pCore, (int *)&(pCore->RP) );
+}
+
+FORTHOP(rzeroBop)
+{
+    long pR0 = (long) (pCore->RT);
+    SPUSH( pR0 );
+}
+
+FORTHOP(dupBop)
+{
+    NEEDS(1);
+    long a = *(GET_SP);
+    SPUSH( a );
+}
+
+FORTHOP(checkDupBop)
+{
+    NEEDS(1);
+    long a = *(GET_SP);
+    if ( a != 0 )
+    {
+        SPUSH( a );
+    }
+}
+
+FORTHOP(swapBop)
+{
+    NEEDS(2);
+    long a = *(GET_SP);
+    *(GET_SP) = (GET_SP)[1];
+    (GET_SP)[1] = a;
+}
+
+FORTHOP(dropBop)
+{
+    NEEDS(1);
+    SPOP;
+}
+
+FORTHOP(overBop)
+{
+    NEEDS(1);
+    long a = (GET_SP)[1];
+    SPUSH( a );
+}
+
+FORTHOP(rotBop)
+{
+    NEEDS(3);
+    int a, b, c;
+    long *pSP = GET_SP;
+    a = pSP[2];
+    b = pSP[1];
+    c = pSP[0];
+    pSP[2] = b;
+    pSP[1] = c;
+    pSP[0] = a;
+}
+
+FORTHOP(reverseRotBop)
+{
+    NEEDS(3);
+    int a, b, c;
+    long *pSP = GET_SP;
+    a = pSP[2];
+    b = pSP[1];
+    c = pSP[0];
+    pSP[2] = c;
+    pSP[1] = a;
+    pSP[0] = b;
+}
+
+FORTHOP(nipBop)
+{
+    NEEDS(2);
+    long a = SPOP;
+    SPOP;
+    SPUSH( a );
+}
+
+FORTHOP(tuckBop)
+{
+    NEEDS(2);
+    long *pSP = GET_SP;
+    long a = *pSP;
+    long b = pSP[1];
+    SPUSH( a );
+    *pSP = b;
+    pSP[1] = a;
+}
+
+FORTHOP(pickBop)
+{
+    NEEDS(1);
+    long *pSP = GET_SP;
+    long n = *pSP;
+    long a = pSP[n + 1];
+    *pSP = a;
+}
+
+FORTHOP(rollBop)
+{
+    // TBD: moves the Nth element to TOS
+    // 1 roll is the same as swap
+    // 2 roll is the same as rot
+    long n = (SPOP);
+    long *pSP = GET_SP;
+    long a;
+	if ( n != 0 )
+	{
+		if ( n > 0 )
+		{
+			a = pSP[n];
+			for ( int i = n; i != 0; i-- )
+			{
+				pSP[i] = pSP[i - 1];
+			}
+			*pSP = a;
+		}
+		else
+		{
+			a = *pSP;
+			n = -n;
+			for ( int i = 0; i < n; i++ )
+			{
+				pSP[i] = pSP[i + 1];
+			}
+			pSP[n] = a;
+		}
+	}
+}
+
+FORTHOP(spBop)
+{
+	intVarAction( pCore, (int *)&(pCore->SP) );
+}
+
+FORTHOP(szeroBop)
+{
+    long pS0 = (long) (pCore->ST);
+    SPUSH( pS0 );
+}
+
+FORTHOP(fpBop)
+{
+	intVarAction( pCore, (int *)&(pCore->FP) );
+}
+
+FORTHOP(ipBop)
+{
+	intVarAction( pCore, (int *)&(pCore->IP) );
+}
+
+FORTHOP(ddupBop)
+{
+    NEEDS(2);
+    double *pDsp = (double *)(GET_SP);
+    DPUSH( *pDsp );
+}
+
+FORTHOP(dswapBop)
+{
+    NEEDS(4);
+    double *pDsp = (double *)(GET_SP);
+    double a = *pDsp;
+    *pDsp = pDsp[1];
+    pDsp[1] = a;
+}
+
+FORTHOP(ddropBop)
+{
+    NEEDS(2);
+    SET_SP( GET_SP + 2 );
+}
+
+FORTHOP(doverBop)
+{
+    NEEDS(2);
+    double *pDsp = (double *)(GET_SP);
+    DPUSH( pDsp[1] );
+}
+
+FORTHOP(drotBop)
+{
+    NEEDS(3);
+    double *pDsp = (double *)(GET_SP);
+    double a, b, c;
+    a = pDsp[2];
+    b = pDsp[1];
+    c = pDsp[0];
+    pDsp[2] = b;
+    pDsp[1] = c;
+    pDsp[0] = a;
+}
+
+#if 0
+FORTHOP(dreverseRotBop)
+{
+    NEEDS(3);
+    double *pDsp = (double *)(GET_SP);
+    double a, b, c;
+    a = pDsp[2];
+    b = pDsp[1];
+    c = pDsp[0];
+    pDsp[2] = c;
+    pDsp[1] = a;
+    pDsp[0] = b;
+}
+
+FORTHOP(dnipBop)
+{
+    NEEDS(2);
+    double a = DPOP;
+    DPOP;
+    DPUSH( a );
+}
+
+FORTHOP(dtuckBop)
+{
+    NEEDS(2);
+    double *pDsp = (double *)(GET_SP);
+    double a = *pDsp;
+    double b = pDsp[1];
+    DPUSH( a );
+    *pDsp = b;
+    pDsp[1] = a;
+}
+
+FORTHOP(dpickBop)
+{
+    NEEDS(1);
+    long n = SPOP;
+    double *pDsp = (double *)(GET_SP);
+    double a = pDsp[n];
+	DPUSH( a );
+}
+
+FORTHOP(drollBop)
+{
+    // TBD: moves the Nth element to TOS
+    // 1 droll is the same as dswap
+    // 2 droll is the same as drot
+    long n = (SPOP);
+    double *pDsp = (double *)(GET_SP);
+    double a;
+	if ( n != 0 )
+	{
+		if ( n > 0 )
+		{
+			a = pDsp[n];
+			for ( int i = n; i != 0; i-- )
+			{
+				pDsp[i] = pDsp[i - 1];
+			}
+			*pDsp = a;
+		}
+		else
+		{
+			a = *pDsp;
+			n = -n;
+			for ( int i = 0; i < n; i++ )
+			{
+				pDsp[i] = pDsp[i + 1];
+			}
+			pDsp[n] = a;
+		}
+	}
+}
+#endif
+
+FORTHOP(startTupleBop)
+{
+    long pSP = (long) (GET_SP);
+    RPUSH( pSP );
+}
+
+FORTHOP(endTupleBop)
+{
+    long* pSP = (GET_SP);
+    long* pOldSP = (long *) (RPOP);
+    long count = pOldSP - pSP;
+    SPUSH( count );
+}
+
+#if 0
+FORTHOP(ndropBop)
+{
+    NEEDS(1);
+	int n = SPOP;
+    SET_SP( GET_SP + n );
+}
+
+FORTHOP(ndupBop)
+{
+    NEEDS(1);
+	int n = (SPOP) - 1;
+    long* pSP = (GET_SP) + n;
+	for ( int i = 0; i <= n; i++ )
+	{
+		long v = *pSP--;
+		SPUSH( v );
+	}
+}
+
+FORTHOP(npickBop)
+{
+    NEEDS(1);
+	int n = (SPOP) - 1;
+	int offset = (SPOP);
+    long* pSP = (GET_SP) + offset + n;
+	for ( int i = 0; i <= n; i++ )
+	{
+		long v = *pSP--;
+		SPUSH( v );
+	}
+	/*
+	for ( int i = 0; i <= n; i++ )
+	{
+      long* pSP = (GET_SP);
+	  SPUSH( pSP[offset] );
+	}
+	*/
+}
+#endif
+
+//##############################
+//
+// loads & stores
+//
+
+FORTHOP(storeBop)
+{
+    NEEDS(2);
+    long *pB = (long *)(SPOP); 
+    long a = SPOP;
+    *pB = a;
+}
+
+FORTHOP(fetchBop)
+{
+    NEEDS(1);
+    long *pA = (long *)(SPOP); 
+    SPUSH( *pA );
+}
+
+FORTHOP(storeNextBop)
+{
+    NEEDS(2);
+    long **ppB = (long **)(SPOP);
+    long *pB = *ppB;
+    long a = SPOP;
+    *pB++ = a;
+    *ppB = pB;
+}
+
+FORTHOP(fetchNextBop)
+{
+    NEEDS(1);
+    long **ppA = (long **)(SPOP); 
+    long *pA = *ppA;
+    long a = *pA++;
+    SPUSH( a );
+    *ppA = pA;
+}
+
+FORTHOP(cstoreBop)
+{
+    NEEDS(2);
+    char *pB = (char *) (SPOP);
+    long a = SPOP;
+    *pB = (char) a;
+}
+
+FORTHOP(cfetchBop)
+{
+    NEEDS(1);
+    unsigned char *pA = (unsigned char *) (SPOP);
+    SPUSH( (*pA) );
+}
+
+FORTHOP(cstoreNextBop)
+{
+    NEEDS(2);
+    char **ppB = (char **)(SPOP);
+    char *pB = *ppB;
+    long a = SPOP;
+    *pB++ = (char) a;
+    *ppB = pB;
+}
+
+FORTHOP(cfetchNextBop)
+{
+    NEEDS(1);
+    unsigned char **ppA = (unsigned char **)(SPOP); 
+    unsigned char *pA = *ppA;
+    unsigned char a = *pA++;
+    SPUSH( a );
+    *ppA = pA;
+}
+
+// signed char fetch
+FORTHOP(scfetchBop)
+{
+    NEEDS(1);
+    signed char *pA = (signed char *) (SPOP);
+    SPUSH( (*pA) );
+}
+
+FORTHOP(c2lBop)
+{
+    NEEDS(1);
+    signed char a = (signed char) (SPOP);
+	long b = (long) a;
+    SPUSH( b );
+}
+
+FORTHOP(wstoreBop)
+{
+    NEEDS(2);
+    short *pB = (short *) (SPOP);
+    long a = SPOP;
+    *pB = (short) a;
+}
+
+FORTHOP(wfetchBop)
+{
+    NEEDS(1);
+    unsigned short *pA = (unsigned short *) (SPOP);
+    SPUSH( *pA );
+}
+
+FORTHOP(wstoreNextBop)
+{
+    NEEDS(2);
+    short **ppB = (short **)(SPOP);
+    short *pB = *ppB;
+    long a = SPOP;
+    *pB++ = (short) a;
+    *ppB = pB;
+}
+
+FORTHOP(wfetchNextBop)
+{
+    NEEDS(1);
+    unsigned short **ppA = (unsigned short **)(SPOP); 
+    unsigned short *pA = *ppA;
+    unsigned short a = *pA++;
+    SPUSH( a );
+    *ppA = pA;
+}
+
+// signed word fetch
+FORTHOP(swfetchBop)
+{
+    NEEDS(1);
+    signed short *pA = (signed short *) (SPOP);
+    SPUSH( *pA );
+}
+
+FORTHOP(w2lBop)
+{
+    NEEDS(1);
+    short a = (short) (SPOP);
+	long b = (long) a;
+    SPUSH( b );
+}
+
+FORTHOP(dstoreBop)
+{
+    NEEDS(3);
+    double *pB = (double *) (SPOP); 
+    double a= DPOP;
+    *pB = a;
+}
+
+FORTHOP(dfetchBop)
+{
+    NEEDS(1);
+    double *pA = (double *) (SPOP);
+    DPUSH( *pA );
+}
+
+FORTHOP(dstoreNextBop)
+{
+    NEEDS(2);
+    double **ppB = (double **)(SPOP);
+    double *pB = *ppB;
+    double a = DPOP;
+    *pB++ = a;
+    *ppB = pB;
+}
+
+FORTHOP(dfetchNextBop)
+{
+    NEEDS(1);
+    double **ppA = (double **)(SPOP); 
+    double *pA = *ppA;
+    double a = *pA++;
+    DPUSH( a );
+    *ppA = pA;
+}
+
+FORTHOP(memcpyBop)
+{
+    NEEDS(3);
+    size_t nBytes = (size_t) (SPOP);
+    const void* pSrc = (const void *) (SPOP);
+    void* pDst = (void *) (SPOP);
+    memcpy( pDst, pSrc, nBytes );
+}
+
+FORTHOP(memsetBop)
+{
+    NEEDS(3);
+    size_t nBytes = (size_t) (SPOP);
+    int byteVal = (int) (SPOP);
+    void* pDst = (void *) (SPOP);
+    memset( pDst, byteVal, nBytes );
+}
+
+FORTHOP(intoBop)
+{
+    SET_VAR_OPERATION( kVarStore );
+}
+
+FORTHOP(addToBop)
+{
+    SET_VAR_OPERATION( kVarPlusStore );
+}
+
+FORTHOP(subtractFromBop)
+{
+    SET_VAR_OPERATION( kVarMinusStore );
+}
+
+FORTHOP(addressOfBop)
+{
+    SET_VAR_OPERATION( kVarRef );
+}
+
+FORTHOP(setVarActionBop)
+{
+    SET_VAR_OPERATION( SPOP );
+}
+
+FORTHOP(getVarActionBop)
+{
+    SPUSH( GET_VAR_OPERATION );
+}
+
+//##############################
+//
+// string ops
+//
+
+FORTHOP( strcpyBop )
+{
+    char *pSrc = (char *) SPOP;
+    char *pDst = (char *) SPOP;
+    strcpy( pDst, pSrc );
+}
+
+FORTHOP( strncpyBop )
+{
+	size_t maxBytes = (size_t) SPOP;
+    char *pSrc = (char *) SPOP;
+    char *pDst = (char *) SPOP;
+    strncpy( pDst, pSrc, maxBytes );
+}
+
+FORTHOP( strlenBop )
+{
+    char *pSrc = (char *) SPOP;
+    SPUSH(  strlen( pSrc ) );
+}
+
+FORTHOP( strcatBop )
+{
+    char *pSrc = (char *) SPOP;
+    char *pDst = (char *) SPOP;
+    strcat( pDst, pSrc );
+}
+
+FORTHOP( strncatBop )
+{
+	size_t maxBytes = (size_t) SPOP;
+    char *pSrc = (char *) SPOP;
+    char *pDst = (char *) SPOP;
+    strncat( pDst, pSrc, maxBytes );
+}
+
+
+FORTHOP( strchrBop )
+{
+    int c = (int) SPOP;
+    char *pStr = (char *) SPOP;
+    SPUSH( (long) strchr( pStr, c ) );
+}
+
+FORTHOP( strrchrBop )
+{
+    int c = (int) SPOP;
+    char *pStr = (char *) SPOP;
+    SPUSH( (long) strrchr( pStr, c ) );
+}
+
+FORTHOP( strcmpBop )
+{
+    char *pStr2 = (char *) SPOP;
+    char *pStr1 = (char *) SPOP;
+	int result = strcmp( pStr1, pStr2 );
+	// only return 1, 0 or -1
+	if ( result != 0 )
+	{
+		result = (result > 0) ? 1 : -1;
+	}
+	SPUSH( (long) result );
+}
+
+FORTHOP( stricmpBop )
+{
+    char *pStr2 = (char *) SPOP;
+    char *pStr1 = (char *) SPOP;
+#if defined(WIN32)
+	int result = stricmp( pStr1, pStr2 );
+#elif defined(LINUX)
+	int result = strcasecmp( pStr1, pStr2 );
+#endif
+	// only return 1, 0 or -1
+	if ( result != 0 )
+	{
+		result = (result > 0) ? 1 : -1;
+	}
+	SPUSH( (long) result );
+}
+
+
+FORTHOP( strstrBop )
+{
+    char *pStr2 = (char *) SPOP;
+    char *pStr1 = (char *) SPOP;
+    SPUSH( (long) strstr( pStr1, pStr2 ) );
+}
+
+
+FORTHOP( strtokBop )
+{
+    char *pStr2 = (char *) SPOP;
+    char *pStr1 = (char *) SPOP;
+    SPUSH( (long) strtok( pStr1, pStr2 ) );
+}
+
+FORTHOP( initStringBop )
+{
+    long len;
+    long* pStr;
+
+    // TOS: ptr to first char, maximum length
+    pStr = (long *) (SPOP);
+    len = SPOP;
+    pStr[-2] = len;
+    pStr[-1] = 0;
+    *((char *) pStr) = 0;
+}
+
+// push the immediately following literal 32-bit constant
+FORTHOP(litBop)
+{
+    long *pV = GET_IP;
+    SET_IP( pV + 1 );
+    SPUSH( *pV );
+}
+
+// push the immediately following literal 64-bit constant
+FORTHOP(dlitBop)
+{
+    double *pV = (double *) GET_IP;
+    DPUSH( *pV++ );
+    SET_IP( (long *) pV );
+}
+
+// doDoes
+// - does not have precedence
+// - is executed while executing the user word
+// - it gets the parameter address of the user word
+// 
+FORTHOP( doDoesBop )
+{
+    SPUSH( RPOP );
+}
+
+FORTHOP( doConstantBop )
+{
+    // IP points to data field
+    SPUSH( *GET_IP );
+    SET_IP( (long *) (RPOP) );
+}
+
+FORTHOP( doDConstantBop )
+{
+    // IP points to data field
+    DPUSH( *((double *) (GET_IP)) );
+    SET_IP( (long *) (RPOP) );
+}
+
+FORTHOP( thisBop )
+{
+    SPUSH( ((long) GET_TPD) );
+    SPUSH( ((long) GET_TPM) );
+}
+
+FORTHOP( thisDataBop )
+{
+    SPUSH( ((long) GET_TPD) );
+}
+
+FORTHOP( thisMethodsBop )
+{
+    SPUSH( ((long) GET_TPM) );
+}
+
+// doStructOp is compiled at the start of each user-defined global structure instance
+FORTHOP( doStructBop )
+{
+    // IP points to data field
+    SPUSH( (long) GET_IP );
+    SET_IP( (long *) (RPOP) );
+}
+
+// doStructArrayOp is compiled as the only op of each user-defined global structure array instance
+// the word after this op is the padded element length
+// after that word is storage for structure 0 of the array
+FORTHOP( doStructArrayBop )
+{
+    // IP points to data field
+    long *pA = GET_IP;
+    long nBytes = (*pA++) * SPOP;
+
+    SPUSH( ((long) pA) + nBytes );
+    SET_IP( (long *) (RPOP) );
+}
+
+FORTHOP( executeBop )
+{
+	long op = SPOP;
+    ForthEngine *pEngine = GET_ENGINE;
+	pEngine->ExecuteOneOp( op );
+#if 0
+    long prog[2];
+    long *oldIP = GET_IP;
+
+	// execute the opcode
+    prog[0] = SPOP;
+    prog[1] = gCompiledOps[OP_DONE] ;
+    
+    SET_IP( prog );
+    InnerInterpreter( pCore );
+    SET_IP( oldIP );
+#endif
+}
+
+//##############################
+//
+//  File ops
+//
+FORTHOP( fopenBop )
+{
+    NEEDS(2);
+    char *pAccess = (char *) SPOP;
+    char *pName = (char *) SPOP;
+
+    FILE *pFP = pCore->pFileFuncs->fileOpen( pName, pAccess );
+    SPUSH( (long) pFP );
+}
+
+FORTHOP( fcloseBop )
+{
+    NEEDS(1);
+    
+    int result = pCore->pFileFuncs->fileClose( (FILE *) SPOP );
+    SPUSH( result );
+}
+
+FORTHOP( fseekBop )
+{
+    int ctrl = SPOP;
+    int offset = SPOP;
+    FILE *pFP = (FILE *) SPOP;
+    
+    int result = pCore->pFileFuncs->fileSeek( pFP, offset, ctrl );
+    SPUSH( result );
+}
+
+FORTHOP( freadBop )
+{
+    NEEDS(4);
+    
+    FILE *pFP = (FILE *) SPOP;
+    int numItems = SPOP;
+    int itemSize = SPOP;
+    void *pDst = (void *) SPOP;
+    
+    int result = pCore->pFileFuncs->fileRead( pDst, itemSize, numItems, pFP );
+    SPUSH( result );
+}
+
+FORTHOP( fwriteBop )
+{
+    
+    NEEDS(4);
+    FILE *pFP = (FILE *) SPOP;
+    int numItems = SPOP;
+    int itemSize = SPOP;
+    void *pSrc = (void *) SPOP;
+    
+    int result = pCore->pFileFuncs->fileWrite( pSrc, itemSize, numItems, pFP );
+    SPUSH( result );
+}
+
+FORTHOP( fgetcBop )
+{    
+    NEEDS(1);
+    FILE *pFP = (FILE *) SPOP;
+    
+    int result = pCore->pFileFuncs->fileGetChar( pFP );
+    SPUSH( result );
+}
+
+FORTHOP( fputcBop )
+{    
+    NEEDS(2);
+    FILE *pFP = (FILE *) SPOP;
+    int outChar = SPOP;
+    
+    int result = pCore->pFileFuncs->filePutChar( outChar, pFP );
+    SPUSH( result );
+}
+
+FORTHOP( feofBop )
+{
+    NEEDS(1);
+
+    int result = pCore->pFileFuncs->fileAtEnd( (FILE *) SPOP );
+    SPUSH( result );
+}
+
+FORTHOP( fexistsBop )
+{
+    NEEDS(1);
+    int result = pCore->pFileFuncs->fileExists( (const char*) SPOP );
+    SPUSH( result );
+}
+
+FORTHOP( ftellBop )
+{
+    NEEDS(1);
+    int result = pCore->pFileFuncs->fileTell( (FILE *) SPOP );
+    SPUSH( result );
+}
+
+FORTHOP( flenBop )
+{
+    NEEDS(1);
+    FILE* pFile = (FILE *) SPOP;
+    int result = pCore->pFileFuncs->fileGetLength( pFile );
+    SPUSH( result );
+}
+
+FORTHOP( fgetsBop )
+{
+    NEEDS( 3 );
+    FILE* pFile = (FILE *) SPOP;
+    int maxChars = SPOP;
+    char* pBuffer = (char *) SPOP;
+    int result = (int) pCore->pFileFuncs->fileGetString( pBuffer, maxChars, pFile );
+    SPUSH( result );
+}
+
+FORTHOP( fputsBop )
+{
+    NEEDS( 2 );
+    FILE* pFile = (FILE *) SPOP;
+    char* pBuffer = (char *) SPOP;
+    int result = pCore->pFileFuncs->filePutString( pBuffer, pFile );
+    SPUSH( result );
+}
+
+FORTHOP( removeEntryBop )
+{
+    SET_VAR_OPERATION( kVocabRemoveEntry );
+}
+
+FORTHOP( entryLengthBop )
+{
+    SET_VAR_OPERATION( kVocabEntryLength );
+}
+
+FORTHOP( numEntriesBop )
+{
+    SET_VAR_OPERATION( kVocabNumEntries );
+}
+
+FORTHOP( vocabToClassBop )
+{
+    SET_VAR_OPERATION( kVocabGetClass );
+}
+
+FORTHOP( hereBop )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    char *pChar = (char *)GET_DP;
+    SPUSH( (long) pChar );
+	CLEAR_VAR_OPERATION;
+}
+
+#endif
+
+
 // NOTE: the order of the first few entries in this table must agree
 // with the list near the top of the file!  (look for COMPILED_OP)
 
-extern GFORTHOP( doByteOp );
-extern GFORTHOP( doUByteOp );
-extern GFORTHOP( doShortOp );
-extern GFORTHOP( doUShortOp );
-extern GFORTHOP( doIntOp );
-extern GFORTHOP( doIntOp );
-extern GFORTHOP( doFloatOp );
-extern GFORTHOP( doDoubleOp );
-extern GFORTHOP( doStringOp );
-extern GFORTHOP( doOpOp );
-extern GFORTHOP( doLongOp );
-extern GFORTHOP( doObjectOp );
-extern GFORTHOP( doByteArrayOp );
-extern GFORTHOP( doUByteArrayOp );
-extern GFORTHOP( doShortArrayOp );
-extern GFORTHOP( doUShortArrayOp );
-extern GFORTHOP( doIntArrayOp );
-extern GFORTHOP( doIntArrayOp );
-extern GFORTHOP( doFloatArrayOp );
-extern GFORTHOP( doDoubleArrayOp );
-extern GFORTHOP( doStringArrayOp );
-extern GFORTHOP( doOpArrayOp );
-extern GFORTHOP( doLongArrayOp );
-extern GFORTHOP( doObjectArrayOp );
+extern GFORTHOP( doByteBop );
+extern GFORTHOP( doUByteBop );
+extern GFORTHOP( doShortBop );
+extern GFORTHOP( doUShortBop );
+extern GFORTHOP( doIntBop );
+extern GFORTHOP( doIntBop );
+extern GFORTHOP( doFloatBop );
+extern GFORTHOP( doDoubleBop );
+extern GFORTHOP( doStringBop );
+extern GFORTHOP( doOpBop );
+extern GFORTHOP( doLongBop );
+extern GFORTHOP( doObjectBop );
+extern GFORTHOP( doByteArrayBop );
+extern GFORTHOP( doUByteArrayBop );
+extern GFORTHOP( doShortArrayBop );
+extern GFORTHOP( doUShortArrayBop );
+extern GFORTHOP( doIntArrayBop );
+extern GFORTHOP( doIntArrayBop );
+extern GFORTHOP( doFloatArrayBop );
+extern GFORTHOP( doDoubleArrayBop );
+extern GFORTHOP( doStringArrayBop );
+extern GFORTHOP( doOpArrayBop );
+extern GFORTHOP( doLongArrayBop );
+extern GFORTHOP( doObjectArrayBop );
 
 typedef struct {
    const char       *name;
@@ -3830,16 +5782,18 @@ typedef struct {
 } baseDictionaryCompiledEntry;
 
 // helper macro for built-in op entries in baseDictionary
-#define NATIVE_DEF( func, funcName )  { funcName, kOpNative, (ulong) func }
-#define NATIVE_COMPILED_DEF( func, funcName, index )  { funcName, kOpNative, (ulong) func, index }
-
-// helper macro for built-in op entries in baseDictionary
 #define OP_DEF( func, funcName )  { funcName, kOpCCode, (ulong) func }
 #define OP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCode, (ulong) func, index }
 
 // helper macro for ops which have precedence (execute at compile time)
 #define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate, (ulong) func }
 #define PRECOP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCodeImmediate, (ulong) func }
+
+#ifdef ASM_INNER_INTERPRETER
+
+// helper macro for built-in op entries in baseDictionary
+#define NATIVE_DEF( func, funcName )  { funcName, kOpNative, (ulong) func }
+#define NATIVE_COMPILED_DEF( func, funcName, index )  { funcName, kOpNative, (ulong) func, index }
 
 extern GFORTHOP( abortBop ); extern GFORTHOP( dropBop ); extern GFORTHOP( doDoesBop ); extern GFORTHOP( litBop ); extern GFORTHOP( dlitBop ); extern GFORTHOP( doVariableBop );
 extern GFORTHOP( doConstantBop ); extern GFORTHOP( doDConstantBop ); extern GFORTHOP( doneBop ); extern GFORTHOP( doByteBop ); extern GFORTHOP( doUByteBop ); extern GFORTHOP( doShortBop );
@@ -3871,7 +5825,7 @@ extern GFORTHOP( trueBop ); extern GFORTHOP( falseBop ); extern GFORTHOP( nullBo
 extern GFORTHOP( greaterThanBop ); extern GFORTHOP( greaterEqualsBop ); extern GFORTHOP( lessThanBop ); extern GFORTHOP( lessEqualsBop ); extern GFORTHOP( equalsZeroBop ); extern GFORTHOP( notEqualsZeroBop );
 extern GFORTHOP( greaterThanZeroBop ); extern GFORTHOP( greaterEqualsZeroBop ); extern GFORTHOP( lessThanZeroBop ); extern GFORTHOP( lessEqualsZeroBop ); extern GFORTHOP( unsignedGreaterThanBop ); extern GFORTHOP( unsignedLessThanBop );
 extern GFORTHOP( withinBop ); extern GFORTHOP( minBop ); extern GFORTHOP( maxBop ); extern GFORTHOP( rpushBop ); extern GFORTHOP( rpopBop ); extern GFORTHOP( rpeekBop );
-extern GFORTHOP( rdropBop ); extern GFORTHOP( rpBop ); extern GFORTHOP( rzeroBop ); extern GFORTHOP( dupBop ); extern GFORTHOP( dupNonZeroBop ); extern GFORTHOP( swapBop );
+extern GFORTHOP( rdropBop ); extern GFORTHOP( rpBop ); extern GFORTHOP( rzeroBop ); extern GFORTHOP( dupBop ); extern GFORTHOP( checkDupBop ); extern GFORTHOP( swapBop );
 extern GFORTHOP( overBop ); extern GFORTHOP( rotBop ); extern GFORTHOP( reverseRotBop ); extern GFORTHOP( nipBop ); extern GFORTHOP( tuckBop ); extern GFORTHOP( pickBop );
 extern GFORTHOP( spBop ); extern GFORTHOP( szeroBop ); extern GFORTHOP( fpBop ); extern GFORTHOP( ipBop ); extern GFORTHOP( ddupBop );
 extern GFORTHOP( dswapBop ); extern GFORTHOP( ddropBop ); extern GFORTHOP( doverBop ); extern GFORTHOP( drotBop ); extern GFORTHOP( startTupleBop ); extern GFORTHOP( endTupleBop );
@@ -3885,6 +5839,14 @@ extern GFORTHOP( strcatBop ); extern GFORTHOP( strncatBop ); extern GFORTHOP( st
 extern GFORTHOP( strstrBop ); extern GFORTHOP( strtokBop ); extern GFORTHOP( fopenBop ); extern GFORTHOP( fcloseBop ); extern GFORTHOP( fseekBop ); extern GFORTHOP( freadBop );
 extern GFORTHOP( fwriteBop ); extern GFORTHOP( fgetcBop ); extern GFORTHOP( fputcBop ); extern GFORTHOP( feofBop ); extern GFORTHOP( fexistsBop ); extern GFORTHOP( ftellBop );
 extern GFORTHOP( flenBop ); extern GFORTHOP( fgetsBop ); extern GFORTHOP( fputsBop );
+
+#else
+
+// helper macro for built-in op entries in baseDictionary
+#define NATIVE_DEF( func, funcName )  { funcName, kOpCCode, (ulong) func }
+#define NATIVE_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCode, (ulong) func, index }
+
+#endif
 
 baseDictionaryCompiledEntry baseCompiledDictionary[] =
 {
