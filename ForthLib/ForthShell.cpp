@@ -10,8 +10,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/io.h>
+#include <dirent.h>
 #else
 #include <io.h>
+#include "dirent.h"
 #endif
 #include "ForthEngine.h"
 #include "ForthThread.h"
@@ -19,7 +21,6 @@
 #include "ForthInput.h"
 #include "ForthVocabulary.h"
 #include "ForthExtension.h"
-#include "dirent.h"
 
 #define CATCH_EXCEPTIONS
 

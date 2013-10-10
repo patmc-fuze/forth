@@ -7,6 +7,10 @@
 
 #include "ForthEngine.h"
 #include "ForthInput.h"
+#ifdef LINUX
+#include <linux/limits.h>
+#define MAX_PATH PATH_MAX
+#endif
 
 class ForthInputStack;
 class ForthExtension;

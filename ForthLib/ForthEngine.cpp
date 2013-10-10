@@ -6,6 +6,9 @@
 
 #include "StdAfx.h"
 
+#ifdef LINUX
+#include <ctype.h>
+#endif
 #include "ForthEngine.h"
 #include "ForthThread.h"
 #include "ForthShell.h"
