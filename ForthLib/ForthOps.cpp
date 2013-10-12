@@ -29,6 +29,9 @@
 
 #ifdef LINUX
 #include <strings.h>
+
+extern int kbhit(void);
+extern int getch(void);
 #endif
 
 long gCompiledOps[NUM_COMPILED_OPS];

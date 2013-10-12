@@ -303,8 +303,13 @@ bool ForthStructCodeGenerator::HandleFirst()
 			if ( isMethod )
 			{
 				// this method must return either a struct or an object
+#ifdef LINUX
+#define COMPILE_OP( _caption, _opType, _opData ) *mpDst++ = COMPILED_OP(_opType, _opData)
+#define COMPILE_SIMPLE_OP( _caption, _op ) *mpDst++ = _op
+#else
 #define COMPILE_OP( _caption, _opType, _opData ) SPEW_STRUCTS( " " ## _caption ## " 0x%x", COMPILED_OP(_opType, _opData) ); *mpDst++ = COMPILED_OP(_opType, _opData)
 #define COMPILE_SIMPLE_OP( _caption, _op ) SPEW_STRUCTS( " " ## _caption ## " 0x%x", _op ); *mpDst++ = _op
+#endif
 				COMPILE_OP( "method with this", kOpMethodWithThis, pEntry[0] );
 				ForthTypeInfo* pStruct = mpTypeManager->GetStructInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
 				if ( pStruct == NULL )
