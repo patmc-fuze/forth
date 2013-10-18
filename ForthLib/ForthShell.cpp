@@ -498,6 +498,12 @@ ForthShell::InterpretLine( const char *pSrcLine )
 		mpInput->SetBufferPointer( pLineBuff );
 	}
     SPEW_SHELL( "*** InterpretLine \"%s\"\n", pLineBuff );
+	if ( mpEngine->GetTraceFlags() & kTraceShell )
+	{
+		mpEngine->TraceOut( "InterpretLine {" );
+		mpEngine->TraceOut( pLineBuff );
+		mpEngine->TraceOut( "}\n" );
+	}
     bLineEmpty = false;
     mpEngine->SetError( kForthErrorNone );
     while ( !bLineEmpty && (result == kResultOk) )

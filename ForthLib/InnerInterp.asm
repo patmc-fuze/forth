@@ -1890,12 +1890,12 @@ localObjectStore:
 	; handle newObj refcount
 	or eax,eax
 	jz los1				; if newObj data ptr is null, don't try to increment refcount
-	inc byte ptr [eax]	; increment newObj refcount
+	inc dword ptr[eax]	; increment newObj refcount
 	; handle oldObj refcount
 los1:
 	or ebx,ebx
 	jz los2				; if oldObj data ptr is null, don't try to decrement refcount
-	dec byte ptr [ebx]
+	dec dword ptr[ebx]
 	jz los3
 los2:
 	mov	[esi+4], eax	; oldObj.data = newObj.data
@@ -4370,7 +4370,7 @@ entry scfetchBop
 	
 ;========================================
 
-entry c2lBop
+entry c2iBop
 	mov	eax, [edx]
 	movsx	ebx, al
 	mov	[edx], ebx
@@ -4428,7 +4428,7 @@ entry swfetchBop
 	
 ;========================================
 
-entry w2lBop
+entry w2iBop
 	mov	eax, [edx]
 	movsx	ebx, ax
 	mov	[edx], ebx
@@ -5764,10 +5764,10 @@ entry opTypesTable
 	DD	FLAT:voComboType
 	
 ;	115 - 149
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
+	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
 	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
 	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
+	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
 ;	150 - 199
 	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
 	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType

@@ -1,5 +1,14 @@
+@-----------------------------------------------
+@
+@	Raspberry Pi ARM11 inner interpreter
+@
+@
         .text
         .align  2
+        
+        .arch armv6
+        .fpu vfp
+        
 @-----------------------------------------------
 @
 @ inner interpreter C entry point
@@ -31,9 +40,9 @@
 @
 c_optypes		=	0   	 	@	table of C opType action routines
 n_builtin_ops	=	4			@	number of builtin ops
-user_ops		=	8			@	table of user defined ops
-n_user_ops		=	12			@	number of user defined ops
-s_user_ops		=	16			@	current size of user defined op table
+ops				=	8			@	table of ops
+n_ops			=	12			@	number of ops
+max_ops			=	16			@	current size of op table
 engine			=	20			@	ForthEngine pointer
 ipsave			=	24			@	IP - interpreter pointer (r5)
 spsave			=	28			@	SP - forth stack pointer (r6)
@@ -44,17 +53,19 @@ tpd				=	44			@	TPD - this pointer (data)
 varmode			=	48			@	varMode - fetch/store/plusStore/minusStore
 istate			=	52			@	state - ok/done/error
 errorcode		=	56			@	error code
-sp0				=	60			@	empty parameter stack pointer
-ssize			=	64			@	size of param stack in longwords
-rp0				=	68			@	empty return stack pointer
-rsize			=	72			@	size of return stack in longwords
+spbase			=	60			@	base of parameter stack storage
+sp0				=	64			@	empty parameter stack pointer
+ssize			=	68			@	size of param stack in longwords
+rpbase			=	72			@	base of return stack storage
+rp0				=	76			@	empty return stack pointer
+rsize			=	80			@	size of return stack in longwords
 
 @	end of stuff which is per thread
 
-cur_thread		=	76			@	current ForthThread pointer
-dict_mem_sect	=	80			@	dictionary memory section pointer
-file_funcs		=	84			@
-inner_loop		=	88			@	inner interpreter asm reentry point
+cur_thread		=	84			@	current ForthThread pointer
+dict_mem_sect	=	88			@	dictionary memory section pointer
+file_funcs		=	92			@
+inner_loop		=	96			@	inner interpreter asm reentry point
 
 
 kVarDefaultOp			=		0
@@ -110,7 +121,61 @@ kPrintSignedDecimal		=		0
 kPrintAllSigned			=		1
 kPrintAllUnsigned		=		2
 
+@ ForthMemorySection
+FMSCurrent				=	0	@ current pointer into section
+FMSBase					=	4	@ base of memory section
+FMSLen					=	8	@ total size of memory section
 
+@ file functions in pCore->file_funcs
+fileOpen		=		0
+fileClose		=		4
+fileRead		=		8
+fileWrite		=		12
+fileGetChar		=		16
+filePutChar		=		20
+fileAtEnd		=		24
+fileExists		=		28
+fileSeek		=		32
+fileTell		=		36
+fileGetLength	=		40
+fileGetString	=		44
+filePutString	=		48
+
+	.global	abortBop, dropBop, nipBop, doDoesBop, litBop, litBop, dlitBop, doVariableBop, doConstantBop, doDConstantBop, doneBop
+	.global	doByteBop, doShortBop, doIntBop, doFloatBop, addressOfBop, intoBop, addToBop, subtractFromBop, doExitBop
+	.global	doExitLBop, doExitMBop, doExitMLBop, doVocabBop, doByteArrayBop, doShortArrayBop, doIntArrayBop, doFloatArrayBop
+	.global	plusBop, fetchBop, doStructBop, doStructArrayBop, doDoBop, doLoopBop, doLoopNBop, dfetchBop
+	.global	thisBop, thisDataBop, thisMethodsBop, executeBop, callBop, gotoBop, iBop, jBop, unloopBop, leaveBop, hereBop
+	.global	addressOfBop, intoBop, addToBop, subtractFromBop, removeEntryBop, entryLengthBop, numEntriesBop, minusBop
+	.global	timesBop, times2Bop, times4Bop, times8Bop, divideBop, divide2Bop, divide4Bop, divide8Bop, divmodBop, modBop, negateBop
+	.global fplusBop, fminusBop, ftimesBop, fdivideBop,	dplusBop, dminusBop, dtimesBop, ddivideBop
+	.global orBop, andBop, xorBop, invertBop, lshiftBop, rshiftBop, notBop, trueBop, falseBop, nullBop, dnullBop
+	.global equalsBop, notEqualsBop, greaterThanBop, greaterEqualsBop, lessThanBop, lessEqualsBop
+	.global equalsZeroBop, notEqualsZeroBop, greaterThanZeroBop, greaterEqualsZeroBop, lessThanZeroBop, lessEqualsZeroBop
+	.global rpushBop, rpopBop, rdropBop, rpBop, rzeroBop, dupBop, checkDupBop, swapBop, overBop
+	.global rotBop, tuckBop, pickBop, spBop, szeroBop, fpBop, ddupBop, dswapBop, ddropBop, doverBop, drotBop,
+	.global storeBop, cstoreBop, cfetchBop, scfetchBop, c2iBop, wstoreBop, wfetchBop, swfetchBop, w2iBop, dstoreBop
+	.global	memcpyBop, memsetBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop
+	.global	strchrBop, strrchrBop, strcmpBop, stricmpBop, strstrBop, strtokBop, initStringBop
+	.global doUByteBop, doUByteArrayBop, doUShortBop, doUShortArrayBop
+	.global dsinBop, dasinBop, dcosBop, dacosBop, dtanBop, datanBop, datan2Bop, dexpBop, dlnBop, dlog10Bop, dpowBop
+	.global dsqrtBop, dceilBop, dfloorBop, dabsBop, dldexpBop, dfrexpBop, dmodfBop, dfmodBop, i2fBop, i2dBop, f2iBop, f2dBop, d2iBop, d2fBop
+	.global ipBop, startTupleBop, endTupleBop, rpeekBop, minBop, maxBop, storeNextBop, fetchNextBop, cstoreNextBop, cfetchNextBop
+	.global wstoreNextBop, wfetchNextBop, dstoreNextBop, dfetchNextBop
+	.global fEqualsBop, fNotEqualsBop, fGreaterThanBop, fGreaterEqualsBop, fLessThanBop, fLessEqualsBop
+	.global fEqualsZeroBop, fNotEqualsZeroBop, fGreaterThanZeroBop, fGreaterEqualsZeroBop, fLessThanZeroBop, fLessEqualsZeroBop
+	.global dEqualsBop, dNotEqualsBop, dGreaterThanBop, dGreaterEqualsBop, dLessThanBop, dLessEqualsBop
+	.global dEqualsZeroBop, dNotEqualsZeroBop, dGreaterThanZeroBop, dGreaterEqualsZeroBop, dLessThanZeroBop, dLessEqualsZeroBop
+	.global byteVarActionBop, ubyteVarActionBop, shortVarActionBop, ushortVarActionBop, intVarActionBop, floatVarActionBop
+	.global fopenBop, fcloseBop, fseekBop, freadBop, fwriteBop, fgetcBop, fputcBop, feofBop, fexistsBop, ftellBop, flenBop, fgetsBop, fputsBop
+	.global withinBop, fMinBop, fMaxBop, fWithinBop, dMinBop, dMaxBop, dWithinBop, unsignedGreaterThanBop, unsignedLessThanBop
+	.global utimesBop, urshiftBop, reverseRotBop, vocabToClassBop, doCheckDoBop
+	@ these are just dummies:
+	.global doLongBop, doDoubleBop, doStringBop, doOpBop, doObjectBop, doLongArrayBop, doDoubleArrayBop, doObjectArrayBop, doStringArrayBop, doOpArrayBop
+	.global longVarActionBop, doubleVarActionBop, stringVarActionBop, opVarActionBop, objectVarActionBop
+	.global fprintfSub, fscanfSub, sprintfSub, sscanfSub
+	.global InterpretOneOpFast
+	
 	.global	break_me
 	.type	   break_me,function
 break_me:
@@ -119,44 +184,28 @@ break_me:
 	
 @-----------------------------------------------
 @
-@ extOp is used by "builtin" ops which are only defined in C++
+@ single step a thread
 @
-@	r1 holds the opcode value field
-@
-extOp:
-	@ r1 is low 24-bits of opcode
-	ldr	r3, [r4, #n_c_ops]
-	cmp	r1, r3
-	bge	badOpcode
-
-	bl	.extOp2
-	@ we come here when C op does its return
-	b	InnerInterpreter
-		
-.extOp2:
-	add	r0, r4, #ipsave			@ r0 -> IP
-	stmia	r0!, {r5-r7}			@ save IP, SP, RP in core
-	mov	r0, r4					@ C ops take pCore ptr as first param
-	ldr	r3, [r4, #c_ops]		@ r3 = table of C builtin ops
-	ldr	r2, [r3, r1, lsl #2]
-	bx	r2
-
-
-@-----------------------------------------------
-@
-@ extOpType is used to handle optypes which are only defined in C++
-@
-@	r1 holds the opcode value field
-@	r2 holds the opcode type field
-@
-extOpType:
-	add	r0, r4, #ipsave			@ r0 -> IP
-	stmia	r0!, {r5-r7}			@ save IP, SP, RP in core
-	ldr	r3, [r4]				@ r3 = table of C optype action routines
-	ldr	r2, [r3, r2, lsl #2]	@ r2 = action routine for this optype
-	mov	r0, r4					@ C++ optype routines take core ptr as 1st argument
-	bx	r2
+@ extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, long op );
+	.global	InterpretOneOpFast
+	.type	InterpretOneOpFast, %function
+InterpretOneOpFast:
+	push	{r4-r12, lr}
+	mov	r4, r0				@ r4 = pCore
+	add	r0, r4, #ipsave
+	ldmia	r0!, {r5-r8}		@ load IP, SP, RP, FP from core
+	ldr	r9, [r4, #ops]		@ r9 = table of ops
+	ldr	r10, [r4, #n_ops]	@ r10 = number of ops implemented in assembler
+	ldr	r11, .opTypesTable		@ r11 = table of opType handlers
+	ldr	r12, =0x00FFFFFF		@ r12 = op value mask (0x00FFFFFF)
 	
+	mov	r3, #kResultOk			@ r3 = kResultOk
+	str	r3, [r4, #istate]		@ SET_STATE( kResultOk )
+	
+	bl	.II2					@ don't know how to load lr directly
+	b	.IIExit
+
+
 @-----------------------------------------------
 @
 @ inner interpreter C entry point
@@ -175,8 +224,8 @@ InnerInterpreterFast:
 InnerInterpreter:
 	add	r0, r4, #ipsave
 	ldmia	r0!, {r5-r8}		@ load IP, SP, RP, FP from core
-	ldr	r9, [r4, #user_ops]		@ r9 = table of ops
-	ldr	r10, [r4, #n_user_ops]	@ r10 = number of ops implemented in assembler
+	ldr	r9, [r4, #ops]		@ r9 = table of ops
+	ldr	r10, [r4, #n_ops]	@ r10 = number of ops implemented in assembler
 	ldr	r11, .opTypesTable		@ r11 = table of opType handlers
 	ldr	r12, =0x00FFFFFF		@ r12 = op value mask (0x00FFFFFF)
 	
@@ -211,9 +260,9 @@ interpLoopExecuteEntry:
 	@
 	@ opcode is not native
 	@
-	lsr	r2, r1, #24				@ r2 = opType (hibyte of opcode)
-	and	r1, r12					@ r1 = low 24 bits of opcode
-	ldr	r0, [r11, r1, lsl #2]	@ r0 = action routine for this opType
+	lsr	r2, r0, #24				@ r2 = opType (hibyte of opcode)
+	and	r1, r12, r0				@ r1 = low 24 bits of opcode
+	ldr	r0, [r11, r2, lsl #2]	@ r0 = action routine for this opType
 	@
 	@ optype action routines expect r1=opValue, r2=opType, r4=pCore
 	@
@@ -241,11 +290,38 @@ interpLoopFatalErrorExit:
 	bx	lr
 
 	.align	2
-.opsTable:
-	.word	opsTable
 .opTypesTable:
 	.word	opTypesTable
 	
+@-----------------------------------------------
+@
+@ cCodeType is used by "builtin" ops which are only defined in C++
+@
+@	r1 holds the opcode value field
+@
+cCodeType:
+	@ r1 is low 24-bits of opcode
+	ldr	r3, [r4, #n_ops]
+	cmp	r1, r3
+	bge	badOpcode
+
+	bl	.cct2
+	
+	@ we come here when C op does its return
+	ldrb	r0, [r4, #istate]	@ get state from core
+	cmp	r0, #kResultOk			@ exit if state is not ok
+	bne	.IIExit
+	b	InnerInterpreter
+		
+.cct2:
+	add	r0, r4, #ipsave			@ r0 -> IP
+	stmia	r0!, {r5-r8}		@ save IP, SP, RP, FP in core
+	mov	r0, r4					@ C ops take pCore ptr as first param
+	ldr	r3, [r4, #ops]			@ r3 = table of ops
+	ldr	r2, [r3, r1, lsl #2]
+	bx	r2
+
+
 @-----------------------------------------------
 @
 @ inner interpreter entry point for ops defined in assembler
@@ -257,10 +333,11 @@ NativeAction:
 	@	r0	=	core
 	@	r1	=	opVal
 	push	{r4, r5, r6, r7, r8, lr}
-	add	r2, r0, #ipsave
+	mov	r4, r0
+	add	r2, r4, #ipsave
 	ldmia	r2!, {r5-r8}			@ load IP, SP, RP, FP from core
 	
-	ldr	r2, [r4, #user_ops]
+	ldr	r2, [r4, #ops]
 	ldr	r3, [r2, r1, lsl #2]
 	bl	.NativeAction1
 	@	user op will return here
@@ -313,10 +390,29 @@ byteEntry:
 
 @ fetch local byte
 localByteFetch:
+	ldrsb	r2, [r0]
+	stmdb	r6!, {r2}				@ push byte on TOS
+	bx	lr
+
+@------------ unsigned byte support ----------------
+localUByteType:
+	lsl	r1, #2
+	sub	r0, r8, r1					@ r0 points to the byte field
+	@ see if it is a fetch
+
+ubyteEntry:
+	ldr	r1, [r4, #varmode]			@ r1 = varMode
+	eor	r2, r2						@ r2 = 0
+	cmp	r1, r2
+	bne	.localByte1
+
+@ fetch local unsigned byte
+localUByteFetch:
 	ldrb	r2, [r0]
 	stmdb	r6!, {r2}				@ push byte on TOS
 	bx	lr
 
+	
 @ push address of byte on TOS
 localByteRef:
 	stmdb	r6!, {r0}				@ push address of byte on TOS
@@ -349,7 +445,7 @@ localByteMinusStore:
 	@ r1 is varMode
 	@ r2 is 0
 	str	r2, [r4, #varmode]		@ set varMode back to fetch
-	cmp	r1, #4
+	cmp	r1, #kVarMinusStore
 	bgt	badVarOperation
 	ldr	r3, .localByte3
 	ldr	r1, [r3, r1, lsl #2]
@@ -360,6 +456,7 @@ localByteMinusStore:
 	.word	localByteActionTable
 	
 localByteActionTable:
+	.word	localByteFetch
 	.word	localByteFetch
 	.word	localByteRef
 	.word	localByteStore
@@ -409,6 +506,50 @@ memberByteArrayType:
 	add	r0, r1					@ add in offset to base of array
 	b	byteEntry
 
+@----------------- unsigned byte ---------------------------------------
+fieldUByteType:
+	@ get ptr to byte var into r0
+	@ TOS is base ptr, r1 is field offset in bytes
+	
+	ldmia	r6!, {r0}	@ r0 = field offset from TOS
+	add	r0, r1
+	b	ubyteEntry	
+
+memberUByteType:
+	@ get ptr to byte var into r0
+	@ this data ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [r4, #tpd]
+	add	r0, r1
+	b	ubyteEntry	
+	
+localUByteArrayType:
+	@ get ptr to byte var into r0
+	@ FP is base ptr, r1 is offset in longs
+	ldmia	r6!, {r0}			@ r0 = array index
+	lsl	r1, #2
+	sub	r1, r0					@ add in array index
+	sub	r0, r8, r1				@ r0 points to the byte field
+	b	ubyteEntry
+
+fieldUByteArrayType:
+	@ get ptr to byte var into r0
+	@ TOS is struct base ptr, NOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!, {r0, r2}		@ r0 = struct base ptr, r2 = index
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	ubyteEntry
+
+memberUByteArrayType:
+	@ get ptr to into var into r0
+	@ this data ptr is base ptr, TOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!,{r0}			@ r0 = index
+	ldr	r2, [r4, #tpd]			@ r2 = object base ptr
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	ubyteEntry
+
 
 @/////////////////////////////////////////////////////////////////////
 @///
@@ -443,9 +584,25 @@ shortEntry:
 
 @ fetch local byte
 localShortFetch:
+	ldrsh	r2, [r0]
+	stmdb	r6!, {r2}				@ push short on TOS
+	bx	lr
+
+@------------ unsigned short support ----------------
+localUShortType:
+	lsl	r1, #2
+	sub	r0, r8, r1					@ r0 points to the byte field
+ushortEntry:
+	ldr	r1, [r4, #varmode]			@ r1 = varMode
+	eor	r2, r2						@ r2 = 0
+	cmp	r1, r2
+	bne	.localShort1
+@ fetch local unsigned short
+localUShortFetch:
 	ldrh	r2, [r0]
 	stmdb	r6!, {r2}				@ push short on TOS
 	bx	lr
+
 
 localShortRef:
 	stmdb	r6!, {r0}				@ push address of short on TOS
@@ -475,7 +632,7 @@ localShortMinusStore:
 	@ r1 is varMode
 	@ r2 is 0
 	str	r2, [r4, #varmode]		@ set varMode back to fetch
-	cmp	r1, #4
+	cmp	r1, #kVarMinusStore
 	bgt	badVarOperation
 	ldr	r3, .localByte3
 	ldr	r1, [r3, r1, lsl #2]
@@ -486,6 +643,7 @@ localShortMinusStore:
 	.word	localShortActionTable
 	
 localShortActionTable:
+	.word	localShortFetch
 	.word	localShortFetch
 	.word	localShortRef
 	.word	localShortStore
@@ -537,6 +695,54 @@ memberShortArrayType:
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	shortEntry
+
+@----------------- unsigned short ---------------------------------------
+
+fieldUShortType:
+	@ get ptr to short var into r0
+	@ TOS is base ptr, r1 is field offset in bytes
+	
+	ldmia	r6!, {r0}	@ r0 = field offset from TOS
+	add	r0, r1
+	b	ushortEntry	
+
+memberUShortType:
+	@ get ptr to short var into r0
+	@ this data ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [r4, #tpd]
+	add	r0, r1
+	b	ushortEntry	
+	
+localUShortArrayType:
+	@ get ptr to short var into r0
+	@ FP is base ptr, r1 is offset in longs
+	ldmia	r6!, {r0}			@ r0 = array index
+	lsl	r1, #2
+	lsl	r0, #1					@ convert short index to byte offset
+	sub	r1, r0					@ add in array index
+	sub	r0, r8, r1				@ r0 points to the byte field
+	b	ushortEntry
+
+fieldUShortArrayType:
+	@ get ptr to short var into r0
+	@ TOS is struct base ptr, NOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!, {r0, r2}		@ r0 = struct base ptr, r2 = index
+	lsl	r2, #1
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	ushortEntry
+
+memberUShortArrayType:
+	@ get ptr to into var into r0
+	@ this data ptr is base ptr, TOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!,{r0}			@ r0 = index
+	lsl	r0, #1
+	ldr	r2, [r4, #tpd]			@ r2 = object base ptr
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	ushortEntry
 
 
 @/////////////////////////////////////////////////////////////////////
@@ -604,7 +810,7 @@ localIntMinusStore:
 	@ r1 is varMode
 	@ r2 is 0
 	str	r2, [r4, #varmode]		@ set varMode back to fetch
-	cmp	r1, #4
+	cmp	r1, #kVarMinusStore
 	bgt	badVarOperation
 	ldr	r3, .localInt3
 	ldr	r1, [r3, r1, lsl #2]
@@ -619,6 +825,7 @@ badVarOperation:
 	.word	localIntActionTable
 
 localIntActionTable:
+	.word	localIntFetch
 	.word	localIntFetch
 	.word	localIntRef
 	.word	localIntStore
@@ -740,7 +947,7 @@ localFloatMinusStore:
 	@ r1 is varMode
 	@ r2 is 0
 	str	r2, [r4, #varmode]		@ set varMode back to fetch
-	cmp	r1, #4
+	cmp	r1, #kVarMinusStore
 	bgt	badVarOperation
 	ldr	r3, .localFloat3
 	ldr	r1, [r3, r1, lsl #2]
@@ -751,6 +958,7 @@ localFloatMinusStore:
 	.word	localFloatActionTable
 
 localFloatActionTable:
+	.word	localFloatFetch
 	.word	localFloatFetch
 	.word	localFloatRef
 	.word	localFloatStore
@@ -803,6 +1011,668 @@ memberFloatArrayType:
 	b	floatEntry
 
 
+@/////////////////////////////////////////////////////////////////////
+@///
+@//
+@/                     double
+@
+
+@-----------------------------------------------
+@
+@ local double ops
+@
+localDoubleType:
+	lsl	r1, #2
+	sub	r0, r8, r1					@ r0 points to the int field
+	@ see if it is a fetch
+
+@	
+@ entry point for byte variable action routines
+@	r0 -> double
+@
+doubleEntry:
+	ldr	r1, [r4, #varmode]			@ r1 = varMode
+	eor	r2, r2						@ r2 = 0
+	cmp	r1, r2
+	bne	.localDouble1
+	
+@
+@ these routines can rely on:
+@	r0 -> double
+@	r2 = 0
+@
+
+	@ fetch local double
+localDoubleFetch:
+	ldrd	r2, [r0]
+	stmdb	r6!, {r2,r3}			@ push double on TOS
+	bx	lr
+
+localDoubleRef:
+	stmdb	r6!, {r0}				@ push address of double on TOS
+	bx	lr
+	
+localDoubleStore:
+	ldmia	r6!, {r2,r3}			@ pop TOS double value into r2
+	strd	r2, [r0]				@ store double
+	bx	lr
+	
+localDoublePlusStore:
+	fldd	d6, [r6]
+	add		r6, #8
+	fldd	d7, [r0]
+	faddd	d7, d6, d7
+	fstd	d7, [r0]
+	bx	lr
+	
+localDoubleMinusStore:
+	fldd	d6, [r6]
+	add		r6, #8
+	fldd	d7, [r0]
+	fsubd	d7, d6, d7
+	fstd	d7, [r0]
+	bx	lr
+
+.localDouble1:
+	@ r0 points to the double field
+	@ r1 is varMode
+	@ r2 is 0
+	str	r2, [r4, #varmode]		@ set varMode back to fetch
+	cmp	r1, #kVarMinusStore
+	bgt	badVarOperation
+	ldr	r3, .localDouble3
+	ldr	r1, [r3, r1, lsl #2]
+	bx	r1
+	
+	.align	2	
+.localDouble3:
+	.word	localDoubleActionTable
+
+localDoubleActionTable:
+	.word	localDoubleFetch
+	.word	localDoubleFetch
+	.word	localDoubleRef
+	.word	localDoubleStore
+	.word	localDoublePlusStore
+	.word	localDoubleMinusStore
+
+fieldDoubleType:
+	@ get ptr to double var into r0
+	@ TOS is base ptr, r1 is field offset in bytes
+	
+	ldmia	r6!, {r0}	@ r0 = field offset from TOS
+	add	r0, r1
+	b	doubleEntry	
+
+memberDoubleType:
+	@ get ptr to double var into r0
+	@ this data ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [r4, #tpd]
+	add	r0, r1
+	b	doubleEntry	
+	
+localDoubleArrayType:
+	@ get ptr to double var into r0
+	@ FP is base ptr, r1 is offset in longs
+	ldmia	r6!, {r0}			@ r0 = array index
+	sub	r1, r0					@ add in array index
+	lsl	r1, #3
+	sub	r0, r8, r1				@ r0 points to the double field
+	b	doubleEntry
+
+fieldDoubleArrayType:
+	@ get ptr to double var into r0
+	@ TOS is struct base ptr, NOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!, {r0, r2}		@ r0 = struct base ptr, r2 = index
+	lsl	r2, #3
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	doubleEntry
+
+memberDoubleArrayType:
+	@ get ptr to into var into r0
+	@ this data ptr is base ptr, TOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!,{r0}			@ r0 = index
+	lsl	r0, #3
+	ldr	r2, [r4, #tpd]			@ r2 = object base ptr
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	doubleEntry
+
+
+@/////////////////////////////////////////////////////////////////////
+@///
+@//
+@/                     long
+@
+
+@-----------------------------------------------
+@
+@ local long ops
+@
+localLongType:
+	lsl	r1, #2
+	sub	r0, r8, r1					@ r0 points to the int field
+	@ see if it is a fetch
+
+@	
+@ entry point for byte variable action routines
+@	r0 -> long
+@
+longEntry:
+	ldr	r1, [r4, #varmode]			@ r1 = varMode
+	eor	r2, r2						@ r2 = 0
+	cmp	r1, r2
+	bne	.localLong1
+	
+@
+@ these routines can rely on:
+@	r0 -> long
+@	r2 = 0
+@
+
+	@ fetch local long
+localLongFetch:
+	ldrd	r2, [r0]
+	stmdb	r6!, {r2,r3}			@ push long on TOS
+	bx	lr
+
+localLongRef:
+	stmdb	r6!, {r0}				@ push address of long on TOS
+	bx	lr
+	
+localLongStore:
+	ldmia	r6!, {r2,r3}			@ pop TOS long value into r2,r3
+	strd	r2, [r0]				@ store long
+	bx	lr
+	
+localLongPlusStore:
+	ldmia	r6!, {r2,r3}			@ pop TOS long value into r2,r3
+	push	{r4, r5}
+	ldm	r0!, {r4, r5}
+	adds	r4, r2, r4
+	adc	r5, r3, r5
+	stm	r0!, {r4,r5}
+	pop	{r4, r5}
+	bx	lr
+	
+localLongMinusStore:
+	ldmia	r6!, {r2,r3}			@ pop TOS long value into r2,r3
+	push	{r4, r5}
+	ldm	r0!, {r4, r5}
+	subs	r4, r2, r4
+	sbc	r5, r3, r5
+	stm	r0!, {r4,r5}
+	pop	{r4, r5}
+	bx	lr
+
+.localLong1:
+	@ r0 points to the long field
+	@ r1 is varMode
+	@ r2 is 0
+	str	r2, [r4, #varmode]		@ set varMode back to fetch
+	cmp	r1, #kVarMinusStore
+	bgt	badVarOperation
+	ldr	r3, .localLong3
+	ldr	r1, [r3, r1, lsl #2]
+	bx	r1
+	
+	.align	2	
+.localLong3:
+	.word	localLongActionTable
+
+localLongActionTable:
+	.word	localLongFetch
+	.word	localLongFetch
+	.word	localLongRef
+	.word	localLongStore
+	.word	localLongPlusStore
+	.word	localLongMinusStore
+
+fieldLongType:
+	@ get ptr to long var into r0
+	@ TOS is base ptr, r1 is field offset in bytes
+	
+	ldmia	r6!, {r0}	@ r0 = field offset from TOS
+	add	r0, r1
+	b	longEntry	
+
+memberLongType:
+	@ get ptr to long var into r0
+	@ this data ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [r4, #tpd]
+	add	r0, r1
+	b	longEntry	
+	
+localLongArrayType:
+	@ get ptr to long var into r0
+	@ FP is base ptr, r1 is offset in longs
+	ldmia	r6!, {r0}			@ r0 = array index
+	sub	r1, r0					@ add in array index
+	lsl	r1, #3
+	sub	r0, r8, r1				@ r0 points to the long field
+	b	longEntry
+
+fieldLongArrayType:
+	@ get ptr to long var into r0
+	@ TOS is struct base ptr, NOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!, {r0, r2}		@ r0 = struct base ptr, r2 = index
+	lsl	r2, #3
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	longEntry
+
+memberLongArrayType:
+	@ get ptr to into var into r0
+	@ this data ptr is base ptr, TOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!,{r0}			@ r0 = index
+	lsl	r0, #3
+	ldr	r2, [r4, #tpd]			@ r2 = object base ptr
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	longEntry
+
+
+@/////////////////////////////////////////////////////////////////////
+@///
+@//
+@/                     string
+@
+
+@-----------------------------------------------
+@
+@ local string ops
+@
+localStringType:
+	lsl	r1, #2
+	sub	r0, r8, r1					@ r0 points to the int field
+	@ see if it is a fetch
+
+@	
+@ entry point for byte variable action routines
+@	r0 -> string
+@
+stringEntry:
+	ldr	r1, [r4, #varmode]			@ r1 = varMode
+	eor	r2, r2						@ r2 = 0
+	cmp	r1, r2
+	bne	.localString1
+	
+@
+@ these routines can rely on:
+@	r0 -> string
+@	r2 = 0
+@
+
+	@ fetch local string
+localStringFetch:
+	add	r0, #8						@ skip maxLen, curLen fields
+	stmdb	r6!, {r0}				@ push string on TOS
+	bx	lr
+
+localStringRef:
+	stmdb	r6!, {r0}				@ push address of string maxLen field on TOS
+	bx	lr
+	
+localStringStore:
+	push	{r4}
+	ldmia	r6!, {r1}				@ r1 -> src string
+	ldr	r2, [r0]					@ r2 = max chars to move
+	add	r3, r0, #8					@ r3 -> dst string
+.lss1:
+	subs	r2, #1						@ leave space for terminating null
+	beq	.lssx
+	ldrb	r4, [r1]
+	orrs	r4, r4
+	beq	.lssx						@ hit terminating null in src
+	add	r1, #1
+	strb	r4, [r3]
+	add	r3, #1
+	b	.lss1
+.lssx:
+	eor	r2, r2
+	strb	r2, [r3]
+	sub	r3, r3, r0
+	sub	r3, #8
+	str	r3,	[r0, #4]				@ update curlen field
+	pop	{r4}
+	bx	lr
+	
+localStringPlusStore:
+	push	{r4}
+	ldmia	r6!, {r1}				@ r1 -> src string
+	ldr	r2, [r0]					@ r2 = max chars to move
+	add	r3, r0, #8					@ r3 -> dst string
+	ldr	r4, [r0, #4]				@ r4 = current len
+	add	r3, r4
+	cmp	r4, r2
+	blt	.lss1
+	pop	{r4}
+	bx	lr
+	
+.localString1:
+	@ r0 points to the string field
+	@ r1 is varMode
+	@ r2 is 0
+	str	r2, [r4, #varmode]		@ set varMode back to fetch
+	cmp	r1, #kVarPlusStore
+	bgt	badVarOperation
+	ldr	r3, .localString3
+	ldr	r1, [r3, r1, lsl #2]
+	bx	r1
+	
+	.align	2	
+.localString3:
+	.word	localStringActionTable
+
+localStringActionTable:
+	.word	localStringFetch
+	.word	localStringFetch
+	.word	localStringRef
+	.word	localStringStore
+	.word	localStringPlusStore
+
+fieldStringType:
+	@ get ptr to string var into r0
+	@ TOS is base ptr, r1 is field offset in bytes
+	
+	ldmia	r6!, {r0}	@ r0 = field offset from TOS
+	add	r0, r1
+	b	stringEntry	
+
+memberStringType:
+	@ get ptr to string var into r0
+	@ this data ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [r4, #tpd]
+	add	r0, r1
+	b	stringEntry	
+	
+localStringArrayType:
+	@ get ptr to string var into r0
+	@ FP is base ptr, r1 is offset in longs
+	ldmia	r6!, {r0}			@ r0 = array index
+	sub	r1, r0					@ add in array index
+	lsl	r1, #3
+	sub	r0, r8, r1				@ r0 points to the string field
+	b	stringEntry
+
+fieldStringArrayType:
+	@ get ptr to string var into r0
+	@ TOS is struct base ptr, NOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!, {r0, r2}		@ r0 = struct base ptr, r2 = index
+	lsl	r2, #3
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	stringEntry
+
+memberStringArrayType:
+	@ get ptr to into var into r0
+	@ this data ptr is base ptr, TOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!,{r0}			@ r0 = index
+	lsl	r0, #3
+	ldr	r2, [r4, #tpd]			@ r2 = object base ptr
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	stringEntry
+
+
+@/////////////////////////////////////////////////////////////////////
+@///
+@//
+@/                     op
+@
+
+@-----------------------------------------------
+@
+@ local op ops
+@
+localOpType:
+	lsl	r1, #2
+	sub	r0, r8, r1					@ r0 points to the op field
+	@ see if it is a fetch
+
+@	
+@ entry point for byte variable action routines
+@	r0 -> op
+@
+opEntry:
+	ldr	r1, [r4, #varmode]			@ r1 = varMode
+	eor	r2, r2						@ r2 = 0
+	cmp	r1, r2
+	bne	.localOp1
+	@ execute local op
+localOpExecute:
+	ldr	r0, [r0]
+	b	interpLoopExecuteEntry
+
+@
+@ these routines can rely on:
+@	r0 -> op
+@	r2 = 0
+@
+
+.localOp1:
+	@ r0 points to the op field
+	@ r1 is varMode
+	@ r2 is 0
+	str	r2, [r4, #varmode]		@ set varMode back to fetch
+	cmp	r1, #kVarStore
+	bgt	badVarOperation
+	ldr	r3, .localOp3
+	ldr	r1, [r3, r1, lsl #2]
+	bx	r1
+	
+	
+	.align	2	
+.localOp3:
+	.word	localOpActionTable
+
+localOpActionTable:
+	.word	localOpExecute
+	.word	localIntFetch
+	.word	localIntRef
+	.word	localIntStore
+
+fieldOpType:
+	@ get ptr to op var opo r0
+	@ TOS is base ptr, r1 is field offset in bytes
+	
+	ldmia	r6!, {r0}	@ r0 = field offset from TOS
+	add	r0, r1
+	b	opEntry	
+
+memberOpType:
+	@ get ptr to op var opo r0
+	@ this data ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [r4, #tpd]
+	add	r0, r1
+	b	opEntry	
+	
+localOpArrayType:
+	@ get ptr to op var opo r0
+	@ FP is base ptr, r1 is offset in longs
+	ldmia	r6!, {r0}			@ r0 = array index
+	sub	r1, r0					@ add in array index
+	lsl	r1, #2
+	sub	r0, r8, r1				@ r0 points to the op field
+	b	opEntry
+
+fieldOpArrayType:
+	@ get ptr to op var opo r0
+	@ TOS is struct base ptr, NOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!, {r0, r2}		@ r0 = struct base ptr, r2 = index
+	lsl	r2, #2
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	opEntry
+
+memberOpArrayType:
+	@ get ptr to opo var opo r0
+	@ this data ptr is base ptr, TOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!,{r0}			@ r0 = index
+	lsl	r0, #2
+	ldr	r2, [r4, #tpd]			@ r2 = object base ptr
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	opEntry
+
+
+@/////////////////////////////////////////////////////////////////////
+@///
+@//
+@/                     object
+@
+
+@-----------------------------------------------
+@
+@ local object ops
+@
+localObjectType:
+	lsl	r1, #2
+	sub	r0, r8, r1					@ r0 points to the int field
+	@ see if it is a fetch
+
+@	
+@ entry point for byte variable action routines
+@	r0 -> object
+@
+objectEntry:
+	ldr	r1, [r4, #varmode]			@ r1 = varMode
+	eor	r2, r2						@ r2 = 0
+	cmp	r1, r2
+	bne	.localObject1
+	
+@
+@ these routines can rely on:
+@	r0 -> object
+@	r2 = 0
+@
+
+	@ fetch local object
+localObjectFetch:
+	ldrd	r2, [r0]
+	stmdb	r6!, {r2,r3}			@ push object on TOS
+	bx	lr
+
+localObjectRef:
+	stmdb	r6!, {r0}				@ push address of object on TOS
+	bx	lr
+	
+localObjectStore:
+	push	{r4,r5}
+	ldmia	r6!, {r4,r5}		@ pop TOS object value into r4,r5
+	ldm	r0!, {r2,r3}			@ r2,r3 are oldObj
+	cmp	r4, r2
+	beq	.losx
+	orr	r4, r4
+	beq	.los1					@ if newObj data ptr is null, don't increment refcount
+	ldr	r1, [r4]				@ increment newObj refcount
+	add	r1, #1
+	str	r1, [r4]
+.los1:
+	orr	r2, r2
+	beq	.los2
+	ldr	r1, [r2]				@ decrement oldObj refcount
+	sub	r1, #1
+	str	r1, [r2]
+	beq	.los3					@ oldObj refcount went to zero, go delete it
+.los2:
+	str	r4, [r0]
+.losx:
+	str	r5, [r0, #4]
+	pop	{r4,r5}
+	bx	lr
+	
+.los3:
+	@ object var held last reference to oldObj, invoke olbObj.delete method
+	ldm	r0!, {r4,r5}			@ store newObj
+	pop	{r4,r5}
+	@ push pCore->this pair on rstack
+	ldr	r0,[r4, #tpm]
+	stmdb	r7!, {r0}
+	ldr	r0,[r4, #tpd]
+	stmdb	r7!, {r0}
+	str	r2, [r4, #tpd]
+	str	r3, [r4, #tpm]	
+	
+	ldr	r0, [r3]				@ r0 is method 0 (delete) opcode
+	b		interpLoopExecuteEntry	
+	
+.localObject1:
+	@ r0 points to the object field
+	@ r1 is varMode
+	@ r2 is 0
+	str	r2, [r4, #varmode]		@ set varMode back to fetch
+	cmp	r1, #kVarStore
+	bgt	badVarOperation
+	ldr	r3, .localObject3
+	ldr	r1, [r3, r1, lsl #2]
+	bx	r1
+	
+	.align	2	
+.localObject3:
+	.word	localObjectActionTable
+
+localObjectActionTable:
+	.word	localObjectFetch
+	.word	localObjectFetch
+	.word	localObjectRef
+	.word	localObjectStore
+
+fieldObjectType:
+	@ get ptr to object var into r0
+	@ TOS is base ptr, r1 is field offset in bytes
+	
+	ldmia	r6!, {r0}	@ r0 = field offset from TOS
+	add	r0, r1
+	b	objectEntry	
+
+memberObjectType:
+	@ get ptr to object var into r0
+	@ this data ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [r4, #tpd]
+	add	r0, r1
+	b	objectEntry	
+	
+localObjectArrayType:
+	@ get ptr to object var into r0
+	@ FP is base ptr, r1 is offset in objects
+	ldmia	r6!, {r0}			@ r0 = array index
+	sub	r1, r0					@ add in array index
+	lsl	r1, #3
+	sub	r0, r8, r1				@ r0 points to the object field
+	b	objectEntry
+
+fieldObjectArrayType:
+	@ get ptr to object var into r0
+	@ TOS is struct base ptr, NOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!, {r0, r2}		@ r0 = struct base ptr, r2 = index
+	lsl	r2, #3
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	objectEntry
+
+memberObjectArrayType:
+	@ get ptr to into var into r0
+	@ this data ptr is base ptr, TOS is index
+	@ r1 is field offset in bytes
+	ldmia	r6!,{r0}			@ r0 = index
+	lsl	r0, #3
+	ldr	r2, [r4, #tpd]			@ r2 = object base ptr
+	add	r0, r2
+	add	r0, r1					@ add in offset to base of array
+	b	objectEntry
+
+
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @                                                    @
 @                                                    @
@@ -821,6 +1691,11 @@ abortBop:
 
 dropBop:
 	add	r6, #4
+	bx	lr
+	
+nipBop:
+	ldmia	r6!, {r0}
+	str	r0, [r6]
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  _doDoes  @@@@@@@@@@@@@@@@@
@@ -882,7 +1757,7 @@ doDoesBop:
 
 litBop:
 	ldmia	r5!, {r0}
-	ldmdb	r6!, {r0}
+	stmdb	r6!, {r0}
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  dlit  @@@@@@@@@@@@@@@@@
@@ -890,14 +1765,14 @@ litBop:
 dlitBop:
 	ldmia	r5!, {r0, r1}
 	mov	r2, r0
-	ldmdb	r6!, {r1, r2}
+	stmdb	r6!, {r1, r2}
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  _doVariable  @@@@@@@@@@@@@@@@@
 
 doVariableBop:
 	@ IP points to immediate data field
-	ldmdb	r6!,{r5}		@ push addr of data field
+	stmdb	r6!,{r5}		@ push addr of data field
 							@    pointed to by IP
 	ldmia	r7!, {r5}		@ pop return stack into IP
 	bx	lr
@@ -907,7 +1782,7 @@ doVariableBop:
 doConstantBop:
 	@ IP points to immediate data field
 	ldr	r0, [r5]			@ fetch data in immedate field pointed to by IP
-	ldmdb	r6!, {r0}
+	stmdb	r6!, {r0}
 	ldmia	r7!, {r5}		@ pop return stack into IP
 	bx	lr
 
@@ -917,7 +1792,7 @@ doDConstantBop:
 	@ IP points to immediate data field
 	ldmia	r5!, {r0, r1}
 	mov	r2, r0
-	ldmdb	r6!, {r1, r2}
+	stmdb	r6!, {r1, r2}
 	ldmia	r7!, {r5}		@ pop return stack into IP
 	bx	lr
 
@@ -940,6 +1815,13 @@ doByteBop:
 	ldmia	r7!, {r5}		@ pop IP off rstack
 	b	byteEntry
 
+doUByteBop:
+	@ get ptr to byte var into r0
+	@ IP points to byte var
+	mov	r0, r5
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	ubyteEntry
+
 @@@@@@@@@@@@@@@@@  _doByteArray  @@@@@@@@@@@@@@@@@
 
 @ doByteArrayOp is compiled as the first op in global byte arrays
@@ -954,6 +1836,15 @@ doByteArrayBop:
 	ldmia	r7!, {r5}		@ pop IP off rstack
 	b	byteEntry
 
+doUByteArrayBop:
+	@ get ptr to byte var into r0
+	@ IP points to base of byte array
+	mov	r0, r5
+	ldmia	r6!, {r1}		@ pop index off pstack
+	add	r0, r1				@ add index to array base
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	ubyteEntry
+
 @@@@@@@@@@@@@@@@@  _doShort  @@@@@@@@@@@@@@@@@
 
 @ doShortOp is compiled as the first op in global short vars
@@ -965,6 +1856,13 @@ doShortBop:
 	mov	r0, r5
 	ldmia	r7!, {r5}		@ pop IP off rstack
 	b	shortEntry
+
+doUShortBop:
+	@ get ptr to short var into r0
+	@ IP points to short var
+	mov	r0, r5
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	ushortEntry
 
 @@@@@@@@@@@@@@@@@  _doShortArray  @@@@@@@@@@@@@@@@@
 
@@ -980,6 +1878,16 @@ doShortArrayBop:
 	add	r0, r1				@ add index to array base
 	ldmia	r7!, {r5}		@ pop IP off rstack
 	b	shortEntry
+
+doUShortArrayBop:
+	@ get ptr to short var into r0
+	@ IP points to base of short array
+	mov	r0, r5
+	ldmia	r6!, {r1}		@ pop index off pstack
+	lsl	r1, #1
+	add	r0, r1				@ add index to array base
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	ushortEntry
 
 @@@@@@@@@@@@@@@@@  _doInt  @@@@@@@@@@@@@@@@@
 
@@ -1014,7 +1922,7 @@ doIntArrayBop:
 @ the float data field is immediately after this op
 
 doFloatBop:
-	@ get ptr to float var floato r0
+	@ get ptr to float var into r0
 	@ IP pofloats to float var
 	mov	r0, r5
 	ldmia	r7!, {r5}		@ pop IP off rstack
@@ -1026,7 +1934,7 @@ doFloatBop:
 @ the data array is immediately after this op
 
 doFloatArrayBop:
-	@ get ptr to float var floato r0
+	@ get ptr to float var into r0
 	@ IP points to base of float array
 	mov	r0, r5
 	ldmia	r6!, {r1}		@ pop index off pstack
@@ -1037,12 +1945,146 @@ doFloatArrayBop:
 
 @@@@@@@@@@@@@@@@@  _doDouble  @@@@@@@@@@@@@@@@@
 
+@ doDoubleOp is compiled as the first op in global double vars
+@ the double data field is immediately after this op
+
+doDoubleBop:
+	@ get ptr to double var into r0
+	@ IP podoubles to double var
+	mov	r0, r5
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	doubleEntry
+
+@@@@@@@@@@@@@@@@@  _doDoubleArray  @@@@@@@@@@@@@@@@@
+
+@ doDoubleArrayOp is compiled as the first op in global double arrays
+@ the data array is immediately after this op
+
+doDoubleArrayBop:
+	@ get ptr to double var into r0
+	@ IP points to base of double array
+	mov	r0, r5
+	ldmia	r6!, {r1}		@ pop index off pstack
+	lsl	r1, #3
+	add	r0, r1				@ add index to array base
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	doubleEntry
+
+
+@@@@@@@@@@@@@@@@@  _doString  @@@@@@@@@@@@@@@@@
+
+@ doStringOp is compiled as the first op in global string vars
+@ the string data field is immediately after this op
+
+doStringBop:
+	@ get ptr to string var into r0
+	@ IP postrings to string var
+	mov	r0, r5
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	stringEntry
+
+@@@@@@@@@@@@@@@@@  _doStringArray  @@@@@@@@@@@@@@@@@
+
+@ doStringArrayOp is compiled as the first op in global string arrays
+@ the data array is immediately after this op
+
+doStringArrayBop:
+	@ get ptr to string var into r0
+	@ IP points to base of string array
+	mov	r0, r5				@ r0 -> maxLen field of string[0]
+	ldr	r1, [r0]			@ r1 = maxLen
+	ldmia	r6!, {r2}		@ pop index off pstack
+	asr	r1, #2
+	add	r1, #3				@ r1 is element length in longs
+	mul	r1, r2
+	lsl	r1, #2
+	add	r0, r1				@ add index to array base
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	stringEntry
+
+@@@@@@@@@@@@@@@@@  _doLong  @@@@@@@@@@@@@@@@@
+@ doLongOp is compiled as the first op in global long vars
+@ the long data field is immediately after this op
+
+doLongBop:
+	@ get ptr to long var into r0
+	@ IP polongs to long var
+	mov	r0, r5
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	longEntry
+
+@@@@@@@@@@@@@@@@@  _doLongArray  @@@@@@@@@@@@@@@@@
+
+@ doLongArrayOp is compiled as the first op in global long arrays
+@ the data array is immediately after this op
+
+doLongArrayBop:
+	@ get ptr to long var into r0
+	@ IP points to base of long array
+	mov	r0, r5
+	ldmia	r6!, {r1}		@ pop index off pstack
+	lsl	r1, #3
+	add	r0, r1				@ add index to array base
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	longEntry
+
+
 @@@@@@@@@@@@@@@@@  _doString  @@@@@@@@@@@@@@@@@
 
 @@@@@@@@@@@@@@@@@  _doOp  @@@@@@@@@@@@@@@@@
 
+@ doOpOp is compiled as the first op in global op vars
+@ the op data field is immediately after this op
+
+doOpBop:
+	@ get ptr to op var into r0
+	@ IP points to op var
+	mov	r0, r5
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	opEntry
+
+@@@@@@@@@@@@@@@@@  _doOpArray  @@@@@@@@@@@@@@@@@
+
+@ doOpArrayOp is compiled as the first op in global op arrays
+@ the data array is immediately after this op
+
+doOpArrayBop:
+	@ get ptr to op var into r0
+	@ IP points to base of op array
+	mov	r0, r5
+	ldmia	r6!, {r1}		@ pop index off pstack
+	lsl	r1, #2
+	add	r0, r1				@ add index to array base
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	opEntry
+
+
 @@@@@@@@@@@@@@@@@  _doObject  @@@@@@@@@@@@@@@@@
 
+@ doObjectOp is compiled as the first op in global object vars
+@ the object data field is immediately after this op
+
+doObjectBop:
+	@ get ptr to object var into r0
+	@ IP points to object var
+	mov	r0, r5
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	objectEntry
+
+@@@@@@@@@@@@@@@@@  _doObjectArray  @@@@@@@@@@@@@@@@@
+
+@ doObjectArrayOp is compiled as the first op in global object arrays
+@ the data array is immediately after this op
+
+doObjectArrayBop:
+	@ get ptr to object var into r0
+	@ IP points to base of object array
+	mov	r0, r5
+	ldmia	r6!, {r1}		@ pop index off pstack
+	lsl	r1, #3
+	add	r0, r1				@ add index to array base
+	ldmia	r7!, {r5}		@ pop IP off rstack
+	b	objectEntry
 	
 @@@@@@@@@@@@@@@@@  addressOf  @@@@@@@@@@@@@@@@@
 
@@ -1160,9 +2202,6 @@ doExitMLBop:
 	
 @@@@@@@@@@@@@@@@@  +  @@@@@@@@@@@@@@@@@
 
-// A B + ... (A+B)
-// forth SP points to B
-//
 plusBop:
 	ldmia	r6!, {r0}	@ r0 = B
 	ldr	r1, [r6]		@ r1 = A
@@ -1178,6 +2217,22 @@ fetchBop:
 	str	r1, [r6]
 	bx	lr
 
+storeNextBop:
+	ldmia	r6!, {r0, r1}	@ r0 = value, r1 = ptr to dest ptr
+	ldr	r2, [r1]			@ r2 = dest ptr
+	stmia	r2!, {r0}		@ store value and advance dest ptr
+	str	r2, [r1]			@ update stored dest ptr
+	bx	lr
+
+fetchNextBop:
+	ldr	r1, [r6]			@ r1 - ptr to src ptr
+	ldr	r2, [r1]			@ r2 = src ptr
+	ldmia	r2!, {r0}		@ r0 = fetched value
+	str	r2, [r1]			@ update stored src ptr
+	str	r0, [r6]
+	bx	lr
+	
+		
 @@@@@@@@@@@@@@@@@  _doStruct  @@@@@@@@@@@@@@@@@
 
 doStructBop:
@@ -1223,6 +2278,7 @@ doLoopBop:
 	add	r0, #1
 	cmp	r0, r1
 	bge	.doLoopBop1			@ branch if done
+	str	r0,[r7]
 	ldr	r5, [r7, #8]		@ go back to top of loop
 	bx	lr
 
@@ -1238,19 +2294,20 @@ doLoopNBop:
 	ldmia	r7, {r0, r1}	@ r0 = current loop index, r1 = end index
 	ldmia	r6!, {r2}		@ r2 = increment
 	add	r0, r2				@ add increment to current index
+	str	r0,[r7]
 	cmp	r2, #0
 	blt	.doLoopNBop1		@ branch if increment is negative
 
 	@ r2 is positive increment
 	cmp	r0, r1
-	bge	.doLoopNBop2			@ branch if done
+	bge	.doLoopNBop2		@ branch if done
 	ldr	r5, [r7, #8]		@ go back to top of loop
 	bx	lr
 
 .doLoopNBop1:
 	@ r2 is negative increment
 	cmp	r0, r1
-	bl	.doLoopNBop2			@ branch if done
+	bl	.doLoopNBop2		@ branch if done
 	ldr	r5, [r7, #8]		@ go back to top of loop
 	bx	lr
 	
@@ -1258,6 +2315,25 @@ doLoopNBop:
 	add	r7, #12				@ deallocate start index, end index, start loop IP
 	bx	lr
 	
+@@@@@@@@@@@@@@@@@  _checkDo  @@@@@@@@@@@@@@@@@
+	
+@
+@ TOS is start-index
+@ TOS+4 is end-index
+@ the op right after this one should be a branch
+@
+doCheckDoBop:
+	ldmia	r6!, {r0, r1}	@ r0 = start index, r1 = end index
+	cmp	r0, r1
+	bge	dcdo1
+	
+	@ rstack[2] holds top-of-loop IP
+	add	r5, #4				@ skip over loop exit branch right after this op
+	stmdb	r7!, {r5}		@ rpush start-of-loop IP
+	stmdb	r7!, {r1}		@ rpush end index
+	stmdb	r7!, {r0}		@ rpush start index
+dcdo1:
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  d@  @@@@@@@@@@@@@@@@@
 
@@ -1309,13 +2385,13 @@ executeBop:
 
 callBop:
 	stmdb	r7!, {r5}
-	ldmdb	r6!, {r5}
+	ldmia	r6!, {r5}
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  goto  @@@@@@@@@@@@@@@@@
 
 gotoBop:
-	ldmdb	r6!, {r5}
+	ldmia	r6!, {r5}
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  i  @@@@@@@@@@@@@@@@@
@@ -1349,8 +2425,9 @@ leaveBop:
 @@@@@@@@@@@@@@@@@  here  @@@@@@@@@@@@@@@@@
 
 hereBop:
-	ldr	r0, [r4, #dp]
-	stmdb	r6!, {r0}
+	ldr	r0, [r4, #dict_mem_sect]
+	ldr	r1, [r0, #FMSCurrent]
+	stmdb	r6!, {r1}
 	bx	lr
 			
 @@@@@@@@@@@@@@@@@  removeEntry  @@@@@@@@@@@@@@@@@
@@ -1371,6 +2448,11 @@ entryLengthBop:
 
 numEntriesBop:
 	mov	r0, #kVocabNumEntries
+	str	r0, [r4, #varmode]
+	bx	lr
+
+vocabToClassBop:
+	mov	r0, #kVocabGetClass
 	str	r0, [r4, #varmode]
 	bx	lr
 
@@ -1397,6 +2479,14 @@ times4Bop:
 	str	r0, [r6]
 	bx	lr
 	
+@@@@@@@@@@@@@@@@@  *8  @@@@@@@@@@@@@@@@@
+
+times8Bop:
+	ldr	r0, [r6]
+	lsl	r0, r0, #3
+	str	r0, [r6]
+	bx	lr
+	
 @@@@@@@@@@@@@@@@@  /  @@@@@@@@@@@@@@@@@
 
 	.global	__aeabi_idiv
@@ -1419,6 +2509,14 @@ divide2Bop:
 @@@@@@@@@@@@@@@@@  /4  @@@@@@@@@@@@@@@@@
 
 divide4Bop:
+	ldr	r0, [r6]
+	asr	r0, r0, #2
+	str	r0, [r6]
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  /8  @@@@@@@@@@@@@@@@@
+
+divide8Bop:
 	ldr	r0, [r6]
 	asr	r0, r0, #2
 	str	r0, [r6]
@@ -1477,79 +2575,89 @@ timesBop:
 	str	r1, [r6]
 	bx	lr
 	
+utimesBop:
+	ldr	r0, [r6]		@ r0 = B
+	ldr	r1, [r6, #4]	@ r1 = A
+	umull	r3, r2, r1, r0
+	str	r2, [r6]
+	str	r3, [r6, #4]
+	bx	lr
+	
 @#############################################@
 @                                             @
 @         single precision fp math            @
 @                                             @
 @#############################################@
 
-		.global __aeabi_fadd, __aeabi_fsub, __aeabi_fmul, __aeabi_fdiv
 fplusBop:
-	push {lr}
-	ldmia	r6!, {r0}
-	ldr	r1, [r6]
-	bl	__aeabi_fadd
-	str	r0, [r6]
-	pop	{pc}
+	flds	s14, [r6]
+	add	r6, #4
+	flds	s15, [r6]
+	fadds	s15, s14, s15
+	fsts	s15, [r6]
+	bx	lr
 
 fminusBop:
-	push {lr}
-	ldmia	r6!, {r0}
-	ldr	r1, [r6]
-	bl	__aeabi_fsub
-	str	r0, [r6]
-	pop	{pc}
+	flds	s14, [r6]
+	add	r6, #4
+	flds	s15, [r6]
+	fsubs	s15, s14, s15
+	fsts	s15, [r6]
+	bx	lr
 
 ftimesBop:
-	push {lr}
-	ldmia	r6!, {r0}
-	ldr	r1, [r6]
-	bl	__aeabi_fmul
-	str	r0, [r6]
-	pop	{pc}
+	flds	s14, [r6]
+	add	r6, #4
+	flds	s15, [r6]
+	fmuls	s15, s14, s15
+	fsts	s15, [r6]
+	bx	lr
 
 fdivideBop:
-	push {lr}
-	ldmia	r6!, {r0}
-	ldr	r1, [r6]
-	bl	__aeabi_fdiv
-	str	r0, [r6]
-	pop	{pc}
+	flds	s14, [r6]
+	add	r6, #4
+	flds	s15, [r6]
+	fdivs	s15, s14, s15
+	fsts	s15, [r6]
+	bx	lr
 	
 @#############################################@
 @                                             @
 @         double precision fp math            @
 @                                             @
 @#############################################@
-		.global __aeabi_dadd, __aeabi_dsub, __aeabi_dmul, __aeabi_ddiv
 	
 dplusBop:
-	push {lr}
-	ldmia	r6!, {r0, r1, r2, r3}
-	bl	__aeabi_dadd
-	stmdb	r6!, {r0, r1}
-	pop	{pc}
+	fldd	d6, [r6]
+	add		r6, #8
+	fldd	d7, [r6]
+	faddd	d7, d6, d7
+	fstd	d7, [r6]
+	bx	lr
 
 dminusBop:
-	push {lr}
-	ldmia	r6!, {r0, r1, r2, r3}
-	bl	__aeabi_dsub
-	stmdb	r6!, {r0, r1}
-	pop	{pc}
+	fldd	d6, [r6]
+	add		r6, #8
+	fldd	d7, [r6]
+	fsubd	d7, d6, d7
+	fstd	d7, [r6]
+	bx	lr
 
 dtimesBop:
-	push {lr}
-	ldmia	r6!, {r0, r1, r2, r3}
-	bl	__aeabi_dmul
-	stmdb	r6!, {r0, r1}
-	pop	{pc}
+	fldd	d6, [r6]
+	add		r6, #8
+	fldd	d7, [r6]
+	fmuld	d7, d6, d7
+	fstd	d7, [r6]
+	bx	lr
 
 ddivideBop:
-	push {lr}
-	ldmia	r6!, {r0, r1, r2, r3}
-	bl	__aeabi_ddiv
-	stmdb	r6!, {r0, r1}
-	pop	{pc}
+	fldd	d6, [r6]
+	add		r6, #8
+	fldd	d7, [r6]
+	fdivd	d7, d6, d7
+	fstd	d7, [r6]
+	bx	lr
 
 	
 @#############################################@
@@ -1558,45 +2666,230 @@ ddivideBop:
 @                                             @
 @#############################################@
 
-	@ TBD	dsinBop
-	@ TBD	dasinBop
-	@ TBD	dcosBop
-	@ TBD	dacosBop
-	@ TBD	dtanBop
-	@ TBD	datanBop
-	@ TBD	datan2Bop
-	@ TBD	dexpBop
-	@ TBD	dlnBop
-	@ TBD	dlog10Bop
-	@ TBD	dpowBop
-	@ TBD	dsqrtBop
-	@ TBD	dceilBop
-	@ TBD	dfloorBop
-	@ TBD	dabsBop
-	@ TBD	dldexpBop
-	@ TBD	dfrexpBop
-	@ TBD	dmodfBop
-	@ TBD	dfmodBop
+dsinBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	bl	sin
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dasinBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	bl	asin
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dcosBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	bl	cos
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dacosBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	bl	acos
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dtanBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	bl	tan
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+datanBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	bl	atan
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+datan2Bop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	bl	atan2
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dexpBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	bl	exp
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dlnBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	bl	log
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dlog10Bop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	bl	log10
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dpowBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	add		r6, #8
+	fldd	d1, [r6]
+	bl	pow
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dsqrtBop:
+	push	{r4, r12, lr}
+	fldd	d7, [r6]
+	fsqrtd	d7, d7
+	fcmpd	d7, d7
+	fmstat
+	beq	.dsqrt1
+	bl	sqrt
+	fcpyd	d7, d0
+.dsqrt1:
+	fmrrd	r2, r3, d7
+	strd	r2, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dceilBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	bl	ceil
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dfloorBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	bl	floor
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dabsBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	fabsd	d0, d0
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dldexpBop:
+	push	{r4, r12, lr}
+	ldmia	r6!, {r0}
+	fldd	d0, [r6]
+	bl	ldexp
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+dfrexpBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	sub	r6, #4
+	mov	r0, r6
+	bl	frexp
+	fstd	d0, [r6, #4]
+	pop	{r4, r12, lr}
+	bx	lr
 	
+dmodfBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	sub	r6, #8
+	mov	r0, r6
+	bl	modf
+	fstd	d0, [r6, #8]
+	pop	{r4, r12, lr}
+	bx	lr
+	
+dfmodBop:
+	push	{r4, r12, lr}
+	fldd	d0, [r6]
+	add		r6, #8
+	fldd	d1, [r6]
+	bl	fmod
+	fstd	d0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
 @#############################################@
 @                                             @
 @       int/float/double conversions          @
 @                                             @
 @#############################################@
 
-	@ TBD	i2fBop
-	@ TBD	i2dBop
-	@ TBD	f2iBop
-	@ TBD	f2dBop
-	@ TBD	d2iBop
-	@ TBD	d2fBop
+i2fBop:
+	ldr	r0, [r6]
+	fmsr	s14, r0 @ int
+	fsitos	s15, s14
+	fsts	s15, [r6]
+	bx	lr
+
+i2dBop:
+	ldr	r0, [r6]
+	sub	r6, #4
+	fmsr	s14, r0 @ int
+	fsitod	d7, s14
+	fstd	d7, [r6]
+	bx	lr
+
+	
+f2iBop:
+	flds	s15, [r6]
+	ftosizs	s15, s15
+	fmrs	r0, s15 @ int
+	str	r0, [r6]
+	bx	lr
+
+f2dBop:
+	flds	s15, [r6]
+	sub	r6, #4
+	fcvtds	d7, s15
+	fstd	d7, [r6]
+	bx	lr
+
+d2iBop:
+	fldd	d7, [r6]
+	add	r6, #4
+	ftosizd	s13, d7
+	fmrs	r0, s13 @ int
+	str	r0, [r6]
+	bx	lr
+	
+d2fBop:
+	fldd	d7, [r6]
+	add	r6, #4
+	fcvtsd	s15, d7
+	fsts	s15, [r6]
+	bx	lr
 	
 @#############################################@
 @                                             @
 @             bit-vector logic                @
 @                                             @
 @#############################################@
-
 
 orBop:
 	ldmia	r6!, {r0}
@@ -1641,9 +2934,13 @@ rshiftBop:
 	str	r1, [r6]
 	bx	lr
 
-	@ boolean logic
-	@ TBD	notBop
-	
+urshiftBop:
+	ldmia	r6!, {r0}		@ r0 = shift count
+	ldr	r1, [r6]
+	mov	r2, r1, lsr r0
+	str	r2, [r6]
+	bx	lr
+ 	
 @@@@@@@@@@@@@@@@@  not  @@@@@@@@@@@@@@@@@
 
 notBop:
@@ -1685,7 +2982,7 @@ dnullBop:
 @          integer comparisons                @
 @                                             @
 @#############################################@
-
+	
 @@@@@@@@@@@@@@@@@  ==  @@@@@@@@@@@@@@@@@
 
 equalsBop:
@@ -1716,6 +3013,18 @@ greaterThanBop:
 	stmdb	r6!, {r2}
 	bx	lr
 
+@@@@@@@@@@@@@@@@@  u>  @@@@@@@@@@@@@@@@@
+
+unsignedGreaterThanBop:
+	ldmia	r6!, {r0, r1}
+	eor	r2, r2
+	cmp	r0, r1
+	bls	ugt1
+	sub	r2, #1
+ugt1:
+	stmdb	r6!, {r2}
+	bx	lr
+
 @@@@@@@@@@@@@@@@@  >=  @@@@@@@@@@@@@@@@@
 
 greaterEqualsBop:
@@ -1733,6 +3042,18 @@ lessThanBop:
 	eor	r2, r2
 	cmp	r0, r1
 	sublt	r2, #1
+	stmdb	r6!, {r2}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  u<  @@@@@@@@@@@@@@@@@
+
+unsignedLessThanBop:
+	ldmia	r6!, {r0, r1}
+	eor	r2, r2
+	cmp	r0, r1
+	bcs	ult1
+	sub	r2, #1
+ult1:
 	stmdb	r6!, {r2}
 	bx	lr
 
@@ -1811,23 +3132,425 @@ lessEqualsZeroBop:
 	
 @#############################################@
 @                                             @
+@     single precision fp comparisons         @
+@                                             @
+@#############################################@
+	
+@@@@@@@@@@@@@@@@@  f=  @@@@@@@@@@@@@@@@@
+
+fEqualsBop:
+	eor	r2, r2
+	flds	s14, [r6]
+	add	r6, #4
+	flds	s15, [r6]
+	fcmps	s14, s15
+	fmstat
+	subeq	r2, #1
+	str	r2, [r6]
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  f<>  @@@@@@@@@@@@@@@@@
+
+fNotEqualsBop:
+	eor	r2, r2
+	flds	s14, [r6]
+	add	r6, #4
+	flds	s15, [r6]
+	fcmps	s14, s15
+	fmstat
+	subne	r2, #1
+	stmdb	r6!, {r2}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  f>  @@@@@@@@@@@@@@@@@
+
+fGreaterThanBop:
+	eor	r2, r2
+	flds	s14, [r6]
+	add	r6, #4
+	flds	s15, [r6]
+	fcmps	s14, s15
+	fmstat
+	subgt	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  f>=  @@@@@@@@@@@@@@@@@
+
+fGreaterEqualsBop:
+	eor	r2, r2
+	flds	s14, [r6]
+	add	r6, #4
+	flds	s15, [r6]
+	fcmps	s14, s15
+	fmstat
+	subge	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  f<  @@@@@@@@@@@@@@@@@
+
+fLessThanBop:
+	eor	r2, r2
+	flds	s14, [r6]
+	add	r6, #4
+	flds	s15, [r6]
+	fcmps	s14, s15
+	fmstat
+	sublt	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  f<=  @@@@@@@@@@@@@@@@@
+
+fLessEqualsBop:
+	eor	r2, r2
+	flds	s14, [r6]
+	add	r6, #4
+	flds	s15, [r6]
+	fcmps	s14, s15
+	fmstat
+	suble	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  f0=  @@@@@@@@@@@@@@@@@
+
+fEqualsZeroBop:
+	eor	r2, r2
+	flds	s15, [r6]
+	fcmpzs	s15
+	fmstat
+	subeq	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  f0<>  @@@@@@@@@@@@@@@@@
+
+fNotEqualsZeroBop:
+	eor	r2, r2
+	flds	s15, [r6]
+	fcmpzs	s15
+	fmstat
+	subne	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  f0>  @@@@@@@@@@@@@@@@@
+
+fGreaterThanZeroBop:
+	eor	r2, r2
+	flds	s15, [r6]
+	fcmpzs	s15
+	fmstat
+	subgt	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  f0>=  @@@@@@@@@@@@@@@@@
+
+fGreaterEqualsZeroBop:
+	eor	r2, r2
+	flds	s15, [r6]
+	fcmpzs	s15
+	fmstat
+	subge	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  f0<  @@@@@@@@@@@@@@@@@
+
+fLessThanZeroBop:
+	eor	r2, r2
+	flds	s15, [r6]
+	fcmpzs	s15
+	fmstat
+	sublt	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  f0<=  @@@@@@@@@@@@@@@@@
+
+fLessEqualsZeroBop:
+	eor	r2, r2
+	flds	s15, [r6]
+	fcmpzs	s15
+	fmstat
+	suble	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@ fmin  @@@@@@@@@@@@@@@@@
+
+fMinBop:
+	flds	s14, [r6]
+	add	r6, #4
+	flds	s15, [r6]
+	fcmps	s14, s15
+	fmstat
+	blt	fmin1
+	fsts	s15, [r6]
+	bx	lr
+	
+fmin1:
+	fsts	s14, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  fmax  @@@@@@@@@@@@@@@@@
+
+fMaxBop:
+	flds	s14, [r6]
+	add	r6, #4
+	flds	s15, [r6]
+	fcmps	s14, s15
+	fmstat
+	bgt	fmin1
+	fsts	s15, [r6]
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  fwithin  @@@@@@@@@@@@@@@@@
+
+fWithinBop:
+	eor	r3,r3
+	flds	s15, [r6]			@ upper bound
+	flds	s14, [r6, #4]		@ lower bound
+	add	r6, #8
+	flds	s13, [r6]			@ test value
+	fcmps	s13, s14
+	fmstat
+	blt	.fwithin1
+	fcmps	s13, s15
+	fmstat
+	subge	r3, #1
+.fwithin1:
+	stmdb	r6!, {r3}
+	bx	lr
+
+@#############################################@
+@                                             @
+@     double precision fp comparisons         @
+@                                             @
+@#############################################@
+	
+@@@@@@@@@@@@@@@@@  d=  @@@@@@@@@@@@@@@@@
+
+dEqualsBop:
+	eor	r2, r2
+	fldd	d6, [r6]
+	fldd	d7, [r6, #8]
+	add	r6, #12
+	fcmpd	d6, d7
+	fmstat
+	subeq	r2, #1
+	str	r2, [r6]
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  d<>  @@@@@@@@@@@@@@@@@
+
+dNotEqualsBop:
+	eor	r2, r2
+	fldd	d6, [r6]
+	fldd	d7, [r6, #8]
+	add	r6, #12
+	fcmpd	d6, d7
+	fmstat
+	subne	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  d>  @@@@@@@@@@@@@@@@@
+
+dGreaterThanBop:
+	eor	r2, r2
+	fldd	d6, [r6]
+	fldd	d7, [r6, #8]
+	add	r6, #12
+	fcmpd	d6, d7
+	fmstat
+	subgt	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  d>=  @@@@@@@@@@@@@@@@@
+
+dGreaterEqualsBop:
+	eor	r2, r2
+	fldd	d6, [r6]
+	fldd	d7, [r6, #8]
+	add	r6, #12
+	fcmpd	d6, d7
+	fmstat
+	subge	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  d<  @@@@@@@@@@@@@@@@@
+
+dLessThanBop:
+	eor	r2, r2
+	fldd	d6, [r6]
+	fldd	d7, [r6, #8]
+	add	r6, #12
+	fcmpd	d6, d7
+	fmstat
+	sublt	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  d<=  @@@@@@@@@@@@@@@@@
+
+dLessEqualsBop:
+	eor	r2, r2
+	fldd	d6, [r6]
+	fldd	d7, [r6, #8]
+	add	r6, #12
+	fcmpd	d6, d7
+	fmstat
+	suble	r2, #1
+	str	r2, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  d0=  @@@@@@@@@@@@@@@@@
+
+dEqualsZeroBop:
+	eor	r2, r2
+	fldd	d7, [r6]
+	add	r6, #4
+	fcmpzd	d7
+	fmstat
+	subeq	r2, #1
+	stmdb	r6!, {r2}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  d0<>  @@@@@@@@@@@@@@@@@
+
+dNotEqualsZeroBop:
+	eor	r2, r2
+	fldd	d7, [r6]
+	add	r6, #4
+	fcmpzd	d7
+	fmstat
+	subne	r2, #1
+	stmdb	r6!, {r2}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  d0>  @@@@@@@@@@@@@@@@@
+
+dGreaterThanZeroBop:
+	eor	r2, r2
+	fldd	d7, [r6]
+	add	r6, #4
+	fcmpzd	d7
+	fmstat
+	subgt	r2, #1
+	stmdb	r6!, {r2}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  d0>=  @@@@@@@@@@@@@@@@@
+
+dGreaterEqualsZeroBop:
+	eor	r2, r2
+	fldd	d7, [r6]
+	add	r6, #4
+	fcmpzd	d7
+	fmstat
+	subge	r2, #1
+	stmdb	r6!, {r2}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  d0<  @@@@@@@@@@@@@@@@@
+
+dLessThanZeroBop:
+	eor	r2, r2
+	fldd	d7, [r6]
+	add	r6, #4
+	fcmpzd	d7
+	fmstat
+	sublt	r2, #1
+	stmdb	r6!, {r2}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  d0<=  @@@@@@@@@@@@@@@@@
+
+dLessEqualsZeroBop:
+	eor	r2, r2
+	fldd	d7, [r6]
+	add	r6, #4
+	fcmpzd	d7
+	fmstat
+	suble	r2, #1
+	stmdb	r6!, {r2}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@ dmin  @@@@@@@@@@@@@@@@@
+
+dMinBop:
+	fldd	d7, [r6]
+	add	r6, #8
+	fldd	d6, [r6]
+	fcmpd	d6, d7
+	fmstat
+	blt	dmin1
+	fstd	d7, [r6]
+	bx	lr
+	
+dmin1:
+	fstd	d6, [r6]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  dmax  @@@@@@@@@@@@@@@@@
+
+dMaxBop:
+	fldd	d7, [r6]
+	add	r6, #8
+	fldd	d6, [r6]
+	fcmpd	d6, d7
+	fmstat
+	bgt	dmax1
+	fstd	d7, [r6]
+	bx	lr
+	
+dmax1:
+	fstd	d6, [r6]
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  dwithin  @@@@@@@@@@@@@@@@@
+
+dWithinBop:
+	eor	r3,r3
+	fldd	d7, [r6]			@ upper bound
+	fldd	d6, [r6, #8]		@ lower bound
+	add	r6, #16
+	fldd	d5, [r6]			@ test value
+	fcmpd	d5, d6
+	fmstat
+	blt	.dwithin1
+	fcmpd	d5, d7
+	fmstat
+	subge	r3, #1
+.dwithin1:
+	stmdb	r6!, {r3}
+	bx	lr
+
+@#############################################@
+@                                             @
 @            stack manipulation               @
 @                                             @
 @#############################################@
 
-
+	
 @@@@@@@@@@@@@@@@@  >r  @@@@@@@@@@@@@@@@@
 
 rpushBop:
 	ldmia	r6!, {r0}
-	ldmdb	r7!, {r0}
+	stmdb	r7!, {r0}
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  r>  @@@@@@@@@@@@@@@@@
 
 rpopBop:
 	ldmia	r7!, {r0}
-	ldmdb	r6!, {r0}
+	stmdb	r6!, {r0}
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  rdrop  @@@@@@@@@@@@@@@@@
@@ -1839,21 +3562,30 @@ rdropBop:
 @@@@@@@@@@@@@@@@@  rp  @@@@@@@@@@@@@@@@@
 
 rpBop:
-	ldmia	r6!, {r7}
+	stmdb	r6!, {r7}
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  r0  @@@@@@@@@@@@@@@@@
 
 rzeroBop:
 	ldr	r0, [r4, #rp0]
-	ldmdb	r6!, {r0}
+	stmdb	r6!, {r0}
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  dup  @@@@@@@@@@@@@@@@@
 
 dupBop:
-	ldr	r0, [r6]
-	ldmdb	r6!, {r0}
+	ldr	r0, [r6, #0]
+	stmdb	r6!, {r0}
+	bx	lr
+
+checkDupBop:
+	eor r2, r2
+	ldr	r0, [r6, #0]
+	cmp	r0, r2
+	beq	cdup1
+	stmdb	r6!, {r0}
+cdup1:
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  swap  @@@@@@@@@@@@@@@@@
@@ -1869,7 +3601,7 @@ swapBop:
 
 overBop:
 	ldr	r0, [r6, #4]
-	ldmdb	r6!, {r0}
+	stmdb	r6!, {r0}
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  rot  @@@@@@@@@@@@@@@@@
@@ -1878,6 +3610,12 @@ rotBop:
 	ldmia	r6, {r1, r2, r3}
 	mov	r0, r3
 	stmia	r6, {r0, r1, r2}
+	bx	lr
+	
+reverseRotBop:
+	ldmia	r6, {r1, r2, r3}
+	stmia	r6, {r2, r3}
+	str	r1, [r6, #8]
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  tuck  @@@@@@@@@@@@@@@@@
@@ -1894,7 +3632,7 @@ tuckBop:
 pickBop:
 	ldr	r0, [r6]
 	add	r0, #1
-	ldr	r1, [r6, r1, lsl #2]
+	ldr	r1, [r6, r0, lsl #2]
 	str	r1, [r6]
 	bx	lr
 	
@@ -1902,22 +3640,84 @@ pickBop:
 
 spBop:
 	mov	r0, r6
-	ldmdb	r6!, {r0}
+	stmdb	r6!, {r0}
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  s0  @@@@@@@@@@@@@@@@@
 
 szeroBop:
 	ldr	r0, [r4, #sp0]
-	ldmdb	r6!, {r0}
+	stmdb	r6!, {r0}
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  fp  @@@@@@@@@@@@@@@@@
 
 fpBop:
-	ldmdb	r8!, {r0}
+	stmdb	r6!, {r8}
 	bx	lr
 	
+@@@@@@@@@@@@@@@@@  ip  @@@@@@@@@@@@@@@@@
+
+ipBop:
+	stmdb	r6!, {r5}
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  r[ @@@@@@@@@@@@@@@@@
+startTupleBop:
+	stmdb	r7!, {r6}
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  ]r @@@@@@@@@@@@@@@@@
+endTupleBop:
+	ldmia	r7!, {r0}
+	sub	r0, r0, r6
+	asr	r0, r0, #2
+	stmdb	r6!, {r0}
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  r@ @@@@@@@@@@@@@@@@@
+rpeekBop:
+	ldr	r0, [r7]
+	stmdb	r6!, {r0}
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  min  @@@@@@@@@@@@@@@@@
+
+minBop:
+	ldmia	r6!, {r0, r1}
+	eor	r2, r2
+	cmp	r0, r1
+	bgt	.min1
+	mov	r0, r1
+.min1:
+	stmdb	r6!, {r0}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  max  @@@@@@@@@@@@@@@@@
+
+maxBop:
+	ldmia	r6!, {r0, r1}
+	eor	r2, r2
+	cmp	r0, r1
+	blt	.max1
+	mov	r1, r0
+.max1:
+	stmdb	r6!, {r1}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  within  @@@@@@@@@@@@@@@@@
+
+withinBop:
+	eor	r3,r3
+	ldmia	r6!, {r0, r1, r2}		@ r0=test value, r1=lower bound, r2=upperBound
+	cmp	r0, r1
+	blt	.within1
+	cmp	r0, r2
+	subge	r3, #1
+.within1:
+	stmdb	r6!, {r3}
+	bx	lr
+
 @@@@@@@@@@@@@@@@@  ddup  @@@@@@@@@@@@@@@@@
 
 ddupBop:
@@ -1933,7 +3733,7 @@ dswapBop:
 	str	r0, [r6, #8]
 	str	r1, [r6, #12]
 	bx	lr
-		
+	
 @@@@@@@@@@@@@@@@@  ddrop  @@@@@@@@@@@@@@@@@
 
 ddropBop:
@@ -1970,7 +3770,6 @@ drotBop:
 @                                             @
 @#############################################@
 
-
 @@@@@@@@@@@@@@@@@  !  @@@@@@@@@@@@@@@@@
 
 storeBop:
@@ -1994,6 +3793,23 @@ cfetchBop:
 	str	r1, [r6]
 	bx	lr
 
+cstoreNextBop:
+	ldmia	r6!, {r0, r1}	@ r0 = value, r1 = ptr to dest ptr
+	ldr	r2, [r1]			@ r2 = dest ptr
+	strb	r0, [r2]
+	add	r2, #1
+	str	r2, [r1]			@ update stored dest ptr
+	bx	lr
+
+cfetchNextBop:
+	ldr	r1, [r6]			@ r1 - ptr to src ptr
+	ldr	r2, [r1]			@ r2 = src ptr
+	ldrb	r0, [r2]
+	add	r2, #1
+	str	r2, [r1]			@ update stored src ptr
+	str	r0, [r6]
+	bx	lr
+	
 @@@@@@@@@@@@@@@@@  sc@  @@@@@@@@@@@@@@@@@
 
 scfetchBop:
@@ -2003,9 +3819,9 @@ scfetchBop:
 	str	r1, [r6]
 	bx	lr
 
-@@@@@@@@@@@@@@@@@  c2l  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  c2i  @@@@@@@@@@@@@@@@@
 
-c2lBop:
+c2iBop:
 	ldrsb	r0, [r6]
 	str	r0, [r6]
 	bx	lr
@@ -2026,6 +3842,23 @@ wfetchBop:
 	str	r1, [r6]
 	bx	lr
 
+wstoreNextBop:
+	ldmia	r6!, {r0, r1}	@ r0 = value, r1 = ptr to dest ptr
+	ldr	r2, [r1]			@ r2 = dest ptr
+	strh	r0, [r2]
+	add	r2, #2
+	str	r2, [r1]			@ update stored dest ptr
+	bx	lr
+
+wfetchNextBop:
+	ldr	r1, [r6]			@ r1 - ptr to src ptr
+	ldr	r2, [r1]			@ r2 = src ptr
+	ldrh	r0, [r2]
+	add	r2, #2
+	str	r2, [r1]			@ update stored src ptr
+	str	r0, [r6]
+	bx	lr
+	
 @@@@@@@@@@@@@@@@@  sw@  @@@@@@@@@@@@@@@@@
 
 swfetchBop:
@@ -2036,9 +3869,9 @@ swfetchBop:
 	bx	lr
 
 	
-@@@@@@@@@@@@@@@@@  w2l  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  w2i  @@@@@@@@@@@@@@@@@
 
-w2lBop:
+w2iBop:
 	ldrsh	r0, [r6]
 	str	r0, [r6]
 	bx	lr
@@ -2052,27 +3885,44 @@ dstoreBop:
 	str	r2, [r0, #4]
 	bx	lr
 	
+dstoreNextBop:
+	ldmia	r6!, {r0, r1, r2}	@ r0,r1 = value, r2 = ptr to dest ptr
+	ldr	r3, [r2]				@ r3 = dest ptr
+	stmia	r3!, {r0, r1}		@ store value and advance dest ptr
+	str	r2, [r3]				@ update stored dest ptr
+	bx	lr
+
+dfetchNextBop:
+	ldmia	r6!, {r2}			@ r2 = ptr to src ptr
+	ldr	r3, [r2]			@ r3 = src ptr
+	ldmia	r3!, {r0, r1}	@ r0,r1 = fetched value
+	str	r2, [r1]			@ update stored src ptr
+	stmdb	r6!, {r0, r1}
+	bx	lr
+	
 @@@@@@@@@@@@@@@@@  memcpy  @@@@@@@@@@@@@@@@@
 
 memcpyBop:
 	@	TOS is #bytes, TOS-1 is src, TOS-2 is dst
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldmia	r6!, {r0, r1, r3}		@ r0 = #bytes, r1 = src r3 = dst
 	mov	r2, r0
 	mov	r0, r3
 	bl	memcpy
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  memset  @@@@@@@@@@@@@@@@@
 
 memsetBop:
 	@	TOS is #bytes, TOS-1 is fillValue, TOS-2 is dst
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldmia	r6!, {r0, r1, r3}		@ r0 = #bytes, r1 = fillValue r3 = dst
 	mov	r2, r0
 	mov	r0, r3
 	bl	memset
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 	
 	
 @@@@@@@@@@@@@@@@@  varAction!  @@@@@@@@@@@@@@@@@
@@ -2089,6 +3939,50 @@ getVarActionBop:
 	stmdb	r6!, {r0}
 	bx	lr
 
+byteVarActionBop:
+	ldmia	r6!, {r0}
+	b	byteEntry
+	
+ubyteVarActionBop:
+	ldmia	r6!, {r0}
+	b	ubyteEntry
+	
+shortVarActionBop:
+	ldmia	r6!, {r0}
+	b	shortEntry
+	
+ushortVarActionBop:
+	ldmia	r6!, {r0}
+	b	ushortEntry
+	
+intVarActionBop:
+	ldmia	r6!, {r0}
+	b	intEntry
+	
+floatVarActionBop:
+	ldmia	r6!, {r0}
+	b	floatEntry
+	
+stringVarActionBop:
+	ldmia	r6!, {r0}
+	b	stringEntry
+
+doubleVarActionBop:
+	ldmia	r6!, {r0}
+	b	doubleEntry
+	
+longVarActionBop:
+	ldmia	r6!, {r0}
+	b	longEntry
+	
+opVarActionBop:
+	ldmia	r6!, {r0}
+	b	opEntry
+	
+objectVarActionBop:
+	ldmia	r6!, {r0}
+	b	objectEntry
+	
 @#############################################@
 @                                             @
 @             string manipulation             @
@@ -2100,114 +3994,133 @@ getVarActionBop:
 
 strcpyBop:
 	@	TOS is src, TOS-1 is dst
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldmia	r6!, {r1, r2}
 	mov	r0, r2
 	bl	strcpy
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  strncpy  @@@@@@@@@@@@@@@@@
 
 strncpyBop:
 	@	TOS is #bytes, TOS-1 is src, TOS-2 is dst
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldmia	r6!, {r0, r1, r3}		@ r0 = #bytes, r1 = src r3 = dst
 	mov	r2, r0
 	mov	r0, r3
 	bl	strncpy
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  strlen  @@@@@@@@@@@@@@@@@
 
 strlenBop:
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldr	r0, [r6]
-	bl	strcpy
+	bl	strlen
 	str	r0, [r6]
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  strcat  @@@@@@@@@@@@@@@@@
 
 strcatBop:
 	@	TOS is src, TOS-1 is dst
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldmia	r6!, {r1, r2}
 	mov	r0, r2
 	bl	strcat
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  strncat  @@@@@@@@@@@@@@@@@
 
 strncatBop:
 	@	TOS is #bytes, TOS-1 is src, TOS-2 is dst
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldmia	r6!, {r0, r1, r3}		@ r0 = #bytes, r1 = src r3 = dst
 	mov	r2, r0
 	mov	r0, r3
 	bl	strncat
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  strchr  @@@@@@@@@@@@@@@@@
 
 strchrBop:
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldmia	r6!, {r1}
 	ldr	r0, [r6]
 	bl	strchr
 	str	r0, [r6]
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  strchr  @@@@@@@@@@@@@@@@@
 
 strrchrBop:
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldmia	r6!, {r1}
 	ldr	r0, [r6]
 	bl	strrchr
 	str	r0, [r6]
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  strcmp  @@@@@@@@@@@@@@@@@
 
 strcmpBop:
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldmia	r6!, {r1}
 	ldr	r0, [r6]
 	bl	strcasecmp
 	str	r0, [r6]
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  stricmp  @@@@@@@@@@@@@@@@@
 
 stricmpBop:
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldmia	r6!, {r1}
 	ldr	r0, [r6]
 	bl	strcasecmp
 	str	r0, [r6]
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  strstr  @@@@@@@@@@@@@@@@@
 
 strstrBop:
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldmia	r6!, {r1}
 	ldr	r0, [r6]
 	bl	strstr
 	str	r0, [r6]
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  strtok  @@@@@@@@@@@@@@@@@
 
 strtokBop:
-	push	{r4, lr}
+	push	{r4, r12, lr}
 	ldmia	r6!, {r1}
 	ldr	r0, [r6]
 	bl	strtok
 	str	r0, [r6]
-	pop	{r4, pc}
+	pop	{r4, r12, lr}
+	bx	lr
 
-	
+
+initStringBop:
+	eor	r2,r2
+	ldmia	r6!, {r0, r1}
+	str	r2,	[r1, #-4]		@ set current length = 0
+	str	r0, [r1, #-8]		@ set maximum length
+	strb	r2, [r1]		@ set first char to terminating null
+	bx	lr
+		
 	
 @#############################################@
 @                                             @
@@ -2215,17 +4128,253 @@ strtokBop:
 @                                             @
 @#############################################@
 
-	@ TBD	fopenBop
-	@ TBD	fcloseBop
-	@ TBD	fseekBop
-	@ TBD	freadBop
-	@ TBD	fwriteBop
-	@ TBD	fgetcBop
-	@ TBD	fputcBop
-	@ TBD	feofBop
-	@ TBD	ftellBop
-	@ TBD	flenBop
+fopenBop:
+	push	{r4, r12, lr}
+	ldr	r1, [r6]
+	ldr	r0, [r6, #4]
+	@ r0=path, r1=access
+	ldr	r2, [r4, #file_funcs]
+	ldr	r3, [r2, #fileOpen]
+	blx	r3
+	add	r0, #4
+	str	r0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+fcloseBop:	
+	push	{r4, r12, lr}
+	ldr	r0, [r6]
+	ldr	r2, [r4, #file_funcs]
+	ldr	r3, [r2, #fileClose]
+	blx	r3
+	str	r0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
 	
+fseekBop:
+	push	{r4, r12, lr}
+	ldr	r2, [r6]
+	ldr	r1, [r6, #4]
+	ldr	r0, [r6, #8]
+	@ r0=pFile r1=offset r2=seekType
+	ldr	r3, [r4, #file_funcs]
+	ldr	r3, [r3, #fileSeek]
+	blx	r3
+	add	r6, #8
+	str	r0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+	
+freadBop:
+	push	{r4, r5, lr}
+	ldr	r3, [r6]
+	ldr	r2, [r6, #4]
+	ldr	r1, [r6, #8]
+	ldr	r0, [r6, #12]
+	@ int result = pCore->pFileFuncs->fileRead( pDst, itemSize, numItems, pFP );
+	@ r0=pDst r1=itemSize r2=numItems r3=pFile
+	ldr	r5, [r4, #file_funcs]
+	ldr	r5, [r5, #fileRead]
+	blx	r5
+	add	r6, #12
+	str	r0, [r6]
+	pop	{r4, r5, lr}
+	bx	lr
+	
+fwriteBop:
+	push	{r4, r5, lr}
+	ldr	r3, [r6]
+	ldr	r2, [r6, #4]
+	ldr	r1, [r6, #8]
+	ldr	r0, [r6, #12]
+	@ int result = pCore->pFileFuncs->fileRead( pDst, itemSize, numItems, pFP );
+	@ r0=pDst r1=itemSize r2=numItems r3=pFile
+	ldr	r5, [r4, #file_funcs]
+	ldr	r5, [r5, #fileWrite]
+	blx	r5
+	add	r6, #12
+	str	r0, [r6]
+	pop	{r4, r5, lr}
+	bx	lr
+	
+fgetcBop:	
+	push	{r4, r12, lr}
+	ldr	r0, [r6]
+	ldr	r2, [r4, #file_funcs]
+	ldr	r3, [r2, #fileGetChar]
+	blx	r3
+	str	r0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+	
+fputcBop:
+	push	{r4, r12, lr}
+	ldr	r1, [r6]
+	ldr	r0, [r6, #4]
+	@ r1=char, r0=pFile
+	ldr	r2, [r4, #file_funcs]
+	ldr	r3, [r2, #filePutChar]
+	blx	r3
+	add	r6, #4
+	str	r0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+feofBop:	
+	push	{r4, r12, lr}
+	ldr	r0, [r6]
+	ldr	r2, [r4, #file_funcs]
+	ldr	r3, [r2, #fileAtEnd]
+	blx	r3
+	str	r0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+	
+ftellBop:	
+	push	{r4, r12, lr}
+	ldr	r0, [r6]
+	ldr	r2, [r4, #file_funcs]
+	ldr	r3, [r2, #fileTell]
+	blx	r3
+	str	r0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+	
+flenBop:	
+	push	{r4, r12, lr}
+	ldr	r0, [r6]
+	ldr	r2, [r4, #file_funcs]
+	ldr	r3, [r2, #fileGetLength]
+	blx	r3
+	str	r0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+	
+fexistsBop:	
+	push	{r4, r12, lr}
+	ldr	r0, [r6]
+	ldr	r2, [r4, #file_funcs]
+	ldr	r3, [r2, #fileExists]
+	blx	r3
+	str	r0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+	
+fgetsBop:
+	push	{r4, r12, lr}
+	ldr	r2, [r6]
+	ldr	r1, [r6, #4]
+	ldr	r0, [r6, #8]
+	@ r0=pBuffer r1=maxChars r2=pFile
+	ldr	r3, [r4, #file_funcs]
+	ldr	r3, [r3, #fileGetString]
+	blx	r3
+	add	r6, #8
+	str	r0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+	
+fputsBop:
+	push	{r4, r12, lr}
+	ldr	r1, [r6]
+	ldr	r0, [r6, #4]
+	@ r0=pBuffer, r1=pFile
+	ldr	r2, [r4, #file_funcs]
+	ldr	r3, [r2, #filePutString]
+	blx	r3
+	add	r6, #4
+	str	r0, [r6]
+	pop	{r4, r12, lr}
+	bx	lr
+
+	
+@ extern void fprintfSub( ForthCoreState* pCore );
+	
+fprintfSub:
+	push	{r4, r12, lr}
+	ldmia	r6!, {r1}		@ r1 is argument count
+	add	r1, #2				
+	mov	r2, r1
+	stmdb	r7!, {sp}		@ save old PC SP for cleanup on rstack
+fprintfSub1:
+	sub	r2, #1
+	bl	fprintfSub2
+	ldmia	r6!, {r0}
+	push	{r0}
+	b	fprintfSub1
+fprintfSub2:
+	@ all args have been moved from parameter stack to PC stack
+	bl	fprintf
+	stmdb	r6!, {r0}
+	ldmia	r7!, {sp}		@ cleanup PC stack
+	pop	{r4, r12, lr}
+	bx	lr
+
+	
+fscanfSub:
+	push	{r4, r12, lr}
+	ldmia	r6!, {r1}		@ r1 is argument count
+	add	r1, #2				
+	mov	r2, r1
+	stmdb	r7!, {sp}		@ save old PC SP for cleanup on rstack
+fscanfSub1:
+	sub	r2, #1
+	bl	fscanfSub2
+	ldmia	r6!, {r0}
+	push	{r0}
+	b	fscanfSub1
+fscanfSub2:
+	@ all args have been moved from parameter stack to PC stack
+	bl	fscanf
+	stmdb	r6!, {r0}
+	ldmia	r7!, {sp}		@ cleanup PC stack
+	pop	{r4, r12, lr}
+	bx	lr
+
+	
+sprintfSub:
+	push	{r4, r12, lr}
+	ldmia	r6!, {r1}		@ r1 is argument count
+	add	r1, #2				
+	mov	r2, r1
+	stmdb	r7!, {sp}		@ save old PC SP for cleanup on rstack
+sprintfSub1:
+	sub	r2, #1
+	bl	sprintfSub2
+	ldmia	r6!, {r0}
+	push	{r0}
+	b	sprintfSub1
+sprintfSub2:
+	@ all args have been moved from parameter stack to PC stack
+	bl	sprintf
+	stmdb	r6!, {r0}
+	ldmia	r7!, {sp}		@ cleanup PC stack
+	pop	{r4, r12, lr}
+	bx	lr
+
+	
+sscanfSub:
+	push	{r4, r12, lr}
+	ldmia	r6!, {r1}		@ r1 is argument count
+	add	r1, #2				
+	mov	r2, r1
+	stmdb	r7!, {sp}		@ save old PC SP for cleanup on rstack
+sscanfSub1:
+	sub	r2, #1
+	bl	sscanfSub2
+	ldmia	r6!, {r0}
+	push	{r0}
+	b	sscanfSub1
+sscanfSub2:
+	@ all args have been moved from parameter stack to PC stack
+	bl	sscanf
+	stmdb	r6!, {r0}
+	ldmia	r7!, {sp}		@ cleanup PC stack
+	pop	{r4, r12, lr}
+	bx	lr
+
+	
+
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @                                                    @
 @                                                    @
@@ -2244,48 +4393,44 @@ strtokBop:
 @	r8		FP
 @	r0...r3 can be stomped on at will
 
-builtInOp:
-	@ we get here when an opcode has the builtin optype but there is no assembler version
-	b	extOp
+@-----------------------------------------------
+@
+@ extOpType is used to handle optypes which are only defined in C++
+@
+@	r1 holds the opcode value field
+@	r2 holds the opcode type field
+@
+extOpType:
+	add	r0, r4, #ipsave			@ r0 -> IP
+	stmia	r0!, {r5-r7}			@ save IP, SP, RP in core
+	ldr	r3, [r4]				@ r3 = table of C optype action routines
+	ldr	r2, [r3, r2, lsl #2]	@ r2 = action routine for this optype
+	mov	r0, r4					@ C++ optype routines take core ptr as 1st argument
+	bx	r2
 	
-builtInImmediate:
-	cmp	r1, r10
-	blt	.builtInImmediate1
-	b	extOp
 
-.builtInImmediate1:
-	ldr	r0, [r9, r1, lsl #2]
-	bx	r0
-
-	
-userCodeType:
-	ldr	r3, [r4, #n_user_ops]
-	cmp	r1, r3
-	bge	badOpcode
-	ldr	r3, [r4, #user_ops]
-	ldr	r0, [r3, r1, lsl #2]
-	bx	r0
-
+nativeOp:
+@ is there any way we can get here?
 
 badOpcode:
 	mov	r0, #kForthErrorBadOpcode
 	b	interpLoopErrorExit
 	
 userDefType:
-	ldr	r3, [r4, #n_user_ops]
+	ldr	r3, [r4, #n_ops]
 	cmp	r1, r3
 	bge	badOpcode
 	@ rpush IP
 	stmdb	r7!, {r5}
 	@ fetch new IP
-	ldr	r0, [r4, #user_ops]
+	ldr	r0, [r4, #ops]
 	ldr	r5, [r0, r1, lsl #2]
 	bx	lr
 	
 branchType:
 	ldr	r2,=0xFF000000
 	ldr	r3,=0x00800000
-	and	r3, r1
+	ands	r3, r1
 	orrne	r1,r2
 	lsl	r1, #2
 	add	r5, r1			@ add branchVal to IP
@@ -2323,7 +4468,7 @@ caseBranchType:
 constantType:
 	ldr	r2,=0xFF000000
 	ldr	r3,=0x00800000
-	and	r3, r1
+	ands	r3, r1
 	orrne	r1,r2
 	stmdb	r6!, {r1}
 	bx	lr
@@ -2331,7 +4476,7 @@ constantType:
 offsetType:
 	ldr	r2,=0xFF000000
 	ldr	r3,=0x00800000
-	and	r3, r1
+	ands	r3, r1
 	orrne	r1,r2
 	ldr	r0, [r6]
 	add	r0, r1
@@ -2355,6 +4500,168 @@ offsetFetchType:
 
 @-----------------------------------------------
 @
+@ array offset ops
+@
+arrayOffsetType:
+	@ r1 is size of one element
+	ldmia	r6!, {r2, r3}	@ r2 is array base, r3 is index
+	mul	r3, r1
+	add	r2, r3
+	stmdb	r6!, {r2}
+	bx	lr
+
+@-----------------------------------------------
+@
+@ local struct array ops
+@
+localStructArrayType:
+	@ bits 0..11 are padded struct length in bytes, bits 12..23 are frame offset in longs
+	@ multiply struct length by TOS, add in (negative) frame offset, and put result on TOS
+	ldr	r0, =0xFFF
+	and	r0, r1
+	ldr	r3, [r6]
+	mul	r3, r0			@ r3 is offset of struct element from base of array
+	lsr	r1, #10
+	ldr	r0, =0x3FFC
+	and	r1, r0			@ r1 is offset of base array from FP in bytes
+	sub	r0, r8, r1	
+	add	r0, r3
+	stmdb	r6!, {r0}
+	bx	lr
+
+@-----------------------------------------------
+@
+@ string constant ops
+@
+constantStringType:
+	@ IP points to beginning of string
+	@ low 24-bits of ebx is string len in longs
+	stmdb	r6!, {r5}	@ push string ptr
+	@ get low-24 bits of opcode
+	lsl	r1, #2
+	@ advance IP past string
+	add	r5, r1
+	bx	lr
+	
+@-----------------------------------------------
+@
+@ local stack frame allocation ops
+@
+allocLocalsType:
+	@ rpush old FP
+	stmdb	r7!, {r8}
+	@ set FP = RP, points at old FP
+	mov	r8, r7
+	@ allocate amount of storage specified by low 24-bits of op on rstack
+	lsl	r1, #2
+	sub	r7, r1
+	@ clear out allocated storage
+	eor	r2, r2
+	mov	r0, r7
+alt1:
+	stmia	r0!, {r2}
+	subs	r1, #4
+	bne	alt1
+	bx	lr
+	
+
+@-----------------------------------------------
+@
+@ local string init ops
+@
+initLocalStringType:
+	@ bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
+	@ init the current & max length fields of a local string
+	ldr	r0, =0xFFF
+	and	r0, r1			@ r0 is string length in bytes
+	lsr	r1, #10
+	ldr	r2, =0x3FFC
+	and	r1, r2			@ r1 is offset of string from FP in bytes
+	sub	r3, r8, r1
+	eor	r2, r2
+	stmia	r3!, {r0, r2}	
+	strb	r2, [r3]	@ add terminating null
+	bx	lr
+
+@-----------------------------------------------
+@
+@ local reference ops
+@
+localRefType:
+	@ push local reference - r1 is frame offset in longs
+	lsl	r1, #2
+	add	r1, r8
+	stmdb	r6!, {r1}
+	bx	lr
+	
+@-----------------------------------------------
+@
+@ member reference ops
+@
+memberRefType:
+	@ push member reference - r1 is member offset in bytes
+	ldr	r0, [r4, #tpd]
+	add	r1, r0
+	stmdb	r6!, {r1}
+	bx	lr
+	
+@-----------------------------------------------
+@
+@ member string init ops
+@
+memberStringInitType:
+	@ bits 0..11 are string length in bytes, bits 12..23 are member offset in longs
+	@ init the current & max length fields of a member string
+	
+	@ bits 0..11 are string length in bytes, bits 12..23 are member offset in longs
+	@ init the current & max length fields of a member string
+	ldr	r0, =0xFFF
+	and	r0, r1			@ r0 is string length in bytes
+	lsr	r1, #10
+	ldr	r2, =0x3FFC
+	and	r1, r2			@ r1 is offset of string from member base in bytes
+	ldr	r2, [r4, #tpd]
+	add	r3, r2, r1
+	eor	r2, r2
+	stmia	r3!, {r0, r2}	
+	strb	r2, [r3]	@ add terminating null
+	bx	lr
+
+@-----------------------------------------------
+@
+@ method invocation ops
+@
+
+@ invoke a method on object currently referenced by this ptr pair
+methodWithThisType:
+	@ r1 is method number
+	@ push this ptr pair on return stack
+	ldr	r2, [r4, #tpm]
+	ldr	r3, [r4, #tpd]
+	stmdb	r7!, {r2, r3}
+	@ get method opcode
+	ldr	r0, [r2, r1, lsl #2]
+	b	interpLoopExecuteEntry
+		
+@ invoke a method on an object referenced by ptr pair on TOS
+methodWithTOSType:
+	@ TOS is object vtable, NOS is object data ptr
+	@ ebx is method number
+	@ push this ptr pair on return stack
+	ldr	r2, [r4, #tpm]
+	ldr	r3, [r4, #tpd]
+	stmdb	r7!, {r2, r3}
+	@ set this data,methods from TOS	
+	ldmia	r6!, {r2, r3}
+	str	r2, [r4, #tpm]
+	str	r3, [r4, #tpd]
+	@ get method opcode
+	ldr	r0, [r2, r1, lsl #2]
+	b	interpLoopExecuteEntry
+	
+	
+@-----------------------------------------------
+@
 @ InitAsmTables - initializes FCore.numAsmBuiltinOps
 @
 @ extern void InitAsmTables( ForthCoreState *pCore );
@@ -2362,19 +4669,8 @@ offsetFetchType:
 	.global	InitAsmTables
 InitAsmTables:
 	@
-	@	count number of entries in opsTable, save count in core.n_asm_ops
+	@	TBD: set inner interpreter reentry point in pCore (inner_loop)
 	@
-	ldr	r1, =opsTable
-
-	eor	r3, r3	
-.InitAsm2:
-	add	r3, #1
-	ldmia	r1!, {r2}
-	cmp	r2, #0
-	bne	.InitAsm2
-
-	sub	r3, #1	
-	str	r3, [r0, #n_asm_ops]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -2389,12 +4685,12 @@ InitAsmTables:
 	.align	4
 opTypesTable:
 @	00 - 09
-	.word	builtInOp		@ kOpBuiltIn = 0,
-	.word	builtInImmediate		@ kOpBuiltInImmediate,
+	.word	nativeOp				@ kOpNative = 0,
+	.word	nativeOp				@ kOpNativeImmediate,
 	.word	userDefType				@ kOpUserDef,
 	.word	userDefType				@ kOpUserDefImmediate,
-	.word	userCodeType			@ kOpUserCode,         
-	.word	userCodeType			@ kOpUserCodeImmediate,
+	.word	cCodeType				@ kOpCCode,         
+	.word	cCodeType				@ kOpCCodeImmediate,
 	.word	extOpType				@ kOpDLLEntryPoint,
 	.word	extOpType	
 	.word	extOpType	
@@ -2412,95 +4708,120 @@ opTypesTable:
 	.word	extOpType	
 @	20 - 29
 	.word	constantType			@ kOpConstant = 20,   
-	.word	extOpType @ constantStringType		@ kOpConstantString,	
+	.word	constantStringType		@ kOpConstantString,	
 	.word	offsetType				@ kOpOffset,          
-	.word	extOpType @ arrayOffsetType		@ kOpArrayOffset,     
-	.word	extOpType @ allocLocalsType		@ kOpAllocLocals,     
-	.word	extOpType @ localRefType			@ kOpLocalRef,
-	.word	extOpType @ initLocalStringType	@ kOpInitLocalString, 
-	.word	extOpType @ localStructArrayType	@ kOpLocalStructArray,
-	.word	offsetFetchType		@ kOpOffsetFetch,          
-	.word	extOpType @ memberRefType			@ kOpMemberRef,	
+	.word	arrayOffsetType			@ kOpArrayOffset,     
+	.word	allocLocalsType			@ kOpAllocLocals,     
+	.word	localRefType			@ kOpLocalRef,
+	.word	initLocalStringType		@ kOpLocalStringInit, 
+	.word	localStructArrayType	@ kOpLocalStructArray,
+	.word	offsetFetchType			@ kOpOffsetFetch,          
+	.word	memberRefType			@ kOpMemberRef,	
 
 @	30 - 39
 	.word	localByteType
+	.word	localUByteType
 	.word	localShortType
+	.word	localUShortType
 	.word	localIntType
+	.word	localIntType
+	.word	localLongType
+	.word	localLongType
 	.word	localFloatType
-	.word	extOpType @ localDoubleType
-	.word	extOpType @ localStringType
-	.word	extOpType @ localOpType
-	.word	extOpType @ localObjectType
-	.word	extOpType	
-	.word	extOpType	
+	.word	localDoubleType
+	
 @	40 - 49
-	.word	fieldByteType
-	.word	fieldShortType
-	.word	fieldIntType
-	.word	fieldFloatType
-	.word	extOpType @ fieldDoubleType
-	.word	extOpType @ fieldStringType
-	.word	extOpType @ fieldOpType
-	.word	extOpType @ fieldObjectType
-	.word	extOpType	
-	.word	extOpType	
-@	50 - 59
+	.word	localStringType
+	.word	localOpType
+	.word	localObjectType
 	.word	localByteArrayType
+	.word	localUByteArrayType
 	.word	localShortArrayType
+	.word	localUShortArrayType
 	.word	localIntArrayType
+	.word	localIntArrayType
+	.word	localLongArrayType
+	
+@	50 - 59
+	.word	localLongArrayType
 	.word	localFloatArrayType
-	.word	extOpType @ localDoubleArrayType
-	.word	extOpType @ localStringArrayType
-	.word	extOpType @ localOpArrayType
-	.word	extOpType @ localObjectArrayType
-	.word	extOpType	
-	.word	extOpType	
+	.word	localDoubleArrayType
+	.word	localStringArrayType
+	.word	localOpArrayType
+	.word	localObjectArrayType
+	.word	fieldByteType
+	.word	fieldUByteType
+	.word	fieldShortType
+	.word	fieldUShortType
+	
 @	60 - 69
+	.word	fieldIntType
+	.word	fieldIntType
+	.word	fieldLongType
+	.word	fieldLongType
+	.word	fieldFloatType
+	.word	fieldDoubleType
+	.word	fieldStringType
+	.word	fieldOpType
+	.word	fieldObjectType
 	.word	fieldByteArrayType
-	.word	fieldShortArrayType
-	.word	fieldIntArrayType
-	.word	fieldFloatArrayType
-	.word	extOpType @ fieldDoubleArrayType
-	.word	extOpType @ fieldStringArrayType
-	.word	extOpType @ fieldOpArrayType
-	.word	extOpType @ fieldObjectArrayType
-	.word	extOpType	
-	.word	extOpType	
 @	70 - 79
-	.word	memberByteType
-	.word	memberShortType
-	.word	memberIntType
-	.word	memberFloatType
-	.word	extOpType @ memberDoubleType
-	.word	extOpType @ memberStringType
-	.word	extOpType @ memberOpType
-	.word	extOpType @ memberObjectType
-	.word	extOpType	
-	.word	extOpType	
+	.word	fieldUByteArrayType
+	.word	fieldShortArrayType
+	.word	fieldUShortArrayType
+	.word	fieldIntArrayType
+	.word	fieldIntArrayType
+	.word	fieldLongArrayType
+	.word	fieldLongArrayType
+	.word	fieldFloatArrayType
+	.word	fieldDoubleArrayType
+	.word	fieldStringArrayType
+
 @	80 - 89
-	.word	memberByteArrayType
-	.word	memberShortArrayType
-	.word	memberIntArrayType
-	.word	memberFloatArrayType
-	.word	extOpType @ memberDoubleArrayType
-	.word	extOpType @ memberStringArrayType
-	.word	extOpType @ memberOpArrayType
-	.word	extOpType @ memberObjectArrayType
-	.word	extOpType	
-	.word	extOpType	
+	.word	fieldOpArrayType
+	.word	fieldObjectArrayType
+	.word	memberByteType
+	.word	memberUByteType
+	.word	memberShortType
+	.word	memberUShortType
+	.word	memberIntType
+	.word	memberIntType
+	.word	memberLongType
+	.word	memberLongType
+	
 @	90 - 99
-	.word	extOpType @ methodWithThisType
-	.word	extOpType @ methodWithTOSType
-	.word	extOpType @ initMemberStringType
-	.word	extOpType	
-	.word	extOpType	
-	.word	extOpType	
-	.word	extOpType	
-	.word	extOpType	
-	.word	extOpType	
-	.word	extOpType	
-@	100 - 149
-	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+	.word	memberFloatType
+	.word	memberDoubleType
+	.word	memberStringType
+	.word	memberOpType
+	.word	memberObjectType
+	.word	memberByteArrayType
+	.word	memberUByteArrayType
+	.word	memberShortArrayType
+	.word	memberUShortArrayType
+	.word	memberIntArrayType
+	
+@	100 - 109
+	.word	memberIntArrayType
+	.word	memberLongArrayType
+	.word	memberLongArrayType
+	.word	memberFloatArrayType
+	.word	memberDoubleArrayType
+	.word	memberStringArrayType
+	.word	memberOpArrayType
+	.word	memberObjectArrayType
+	.word	methodWithThisType
+	.word	methodWithTOSType
+	
+@	110 - 114
+	.word	memberStringInitType
+	.word	extOpType @ nvoComboType
+	.word	extOpType @ nvComboType
+	.word	extOpType @ noComboType
+	.word	extOpType @ voComboType
+	
+@	115 - 149
+	.word	extOpType,extOpType,extOpType,extOpType,extOpType
 	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
@@ -2527,237 +4848,7 @@ endOpTypesTable:
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @                                                    @
 @                                                    @
-@		            OPS TABLE                        @
+@		         THE END OF ALL THINGS               @
 @                                                    @
 @                                                    @
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-	.section .rodata
-	.align	4
-opsTable:
-	.word	abortBop
-	.word	dropBop
-	.word	doDoesBop
-	.word	litBop
-	.word	litBop
-	.word	dlitBop
-	.word	doVariableBop
-	.word	doConstantBop
-	.word	doDConstantBop
-	.word	extOp		@ endBuildsBop
-	.word	doneBop
-	.word	doByteBop
-	.word	doShortBop
-	.word	doIntBop
-	.word	doFloatBop
-	.word	extOp		@ doDoubleBop
-	.word	extOp		@ doStringBop
-	.word	extOp		@ doOpBop
-	.word	extOp		@ doObjectBop
-	.word	addressOfBop
-	.word	intoBop
-	.word	addToBop
-	.word	subtractFromBop
-	.word	doExitBop
-	.word	doExitLBop
-	.word	doExitMBop
-	.word	doExitMLBop
-	.word	doVocabBop
-	.word	doByteArrayBop
-	.word	doShortArrayBop
-	.word	doIntArrayBop
-	.word	doFloatArrayBop
-	.word	extOp		@ doDoubleArrayBop
-	.word	extOp		@ doStringArrayBop
-	.word	extOp		@ doOpArrayBop
-	.word	extOp		@ doObjectArrayBop
-	.word	extOp		@ initStringBop
-	.word	extOp		@ initStringArrayBop
-	.word	plusBop
-	.word	fetchBop
-	.word	extOp		@ badOpBop
-	.word	doStructBop
-	.word	doStructArrayBop
-	.word	extOp		@ doStructTypeBop
-	.word	extOp		@ doClassTypeBop
-	.word	extOp		@ doEnumBop
-	.word	doDoBop
-	.word	doLoopBop
-	.word	doLoopNBop
-	.word	extOp		@ doNewBop
-	.word	dfetchBop
-
-	@	
-    @ stuff below this line can be rearranged
-    @
-	.word	thisBop
-	.word	thisDataBop
-	.word	thisMethodsBop
-	.word	executeBop
-	@ runtime control flow stuff
-	.word	callBop
-	.word	gotoBop
-	.word	iBop
-	.word	jBop
-	.word	unloopBop
-	.word	leaveBop
-	.word	hereBop
-	.word	addressOfBop
-	.word	intoBop
-	.word	addToBop
-	.word	subtractFromBop
-	.word	removeEntryBop
-	.word	entryLengthBop
-	.word	numEntriesBop
-	
-	
-	@ integer math
-	.word	minusBop
-	.word	timesBop
-	.word	times2Bop
-	.word	times4Bop
-	.word	divideBop
-	.word	divide2Bop
-	.word	divide4Bop
-	.word	divmodBop
-	.word	modBop
-	.word	negateBop
-	
-	@ single precision fp math
-	.word	fplusBop
-	.word	fminusBop
-	.word	ftimesBop
-	.word	fdivideBop
-	
-	@ double precision fp math
-	.word	dplusBop
-	.word	dminusBop
-	.word	dtimesBop
-	.word	ddivideBop
-
-	@ double precision fp functions	
-	.word	extOp		@ dsinBop
-	.word	extOp		@ dasinBop
-	.word	extOp		@ dcosBop
-	.word	extOp		@ dacosBop
-	.word	extOp		@ dtanBop
-	.word	extOp		@ datanBop
-	.word	extOp		@ datan2Bop
-	.word	extOp		@ dexpBop
-	.word	extOp		@ dlnBop
-	.word	extOp		@ dlog10Bop
-	.word	extOp		@ dpowBop
-	.word	extOp		@ dsqrtBop
-	.word	extOp		@ dceilBop
-	.word	extOp		@ dfloorBop
-	.word	extOp		@ dabsBop
-	.word	extOp		@ dldexpBop
-	.word	extOp		@ dfrexpBop
-	.word	extOp		@ dmodfBop
-	.word	extOp		@ dfmodBop
-	
-	@ int/float/double conversions
-	.word	extOp		@ i2fBop
-	.word	extOp		@ i2dBop
-	.word	extOp		@ f2iBop
-	.word	extOp		@ f2dBop
-	.word	extOp		@ d2iBop
-	.word	extOp		@ d2fBop
-	
-	@ bit-vector logic
-	.word	orBop
-	.word	andBop
-	.word	xorBop
-	.word	invertBop
-	.word	lshiftBop
-	.word	rshiftBop
-	
-	@ boolean logic
-	.word	notBop
-	.word	trueBop
-	.word	falseBop
-	.word	nullBop
-	.word	dnullBop
-	
-	@ integer comparisons
-	.word	equalsBop
-	.word	notEqualsBop
-	.word	greaterThanBop
-	.word	greaterEqualsBop
-	.word	lessThanBop
-	.word	lessEqualsBop
-	.word	equalsZeroBop
-	.word	notEqualsZeroBop
-	.word	greaterThanZeroBop
-	.word	greaterEqualsZeroBop
-	.word	lessThanZeroBop
-	.word	lessEqualsZeroBop
-	.word	extOp		@ unsignedGreaterThanBop
-	.word	extOp		@ unsignedLessThanBop
-	
-	@ stack manipulation
-	.word	rpushBop
-	.word	rpopBop
-	.word	rdropBop
-	.word	rpBop
-	.word	rzeroBop
-	.word	dupBop
-	.word	swapBop
-	.word	overBop
-	.word	rotBop
-	.word	tuckBop
-	.word	pickBop
-	.word	extOp		@ rollBop
-	.word	spBop
-	.word	szeroBop
-	.word	fpBop
-	.word	ddupBop
-	.word	dswapBop
-	.word	ddropBop
-	.word	doverBop
-	.word	drotBop
-	
-	@ memory store/fetch
-	.word	storeBop
-	.word	cstoreBop
-	.word	cfetchBop
-	.word	scfetchBop
-	.word	c2lBop
-	.word	wstoreBop
-	.word	wfetchBop
-	.word	swfetchBop
-	.word	w2lBop
-	.word	dstoreBop
-	.word	memcpyBop
-	.word	memsetBop
-	.word	setVarActionBop
-	.word	getVarActionBop
-	
-	@ string manipulation
-	.word	strcpyBop
-	.word	strncpyBop
-	.word	strlenBop
-	.word	strcatBop
-	.word	strncatBop
-	.word	strchrBop
-	.word	strrchrBop
-	.word	strcmpBop
-	.word	stricmpBop
-	.word	strstrBop
-	.word	strtokBop
-	
-	@ file manipulation
-	.word	extOp		@ fopenBop
-	.word	extOp		@ fcloseBop
-	.word	extOp		@ fseekBop
-	.word	extOp		@ freadBop
-	.word	extOp		@ fwriteBop
-	.word	extOp		@ fgetcBop
-	.word	extOp		@ fputcBop
-	.word	extOp		@ feofBop
-	.word	extOp		@ ftellBop
-	.word	extOp		@ flenBop
-	
-endOpsTable:
-	.word	0
-	

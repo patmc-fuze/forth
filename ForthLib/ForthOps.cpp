@@ -2220,6 +2220,10 @@ FORTHOP( printFormattedOp )
 }
 
 #ifdef ASM_INNER_INTERPRETER
+#define PRINTF_SUBS_IN_ASM
+#endif
+
+#ifdef PRINTF_SUBS_IN_ASM
 extern long fprintfSub( ForthCoreState* pCore );
 extern long sprintfSub( ForthCoreState* pCore );
 extern long fscanfSub( ForthCoreState* pCore );
@@ -5239,7 +5243,7 @@ FORTHOP(scfetchBop)
     SPUSH( (*pA) );
 }
 
-FORTHOP(c2lBop)
+FORTHOP(c2iBop)
 {
     NEEDS(1);
     signed char a = (signed char) (SPOP);
@@ -5290,7 +5294,7 @@ FORTHOP(swfetchBop)
     SPUSH( *pA );
 }
 
-FORTHOP(w2lBop)
+FORTHOP(w2iBop)
 {
     NEEDS(1);
     short a = (short) (SPOP);
@@ -5833,8 +5837,8 @@ extern GFORTHOP( overBop ); extern GFORTHOP( rotBop ); extern GFORTHOP( reverseR
 extern GFORTHOP( spBop ); extern GFORTHOP( szeroBop ); extern GFORTHOP( fpBop ); extern GFORTHOP( ipBop ); extern GFORTHOP( ddupBop );
 extern GFORTHOP( dswapBop ); extern GFORTHOP( ddropBop ); extern GFORTHOP( doverBop ); extern GFORTHOP( drotBop ); extern GFORTHOP( startTupleBop ); extern GFORTHOP( endTupleBop );
 extern GFORTHOP( storeBop ); extern GFORTHOP( storeNextBop ); extern GFORTHOP( fetchNextBop ); extern GFORTHOP( cstoreBop ); extern GFORTHOP( cfetchBop ); extern GFORTHOP( cstoreNextBop );
-extern GFORTHOP( cfetchNextBop ); extern GFORTHOP( scfetchBop ); extern GFORTHOP( c2lBop ); extern GFORTHOP( wstoreBop ); extern GFORTHOP( wfetchBop ); extern GFORTHOP( wstoreNextBop );
-extern GFORTHOP( wfetchNextBop ); extern GFORTHOP( swfetchBop ); extern GFORTHOP( w2lBop ); extern GFORTHOP( dstoreBop ); extern GFORTHOP( dstoreNextBop ); extern GFORTHOP( dfetchNextBop );
+extern GFORTHOP( cfetchNextBop ); extern GFORTHOP( scfetchBop ); extern GFORTHOP( c2iBop ); extern GFORTHOP( wstoreBop ); extern GFORTHOP( wfetchBop ); extern GFORTHOP( wstoreNextBop );
+extern GFORTHOP( wfetchNextBop ); extern GFORTHOP( swfetchBop ); extern GFORTHOP( w2iBop ); extern GFORTHOP( dstoreBop ); extern GFORTHOP( dstoreNextBop ); extern GFORTHOP( dfetchNextBop );
 extern GFORTHOP( memcpyBop ); extern GFORTHOP( memsetBop ); extern GFORTHOP( setVarActionBop ); extern GFORTHOP( getVarActionBop ); extern GFORTHOP( byteVarActionBop ); extern GFORTHOP( ubyteVarActionBop );
 extern GFORTHOP( shortVarActionBop ); extern GFORTHOP( ushortVarActionBop ); extern GFORTHOP( intVarActionBop ); extern GFORTHOP( longVarActionBop ); extern GFORTHOP( floatVarActionBop ); extern GFORTHOP( doubleVarActionBop );
 extern GFORTHOP( stringVarActionBop ); extern GFORTHOP( opVarActionBop ); extern GFORTHOP( objectVarActionBop ); extern GFORTHOP( strcpyBop ); extern GFORTHOP( strncpyBop ); extern GFORTHOP( strlenBop );
@@ -6111,6 +6115,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    rotBop,                  "rot" ),
     NATIVE_DEF(    reverseRotBop,           "-rot" ),
     NATIVE_DEF(    nipBop,                  "nip" ),
+    NATIVE_DEF(    nipBop,                  "l2i" ),
     NATIVE_DEF(    tuckBop,                 "tuck" ),
     NATIVE_DEF(    pickBop,                 "pick" ),
     NATIVE_DEF(    spBop,                   "sp" ),
@@ -6146,13 +6151,13 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    cstoreNextBop,           "c@!++" ),
     NATIVE_DEF(    cfetchNextBop,           "c@@++" ),
     NATIVE_DEF(    scfetchBop,              "sc@" ),
-    NATIVE_DEF(    c2lBop,                  "c2l" ),
+    NATIVE_DEF(    c2iBop,                  "c2i" ),
     NATIVE_DEF(    wstoreBop,               "w!" ),
     NATIVE_DEF(    wfetchBop,               "w@" ),
     NATIVE_DEF(    wstoreNextBop,           "w@!++" ),
     NATIVE_DEF(    wfetchNextBop,           "w@@++" ),
     NATIVE_DEF(    swfetchBop,              "sw@" ),
-    NATIVE_DEF(    w2lBop,                  "w2l" ),
+    NATIVE_DEF(    w2iBop,                  "w2i" ),
     NATIVE_DEF(    dstoreBop,               "2!" ),
     NATIVE_DEF(    dstoreNextBop,           "2@!++" ),
     NATIVE_DEF(    dfetchNextBop,           "2@@++" ),

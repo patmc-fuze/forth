@@ -2110,7 +2110,7 @@ strncpyBop:
 strlenBop:
 	push	{r4, lr}
 	ldr	r0, [r6]
-	bl	strcpy
+	bl	strlen
 	str	r0, [r6]
 	pop	{r4, pc}
 	

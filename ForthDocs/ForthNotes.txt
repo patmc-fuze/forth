@@ -127,6 +127,55 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 16 2013
+
+The crashes in forth_autoload were in strlen and strcpy, they were because r12
+isn't protected in this calling convention.  I now save/restore r12 in all ops
+which call clib functions.
+The forth_autoload 'ls' op fails redirecting stdout, it is probably a difference
+betweens linux and windows _dup.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 15 2013
+
+I finished the rest of the assembly optype action routines except for the combo
+types for the ARM.  They are untested of course.
+
+if..else..endif, begin..until and begin..while..repeat all work.
+
+Some operations with local variables still crash, like this:
+: boo 5 -> int aa begin aa %d %bl 1 ->- aa aa 0= until ;
+This crashes, but if you make aa a global it works.
+
+: boo 5 -> int aa 7 -> aa aa ;			// works
+: boo 5 -> int aa 7 -> aa aa %d ;		// crashes
+: boo int aa %bl ;						// crashes
+: boo int aa 0 , ;						// crashes
+-> Having a cCode op in a colon definition with local variables crashes
+Doh! When going to a cCode op I wasn't saving FP in pCore shadow, and after
+returing from cCode op I was restoring incorrect FP from pCore shadow, which
+caused a crash as soon as anything tried to use a local variable or on exit.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 14 2013
+
+Many of the basic operations (dup, over) didn't work because I often used the
+ldmdb instead of stmdb to push data.
+
+I noticed that 'allot' still allocates longs, not bytes, I thought I had
+changed that, it looks like I changed the scripts to use allot instead of callot,
+but I didn't change the actual allot op.  Changing it could break things,
+because there could still be things that assume it uses longs, and worse there
+could be things that are counting on DP to be longword aligned after an allot.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 13 2013
+
+Over the weekend I have added the multitude of missing ops to the ARM inner
+interpreter.  The version I started wasn't really debugged - I think I had
+gotten the non-turbo version working and just started getting the assembler
+version debugged when I dropped the Nintendo DS version.  Things as basic
+as do-loops don't work at all.
+There are still a number of optype action routines which are not in assembler.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 10 2013
 
 I decided to get my forth running on the raspberry pi ARM machine.  I already

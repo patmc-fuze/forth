@@ -5,6 +5,20 @@ Forth for Raspberry Pi
   -> this required removing InnerInterp.asm, but this includes the CallDLL routine
 ? get linux version working under cygwin
 =============================================================================
+gdb
+
+b FUNC			set breakpoint
+r				run
+s				step into
+n				step over
+q				quit
+
+si				step asm instruction
+layout asm		show disassembly
+layout prev		undoes layout asm
+info reg		show registers
+
+=============================================================================
 kbhit for linux
 
 #include <stdio.h>
