@@ -2035,15 +2035,25 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         //
         ////////////////////////////////////
         SPEW_OUTER_INTERPRETER( "Character[%s] flags[%x]\n", pToken, pInfo->GetFlags() );
-        value = *pToken & 0xFF;
-        if ( mCompileState )
+		if ( strlen( pToken ) < 5 )
         {
-            CompileOpcode( value | (kOpConstant << 24) );
+			value = 0;
+			char* cval = (char *)&value;
+			for ( int i = 0; i < len; i++ )
+			{
+				cval[i] = pToken[i];
+			}
+            ProcessConstant( value, false );
         }
         else
         {
-            // in interpret mode, stick the character on the stack
-            *--mpCore->SP = value;
+			lvalue = 0;
+			char* cval = (char *)&lvalue;
+			for ( int i = 0; i < len; i++ )
+			{
+				cval[i] = pToken[i];
+			}
+            ProcessLongConstant( lvalue );
         }
         return kResultOk;
     }

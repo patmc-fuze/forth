@@ -127,6 +127,17 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 18 2013
+
+I changed the ARM asm inner interpreter to be compiled by GCC instead of using
+AS directly so that I could use the GCC preprocessor to give registers
+symbolic names.
+
+I added multi-character literal constants to the outer interpreter syntax.
+A single quote delimited string of 4 characters or less is stored in one
+stack entry, 5 to 8 characters are stored in two stack entries, with characters
+0 to 3 on TOS in the two stack entry case.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 16 2013
 
 The crashes in forth_autoload were in strlen and strcpy, they were because r12

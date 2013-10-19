@@ -644,41 +644,60 @@ backslashChar( char c )
 
 
 static const char *
-ForthParseSingleQuote( const char       *pSrc,
+ForthParseSingleQuote( const char       *pSrcIn,
                        ForthParseInfo   *pInfo )
 {
-    char cc[2];
+    char cc[9];
+	bool isQuotedChar = false;
 
-    if ( (pSrc[1] != 0) && (pSrc[2] != 0) )
+    if ( (pSrcIn[1] != 0) && (pSrcIn[2] != 0) )
     {
-        if ( pSrc[1] == '\\' )
-        {
-            // special backslashed character constant
-            if ( (pSrc[3] == '\'') &&
-                ((pSrc[4] == 0) || (pSrc[4] == ' ') || (pSrc[4] == '\t')) )
-            {
-                pInfo->SetFlag( PARSE_FLAG_QUOTED_CHARACTER );
-                cc[0] = backslashChar( pSrc[2] );
-                cc[1] = '\0';
-                pSrc += 4;
-                pInfo->SetToken( cc );
-            }
-        }
-        else
-        {
-            // regular character constant
-            if ( (pSrc[2] == '\'') &&
-                ((pSrc[3] == 0) || (pSrc[3] == ' ') || (pSrc[3] == '\t')) )
-            {
-                pInfo->SetFlag( PARSE_FLAG_QUOTED_CHARACTER );
-                cc[0] = pSrc[1];
-                cc[1] = '\0';
-                pSrc += 3;
-                pInfo->SetToken( cc );
-            }
-        }
+		const char *pSrc = pSrcIn + 1;
+		int iDst = 0;
+		while ( iDst < 8 )
+		{
+			char ch = *pSrc++;
+			if ( ch == '\0' )
+			{
+				break;
+			}
+			else if ( ch == '\\' )
+			{
+				ch = *pSrc++;
+				if ( ch == '\0' )
+				{
+					break;
+				}
+				cc[iDst++] = backslashChar( ch );
+			}
+			else if ( ch == '\'' )
+			{
+                cc[iDst++] = '\0';
+				isQuotedChar = true;
+				break;
+			}
+			else
+			{
+				cc[iDst++] = ch;
+			}
+		}
+		if ( iDst == 8 )
+		{
+			if ( *pSrc == '\'' )
+			{
+				pSrc++;
+                cc[iDst++] = '\0';
+				isQuotedChar = true;
+			}
+		}
+		if ( isQuotedChar )
+		{
+			pInfo->SetFlag( PARSE_FLAG_QUOTED_CHARACTER );
+			pInfo->SetToken( cc );
+			pSrcIn = pSrc;
+		}
     }
-    return pSrc;
+    return pSrcIn;
 }
 
 
