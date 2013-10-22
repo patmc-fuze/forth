@@ -8,16 +8,24 @@ Forth for Raspberry Pi
 gdb
 
 b FUNC			set breakpoint
+d NUM			delete breakpoint NUM
 r				run
 s				step into
 n				step over
 q				quit
 
 si				step asm instruction
-layout asm		show disassembly
-layout prev		undoes layout asm
-info reg		show registers
 
+layout asm		show disassembly window
+layout src		show source window
+layout regs		show registers window
+layout prev		switch to previous layout command
+info reg		show registers
+source PATH		load gdb script from PATH
+=============================================================================
+make gcc create assembler files: (second mixes the C in with the asm)
+gcc -O2 -S -c foo.c
+gcc -c -g -Wa,-a,-ad [other GCC options] foo.c > foo.lst
 =============================================================================
 kbhit for linux
 

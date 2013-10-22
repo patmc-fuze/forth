@@ -226,11 +226,11 @@ addHelp !		A PTR ...	stores longword A at address PTR
 addHelp c!		A PTR ...	stores byte A at address PTR
 addHelp c@		PTR ... A	fetches unsigned byte from address PTR
 addHelp sc@		PTR ... A	fetches signed byte from address PTR
-addHelp c2l		A ... LA	sign extends byte to long
+addHelp c2i		A ... LA	sign extends byte to long
 addHelp w!		A PTR ...	stores word A at address PTR
 addHelp w@		PTR ... A	fetches unsigned word from address PTR
 addHelp sw@		PTR ... A	fetches signed word from address PTR
-addHelp w2l		WA ... LA	sign extends word to long
+addHelp w2i		WA ... LA	sign extends word to long
 addHelp 2!		DA PTR ...	store double at address PTR
 addHelp memcpy	DST SRC N ...	copy N bytes from SRC to DST
 addHelp memset	DST A N ...		fill N bytes at DST with byte value A
@@ -392,15 +392,16 @@ addHelp free	PTR ...		frees a block of memory
 addHelp .					NUM ...				prints number in current base
 addHelp %d					NUM ...				prints number in decimal
 addHelp %x					NUM ...				prints number in hex
-addHelp %lld				LNUM ...			prints 64-bit number in decimal
-addHelp %llx				LNUM ...			prints 64-bit number in hex
+addHelp %2d				LNUM ...			prints 64-bit number in decimal
+addHelp %2x				LNUM ...			prints 64-bit number in hex
 addHelp %s					STRING ...			prints string
 addHelp %c					CHARVAL ...			prints character
 addHelp %bl					prints a space
 addHelp %nl					prints a newline
 addHelp %f					FPNUM ...			prints a single-precision floating point number
-addHelp %g					DOUBLE_FPNUM ...	prints a double-precision floating point number
-addHelp %fmt				ARG FORMAT_STRING ...	prints a formatted string
+addHelp %2f					DOUBLE_FPNUM ...	prints a double-precision floating point number
+addHelp format				ARG FORMAT_STRING ... STRING_ADDR		format a 32-bit numeric value
+addHelp 2format				ARG64 FORMAT_STRING ... STRING_ADDR		format a 64-bit numeric value
 addHelp fprintf				FILE FORMAT_STRING (ARGS) NUM_ARGS ... RESULT		print formatted string to file
 addHelp sprintf				BUFFER FORMAT_STRING (ARGS) NUM_ARGS ... RESULT		print formatted string to BUFFER
 addHelp fscanf				FILE FORMAT_STRING (ARGS) NUM_ARGS ... RESULT		read formatted string from file

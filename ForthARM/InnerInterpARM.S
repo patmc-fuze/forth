@@ -44,6 +44,8 @@
 @	R14			LR - system link register - we use this as inner interp reentry point
 @	R15			PC
 
+@ NOTE: when calling external routines, the stack should be kept 64-bit aligned, clib routines assume this,
+@ and if it isn't 64-bit aligned, double register loads in clib routines will fail - this is what made %f and %d fail
 @
 @	core (R4) offsets:
 @
@@ -227,7 +229,7 @@ NativeAction:
 	.global	InterpretOneOpFast
 	.type	InterpretOneOpFast, %function
 InterpretOneOpFast:
-	push	{rcore-raction, lr}
+	push	{rcore-raction, r12, lr}
 	mov	rcore, r0					@ r4 = pCore
 	add	r0, rcore, #ipsave
 	ldmia	r0!, {rip-rfp}			@ load IP, SP, RP, FP from core
@@ -251,7 +253,7 @@ InterpretOneOpFast:
 	.type	InnerInterpreterFast, %function
 	
 InnerInterpreterFast:
-	push	{rcore-raction, lr}
+	push	{rcore-raction, r12, lr}
 	mov	rcore, r0					@ r4 = pCore
 
 	@
@@ -311,7 +313,7 @@ interpLoopExecuteEntry:
 .IIExit:
 	add	r1, rcore, #ipsave			@ r1 -> IP
 	stmia	r1!, {rip-rfp}			@ save IP, SP, RP, FP in core
-	pop	{rcore-raction, pc}
+	pop	{rcore-raction, r12, pc}
 	
 interpLoopErrorExit:
 	str	r0, [rcore, #errorcode]
@@ -2499,12 +2501,13 @@ times8Bop:
 
 	.global	__aeabi_idiv
 divideBop:
-	push	{lr}
+	push	{r12, lr}
 	ldmia	rsp!, {r1}
 	ldr	r0, [rsp]
 	bl	__aeabi_idiv
 	str	r0, [rsp]
-	pop	{pc}
+	pop	{r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  /2  @@@@@@@@@@@@@@@@@
 
@@ -2544,18 +2547,20 @@ divmodBop:
 	ldr	r2, [sp]
 	str	r2, [rsp]
 	add	sp, #12
-	pop	{pc}
+	pop	{lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  mod  @@@@@@@@@@@@@@@@@
 
 modBop:
 	.global	__aeabi_idivmod
-	push	{lr}
+	push	{r12, lr}
 	ldmia	rsp!, {r1}
 	ldr	r0, [rsp]
 	bl	__aeabi_idivmod
 	str	r1, [rsp]
-	pop	{pc}
+	pop	{r12, lr}
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  negate  @@@@@@@@@@@@@@@@@
 
@@ -4174,7 +4179,7 @@ fseekBop:
 	bx	lr
 	
 freadBop:
-	push	{rcore, rip, lr}
+	push	{rip, lr}
 	ldr	r3, [rsp]
 	ldr	r2, [rsp, #4]
 	ldr	r1, [rsp, #8]
@@ -4186,11 +4191,11 @@ freadBop:
 	blx	rip
 	add	rsp, #12
 	str	r0, [rsp]
-	pop	{rcore, rip, lr}
+	pop	{rip, lr}
 	bx	lr
 	
 fwriteBop:
-	push	{rcore, rip, lr}
+	push	{rip, lr}
 	ldr	r3, [rsp]
 	ldr	r2, [rsp, #4]
 	ldr	r1, [rsp, #8]
@@ -4202,7 +4207,7 @@ fwriteBop:
 	blx	rip
 	add	rsp, #12
 	str	r0, [rsp]
-	pop	{rcore, rip, lr}
+	pop	{rip, lr}
 	bx	lr
 	
 fgetcBop:	

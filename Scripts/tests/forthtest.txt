@@ -104,7 +104,7 @@ test[ testLocalVars checkResult( "0 5 10 15 20 25 30 " ) ]
 
 0xDEADBEEF tb !
 test[ startTest tb c@ %x %bl tb w@ %x %bl tb sc@ %x checkResult( "ef beef ffffffef" ) ]
-test[ startTest tb sw@ %x %bl tb c@ c2l %x %bl tb w@ w2l %x checkResult( "ffffbeef ffffffef ffffbeef" ) ]
+test[ startTest tb sw@ %x %bl tb c@ c2i %x %bl tb w@ w2i %x checkResult( "ffffbeef ffffffef ffffbeef" ) ]
 
 ///////////////////////////////////////////////////////////
 
@@ -192,11 +192,11 @@ test[ 87 5 ?dup 0 ?dup 0= rot 5 = rot 5 = and and over 87 = rot 87 = ]
 
 // -rot nip tuck roll
 // 2dup 2swap 2drop 2over 2rot r[ ]r
-// c! c@ sc@ c2l w! w@ sw@ w2l ! @ 2! 2@ 
+// c! c@ sc@ w! w@ sw@ ! @ 2! 2@ 
 // memcpy memset varAction! varAction@
-// l+ l- l* l/ lmod l/mod lnegate i2l i2f l2d f2l d2l
+// l+ l- l* l/ lmod l/mod lnegate i2l i2f i2d f2l f2i f2d d2l d2i d2f l2f l2d
 // l= l<> l> l>= l< l<= l0= l0> l0>= l0< l0<= lwithin lmin lmax
-// . %d %x %lld %llx %s %c %block %bl %nl %f %g %fmt
+// . %d %x %2d %2x %s %c %block %bl %nl %f %2f format 2format
 // printDecimalSigned printAllSigned printAllUnsigned octal decimal hex
 
 

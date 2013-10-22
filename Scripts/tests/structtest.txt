@@ -144,7 +144,7 @@ struct: colorTri
   "p[2] " %s 2 t.p %point
   "RGBA: " %s t.color %rgb32
   "size: " %s t.size %f
-  " cost: " %s t.cost %g %nl
+  " cost: " %s t.cost %2f %nl
   "pNext: " %s t.pNext %x %nl
 ;
 

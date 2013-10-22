@@ -2204,19 +2204,82 @@ FORTHOP( printDoubleOp )
     CONSOLE_STRING_OUT( buff );
 }
 
-FORTHOP( printFormattedOp )
+FORTHOP( format32Op )
+{
+    NEEDS(2);
+
+    ForthEngine *pEngine = GET_ENGINE;
+    char* pFmt = (char *) (SPOP);
+	char *pDst = GET_ENGINE->GetTmpStringBuffer();
+	int len = strlen( pFmt );
+
+	if ( len < 2 ) 
+	{
+        pEngine->SetError( kForthErrorBadParameter, " failure in format - format string too short" );
+	}
+	else
+	{
+		char lastChar = pFmt[ len - 1 ];
+		switch ( tolower( lastChar ) )
+		{
+			case 'a': case 'e': case 'f': case 'g':
+			{
+				float fval = FPOP;
+				double dval = (double) fval;
+				sprintf( pDst, pFmt, dval );
+				break;
+			}
+			default:
+			{
+				long val = SPOP;
+				sprintf( pDst, pFmt, val );
+			}
+		}
+
+#ifdef TRACE_PRINTS
+		SPEW_PRINTS( "printed %s\n", pDst );
+#endif
+		SPUSH( (long) pDst );
+	}
+}
+
+FORTHOP( format64Op )
 {
     NEEDS(2);
     char buff[80];
 
+    ForthEngine *pEngine = GET_ENGINE;
     char* pFmt = (char *) (SPOP);
-    long val = SPOP;
-    sprintf( buff, pFmt, val );
-#ifdef TRACE_PRINTS
-    SPEW_PRINTS( "printed %s\n", buff );
-#endif
+	char *pDst = GET_ENGINE->GetTmpStringBuffer();
+	int len = strlen( pFmt );
 
-    CONSOLE_STRING_OUT( buff );
+	if ( len < 2 ) 
+	{
+        pEngine->SetError( kForthErrorBadParameter, " failure in 2format - format string too short" );
+	}
+	else
+	{
+		char lastChar = pFmt[ len - 1 ];
+		switch ( tolower( lastChar ) )
+		{
+			case 'a': case 'e': case 'f': case 'g':
+			{
+				double dval = DPOP;
+				sprintf( pDst, pFmt, dval );
+				break;
+			}
+			default:
+			{
+				long long val = LPOP;
+				sprintf( pDst, pFmt, val );
+			}
+		}
+
+#ifdef TRACE_PRINTS
+		SPEW_PRINTS( "printed %s\n", pDst );
+#endif
+		SPUSH( (long) pDst );
+	}
 }
 
 #ifdef ASM_INNER_INTERPRETER
@@ -6367,19 +6430,20 @@ baseDictionaryEntry baseDictionary[] =
     //  text display
     ///////////////////////////////////////////
     OP_DEF(    printNumOp,             "." ),
-    OP_DEF(    printLongNumOp,         "l." ),
+    OP_DEF(    printLongNumOp,         "2." ),
     OP_DEF(    printNumDecimalOp,      "%d" ),
     OP_DEF(    printNumHexOp,          "%x" ),
-    OP_DEF(    printLongDecimalOp,     "%lld" ),
-    OP_DEF(    printLongHexOp,         "%llx" ),
+    OP_DEF(    printLongDecimalOp,     "%2d" ),
+    OP_DEF(    printLongHexOp,         "%2x" ),
     OP_DEF(    printStrOp,             "%s" ),
     OP_DEF(    printCharOp,            "%c" ),
     OP_DEF(    printBlockOp,           "%block" ),
     OP_DEF(    printSpaceOp,           "%bl" ),
     OP_DEF(    printNewlineOp,         "%nl" ),
     OP_DEF(    printFloatOp,           "%f" ),
-    OP_DEF(    printDoubleOp,          "%g" ),
-    OP_DEF(    printFormattedOp,       "%fmt" ),
+    OP_DEF(    printDoubleOp,          "%2f" ),
+    OP_DEF(    format32Op,             "format" ),
+    OP_DEF(    format64Op,             "2format" ),
     OP_DEF(    fprintfOp,              "fprintf" ),
     OP_DEF(    sprintfOp,              "sprintf" ),
     OP_DEF(    fscanfOp,               "fscanf" ),

@@ -344,12 +344,12 @@ int dumpWidth
   len -> columns
   begin
   while( addr endAddr < )
-    addr offset - "%08x" %fmt "   " %s
+    addr offset - "%08x" format %s "   " %s
     if( len dumpWidth > )
       dumpWidth -> columns
     endif
     do( columns 0 )
-      addr i + c@ "%02x " %fmt
+      addr i + c@ "%02x " format %s
     loop
     "    " %s
     // why do we have to add 1 to dumpWidth here?
@@ -572,6 +572,7 @@ precedence ]t
 //######################################################################
 //  DLL support
 
+#ifdef WINDOWS
 : _addDLLEntry blword addDLLEntry ;
 
 : _dllEntryType
@@ -601,5 +602,6 @@ precedence ]t
 13 _dllEntryType dll_13
 14 _dllEntryType dll_14
 15 _dllEntryType dll_15
+#endif
 
 loaddone
