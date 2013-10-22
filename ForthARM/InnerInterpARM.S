@@ -2575,7 +2575,7 @@ negateBop:
 minusBop:
 	ldmia	rsp!, {r0}	@ r0 = B
 	ldr	r1, [rsp]		@ r1 = A
-	sub	r2, r1, r2
+	sub	r2, r1, r0
 	str	r2, [rsp]
 	bx	lr
 
@@ -2960,7 +2960,7 @@ notBop:
 	eor	r1, r1
 	ldr	r0, [rsp]
 	cmp	r0, r1
-	subne	r1, #1
+	subeq	r1, #1
 	stmdb	rsp!, {r1}
 	bx	lr
 	
