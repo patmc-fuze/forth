@@ -255,7 +255,6 @@ class: fakeRgba
   dnull -> mm
   dnull -> nn.partner
   dnull -> nn
-  dnull -> zz
 ;
 
 loaddone

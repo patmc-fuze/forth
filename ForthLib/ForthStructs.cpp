@@ -528,12 +528,6 @@ ForthStructVocabulary::DefineInstance( void )
         isPtr = true;
     }
 
-    if ( mpEngine->InStructDefinition() )
-    {
-        pManager->GetNewestStruct()->AddField( pToken, typeCode, numElements );
-        return;
-    }
-
     // get next symbol, add it to vocabulary with type "user op"
     if ( mpEngine->IsCompiling() )
     {
@@ -564,6 +558,12 @@ ForthStructVocabulary::DefineInstance( void )
     }
     else
     {
+		if ( mpEngine->InStructDefinition() )
+		{
+			pManager->GetNewestStruct()->AddField( pToken, typeCode, numElements );
+			return;
+		}
+
         // define global struct
         mpEngine->AddUserOp( pToken );
         pEntry = mpEngine->GetDefinitionVocabulary()->GetNewestEntry();

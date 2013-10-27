@@ -5462,24 +5462,30 @@ entry dllEntryPointType
 	mov	[ebp].FCore.IPtr, ecx
 	mov	[ebp].FCore.SPtr, edx
 	mov	eax, ebx
-	and	eax, 0007FFFFh
+	and	eax, 0000FFFFh
 	cmp	eax, [ebp].FCore.numOps
 	jge	badUserDef
 	; push core ptr
 	push	ebp
+	; push flags
+	mov	ecx, ebx
+	shr	ecx, 16
+	and	ecx, 7
+	push	ecx
 	; push arg count
 	mov	ecx, ebx
-	and	ecx, 00F80000h
-	sar	ecx, 19
+	shr	ecx, 19
+	and	ecx, 1Fh
 	push	ecx
 	; push entry point address
 	mov	ecx, [ebp].FCore.ops
 	mov	edx, [ecx+eax*4]
 	push	edx
 	call	CallDLLRoutine
-	add	esp, 8
+	add	esp, 12
 	pop	ebp
 	jmp	interpFunc
+
 
 ;-----------------------------------------------
 ;

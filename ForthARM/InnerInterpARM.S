@@ -1578,21 +1578,21 @@ localObjectRef:
 	
 localObjectStore:
 	push	{rcore,rip}
-	ldmia	rsp!, {rcore,rip}		@ pop TOS object value into rcore,rip
-	ldm	r0!, {r2,r3}			@ r2,r3 are oldObj
+	ldmia	rsp!, {rcore,rip}	@ pop TOS object value into rcore,rip
+	ldmia	r0, {r2,r3}			@ r2,r3 are oldObj
 	cmp	rcore, r2
 	beq	.losx
-	orr	rcore, rcore
+	orrs	rip, rip
 	beq	.los1					@ if newObj data ptr is null, don't increment refcount
-	ldr	r1, [rcore]				@ increment newObj refcount
+	ldr	r1, [rip]				@ increment newObj refcount
 	add	r1, #1
-	str	r1, [rcore]
+	str	r1, [rip]
 .los1:
-	orr	r2, r2
+	orrs	r3, r3
 	beq	.los2
-	ldr	r1, [r2]				@ decrement oldObj refcount
-	sub	r1, #1
-	str	r1, [r2]
+	ldr	r1, [r3]				@ decrement oldObj refcount
+	subs	r1, #1
+	str	r1, [r3]
 	beq	.los3					@ oldObj refcount went to zero, go delete it
 .los2:
 	str	rcore, [r0]
@@ -1603,17 +1603,17 @@ localObjectStore:
 	
 .los3:
 	@ object var held last reference to oldObj, invoke olbObj.delete method
-	ldm	r0!, {rcore,rip}			@ store newObj
+	stmia	r0, {rcore,rip}			@ store newObj
 	pop	{rcore,rip}
 	@ push pCore->this pair on rstack
 	ldr	r0,[rcore, #tpm]
 	stmdb	rrp!, {r0}
 	ldr	r0,[rcore, #tpd]
 	stmdb	rrp!, {r0}
-	str	r2, [rcore, #tpd]
-	str	r3, [rcore, #tpm]	
+	str	r2, [rcore, #tpm]
+	str	r3, [rcore, #tpd]	
 	
-	ldr	r0, [r3]				@ r0 is method 0 (delete) opcode
+	ldr	r0, [r2]				@ r0 is method 0 (delete) opcode
 	b		interpLoopExecuteEntry	
 	
 .localObject1:
@@ -2216,7 +2216,7 @@ plusBop:
 	ldmia	rsp!, {r0}	@ r0 = B
 	ldr	r1, [rsp]		@ r1 = A
 	add	r1, r0
-	str	r0, [rsp]
+	str	r1, [rsp]
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  @  @@@@@@@@@@@@@@@@@
@@ -2228,10 +2228,10 @@ fetchBop:
 	bx	lr
 
 storeNextBop:
-	ldmia	rsp!, {r0, r1}	@ r0 = value, r1 = ptr to dest ptr
-	ldr	r2, [r1]			@ r2 = dest ptr
-	stmia	r2!, {r0}		@ store value and advance dest ptr
-	str	r2, [r1]			@ update stored dest ptr
+	ldmia	rsp!, {r0, r1}	@ r1 = value, r0 = ptr to dest ptr
+	ldr	r2, [r0]			@ r2 = dest ptr
+	stmia	r2!, {r1}		@ store value and advance dest ptr
+	str	r2, [r0]			@ update stored dest ptr
 	bx	lr
 
 fetchNextBop:
@@ -2317,7 +2317,7 @@ doLoopNBop:
 .doLoopNBop1:
 	@ r2 is negative increment
 	cmp	r0, r1
-	bl	.doLoopNBop2		@ branch if done
+	blt	.doLoopNBop2		@ branch if done
 	ldr	rip, [rrp, #8]		@ go back to top of loop
 	bx	lr
 	
@@ -2529,7 +2529,7 @@ divide4Bop:
 
 divide8Bop:
 	ldr	r0, [rsp]
-	asr	r0, r0, #2
+	asr	r0, r0, #3
 	str	r0, [rsp]
 	bx	lr
 	
@@ -2591,9 +2591,8 @@ timesBop:
 utimesBop:
 	ldr	r0, [rsp]		@ r0 = B
 	ldr	r1, [rsp, #4]	@ r1 = A
-	umull	r3, r2, r1, r0
-	str	r2, [rsp]
-	str	r3, [rsp, #4]
+	umull	r2, r3, r1, r0
+	stmia	rsp, {r2, r3}
 	bx	lr
 	
 @#############################################@
@@ -2943,7 +2942,7 @@ lshiftBop:
 rshiftBop:
 	ldmia	rsp!, {r0}		@ r0 = shift count
 	ldr	r1, [rsp]
-	lsr	r1, r0
+	asr	r1, r0
 	str	r1, [rsp]
 	bx	lr
 
@@ -2961,7 +2960,7 @@ notBop:
 	ldr	r0, [rsp]
 	cmp	r0, r1
 	subeq	r1, #1
-	stmdb	rsp!, {r1}
+	str	r1, [rsp]
 	bx	lr
 	
 
@@ -3156,7 +3155,7 @@ fEqualsBop:
 	flds	s14, [rsp]
 	add	rsp, #4
 	flds	s15, [rsp]
-	fcmps	s14, s15
+	fcmps	s15, s14
 	fmstat
 	subeq	r2, #1
 	str	r2, [rsp]
@@ -3169,7 +3168,7 @@ fNotEqualsBop:
 	flds	s14, [rsp]
 	add	rsp, #4
 	flds	s15, [rsp]
-	fcmps	s14, s15
+	fcmps	s15, s14
 	fmstat
 	subne	r2, #1
 	stmdb	rsp!, {r2}
@@ -3182,7 +3181,7 @@ fGreaterThanBop:
 	flds	s14, [rsp]
 	add	rsp, #4
 	flds	s15, [rsp]
-	fcmps	s14, s15
+	fcmps	s15, s14
 	fmstat
 	subgt	r2, #1
 	str	r2, [rsp]
@@ -3195,7 +3194,7 @@ fGreaterEqualsBop:
 	flds	s14, [rsp]
 	add	rsp, #4
 	flds	s15, [rsp]
-	fcmps	s14, s15
+	fcmps	s15, s14
 	fmstat
 	subge	r2, #1
 	str	r2, [rsp]
@@ -3208,7 +3207,7 @@ fLessThanBop:
 	flds	s14, [rsp]
 	add	rsp, #4
 	flds	s15, [rsp]
-	fcmps	s14, s15
+	fcmps	s15, s14
 	fmstat
 	sublt	r2, #1
 	str	r2, [rsp]
@@ -3221,7 +3220,7 @@ fLessEqualsBop:
 	flds	s14, [rsp]
 	add	rsp, #4
 	flds	s15, [rsp]
-	fcmps	s14, s15
+	fcmps	s15, s14
 	fmstat
 	suble	r2, #1
 	str	r2, [rsp]
@@ -3324,7 +3323,7 @@ fMaxBop:
 @@@@@@@@@@@@@@@@@  fwithin  @@@@@@@@@@@@@@@@@
 
 fWithinBop:
-	eor	r3,r3
+	eor	r3, r3
 	flds	s15, [rsp]			@ upper bound
 	flds	s14, [rsp, #4]		@ lower bound
 	add	rsp, #8
@@ -3334,9 +3333,9 @@ fWithinBop:
 	blt	.fwithin1
 	fcmps	s13, s15
 	fmstat
-	subge	r3, #1
+	sublt	r3, #1
 .fwithin1:
-	stmdb	rsp!, {r3}
+	str	r3, [rsp]
 	bx	lr
 
 @#############################################@
@@ -3352,7 +3351,7 @@ dEqualsBop:
 	fldd	d6, [rsp]
 	fldd	d7, [rsp, #8]
 	add	rsp, #12
-	fcmpd	d6, d7
+	fcmpd	d7, d6
 	fmstat
 	subeq	r2, #1
 	str	r2, [rsp]
@@ -3365,7 +3364,7 @@ dNotEqualsBop:
 	fldd	d6, [rsp]
 	fldd	d7, [rsp, #8]
 	add	rsp, #12
-	fcmpd	d6, d7
+	fcmpd	d7, d6
 	fmstat
 	subne	r2, #1
 	str	r2, [rsp]
@@ -3378,7 +3377,7 @@ dGreaterThanBop:
 	fldd	d6, [rsp]
 	fldd	d7, [rsp, #8]
 	add	rsp, #12
-	fcmpd	d6, d7
+	fcmpd	d7, d6
 	fmstat
 	subgt	r2, #1
 	str	r2, [rsp]
@@ -3391,7 +3390,7 @@ dGreaterEqualsBop:
 	fldd	d6, [rsp]
 	fldd	d7, [rsp, #8]
 	add	rsp, #12
-	fcmpd	d6, d7
+	fcmpd	d7, d6
 	fmstat
 	subge	r2, #1
 	str	r2, [rsp]
@@ -3404,7 +3403,7 @@ dLessThanBop:
 	fldd	d6, [rsp]
 	fldd	d7, [rsp, #8]
 	add	rsp, #12
-	fcmpd	d6, d7
+	fcmpd	d7, d6
 	fmstat
 	sublt	r2, #1
 	str	r2, [rsp]
@@ -3417,7 +3416,7 @@ dLessEqualsBop:
 	fldd	d6, [rsp]
 	fldd	d7, [rsp, #8]
 	add	rsp, #12
-	fcmpd	d6, d7
+	fcmpd	d7, d6
 	fmstat
 	suble	r2, #1
 	str	r2, [rsp]
@@ -3432,7 +3431,7 @@ dEqualsZeroBop:
 	fcmpzd	d7
 	fmstat
 	subeq	r2, #1
-	stmdb	rsp!, {r2}
+	str	r2, [rsp]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  d0<>  @@@@@@@@@@@@@@@@@
@@ -3444,7 +3443,7 @@ dNotEqualsZeroBop:
 	fcmpzd	d7
 	fmstat
 	subne	r2, #1
-	stmdb	rsp!, {r2}
+	str	r2, [rsp]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  d0>  @@@@@@@@@@@@@@@@@
@@ -3456,7 +3455,7 @@ dGreaterThanZeroBop:
 	fcmpzd	d7
 	fmstat
 	subgt	r2, #1
-	stmdb	rsp!, {r2}
+	str	r2, [rsp]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  d0>=  @@@@@@@@@@@@@@@@@
@@ -3468,7 +3467,7 @@ dGreaterEqualsZeroBop:
 	fcmpzd	d7
 	fmstat
 	subge	r2, #1
-	stmdb	rsp!, {r2}
+	str	r2, [rsp]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  d0<  @@@@@@@@@@@@@@@@@
@@ -3480,7 +3479,7 @@ dLessThanZeroBop:
 	fcmpzd	d7
 	fmstat
 	sublt	r2, #1
-	stmdb	rsp!, {r2}
+	str	r2, [rsp]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  d0<=  @@@@@@@@@@@@@@@@@
@@ -3492,7 +3491,7 @@ dLessEqualsZeroBop:
 	fcmpzd	d7
 	fmstat
 	suble	r2, #1
-	stmdb	rsp!, {r2}
+	str	r2, [rsp]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@ dmin  @@@@@@@@@@@@@@@@@
@@ -3540,9 +3539,10 @@ dWithinBop:
 	blt	.dwithin1
 	fcmpd	d5, d7
 	fmstat
-	subge	r3, #1
+	sublt	r3, #1
 .dwithin1:
-	stmdb	rsp!, {r3}
+	add	rsp, #4
+	str	r3, [rsp]
 	bx	lr
 
 @#############################################@
@@ -3807,11 +3807,11 @@ cfetchBop:
 	bx	lr
 
 cstoreNextBop:
-	ldmia	rsp!, {r0, r1}	@ r0 = value, r1 = ptr to dest ptr
-	ldr	r2, [r1]			@ r2 = dest ptr
-	strb	r0, [r2]
+	ldmia	rsp!, {r0, r1}	@ r1 = value, r0 = ptr to dest ptr
+	ldr	r2, [r0]			@ r2 = dest ptr
+	strb	r1, [r2]
 	add	r2, #1
-	str	r2, [r1]			@ update stored dest ptr
+	str	r2, [r0]			@ update stored dest ptr
 	bx	lr
 
 cfetchNextBop:
@@ -3856,11 +3856,11 @@ wfetchBop:
 	bx	lr
 
 wstoreNextBop:
-	ldmia	rsp!, {r0, r1}	@ r0 = value, r1 = ptr to dest ptr
-	ldr	r2, [r1]			@ r2 = dest ptr
-	strh	r0, [r2]
+	ldmia	rsp!, {r0, r1}	@ r1 = value, r0 = ptr to dest ptr
+	ldr	r2, [r0]			@ r2 = dest ptr
+	strh	r1, [r2]
 	add	r2, #2
-	str	r2, [r1]			@ update stored dest ptr
+	str	r2, [r0]			@ update stored dest ptr
 	bx	lr
 
 wfetchNextBop:
@@ -3899,17 +3899,17 @@ dstoreBop:
 	bx	lr
 	
 dstoreNextBop:
-	ldmia	rsp!, {r0, r1, r2}	@ r0,r1 = value, r2 = ptr to dest ptr
-	ldr	r3, [r2]				@ r3 = dest ptr
-	stmia	r3!, {r0, r1}		@ store value and advance dest ptr
-	str	r2, [r3]				@ update stored dest ptr
+	ldmia	rsp!, {r0, r1, r2}	@ r1,r2 = value, r0 = ptr to dest ptr
+	ldr	r3, [r0]				@ r3 = dest ptr
+	stmia	r3!, {r1, r2}		@ store value and advance dest ptr
+	str	r3, [r0]				@ update stored dest ptr
 	bx	lr
 
 dfetchNextBop:
 	ldmia	rsp!, {r2}			@ r2 = ptr to src ptr
-	ldr	r3, [r2]			@ r3 = src ptr
-	ldmia	r3!, {r0, r1}	@ r0,r1 = fetched value
-	str	r2, [r1]			@ update stored src ptr
+	ldr	r3, [r2]				@ r3 = src ptr
+	ldmia	r3!, {r0, r1}		@ r0,r1 = fetched value
+	str	r3, [r2]				@ update stored src ptr
 	stmdb	rsp!, {r0, r1}
 	bx	lr
 	
@@ -4087,8 +4087,13 @@ strcmpBop:
 	push	{rcore, lr}
 	ldmia	rsp!, {r1}
 	ldr	r0, [rsp]
-	bl	strcasecmp
-	str	r0, [rsp]
+	bl	strcmp
+strcmp1:
+	eor	r1, r1
+	cmp	r0, #0
+	sublt	r1, #1
+	addgt	r1, #1
+	str	r1, [rsp]
 	pop	{rcore, lr}
 	bx	lr
 	
@@ -4099,9 +4104,7 @@ stricmpBop:
 	ldmia	rsp!, {r1}
 	ldr	r0, [rsp]
 	bl	strcasecmp
-	str	r0, [rsp]
-	pop	{rcore, lr}
-	bx	lr
+	b	strcmp1
 	
 @@@@@@@@@@@@@@@@@  strstr  @@@@@@@@@@@@@@@@@
 
@@ -4463,9 +4466,9 @@ branchZType:
 
 caseBranchType:
 	@ TOS is current case value to match against, TOS-1 is value to check
-	ldr	r0, [rsp]
-	ldr	r1, [rsp, #4]
-	cmp	r0, r1
+	@ r1 holds branch offset in longs
+	ldmia	rsp, {r0, r2}
+	cmp	r0, r2
 	bne	.caseBranch1
 	@ case matched, drop top 2 TOS items, continue executing this branch
 	add	rsp, #8
@@ -4642,6 +4645,101 @@ memberStringInitType:
 
 @-----------------------------------------------
 @
+@ DLL vocabulary support
+@
+@ extern void CallDLLRoutine( DLLRoutine function, long argCount, void *core, ulong flags );
+
+CallDLLRoutine:
+	push	{r4-r10, lr}
+	@ r0	function addr
+	@ r1	argCount
+	@ r2	flags (bit0 is return void, bit2 is return 64-bit, bit3 is use stdcall convention
+	@ r3	pCore
+	mov	r4, r0				@ r4 is function addr
+	mov	r5, r1				@ r5 is argCount
+	mov	r6,	r2				@ r6 is flags
+	mov r7, r3				@ r7 is pCore
+	ldr	r8, [r7, #spsave]	@ r8 is param stack ptr
+	
+	orrs	r5, r5
+	beq	.callDLLArgsReady			@ if no args
+	mov	r10, r8				@ r10 will be used if there are more than 4 args
+	add	r8, r8, r5, lsl #2	@ r8 is now param stack ptr after all args are consumed
+	str	r8, [r7, #spsave]	@ save param stack ptr
+	mov	r9, r8	
+	sub	r9, #4				
+	ldmda	r9!, {r0}
+	subs	r5, #1
+	beq	.callDLLArgsReady
+	ldmda	r9!, {r1}
+	subs	r5, #1
+	beq	.callDLLArgsReady
+	ldmda	r9!, {r2}
+	subs	r5, #1
+	beq	.callDLLArgsReady
+	ldmda	r9!, {r3}
+	subs	r5, #1
+	beq	.callDLLArgsReady
+	
+	@ more than 4 args, rest are on param stack
+	mov	r8, sp				@ for fixing sp if stdcall convention is used
+.callDLLArgLoop:
+	ldmia	r10!, {r9}
+	push	{r9}
+	subs	r5, #1
+	bne	.callDLLArgLoop
+		
+.callDLLArgsReady:					@ args are in registers or on stack
+	bl	.callDLLDispatch
+	@ we will return here from DLL routine
+	ands	r2, r6, #4		@ use stdcall convention?
+	beq	.callDLL5
+	mov	sp, r8
+	@ TBD: cleanup stack for stdcall convention
+.callDLL5:
+	ldr	r8, [r7, #spsave]	@ r8 is param stack ptr
+	ands	r2, r6, #1		@ void return?
+	bne	.callDLL4
+	ands	r2, r6, #2		@ 64-bit return?
+	beq	.callDLL3
+	stmdb	r8!, {r0, r1}
+	b	.callDLL4
+	
+.callDLL3:
+	stmdb	r8!, {r0}	
+.callDLL4:
+	str	r8, [r7, #spsave]	@ r8 is param stack ptr
+	
+	pop	{r4-r10, pc}
+
+.callDLLDispatch:
+	bx	r4
+	
+@========================================
+dllEntryPointType:
+	@ r1: opcode in 0..15, flags in 16..18, argCount in 19..23
+	ldr	r2, =0xFFFF
+	and	r3, r2, r1				@ r3 is opcode index for dll entry point
+	ldr	r0, [rcore, #n_ops]
+	cmp	r3, r0
+	bge	badOpcode
+	push	{r12, lr}
+	lsr	r2, r1, #16
+	and	r2, #7					@ r2 is flags
+	lsr	r1, #19					@ r1 is arg count
+	ldr	r0, [rops, r3, lsl #2]	@ r0 is dll function addr
+	mov	r3, r4					@ r3 is pCore
+	
+	str	rsp, [rcore, #spsave]
+	bl	CallDLLRoutine
+	ldr	rsp, [rcore, #spsave]
+
+	pop	{r12, lr}
+	bx	lr
+	
+
+@-----------------------------------------------
+@
 @ method invocation ops
 @
 
@@ -4704,7 +4802,7 @@ opTypesTable:
 	.word	userDefType				@ kOpUserDefImmediate,
 	.word	cCodeType				@ kOpCCode,         
 	.word	cCodeType				@ kOpCCodeImmediate,
-	.word	extOpType				@ kOpDLLEntryPoint,
+	.word	dllEntryPointType		@ kOpDLLEntryPoint,
 	.word	extOpType	
 	.word	extOpType	
 	.word	extOpType	

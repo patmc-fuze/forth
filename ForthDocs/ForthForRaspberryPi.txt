@@ -21,11 +21,15 @@ layout src		show source window
 layout regs		show registers window
 layout prev		switch to previous layout command
 info reg		show registers
-source PATH		load gdb script from PATH
+source PATH		load gdb script from PATH\
+b *ADDR			set breakpoint at address
+x /Nw ADDR		show N 32-bit words at ADDR
 =============================================================================
 make gcc create assembler files: (second mixes the C in with the asm)
 gcc -O2 -S -c foo.c
 gcc -c -g -Wa,-a,-ad [other GCC options] foo.c > foo.lst
+=============================================================================
+ldd EXECUTABLE		lists shared libs used by EXECUTABLE
 =============================================================================
 kbhit for linux
 

@@ -572,7 +572,6 @@ precedence ]t
 //######################################################################
 //  DLL support
 
-#ifdef WINDOWS
 : _addDLLEntry blword addDLLEntry ;
 
 : _dllEntryType
@@ -602,6 +601,5 @@ precedence ]t
 13 _dllEntryType dll_13
 14 _dllEntryType dll_14
 15 _dllEntryType dll_15
-#endif
 
 loaddone

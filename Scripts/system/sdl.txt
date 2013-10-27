@@ -1,7 +1,12 @@
 
 autoforget sdl
 
+#ifdef WINDOWS
 DLLVocabulary sdl SDL.dll
+#else
+DLLVocabulary sdl libSDL.so
+#endif
+
 also sdl definitions
 
 //****************** SDL.h
@@ -127,6 +132,26 @@ enum: eSDL_Surface
 	0x01000000	SDL_PREALLOC
 ;enum
 
+struct: SDL_VideoInfo
+	int						flags			// see eSDL_VideoInfoFlags
+	int						video_mem
+	ptrTo SDL_PixelFormat	vfmt
+	int						current_w
+	int						current_h
+;struct
+
+enum: eSDL_VideoInfoFlags
+	1		hwAvailable
+	2		wmAvailable
+	0x200	blitHW
+	0x400	blitHWColorKey
+	0x800	blitHWAlpha
+	0x1000	blitSW
+	0x2000	blitSWColorKey
+	0x4000	blitSWAlpha
+	0x8000	blitColorFill
+;enum
+	
 dll_2	SDL_VideoInit
 DLLVoid dll_0	SDL_VideoQuit
 dll_2	SDL_VideoDriverName

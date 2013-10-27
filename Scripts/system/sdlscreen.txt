@@ -30,23 +30,19 @@ class: sdlScreen
 
   : dummyFetchOp drop 0 ;
   
+  method: initLimits
+    dup -> height 2/ dup -> bottomLimit dup -> centerY negate -> topLimit
+    dup -> width 2/ dup -> rightLimit dup -> centerX negate -> leftLimit
+  ;method
+  
   method: init
     null -> surface
     
-    512  -> width
-    512  -> height
-    
-    -320 -> leftLimit
-    320  -> rightLimit
-    -240 -> topLimit
-    240  -> bottomLimit
+    initLimits( 640 512 )
     
     ['] dummyFetchOp -> pixel@
     ['] 2drop -> pixel!
     0x00FFFF00 -> pixelColor
-
-    width 2/ -> centerX
-    height 2/ -> int centerY
 
     0 -> drawDepth
     0 -> srcPos.x 0 -> srcPos.y
@@ -71,6 +67,13 @@ class: sdlScreen
     true -> sdlStarted
   
     SDL_Init( SDL_INIT_VIDEO ) "SDL_Init returns " %s %d %nl
+    
+    SDL_GetVideoInfo -> ptrTo SDL_VideoInfo videoInfo
+    "SDL_GetVideoInfo returns " %s videoInfo.current_w %d "x" %s videoInfo.current_h %d %bl
+    videoInfo.vfmt.BitsPerPixel %d " bits/pixel " %s %bl videoInfo.video_mem %d " bytes of video memory\n" %s
+   
+    //initLimits( videoInfo.current_w videoInfo.current_h )
+    
     SDL_SetVideoMode( width height 0 SDL_SWSURFACE ) -> surface
     if( surface 0= )
       "SDL_SetVideoMode failed!\n" %s abort
@@ -442,6 +445,20 @@ class: sdlScreen
     moveTo
   ;method
 
+  method: fillRectangle
+    SDL_Rect rect
+    -> rect.h
+    -> rect.w
+    curX -> rect.x
+    curY -> rect.y
+    
+    SDL_FillRect( surface rect pixelColor ) drop
+  ;method
+
+  method: flip
+    SDL_Flip( surface ) drop
+  ;method
+    
 ;class
 
 sdlScreen _screen
@@ -470,6 +487,7 @@ sdlScreen _screen
 : dr _screen.drawRectangle ;
 : dpl _screen.drawPolyLine ;
 : dml _screen.drawMultiLine ;
+: fs _screen.flip ;
 
 : test
   sc( 0xFFFF00 )

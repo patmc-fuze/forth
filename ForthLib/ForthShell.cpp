@@ -216,7 +216,12 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 	{
 		mWorkingDirPath[0] = '\0';
 	}
-#else
+#elif defined( LINUX )
+	if ( getcwd( mWorkingDirPath, MAX_PATH ) == NULL )
+	{
+		// failed to get current directory
+		strcpy( mWorkingDirPath, "." );
+	}
 #endif
 
 #if 0

@@ -2780,7 +2780,6 @@ FORTHOP( describeOp )
 	CLEAR_VAR_OPERATION;
 }
 
-#ifdef WIN32
 
 FORTHOP( DLLVocabularyOp )
 {
@@ -2867,7 +2866,7 @@ FORTHOP( DLLStdCallOp )
 		pVocab->SetFlag( DLL_ENTRY_FLAG_STDCALL );
 	}
 }
-#endif
+
 
 FORTHOP( blwordOp )
 {
@@ -6497,13 +6496,11 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  DLL support
     ///////////////////////////////////////////
-#ifdef WIN32
     OP_DEF(    DLLVocabularyOp,        "DLLVocabulary" ),
     OP_DEF(    addDLLEntryOp,          "addDLLEntry" ),
     OP_DEF(    DLLVoidOp,              "DLLVoid" ),
     OP_DEF(    DLLLongOp,              "DLLLong" ),
     OP_DEF(    DLLStdCallOp,           "DLLStdCall" ),
-#endif
 
     ///////////////////////////////////////////
     //  time and date
