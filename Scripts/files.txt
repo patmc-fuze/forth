@@ -46,7 +46,7 @@ here 4096 allot -> _inbuff
 
 
 : charArray builds allot align does + ;
-: longArray builds 4* allot does swap 2 << + ;
+: longArray builds 4* allot does swap 2 lshift + ;
 
 1000 charArray specialNames
 int specialNamesNext   0 specialNames -> specialNamesNext

@@ -1,6 +1,7 @@
 // ansi forth compatability words
 
 requires extops
+requires forth_internals
 
 autoforget compatability
 : compatability ;
@@ -12,8 +13,8 @@ autoforget compatability
 : compileStringLiteral
   -> ptrTo byte src
   src strlen -> int len
-  len 4+ 0xFFFFFFFC and 2 >> -> int lenLongs
-  lenLongs opType:litString 24 << or ,		// compile literal string opcode
+  len 4+ 0xFFFFFFFC and 2 rshift -> int lenLongs
+  lenLongs opType:litString 24 lshift or ,		// compile literal string opcode
   strcpy( here src )
   lenLongs allot
 ;
@@ -52,17 +53,24 @@ precedence s"
 : bl ' ' ;
 : emit %c ;
 : does> [compile] does ; precedence does>
-: lshift << ;
-: rshift >> ;
 : then [compile] endif ; precedence then
 : evaluate interpret ;
-: [char]  blword c@ opType:litInt 24 << or , ; precedence [char]
+: [char]  blword c@ opType:litInt 24 lshift or , ; precedence [char]
 : cr %nl ;
 : */ * / ;
 : char+ + ;
 : count dup strlen swap ;
 : \ 0 word drop ; precedence \
-: type %block ;
 : spaces ?dup if 0 do %bl loop endif ;
 : space %bl ;
 
+: _abortQuote %s abort ;
+: abort" 
+  '"' word state @
+  if
+    compileStringLiteral
+    lit _abortQuote ,
+  else
+    _abortQuote
+  endif
+; precedence abort"

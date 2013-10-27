@@ -258,7 +258,7 @@ class: file extends object
             pDst c@ -> byte c
             if( c 0= )
               // buffer didn't have newline, resize buffer and try again
-              buffer.resize( buffer.count 5 * 2 >> )	// increase to 5/4 current size
+              buffer.resize( buffer.count 5 * 2 rshift )	// increase to 5/4 current size
               buffer.base i + -> pDst
               buffer.count i - -> charsToGet
               leave

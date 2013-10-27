@@ -48,7 +48,7 @@ enum: SDL_EventType
 ;enum
 
 // Predefined event masks
-: SDL_EVENTMASK	1 swap << ;
+: SDL_EVENTMASK	1 swap lshift ;
 
 enum:	SDL_EventMask
 	SDL_EVENTMASK( SDL_ACTIVEEVENT )		SDL_ACTIVEEVENTMASK	

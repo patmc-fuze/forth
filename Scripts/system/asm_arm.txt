@@ -1,0 +1,373 @@
+requires forth_optype
+requires data_tables
+requires numberio
+
+autoforget asm_arm
+
+: asm_arm ;
+
+vocabulary assembler
+
+// allow inline comments using (...) to allow easier porting from GForth
+parenIsComment
+base @
+true -> parenIsComment
+
+: there here ;
+// I can't find any references to t@ or t! in ANS forth or gforth
+0 -> int t@
+: t! -> t@ ;
+: t, t@ , ;
+: 2, , , ;  // or should there be a swap first?
+
+\
+\ Simple ARM7 RPN Assembler
+\
+\ Copyright (C) David Kühling 2007-2009
+\
+\ This program is free software: you can redistribute it and/or modify
+\ it under the terms of the GNU General Public License as published by
+\ the Free Software Foundation, either version 3 of the License, or
+\ (at your option) any later version.
+\
+\ This program is distributed in the hope that it will be useful,
+\ but WITHOUT ANY WARRANTY; without even the implied warranty of
+\ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+\ GNU General Public License for more details.
+\
+
+\ mov mvn : fewer ops!
+\ s-flag for TEQ? always set !?
+\ mula -> mla
+
+HEX  \ EVERYTHING BELOW IS IN HEXADECIMAL!
+
+//WORDLIST CONSTANT asm-wl
+//: ASSEMBLER  GET-ORDER NIP asm-wl SWAP SET-ORDER ;
+
+ALSO ASSEMBLER DEFINITIONS
+
+\ Enumerations
+: enumerate:  ( N start "name1" ... "nameN" -- )
+   DUP ROT + SWAP ?DO   I CONSTANT  LOOP ;
+
+\ operand types
+8 70000000
+enumerate: register shifted #immediate psr cxsf-mask offset multimode register-list 
+
+: nand ( x1 -- x2 )  invert and ;
+: ?register   ( n -- )
+   register <> ABORT" Inavlid operand, need a register r0..r15" ;
+: ?psr   ( n -- )
+   psr <> ABORT" Invalid operand, need special register SPSR or CSPR" ;
+
+\ Registers
+: regs:  10 0 DO  I register 2CONSTANT LOOP ;
+regs: r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15
+
+000000 psr 2CONSTANT CPSR	400000 psr 2CONSTANT SPSR
+
+\ Bit masks
+: bit:  ( n "name" -- )   1 SWAP LSHIFT CONSTANT ;
+: bits ( 0 bit1 ... bitN -- x )
+   0  BEGIN OVER OR  SWAP 0= UNTIL ;
+
+19 bit: %I   18 bit: %P   17 bit: %U   16 bit: %B   15 bit: %W
+
+\ Basic instruction creation, condition codes
+VARIABLE instruction
+VARIABLE had-cc
+: encode  ( x1 -- )   instruction @  OR  instruction ! ;
+: ?can-cc ( -- )
+   had-cc @ ABORT" Attempt to specify condition code twice."
+   instruction @ 1C RSHIFT 0<>
+   ABORT" Condition code not allowed for instruction." ;
+: cc:  ( x "name" -- )  CREATE ,
+  DOES> @  ( x -- )
+   ?can-cc  1C LSHIFT encode   TRUE had-cc ! ;
+
+00 cc: eq	01 cc: ne	02 cc: cs	03 cc: cc
+04 cc: mi	05 cc: pl	06 cc: vs	07 cc: vc
+08 cc: hi	09 cc: ls	0a cc: ge	0b cc: lt
+0c cc: gt	0d cc: le	0e cc: al	0f cc: nv
+02 cc: hs	03 cc: lo
+
+: <instruction  ( x -- )
+   DUP  0F0000000 AND IF
+      had-cc @ ABORT" Condition code not allowed for instruction"
+   ELSE  had-cc @ 0= IF AL THEN   THEN
+   encode ;
+: instruction>  ( -- x )
+   instruction @   0 instruction !  FALSE had-cc ! ;
+
+\ Simple register operands
+: register-operand:  ( bit-offs "name" -- )
+   CREATE ,
+  DOES> @  ( n-reg 'register' n-bit -- mask )
+   >R ?register R> LSHIFT   encode ;
+
+10 register-operand: Rn,	0C register-operand: Rd,
+10 register-operand: RdHi,	0C register-operand: RdLo,
+8 register-operand: Rs,		 0 register-operand: Rm,
+
+\ PSR register operands
+: psr,  ?psr  encode ;
+
+\ Field mask (for MSR)
+: cxsf-mask:  ( #bit "name" -- )  1 SWAP LSHIFT  cxsf-mask 2CONSTANT ;
+: cxsf,  BEGIN  DUP cxsf-mask = WHILE  DROP encode  REPEAT ;
+10 cxsf-mask: C   11 cxsf-mask: X   12 cxsf-mask: S   13 cxsf-mask: F
+
+\ Right-hand side operands
+: lrotate32  ( x1 n -- x2 )
+   2DUP LSHIFT 0FFFFFFFF AND >R    20 SWAP - RSHIFT R> OR ;
+: #  ( n -- x )
+   10 0 ?DO
+      DUP 0 100 WITHIN IF
+	 I 8 LSHIFT OR  %I OR  #immediate UNLOOP EXIT
+      THEN
+      2 lrotate32
+   LOOP
+   ABORT" Immediate operand cannot be expressed as shifted 8 bit value" ;
+
+: ?shift ( x1 -- x1 )
+   DUP 1 20 WITHIN 0= ABORT" Invalid shift value" ;
+: #shift: ( mask "name" -- )  CREATE ,
+  DOES> @  ( n-reg 'register' shift mask --  operand 'shifted' )
+   >R   ?shift 7 LSHIFT >R  ?register  R> OR  R> OR   shifted  ;
+: rshift:  ( mask "name" -- )  CREATE ,
+   DOES> @  ( n-reg 'register' mask --  operand 'shifted' )
+    >R   ?register 8 LSHIFT >R  ?register   R> OR  R> OR   010 OR shifted ;
+: RRX  ( n-reg 'register' -- operand 'shifted' )
+   ?register  060 OR  shifted ;
+   
+000 DUP #shift: #lsl  rshift: lsl	020 DUP #shift: #lsr  rshift: lsr
+040 DUP #shift: #asr  rshift: asr	060 DUP #shift: #ror  rshift: ror
+
+: ?rhs  ( 'shifted'|'register'|'#immediate' -- )
+   >R R@ shifted <>  R@ #immediate <> AND  R> register <> AND
+   ABORT" Need a (shifted) register or immediate value as operand" ;
+: ?#shifted-register ( x 'shifted'|'register' -- x )
+   >R R@ shifted <>  R> register <> AND  ABORT" Need a (shifted) register here"
+   DUP 010 AND  ABORT" Shift by register not allowed here" ;
+: rhs,  ( x 'r-shifted'|`#-shifted' -- )
+   ?rhs  encode ;
+: rhs',  ( x 'r-shifted'|`#-shifted' -- )
+   DUP shifted = ABORT" Shifted registers not allowed here."  rhs, ;
+
+\ Addressing modes
+: offset:  ( 0 bit1 ... bitN "name" -- )  bits   offset 2CONSTANT ;
+
+0 %P %I %U	offset: +]
+0 %P %I		offset: -]
+0 %P %I %U %W	offset: +]!
+0 %P %I    %W	offset: -]!
+0    %I %U	offset: ]+
+0    %I		offset: ]-
+0 %P 		offset: #]
+0 %P       %W	offset: #]!
+0    		offset: ]#
+
+: ]   0 #] ;
+: [#]  ( addr -- r15 offs 'offset' )  \ generate PC-relative address
+   >R r15  R> there 8 +  -   #] ;
+
+: multimode:  ( 0 bit1 ... bitN "name" -- )  bits  multimode 2CONSTANT ;
+ 
+0 		multimode: da     
+0    %U		multimode: ia 
+0 %P		multimode: db 
+0 %P %U		multimode: ib 
+0 	%W	multimode: da!    
+0    %U	%W	multimode: ia!
+0 %P	%W	multimode: db!
+0 %P %U	%W	multimode: ib!
+
+: ?offset  ( 'offset' -- )
+   offset <> ABORT" Invalid operand, need an address offset e.g ' Rn ] ' " ;
+: ?multimode  ( 'offset' -- )
+   multimode <> ABORT" Need an address mode for load/store multiple: DA etc." ;
+: ?upwards  ( n1 -- n2 )
+   DUP 0< IF  NEGATE ELSE %U encode THEN ;
+: ?post-offset  ( x 'offset' -- x )
+   ?offset  DUP %P AND 0=
+   ABORT" Only post-indexed addressing, ]#, ]+ or ]- , allowed here" ;
+: ?0#]  ( 0 'offset' -- )
+   ?offset    0 #] DROP D<>
+   ABORT" Only addresses without offset, e.g r0 ] allowed here" ;
+: #offset12,  ( n -- )
+   ?upwards  DUP 000 1000 WITHIN 0= ABORT" Offset out of range"  encode ;
+: #offset8,  ( n -- )
+   ?upwards  DUP 000 100 WITHIN 0= ABORT" Offset out of range"
+   %B encode	\ %B replaces (inverted) %I-bit for  8-bit offsets!
+   DUP 0F AND ( low nibble) encode  0F0 AND 4 LSHIFT  ( high nibble) encode ;
+: R#shifted-offset,  ( n  'register'|'shifted-reg' -- )
+   ?#shifted-register encode  ;
+: R-offset,  ( n  'register'|'shifted-reg' -- )
+   ?register encode  ;
+: offs12,  ( x1..xn 'offset' -- )
+   ?offset DUP encode
+   %I AND 0= IF  #offset12, ELSE R#shifted-offset, THEN ;
+: offsP,  ( x1..xn 'offset' -- )
+   2DUP ?post-offset DROP  offs12, ;
+: offs8,  ( x1..xn 'offset' -- ) \ limited addressing for halword load etc.
+   ?offset DUP %I nand encode
+   %I AND 0= IF  #offset8, ELSE R-offset, THEN ;
+: mmode,  ( x 'multimode' -- )
+   ?multimode encode ;
+
+\ Branch offsets
+2 80000000
+enumerate: forward backward
+: ?branch-offset  ( offset -- offset )
+   DUP -2000000 2000000 WITHIN 0= ABORT" Branch destination out of range"
+   DUP 3 AND 0<> ABORT" Branch destination not 4 byte-aligned" ;
+: branch-addr>offset  ( src dest -- offset )   SWAP 8 +  -   ?branch-offset ;
+: branch-offset>bits  ( offset -- x )  2 RSHIFT 0FFFFFF AND ;
+: branch-addr,  ( addr -- x )
+   there SWAP branch-addr>offset  branch-offset>bits  encode ;
+: a<mark  ( -- addr 'backward' )  there backward ;
+: a<resolve  ( addr 'backward' -- addr )
+   backward <> ABORT" Expect assembler backward reference on stack" ;
+: a>mark  ( -- addr 'forward' addr )  there forward   OVER ;
+: a>resolve  ( addr 'forward' -- )
+   forward <> ABORT" Expect assembler forward reference on stack"
+   DUP  there branch-addr>offset  branch-offset>bits
+   OVER t@ 0FF000000 AND  OR   SWAP t! ;
+
+\ "Comment" fields (SVC/SWI)
+: ?comment  ( x -- x )
+   DUP 0 01000000 WITHIN 0= ABORT" Comment field is limited to 24 bit values" ;
+: comment,  ( x -- )
+   ?comment encode ;
+
+\ Register lists (for LDM and STM)
+: {  ( -- mark )  77777777 ;
+: }  ( mark reg1 .. regN -- reglist )
+   0 BEGIN OVER 77777777 <> WHILE
+	 SWAP ?register   1 ROT LSHIFT OR
+   REPEAT  NIP register-list ;
+: R-R  ( reg1 regN -- reg1 reg2... regN )
+   ?register  SWAP ?register  1+ ?DO  I register LOOP ;
+: ?register-list  ( 'register-list' -- )
+   register-list <> ABORT" Need a register list { .. } as operand" ;
+: reg-list,  ( x 'register-list' -- )
+   ?register-list encode ;
+   
+\ Mnemonics
+//: instruction-class:  ( xt "name" -- )  CREATE ,
+//  DOES> @  ( mask xt "name" -- )  CREATE 2,
+//  DOES> 2@   ( mask xt -- )  >R   <instruction R> EXECUTE instruction> t, ;
+: _instclass @  ( mask xt "name" -- )  builds 2,
+  does 2@   ( mask xt -- )  >R   <instruction R> EXECUTE instruction> t, ;
+: instruction-class:  ( xt "name" -- )  builds ,
+  does _instclass ;
+
+:NONAME  Rd,	rhs,	Rn, ;		instruction-class: data-op:
+:NONAME  rhs,	Rn, ;			instruction-class: cmp-op:
+:NONAME  Rd,	rhs, ;			instruction-class: mov-op:
+:NONAME  Rd,	psr, ;			instruction-class: mrs-op:
+:NONAME  cxsf, psr, rhs', ;	instruction-class: msr-op:
+:NONAME  Rd,	offs12, Rn, ;		instruction-class: mem-op:
+:NONAME  Rd,	offsP,  Rn, ;		instruction-class: memT-op:
+:NONAME  Rd,	offs8,  Rn, ;		instruction-class: memH-op:
+:NONAME  Rd,	Rm,	?0#] Rn, ;	instruction-class: memS-op:
+:NONAME  reg-list, mmode, Rn, ;		instruction-class: mmem-op:
+:NONAME  branch-addr, ;			instruction-class: branch-op:
+:NONAME  Rn,	Rs,	Rm, ;		instruction-class: RRR-op:
+:NONAME  Rd,	Rn,	Rs,	Rm, ;	instruction-class: RRRR-op:
+:NONAME  RdHi, RdLo,	Rs,	Rm, ;	instruction-class: RRQ-op:
+:NONAME  comment, ;			instruction-class: comment-op:
+:NONAME  Rm, ;				instruction-class: branchR-op:
+: mmem-op2x:  ( x "name1" "name2" -- )  DUP mmem-op: mmem-op: ;
+
+00000000 data-op: and,         00100000 data-op: ands,
+00200000 data-op: eor,		   00300000 data-op: eors,
+00400000 data-op: sub,		   00500000 data-op: subs,
+00600000 data-op: rsb,		   00700000 data-op: rsbs,
+00800000 data-op: add,		   00900000 data-op: adds,
+00a00000 data-op: adc,		   00b00000 data-op: adcs,
+00c00000 data-op: sbc,		   00d00000 data-op: sbcs,
+00e00000 data-op: rsc,		   00f00000 data-op: rscs,
+01100000 cmp-op:  tst,		   0110f000 cmp-op:  tstp,
+01300000 cmp-op:  teq,		   0130f000 cmp-op:  teqp,
+01500000 cmp-op:  cmp,		   0150f000 cmp-op:  cmpp,
+01700000 cmp-op:  cmn,		   0170f000 cmp-op:  cmnp,
+01800000 data-op: orr,		   01900000 data-op: orrs,
+01a00000 mov-op:  mov,		   01b00000 mov-op:  movs,
+01c00000 data-op: bic,		   01d00000 data-op: bics,
+01e00000 mov-op:  mvn,		   01f00000 mov-op:  mvns,
+
+04000000 mem-op:  str,		   04100000 mem-op:  ldr,             
+04400000 mem-op:  strb,        04500000 mem-op:  ldrb,
+04200000 memT-op: strt,		   04300000 memT-op: ldrt, 
+04600000 memT-op: strbt,	   04700000 memT-op: ldrbt,
+000000b0 memH-op: strh,		   001000b0 memH-op: ldrh, 
+001000f0 memH-op: ldrsh,	   000000d0 memH-op: ldrsb,
+01000090 memS-op: swp,		   01400090 memS-op: swpb,
+
+08000000 mmem-op:  stm,		   08100000 mmem-op: ldm,
+08400000 mmem-op:  ^stm,	   08500000 mmem-op: ^ldm,
+
+010f0000 mrs-op:  mrs,		   
+
+
+0a000000 branch-op:  b,		   0b000000 branch-op:  bl,
+0a120010 branchR-op: bx,
+\ fa000000 branchx-op: blx,	   
+0f000000 comment-op: swi,	   0f000000 comment-op: svc,
+
+00000090 RRR-op:  mul,	 	   00100090 RRR-op:  muls, 
+00200090 RRRR-op: mla,	 	   00300090 RRRR-op: mlas, 
+00800090 RRQ-op:  umull,	   00900090 RRQ-op:  umulls,
+00A00090 RRQ-op:  umlal,	   00B00090 RRQ-op:  umlals,
+00C00090 RRQ-op:  smull,	   00D00090 RRQ-op:  smulls,
+000E0090 RRQ-op:  smlal,	   00F00090 RRQ-op:  smlals,
+
+\
+\ Labels and branch resolving
+\
+: label  there CONSTANT ;
+: if-not,  a>mark b, ;
+: ahead,  AL if-not, ;
+: then,  a>resolve ;
+: else,  a>mark AL b,  2SWAP then, ;
+: begin,  a<mark ;
+: until-not,  a<resolve b, ;
+: again,  AL until-not, ;
+: while-not,  if-not, ;
+: repeat,  2SWAP  again,  then, ;
+: repeat-until-not,  2SWAP  until-not,  then, ;
+          
+: invertConditionCodes
+  instruction @ 10000000 xor instruction !  // invert bit 28 to flip sense of flags
+;
+: if, invertConditionCodes if-not, ;
+: endif,  a>resolve ;
+: until,  invertConditionCodes a<resolve b, ;
+: while, if, ;
+: repeat-until,  2SWAP  until,  then, ;
+
+\
+\ Register aliases
+\
+r15 2CONSTANT pc
+r14 2CONSTANT lr
+r13 2CONSTANT sp
+r11 2CONSTANT raction	\ optype action table
+r10 2CONSTANT rnumops	\ number of entries in rops
+r9  2CONSTANT rops	\ opcode table
+r8  2CONSTANT rfp	\ local variable fram pointer
+r7  2CONSTANT rrp	\ forth return stack pointer
+r6  2CONSTANT rsp	\ forth stack pointer
+r5  2CONSTANT rip	\ forth instruction pointer
+r4  2CONSTANT rcore	\ forth code base pointer
+
+: next, lr bx, ;
+
+PREVIOUS DEFINITIONS
+: ]ASM   ALSO ASSEMBLER ; 
+: ASM[   PREVIOUS ;
+
+: [ASM]   ]ASM ; precedence [ASM]
+: [END-ASM]   ASM[ ; precedence [END-ASM]

@@ -75,11 +75,11 @@ int holdend
 // ( D WIDTH -- )   display signed long number D in a filed WIDTH characters wide
 : d.r
   >r dup -rot labs  <<# #s  rot sign #>
-  r> over - spaces  %block #>>
+  r> over - spaces  type #>>
 ;
     
 // (UD WIDTH --)   display unsigned long number UD in a filed WIDTH characters wide
-: ud.r >r <<# #s #> r> over - spaces %block #>> ;
+: ud.r >r <<# #s #> r> over - spaces type #>> ;
 
 : .r // n1 n2 -- ) \ core-ext	dot-r
     // Display @var{n1} right-aligned in a field @var{n2} characters wide. If more than

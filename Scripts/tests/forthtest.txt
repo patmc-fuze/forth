@@ -45,22 +45,22 @@ test[ 1 testIfElse 't' = ]  test[ 0 testIfElse 'f' = ]
 
 : testBeginUntil
   startTest
-  5 begin dup . %bl 1 - dup 0= until drop
+  5 begin dup . 1 - dup 0= until drop
 ;
 test[ testBeginUntil checkResult( "5 4 3 2 1 " ) ]
 
 : testBeginWhile
   startTest
-  5 begin dup while dup . %bl 1- repeat drop
+  5 begin dup while dup . 1- repeat drop
 ;
 test[ testBeginWhile checkResult( "5 4 3 2 1 " ) ]
 
 : testDoLoop
   startTest
-  5 0 do  i . %bl loop
-  -5 0 do  i . %bl -1 +loop
-  1000 0 do i . %bl leave " burp " %s loop
-  1000 0 do i . %bl i 2 = if unloop exit endif loop
+  5 0 do  i . loop
+  -5 0 do  i . -1 +loop
+  1000 0 do i . leave " burp " %s loop
+  1000 0 do i . i 2 = if unloop exit endif loop
   " should never get here" %s
 ;
 test[ testDoLoop checkResult( "0 1 2 3 4 0 -1 -2 -3 -4 -5 0 0 1 2 " ) ]
@@ -183,8 +183,9 @@ test[ 5.1d d0>= ] test[ 9.4d d0< not ] test[ 0.0d d0<= ] test[  -2.3d d0<= ] tes
 test[ 0.5d -1.0d 1.0d dwithin ] test[ 7.0d -1.0d 1.0d dwithin not ] test[ 5.0d 2.3d dmin 2.3d d= ]
 test[ -10.0d 4.3d dmax 4.3d d= ]
    
-// << >> u>>
-test[ 1 8 << 256 = ] test[ 17 2 << 68 = ] test[ -80 3 >> -10 = ] test[ 19 2 >> 4 = ]
+// lshift rshift urshift
+test[ 1 8 lshift 256 = ] test[ 17 2 lshift 68 = ] test[ -80 3 rshift -10 = ] test[ 19 2 rshift 4 = ]
+test[ 0xF1234567 4 rshift 0xFF123456 = ] test[ 0xF1234567 4 urshift 0xF123456 = ]
 
 // dup ?dup swap over rot pick
 test[ 17 5 dup 2 pick tuck 17 = swap 5 = and rot 5 = rot 17 = 0 drop and rot 17 = ]
@@ -196,7 +197,7 @@ test[ 87 5 ?dup 0 ?dup 0= rot 5 = rot 5 = and and over 87 = rot 87 = ]
 // memcpy memset varAction! varAction@
 // l+ l- l* l/ lmod l/mod lnegate i2l i2f i2d f2l f2i f2d d2l d2i d2f l2f l2d
 // l= l<> l> l>= l< l<= l0= l0> l0>= l0< l0<= lwithin lmin lmax
-// . %d %x %2d %2x %s %c %block %bl %nl %f %2f format 2format
+// . %d %x %2d %2x %s %c type %bl %nl %f %2f format 2format
 // printDecimalSigned printAllSigned printAllUnsigned octal decimal hex
 
 

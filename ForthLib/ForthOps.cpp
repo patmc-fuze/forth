@@ -805,10 +805,10 @@ FORTHOP( semiOp )
     exitOp( pCore );
     // switch back from compile mode to execute mode
     pEngine->SetCompileState( 0 );
-    pEngine->ClearFlag( kEngineFlagHasLocalVars );
     // finish current symbol definition
     // compile local vars allocation op (if needed)
-    pEngine->EndOpDefinition( true );
+	pEngine->EndOpDefinition( !pEngine->CheckFlag( kEngineFlagNoNameDefinition ) );
+    pEngine->ClearFlag( kEngineFlagHasLocalVars | kEngineFlagNoNameDefinition );
 }
 
 FORTHOP( colonOp )
@@ -819,7 +819,21 @@ FORTHOP( colonOp )
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     // switch to compile mode
     pEngine->SetCompileState( 1 );
+    pEngine->ClearFlag( kEngineFlagHasLocalVars | kEngineFlagNoNameDefinition);
+}
+
+FORTHOP( colonNoNameOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    // get next symbol, add it to vocabulary with type "user op"
+	long newOp = pEngine->AddOp( GET_DP );
+	newOp = COMPILED_OP( kOpUserDef, newOp );
+	SPUSH( newOp );
+    // switch to compile mode
+    pEngine->SetCompileState( 1 );
+	
     pEngine->ClearFlag( kEngineFlagHasLocalVars );
+    pEngine->SetFlag( kEngineFlagNoNameDefinition );
 }
 
 FORTHOP( codeOp )
@@ -1952,7 +1966,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
 
     if ( val == 0 )
     {
-        strcpy( buff, "0" );
+        strcpy( buff, "0 " );
         pNext = buff;
     }
     else
@@ -1964,7 +1978,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
         {
 
             // most common case - print signed decimal
-            sprintf( buff, "%d", val );
+            sprintf( buff, "%d ", val );
             pNext = buff;
 
         }
@@ -1974,6 +1988,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
             // unsigned or any base other than 10
 
             *--pNext = 0;
+            *--pNext = ' ';
             bPrintUnsigned = !(signMode == kPrintAllSigned);
             if ( bPrintUnsigned )
             {
@@ -2036,7 +2051,7 @@ printLongNumInCurrentBase( ForthCoreState   *pCore,
 
     if ( val == 0L )
     {
-        strcpy( buff, "0" );
+        strcpy( buff, "0 " );
         pNext = buff;
     }
     else
@@ -2051,10 +2066,10 @@ printLongNumInCurrentBase( ForthCoreState   *pCore,
 			switch ( signMode )
 			{
 			case kPrintAllUnsigned:
-	            sprintf( buff, "%ulld", val );
+	            sprintf( buff, "%ulld ", val );
 				break;
 			default:
-	            sprintf( buff, "%lld", val );
+	            sprintf( buff, "%lld ", val );
 				break;
 			}
             pNext = buff;
@@ -2066,6 +2081,7 @@ printLongNumInCurrentBase( ForthCoreState   *pCore,
             // unsigned or any base other than 10
 
             *--pNext = 0;
+            *--pNext = ' ';
             bPrintUnsigned = !(signMode == kPrintAllSigned);
             if ( bPrintUnsigned )
             {
@@ -6126,10 +6142,10 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    orBop,                   "or" ),
     NATIVE_DEF(    andBop,                  "and" ),
     NATIVE_DEF(    xorBop,                  "xor" ),
-    NATIVE_DEF(    invertBop,               "~" ),
-    NATIVE_DEF(    lshiftBop,               "<<" ),
-    NATIVE_DEF(    rshiftBop,               ">>" ),
-    NATIVE_DEF(    urshiftBop,              "u>>" ),
+    NATIVE_DEF(    invertBop,               "invert" ),
+    NATIVE_DEF(    lshiftBop,               "lshift" ),
+    NATIVE_DEF(    rshiftBop,               "rshift" ),
+    NATIVE_DEF(    urshiftBop,              "urshift" ),
 
     ///////////////////////////////////////////
     //  boolean logic
@@ -6347,11 +6363,12 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(exitOp,                 "exit" ),
     PRECOP_DEF(semiOp,                 ";" ),
     OP_DEF(    colonOp,                ":" ),
+    OP_DEF(    colonNoNameOp,          ":noname" ),
     OP_DEF(    codeOp,                 "code" ),
     OP_DEF(    createOp,               "create" ),
     OP_DEF(    variableOp,             "variable" ),
     OP_DEF(    constantOp,             "constant" ),
-    OP_DEF(    dconstantOp,            "dconstant" ),
+    OP_DEF(    dconstantOp,            "2constant" ),
     PRECOP_DEF(byteOp,                 "byte" ),
     PRECOP_DEF(ubyteOp,                "ubyte" ),
     PRECOP_DEF(shortOp,                "short" ),
@@ -6436,7 +6453,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    printLongHexOp,         "%2x" ),
     OP_DEF(    printStrOp,             "%s" ),
     OP_DEF(    printCharOp,            "%c" ),
-    OP_DEF(    printBlockOp,           "%block" ),
+    OP_DEF(    printBlockOp,           "type" ),
     OP_DEF(    printSpaceOp,           "%bl" ),
     OP_DEF(    printNewlineOp,         "%nl" ),
     OP_DEF(    printFloatOp,           "%f" ),

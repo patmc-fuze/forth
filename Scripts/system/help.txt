@@ -164,13 +164,13 @@ addHelp f2d			A ... double(A)
 addHelp d2i			A ... int(A)
 addHelp d2f			A ... float(A)
 
-addHelp or		A B ... or(A,B)
-addHelp and		A B ... and(A,B)
-addHelp xor		A B ... xor(A,B)
-addHelp ~		A   ... ~A
-addHelp <<		A B ... A<<B
-addHelp >>		A B ... A>>B
-addHelp u>>		A B ... A>>B	unsigned right shift
+addHelp or			A B ... or(A,B)
+addHelp and			A B ... and(A,B)
+addHelp xor			A B ... xor(A,B)
+addHelp invert		A   ... ~A
+addHelp lshift		A B ... A<<B
+addHelp rshift		A B ... A>>B
+addHelp urshift		A B ... A>>B	unsigned right shift
 
 addHelp not		A   ... not(A)   true iff A is 0, else false
 addHelp true	    ... -1
@@ -321,7 +321,7 @@ addHelp code										starts an assembler definition
 addHelp create										starts a 
 addHelp variable	variable NAME		creates a variable op which pushes its address when executed
 addHelp constant	A constant NAME		creates a constant op which pushes A when executed
-addHelp dconstant	DA dconstant NAME	creates a double constant op which pushes DA when executed
+addHelp 2constant	DA 2constant NAME	creates a double constant op which pushes DA when executed
 addHelp byte		byte VAR			declare a 8-bit integer variable or field, may be preceeded with initializer "VAL ->"
 addHelp ubyte		ubyte VAR			declare a unsigned 8-bit integer variable or field, may be preceeded with initializer "VAL ->"
 addHelp short		short VAR			declare a 16-bit integer variable or field, may be preceeded with initializer "VAL ->"
@@ -389,15 +389,17 @@ addHelp malloc	A ... PTR	allocates a block of memory with A bytes
 addHelp realloc	IPTR A ... OPTR		resizes block at IPTR to be A bytes long, leaves new address OPTR
 addHelp free	PTR ...		frees a block of memory
 
-addHelp .					NUM ...				prints number in current base
+addHelp .					NUM ...				prints number in current base followed by space
+addHelp .2					LNUM ...			prints 64-bit number in current base followed by space
 addHelp %d					NUM ...				prints number in decimal
 addHelp %x					NUM ...				prints number in hex
-addHelp %2d				LNUM ...			prints 64-bit number in decimal
-addHelp %2x				LNUM ...			prints 64-bit number in hex
+addHelp %2d					LNUM ...			prints 64-bit number in decimal
+addHelp %2x					LNUM ...			prints 64-bit number in hex
 addHelp %s					STRING ...			prints string
 addHelp %c					CHARVAL ...			prints character
-addHelp %bl					prints a space
-addHelp %nl					prints a newline
+addHelp type				STRING NCHARS ...	print a block of NCHARS characters of text
+addHelp %bl										prints a space
+addHelp %nl										prints a newline
 addHelp %f					FPNUM ...			prints a single-precision floating point number
 addHelp %2f					DOUBLE_FPNUM ...	prints a double-precision floating point number
 addHelp format				ARG FORMAT_STRING ... STRING_ADDR		format a 32-bit numeric value

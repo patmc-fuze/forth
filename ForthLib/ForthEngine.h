@@ -39,6 +39,7 @@ typedef enum {
     kEngineFlagIsMethod                  = 0x10,
     kEngineFlagInClassDefinition         = 0x20,
     kEngineFlagParenIsComment            = 0x40,
+    kEngineFlagNoNameDefinition          = 0x80,
 } FECompileFlags;
 
     //long                *DP;            // dictionary pointer

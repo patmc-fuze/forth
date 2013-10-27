@@ -120,7 +120,7 @@ int .osize               int .onow
 : bytes,  // nr x n --
   ?dup if
     0 do
-      over 0< if  swap 1+ swap  endif  dup _c,  0x8 >>
+      over 0< if  swap 1+ swap  endif  dup _c,  0x8 rshift
     loop
   endif
   2drop
@@ -245,7 +245,7 @@ int .osize               int .onow
 : dr?  ( reg -- reg flag ) 0x200 -0x100 reg= ;
 : tr?  ( reg -- reg flag ) 0x300 -0x100 reg= ;
 : sr?  ( reg -- reg flag ) 0x400 -0x100 reg= ;
-: st?  ( reg -- reg flag ) dup 0x8 >> 5 - ;
+: st?  ( reg -- reg flag ) dup 0x8 rshift 5 - ;
 : ?st  ( reg -- reg ) st? 0< if "st expected!" error endif ;
 : xr?  ( reg -- reg flag ) dup 0xFF > ;
 : ?xr  ( reg -- reg )  xr? 0= if "xr expected!" error endif ;
@@ -337,7 +337,7 @@ int .osize               int .onow
 : movxr  ( reg1 reg2 -- )
     2dup or sr? nip
     if    xr>mod  0x8C
-    else  2dup or 0x8 >> 1+ -3 and >r  xr>mod  0F,  r> 0x20 or
+    else  2dup or 0x8 rshift 1+ -3 and >r  xr>mod  0F,  r> 0x20 or
     endif  or  finish ;
 
 // mov                                                  23jan93py
@@ -353,7 +353,7 @@ int .osize               int .onow
   if
     assign# reg?
     if
-      7 and  0xB8 or byte? 3 << xor  setOff byte?
+      7 and  0xB8 or byte? 3 lshift xor  setOff byte?
     else
       0 >mod  0xC7
     endif
