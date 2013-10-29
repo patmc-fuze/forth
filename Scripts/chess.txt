@@ -1,5 +1,4 @@
 
-requires forth_optype
 requires data_tables
 requires numberio
 requires compatability

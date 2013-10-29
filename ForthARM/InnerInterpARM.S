@@ -1801,8 +1801,7 @@ doConstantBop:
 doDConstantBop:
 	@ IP points to immediate data field
 	ldmia	rip!, {r0, r1}
-	mov	r2, r0
-	stmdb	rsp!, {r1, r2}
+	stmdb	rsp!, {r0, r1}
 	ldmia	rrp!, {rip}		@ pop return stack into IP
 	bx	lr
 

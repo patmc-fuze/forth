@@ -127,7 +127,7 @@ enum: _opType
   nvoCombo					// NUM VAROP OP combo - bits 0:10 are signed integer, bits 11:12 are varop-2, bit 13 is builtin/userdef, bits 14-23 are opcode
   nvCombo					// NUM VAROP combo - bits 0:21 are signed integer, bits 22:23 are varop-2
   noCombo					// NUM OP combo - bits 0:12 are signed integer, bit 13 is builtin/userdef, bits 14:23 are opcode
-  nvoCombo					// VAROP OP combo - bits 0:1 are varop-2, bit 2 is builtin/userdef, bits 3:23 are opcode
+  voCombo					// VAROP OP combo - bits 0:1 are varop-2, bit 2 is builtin/userdef, bits 3:23 are opcode
 	 
   // 115 is unused
   116 localUserDefined		// user can add more optypes starting with this one

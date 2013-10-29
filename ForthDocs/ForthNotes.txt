@@ -127,6 +127,23 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 29 2013
+
+Last weekend I got DLLVocabulary support working on ARM.  It is only lightly
+tested, I am especially unsure if it works when there are more than 4 arguments
+to DLL routines.
+I have gotten David Kuhling's MacroForth ARM assembler ported and working,
+tested to the point of making a no-op and an add op that work.  One bug at
+the end was that 'next,' was compiling a relative branch, not a register
+branch, the opcode in David's original code was not even close to the right
+value.  I don't know if the 'bx,' opcode will work for more than a simple
+register argument, but that is okay for now.
+A lingering non-compatability with ANS-forth was revealed in the assembler
+port - it used CREATE...DOES> instead of build...does like my version, I had
+problems when I left it as create...does, I think my 'create' just makes a
+variable without allocated storage, and 'does' doesn't turn it into a real
+user def, it still acts like a variable not an executable user def.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 18 2013
 
 I changed the ARM asm inner interpreter to be compiled by GCC instead of using

@@ -1,7 +1,7 @@
 // ansi forth compatability words
 
-requires extops
 requires forth_internals
+requires forth_optype
 
 autoforget compatability
 : compatability ;
@@ -64,7 +64,14 @@ precedence s"
 : spaces ?dup if 0 do %bl loop endif ;
 : space %bl ;
 
-: _abortQuote %s abort ;
+: _abortQuote
+  swap
+  if
+    error
+  else
+    drop
+  endif
+;
 : abort" 
   '"' word state @
   if

@@ -1,12 +1,11 @@
-requires forth_optype
-requires data_tables
-requires numberio
+requires compatability
 
 autoforget asm_arm
 
 : asm_arm ;
 
 vocabulary assembler
+also assembler definitions
 
 // allow inline comments using (...) to allow easier porting from GForth
 parenIsComment
@@ -15,9 +14,9 @@ true -> parenIsComment
 
 : there here ;
 // I can't find any references to t@ or t! in ANS forth or gforth
-0 -> int t@
-: t! -> t@ ;
-: t, t@ , ;
+: t@ @ ;
+: t! ! ;
+: t, , ;
 : 2, , , ;  // or should there be a swap first?
 
 \
@@ -47,17 +46,15 @@ HEX  \ EVERYTHING BELOW IS IN HEXADECIMAL!
 
 ALSO ASSEMBLER DEFINITIONS
 
-\ Enumerations
-: enumerate:  ( N start "name1" ... "nameN" -- )
-   DUP ROT + SWAP ?DO   I CONSTANT  LOOP ;
-
 \ operand types
-8 70000000
-enumerate: register shifted #immediate psr cxsf-mask offset multimode register-list 
+enum: eARM
+  70000000 register shifted #immediate psr cxsf-mask offset multimode register-list 
+  80000000 forward backward
+;enum
 
 : nand ( x1 -- x2 )  invert and ;
 : ?register   ( n -- )
-   register <> ABORT" Inavlid operand, need a register r0..r15" ;
+   register <> ABORT" Invalid operand, need a register r0..r15" ;
 : ?psr   ( n -- )
    psr <> ABORT" Invalid operand, need special register SPSR or CSPR" ;
 
@@ -75,35 +72,35 @@ regs: r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15
 19 bit: %I   18 bit: %P   17 bit: %U   16 bit: %B   15 bit: %W
 
 \ Basic instruction creation, condition codes
-VARIABLE instruction
-VARIABLE had-cc
-: encode  ( x1 -- )   instruction @  OR  instruction ! ;
+int instruction
+int had-cc
+: encode  ( x1 -- )   instruction  OR  -> instruction ;
 : ?can-cc ( -- )
-   had-cc @ ABORT" Attempt to specify condition code twice."
-   instruction @ 1C RSHIFT 0<>
+   had-cc ABORT" Attempt to specify condition code twice."
+   instruction 1C RSHIFT 0<>
    ABORT" Condition code not allowed for instruction." ;
-: cc:  ( x "name" -- )  CREATE ,
-  DOES> @  ( x -- )
-   ?can-cc  1C LSHIFT encode   TRUE had-cc ! ;
+: cc:  ( x "name" -- )  builds ,
+  does @  ( x -- )
+   ?can-cc  1C LSHIFT encode   TRUE -> had-cc ;
 
 00 cc: eq	01 cc: ne	02 cc: cs	03 cc: cc
 04 cc: mi	05 cc: pl	06 cc: vs	07 cc: vc
 08 cc: hi	09 cc: ls	0a cc: ge	0b cc: lt
-0c cc: gt	0d cc: le	0e cc: al	0f cc: nv
+0c cc: gt	0d cc: le	0e cc: alw	0f cc: nv
 02 cc: hs	03 cc: lo
 
 : <instruction  ( x -- )
    DUP  0F0000000 AND IF
-      had-cc @ ABORT" Condition code not allowed for instruction"
-   ELSE  had-cc @ 0= IF AL THEN   THEN
+      had-cc ABORT" Condition code not allowed for instruction"
+   ELSE  had-cc 0= IF alw THEN   THEN
    encode ;
 : instruction>  ( -- x )
-   instruction @   0 instruction !  FALSE had-cc ! ;
+   instruction   0 -> instruction  FALSE -> had-cc ;
 
 \ Simple register operands
 : register-operand:  ( bit-offs "name" -- )
-   CREATE ,
-  DOES> @  ( n-reg 'register' n-bit -- mask )
+   builds ,
+  does @  ( n-reg 'register' n-bit -- mask )
    >R ?register R> LSHIFT   encode ;
 
 10 register-operand: Rn,	0C register-operand: Rd,
@@ -132,11 +129,11 @@ VARIABLE had-cc
 
 : ?shift ( x1 -- x1 )
    DUP 1 20 WITHIN 0= ABORT" Invalid shift value" ;
-: #shift: ( mask "name" -- )  CREATE ,
-  DOES> @  ( n-reg 'register' shift mask --  operand 'shifted' )
+: #shift: ( mask "name" -- )  builds ,
+  does @  ( n-reg 'register' shift mask --  operand 'shifted' )
    >R   ?shift 7 LSHIFT >R  ?register  R> OR  R> OR   shifted  ;
-: rshift:  ( mask "name" -- )  CREATE ,
-   DOES> @  ( n-reg 'register' mask --  operand 'shifted' )
+: rshift:  ( mask "name" -- )  builds ,
+   does @  ( n-reg 'register' mask --  operand 'shifted' )
     >R   ?register 8 LSHIFT >R  ?register   R> OR  R> OR   010 OR shifted ;
 : RRX  ( n-reg 'register' -- operand 'shifted' )
    ?register  060 OR  shifted ;
@@ -217,8 +214,6 @@ VARIABLE had-cc
    ?multimode encode ;
 
 \ Branch offsets
-2 80000000
-enumerate: forward backward
 : ?branch-offset  ( offset -- offset )
    DUP -2000000 2000000 WITHIN 0= ABORT" Branch destination out of range"
    DUP 3 AND 0<> ABORT" Branch destination not 4 byte-aligned" ;
@@ -313,7 +308,8 @@ enumerate: forward backward
 
 
 0a000000 branch-op:  b,		   0b000000 branch-op:  bl,
-0a120010 branchR-op: bx,
+//0a120010 branchR-op: bx,
+e12fff10 branchR-op: bx,
 \ fa000000 branchx-op: blx,	   
 0f000000 comment-op: swi,	   0f000000 comment-op: svc,
 
@@ -329,18 +325,18 @@ enumerate: forward backward
 \
 : label  there CONSTANT ;
 : if-not,  a>mark b, ;
-: ahead,  AL if-not, ;
+: ahead,  alw if-not, ;
 : then,  a>resolve ;
-: else,  a>mark AL b,  2SWAP then, ;
+: else,  a>mark alw b,  2SWAP then, ;
 : begin,  a<mark ;
 : until-not,  a<resolve b, ;
-: again,  AL until-not, ;
+: again,  alw until-not, ;
 : while-not,  if-not, ;
 : repeat,  2SWAP  again,  then, ;
 : repeat-until-not,  2SWAP  until-not,  then, ;
           
 : invertConditionCodes
-  instruction @ 10000000 xor instruction !  // invert bit 28 to flip sense of flags
+  instruction 10000000 xor -> instruction  // invert bit 28 to flip sense of flags
 ;
 : if, invertConditionCodes if-not, ;
 : endif,  a>resolve ;
@@ -365,9 +361,135 @@ r4  2CONSTANT rcore	\ forth code base pointer
 
 : next, lr bx, ;
 
+// wrap the existing definition of "code" with op which pushes assembler vocab on search stack
+also forth definitions
+: code
+  code
+  also assembler		// push assembler vocab on top of search stack
+;
+
+// subroutines must have a "endcode" after its return instruction to pop assembler stack
+: subroutine
+  create
+  also assembler		// push assembler vocab on top of search stack
+;
+
+previous definitions
+
+enum: eForthCore
+  0x00 _optypeAction
+  0x04 _builtinOps
+  0x08 _numBuiltinOps
+  0x0C _numAsmBuiltinOps
+  0x10 _userOps
+  0x14 _numUserOps
+  0x18 _maxUserOps
+  0x1C _pEngine
+  0x20 _IPtr
+  0x24 _SPtr
+  0x28 _RPtr
+  0x2C _FPtr
+  0x30 _TMPtr
+  0x34 _TDPtr
+  0x38 _varMode
+  0x3C _state
+  0x40 _error
+  0x44 _SBPtr
+  0x48 _STPtr
+  0x4C _SLen
+  0x50 _RBPtr
+  0x54 _RTPtr
+  0x58 _RLen
+  0x5C _pThread
+  0x60 _pDictionary
+  0x64 _fileFuncs
+;enum
+
 PREVIOUS DEFINITIONS
 : ]ASM   ALSO ASSEMBLER ; 
 : ASM[   PREVIOUS ;
 
 : [ASM]   ]ASM ; precedence [ASM]
 : [END-ASM]   ASM[ ; precedence [END-ASM]
+
+base !
+-> parenIsComment
+
+loaddone
+
+http://www.complang.tuwien.ac.at/forth/gforth/Docs-html/ARM-Assembler.html
+
+5.26.8 ARM Assembler
+
+The ARM assembler included in Gforth was written from scratch by David Kuehling.
+
+The assembler includes all instruction of ARM architecture version 4, but does not (yet) have support for Thumb instructions. It also lacks support for any co-processors.
+
+The assembler uses a postfix syntax with the target operand specified last. For load/store instructions the last operand will be the register(s) to be loaded from/stored to.
+
+Registers are specified by their names r0 through r15, with the aliases pc, lr, sp, ip and fp provided for convenience. Note that ip means intra procedure call scratch register (r12) and does not refer to the instruction pointer.
+
+Condition codes can be specified anywhere in the instruction, but will be most readable if specified just in front of the mnemonic. The 'S' flag is not a separate word, but encoded into instruction mnemonics, ie. just use adds, instead of add, if you want the status register to be updated.
+
+The following table lists the syntax of operands for general instructions:
+
+     Gforth          normal assembler      description
+     123 #           #123                  immediate
+     r12             r12                   register
+     r12 4 #LSL      r12, LSL #4           shift left by immediate
+     r12 r1 #LSL     r12, LSL r1           shift left by register
+     r12 4 #LSR      r12, LSR #4           shift right by immediate
+     r12 r1 #LSR     r12, LSR r1           shift right by register
+     r12 4 #ASR      r12, ASR #4           arithmetic shift right
+     r12 r1 #ASR     r12, ASR r1           ... by register
+     r12 4 #ROR      r12, ROR #4           rotate right by immediate
+     r12 r1 #ROR     r12, ROR r1           ... by register
+     r12 RRX         r12, RRX              rotate right with extend by 1
+
+Memory operand syntax is listed in this table:
+
+     Gforth            normal assembler      description
+     r4 ]              [r4]                  register
+     r4 4 #]           [r4, #+4]             register with immediate offset
+     r4 -4 #]          [r4, #-4]             with negative offset
+     r4 r1 +]          [r4, +r1]             register with register offset
+     r4 r1 -]          [r4, -r1]             with negated register offset
+     r4 r1 2 #LSL -]   [r4, -r1, LSL #2]     with negated and shifted offset
+     r4 4 #]!          [r4, #+4]!            immediate preincrement
+     r4 r1 +]!         [r4, +r1]!            register preincrement
+     r4 r1 -]!         [r4, +r1]!            register predecrement
+     r4 r1 2 #LSL +]!  [r4, +r1, LSL #2]!    shifted preincrement
+     r4 -4 ]#          [r4], #-4             immediate postdecrement
+     r4 r1 ]+          [r4], r1              register postincrement
+     r4 r1 ]-          [r4], -r1             register postdecrement
+     r4 r1 2 #LSL ]-   [r4], -r1, LSL #2     shifted postdecrement
+     ' xyz >body [#]   xyz                   PC-relative addressing
+
+Register lists for load/store multiple instructions are started and terminated by using the words { and } respectivly. Between braces, register names can be listed one by one, or register ranges can be formed by using the postfix operator r-r. The ^ flag is not encoded in the register list operand, but instead directly encoded into the instruction mnemonic, ie. use ^ldm, and ^stm,.
+
+Addressing modes for load/store multiple are not encoded as instruction suffixes, but instead specified after the register that supplies the address. Use one of DA, IA, DB, IB, DA!, IA!, DB! or IB!.
+
+The following table gives some examples:
+
+     Gforth                           normal assembler
+     { r0 r7 r8 }  r4 ia  stm,        stmia    {r0,r7,r8}, r4
+     { r0 r7 r8 }  r4 db!  ldm,       ldmdb    {r0,r7,r8}, r4!
+     { r0 r15 r-r }  sp ia!  ^ldm,    ldmfd    {r0-r15}^, sp!
+
+Conditions for control structure words are specified in front of a word:
+
+     r1 r2 cmp,    \ compare r1 and r2
+     eq if,        \ equal?
+        ...          \ code executed if r1 == r2
+     then,
+
+Here is an example of a code word (assumes that the stack pointer is in r9, and that r2 and r3 can be clobbered):
+
+     code my+ ( n1 n2 --  n3 )
+        r9 IA!       { r2 r3 } ldm,  \ pop r2 = n2, r3 = n1
+        r2   r3      r3        add,  \ r3 = n2+n1
+        r9 -4 #]!    r3        str,  \ push r3
+        next,
+     end-code
+
+Look at arch/arm/asm-example.fs for more examples. 
