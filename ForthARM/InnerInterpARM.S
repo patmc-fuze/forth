@@ -180,7 +180,7 @@ filePutString	=		48
 	.global byteVarActionBop, ubyteVarActionBop, shortVarActionBop, ushortVarActionBop, intVarActionBop, floatVarActionBop
 	.global fopenBop, fcloseBop, fseekBop, freadBop, fwriteBop, fgetcBop, fputcBop, feofBop, fexistsBop, ftellBop, flenBop, fgetsBop, fputsBop
 	.global withinBop, fMinBop, fMaxBop, fWithinBop, dMinBop, dMaxBop, dWithinBop, unsignedGreaterThanBop, unsignedLessThanBop
-	.global utimesBop, urshiftBop, reverseRotBop, vocabToClassBop, doCheckDoBop
+	.global utimesBop, urshiftBop, reverseRotBop, vocabToClassBop, doCheckDoBop, archARMBop, archX86Bop
 	@ these are just dummies:
 	.global doLongBop, doDoubleBop, doStringBop, doOpBop, doObjectBop, doLongArrayBop, doDoubleArrayBop, doObjectArrayBop, doStringArrayBop, doOpArrayBop
 	.global longVarActionBop, doubleVarActionBop, stringVarActionBop, opVarActionBop, objectVarActionBop
@@ -2964,7 +2964,9 @@ notBop:
 	
 
 @@@@@@@@@@@@@@@@@  true  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  archARM  @@@@@@@@@@@@@@@@@
 
+archARMBop:
 trueBop:
 	eor	r0, r0
 	sub	r0, #1
@@ -2973,7 +2975,9 @@ trueBop:
 	
 @@@@@@@@@@@@@@@@@  false  @@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@  null  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  archX86  @@@@@@@@@@@@@@@@@
 
+archX86Bop:
 falseBop:
 nullBop:
 	eor	r0, r0

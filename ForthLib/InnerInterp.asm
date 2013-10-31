@@ -3744,6 +3744,7 @@ entry notBop
 	
 ;========================================
 
+entry archX86Bop
 entry trueBop
 	mov	eax,0FFFFFFFFh
 	sub	edx, 4
@@ -3752,6 +3753,7 @@ entry trueBop
 	
 ;========================================
 
+entry archARMBop
 entry falseBop
 	xor	eax, eax
 	sub	edx, 4

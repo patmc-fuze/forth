@@ -1,8 +1,11 @@
 
+requires extops
 requires compatability
 
 autoforget numberio
 : numberio ;
+
+base @ decimal
 
 variable pad 84 allot
 
@@ -20,7 +23,7 @@ int holdend
   if( holdptr holdbuf u< )
     drop
     1 ->+ holdptr
-    error( 0 ) addErrorText( "numeric output overflow in hold" )
+    error( "numeric output overflow in hold" )
   else
     holdptr c!
   endif
@@ -42,7 +45,7 @@ int holdend
 // end a nested numeric output
 : #>>
   if( holdend holdbuf-end u< not )
-    error( 0 ) addErrorText( "bounds error in #>>" )
+    error( "bounds error in #>>" )
   else
     holdend dup strlen + holdend -> holdptr -> holdend
   endif
@@ -105,3 +108,4 @@ int holdend
 // display unsigned single number in free format followed by space
 : u. 0 ud. ;
 
+base !

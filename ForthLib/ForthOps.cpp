@@ -924,7 +924,8 @@ FORTHOP( forgetOp )
 FORTHOP( autoforgetOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    pEngine->ForgetSymbol( pEngine->GetNextSimpleToken(), true );
+    const char* pToken = pEngine->GetNextSimpleToken();
+	pEngine->ForgetSymbol( pToken, true );
     // reset search & definitions vocabs in case we deleted a vocab we were using
     pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
     ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
@@ -1808,8 +1809,9 @@ FORTHOP( requiresOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     char *pSymbolName = pEngine->GetNextSimpleToken();
-    ForthVocabulary  *pVocab = pEngine->GetSearchVocabulary();
-    if ( pVocab->FindSymbol( pSymbolName ) == NULL )
+	ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+
+	if ( pVocabStack->FindSymbol( pSymbolName ) == NULL )
     {
         // symbol not found - load symbol.txt
         char *pFileName = new char[ strlen( pSymbolName ) + 8 ];
@@ -5923,7 +5925,7 @@ extern GFORTHOP( stringVarActionBop ); extern GFORTHOP( opVarActionBop ); extern
 extern GFORTHOP( strcatBop ); extern GFORTHOP( strncatBop ); extern GFORTHOP( strchrBop ); extern GFORTHOP( strrchrBop ); extern GFORTHOP( strcmpBop ); extern GFORTHOP( stricmpBop );
 extern GFORTHOP( strstrBop ); extern GFORTHOP( strtokBop ); extern GFORTHOP( fopenBop ); extern GFORTHOP( fcloseBop ); extern GFORTHOP( fseekBop ); extern GFORTHOP( freadBop );
 extern GFORTHOP( fwriteBop ); extern GFORTHOP( fgetcBop ); extern GFORTHOP( fputcBop ); extern GFORTHOP( feofBop ); extern GFORTHOP( fexistsBop ); extern GFORTHOP( ftellBop );
-extern GFORTHOP( flenBop ); extern GFORTHOP( fgetsBop ); extern GFORTHOP( fputsBop );
+extern GFORTHOP( flenBop ); extern GFORTHOP( fgetsBop ); extern GFORTHOP( fputsBop ); extern GFORTHOP( archX86Bop ); extern GFORTHOP( archARMBop );
 
 #else
 
@@ -6610,6 +6612,9 @@ baseDictionaryEntry baseDictionary[] =
 #elif defined(LINUX)
 	NATIVE_DEF( trueBop,				"LINUX" ),
 #endif
+
+	NATIVE_DEF( archARMBop,				"ARCH_ARM" ),
+	NATIVE_DEF( archX86Bop,				"ARCH_X86" ),
 
     // following must be last in table
     OP_DEF(    NULL,                   NULL )

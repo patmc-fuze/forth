@@ -5,7 +5,6 @@ autoforget asm_arm
 : asm_arm ;
 
 vocabulary assembler
-also assembler definitions
 
 // allow inline comments using (...) to allow easier porting from GForth
 parenIsComment
@@ -135,7 +134,7 @@ int had-cc
 : rshift:  ( mask "name" -- )  builds ,
    does @  ( n-reg 'register' mask --  operand 'shifted' )
     >R   ?register 8 LSHIFT >R  ?register   R> OR  R> OR   010 OR shifted ;
-: RRX  ( n-reg 'register' -- operand 'shifted' )
+: rrx  ( n-reg 'register' -- operand 'shifted' )
    ?register  060 OR  shifted ;
    
 000 DUP #shift: #lsl  rshift: lsl	020 DUP #shift: #lsr  rshift: lsr
@@ -253,9 +252,11 @@ int had-cc
 //: instruction-class:  ( xt "name" -- )  CREATE ,
 //  DOES> @  ( mask xt "name" -- )  CREATE 2,
 //  DOES> 2@   ( mask xt -- )  >R   <instruction R> EXECUTE instruction> t, ;
-: _instclass @  ( mask xt "name" -- )  builds 2,
+: _instclass @  ( mask xt "name" -- )
+  builds 2,
   does 2@   ( mask xt -- )  >R   <instruction R> EXECUTE instruction> t, ;
-: instruction-class:  ( xt "name" -- )  builds ,
+: instruction-class:  ( xt "name" -- )
+  builds ,
   does _instclass ;
 
 :NONAME  Rd,	rhs,	Rn, ;		instruction-class: data-op:
@@ -309,8 +310,7 @@ int had-cc
 
 0a000000 branch-op:  b,		   0b000000 branch-op:  bl,
 //0a120010 branchR-op: bx,
-e12fff10 branchR-op: bx,
-\ fa000000 branchx-op: blx,	   
+12fff10 branchR-op: bx,
 0f000000 comment-op: swi,	   0f000000 comment-op: svc,
 
 00000090 RRR-op:  mul,	 	   00100090 RRR-op:  muls, 
@@ -359,7 +359,10 @@ r6  2CONSTANT rsp	\ forth stack pointer
 r5  2CONSTANT rip	\ forth instruction pointer
 r4  2CONSTANT rcore	\ forth code base pointer
 
-: next, lr bx, ;
+: next,
+  lr bx,
+  previous
+;
 
 // wrap the existing definition of "code" with op which pushes assembler vocab on search stack
 also forth definitions
@@ -372,6 +375,11 @@ also forth definitions
 : subroutine
   create
   also assembler		// push assembler vocab on top of search stack
+;
+
+// use endcode to end subroutines and "code" forthops which don't end with "next,"
+: endcode
+  previous				// pop assembler vocab off search stack
 ;
 
 previous definitions
@@ -417,6 +425,24 @@ base !
 
 loaddone
 
+-----------------------
+Data operations can take 3 operands.
+REGISTER_A OPERAND_B DESTINATION_REGISTER op,
+OPERAND_B 
+r1 r2 r3 sub, -> r3 = r2 - r1
+
+The first operand and destination operand must be registers.
+The second operand can be a register, an immediate value, or a shifted register
+  register
+    just a plain old register
+  shifted
+    REG LITERAL_NUMBER #lsl   (or #lsr | #asr | #ror)
+    REG REG_SHIFT #lsl        (or #lsr | #asr | #ror)
+    REG rrx					rotate right including carry bit
+  #immediate
+    an immediate value which is made of an 8-bit literal and a 4-bit shift code
+    use syntax LITERAL_NUMBER # to encode this
+-----------------------
 http://www.complang.tuwien.ac.at/forth/gforth/Docs-html/ARM-Assembler.html
 
 5.26.8 ARM Assembler
@@ -465,9 +491,15 @@ Memory operand syntax is listed in this table:
      r4 r1 2 #LSL ]-   [r4], -r1, LSL #2     shifted postdecrement
      ' xyz >body [#]   xyz                   PC-relative addressing
 
-Register lists for load/store multiple instructions are started and terminated by using the words { and } respectivly. Between braces, register names can be listed one by one, or register ranges can be formed by using the postfix operator r-r. The ^ flag is not encoded in the register list operand, but instead directly encoded into the instruction mnemonic, ie. use ^ldm, and ^stm,.
+Register lists for load/store multiple instructions are started and terminated by
+using the words { and } respectivly. Between braces, register names can be listed
+one by one, or register ranges can be formed by using the postfix operator r-r.
+The ^ flag is not encoded in the register list operand, but instead directly
+encoded into the instruction mnemonic, ie. use ^ldm, and ^stm,.
 
-Addressing modes for load/store multiple are not encoded as instruction suffixes, but instead specified after the register that supplies the address. Use one of DA, IA, DB, IB, DA!, IA!, DB! or IB!.
+Addressing modes for load/store multiple are not encoded as instruction suffixes,
+but instead specified after the register that supplies the address.
+Use one of DA, IA, DB, IB, DA!, IA!, DB! or IB!.
 
 The following table gives some examples:
 
