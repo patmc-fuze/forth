@@ -44,8 +44,7 @@ code abs
   rsp ] r0 ldr,
   r0 r0 r0 orrs,
   lr ge bx,
-  r0 r0 mvn,
-  r0 1 # r0 add,
+  r0 r0 neg,
   rsp ] r0 str,
   next,
   
@@ -58,7 +57,7 @@ code +!
   
 code roll
   // TOS is number of entries to roll (1 means swap, 2 means rot)
-  rsp ia! { r0 } ldm,
+  { r0 } ppop,
   r0 r0 r0 orrs,
   lr eq bx,					// early exit if #entries == 0
   //ne if,
@@ -77,8 +76,7 @@ code roll
     endif,
     
     // negative roll
-    r0 r0 mvn,
-    r0 1 # r0 add,
+    r0 r0 neg,
     rsp r2 mov,
     r2 ] r3 ldr,	// r3 = value to move to bottom
     begin,
@@ -111,21 +109,20 @@ code 2drop
   next,
 
 code ndrop
-  rsp ia! { r0 } ldm,
+  { r0 } ppop,
   rsp  r0 2 #lsl  rsp add,
   next,
   
 code ndup
   // TOS is number of entries to dup
-  rsp ia! { r0 } ldm,
+  { r0 } ppop,
   r0 r0 r0 orrs,
   lr eq bx,					// early exit if #entries == 0
   rsp  r0 2 #lsl  r2 add,
   begin,
     r2 4 # r2 sub,
     r2 ] r1 ldr,
-    //r2 db! { r1 } ldm,
-    rsp db! { r1 } stm,
+    { r1 } ppush,
     r0 1 # r0 subs,
   eq until,
   next,
@@ -175,26 +172,26 @@ code 2nip
   next,
 
 code 2tuck
-  rsp ia { r0 r1 r2 r3 } ldm,
+  { r0 r1 r2 r3 } ppop,
   rsp 8 # rsp sub,
-  rsp ia { r0 r1 r2 r3 } stm,
+  { r0 r1 r2 r3 } ppush,
   rsp 0x10 #] r0 str,
   rsp 0x14 #] r1 str,
   next,
   
 code 2pick
-  rsp ia! { r0 } ldm,
+  { r0 } ppop,
   rsp r0 3 #lsl r2 add,
   r2 ia { r0 r1 } ldm,
-  rsp db! { r0 r1 } stm,
+  { r0 r1 } ppush,
   next,
   
 code 2roll
   // TOS is number of entries to roll (1 means swap, 2 means rot)
-  rsp ia! { r0 } ldm,
+  { r0 } ppop,
   r0 r0 r0 orrs,
   lr eq bx,					// early exit if #entries == 0
-  sp db! { rip rfp } stm,		// we will use rip,rfp as temps
+  { rip rfp } push,		// we will use rip,rfp as temps
   
     gt if,
     
@@ -214,8 +211,7 @@ code 2roll
     else,
     
     // negative roll
-    r0 r0 mvn,			// make roll count positive
-    r0 1 # r0 add,
+    r0 r0 neg,			// make roll count positive
     
     rsp r2 mov,
     r2 ] r3 ldr,	// r3,rfp = value to move to bottom
@@ -229,21 +225,21 @@ code 2roll
     r2 ] r3 str,
     r2 4 #] rfp str,
     
-  sp ia! { rip rfp } ldm,
+  { rip rfp } ppop,
   next,
   
 code l+
-  rsp ia! { r0 r1 r2 r3 } ldm,
+  { r0 r1 r2 r3 } ppop,
   r2 r0 r2 adds,
   r3 r1 r3 adc,
-  rsp db! { r2 r3 } stm,
+  { r2 r3 } ppush,
   next,
   
 code l-
-  rsp ia! { r0 r1 r2 r3 } ldm,
+  { r0 r1 r2 r3 } ppop,
   r2 r0 r2 subs,
   r3 r1 r3 sbc,
-  rsp db! { r2 r3 } stm,
+  { r2 r3 } ppush,
   next,
   
 code lnegate

@@ -150,6 +150,14 @@ test[ checkResult( "123456\n" ) ]
 decimal
 
 //loaddone
+
+// < <= = <> > >= u< u> 0< 0<= 0= 0<> 0> 0>=
+test[ 1 5 < -1 -5 < not 7 7 < not ] test[ 22 11 <= not -134 77 <= 99 99 <= ] test[ 11 18 = not -11214 -11214 = ]
+test[ 14 24 <> 83 83 <> not ] test[ 1243 987 > 3775 783475 > not 88 88 > not ] test[ 7837 11 >= 27384 273855 >= not 71 71 >= ]
+test[ 11 22 u< 241 11 u< not -22 89743 u< not ] test[ -1 -2 u> -43 5009 u> -54345 -54345 u> not ]
+test[ -20 0< 0 0< not 20 0< not ] test[ -97 0<= 0 0<= 834 0<= not ] test[ -12 0= not 0 0= 43 0= not ]
+test[ -6324127 0<> 0 0<> not 5748 0<> ] test[ -500 0> not 0 0> not 345879 0> ] test[ -23580 0>= not 0 0>= 1235 0>= ]
+
 // + - * / or and xor not 
 test[ 1 5 + 6 = ] test[ 1 -4 + -3 = ] test[ 0x80000000 -1 + 0x7fffffff = ] test[ 1 5 - -4 = ]
 test[ 1 -4 - 5 = ] test[ 0x80000000 -1 - 0x80000001 = ] test[ 3 7 * 21 = ] test[ 0x101 0x11 * 0x1111 = ]

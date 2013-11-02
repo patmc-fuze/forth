@@ -41,6 +41,7 @@ string( 512 ) testBuff2
     do( numItems 0 )
       i %d "=" %s pick( numItems 1- i - ) . %bl
     loop
+    true -> testFailed
   endif
   
   do( numItems 0 )

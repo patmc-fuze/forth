@@ -2998,22 +2998,22 @@ dnullBop:
 @                                             @
 @#############################################@
 	
-@@@@@@@@@@@@@@@@@  ==  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  =  @@@@@@@@@@@@@@@@@
 
 equalsBop:
 	ldmia	rsp!, {r0, r1}
 	eor	r2, r2
-	cmp	r0, r1
+	cmp	r1, r0
 	subeq	r2, #1
 	stmdb	rsp!, {r2}
 	bx	lr
 
-@@@@@@@@@@@@@@@@@  !=  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  <>  @@@@@@@@@@@@@@@@@
 
 notEqualsBop:
 	ldmia	rsp!, {r0, r1}
 	eor	r2, r2
-	cmp	r0, r1
+	cmp	r1, r0
 	subne	r2, #1
 	stmdb	rsp!, {r2}
 	bx	lr
@@ -3023,7 +3023,7 @@ notEqualsBop:
 greaterThanBop:
 	ldmia	rsp!, {r0, r1}
 	eor	r2, r2
-	cmp	r0, r1
+	cmp	r1, r0
 	subgt	r2, #1
 	stmdb	rsp!, {r2}
 	bx	lr
@@ -3033,10 +3033,8 @@ greaterThanBop:
 unsignedGreaterThanBop:
 	ldmia	rsp!, {r0, r1}
 	eor	r2, r2
-	cmp	r0, r1
-	bls	ugt1
-	sub	r2, #1
-ugt1:
+	cmp	r1, r0
+	subhi	r2, #1
 	stmdb	rsp!, {r2}
 	bx	lr
 
@@ -3045,7 +3043,7 @@ ugt1:
 greaterEqualsBop:
 	ldmia	rsp!, {r0, r1}
 	eor	r2, r2
-	cmp	r0, r1
+	cmp	r1, r0
 	subge	r2, #1
 	stmdb	rsp!, {r2}
 	bx	lr
@@ -3055,7 +3053,7 @@ greaterEqualsBop:
 lessThanBop:
 	ldmia	rsp!, {r0, r1}
 	eor	r2, r2
-	cmp	r0, r1
+	cmp	r1, r0
 	sublt	r2, #1
 	stmdb	rsp!, {r2}
 	bx	lr
@@ -3065,10 +3063,8 @@ lessThanBop:
 unsignedLessThanBop:
 	ldmia	rsp!, {r0, r1}
 	eor	r2, r2
-	cmp	r0, r1
-	bcs	ult1
-	sub	r2, #1
-ult1:
+	cmp	r1, r0
+	subcc	r2, #1
 	stmdb	rsp!, {r2}
 	bx	lr
 
@@ -3077,27 +3073,27 @@ ult1:
 lessEqualsBop:
 	ldmia	rsp!, {r0, r1}
 	eor	r2, r2
-	cmp	r0, r1
-	subeq	r2, #1
+	cmp	r1, r0
+	suble	r2, #1
 	stmdb	rsp!, {r2}
 	bx	lr
 
-@@@@@@@@@@@@@@@@@  0==  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  0=  @@@@@@@@@@@@@@@@@
 
 equalsZeroBop:
 	ldmia	rsp!, {r0}
 	eor	r2, r2
-	cmp	r0, r2
+	cmp	r2, r0
 	subeq	r2, #1
 	stmdb	rsp!, {r2}
 	bx	lr
 
-@@@@@@@@@@@@@@@@@  0!=  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  0<>  @@@@@@@@@@@@@@@@@
 
 notEqualsZeroBop:
 	ldmia	rsp!, {r0}
 	eor	r2, r2
-	cmp	r0, r2
+	cmp	r2, r0
 	subne	r2, #1
 	stmdb	rsp!, {r2}
 	bx	lr
@@ -3142,8 +3138,6 @@ lessEqualsZeroBop:
 	stmdb	rsp!, {r2}
 	bx	lr
 
-	@ TBD	unsignedGreaterThanBop
-	@ TBD	unsignedLessThanBop
 	
 @#############################################@
 @                                             @

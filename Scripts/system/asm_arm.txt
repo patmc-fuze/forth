@@ -359,6 +359,15 @@ r6  2CONSTANT rsp	\ forth stack pointer
 r5  2CONSTANT rip	\ forth instruction pointer
 r4  2CONSTANT rcore	\ forth code base pointer
 
+// pseudo-ops
+: pop, -> long reglist sp ia! reglist ldm, ;
+: push, -> long reglist sp db! reglist stm, ;
+: ppop, -> long reglist rsp ia! reglist ldm, ;
+: ppush, -> long reglist rsp db! reglist stm, ;
+: rpop, -> long reglist rrp ia! reglist ldm, ;
+: rpush, -> long reglist rrp db! reglist stm, ;
+: neg, -> long dstReg 0 # dstReg rsb, ;
+
 : next,
   lr bx,
   previous
