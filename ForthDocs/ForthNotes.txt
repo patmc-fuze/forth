@@ -127,6 +127,13 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 14 2013
+
+Over the last few weeks I added floating point support to the ARM assembler.
+The only thing really left is the fp convert instructions.  I also haven't
+done the vector/super scalar instructions, but I'm not even sure the RPI
+actually supports these.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 29 2013
 
 Last weekend I got DLLVocabulary support working on ARM.  It is only lightly

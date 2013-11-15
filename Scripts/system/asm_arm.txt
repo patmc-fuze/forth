@@ -12,11 +12,11 @@ base @
 true -> parenIsComment
 
 : there here ;
-// I can't find any references to t@ or t! in ANS forth or gforth
 : t@ @ ;
 : t! ! ;
 : t, , ;
 : 2, , , ;  // or should there be a swap first?
+: uu %s %bl %bl ds ; // debug print
 
 \
 \ Simple ARM7 RPN Assembler
@@ -46,7 +46,7 @@ HEX  \ EVERYTHING BELOW IS IN HEXADECIMAL!
 ALSO ASSEMBLER DEFINITIONS
 
 \ operand types
-enum: eARM
+enum: eARM // 0      1           2      3    4        5       6           7
   70000000 register shifted #immediate psr cxsf-mask offset multimode register-list 
   80000000 forward backward
 ;enum
@@ -320,6 +320,270 @@ int had-cc
 00C00090 RRQ-op:  smull,	   00D00090 RRQ-op:  smulls,
 000E0090 RRQ-op:  smlal,	   00F00090 RRQ-op:  smlals,
 
+false -> parenIsComment
+
+// floating point ops
+// n m d vsub,		d=n-m
+// single/double is defined by register used (rsXX or rdXX)
+
+enum: _fpRegs
+  rs0  rs1  rs2  rs3  rs4  rs5  rs6  rs7  rs8  rs9  rs10 rs11 rs12 rs13 rs14 rs15
+  rs16 rs17 rs18 rs19 rs20 rs21 rs22 rs23 rs24 rs25 rs26 rs27 rs28 rs29 rs30 rs31
+  0x40
+  rd0  rd1  rd2  rd3  rd4  rd5  rd6  rd7  rd8  rd9  rd10 rd11 rd12 rd13 rd14 rd15
+  rd16 rd17 rd18 rd19 rd20 rd21 rd22 rd23 rd24 rd25 rd26 rd27 rd28 rd29 rd30 rd31
+;enum
+
+: isFPRegister
+  -> int fpReg
+  or( within( fpReg rs0 rs31 1+ ) within( fpReg rd0 rd31 1+ ) )
+;
+
+: ?fpregister isFPRegister not abort" invalid fp register" ;
+
+: encodeFPReg
+  -> int regExtraBit
+  -> int regShift
+  -> int isDouble
+  -> int fpReg
+  
+  fpReg rd0 >= isDouble <> abort" mixed single and double precision registers"
+  ?fpregister( fpReg )
+  fpReg 0x3F and -> fpReg
+  if( isDouble )
+    lshift( and( fpReg 0xF ) regShift )
+    if( fpReg 0xF > )
+      regExtraBit or
+    endif
+  else
+    lshift( fpReg 2/ regShift )
+    if( and( fpReg 1 ) )
+      regExtraBit or
+    endif
+  endif
+  encode
+;
+
+: fp-three-reg-op:
+  builds ,
+  does
+    // instructionBits rDst rM rN
+    // rDst = rN OP rM
+  
+    @ <instruction
+  
+    -> int rDst
+    -> int rM			
+    -> int rN
+
+    rDst rd0 >= -> int isDouble
+  
+    encodeFPReg( rDst isDouble 0xC 0x400000 )
+    encodeFPReg( rN isDouble 0x10 0x80 )
+    encodeFPReg( rM isDouble 0 0x20 )
+    if( isDouble )
+      encode( 0x100 )
+    endif
+    instruction> t,
+;
+
+0xEE000A00 fp-three-reg-op: vmla,		0xEE000A40 fp-three-reg-op: vmls,
+0xEE100A40 fp-three-reg-op: vnmla,		0xEE100A00 fp-three-reg-op: vnmls,
+0xEE200A00 fp-three-reg-op: vmul,		0xEE200A40 fp-three-reg-op: vnmul,
+0xEE300A00 fp-three-reg-op: vadd,		0xEE300A40 fp-three-reg-op: vsub,
+0xEE800A00 fp-three-reg-op: vdiv,
+0xEE900A00 fp-three-reg-op: vfnma,		0xEE900A40 fp-three-reg-op: vfnms,
+0xEEA00A00 fp-three-reg-op: vfma,		0xEEA00A40 fp-three-reg-op: vfms,
+
+: fp-two-reg-op:
+  builds ,
+  does
+    // instructionBits rDst rM
+    // rDst = OP(rM)
+  
+    @ <instruction
+  
+    -> int rDst
+    -> int rM			
+
+    rDst rd0 >= -> int isDouble
+  
+    encodeFPReg( rDst isDouble 0xC 0x400000 )
+    encodeFPReg( rM isDouble 0 0x20 )
+    if( isDouble )
+      encode( 0x100 )
+    endif
+    instruction> t,
+;
+
+0xEEB00AC0 fp-two-reg-op: vabs,		0xEEB10A40 fp-two-reg-op: vneg,
+0xEEB10AC0 fp-two-reg-op: vsqrt,
+0xEEB40A40 fp-two-reg-op: vcmp,		0xEEB40AC0 fp-two-reg-op: vcmpe,
+
+: fp-one-reg-op:
+  builds ,
+  does
+    // instructionBits rDst
+    // compare rDst to 0
+  
+    @ <instruction
+  
+    -> int rDst
+
+    rDst rd0 >= -> int isDouble
+  
+    encodeFPReg( rDst isDouble 0xC 0x400000 )
+    if( isDouble )
+      encode( 0x100 )
+    endif
+    instruction> t,
+;
+0xEEB50A40 fp-one-reg-op: vcmpz,		0xEEB50AC0 fp-one-reg-op: vcmpze,
+
+: fp-mem-op:
+  builds ,
+  does
+    @ <instruction
+    // rDst offsetMarker 1000000? #offset regMarker #reg
+    -> int rDst
+    rDst rd0 >= -> int isDouble
+    
+    ?offset drop
+    -> int rawOffset
+    
+    ?register
+    -> int srcReg
+    
+    not( within( rawOffset -400 400 ) ) abort" offset out of range"
+    rawOffset 4/ dup
+    if( 0< )
+      negate
+    else
+      or( 0x800000 )
+    endif
+    or( lshift( srcReg 0x10 ) )
+    if( isDouble )
+      or( 0x100 )
+    endif
+    encode
+    
+    encodeFPReg( rDst isDouble 0xC 0x400000 )
+    instruction> t,
+;
+0xED100A00 fp-mem-op: vldr,  		0xED000A00 fp-mem-op: vstr,
+
+// 1110 110p udw1  rn   vd  101s immediate8		vldm rn	{regs}	0xEC100A00	immediate8 is register count (double for 64-bit regs)
+// 1110 110p udw0  rn   vd  101s immediate8		vstm rn	{regs}	0xEC000A00	immediate8 is register count
+// puw control autoincrement mode just like int vdm/ldm instructions
+// REG ia/ia!/db! BASE_FPREG LAST_REG vldm, 
+
+: fp-multireg-op:
+  builds ,
+  does
+    @ <instruction
+    
+    2dup ?fpregister ?fpregister
+    over - 1+
+    -> int nRegs
+    -> int baseReg
+    baseReg rd0 >= -> int isDouble
+  
+    not( within( nRegs 0 32 ) ) abort" bad fp register list"
+    
+    mmode, Rn,
+  
+    encodeFPReg( baseReg isDouble 0xC 0x400000 )
+    encode( nRegs if( isDouble ) 2* endif )
+    if( isDouble )
+      encode( 0x100 )
+    endif
+    
+    instruction> t,
+;
+0xEC100A00 fp-multireg-op: vldm,	0xEC000A00 fp-multireg-op: vstm,
+
+
+// rA rsB vmov,         rsA rB vmov,         0xEE000A10  move between one int reg and single-precision fp reg
+// rA rB rdC vmov,      rdA rB rC vmov,      0xEC400B10  move between two int regs and double-precision fp reg
+// rsA rsB rC rD vmov,  rA rB rsC rsD vmov,  0xEC400A10  move between two int regs and two consecutive single-precision fp regs
+: vmov,
+  int regLo
+  int regHi
+  int fpReg
+  0 -> int fromFP
+  false -> int isDouble
+  false -> int twoRegs
+
+  if( dup register = )
+  
+    // dst is int register
+    drop -> regHi
+    if( dup register = )
+      // dst is int register pair
+      drop -> regLo
+      true -> twoRegs
+    endif
+    -> fpReg
+    ?fpregister( fpReg )
+    fpReg rd0 >= -> isDouble
+    if( isDouble )
+      // rdA rB rC case
+      not( twoRegs ) abort" vmov missing second single-precision reg"
+    else
+      if( twoRegs )
+        // rsA rsB rC rD case
+        if( isFPRegister( dup ) )
+          1 ->- fpReg
+          fpReg <> abort" vmov single-precision regs not contiguous"
+        else
+          drop true abort" vmov missing second single-precision reg"
+        endif
+      endif
+    endif
+    0x100000 -> fromFP
+    
+  else
+  
+    // dst is fp register
+    -> fpReg
+    fpReg rd0 >= -> isDouble
+    if( isDouble )
+      // rA rB rdC case
+      ?register -> regHi
+      ?register -> regLo
+      true -> twoRegs
+    else
+      if( isFPRegister( dup ) )
+        // rA rB rsC rsD case
+        1 ->- fpReg
+        fpReg <> abort" vmov single-precision regs not contiguous"
+        ?register -> regHi
+        ?register -> regLo
+        true -> twoRegs
+      else
+        // rA rsB case
+        ?register -> regHi
+      endif
+    endif
+    
+  endif
+  
+  if( twoRegs )
+    if( isDouble ) 0xEC400B10 else 0xEC400A10 endif <instruction
+    encodeFPReg( fpReg isDouble 0 0x20 )
+    encode( lshift( regLo 0xC ) )
+    encode( lshift( regHi 0x10 ) )
+  else
+    0xEE000A10 <instruction
+    encodeFPReg( fpReg false 0x10 0x80 )
+    encode( lshift( regHi 0xC ) )
+  endif
+  
+  instruction>
+  or( fromFP )
+  t,
+;
+
 \
 \ Labels and branch resolving
 \
@@ -391,8 +655,49 @@ also forth definitions
   previous				// pop assembler vocab off search stack
 ;
 
-previous definitions
-
+code testAsm
+  rs1 rs2 rs3 vadd,
+  rs4 rs5 rs6 vsub,
+  rs7 rs8 rs9 vmul,
+  rs10 rs11 rs12 vdiv,
+  rs1 rs2 rs3 vmla,
+  rs4 rs5 rs6 vmls,
+  rs1 rs2 rs3 vnmla,
+  rs4 rs5 rs6 vnmls,
+  rs4 rs5 rs6 vnmul,
+  rs0 rs1 vabs,
+  rs2 rs3 vneg,
+  rs4 rs5 vsqrt,
+  rd1 rd2 rd3 vadd,
+  rd4 rd5 rd6 vsub,
+  rd7 rd8 rd9 vmul,
+  rd10 rd11 rd12 vdiv,
+  rd1 rd2 rd3 vmla,
+  rd4 rd5 rd6 vmls,
+  rd1 rd2 rd3 vnmla,
+  rd4 rd5 rd6 vnmls,
+  rd4 rd5 rd6 vnmul,
+  rd0 rd1 vabs,
+  rd2 rd3 vneg,
+  rd4 rd5 vsqrt,
+  rsp 4 #] rs3 vldr,
+  rsp -4 #] rs3 vstr,
+  rsp -4 #] rd3 vldr,
+  rsp 4 #] rd3 vstr,
+  r0 rs2 vmov,
+  rs2 r0 vmov,
+  r1 r2 rd2 vmov,
+  rd2 r1 r2 vmov,
+  rs8 rs9 r3 r4 vmov,
+  r3 r4 rs8 rs9 vmov,
+  rrp ia! rd3 rd8 vldm,
+  rsp db! rs4 rs13 vstm,
+  rs1 rs8 vcmp,
+  rd7 rd4 vcmpe,
+  rs9 vcmpze,
+  rd14 vcmpz,
+  next,
+  
 enum: eForthCore
   0x00 _optypeAction
   0x04 _builtinOps
@@ -433,6 +738,74 @@ base !
 -> parenIsComment
 
 loaddone
+
+vsub d,n,m		becomes			n m d vsub,		d=n-m
+
+
+// fpreg encoding is broken into a single bit and a 4-bit chunk
+// in double precision, the single bit is on top, in single precision it is on bottom
+
+// 1110 1110 0d11  vn   vd  101s n0m0  vm		vadd				0xEE300A00
+// 1110 1110 0d11  vn   vd  101s n0m0  vm		vsub				0xEE300A40
+// 1110 1110 0d11  vn   vd  101s n0m0  vm		vmul				0xEE200A00
+// 1110 1110 1d00  vn   vd  101s n0m0  vm		vdiv				0xEE800A00
+// 1110 1110 0d00  vn   vd  101s npm0  vm		vmla/vmls			0xEE000A00/0xEE000A40			p=1 vmls, p=0 vmla
+// 1110 1110 0d01  vn   vd  101s npm0  vm		vnmla/vnmls			0xEE100A00/0xEE100A40			p=1 vmls, p=0 vmla
+// 1110 1110 0d10  vn   vd  101s n1m0  vm		vnmul				0xEE200A40
+// 1110 1110 1d11 0000  vd  101s 11m0  vm		vabs sd, sm			0xEEB00AC0
+// 1110 1110 1d11 0001  vd  101s 01m0  vm		vneg sd, sm			0xEEB10A40
+// 1110 1110 1d11 0001  vd  101s 11m0  vm		vsqrt sd, sm		0xEEB10AC0
+// 1110 1101 ud01  rn   vd  101s immediate8		vldr				u=1 means add immediate8, u=0 means subtract immediate8
+// 1110 1101 ud00  rn   vd  101s immediate8		vstr
+// 1110 1110 1d11 0100  vd  101s 01m0  vm		vcmp sd, sm			0xEEB40A40
+// 1110 1110 1d11 0100  vd  101s 11m0  vm		vcmpe sd, sm		0xEEB40AC0
+// 1110 1110 1d11 0101  vd  101s 0100 0000		vcmpz sd			0xEEB50A40
+// 1110 1110 1d11 0101  vd  101s 1100 0000		vcmpze sd			0xEEB50AC0
+// 1110 110p udw1  rn   vd  101s immediate8		vldm rn	{regs}		0xEC100A00	immediate8 is register count
+// 1110 1110 000p  vn   rt  101s n001 0000      vmov rt, sn     	0xEE000A10  single register, p is fromFP
+// 1110 1100 010p  rt2  rt  1010 00m1  vm       vmov rt,rt2,dm  	0xEC400A10  2 int registers and single registers
+// 1110 1100 010p  rt2  rt  1011 00m1  vm       vmov rt,rt2,sm,sm+1	0xEC400B10  2 int registers and double register
+// 1110 1110 1d11 1222  vd  101s p1m0  vm		vcvt 
+
+
+rsp rs11 ] vldr,		0xed505600		ldcl 6, cr5, [r0, #-0] according to gdb
+vldr
+cond 1101 ud01  rn   vd  101s imm8
+1110 1101 1101 0110 0111 1010 0000 0000		edd67a00	vldr s15,[r6]
+1110 1101 0101 0000 0101 0110 0000 0000
+0xED100600
+vstr
+cond 1101 ud00  rn   vd  101s imm8
+1110 1101 1100 0110 0111 1010 0000 0000		edc67a00	vstr s15,[r6]
+
+vmov 32-bit
+cond 1110 000p  vn   rt  1010 n001 0000
+p=1 means to arm register, p=0 means to fp register
+
+vmov 64-bit
+cond 1100 010p rt2  rt  1010 00m1  vm
+p=1 means to arm register, p=0 means to fp register
+
+r1 rs3 vmov,		ee111a90
+rs3 r1 vmov,		ee011a90
+
+
+general layout of fp data manipulation instructions:
+	111t 1110 <opc1> <opc2> ???? 101s <opc3>?0 opc4
+opc1	opc2	opc3
+0x00	-		-		vmla, vmls		multuply accumulate or subtract
+0x01	-		-		vnmla, vnmls	negate multuply accumulate or subtract
+0x10	-		x0		vmul			multiply
+0x10	-		x1		vnmul			negate multiply
+0x11	-		x0		vadd
+0x11	-		x1		vsub
+1x00	-		x0		vdiv
+1x11	-		x0		vmov immediate
+1x11	0000	01		vmov register
+1x11	0000	11		vabs
+1x11	0001	01		vneg
+1x11	0001	11		vsqrt
+
 
 -----------------------
 Data operations can take 3 operands.

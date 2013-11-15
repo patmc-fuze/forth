@@ -5,6 +5,34 @@ Forth for Raspberry Pi
   -> this required removing InnerInterp.asm, but this includes the CallDLL routine
 ? get linux version working under cygwin
 =============================================================================
+FP instruction debug
+
++ vadd, vsub, vmul, vdiv
++ vneg, vabs, vsqrt
++ vldr, vstr
++ vmla, vmls, vnmla, vnmls, vnmul
++ vfma, vfms, vnfma, vnfms
++ vldm, vstm
++ vcmp, vcmpe
++ vmov register
+- vmov immediate
+- vcvt
+
+rs1 rs2 rs3 vadd,		0xee701a81		vadd.f32 s3, s1, s2
+rsp rs11 ] vldr,		0xed505600		ldcl 6, cr5, [r0, #-0] according to gdb
+next,
+
+rsp rs11 ] vldr,		0xed505600		ldcl 6, cr5, [r0, #-0] according to gdb
+vldr
+cond 1101 ud01  rn   vd  101s imm8
+1110 1101 1101 0110 0111 1010 0000 0000		edd67a00	vldr s15,[r6]
+1110 1101 0101 0000 0101 1010 0000 0000
+vstr
+cond 1101 ud00  rn   vd  101s imm8
+1110 1101 1100 0110 0111 1010 0000 0000		edc67a00	vstr s15,[r6]
+
+
+=============================================================================
 gdb
 
 b FUNC			set breakpoint
@@ -25,6 +53,7 @@ source PATH		load gdb script from PATH\
 b *ADDR			set breakpoint at address
 x /Nw ADDR		show N 32-bit words at ADDR
 x /Nwx ADDR		show N 32-bit words at ADDR in hex
+x /i ADDR		disassemble at ADDR
 =============================================================================
 make gcc create assembler files: (second mixes the C in with the asm)
 gcc -O2 -S -c foo.c

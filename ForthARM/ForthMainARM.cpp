@@ -11,20 +11,23 @@
 #include <sys/types.h>
 #include <sys/time.h>
  
-// from http://cboard.cprogramming.com/c-programming/63166-kbhit-linux.html
+static struct termios oldTermSettings;
+
+// kbhit from http://cboard.cprogramming.com/c-programming/63166-kbhit-linux.html
 static void changemode(int dir)
 {
   static struct termios oldt, newt;
  
   if ( dir == 1 )
   {
-    tcgetattr( STDIN_FILENO, &oldt);
-    newt = oldt;
+    newt = oldTermSettings;
     newt.c_lflag &= ~( ICANON | ECHO );
     tcsetattr( STDIN_FILENO, TCSANOW, &newt);
   }
   else
-    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
+  {
+    tcsetattr( STDIN_FILENO, TCSANOW, &oldTermSettings);
+  }
 }
  
 int kbhit (void)
@@ -40,10 +43,12 @@ int kbhit (void)
   FD_SET (STDIN_FILENO, &rdfs);
  
   select(STDIN_FILENO+1, &rdfs, NULL, NULL, &tv);
-  return FD_ISSET(STDIN_FILENO, &rdfs);
+  int result = FD_ISSET(STDIN_FILENO, &rdfs);
+  changemode( 0 ); 
+  return result;
 }
 
-// from http://stackoverflow.com/questions/7469139/what-is-equivalent-to-getch-getche-in-linux
+// getch from http://stackoverflow.com/questions/7469139/what-is-equivalent-to-getch-getche-in-linux
 int getch()
 {
     char buf = 0;
@@ -76,6 +81,7 @@ int getch()
 	{
         perror ("tcsetattr ~ICANON");
     }
+    changemode( 0 );
     return (int) buf;
 }
 
@@ -89,6 +95,8 @@ int main(int argc, char* argv[] )
     ForthShell *pShell = NULL;
     ForthInputStream *pInStream = NULL;
 
+    tcgetattr( STDIN_FILENO, &oldTermSettings);
+    
     pShell = new ForthShell;
     pShell->SetCommandLine( argc, (const char **) (argv));
     //pShell->SetEnvironmentVars( (const char **) envp );

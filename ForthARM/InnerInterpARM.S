@@ -3719,11 +3719,11 @@ maxBop:
 
 withinBop:
 	eor	r3,r3
-	ldmia	rsp!, {r0, r1, r2}		@ r0=test value, r1=lower bound, r2=upperBound
-	cmp	r0, r1
+	ldmia	rsp!, {r0, r1, r2}		@ r2=test value, r1=lower bound, r0=upperBound
+	cmp	r2, r1
 	blt	.within1
-	cmp	r0, r2
-	subge	r3, #1
+	cmp	r2, r0
+	sublt	r3, #1
 .within1:
 	stmdb	rsp!, {r3}
 	bx	lr
