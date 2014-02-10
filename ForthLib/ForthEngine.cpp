@@ -88,6 +88,8 @@ static const char *pErrorStrings[] =
     "Syntax error",
     "Bad Preprocessor Directive",
 	"Unimplemented Method",
+    "Shell Stack Underflow",
+    "Shell Stack Overflow",
 };
 
 void defaultTraceOutRoutine( void*, const char* pBuff )
@@ -688,8 +690,8 @@ long *
 ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt, forthOpType opType )
 {
     mpLocalVocab->Empty();
-    mLocalFrameSize = 0;
-    mpLocalAllocOp = NULL;
+    //mLocalFrameSize = 0;
+    //mpLocalAllocOp = NULL;
     mpLastCompiledOpcode = NULL;
     mpLastIntoOpcode = NULL;
     AlignDP();
@@ -710,12 +712,12 @@ ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt, forthOpType op
 void
 ForthEngine::EndOpDefinition( bool unsmudgeIt )
 {
-    int nLongs = mLocalFrameSize;
-    if ( mpLocalAllocOp != NULL )
+	long* pLocalAllocOp = mpLocalVocab->GetFrameAllocOpPointer();
+    if ( pLocalAllocOp != NULL )
     {
-        *mpLocalAllocOp = COMPILED_OP( kOpAllocLocals, nLongs );
-        mpLocalAllocOp = NULL;
-        mLocalFrameSize = 0;
+        int nLongs = mpLocalVocab->GetFrameLongs();
+        *pLocalAllocOp = COMPILED_OP( kOpAllocLocals, nLongs );
+		mpLocalVocab->ClearFrame();
     }
     mpLastCompiledOpcode = NULL;
     mpLastIntoOpcode = NULL;
@@ -856,15 +858,8 @@ ForthEngine::AddLocalVar( const char        *pVarName,
                           long              varSize )
 {
     long *pEntry;
-    if ( mpLocalAllocOp == NULL )
-    {
-        // this is first local var definition, leave space for local alloc op
-        mCompileFlags |= kEngineFlagHasLocalVars;
-        mpLocalAllocOp = mDictionary.pCurrent;
-        CompileLong( 0 );
-    }
+	int frameLongs = mpLocalVocab->GetFrameLongs();
     varSize = ((varSize + 3) & ~3) >> 2;
-    mLocalFrameSize += varSize;
     long baseType = CODE_TO_BASE_TYPE( typeCode );
     long fieldType = kOpLocalInt;
     if ( !CODE_IS_PTR( typeCode ) )
@@ -878,10 +873,15 @@ ForthEngine::AddLocalVar( const char        *pVarName,
             fieldType = kOpLocalRef;
         }
     }
-    pEntry = mpLocalVocab->AddSymbol( pVarName, fieldType, mLocalFrameSize, false );
+    pEntry = mpLocalVocab->AddVariable( pVarName, fieldType, frameLongs + varSize, varSize );
     pEntry[1] = typeCode;
+    if ( frameLongs == 0 )
+    {
+        // this is first local var definition, leave space for local alloc op
+        CompileLong( 0 );
+    }
 
-    return mLocalFrameSize;
+    return mpLocalVocab->GetFrameLongs();
 }
 
 long
@@ -890,37 +890,21 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
                             long                elementSize )
 {
     long *pEntry;
-    if ( mpLocalAllocOp == NULL )
+	int frameLongs = mpLocalVocab->GetFrameLongs();
+    if ( frameLongs == 0 )
     {
         // this is first local var definition, leave space for local alloc op
-        mCompileFlags |= kEngineFlagHasLocalVars;
-        mpLocalAllocOp = mDictionary.pCurrent;
         CompileLong( 0 );
     }
 
-#if 0
-    long elementType = CODE_TO_BASE_TYPE( typeCode );
-    long fieldBytes, alignment, padding, alignMask;
-    ForthTypesManager* pManager = ForthTypesManager::GetInstance();
-    pManager->GetFieldInfo( typeCode, fieldBytes, alignment );
-    alignMask = alignment - 1;
-    padding = fieldBytes & alignMask;
-    elementSize = (padding) ? (fieldBytes + (alignment - padding)) : fieldBytes;
-    long arraySize = elementSize * mNumElements;
-    mLocalFrameSize += arraySize;
-
-    pEntry = mpLocalVocab->AddSymbol( pArrayName, kOpLocalStructArray,
-                                        (mLocalFrameSize << 12) + elementSize, false );
-#else
     long elementType = CODE_TO_BASE_TYPE( typeCode );
     if ( elementType != kBaseTypeStruct )
     {
         // array of non-struct
         long arraySize = elementSize * mNumElements;
         arraySize = ((arraySize + 3) & ~3) >> 2;
-        mLocalFrameSize += arraySize;
         long opcode = CODE_IS_PTR(typeCode) ? kOpLocalIntArray : (kOpLocalByteArray + CODE_TO_BASE_TYPE(typeCode));
-        pEntry = mpLocalVocab->AddSymbol( pArrayName, opcode, mLocalFrameSize, false );
+        pEntry = mpLocalVocab->AddVariable( pArrayName, opcode, frameLongs, arraySize );
     }
     else
     {
@@ -932,23 +916,27 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
         padding = fieldBytes & alignMask;
         long paddedSize = (padding) ? (fieldBytes + (alignment - padding)) : fieldBytes;
         long arraySize = paddedSize * mNumElements;
-        mLocalFrameSize += arraySize;
         if ( CODE_IS_PTR(typeCode) )
         {
-            pEntry = mpLocalVocab->AddSymbol( pArrayName, kOpLocalIntArray, mLocalFrameSize, false );
+	        pEntry = mpLocalVocab->AddVariable( pArrayName, kOpLocalIntArray, frameLongs, arraySize );
         }
         else
         {
-            pEntry = mpLocalVocab->AddSymbol( pArrayName, kOpLocalStructArray, (mLocalFrameSize << 12) + paddedSize, false );
+	        pEntry = mpLocalVocab->AddVariable( pArrayName, kOpLocalStructArray, (frameLongs << 12) + paddedSize, arraySize );
         }
     }
-#endif
-    pEntry[1] = typeCode;
+
+	pEntry[1] = typeCode;
 
     mNumElements = 0;
-    return mLocalFrameSize;
+    return mpLocalVocab->GetFrameLongs();
 }
 
+bool
+ForthEngine::HasLocalVariables()
+{
+	return mpLocalVocab->GetFrameLongs() != 0;
+}
 
 // TBD: tracing of built-in ops won't work for user-added builtins...
 const char *

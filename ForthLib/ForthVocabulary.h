@@ -188,6 +188,8 @@ protected:
 #endif
 };
 
+#define MAX_LOCAL_DEPTH 16
+#define LOCAL_STACK_STRIDE 3
 class ForthLocalVocabulary : public ForthVocabulary
 {
 public:
@@ -197,6 +199,20 @@ public:
 
     // return a string telling the type of library
     virtual const char* GetType( void );
+
+	void				Push();
+	void				Pop();
+
+	int					GetFrameLongs();
+	long*				GetFrameAllocOpPointer();
+	long*				AddVariable( const char* pVarName, long fieldType, long varValue, int nLongs );
+	void				ClearFrame();
+
+protected:
+	int					mDepth;
+	int					mStack[ MAX_LOCAL_DEPTH * LOCAL_STACK_STRIDE ];
+	long*				mpAllocOp;
+	int					mFrameLongs;
 };
 
 class ForthDLLVocabulary : public ForthVocabulary

@@ -34,6 +34,7 @@ typedef enum
     kOpBranchNZ,
     kOpBranchZ,
     kOpCaseBranch,
+	kOpPushBranch,
     // 14 - 19 are unused
 
     kOpConstant = 20,   // low 24 bits is signed symbol value
@@ -232,6 +233,8 @@ typedef enum {
     kForthErrorBadSyntax,
     kForthErrorBadPreprocessorDirective,
     kForthErrorUnimplementedMethod,
+    kForthErrorShellStackUnderflow,
+    kForthErrorShellStackOverflow,
     // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
 } eForthError;

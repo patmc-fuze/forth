@@ -127,6 +127,62 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 9 2014
+
+I took a long break from Forth while I played through Morrowind.  When I tried
+to use forth to decode some morrowind save files to locate a missing quest
+item, I found that a bunch of things were broken, just storing to a local
+string caused an abort.  The problem was that the opcode for allocating the
+local stack frame was stuffed into the wrong place.  After fixing that, there
+is still a problem with strings, the local string init optype is stomping
+other locations.  It almost looks like all local variable addresses are defined
+to be the memory location just above their actual storage, but if that were
+true nothing would have worked, right?  The local stack frame layout is:
+
+RP -> last longword of last defined variable
+...
+FP-4 -> highest longword 
+FP -> oldFP
+FP+4 -> oldIP
+
+I guess it could have gotten broken when I added the anonymous functions, since
+those did change how the local frame got defined.  Changing the local var
+addresses to be correct still didn't fix the test, but the test was crashing
+because I had turned on full tracing and the test redirects output to a 512
+byte buffer, way more than 512 bytes was generated including trace output,
+trashing code just after the buffer.  Turning off tracing made the tests
+run successfully.
+Moral of the story: always run the tests before a checkin!
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 19 2013
+
+Over the last month I converted the SoftSyn2 music project to use QtCreator.
+As one attempt to get this to work, I tried to get Microsoft's console
+debugger to work, I never did get it to work, but installing it overwrote
+parts of the Windows SDK configuration so that MSDEV was using the version
+6.0 includes and library directories, which were not actually installed, instead
+of the 6.0A version it was previously using.  This caused all MSDEV builds
+to break since it couldn't find the include files it needed in the 6.0
+directories.  I tried fixing the registry entries to point back to 6.0A, but
+MSDEV kept using the 6.0 versions.  To get things to build I added explicit
+6.0A paths to the MSDEV Tools/Options/Projects and Solutions/VC++ Directories
+settings above the ones which use the WindowsSdkDir variable.
+
+I added an extension of ForthForgettable which is used to cleanup global
+object instances when forgetting.  I started thinking about a general way for
+ops to use ForthForgettable, that led me to try to define anonymous functions,
+which are sequence of ops which are represented by the address of the op
+sequence and have no associated opcode.  This is trivial to implement unless
+anonymous functions can have local variables, in which case there needs to
+be something like push/pop for local variables.
+---
+- engine kEngineFlagHasLocalVars flag
+- engine mpLocalAllocOp
++ local vocab symbol count (and unwind for pop)
+? maybe use shell stack to hold pushed info
+  -> func definition could occur inside a control struct, so top of stack
+     might not be colon/func tag when a nested func definition is started
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 14 2013
 
 Over the last few weeks I added floating point support to the ARM assembler.

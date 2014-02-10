@@ -5036,6 +5036,37 @@ namespace
 }
 
 
+//////////////////////////////////////////////////////////////////////
+////
+///     ForthForgettableGlobalObject - handles forgetting of global forth objects
+//
+// 
+ForthForgettableGlobalObject::ForthForgettableGlobalObject( void* pOpAddress, long op, int numElements )
+: ForthForgettable( pOpAddress, op )
+,	mNumElements( numElements )
+{
+}
+
+ForthForgettableGlobalObject::~ForthForgettableGlobalObject()
+{
+}
+
+void ForthForgettableGlobalObject::ForgetCleanup( void* pForgetLimit, long op )
+{
+	// first longword is OP_DO_OBJECT or OP_DO_OBJECT_ARRAY, after that are object elements
+	ForthObject* pObject = (ForthObject *) ((long *)mpOpAddress + 1);
+	for ( int i = 0; i < mNumElements; i++ )
+	{
+		// TODO: release each 
+		SAFE_RELEASE( *pObject );
+		pObject->pData = NULL;
+		pObject->pMethodOps = NULL;
+		pObject++;
+	}
+
+	ForthForgettable::ForgetPropagate( pForgetLimit, op );
+}
+
 void
 ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
 {

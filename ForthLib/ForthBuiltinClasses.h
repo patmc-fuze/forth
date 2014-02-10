@@ -5,6 +5,8 @@
 //
 //////////////////////////////////////////////////////////////////////
 
+#include "ForthForgettable.h"
+
 // structtype indices for builtin classes
 typedef enum {
     kBCIObject,
@@ -124,3 +126,14 @@ enum
 };
 
 
+class ForthForgettableGlobalObject : public ForthForgettable
+{
+public:
+    ForthForgettableGlobalObject( void *pOpAddress, long op, int numElements = 1 );
+    virtual ~ForthForgettableGlobalObject();
+
+protected:
+    virtual void    ForgetCleanup( void *pForgetLimit, long op );
+
+	int		mNumElements;
+};

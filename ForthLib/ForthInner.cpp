@@ -1664,6 +1664,12 @@ OPTYPE_ACTION( CaseBranchAction )
     SET_SP( pSP );
 }
 
+OPTYPE_ACTION( PushBranchAction )
+{
+	SPUSH( (long)(GET_IP) );
+    SET_IP( GET_IP + opVal );
+}
+
 OPTYPE_ACTION( ConstantAction )
 {
     // push constant in opVal
@@ -1996,7 +2002,7 @@ optypeActionRoutine builtinOptypeAction[] =
     BranchNZAction,
     BranchZAction,
     CaseBranchAction,
-    ReservedOptypeAction,
+    PushBranchAction,
     ReservedOptypeAction,
     ReservedOptypeAction,		// 0x10
     ReservedOptypeAction,

@@ -806,9 +806,12 @@ ForthVocabulary::IsClass()
 //
 
 ForthLocalVocabulary::ForthLocalVocabulary( const char    *pName,
-                                                      int           valueLongs,
-                                                      int           storageBytes )
-: ForthVocabulary( pName, valueLongs, storageBytes )
+                                            int           valueLongs,
+                                            int           storageBytes )
+: ForthVocabulary( pName, valueLongs, storageBytes )\
+, mDepth( 0 )
+, mFrameLongs( 0 )
+, mpAllocOp( NULL )
 {
 }
 
@@ -820,6 +823,74 @@ const char*
 ForthLocalVocabulary::GetType( void )
 {
     return "local";
+}
+
+int
+ForthLocalVocabulary::GetFrameLongs()
+{
+	return mFrameLongs;
+}
+
+long*
+ForthLocalVocabulary::GetFrameAllocOpPointer()
+{
+	return mpAllocOp;
+}
+
+long*
+ForthLocalVocabulary::AddVariable( const char* pVarName, long fieldType, long varValue, int nLongs )
+{
+    long* pEntry = AddSymbol( pVarName, fieldType, varValue, false );
+	if ( mFrameLongs == 0 )
+	{
+		mpAllocOp = mpEngine->GetDP();
+	}
+	mFrameLongs += nLongs;
+	return pEntry;
+}
+
+void
+ForthLocalVocabulary::ClearFrame()
+{
+	mFrameLongs = 0;
+	mpAllocOp = NULL;
+}
+
+// 'hide' current local variables - used at start of anonymous function declaration
+void
+ForthLocalVocabulary::Push()
+{
+	if ( mDepth < MAX_LOCAL_DEPTH )
+	{
+		mStack[mDepth++] = mNumSymbols;
+		mStack[mDepth++] = mFrameLongs;
+		mStack[mDepth++] = (long) mpAllocOp;
+		mNumSymbols = 0;
+	}
+	else
+	{
+		// TBD: ERROR!
+	}
+}
+
+void
+ForthLocalVocabulary::Pop()
+{
+	if ( mDepth > 0 )
+	{
+		while ( mNumSymbols > 0 )
+		{
+			mpStorageBottom = NextEntry( mpStorageBottom );
+			mNumSymbols--;
+		}
+		mpAllocOp = (long *) (mStack[--mDepth]);
+		mFrameLongs = mStack[--mDepth];
+		mNumSymbols = mStack[--mDepth];
+	}
+	else
+	{
+		// TBD: ERROR!
+	}
 }
 
 //////////////////////////////////////////////////////////////////////

@@ -45,7 +45,8 @@ namespace
         "colon",
         "poundDirective",
 		"of",
-		"ofif"
+		"ofif",
+		"func"
     };
 
     const char * GetTagString( long tag )
@@ -1661,8 +1662,15 @@ ForthShellStack::~ForthShellStack()
 void
 ForthShellStack::Push( long tag )
 {
-    *--mSSP = tag;
-    SPEW_SHELL( "Pushed Tag %s\n", GetTagString( tag ) );
+	if ( mSSP > mSSB )
+	{
+		*--mSSP = tag;
+		SPEW_SHELL( "Pushed Tag %s\n", GetTagString( tag ) );
+	}
+	else
+	{
+		ForthEngine::GetInstance()->SetError( kForthErrorShellStackOverflow );
+	}
 }
 
 long
@@ -1670,6 +1678,7 @@ ForthShellStack::Pop( void )
 {
     if ( mSSP == mSST )
     {
+        ForthEngine::GetInstance()->SetError( kForthErrorShellStackUnderflow );
         return kShellTagNothing;
     }
     SPEW_SHELL( "Popped Tag %s\n", GetTagString( *mSSP ) );
@@ -1691,9 +1700,16 @@ ForthShellStack::PushString( const char *pString )
 {
     int len = strlen( pString );
     mSSP -= (len >> 2) + 1;
-    strcpy( (char *) mSSP, pString );
-    SPEW_SHELL( "Pushed String \"%s\"\n", pString );
-    Push( kShellTagString );
+	if ( mSSP > mSSB )
+	{
+		strcpy( (char *) mSSP, pString );
+		SPEW_SHELL( "Pushed String \"%s\"\n", pString );
+		Push( kShellTagString );
+	}
+	else
+	{
+        ForthEngine::GetInstance()->SetError( kForthErrorShellStackOverflow );
+	}
 }
 
 bool
@@ -1703,6 +1719,7 @@ ForthShellStack::PopString( char *pString )
     {
         *pString = '\0';
         SPEW_SHELL( "Failed to pop string\n" );
+        ForthEngine::GetInstance()->SetError( kForthErrorShellStackUnderflow );
         return false;
     }
     mSSP++;

@@ -776,25 +776,15 @@ FORTHOP( exitOp )
     // compile exitOp
     long flags = pEngine->GetFlags();
 
-    switch ( flags & (kEngineFlagHasLocalVars | kEngineFlagIsMethod) )
-    {
-    case 0:
-        // normal definition, no local vars, not a method
-        pEngine->CompileBuiltinOpcode( OP_DO_EXIT );
-        break;
-    case kEngineFlagHasLocalVars:
-        // normal definition with local vars
-        pEngine->CompileBuiltinOpcode( OP_DO_EXIT_L );
-        break;
-    case kEngineFlagIsMethod:
-        // method definition, no local vars
-        pEngine->CompileBuiltinOpcode( OP_DO_EXIT_M );
-        break;
-    case (kEngineFlagHasLocalVars | kEngineFlagIsMethod):
-        // method definition, with local vars
-        pEngine->CompileBuiltinOpcode( OP_DO_EXIT_ML );
-        break;
-    }
+	bool isMethodDef = ((flags & kEngineFlagIsMethod) != 0);
+	if ( pEngine->HasLocalVariables() )
+	{
+		pEngine->CompileBuiltinOpcode( isMethodDef ? OP_DO_EXIT_ML : OP_DO_EXIT_L );
+	}
+	else
+	{
+		pEngine->CompileBuiltinOpcode( isMethodDef ? OP_DO_EXIT_M : OP_DO_EXIT );
+	}
 }
 
 // semi has precedence
@@ -808,7 +798,7 @@ FORTHOP( semiOp )
     // finish current symbol definition
     // compile local vars allocation op (if needed)
 	pEngine->EndOpDefinition( !pEngine->CheckFlag( kEngineFlagNoNameDefinition ) );
-    pEngine->ClearFlag( kEngineFlagHasLocalVars | kEngineFlagNoNameDefinition );
+    pEngine->ClearFlag( kEngineFlagNoNameDefinition );
 }
 
 FORTHOP( colonOp )
@@ -819,8 +809,9 @@ FORTHOP( colonOp )
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     // switch to compile mode
     pEngine->SetCompileState( 1 );
-    pEngine->ClearFlag( kEngineFlagHasLocalVars | kEngineFlagNoNameDefinition);
+    pEngine->ClearFlag( kEngineFlagNoNameDefinition);
 }
+
 
 FORTHOP( colonNoNameOp )
 {
@@ -832,8 +823,37 @@ FORTHOP( colonNoNameOp )
     // switch to compile mode
     pEngine->SetCompileState( 1 );
 	
-    pEngine->ClearFlag( kEngineFlagHasLocalVars );
     pEngine->SetFlag( kEngineFlagNoNameDefinition );
+}
+
+// func: has precedence
+FORTHOP( funcOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+	// if compiling, push DP and compile kOpPushBranch
+	// if interpreting, push DP and enter compile mode
+
+	pEngine->GetLocalVocabulary()->Push();
+
+    // switch to compile mode
+    pEngine->SetCompileState( 1 );
+	// TBD: push hasLocalVars flag?
+    //pEngine->ClearFlag( kEngineFlagNoNameDefinition);
+}
+
+// ;func has precedence
+FORTHOP( endfuncOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+    exitOp( pCore );
+    // switch back from compile mode to execute mode
+    pEngine->SetCompileState( 0 );
+    // finish current symbol definition
+    // compile local vars allocation op (if needed)
+	pEngine->EndOpDefinition( !pEngine->CheckFlag( kEngineFlagNoNameDefinition ) );
+    pEngine->ClearFlag( kEngineFlagNoNameDefinition );
 }
 
 FORTHOP( codeOp )
@@ -1255,7 +1275,6 @@ FORTHOP( methodOp )
     pEngine->StartOpDefinition( pMethodName, true );
     // switch to compile mode
     pEngine->SetCompileState( 1 );
-    pEngine->ClearFlag( kEngineFlagHasLocalVars );
     pEngine->SetFlag( kEngineFlagIsMethod );
     if ( pVocab )
     {
@@ -1285,7 +1304,6 @@ FORTHOP( endmethodOp )
     exitOp( pCore );
     // switch back from compile mode to execute mode
     pEngine->SetCompileState( 0 );
-    pEngine->ClearFlag( kEngineFlagHasLocalVars );
     // finish current symbol definition
     // compile local vars allocation op (if needed)
     pEngine->EndOpDefinition( true );
@@ -6366,6 +6384,8 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(semiOp,                 ";" ),
     OP_DEF(    colonOp,                ":" ),
     OP_DEF(    colonNoNameOp,          ":noname" ),
+	PRECOP_DEF(funcOp,                 "func:" ),
+	PRECOP_DEF(endfuncOp,               ";func" ),
     OP_DEF(    codeOp,                 "code" ),
     OP_DEF(    createOp,               "create" ),
     OP_DEF(    variableOp,             "variable" ),

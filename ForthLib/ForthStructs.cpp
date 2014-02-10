@@ -952,7 +952,11 @@ ForthClassVocabulary::DefineInstance( void )
 		}
 
         // define global object(s)
-        mpEngine->AddUserOp( pToken );
+        long newGlobalOp = mpEngine->AddUserOp( pToken );
+
+		// create object which will release object referenced by this global when it is forgotten
+		new ForthForgettableGlobalObject( mpEngine->GetDP(), newGlobalOp, isArray ? numElements : 1 );
+
         pEntry = mpEngine->GetDefinitionVocabulary()->GetNewestEntry();
         if ( isArray )
         {
@@ -971,6 +975,7 @@ ForthClassVocabulary::DefineInstance( void )
         }
         else
         {
+
             mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_INT : OP_DO_OBJECT );
             pHere = mpEngine->GetDP();
             mpEngine->AllotLongs( nBytes >> 2 );

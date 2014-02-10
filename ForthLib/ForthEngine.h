@@ -32,7 +32,7 @@ class ForthExtension;
 #define TMP_STRING_BUFFER_LEN MAX_STRING_SIZE
 
 typedef enum {
-    kEngineFlagHasLocalVars              = 0x01,
+    //kEngineFlagHasLocalVars              = 0x01,
     kEngineFlagInStructDefinition        = 0x02,
     kEngineFlagIsPointer                 = 0x04,
     kEngineFlagInEnumDefinition          = 0x08,
@@ -139,6 +139,7 @@ public:
     // returns size of local stack frame in bytes after adding local var
     long            AddLocalVar( const char *pName, long typeCode, long varSize );
     long            AddLocalArray( const char *pName, long typeCode, long varSize );
+	bool			HasLocalVariables();
 
     eForthResult    ProcessToken( ForthParseInfo *pInfo );
     char *          GetLastInputToken( void );
@@ -164,7 +165,7 @@ public:
     inline void             SetSearchVocabulary( ForthVocabulary* pVocab )  { mpVocabStack->SetTop( pVocab ); };
     inline ForthVocabulary  *GetDefinitionVocabulary( void )   { return mpDefinitionVocab; };
     inline void             SetDefinitionVocabulary( ForthVocabulary* pVocab )  { mpDefinitionVocab = pVocab; };
-    inline ForthVocabulary  *GetLocalVocabulary( void )   { return mpLocalVocab; };
+    inline ForthLocalVocabulary  *GetLocalVocabulary( void )   { return mpLocalVocab; };
     inline ForthShell       *GetShell( void ) { return mpShell; };
 	inline void				SetShell( ForthShell *pShell ) { mpShell = pShell; };
     inline ForthVocabulary  *GetForthVocabulary( void )   { return mpForthVocab; };
@@ -174,7 +175,7 @@ public:
     inline void             SetCompileState( long v ) { mCompileState = v; };
     inline long             IsCompiling( void ) { return mCompileState; };
     inline bool             InStructDefinition( void ) { return ((mCompileFlags & kEngineFlagInStructDefinition) != 0); };
-    inline bool             HasLocalVars( void ) { return ((mCompileFlags & kEngineFlagHasLocalVars) != 0); };
+    inline bool             HasLocalVars( void ) { return (mpLocalAllocOp != NULL); };
     inline long             GetFlags( void ) { return mCompileFlags; };
     inline void             SetFlags( long flags ) { mCompileFlags = flags; };
     inline void             SetFlag( long flags ) { mCompileFlags |= flags; };
@@ -232,7 +233,7 @@ protected:
     ForthMemorySection mDictionary;
 
     ForthVocabulary * mpForthVocab;              // main forth vocabulary
-    ForthVocabulary * mpLocalVocab;             // local variable vocabulary
+    ForthLocalVocabulary * mpLocalVocab;         // local variable vocabulary
 
     ForthVocabulary * mpDefinitionVocab;    // vocabulary which new definitions are added to
     ForthVocabularyStack * mpVocabStack;

@@ -71,6 +71,7 @@ typedef enum
    kShellTagPoundIf  = 10,
    kShellTagOf       = 11,
    kShellTagOfIf     = 12,
+   kShellTagFunc     = 13,
    // if you add tags, remember to update TagStrings in ForthShell.cpp
    kNumShellTags
 } eShellTag;
@@ -103,6 +104,7 @@ protected:
    long                *mSSB;       // shell stack base
    long                *mSST;       // empty shell stack pointer
    ulong               mSSLen;      // size of shell stack in longwords
+   ForthEngine         *mpEngine;
 
 };
 

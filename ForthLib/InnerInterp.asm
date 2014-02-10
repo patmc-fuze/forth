@@ -461,6 +461,18 @@ caseMatched:
 
 ;-----------------------------------------------
 ;
+; branch around block ops
+;
+entry pushBranchType
+	sub	edx, 4			; push IP (pointer to block)
+	mov	[edx], ecx
+	and	ebx, 00FFFFFFh	; branch around block
+	sal	ebx, 2
+	add	ecx, ebx
+	jmp	edi
+
+;-----------------------------------------------
+;
 ; 24-bit constant ops
 ;
 entry constantType
@@ -5650,7 +5662,7 @@ entry opTypesTable
 	DD	FLAT:branchNZType			; kOpBranchNZ,
 	DD	FLAT:branchZType			; kOpBranchZ,
 	DD	FLAT:caseBranchType			; kOpCaseBranch,
-	DD	FLAT:extOpType	
+	DD	FLAT:pushBranchType			; kOpPushBranch,	
 	DD	FLAT:extOpType	
 	DD	FLAT:extOpType	
 	DD	FLAT:extOpType	
