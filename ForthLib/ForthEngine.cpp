@@ -90,6 +90,7 @@ static const char *pErrorStrings[] =
 	"Unimplemented Method",
     "Shell Stack Underflow",
     "Shell Stack Overflow",
+	"Bad Reference Count",
 };
 
 void defaultTraceOutRoutine( void*, const char* pBuff )
@@ -172,13 +173,14 @@ ForthEngine::~ForthEngine()
     }
     delete [] mpErrorString;
 
-    ForthVocabulary *pVocab = ForthVocabulary::GetVocabularyChainHead();
-    while ( pVocab != NULL )
+	ForthForgettable* pForgettable = ForthForgettable::GetForgettableChainHead();
+    while ( pForgettable != NULL )
     {
-        ForthVocabulary *pNextVocab = pVocab->GetNextChainVocabulary();
-        delete pVocab;
-        pVocab = pNextVocab;
+        ForthForgettable* pNextForgettable = pForgettable->GetNextForgettable();
+        delete pForgettable;
+        pForgettable = pNextForgettable;
     }
+
     if ( mpCore->optypeAction )
     {
         free( mpCore->optypeAction );
@@ -1078,11 +1080,31 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 if ( lookupUserDefs )
                 {
                     pEntry = GetVocabularyStack()->FindSymbolByValue( op, &pFoundVocab );
+					if ( pEntry == NULL )
+					{
+						ForthVocabulary* pVocab = ForthVocabulary::GetVocabularyChainHead();
+						while ( pVocab != NULL )
+						{
+							pEntry = pVocab->FindSymbolByValue( op );
+							if ( pEntry != NULL )
+							{
+								pFoundVocab = pVocab;
+								break;
+							}
+							pVocab = pVocab->GetNextChainVocabulary();
+						}
+					}
                 }
                 if ( pEntry )
                 {
                     // the symbol name in the vocabulary doesn't always have a terminating null
                     int len = pFoundVocab->GetEntryNameLength( pEntry );
+                    const char* pVocabName = pFoundVocab->GetName();
+                    while ( *pVocabName != '\0' )
+                    {
+                        *pBuffer++ = *pVocabName++;
+                    }
+					*pBuffer++ = ':';
                     const char* pName = pFoundVocab->GetEntryName( pEntry );
                     for ( int i = 0; i < len; i++ )
                     {
@@ -1886,11 +1908,25 @@ void ForthEngine::DisplayUserDefCrash( long *pRVal, char* buff )
 	if ( (pRVal >= mDictionary.pBase) && (pRVal < mDictionary.pCurrent) )
 	{
 		long* pDefBase;
-		long* pClosest = FindUserDefinition( pRVal, pDefBase );
-		if ( pClosest != NULL )
+		ForthVocabulary* pVocab = ForthVocabulary::GetVocabularyChainHead();
+		long* pClosestIP = NULL;
+		long* pFoundClosest = NULL;
+		ForthVocabulary* pFoundVocab = NULL;
+		while ( pVocab != NULL )
 		{
-			ForthVocabulary* pVocab = GetSearchVocabulary();
-			const char* pName = pVocab->GetEntryName( pClosest );
+			long* pClosest = FindUserDefinition( pVocab, pClosestIP, pRVal, pDefBase );
+			if ( pClosest != NULL )
+			{
+				pFoundClosest = pClosest;
+				pFoundVocab = pVocab;
+			}
+			pVocab = pVocab->GetNextChainVocabulary();
+		}
+		if ( pFoundClosest != NULL )
+		{
+			sprintf( buff, "%s:", pFoundVocab->GetName() );
+			ConsoleOut( buff );
+			const char* pName = pFoundVocab->GetEntryName( pFoundClosest );
 			int len = (int) pName[-1];
 			for ( int i = 0; i < len; i++ )
 			{
@@ -1912,15 +1948,15 @@ void ForthEngine::DisplayUserDefCrash( long *pRVal, char* buff )
 	ConsoleOut( buff );
 }
 
-long * ForthEngine::FindUserDefinition( long* pIP, long*& pBase )
+long * ForthEngine::FindUserDefinition( ForthVocabulary* pVocab, long*& pClosestIP, long* pIP, long*& pBase  )
 {
 	long* pClosest = NULL;
-	long* pClosestIP = NULL;
-	ForthVocabulary* pVocab = GetSearchVocabulary();
 	long* pEntry = pVocab->GetNewestEntry();
 
 	for ( int i = 0; i < pVocab->GetNumEntries(); i++ )
 	{
+		long typeCode = pEntry[1];
+		unsigned long opcode = 0;
 		if ( CODE_TO_BASE_TYPE(pEntry[1]) == kBaseTypeUserDefinition )
 		{
 			switch ( FORTH_OP_TYPE( *pEntry ) )
@@ -1928,21 +1964,30 @@ long * ForthEngine::FindUserDefinition( long* pIP, long*& pBase )
 				case kOpUserDef:
 				case kOpUserDefImmediate:
 					{
-						unsigned long opcode = ((unsigned long)FORTH_OP_VALUE( *pEntry ));
-						if ( opcode < mpCore->numOps )
-						{
-							long* pDef = mpCore->ops[opcode];
-							if ( (pDef > pClosestIP) && (pDef <= pIP) )
-							{
-								pClosestIP = pDef;
-								pClosest = pEntry;
-								pBase = pDef;
-							}
-						}
+						opcode = ((unsigned long)FORTH_OP_VALUE( *pEntry ));
 					}
 					break;
 				default:
 					break;
+			}
+		}
+		else if ( CODE_IS_METHOD( typeCode ) )
+		{
+			// get opcode from method
+			ForthClassVocabulary* pClassVocab = (ForthClassVocabulary*) pVocab;
+			ForthInterface* pInterface = pClassVocab->GetInterface(0);
+			// TBD: deal with secondary interfaces
+			opcode = pInterface->GetMethod( *pEntry );
+			opcode = ((unsigned long)FORTH_OP_VALUE( opcode ));
+		}
+		if ( (opcode > 0) && (opcode < mpCore->numOps) )
+		{
+			long* pDef = mpCore->ops[opcode];
+			if ( (pDef > pClosestIP) && (pDef <= pIP) )
+			{
+				pClosestIP = pDef;
+				pClosest = pEntry;
+				pBase = pDef;
 			}
 		}
 		pEntry = pVocab->NextEntry( pEntry );

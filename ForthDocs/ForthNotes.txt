@@ -8,6 +8,28 @@ TBDs:
 ! document existing native ops !
 ! create examples/tests for all native ops !
 
++ have verbose describe show names of user defined ops
+
+- optimize object field reference code, there is a lot of code like LocalObject,drop
+- also optimize stuff like offset,2@,drop
+
++ add unref op, same op as ->-, it makes object variable:
+  o leave object on TOS
+  o zeros object variable
+  o does nothing if object variable is already null (leaves dnull on TOS)
+  o decrements object refcount, but DOES NOT delete object if refcount is 0
+  ? what should happen if object already has refcount 0
+- add unref method to object containers to do unref for elements
+  - add unref methods to iterators
+- it looks like oListRemoveHead and oListRemoveTail didn't do a release
+
+- add 'generator' class, it has:
+  o lastIP member
+  o yield method (saves IP in lastIP and exits)
+  o resume method (branches to lastIP if not 0)
+  One problem this has is the method can't use local variables, unless I add
+  an op to manually dump the stack frame.
+  
 - redirect current thread console output back to screen before reporting errors
 - add native words like %u
 - have vlist display the code address of ops
@@ -126,6 +148,28 @@ Gotchas with structure and object support:
 2) varAction ops must be the symbol just before a field selector symbol, which
    means that index calculation ops must appear before the varAction op
 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 4 2014
+
+While trying to implement generators I realized that there was a critical
+flaw in how I handle object lifetimes.  There was no safe way for a method to
+create an object and return it without retaining a reference to it.
+The solution was to provide a way for a container to give up its reference to
+an object without deleting the object if the container was the last reference
+to the object.  Effectively, this allows an object reference to be left on the
+stack even though its reference count is 0, which is much like the state that
+an object is in when it is first created - the only reference to it is on the
+stack, not in any container.
+To do this, I added a prefix operator, unref, which is an alias of '->-', and
+the object varaction routines implement this by leaving the object on TOS and
+decrementing the refcount, but not deleting the object if refcount is 0.
+I also added unref methods to the containers and container iterators wherever
+it made sense to do so.  I also removed or modified methods which would leave
+a dangling object reference on the stack in the case where the container was
+the only reference to the object (replaced oArray.pop with oArray.popUnref and
+changed oList.removeHead and removeTail to not leave any object ref on stack).
+
+Generators are 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 February 9 2014
 

@@ -14,27 +14,44 @@ static char THIS_FILE[] = __FILE__;
 #endif
 #endif
 
+#ifdef WIN32
 /////////////////////////////////////////////////////////////////////////////
 // The one and only application object
 
 CWinApp theApp;
+#endif
 
 using namespace std;
 
+static boolean InitSystem()
+{
+#ifdef WIN32
 
+    // initialize MFC and print an error on failure
+    if ( !AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0) )
+    {
+        // TODO: change error code to suit your needs
+        cerr << _T("Fatal Error: MFC initialization failed") << endl;
+		return false;
+	}
+#endif
+	return true;
+}
+
+#ifdef WIN32
 int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
+#else
+int main(int argc, char* argv[] )
+#endif
 {
     int nRetCode = 0;
     ForthShell *pShell = NULL;
     ForthInputStream *pInStream = NULL;
 
-    // initialize MFC and print an error on failure
-    if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
-    {
-        // TODO: change error code to suit your needs
-        cerr << _T("Fatal Error: MFC initialization failed") << endl;
-        nRetCode = 1;
-    }
+	if ( ! InitSystem() )
+	{
+		nRetCode = 1;
+	}
     else
     {
         pShell = new ForthShell;

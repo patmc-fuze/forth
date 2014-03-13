@@ -404,7 +404,7 @@ ForthVocabulary::ForgetOp( long op )
             case kOpCCode:
             case kOpCCodeImmediate:
 				opIndex = FORTH_OP_VALUE( *pEntry );
-				if ( opIndex < mpEngine->GetCoreState()->numBuiltinOps )
+				if ( opIndex >= mpEngine->GetCoreState()->numBuiltinOps )
 				{
 					opVal = GetEntryValue( pEntry );
 					if ( opVal >= op )

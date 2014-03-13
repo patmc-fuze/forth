@@ -51,8 +51,10 @@ kForthErrorUserDefined				EQU		17t
 kForthErrorBadSyntax				EQU		18t
 kForthErrorBadPreprocessorDirective	EQU		19t
 kForthErrorUnimplementedMethod		EQU		20t
-kForthNumErrors						EQU		21t
-
+kForthErrorShellStackUnderflow		EQU		21t
+kForthErrorShellStackOverflow		EQU		22t
+kForthErrorBadReferenceCount		EQU		23t
+kForthNumErrors						EQU		24t
 
 kPrintSignedDecimal		EQU		0t
 kPrintAllSigned		EQU		1t

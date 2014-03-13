@@ -224,7 +224,7 @@ protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle );
 
-	long*					FindUserDefinition( long* pIP, long*& pBase );
+	long*					FindUserDefinition( ForthVocabulary* pVocab, long*& pClosestIP, long* pIP, long*& pBase );
 	void					DisplayUserDefCrash( long *pRVal, char* buff );
 
 protected:

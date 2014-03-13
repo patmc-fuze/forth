@@ -2282,7 +2282,6 @@ FORTHOP( format32Op )
 FORTHOP( format64Op )
 {
     NEEDS(2);
-    char buff[80];
 
     ForthEngine *pEngine = GET_ENGINE;
     char* pFmt = (char *) (SPOP);
@@ -5943,7 +5942,7 @@ extern GFORTHOP( stringVarActionBop ); extern GFORTHOP( opVarActionBop ); extern
 extern GFORTHOP( strcatBop ); extern GFORTHOP( strncatBop ); extern GFORTHOP( strchrBop ); extern GFORTHOP( strrchrBop ); extern GFORTHOP( strcmpBop ); extern GFORTHOP( stricmpBop );
 extern GFORTHOP( strstrBop ); extern GFORTHOP( strtokBop ); extern GFORTHOP( fopenBop ); extern GFORTHOP( fcloseBop ); extern GFORTHOP( fseekBop ); extern GFORTHOP( freadBop );
 extern GFORTHOP( fwriteBop ); extern GFORTHOP( fgetcBop ); extern GFORTHOP( fputcBop ); extern GFORTHOP( feofBop ); extern GFORTHOP( fexistsBop ); extern GFORTHOP( ftellBop );
-extern GFORTHOP( flenBop ); extern GFORTHOP( fgetsBop ); extern GFORTHOP( fputsBop ); extern GFORTHOP( archX86Bop ); extern GFORTHOP( archARMBop );
+extern GFORTHOP( flenBop ); extern GFORTHOP( fgetsBop ); extern GFORTHOP( fputsBop ); extern GFORTHOP( archX86Bop ); extern GFORTHOP( archARMBop ); extern GFORTHOP( oclearBop );
 
 #else
 
@@ -6050,6 +6049,8 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    removeEntryBop,          "removeEntry" ),
     NATIVE_DEF(    entryLengthBop,          "entryLength" ),
     NATIVE_DEF(    numEntriesBop,           "numEntries" ),
+	// object varActions
+    NATIVE_DEF(    subtractFromBop,         "unref" ),
     
     ///////////////////////////////////////////
     //  integer math
@@ -6184,7 +6185,8 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    greaterThanBop,          ">" ),
     NATIVE_DEF(    greaterEqualsBop,        ">=" ),
     NATIVE_DEF(    lessThanBop,             "<" ),
-    NATIVE_DEF(    lessEqualsBop,           "<=" ),
+
+	NATIVE_DEF(    lessEqualsBop,           "<=" ),
     NATIVE_DEF(    equalsZeroBop,           "0=" ),
     NATIVE_DEF(    notEqualsZeroBop,        "0<>" ),
     NATIVE_DEF(    greaterThanZeroBop,      "0>" ),
@@ -6274,6 +6276,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    stringVarActionBop,      "stringVarAction" ),
     NATIVE_DEF(    opVarActionBop,          "opVarAction" ),
     NATIVE_DEF(    objectVarActionBop,      "objectVarAction" ),
+    NATIVE_DEF(    oclearBop,               "oclear" ),
 
     ///////////////////////////////////////////
     //  string manipulation

@@ -236,6 +236,7 @@ namespace
         METHOD_RET( "prev",                 unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "current",				unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "remove",				unimplementedMethodOp ),
+        METHOD_RET( "unref",				unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         METHOD_RET( "findNext",				unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "clone",                unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIter) ),
         // following must be last in table
@@ -343,6 +344,54 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oArrayLoadMethod )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+		GET_THIS( oArrayStruct, pArray );
+        oArray& a = *(pArray->elements);
+        ulong newSize = SPOP;
+        if ( a.size() != newSize )
+        {
+            if ( a.size() > newSize )
+            {
+                // shrinking - release elements which are beyond new end of array
+                for ( ulong i = newSize; i < a.size(); i++ )
+                {
+                    SAFE_RELEASE( a[i] );
+                }
+                a.resize( newSize );
+            }
+            else
+            {
+                // growing - add null objects to end of array
+                a.resize( newSize );
+                ForthObject o;
+                o.pMethodOps = NULL;
+                o.pData = NULL;
+                for ( ulong i = a.size(); i < newSize; i++ )
+                {
+                    a[i] = o;
+                }
+            }
+        }
+		if ( newSize > 0 )
+		{
+			for ( int i = newSize - 1; i >= 0; i-- )
+			{
+				ForthObject& oldObj = a[i];
+				ForthObject newObj;
+				POP_OBJECT( newObj );
+				if ( OBJECTS_DIFFERENT( oldObj, newObj ) )
+				{
+					SAFE_KEEP( newObj );
+					SAFE_RELEASE( oldObj );
+				}
+				a[i] = newObj;
+			}
+		}
+        METHOD_RETURN;
+    }
+
     FORTHOP( oArrayClearMethod )
     {
         // go through all elements and release any which are not null
@@ -374,6 +423,44 @@ namespace
         if ( a.size() > ix )
         {
 	        SPUSH( (long) &(a[ix]) );
+        }
+        else
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError( kForthErrorBadParameter, " array index out of range" );
+        }
+        METHOD_RETURN;
+    }
+
+	inline void unrefObject( ForthObject& fobj )
+	{
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+		if ( fobj.pData != NULL )
+		{
+			ulong refCount = *((ulong *) fobj.pData);
+			if ( refCount == 0 )
+			{
+				pEngine->SetError( kForthErrorBadReferenceCount, " unref with refcount already zero" );
+			}
+			else
+			{
+				*fobj.pData -= 1;
+			}
+		}
+	}
+
+    FORTHOP( oArrayUnrefMethod )
+    {
+		GET_THIS( oArrayStruct, pArray );
+        oArray& a = *(pArray->elements);
+        ulong ix = (ulong) SPOP;
+        if ( a.size() > ix )
+        {
+            ForthObject fobj = a[ix];
+			unrefObject( fobj );
+            PUSH_OBJECT( fobj );
+			a[ix].pData = NULL;
+			a[ix].pMethodOps = NULL;
         }
         else
         {
@@ -458,7 +545,7 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oArrayPopMethod )
+    FORTHOP( oArrayPopUnrefMethod )
     {
 		GET_THIS( oArrayStruct, pArray );
         oArray& a = *(pArray->elements);
@@ -466,8 +553,8 @@ namespace
         {
 			ForthObject fobj = a.back();
 			a.pop_back();
-			SAFE_RELEASE( fobj );
-			PUSH_OBJECT( fobj );
+			unrefObject( fobj );
+            PUSH_OBJECT( fobj );
         }
         else
         {
@@ -579,14 +666,15 @@ namespace
         METHOD_RET( "clone",                oArrayCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArray) ),
         METHOD_RET( "count",                oArrayCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "clear",                oArrayClearMethod ),
-
         METHOD(     "resize",               oArrayResizeMethod ),
+        METHOD(     "load",                 oArrayLoadMethod ),
         METHOD_RET( "ref",                  oArrayRefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject | kDTIsPtr) ),
+        METHOD_RET( "unref",                oArrayUnrefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         METHOD_RET( "get",                  oArrayGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         METHOD(     "set",                  oArraySetMethod ),
         METHOD_RET( "findIndex",            oArrayFindIndexMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "push",                 oArrayPushMethod ),
-        METHOD_RET( "pop",                  oArrayPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
+        METHOD_RET( "popUnref",             oArrayPopUnrefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -714,6 +802,25 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oArrayIterUnrefMethod )
+    {
+        GET_THIS( oArrayIterStruct, pIter );
+		oArrayStruct* pArray = reinterpret_cast<oArrayStruct *>( pIter->parent.pData );
+        oArray& a = *(pArray->elements);
+		ForthObject fobj;
+		fobj.pData = NULL;
+		fobj.pMethodOps = NULL;
+		if ( pIter->cursor < a.size() )
+		{
+            ForthObject fobj = a[ pIter->cursor ];
+			unrefObject( fobj );
+			a[ pIter->cursor ].pData = NULL;
+			a[ pIter->cursor ].pMethodOps = NULL;
+		}
+        PUSH_OBJECT( fobj );
+        METHOD_RETURN;
+    }
+
     FORTHOP( oArrayIterFindNextMethod )
     {
         GET_THIS( oArrayIterStruct, pIter );
@@ -765,6 +872,7 @@ namespace
         METHOD_RET( "prev",                 oArrayIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "current",				oArrayIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "remove",				oArrayIterRemoveMethod ),
+        METHOD_RET( "unref",				oArrayIterUnrefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         METHOD_RET( "findNext",				oArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "clone",                oArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArrayIter) ),
         // following must be last in table
@@ -930,7 +1038,7 @@ namespace
 				newHead->prev = NULL;
 				pList->head = newHead;
 			}
-			PUSH_OBJECT( obj );
+			SAFE_RELEASE( obj );
 			FREE_LINK( oldHead );
 		}
         METHOD_RETURN;
@@ -962,6 +1070,72 @@ namespace
 				newTail->next = NULL;
 				pList->tail = newTail;
 			}
+			SAFE_RELEASE( obj );
+			FREE_LINK( oldTail );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oListUnrefHeadMethod )
+    {
+        GET_THIS( oListStruct, pList );
+		oListElement* oldHead = pList->head;
+		if ( oldHead == NULL )
+		{
+			ASSERT( pList->tail == NULL );
+			PUSH_PAIR( NULL, NULL );
+		}
+		else
+		{
+			ForthObject& obj = oldHead->obj;
+			if ( oldHead == pList->tail )
+			{
+				// removed only element in list
+				pList->head = NULL;
+				pList->tail = NULL;
+			}
+			else
+			{
+				ASSERT( oldHead->prev == NULL );
+				oListElement* newHead = oldHead->next;
+				ASSERT( newHead != NULL );
+				newHead->prev = NULL;
+				pList->head = newHead;
+			}
+			unrefObject( obj );
+			PUSH_OBJECT( obj );
+			FREE_LINK( oldHead );
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oListUnrefTailMethod )
+    {
+        GET_THIS( oListStruct, pList );
+		oListElement* oldTail = pList->tail;
+		if ( oldTail == NULL )
+		{
+			ASSERT( pList->head == NULL );
+			PUSH_PAIR( NULL, NULL );
+		}
+		else
+		{
+			ForthObject& obj = oldTail->obj;
+			if ( pList->head == oldTail )
+			{
+				// removed only element in list
+				pList->head = NULL;
+				pList->tail = NULL;
+			}
+			else
+			{
+				ASSERT( oldTail->next == NULL );
+				oListElement* newTail = oldTail->prev;
+				ASSERT( newTail != NULL );
+				newTail->next = NULL;
+				pList->tail = newTail;
+			}
+			unrefObject( obj );
 			PUSH_OBJECT( obj );
 			FREE_LINK( oldTail );
 		}
@@ -1064,6 +1238,45 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oListLoadMethod )
+    {
+        // go through all elements and release any which are not null
+        GET_THIS( oListStruct, pList );
+        oListElement* pCur = pList->head;
+		while ( pCur != NULL )
+		{
+			oListElement* pNext = pCur->next;
+			SAFE_RELEASE( pCur->obj );
+			FREE_LINK( pCur );
+			pCur = pNext;
+		}
+		pList->head = NULL;
+		pList->tail = NULL;
+
+		int n = SPOP;
+		for ( int i = 0; i < n; i++ )
+		{
+			MALLOCATE_LINK( oListElement, newElem );
+			POP_OBJECT( newElem->obj );
+			SAFE_KEEP( newElem->obj );
+			newElem->next = NULL;
+			oListElement* oldTail = pList->tail;
+			if ( oldTail == NULL )
+			{
+				ASSERT( pList->head == NULL );
+				pList->head = newElem;
+			}
+			else
+			{
+				ASSERT( oldTail->next == NULL );
+				oldTail->next = newElem;
+			}
+			newElem->prev = oldTail;
+			pList->tail = newElem;
+		}
+        METHOD_RETURN;
+    }
+
 	/*
 
 
@@ -1127,13 +1340,16 @@ namespace
         METHOD_RET( "clone",                oListCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIList) ),
         METHOD_RET( "count",                oListCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "clear",                oListClearMethod ),
+        METHOD(     "load",                 oListLoadMethod ),
 
 		METHOD_RET( "head",                 oListHeadMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         METHOD_RET( "tail",                 oListTailMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         METHOD(     "addHead",              oListAddHeadMethod ),
         METHOD(     "addTail",              oListAddTailMethod ),
-        METHOD(     "removeHead",           oListRemoveHeadMethod ),	// TBD
-        METHOD(     "removeTail",           oListRemoveTailMethod ),	// TBD
+        METHOD(     "removeHead",           oListRemoveHeadMethod ),
+        METHOD(     "removeTail",           oListRemoveTailMethod ),
+        METHOD(     "unrefHead",            oListUnrefHeadMethod ),
+        METHOD(     "unrefTail",            oListUnrefTailMethod ),
         // following must be last in table
         END_MEMBERS
     };
@@ -1319,6 +1535,39 @@ namespace
         METHOD_RETURN;
 	}
 
+    FORTHOP( oListIterUnrefMethod )
+    {
+        GET_THIS( oListIterStruct, pIter );
+        oListElement* pCur = pIter->cursor;
+		if ( pCur != NULL )
+		{
+			oListStruct* pList = reinterpret_cast<oListStruct *>(pIter->parent.pData);
+			oListElement* pPrev = pCur->prev;
+			oListElement* pNext = pCur->next;
+			if ( pCur == pList->head )
+			{
+				pList->head = pNext;
+			}
+			if ( pCur == pList->tail )
+			{
+				pList->tail = pPrev;
+			}
+			if ( pNext != NULL )
+			{
+				pNext->prev = pPrev;
+			}
+			if ( pPrev != NULL )
+			{
+				pPrev->next = pNext;
+			}
+			pIter->cursor = pNext;
+			PUSH_OBJECT( pCur->obj );
+			unrefObject( pCur->obj );
+			FREE_LINK( pCur );
+		}
+        METHOD_RETURN;
+	}
+
     FORTHOP( oListIterFindNextMethod )
     {
         GET_THIS( oListIterStruct, pIter );
@@ -1405,6 +1654,7 @@ namespace
         METHOD_RET( "prev",                 oListIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "current",				oListIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "remove",				oListIterRemoveMethod ),
+        METHOD_RET( "unref",				oListIterUnrefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         METHOD_RET( "findNext",				oListIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         //METHOD_RET( "clone",                oListIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIListIter) ),
 
@@ -1478,6 +1728,34 @@ namespace
             SAFE_RELEASE( o );
         }
         a.clear();
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oMapLoadMethod )
+    {
+        // go through all elements and release any which are not null
+        GET_THIS( oMapStruct, pMap );
+        oMap::iterator iter;
+        oMap& a = *(pMap->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        for ( iter = a.begin(); iter != a.end(); ++iter )
+        {
+            ForthObject& o = iter->second;
+            SAFE_RELEASE( o );
+        }
+        a.clear();
+		int n = SPOP;
+		for ( int i = 0; i < n; i++ )
+		{
+			long key = SPOP;
+			ForthObject newObj;
+			POP_OBJECT( newObj );
+			if ( newObj.pMethodOps != NULL )
+			{
+				SAFE_KEEP( newObj );
+			}
+			a[key] = newObj;
+		}
         METHOD_RETURN;
     }
 
@@ -1583,6 +1861,23 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oMapUnrefMethod )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        GET_THIS( oMapStruct, pMap );
+        oMap& a = *(pMap->elements);
+        long key = SPOP;
+        oMap::iterator iter = a.find( key );
+		if ( iter != a.end() )
+		{
+			ForthObject& fobj = iter->second;
+			unrefObject( fobj );
+            PUSH_OBJECT( fobj );
+			a.erase( iter );
+		}
+        METHOD_RETURN;
+    }
+
     FORTHOP( oMapHeadIterMethod )
     {
         GET_THIS( oMapStruct, pMap );
@@ -1673,11 +1968,13 @@ namespace
         //METHOD_RET( "clone",                oMapCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMap) ),
         METHOD_RET( "count",                oMapCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "clear",                oMapClearMethod ),
+        METHOD(     "load",                 oMapLoadMethod ),
 
         METHOD_RET( "get",                  oMapGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         METHOD(     "set",                  oMapSetMethod ),
         METHOD_RET( "findKey",              oMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "remove",               oMapRemoveMethod ),
+        METHOD(     "unref",                oMapUnrefMethod ),
         // following must be last in table
         END_MEMBERS
     };
@@ -1927,12 +2224,20 @@ namespace
 
     FORTHOP( oStringShowMethod )
     {
-        char buff[512];
         ForthClassObject* pClassObject = (ForthClassObject *)(*((GET_TPM) - 1));
         GET_THIS( oStringStruct, pString );
-        ulong* pRefCount = (ulong*)(GET_TPD);      // member at offset 0 is refcount
-        sprintf( buff, "%s  [%s] refCount=%d  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), &(pString->str->data[0]), pString->refCount, GET_TPM, GET_TPD );
-        CONSOLE_STRING_OUT( buff );
+        CONSOLE_STRING_OUT( &(pString->str->data[0]) );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oStringCompareMethod )
+    {
+        GET_THIS( oStringStruct, pString );
+        ForthObject compObj;
+        POP_OBJECT( compObj );
+		oStringStruct* pComp = (oStringStruct *) compObj.pData;
+		int retVal = strcmp( &(pString->str->data[0]), &(pComp->str->data[0]) );
+		SPUSH( retVal );
         METHOD_RETURN;
     }
 
@@ -2124,6 +2429,7 @@ namespace
         METHOD(     "_%new%_",              oStringNew ),
         METHOD(     "delete",               oStringDeleteMethod ),
         METHOD(     "show",					oStringShowMethod ),
+        METHOD_RET( "compare",              oStringCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "size",                 oStringSizeMethod ),
         METHOD(     "length",               oStringLengthMethod ),
         METHOD(     "get",                  oStringGetMethod ),
@@ -2814,6 +3120,24 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oByteArrayLoadMethod )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+		GET_THIS( oByteArrayStruct, pArray );
+        oByteArray& a = *(pArray->elements);
+        ulong newSize = SPOP;
+        a.resize( newSize );
+		if ( newSize > 0 )
+		{
+			for ( int i = newSize - 1; i >= 0; i-- )
+			{
+				int c = SPOP;
+				a[i] = (char) c;
+			}
+		}
+        METHOD_RETURN;
+    }
+
     FORTHOP( oByteArrayCountMethod )
     {
 		GET_THIS( oByteArrayStruct, pArray );
@@ -3016,6 +3340,7 @@ namespace
         METHOD_RET( "clone",                oByteArrayCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIByteArray) ),
         METHOD_RET( "count",                oByteArrayCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
 		METHOD(     "clear",                oByteArrayClearMethod ),
+		METHOD(     "load",                 oByteArrayLoadMethod ),
 
         METHOD(     "resize",               oByteArrayResizeMethod ),
         METHOD_RET( "ref",                  oByteArrayRefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte|kDTIsPtr) ),
@@ -3278,6 +3603,24 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oShortArrayLoadMethod )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+		GET_THIS( oShortArrayStruct, pArray );
+        oShortArray& a = *(pArray->elements);
+        ulong newSize = SPOP;
+        a.resize( newSize );
+		if ( newSize > 0 )
+		{
+			for ( int i = newSize - 1; i >= 0; i-- )
+			{
+				int c = SPOP;
+				a[i] = (short) c;
+			}
+		}
+        METHOD_RETURN;
+    }
+
     FORTHOP( oShortArrayCountMethod )
     {
 		GET_THIS( oShortArrayStruct, pArray );
@@ -3482,6 +3825,7 @@ namespace
         METHOD_RET( "clone",                oShortArrayCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIShortArray) ),
         METHOD_RET( "count",                oShortArrayCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "clear",                oShortArrayClearMethod ),
+        METHOD(     "load",                 oShortArrayLoadMethod ),
 
         METHOD(     "resize",               oShortArrayResizeMethod ),
         METHOD_RET( "ref",                  oShortArrayRefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeShort|kDTIsPtr) ),
@@ -3741,6 +4085,24 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oIntArrayLoadMethod )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+		GET_THIS( oIntArrayStruct, pArray );
+        oIntArray& a = *(pArray->elements);
+        ulong newSize = SPOP;
+        a.resize( newSize );
+		if ( newSize > 0 )
+		{
+			for ( int i = newSize - 1; i >= 0; i-- )
+			{
+				int c = SPOP;
+				a[i] = c;
+			}
+		}
+        METHOD_RETURN;
+    }
+
     FORTHOP( oIntArrayCountMethod )
     {
 		GET_THIS( oIntArrayStruct, pArray );
@@ -3945,6 +4307,7 @@ namespace
         METHOD_RET( "clone",                oIntArrayCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIntArray) ),
         METHOD_RET( "count",                oIntArrayCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "clear",                oIntArrayClearMethod ),
+        METHOD(     "load",                 oIntArrayLoadMethod ),
 
         METHOD(     "resize",               oIntArrayResizeMethod ),
         METHOD_RET( "ref",                  oIntArrayRefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt|kDTIsPtr) ),
@@ -4202,6 +4565,23 @@ namespace
         METHOD_RETURN;
     }
 
+    FORTHOP( oLongArrayLoadMethod )
+    {
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+		GET_THIS( oLongArrayStruct, pArray );
+        oLongArray& a = *(pArray->elements);
+        ulong newSize = SPOP;
+        a.resize( newSize );
+		if ( newSize > 0 )
+		{
+			for ( int i = newSize - 1; i >= 0; i-- )
+			{
+				a[i] = LPOP;
+			}
+		}
+        METHOD_RETURN;
+    }
+
     FORTHOP( oLongArrayCountMethod )
     {
 		GET_THIS( oLongArrayStruct, pArray );
@@ -4406,6 +4786,7 @@ namespace
         METHOD_RET( "clone",                oLongArrayCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCILongArray) ),
         METHOD_RET( "count",                oLongArrayCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "clear",                oLongArrayClearMethod ),
+        METHOD(     "long",                 oLongArrayLoadMethod ),
 
         METHOD(     "resize",               oLongArrayResizeMethod ),
         METHOD_RET( "ref",                  oLongArrayRefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong|kDTIsPtr) ),
@@ -4647,11 +5028,13 @@ namespace
     FORTHOP( oIntCompareMethod )
     {
         GET_THIS( oIntStruct, pInt );
-		int comparisonVal = SPOP;
+        ForthObject compObj;
+        POP_OBJECT( compObj );
+		oIntStruct* pComp = (oIntStruct *) compObj.pData;
 		int retVal = 0;
-		if ( pInt->val != comparisonVal )
+		if ( pInt->val != pComp->val )
 		{
-			retVal = (pInt->val > comparisonVal) ? 1 : -1;
+			retVal = (pInt->val > pComp->val) ? 1 : -1;
 		}
 		SPUSH( retVal );
         METHOD_RETURN;
@@ -4718,11 +5101,13 @@ namespace
     FORTHOP( oLongCompareMethod )
     {
         GET_THIS( oLongStruct, pLong );
-		long long comparisonVal = LPOP;
+        ForthObject compObj;
+        POP_OBJECT( compObj );
+		oLongStruct* pComp = (oLongStruct *) compObj.pData;
 		int retVal = 0;
-		if ( pLong->val != comparisonVal )
+		if ( pLong->val != pComp->val )
 		{
-			retVal = (pLong->val > comparisonVal) ? 1 : -1;
+			retVal = (pLong->val > pComp->val) ? 1 : -1;
 		}
 		SPUSH( retVal );
         METHOD_RETURN;
@@ -4789,11 +5174,13 @@ namespace
     FORTHOP( oFloatCompareMethod )
     {
         GET_THIS( oFloatStruct, pFloat );
-		float comparisonVal = FPOP;
+        ForthObject compObj;
+        POP_OBJECT( compObj );
+		oFloatStruct* pComp = (oFloatStruct *) compObj.pData;
 		int retVal = 0;
-		if ( pFloat->val != comparisonVal )
+		if ( pFloat->val != pComp->val )
 		{
-			retVal = (pFloat->val > comparisonVal) ? 1 : -1;
+			retVal = (pFloat->val > pComp->val) ? 1 : -1;
 		}
 		SPUSH( retVal );
         METHOD_RETURN;
@@ -4860,11 +5247,13 @@ namespace
     FORTHOP( oDoubleCompareMethod )
     {
         GET_THIS( oDoubleStruct, pDouble );
-		double comparisonVal = DPOP;
 		int retVal = 0;
-		if ( pDouble->val != comparisonVal )
+        ForthObject compObj;
+        POP_OBJECT( compObj );
+		oDoubleStruct* pComp = (oDoubleStruct *) compObj.pData;
+		if ( pDouble->val != pComp->val )
 		{
-			retVal = (pDouble->val > comparisonVal) ? 1 : -1;
+			retVal = (pDouble->val > pComp->val) ? 1 : -1;
 		}
 		SPUSH( retVal );
         METHOD_RETURN;
@@ -5063,8 +5452,6 @@ void ForthForgettableGlobalObject::ForgetCleanup( void* pForgetLimit, long op )
 		pObject->pMethodOps = NULL;
 		pObject++;
 	}
-
-	ForthForgettable::ForgetPropagate( pForgetLimit, op );
 }
 
 void

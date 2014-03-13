@@ -235,6 +235,7 @@ typedef enum {
     kForthErrorUnimplementedMethod,
     kForthErrorShellStackUnderflow,
     kForthErrorShellStackOverflow,
+	kForthErrorBadReferenceCount,
     // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
 } eForthError;

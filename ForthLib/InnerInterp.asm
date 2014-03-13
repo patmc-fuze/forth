@@ -1952,15 +1952,50 @@ los3:
 
 	; execute the delete method opcode which is in ebx
 	jmp	interpLoopExecuteEntry
+
+; clear object reference, leave on TOS
+localObjectUnref:
+	; leave object on TOS
+	sub	edx, 8
+	mov	ebx, [eax]
+	mov	[edx], ebx
+	mov	ebx, [eax+4]	; ebx -> object refcount
+	mov	[edx+4], ebx
+	; if object var is already null, do nothing else
+	or	ebx, ebx
+	jz	lou2
+	; clear object var
+	mov	esi, eax		; esi -> object var
+	xor	eax, eax
+	mov	[esi], eax
+	mov	[esi+4], eax
+	; set var operation back to fetch
+	mov	[ebp].FCore.varMode, eax
+	; get object refcount, see if it is already 0
+	mov	eax, [ebx]
+	or	eax, eax
+	jnz	lou1
+	; report refcount negative error
+	mov	eax, kForthErrorBadReferenceCount
+	jmp	interpLoopErrorExit
+lou1:
+	; decrement object refcount
+	sub	eax, 1
+	mov	[ebx], eax
+lou2:
+	jmp	edi
+
 	
 localObjectActionTable:
 	DD	FLAT:localObjectFetch
 	DD	FLAT:localObjectFetch
 	DD	FLAT:localObjectRef
 	DD	FLAT:localObjectStore
+	DD	FLAT:badVarOperation		; '->+' not defined for object
+	DD	FLAT:localObjectUnref
 
 localObject1:
-	cmp	ebx, kVarStore
+	cmp	ebx, kVarMinusStore
 	jg	badVarOperation
 	; dispatch based on value in ebx
 	mov	ebx, DWORD PTR localObjectActionTable[ebx*4]
@@ -3782,6 +3817,11 @@ entry nullBop
 	
 ;========================================
 
+entry oclearBop
+	mov	eax, kVarStore
+	mov	[ebp].FCore.varMode, eax
+	; fall thru to dnull
+		
 entry dnullBop
 	xor	eax, eax
 	sub	edx, 8
