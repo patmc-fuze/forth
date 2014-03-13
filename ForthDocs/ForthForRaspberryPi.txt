@@ -1,6 +1,9 @@
 =============================================================================
 Forth for Raspberry Pi
 
+login pi, raspberry
+startx
+
 - get windows version working with _ASM_INNER_INTERPRETER undefined
   -> this required removing InnerInterp.asm, but this includes the CallDLL routine
 ? get linux version working under cygwin

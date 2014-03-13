@@ -66,7 +66,7 @@ $(DEPDIR)/%.d: %.cpp
 #%.o: ../%.cpp ../$(DEPDIR)/%.d
 #%.o: ../%.cpp
 #	$(CC) $(CFLAGS) -o $@ $<
-smb://demense/H%24/prj/Forth/Junk/Makefile
+#smb://demense/H%24/prj/Forth/Junk/Makefile
 	
 $(OBJDIR)/%.o: %.cpp
 	$(CC) $(CFLAGS) -o $(OBJDIR)/$*.o $<
@@ -77,9 +77,9 @@ $(OBJDIR)/%.o: %.S
 #$(OBJDIR)/%.o: %.s
 #	$(GAS) $(GASFLAGS) -o $(OBJDIR)/$*.o $<
     
-all:	forthlib.a forth
+all:	libforth.a forth
 
 clean:
 	-rm $(OBJDIR)/*.o
 	-rm $(DEPDIR)/*.d
-	-rm forthlib.a
+	-rm libforth.a
