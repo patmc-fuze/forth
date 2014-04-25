@@ -1,0 +1,95 @@
+#.PHONY:	all clean depends
+
+CC = g++
+GAS = as
+CDEBUG = -g
+# DEFINES = -DRASPI -DLINUX -DASM_INNER_INTERPRETER
+DEFINES = -DWIN32 -DASM_INNER_INTERPRETER -Wl,-subsystem,console
+#CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -save-temps=obj -fno-leading-underscore
+CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -save-temps=obj
+WARNING_FLAGS = -Wall -Wno-format -Wno-reorder -Wno-unused-variable -Wno-sign-compare -Wno-conversion-null -Wno-pointer-arith
+CPPFLAGS = $(CFLAGS)
+
+GASFLAGS = --defsym ASM_INNER_INTERPRETER=1
+#GASFLAGS =
+
+LDFLAGS = $(CDEBUG)
+
+SRCS = \
+	ForthShell.cpp \
+	ForthEngine.cpp \
+	ForthInner.cpp \
+	ForthInput.cpp \
+	ForthVocabulary.cpp \
+	ForthBuiltinClasses.cpp \
+	ForthExtension.cpp \
+	ForthStructs.cpp \
+	ForthStructCodeGenerator.cpp \
+	ForthOps.cpp \
+	ForthServer.cpp \
+	ForthClient.cpp \
+	ForthPipe.cpp \
+	ForthForgettable.cpp \
+	ForthThread.cpp
+	
+ASMSRCS = InnerInterp.S
+
+OBJDIR = obj
+#ASMOBJS := $(patsubst %.s,$(OBJDIR)/%.o,$(ASMSRCS))
+ASMOBJS := $(patsubst %.S,$(OBJDIR)/%.o,$(ASMSRCS))
+OBJS := $(patsubst %.cpp,$(OBJDIR)/%.o,$(SRCS)) $(ASMOBJS)
+DEPDIR = dep
+DEPS := $(patsubst %.cpp,$(DEPDIR)/%.d,$(SRCS))
+# XDEFS is used to pass in defines from the make command line
+#LIBS := -lm -lstdc++ -ldl -lpthread -lws2_32 -lcomdlg32 -lgdi32 -luser32 -lkernel32 -lcomctl32 -lmingw32
+LIBS := -lm -lstdc++ -ldl -lpthread -lws2_32
+
+forth.exe:	$(OBJS) ForthMain.o
+	gcc $(DEFINES) $(XDEFS) -o forth.exe $(OBJS) ForthMain.o $(LIBS)
+	
+#	gcc $(DEFINES) $(XDEFS) -o forth.exe $(OBJS) ForthMain.o -mconsole $(LIBS)
+
+libforth.a:	$(OBJS)
+	ar rcs libforth.a $(OBJS)
+	
+#forth:	ForthMain.cpp libforth.a
+#	gcc ForthMain.cpp $(DEFINES) $(XDEFS) -o forth $(OBJS) -lm -lstdc++ -ldl -lpthread
+	
+-include $(DEPS)
+
+stuff:
+	echo "DEPS=" $(DEPS)
+	echo "OBJS=" $(OBJS)
+	echo "SRCS=" $(SRCS)
+
+#spoo: ForthOps.cpp
+#	echo "at " $@ "   less" $< "   star" $* "   pat" $(patsubst %.cpp,%.d,$@)
+	
+$(DEPDIR)/%.d: %.cpp
+	gcc -M $(CPPFLAGS) -o $(DEPDIR)/$*.d $<
+	
+#%.d: ../%.cpp
+#	gcc -M $(CPPFLAGS) -o $*.d $<
+	
+#	echo "DEP at=" $@ "   less=" $< "   star=" $*
+
+#%.o: ../%.cpp ../$(DEPDIR)/%.d
+#%.o: ../%.cpp
+#	$(CC) $(CFLAGS) -o $@ $<
+#smb://demense/H%24/prj/Forth/Junk/Makefile
+	
+$(OBJDIR)/%.o: %.cpp
+	$(CC) $(CFLAGS) -o $(OBJDIR)/$*.o $<
+    
+#$(OBJDIR)/%.o: %.S
+#	$(CC) $(CFLAGS) -o $(OBJDIR)/$*.o -c $<
+    
+$(OBJDIR)/%.o: %.S
+	$(GAS) $(GASFLAGS) -o $(OBJDIR)/$*.o $<
+    
+all:	libforth.a forth
+
+clean:
+	-rm $(OBJDIR)/*.o
+	-rm $(DEPDIR)/*.d
+	-rm forth.exe

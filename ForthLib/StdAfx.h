@@ -46,6 +46,7 @@
 #include <conio.h>
 #include <direct.h>
 #include <io.h>
+#include <ctype.h>
 #elif defined(LINUX)
 #include <unistd.h>
 #endif

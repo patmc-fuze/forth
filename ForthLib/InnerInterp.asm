@@ -1,4 +1,4 @@
-	TITLE	M:\Prj\AsmScratch\AsmScratchSub.asm
+	TITLE	InnerInterp.asm
 	.486
 include listing.inc
 include core.inc
@@ -247,8 +247,8 @@ PUBLIC InterpretOneOpFast
 InterpretOneOpFast PROC near C public uses ebx ecx edx esi edi ebp,
 	core:PTR,
 	op:DWORD
-	mov	ebp, DWORD PTR core
 	mov	eax, op
+	mov	ebp, DWORD PTR core
 	mov	ecx, [ebp].FCore.IPtr
 	mov	edx, [ebp].FCore.SPtr
 	mov	edi, InterpretOneOpFastExit
