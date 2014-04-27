@@ -2,19 +2,20 @@
 //
 
 #include "StdAfx.h"
+
+#if defined(WIN32) && !defined(MINGW)
+#define AFX_BUILD 1
+#endif
+
+#if AFX_BUILD
 #include "ForthMain.h"
-#include "../ForthLib/ForthShell.h"
-#include "../ForthLib/ForthInput.h"
-
-#if 0
-#ifdef _DEBUG
-#define new DEBUG_NEW
-#undef THIS_FILE
-static char THIS_FILE[] = __FILE__;
 #endif
-#endif
+#include "ForthShell.h"
+#include "ForthInput.h"
 
-#ifdef WIN32
+
+#if AFX_BUILD
+
 /////////////////////////////////////////////////////////////////////////////
 // The one and only application object
 
@@ -25,7 +26,7 @@ using namespace std;
 
 static boolean InitSystem()
 {
-#ifdef WIN32
+#if AFX_BUILD
 
     // initialize MFC and print an error on failure
     if ( !AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0) )
@@ -38,17 +39,17 @@ static boolean InitSystem()
 	return true;
 }
 
-#ifdef WIN32
-int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
+#if AFX_BUILD
+int _tmain( int argc, TCHAR* argv[], TCHAR* envp[] )
 #else
-int main(int argc, char* argv[] )
+int main( int argc, char* argv[], char* envp[] )
 #endif
 {
     int nRetCode = 0;
     ForthShell *pShell = NULL;
     ForthInputStream *pInStream = NULL;
 
-	if ( ! InitSystem() )
+	if ( !InitSystem() )
 	{
 		nRetCode = 1;
 	}

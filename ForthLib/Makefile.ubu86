@@ -4,13 +4,13 @@ CC = g++
 GAS = as
 CDEBUG = -g
 # DEFINES = -DRASPI -DLINUX -DASM_INNER_INTERPRETER
-DEFINES = -DWIN32 -DASM_INNER_INTERPRETER -DMINGW -Wl,-subsystem,console
+DEFINES = -DLINUX -DASM_INNER_INTERPRETER
 #CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -save-temps=obj -fno-leading-underscore
 CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -save-temps=obj
 WARNING_FLAGS = -Wall -Wno-format -Wno-reorder -Wno-unused-variable -Wno-sign-compare -Wno-conversion-null -Wno-pointer-arith
 CPPFLAGS = $(CFLAGS)
 
-GASFLAGS = --defsym ASM_INNER_INTERPRETER=1
+GASFLAGS = --defsym ASM_INNER_INTERPRETER=1 --defsym LINUX=1
 #GASFLAGS =
 
 LDFLAGS = $(CDEBUG)
@@ -30,7 +30,8 @@ SRCS = \
 	ForthClient.cpp \
 	ForthPipe.cpp \
 	ForthForgettable.cpp \
-	ForthThread.cpp
+	ForthThread.cpp \
+	kbhit.cpp
 	
 ASMSRCS = InnerInterp.S
 
@@ -42,10 +43,10 @@ DEPDIR = dep
 DEPS := $(patsubst %.cpp,$(DEPDIR)/%.d,$(SRCS))
 # XDEFS is used to pass in defines from the make command line
 #LIBS := -lm -lstdc++ -ldl -lpthread -lws2_32 -lcomdlg32 -lgdi32 -luser32 -lkernel32 -lcomctl32 -lmingw32
-LIBS := -lm -lstdc++ -ldl -lpthread -lws2_32
+LIBS := -lm -lstdc++ -ldl -lpthread
 
-forth.exe:	$(OBJS) ForthMain.o
-	gcc $(DEFINES) $(XDEFS) -o forth.exe $(OBJS) ForthMain.o $(LIBS)
+forth:	$(OBJS) ForthMain.o
+	g++ $(DEFINES) $(XDEFS) -o forth $(OBJS) ForthMain.o $(LIBS)
 	
 #	gcc $(DEFINES) $(XDEFS) -o forth.exe $(OBJS) ForthMain.o -mconsole $(LIBS)
 
