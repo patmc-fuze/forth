@@ -49,16 +49,18 @@ ForthEngine* ForthEngine::mpInstance = NULL;
 static const char *opTypeNames[] =
 {
     "BuiltIn", "BuiltInImmediate", "UserDefined", "UserDefinedImmediate", "UserCode", "UserCodeImmediate", "DLLEntryPoint", 0, 0, 0,
-    "Branch", "BranchTrue", "BranchFalse", "CaseBranch", 0, 0, 0, 0, 0, 0,
-    "Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "LocalStringInit", "LocalStructArray", "OffsetFetch", 0,
-    "LocalByte", "LocalUByte", "LocalShort", "LocalUShort", "LocalInt", "LocalUInt", "LocalLong", "LocalULong", "LocalFloat", "LocalDouble", "LocalString", "LocalOp", "LocalObject",
-    "LocalByteArray", "LocalUByteArray", "LocalShortArray", "LocalUShortArray", "LocalIntArray", "LocalUIntArray", "LocalLongArray", "LocalULongArray", "LocalFloatArray", "LocalDoubleArray", "LocalStringArray", "LocalOpArray", "LocalObjectArray",
-    "FieldByte", "FieldUByte", "FieldShort", "FieldUShort", "FieldInt", "FieldUInt", "FieldLong", "FieldULong", "FieldFloat", "FieldDouble", "FieldString", "FieldOp", "FieldObject",
-	"FieldByteArray", "FieldUByteArray", "FieldShortArray", "FieldUShortArray", "FieldIntArray", "FieldUIntArray", "FieldLongArray", "FieldULongArray", "FieldFloatArray", "FieldDoubleArray", "FieldStringArray", "FieldOpArray", "FieldObjectArray",
-    "MemberByte", "MemberUByte", "MemberShort", "MemberUShort", "MemberInt", "MemberUInt", "MemberLong", "MemberULong", "MemberFloat", "MemberDouble", "MemberString", "MemberOp", "MemberObject",
-	"MemberByteArray", "MemberUByteArray", "MemberShortArray", "MemberUShortArray", "MemberIntArray", "MemberUIntArray", "MemberLongArray", "MemberULongArray", "MemberFloatArray", "MemberDoubleArray", "MemberStringArray", "MemberOpArray", "MemberObjectArray",
-	"MethodWithThis", "MethodWithTOS", "MemberStringInit", "NVOCombo", "NVCombo", "NOCombo", "VOCombo", 0,
-    "LocalUserDefined"
+    "Branch", "BranchTrue", "BranchFalse", "CaseBranch", "PushBranch", 0, 0, 0, 0, 0,
+	"Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "LocalStringInit", "LocalStructArray", "OffsetFetch", "MemberRef",
+    "LocalByte", "LocalUByte", "LocalShort", "LocalUShort", "LocalInt", "LocalUInt", "LocalLong", "LocalULong", "LocalFloat", "LocalDouble",
+	"LocalString", "LocalOp", "LocalObject", "LocalByteArray", "LocalUByteArray", "LocalShortArray", "LocalUShortArray", "LocalIntArray", "LocalUIntArray", "LocalLongArray",
+	"LocalULongArray", "LocalFloatArray", "LocalDoubleArray", "LocalStringArray", "LocalOpArray", "LocalObjectArray", "FieldByte", "FieldUByte", "FieldShort", "FieldUShort",
+	"FieldInt", "FieldUInt", "FieldLong", "FieldULong", "FieldFloat", "FieldDouble", "FieldString", "FieldOp", "FieldObject", "FieldByteArray",
+	"FieldUByteArray", "FieldShortArray", "FieldUShortArray", "FieldIntArray", "FieldUIntArray", "FieldLongArray", "FieldULongArray", "FieldFloatArray", "FieldDoubleArray", "FieldStringArray",
+	"FieldOpArray", "FieldObjectArray", "MemberByte", "MemberUByte", "MemberShort", "MemberUShort", "MemberInt", "MemberUInt", "MemberLong", "MemberULong",
+	"MemberFloat", "MemberDouble", "MemberString", "MemberOp", "MemberObject", "MemberByteArray", "MemberUByteArray", "MemberShortArray", "MemberUShortArray", "MemberIntArray",
+	"MemberUIntArray", "MemberLongArray", "MemberULongArray", "MemberFloatArray", "MemberDoubleArray", "MemberStringArray", "MemberOpArray", "MemberObjectArray", "MethodWithThis", "MethodWithTOS",
+	"MemberStringInit", "NumVaropOpCombo", "NumVaropCombo", "NumOpCombo", "VaropOpCombo", "OpBranchFalseCombo", "OpBranchCombo", "SquishedFloat", "SquishedDouble", "SquishedLong",
+	"LocalRefOpCombo", "MemberRefOpCombo", 0, "LocalUserDefined"
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -1198,6 +1200,18 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 sprintf( pBuffer, "%s    %d", opTypeNames[opType], opVal );
                 break;
 
+            case kOpSquishedFloat:
+				sprintf( pBuffer, "%s %f", opTypeNames[opType], UnsquishFloat( opVal ) );
+				break;
+
+            case kOpSquishedDouble:
+				sprintf( pBuffer, "%s %g", opTypeNames[opType], UnsquishDouble( opVal ) );
+				break;
+
+            case kOpSquishedLong:
+				sprintf( pBuffer, "%s %lld", opTypeNames[opType], UnsquishLong( opVal ) );
+				break;
+
             default:
                 if ( opType >= (unsigned int)(sizeof(opTypeNames) / sizeof(char *)) )
                 {
@@ -1394,11 +1408,19 @@ ForthEngine::ScanIntegerToken( char         *pToken,
 // return true IFF token is a real literal
 // sets isSingle to tell if result is a float or double
 // NOTE: temporarily modifies string @pToken
-bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle )
+bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle, bool& isApproximate )
 {
    bool retVal = false;
-   int len = strlen( pToken );
 
+   isApproximate = false;
+   // a leading tilde means that value may be approximated with lowest precision 
+   if ( *pToken == '~' )
+   {
+	   isApproximate = true;
+	   pToken++;
+   }
+
+   int len = strlen( pToken );
    if ( strchr( pToken, '.' ) == NULL )
    {
       return false;
@@ -1438,6 +1460,138 @@ bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, b
    return retVal;
 }
 
+
+// squish float down to 24-bits, returns true IFF number can be represented exactly
+//   OR approximateOkay==true and number is within range of squished float
+bool
+ForthEngine::SquishFloat( float fvalue, bool approximateOkay, ulong& squishedFloat )
+{
+	// single precision format is 1 sign, 8 exponent, 23 mantissa
+	ulong inVal = *(reinterpret_cast<ulong *>( &fvalue ));
+
+	// if bottom 5 bits of inVal aren't 0, number can't be exactly represented in squished format
+	if ( !approximateOkay && ((inVal & 0x1f) != 0) )
+	{
+		// number can't be represented exactly
+		return false;
+	}
+    ulong sign = (inVal & 0x80000000) >> 8;
+	long exponent = (((inVal >> 23) & 0xff) - (127 - 15));
+	// if exponent is less than 0 or greater than 31, number can't be represented in squished format at all
+	if ( (exponent < 0) || (exponent > 31) )
+	{
+		return false;
+	}
+	ulong mantissa = (inVal >> 5) & 0x3ffff;
+	squishedFloat = sign | (exponent << 18) | mantissa;
+
+	return true;
+}
+
+// squish double down to 24-bits, returns true IFF number can be represented exactly
+//   OR approximateOkay==true and number is within range of squished float
+bool
+ForthEngine::SquishDouble( double dvalue, bool approximateOkay, ulong& squishedDouble )
+{
+	// double precision format is 1 sign, 11 exponent, 52 mantissa
+	ulong* pInVal = reinterpret_cast<ulong *>( &dvalue );
+	ulong inVal = pInVal[1];
+
+	// if bottom 34 bits of inVal aren't 0, number can't be exactly represented in squished format
+	if ( !approximateOkay && ( (pInVal[0] != 0) || ((inVal & 0x3) != 0) ) )
+	{
+		// number can't be represented exactly
+		return false;
+	}
+    ulong sign = (inVal & 0x80000000) >> 8;
+	long exponent = (((inVal >> 20) & 0x7ff) - (1023 - 15));
+	// if exponent is less than 0 or greater than 31, number can't be represented in squished format at all
+	if ( (exponent < 0) || (exponent > 31) )
+	{
+		return false;
+	}
+	ulong mantissa = (inVal >> 2) & 0x3ffff;
+	squishedDouble = sign | (exponent << 18) | mantissa;
+
+	return true;
+}
+
+float
+ForthEngine::UnsquishFloat( ulong squishedFloat )
+{
+	ulong unsquishedFloat;
+
+	ulong sign = (squishedFloat & 0x800000) << 8;
+	ulong exponent = (((squishedFloat >> 18) & 0x1f) + (127 - 15)) << 23;
+	ulong mantissa = (squishedFloat & 0x3ffff) << 5;
+	unsquishedFloat = sign | exponent | mantissa;
+
+	return *(reinterpret_cast<float *>( &unsquishedFloat ));
+}
+
+double
+ForthEngine::UnsquishDouble( ulong squishedDouble )
+{
+	ulong unsquishedDouble[2];
+
+	unsquishedDouble[0] = 0;
+	ulong sign = (squishedDouble & 0x800000) << 8;
+	ulong exponent = (((squishedDouble >> 18) & 0x1f) + (1023 - 15)) << 20;
+	ulong mantissa = (squishedDouble & 0x3ffff) << 2;
+	unsquishedDouble[1] = sign | exponent | mantissa;
+
+	return *(reinterpret_cast<double *>( &unsquishedDouble[0] ));
+}
+
+bool
+ForthEngine::SquishLong( long long lvalue, ulong& squishedLong )
+{
+	bool isValid = false;
+	long* pLValue = reinterpret_cast<long*>( &lvalue );
+	long hiPart = pLValue[1];
+	ulong lowPart = static_cast<ulong>( pLValue[0] & 0x00FFFFFF );
+	ulong midPart = static_cast<ulong>( pLValue[0] & 0xFF000000 );
+
+	if ( (lowPart & 0x800000) != 0 )
+	{
+		// negative number
+		if ( (hiPart == -1) && (midPart == 0xFF000000) )
+		{
+			isValid = true;
+			squishedLong = lowPart;
+		}
+	}
+	else
+	{
+		// positive number
+		if ( (hiPart == 0) && (midPart == 0) )
+		{
+			isValid = true;
+			squishedLong = lowPart;
+		}
+	}
+
+	return isValid;
+}
+
+long long
+ForthEngine::UnsquishLong( ulong squishedLong )
+{
+	long unsquishedLong[2];
+
+	unsquishedLong[0] = 0;
+	if ( (squishedLong & 0x800000) != 0 )
+	{
+		unsquishedLong[0] = squishedLong | 0xFF000000;
+		unsquishedLong[1] = -1;
+	}
+	else
+	{
+		unsquishedLong[0] = squishedLong;
+		unsquishedLong[1] = 0;
+	}
+	return *(reinterpret_cast<long long *>( &unsquishedLong[0] ));
+}
 
 // compile an opcode
 // remember the last opcode compiled so someday we can do optimizations
@@ -1554,10 +1708,18 @@ ForthEngine::ProcessLongConstant( long long value )
     if ( mCompileState )
     {
         // compile the literal value
-        CompileBuiltinOpcode( OP_DOUBLE_VAL );
-        long long* pDP = (long long *) mDictionary.pCurrent;
-        *pDP++ = value;
-        mDictionary.pCurrent = (long *) pDP;
+		ulong squishedLong;
+		if ( SquishLong( value, squishedLong ) )
+		{
+            CompileOpcode( squishedLong | (kOpSquishedLong << 24) );
+		}
+		else
+		{
+			CompileBuiltinOpcode( OP_DOUBLE_VAL );
+			long long* pDP = (long long *) mDictionary.pCurrent;
+			*pDP++ = value;
+			mDictionary.pCurrent = (long *) pDP;
+		}
     }
     else
     {
@@ -2016,7 +2178,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     int len = pInfo->GetTokenLength();
     bool isAString = (pInfo->GetFlags() & PARSE_FLAG_QUOTED_STRING) != 0;
 	bool isAQuotedCharacter = (pInfo->GetFlags() & PARSE_FLAG_QUOTED_CHARACTER) != 0;
-    bool isSingle, isOffset;
+    bool isSingle, isOffset, isApproximate;
     double* pDPD;
     ForthVocabulary* pFoundVocab = NULL;
 
@@ -2243,7 +2405,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     // else
     //    try to convert to an integer
     if ( (pInfo->GetFlags() & PARSE_FLAG_HAS_PERIOD) 
-          && ScanFloatToken( pToken, fvalue, dvalue, isSingle ) )
+          && ScanFloatToken( pToken, fvalue, dvalue, isSingle, isApproximate ) )
     {
        if ( isSingle )
        {
@@ -2256,8 +2418,16 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
           if ( mCompileState )
           {
               // compile the literal value
-              CompileBuiltinOpcode( OP_FLOAT_VAL );
-              *(float *) mDictionary.pCurrent++ = fvalue;
+			  ulong squishedFloat;
+			  if ( SquishFloat( fvalue, isApproximate, squishedFloat ) )
+			  {
+				  CompileOpcode( squishedFloat | (kOpSquishedFloat << 24) );
+			  }
+			  else
+			  {
+				  CompileBuiltinOpcode( OP_FLOAT_VAL );
+				  *(float *) mDictionary.pCurrent++ = fvalue;
+			  }
           }
           else
           {
@@ -2276,10 +2446,18 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
           if ( mCompileState )
           {
               // compile the literal value
-              CompileBuiltinOpcode( OP_DOUBLE_VAL );
-              pDPD = (double *) mDictionary.pCurrent;
-              *pDPD++ = dvalue;
-              mDictionary.pCurrent = (long *) pDPD;
+			  ulong squishedDouble;
+			  if (  SquishDouble( dvalue, isApproximate, squishedDouble ) )
+			  {
+				  CompileOpcode( squishedDouble | (kOpSquishedDouble << 24) );
+			  }
+			  else
+			  {
+				  CompileBuiltinOpcode( OP_DOUBLE_VAL );
+				  pDPD = (double *) mDictionary.pCurrent;
+				  *pDPD++ = dvalue;
+				  mDictionary.pCurrent = (long *) pDPD;
+			  }
           }
           else
           {

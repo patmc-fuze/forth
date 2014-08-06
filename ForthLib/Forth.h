@@ -35,7 +35,7 @@ typedef enum
     kOpBranchZ,
     kOpCaseBranch,
 	kOpPushBranch,
-    // 14 - 19 are unused
+    // 145 - 19 are unused
 
     kOpConstant = 20,   // low 24 bits is signed symbol value
     kOpConstantString,  // low 24 bits is number of longwords to skip over
@@ -139,9 +139,18 @@ typedef enum
 	kOpNVCombo,								// NUM VAROP combo - bits 0:21 are signed integer, bits 22:23 are varop-2
 	kOpNOCombo,								// NUM OP combo - bits 0:12 are signed integer, bit 13 is builtin/userdef, bits 14:23 are opcode
 	kOpVOCombo,								// VAROP OP combo - bits 0:1 are varop-2, bit 2 is builtin/userdef, bits 3:23 are opcode
-	
-    // 115 is unused
-    kOpLocalUserDefined = 116,             // user can add more optypes starting with this one
+	kOpOZBCombo,							// OP ZBRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
+	kOpOBCombo,								// OP BRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
+
+	kOpSquishedFloat,						// low 24 bits is float as sign bit, 5 exponent bits, 18 mantissa bits
+	kOpSquishedDouble,						// low 24 bits is double as sign bit, 5 exponent bits, 18 mantissa bits
+	kOpSquishedLong,						// low 24 bits is value to be sign extended to 64-bits
+
+	kOpLocalRefOpCombo = 120,				// LOCAL_REF OP - bits 0:11 are local var offset in longs, bits 12:23 are opcode
+	kOpMemberRefOpCombo,					// MEMBER_REF OP - bits 0:11 are local var offset in longs, bits 12:23 are opcode
+
+    // 122 is unused
+    kOpLocalUserDefined = 123,             // user can add more optypes starting with this one
     kOpMaxLocalUserDefined = 127,    // maximum user defined optype
 
     kOpUserMethods  = 128

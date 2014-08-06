@@ -13,12 +13,11 @@ EXTRN	printf:NEAR
 EXTRN	_chkesp:NEAR
 EXTRN	fprintf:NEAR, sprintf:NEAR, fscanf:NEAR, sscanf:NEAR
 
-EXTRN	sin:NEAR, asin:NEAR, cos:NEAR, acos:NEAR, tan:NEAR, atan:NEAR, atan2:NEAR, exp:NEAR, log:NEAR, log10:NEAR
-EXTRN	pow:NEAR, sqrt:NEAR, ceil:NEAR, floor:NEAR, ldexp:NEAR, frexp:NEAR, modf:NEAR, fmod:NEAR, _ftol:NEAR
+EXTRN	atan2:NEAR, pow:NEAR, ldexp:NEAR, frexp:NEAR, modf:NEAR, fmod:NEAR, _ftol:NEAR
+EXTRN	atan2f:NEAR, powf:NEAR, ldexpf:NEAR, frexpf:NEAR, modff:NEAR, fmodf:NEAR
 EXTRN	strcpy:NEAR, strncpy:NEAR, strstr:NEAR, strcmp:NEAR, stricmp:NEAR, strchr:NEAR, strrchr:NEAR, strcat:NEAR, strncat:NEAR, strtok:NEAR
 EXTRN	memcpy:NEAR, memset:NEAR, strlen:NEAR
 EXTRN	fopen:NEAR, fclose:NEAR, fseek:NEAR, fread:NEAR, fwrite:NEAR, fgetc:NEAR, fputc:NEAR, ftell:NEAR, feof:NEAR
-
 
 FCore		TYPEDEF		ForthCoreState
 FileFunc	TYPEDEF		ForthFileInterface
@@ -60,9 +59,51 @@ _TEXT	SEGMENT
 ;
 ; the entry macro declares a label and makes it public
 ;
-entry	MACRO	func
-PUBLIC func;
-func:
+entry	MACRO	opLabel
+PUBLIC opLabel;
+opLabel:
+	ENDM
+	
+;-----------------------------------------------
+;
+; unaryDoubleFunc is used for dsin, dsqrt, dceil, ...
+;
+unaryDoubleFunc	MACRO	opLabel, func
+PUBLIC opLabel;
+EXTRN func:NEAR
+opLabel:
+	push	edx
+	push	ecx
+	mov	eax, [edx+4]
+	push	eax
+	mov	eax, [edx]
+	push	eax
+	call	func
+	add	esp, 8
+	pop	ecx
+	pop	edx
+	fstp	QWORD PTR [edx]
+	jmp	edi
+	ENDM
+	
+;-----------------------------------------------
+;
+; unaryFloatFunc is used for fsin, fsqrt, fceil, ...
+;
+unaryFloatFunc	MACRO	opLabel, func
+PUBLIC opLabel;
+EXTRN func:NEAR
+opLabel:
+	push	edx
+	push	ecx
+	mov	eax, [edx]
+	push	eax
+	call	func
+	add	esp, 4
+	pop	ecx
+	pop	edx
+	fstp	DWORD PTR [edx]
+	jmp	edi
 	ENDM
 	
 ;========================================
@@ -3108,100 +3149,34 @@ dMaxBop2:
 
 ;========================================
 	
-entry dsinBop
-	push	edx
-	push	ecx
-	mov	eax, [edx+4]
-	push	eax
-	mov	eax, [edx]
-	push	eax
-	call	sin
-	add	esp, 8
-	pop	ecx
-	pop	edx
-	fstp	QWORD PTR [edx]
-	jmp	edi
-	
-;========================================
-	
-entry dasinBop
-	push	edx
-	push	ecx
-	mov	eax, [edx+4]
-	push	eax
-	mov	eax, [edx]
-	push	eax
-	call	asin
-	add	esp, 8
-	pop	ecx
-	pop	edx
-	fstp	QWORD PTR [edx]
-	jmp	edi
-	
-;========================================
-	
-entry dcosBop
-	push	edx
-	push	ecx
-	mov	eax, [edx+4]
-	push	eax
-	mov	eax, [edx]
-	push	eax
-	call	cos
-	add	esp, 8
-	pop	ecx
-	pop	edx
-	fstp	QWORD PTR [edx]
-	jmp	edi
-	
+unaryDoubleFunc	dsinBop, sin
+unaryDoubleFunc	dasinBop, asin
+unaryDoubleFunc	dcosBop, cos
+unaryDoubleFunc	dacosBop, acos
+unaryDoubleFunc	dtanBop, tan
+unaryDoubleFunc	datanBop, atan
+unaryDoubleFunc	dsqrtBop, sqrt
+unaryDoubleFunc	dexpBop, exp
+unaryDoubleFunc	dlnBop, log
+unaryDoubleFunc	dlog10Bop, log10
+unaryDoubleFunc	dceilBop, ceil
+unaryDoubleFunc	dfloorBop, floor
+
 ;========================================
 
-entry dacosBop
-	push	edx
-	push	ecx
-	mov	eax, [edx+4]
-	push	eax
-	mov	eax, [edx]
-	push	eax
-	call	acos
-	add	esp, 8
-	pop	ecx
-	pop	edx
-	fstp	QWORD PTR [edx]
-	jmp	edi
-	
-;========================================
-	
-entry dtanBop
-	push	edx
-	push	ecx
-	mov	eax, [edx+4]
-	push	eax
-	mov	eax, [edx]
-	push	eax
-	call	tan
-	add	esp, 8
-	pop	ecx
-	pop	edx
-	fstp	QWORD PTR [edx]
-	jmp	edi
-	
-;========================================
-	
-entry datanBop
-	push	edx
-	push	ecx
-	mov	eax, [edx+4]
-	push	eax
-	mov	eax, [edx]
-	push	eax
-	call	atan
-	add	esp, 8
-	pop	ecx
-	pop	edx
-	fstp	QWORD PTR [edx]
-	jmp	edi
-	
+unaryFloatFunc	fsinBop, sinf
+unaryFloatFunc	fasinBop, asinf
+unaryFloatFunc	fcosBop, cosf
+unaryFloatFunc	facosBop, acosf
+unaryFloatFunc	ftanBop, tanf
+unaryFloatFunc	fatanBop, atanf
+unaryFloatFunc	fsqrtBop, sqrtf
+unaryFloatFunc	fexpBop, expf
+unaryFloatFunc	flnBop, logf
+unaryFloatFunc	flog10Bop, log10f
+unaryFloatFunc	fceilBop, ceilf
+unaryFloatFunc	ffloorBop, floorf
+
 ;========================================
 	
 entry datan2Bop
@@ -3225,50 +3200,19 @@ entry datan2Bop
 	
 ;========================================
 	
-entry dexpBop
+entry fatan2Bop
 	push	edx
 	push	ecx
-	mov	eax, [edx+4]
-	push	eax
 	mov	eax, [edx]
 	push	eax
-	call	exp
+	mov	eax, [edx+4]
+	push	eax
+	call	atan2f
 	add	esp, 8
 	pop	ecx
 	pop	edx
-	fstp	QWORD PTR [edx]
-	jmp	edi
-	
-;========================================
-	
-entry dlnBop
-	push	edx
-	push	ecx
-	mov	eax, [edx+4]
-	push	eax
-	mov	eax, [edx]
-	push	eax
-	call	log
-	add	esp, 8
-	pop	ecx
-	pop	edx
-	fstp	QWORD PTR [edx]
-	jmp	edi
-	
-;========================================
-	
-entry dlog10Bop
-	push	edx
-	push	ecx
-	mov	eax, [edx+4]
-	push	eax
-	mov	eax, [edx]
-	push	eax
-	call	log10
-	add	esp, 8
-	pop	ecx
-	pop	edx
-	fstp	QWORD PTR [edx]
+	add	edx, 4
+	fstp	DWORD PTR [edx]
 	jmp	edi
 	
 ;========================================
@@ -3291,58 +3235,30 @@ entry dpowBop
 	add	esp, 16
 	pop	ecx
 	pop	edx
-	add	edx,8
-	fstp	QWORD PTR [edx]
+	add	edx, 8
+	fstp	DWORD PTR [edx]
 	jmp	edi
 	
 ;========================================
-
-entry dsqrtBop
+	
+entry fpowBop
+	; a^x
 	push	edx
 	push	ecx
-	mov	eax, [edx+4]
-	push	eax
+	; push x
 	mov	eax, [edx]
 	push	eax
-	call	sqrt
+	; push a
+	mov	eax, [edx+4]
+	push	eax
+	call	powf
 	add	esp, 8
 	pop	ecx
 	pop	edx
+	add	edx, 4
 	fstp	QWORD PTR [edx]
 	jmp	edi
 	
-;========================================
-
-entry dceilBop
-	push	edx
-	push	ecx
-	mov	eax, [edx+4]
-	push	eax
-	mov	eax, [edx]
-	push	eax
-	call	ceil
-	add	esp, 8
-	pop	ecx
-	pop	edx
-	fstp	QWORD PTR [edx]
-	jmp	edi
-	
-;========================================
-
-entry dfloorBop
-	push	edx
-	push	ecx
-	mov	eax, [edx+4]
-	push	eax
-	mov	eax, [edx]
-	push	eax
-	call	floor
-	add	esp, 8
-	pop	ecx
-	pop	edx
-	fstp	QWORD PTR [edx]
-	jmp	edi
-
 ;========================================
 
 entry dabsBop
@@ -3353,11 +3269,19 @@ entry dabsBop
 	
 ;========================================
 
+entry fabsBop
+	fld	DWORD PTR [edx]
+	fabs
+	fstp	DWORD PTR [edx]
+	jmp	edi
+	
+;========================================
+
 entry dldexpBop
 	; ldexp( a, n )
 	push	edx
 	push	ecx
-	; TOS is n (long), a (double)
+	; TOS is n (int), a (double)
 	; get arg n
 	mov	eax, [edx]
 	push	eax
@@ -3376,14 +3300,35 @@ entry dldexpBop
 	
 ;========================================
 
+entry fldexpBop
+	; ldexpf( a, n )
+	push	edx
+	push	ecx
+	; TOS is n (int), a (float)
+	; get arg n
+	mov	eax, [edx]
+	push	eax
+	; get arg a
+	mov	eax, [edx+4]
+	push	eax
+	call	ldexpf
+	add	esp, 8
+	pop	ecx
+	pop	edx
+	add	edx, 4
+	fstp	DWORD PTR [edx]
+	jmp	edi
+	
+;========================================
+
 entry dfrexpBop
-	; frexp( a, ptrToLong )
+	; frexp( a, ptrToInt )
 	sub	edx, 4
 	push	edx
 	push	ecx
 	; TOS is a (double)
-	; we return TOS: nLong aFrac
-	; alloc nLong
+	; we return TOS: nInt aFrac
+	; alloc nInt
 	push	edx
 	; get arg a
 	mov	eax, [edx+8]
@@ -3395,6 +3340,27 @@ entry dfrexpBop
 	pop	ecx
 	pop	edx
 	fstp	QWORD PTR [edx+4]
+	jmp	edi
+	
+;========================================
+
+entry ffrexpBop
+	; frexpf( a, ptrToInt )
+	; get arg a
+	mov	eax, [edx]
+	sub	edx, 4
+	push	edx
+	push	ecx
+	; TOS is a (float)
+	; we return TOS: nLong aFrac
+	; alloc nLong
+	push	edx
+	push	eax
+	call	frexpf
+	add	esp, 8
+	pop	ecx
+	pop	edx
+	fstp	DWORD PTR [edx+4]
 	jmp	edi
 	
 ;========================================
@@ -3423,6 +3389,28 @@ entry dmodfBop
 	
 ;========================================
 
+entry fmodfBop
+	; modf( a, ptrToDouble )
+	mov	eax, edx
+	sub	edx, 4
+	push	edx
+	push	ecx
+	; TOS is a (float)
+	; we return TOS: bFrac aWhole
+	; alloc nLong
+	push	eax
+	; get arg a
+	mov	eax, [edx+4]
+	push	eax
+	call	modff
+	add	esp, 18
+	pop	ecx
+	pop	edx
+	fstp	DWORD PTR [edx]
+	jmp	edi
+	
+;========================================
+
 entry dfmodBop
 	push	edx
 	push	ecx
@@ -3438,8 +3426,25 @@ entry dfmodBop
 	add	esp, 16
 	pop	ecx
 	pop	edx
-	add	edx,8
+	add	edx, 8
 	fstp	QWORD PTR [edx]
+	jmp	edi
+	
+;========================================
+
+entry ffmodBop
+	push	edx
+	push	ecx
+	mov	eax, [edx]
+	push	eax
+	mov	eax, [edx+4]
+	push	eax
+	call	fmodf
+	add	esp, 8
+	pop	ecx
+	pop	edx
+	add	edx, 4
+	fstp	DWORD PTR [edx]
 	jmp	edi
 	
 ;========================================
@@ -5546,7 +5551,7 @@ entry dllEntryPointType
 ; NUM VAROP OP combo ops
 ;  
 entry nvoComboType
-	; ebx: bits 0..10 are signed integer, bits 11-12 are varop-2, bit 13-23 are opcode
+	; ebx: bits 0..10 are signed integer, bits 11..12 are varop-2, bit 13..23 are opcode
 	mov	eax, ebx
 	sub	edx, 4
 	and	eax,00000400h
@@ -5608,7 +5613,7 @@ nvCombo1:
 ; NUM OP combo ops
 ;  
 entry noComboType
-	; ebx: bits 0..12 are signed integer, bits 13-23 are opcode
+	; ebx: bits 0..12 are signed integer, bits 13..23 are opcode
 	mov	eax, ebx
 	sub	edx, 4
 	and	eax,000001000h
@@ -5655,28 +5660,198 @@ entry voComboType
 entry ozbComboType
 	; ebx: bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
 	mov	eax, ebx
-	shr	eax,10
-	and	eax, 00003FFCh
+	shr	eax, 12
+	and	eax, 0FFFh
 	push	eax
 	push	edi
 	mov	edi, ozbCombo1
-	and	ebx,00000FFFh
+	and	ebx, 0FFFh
 	; opcode is in ebx
 	jmp	interpLoopExecuteEntry
 	
 ozbCombo1:
 	pop	edi
 	pop	eax
+	mov	ebx, [edx]
+	add	edx, 4
+	or	ebx, ebx
+	jnz	ozbCombo2			; if TOS not 0, don't branch
 	mov	ebx, eax
-	and	eax,00002000h
+	and	eax, 0800h
 	jnz	ozbNegative
 	; positive branch
 	or	ebx,0FFFFC000h
 
 ozbNegative:
 	add	ecx, ebx
+ozbCombo2:
 	jmp	edi
 	
+;-----------------------------------------------
+;
+; OP BRANCH combo ops
+;  
+entry obComboType
+	; ebx: bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
+	mov	eax, ebx
+	shr	eax, 12
+	and	eax, 0FFFh
+	push	eax
+	push	edi
+	mov	edi, obCombo1
+	and	ebx, 0FFFh
+	; opcode is in ebx
+	jmp	interpLoopExecuteEntry
+	
+obCombo1:
+	pop	edi
+	pop	eax
+	mov	ebx, eax
+	and	eax, 0800h
+	jnz	obNegative
+	; positive branch
+	or	ebx,0FFFFC000h
+
+obNegative:
+	add	ecx, ebx
+	jmp	edi
+	
+
+;-----------------------------------------------
+;
+; squished float literal
+;  
+entry squishedFloatType
+	; ebx: bit 23 is sign, bits 22..18 are exponent, bits 17..0 are mantissa
+	; to unsquish a float:
+	;   sign = (inVal & 0x800000) << 8
+	;   exponent = (((inVal >> 18) & 0x1f) + (127 - 15)) << 23
+	;   mantissa = (inVal & 0x3ffff) << 5
+	;   outVal = sign | exponent | mantissa
+	push	ecx
+	mov	eax, ebx
+	and	eax, 00800000h
+	shl	eax, 8			; sign bit
+	
+	mov	ecx, ebx
+	shr	ebx, 18
+	and	ebx, 1Fh
+	add	ebx, 112
+	shl	ebx, 23			; ebx is exponent
+	or	eax, ebx
+	
+	and	ecx, 03FFFFh
+	shl	ecx, 5
+	or	eax, ecx
+	
+	sub	edx, 4
+	mov	[edx], eax
+	pop	ecx
+	jmp	edi
+	
+
+;-----------------------------------------------
+;
+; squished double literal
+;  
+entry squishedDoubleType
+	; ebx: bit 23 is sign, bits 22..18 are exponent, bits 17..0 are mantissa
+	; to unsquish a double:
+	;   sign = (inVal & 0x800000) << 8
+	;   exponent = (((inVal >> 18) & 0x1f) + (1023 - 15)) << 20
+	;   mantissa = (inVal & 0x3ffff) << 2
+	;   outVal = (sign | exponent | mantissa) << 32
+	push	ecx
+	mov	eax, ebx
+	and	eax, 00800000h
+	shl	eax, 8			; sign bit
+	
+	mov	ecx, ebx
+	shr	ebx, 18
+	and	ebx, 1Fh
+	add	ebx, 1008
+	shl	ebx, 20			; ebx is exponent
+	or	eax, ebx
+	
+	and	ecx, 03FFFFh
+	shl	ecx, 2
+	or	eax, ecx
+	
+	sub	edx, 4
+	mov	[edx], eax
+	sub	edx, 4
+	; loword of double is all zeros
+	xor	eax, eax
+	mov	[edx], eax
+	pop	ecx
+	jmp	edi
+	
+
+;-----------------------------------------------
+;
+; squished long literal
+;  
+entry squishedLongType
+	; get low-24 bits of opcode
+	mov	eax, ebx
+	sub	edx, 8
+	and	eax,00800000h
+	jnz	longConstantNegative
+	; positive constant
+	and	ebx,00FFFFFFh
+	mov	[edx], ebx
+	xor	ebx, ebx
+	mov	[edx+4], ebx
+	jmp	edi
+
+longConstantNegative:
+	or	ebx, 0FF000000h
+	mov	[edx], ebx
+	xor	ebx, ebx
+	sub	ebx, 1
+	mov	[edx+4], ebx
+	jmp	edi
+	
+
+;-----------------------------------------------
+;
+; LOCALREF OP combo ops
+;
+entry lroComboType
+	; ebx: bits 0..11 are frame offset in longs, bits 12-23 are op
+	push	ebx
+	and	ebx, 0FFFH
+	sal	ebx, 2
+	mov	eax, [ebp].FCore.FPtr
+	sub	eax, ebx
+	sub	edx, 4
+	mov	[edx], eax
+	
+	pop	ebx
+	shr	ebx, 12
+	and	ebx, 0FFFH			; ebx is 12 bit opcode
+	; opcode is in ebx
+	jmp	interpLoopExecuteEntry
+	
+;-----------------------------------------------
+;
+; MEMBERREF OP combo ops
+;
+entry mroComboType
+	; ebx: bits 0..11 are member offset in bytes, bits 12-23 are op
+	push	ebx
+	and	ebx, 0FFFH
+	mov	eax, [ebp].FCore.TDPtr
+	add	eax, ebx
+	sub	edx, 4
+	mov	[edx], eax
+
+	pop	ebx
+	shr	ebx, 12
+	and	ebx, 0FFFH			; ebx is 12 bit opcode
+	; opcode is in ebx
+	jmp	interpLoopExecuteEntry
+
 
 ;=================================================================================================
 ;
@@ -5816,16 +5991,25 @@ entry opTypesTable
 	DD	FLAT:methodWithThisType
 	DD	FLAT:methodWithTOSType
 	
-;	110 - 114
+;	110 - 119
 	DD	FLAT:memberStringInitType
 	DD	FLAT:nvoComboType
 	DD	FLAT:nvComboType
 	DD	FLAT:noComboType
 	DD	FLAT:voComboType
+	DD	FLAT:ozbComboType
+	DD	FLAT:obComboType
 	
-;	115 - 149
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
+	DD	FLAT:squishedFloatType
+	DD	FLAT:squishedDoubleType
+	DD	FLAT:squishedLongType
+	
+;	120 - 121
+	DD	FLAT:lroComboType
+	DD	FLAT:mroComboType
+	
+;	122 - 149
+	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
 	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
 	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
 ;	150 - 199

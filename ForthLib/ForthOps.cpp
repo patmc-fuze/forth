@@ -35,9 +35,23 @@ extern int getch(void);
 #endif
 
 long gCompiledOps[NUM_COMPILED_OPS];
-
 extern "C"
 {
+
+
+#include <math.h>
+extern float sinf(float a);
+extern float cosf(float a);
+extern float tanf(float a);
+extern float asinf(float a);
+extern float acosf(float a);
+extern float atanf(float a);
+extern float ceilf(float a);
+extern float floorf(float a);
+extern float sqrtf(float a);
+extern float expf(float a);
+extern float logf(float a);
+extern float log10f(float a);
 
 // compiled token is 32-bits,
 // top 8 bits are opcode type (opType)
@@ -4197,6 +4211,148 @@ FORTHOP( dfmodBop )
     DPUSH( fmod( a, b ) );
 }
 
+FORTHOP( fsinBop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( sinf(a) );
+}
+
+FORTHOP( fasinBop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( asinf(a) );
+}
+
+FORTHOP( fcosBop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( cosf(a) );
+}
+
+FORTHOP( facosBop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( acosf(a) );
+}
+
+FORTHOP( ftanBop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( tanf(a) );
+}
+
+FORTHOP( fatanBop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( atanf(a) );
+}
+
+FORTHOP( fatan2Bop )
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    FPUSH( atan2f(a, b) );
+}
+
+FORTHOP( fexpBop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( expf(a) );
+}
+
+FORTHOP( flnBop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( logf(a) );
+}
+
+FORTHOP( flog10Bop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( log10f(a) );
+}
+
+FORTHOP( fpowBop )
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    FPUSH( powf(a, b) );
+}
+
+FORTHOP( fsqrtBop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( sqrtf(a) );
+}
+
+FORTHOP( fceilBop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( ceilf(a) );
+}
+
+FORTHOP( ffloorBop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( floorf(a) );
+}
+
+FORTHOP( fabsBop )
+{
+    NEEDS(1);
+    float a = FPOP;
+    FPUSH( fabs(a) );
+}
+
+FORTHOP( fldexpBop )
+{
+    NEEDS(3);
+    int n = SPOP;
+    float a = FPOP;
+    FPUSH( ldexpf(a, n) );
+}
+
+FORTHOP( ffrexpBop )
+{
+    NEEDS(1);
+    int n;
+    float a = FPOP;
+    FPUSH( frexpf( a, &n ) );
+    SPUSH( n );
+}
+
+FORTHOP( fmodfBop )
+{
+    NEEDS(1);
+    float b;
+    float a = FPOP;
+    a = modff( a, &b );
+    FPUSH( b );
+    FPUSH( a );
+}
+
+FORTHOP( ffmodBop )
+{
+    NEEDS(2);
+    float b = FPOP;
+    float a = FPOP;
+    FPUSH( fmodf( a, b ) );
+}
+
 FORTHOP( i2fBop )
 {
     NEEDS(1);
@@ -5847,6 +6003,30 @@ FORTHOP( hereBop )
 	CLEAR_VAR_OPERATION;
 }
 
+FORTHOP( archARMBop )
+{
+#ifdef X86_ARCHITECTURE
+    SPUSH( 0 );
+#else
+    SPUSH( ~0 );
+#endif
+}
+
+FORTHOP( archX86Bop )
+{
+#ifdef X86_ARCHITECTURE
+    SPUSH( ~0 );
+#else
+    SPUSH( 0 );
+#endif
+}
+
+FORTHOP( oclearBop )
+{
+    SET_VAR_OPERATION( kVarStore );
+	DPUSH( 0L );
+}
+
 #endif
 
 
@@ -5897,7 +6077,7 @@ typedef struct {
 
 // helper macro for built-in op entries in baseDictionary
 #define NATIVE_DEF( func, funcName )  { funcName, kOpNative, (ulong) func }
-#define NATIVE_COMPILED_DEF( func, funcName, index )  { funcName, kOpNative, (ulong) func, index }
+#define NATIVE_COMPILED_DEF( func, funcName, index ) { funcName, kOpNative, (ulong) func, index }
 
 extern GFORTHOP( abortBop ); extern GFORTHOP( dropBop ); extern GFORTHOP( doDoesBop ); extern GFORTHOP( litBop ); extern GFORTHOP( dlitBop ); extern GFORTHOP( doVariableBop );
 extern GFORTHOP( doConstantBop ); extern GFORTHOP( doDConstantBop ); extern GFORTHOP( doneBop ); extern GFORTHOP( doByteBop ); extern GFORTHOP( doUByteBop ); extern GFORTHOP( doShortBop );
@@ -5907,10 +6087,11 @@ extern GFORTHOP( doExitMBop ); extern GFORTHOP( doExitMLBop ); extern GFORTHOP( 
 extern GFORTHOP( doIntArrayBop ); extern GFORTHOP( doIntArrayBop ); extern GFORTHOP( doLongArrayBop ); extern GFORTHOP( doLongArrayBop ); extern GFORTHOP( doFloatArrayBop ); extern GFORTHOP( doDoubleArrayBop );
 extern GFORTHOP( doStringArrayBop ); extern GFORTHOP( doOpArrayBop ); extern GFORTHOP( doObjectArrayBop ); extern GFORTHOP( initStringBop ); extern GFORTHOP( plusBop ); extern GFORTHOP( fetchBop );
 extern GFORTHOP( doStructBop ); extern GFORTHOP( doStructArrayBop ); extern GFORTHOP( doDoBop ); extern GFORTHOP( doLoopBop ); extern GFORTHOP( doLoopNBop ); extern GFORTHOP( dfetchBop );
-extern GFORTHOP( vocabToClassBop ); extern GFORTHOP( addressOfBop ); extern GFORTHOP( intoBop ); extern GFORTHOP( addToBop ); extern GFORTHOP( subtractFromBop ); extern GFORTHOP( doCheckDoBop );
+extern GFORTHOP( vocabToClassBop ); extern GFORTHOP( doCheckDoBop );
 extern GFORTHOP( thisBop ); extern GFORTHOP( thisDataBop ); extern GFORTHOP( thisMethodsBop ); extern GFORTHOP( executeBop ); extern GFORTHOP( callBop ); extern GFORTHOP( gotoBop );
-extern GFORTHOP( iBop ); extern GFORTHOP( jBop ); extern GFORTHOP( unloopBop ); extern GFORTHOP( leaveBop ); extern GFORTHOP( hereBop ); extern GFORTHOP( addressOfBop );
-extern GFORTHOP( intoBop ); extern GFORTHOP( addToBop ); extern GFORTHOP( subtractFromBop ); extern GFORTHOP( removeEntryBop ); extern GFORTHOP( entryLengthBop ); extern GFORTHOP( numEntriesBop );
+extern GFORTHOP( iBop ); extern GFORTHOP( jBop ); extern GFORTHOP( unloopBop ); extern GFORTHOP( leaveBop ); extern GFORTHOP( hereBop );
+extern GFORTHOP( addressOfBop ); extern GFORTHOP( intoBop ); extern GFORTHOP( addToBop ); extern GFORTHOP( subtractFromBop );
+extern GFORTHOP( removeEntryBop ); extern GFORTHOP( entryLengthBop ); extern GFORTHOP( numEntriesBop );
 extern GFORTHOP( minusBop ); extern GFORTHOP( timesBop ); extern GFORTHOP( utimesBop ); extern GFORTHOP( times2Bop ); extern GFORTHOP( times4Bop ); extern GFORTHOP( times8Bop );
 extern GFORTHOP( divideBop ); extern GFORTHOP( divide2Bop ); extern GFORTHOP( divide4Bop ); extern GFORTHOP( divide8Bop ); extern GFORTHOP( divmodBop ); extern GFORTHOP( modBop );
 extern GFORTHOP( negateBop ); extern GFORTHOP( fplusBop ); extern GFORTHOP( fminusBop ); extern GFORTHOP( ftimesBop ); extern GFORTHOP( fdivideBop ); extern GFORTHOP( fEqualsBop );
@@ -5943,7 +6124,10 @@ extern GFORTHOP( strcatBop ); extern GFORTHOP( strncatBop ); extern GFORTHOP( st
 extern GFORTHOP( strstrBop ); extern GFORTHOP( strtokBop ); extern GFORTHOP( fopenBop ); extern GFORTHOP( fcloseBop ); extern GFORTHOP( fseekBop ); extern GFORTHOP( freadBop );
 extern GFORTHOP( fwriteBop ); extern GFORTHOP( fgetcBop ); extern GFORTHOP( fputcBop ); extern GFORTHOP( feofBop ); extern GFORTHOP( fexistsBop ); extern GFORTHOP( ftellBop );
 extern GFORTHOP( flenBop ); extern GFORTHOP( fgetsBop ); extern GFORTHOP( fputsBop ); extern GFORTHOP( archX86Bop ); extern GFORTHOP( archARMBop ); extern GFORTHOP( oclearBop );
-
+extern GFORTHOP( fsinBop ); extern GFORTHOP( fasinBop ); extern GFORTHOP( fcosBop );
+extern GFORTHOP( facosBop ); extern GFORTHOP( ftanBop ); extern GFORTHOP( fatanBop ); extern GFORTHOP( fatan2Bop ); extern GFORTHOP( fexpBop ); extern GFORTHOP( flnBop );
+extern GFORTHOP( flog10Bop ); extern GFORTHOP( fpowBop ); extern GFORTHOP( fsqrtBop ); extern GFORTHOP( fceilBop ); extern GFORTHOP( ffloorBop ); extern GFORTHOP( fabsBop );
+extern GFORTHOP( fldexpBop ); extern GFORTHOP( ffrexpBop ); extern GFORTHOP( fmodfBop ); extern GFORTHOP( ffmodBop );
 #else
 
 // helper macro for built-in op entries in baseDictionary
@@ -6139,6 +6323,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dlog10Bop,               "dlog10" ),
     NATIVE_DEF(    dpowBop,                 "dpow" ),
     NATIVE_DEF(    dsqrtBop,                "dsqrt" ),
+    NATIVE_DEF(    fsqrtBop,                "fsqrt" ),
     NATIVE_DEF(    dceilBop,                "dceil" ),
     NATIVE_DEF(    dfloorBop,               "dfloor" ),
     NATIVE_DEF(    dabsBop,                 "dabs" ),
@@ -6146,6 +6331,30 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dfrexpBop,               "dfrexp" ),
     NATIVE_DEF(    dmodfBop,                "dmodf" ),
     NATIVE_DEF(    dfmodBop,                "dfmod" ),
+    
+    ///////////////////////////////////////////
+    //  single-precision fp functions
+    ///////////////////////////////////////////
+    NATIVE_DEF(    fsinBop,                 "fsin" ),
+    NATIVE_DEF(    fasinBop,                "farcsin" ),
+    NATIVE_DEF(    fcosBop,                 "fcos" ),
+    NATIVE_DEF(    facosBop,                "farccos" ),
+    NATIVE_DEF(    ftanBop,                 "ftan" ),
+    NATIVE_DEF(    fatanBop,                "farctan" ),
+    NATIVE_DEF(    fatan2Bop,               "farctan2" ),
+    NATIVE_DEF(    fexpBop,                 "fexp" ),
+    NATIVE_DEF(    flnBop,                  "fln" ),
+    NATIVE_DEF(    flog10Bop,               "flog10" ),
+    NATIVE_DEF(    fpowBop,                 "fpow" ),
+    NATIVE_DEF(    fsqrtBop,                "fsqrt" ),
+    NATIVE_DEF(    fsqrtBop,                "fsqrt" ),
+    NATIVE_DEF(    fceilBop,                "fceil" ),
+    NATIVE_DEF(    ffloorBop,               "ffloor" ),
+    NATIVE_DEF(    fabsBop,                 "fabs" ),
+    NATIVE_DEF(    fldexpBop,               "fldexp" ),
+    NATIVE_DEF(    ffrexpBop,               "ffrexp" ),
+    NATIVE_DEF(    fmodfBop,                "fmodf" ),
+    NATIVE_DEF(    ffmodBop,                "ffmod" ),
     
     ///////////////////////////////////////////
     //  integer/long/float/double conversion

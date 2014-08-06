@@ -218,11 +218,22 @@ public:
 
 	void					DumpCrashState();
 
+	// squish float/double down to 24-bits, returns true IFF number can be represented exactly OR approximateOkay==true and number is within range of squished float
+	bool					SquishFloat( float fvalue, bool approximateOkay, ulong& squishedFloat );
+	float					UnsquishFloat( ulong squishedFloat );
+
+	bool					SquishDouble( double dvalue, bool approximateOkay, ulong& squishedDouble );
+	double					UnsquishDouble( ulong squishedDouble );
+	// squish 64-bit int to 24 bits, returns true IFF number can be represented in 24 bits
+	bool					SquishLong( long long lvalue, ulong& squishedLong );
+	long long				UnsquishLong( ulong squishedLong );
+
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char* pToken, long& value, long long& lvalue, int base, bool& isOffset, bool& isSingle );
     // NOTE: temporarily modifies string @pToken
-    bool                    ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle );
+    bool                    ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle, bool& isApproximate );
+
 
 	long*					FindUserDefinition( ForthVocabulary* pVocab, long*& pClosestIP, long* pIP, long*& pBase );
 	void					DisplayUserDefCrash( long *pRVal, char* buff );

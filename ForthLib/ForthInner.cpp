@@ -1894,6 +1894,55 @@ OPTYPE_ACTION( VaropOpComboAction )
     ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
 }
 
+OPTYPE_ACTION( OpZBranchComboAction )
+{
+	// bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
+	long op = COMPILED_OP( kOpNative, (opVal & 0xFFF) );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+    if ( SPOP == 0 )
+    {
+		long branchOffset = opVal >> 12;
+        if ( (branchOffset & 0x800) != 0 )
+        {
+            // TBD: trap a hard loop (opVal == -1)?
+            branchOffset |= 0xFFFFF000;
+        }
+        SET_IP( GET_IP + branchOffset );
+    }
+}
+
+OPTYPE_ACTION( OpBranchComboAction )
+{
+	// bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
+	long op = COMPILED_OP( kOpNative, (opVal & 0xFFF) );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+	long branchOffset = opVal >> 12;
+    if ( (branchOffset & 0x800) != 0 )
+    {
+        // TBD: trap a hard loop (opVal == -1)?
+        branchOffset |= 0xFFFFF000;
+    }
+    SET_IP( GET_IP + branchOffset );
+}
+
+OPTYPE_ACTION( SquishedFloatAction )
+{
+	float fval = ((ForthEngine *)pCore->pEngine)->UnsquishFloat( opVal );
+	FPUSH( fval );
+}
+
+OPTYPE_ACTION( SquishedDoubleAction )
+{
+	double dval = ((ForthEngine *)pCore->pEngine)->UnsquishDouble( opVal );
+	DPUSH( dval );
+}
+
+OPTYPE_ACTION( SquishedLongAction )
+{
+	long long lval = ((ForthEngine *)pCore->pEngine)->UnsquishLong( opVal );
+	LPUSH( lval );
+}
+
 OPTYPE_ACTION( LocalRefOpComboAction )
 {
 	// REF_OFFSET OP combo - bits 0:11 are local var offset in longs, bits 12:23 are opcode
@@ -2105,7 +2154,7 @@ optypeActionRoutine builtinOptypeAction[] =
     MemberUShortArrayAction,
     MemberIntArrayAction,
 
-	// 100 - 109
+	// 100 - 109	64 - 6D
     MemberIntArrayAction,		// 0x64
     MemberLongArrayAction,
     MemberLongArrayAction,
@@ -2117,14 +2166,21 @@ optypeActionRoutine builtinOptypeAction[] =
     MethodWithThisAction,		// 0x6C
     MethodWithTOSAction,
 
-	// 110 -
+	// 110 - 119	6E - 77
     MemberStringInitAction,
 	NumVaropOpComboAction,
 	NumVaropComboAction,		// 0x70
 	NumOpComboAction,
 	VaropOpComboAction,
-	LocalRefOpComboAction,
-	MemberRefOpComboAction,		// 0x74
+	OpZBranchComboAction,
+	OpBranchComboAction,		// 0x74
+	SquishedFloatAction,
+	SquishedDoubleAction,
+	SquishedLongAction,
+
+	// 120 - 122
+	LocalRefOpComboAction,		// 0x78
+	MemberRefOpComboAction,
     ReservedOptypeAction,
 
     NULL            // this must be last to end the list
