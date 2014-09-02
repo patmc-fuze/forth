@@ -46,7 +46,7 @@
 				Optimization="0"
 				FavorSizeOrSpeed="1"
 				AdditionalIncludeDirectories="H:\Prj\Forth\ForthLib"
-				PreprocessorDefinitions="MSDEV;WIN32;INCLUDE_TRACE;ASM_INNER_INTERPRETER;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
+				PreprocessorDefinitions="MSDEV;WIN32;INCLUDE_TRACE;XXX_ASM_INNER_INTERPRETER;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_ARCHITECTURE"
 				ExceptionHandling="2"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -125,7 +125,7 @@
 				InlineFunctionExpansion="1"
 				FavorSizeOrSpeed="1"
 				AdditionalIncludeDirectories="H:\Prj\Forth\ForthLib"
-				PreprocessorDefinitions="MSDEV;WIN32;ASM_INNER_INTERPRETER;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE"
+				PreprocessorDefinitions="MSDEV;WIN32;ASM_INNER_INTERPRETER;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;X86_ARCHITECTURE"
 				StringPooling="true"
 				ExceptionHandling="2"
 				RuntimeLibrary="2"
@@ -886,7 +886,7 @@
 					>
 					<Tool
 						Name="VCCustomBuildTool"
-						CommandLine="ml /c /Cx /coff /DASM_INNER_INTERPRETER &quot;$(InputPath)&quot;&#x0D;&#x0A;move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;&#x0D;&#x0A;"
+						CommandLine="ml /c /Cx /coff /DXXX_ASM_INNER_INTERPRETER &quot;$(InputPath)&quot;&#x0D;&#x0A;move &quot;$(InputName)&quot;.obj &quot;$(OutDir)&quot;&#x0D;&#x0A;"
 						Outputs="$(OutDir)\$(InputName).obj"
 					/>
 				</FileConfiguration>

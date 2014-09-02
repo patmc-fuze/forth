@@ -939,7 +939,7 @@ ForthClassVocabulary::DefineInstance( void )
                 // local var definition was preceeded by "->", so compile the op for this local var
                 //  so it will be initialized
                 long *pEntry = pVocab->GetNewestEntry();
-                mpEngine->CompileOpcode( COMPILED_OP( (isPtr ? kOpLocalInt : kOpLocalObject), pEntry[0] ) );
+                mpEngine->CompileOpcode( (isPtr ? kOpLocalInt : kOpLocalObject), pEntry[0] );
             }
         }
     }
@@ -1602,9 +1602,9 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             {
                 // define local string array
                 varOffset = pEngine->AddLocalArray( pToken, typeCode, storageLen );
-                pEngine->CompileOpcode( COMPILED_OP( kOpConstant, numElements ) );
-                pEngine->CompileOpcode( COMPILED_OP( kOpConstant, len ) );
-                pEngine->CompileOpcode( COMPILED_OP( kOpLocalRef, varOffset - 2) );
+                pEngine->CompileOpcode( kOpConstant, numElements );
+                pEngine->CompileOpcode( kOpConstant, len );
+                pEngine->CompileOpcode( kOpLocalRef, varOffset - 2);
                 pEngine->CompileBuiltinOpcode( OP_INIT_STRING_ARRAY );
             }
             else
@@ -1615,7 +1615,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
                 // compile initLocalString op
                 varOffset = (varOffset << 12) | len;
                 // NOTE: do not use CompileOpcode here - it would screw up the OP_INTO check just below
-                pEngine->CompileOpcode( COMPILED_OP( kOpLocalStringInit, varOffset ) );
+                pEngine->CompileOpcode( kOpLocalStringInit, varOffset );
                 long* pLastIntoOp = pEngine->GetLastCompiledIntoPtr();
                 if ( pLastIntoOp == (((long *) pHere) - 1) )
                 {

@@ -29,12 +29,14 @@
 
 #ifdef LINUX
 #include <strings.h>
+#include <errno.h>
 
 extern int kbhit(void);
 extern int getch(void);
 #endif
 
 long gCompiledOps[NUM_COMPILED_OPS];
+
 extern "C"
 {
 
@@ -471,7 +473,7 @@ FORTHOP( untilOp )
         return;
     }
     long *pBeginOp =  (long *) pShellStack->Pop();
-    pEngine->CompileOpcode( COMPILED_OP( kOpBranchZ, (pBeginOp - GET_DP) - 1 ) );
+    pEngine->CompileOpcode( kOpBranchZ, (pBeginOp - GET_DP) - 1 );
 }
 
 
@@ -510,7 +512,7 @@ FORTHOP( repeatOp )
     *pOp = COMPILED_OP( kOpBranchZ, (GET_DP - pOp) );
     // get address of "begin"
     pOp =  (long *) pShellStack->Pop();
-    pEngine->CompileOpcode( COMPILED_OP( kOpBranch, (pOp - GET_DP) - 1 ) );
+    pEngine->CompileOpcode( kOpBranch, (pOp - GET_DP) - 1 );
 }
 
 // again - has precedence
@@ -525,7 +527,7 @@ FORTHOP( againOp )
         return;
     }
     long *pBeginOp =  (long *) pShellStack->Pop();
-    pEngine->CompileOpcode( COMPILED_OP( kOpBranch, (pBeginOp - GET_DP) - 1 ) );
+    pEngine->CompileOpcode( kOpBranch, (pBeginOp - GET_DP) - 1 );
 }
 
 // case - has precedence
@@ -1684,7 +1686,7 @@ FORTHOP( initMemberStringOp )
 	// only shift up by 10 bits since pEntry[0] is member byte offset, opcode holds member offset in longs
     long varOffset = (pEntry[0] << 10) | len;
 
-    pEngine->CompileOpcode( COMPILED_OP( kOpMemberStringInit, varOffset ) );
+    pEngine->CompileOpcode( kOpMemberStringInit, varOffset );
 }
 
 FORTHOP( enumOp )
@@ -2638,6 +2640,17 @@ FORTHOP( fflushOp )
 	FILE* pFile = (FILE *) SPOP;
 	int result = pCore->pFileFuncs->fileFlush( pFile );
     SPUSH( result );
+}
+
+FORTHOP( errnoOp)
+{
+    SPUSH( errno );
+}
+
+FORTHOP( strerrorOp)
+{
+	long errVal = SPOP;
+    SPUSH( reinterpret_cast<long>(strerror(errVal)) );
 }
 
 FORTHOP( systemOp )
@@ -3838,9 +3851,9 @@ FORTHOP( windowsConstantsOp )
 
 FORTHOP( clientOp )
 {
-	long ipAddress = SPOP;
+	const char* pServerStr = (const char*)(SPOP);
 	ForthEngine *pEngine = GET_ENGINE;
-	int result = ForthClientMainLoop( pEngine, ipAddress, FORTH_SERVER_PORT );
+	int result = ForthClientMainLoop( pEngine, pServerStr, FORTH_SERVER_PORT );
 	SPUSH( result );
 }
 
@@ -6323,7 +6336,6 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dlog10Bop,               "dlog10" ),
     NATIVE_DEF(    dpowBop,                 "dpow" ),
     NATIVE_DEF(    dsqrtBop,                "dsqrt" ),
-    NATIVE_DEF(    fsqrtBop,                "fsqrt" ),
     NATIVE_DEF(    dceilBop,                "dceil" ),
     NATIVE_DEF(    dfloorBop,               "dfloor" ),
     NATIVE_DEF(    dabsBop,                 "dabs" ),
@@ -6533,6 +6545,8 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF(    closedirOp,             "closedir" ),
 	OP_DEF(    rewinddirOp,            "rewinddir" ),
     OP_DEF(    fflushOp,               "fflush" ),
+    OP_DEF(    errnoOp,			       "errno" ),
+    OP_DEF(    strerrorOp,             "strerror" ),
     
     ///////////////////////////////////////////
     //  64-bit integer math & conversions

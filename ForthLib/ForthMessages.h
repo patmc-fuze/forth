@@ -5,7 +5,8 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#define FORTH_SERVER_PORT 4
+#define FORTH_SERVER_PORT 1742
+//#define FORTH_SERVER_PORT 4
 //#define FORTH_SERVER_PORT 27015
 
 enum

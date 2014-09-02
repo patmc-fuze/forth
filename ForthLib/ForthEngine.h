@@ -54,6 +54,28 @@ enum {
 	kTraceCompilation = 0x010
 };
 
+class ForthOpcodeCompiler
+{
+public:
+                    ForthOpcodeCompiler( ForthMemorySection*	mpDictionarySection );
+			        ~ForthOpcodeCompiler();
+	void			Reset();
+	void			CompileOpcode( forthOpType opType, long opVal );
+	void			UncompileLastOpcode();
+	unsigned int	PeepholeValidCount();
+	void			ClearPeephole();
+    long*           GetLastCompiledOpcodePtr( void );
+    long*           GetLastCompiledIntoPtr( void );
+// MAX_PEEPHOLE_PTRS must be power of 2
+#define MAX_PEEPHOLE_PTRS	8
+private:
+	ForthMemorySection*	mpDictionarySection;
+	long*			mPeephole[MAX_PEEPHOLE_PTRS];
+	unsigned int	mPeepholeIndex;
+	unsigned int	mPeepholeValidCount;
+	long*			mpLastIntoOpcode;
+};
+
 class ForthEngine
 {
 public:
@@ -154,9 +176,12 @@ public:
     inline void             SetDP( long *pNewDP ) { mDictionary.pCurrent = pNewDP; };
     inline void             CompileLong( long v ) { *mDictionary.pCurrent++ = v; };
     inline void             CompileDouble( double v ) { *((double *) mDictionary.pCurrent) = v; mDictionary.pCurrent += 2; };
-    void                    CompileOpcode( long v );
+	void					CompileOpcode( forthOpType opType, long opVal );
+	void					CompileOpcode( long op );
     void                    CompileBuiltinOpcode( long v );
     void                    UncompileLastOpcode( void );
+    long *					GetLastCompiledOpcodePtr( void );
+    long *					GetLastCompiledIntoPtr( void );
     void                    ProcessConstant( long value, bool isOffset=false );
     void                    ProcessLongConstant( long long value );
     inline void             AllotLongs( int n ) { mDictionary.pCurrent += n; };
@@ -181,8 +206,6 @@ public:
     inline void             SetFlag( long flags ) { mCompileFlags |= flags; };
     inline void             ClearFlag( long flags ) { mCompileFlags &= (~flags); };
     inline long             CheckFlag( long flags ) { return mCompileFlags & flags; };
-    inline long *           GetLastCompiledOpcodePtr( void ) { return mpLastCompiledOpcode; };
-    inline long *           GetLastCompiledIntoPtr( void ) { return mpLastIntoOpcode; };
     inline char *           GetTmpStringBuffer( void ) { return mpStringBufferB; };
     inline void             SetArraySize( long numElements )        { mNumElements = numElements; };
     inline long             GetArraySize( void )                    { return mNumElements; };
@@ -249,6 +272,8 @@ protected:
     ForthVocabulary * mpDefinitionVocab;    // vocabulary which new definitions are added to
     ForthVocabularyStack * mpVocabStack;
 
+	ForthOpcodeCompiler* mpOpcodeCompiler;
+
     char        *mpStringBufferA;       // string buffer A is used for quoted strings when in interpreted mode
     char        *mpStringBufferANext;   // one char past last used in A
     int         mStringBufferASize;
@@ -261,8 +286,6 @@ protected:
     ForthShell  *   mpShell;
     long *          mpEngineScratch;
     char *          mpLastToken;
-    long *          mpLastCompiledOpcode;
-    long *          mpLastIntoOpcode;
     long            mLocalFrameSize;
     long *          mpLocalAllocOp;
     char *          mpErrorString;  // optional error information from shell

@@ -132,7 +132,7 @@ typedef enum
     kOpMemberOpArray,
     kOpMemberObjectArray,
 
-    kOpMethodWithThis = 108,                 // low 24 bits is method number
+    kOpMethodWithThis = 108,                // low 24 bits is method number
     kOpMethodWithTOS,                       // low 24 bits is method number
     kOpMemberStringInit,                    // bits 0:11 are string length in bytes, bits 12:23 are memeber offset in longs
 	kOpNVOCombo,							// NUM VAROP OP combo - bits 0:10 are signed integer, bits 11:12 are varop-2, bit 13 is builtin/userdef, bits 14-23 are opcode

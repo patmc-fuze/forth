@@ -164,36 +164,33 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-Compilation of combo ops:
+September 1 2014
 
-Combo ops are a set of optimizations that A circular peephole buffer is kept of previous opcodes compiled.
-The buffer is cleared at the start of compiling an op or method.
+I moved the opcode compilation/uncompilation from ForthEngine to its own class,
+ForthOpcodeCompiler, which is still part of ForthEngine.cpp for now.
+While debugging it, I added setTrace( 255 ), and this made the tests crash.
+The crash happened because the definition for checkResults got overwritten by
+the trace text output.  I haven't chased down how that happens yet.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 12 2014
 
----
-Uncompilation
-  There is already code which removes compiled code for these cases:
-o uncompile int literal in 'SIZE arrayOf TYPE NAME' local array declaration
-o uncompile int literal in 'SIZE string NAME' local string declaration
-o uncompile last varop before a structure access expression in case where varop
-  needs to be moved inside the structure access code
----  
-The combo op types are:
+I got client/server working on both Windows and Ubuntu again.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 11 2014
 
- NUM VAROP OP combo - bits 0:10 are signed integer, bits 11:12 are varop-2, bit 13 is builtin/userdef, bits 14-23 are opcode
- NUM VAROP combo - bits 0:21 are signed integer, bits 22:23 are varop-2
- NUM OP combo - bits 0:12 are signed integer, bit 13 is builtin/userdef, bits 14:23 are opcode
- VAROP OP combo - bits 0:1 are varop-2, bit 2 is builtin/userdef, bits 3:23 are opcode
- OP ZBRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
- OP BRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
- LOCAL_REF OP - bits 0:11 are local var offset in longs, bits 12:23 are opcode
- MEMBER_REF OP - bits 0:11 are local var offset in longs, bits 12:23 are opcode
-
-CompileOpcode def:
-  if opcode type is builtin:
-    if opcode is a varop
-      if previous opcode type is NUM
-      
-    else
+I tried to get client/server working between Windows and Ubuntu, in preparation
+for getting an Android build working, where client/server will be crucial, since
+developing on a tablet without a keyboard would be insane.
+Ubuntu in its amazing brain-deadness intentionally create /etc/hosts to have
+an entry that maps your machine name to 127.0.1.1, an alternate loopback address,
+so having the 'server' op print out the ip address for clients to connect to hasn't
+worked so far.  I tried using the newer non-deprecated getaddrinfo call, but it
+has the same problem as the deprecated gethostbyname call.  There must be a way
+to do it, since ifconfig can do it.
+I change 'client' to not take the ip address as a ulong on TOS to taking a string,
+then found out that client/server is broken in general - it doesn't even work
+with localhost between client and server on windows.  On the plus side, this
+should allow using regular hostnames and even IPv6 addresses.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 13 2014
 

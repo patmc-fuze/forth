@@ -103,6 +103,86 @@ void defaultTraceOutRoutine( void*, const char* pBuff )
 //////////////////////////////////////////////////////////////////////
 ////
 ///
+//                     ForthOpcodeCompiler
+// 
+
+ForthOpcodeCompiler::ForthOpcodeCompiler(ForthMemorySection*	pDictionarySection)
+: mpDictionarySection( pDictionarySection )
+{
+	for ( unsigned int i = 0; i < MAX_PEEPHOLE_PTRS; ++i )
+	{
+		mPeephole[i] = NULL;
+	}
+	Reset();
+}
+
+ForthOpcodeCompiler::~ForthOpcodeCompiler()
+{
+} 
+
+void ForthOpcodeCompiler::Reset()
+{
+	mPeepholeIndex = 0;
+	mPeepholeValidCount = 0;
+	mpLastIntoOpcode = NULL;
+}
+
+void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
+{
+    long* pOpcode = mpDictionarySection->pCurrent;
+	long op = COMPILED_OP( opType, opVal );
+    if ( op == gCompiledOps[OP_INTO] )
+    {
+       // we need this to support initialization of local string vars (ugh)
+       mpLastIntoOpcode = pOpcode;
+       
+    }
+	mPeepholeIndex = (mPeepholeIndex + 1) & (MAX_PEEPHOLE_PTRS - 1);
+	mPeephole[mPeepholeIndex] = pOpcode;
+	*pOpcode++ = op;
+	mpDictionarySection->pCurrent = pOpcode;
+	mPeepholeValidCount++;
+}
+
+void ForthOpcodeCompiler::UncompileLastOpcode()
+{
+	if (mPeepholeValidCount > 0)
+	{
+		if ( mPeephole[mPeepholeIndex] <= mpLastIntoOpcode )
+		{
+			mpLastIntoOpcode = NULL;
+
+		}
+		mpDictionarySection->pCurrent = mPeephole[mPeepholeIndex];
+		mPeepholeIndex = (mPeepholeIndex - 1) & (MAX_PEEPHOLE_PTRS - 1);
+		mPeepholeValidCount--;
+	}
+}
+
+unsigned int ForthOpcodeCompiler::PeepholeValidCount()
+{
+	return (mPeepholeValidCount > MAX_PEEPHOLE_PTRS) ? MAX_PEEPHOLE_PTRS : mPeepholeValidCount;
+}
+
+void ForthOpcodeCompiler::ClearPeephole()
+{
+	Reset();
+}
+
+long* ForthOpcodeCompiler::GetLastCompiledOpcodePtr( void )
+{
+	return (mPeepholeValidCount > 0) ? mPeephole[mPeepholeIndex] : NULL;
+}
+
+long* ForthOpcodeCompiler::GetLastCompiledIntoPtr( void )
+{
+	return mpLastIntoOpcode;
+}
+
+
+//////////////////////////////////////////////////////////////////////
+////
+///
 //                     ForthEngine
 // 
 
@@ -118,8 +198,6 @@ ForthEngine::ForthEngine()
 , mpInterpreterExtension( NULL )
 , mpMainThread( NULL )
 , mFastMode( true )
-, mpLastCompiledOpcode( NULL )
-, mpLastIntoOpcode( NULL )
 , mNumElements( 0 )
 , mpTypesManager( NULL )
 , mpVocabStack( NULL )
@@ -131,6 +209,7 @@ ForthEngine::ForthEngine()
 , mTraceFlags( kTraceShell )
 , mTraceOutRoutine( defaultTraceOutRoutine )
 , mpTraceOutData( NULL )
+, mpOpcodeCompiler( NULL )
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -170,6 +249,7 @@ ForthEngine::~ForthEngine()
         delete mpForthVocab;
         delete mpLocalVocab;
         delete mpTypesManager;
+		delete mpOpcodeCompiler;
         delete [] mpStringBufferA;
         delete [] mpStringBufferB;
     }
@@ -229,6 +309,8 @@ ForthEngine::Initialize( ForthShell*        pShell,
 
     mDictionary.pBase = new long[totalLongs];
     mDictionary.pCurrent = mDictionary.pBase;
+
+	mpOpcodeCompiler = new ForthOpcodeCompiler( &mDictionary );
 
     mpForthVocab = new ForthVocabulary( "forth", NUM_FORTH_VOCAB_VALUE_LONGS );
     mpLocalVocab = new ForthLocalVocabulary( "locals", NUM_LOCALS_VOCAB_VALUE_LONGS );
@@ -304,8 +386,7 @@ ForthEngine::Reset( void )
 
 	mpStringBufferANext = mpStringBufferA;
 
-    mpLastCompiledOpcode = NULL;
-    mpLastIntoOpcode = NULL;
+    mpOpcodeCompiler->Reset();
     mCompileState = 0;
     mCompileFlags = 0;
 
@@ -696,8 +777,7 @@ ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt, forthOpType op
     mpLocalVocab->Empty();
     //mLocalFrameSize = 0;
     //mpLocalAllocOp = NULL;
-    mpLastCompiledOpcode = NULL;
-    mpLastIntoOpcode = NULL;
+    mpOpcodeCompiler->ClearPeephole();
     AlignDP();
     if ( pName == NULL )
     {
@@ -723,8 +803,7 @@ ForthEngine::EndOpDefinition( bool unsmudgeIt )
         *pLocalAllocOp = COMPILED_OP( kOpAllocLocals, nLongs );
 		mpLocalVocab->ClearFrame();
     }
-    mpLastCompiledOpcode = NULL;
-    mpLastIntoOpcode = NULL;
+    mpOpcodeCompiler->ClearPeephole();
     if ( unsmudgeIt )
     {
         mpDefinitionVocab->UnSmudgeNewestSymbol();
@@ -755,11 +834,11 @@ ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
     if ( isUserOp )
     {
         ForthStructVocabulary::TypecodeToString( auxData, buff2, sizeof(buff2) );
-        sprintf( buff, "%s: type %s:%x value 0x%x 0x%x (%s) \n", pSymName, pStr, opValue, op, auxData, buff2 );
+        sprintf( buff, "%s: type %s:%x value 0x%08x 0x%x (%s) \n", pSymName, pStr, opValue, op, auxData, buff2 );
     }
     else
     {
-        sprintf( buff, "%s: type %s:%x value 0x%x 0x%x \n", pSymName, pStr, opValue, op, auxData );
+        sprintf( buff, "%s: type %s:%x value 0x%08x 0x%x \n", pSymName, pStr, opValue, op, auxData );
     }
     ConsoleOut( buff );
     if ( isUserOp )
@@ -1597,22 +1676,22 @@ ForthEngine::UnsquishLong( ulong squishedLong )
 // remember the last opcode compiled so someday we can do optimizations
 //   like combining "->" followed by a local var name into one opcode
 void
-ForthEngine::CompileOpcode( long op )
+ForthEngine::CompileOpcode( forthOpType opType, long opVal )
 {
-    mpLastCompiledOpcode = mDictionary.pCurrent;
-    if ( op == gCompiledOps[OP_INTO] )
-    {
-       // we need this to support initialization of local string vars (ugh)
-       mpLastIntoOpcode = mpLastCompiledOpcode;
-       
-    }
 	if ( mTraceFlags & kTraceCompilation )
 	{
 		char buff[ 256 ];
+		long op = COMPILED_OP( opType, opVal );
 		sprintf( buff,  "Compiling 0x%08x @ 0x%08x\n", op, mDictionary.pCurrent );
 		TraceOut( buff );
 	}
-    *mDictionary.pCurrent++ = op;
+	mpOpcodeCompiler->CompileOpcode( opType, opVal );
+}
+
+void
+ForthEngine::CompileOpcode(long op )
+{
+	CompileOpcode( FORTH_OP_TYPE( op ), FORTH_OP_VALUE( op ) );
 }
 
 void
@@ -1627,28 +1706,34 @@ ForthEngine::CompileBuiltinOpcode( long op )
 void
 ForthEngine::UncompileLastOpcode( void )
 {
-    if ( mpLastCompiledOpcode != NULL )
+	long *pLastCompiledOpcode = mpOpcodeCompiler->GetLastCompiledOpcodePtr();
+    if ( pLastCompiledOpcode != NULL )
     {
-        if ( mpLastCompiledOpcode <= mpLastIntoOpcode )
-        {
-            mpLastIntoOpcode = NULL;
-
-        }
 		if ( mTraceFlags & kTraceCompilation )
 		{
 			char buff[ 256 ];
-			sprintf( buff,  "Uncompiling from 0x08x to 0x%08x\n", mDictionary.pCurrent, mpLastCompiledOpcode );
+			sprintf( buff,  "Uncompiling from 0x08x to 0x%08x\n", mDictionary.pCurrent, pLastCompiledOpcode );
 			TraceOut( buff );
 		}
-
-        mDictionary.pCurrent = mpLastCompiledOpcode;
-        mpLastCompiledOpcode = NULL;
+		mpOpcodeCompiler->UncompileLastOpcode();
     }
     else
     {
         TRACE( "ForthEngine::UncompileLastOpcode called with no previous opcode\n" );
         SetError( kForthErrorMissingSize, "UncompileLastOpcode called with no previous opcode" );
     }
+}
+
+long*
+ForthEngine::GetLastCompiledOpcodePtr( void )
+{
+	return mpOpcodeCompiler->GetLastCompiledOpcodePtr();
+}
+
+long*
+ForthEngine::GetLastCompiledIntoPtr( void )
+{
+	return mpOpcodeCompiler->GetLastCompiledIntoPtr();
 }
 
 // interpret/compile a constant value/offset
@@ -1661,14 +1746,7 @@ ForthEngine::ProcessConstant( long value, bool isOffset )
         if ( (value < (1 << 23)) && (value >= -(1 << 23)) )
         {
             // value fits in opcode immediate field
-            if ( isOffset )
-            {
-                CompileOpcode( (value & 0xFFFFFF) | (kOpOffset << 24) );
-            }
-            else
-            {
-                CompileOpcode( (value & 0xFFFFFF) | (kOpConstant << 24) );
-            }
+			CompileOpcode( (isOffset ? kOpOffset : kOpConstant), value & 0xFFFFFF );
         }
         else
         {
@@ -1711,7 +1789,7 @@ ForthEngine::ProcessLongConstant( long long value )
 		ulong squishedLong;
 		if ( SquishLong( value, squishedLong ) )
 		{
-            CompileOpcode( squishedLong | (kOpSquishedLong << 24) );
+            CompileOpcode( kOpSquishedLong, squishedLong );
 		}
 		else
 		{
@@ -1733,10 +1811,11 @@ ForthEngine::ProcessLongConstant( long long value )
 bool
 ForthEngine::GetLastConstant( long& constantValue )
 {
-    if ( mpLastCompiledOpcode != NULL )
-    {
-        long op = *mpLastCompiledOpcode;
-        if ( ((mpLastCompiledOpcode + 1) == mDictionary.pCurrent)
+	long *pLastCompiledOpcode = mpOpcodeCompiler->GetLastCompiledOpcodePtr();
+    if ( pLastCompiledOpcode != NULL )
+	{
+        long op = *pLastCompiledOpcode;
+        if ( ((pLastCompiledOpcode + 1) == mDictionary.pCurrent)
             && (FORTH_OP_TYPE( op ) == kOpConstant) )
         {
             constantValue = FORTH_OP_VALUE( op );
@@ -2201,7 +2280,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         if ( mCompileState )
         {
             int lenLongs = ((len + 4) & ~3) >> 2;
-            CompileOpcode( lenLongs | (kOpConstantString << 24) );
+            CompileOpcode( kOpConstantString, lenLongs );
             strcpy( (char *) mDictionary.pCurrent, pToken );
             mDictionary.pCurrent += lenLongs;
         }
@@ -2387,7 +2466,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 			// compile or execute 
 			if ( mCompileState )
 			{
-				CompileOpcode( elementSize | (kOpArrayOffset << 24) );
+	            CompileOpcode( kOpArrayOffset, elementSize );
 			}
 			else
 			{
@@ -2421,7 +2500,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 			  ulong squishedFloat;
 			  if ( SquishFloat( fvalue, isApproximate, squishedFloat ) )
 			  {
-				  CompileOpcode( squishedFloat | (kOpSquishedFloat << 24) );
+	              CompileOpcode( kOpSquishedFloat, squishedFloat );
 			  }
 			  else
 			  {
@@ -2449,7 +2528,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 			  ulong squishedDouble;
 			  if (  SquishDouble( dvalue, isApproximate, squishedDouble ) )
 			  {
-				  CompileOpcode( squishedDouble | (kOpSquishedDouble << 24) );
+	              CompileOpcode( kOpSquishedDouble, squishedDouble );
 			  }
 			  else
 			  {

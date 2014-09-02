@@ -8,5 +8,5 @@
 
 class ForthEngine;
 
-int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned short portNum );
+int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned short portNum );
 

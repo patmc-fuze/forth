@@ -7,6 +7,7 @@
 #ifdef WIN32
 //#include <winsock2.h>
 //#include <windows.h>
+#include <ws2tcpip.h>
 #else
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -14,6 +15,7 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <netdb.h>
 #endif
 #include "ForthServer.h"
 #include "ForthPipe.h"
@@ -252,6 +254,82 @@ int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short p
     // TODO
 #endif
 
+#if 0
+    char hostnameBuffer[256];
+
+    if ( gethostname(hostnameBuffer, sizeof(hostnameBuffer)) == 0 )
+	{
+		struct hostent *host = gethostbyname(hostnameBuffer);
+		if (host != NULL)
+		{
+			printf( "Hostname %s addresses:\n", hostnameBuffer );
+			struct in_addr** pInAddr = (struct in_addr **)(host->h_addr_list);
+			int i = 0;
+			while ( pInAddr[i] != NULL )
+			{
+				unsigned char* pAddrBytes = (unsigned char*) pInAddr[i];
+				printf( "%d.%d.%d.%d   use %d for forth client address\n",
+					pAddrBytes[0], pAddrBytes[1], pAddrBytes[2], pAddrBytes[3],
+					*(reinterpret_cast<long*>(pAddrBytes)) );
+				i++;
+			}
+		}
+	}
+#else
+    char hostnameBuffer[256];
+
+    if ( gethostname(hostnameBuffer, sizeof(hostnameBuffer)) == 0 )
+	{
+		struct addrinfo addrHints;
+		struct addrinfo *resultAddrs, *resultAddr;
+
+		printf( "Hostname: %s   Forth server port: %d\n", hostnameBuffer, portNum );
+		memset( &addrHints, 0, sizeof(struct addrinfo) );
+		addrHints.ai_family = AF_UNSPEC;	    // Allow IPv4 or IPv6
+		addrHints.ai_socktype = SOCK_STREAM;	// stream sockets only
+		addrHints.ai_protocol = IPPROTO_TCP;	// TCP protocol
+
+		int s = getaddrinfo(hostnameBuffer, NULL, &addrHints, &resultAddrs);
+		if (s != 0) {
+			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+		}
+		else
+		{
+
+		    for ( resultAddr = resultAddrs; resultAddr != NULL; resultAddr = resultAddr->ai_next )
+		    {
+				switch ( resultAddr->ai_family )
+				{
+
+				case AF_UNSPEC:
+					printf("Unspecified\n");
+					break;
+
+				case AF_INET:
+					{
+						struct sockaddr_in* sockaddr_ipv4 = (struct sockaddr_in *) resultAddr->ai_addr;
+						unsigned char* pAddrBytes = (unsigned char*) (&resultAddr->ai_addr->sa_data[2]);
+						printf( "IPv4 %d.%d.%d.%d   use %d for forth client address\n",
+							pAddrBytes[0], pAddrBytes[1], pAddrBytes[2], pAddrBytes[3],
+							*(reinterpret_cast<long*>(pAddrBytes)) );
+					}
+					break;
+
+				case AF_INET6:
+					{
+						unsigned char* pAddrBytes = (unsigned char*) (&resultAddr->ai_addr->sa_data[0]);
+						printf( "IPv6 %d.%d.%d.%d.%d.%d\n",
+							pAddrBytes[0], pAddrBytes[1], pAddrBytes[2], pAddrBytes[3], pAddrBytes[4], pAddrBytes[5] );
+					}
+					break;
+				}
+			}
+		    freeaddrinfo( resultAddrs );
+		}
+
+	}
+#endif
+
     ServerSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 #ifdef WIN32
     if (ServerSocket == INVALID_SOCKET)
@@ -259,7 +337,7 @@ int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short p
     if (ServerSocket == -1)
 #endif
     {
-        printf("error: unable to create the listening socket...\n");
+        printf("error: unable to create the listening socket, errno=%s\n", strerror( errno ));
     }
     else
     {
@@ -273,7 +351,7 @@ int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short p
         if (iRetVal == -1)
 #endif
         {
-            printf("error: unable to bind listening socket...\n");
+            printf("error: unable to bind listening socket, errno=%s\n", strerror( errno ));
         }
         else
         {
@@ -284,7 +362,7 @@ int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short p
             if (iRetVal == -1)
 #endif
             {
-                printf("error: unable to listen on listening socket...\n");
+                printf("error: unable to listen on listening socket, errno=%s\n", strerror( errno ));
             }
             else
             {

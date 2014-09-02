@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <netdb.h>
 #endif
 #include "ForthPipe.h"
 #include "ForthClient.h"
@@ -40,9 +41,10 @@ namespace
 	}
 }
 
-int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned short portNum )
+int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned short portNum )
 {
     char errorMessage[128];
+	unsigned long ipAddress;
 #ifdef WIN32
 	//----------------------
     // Initialize Winsock
@@ -55,6 +57,10 @@ int ForthClientMainLoop( ForthEngine *pEngine, unsigned long ipAddress, unsigned
 #else
 		// TODO
 #endif
+
+	struct hostent *host = gethostbyname(pServerStr);
+	ipAddress = *((unsigned long *)(host->h_addr_list[0]));
+	printf( "Connecting to host %s (%d) on port %d\n", pServerStr, ipAddress, portNum );
 
     //----------------------
     // Create a SOCKET for connecting to server

@@ -3322,7 +3322,7 @@ entry fldexpBop
 ;========================================
 
 entry dfrexpBop
-	; frexp( a, ptrToInt )
+	; frexp( a, ptrToIntExponentReturn )
 	sub	edx, 4
 	push	edx
 	push	ecx
@@ -3345,15 +3345,15 @@ entry dfrexpBop
 ;========================================
 
 entry ffrexpBop
-	; frexpf( a, ptrToInt )
+	; frexpf( a, ptrToIntExponentReturn )
 	; get arg a
 	mov	eax, [edx]
 	sub	edx, 4
 	push	edx
 	push	ecx
 	; TOS is a (float)
-	; we return TOS: nLong aFrac
-	; alloc nLong
+	; we return TOS: nInt aFrac
+	; alloc nInt
 	push	edx
 	push	eax
 	call	frexpf
@@ -3366,14 +3366,14 @@ entry ffrexpBop
 ;========================================
 
 entry dmodfBop
-	; modf( a, ptrToDouble )
+	; modf( a, ptrToDoubleWholeReturn )
 	mov	eax, edx
 	sub	edx, 8
 	push	edx
 	push	ecx
 	; TOS is a (double)
 	; we return TOS: bFrac aWhole
-	; alloc nLong
+	; alloc nInt
 	push	eax
 	; get arg a
 	mov	eax, [edx+12]
@@ -3390,20 +3390,20 @@ entry dmodfBop
 ;========================================
 
 entry fmodfBop
-	; modf( a, ptrToDouble )
+	; modf( a, ptrToFloatWholeReturn )
 	mov	eax, edx
 	sub	edx, 4
 	push	edx
 	push	ecx
 	; TOS is a (float)
 	; we return TOS: bFrac aWhole
-	; alloc nLong
+	; alloc nInt
 	push	eax
 	; get arg a
 	mov	eax, [edx+4]
 	push	eax
 	call	modff
-	add	esp, 18
+	add	esp, 8
 	pop	ecx
 	pop	edx
 	fstp	DWORD PTR [edx]

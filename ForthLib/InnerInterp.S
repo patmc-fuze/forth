@@ -30,6 +30,11 @@
 #	mov	%edx,SPtr(ebp)
 # jump to interpFunc at end - interpFunc will restore ECX, EDX, and EDI and go back to inner loop
 
+
+	.ifdef ASM_UNDERSCORE_PREFIX
+#============== use these macros when subroutine names are prefixed by underscore
+
+
 # externally accessible subroutine
 	.macro subEntry entryLabel
 	.globl _\entryLabel
@@ -52,7 +57,80 @@ _\opLabel:
 	.macro	xcall	label
 	call	_\label
 	.endm
+
 		
+	.else
+#============== use these macros when subroutine names have no prefix
+
+
+# externally accessible subroutine
+	.macro subEntry entryLabel
+	.globl \entryLabel
+\entryLabel:
+	.endm
+
+	.macro opEntry entryLabel
+	.globl \entryLabel
+\entryLabel:
+	.endm
+
+	.macro optypeEntry	opLabel
+\opLabel:
+	.endm
+
+	.macro	optypeRef	opLabel
+	.long	\opLabel
+	.endm
+
+	.macro	xcall	label
+	call	\label
+	.endm
+		
+
+	.endif
+
+#-----------------------------------------------
+#
+# unaryDoubleFunc is used for dsin, dsqrt, dceil, ...
+#
+	.macro unaryDoubleFunc	opLabel, func
+	opEntry \opLabel
+#	.globl _\opLabel
+#_\opLabel:
+	push	%edx
+	push	%ecx
+	mov	4(%edx),%eax
+	push	%eax
+	mov	(%edx),%eax
+	push	%eax
+	xcall	\func
+	add	$8,%esp
+	pop	%ecx
+	pop	%edx
+	fstpl	(%edx)
+	jmp	*%edi
+	.endm
+	
+#-----------------------------------------------
+#
+# unaryFloatFunc is used for fsin, fsqrt, fceil, ...
+#
+	.macro unaryFloatFunc	opLabel, func
+	opEntry \opLabel
+#	.globl _\opLabel
+#_\opLabel:
+	push	%edx
+	push	%ecx
+	mov	(%edx),%eax
+	push	%eax
+	xcall	\func
+	add	$4,%esp
+	pop	%ecx
+	pop	%edx
+	fstp	(%edx)
+	jmp	*%edi
+	.endm
+	
 #========================================
 
 # extern long CallDLLRoutine( DLLRoutine function, long argCount, void *core );
@@ -174,7 +252,7 @@ nativeActionExit:
 	mov	%edx,SPtr(%ebp)
 	ret
 	
-	
+	.ifdef ASM_INNER_INTERPRETER
 #-----------------------------------------------
 #
 # extOp is used by "builtin" ops which are only defined in C++
@@ -3172,100 +3250,34 @@ dMaxBop2:
 
 
 #========================================
-
-	opEntry	dsinBop
-	push	%edx
-	push	%ecx
-	mov	4(%edx),%eax
-	push	%eax
-	mov	(%edx),%eax
-	push	%eax
-	xcall	sin
-	add	$8,%esp
-	pop	%ecx
-	pop	%edx
-	fstpl	(%edx)
-	jmp	*%edi
-
-#========================================
-
-	opEntry	dasinBop
-	push	%edx
-	push	%ecx
-	mov	4(%edx),%eax
-	push	%eax
-	mov	(%edx),%eax
-	push	%eax
-	xcall	asin
-	add	$8,%esp
-	pop	%ecx
-	pop	%edx
-	fstpl	(%edx)
-	jmp	*%edi
+	
+unaryDoubleFunc	dsinBop, sin
+unaryDoubleFunc	dasinBop, asin
+unaryDoubleFunc	dcosBop, cos
+unaryDoubleFunc	dacosBop, acos
+unaryDoubleFunc	dtanBop, tan
+unaryDoubleFunc	datanBop, atan
+unaryDoubleFunc	dsqrtBop, sqrt
+unaryDoubleFunc	dexpBop, exp
+unaryDoubleFunc	dlnBop, log
+unaryDoubleFunc	dlog10Bop, log10
+unaryDoubleFunc	dceilBop, ceil
+unaryDoubleFunc	dfloorBop, floor
 
 #========================================
 
-	opEntry	dcosBop
-	push	%edx
-	push	%ecx
-	mov	4(%edx),%eax
-	push	%eax
-	mov	(%edx),%eax
-	push	%eax
-	xcall	cos
-	add	$8,%esp
-	pop	%ecx
-	pop	%edx
-	fstpl	(%edx)
-	jmp	*%edi
-
-#========================================
-
-	opEntry	dacosBop
-	push	%edx
-	push	%ecx
-	mov	4(%edx),%eax
-	push	%eax
-	mov	(%edx),%eax
-	push	%eax
-	xcall	acos
-	add	$8,%esp
-	pop	%ecx
-	pop	%edx
-	fstpl	(%edx)
-	jmp	*%edi
-
-#========================================
-
-	opEntry	dtanBop
-	push	%edx
-	push	%ecx
-	mov	4(%edx),%eax
-	push	%eax
-	mov	(%edx),%eax
-	push	%eax
-	xcall	tan
-	add	$8,%esp
-	pop	%ecx
-	pop	%edx
-	fstpl	(%edx)
-	jmp	*%edi
-
-#========================================
-
-	opEntry	datanBop
-	push	%edx
-	push	%ecx
-	mov	4(%edx),%eax
-	push	%eax
-	mov	(%edx),%eax
-	push	%eax
-	xcall	atan
-	add	$8,%esp
-	pop	%ecx
-	pop	%edx
-	fstpl	(%edx)
-	jmp	*%edi
+unaryFloatFunc	fsinBop, sinf
+unaryFloatFunc	fasinBop, asinf
+unaryFloatFunc	fcosBop, cosf
+unaryFloatFunc	facosBop, acosf
+unaryFloatFunc	ftanBop, tanf
+unaryFloatFunc	fatanBop, atanf
+unaryFloatFunc	fsqrtBop, sqrtf
+unaryFloatFunc	fexpBop, expf
+unaryFloatFunc	flnBop, logf
+unaryFloatFunc	flog10Bop, log10f
+unaryFloatFunc	fceilBop, ceilf
+unaryFloatFunc	ffloorBop, floorf
 
 #========================================
 
@@ -3289,51 +3301,20 @@ dMaxBop2:
 	jmp	*%edi
 
 #========================================
-
-	opEntry	dexpBop
+	
+	opEntry fatan2Bop
 	push	%edx
 	push	%ecx
-	mov	4(%edx),%eax
-	push	%eax
 	mov	(%edx),%eax
 	push	%eax
-	xcall	exp
+	mov	4(%edx),%eax
+	push	%eax
+	xcall	atan2f
 	add	$8,%esp
 	pop	%ecx
 	pop	%edx
-	fstpl	(%edx)
-	jmp	*%edi
-
-#========================================
-
-	opEntry	dlnBop
-	push	%edx
-	push	%ecx
-	mov	4(%edx),%eax
-	push	%eax
-	mov	(%edx),%eax
-	push	%eax
-	xcall	log
-	add	$8,%esp
-	pop	%ecx
-	pop	%edx
-	fstpl	(%edx)
-	jmp	*%edi
-
-#========================================
-
-	opEntry	dlog10Bop
-	push	%edx
-	push	%ecx
-	mov	4(%edx),%eax
-	push	%eax
-	mov	(%edx),%eax
-	push	%eax
-	xcall	log10
-	add	$8,%esp
-	pop	%ecx
-	pop	%edx
-	fstpl	(%edx)
+	add	$4,%edx
+	fstp	(%edx)
 	jmp	*%edi
 
 #========================================
@@ -3361,53 +3342,25 @@ dMaxBop2:
 	jmp	*%edi
 
 #========================================
-
-	opEntry	dsqrtBop
+	
+	opEntry fpowBop
+	# a^x
 	push	%edx
 	push	%ecx
-	mov	4(%edx),%eax
-	push	%eax
+	# push x
 	mov	(%edx),%eax
 	push	%eax
-	xcall	sqrt
+	# push a
+	mov	4(%edx),%eax
+	push	%eax
+	xcall	powf
 	add	$8,%esp
 	pop	%ecx
 	pop	%edx
-	fstpl	(%edx)
+	add	$4,%edx
+	fstp	(%edx)
 	jmp	*%edi
-
-#========================================
-
-	opEntry	dceilBop
-	push	%edx
-	push	%ecx
-	mov	4(%edx),%eax
-	push	%eax
-	mov	(%edx),%eax
-	push	%eax
-	xcall	ceil
-	add	$8,%esp
-	pop	%ecx
-	pop	%edx
-	fstpl	(%edx)
-	jmp	*%edi
-
-#========================================
-
-	opEntry	dfloorBop
-	push	%edx
-	push	%ecx
-	mov	4(%edx),%eax
-	push	%eax
-	mov	(%edx),%eax
-	push	%eax
-	xcall	floor
-	add	$8,%esp
-	pop	%ecx
-	pop	%edx
-	fstpl	(%edx)
-	jmp	*%edi
-
+	
 #========================================
 
 	opEntry	dabsBop
@@ -3418,11 +3371,19 @@ dMaxBop2:
 
 #========================================
 
+	opEntry	fabsBop
+	fld	(%edx)
+	fabs
+	fstp	(%edx)
+	jmp	*%edi
+
+#========================================
+
 	opEntry	dldexpBop
 	# ldexp( a, n )
 	push	%edx
 	push	%ecx
-	# TOS is n (long), a (double)
+	# TOS is n (int), a (double)
 	# get arg n
 	mov	(%edx),%eax
 	push	%eax
@@ -3441,14 +3402,35 @@ dMaxBop2:
 
 #========================================
 
+	opEntry	fldexpBop
+	# ldexpf( a, n )
+	push	%edx
+	push	%ecx
+	# TOS is n (int), a (float)
+	# get arg n
+	mov	(%edx),%eax
+	push	%eax
+	# get arg a
+	mov	4(%edx),%eax
+	push	%eax
+	xcall	ldexpf
+	add	$8,%esp
+	pop	%ecx
+	pop	%edx
+	add	$4,%edx
+	fstp	(%edx)
+	jmp	*%edi
+
+#========================================
+
 	opEntry	dfrexpBop
-	# frexp( a, ptrToLong )
+	# frexp( a, ptrToIntExponentReturn )
 	sub	$4,%edx
 	push	%edx
 	push	%ecx
 	# TOS is a (double)
-	# we return TOS: nLong aFrac
-	# alloc nLong
+	# we return TOS: nInt aFrac
+	# alloc nInt
 	push	%edx
 	# get arg a
 	mov	8(%edx),%eax
@@ -3464,15 +3446,36 @@ dMaxBop2:
 
 #========================================
 
+	opEntry	ffrexpBop
+	# frexpf( a, ptrToIntExponentReturn )
+	# get arg a
+	mov	(%edx),%eax
+	sub	$4,%edx
+	push	%edx
+	push	%ecx
+	# TOS is a (float)
+	# we return TOS: nInt aFrac
+	# alloc nInt
+	push	%edx
+	push	%eax
+	xcall	frexpf
+	add	$8,%esp
+	pop	%ecx
+	pop	%edx
+	fstp	4(%edx)
+	jmp	*%edi
+
+#========================================
+
 	opEntry	dmodfBop
-	# modf( a, ptrToDouble )
+	# modf( a, ptrToDoubleWholeReturn )
 	mov	%edx,%eax
 	sub	$8,%edx
 	push	%edx
 	push	%ecx
 	# TOS is a (double)
 	# we return TOS: bFrac aWhole
-	# alloc nLong
+	# alloc nInt
 	push	%eax
 	# get arg a
 	mov	12(%edx),%eax
@@ -3484,6 +3487,28 @@ dMaxBop2:
 	pop	%ecx
 	pop	%edx
 	fstpl	(%edx)
+	jmp	*%edi
+
+#========================================
+
+	opEntry	fmodfBop
+	# modf( a, ptrToFloatWholeReturn )
+	mov	%edx,%eax
+	sub	$4,%edx
+	push	%edx
+	push	%ecx
+	# TOS is a (float)
+	# we return TOS: bFrac aWhole
+	# alloc nInt
+	push	%eax
+	# get arg a
+	mov	4(%edx),%eax
+	push	%eax
+	xcall	modff
+	add	$8,%esp
+	pop	%ecx
+	pop	%edx
+	fstp	(%edx)
 	jmp	*%edi
 
 #========================================
@@ -3505,6 +3530,23 @@ dMaxBop2:
 	pop	%edx
 	add	$8,%edx
 	fstpl	(%edx)
+	jmp	*%edi
+
+#========================================
+
+	opEntry	ffmodBop
+	push	%edx
+	push	%ecx
+	mov	(%edx),%eax
+	push	%eax
+	mov	4(%edx),%eax
+	push	%eax
+	xcall	fmodf
+	add	$8,%esp
+	pop	%ecx
+	pop	%edx
+	add	$4,%edx
+	fstp	(%edx)
 	jmp	*%edi
 
 #========================================
@@ -4950,7 +4992,7 @@ strcmp3:
 	push	%eax
 	mov	4(%edx),%eax
 	push	%eax
-	xcall	stricmp
+	xcall	strcasecmp
 	jmp	strcmp1
 
 #========================================
@@ -5672,7 +5714,7 @@ sscanfSub2:
 # NUM VAROP OP combo ops
 #  
 	optypeEntry	nvoComboType
-	# ebx: bits 0..10 are signed integer, bits 11-12 are varop-2, bit 13-23 are opcode
+	# ebx: bits 0..10 are signed integer, bits 11..12 are varop-2, bit 13..23 are opcode
 	mov	%ebx,%eax
 	sub	$4,%edx
 	and	$0x00000400,%eax
@@ -5735,7 +5777,7 @@ nvCombo1:
 # NUM OP combo ops
 #  
 	optypeEntry	noComboType
-	# bits 0..12 are signed integer, bits 13-23 are opcode
+	# ebx: bits 0..12 are signed integer, bits 13..23 are opcode
 	mov	%ebx,%eax
 	sub	$4,%edx
 	and	$0x000001000,%eax
@@ -5782,8 +5824,8 @@ noCombo1:
 	optypeEntry	ozbComboType
 	# ebx: bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
 	mov	%ebx,%eax
-	shr	$10,%eax
-	and	$0x00003FFC,%eax
+	shr	$12,%eax
+	and	$0x00000FFF,%eax
 	push	%eax
 	push	%edi
 	mov	$ozbCombo1,%edi
@@ -5794,16 +5836,186 @@ noCombo1:
 ozbCombo1:
 	pop	%edi
 	pop	%eax
+	mov	(%edx),%ebx
+	add	$4,%edx
+	or	%ebx,%ebx
+	jnz	ozbCombo2			# if TOS not 0, don't branch
 	mov	%eax,%ebx
-	and	$0x00002000,%eax
+	and	$0x00000800,%eax
 	jnz	ozbNegative
 	# positive branch
 	or	$0xFFFFC000,%ebx
 
 ozbNegative:
 	add	%ebx,%ecx
+ozbCombo2:
 	jmp	*%edi
 	
+#-----------------------------------------------
+#
+# OP BRANCH combo ops
+#  
+	optypeEntry obComboType
+	# ebx: bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
+	mov	%ebx,%eax
+	shr	$12,%eax
+	and	$0xFFF,%eax
+	push	%eax
+	push	%edi
+	mov	$obCombo1,%edi
+	and	$0x0FFF,%ebx
+	# opcode is in ebx
+	jmp	interpLoopExecuteEntry
+	
+obCombo1:
+	pop	%edi
+	pop	%eax
+	mov	%eax,%ebx
+	and	$0x0800,%eax
+	jnz	obNegative
+	# positive branch
+	or	$0xFFFFC000,%ebx
+
+obNegative:
+	add	%ebx,%ecx
+	jmp	*%edi
+	
+
+#-----------------------------------------------
+#
+# squished float literal
+#  
+	optypeEntry squishedFloatType
+	# ebx: bit 23 is sign, bits 22..18 are exponent, bits 17..0 are mantissa
+	# to unsquish a float:
+	#   sign = (inVal & 0x800000) << 8
+	#   exponent = (((inVal >> 18) & 0x1f) + (127 - 15)) << 23
+	#   mantissa = (inVal & 0x3ffff) << 5
+	#   outVal = sign | exponent | mantissa
+	push	%ecx
+	mov	%ebx,%eax
+	and	$0x00800000,%eax
+	shl	$8,%eax			# sign bit
+	
+	mov	%ebx,%ecx
+	shr	$18,%ebx
+	and	$0x1F,%ebx
+	add	$112,%ebx
+	shl	$23,%ebx			# ebx is exponent
+	or	%ebx,%eax
+	
+	and	$0x03FFFF,%ecx
+	shl	$5,%ecx
+	or	%ecx,%eax
+	
+	sub	$4,%edx
+	mov	%eax,(%edx)
+	pop	%ecx
+	jmp	*%edi
+	
+
+#-----------------------------------------------
+#
+# squished double literal
+#  
+	optypeEntry squishedDoubleType
+	# ebx: bit 23 is sign, bits 22..18 are exponent, bits 17..0 are mantissa
+	# to unsquish a double:
+	#   sign = (inVal & 0x800000) << 8
+	#   exponent = (((inVal >> 18) & 0x1f) + (1023 - 15)) << 20
+	#   mantissa = (inVal & 0x3ffff) << 2
+	#   outVal = (sign | exponent | mantissa) << 32
+	push	%ecx
+	mov	%ebx,%eax
+	and	$0x00800000,%eax
+	shl	$8,%eax			# sign bit
+	
+	mov	%ebx,%ecx
+	shr	$18,%ebx
+	and	$0x1F,%ebx
+	add	$0x1008,%ebx
+	shl	$0x20,%ebx			# ebx is exponent
+	or	%ebx,%eax
+	
+	and	$0x03FFFF,%ecx
+	shl	$2,%ecx
+	or	%ecx,%eax
+	
+	sub	$4,%edx
+	mov	%eax,(%edx)
+	sub	$4,%edx
+	# loword of double is all zeros
+	xor	%eax,%eax
+	mov	%eax,(%edx)
+	pop	%ecx
+	jmp	*%edi
+	
+
+#-----------------------------------------------
+#
+# squished long literal
+#  
+	optypeEntry squishedLongType
+	# get low-24 bits of opcode
+	mov	%ebx,%eax
+	sub	$8,%edx
+	and	$0x00800000,%eax
+	jnz	longConstantNegative
+	# positive constant
+	and	$0x00FFFFFF,%ebx
+	mov	%ebx,(%edx)
+	xor	%ebx,%ebx
+	mov	%ebx,4(%edx)
+	jmp	*%edi
+
+longConstantNegative:
+	or	$0xFF000000,%ebx
+	mov	%ebx,(%edx)
+	xor	%ebx,%ebx
+	sub	$1,%ebx
+	mov	%ebx,4(%edx)
+	jmp	*%edi
+	
+
+#-----------------------------------------------
+#
+# LOCALREF OP combo ops
+#
+	optypeEntry lroComboType
+	# ebx: bits 0..11 are frame offset in longs, bits 12-23 are op
+	push	%ebx
+	and	$0x0FFF,%ebx
+	sal	$2,%ebx
+	mov	FPtr(%ebp),%eax
+	sub	%ebx,%eax
+	sub	$4,%edx
+	mov	%eax,(%edx)
+	
+	pop	%ebx
+	shr	$12,%ebx
+	and	$0x0FFF,%ebx			# ebx is 12 bit opcode
+	# opcode is in ebx
+	jmp	interpLoopExecuteEntry
+	
+#-----------------------------------------------
+#
+# MEMBERREF OP combo ops
+#
+	optypeEntry mroComboType
+	# ebx: bits 0..11 are member offset in bytes, bits 12-23 are op
+	push	%ebx
+	and	$0x0FFF,%ebx
+	mov	TDPtr(%ebp),%eax
+	add	%ebx,%eax
+	sub	$4,%edx
+	mov	%eax,(%edx)
+	
+	pop	%ebx
+	shr	$12,%ebx
+	and	$0x0FFF,%ebx			# ebx is 12 bit opcode
+	# opcode is in ebx
+	jmp	interpLoopExecuteEntry
+
 
 #=================================================================================================
 #
@@ -5945,16 +6157,25 @@ opTypesTable1:
 	optypeRef	methodWithThisType
 	optypeRef	methodWithTOSType
 
-#	110 - 114
+#	110 - 119
 	optypeRef	memberStringInitType
 	optypeRef	nvoComboType
 	optypeRef	nvComboType
 	optypeRef	noComboType
 	optypeRef	voComboType
+	optypeRef	ozbComboType
+	optypeRef	obComboType
 
-#	115 - 149
-	.long	extOpType,	extOpType,	extOpType,	extOpType,	extOpType
-	.long	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType
+	optypeRef	squishedFloatType
+	optypeRef	squishedDoubleType
+	optypeRef	squishedLongType
+	
+#	120 - 121
+	optypeRef	lroComboType
+	optypeRef	mroComboType
+	
+#	122 - 149
+	.long	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType
 	.long	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType
 	.long	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType,	extOpType
 #	150 - 199
@@ -5974,4 +6195,7 @@ opTypesTable1:
 
 endOpTypesTable:
 	.long 0
+	.endif	# end .ifdef ASM_INNER_ASSEMBLER
+
+	.end
 
