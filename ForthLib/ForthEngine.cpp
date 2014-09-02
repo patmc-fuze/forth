@@ -153,8 +153,7 @@ void ForthOpcodeCompiler::UncompileLastOpcode()
 			mpLastIntoOpcode = NULL;
 
 		}
-		mpDictionarySection->pCurrent = mPeephole[mPeepholeIndex];
-		mPeepholeIndex = (mPeepholeIndex - 1) & (MAX_PEEPHOLE_PTRS - 1);
+		mPeepholeIndex = (mPeepholeIndex + 1) & (MAX_PEEPHOLE_PTRS - 1);
 		mPeepholeValidCount--;
 	}
 }
@@ -834,11 +833,11 @@ ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
     if ( isUserOp )
     {
         ForthStructVocabulary::TypecodeToString( auxData, buff2, sizeof(buff2) );
-        sprintf( buff, "%s: type %s:%x value 0x%08x 0x%x (%s) \n", pSymName, pStr, opValue, op, auxData, buff2 );
+        sprintf( buff, "%s: type %s:%x value 0x%x 0x%x (%s) \n", pSymName, pStr, opValue, op, auxData, buff2 );
     }
     else
     {
-        sprintf( buff, "%s: type %s:%x value 0x%08x 0x%x \n", pSymName, pStr, opValue, op, auxData );
+        sprintf( buff, "%s: type %s:%x value 0x%x 0x%x \n", pSymName, pStr, opValue, op, auxData );
     }
     ConsoleOut( buff );
     if ( isUserOp )
