@@ -37,6 +37,7 @@ public:
 #endif
 
     void                Reset( void );
+    void                ResetIP( void );
 
     inline void         SetOp( long op ) { mOps[0] = op; };
 

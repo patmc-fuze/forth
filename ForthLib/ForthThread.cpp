@@ -151,6 +151,11 @@ ForthThread::Reset( void )
 	mCore.IP = &(mOps[0]);
 }
 
+void
+ForthThread::ResetIP( void )
+{
+	mCore.IP = &(mOps[0]);
+}
 
 #ifdef WIN32
 
