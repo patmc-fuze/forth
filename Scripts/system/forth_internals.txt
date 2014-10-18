@@ -105,18 +105,13 @@ enum: eVocabVarOp
 struct: ForthCoreState
   ptrTo int     optypeAction           // optypeActionRoutine*
 
-  ptrTo int     builtinOps             // ForthOp*
   int           numBuiltinOps
 
-  int           numAsmBuiltinOps
+  ptrTo int     ops	                // **long
+  int           numOps
+  int           maxOps             	// current size of table at pUserOps
 
-  ptrTo int     userOps                // **long
-  int           numUserOps
-  int           maxUserOps             // current size of table at pUserOps
-
-  ptrTo int		pEngine
-
-  // *** beginning of stuff which is per thread ***
+  ptrTo int	pEngine
 
   ptrTo int     IP                     // interpreter pointer
 
@@ -145,17 +140,16 @@ struct: ForthCoreState
 
   int           RLen                   // size of return stack in longwords
   
-  ptrTo int		innerLoop              // inner interpreter re-entry point for assembler
-  
-  // *** end of stuff which is per thread ***
   ptrTo int     pThread                // ForthThread*
 
   ptrTo int     pDictionary            // ForthMemorySection*
   ptrTo int     pFileFuncs             // ForthFileInterface*
 
+  ptrTo int	innerLoop              // inner interpreter re-entry point for assembler
+  
   ptrTo byte    pConOutData            // void*
   int           consoleOut             // consoleOutRoutine
-  long          consoleOutOp
+  int		consoleOutOp
 
   ptrTo int     pDefaultOutFile        // FILE*
   ptrTo int     pDefaultInFile         // FILE*
