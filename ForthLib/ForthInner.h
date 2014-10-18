@@ -102,7 +102,6 @@ struct ForthCoreState
 {
     optypeActionRoutine  *optypeAction;
 
-    //ForthOp             *builtinOps;
     ulong               numBuiltinOps;
 
     long                **ops;
@@ -111,9 +110,6 @@ struct ForthCoreState
 
     //ForthEngine         *pEngine;
    void                 *pEngine;
-
-    // *** beginning of stuff which is per thread ***
-    //ForthThreadState    *pThread;       // pointer to current thread state
 
     long                *IP;            // interpreter pointer
 
@@ -142,7 +138,6 @@ struct ForthCoreState
 
     ulong               RLen;           // size of return stack in longwords
 
-    // *** end of stuff which is per thread ***
     void                *pThread;
 
     ForthMemorySection* pDictionary;
@@ -245,13 +240,7 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define SET_ERROR( A )                  CoreSetError( pCore, A, false )
 #define SET_FATAL_ERROR( A )            CoreSetError( pCore, A, true )
 
-#define GET_CON_OUT_DATA                (pCore->pConOutData)
-#define SET_CON_OUT_DATA( A )           (pCore->pConOutData = (A))
-#define SET_CON_OUT_ROUTINE( A )        (pCore->consoleOut = (A))
 #define CONSOLE_STRING_OUT( A )         (pCore->consoleOut( pCore, A ))
-
-#define GET_CON_OUT_OP                  (pCore->consoleOutOp)
-#define SET_CON_OUT_OP( A )             (pCore->consoleOutOp = (A))
 
 #define GET_BASE_REF                    (&pCore->base)
 

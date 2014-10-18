@@ -16,11 +16,10 @@
 #include "ForthVocabulary.h"
 #include "ForthStructs.h"
 
-#define NEW_INNER_INTERP
-
 class ForthThread;
 class ForthShell;
 class ForthExtension;
+class ForthOpcodeCompiler;
 
 #define DEFAULT_USER_STORAGE 16384
 
@@ -52,28 +51,6 @@ enum {
 	kTraceStack = 0x04,
 	kTraceToConsole = 0x08,
 	kTraceCompilation = 0x010
-};
-
-class ForthOpcodeCompiler
-{
-public:
-                    ForthOpcodeCompiler( ForthMemorySection*	mpDictionarySection );
-			        ~ForthOpcodeCompiler();
-	void			Reset();
-	void			CompileOpcode( forthOpType opType, long opVal );
-	void			UncompileLastOpcode();
-	unsigned int	PeepholeValidCount();
-	void			ClearPeephole();
-    long*           GetLastCompiledOpcodePtr( void );
-    long*           GetLastCompiledIntoPtr( void );
-// MAX_PEEPHOLE_PTRS must be power of 2
-#define MAX_PEEPHOLE_PTRS	8
-private:
-	ForthMemorySection*	mpDictionarySection;
-	long*			mPeephole[MAX_PEEPHOLE_PTRS];
-	unsigned int	mPeepholeIndex;
-	unsigned int	mPeepholeValidCount;
-	long*			mpLastIntoOpcode;
 };
 
 class ForthEngine
@@ -185,6 +162,7 @@ public:
     void                    ProcessConstant( long value, bool isOffset=false );
     void                    ProcessLongConstant( long long value );
     inline void             AllotLongs( int n ) { mDictionary.pCurrent += n; };
+	inline void             AllotBytes( int n )	{ mDictionary.pCurrent = reinterpret_cast<long *>(reinterpret_cast<int>(mDictionary.pCurrent) + n); };
     inline void             AlignDP( void ) { mDictionary.pCurrent = (long *)(( ((int)mDictionary.pCurrent) + 3 ) & ~3); };
     inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpVocabStack->GetTop(); };
     inline void             SetSearchVocabulary( ForthVocabulary* pVocab )  { mpVocabStack->SetTop( pVocab ); };
@@ -207,6 +185,7 @@ public:
     inline void             ClearFlag( long flags ) { mCompileFlags &= (~flags); };
     inline long             CheckFlag( long flags ) { return mCompileFlags & flags; };
     inline char *           GetTmpStringBuffer( void ) { return mpStringBufferB; };
+	inline int				GetTmpStringBufferSize( void ) { return MAX_STRING_SIZE; };
     inline void             SetArraySize( long numElements )        { mNumElements = numElements; };
     inline long             GetArraySize( void )                    { return mNumElements; };
 
@@ -259,7 +238,7 @@ protected:
 
 
 	long*					FindUserDefinition( ForthVocabulary* pVocab, long*& pClosestIP, long* pIP, long*& pBase );
-	void					DisplayUserDefCrash( long *pRVal, char* buff );
+	void					DisplayUserDefCrash( long *pRVal, char* buff, int buffSize );
 
 protected:
     ForthCoreState*  mpCore;             // core inner interpreter state

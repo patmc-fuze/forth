@@ -483,6 +483,7 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
     return result;
 }
 
+static bool gbCatchExceptions = true;
 //
 // return true IFF the forth shell should exit
 //
@@ -519,23 +520,29 @@ ForthShell::InterpretLine( const char *pSrcLine )
         if ( !bLineEmpty )
 		{
 
+
 #ifdef WIN32
-#ifdef CATCH_EXCEPTIONS
-            try
-#endif
-#endif
-            {
+			if ( gbCatchExceptions )
+			{
+				try
+				{
+					result = mpEngine->ProcessToken( &parseInfo );
+					CHECK_STACKS( mpEngine->GetMainThread() );
+				}
+				catch(...)
+				{
+					result = kResultException;
+					mpEngine->SetError( kForthErrorException );
+				}
+			}
+			else
+			{
                 result = mpEngine->ProcessToken( &parseInfo );
                 CHECK_STACKS( mpEngine->GetMainThread() );
-            }
-#ifdef WIN32
-#ifdef CATCH_EXCEPTIONS
-            catch(...)
-            {
-                result = kResultException;
-                mpEngine->SetError( kForthErrorException );
-            }
-#endif
+			}
+#else
+            result = mpEngine->ProcessToken( &parseInfo );
+            CHECK_STACKS( mpEngine->GetMainThread() );
 #endif
             if ( result == kResultOk )
 			{

@@ -170,8 +170,12 @@ GFORTHOP( ubyteVarActionBop )
 }
 #endif
 
+//#define SET_OPVAL ulong varMode = opVal >> 20; 	if (varMode != 0) { pCore->varMode = varMode; opVal &= 0xFFFFF; }
+#define SET_OPVAL
+
 OPTYPE_ACTION( LocalByteAction )
 {
+	SET_OPVAL;
     signed char* pVar = (signed char *)(GET_FP - opVal);
 
 	_doByteVarop( pCore, pVar );
@@ -179,6 +183,7 @@ OPTYPE_ACTION( LocalByteAction )
 
 OPTYPE_ACTION( LocalUByteAction )
 {
+	SET_OPVAL;
     unsigned char* pVar = (unsigned char *)(GET_FP - opVal);
 
 	_doUByteVarop( pCore, pVar );
@@ -186,6 +191,7 @@ OPTYPE_ACTION( LocalUByteAction )
 
 OPTYPE_ACTION( FieldByteAction )
 {
+	SET_OPVAL;
     signed char* pVar = (signed char *)(SPOP + opVal);
 
 	_doByteVarop( pCore, pVar );
@@ -193,6 +199,7 @@ OPTYPE_ACTION( FieldByteAction )
 
 OPTYPE_ACTION( FieldUByteAction )
 {
+	SET_OPVAL;
     unsigned char* pVar = (unsigned char *)(SPOP + opVal);
 
 	_doUByteVarop( pCore, pVar );
@@ -200,6 +207,7 @@ OPTYPE_ACTION( FieldUByteAction )
 
 OPTYPE_ACTION( MemberByteAction )
 {
+	SET_OPVAL;
     signed char* pVar = (signed char *)(((long)(GET_TPD)) + opVal);
 
 	_doByteVarop( pCore, pVar );
@@ -207,6 +215,7 @@ OPTYPE_ACTION( MemberByteAction )
 
 OPTYPE_ACTION( MemberUByteAction )
 {
+	SET_OPVAL;
     unsigned char* pVar = (unsigned char *)(((long)(GET_TPD)) + opVal);
 
 	_doUByteVarop( pCore, pVar );
@@ -234,6 +243,7 @@ GFORTHOP( doUByteArrayBop )
 
 OPTYPE_ACTION( LocalByteArrayAction )
 {
+	SET_OPVAL;
     signed char* pVar = (signed char *)(SPOP + ((long) (GET_FP - opVal)));
 
 	_doByteVarop( pCore, pVar );
@@ -241,6 +251,7 @@ OPTYPE_ACTION( LocalByteArrayAction )
 
 OPTYPE_ACTION( LocalUByteArrayAction )
 {
+	SET_OPVAL;
     unsigned char* pVar = (unsigned char *)(SPOP + ((long) (GET_FP - opVal)));
 
 	_doUByteVarop( pCore, pVar );
@@ -248,6 +259,7 @@ OPTYPE_ACTION( LocalUByteArrayAction )
 
 OPTYPE_ACTION( FieldByteArrayAction )
 {
+	SET_OPVAL;
     // TOS is struct base, NOS is index
     // opVal is byte offset of byte[0]
     signed char* pVar = (signed char *)(SPOP + opVal);
@@ -258,6 +270,7 @@ OPTYPE_ACTION( FieldByteArrayAction )
 
 OPTYPE_ACTION( FieldUByteArrayAction )
 {
+	SET_OPVAL;
     // TOS is struct base, NOS is index
     // opVal is byte offset of byte[0]
     unsigned char* pVar = (unsigned char *)(SPOP + opVal);
@@ -268,6 +281,7 @@ OPTYPE_ACTION( FieldUByteArrayAction )
 
 OPTYPE_ACTION( MemberByteArrayAction )
 {
+	SET_OPVAL;
     // TOS is index
     // opVal is byte offset of byte[0]
     signed char* pVar = (signed char *)(((long)(GET_TPD)) + SPOP + opVal);
@@ -277,6 +291,7 @@ OPTYPE_ACTION( MemberByteArrayAction )
 
 OPTYPE_ACTION( MemberUByteArrayAction )
 {
+	SET_OPVAL;
     // TOS is index
     // opVal is byte offset of byte[0]
     unsigned char* pVar = (unsigned char *)(((long)(GET_TPD)) + SPOP + opVal);
@@ -439,6 +454,7 @@ GFORTHOP( ushortVarActionBop )
 
 OPTYPE_ACTION( LocalShortAction )
 {
+	SET_OPVAL;
     short* pVar = (short *)(GET_FP - opVal);
 
 	_doShortVarop( pCore, pVar );
@@ -446,6 +462,7 @@ OPTYPE_ACTION( LocalShortAction )
 
 OPTYPE_ACTION( LocalUShortAction )
 {
+	SET_OPVAL;
     unsigned short* pVar = (unsigned short *)(GET_FP - opVal);
 
 	_doUShortVarop( pCore, pVar );
@@ -453,6 +470,7 @@ OPTYPE_ACTION( LocalUShortAction )
 
 OPTYPE_ACTION( FieldShortAction )
 {
+	SET_OPVAL;
     short* pVar = (short *)(SPOP + opVal);
 
 	_doShortVarop( pCore, pVar );
@@ -460,6 +478,7 @@ OPTYPE_ACTION( FieldShortAction )
 
 OPTYPE_ACTION( FieldUShortAction )
 {
+	SET_OPVAL;
     unsigned short* pVar = (unsigned short *)(SPOP + opVal);
 
 	_doUShortVarop( pCore, pVar );
@@ -467,6 +486,7 @@ OPTYPE_ACTION( FieldUShortAction )
 
 OPTYPE_ACTION( MemberShortAction )
 {
+	SET_OPVAL;
     short* pVar = (short *)(((long)(GET_TPD)) + opVal);
 
 	_doShortVarop( pCore, pVar );
@@ -474,6 +494,7 @@ OPTYPE_ACTION( MemberShortAction )
 
 OPTYPE_ACTION( MemberUShortAction )
 {
+	SET_OPVAL;
     unsigned short* pVar = (unsigned short *)(((long)(GET_TPD)) + opVal);
 
 	_doUShortVarop( pCore, pVar );
@@ -502,6 +523,7 @@ GFORTHOP( doUShortArrayBop )
 
 OPTYPE_ACTION( LocalShortArrayAction )
 {
+	SET_OPVAL;
     short* pVar = ((short *) (GET_FP - opVal)) + SPOP;
 
 	_doShortVarop( pCore, pVar );
@@ -509,6 +531,7 @@ OPTYPE_ACTION( LocalShortArrayAction )
 
 OPTYPE_ACTION( LocalUShortArrayAction )
 {
+	SET_OPVAL;
     unsigned short* pVar = ((unsigned short *) (GET_FP - opVal)) + SPOP;
 
 	_doUShortVarop( pCore, pVar );
@@ -516,6 +539,7 @@ OPTYPE_ACTION( LocalUShortArrayAction )
 
 OPTYPE_ACTION( FieldShortArrayAction )
 {
+	SET_OPVAL;
     // TOS is struct base, NOS is index
     // opVal is byte offset of short[0]
     short* pVar = (short *)(SPOP + opVal);
@@ -526,6 +550,7 @@ OPTYPE_ACTION( FieldShortArrayAction )
 
 OPTYPE_ACTION( FieldUShortArrayAction )
 {
+	SET_OPVAL;
     // TOS is struct base, NOS is index
     // opVal is byte offset of short[0]
     unsigned short* pVar = (unsigned short *)(SPOP + opVal);
@@ -536,6 +561,7 @@ OPTYPE_ACTION( FieldUShortArrayAction )
 
 OPTYPE_ACTION( MemberShortArrayAction )
 {
+	SET_OPVAL;
     // TOS is index
     // opVal is byte offset of byte[0]
     short* pVar = ((short *) (((long)(GET_TPD)) + opVal)) + SPOP;
@@ -545,6 +571,7 @@ OPTYPE_ACTION( MemberShortArrayAction )
 
 OPTYPE_ACTION( MemberUShortArrayAction )
 {
+	SET_OPVAL;
     // TOS is index
     // opVal is byte offset of byte[0]
     unsigned short* pVar = ((unsigned short *) (((long)(GET_TPD)) + opVal)) + SPOP;
@@ -653,6 +680,7 @@ GFORTHOP( intVarActionBop )
 
 OPTYPE_ACTION( LocalIntAction )
 {
+	SET_OPVAL;
     int* pVar = (int *)(GET_FP - opVal);
 
 	_doIntVarop( pCore, pVar );
@@ -661,6 +689,7 @@ OPTYPE_ACTION( LocalIntAction )
 
 OPTYPE_ACTION( FieldIntAction )
 {
+	SET_OPVAL;
     int* pVar = (int *)(SPOP + opVal);
 
 	_doIntVarop( pCore, pVar );
@@ -668,6 +697,7 @@ OPTYPE_ACTION( FieldIntAction )
 
 OPTYPE_ACTION( MemberIntAction )
 {
+	SET_OPVAL;
     int *pVar = (int *) (((long)(GET_TPD)) + opVal);
 
 	_doIntVarop( pCore, pVar );
@@ -687,6 +717,7 @@ GFORTHOP( doIntArrayBop )
 
 OPTYPE_ACTION( LocalIntArrayAction )
 {
+	SET_OPVAL;
     int* pVar = ((int *) (GET_FP - opVal)) + SPOP;
 
 	_doIntVarop( pCore, pVar );
@@ -694,6 +725,7 @@ OPTYPE_ACTION( LocalIntArrayAction )
 
 OPTYPE_ACTION( FieldIntArrayAction )
 {
+	SET_OPVAL;
     // TOS is struct base, NOS is index
     // opVal is byte offset of int[0]
     int* pVar = (int *)(SPOP + opVal);
@@ -704,6 +736,7 @@ OPTYPE_ACTION( FieldIntArrayAction )
 
 OPTYPE_ACTION( MemberIntArrayAction )
 {
+	SET_OPVAL;
     // TOS is index
     // opVal is byte offset of byte[0]
     int* pVar = ((int *) (((long)(GET_TPD)) + opVal)) + SPOP;
@@ -786,6 +819,7 @@ GFORTHOP( floatVarActionBop )
 
 OPTYPE_ACTION( LocalFloatAction )
 {
+	SET_OPVAL;
     float* pVar = (float *)(GET_FP - opVal);
 
 	_doFloatVarop( pCore, pVar );
@@ -793,6 +827,7 @@ OPTYPE_ACTION( LocalFloatAction )
 
 OPTYPE_ACTION( FieldFloatAction )
 {
+	SET_OPVAL;
     float* pVar = (float *)(SPOP + opVal);
 
 	_doFloatVarop( pCore, pVar );
@@ -800,6 +835,7 @@ OPTYPE_ACTION( FieldFloatAction )
 
 OPTYPE_ACTION( MemberFloatAction )
 {
+	SET_OPVAL;
     float *pVar = (float *) (((long)(GET_TPD)) + opVal);
 
 	_doFloatVarop( pCore, pVar );
@@ -818,6 +854,7 @@ GFORTHOP( doFloatArrayBop )
 
 OPTYPE_ACTION( LocalFloatArrayAction )
 {
+	SET_OPVAL;
     float* pVar = ((float *) (GET_FP - opVal)) + SPOP;
 
 	_doFloatVarop( pCore, pVar );
@@ -825,6 +862,7 @@ OPTYPE_ACTION( LocalFloatArrayAction )
 
 OPTYPE_ACTION( FieldFloatArrayAction )
 {
+	SET_OPVAL;
     // TOS is struct base, NOS is index
     // opVal is byte offset of float[0]
     float* pVar = (float *)(SPOP + opVal);
@@ -835,6 +873,7 @@ OPTYPE_ACTION( FieldFloatArrayAction )
 
 OPTYPE_ACTION( MemberFloatArrayAction )
 {
+	SET_OPVAL;
     // TOS is index
     // opVal is byte offset of byte[0]
     float* pVar = ((float *) (((long)(GET_TPD)) + opVal)) + SPOP;
@@ -932,6 +971,7 @@ GFORTHOP( doubleVarActionBop )
 
 OPTYPE_ACTION( LocalDoubleAction )
 {
+	SET_OPVAL;
     double* pVar = (double *)(GET_FP - opVal);
 
 	_doDoubleVarop( pCore, pVar );
@@ -940,6 +980,7 @@ OPTYPE_ACTION( LocalDoubleAction )
 
 OPTYPE_ACTION( FieldDoubleAction )
 {
+	SET_OPVAL;
     double* pVar = (double *)(SPOP + opVal);
 
 	_doDoubleVarop( pCore, pVar );
@@ -948,6 +989,7 @@ OPTYPE_ACTION( FieldDoubleAction )
 
 OPTYPE_ACTION( MemberDoubleAction )
 {
+	SET_OPVAL;
     double *pVar = (double *) (((long)(GET_TPD)) + opVal);
 
 	_doDoubleVarop( pCore, pVar );
@@ -967,6 +1009,7 @@ GFORTHOP( doDoubleArrayBop )
 
 OPTYPE_ACTION( LocalDoubleArrayAction )
 {
+	SET_OPVAL;
     double* pVar = ((double *) (GET_FP - opVal)) + SPOP;
 
 	_doDoubleVarop( pCore, pVar );
@@ -974,6 +1017,7 @@ OPTYPE_ACTION( LocalDoubleArrayAction )
 
 OPTYPE_ACTION( FieldDoubleArrayAction )
 {
+	SET_OPVAL;
     // TOS is struct base, NOS is index
     // opVal is byte offset of double[0]
     double* pVar = (double *)(SPOP + opVal);
@@ -984,6 +1028,7 @@ OPTYPE_ACTION( FieldDoubleArrayAction )
 
 OPTYPE_ACTION( MemberDoubleArrayAction )
 {
+	SET_OPVAL;
     // TOS is index
     // opVal is byte offset of byte[0]
     double* pVar = ((double *) (((long)(GET_TPD)) + opVal)) + SPOP;
@@ -1099,6 +1144,7 @@ GFORTHOP( stringVarActionBop )
 
 OPTYPE_ACTION( LocalStringAction )
 {
+	SET_OPVAL;
     char* pVar = (char *) (GET_FP - opVal);
 
 	_doStringVarop( pCore, pVar );
@@ -1107,6 +1153,7 @@ OPTYPE_ACTION( LocalStringAction )
 
 OPTYPE_ACTION( FieldStringAction )
 {
+	SET_OPVAL;
     char* pVar = (char *) (SPOP + opVal);
 
 	_doStringVarop( pCore, pVar );
@@ -1115,6 +1162,7 @@ OPTYPE_ACTION( FieldStringAction )
 
 OPTYPE_ACTION( MemberStringAction )
 {
+	SET_OPVAL;
     char *pVar = (char *) (((long)(GET_TPD)) + opVal);
 
 	_doStringVarop( pCore, pVar );
@@ -1137,6 +1185,7 @@ GFORTHOP( doStringArrayBop )
 
 OPTYPE_ACTION( LocalStringArrayAction )
 {
+	SET_OPVAL;
     long *pLongs = GET_FP - opVal;
     int index = SPOP;
     long len = ((*pLongs) >> 2) + 3;      // length of one string in longwords
@@ -1147,6 +1196,7 @@ OPTYPE_ACTION( LocalStringArrayAction )
 
 OPTYPE_ACTION( FieldStringArrayAction )
 {
+	SET_OPVAL;
     // TOS is struct base, NOS is index
     // opVal is byte offset of string[0]
     long *pLongs = (long *) (SPOP + opVal);
@@ -1159,6 +1209,7 @@ OPTYPE_ACTION( FieldStringArrayAction )
 
 OPTYPE_ACTION( MemberStringArrayAction )
 {
+	SET_OPVAL;
     // TOS is index
     // opVal is byte offset of string[0]
     long *pLongs = (long *) ((long)(GET_TPD) + opVal);
@@ -1233,6 +1284,7 @@ GFORTHOP( opVarActionBop )
 
 OPTYPE_ACTION( LocalOpAction )
 {
+	SET_OPVAL;
     long* pVar = (long *)(GET_FP - opVal);
 
 	_doOpVarop( pCore, pVar );
@@ -1241,6 +1293,7 @@ OPTYPE_ACTION( LocalOpAction )
 
 OPTYPE_ACTION( FieldOpAction )
 {
+	SET_OPVAL;
     long* pVar = (long *)(SPOP + opVal);
 
 	_doOpVarop( pCore, pVar );
@@ -1249,6 +1302,7 @@ OPTYPE_ACTION( FieldOpAction )
 
 OPTYPE_ACTION( MemberOpAction )
 {
+	SET_OPVAL;
     long *pVar = (long *) (((long)(GET_TPD)) + opVal);
 
 	_doOpVarop( pCore, pVar );
@@ -1268,6 +1322,7 @@ GFORTHOP( doOpArrayBop )
 
 OPTYPE_ACTION( LocalOpArrayAction )
 {
+	SET_OPVAL;
     long* pVar = ((long *) (GET_FP - opVal)) + SPOP;
 
 	_doOpVarop( pCore, pVar );
@@ -1275,6 +1330,7 @@ OPTYPE_ACTION( LocalOpArrayAction )
 
 OPTYPE_ACTION( FieldOpArrayAction )
 {
+	SET_OPVAL;
     // TOS is struct base, NOS is index
     // opVal is byte offset of op[0]
     long* pVar = (long *)(SPOP + opVal);
@@ -1285,6 +1341,7 @@ OPTYPE_ACTION( FieldOpArrayAction )
 
 OPTYPE_ACTION( MemberOpArrayAction )
 {
+	SET_OPVAL;
     // TOS is index
     // opVal is byte offset of byte[0]
     long* pVar = ((long *) (((long)(GET_TPD)) + opVal)) + SPOP;
@@ -1366,6 +1423,7 @@ GFORTHOP( objectVarActionBop )
 
 OPTYPE_ACTION( LocalObjectAction )
 {
+	SET_OPVAL;
 	ForthObject* pVar = (ForthObject *)(GET_FP - opVal);
 
 	_doObjectVarop( pCore, pVar );
@@ -1374,6 +1432,7 @@ OPTYPE_ACTION( LocalObjectAction )
 
 OPTYPE_ACTION( FieldObjectAction )
 {
+	SET_OPVAL;
 	ForthObject* pVar = (ForthObject *)(SPOP + opVal);
 
 	_doObjectVarop( pCore, pVar );
@@ -1382,6 +1441,7 @@ OPTYPE_ACTION( FieldObjectAction )
 
 OPTYPE_ACTION( MemberObjectAction )
 {
+	SET_OPVAL;
 	ForthObject* pVar = (ForthObject *)(((long)(GET_TPD)) + opVal);
 
 	_doObjectVarop( pCore, pVar );
@@ -1402,6 +1462,7 @@ GFORTHOP( doObjectArrayBop )
 
 OPTYPE_ACTION( LocalObjectArrayAction )
 {
+	SET_OPVAL;
 	ForthObject* pVar = ((ForthObject *) (GET_FP - opVal)) + SPOP;
 
 	_doObjectVarop( pCore, pVar );
@@ -1409,6 +1470,7 @@ OPTYPE_ACTION( LocalObjectArrayAction )
 
 OPTYPE_ACTION( FieldObjectArrayAction )
 {
+	SET_OPVAL;
     // TOS is struct base, NOS is index
     // opVal is byte offset of double[0]
 	ForthObject* pVar = (ForthObject *) (SPOP + opVal);
@@ -1418,6 +1480,7 @@ OPTYPE_ACTION( FieldObjectArrayAction )
 
 OPTYPE_ACTION( MemberObjectArrayAction )
 {
+	SET_OPVAL;
     // TOS is index
     // opVal is byte offset of byte[0]
     ForthObject* pVar = ((ForthObject *) (((long)(GET_TPD)) + opVal)) + SPOP;
@@ -1515,6 +1578,7 @@ GFORTHOP( longVarActionBop )
 
 OPTYPE_ACTION( LocalLongAction )
 {
+	SET_OPVAL;
     long long* pVar = (long long *)(GET_FP - opVal);
 
 	_doLongVarop( pCore, pVar );
@@ -1523,6 +1587,7 @@ OPTYPE_ACTION( LocalLongAction )
 
 OPTYPE_ACTION( FieldLongAction )
 {
+	SET_OPVAL;
     long long* pVar = (long long *)(SPOP + opVal);
 
 	_doLongVarop( pCore, pVar );
@@ -1531,6 +1596,7 @@ OPTYPE_ACTION( FieldLongAction )
 
 OPTYPE_ACTION( MemberLongAction )
 {
+	SET_OPVAL;
     long long* pVar = (long long *) (((long)(GET_TPD)) + opVal);
 
 	_doLongVarop( pCore, pVar );
@@ -1550,6 +1616,7 @@ GFORTHOP( doLongArrayBop )
 
 OPTYPE_ACTION( LocalLongArrayAction )
 {
+	SET_OPVAL;
     long long* pVar = ((long long *) (GET_FP - opVal)) + SPOP;
 
 	_doLongVarop( pCore, pVar );
@@ -1557,6 +1624,7 @@ OPTYPE_ACTION( LocalLongArrayAction )
 
 OPTYPE_ACTION( FieldLongArrayAction )
 {
+	SET_OPVAL;
     // TOS is struct base, NOS is index
     // opVal is byte offset of double[0]
     long long* pVar = (long long *)(SPOP + opVal);
@@ -1567,6 +1635,7 @@ OPTYPE_ACTION( FieldLongArrayAction )
 
 OPTYPE_ACTION( MemberLongArrayAction )
 {
+	SET_OPVAL;
     // TOS is index
     // opVal is byte offset of byte[0]
     long long* pVar = ((long long *) (((long)(GET_TPD)) + opVal)) + SPOP;

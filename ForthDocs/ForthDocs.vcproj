@@ -183,19 +183,23 @@
 				Name="Tests"
 				>
 				<File
-					RelativePath="..\Sandbox\autotest.txt"
+					RelativePath="..\Sandbox\tests\autotest.txt"
 					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\classtest.txt"
+					RelativePath="..\Sandbox\tests\biclasstest.txt"
 					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\filetest.txt"
+					RelativePath="..\Sandbox\tests\classtest.txt"
 					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\forthtest.txt"
+					RelativePath="..\Sandbox\tests\filetest.txt"
+					>
+				</File>
+				<File
+					RelativePath="..\Sandbox\tests\forthtest.txt"
 					>
 				</File>
 				<File
@@ -203,15 +207,27 @@
 					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\optest.txt"
+					RelativePath="..\Sandbox\tests\optest.txt"
 					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\output_test.txt"
+					RelativePath="..\Sandbox\tests\output_test.txt"
 					>
 				</File>
 				<File
-					RelativePath="..\Sandbox\structtest.txt"
+					RelativePath="..\Sandbox\tests\rctest.txt"
+					>
+				</File>
+				<File
+					RelativePath="..\Sandbox\tests\sdltest.txt"
+					>
+				</File>
+				<File
+					RelativePath="..\Sandbox\tests\structtest.txt"
+					>
+				</File>
+				<File
+					RelativePath="..\Sandbox\tests\testbase.txt"
 					>
 				</File>
 				<File

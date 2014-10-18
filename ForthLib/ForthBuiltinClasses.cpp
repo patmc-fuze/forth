@@ -2168,7 +2168,6 @@ namespace
     //                 oString
     //
 
-    typedef std::vector<ForthObject> oArray;
 //#define DEFAULT_STRING_DATA_BYTES 32
 #define DEFAULT_STRING_DATA_BYTES 256
 	int gDefaultRCStringSize = DEFAULT_STRING_DATA_BYTES - 1;
@@ -5277,7 +5276,6 @@ namespace
     //                 oThread
     //
 
-    typedef std::vector<ForthObject> oArray;
     struct oThreadStruct
     {
         ulong			refCount;
@@ -5393,6 +5391,10 @@ namespace
 		{
 			result = (long) InterpretOneOp( pThreadCore, op );
 		}
+		if ( result == kResultDone )
+		{
+			pThread->ResetIP();
+		}
 		SPUSH( result );
         METHOD_RETURN;
 	}
@@ -5401,6 +5403,13 @@ namespace
 	{
 		GET_THIS( oThreadStruct, pThreadStruct );
 		pThreadStruct->pThread->Reset();
+        METHOD_RETURN;
+	}
+
+	FORTHOP( oThreadResetIPMethod )
+	{
+		GET_THIS( oThreadStruct, pThreadStruct );
+		pThreadStruct->pThread->ResetIP();
         METHOD_RETURN;
 	}
 
@@ -5418,9 +5427,340 @@ namespace
         METHOD_RET( "getState",             oThreadGetStateMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "step",                 oThreadStepMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "reset",                oThreadResetMethod ),
+        METHOD(     "resetIP",              oThreadResetIPMethod ),
         // following must be last in table
         END_MEMBERS
     };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oInputStream
+    //
+
+	// oInputStream is an abstract input stream class
+
+    baseMethodEntry oInputStreamMembers[] =
+    {
+        METHOD(     "getChar",              unimplementedMethodOp ),
+        METHOD(     "getBytes",             unimplementedMethodOp ),
+        METHOD(     "getLine",              unimplementedMethodOp ),
+        METHOD(     "setTrimEOL",           unimplementedMethodOp ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oFileInputStream
+    //
+
+    struct oFileInputStreamStruct
+    {
+        ulong			refCount;
+		FILE*			pInFile;
+		bool			trimEOL;
+    };
+
+	// TBD: add tracking of run state of thread - this should be done inside ForthThread, not here
+    FORTHOP( oFileInputStreamNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+		MALLOCATE_OBJECT( oFileInputStreamStruct, pFileInputStreamStruct );
+        pFileInputStreamStruct->refCount = 0;
+		pFileInputStreamStruct->pInFile = NULL;
+		pFileInputStreamStruct->trimEOL = true;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pFileInputStreamStruct );
+    }
+
+    FORTHOP( oFileInputStreamDeleteMethod )
+    {
+		GET_THIS( oFileInputStreamStruct, pFileInputStreamStruct );
+		if ( pFileInputStreamStruct->pInFile != NULL )
+		{
+			GET_ENGINE->GetShell()->GetFileInterface()->fileClose( pFileInputStreamStruct->pInFile );
+			pFileInputStreamStruct->pInFile = NULL;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFileInputStreamInitMethod )
+    {
+		GET_THIS( oFileInputStreamStruct, pFileInputStreamStruct );
+		pFileInputStreamStruct->pInFile = reinterpret_cast<FILE *>(SPOP);
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFileInputStreamGetCharMethod )
+    {
+		GET_THIS( oFileInputStreamStruct, pFileInputStreamStruct );
+		int ch = -1;
+		if ( pFileInputStreamStruct->pInFile != NULL )
+		{
+			ch = GET_ENGINE->GetShell()->GetFileInterface()->fileGetChar(pFileInputStreamStruct->pInFile);
+		}
+		SPUSH( ch );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFileInputStreamGetBytesMethod )
+    {
+		GET_THIS( oFileInputStreamStruct, pFileInputStreamStruct );
+		int numBytes = SPOP;
+		char* pBuffer = reinterpret_cast<char *>(SPOP);
+		int numRead = 0;
+		if ( pFileInputStreamStruct->pInFile != NULL )
+		{
+			numRead = GET_ENGINE->GetShell()->GetFileInterface()->fileRead(pBuffer, 1, numBytes, pFileInputStreamStruct->pInFile);
+		}
+		SPUSH( numRead );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFileInputStreamGetLineMethod )
+    {
+		GET_THIS( oFileInputStreamStruct, pFileInputStreamStruct );
+		int maxBytes = SPOP;
+		char* pBuffer = reinterpret_cast<char *>(SPOP);
+		char* pResult = NULL;
+		if ( pFileInputStreamStruct->pInFile != NULL )
+		{
+			pResult = GET_ENGINE->GetShell()->GetFileInterface()->fileGetString(pBuffer, maxBytes, pFileInputStreamStruct->pInFile);
+		}
+		int numRead = 0;
+		if ( pResult != NULL )
+		{
+			if ( pFileInputStreamStruct->trimEOL )
+			{
+				char* pEOL = pResult;
+				while ( char ch = *pEOL != '\0' )
+				{
+					if ( (ch == '\n') || (ch == '\r') )
+					{
+						*pEOL = '\0';
+						break;
+					}
+					++pEOL;
+				}
+			}
+			numRead = strlen( pResult );
+		}
+		SPUSH( numRead );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFileInputStreamSetTrimEOLMethod )
+    {
+		GET_THIS( oFileInputStreamStruct, pFileInputStreamStruct );
+		pFileInputStreamStruct->trimEOL = (SPOP != 0);
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oFileInputStreamMembers[] =
+    {
+        METHOD(     "_%new%_",              oFileInputStreamNew ),
+        METHOD(     "init",                 oFileInputStreamInitMethod ),
+        METHOD(     "delete",               oFileInputStreamDeleteMethod ),
+        METHOD(     "getChar",              oFileInputStreamGetCharMethod ),
+        METHOD(     "getBytes",             oFileInputStreamGetBytesMethod ),
+        METHOD(     "getLine",              oFileInputStreamGetLineMethod ),
+        METHOD(     "setTrimEOL",           oFileInputStreamSetTrimEOLMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oConsoleInputStream
+    //
+
+	// TBD: add tracking of run state of thread - this should be done inside ForthThread, not here
+    FORTHOP( oConsoleInputStreamNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+		MALLOCATE_OBJECT( oFileInputStreamStruct, pConsoleInputStreamStruct );
+        pConsoleInputStreamStruct->refCount = 0;
+		pConsoleInputStreamStruct->trimEOL = true;
+		pConsoleInputStreamStruct->pInFile = GET_ENGINE->GetShell()->GetFileInterface()->getStdIn();
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pConsoleInputStreamStruct );
+    }
+
+    FORTHOP( oConsoleInputStreamDeleteMethod )
+    {
+		GET_THIS( oFileInputStreamStruct, pFileInputStreamStruct );
+		pFileInputStreamStruct->pInFile = NULL;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oConsoleInputStreamInitMethod )
+	{
+		// TBD: report an error?
+		SPOP;
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oConsoleInputStreamMembers[] =
+    {
+        METHOD(     "_%new%_",              oConsoleInputStreamNew ),
+        METHOD(     "delete",               oConsoleInputStreamDeleteMethod ),
+        METHOD(     "init",                 oConsoleInputStreamInitMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oOutputStream
+    //
+
+	// oOutputStream is an abstract output stream class
+
+    baseMethodEntry oOutputStreamMembers[] =
+    {
+        METHOD(     "putChar",              unimplementedMethodOp ),
+        METHOD(     "putBytes",             unimplementedMethodOp ),
+        METHOD(     "putString",            unimplementedMethodOp ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oFileOutputStream
+    //
+
+    struct oFileOutputStreamStruct
+    {
+        ulong			refCount;
+		FILE*			pOutFile;
+    };
+
+	// TBD: add tracking of run state of thread - this should be done inside ForthThread, not here
+    FORTHOP( oFileOutputStreamNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+		MALLOCATE_OBJECT( oFileOutputStreamStruct, pFileOutputStreamStruct );
+        pFileOutputStreamStruct->refCount = 0;
+		pFileOutputStreamStruct->pOutFile = NULL;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pFileOutputStreamStruct );
+    }
+
+    FORTHOP( oFileOutputStreamDeleteMethod )
+    {
+		GET_THIS( oFileOutputStreamStruct, pFileOutputStreamStruct );
+		if ( pFileOutputStreamStruct->pOutFile != NULL )
+		{
+			GET_ENGINE->GetShell()->GetFileInterface()->fileClose( pFileOutputStreamStruct->pOutFile );
+			pFileOutputStreamStruct->pOutFile = NULL;
+		}
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFileOutputStreamInitMethod )
+    {
+		GET_THIS( oFileOutputStreamStruct, pFileOutputStreamStruct );
+		pFileOutputStreamStruct->pOutFile = reinterpret_cast<FILE *>(SPOP);
+        METHOD_RETURN;
+    }
+
+	FORTHOP( oFileOutputStreamPutCharMethod )
+    {
+		GET_THIS( oFileOutputStreamStruct, pFileOutputStreamStruct );
+		int ch = SPOP;
+		int result = -1;
+		if ( pFileOutputStreamStruct->pOutFile != NULL )
+		{
+			result = GET_ENGINE->GetShell()->GetFileInterface()->filePutChar(ch, pFileOutputStreamStruct->pOutFile);
+		}
+		SPUSH( result );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFileOutputStreamPutBytesMethod )
+    {
+		GET_THIS( oFileOutputStreamStruct, pFileOutputStreamStruct );
+		int numBytes = SPOP;
+		char* pBuffer = reinterpret_cast<char *>(SPOP);
+		int numWritten = 0;
+		if ( pFileOutputStreamStruct->pOutFile != NULL )
+		{
+			numWritten = GET_ENGINE->GetShell()->GetFileInterface()->fileWrite(pBuffer, 1, numBytes, pFileOutputStreamStruct->pOutFile);
+		}
+		SPUSH( numWritten );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFileOutputStreamPutLineMethod )
+    {
+		GET_THIS( oFileOutputStreamStruct, pFileOutputStreamStruct );
+		char* pBuffer = reinterpret_cast<char *>(SPOP);
+		int numWritten = 0;
+		if ( pFileOutputStreamStruct->pOutFile != NULL )
+		{
+			numWritten = GET_ENGINE->GetShell()->GetFileInterface()->filePutString(pBuffer, pFileOutputStreamStruct->pOutFile);
+		}
+		SPUSH( numWritten );
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oFileOutputStreamMembers[] =
+    {
+        METHOD(     "_%new%_",              oFileOutputStreamNew ),
+        METHOD(     "delete",               oFileOutputStreamDeleteMethod ),
+        METHOD(     "putChar",              oFileOutputStreamPutCharMethod ),
+        METHOD(     "putBytes",             oFileOutputStreamPutBytesMethod ),
+        METHOD(     "putLine",              oFileOutputStreamPutLineMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oConsoleOutputStream
+    //
+
+	// TBD: add tracking of run state of thread - this should be done inside ForthThread, not here
+    FORTHOP( oConsoleOutputStreamNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+		MALLOCATE_OBJECT( oFileOutputStreamStruct, pConsoleOutputStreamStruct );
+        pConsoleOutputStreamStruct->refCount = 0;
+		pConsoleOutputStreamStruct->pOutFile = GET_ENGINE->GetShell()->GetFileInterface()->getStdOut();
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pConsoleOutputStreamStruct );
+    }
+
+	FORTHOP( oConsoleOutputStreamDeleteMethod )
+    {
+		GET_THIS( oFileOutputStreamStruct, pConsoleOutputStreamStruct );
+		pConsoleOutputStreamStruct->pOutFile = NULL;
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oConsoleOutputStreamInitMethod )
+	{
+		// TBD: report an error?
+		SPOP;
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oConsoleOutputStreamMembers[] =
+    {
+        METHOD(     "_%new%_",              oConsoleOutputStreamNew ),
+        METHOD(     "delete",               oConsoleOutputStreamDeleteMethod ),
+        METHOD(     "init",                 oConsoleOutputStreamInitMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
 
 }
 
@@ -5498,6 +5838,14 @@ ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
     ForthClassVocabulary* pODoubleClass = pEngine->AddBuiltinClass( "oDouble", pObjectClass, oDoubleMembers );
 
     ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass( "oThread", pObjectClass, oThreadMembers );
+
+    ForthClassVocabulary* pOInputStreamClass = pEngine->AddBuiltinClass( "oInputStream", pObjectClass, oInputStreamMembers );
+    ForthClassVocabulary* pOFileInputStreamClass = pEngine->AddBuiltinClass( "oFileInputStream", pOInputStreamClass, oFileInputStreamMembers );
+    ForthClassVocabulary* pOConsoleInputStreamClass = pEngine->AddBuiltinClass( "oConsoleInputStream", pOFileInputStreamClass, oConsoleInputStreamMembers );
+
+    ForthClassVocabulary* pOOutputStreamClass = pEngine->AddBuiltinClass( "oOutputStream", pObjectClass, oOutputStreamMembers );
+    ForthClassVocabulary* pOFileOutputStreamClass = pEngine->AddBuiltinClass( "oFileOutputStream", pOOutputStreamClass, oFileOutputStreamMembers );
+    ForthClassVocabulary* pOConsoleOutputStreamClass = pEngine->AddBuiltinClass( "oConsoleOutputStream", pOFileOutputStreamClass, oConsoleOutputStreamMembers );
 
     mpClassMethods = pClassClass->GetInterface( 0 )->GetMethods();
 }

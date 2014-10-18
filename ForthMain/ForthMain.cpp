@@ -13,27 +13,6 @@
 #include "ForthShell.h"
 #include "ForthInput.h"
 
-// for some reason, these can't be extern-ed from inside ForthLib
-#include <math.h>
-extern float sinf(float a);
-extern float cosf(float a);
-extern float tanf(float a);
-extern float asinf(float a);
-extern float acosf(float a);
-extern float atanf(float a);
-extern float ceilf(float a);
-extern float floorf(float a);
-extern float sqrtf(float a);
-extern float expf(float a);
-extern float logf(float a);
-extern float log10f(float a);
-extern float atan2f(float a, float b);
-extern float fmodf(float a, float b);
-extern float powf(float a, float b);
-extern float modff(float a, float* pb);
-extern float ldexpf(float a, int exp);
-extern float frexpf(float a, int* pb);
-
 #if AFX_BUILD
 
 /////////////////////////////////////////////////////////////////////////////
@@ -75,6 +54,7 @@ int main( int argc, char* argv[], char* envp[] )
 	}
     else
     {
+		nRetCode = 1;
         pShell = new ForthShell;
         pShell->SetCommandLine( argc, (const char **) (argv));
         pShell->SetEnvironmentVars( (const char **) envp );

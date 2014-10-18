@@ -164,6 +164,36 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 5 2014
+
+I decided to try to get single stepping threads working as a first step toward
+a forth debugger.  There were a bunch of bugs in the assembler version which
+were pretty easy to fix, there is a more difficult set of bugs left which
+are caused by how the inner interpreter is exited whenever state isn't OK.
+To avoid having the inner interpreter be checking state before every dispatch,
+I have any code which sets state to non-OK branch to interpLoopExit, which
+does a return which only works if the inner interpreter was entered by calling
+InnerInterpreterFast, and fails if InterpretOneOpFast was called.
+-> Fixed by having InterpretOneOpFast call the inner interpreter instead of
+   branching to it - ops which have an error will return and get to the code
+   right after the call, ops which exit normally will get to InterpretOneOpFast
+   exit code which discards the return address.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 28 2014
+
+I decided to scrap the combo op stuff for now, and concentrate on building
+things using forth as it is now to determine what changes need to be made.
+I had turned off the ASM_INNER_INTERPRETER define so that I could debug the
+combo op code in C++, but when I turned it back on, I am now getting undefined
+symbols for all the assembler implemented stuff - there is a linker error for
+_InitAsmTables missing.  I tried changing the asm code to add an underscore, that
+didn't fix it, maybe I somehow got the linker to now include the object file for
+InnerInterp.asm?
+-> the custom build rule for InnerInterp.asm wasn't defining ASM_INNER_INTERPRETER,
+   and the assembly code has ifdefs that require it.
+After fixing this, the debug build works, but the release build fails with
+undefined externals for all the single precision float routines.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 1 2014
 
 I moved the opcode compilation/uncompilation from ForthEngine to its own class,
@@ -246,7 +276,9 @@ adding '~' to the start of a FP literal?
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 7 2014
 
-Added single precision FP ops (fsin, fcos, fpow, ...)
+Added single precision FP ops (fsin, fcos, fpow, ...).  For some reason, I had
+to add extern references to the single precision library functions to ForthMain
+to make the build work.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 4 2014
 

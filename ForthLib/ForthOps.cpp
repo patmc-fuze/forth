@@ -26,6 +26,7 @@
 #include "ForthServer.h"
 #include "ForthClient.h"
 #include "ForthMessages.h"
+#include "ForthPortability.h"
 
 #ifdef LINUX
 #include <strings.h>
@@ -71,6 +72,19 @@ extern GFORTHOP( doubleVarActionBop );
 extern GFORTHOP( stringVarActionBop );
 extern GFORTHOP( opVarActionBop );
 extern GFORTHOP( objectVarActionBop );
+
+#if defined(WIN32) && !defined(MINGW)
+// this madness is here to fix an unexplained link error - single precision float math functions are undefined
+//  even though they are declared extern in InnerInterp.asm
+float maximumBogosity()
+{
+	float aa;
+	int bb;
+	return asinf(sinf(0.5f)) + acosf(cosf(0.5f)) + atanf(tanf(0.5f))
+		+ atan2f(0.5f, 0.7f) + powf(2.0f, 4.0f) + ldexpf(2.0f, 5) + frexpf(2.0f, &bb)
+		+ ceilf(modff(0.7f, &aa)) + floorf(fmodf(1.0f, 2.0f)) + log10f(sqrtf(expf(logf(2.0f))));
+}
+#endif
 
 //############################################################################
 //
@@ -654,17 +668,22 @@ FORTHOP( endcaseOp )
 FORTHOP( alignOp )
 {
     GET_ENGINE->AlignDP();
-}        
+}
 
 FORTHOP( allotOp )
 {
     GET_ENGINE->AllotLongs( SPOP );
-}        
+}
+
+FORTHOP( callotOp )
+{
+    GET_ENGINE->AllotBytes( SPOP );
+}
 
 FORTHOP( commaOp )
 {
     GET_ENGINE->CompileLong( SPOP );
-}        
+}
 
 FORTHOP( cCommaOp )
 {
@@ -672,7 +691,7 @@ FORTHOP( cCommaOp )
     char *pChar = (char *)GET_DP;
     *pChar++ = (char) SPOP;
     pEngine->SetDP( (long *) pChar);
-}        
+}
 
 FORTHOP( mallocOp )
 {
@@ -1848,8 +1867,9 @@ FORTHOP( requiresOp )
 	if ( pVocabStack->FindSymbol( pSymbolName ) == NULL )
     {
         // symbol not found - load symbol.txt
-        char *pFileName = new char[ strlen( pSymbolName ) + 8 ];
-        sprintf( pFileName, "%s.txt", pSymbolName );
+		int buffLen = strlen( pSymbolName ) + 8;
+        char *pFileName = new char[ buffLen ];
+		SNPRINTF( pFileName, buffLen, "%s.txt", pSymbolName );
         if ( pEngine->PushInputFile( pFileName ) == false )
         {
             CONSOLE_STRING_OUT( "!!!! Failure opening source file " );
@@ -1945,12 +1965,11 @@ FORTHOP( bracketTickOp )
 //
 //  output ops
 //
-
 void
 consoleOutToFile( ForthCoreState   *pCore,
                   const char       *pMessage )
 {    
-    FILE *pOutFile = static_cast<FILE*>(GET_CON_OUT_DATA);
+    FILE *pOutFile = stdout;//static_cast<FILE*>(GET_CON_OUT_DATA);
     if ( pOutFile != NULL )
     {
         fprintf(pOutFile, "%s", pMessage );
@@ -1961,6 +1980,7 @@ consoleOutToFile( ForthCoreState   *pCore,
     }
 }
 
+/*
 void
 consoleOutToString( ForthCoreState   *pCore,
                     const char       *pMessage )
@@ -1985,7 +2005,7 @@ consoleOutToOp( ForthCoreState   *pCore,
     ForthEngine* pEngine = GET_ENGINE;
     pEngine->ExecuteOneOp( op );
 }
-
+*/
 static void
 printNumInCurrentBase( ForthCoreState   *pCore,
                        long             val )
@@ -2014,7 +2034,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
         {
 
             // most common case - print signed decimal
-            sprintf( buff, "%d ", val );
+            SNPRINTF( buff, sizeof(buff), "%d ", val );
             pNext = buff;
 
         }
@@ -2102,10 +2122,10 @@ printLongNumInCurrentBase( ForthCoreState   *pCore,
 			switch ( signMode )
 			{
 			case kPrintAllUnsigned:
-	            sprintf( buff, "%ulld ", val );
+	            SNPRINTF( buff, sizeof(buff), "%ulld ", val );
 				break;
 			default:
-	            sprintf( buff, "%lld ", val );
+	            SNPRINTF( buff, sizeof(buff), "%lld ", val );
 				break;
 			}
             pNext = buff;
@@ -2178,7 +2198,7 @@ FORTHOP( printNumDecimalOp )
     char buff[36];
 
     long val = SPOP;
-    sprintf( buff, "%d", val );
+    SNPRINTF( buff, sizeof(buff), "%d", val );
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -2192,7 +2212,7 @@ FORTHOP( printNumHexOp )
     char buff[12];
 
     long val = SPOP;
-    sprintf( buff, "%x", val );
+    SNPRINTF( buff, sizeof(buff), "%x", val );
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -2206,7 +2226,7 @@ FORTHOP( printLongDecimalOp )
     char buff[40];
 
     long long val = LPOP;
-    sprintf( buff, "%I64d", val );
+    SNPRINTF( buff, sizeof(buff), "%I64d", val );
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -2220,7 +2240,7 @@ FORTHOP( printLongHexOp )
     char buff[20];
 
     long long val = LPOP;
-    sprintf( buff, "%I64x", val );
+    SNPRINTF( buff, sizeof(buff), "%I64x", val );
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -2234,7 +2254,7 @@ FORTHOP( printFloatOp )
     char buff[36];
 
     float fval = FPOP;
-    sprintf( buff, "%f", fval );
+    SNPRINTF( buff, sizeof(buff), "%f", fval );
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -2248,7 +2268,7 @@ FORTHOP( printDoubleOp )
     char buff[36];
     double dval = DPOP;
 
-    sprintf( buff, "%f", dval );
+    SNPRINTF( buff, sizeof(buff), "%f", dval );
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -2262,7 +2282,8 @@ FORTHOP( format32Op )
 
     ForthEngine *pEngine = GET_ENGINE;
     char* pFmt = (char *) (SPOP);
-	char *pDst = GET_ENGINE->GetTmpStringBuffer();
+	char *pDst = pEngine->GetTmpStringBuffer();
+	int buffLen = pEngine->GetTmpStringBufferSize();
 	int len = strlen( pFmt );
 
 	if ( len < 2 ) 
@@ -2278,13 +2299,13 @@ FORTHOP( format32Op )
 			{
 				float fval = FPOP;
 				double dval = (double) fval;
-				sprintf( pDst, pFmt, dval );
+				SNPRINTF( pDst, buffLen, pFmt, dval );
 				break;
 			}
 			default:
 			{
 				long val = SPOP;
-				sprintf( pDst, pFmt, val );
+				SNPRINTF( pDst, buffLen, pFmt, val );
 			}
 		}
 
@@ -2302,6 +2323,7 @@ FORTHOP( format64Op )
     ForthEngine *pEngine = GET_ENGINE;
     char* pFmt = (char *) (SPOP);
 	char *pDst = GET_ENGINE->GetTmpStringBuffer();
+	int buffLen = pEngine->GetTmpStringBufferSize();
 	int len = strlen( pFmt );
 
 	if ( len < 2 ) 
@@ -2316,13 +2338,13 @@ FORTHOP( format64Op )
 			case 'a': case 'e': case 'f': case 'g':
 			{
 				double dval = DPOP;
-				sprintf( pDst, pFmt, dval );
+				SNPRINTF( pDst, buffLen, pFmt, dval );
 				break;
 			}
 			default:
 			{
 				long long val = LPOP;
-				sprintf( pDst, pFmt, val );
+				SNPRINTF( pDst, buffLen, pFmt, val );
 			}
 		}
 
@@ -2521,38 +2543,29 @@ FORTHOP( printAllUnsignedOp )
     SET_PRINT_SIGNED_NUM_MODE( kPrintAllUnsigned );
 }
 
-FORTHOP( outToScreenOp )
+/*
+FORTHOP( getConoutOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
 
 	pEngine->ResetConsoleOut( pCore );
 }
 
-FORTHOP( outToFileOp )
+FORTHOP( setConoutOp )
 {
-    NEEDS( 1 );
-    SET_CON_OUT_ROUTINE( consoleOutToFile );
-    SET_CON_OUT_DATA( reinterpret_cast<void*>(SPOP) );
+    ForthEngine *pEngine = GET_ENGINE;
+
+	long long conoutOp = LPOP;
+	pEngine->SetConsoleOut( pCore );
 }
 
-FORTHOP( outToStringOp )
+FORTHOP( resetConoutOp )
 {
-    NEEDS( 1 );
-    SET_CON_OUT_ROUTINE( consoleOutToString );
-    SET_CON_OUT_DATA( (char *) SPOP );
-}
+    ForthEngine *pEngine = GET_ENGINE;
 
-FORTHOP( outToOpOp )
-{
-    NEEDS( 1 );
-    SET_CON_OUT_ROUTINE( consoleOutToOp );
-    SET_CON_OUT_OP( SPOP );
+	pEngine->ResetConsoleOut( pCore );
 }
-
-FORTHOP( getConOutFileOp )
-{
-    SPUSH( (long) GET_CON_OUT_DATA );
-}
+*/
 
 //##############################
 //
@@ -2724,7 +2737,7 @@ FORTHOP( dstackOp )
     int i;
     char buff[64];
 
-    sprintf( buff, "stack[%d]:", nItems );
+    SNPRINTF( buff, sizeof(buff), "stack[%d]:", nItems );
     CONSOLE_STRING_OUT( buff );
     for ( i = 0; i < nItems; i++ )
     {
@@ -2742,7 +2755,7 @@ FORTHOP( drstackOp )
     int i;
     char buff[64];
 
-    sprintf( buff, "rstack[%d]:", nItems );
+    SNPRINTF( buff, sizeof(buff), "rstack[%d]:", nItems );
     CONSOLE_STRING_OUT( buff );
     for ( i = 0; i < nItems; i++ )
     {
@@ -2757,14 +2770,14 @@ FORTHOP( statsOp )
 {
     char buff[512];
 
-    sprintf( buff, "pCore %p pEngine %p     DP %p DBase %p    IP %p\n",
+    SNPRINTF( buff, sizeof(buff), "pCore %p pEngine %p     DP %p DBase %p    IP %p\n",
              pCore, pCore->pEngine, pCore->pDictionary, pCore->pDictionary->pBase, pCore->IP );
     CONSOLE_STRING_OUT( buff );
-    sprintf( buff, "SP %p ST %p SLen %d    RP %p RT %p RLen %d\n",
+    SNPRINTF( buff, sizeof(buff), "SP %p ST %p SLen %d    RP %p RT %p RLen %d\n",
              pCore->SP, pCore->ST, pCore->SLen,
              pCore->RP, pCore->RT, pCore->RLen );
     CONSOLE_STRING_OUT( buff );
-    sprintf( buff, "%d builtins    %d userops\n", pCore->numBuiltinOps, pCore->numOps );
+    SNPRINTF( buff, sizeof(buff), "%d builtins    %d userops\n", pCore->numBuiltinOps, pCore->numOps );
     CONSOLE_STRING_OUT( buff );
 }
 
@@ -2812,7 +2825,7 @@ FORTHOP( describeOp )
 			}
 			else
 			{
-				sprintf( buff, "Failed to find method %s\n", pSym );
+				SNPRINTF( buff, sizeof(buff), "Failed to find method %s\n", pSym );
 				CONSOLE_STRING_OUT( buff );
 			}
 		}
@@ -2821,7 +2834,7 @@ FORTHOP( describeOp )
 			// show structure vocabulary entries
 			while ( pVocab )
 			{
-				sprintf( buff, "%s vocabulary %s:\n", ((pVocab->IsClass() ? "class" : "struct")), pVocab->GetName() );
+				SNPRINTF( buff, sizeof(buff), "%s vocabulary %s:\n", ((pVocab->IsClass() ? "class" : "struct")), pVocab->GetName() );
 				CONSOLE_STRING_OUT( buff );
 				char quit = ShowVocab( pEngine->GetCoreState(), pVocab, !verbose );
 				if ( quit == 'q' )
@@ -2842,6 +2855,26 @@ FORTHOP( describeOp )
 	CLEAR_VAR_OPERATION;
 }
 
+FORTHOP( describeAtOp )
+{
+	NEEDS( 2 );
+	char* pString = reinterpret_cast<char *>(SPOP);
+	long* pOp = reinterpret_cast<long *>(SPOP);
+    long* pLengths = reinterpret_cast<long *>(pString) - 2;
+	// pLengths[0] is max length, pLength[1] is current length
+    pLengths[1] = 0;
+	if ( pLengths[0] < 1 )
+	{
+		return;
+	}
+    *pString = '\0';
+
+    ForthEngine *pEngine = GET_ENGINE;
+
+	pEngine->DescribeOp( pOp, pString, pLengths[0], true );
+	pLengths[1] = strlen( pString );
+	CLEAR_VAR_OPERATION;
+}
 
 FORTHOP( DLLVocabularyOp )
 {
@@ -3829,6 +3862,94 @@ FORTHOP( findCloseOp )
     BOOL result = ::FindClose( searchHandle );
     SPUSH( (long) result );
 }
+
+FORTHOP( setConsoleCursorOp )
+{
+	NEEDS( 2 );
+	COORD screenPos;
+	screenPos.Y = SPOP;
+	screenPos.X = SPOP;
+	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
+	SetConsoleCursorPosition( hConsole, screenPos );
+}
+
+FORTHOP( getConsoleCursorOp )
+{
+	NEEDS( 0 );
+	CONSOLE_SCREEN_BUFFER_INFO consoleInfo;
+	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
+	GetConsoleScreenBufferInfo( hConsole, &consoleInfo );
+	SPUSH( consoleInfo.dwCursorPosition.X );
+	SPUSH( consoleInfo.dwCursorPosition.Y );
+}
+
+FORTHOP( setConsoleColorOp )
+{
+	NEEDS( 1 );
+	COORD screenPos;
+	WORD attributes = SPOP;
+	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
+	SetConsoleTextAttribute( hConsole, attributes );
+}
+
+FORTHOP( getConsoleColorOp )
+{
+	NEEDS( 0 );
+	CONSOLE_SCREEN_BUFFER_INFO consoleInfo;
+	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
+	GetConsoleScreenBufferInfo( hConsole, &consoleInfo );
+	SPUSH( consoleInfo.wAttributes );
+}
+
+FORTHOP( clearConsoleOp )
+{
+	NEEDS( 0 );
+	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
+	COORD coordScreen = { 0, 0 };    // home for the cursor 
+    DWORD cCharsWritten;
+    CONSOLE_SCREEN_BUFFER_INFO csbi; 
+    DWORD dwConSize;
+
+	// Get the number of character cells in the current buffer. 
+    if ( !GetConsoleScreenBufferInfo( hConsole, &csbi ) )
+    {
+		return;
+    }
+
+	dwConSize = csbi.dwSize.X * csbi.dwSize.Y;
+
+	// Fill the entire screen with blanks.
+	if( !FillConsoleOutputCharacter( hConsole,        // Handle to console screen buffer 
+                                    (TCHAR) ' ',     // Character to write to the buffer
+                                    dwConSize,       // Number of cells to write 
+                                    coordScreen,     // Coordinates of first cell 
+                                    &cCharsWritten ))// Receive number of characters written
+	{
+		return;
+	}
+
+	// Get the current text attribute.
+	if ( !GetConsoleScreenBufferInfo( hConsole, &csbi ) )
+	{
+		return;
+	}
+
+	// Set the buffer's attributes accordingly.
+
+	if( !FillConsoleOutputAttribute( hConsole,         // Handle to console screen buffer 
+                                    csbi.wAttributes, // Character attributes to use
+                                    dwConSize,        // Number of cells to set attribute 
+                                    coordScreen,      // Coordinates of first cell 
+                                    &cCharsWritten )) // Receive number of characters written
+	{
+		return;
+	}
+
+	// Put the cursor at its home coordinates.
+
+	SetConsoleCursorPosition( hConsole, coordScreen );
+}
+
 
 FORTHOP( windowsConstantsOp )
 {
@@ -6684,6 +6805,7 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     OP_DEF(    alignOp,                "align" ),
     OP_DEF(    allotOp,                "allot" ),
+    OP_DEF(    callotOp,               "callot" ),
     OP_DEF(    commaOp,                "," ),
     OP_DEF(    cCommaOp,               "c," ),
     OP_DEF(    mallocOp,               "malloc" ),
@@ -6719,12 +6841,13 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    printDecimalSignedOp,   "printDecimalSigned" ),
     OP_DEF(    printAllSignedOp,       "printAllSigned" ),
     OP_DEF(    printAllUnsignedOp,     "printAllUnsigned" ),
-    OP_DEF(    outToFileOp,            "outToFile" ),
+/* 
+	OP_DEF(    outToFileOp,            "outToFile" ),
     OP_DEF(    outToScreenOp,          "outToScreen" ),
     OP_DEF(    outToStringOp,          "outToString" ),
     OP_DEF(    outToOpOp,              "outToOp" ),
     OP_DEF(    getConOutFileOp,        "getConOutFile" ),
-
+*/
     ///////////////////////////////////////////
     //  input buffer
     ///////////////////////////////////////////
@@ -6801,6 +6924,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    turboOp,                "turbo" ),
     OP_DEF(    statsOp,                "stats" ),
     OP_DEF(    describeOp,             "describe" ),
+    OP_DEF(    describeAtOp,           "describe@" ),
     OP_DEF(    errorOp,                "error" ),
     OP_DEF(    addErrorTextOp,         "addErrorText" ),
     OP_DEF(    unimplementedMethodOp,  "unimplementedMethod" ),
@@ -6852,6 +6976,11 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( findFirstFileOp,            "FindFirstFile" ),
     OP_DEF( findNextFileOp,             "FindNextFile" ),
     OP_DEF( findCloseOp,                "FindClose" ),
+    OP_DEF( setConsoleCursorOp,         "setConsoleCursor" ),
+    OP_DEF( getConsoleCursorOp,         "getConsoleCursor" ),
+    OP_DEF( setConsoleColorOp,          "setConsoleColor" ),
+    OP_DEF( getConsoleColorOp,          "getConsoleColor" ),
+    OP_DEF( clearConsoleOp,             "clearConsole" ),
     OP_DEF( windowsConstantsOp,         "windowsConstants" ),
 
 	NATIVE_DEF( trueBop,				"WINDOWS" ),

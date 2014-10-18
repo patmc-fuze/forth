@@ -16,6 +16,8 @@
 #include "ForthInner.h"
 #include "ForthExtension.h"
 #include "ForthStructs.h"
+#include "ForthOpcodeCompiler.h"
+#include "ForthPortability.h"
 
 extern "C"
 {
@@ -99,85 +101,6 @@ void defaultTraceOutRoutine( void*, const char* pBuff )
 {
     TRACE( "%s", pBuff );
 }
-
-//////////////////////////////////////////////////////////////////////
-////
-///
-//                     ForthOpcodeCompiler
-// 
-
-ForthOpcodeCompiler::ForthOpcodeCompiler(ForthMemorySection*	pDictionarySection)
-: mpDictionarySection( pDictionarySection )
-{
-	for ( unsigned int i = 0; i < MAX_PEEPHOLE_PTRS; ++i )
-	{
-		mPeephole[i] = NULL;
-	}
-	Reset();
-}
-
-ForthOpcodeCompiler::~ForthOpcodeCompiler()
-{
-} 
-
-void ForthOpcodeCompiler::Reset()
-{
-	mPeepholeIndex = 0;
-	mPeepholeValidCount = 0;
-	mpLastIntoOpcode = NULL;
-}
-
-void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
-{
-    long* pOpcode = mpDictionarySection->pCurrent;
-	long op = COMPILED_OP( opType, opVal );
-    if ( op == gCompiledOps[OP_INTO] )
-    {
-       // we need this to support initialization of local string vars (ugh)
-       mpLastIntoOpcode = pOpcode;
-       
-    }
-	mPeepholeIndex = (mPeepholeIndex + 1) & (MAX_PEEPHOLE_PTRS - 1);
-	mPeephole[mPeepholeIndex] = pOpcode;
-	*pOpcode++ = op;
-	mpDictionarySection->pCurrent = pOpcode;
-	mPeepholeValidCount++;
-}
-
-void ForthOpcodeCompiler::UncompileLastOpcode()
-{
-	if (mPeepholeValidCount > 0)
-	{
-		if ( mPeephole[mPeepholeIndex] <= mpLastIntoOpcode )
-		{
-			mpLastIntoOpcode = NULL;
-
-		}
-		mPeepholeIndex = (mPeepholeIndex + 1) & (MAX_PEEPHOLE_PTRS - 1);
-		mPeepholeValidCount--;
-	}
-}
-
-unsigned int ForthOpcodeCompiler::PeepholeValidCount()
-{
-	return (mPeepholeValidCount > MAX_PEEPHOLE_PTRS) ? MAX_PEEPHOLE_PTRS : mPeepholeValidCount;
-}
-
-void ForthOpcodeCompiler::ClearPeephole()
-{
-	Reset();
-}
-
-long* ForthOpcodeCompiler::GetLastCompiledOpcodePtr( void )
-{
-	return (mPeepholeValidCount > 0) ? mPeephole[mPeepholeIndex] : NULL;
-}
-
-long* ForthOpcodeCompiler::GetLastCompiledIntoPtr( void )
-{
-	return mpLastIntoOpcode;
-}
-
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -643,7 +566,7 @@ ForthEngine::ForgetSymbol( const char *pSym, bool quietMode )
 				else
 				{
 					// sym is built-in op - no way
-					sprintf( buff,  "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
+					SNPRINTF( buff, sizeof(buff), "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
 				}
                 break;
 
@@ -656,14 +579,14 @@ ForthEngine::ForgetSymbol( const char *pSym, bool quietMode )
 
             default:
                 const char* pStr = GetOpTypeName( opType );
-                sprintf( buff, "Error - attempt to forget op %s of type %s from %s\n", pSym, pStr, pFoundVocab->GetName() );
+                SNPRINTF( buff, sizeof(buff), "Error - attempt to forget op %s of type %s from %s\n", pSym, pStr, pFoundVocab->GetName() );
                 break;
 
         }
     }
     else
     {
-        sprintf( buff, "Error - attempt to forget unknown op %s from %s\n", pSym, GetSearchVocabulary()->GetName() );
+        SNPRINTF( buff, sizeof(buff), "Error - attempt to forget unknown op %s from %s\n", pSym, GetSearchVocabulary()->GetName() );
     }
     if ( buff[0] != '\0' )
     {
@@ -694,6 +617,7 @@ ForthEngine::CreateThread( long threadOp, int paramStackSize, int returnStackSiz
         pNewThread->mCore.numOps = mpCore->numOps;
         pNewThread->mCore.maxOps = mpCore->maxOps;
         pNewThread->mCore.ops = mpCore->ops;
+		pNewThread->mCore.innerLoop = mpCore->innerLoop;
     }
 
     pNewThread->mpNext = mpThreads;
@@ -833,11 +757,11 @@ ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
     if ( isUserOp )
     {
         ForthStructVocabulary::TypecodeToString( auxData, buff2, sizeof(buff2) );
-        sprintf( buff, "%s: type %s:%x value 0x%x 0x%x (%s) \n", pSymName, pStr, opValue, op, auxData, buff2 );
+        SNPRINTF( buff, sizeof(buff), "%s: type %s:%x value 0x%x 0x%x (%s) \n", pSymName, pStr, opValue, op, auxData, buff2 );
     }
     else
     {
-        sprintf( buff, "%s: type %s:%x value 0x%x 0x%x \n", pSymName, pStr, opValue, op, auxData );
+        SNPRINTF( buff, sizeof(buff), "%s: type %s:%x value 0x%x 0x%x \n", pSymName, pStr, opValue, op, auxData );
     }
     ConsoleOut( buff );
     if ( isUserOp )
@@ -848,11 +772,11 @@ ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
         long* endIP = (opValue == (mpCore->numOps - 1)) ? GetDP() : mpCore->ops[ opValue + 1 ];
         while ( (curIP < endIP) && notDone )
         {
-            sprintf( buff, "  +%04x  %08x  ", (curIP - baseIP), curIP );
+            SNPRINTF( buff, sizeof(buff), "  +%04x  %08x  ", (curIP - baseIP), curIP );
             ConsoleOut( buff );
             DescribeOp( curIP, buff, sizeof(buff), true );
             ConsoleOut( buff );
-            sprintf( buff, "\n" );
+            SNPRINTF( buff, sizeof(buff), "\n" );
             ConsoleOut( buff );
             if ( ((line & 31) == 0) && (mpShell != NULL) && mpShell->GetInput()->InputStream()->IsInteractive() )
             {
@@ -885,7 +809,7 @@ ForthEngine::DescribeSymbol( const char *pSymName )
     }
     else
     {
-        sprintf( buff, "Symbol %s not found\n", pSymName );
+        SNPRINTF( buff, sizeof(buff), "Symbol %s not found\n", pSymName );
         TRACE( buff );
         ConsoleOut( buff );
     }
@@ -1070,7 +994,7 @@ ForthEngine::TraceOp( ForthCoreState* pCore )
     char* pIndent = sixteenSpaces + (16 - (rDepth << 1));
     if ( *pOp != gCompiledOps[OP_DONE] )
     {
-		sprintf( buff,  "# 0x%08x ", pOp );
+		SNPRINTF( buff, sizeof(buff),  "# 0x%08x ", pOp );
 		TraceOut( buff );
 		TraceOut( pIndent );
         DescribeOp( pOp, buff, sizeof(buff), lookupUserTraces );
@@ -1088,11 +1012,11 @@ ForthEngine::TraceStack( ForthCoreState* pCore )
 	int i;
 	char buff[64];
 
-	sprintf( buff, "  stack[%d]:", nItems );
+	SNPRINTF( buff, sizeof(buff), "  stack[%d]:", nItems );
 	TraceOut( buff );
 	for ( i = 0; i < nItems; i++ )
 	{
-		sprintf( buff, " %x", *pSP++ );
+		SNPRINTF( buff, sizeof(buff), " %x", *pSP++ );
 		TraceOut( buff );
 	}
 }
@@ -1106,12 +1030,19 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
     ForthVocabulary *pFoundVocab = NULL;
     long *pEntry = NULL;
 
-    sprintf( pBuffer, "%02x:%06x    ", opType, opVal );
-    pBuffer += 13;
-	buffSize -= 13;
+	const char* preamble = "%02x:%06x    ";
+	int preambleSize = strlen( preamble );
+	if ( buffSize <= (preambleSize + 1) )
+	{
+		return;
+	}
+
+    SNPRINTF( pBuffer, buffSize, preamble, opType, opVal );
+    pBuffer += preambleSize;
+	buffSize -= preambleSize;
     if ( opType >= (sizeof(opTypeNames) / sizeof(char *)) )
     {
-        sprintf( pBuffer, "BadOpType" );
+        SNPRINTF( pBuffer, buffSize, "BadOpType" );
     }
     else
     {
@@ -1128,29 +1059,29 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                     // traceable built-in op
 					if ( opVal == gCompiledOps[OP_INT_VAL] )
 					{
-						sprintf( pBuffer, "%s 0x%x", gOpNames[opVal], pOp[1] );
+						SNPRINTF( pBuffer, buffSize, "%s 0x%x", gOpNames[opVal], pOp[1] );
 					}
 					else if ( opVal == gCompiledOps[OP_FLOAT_VAL] )
 					{
-						sprintf( pBuffer, "%s %f", gOpNames[opVal], *((float *)(&(pOp[1]))) );
+						SNPRINTF( pBuffer, buffSize, "%s %f", gOpNames[opVal], *((float *)(&(pOp[1]))) );
 					}
 					else if ( opVal == gCompiledOps[OP_DOUBLE_VAL] )
 					{
-						sprintf( pBuffer, "%s %g", gOpNames[opVal], *((double *)(&(pOp[1]))) );
+						SNPRINTF( pBuffer, buffSize, "%s %g", gOpNames[opVal], *((double *)(&(pOp[1]))) );
 					}
 					else if ( opVal == gCompiledOps[OP_LONG_VAL] )
 					{
-						sprintf( pBuffer, "%s 0x%llx", gOpNames[opVal], *((long long *)(&(pOp[1]))) );
+						SNPRINTF( pBuffer, buffSize, "%s 0x%llx", gOpNames[opVal], *((long long *)(&(pOp[1]))) );
 					}
 					else
 					{
-						sprintf( pBuffer, "%s", gOpNames[opVal] );
+						SNPRINTF( pBuffer, buffSize, "%s", gOpNames[opVal] );
 					}
                 }
                 else
                 {
                     // op we don't have name pointer for
-                    sprintf( pBuffer, "%s(%d)", opTypeNames[opType], opVal );
+                    SNPRINTF( pBuffer, buffSize, "%s(%d)", opTypeNames[opType], opVal );
                 }
                 break;
             
@@ -1194,7 +1125,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 }
                 else
                 {
-                    sprintf( pBuffer, "%s", opTypeNames[opType] );
+                    SNPRINTF( pBuffer, buffSize, "%s", opTypeNames[opType] );
                 }
                 break;
 
@@ -1220,11 +1151,11 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
             case kOpMemberObject:        case kOpMemberObjectArray:
             case kOpMemberUByte:         case kOpMemberUByteArray:
             case kOpMemberUShort:        case kOpMemberUShortArray:
-                sprintf( pBuffer, "%s_%x", opTypeNames[opType], opVal );
+                SNPRINTF( pBuffer, buffSize, "%s_%x", opTypeNames[opType], opVal );
                 break;
 
             case kOpConstantString:
-                sprintf( pBuffer, "\"%s\"", (char *)(pOp + 1) );
+                SNPRINTF( pBuffer, buffSize, "\"%s\"", (char *)(pOp + 1) );
                 break;
             
             case kOpConstant:
@@ -1232,18 +1163,18 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 {
                     opVal |= 0xFF000000;
                 }
-                sprintf( pBuffer, "%s    %d", opTypeNames[opType], opVal );
+                SNPRINTF( pBuffer, buffSize, "%s    %d", opTypeNames[opType], opVal );
                 break;
 
             case kOpOffset:
                 if ( opVal & 0x800000 )
                 {
                     opVal |= 0xFF000000;
-                    sprintf( pBuffer, "%s    %d", opTypeNames[opType], opVal );
+                    SNPRINTF( pBuffer, buffSize, "%s    %d", opTypeNames[opType], opVal );
                 }
                 else
                 {
-                    sprintf( pBuffer, "%s    +%d", opTypeNames[opType], opVal );
+                    SNPRINTF( pBuffer, buffSize, "%s    +%d", opTypeNames[opType], opVal );
                 }
                 break;
 
@@ -1253,51 +1184,51 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 {
                     opVal |= 0xFF000000;
                 }
-                sprintf( pBuffer, "%s    0x%08x", opTypeNames[opType], opVal + 1 + pOp );
+                SNPRINTF( pBuffer, buffSize, "%s    0x%08x", opTypeNames[opType], opVal + 1 + pOp );
                 break;
 
             case kOpLocalStringInit:    // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
             case kOpMemberStringInit:   // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
-                sprintf( pBuffer, "%s    maxBytes %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
+                SNPRINTF( pBuffer, buffSize, "%s    maxBytes %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
                 break;
             
             case kOpLocalStructArray:   // bits 0..11 are padded struct size in bytes, bits 12..23 are frame offset in longs
-                sprintf( pBuffer, "%s    elementSize %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
+                SNPRINTF( pBuffer, buffSize, "%s    elementSize %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
                 break;
             
             case kOpAllocLocals:
-                sprintf( pBuffer, "%s    longs %d", opTypeNames[opType], opVal );
+                SNPRINTF( pBuffer, buffSize, "%s    longs %d", opTypeNames[opType], opVal );
                 break;
             
             case kOpArrayOffset:
-                sprintf( pBuffer, "%s    elementSize %d", opTypeNames[opType], opVal );
+                SNPRINTF( pBuffer, buffSize, "%s    elementSize %d", opTypeNames[opType], opVal );
                 break;
             
             case kOpMethodWithThis:
             case kOpMethodWithTOS:
-                sprintf( pBuffer, "%s    %d", opTypeNames[opType], opVal );
+                SNPRINTF( pBuffer, buffSize, "%s    %d", opTypeNames[opType], opVal );
                 break;
 
             case kOpSquishedFloat:
-				sprintf( pBuffer, "%s %f", opTypeNames[opType], UnsquishFloat( opVal ) );
+				SNPRINTF( pBuffer, buffSize, "%s %f", opTypeNames[opType], UnsquishFloat( opVal ) );
 				break;
 
             case kOpSquishedDouble:
-				sprintf( pBuffer, "%s %g", opTypeNames[opType], UnsquishDouble( opVal ) );
+				SNPRINTF( pBuffer, buffSize, "%s %g", opTypeNames[opType], UnsquishDouble( opVal ) );
 				break;
 
             case kOpSquishedLong:
-				sprintf( pBuffer, "%s %lld", opTypeNames[opType], UnsquishLong( opVal ) );
+				SNPRINTF( pBuffer, buffSize, "%s %lld", opTypeNames[opType], UnsquishLong( opVal ) );
 				break;
 
             default:
                 if ( opType >= (unsigned int)(sizeof(opTypeNames) / sizeof(char *)) )
                 {
-                    sprintf( pBuffer, "BAD OPTYPE!" );
+                    SNPRINTF( pBuffer, buffSize, "BAD OPTYPE!" );
                 }
                 else
                 {
-                    sprintf( pBuffer, "%s", opTypeNames[opType] );
+                    SNPRINTF( pBuffer, buffSize, "%s", opTypeNames[opType] );
                 }
                 break;
         }
@@ -1681,7 +1612,7 @@ ForthEngine::CompileOpcode( forthOpType opType, long opVal )
 	{
 		char buff[ 256 ];
 		long op = COMPILED_OP( opType, opVal );
-		sprintf( buff,  "Compiling 0x%08x @ 0x%08x\n", op, mDictionary.pCurrent );
+		SNPRINTF( buff, sizeof(buff),  "Compiling 0x%08x @ 0x%08x\n", op, mDictionary.pCurrent );
 		TraceOut( buff );
 	}
 	mpOpcodeCompiler->CompileOpcode( opType, opVal );
@@ -1711,7 +1642,7 @@ ForthEngine::UncompileLastOpcode( void )
 		if ( mTraceFlags & kTraceCompilation )
 		{
 			char buff[ 256 ];
-			sprintf( buff,  "Uncompiling from 0x08x to 0x%08x\n", mDictionary.pCurrent, pLastCompiledOpcode );
+			SNPRINTF( buff, sizeof(buff),  "Uncompiling from 0x08x to 0x%08x\n", mDictionary.pCurrent, pLastCompiledOpcode );
 			TraceOut( buff );
 		}
 		mpOpcodeCompiler->UncompileLastOpcode();
@@ -2102,14 +2033,14 @@ ForthEngine::DumpCrashState()
 		}
 		for ( int i = 0; i < numToShow; i++ )
 		{
-			sprintf( buff, "S[%2d] 0x%08x  %d\n", depth - (i + 1), pSP[i], pSP[i] );
+			SNPRINTF( buff, sizeof(buff), "S[%2d] 0x%08x  %d\n", depth - (i + 1), pSP[i], pSP[i] );
 			ConsoleOut( buff );
 		}
 	}
 
-	sprintf( buff, "\n   IP 0x%08x   ", mpCore->IP );
+	SNPRINTF( buff, sizeof(buff), "\n   IP 0x%08x   ", mpCore->IP );
 	ConsoleOut( buff );
-	DisplayUserDefCrash( mpCore->IP, buff );
+	DisplayUserDefCrash( mpCore->IP, buff, sizeof(buff) );
 	ConsoleOut( "\n" );
 
 	long* pRP = mpCore->RP;
@@ -2126,7 +2057,7 @@ ForthEngine::DumpCrashState()
 		{
 			unsigned long rVal = (unsigned long)(pRP[i]);
 			long* pRVal = (long *) rVal;
-			sprintf( buff, "R[%2d] 0x%08x   ", depth - (i + 1), rVal );
+			SNPRINTF( buff, sizeof(buff), "R[%2d] 0x%08x   ", depth - (i + 1), rVal );
 			ConsoleOut( buff );
 			if ( (pRP + i) == pFP )
 			{
@@ -2135,7 +2066,7 @@ ForthEngine::DumpCrashState()
 			}
 			else
 			{
-				DisplayUserDefCrash( pRVal, buff );
+				DisplayUserDefCrash( pRVal, buff, sizeof(buff) );
 			}
 			ConsoleOut( "\n" );
 		}
@@ -2143,7 +2074,7 @@ ForthEngine::DumpCrashState()
 
 }
 
-void ForthEngine::DisplayUserDefCrash( long *pRVal, char* buff )
+void ForthEngine::DisplayUserDefCrash( long *pRVal, char* buff, int buffSize )
 {
 	if ( (pRVal >= mDictionary.pBase) && (pRVal < mDictionary.pCurrent) )
 	{
@@ -2164,7 +2095,7 @@ void ForthEngine::DisplayUserDefCrash( long *pRVal, char* buff )
 		}
 		if ( pFoundClosest != NULL )
 		{
-			sprintf( buff, "%s:", pFoundVocab->GetName() );
+			SNPRINTF( buff, buffSize, "%s:", pFoundVocab->GetName() );
 			ConsoleOut( buff );
 			const char* pName = pFoundVocab->GetEntryName( pFoundClosest );
 			int len = (int) pName[-1];
@@ -2174,7 +2105,7 @@ void ForthEngine::DisplayUserDefCrash( long *pRVal, char* buff )
 			}
 			buff[len] = '\0';
 			ConsoleOut( buff );
-			sprintf( buff, " + 0x%04x", pRVal - pDefBase );
+			SNPRINTF( buff, buffSize, " + 0x%04x", pRVal - pDefBase );
 		}
 		else
 		{
@@ -2183,7 +2114,7 @@ void ForthEngine::DisplayUserDefCrash( long *pRVal, char* buff )
 	}
 	else
 	{
-		sprintf( buff, "%d", (long) pRVal );
+		SNPRINTF( buff, buffSize, "%d", (long) pRVal );
 	}
 	ConsoleOut( buff );
 }
