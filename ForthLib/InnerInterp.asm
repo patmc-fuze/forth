@@ -218,14 +218,22 @@ entry extOp
 	call	eax
 	add	esp, 4		; discard inputs to C routine
 	pop	ebp
+	; load IP and SP from core, in case C routine modified them
+	; NOTE: we can't just jump to interpFunc, since that will replace edi & break single stepping
+	mov	ecx, [ebp].FCore.IPtr
+	mov	edx, [ebp].FCore.SPtr
 	mov	eax, [ebp].FCore.state
 	or	eax, eax
-	jz	interpFunc		; if everything is ok
+	jnz	extOp1		; if something went wrong
+	jmp	edi			; if everything is ok
+	
 ; NOTE: Feb. 14 '07 - doing the right thing here - restoring IP & SP and jumping to
 ; the interpreter loop exit point - causes an access violation exception ?why?
 	;mov	ecx, [ebp].FCore.IPtr
 	;mov	edx, [ebp].FCore.SPtr
 	;jmp	interpLoopExit	; if something went wrong
+	
+extOp1:
 	ret
 
 ;-----------------------------------------------
@@ -252,19 +260,28 @@ entry extOpType
 	call	eax
 	add	esp, 8		; discard inputs to C routine 
 	pop	ebp
+	
+	; load IP and SP from core, in case C routine modified them
+	; NOTE: we can't just jump to interpFunc, since that will replace edi & break single stepping
+	mov	ecx, [ebp].FCore.IPtr
+	mov	edx, [ebp].FCore.SPtr
 	mov	eax, [ebp].FCore.state
 	or	eax, eax
-	jz	interpFunc		; if everything is ok
+	jnz	extOpType1	; if something went wrong
+	jmp	edi			; if everything is ok
+	
 ; NOTE: Feb. 14 '07 - doing the right thing here - restoring IP & SP and jumping to
 ; the interpreter loop exit point - causes an access violation exception ?why?
 	;mov	ecx, [ebp].FCore.IPtr
 	;mov	edx, [ebp].FCore.SPtr
 	;jmp	interpLoopExit	; if something went wrong
+	
+extOpType1:
 	ret
 
 ;-----------------------------------------------
 ;
-; InitAsmTables1 - initializes first part of optable, where op positions are referenced by constants
+; InitAsmTables - initializes first part of optable, where op positions are referenced by constants
 ;
 PUBLIC InitAsmTables
 InitAsmTables PROC near C public uses ebx ecx edx edi ebp esi,
@@ -288,17 +305,25 @@ PUBLIC InterpretOneOpFast
 InterpretOneOpFast PROC near C public uses ebx ecx edx esi edi ebp,
 	core:PTR,
 	op:DWORD
-	mov	eax, op
+	mov	ebx, op
 	mov	ebp, DWORD PTR core
 	mov	ecx, [ebp].FCore.IPtr
 	mov	edx, [ebp].FCore.SPtr
 	mov	edi, InterpretOneOpFastExit
-	
-	jmp	interpLoopExecuteEntry
+	; TODO: should we reset state to OK before every step?
+	mov	eax, kResultOk
+	mov	[ebp].FCore.state, eax
+	; instead of jumping directly to the inner loop, do a call so that
+	; error exits which do a return instead of branching to inner loop will work
+	call	interpLoopExecuteEntry
+	jmp	InterpretOneOpFastExit2
 
-InterpretOneOpFastExit:
+InterpretOneOpFastExit:		; this is exit for state == OK - discard the unused return address from call above
+	add	esp, 4
+InterpretOneOpFastExit2:	; this is exit for state != OK
 	mov	[ebp].FCore.IPtr, ecx
 	mov	[ebp].FCore.SPtr, edx
+	mov	eax, [ebp].FCore.state
 	ret
 InterpretOneOpFast ENDP
 
