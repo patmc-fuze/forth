@@ -204,7 +204,7 @@ public:
 
     static ForthEngine*     GetInstance( void );
 
-	void					SetConsoleOut( consoleOutRoutine outRoutine, void* outData );
+	void					SetConsoleOutStream( ForthObject& newOutStream );
 	void					ResetConsoleOut( ForthCoreState* pCore );
 
     // return milliseconds since engine was created
@@ -283,8 +283,7 @@ protected:
     long *          mpEnumStackBase;
     long            mNextEnum;
 
-    consoleOutRoutine   mDefaultConsoleOut;
-	void*				mpDefaultConsoleOutData;
+	ForthObject		mDefaultConsoleOutStream;
 
 #ifdef WIN32
 #ifdef MSDEV

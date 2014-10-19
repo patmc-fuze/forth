@@ -154,24 +154,6 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 , mpInternalFiles(NULL)
 , mInternalFileCount(0)
 {
-    if ( mpEngine == NULL )
-    {
-        mpEngine = new ForthEngine();
-        mFlags = SHELL_FLAG_CREATED_ENGINE;
-    }
-    mpEngine->Initialize( this, STORAGE_LONGS, true, pExtension );
-
-#if 0
-    if ( mpThread == NULL )
-    {
-        mpThread = mpEngine->CreateThread( 0, PSTACK_LONGS, RSTACK_LONGS );
-    }
-    mpEngine->SetCurrentThread( mpThread );
-#endif
-
-    mpInput = new ForthInputStack;
-	mpStack = new ForthShellStack( shellStackLongs );
-
     mFileInterface.fileOpen = fopen;
     mFileInterface.fileClose = fclose;
     mFileInterface.fileRead = fread;
@@ -209,6 +191,24 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 	mFileInterface.readDir = readDir;
 	mFileInterface.closeDir = closeDir;
 	mFileInterface.rewindDir = rewindDir;
+
+    if ( mpEngine == NULL )
+    {
+        mpEngine = new ForthEngine();
+        mFlags = SHELL_FLAG_CREATED_ENGINE;
+    }
+    mpEngine->Initialize( this, STORAGE_LONGS, true, pExtension );
+
+#if 0
+    if ( mpThread == NULL )
+    {
+        mpThread = mpEngine->CreateThread( 0, PSTACK_LONGS, RSTACK_LONGS );
+    }
+    mpEngine->SetCurrentThread( mpThread );
+#endif
+
+    mpInput = new ForthInputStack;
+	mpStack = new ForthShellStack( shellStackLongs );
 
 
 #if defined( WIN32 )
@@ -363,14 +363,14 @@ ForthShell::Run( ForthInputStream *pInStream )
             case kResultError:
             case kResultException:
                 // an error has occured, empty input stream stack
-                // TBD
+                // TODO
                 if ( !bInteractiveMode )
                 {
                     bQuit = true;
                 }
                 else
                 {
-                    // TBD: dump all but outermost input stream
+                    // TODO: dump all but outermost input stream
                 }
                 retVal = 0;
                 break;
@@ -496,7 +496,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
 
     char *pLineBuff;
 
-    // TBD: set exit code on exit due to error
+    // TODO: set exit code on exit due to error
 
     pLineBuff = mpInput->GetBufferBasePointer();
     if ( pSrcLine != NULL )
@@ -610,7 +610,7 @@ ForthShell::ReportError( void )
         strcpy( errorBuf1, errorBuf2 );
     }
     TRACE( "%s", errorBuf1 );
-	pCore->consoleOut( pCore, errorBuf1 );
+	CONSOLE_STRING_OUT( errorBuf1 );
     char *pBase = mpInput->GetBufferBasePointer();
     pLastInputToken = mpInput->GetBufferPointer();
     if ( (pBase != NULL) && (pLastInputToken != NULL) )
@@ -625,7 +625,7 @@ ForthShell::ReportError( void )
         sprintf( pBuf, "{}%s\n", pLastInputToken );
     }
 	TRACE( "%s", errorBuf1 );
-	pCore->consoleOut( pCore, errorBuf1 );
+	CONSOLE_STRING_OUT( errorBuf1 );
 }
 
 static char
@@ -756,7 +756,7 @@ ForthParseDoubleQuote( const char       *pSrc,
 
 // return true IFF done parsing line - in this case no string is returned in pInfo
 // this is a stripped down version of ParseToken used just for building string tables
-// TBD!!! there is nothing to keep us from writing past end of pTokenBuffer
+// TODO!!! there is nothing to keep us from writing past end of pTokenBuffer
 bool
 ForthShell::ParseString( ForthParseInfo *pInfo )
 {
@@ -840,7 +840,7 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
 
 
 // return true IFF done parsing line - in this case no token is returned in pInfo
-// TBD!!! there is nothing to keep us from writing past end of pTokenBuffer
+// TODO!!! there is nothing to keep us from writing past end of pTokenBuffer
 bool
 ForthShell::ParseToken( ForthParseInfo *pInfo )
 {
@@ -1215,7 +1215,7 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
 void
 ForthShell::SetCommandLine( const char *pCmdLine )
 {
-    // TBD
+    // TODO
 }
 
 

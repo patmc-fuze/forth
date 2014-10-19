@@ -170,8 +170,7 @@ GFORTHOP( ubyteVarActionBop )
 }
 #endif
 
-//#define SET_OPVAL ulong varMode = opVal >> 20; 	if (varMode != 0) { pCore->varMode = varMode; opVal &= 0xFFFFF; }
-#define SET_OPVAL
+#define SET_OPVAL ulong varMode = opVal >> 20; 	if (varMode != 0) { pCore->varMode = varMode; opVal &= 0xFFFFF; }
 
 OPTYPE_ACTION( LocalByteAction )
 {
@@ -1682,7 +1681,7 @@ OPTYPE_ACTION( BranchAction )
 {
     if ( (opVal & 0x00800000) != 0 )
     {
-        // TBD: trap a hard loop (opVal == -1)?
+        // TODO: trap a hard loop (opVal == -1)?
         opVal |= 0xFF000000;
     }
     SET_IP( GET_IP + opVal );
@@ -1694,7 +1693,7 @@ OPTYPE_ACTION( BranchNZAction )
     {
         if ( (opVal & 0x00800000) != 0 )
         {
-            // TBD: trap a hard loop (opVal == -1)?
+            // TODO: trap a hard loop (opVal == -1)?
             opVal |= 0xFF000000;
         }
         SET_IP( GET_IP + opVal );
@@ -1707,7 +1706,7 @@ OPTYPE_ACTION( BranchZAction )
     {
         if ( (opVal & 0x00800000) != 0 )
         {
-            // TBD: trap a hard loop (opVal == -1)?
+            // TODO: trap a hard loop (opVal == -1)?
             opVal |= 0xFF000000;
         }
         SET_IP( GET_IP + opVal );
@@ -1973,7 +1972,7 @@ OPTYPE_ACTION( OpZBranchComboAction )
 		long branchOffset = opVal >> 12;
         if ( (branchOffset & 0x800) != 0 )
         {
-            // TBD: trap a hard loop (opVal == -1)?
+            // TODO: trap a hard loop (opVal == -1)?
             branchOffset |= 0xFFFFF000;
         }
         SET_IP( GET_IP + branchOffset );
@@ -1988,7 +1987,7 @@ OPTYPE_ACTION( OpBranchComboAction )
 	long branchOffset = opVal >> 12;
     if ( (branchOffset & 0x800) != 0 )
     {
-        // TBD: trap a hard loop (opVal == -1)?
+        // TODO: trap a hard loop (opVal == -1)?
         branchOffset |= 0xFFFFF000;
     }
     SET_IP( GET_IP + branchOffset );

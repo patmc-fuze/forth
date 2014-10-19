@@ -435,7 +435,7 @@ char* ForthServerInputStream::GetLine( const char *pPrompt )
             }
             else
             {
-                // TBD: report error
+                // TODO: report error
             }
         }
         break;
@@ -444,7 +444,7 @@ char* ForthServerInputStream::GetLine( const char *pPrompt )
         break;
 
     default:
-        // TBD: report unexpected message type error
+        // TODO: report unexpected message type error
         printf( "ForthServerShell::GetLine unexpected message type %d\n", msgType );
         break;
     }
@@ -521,7 +521,7 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
     eForthResult result = kResultOk;
     bool bInteractiveMode = pStream->IsInteractive();
 
-    mpEngine->SetConsoleOut( consoleOutToClient, NULL );
+    //mpEngine->SetConsoleOut( consoleOutToClient, NULL );
 	mpEngine->ResetConsoleOut( mpEngine->GetCoreState() );
     mpInput->PushInputStream( pStream );
 
@@ -559,14 +559,14 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
 
             case kResultError:
                 // an error has occured, empty input stream stack
-                // TBD
+                // TODO
                 if ( !bInteractiveMode )
                 {
                     bQuit = true;
                 }
                 else
                 {
-                    // TBD: dump all but outermost input stream
+                    // TODO: dump all but outermost input stream
                 }
                 retVal = 0;
                 break;
@@ -611,7 +611,7 @@ bool ForthServerShell::PushInputFile( const char *pFileName )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::PushInputFile unexpected message type %d\n", msgType );
     }
 
@@ -650,7 +650,7 @@ char ForthServerShell::GetChar()
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::GetChar unexpected message type %d\n", msgType );
     }
     return (int) c;
@@ -676,7 +676,7 @@ ForthServerShell::FileOpen( const char* filePath, const char* openMode )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileOpen unexpected message type %d\n", msgType );
     }
     return pFile;
@@ -699,7 +699,7 @@ ForthServerShell::FileClose( FILE* pFile )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileClose unexpected message type %d\n", msgType );
     }
     return result;
@@ -724,7 +724,7 @@ ForthServerShell::FileSeek( FILE* pFile, int offset, int control )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileSeek unexpected message type %d\n", msgType );
     }
     return result;
@@ -757,20 +757,20 @@ ForthServerShell::FileRead( FILE* pFile, void* pDst, int itemSize, int numItems 
             }
             else
             {
-                // TBD: report error
+                // TODO: report error
                 printf( "ForthServerShell::FileRead unexpected data size %d != itemsRead %d * itemSize %d\n",
                             numBytes, result, itemSize );
             }
         }
         else
         {
-            // TBD: report error
+            // TODO: report error
             printf( "ForthServerShell::FileRead returned %d \n", result );
         }
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileRead unexpected message type %d\n", msgType );
     }
     return result;
@@ -797,7 +797,7 @@ ForthServerShell::FileWrite( FILE* pFile, const void* pSrc, int itemSize, int nu
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileWrite unexpected message type %d\n", msgType );
     }
     return result;
@@ -820,7 +820,7 @@ ForthServerShell::FileGetChar( FILE* pFile )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileGetChar unexpected message type %d\n", msgType );
     }
     return result;
@@ -844,7 +844,7 @@ ForthServerShell::FilePutChar( FILE* pFile, int outChar )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FilePutChar unexpected message type %d\n", msgType );
     }
     return result;
@@ -867,7 +867,7 @@ ForthServerShell::FileAtEOF( FILE* pFile )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileAtEOF unexpected message type %d\n", msgType );
     }
     return result;
@@ -890,7 +890,7 @@ ForthServerShell::FileGetLength( FILE* pFile )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileGetLength unexpected message type %d\n", msgType );
     }
     return result;
@@ -913,7 +913,7 @@ ForthServerShell::FileCheckExists( const char* pFilename )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileCheckExists unexpected message type %d\n", msgType );
     }
     return result;
@@ -936,7 +936,7 @@ ForthServerShell::FileGetPosition( FILE* pFile )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileGetPosition unexpected message type %d\n", msgType );
     }
     return result;
@@ -970,13 +970,13 @@ ForthServerShell::FileGetString( FILE* pFile, char* pBuffer, int maxChars )
         }
         else
         {
-            // TBD: report error
+            // TODO: report error
             printf( "ForthServerShell::FileGetString unexpected data size %d\n", numBytes );
         }
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileGetString unexpected message type %d\n", msgType );
     }
     return result;
@@ -1001,7 +1001,7 @@ ForthServerShell::FilePutString( FILE* pFile, const char* pBuffer )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FilePutString unexpected message type %d\n", msgType );
     }
     return result;
@@ -1024,7 +1024,7 @@ ForthServerShell::FileRemove( const char* pBuffer )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileRemove unexpected message type %d\n", msgType );
     }
     return result;
@@ -1047,7 +1047,7 @@ ForthServerShell::FileDup( int fileHandle )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileDup unexpected message type %d\n", msgType );
     }
     return result;
@@ -1071,7 +1071,7 @@ ForthServerShell::FileDup2( int srcFileHandle, int dstFileHandle )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileDup2 unexpected message type %d\n", msgType );
     }
     return result;
@@ -1094,7 +1094,7 @@ ForthServerShell::FileNo( FILE* pFile )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileNo unexpected message type %d\n", msgType );
     }
     return result;
@@ -1117,7 +1117,7 @@ ForthServerShell::FileFlush( FILE* pFile )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::FileFlush unexpected message type %d\n", msgType );
     }
     return result;
@@ -1127,7 +1127,7 @@ char*
 ForthServerShell::GetTmpnam( char* pBuffer )
 {
 	static_cast<void>( pBuffer );		// we can't use the passed in buffer, size might be different on server
-	// !!! TBD - how should this work?
+	// !!! TODO - how should this work?
     int msgType, msgLen;
     char* pResult = NULL;
 
@@ -1148,7 +1148,7 @@ ForthServerShell::GetTmpnam( char* pBuffer )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::GetTmpnam unexpected message type %d\n", msgType );
     }
 	return pResult;
@@ -1172,7 +1172,7 @@ ForthServerShell::RenameFile( const char* pOldName, const char* pNewName )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::RenameFile unexpected message type %d\n", msgType );
     }
     return result;
@@ -1195,7 +1195,7 @@ ForthServerShell::RunSystem( const char* pCmdline )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::RunSystem unexpected message type %d\n", msgType );
     }
     return result;
@@ -1218,7 +1218,7 @@ ForthServerShell::ChangeDir( const char* pPath )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::ChangeDir unexpected message type %d\n", msgType );
     }
     return result;
@@ -1242,7 +1242,7 @@ ForthServerShell::MakeDir( const char* pPath, int mode )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::MakeDir unexpected message type %d\n", msgType );
     }
     return result;
@@ -1265,7 +1265,7 @@ ForthServerShell::RemoveDir( const char* pPath )
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::RemoveDir unexpected message type %d\n", msgType );
     }
     return result;
@@ -1289,7 +1289,7 @@ ForthServerShell::GetStdIn()
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::kClientMsgStdIn unexpected message type %d\n", msgType );
     }
     return pFile;
@@ -1313,7 +1313,7 @@ ForthServerShell::GetStdOut()
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::kClientMsgStdOut unexpected message type %d\n", msgType );
     }
     return pFile;
@@ -1337,7 +1337,7 @@ ForthServerShell::GetStdErr()
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
         printf( "ForthServerShell::GetStdErr unexpected message type %d\n", msgType );
     }
     return pFile;

@@ -794,7 +794,7 @@ namespace
         oArray& a = *(pArray->elements);
 		if ( pIter->cursor < a.size() )
 		{
-			// TBD!
+			// TODO!
 			ForthObject o = a[ pIter->cursor ];
             SAFE_RELEASE( o );
 			pArray->elements->erase( pArray->elements->begin() + pIter->cursor );
@@ -5282,7 +5282,7 @@ namespace
         ForthThread		*pThread;
     };
 
-	// TBD: add tracking of run state of thread - this should be done inside ForthThread, not here
+	// TODO: add tracking of run state of thread - this should be done inside ForthThread, not here
     FORTHOP( oThreadNew )
     {
         ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
@@ -5463,7 +5463,6 @@ namespace
 		bool			trimEOL;
     };
 
-	// TBD: add tracking of run state of thread - this should be done inside ForthThread, not here
     FORTHOP( oFileInputStreamNew )
     {
         ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
@@ -5577,7 +5576,6 @@ namespace
     //                 oConsoleInputStream
     //
 
-	// TBD: add tracking of run state of thread - this should be done inside ForthThread, not here
     FORTHOP( oConsoleInputStreamNew )
     {
         ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
@@ -5598,7 +5596,7 @@ namespace
 
     FORTHOP( oConsoleInputStreamInitMethod )
 	{
-		// TBD: report an error?
+		// TODO: report an error?
 		SPOP;
         METHOD_RETURN;
     }
@@ -5641,7 +5639,6 @@ namespace
 		FILE*			pOutFile;
     };
 
-	// TBD: add tracking of run state of thread - this should be done inside ForthThread, not here
     FORTHOP( oFileOutputStreamNew )
     {
         ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
@@ -5697,7 +5694,7 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oFileOutputStreamPutLineMethod )
+    FORTHOP( oFileOutputStreamPutStringMethod )
     {
 		GET_THIS( oFileOutputStreamStruct, pFileOutputStreamStruct );
 		char* pBuffer = reinterpret_cast<char *>(SPOP);
@@ -5716,7 +5713,7 @@ namespace
         METHOD(     "delete",               oFileOutputStreamDeleteMethod ),
         METHOD(     "putChar",              oFileOutputStreamPutCharMethod ),
         METHOD(     "putBytes",             oFileOutputStreamPutBytesMethod ),
-        METHOD(     "putLine",              oFileOutputStreamPutLineMethod ),
+        METHOD(     "putString",            oFileOutputStreamPutStringMethod ),
         // following must be last in table
         END_MEMBERS
     };
@@ -5727,27 +5724,26 @@ namespace
     //                 oConsoleOutputStream
     //
 
-	// TBD: add tracking of run state of thread - this should be done inside ForthThread, not here
+	static oFileOutputStreamStruct consoleOutSingleton = { 1000, NULL };
+
     FORTHOP( oConsoleOutputStreamNew )
     {
         ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
         ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
-		MALLOCATE_OBJECT( oFileOutputStreamStruct, pConsoleOutputStreamStruct );
-        pConsoleOutputStreamStruct->refCount = 0;
-		pConsoleOutputStreamStruct->pOutFile = GET_ENGINE->GetShell()->GetFileInterface()->getStdOut();
-        PUSH_PAIR( pPrimaryInterface->GetMethods(), pConsoleOutputStreamStruct );
+        consoleOutSingleton.refCount = 1000;
+		consoleOutSingleton.pOutFile = GET_ENGINE->GetShell()->GetFileInterface()->getStdOut();
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), &consoleOutSingleton );
     }
 
 	FORTHOP( oConsoleOutputStreamDeleteMethod )
     {
-		GET_THIS( oFileOutputStreamStruct, pConsoleOutputStreamStruct );
-		pConsoleOutputStreamStruct->pOutFile = NULL;
+        consoleOutSingleton.refCount = 1000;
         METHOD_RETURN;
     }
 
     FORTHOP( oConsoleOutputStreamInitMethod )
 	{
-		// TBD: report an error?
+		// TODO: report an error?
 		SPOP;
         METHOD_RETURN;
     }
@@ -5762,8 +5758,191 @@ namespace
     };
 
 
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oFunctionOutputStream
+    //
+
+    struct oFunctionOutputStreamStruct
+    {
+        ulong				refCount;
+		stringOutRoutine	outRoutine;
+		void*				pUserData;
+    };
+
+    FORTHOP( oFunctionOutputStreamNew )
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
+		MALLOCATE_OBJECT( oFunctionOutputStreamStruct, pFunctionOutputStreamStruct );
+        pFunctionOutputStreamStruct->refCount = 0;
+		pFunctionOutputStreamStruct->outRoutine = NULL;
+		pFunctionOutputStreamStruct->pUserData = NULL;
+        PUSH_PAIR( pPrimaryInterface->GetMethods(), pFunctionOutputStreamStruct );
+    }
+
+    FORTHOP( oFunctionOutputStreamInitMethod )
+    {
+		GET_THIS( oFunctionOutputStreamStruct, pFunctionOutputStreamStruct );
+		pFunctionOutputStreamStruct->pUserData = reinterpret_cast<void *>(SPOP);
+		pFunctionOutputStreamStruct->outRoutine = reinterpret_cast<stringOutRoutine>(SPOP);
+        METHOD_RETURN;
+    }
+
+	FORTHOP( oFunctionOutputStreamPutCharMethod )
+    {
+		GET_THIS( oFunctionOutputStreamStruct, pFunctionOutputStreamStruct );
+		char buff[2];
+		int ch = SPOP;
+		buff[0] = static_cast<char>(ch);
+		buff[1] = '\0';
+		int result = -1;
+		if ( pFunctionOutputStreamStruct->outRoutine != NULL )
+		{
+			pFunctionOutputStreamStruct->outRoutine( pFunctionOutputStreamStruct->pUserData, buff );
+			result = ch;
+		}
+		SPUSH( result );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFunctionOutputStreamPutBytesMethod )
+    {
+		GET_THIS( oFunctionOutputStreamStruct, pFunctionOutputStreamStruct );
+		char buff[2];
+		buff[1] = '\0';
+		int numBytes = SPOP;
+		char* pBuffer = reinterpret_cast<char *>(SPOP);
+		int numWritten = 0;
+		if ( pFunctionOutputStreamStruct->outRoutine != NULL )
+		{
+			for ( int i = 0; i < numBytes; i++ )
+			{
+				buff[0] = pBuffer[i];
+				pFunctionOutputStreamStruct->outRoutine( pFunctionOutputStreamStruct->pUserData, buff );
+			}
+			numWritten = numBytes;
+		}
+		SPUSH( numWritten );
+        METHOD_RETURN;
+    }
+
+    FORTHOP( oFunctionOutputStreamPutStringMethod )
+    {
+		GET_THIS( oFunctionOutputStreamStruct, pFunctionOutputStreamStruct );
+		char* pBuffer = reinterpret_cast<char *>(SPOP);
+		int numWritten = 0;
+		if ( pFunctionOutputStreamStruct->outRoutine != NULL )
+		{
+			numWritten = strlen( pBuffer );
+			pFunctionOutputStreamStruct->outRoutine( pFunctionOutputStreamStruct->pUserData, pBuffer );
+		}
+		SPUSH( numWritten );
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oFunctionOutputStreamMembers[] =
+    {
+        METHOD(     "_%new%_",              oFunctionOutputStreamNew ),
+        METHOD(     "putChar",              oFunctionOutputStreamPutCharMethod ),
+        METHOD(     "putBytes",             oFunctionOutputStreamPutBytesMethod ),
+        METHOD(     "putString",            oFunctionOutputStreamPutStringMethod ),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    ForthClassVocabulary* gpOFileOutputStreamClass;
+    ForthClassVocabulary* gpOConsoleOutputStreamClass;
+    ForthClassVocabulary* gpOFunctionOutputStreamClass;
 }
 
+void GetForthConsoleOutputStream( ForthCoreState* pCore, ForthObject& outObject )
+{
+	ASSERT( gpOConsoleOutputStreamClass != NULL );
+    consoleOutSingleton.refCount = 1000;
+	consoleOutSingleton.pOutFile = GET_ENGINE->GetShell()->GetFileInterface()->getStdOut();
+
+    ForthInterface* pPrimaryInterface = gpOConsoleOutputStreamClass->GetInterface( 0 );
+	outObject.pMethodOps = pPrimaryInterface->GetMethods();
+	outObject.pData = reinterpret_cast<long *>(&consoleOutSingleton);
+}
+
+void CreateForthFileOutputStream( ForthCoreState* pCore, ForthObject& outObject, FILE* pOutFile )
+{
+	ASSERT( gpOConsoleOutputStreamClass != NULL );
+	MALLOCATE_OBJECT( oFileOutputStreamStruct, pFileOutputStreamStruct );
+    pFileOutputStreamStruct->refCount = 1;
+	pFileOutputStreamStruct->pOutFile = pOutFile;
+    ForthInterface* pPrimaryInterface = gpOFileOutputStreamClass->GetInterface( 0 );
+	outObject.pMethodOps = pPrimaryInterface->GetMethods();
+	outObject.pData = reinterpret_cast<long *>(pFileOutputStreamStruct);
+}
+
+void CreateForthFunctionOutputStream( ForthCoreState* pCore, ForthObject& outObject, stringOutRoutine outRoutine, void* pUserData )
+{
+	ASSERT( gpOConsoleOutputStreamClass != NULL );
+	MALLOCATE_OBJECT( oFunctionOutputStreamStruct, pFunctionOutputStreamStruct );
+    pFunctionOutputStreamStruct->refCount = 1;
+	pFunctionOutputStreamStruct->outRoutine = outRoutine;
+	pFunctionOutputStreamStruct->pUserData = pUserData;
+    ForthInterface* pPrimaryInterface = gpOFunctionOutputStreamClass->GetInterface( 0 );
+	outObject.pMethodOps = pPrimaryInterface->GetMethods();
+	outObject.pData = reinterpret_cast<long *>(pFunctionOutputStreamStruct);
+}
+
+void ReleaseForthObject( ForthCoreState* pCore, ForthObject& inObject )
+{
+	oFunctionOutputStreamStruct* pObjData = reinterpret_cast<oFunctionOutputStreamStruct *>(inObject.pData);
+	if ( pObjData->refCount > 1 )
+	{
+		--pObjData->refCount;
+	}
+	else
+	{
+		FREE_OBJECT( pObjData );
+		inObject.pData = NULL;
+		inObject.pMethodOps = NULL;
+	}
+}
+
+// ForthConsoleCharOut etc. exist so that stuff outside this module can do output
+//   without having to know about object innards
+// TODO: remove hard coded method numbers
+void ForthConsoleCharOut( ForthCoreState* pCore, char ch )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    long* pMethods = pCore->consoleOutStream.pMethodOps;
+	SPUSH( ((long) ch ) );
+	RPUSH( ((long) pCore->consoleOutStream.pData) );
+	RPUSH( ((long) pMethods) );
+    pEngine->ExecuteOneOp( pMethods[ 6 ] );
+    //pEngine->SetError( kForthErrorIO, " failure in format - format string too short" );
+}
+
+void ForthConsoleBlockOut( ForthCoreState* pCore, const char* pBuffer, int numChars )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    long* pMethods = pCore->consoleOutStream.pMethodOps;
+	SPUSH( ((long) pBuffer ) );
+	SPUSH( numChars );
+	RPUSH( ((long) pCore->consoleOutStream.pData) );
+	RPUSH( ((long) pMethods) );
+    pEngine->ExecuteOneOp( pMethods[ 7 ] );
+}
+
+void ForthConsoleStringOut( ForthCoreState* pCore, const char* pBuffer )
+{
+	//printf( "%s", pBuffer );
+    ForthEngine *pEngine = GET_ENGINE;
+    long* pMethods = pCore->consoleOutStream.pMethodOps;
+	SPUSH( ((long) pBuffer ) );
+    RPUSH( ((long) GET_TPD) );
+    RPUSH( ((long) GET_TPM) );
+    SET_TPM( pMethods );
+    SET_TPD( pCore->consoleOutStream.pData );
+    pEngine->ExecuteOneOp( pMethods[ 8 ] );
+}
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -5844,8 +6023,9 @@ ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
     ForthClassVocabulary* pOConsoleInputStreamClass = pEngine->AddBuiltinClass( "oConsoleInputStream", pOFileInputStreamClass, oConsoleInputStreamMembers );
 
     ForthClassVocabulary* pOOutputStreamClass = pEngine->AddBuiltinClass( "oOutputStream", pObjectClass, oOutputStreamMembers );
-    ForthClassVocabulary* pOFileOutputStreamClass = pEngine->AddBuiltinClass( "oFileOutputStream", pOOutputStreamClass, oFileOutputStreamMembers );
-    ForthClassVocabulary* pOConsoleOutputStreamClass = pEngine->AddBuiltinClass( "oConsoleOutputStream", pOFileOutputStreamClass, oConsoleOutputStreamMembers );
+    gpOFileOutputStreamClass = pEngine->AddBuiltinClass( "oFileOutputStream", pOOutputStreamClass, oFileOutputStreamMembers );
+    gpOConsoleOutputStreamClass = pEngine->AddBuiltinClass( "oConsoleOutputStream", gpOFileOutputStreamClass, oConsoleOutputStreamMembers );
+    gpOFunctionOutputStreamClass = pEngine->AddBuiltinClass( "oFunctionOutputStream", pOOutputStreamClass, oFunctionOutputStreamMembers );
 
     mpClassMethods = pClassClass->GetInterface( 0 )->GetMethods();
 }

@@ -168,11 +168,14 @@ typedef void  (*ForthOp)( ForthCoreState * );
 // return true if the extension has recognized and processed the symbol
 typedef bool (*interpreterExtensionRoutine)( char *pToken );
 
+// general string output routine type
+typedef void (*stringOutRoutine) ( void *pData, const char *pBuff );
+
 // consoleOutRoutine is used to pass all console output
 typedef void (*consoleOutRoutine) ( ForthCoreState *pCore, const char *pBuff );
 
 // traceOutRoutine is used when overriding builtin trace routines
-typedef void (*traceOutRoutine) ( void *pData, const char *pBuff );
+typedef stringOutRoutine traceOutRoutine;
 
 // the varMode state makes variables do something other
 //  than their default behaviour (fetch)
@@ -245,6 +248,7 @@ typedef enum {
     kForthErrorShellStackUnderflow,
     kForthErrorShellStackOverflow,
 	kForthErrorBadReferenceCount,
+	kForthErrorIO,
     // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
 } eForthError;
@@ -273,6 +277,15 @@ typedef struct
     long*       pData;      // actually this isn't always a pointer
 } ForthObject;
 
+// these routines allow code external to forth to redirect the forth output stream
+extern void GetForthConsoleOutputStream( ForthCoreState* pCore, ForthObject& outObject );
+extern void CreateForthFileOutputStream( ForthCoreState* pCore, ForthObject& outObject, FILE* pOutFile );
+extern void CreateForthFunctionOutputStream( ForthCoreState* pCore, ForthObject& outObject, stringOutRoutine outRoutine, void* pUserData );
+extern void ReleaseForthObject( ForthCoreState* pCore, ForthObject& inObject );
+
+extern void ForthConsoleCharOut( ForthCoreState* pCore, char ch );
+extern void ForthConsoleBlockOut( ForthCoreState* pCore, const char* pBuffer, int numChars );
+extern void ForthConsoleStringOut( ForthCoreState* pCore, const char* pBuffer );
 
 // the bottom 24 bits of a forth opcode is a value field
 // the top 8 bits is the type field

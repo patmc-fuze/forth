@@ -145,8 +145,9 @@ struct ForthCoreState
 
 	void				*innerLoop;		// inner loop reentry point for assembler inner interpreter
 
-    void                *pConOutData;
-    consoleOutRoutine   consoleOut;
+    //void                *pConOutData;
+    //consoleOutRoutine   consoleOut;
+	ForthObject			consoleOutStream;
     long                consoleOutOp;
 
     FILE                *pDefaultOutFile;
@@ -240,7 +241,7 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define SET_ERROR( A )                  CoreSetError( pCore, A, false )
 #define SET_FATAL_ERROR( A )            CoreSetError( pCore, A, true )
 
-#define CONSOLE_STRING_OUT( A )         (pCore->consoleOut( pCore, A ))
+#define CONSOLE_STRING_OUT( A )         (ForthConsoleStringOut( pCore, A ))
 
 #define GET_BASE_REF                    (&pCore->base)
 

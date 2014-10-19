@@ -19,10 +19,6 @@
 #define GAURD_AREA 4
 #endif
 
-extern "C" {
-    extern void consoleOutToFile( ForthCoreState   *pCore,  const char       *pMessage );
-};
-
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -71,9 +67,8 @@ ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnS
 
     mCore.pDictionary = NULL;
 
-    mCore.pConOutData = NULL;
-    mCore.consoleOut = NULL;
-    mCore.consoleOutOp = 0;
+	mCore.consoleOutStream.pData = NULL;
+	mCore.consoleOutStream.pMethodOps = NULL;
     mCore.pDefaultOutFile = NULL;
     mCore.pDefaultInFile = NULL;
 

@@ -18,6 +18,7 @@
 #include "ForthStructs.h"
 #include "ForthOpcodeCompiler.h"
 #include "ForthPortability.h"
+#include "ForthBuiltinClasses.h"
 
 extern "C"
 {
@@ -95,6 +96,7 @@ static const char *pErrorStrings[] =
     "Shell Stack Underflow",
     "Shell Stack Overflow",
 	"Bad Reference Count",
+	"IO error",
 };
 
 void defaultTraceOutRoutine( void*, const char* pBuff )
@@ -123,8 +125,6 @@ ForthEngine::ForthEngine()
 , mNumElements( 0 )
 , mpTypesManager( NULL )
 , mpVocabStack( NULL )
-, mDefaultConsoleOut( consoleOutToFile )
-, mpDefaultConsoleOutData( stdout )
 , mpExtension( NULL )
 , mpCore( NULL )
 , mpShell( NULL )
@@ -147,6 +147,9 @@ ForthEngine::ForthEngine()
     _ftime( &mStartTime );
 #endif
 #endif
+
+	mDefaultConsoleOutStream.pMethodOps = NULL;
+	mDefaultConsoleOutStream.pData = NULL;
 
     // At this point, the main thread does not exist, it will be created later in Initialize, this
     // is fairly screwed up, it is becauses originally ForthEngine was the center of the universe,
@@ -278,6 +281,9 @@ ForthEngine::Initialize( ForthShell*        pShell,
         mpExtension = pExtension;
         mpExtension->Initialize( this );
     }
+
+	GetForthConsoleOutputStream( mpCore, mDefaultConsoleOutStream );
+    ResetConsoleOut( mpCore );
 
     Reset();
 }
@@ -643,7 +649,7 @@ ForthEngine::DestroyThread( ForthThread *pThread )
     else
     {
 
-        // TBD: this is untested
+        // TODO: this is untested
         pCurrent = mpThreads;
         while ( pCurrent != NULL )
         {
@@ -658,7 +664,7 @@ ForthEngine::DestroyThread( ForthThread *pThread )
         }
 
         TRACE( "ForthEngine::DestroyThread tried to destroy unknown thread 0x%x!\n", pThread );
-        // TBD: raise the alarm
+        // TODO: raise the alarm
     }
 }
 
@@ -944,7 +950,7 @@ ForthEngine::HasLocalVariables()
 	return mpLocalVocab->GetFrameLongs() != 0;
 }
 
-// TBD: tracing of built-in ops won't work for user-added builtins...
+// TODO: tracing of built-in ops won't work for user-added builtins...
 const char *
 ForthEngine::GetOpTypeName( long opType )
 {
@@ -1941,22 +1947,25 @@ ForthEngine::CheckStacks( void )
 }
 
 
-void ForthEngine::SetConsoleOut( consoleOutRoutine outRoutine, void* outData )
+void ForthEngine::SetConsoleOutStream( ForthObject& newOutStream )
 {
-	mDefaultConsoleOut = outRoutine;
-	mpDefaultConsoleOutData = outData;
+	if ( OBJECTS_DIFFERENT( mDefaultConsoleOutStream, newOutStream ) )
+	{
+		SAFE_KEEP( newOutStream );
+		SAFE_RELEASE( mDefaultConsoleOutStream );
+		mDefaultConsoleOutStream = newOutStream;
+	}
 }
 
 void ForthEngine::ResetConsoleOut( ForthCoreState* pCore )
 {
-	pCore->consoleOut = mDefaultConsoleOut;
-	pCore->pConOutData = mpDefaultConsoleOutData;
+	pCore->consoleOutStream = mDefaultConsoleOutStream;
 }
 
 
 void ForthEngine::ConsoleOut( const char* pBuff )
 {
-    mpCore->consoleOut( mpCore, pBuff );
+    ForthConsoleStringOut( mpCore, pBuff );
 }
 
 
@@ -2147,7 +2156,7 @@ long * ForthEngine::FindUserDefinition( ForthVocabulary* pVocab, long*& pClosest
 			// get opcode from method
 			ForthClassVocabulary* pClassVocab = (ForthClassVocabulary*) pVocab;
 			ForthInterface* pInterface = pClassVocab->GetInterface(0);
-			// TBD: deal with secondary interfaces
+			// TODO: deal with secondary interfaces
 			opcode = pInterface->GetMethod( *pEntry );
 			opcode = ((unsigned long)FORTH_OP_VALUE( opcode ));
 		}
@@ -2558,7 +2567,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 		exitStatus = kResultError;
     }
 
-    // TBD: return exit-shell flag
+    // TODO: return exit-shell flag
     return exitStatus;
 }
 
