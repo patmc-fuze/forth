@@ -142,7 +142,7 @@ void StreamToOutputPane( CRichEditCtrl* pOutEdit, const char* pMessage )
 }
 
 CRichEditCtrl* gpOutEdit = NULL;
-void ForthOutRoutine( ForthCoreState *pCore, const char *pBuff )
+void ForthOutRoutine( void *pCBData, const char *pBuff )
 {
 	StreamToOutputPane( gpOutEdit, pBuff );
 }
@@ -153,7 +153,7 @@ void ForthTraceOutRoutine( void *pCBData, const char *pBuff )
 }
 
 /////////////////////////////////////////////////////////////////////////////
-#define TEST_MIDI
+//#define TEST_MIDI
 #ifdef TEST_MIDI
 
 #include <MMSystem.h>
@@ -283,6 +283,8 @@ CForthGuiDlg::CForthGuiDlg(CWnd* pParent /*=NULL*/)
 	//}}AFX_DATA_INIT
 	// Note that LoadIcon does not require a subsequent DestroyIcon in Win32
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	mConsoleOutObject.pData = NULL;
+	mConsoleOutObject.pMethodOps = NULL;
 }
 
 CForthGuiDlg::~CForthGuiDlg()
@@ -294,8 +296,11 @@ void CForthGuiDlg::CreateForth()
 {
 	mpShell = new ForthShell;
 	ForthEngine* pEngine = mpShell->GetEngine();
-	pEngine->SetConsoleOut( ForthOutRoutine, GetDlgItem( IDC_RICHEDIT_OUTPUT ) );
-	pEngine->ResetConsoleOut( pEngine->GetCoreState() );
+	ForthCoreState* pCore = pEngine->GetCoreState();
+	CreateForthFunctionOutputStream( pCore, mConsoleOutObject, NULL, NULL, ForthOutRoutine, GetDlgItem( IDC_RICHEDIT_OUTPUT ) );
+
+	pEngine->SetConsoleOutStream( mConsoleOutObject );
+	pEngine->ResetConsoleOut( pCore );
 	pEngine->SetTraceOutRoutine( ForthTraceOutRoutine, GetDlgItem( IDC_RICHEDT_DEBUG ) );
     mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE, true );
     mpShell->GetInput()->PushInputStream( mpInStream );
@@ -321,6 +326,7 @@ void CForthGuiDlg::DestroyForth()
 {
 	if ( mpShell )
 	{
+		ReleaseForthObject( mpShell->GetEngine()->GetCoreState(), mConsoleOutObject );
 		delete mpShell;
 		// the shell destructor deletes all the streams on the input stack, including mpInStream
 		mpShell = NULL;
@@ -555,13 +561,11 @@ FORTHOP( makeDialogOp )
     SPUSH( ((long) pDialog) );
 }
 
-#define OP( func, funcName )  { funcName, kOpBuiltIn, (ulong) func }
-
 baseDictionaryEntry dialogDict[] =
 {
-    OP( makeDialogOp, "makeDialog" ),
+    OP_DEF( makeDialogOp, "makeDialog" ),
     // following must be last in table
-    OP(     NULL,                   "" )
+    OP_DEF(     NULL,                   "" )
 };
 
 

@@ -168,14 +168,8 @@ typedef void  (*ForthOp)( ForthCoreState * );
 // return true if the extension has recognized and processed the symbol
 typedef bool (*interpreterExtensionRoutine)( char *pToken );
 
-// general string output routine type
-typedef void (*stringOutRoutine) ( void *pData, const char *pBuff );
-
-// consoleOutRoutine is used to pass all console output
-typedef void (*consoleOutRoutine) ( ForthCoreState *pCore, const char *pBuff );
-
 // traceOutRoutine is used when overriding builtin trace routines
-typedef stringOutRoutine traceOutRoutine;
+typedef void (*traceOutRoutine) ( void *pData, const char *pBuff );
 
 // the varMode state makes variables do something other
 //  than their default behaviour (fetch)
@@ -249,6 +243,7 @@ typedef enum {
     kForthErrorShellStackOverflow,
 	kForthErrorBadReferenceCount,
 	kForthErrorIO,
+	kForthErrorBadObject,
     // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
 } eForthError;
@@ -271,16 +266,27 @@ typedef struct {
 // this is what is placed on the stack to represent a forth object
 //  usually the 'data' field is actually a pointer to the data, but that is an
 //  implementation detail and not true for all classes
-typedef struct
+struct ForthObject
 {
     long*       pMethodOps;
     long*       pData;      // actually this isn't always a pointer
-} ForthObject;
+};
+
+
+// stream character output routine type
+typedef void (*streamCharOutRoutine) ( ForthCoreState* pCore, void *pData, char ch );
+
+// stream block output routine type
+typedef void (*streamBlockOutRoutine) ( ForthCoreState* pCore, void *pData, const char *pBuff, int numChars );
+
+// stream string output routine type
+typedef void (*streamStringOutRoutine) ( ForthCoreState* pCore, void *pData, const char *pBuff );
 
 // these routines allow code external to forth to redirect the forth output stream
 extern void GetForthConsoleOutputStream( ForthCoreState* pCore, ForthObject& outObject );
 extern void CreateForthFileOutputStream( ForthCoreState* pCore, ForthObject& outObject, FILE* pOutFile );
-extern void CreateForthFunctionOutputStream( ForthCoreState* pCore, ForthObject& outObject, stringOutRoutine outRoutine, void* pUserData );
+extern void CreateForthFunctionOutputStream( ForthCoreState* pCore, ForthObject& outObject, streamCharOutRoutine outChar,
+											  streamBlockOutRoutine outBlock, streamStringOutRoutine outString, void* pUserData );
 extern void ReleaseForthObject( ForthCoreState* pCore, ForthObject& inObject );
 
 extern void ForthConsoleCharOut( ForthCoreState* pCore, char ch );

@@ -164,6 +164,34 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 17 2014
+
+I got console output using stream objects mostly working.  While I was doing it
+I ran into 3 strange things:
+
+1) When I looked at my changes with 'git dtd', when I exited out of Beyond
+   compare, all my changes were being undone.  This happened at least 4 times.
+2) When debugging the ForthGui app, MSDEV wouldn't let me set breakpoints after
+   recompiling unless I did a full rebuild, claiming that the source had changed.
+3) Redirection in ForthGui wasn't working, and I tracked it down to ForthEngine::GetCoreState
+   returning an invalid value - changing it to not be inline fixed the problem,
+   but does not explain it.
+   
+One big downside to using output stream objects is that it makes error recovery
+much more likely to fail catastrophically - re-initializing after an error can
+cause the release/delete of stream objects, and if they are already deleted
+or corrupted, this could cause another error.
+
+I refactored things so that oOutputStream wasn't completely abstract, and output
+streams have an optional pointer to a block of functions for outputting chars, blocks
+or strings, and these functions can called directly without the overhead of
+setting the current object to the output stream and pushing/popping arguments.
+ForthGui app appears to be working.
+
+- ops for redirecting output (replacements for outToString/File/Screen) aren't done yet.
+- reference counting when setting/resetting streams isn't right yet
+- client/server is written but untested
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 5 2014
 
 I decided to try to get single stepping threads working as a first step toward

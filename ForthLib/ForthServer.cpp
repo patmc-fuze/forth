@@ -35,6 +35,7 @@ using namespace std;
 namespace
 {
     void consoleOutToClient( ForthCoreState   *pCore,
+							 void             *pData,
                              const char       *pMessage )
     {
     #ifdef DEBUG_WITH_NDS_EMULATOR
@@ -504,6 +505,9 @@ ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, Forth
 	mFileInterface.readDir = serverReadDir;
 	mFileInterface.closeDir = serverCloseDir;
 	mFileInterface.rewindDir = serverRewindDir;
+
+	mConsoleOutObject.pData = NULL;
+	mConsoleOutObject.pMethodOps = NULL;
 }
 
 ForthServerShell::~ForthServerShell()
@@ -521,8 +525,9 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
     eForthResult result = kResultOk;
     bool bInteractiveMode = pStream->IsInteractive();
 
-    //mpEngine->SetConsoleOut( consoleOutToClient, NULL );
-	mpEngine->ResetConsoleOut( mpEngine->GetCoreState() );
+	ForthCoreState* pCore = mpEngine->GetCoreState();
+	CreateForthFunctionOutputStream( pCore, mConsoleOutObject, NULL, NULL, consoleOutToClient, pCore );
+	mpEngine->ResetConsoleOut( pCore );
     mpInput->PushInputStream( pStream );
 
     if ( mDoAutoload )

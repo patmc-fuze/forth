@@ -109,6 +109,8 @@ protected:
     // threads which are ready to run
     ForthThreadQueue*       mReadyThreads;
 
+	ForthObject				mConsoleOutObject;
+
     SOCKET					mClientSocket;
 
 };

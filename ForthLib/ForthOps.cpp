@@ -328,7 +328,7 @@ FORTHOP( d2lOp )
 //
 // control ops
 //
-// TBD: replace branch, tbranch, fbranch with immediate ops
+// TODO: replace branch, tbranch, fbranch with immediate ops
 
 // has precedence!
 FORTHOP(doOp)
@@ -873,7 +873,7 @@ FORTHOP( funcOp )
 
     // switch to compile mode
     pEngine->SetCompileState( 1 );
-	// TBD: push hasLocalVars flag?
+	// TODO: push hasLocalVars flag?
     //pEngine->ClearFlag( kEngineFlagNoNameDefinition);
 }
 
@@ -1322,18 +1322,18 @@ FORTHOP( methodOp )
         }
         else
         {
-            // TBD: error
+            // TODO: error
         }
     }
     else
     {
-        // TBD: report adding a method outside a class definition
+        // TODO: report adding a method outside a class definition
     }
 }
 
 FORTHOP( endmethodOp )
 {
-    // TBD
+    // TODO
     ForthEngine *pEngine = GET_ENGINE;
 
     exitOp( pCore );
@@ -1407,7 +1407,7 @@ FORTHOP( doMethodOp )
 
 FORTHOP( implementsOp )
 {
-    // TBD
+    // TODO
     ForthEngine *pEngine = GET_ENGINE;
 
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
@@ -1418,13 +1418,13 @@ FORTHOP( implementsOp )
     }
     else
     {
-        // TBD: report error - implements in struct
+        // TODO: report error - implements in struct
     }
 }
 
 FORTHOP( endimplementsOp )
 {
-    // TBD
+    // TODO
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->GetNewestClass();
     if ( pVocab )
@@ -1433,7 +1433,7 @@ FORTHOP( endimplementsOp )
     }
     else
     {
-        // TBD: report error - ;implements in struct
+        // TODO: report error - ;implements in struct
     }
 }
 
@@ -1500,8 +1500,8 @@ FORTHOP( extendsOp )
 
 FORTHOP( sizeOfOp )
 {
-    // TBD: allow sizeOf to be applied to variables
-    // TBD: allow sizeOf to apply to native types, including strings
+    // TODO: allow sizeOf to be applied to variables
+    // TODO: allow sizeOf to apply to native types, including strings
     ForthEngine *pEngine = GET_ENGINE;
     char *pSym = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
@@ -1537,7 +1537,7 @@ FORTHOP( sizeOfOp )
 
 FORTHOP( offsetOfOp )
 {
-    // TBD: allow offsetOf to be take variable.field instead of just type.field
+    // TODO: allow offsetOf to be take variable.field instead of just type.field
     ForthEngine *pEngine = GET_ENGINE;
     char *pType = pEngine->GetNextSimpleToken();
     char *pField = strchr( pType, '.' );
@@ -1587,15 +1587,15 @@ FORTHOP( superOp )
 	long* pMethods = GET_TPM;
 	// the long before method 0 holds the class object pointer
 	ForthClassObject* pClassObject = (ForthClassObject*) pMethods[-1];
-	// TBD: some error checking here might be nice
+	// TODO: some error checking here might be nice
 	pMethods = pClassObject->pVocab->ParentClass()->GetInterface(0)->GetMethods();
     SPUSH( ((long) pMethods) );
 }
 
 FORTHOP( newOp )
 {
-    // TBD: allow sizeOf to be applied to variables
-    // TBD: allow sizeOf to apply to native types, including strings
+    // TODO: allow sizeOf to be applied to variables
+    // TODO: allow sizeOf to apply to native types, including strings
     ForthEngine *pEngine = GET_ENGINE;
     char *pSym = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
@@ -1945,7 +1945,7 @@ FORTHOP( compileOp )
 // has precedence!
 FORTHOP( bracketTickOp )
 {
-    // TBD: what should this do if state is interpret? an error? or act the same as tick?
+    // TODO: what should this do if state is interpret? an error? or act the same as tick?
     ForthEngine *pEngine = GET_ENGINE;
     char *pToken = pEngine->GetNextSimpleToken();
     long *pSymbol = pEngine->FindSymbol( pToken );
@@ -1976,7 +1976,7 @@ consoleOutToFile( ForthCoreState   *pCore,
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
     }
 }
 
@@ -1992,7 +1992,7 @@ consoleOutToString( ForthCoreState   *pCore,
     }
     else
     {
-        // TBD: report error
+        // TODO: report error
     }
 }
 
@@ -2369,7 +2369,7 @@ extern long sscanfSub( ForthCoreState* pCore );
 long fprintfSub( ForthCoreState* pCore )
 {
     int a[8];
-    // TBD: assert if numArgs > 8
+    // TODO: assert if numArgs > 8
     long numArgs = SPOP;
     for ( int i = numArgs - 1; i >= 0; --i )
     {
@@ -2383,7 +2383,7 @@ long fprintfSub( ForthCoreState* pCore )
 long sprintfSub( ForthCoreState* pCore )
 {
     int a[8];
-    // TBD: assert if numArgs > 8
+    // TODO: assert if numArgs > 8
     long numArgs = SPOP;
     for ( int i = numArgs - 1; i >= 0; --i )
     {
@@ -2397,7 +2397,7 @@ long sprintfSub( ForthCoreState* pCore )
 long fscanfSub( ForthCoreState* pCore )
 {
     void* a[8];
-    // TBD: assert if numArgs > 8
+    // TODO: assert if numArgs > 8
     long numArgs = SPOP;
     for ( int i = numArgs - 1; i >= 0; --i )
     {
@@ -2411,7 +2411,7 @@ long fscanfSub( ForthCoreState* pCore )
 long sscanfSub( ForthCoreState* pCore )
 {
     void* a[8];
-    // TBD: assert if numArgs > 8
+    // TODO: assert if numArgs > 8
     long numArgs = SPOP;
     for ( int i = numArgs - 1; i >= 0; --i )
     {
@@ -2811,7 +2811,7 @@ FORTHOP( describeOp )
 				long typeCode = pEntry[1];
 				if ( CODE_IS_METHOD( typeCode ) )
 				{
-					// TBD: support secondary interfaces
+					// TODO: support secondary interfaces
 					pEngine->DescribeOp( pSym, pClassVocab->GetInterface(0)->GetMethod(pEntry[0]), pEntry[1] );
 				}
 				else if ( CODE_TO_BASE_TYPE( typeCode ) == kBaseTypeUserDefinition )
@@ -3711,13 +3711,13 @@ FORTHOP( destroyThreadOp )
 FORTHOP( threadGetStateOp )
 {
     ForthThread* pThread = (ForthThread*)(SPOP);
-	SPUSH( (long) (pThread->GetCoreState()) );
+	SPUSH( (long) (pThread->GetCore()) );
 }
 
 FORTHOP( stepThreadOp )
 {
     ForthThread* pThread = (ForthThread*)(SPOP);
-	ForthCoreState* pThreadCore = pThread->GetCoreState();
+	ForthCoreState* pThreadCore = pThread->GetCore();
 	long op = *(pThreadCore->IP)++;
     long result;
     ForthEngine *pEngine = GET_ENGINE;
@@ -4533,7 +4533,7 @@ FORTHOP( d2fBop )
 //
 // control ops
 //
-// TBD: replace branch, tbranch, fbranch with immediate ops
+// TODO: replace branch, tbranch, fbranch with immediate ops
 // exit normal op with no local vars
 FORTHOP(doExitBop)
 {
@@ -5324,7 +5324,7 @@ FORTHOP(pickBop)
 
 FORTHOP(rollBop)
 {
-    // TBD: moves the Nth element to TOS
+    // TODO: moves the Nth element to TOS
     // 1 roll is the same as swap
     // 2 roll is the same as rot
     long n = (SPOP);
@@ -5461,7 +5461,7 @@ FORTHOP(dpickBop)
 
 FORTHOP(drollBop)
 {
-    // TBD: moves the Nth element to TOS
+    // TODO: moves the Nth element to TOS
     // 1 droll is the same as dswap
     // 2 droll is the same as drot
     long n = (SPOP);

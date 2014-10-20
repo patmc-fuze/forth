@@ -97,6 +97,7 @@ static const char *pErrorStrings[] =
     "Shell Stack Overflow",
 	"Bad Reference Count",
 	"IO error",
+	"Bad Object",
 };
 
 void defaultTraceOutRoutine( void*, const char* pBuff )
@@ -244,7 +245,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
     mpStringBufferB = new char[MAX_STRING_SIZE];
 
     mpMainThread = CreateThread( 0, MAIN_THREAD_PSTACK_LONGS, MAIN_THREAD_RSTACK_LONGS );
-    mpCore = &(mpMainThread->mCore);
+    mpCore = mpMainThread->GetCore();
     mpCore->optypeAction = (optypeActionRoutine *) malloc( sizeof(optypeActionRoutine) * 256 );
     mpCore->numBuiltinOps = 0;
     mpCore->numOps = 0;
@@ -2175,6 +2176,12 @@ long * ForthEngine::FindUserDefinition( ForthVocabulary* pVocab, long*& pClosest
 	return pClosest;
 }
 
+
+// this was an inline, but sometimes that returned the wrong value for unknown reasons
+ForthCoreState*	ForthEngine::GetCoreState( void )
+{
+	return mpCore;
+}
 
 //############################################################################
 //

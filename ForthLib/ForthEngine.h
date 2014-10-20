@@ -195,7 +195,9 @@ public:
     void                    AddErrorText( const char *pString );
     void                    SetFatalError( eForthError e, const char *pString = NULL );
     inline eForthError      GetError( void ) { return (eForthError) (mpCore->error); };
-    inline ForthCoreState*  GetCoreState( void ) { return mpCore; };
+    // for some reason, inlining this makes it return bogus data in some cases - WTF?
+	//inline ForthCoreState*  GetCoreState( void ) { return mpCore; };
+    ForthCoreState*			GetCoreState( void );
 
     void                    StartEnumDefinition( void );
     void                    EndEnumDefinition( void );

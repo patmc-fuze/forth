@@ -63,7 +63,7 @@ public:
     static unsigned __stdcall RunLoop( void *pThis );
 #endif
 
-	inline ForthCoreState* GetCoreState() { return &mCore; };
+	inline ForthCoreState* GetCore() { return &mCore; };
 
 protected:
     ForthEngine         *mpEngine;

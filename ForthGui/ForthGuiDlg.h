@@ -9,6 +9,8 @@
 #pragma once
 #endif // _MSC_VER > 1000
 
+#include "../ForthLib/ForthShell.h"
+
 class ForthShell;
 class ForthBufferInputStream;
 
@@ -49,6 +51,7 @@ protected:
 
     ForthShell*                 mpShell;
     ForthBufferInputStream*     mpInStream;
+	ForthObject					mConsoleOutObject;
     char                        mInBuffer[INPUT_BUFFER_SIZE];
 	int							mSelectedTab;
 

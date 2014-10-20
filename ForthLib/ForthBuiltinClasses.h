@@ -114,6 +114,8 @@ extern long gStatReleases;
 #define OBJECTS_DIFFERENT( OLDOBJ, NEWOBJ ) (OLDOBJ.pData != NEWOBJ.pData)
 #define OBJECTS_SAME( OLDOBJ, NEWOBJ ) (OLDOBJ.pData == NEWOBJ.pData)
 
+#define CLEAR_OBJECT( _obj )             (_obj).pMethodOps = NULL; (_obj).pData = NULL
+
 enum
 {
     // all objects have 0..5
