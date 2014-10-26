@@ -3,18 +3,30 @@ autoforget testbase
 
 false -> int testFailed
 
-string( 512 ) testBuff
-string( 512 ) testBuff2
-: clearBuff "" -> testBuff ;
-: addBuff ->+ testBuff ;
-: startTest clearBuff outToString( testBuff ) ;
+new oString -> oString testBuff
+new oString -> oString testBuff2
+new oStringOutStream -> oStringOutStream testOut
+
+: cleanupTestBase  oclear testBuff  oclear testBuff2  oclear testOut  ;
+
+: clearBuff testBuff.clear ;
+: addBuff testBuff.append ;
+
+: outToTestBuffer
+  -> oString stringBuff
+  stringBuff.clear
+  testOut.setString( stringBuff )
+  setConsoleOut( testOut )
+  oclear stringBuff
+;
+
+: startTest outToTestBuffer( testBuff ) ;
 
 : checkResult
   -> ptrTo byte expected
   outToScreen
-  if( strcmp( testBuff expected ) )
-    "Expected |" %s expected %s "| got |" %s testBuff %s "|" %s %nl
-    testBuff 6 dump
+  if( strcmp( testBuff.get expected ) )
+    "Expected |" %s expected %s "| got |" %s testBuff.get %s "|" %s %nl
     false
     true -> testFailed
   else

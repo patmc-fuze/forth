@@ -10,6 +10,8 @@ autoforget forth_autoload
 
 : ds dstack ;
 
+: vd verbose describe ;
+
 : autoload
   blword find
   if( 0= )
@@ -19,18 +21,16 @@ autoforget forth_autoload
   endif
 ;
   
+//######################################################################
+// help support
+
 200 string _aa
 200 string _bb
 
 : $,
   // TOS is ptr to nul terminated string at DP
-  here over strlen 1+ allot
+  here over strlen 1+ callot
   swap strcpy
-;
-
-// return hash of a string
-: $hash
-  dup strlen 0 hash
 ;
 
 0 -> int helpChain
@@ -46,12 +46,12 @@ false -> int _helpfileLoaded
 : $help
   -> ptrTo byte s
   helpChain	-> int pNext
-  if( s strlen 0= )
+  if( strlen( s ) 0= )
     // line was empty, just list all help
     begin
     while( pNext )
       pNext 4+ dup %s "	" %s
-      dup strlen 1+ + %s %nl
+      strlen( dup ) 1+ + %s %nl
       pNext @ -> pNext
     repeat
     exit
@@ -59,8 +59,8 @@ false -> int _helpfileLoaded
 
   begin
   while( pNext )
-    if( pNext 4+ s strcmp 0= )
-      pNext 4+ dup strlen 1+ + %s
+    if( strcmp( pNext 4+ s ) 0= )
+      pNext 4+ strlen( dup ) 1+ + %s
       exit
     endif
     pNext @ -> pNext
@@ -86,10 +86,16 @@ addHelp $,	STRING_ADDR $,		compiles string (can leave DP unaligned)
 addHelp help	help BLAH		show help for BLAH
 addHelp	ds	ds			dump stack
 
+addHelp $hash   STRING_ADDR $hash     return hash of string
+: $hash
+  strlen( dup ) 0 hash
+;
+
 addHelp cd	cd BLAH			change working directory to BLAH
 : cd
-  blword chdir
-  if "cd failed!\n" %s endif
+  if( chdir( blword ) )
+    "cd failed!\n" %s
+  endif
 ;
 
 
@@ -350,6 +356,9 @@ int dumpWidth
     endif
     do( columns 0 )
       addr i + c@ "%02x " format %s
+      if( and( i 3 ) 3 = )
+        %bl
+      endif
     loop
     "    " %s
     // why do we have to add 1 to dumpWidth here?
@@ -369,16 +378,54 @@ int dumpWidth
   repeat
 ;
 
-//######################################################################
-// help support
+// ADDR LEN OFFSET _dump
+: _ldump
+  -> int offset		// offset is subtracted from the actual data address before display
+  and( 3+ invert( 3 ) ) -> int len
+  and( invert( 3 ) ) -> int addr
+  int columns
+  int endAddr
+  int ch
 
-addHelp	dump		ADDRESS LEN dump	dump memory
-: dump
-  0 _dump
+  addr len + -> endAddr
+  len -> columns
+  begin
+  while( addr endAddr < )
+    addr offset - "%08x" format %s "   " %s
+    if( len dumpWidth > )
+      dumpWidth -> columns
+    endif
+    do( columns 0 )
+      addr i + @ "%08x " format %s
+    +loop( 4 )
+    "    " %s
+    // why do we have to add 1 to dumpWidth here?
+    dumpWidth 1+ columns - 0 do %bl %bl %bl loop
+    do( columns 0 )
+      addr i + c@ -> ch
+      if( ch ' ' >  ch 127 < and )
+        ch
+      else
+        '.'
+      endif
+      %c
+    loop
+    columns ->+ addr
+    columns ->- len
+    %nl
+  repeat
 ;
 
+addHelp	dump		ADDRESS LEN dump	dump memory
+addHelp	ldump		ADDRESS LEN ldump	dump memory as longs
+: dump 0 _dump ;
+: ldump 0 _ldump ;
+
+
 addHelp fdump	FILENAME OFFSET LEN fdump	dump file contents
-: fdump
+addHelp fldump	FILENAME OFFSET LEN fldump	dump file contents as longs
+: _fdump
+  -> op dumpOp
   -> int len
   -> int offset
   "rb" fopen -> int infile
@@ -401,11 +448,14 @@ addHelp fdump	FILENAME OFFSET LEN fdump	dump file contents
   if( 0= )
     "fdump read failure" %s %nl
   else
-    buff len buff _dump
+    buff len buff dumpOp
   endif
   infile fclose drop
   buff free
 ;
+
+: fdump ['] _dump _fdump ;
+: fldump ['] _ldump _fdump ;
 
 addHelp comparefiles	FILENAME1 FILENAME2 comparefiles TRUE_IF_EQUAL
 : comparefiles
@@ -464,6 +514,10 @@ addHelp dlocals		display the local variables in current stack frame
 addHelp demo	 demo is used to both display and interpret a line of text
 : demo getInBufferPointer %s %nl ;
 precedence demo
+
+
+addHelp outToScreen   restore output to the normal console
+: outToScreen getDefaultConsoleOut setConsoleOut ;
 
 
 #ifdef WINDOWS
@@ -526,11 +580,14 @@ struct: dirent
 // debug and trace statements
 // stuff in d[ ... ]d is only compiled if compileDebug is true
 // stuff in t[ ... ]t is only compiled if compileTrace is true, and is only executed if runTrace is true
+// stuff in assert[ ... ] is only compiled if compileAsserts is true
 
-0 -> int compileDebug
+false -> int compileDebug
 
-0 -> int compileTrace
-0 -> int runTrace
+false -> int compileTrace
+false -> int runTrace
+
+false -> int compileAsserts
 
 : d[
   // remember start of debug section in case we need to uncompile it
@@ -551,18 +608,41 @@ precedence d[
 precedence ]d
 
 : t[
-  if( compileTrace )
-    [compile] runTrace [compile] if
-  endif
+  // remember start of debug section in case we need to uncompile it
+  here
+  ['] runTrace , [compile] if
 ;
 precedence t[
 
 : ]t
+  [compile] endif
   if( compileTrace )
-    [compile] endif
+    // leave trace section as is
+    drop
+  else
+    // uncompile trace section
+    -> here
   endif
 ;
 precedence ]t
+
+
+// usage:   assert[ boolean ]
+: _assert
+  if( not )
+    error( "assertion failure" )
+  endif
+;
+
+: assert[
+  word( ']' )
+  if( compileAsserts )
+    interpret ['] _assert ,
+  else
+    drop
+  endif
+;
+precedence assert[
 
 //######################################################################
 

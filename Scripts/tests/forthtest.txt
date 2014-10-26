@@ -11,7 +11,9 @@ decimal
 
 //: showsection " ================== " dup %s swap %s %s %nl ;
 
-"aba" -> testBuff
+testBuff.set( "aba" )
+//turbo 255 setTrace
+//vd checkResult
 test[ checkResult( "aba" ) ]
   
 
@@ -27,11 +29,11 @@ startTest
 
 test[ checkResult( "\a\b\t\n\v\f\r\"\'\\" ) ]
 
-// verify that character constants 
+// verify that character constants work
 : testCharacterConstants startTest 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl ;
-"" -> testBuff2 outToString( testBuff2 )
+outToTestBuffer( testBuff2 )
 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl
-test[ testCharacterConstants checkResult( testBuff2 ) ]
+test[ testCharacterConstants checkResult( testBuff2.get ) ]
 
 ///////////////////////////////////////////////////////////
 
@@ -65,7 +67,7 @@ test[ testBeginWhile checkResult( "5 4 3 2 1 " ) ]
 ;
 test[ testDoLoop checkResult( "0 1 2 3 4 0 -1 -2 -3 -4 -5 0 0 1 2 " ) ]
 
-//testBuff %s '|' %c %nl
+//testBuff.get %s '|' %c %nl
 
 : casetest
   case
@@ -210,10 +212,10 @@ test[ 87 5 ?dup 0 ?dup 0= rot 5 = rot 5 = and and over 87 = rot 87 = ]
 
 
 //0123456789abcdef012345 
- "This is a test string" -> testBuff2
-testBuff2 -> int pSrc
+testBuff2.set( "This is a test string" )
+testBuff2.get -> int pSrc
 ref pSrc -> int src
-testBuff -> int pDst
+testBuff.get -> int pDst
 ref pDst -> int dst
 src 2@@++ dst 2@!++ 
 src c@@++ dst c@!++ 
@@ -224,7 +226,7 @@ src w@@++ dst w@!++
 src c@@++ dst c@!++ 
 src c@@++ dst c@!++ 
 src w@@++ dst w@!++ 
-test[ checkResult( testBuff2 ) ]
+test[ checkResult( testBuff2.get ) ]
 
 test[ 0xDEADBEEF 123456789 l= ]	// check for stack underflow or extra items
 
@@ -248,6 +250,8 @@ test[ 0xDEADBEEF 123456789 l= ]	// check for stack underflow or extra items
   endif
 ;
 finalCheck
+
+cleanupTestBase
 
 loaddone
 

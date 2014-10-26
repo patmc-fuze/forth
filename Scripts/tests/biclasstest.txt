@@ -3,13 +3,14 @@ autoforget builtinClassTest
 : builtinClassTest ;
 
 // object: delete show getClass compare(OBJ) keep release refCount
+// class: delete create getParent getName getVocabulary getInterface("INTERFACE_NAME") setNew(OP)
 
 // oIterable: headIter tailIter find clone count clear
-// oIter: seekNext seekPrev seekHead seekTail next prev current remove findNext(OBJ) clone
+// oIter: seekNext seekPrev seekHead seekTail next prev current remove unref findNext(OBJ) clone
 
-// oArray: resize(N) ref(N) get(N) set(OBJ N) findIndex(OBJ) push(OBJ) pop
+// oArray: resize(N) ref(N) unref(N) get(N) set(OBJ N) findIndex(OBJ) push(OBJ) popUnref load(N_OBJECTS N)
 // oArrayIter:
-// oList: head tail addHead(OBJ) addTail(OBJ) removeHead removeTail
+// oList: head tail addHead(OBJ) addTail(OBJ) removeHead removeTail unrefHead unrefTail load(N_OBJECTS N)
 // oListIter: swapNext swapPrev split
 // oMap: get(KEY) set(OBJ KEY) findKey(OBJ) remove(KEY)
 // oMapIter: nextPair prevPair
@@ -84,15 +85,15 @@ new oArray -> oArray aa
 aa.push(ma.get( 'a' ))  aa.push(vb)  aa.push(ma.get( 'c' ))
 
 //"{clearing map}" %s
-dnull -> ma   //ma.clear
+oclear ma   //ma.clear
 
 //"{clearing list}" %s
-dnull -> la
+oclear la
 
 //"{clearing array}" %s
-dnull -> aa // aa.resize( 0 )
+oclear aa // aa.resize( 0 )
 
-dnull -> va  dnull -> vb  dnull -> vc  dnull -> vd  dnull -> ve
+oclear va  oclear vb  oclear vc  oclear vd  oclear ve
 
 new oList -> oList zz
 new oString -> oString za
@@ -125,10 +126,10 @@ zz.clone -> oList zz2
     -> oString ss
     ss so
     ss.get %s %nl
-    dnull -> ss
+    oclear ss
   repeat
   %nl
-  dnull -> oi
+  oclear oi
 ;
 
 // oIterable: headIter tailIter find clone count clear
@@ -143,7 +144,7 @@ zz.clone -> oList zz2
   -> int nItems
   do( nItems 0 )
   loop
-  dnull -> aa
+  oclear aa
 ;
 
 : test
@@ -154,18 +155,19 @@ zz.clone -> oList zz2
     bob.set( i )
     aa.push( bob )
     la.addTail( bob )
-    dnull -> bob
+    oclear bob
   loop
-  dnull -> aa
-  dnull -> la
+  oclear aa
+  oclear la
 ;
 
 test
 "run cleanup to free objects" %s %nl
 
 : cleanup
-  dnull -> zz
-  dnull -> zz2
+  oclear zz
+  oclear zz2
+  oclear za  oclear zb  oclear zc  oclear zd  oclear zr
 ;
 
 loaddone

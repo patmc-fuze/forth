@@ -455,6 +455,10 @@ class: sdlScreen
     SDL_FillRect( surface rect pixelColor ) drop
   ;method
 
+  method: clear
+    SDL_FillRect( surface null rot ) drop
+  ;method
+  
   method: flip
     SDL_Flip( surface ) drop
   ;method
@@ -488,6 +492,7 @@ sdlScreen _screen
 : dpl _screen.drawPolyLine ;
 : dml _screen.drawMultiLine ;
 : fs _screen.flip ;
+: cl _screen.clear( 0 ) fs ;
 
 : test
   sc( 0xFFFF00 )
