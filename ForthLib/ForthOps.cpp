@@ -27,6 +27,7 @@
 #include "ForthClient.h"
 #include "ForthMessages.h"
 #include "ForthPortability.h"
+#include "ForthObject.h"
 
 #ifdef LINUX
 #include <strings.h>
@@ -106,6 +107,12 @@ FORTHOP( badOpOp )
 
 // unimplementedMethodOp is used to detect executing unimplemented methods
 FORTHOP( unimplementedMethodOp )
+{
+    SET_ERROR( kForthErrorUnimplementedMethod );
+}
+
+// unimplementedMethodOp is used to detect executing unimplemented methods
+FORTHOP( illegalMethodOp )
 {
     SET_ERROR( kForthErrorUnimplementedMethod );
 }
@@ -1018,7 +1025,7 @@ ShowVocab( ForthCoreState   *pCore,
             int numSpaces = ENTRY_COLUMNS - (nameLength % ENTRY_COLUMNS);
             if ( (column + nameLength) > SCREEN_COLUMNS )
             {
-                CONSOLE_STRING_OUT( "\n" );
+                CONSOLE_CHAR_OUT( '\n' );
                 column = 0;
             }
             pVocab->GetEntryName( pEntry, buff, sizeof(buff) );
@@ -1026,7 +1033,7 @@ ShowVocab( ForthCoreState   *pCore,
             column += (nameLength + numSpaces);
             if ( column >= SCREEN_COLUMNS )
             {
-                CONSOLE_STRING_OUT( "\n" );
+                CONSOLE_CHAR_OUT( '\n' );
                 column = 0;
             }
             else
@@ -1035,7 +1042,7 @@ ShowVocab( ForthCoreState   *pCore,
             }
             if ( lastEntry )
             {
-                CONSOLE_STRING_OUT( "\n" );
+                CONSOLE_CHAR_OUT( '\n' );
             }
             else
             {
@@ -1045,7 +1052,7 @@ ShowVocab( ForthCoreState   *pCore,
         else
         {
             pVocab->PrintEntry( pEntry );
-            CONSOLE_STRING_OUT( "\n" );
+            CONSOLE_CHAR_OUT( '\n' );
             pEntry = pVocab->NextEntry( pEntry );
             if ( ((i % 22) == 21) || lastEntry )
             {
@@ -1088,14 +1095,14 @@ FORTHOP( vlistOp )
         {
             break;
         }
-        CONSOLE_STRING_OUT( " " );
+        CONSOLE_CHAR_OUT( ' ' );
         CONSOLE_STRING_OUT( pVocab->GetName() );
         depth++;
     }
-    CONSOLE_STRING_OUT( "\n" );
+    CONSOLE_CHAR_OUT( '\n' );
     CONSOLE_STRING_OUT( "definitions vocab: " );
     CONSOLE_STRING_OUT( pEngine->GetDefinitionVocabulary()->GetName() );
-    CONSOLE_STRING_OUT( "\n" );
+    CONSOLE_CHAR_OUT( '\n' );
     depth = 0;
     while ( !quit )
     {
@@ -2466,8 +2473,6 @@ FORTHOP( printStrOp )
 FORTHOP( printBlockOp )
 {
     NEEDS(2);
-    char buff[2];
-    buff[1] = 0;
     long count = SPOP;
     const char* pChars = (const char*)(SPOP);
 	if ( pChars == NULL )
@@ -2475,37 +2480,29 @@ FORTHOP( printBlockOp )
 		pChars = "<<<NULL>>>";
 		count = strlen( pChars );
 	}
-    for ( int i = 0; i < count; i++ )
-    {
-        buff[0] = *pChars++;
-        CONSOLE_STRING_OUT( buff );
-    }
+    CONSOLE_BYTES_OUT( pChars, count );
 }
 
 FORTHOP( printCharOp )
 {
     NEEDS(1);
-    char buff[2];
-    buff[0] = (char) SPOP;
-    buff[1] = 0;
+    char ch = static_cast<char>(SPOP);
 
 #ifdef TRACE_PRINTS
-    SPEW_PRINTS( "printed %s\n", buff );
+    SPEW_PRINTS( "printed %d\n", ch );
 #endif
 
-    CONSOLE_STRING_OUT( buff );
+    CONSOLE_CHAR_OUT( ch );
 }
 
 FORTHOP( printSpaceOp )
 {
-    SPUSH( (long) ' ' );
-    printCharOp( pCore );
+    CONSOLE_CHAR_OUT( ' ' );
 }
 
 FORTHOP( printNewlineOp )
 {
-    SPUSH( (long) '\n' );
-    printCharOp( pCore );
+    CONSOLE_CHAR_OUT( '\n' );
 }
 
 FORTHOP( baseOp )
@@ -2543,29 +2540,36 @@ FORTHOP( printAllUnsignedOp )
     SET_PRINT_SIGNED_NUM_MODE( kPrintAllUnsigned );
 }
 
-/*
-FORTHOP( getConoutOp )
+FORTHOP( getConsoleOutOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+	pEngine->PushConsoleOut( pCore );
+}
+
+FORTHOP( getDefaultConsoleOutOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+	pEngine->PushDefaultConsoleOut( pCore );
+}
+
+FORTHOP( setConsoleOutOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+	ForthObject conoutObject;
+	POP_OBJECT( conoutObject );
+	pEngine->SetConsoleOut( pCore, conoutObject );
+}
+
+FORTHOP( resetConsoleOutOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
 
 	pEngine->ResetConsoleOut( pCore );
 }
 
-FORTHOP( setConoutOp )
-{
-    ForthEngine *pEngine = GET_ENGINE;
-
-	long long conoutOp = LPOP;
-	pEngine->SetConsoleOut( pCore );
-}
-
-FORTHOP( resetConoutOp )
-{
-    ForthEngine *pEngine = GET_ENGINE;
-
-	pEngine->ResetConsoleOut( pCore );
-}
-*/
 
 //##############################
 //
@@ -2741,10 +2745,10 @@ FORTHOP( dstackOp )
     CONSOLE_STRING_OUT( buff );
     for ( i = 0; i < nItems; i++ )
     {
-        CONSOLE_STRING_OUT( " " );
+        CONSOLE_CHAR_OUT( ' ' );
         printNumInCurrentBase( pCore, *pSP++ );
     }
-    CONSOLE_STRING_OUT( "\n" );
+    CONSOLE_CHAR_OUT( '\n' );
 }
 
 
@@ -2762,7 +2766,7 @@ FORTHOP( drstackOp )
         CONSOLE_STRING_OUT( " " );
         printNumInCurrentBase( pCore, *pRP++ );
     }
-    CONSOLE_STRING_OUT( "\n" );
+    CONSOLE_CHAR_OUT( '\n' );
 }
 
 
@@ -6841,13 +6845,12 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    printDecimalSignedOp,   "printDecimalSigned" ),
     OP_DEF(    printAllSignedOp,       "printAllSigned" ),
     OP_DEF(    printAllUnsignedOp,     "printAllUnsigned" ),
-/* 
-	OP_DEF(    outToFileOp,            "outToFile" ),
-    OP_DEF(    outToScreenOp,          "outToScreen" ),
-    OP_DEF(    outToStringOp,          "outToString" ),
-    OP_DEF(    outToOpOp,              "outToOp" ),
-    OP_DEF(    getConOutFileOp,        "getConOutFile" ),
-*/
+ 
+	OP_DEF(    getConsoleOutOp,        "getConsoleOut" ),
+	OP_DEF(    getDefaultConsoleOutOp, "getDefaultConsoleOut" ),
+	OP_DEF(    setConsoleOutOp,        "setConsoleOut" ),
+	OP_DEF(    resetConsoleOutOp,      "resetConsoleOut" ),
+
     ///////////////////////////////////////////
     //  input buffer
     ///////////////////////////////////////////
@@ -6928,6 +6931,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    errorOp,                "error" ),
     OP_DEF(    addErrorTextOp,         "addErrorText" ),
     OP_DEF(    unimplementedMethodOp,  "unimplementedMethod" ),
+    OP_DEF(    illegalMethodOp,        "illegalMethod" ),
 	OP_DEF(    setTraceOp,             "setTrace" ),
     NATIVE_DEF( intoBop,               "verbose" ),
 

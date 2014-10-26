@@ -93,6 +93,7 @@ static const char *pErrorStrings[] =
     "Syntax error",
     "Bad Preprocessor Directive",
 	"Unimplemented Method",
+	"Illegal Method",
     "Shell Stack Underflow",
     "Shell Stack Overflow",
 	"Bad Reference Count",
@@ -283,7 +284,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
         mpExtension->Initialize( this );
     }
 
-	GetForthConsoleOutputStream( mpCore, mDefaultConsoleOutStream );
+	GetForthConsoleOutStream( mpCore, mDefaultConsoleOutStream );
     ResetConsoleOut( mpCore );
 
     Reset();
@@ -1817,39 +1818,42 @@ ForthEngine::ExecuteOps( long *pOps )
 // Caller must have already set the thread IP to point to a sequence of ops which ends with 'done'
 //
 eForthResult
-ForthEngine::ExecuteOps( ForthThread* pThread )
+ForthEngine::ExecuteOps( ForthCoreState* pCore )
 {
     eForthResult exitStatus = kResultOk;
 
 #ifdef ASM_INNER_INTERPRETER
     if ( mFastMode )
     {
-        exitStatus = InnerInterpreterFast( &(pThread->mCore) );
+        exitStatus = InnerInterpreterFast( pCore );
     }
     else
 #endif
     {
-        exitStatus = InnerInterpreter( &(pThread->mCore) );
+        exitStatus = InnerInterpreter( pCore );
     }
     return exitStatus;
 }
 
 
 eForthResult
-ForthEngine::ExecuteOneMethod( ForthObject& obj, long methodNum )
+ForthEngine::ExecuteOneMethod( ForthCoreState* pCore, ForthObject& obj, long methodNum )
 {
     long opScratch[2];
 
 	opScratch[0] = obj.pMethodOps[ methodNum ];
     opScratch[1] = gCompiledOps[OP_DONE];
 
-	ForthCoreState* pCore = mpCore;
 	RPUSH( ((long) GET_TPD) );
     RPUSH( ((long) GET_TPM) );
     SET_TPM( obj.pMethodOps );
     SET_TPD( obj.pData );
 
-	eForthResult exitStatus = ExecuteOps( &(opScratch[0]) );
+    long *savedIP= pCore->IP;
+    pCore->IP = opScratch;
+
+	eForthResult exitStatus = ExecuteOps( pCore );
+    pCore->IP = savedIP;
     return exitStatus;
 }
 
@@ -1948,18 +1952,35 @@ ForthEngine::CheckStacks( void )
 }
 
 
-void ForthEngine::SetConsoleOutStream( ForthObject& newOutStream )
+void ForthEngine::SetDefaultConsoleOut( ForthObject& newOutStream )
 {
-	if ( OBJECTS_DIFFERENT( mDefaultConsoleOutStream, newOutStream ) )
-	{
-		SAFE_KEEP( newOutStream );
-		SAFE_RELEASE( mDefaultConsoleOutStream );
-		mDefaultConsoleOutStream = newOutStream;
-	}
+	OBJECT_ASSIGN( mpCore, mDefaultConsoleOutStream, newOutStream );
+	mDefaultConsoleOutStream = newOutStream;
+}
+
+void ForthEngine::SetConsoleOut( ForthCoreState* pCore, ForthObject& newOutStream )
+{
+	OBJECT_ASSIGN( pCore, pCore->consoleOutStream, newOutStream );
+	pCore->consoleOutStream = newOutStream;
+}
+
+void ForthEngine::PushConsoleOut( ForthCoreState* pCore )
+{
+	PUSH_OBJECT( pCore->consoleOutStream );
+}
+
+void ForthEngine::PushDefaultConsoleOut( ForthCoreState* pCore )
+{
+	PUSH_OBJECT( mDefaultConsoleOutStream );
 }
 
 void ForthEngine::ResetConsoleOut( ForthCoreState* pCore )
 {
+	// TODO: there is a dilemma here - either we just replace the current output stream
+	//  without doing a release, and possibly leak a stream object, or we do a release
+	//  and risk a crash, since ResetConsoleOut is called when an error is detected,
+	//  so the object we are releasing may already be deleted or otherwise corrupted.
+	OBJECT_ASSIGN( pCore, pCore->consoleOutStream, mDefaultConsoleOutStream );
 	pCore->consoleOutStream = mDefaultConsoleOutStream;
 }
 

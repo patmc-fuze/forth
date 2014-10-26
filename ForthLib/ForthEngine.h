@@ -79,10 +79,10 @@ public:
     // The sequence must be terminated with an OP_DONE
     eForthResult        ExecuteOps( long* pOps );
 	// Use this version of ExecuteOps to execute code in a particular thread
-	// Caller must have already set the thread IP to point to a sequens of ops which ends with 'done'
-	eForthResult		ExecuteOps( ForthThread* pThread );
+	// Caller must have already set the thread IP to point to a sequence of ops which ends with 'done'
+	eForthResult		ExecuteOps( ForthCoreState* pCore );
 
-    eForthResult        ExecuteOneMethod( ForthObject& obj, long methodNum );
+    eForthResult        ExecuteOneMethod( ForthCoreState* pCore, ForthObject& obj, long methodNum );
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
     long            AddOp( const long *pOp );
@@ -206,7 +206,10 @@ public:
 
     static ForthEngine*     GetInstance( void );
 
-	void					SetConsoleOutStream( ForthObject& newOutStream );
+	void					SetDefaultConsoleOut( ForthObject& newOutStream );
+	void					SetConsoleOut( ForthCoreState* pCore, ForthObject& newOutStream );
+	void					PushConsoleOut( ForthCoreState* pCore );
+	void					PushDefaultConsoleOut( ForthCoreState* pCore );
 	void					ResetConsoleOut( ForthCoreState* pCore );
 
     // return milliseconds since engine was created

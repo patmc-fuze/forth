@@ -239,6 +239,7 @@ typedef enum {
     kForthErrorBadSyntax,
     kForthErrorBadPreprocessorDirective,
     kForthErrorUnimplementedMethod,
+    kForthErrorIllegalMethod,
     kForthErrorShellStackUnderflow,
     kForthErrorShellStackOverflow,
 	kForthErrorBadReferenceCount,
@@ -277,20 +278,20 @@ struct ForthObject
 typedef void (*streamCharOutRoutine) ( ForthCoreState* pCore, void *pData, char ch );
 
 // stream block output routine type
-typedef void (*streamBlockOutRoutine) ( ForthCoreState* pCore, void *pData, const char *pBuff, int numChars );
+typedef void (*streamBytesOutRoutine) ( ForthCoreState* pCore, void *pData, const char *pBuff, int numChars );
 
 // stream string output routine type
 typedef void (*streamStringOutRoutine) ( ForthCoreState* pCore, void *pData, const char *pBuff );
 
 // these routines allow code external to forth to redirect the forth output stream
-extern void GetForthConsoleOutputStream( ForthCoreState* pCore, ForthObject& outObject );
-extern void CreateForthFileOutputStream( ForthCoreState* pCore, ForthObject& outObject, FILE* pOutFile );
-extern void CreateForthFunctionOutputStream( ForthCoreState* pCore, ForthObject& outObject, streamCharOutRoutine outChar,
-											  streamBlockOutRoutine outBlock, streamStringOutRoutine outString, void* pUserData );
+extern void GetForthConsoleOutStream( ForthCoreState* pCore, ForthObject& outObject );
+extern void CreateForthFileOutStream( ForthCoreState* pCore, ForthObject& outObject, FILE* pOutFile );
+extern void CreateForthFunctionOutStream( ForthCoreState* pCore, ForthObject& outObject, streamCharOutRoutine outChar,
+											  streamBytesOutRoutine outBlock, streamStringOutRoutine outString, void* pUserData );
 extern void ReleaseForthObject( ForthCoreState* pCore, ForthObject& inObject );
 
 extern void ForthConsoleCharOut( ForthCoreState* pCore, char ch );
-extern void ForthConsoleBlockOut( ForthCoreState* pCore, const char* pBuffer, int numChars );
+extern void ForthConsoleBytesOut( ForthCoreState* pCore, const char* pBuffer, int numChars );
 extern void ForthConsoleStringOut( ForthCoreState* pCore, const char* pBuffer );
 
 // the bottom 24 bits of a forth opcode is a value field

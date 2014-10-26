@@ -1043,6 +1043,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ForthObject.h"
+				>
+			</File>
+			<File
 				RelativePath=".\ForthOpcodeCompiler.h"
 				>
 			</File>

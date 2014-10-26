@@ -241,7 +241,9 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define SET_ERROR( A )                  CoreSetError( pCore, A, false )
 #define SET_FATAL_ERROR( A )            CoreSetError( pCore, A, true )
 
-#define CONSOLE_STRING_OUT( A )         (ForthConsoleStringOut( pCore, A ))
+#define CONSOLE_CHAR_OUT( CH )          (ForthConsoleCharOut( pCore, CH ))
+#define CONSOLE_BYTES_OUT( BUFF, N )    (ForthConsoleBytesOut( pCore, BUFF, N ))
+#define CONSOLE_STRING_OUT( BUFF )      (ForthConsoleStringOut( pCore, BUFF ))
 
 #define GET_BASE_REF                    (&pCore->base)
 

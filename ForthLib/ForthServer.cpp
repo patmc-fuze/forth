@@ -526,7 +526,7 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
     bool bInteractiveMode = pStream->IsInteractive();
 
 	ForthCoreState* pCore = mpEngine->GetCoreState();
-	CreateForthFunctionOutputStream( pCore, mConsoleOutObject, NULL, NULL, consoleOutToClient, pCore );
+	CreateForthFunctionOutStream( pCore, mConsoleOutObject, NULL, NULL, consoleOutToClient, pCore );
 	mpEngine->ResetConsoleOut( pCore );
     mpInput->PushInputStream( pStream );
 

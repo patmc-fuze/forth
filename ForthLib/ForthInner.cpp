@@ -10,7 +10,7 @@
 #include "ForthThread.h"
 #include "ForthShell.h"
 #include "ForthVocabulary.h"
-#include "ForthBuiltinClasses.h"
+#include "ForthObject.h"
 
 extern "C"
 {
@@ -1390,7 +1390,7 @@ inline void _doObjectVarop( ForthCoreState* pCore, ForthObject* pVar )
 			if ( OBJECTS_DIFFERENT( oldObj, newObj ) )
 			{
 				SAFE_KEEP( newObj );
-				SAFE_RELEASE( oldObj );
+				SAFE_RELEASE( pCore, oldObj );
 				*pVar = newObj;
 			}
 		}

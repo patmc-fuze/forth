@@ -164,6 +164,17 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 25 2014
+
+I got the output stream redirection working again, at least to the point
+where redirection to string works in forthtest, and there are no undeleted
+objects upon exiting forth.
+
+One notable change that occured while debugging is that previously all delete
+method execution was being done using the engine primary thread/core, which would have
+caused problem when delete methods were called on objects which were allocated
+in other threads.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 17 2014
 
 I got console output using stream objects mostly working.  While I was doing it
@@ -182,7 +193,7 @@ much more likely to fail catastrophically - re-initializing after an error can
 cause the release/delete of stream objects, and if they are already deleted
 or corrupted, this could cause another error.
 
-I refactored things so that oOutputStream wasn't completely abstract, and output
+I refactored things so that oOutStream wasn't completely abstract, and output
 streams have an optional pointer to a block of functions for outputting chars, blocks
 or strings, and these functions can called directly without the overhead of
 setting the current object to the output stream and pushing/popping arguments.

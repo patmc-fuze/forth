@@ -297,7 +297,7 @@ void CForthGuiDlg::CreateForth()
 	mpShell = new ForthShell;
 	ForthEngine* pEngine = mpShell->GetEngine();
 	ForthCoreState* pCore = pEngine->GetCoreState();
-	CreateForthFunctionOutputStream( pCore, mConsoleOutObject, NULL, NULL, ForthOutRoutine, GetDlgItem( IDC_RICHEDIT_OUTPUT ) );
+	CreateForthFunctionOutStream( pCore, mConsoleOutObject, NULL, NULL, ForthOutRoutine, GetDlgItem( IDC_RICHEDIT_OUTPUT ) );
 
 	pEngine->SetConsoleOutStream( mConsoleOutObject );
 	pEngine->ResetConsoleOut( pCore );
