@@ -236,6 +236,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
 
     mDictionary.pBase = new long[totalLongs];
     mDictionary.pCurrent = mDictionary.pBase;
+    mDictionary.len = totalLongs;
 
 	mpOpcodeCompiler = new ForthOpcodeCompiler( &mDictionary );
 
@@ -2543,6 +2544,8 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         {
             // number is in range supported by kOpConstant, just add it to vocabulary
             mpDefinitionVocab->AddSymbol( pToken, kOpConstant, mNextEnum & 0x00FFFFFF, false );
+			long* pNewEnum = mpDefinitionVocab->GetNewestEntry();
+		    pNewEnum[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
         }
         else
         {
@@ -2590,6 +2593,23 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 				}
 			}
 		}
+        // really last chance - if token begins with $ and is a valid hex constant, process it
+        // this isn't ANSI standard, but a 'de-facto' standard
+        if ( *pToken == '$' )
+        {
+            if ( ScanIntegerToken( pToken + 1, value, lvalue, 16, isOffset, isSingle ) )
+            {
+
+                ////////////////////////////////////
+                //
+                // symbol is a hex integer literal
+                //
+                ////////////////////////////////////
+                SPEW_OUTER_INTERPRETER( "Integer literal %d\n", value );
+                ProcessConstant( value, false );
+                return exitStatus;
+            }
+        }
 		TRACE( "Unknown symbol %s\n", pToken );
 		mpCore->error = kForthErrorUnknownSymbol;
 		exitStatus = kResultError;

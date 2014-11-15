@@ -7,29 +7,42 @@ autoforget forth_autoload
 0x80000000 -> int MININT
 
 : ' blword $' ;
+: load blword $load ;
+: precedence blword $precedence ;
 
 : ds dstack ;
 
-: vd verbose describe ;
+: see verbose describe ;
 
 : autoload
-  blword find
+  blword $find
   if( 0= )
     $load( blword )
   else
     blword drop
   endif
 ;
-  
+
 //######################################################################
 // help support
 
-200 string _aa
-200 string _bb
+255 string _TempStringA
+255 string _TempStringB
 
+: immediate
+  ref definitions
+  dup vocNewestEntry
+  swap vocValueLength +   // TOS points to length byte of counted string
+  memcpy( _TempStringA over dup 1+ swap c@ )
+  c@ dup _TempStringA 4- !
+  0 swap _TempStringA + c!
+  _TempStringA $precedence
+;
+  
+  
 : $,
   // TOS is ptr to nul terminated string at DP
-  here over strlen 1+ callot
+  here over strlen 1+ allot
   swap strcpy
 ;
 
@@ -37,7 +50,7 @@ autoforget forth_autoload
 : addHelp
   here helpChain , -> helpChain		// link new entry into help chain
   blword $,		// compile new symbol
-  0 word $,		// compile symbols help definition
+  0 $word $,		// compile symbols help definition
   align
 ;
 
@@ -70,14 +83,14 @@ false -> int _helpfileLoaded
 
 
 : help
-  blword -> _aa
+  blword -> _TempStringA
   if( _helpfileLoaded not )
     $load( "help.txt"  )
     true -> _helpfileLoaded
     // there is a $help at end of help.txt that will complete the lookup
-    _aa
+    _TempStringA
   else
-    $help( _aa )
+    $help( _TempStringA )
   endif
 ;
 
@@ -256,38 +269,38 @@ addHelp pwd	pwd			display working directory
 
 addHelp ls	ls BLAH		display directory (BLAH is optional filespec)
 : ls
-  '\n' word -> _aa
+  '\n' $word -> _TempStringA
 #ifdef WINDOWS
-  "dir" -> _bb
+  "dir" -> _TempStringB
 #else
-  "ls" -> _bb
+  "ls" -> _TempStringB
 #endif
-  if( strcmp( _aa "" ) )
+  if( strcmp( _TempStringA "" ) )
     // user specified a directory
-    strcat( _bb " " )
-    strcat( _bb _aa )
+    strcat( _TempStringB " " )
+    strcat( _TempStringB _TempStringA )
   endif
-  $system( _bb ) drop
+  $system( _TempStringB ) drop
 ;
 
 addHelp mv	mv OLDNAME NEWNAME		rename a file
 : mv
-  blword -> _aa
-  blword -> _bb
-  rename( _aa _bb )
+  blword -> _TempStringA
+  blword -> _TempStringB
+  rename( _TempStringA _TempStringB )
   if( 0<> )
     error( "mv: failure renaming file " )
-    addErrorText( _aa )
+    addErrorText( _TempStringA )
   endif
 ;
 
 addHelp rm	rm FILENAME		remove a file
 : rm
-  blword -> _aa
-  remove( _aa )
+  blword -> _TempStringA
+  remove( _TempStringA )
   if( 0<> )
     error( "rm: failure removing file " )
-    addErrorText( _aa )
+    addErrorText( _TempStringA )
   endif
 ;
 
@@ -328,7 +341,7 @@ addHelp more more FILENAME	display FILENAME on screen
 ;
 
 addHelp sys	sys REST_OF_LINE	run rest of line in a DOS shell
-: sys system( 0 word ) drop ;
+: sys system( 0 $word ) drop ;
 
 addHelp fileExists	"FILEPATH" fileExists ... true/false		tell if a file exists
 : fileExists "r" fopen dup if fclose drop true else drop false endif ;
@@ -511,7 +524,7 @@ addHelp numLocals	returns number of longwords of local variables in current stac
 ;
 addHelp dlocals		display the local variables in current stack frame
 
-addHelp demo	 demo is used to both display and interpret a line of text
+addHelp demo	 demo is used to both display and evaluate a line of text
 : demo getInBufferPointer %s %nl ;
 precedence demo
 
@@ -610,12 +623,12 @@ precedence ]d
 : t[
   // remember start of debug section in case we need to uncompile it
   here
-  ['] runTrace , [compile] if
+  postpone runTrace postpone if
 ;
 precedence t[
 
 : ]t
-  [compile] endif
+  postpone endif
   if( compileTrace )
     // leave trace section as is
     drop
@@ -635,9 +648,9 @@ precedence ]t
 ;
 
 : assert[
-  word( ']' )
+  $word( ']' )
   if( compileAsserts )
-    interpret ['] _assert ,
+    $evaluate postpone _assert
   else
     drop
   endif

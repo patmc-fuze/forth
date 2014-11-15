@@ -16,11 +16,11 @@ code _doDoesCode
   endcode
   
 : doescode
-  [compile] does
+  postpone does
   ['] _doDoesCode here 4- !
   also assembler
   0 state !
-  [compile] recursive
+  postpone recursive
 ;
 precedence doescode
 

@@ -46,13 +46,13 @@ precedence asm[
 
 : goo
   1 3 5
-  "Before\n" %s
+  "Before\n" %s ds
   asm[
     7 # eax mov,
     4 # edx sub,
     eax edx ] mov,
   ]asm
-  "After\n" %s
+  "After\n" %s ds
   9 13 15
 ;
 
@@ -60,28 +60,20 @@ previous
 loaddone
 
 
-ASM[ does:
+asm[ does:
 
   compile _inlineAsm opcode
-
   push DP on rstack
-
   compile 0 (will be filled in by ]ASM)
-
   push assembler vocab on top of search stack
-
   set state to interpret
 
-]ASM does:
+]asm does:
 
   compile jmp DI instruction
-
   round DP up to nearest longword
-
   pop address off rstack, store DP there
-
   set state to compile
-
   pop search stack
 
 _inlineAsm

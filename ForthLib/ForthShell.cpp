@@ -939,12 +939,12 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
         if ( pInfo->GetFlags() == 0 )
         {
             // token is not a special case, just parse till blank, space or EOL
-           bool done = false;
+            bool done = false;
             pEndSrc = pSrc;
             while ( !done )
             {
-               switch ( *pEndSrc )
-               {
+                switch ( *pEndSrc )
+                {
                   case ' ':
                   case '\t':
                   case '\0':
@@ -956,9 +956,10 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                      break;
 
                   case '(':
-                     if ( mpEngine->CheckFlag( kEngineFlagParenIsComment ) )
+                     if ( (pEndSrc == pSrc) || mpEngine->CheckFlag( kEngineFlagParenIsComment ) )
                      {
-                        *pDst++ = *pEndSrc++;
+                         // paren at start of token is part of token (allows old forth-style inline comments to work)
+                         *pDst++ = *pEndSrc++;
                      }
                      else
                      {

@@ -14,7 +14,7 @@ true -> parenIsComment
 : there here ;
 : t@ @ ;
 : t! ! ;
-: t, , ;
+: t, "compile " %s dup %x " at " %s here %x %nl , ;
 : 2, , , ;  // or should there be a swap first?
 : uu %s %bl %bl ds ; // debug print
 

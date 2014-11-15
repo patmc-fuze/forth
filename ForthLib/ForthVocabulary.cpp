@@ -1089,6 +1089,29 @@ long * ForthVocabularyStack::FindSymbol( const char *pSymName, ForthVocabulary**
     return pEntry;
 }
 
+long * ForthVocabularyStack::FindSymbolCaseInsensitive( const char *pSymName, ForthVocabulary** ppFoundVocab )
+{
+    long *pEntry = FindSymbol( pSymName, ppFoundVocab );
+    if ( pEntry == NULL )
+    {
+        // if symbol wasn't found, convert it to lower case and try again
+        char buffer[128];
+        strncpy( buffer, pSymName, sizeof(buffer) );
+        for ( int i = 0; i < sizeof(buffer); i++ )
+        {
+            char ch = buffer[i];
+            if ( ch == '\0' )
+            {
+                break;
+            }
+            buffer[i] = tolower( ch );
+        }
+        pEntry = FindSymbol( buffer, ppFoundVocab );
+    }
+
+    return pEntry;
+}
+
 // return pointer to symbol entry, NULL if not found, given its value
 long * ForthVocabularyStack::FindSymbolByValue( long val, ForthVocabulary** ppFoundVocab )
 {

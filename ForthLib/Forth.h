@@ -388,6 +388,8 @@ enum {
 
 	OP_SUPER,		// 0x40
 	OP_END_BUILDS,
+    OP_COMPILE,
+
 	NUM_COMPILED_OPS
 };
 

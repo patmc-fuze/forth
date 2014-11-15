@@ -2610,19 +2610,6 @@ entry timesBop
 	jmp	edi
 
 ;========================================
-
-entry utimesBop
-	mov	eax, [edx]
-	mov	ebx, [edx+4]
-	push	edx
-	mul	ebx			; result hiword in edx, loword in eax
-	mov	ebx,edx
-	pop	edx
-	mov	[edx+4], ebx
-	mov	[edx], eax
-	jmp	edi
-
-;========================================
 	
 entry times2Bop
 	mov	eax, [edx]

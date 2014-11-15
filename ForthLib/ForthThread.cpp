@@ -69,8 +69,6 @@ ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnS
 
 	mCore.consoleOutStream.pData = NULL;
 	mCore.consoleOutStream.pMethodOps = NULL;
-    mCore.pDefaultOutFile = NULL;
-    mCore.pDefaultInFile = NULL;
 
     pEngine->ResetConsoleOut( &mCore );
 

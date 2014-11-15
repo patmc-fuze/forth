@@ -8,21 +8,91 @@ autoforget compatability
 
 : cells 4* ;
 : cell+ 4+ ;
+: chars ;
 : spaces 0 do %bl loop ;
 : char blword c@ ;
+
+// given ptr to cstring, compile code which will push ptr to cstring
 : compileStringLiteral
   -> ptrTo byte src
   src strlen -> int len
-  len 4+ 0xFFFFFFFC and 2 rshift -> int lenLongs
-  lenLongs opType:litString 24 lshift or ,		// compile literal string opcode
+  len 4+ 0xFFFFFFFC and 2 rshift -> int lenInts
+  opType:makeOpcode( opType:litString lenInts ) ,		// compile literal string opcode
   strcpy( here src )
-  lenLongs allot
+  allot( lenInts cells )
 ;
+
+: count dup 1+ swap c@ ;
+
+: 2, here 8 allot 2! ;
+: literal postpone lit , ;
+: fliteral literal ;
+: dliteral postpone dlit 2, ;
+
+: countedStringToString
+  // src dst
+  swap 2dup
+  memcpy( count )
+  c@ + 0 swap c!
+;
+
+: stringToCountedString
+  // src dst
+  over strlen over c!
+  // src len 
+  1+ swap strcpy
+;
+
+: blockToString
+  // src count dst
+  -> ptrTo byte dst
+  -> int numBytes
+  -> ptrTo byte src
+  memcpy( dst src numBytes )
+  0 dst numBytes + c!
+;
+
+: stringToBlock
+  dup strlen
+;
+
+: lowerCaseIt
+  dup strlen 0 do
+    dup c@
+    if( and( dup 'A' >= over 'Z' <= ) )
+      0x20 + over c!
+    else
+      drop
+    endif
+    1+
+  loop
+  drop
+;
+
+: find
+  257 string symbol
+  countedStringToString( dup symbol )
+  $findCaseInsensitive( symbol )
+  // countedStr ptrToSymbolEntry
+  if( dup )
+    nip			// discard original counted string ptr
+    @			// fetch opcode from first word of symbol entry value field
+    if( opType:isImmediate( opType:getOptype( dup ) ) )
+      1   // immediate op
+    else
+      -1
+    endif
+  endif
+;
+
+: cmove ds %nl 0 do over i + c@ dup %c over i + c! loop 2drop ;
+: cmove> 0 swap 1- do over i + c@ over i + c! -1 +loop 2drop ;
+: move cmove ;
 : ."
-  '"' word state @
+  '"' $word state @
   if
     compileStringLiteral
-    lit %s ,
+    postpone %s
   else
     %s
   endif
@@ -30,20 +100,17 @@ autoforget compatability
 precedence ."
 
 : .(
-  ')' word state @
-  if
-    compileStringLiteral
-    lit %s ,
-  else
-    %s
-  endif
+  ')' $word %s
 ;
 precedence .(
 
 : s"
-  '"' word state @
-  if
-    compileStringLiteral
+  '"' $word
+  if( state @ )
+    compileStringLiteral( dup )
+    literal( strlen )
+  else
+    dup strlen
   endif
 ;
 precedence s"
@@ -52,15 +119,19 @@ precedence s"
 : erase 0 swap memset ;
 : bl ' ' ;
 : emit %c ;
-: does> [compile] does ; precedence does>
-: then [compile] endif ; precedence then
-: evaluate interpret ;
-: [char]  blword c@ opType:litInt 24 lshift or , ; precedence [char]
+: does> postpone does ; precedence does>
+: then postpone endif ; precedence then
+
+: evaluate
+  257 string str
+  blockToString( str )
+  $evaluate( str )
+;
+: [char]  opType:makeOpcode( opType:litInt blword c@ ) , ; precedence [char]
 : cr %nl ;
 : */ * / ;
-: char+ + ;
-: count dup strlen swap ;
-: \ 0 word drop ; precedence \
+: char+ 1+ ;
+: \ 0 $word drop ; precedence \
 : spaces ?dup if 0 do %bl loop endif ;
 : space %bl ;
 
@@ -73,7 +144,7 @@ precedence s"
   endif
 ;
 : abort" 
-  '"' word state @
+  '"' $word state @
   if
     compileStringLiteral
     lit _abortQuote ,
@@ -81,3 +152,77 @@ precedence s"
     _abortQuote
   endif
 ; precedence abort"
+
+: value postpone int ;
+: to -> ;
+
+int __sp
+: !csp sp -> __sp ;
+: ?csp sp __sp <> if dstack 1 error "stack mismatch" addErrorText ;
+
+// the builtin $word op leaves an empty byte below parsed string for us to stuff length into
+: word $word dup strlen over 1- c! 1- ;
+: parse word count ;
+
+: sliteral
+  257 string str
+  blockToString( str )
+  compileStringLiteral( str )
+  postpone stringToBlock
+; precedence sliteral
+
+32 constant #locals
+true constant locals
+true constant locals-ext
+: locals|
+  257 string varExpression
+  ptrTo byte varName
+  begin
+    blword -> varName
+  while( and( varName null <>   strcmp( varName "|" ) ) )
+    "-> int " -> varExpression
+    varName ->+ varExpression
+    $evaluate( varExpression )
+  repeat
+; precedence locals|
+
+: (local)
+  250 string varName
+  257 string varExpression
+  blockToString( varName )
+  "int " -> varExpression
+  ->+ varExpression
+  $evaluate( varExpression )
+; precedence (local)
+
+: defer postpone op ;
+: is -> ;
+
+: off false swap ! ;
+: on true swap ! ;
+
+: ms@ millitime ;
+
+: s>d i2l ;
+
+int _handler
+
+: catch  ( ... xt -- ... 0 )
+  _handler  >r
+  sp >r
+  rp -> _handler
+  execute 0
+  r> drop
+  r> -> _handler
+;
+
+: throw  ( error -- error )
+  dup 0= IF
+    drop EXIT
+  THEN
+  _handler -> rp
+  // RTOS: oldSP oldHandlerRP
+  r> swap >r -> sp
+  // RTOS: errorCode oldHandlerRP
+  r> r> -> _handler
+;

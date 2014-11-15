@@ -141,9 +141,9 @@ test[ strstr( aaa "ahab" ) 0= ]
 : _ok_ %d /* _fail_ */ ;
 // "The following line should have \"123456\" on it\n" %s
 startTest
-( 1 _ok_ ) true -> parenIsComment ( _fail_ ) 2 _ok_ ( _fail_
-3 _ok_ false -> parenIsComment _ok_( 4 ) /* _fail_
-5 _ok_ /* _fail_ */ 6 _ok_ %nl
+_ok_( 1 ) true -> parenIsComment ( _fail_ ) 2 _ok_ ( _fail_
+) 3 _ok_ false -> parenIsComment _ok_( 4 ) /* _fail_
+*/ 5 _ok_ /* _fail_ */ 6 _ok_ %nl
 test[ checkResult( "123456\n" ) ]
 
 ///////////////////////////////////////////////////////////
@@ -168,8 +168,9 @@ test[ true false or ] test[ 33 7 or 39 = ] test[ 0xf0f 0x0f0 or 0xfff = ] test[ 
 test[ true false and not ] test[ 33 7 and 1 = ] test[ 0xf0f 0x0f0 and 0= ] test[ true false xor   33 7 xor 38 = ]
 test[ 0xf0f 0x0f0 xor 0xfff = ] test[ 0x505 0x141 xor 0x444 = ]
 
-// u* 2* 4* 8* 2/ 4/ 8/ /mod mod negate
-test[ -5 -7 u* -12 35 l= ] test[ 243 2* 486 = ] test[ 243 4* 972 = ] test[ 243 8* 1944 = ] test[ 744 2/ 372 = ]
+// 2* 4* 8* 2/ 4/ 8/ /mod mod negate
+//test[ -5 -7 u* -12 35 l= ]
+test[ 243 2* 486 = ] test[ 243 4* 972 = ] test[ 243 8* 1944 = ] test[ 744 2/ 372 = ]
 test[ 744 4/ 186 = ] test[ 744 8/ 93 = ] test[ 4183 23 /mod 20 181 l= ] test[ 193747 39 mod 34 = ] test[ -34 negate 34 = ]
 
 // f+ f- f* f/ f= f<> f> f>= f< f<= 
@@ -231,12 +232,12 @@ test[ checkResult( testBuff2.get ) ]
 test[ 0xDEADBEEF 123456789 l= ]	// check for stack underflow or extra items
 
 ///////////////////////////////////////////////////////////
-// test interpret
+// test $evaluate
 
-: ee interpret( "'e' %c 'y' %c" );
-: cc interpret( "'c' %c" );
-: bb interpret( "'b' %c" ) cc interpret( "'d' %c" ) ;
-: aa interpret( "'a' %c" ) bb ee interpret( "'z' %c" ) ;
+: ee $evaluate( "'e' %c 'y' %c" );
+: cc $evaluate( "'c' %c" );
+: bb $evaluate( "'b' %c" ) cc $evaluate( "'d' %c" ) ;
+: aa $evaluate( "'a' %c" ) bb ee $evaluate( "'z' %c" ) ;
 
 //test[ strcmp( aa "abcdeyz" ) 0= ]
 

@@ -54,6 +54,98 @@ CompileOpcode def:
     else
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 
+How builds...doescode is implemented		 October 26 2014
+
+: con
+  builds ,
+  doescode
+    ecx ] eax mov,
+    4 # edx sub,
+    eax edx ] mov,
+    rpop,
+    next,
+    
+5 con aha
+: woof dup aha + ;
+
+memory after executing above lines of forth:
+
+ADDR(con):  OP( builds )
+        +1  OP( , )
+        +2  OP( _endBuilds )    this op was compiled by "doescode"
+        +3  OP( _con )          this was compiled by "doescode"
+ADDR(_con): move eax, [ecx]
+			sub edx, #4
+			mov [edx], eax
+			rpop
+			jmp [edi]
+
+ADDR(aha):  OP( _con )          this op was compiled as op 0 by builds, then set to _con by _endBuilds
+        +1  DATA_STORAGE( aha ), contents == 5
+
+ADDR(woof): OP( dup )
+        +1  OP( aha )
+        +2  OP( + )
+        +3  OP( exit )
+
+before executing "woof":
+    ps: 7
+    rs: <empty>
+    ip: OLD_IP_VAL
+start of executing woof opcode:
+    ps: 7
+    rs: OLD_IP_VAL
+    ip: ADDR(woof)
+start of executing aha opcode:
+    ps: 7 7
+    rs: ADDR(woof)+2 OLD_IP_VAL
+    ip: ADDR(aha)
+start of executing _con opcode:
+    ps: 7 7
+    rs: ADDR(aha)+1 ADDR(woof)+2 OLD_IP_VAL
+    ip: ADDR(_con)
+after executing doDoes:
+    ps: ADDR(aha)+1 7 7
+    rs: ADDR(woof)+2 OLD_IP_VAL
+    ip: ADDR(_con)+1
+after executing @ and exit (leaving _con):
+    ps: 5 7 7
+    rs: OLD_IP_VAL
+    ip: ADDR(woof)+2
+after executing + and exit (leaving woof):
+    ps: 12 7
+    rs: <empty>
+    ip: OLD_IP_VAL
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+How inline assembly works
+
+asm[ does:
+
+  compile _inlineAsm opcode
+  push DP on rstack
+  compile 0 (will be filled in by ]asm)
+  push assembler vocab on top of search stack
+  set state to interpret
+
+]asm does:
+
+  compile jmp DI instruction
+  round DP up to nearest longword
+  pop address off rstack, store DP there
+  set state to compile
+  pop search stack
+
+_inlineAsm
+
+  on entry, IP points to longword with IP after the inline code
+  set inlineAddress = IP + 4
+  set IP = @IP
+  non-turbo version will have to save & setup registers with SP, IP, inner interp re-entry point
+  jump to inlineAddress
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+
 How builds...does is implemented		 before 2005
 
 : con builds , does @ ;

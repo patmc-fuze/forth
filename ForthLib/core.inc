@@ -122,6 +122,9 @@ ThreadPtr			DWORD		?
 DictionaryPtr		DWORD		?
 FileFuncs			DWORD		?
 innerLoop			DWORD		?
+consoleOutStream	QWORD		?
+base				DWORD		?
+signedPrintMode		DWORD		?
 ForthCoreState		ENDS
 
 ForthFileInterface	STRUCT	2t

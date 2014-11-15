@@ -22,7 +22,7 @@ autoforget rctest
 : ninterpret
   new oString -> oString foo
   makeStr( foo )
-  interpret( foo.get )
+  $evaluate( foo.get )
   //foo.get %s %nl
   foo.release
 ;

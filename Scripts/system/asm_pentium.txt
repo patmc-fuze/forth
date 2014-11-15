@@ -69,10 +69,14 @@ octal
 
 int ModR/M               int ModR/M#
 int SIB                  int SIB#
-int disp                 int disp#
-int imm                  int imm#
-int Aimm?                int Adisp?
-int byte?                int seg
+int disp	// displacement argument
+int disp#	// sizeof displacement argument
+int imm		// immediate argument
+int imm#	// sizeof immediate argument
+int Aimm?	// is immediate argument an address?
+int Adisp?
+int byte?	// is this a byte instruction?
+int seg		// segment register
 int .asize               int .anow
 int .osize               int .onow
 
@@ -478,6 +482,9 @@ int .osize               int .onow
   22 0xFF modf
 ;
 
+// the standard relative call:     SUBROUTINE_ADDR rcall,
+: rcall, rel] call, ;
+
 : callf,		// reg / seg --
   seg? if
     drop 0x9A
@@ -798,34 +805,84 @@ previous definitions
   previous				// pop assembler vocab off search stack
 ;
 
+
+// inline assembly support
+
+code _inlineAsm
+  ecx eax mov,
+  eax ] ecx mov,
+  4 # eax add,
+  eax jmp,
+endcode
+
+int _asmPatch
+
+: asm[
+  "_inlineAsm @ " %s here %x %nl
+  lit _inlineAsm ,
+  here -> _asmPatch
+  0 ,
+  also assembler
+  0 state !
+;
+
+precedence asm[
+
+: ]asm
+  next,
+  "patching " %s _asmPatch %x " with " %s here %x %nl
+  here _asmPatch !
+  1 state !
+  previous
+;
+
+
 enum: eForthCore
   0x00 _optypeAction
-  0x04 _builtinOps
-  0x08 _numBuiltinOps
-  0x0C _numAsmBuiltinOps
-  0x10 _userOps
-  0x14 _numUserOps
-  0x18 _maxUserOps
-  0x1C _pEngine
-  0x20 _IPtr
-  0x24 _SPtr
-  0x28 _RPtr
-  0x2C _FPtr
-  0x30 _TMPtr
-  0x34 _TDPtr
-  0x38 _varMode
-  0x3C _state
-  0x40 _error
-  0x44 _SBPtr
-  0x48 _STPtr
-  0x4C _SLen
-  0x50 _RBPtr
-  0x54 _RTPtr
-  0x58 _RLen
-  0x5C _pThread
-  0x60 _pDictionary
-  0x64 _fileFuncs
+  0x04 _numBuiltinOps
+  0x08 _ops
+  0x0C _numOps
+  0x10 _maxOps
+  0x14 _pEngine
+  0x18 _IP
+  0x1C _SP
+  0x20 _RP
+  0x24 _FP
+  0x28 _TPM
+  0x2C _TPD
+  0x30 _varMode
+  0x34 _state
+  0x38 _error
+  0x3C _SB
+  0x40 _ST
+  0x44 _SLen
+  0x48 _RB
+  0x4C _RT
+  0x50 _RLen
+  0x54 _pThread
+  0x58 _pDictionary
+  0x5C _pFileFuncs
+  0x60 _innerLoop
+  0x64 _consoleOutStream
+  0x6C _base
+  0x70 _signedPrintMode
 ;enum
+
+// pop ecx off rstack using eax
+: rpop,
+  _RP ebp d] eax mov,
+  eax ] ecx mov,
+  4 # eax add,
+  eax _RP ebp d] mov,
+;
+
+// push ecx onto rstack using eax
+: rpush,
+  _RP ebp d] eax mov,
+  4 # eax sub,
+  ecx eax ] mov,
+  eax _RP ebp d] mov,
+;
 
 base !
 -> parenIsComment

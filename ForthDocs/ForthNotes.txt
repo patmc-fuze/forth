@@ -164,6 +164,44 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 15 2014
+
+I've made a lot of changes trying to get closer to ANS forth compatability,
+using the fcp.f chess program to expose incompatabilities.  Notable changes:
+
+o better support for case insensitive symbol search
+o more words which search vocabs search chain instead of top vocab
+o $word & blword leave a byte for counted string length below returned pointer
+o support of hex literals starting with '$' when all else fails
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 26 2014
+
+I'm looking at implementing an assembler version of 'does':
+
+: definingWord
+  builds
+    buildsBody
+  does
+    doesBody
+;
+
+: definingWord
+  builds
+    buildsBody
+  doescode
+    doesBodyInAssembler
+
+I can think of 2 ways to do it:
+
+1) the words created by definingWord are high-level, and begin with a
+   low-level opcode, which is the 'doescode' part of the definition.  This
+   opcode is defined by doesBodyInAssembler, it gets the pointer to the
+   definedWord data in IP and must pop the new IP off the rstack before exiting.
+2) the words created by definingWord are low-level, and begin with a call to
+   doesBodyInAssembler, which gets the pointer to the definedWord data by popping
+   it off the system stack.
+I went with option 1.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 25 2014
 
 I got the output stream redirection working again, at least to the point
@@ -174,6 +212,19 @@ One notable change that occured while debugging is that previously all delete
 method execution was being done using the engine primary thread/core, which would have
 caused problem when delete methods were called on objects which were allocated
 in other threads.
+
+Default console out objects need to be defined as singletons which ignore
+a delete triggered by release, since they will be shared by all threads in
+an engine.  Default console out objects are only defined when console out is
+always redirected somewhere other than the normal user console (stdout), such
+as when running in client/server or in the ForthGui app.
+
+A possible fix for the crash
+
+- when I was getting errors while output was redirected to a string, the
+  error output was still being sent to the string - the error should have
+  caused output to be redirected back to the default console before printing
+  error output strings
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 17 2014
 

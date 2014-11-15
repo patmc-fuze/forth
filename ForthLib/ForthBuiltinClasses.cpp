@@ -5786,7 +5786,7 @@ namespace
         METHOD(     "putChar",              oOutStreamPutCharMethod ),
         METHOD(     "putBytes",             oOutStreamPutBytesMethod ),
         METHOD(     "putString",            oOutStreamPutStringMethod ),
-        METHOD(     "getData",              oOutStreamGetDataMethod ),
+        METHOD_RET( "getData",              oOutStreamGetDataMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "setData",              oOutStreamSetDataMethod ),
         // following must be last in table
         END_MEMBERS
@@ -5931,7 +5931,7 @@ namespace
         METHOD(     "_%new%_",              oStringOutStreamNew ),
         METHOD(     "delete",               oStringOutStreamDeleteMethod ),
         METHOD(     "setString",            oStringOutStreamSetStringMethod ),
-        METHOD(     "getString",            oStringOutStreamGetStringMethod ),
+        METHOD_RET( "getString",            oStringOutStreamGetStringMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIString) ),
         METHOD(     "setData",              illegalMethodOp ),
 		
         // following must be last in table

@@ -164,6 +164,7 @@ public:
     inline void             AllotLongs( int n ) { mDictionary.pCurrent += n; };
 	inline void             AllotBytes( int n )	{ mDictionary.pCurrent = reinterpret_cast<long *>(reinterpret_cast<int>(mDictionary.pCurrent) + n); };
     inline void             AlignDP( void ) { mDictionary.pCurrent = (long *)(( ((int)mDictionary.pCurrent) + 3 ) & ~3); };
+    inline ForthMemorySection* GetDictionaryMemorySection() { return &mDictionary; };
     inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpVocabStack->GetTop(); };
     inline void             SetSearchVocabulary( ForthVocabulary* pVocab )  { mpVocabStack->SetTop( pVocab ); };
     inline ForthVocabulary  *GetDefinitionVocabulary( void )   { return mpDefinitionVocab; };

@@ -20,49 +20,6 @@ typedef void (*VarAction)( ForthCoreState *pCore );
 // right now there are about 250 builtin ops, allow for future expansion
 #define MAX_BUILTIN_OPS 1024
 
-
-#if 0
-struct ForthThreadState
-{
-    long                *IP;       // interpreter pointer
-
-    long                *SP;       // parameter stack pointer
-    long                *ST;       // empty parameter stack pointer
-    long                *SB;       // param stack base
-    ulong               SLen;      // size of param stack in longwords
-    
-    long                *RP;       // return stack pointer
-    long                *RT;       // empty return stack pointer
-    long                *RB;       // return stack base
-    ulong               RLen;      // size of return stack
-
-    long                *FP;       // frame pointer
-    
-    long                *TPM;      // this pointer (vtable)
-    long                *TPD;      // this pointer (data)
-
-    void                *pPrivate; // pointer to per-thread state
-    long                currentOp; // last op dispatched by inner interpreter
-    
-    ulong               varMode;        // operation to perform on variables
-
-    ulong               state;          // inner loop state - ok/done/error
-
-    ulong               error;
-
-    ForthMemorySection* pDictionary;
-
-    void                *pConOutData;
-    consoleOutRoutine   consoleOut;
-    long                consoleOutOp;
-
-    FILE                *pDefaultOutFile;
-    FILE                *pDefaultInFile;
-    long                base;      // output base
-    ulong               signedPrintMode;   // if numers are printed as signed/unsigned
-};
-#endif
-
 struct ForthFileInterface
 {
     FILE*               (*fileOpen)( const char* pPath, const char* pAccess );
@@ -145,13 +102,8 @@ struct ForthCoreState
 
 	void				*innerLoop;		// inner loop reentry point for assembler inner interpreter
 
-    //void                *pConOutData;
-    //consoleOutRoutine   consoleOut;
 	ForthObject			consoleOutStream;
-    long                consoleOutOp;
 
-    FILE                *pDefaultOutFile;
-    FILE                *pDefaultInFile;
     long                base;               // output base
     ulong               signedPrintMode;   // if numers are printed as signed/unsigned
 };

@@ -679,11 +679,6 @@ FORTHOP( alignOp )
 
 FORTHOP( allotOp )
 {
-    GET_ENGINE->AllotLongs( SPOP );
-}
-
-FORTHOP( callotOp )
-{
     GET_ENGINE->AllotBytes( SPOP );
 }
 
@@ -698,6 +693,13 @@ FORTHOP( cCommaOp )
     char *pChar = (char *)GET_DP;
     *pChar++ = (char) SPOP;
     pEngine->SetDP( (long *) pChar);
+}
+
+FORTHOP( unusedOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthMemorySection* pDictionarySection = pEngine->GetDictionaryMemorySection();
+    SPUSH( (4 * (pDictionarySection->len - (pDictionarySection->pCurrent - pDictionarySection->pBase))) );
 }
 
 FORTHOP( mallocOp )
@@ -927,7 +929,15 @@ FORTHOP( definitionsOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
-    pEngine->SetDefinitionVocabulary( pVocabStack->GetTop() );
+	if ( GET_VAR_OPERATION != kVarDefaultOp )
+	{
+		pEngine->GetDefinitionVocabulary()->DoOp( pCore );
+	}
+	else
+	{
+		pEngine->SetDefinitionVocabulary( pVocabStack->GetTop() );
+	}
+	CLEAR_VAR_OPERATION;
 }
 
 FORTHOP( alsoOp )
@@ -1119,13 +1129,24 @@ FORTHOP( vlistOp )
 	CLEAR_VAR_OPERATION;
 }
 
-FORTHOP( findOp )
+FORTHOP( strFindOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    ForthVocabulary* pVocab = pEngine->GetVocabularyStack()->GetTop();
+    ForthVocabulary* pFoundVocab;
 
     char *pSymbol = (char *) (SPOP);
-    long* pEntry = pVocab->FindSymbol( pSymbol );
+    long* pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSymbol, &pFoundVocab );
+    SPUSH( ((long) pEntry) );
+}
+
+
+FORTHOP( strFindIOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthVocabulary* pFoundVocab;
+
+    char *pSymbol = (char *) (SPOP);
+    long* pEntry = pEngine->GetVocabularyStack()->FindSymbolCaseInsensitive( pSymbol, &pFoundVocab );
     SPUSH( ((long) pEntry) );
 }
 
@@ -1718,11 +1739,11 @@ FORTHOP( initMemberStringOp )
 FORTHOP( enumOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    if ( pEngine->CheckFlag( kEngineFlagInStructDefinition ) )
-    {
-        pEngine->SetError( kForthErrorBadSyntax, "enum definition not allowed inside struct definition" );
-        return;
-    }
+    //if ( pEngine->CheckFlag( kEngineFlagInStructDefinition ) )
+    //{
+    //    pEngine->SetError( kForthErrorBadSyntax, "enum definition not allowed inside struct definition" );
+    //    return;
+    //}
     pEngine->StartEnumDefinition();
     long* pEntry = pEngine->StartOpDefinition();
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
@@ -1795,10 +1816,10 @@ FORTHOP( recursiveOp )
     GET_ENGINE->GetDefinitionVocabulary()->UnSmudgeNewestSymbol();
 }
 
-FORTHOP( precedenceOp )
+FORTHOP( strPrecedenceOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    char *pSym = pEngine->GetNextSimpleToken();
+    char *pSym = (char *)(SPOP);
     long *pEntry = pEngine->GetDefinitionVocabulary()->FindSymbol( pSym );
     
     if ( pEntry )
@@ -1852,14 +1873,6 @@ FORTHOP( strLoadOp )
     }
 }
 
-FORTHOP( loadOp )
-{
-    ForthEngine *pEngine = GET_ENGINE;
-    char *pFileName = pEngine->GetNextSimpleToken();
-    SPUSH( ((long) pFileName) );
-    strLoadOp( pCore );
-}
-
 FORTHOP( loadDoneOp )
 {
     GET_ENGINE->PopInputStream();
@@ -1888,7 +1901,7 @@ FORTHOP( requiresOp )
     }
 }
 
-FORTHOP( interpretOp )
+FORTHOP( strEvaluateOp )
 {
     char* pStr = (char *) SPOP;
     if ( pStr != NULL )
@@ -1921,7 +1934,8 @@ FORTHOP( strTickOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
 	char* pToken = (char *) SPOP;
-    long *pSymbol = pEngine->FindSymbol( pToken );
+    ForthVocabulary* pFoundVocab;
+    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbolCaseInsensitive( pToken, &pFoundVocab );
     if ( pSymbol != NULL )
     {
         SPUSH( *pSymbol );
@@ -1933,15 +1947,41 @@ FORTHOP( strTickOp )
     }
 }
 
-// has precedence!
 FORTHOP( compileOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
+    long* pIP = GET_IP;
+    long op = *pIP++;
+    SET_IP( pIP );
+    pEngine->CompileOpcode( op );
+}
+
+// has precedence!
+FORTHOP( postponeOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthVocabulary* pFoundVocab;
+
     char *pToken = pEngine->GetNextSimpleToken();
-    long *pSymbol = pEngine->FindSymbol( pToken );
-    if ( pSymbol != NULL )
+    long* pEntry = pEngine->GetVocabularyStack()->FindSymbolCaseInsensitive( pToken, &pFoundVocab );
+    if ( pEntry != NULL )
     {
-        pEngine->CompileOpcode( *pSymbol );
+        long op = *pEntry;
+        int opType = FORTH_OP_TYPE( op );
+        switch ( opType )
+        {
+        case kOpNativeImmediate:
+        case kOpUserDefImmediate:
+        case kOpCCodeImmediate:
+            pEngine->CompileOpcode( op );
+            break;
+
+        default:
+            // op without precedence
+            pEngine->CompileBuiltinOpcode( OP_COMPILE );
+            pEngine->CompileOpcode( op );
+            break;
+        }
     }
     else
     {
@@ -1955,7 +1995,8 @@ FORTHOP( bracketTickOp )
     // TODO: what should this do if state is interpret? an error? or act the same as tick?
     ForthEngine *pEngine = GET_ENGINE;
     char *pToken = pEngine->GetNextSimpleToken();
-    long *pSymbol = pEngine->FindSymbol( pToken );
+    ForthVocabulary* pFoundVocab;
+    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbolCaseInsensitive( pToken, &pFoundVocab );
     if ( pSymbol != NULL )
     {
         pEngine->CompileBuiltinOpcode( OP_INT_VAL );
@@ -2972,19 +3013,21 @@ FORTHOP( blwordOp )
     NEEDS( 0 );
     ForthShell *pShell = GET_ENGINE->GetShell();
 	char *pSrc = pShell->GetNextSimpleToken();
-	char *pDst = GET_ENGINE->GetTmpStringBuffer();
-	strncpy( pDst, pSrc, (TMP_STRING_BUFFER_LEN - 1) );
+    // leave an unused byte below string so string len can be stuck there in ANSI compatability mode
+	char *pDst = GET_ENGINE->GetTmpStringBuffer() + 1;
+	strncpy( pDst, pSrc, (TMP_STRING_BUFFER_LEN - 2) );
     SPUSH( (long) pDst );
 }
 
-FORTHOP( wordOp )
+FORTHOP( strWordOp )
 {
     NEEDS( 1 );
     ForthShell *pShell = GET_ENGINE->GetShell();
     char delim = (char) (SPOP);
+    // leave an unused byte below string so string len can be stuck there in ANSI compatability mode
 	char *pSrc = pShell->GetToken( delim );
-	char *pDst = GET_ENGINE->GetTmpStringBuffer();
-	strncpy( pDst, pSrc, (TMP_STRING_BUFFER_LEN - 1) );
+	char *pDst = GET_ENGINE->GetTmpStringBuffer() + 1;
+	strncpy( pDst, pSrc, (TMP_STRING_BUFFER_LEN - 2) );
     SPUSH( (long) pDst );
 }
 
@@ -2995,16 +3038,26 @@ FORTHOP( commentOp )
     NEEDS( 0 );
     ForthShell *pShell = GET_ENGINE->GetShell();
     ForthInputStack* pInput = pShell->GetInput();
-    char *pSrc = pInput->GetBufferPointer();
-    char *pEnd = strstr( pSrc, "*/" );
+    char *pBuffer = pInput->GetBufferPointer();
+    char *pEnd = strstr( pBuffer, "*/" );
+    if ( pInput->InputStream()->IsInteractive() && (pEnd == NULL) )
+    {
+        // in interactive mode, comment can't span lines
+        pShell->GetToken( 0 );
+    }
+	while ( pEnd == NULL )
+	{
+		const char *pLine = pShell->GetInput()->GetLine("");
+		if ( pLine == NULL )
+		{
+			break;
+		}
+		pBuffer = pShell->GetInput()->GetBufferPointer();
+	    pEnd = strstr( pBuffer, "*/" );
+	}
     if ( pEnd != NULL )
     {
         pInput->SetBufferPointer( pEnd + 2 );
-    }
-    else
-    {
-        // end of comment not found on line, just terminate line here
-        *pSrc = '\0';
     }
 }
 
@@ -3015,7 +3068,24 @@ FORTHOP( parenCommentOp )
 {
     NEEDS( 0 );
     ForthShell *pShell = GET_ENGINE->GetShell();
-	pShell->GetToken( ')' );
+	char* pBuffer = pShell->GetInput()->GetBufferPointer();
+	while ( strchr( pBuffer, ')' ) == NULL )
+	{
+        if ( pShell->GetInput()->InputStream()->IsInteractive() )
+        {
+            // in interactive mode, comment can't span lines
+            pShell->GetToken( 0 );
+            return;
+        }
+		const char *pLine = pShell->GetInput()->GetLine("");
+		if ( pLine == NULL )
+		{
+			break;
+		}
+		pBuffer = pShell->GetInput()->GetBufferPointer();
+	}
+
+	char *pToken = pShell->GetToken( ')' );
 }
 
 // fake variable used to turn on/off old-style paren comments mode
@@ -3687,6 +3757,153 @@ FORTHOP( poundEndifOp )
     pShell->PoundEndif();
 }
 
+bool checkBracketToken( char*& pStart, const char* pToken )
+{
+    int len = strlen( pToken );
+    if ( !_strnicmp( pStart, pToken, len ) )
+    {
+        char delim = pStart[len];
+        if ((delim == ' ') || (delim == '\t') || (delim == '\0'))
+        {
+            pStart += len;
+            return true;
+        }
+    }
+    return false;
+}
+
+FORTHOP( bracketIfOp )
+{
+    NEEDS( 1 );
+    ForthShell *pShell = GET_ENGINE->GetShell();
+    ForthInputStack* pInput = pShell->GetInput();
+	char* pBuffer = pShell->GetInput()->GetBufferPointer();
+    int depth = 0;
+    int takeIfBranch = SPOP;
+    //TRACE("bracketIf");
+
+    if ( !takeIfBranch )
+    {
+        // skip until you hit [else] or [endif], ignore nested [if][endif] pairs
+	    while ( true )
+	    {
+            char* pBracket = pBuffer;
+            while ( (pBracket = strchr( pBuffer, '[' )) != NULL )
+            {
+                //TRACE("bracketIf {%s}", pBracket);
+                if ( checkBracketToken( pBracket, "[else]" ) )
+                {
+                    if ( depth == 0 )
+                    {
+                        pInput->SetBufferPointer( pBracket );
+                        return;
+                    }
+                }
+                else if ( checkBracketToken( pBracket, "[endif]" )  || checkBracketToken( pBracket, "[then]" ))
+                {
+                    if ( depth == 0 )
+                    {
+                        pInput->SetBufferPointer( pBracket );
+                        return;
+                    }
+                    else
+                    {
+                        --depth;
+                        //TRACE("bracketIf depth %d", depth);
+                    }
+                }
+                else if ( checkBracketToken( pBracket, "[if]" ) || checkBracketToken( pBracket, "[ifdef]" ) || checkBracketToken( pBracket, "[ifundef]" ) )
+                {
+                    ++depth;
+                    //TRACE("bracketIf depth %d", depth);
+                }
+                else
+                {
+                    pBracket++;
+                }
+                pBuffer = pBracket;
+            }
+		    const char *pLine = pShell->GetInput()->GetLine("<in [if]>");
+		    if ( pLine == NULL )
+		    {
+			    break;
+		    }
+		    pBuffer = pShell->GetInput()->GetBufferPointer();
+	    }
+    }
+}
+
+FORTHOP( bracketIfDefOp )
+{
+    NEEDS( 0 );
+    ForthEngine *pEngine = GET_ENGINE;
+    char* pToken = pEngine->GetNextSimpleToken();
+    ForthVocabulary* pFoundVocab;
+    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbolCaseInsensitive( pToken, &pFoundVocab );
+    SPUSH ( (pSymbol != NULL) ? ~0 : 0 );
+    bracketIfOp( pCore );
+}
+
+FORTHOP( bracketIfUndefOp )
+{
+    NEEDS( 0 );
+    ForthEngine *pEngine = GET_ENGINE;
+    char* pToken = pEngine->GetNextSimpleToken();
+    ForthVocabulary* pFoundVocab;
+    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbolCaseInsensitive( pToken, &pFoundVocab );
+    SPUSH ( (pSymbol != NULL) ? 0 : ~0 );
+    bracketIfOp( pCore );
+}
+
+FORTHOP( bracketElseOp )
+{
+    NEEDS( 0 );
+    ForthShell *pShell = GET_ENGINE->GetShell();
+    ForthInputStack* pInput = pShell->GetInput();
+	char* pBuffer = pShell->GetInput()->GetBufferPointer();
+    int depth = 0;
+
+    // skip until you hit [endif], ignore nested [if][endif] pairs
+    while ( true )
+    {
+        char* pBracket = pBuffer;
+        while ( (pBracket = strchr( pBuffer, '[' )) != NULL )
+        {
+            if ( checkBracketToken( pBracket, "[endif]" )  || checkBracketToken( pBracket, "[then]" ))
+            {
+                if ( depth == 0 )
+                {
+                    pInput->SetBufferPointer( pBracket );
+                    return;
+                }
+                else
+                {
+                    --depth;
+                }
+            }
+            else if ( checkBracketToken( pBracket, "[if]" ) || checkBracketToken( pBracket, "[ifdef]" ) || checkBracketToken( pBracket, "[ifundef]" ) )
+            {
+                ++depth;
+            }
+            else
+            {
+                ++pBracket;
+            }
+            pBuffer = pBracket;
+        }
+	    const char *pLine = pShell->GetInput()->GetLine("<in [else]>");
+	    if ( pLine == NULL )
+	    {
+		    break;
+	    }
+	    pBuffer = pShell->GetInput()->GetBufferPointer();
+    }
+}
+
+FORTHOP( bracketEndifOp )
+{
+}
+
 FORTHOP( setTraceOp )
 {
 	int traceFlags = SPOP;
@@ -3871,8 +4088,8 @@ FORTHOP( setConsoleCursorOp )
 {
 	NEEDS( 2 );
 	COORD screenPos;
-	screenPos.Y = SPOP;
-	screenPos.X = SPOP;
+	screenPos.Y = (SHORT) SPOP;
+	screenPos.X = (SHORT) SPOP;
 	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
 	SetConsoleCursorPosition( hConsole, screenPos );
 }
@@ -3890,8 +4107,7 @@ FORTHOP( getConsoleCursorOp )
 FORTHOP( setConsoleColorOp )
 {
 	NEEDS( 1 );
-	COORD screenPos;
-	WORD attributes = SPOP;
+	WORD attributes = (WORD) SPOP;
 	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
 	SetConsoleTextAttribute( hConsole, attributes );
 }
@@ -4048,15 +4264,6 @@ FORTHOP( timesBop )
     SPUSH( a * b );
 }
 
-FORTHOP( utimesBop )
-{
-    NEEDS(2);
-    unsigned long b = SPOP;
-    unsigned long a = SPOP;
-    unsigned long long prod = ((unsigned long long) a) * b;
-    LPUSH( prod );
-}
-
 FORTHOP( times2Bop )
 {
     NEEDS(1);
@@ -4125,6 +4332,42 @@ FORTHOP( divmodBop )
     SPUSH( v.rem );
     SPUSH( v.quot );
 }
+
+#if 0
+FORTHOP( mtimesBop )
+{
+    NEEDS(2);
+    long b = SPOP;
+    long a = SPOP;
+    long long prod = ((long long) a) * b;
+    LPUSH( prod );
+}
+
+FORTHOP( ummodBop )
+{
+    NEEDS(2);
+    ldiv_t v;
+    unsigned long b = SPOP;
+    unsigned long long a = SPOP;
+    unsigned long quotient = a / b;
+    unsigned long remainder = a % b;
+    SPUSH( remainder );
+    SPUSH( quotient );
+}
+
+FORTHOP( smdivremBop )
+{
+    NEEDS(2);
+    lldiv_t v;
+    long long b = (long long) SPOP;
+    long long a = LPOP;
+
+    v = lldiv(a, b);
+
+    SPUSH( (long) v.rem );
+    SPUSH( (long) v.quot );
+}
+#endif
 
 FORTHOP( modBop )
 {
@@ -6209,7 +6452,7 @@ typedef struct {
 
 // helper macro for ops which have precedence (execute at compile time)
 #define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate, (ulong) func }
-#define PRECOP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCodeImmediate, (ulong) func }
+#define PRECOP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCodeImmediate, (ulong) func, index }
 
 #ifdef ASM_INNER_INTERPRETER
 
@@ -6230,7 +6473,7 @@ extern GFORTHOP( thisBop ); extern GFORTHOP( thisDataBop ); extern GFORTHOP( thi
 extern GFORTHOP( iBop ); extern GFORTHOP( jBop ); extern GFORTHOP( unloopBop ); extern GFORTHOP( leaveBop ); extern GFORTHOP( hereBop );
 extern GFORTHOP( addressOfBop ); extern GFORTHOP( intoBop ); extern GFORTHOP( addToBop ); extern GFORTHOP( subtractFromBop );
 extern GFORTHOP( removeEntryBop ); extern GFORTHOP( entryLengthBop ); extern GFORTHOP( numEntriesBop );
-extern GFORTHOP( minusBop ); extern GFORTHOP( timesBop ); extern GFORTHOP( utimesBop ); extern GFORTHOP( times2Bop ); extern GFORTHOP( times4Bop ); extern GFORTHOP( times8Bop );
+extern GFORTHOP( minusBop ); extern GFORTHOP( timesBop ); extern GFORTHOP( times2Bop ); extern GFORTHOP( times4Bop ); extern GFORTHOP( times8Bop );
 extern GFORTHOP( divideBop ); extern GFORTHOP( divide2Bop ); extern GFORTHOP( divide4Bop ); extern GFORTHOP( divide8Bop ); extern GFORTHOP( divmodBop ); extern GFORTHOP( modBop );
 extern GFORTHOP( negateBop ); extern GFORTHOP( fplusBop ); extern GFORTHOP( fminusBop ); extern GFORTHOP( ftimesBop ); extern GFORTHOP( fdivideBop ); extern GFORTHOP( fEqualsBop );
 extern GFORTHOP( fNotEqualsBop ); extern GFORTHOP( fGreaterThanBop ); extern GFORTHOP( fGreaterEqualsBop ); extern GFORTHOP( fLessThanBop ); extern GFORTHOP( fLessEqualsBop ); extern GFORTHOP( fEqualsZeroBop );
@@ -6344,6 +6587,7 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     OP_COMPILED_DEF(		allocObjectOp,          "_allocObject",		OP_ALLOC_OBJECT ),
 	OP_COMPILED_DEF(		superOp,                "super",			OP_SUPER ),
     OP_COMPILED_DEF(		endBuildsOp,            "_endBuilds",		OP_END_BUILDS ),
+    OP_COMPILED_DEF(		compileOp,              "compile",		    OP_COMPILE ),
     // following must be last in table
     OP_COMPILED_DEF(		NULL,                   NULL,					-1 )
 };
@@ -6379,7 +6623,6 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     NATIVE_DEF(    minusBop,                "-" ),
     NATIVE_DEF(    timesBop,                "*" ),
-    NATIVE_DEF(    utimesBop,               "u*" ),
     NATIVE_DEF(    times2Bop,               "2*" ),
     NATIVE_DEF(    times4Bop,               "4*" ),
     NATIVE_DEF(    times8Bop,               "8*" ),
@@ -6777,17 +7020,16 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    enumOp,                 "enum:" ),
     OP_DEF(    endenumOp,              ";enum" ),
     PRECOP_DEF(recursiveOp,            "recursive" ),
-    OP_DEF(    precedenceOp,           "precedence" ),
+    OP_DEF(    strPrecedenceOp,        "$precedence" ),
     OP_DEF(    strLoadOp,              "$load" ),
-    OP_DEF(    loadOp,                 "load" ),
     OP_DEF(    loadDoneOp,             "loaddone" ),
     OP_DEF(    requiresOp,             "requires" ),
-    OP_DEF(    interpretOp,            "interpret" ),
+    OP_DEF(    strEvaluateOp,          "$evaluate" ),
     PRECOP_DEF(stateInterpretOp,       "[" ),
     OP_DEF(    stateCompileOp,         "]" ),
     OP_DEF(    stateOp,                "state" ),
     OP_DEF(    strTickOp,              "$\'" ),
-    PRECOP_DEF(compileOp,              "[compile]" ),
+    PRECOP_DEF(postponeOp,             "postpone" ),
     PRECOP_DEF(bracketTickOp,          "[\']" ),
 
     ///////////////////////////////////////////
@@ -6802,16 +7044,17 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    forgetOp,               "forget" ),
     OP_DEF(    autoforgetOp,           "autoforget" ),
     OP_DEF(    vlistOp,                "vlist" ),
-    OP_DEF(    findOp,                 "find" ),
+    OP_DEF(    strFindOp,              "$find" ),
+    OP_DEF(    strFindIOp,             "$findCaseInsensitive" ),
 
     ///////////////////////////////////////////
     //  data compilation/allocation
     ///////////////////////////////////////////
     OP_DEF(    alignOp,                "align" ),
     OP_DEF(    allotOp,                "allot" ),
-    OP_DEF(    callotOp,               "callot" ),
     OP_DEF(    commaOp,                "," ),
     OP_DEF(    cCommaOp,               "c," ),
+    OP_DEF(    unusedOp,               "unused" ),
     OP_DEF(    mallocOp,               "malloc" ),
     OP_DEF(    reallocOp,              "realloc" ),
     OP_DEF(    freeOp,                 "free" ),
@@ -6855,7 +7098,7 @@ baseDictionaryEntry baseDictionary[] =
     //  input buffer
     ///////////////////////////////////////////
     OP_DEF(    blwordOp,               "blword" ),
-    OP_DEF(    wordOp,                 "word" ),
+    OP_DEF(    strWordOp,              "$word" ),
     PRECOP_DEF(commentOp,              "/*" ),
     PRECOP_DEF(parenCommentOp,         "(" ),
     OP_DEF(    parenIsCommentOp,       "parenIsComment" ),
@@ -6943,6 +7186,12 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF( poundIfndefOp,          "#ifndef" ),
     PRECOP_DEF( poundElseOp,            "#else" ),
     PRECOP_DEF( poundEndifOp,           "#endif" ),
+    PRECOP_DEF( bracketIfOp,            "[if]" ),
+    PRECOP_DEF( bracketIfDefOp,         "[ifdef]" ),
+    PRECOP_DEF( bracketIfUndefOp,       "[ifundef]" ),
+    PRECOP_DEF( bracketElseOp,          "[else]" ),
+    PRECOP_DEF( bracketEndifOp,         "[endif]" ),
+    PRECOP_DEF( bracketEndifOp,         "[then]" ),
 
     ///////////////////////////////////////////
     //  network/client/server

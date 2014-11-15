@@ -28,7 +28,7 @@ true -> parenIsComment
 \ KM, 2007-11-15
 
 \ TSCP.f, version 0.4  Copyright 2001 Ian Osgood  iano@quirkster.com
-0 #if
+
 ( numbers for PIII-550 MHz
 ply    nodes    time score pv
   1       21   0.000    48 d2-d4
@@ -55,7 +55,7 @@ ply      nodes  time score  pv
 
        [ 94491 nps ]
 )
-#endif
+
 \ !!! examining more nodes per iteration: move ordering still buggy?
 
 \ Tom Kerrigan's TSCP chess engine (v1.73) ported from C to ANS Forth

@@ -361,13 +361,14 @@ addHelp load		load PATH			start loading a forth source file whose name immediate
 addHelp $load		PATH $load			start loading a forth source file whose name is on TOS
 addHelp loaddone						terminate loading a forth source file before the end of file
 addHelp requires	requires NAME		if forthop NAME exists do nothing, if not load NAME.txt
-addHelp interpret	STR interpret		interpret string on TOS
+addHelp $evaluate	STR $evaluate		interpret string on TOS
 addHelp ]					sets state to compile
 addHelp [					sets state to interpret
 addHelp state				leaves address of "state" var on TOS
 addHelp '		' NAME		push opcode of NAME on TOS (does not have precedence)
-addHelp [compile]		[compile] NAME		compile opcode of NAME, used to compile ops which have precedence
-addHelp [']		['] NAME			push opcode of NAME (has precedence)
+addHelp postpone		postpone NAME	compile opcode of NAME, including ops which have precedence
+addHelp compile			compile			compile immediately following opcode (opcode must not have precedence)
+addHelp [']		['] NAME				push opcode of NAME (has precedence)
 
 addHelp forth		...							overwrites the top of the vocabulary stack with forth vocabulary
 addHelp definitions	...							makes the top of the vocabulary stack be the destination of newly defined words
@@ -382,7 +383,7 @@ addHelp vlistq				display current search vocabulary
 addHelp find
 
 addHelp align	...		aligns DP to a lonword boundary
-addHelp allot	A ...	adds A to DP
+addHelp allot	A ...	adds A to DP, allocating A bytes
 addHelp ,		A ...	compiles longword A
 addHelp c,		A ...	compiles byte A
 addHelp malloc	A ... PTR	allocates a block of memory with A bytes
@@ -422,7 +423,7 @@ addHelp	outToOp				OP ...		redirect output to forth op (op takes a single string
 addHelp getConOutFile		... FILE	returns redirected output file
 
 addHelp blword					... STRING_ADDR						fetch next whitespace-delimited token from input stream, return its address
-addHelp word					CHARVAL ... STRING_ADDR				fetch next token delimited by CHARVAL from input stream, return its address
+addHelp $word					CHARVAL ... STRING_ADDR				fetch next token delimited by CHARVAL from input stream, return its address
 addHelp /*						/* COMMENT TEXT */					inline comment, ends at '*/' or end of line
 addHelp (						(  COMMENT TEXT )					inline comment, ends at ')' or end of line, only works if you do 'true parenIsComment'
 addHelp parenIsComment			BOOLVAL parenIsComment				BOOLVAL true makes '(' start comment, BOOLVAL false makes '(' act as start of arg list

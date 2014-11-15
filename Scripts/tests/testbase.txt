@@ -38,9 +38,9 @@ new oStringOutStream -> oStringOutStream testOut
 // LINE_OF_STUFF must evaluate to one or more true (-1) values
 : test[
   sp -> int oldSP
-  ']' word -> string( 250 ) ops
+  ']' $word -> string( 250 ) ops
   //ops %s %nl
-  ops interpret
+  ops $evaluate
   sp oldSP swap - 4/ -> int numItems
   false -> int failed
   do( numItems 0 )

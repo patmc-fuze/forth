@@ -8,6 +8,17 @@ definitions
 
 decimal
 
+// OPTYPE8 OPVALUE24 --- OPCODE32
+: makeOpcode
+  0xFFFFFF and
+  swap 24 lshift
+  or
+;
+
+: getOptype
+  24 rshift 0xFF and
+;
+
 enum: _opType
   native
   nativeImmediate
@@ -136,6 +147,10 @@ enum: _opType
   // 128 userMethods - I don't think these are used
   // optypes from 128:.255 are used to select class methods    
 ;enum
+
+: isImmediate
+  opType:nativeImmediate over =  swap opType:userDefImmediate over =  swap opType:CCodeImmediate =  or or
+;
 
 previous
 
