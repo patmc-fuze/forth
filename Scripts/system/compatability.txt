@@ -28,6 +28,7 @@ autoforget compatability
 : literal postpone lit , ;
 : fliteral literal ;
 : dliteral postpone dlit 2, ;
+precedence literal   precedence fliteral   precedence dliteral
 
 : countedStringToString
   // src dst
@@ -85,7 +86,7 @@ autoforget compatability
   endif
 ;
 
-: cmove ds %nl 0 do over i + c@ dup %c over i + c! loop 2drop ;
+: cmove %nl 0 do over i + c@ over i + c! loop 2drop ;
 : cmove> 0 swap 1- do over i + c@ over i + c! -1 +loop 2drop ;
 : move cmove ;
 : ."
@@ -108,7 +109,7 @@ precedence .(
   '"' $word
   if( state @ )
     compileStringLiteral( dup )
-    literal( strlen )
+    strlen postpone literal
   else
     dup strlen
   endif
@@ -129,7 +130,6 @@ precedence s"
 ;
 : [char]  opType:makeOpcode( opType:litInt blword c@ ) , ; precedence [char]
 : cr %nl ;
-: */ * / ;
 : char+ 1+ ;
 : \ 0 $word drop ; precedence \
 : spaces ?dup if 0 do %bl loop endif ;
@@ -226,3 +226,13 @@ int _handler
   // RTOS: errorCode oldHandlerRP
   r> r> -> _handler
 ;
+
+: /string
+  rot over + -rot
+  -
+;
+
+: include load ;
+: marker blword drop ; // not actually functional, but it compiles
+: depth s0 sp - 2 rshift 1- ;
+: aligned 3+ 0xFFFFFFFC and ;

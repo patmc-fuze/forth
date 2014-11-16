@@ -410,7 +410,7 @@ char* ForthServerInputStream::GetLine( const char *pPrompt )
     int msgType, msgLen;
     char* result = NULL;
 
-    mpBuffer = mpBufferBase;
+    mReadOffset = 0;
 
     mpMsgPipe->StartMessage( kClientMsgSendLine );
     mpMsgPipe->WriteString( mIsFile ? NULL : pPrompt );
@@ -430,8 +430,9 @@ char* ForthServerInputStream::GetLine( const char *pPrompt )
 #ifdef PIPE_SPEW
                     printf( "line = '%s'\n", pSrcLine );
 #endif
-                    memcpy( mpBuffer, pSrcLine, srcLen );
-                    result = mpBuffer;
+                    memcpy( mpBufferBase, pSrcLine, srcLen );
+                    mWriteOffset = srcLen;
+                    result = mpBufferBase;
                 }
             }
             else

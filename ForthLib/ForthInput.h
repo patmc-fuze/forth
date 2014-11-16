@@ -22,6 +22,12 @@ public:
     virtual char    *GetLine( const char *pPrompt ) = 0;
     virtual char    *GetBufferPointer( void );
     virtual char    *GetBufferBasePointer( void );
+    virtual int     *GetReadOffsetPointer( void );
+    virtual int     GetReadOffset( void );
+    virtual void    SetReadOffset( int offset );
+    virtual int     GetWriteOffset( void );
+    virtual void    SetWriteOffset( int offset );
+    
     virtual int     GetBufferLength( void );
     virtual void    SetBufferPointer( char *pBuff );
     virtual bool    IsInteractive( void ) = 0;
@@ -32,7 +38,8 @@ public:
 
 protected:
     ForthInputStream    *mpNext;
-    char                *mpBuffer;
+    int                 mReadOffset;
+    int                 mWriteOffset;
     char                *mpBufferBase;
     int                 mBufferLen;
 };
@@ -98,8 +105,13 @@ public:
 
     char                    *GetBufferPointer( void );
     char                    *GetBufferBasePointer( void );
+    int                     *GetReadOffsetPointer( void );
     int                     GetBufferLength( void );
     void                    SetBufferPointer( char *pBuff );
+    int                     GetReadOffset( void );
+    void                    SetReadOffset( int );
+    int                     GetWriteOffset( void );
+    void                    SetWriteOffset( int offset );
 
 protected:
     ForthInputStream        *mpHead;

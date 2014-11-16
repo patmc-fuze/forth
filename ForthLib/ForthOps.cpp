@@ -489,12 +489,28 @@ FORTHOP( untilOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "until", pShellStack->Pop(), kShellTagBegin ) )
+    long topTag = pShellStack->Pop();
+    // 
+    if ( topTag == kShellTagBegin )
+    {
+        long *pBeginOp = (long *) pShellStack->Pop();
+        pEngine->CompileOpcode( kOpBranchZ, (pBeginOp - GET_DP) - 1 );
+    }
+    else if ( pShell->CheckSyntaxError( "until", topTag, kShellTagWhile ) )
+    {
+        // support begin..while..until..endif
+        // shell stack: whileAddress beginAddress
+        long whileAddress = pShellStack->Pop();
+        long *pBeginOp = (long *) pShellStack->Pop();
+        pEngine->CompileOpcode( kOpBranchZ, (pBeginOp - GET_DP) - 1 );
+        // push ifTag/address for endif
+        pShellStack->Push( whileAddress );
+        pShellStack->Push( kShellTagIf );
+    }
+    else
     {
         return;
     }
-    long *pBeginOp =  (long *) pShellStack->Pop();
-    pEngine->CompileOpcode( kOpBranchZ, (pBeginOp - GET_DP) - 1 );
 }
 
 
@@ -3110,28 +3126,17 @@ FORTHOP( parenIsCommentOp )
     }
 }
 
-FORTHOP( getInBufferBaseOp )
+FORTHOP( sourceOp )
 {
     ForthInputStack* pInput = GET_ENGINE->GetShell()->GetInput();
     SPUSH( (long) (pInput->GetBufferBasePointer()) );
+    SPUSH( pInput->GetWriteOffset() - 1 );
 }
 
-FORTHOP( getInBufferPointerOp )
+FORTHOP( getInOffsetPointerOp )
 {
     ForthInputStack* pInput = GET_ENGINE->GetShell()->GetInput();
-    SPUSH( (long) (pInput->GetBufferPointer()) );
-}
-
-FORTHOP( setInBufferPointerOp )
-{
-    ForthInputStack* pInput = GET_ENGINE->GetShell()->GetInput();
-    pInput->SetBufferPointer( (char *) (SPOP) );
-}
-
-FORTHOP( getInBufferLengthOp )
-{
-    ForthInputStack* pInput = GET_ENGINE->GetShell()->GetInput();
-    SPUSH( (long) (pInput->GetBufferLength()) );
+    SPUSH( (long) (pInput->GetReadOffsetPointer()) );
 }
 
 FORTHOP( fillInBufferOp )
@@ -5006,25 +5011,25 @@ FORTHOP( invertBop )
 FORTHOP( lshiftBop )
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    unsigned long b = SPOP;
+    unsigned long a = SPOP;
     SPUSH( a << b );
 }
 
 FORTHOP( rshiftBop )
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    unsigned long b = SPOP;
+    unsigned long a = SPOP;
     SPUSH( a >> b );
 }
 
 
-FORTHOP( urshiftBop )
+FORTHOP( arshiftBop )
 {
     NEEDS(2);
-    long b = SPOP;
-    unsigned long a = (unsigned long) (SPOP);
+    unsigned long b = SPOP;
+    long a = SPOP;
     SPUSH( a >> b );
 }
 
@@ -6460,33 +6465,48 @@ typedef struct {
 #define NATIVE_DEF( func, funcName )  { funcName, kOpNative, (ulong) func }
 #define NATIVE_COMPILED_DEF( func, funcName, index ) { funcName, kOpNative, (ulong) func, index }
 
-extern GFORTHOP( abortBop ); extern GFORTHOP( dropBop ); extern GFORTHOP( doDoesBop ); extern GFORTHOP( litBop ); extern GFORTHOP( dlitBop ); extern GFORTHOP( doVariableBop );
-extern GFORTHOP( doConstantBop ); extern GFORTHOP( doDConstantBop ); extern GFORTHOP( doneBop ); extern GFORTHOP( doByteBop ); extern GFORTHOP( doUByteBop ); extern GFORTHOP( doShortBop );
-extern GFORTHOP( doUShortBop ); extern GFORTHOP( doIntBop ); extern GFORTHOP( doLongBop ); extern GFORTHOP( doFloatBop );
-extern GFORTHOP( doDoubleBop ); extern GFORTHOP( doStringBop ); extern GFORTHOP( doOpBop ); extern GFORTHOP( doObjectBop ); extern GFORTHOP( doExitBop ); extern GFORTHOP( doExitLBop );
-extern GFORTHOP( doExitMBop ); extern GFORTHOP( doExitMLBop ); extern GFORTHOP( doByteArrayBop ); extern GFORTHOP( doUByteArrayBop ); extern GFORTHOP( doShortArrayBop ); extern GFORTHOP( doUShortArrayBop );
-extern GFORTHOP( doIntArrayBop ); extern GFORTHOP( doIntArrayBop ); extern GFORTHOP( doLongArrayBop ); extern GFORTHOP( doLongArrayBop ); extern GFORTHOP( doFloatArrayBop ); extern GFORTHOP( doDoubleArrayBop );
-extern GFORTHOP( doStringArrayBop ); extern GFORTHOP( doOpArrayBop ); extern GFORTHOP( doObjectArrayBop ); extern GFORTHOP( initStringBop ); extern GFORTHOP( plusBop ); extern GFORTHOP( fetchBop );
-extern GFORTHOP( doStructBop ); extern GFORTHOP( doStructArrayBop ); extern GFORTHOP( doDoBop ); extern GFORTHOP( doLoopBop ); extern GFORTHOP( doLoopNBop ); extern GFORTHOP( dfetchBop );
-extern GFORTHOP( vocabToClassBop ); extern GFORTHOP( doCheckDoBop );
-extern GFORTHOP( thisBop ); extern GFORTHOP( thisDataBop ); extern GFORTHOP( thisMethodsBop ); extern GFORTHOP( executeBop ); extern GFORTHOP( callBop ); extern GFORTHOP( gotoBop );
-extern GFORTHOP( iBop ); extern GFORTHOP( jBop ); extern GFORTHOP( unloopBop ); extern GFORTHOP( leaveBop ); extern GFORTHOP( hereBop );
-extern GFORTHOP( addressOfBop ); extern GFORTHOP( intoBop ); extern GFORTHOP( addToBop ); extern GFORTHOP( subtractFromBop );
-extern GFORTHOP( removeEntryBop ); extern GFORTHOP( entryLengthBop ); extern GFORTHOP( numEntriesBop );
-extern GFORTHOP( minusBop ); extern GFORTHOP( timesBop ); extern GFORTHOP( times2Bop ); extern GFORTHOP( times4Bop ); extern GFORTHOP( times8Bop );
-extern GFORTHOP( divideBop ); extern GFORTHOP( divide2Bop ); extern GFORTHOP( divide4Bop ); extern GFORTHOP( divide8Bop ); extern GFORTHOP( divmodBop ); extern GFORTHOP( modBop );
-extern GFORTHOP( negateBop ); extern GFORTHOP( fplusBop ); extern GFORTHOP( fminusBop ); extern GFORTHOP( ftimesBop ); extern GFORTHOP( fdivideBop ); extern GFORTHOP( fEqualsBop );
-extern GFORTHOP( fNotEqualsBop ); extern GFORTHOP( fGreaterThanBop ); extern GFORTHOP( fGreaterEqualsBop ); extern GFORTHOP( fLessThanBop ); extern GFORTHOP( fLessEqualsBop ); extern GFORTHOP( fEqualsZeroBop );
-extern GFORTHOP( fNotEqualsZeroBop ); extern GFORTHOP( fGreaterThanZeroBop ); extern GFORTHOP( fGreaterEqualsZeroBop ); extern GFORTHOP( fLessThanZeroBop ); extern GFORTHOP( fLessEqualsZeroBop ); extern GFORTHOP( fWithinBop );
-extern GFORTHOP( fMinBop ); extern GFORTHOP( fMaxBop ); extern GFORTHOP( dplusBop ); extern GFORTHOP( dminusBop ); extern GFORTHOP( dtimesBop ); extern GFORTHOP( ddivideBop );
-extern GFORTHOP( dEqualsBop ); extern GFORTHOP( dNotEqualsBop ); extern GFORTHOP( dGreaterThanBop ); extern GFORTHOP( dGreaterEqualsBop ); extern GFORTHOP( dLessThanBop ); extern GFORTHOP( dLessEqualsBop );
+extern GFORTHOP( abortBop ); extern GFORTHOP( dropBop ); extern GFORTHOP( doDoesBop );
+extern GFORTHOP( litBop ); extern GFORTHOP( dlitBop ); extern GFORTHOP( doVariableBop );
+extern GFORTHOP( doConstantBop ); extern GFORTHOP( doDConstantBop ); extern GFORTHOP( doneBop );
+extern GFORTHOP( doByteBop ); extern GFORTHOP( doUByteBop ); extern GFORTHOP( doShortBop );
+extern GFORTHOP( doUShortBop ); extern GFORTHOP( doIntBop ); extern GFORTHOP( doLongBop );
+extern GFORTHOP( doFloatBop ); extern GFORTHOP( doDoubleBop ); extern GFORTHOP( doStringBop );
+extern GFORTHOP( doOpBop ); extern GFORTHOP( doObjectBop ); extern GFORTHOP( doExitBop );
+extern GFORTHOP( doExitLBop ); extern GFORTHOP( doExitMBop ); extern GFORTHOP( doExitMLBop );
+extern GFORTHOP( doByteArrayBop ); extern GFORTHOP( doUByteArrayBop ); extern GFORTHOP( doShortArrayBop );
+extern GFORTHOP( doUShortArrayBop );extern GFORTHOP( doIntArrayBop ); extern GFORTHOP( doIntArrayBop );
+extern GFORTHOP( doLongArrayBop ); extern GFORTHOP( doLongArrayBop ); extern GFORTHOP( doFloatArrayBop );
+extern GFORTHOP( doDoubleArrayBop ); extern GFORTHOP( doStringArrayBop ); extern GFORTHOP( doOpArrayBop );
+extern GFORTHOP( doObjectArrayBop ); extern GFORTHOP( initStringBop ); extern GFORTHOP( plusBop );
+extern GFORTHOP( fetchBop ); extern GFORTHOP( doStructBop ); extern GFORTHOP( doStructArrayBop );
+extern GFORTHOP( doDoBop ); extern GFORTHOP( doLoopBop ); extern GFORTHOP( doLoopNBop );
+extern GFORTHOP( dfetchBop ); extern GFORTHOP( vocabToClassBop ); extern GFORTHOP( doCheckDoBop );
+extern GFORTHOP( thisBop ); extern GFORTHOP( thisDataBop ); extern GFORTHOP( thisMethodsBop );
+extern GFORTHOP( executeBop ); extern GFORTHOP( callBop ); extern GFORTHOP( gotoBop );
+extern GFORTHOP( iBop ); extern GFORTHOP( jBop ); extern GFORTHOP( unloopBop ); extern GFORTHOP( leaveBop );
+extern GFORTHOP( hereBop ); extern GFORTHOP( addressOfBop ); extern GFORTHOP( intoBop );
+extern GFORTHOP( addToBop ); extern GFORTHOP( subtractFromBop );extern GFORTHOP( removeEntryBop );
+extern GFORTHOP( entryLengthBop ); extern GFORTHOP( numEntriesBop ); extern GFORTHOP( minusBop );
+extern GFORTHOP( timesBop ); extern GFORTHOP( times2Bop ); extern GFORTHOP( times4Bop );
+extern GFORTHOP( times8Bop ); extern GFORTHOP( divideBop ); extern GFORTHOP( divide2Bop );
+extern GFORTHOP( divide4Bop ); extern GFORTHOP( divide8Bop ); extern GFORTHOP( divmodBop );
+extern GFORTHOP( modBop ); extern GFORTHOP( negateBop ); extern GFORTHOP( fplusBop );
+extern GFORTHOP( fminusBop ); extern GFORTHOP( ftimesBop ); extern GFORTHOP( fdivideBop );
+extern GFORTHOP( fEqualsBop ); extern GFORTHOP( fNotEqualsBop ); extern GFORTHOP( fGreaterThanBop );
+extern GFORTHOP( fGreaterEqualsBop ); extern GFORTHOP( fLessThanBop ); extern GFORTHOP( fLessEqualsBop );
+extern GFORTHOP( fEqualsZeroBop ); extern GFORTHOP( fNotEqualsZeroBop ); extern GFORTHOP( fGreaterThanZeroBop );
+extern GFORTHOP( fGreaterEqualsZeroBop ); extern GFORTHOP( fLessThanZeroBop );
+extern GFORTHOP( fLessEqualsZeroBop ); extern GFORTHOP( fWithinBop ); extern GFORTHOP( fMinBop );
+extern GFORTHOP( fMaxBop ); extern GFORTHOP( dplusBop ); extern GFORTHOP( dminusBop );
+extern GFORTHOP( dtimesBop ); extern GFORTHOP( ddivideBop ); extern GFORTHOP( dEqualsBop );
+extern GFORTHOP( dNotEqualsBop ); extern GFORTHOP( dGreaterThanBop ); extern GFORTHOP( dGreaterEqualsBop ); extern GFORTHOP( dLessThanBop ); extern GFORTHOP( dLessEqualsBop );
 extern GFORTHOP( dEqualsZeroBop ); extern GFORTHOP( dNotEqualsZeroBop ); extern GFORTHOP( dGreaterThanZeroBop ); extern GFORTHOP( dGreaterEqualsZeroBop ); extern GFORTHOP( dLessThanZeroBop ); extern GFORTHOP( dLessEqualsZeroBop );
 extern GFORTHOP( dWithinBop ); extern GFORTHOP( dMinBop ); extern GFORTHOP( dMaxBop ); extern GFORTHOP( dsinBop ); extern GFORTHOP( dasinBop ); extern GFORTHOP( dcosBop );
 extern GFORTHOP( dacosBop ); extern GFORTHOP( dtanBop ); extern GFORTHOP( datanBop ); extern GFORTHOP( datan2Bop ); extern GFORTHOP( dexpBop ); extern GFORTHOP( dlnBop );
 extern GFORTHOP( dlog10Bop ); extern GFORTHOP( dpowBop ); extern GFORTHOP( dsqrtBop ); extern GFORTHOP( dceilBop ); extern GFORTHOP( dfloorBop ); extern GFORTHOP( dabsBop );
 extern GFORTHOP( dldexpBop ); extern GFORTHOP( dfrexpBop ); extern GFORTHOP( dmodfBop ); extern GFORTHOP( dfmodBop ); extern GFORTHOP( i2fBop ); extern GFORTHOP( i2dBop );
 extern GFORTHOP( f2iBop ); extern GFORTHOP( f2dBop ); extern GFORTHOP( d2iBop ); extern GFORTHOP( d2fBop ); extern GFORTHOP( orBop ); extern GFORTHOP( andBop );
-extern GFORTHOP( xorBop ); extern GFORTHOP( invertBop ); extern GFORTHOP( lshiftBop ); extern GFORTHOP( rshiftBop ); extern GFORTHOP( urshiftBop ); extern GFORTHOP( notBop );
+extern GFORTHOP( xorBop ); extern GFORTHOP( invertBop ); extern GFORTHOP( lshiftBop ); extern GFORTHOP( rshiftBop ); extern GFORTHOP( arshiftBop ); extern GFORTHOP( notBop );
 extern GFORTHOP( trueBop ); extern GFORTHOP( falseBop ); extern GFORTHOP( nullBop ); extern GFORTHOP( dnullBop ); extern GFORTHOP( equalsBop ); extern GFORTHOP( notEqualsBop );
 extern GFORTHOP( greaterThanBop ); extern GFORTHOP( greaterEqualsBop ); extern GFORTHOP( lessThanBop ); extern GFORTHOP( lessEqualsBop ); extern GFORTHOP( equalsZeroBop ); extern GFORTHOP( notEqualsZeroBop );
 extern GFORTHOP( greaterThanZeroBop ); extern GFORTHOP( greaterEqualsZeroBop ); extern GFORTHOP( lessThanZeroBop ); extern GFORTHOP( lessEqualsZeroBop ); extern GFORTHOP( unsignedGreaterThanBop ); extern GFORTHOP( unsignedLessThanBop );
@@ -6755,7 +6775,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    invertBop,               "invert" ),
     NATIVE_DEF(    lshiftBop,               "lshift" ),
     NATIVE_DEF(    rshiftBop,               "rshift" ),
-    NATIVE_DEF(    urshiftBop,              "urshift" ),
+    NATIVE_DEF(    arshiftBop,              "arshift" ),
 
     ///////////////////////////////////////////
     //  boolean logic
@@ -7102,10 +7122,8 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(commentOp,              "/*" ),
     PRECOP_DEF(parenCommentOp,         "(" ),
     OP_DEF(    parenIsCommentOp,       "parenIsComment" ),
-    OP_DEF(    getInBufferBaseOp,      "getInBufferBase" ),
-    OP_DEF(    getInBufferPointerOp,   "getInBufferPointer" ),
-    OP_DEF(    setInBufferPointerOp,   "setInBufferPointer" ),
-    OP_DEF(    getInBufferLengthOp,    "getInBufferLength" ),
+    OP_DEF(    sourceOp,               "source" ),
+    OP_DEF(    getInOffsetPointerOp,   ">in" ),
     OP_DEF(    fillInBufferOp,         "fillInBuffer" ),
     OP_DEF(    keyOp,                  "key" ),
     OP_DEF(    keyHitOp,               "key?" ),

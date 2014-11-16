@@ -525,7 +525,7 @@ addHelp numLocals	returns number of longwords of local variables in current stac
 addHelp dlocals		display the local variables in current stack frame
 
 addHelp demo	 demo is used to both display and evaluate a line of text
-: demo getInBufferPointer %s %nl ;
+: demo source drop %s %nl ;
 precedence demo
 
 

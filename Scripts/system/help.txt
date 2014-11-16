@@ -427,10 +427,8 @@ addHelp $word					CHARVAL ... STRING_ADDR				fetch next token delimited by CHARV
 addHelp /*						/* COMMENT TEXT */					inline comment, ends at '*/' or end of line
 addHelp (						(  COMMENT TEXT )					inline comment, ends at ')' or end of line, only works if you do 'true parenIsComment'
 addHelp parenIsComment			BOOLVAL parenIsComment				BOOLVAL true makes '(' start comment, BOOLVAL false makes '(' act as start of arg list
-addHelp getInBufferBase			... INPUT_BUFFER_ADDR				return address of base of input buffer
-addHelp getInBufferPointer		... INPUT_BUFFER_ADDR				return address of cursor position in input buffer
-addHelp setInBufferPointer		ADDR ...							set cursor position in input buffer
-addHelp getInBufferLength		... LEN								return size of input buffer (maximum input line length)
+addHelp source					... INPUT_BUFFER_ADDR LENGHT		return address of base of input buffer and its length
+addHelp >in						... INPUT_OFFSET_ADDR				return pointer to input buffer offset variable
 addHelp fillInBuffer			PROMPT_STRING ... INPUT_BUFFER_ADDR		display prompt, fill input buffer & return input buffer address
 
 addHelp vocNewestEntry	pVocab ... pNewestEntry						get ptr to newest entry in vocabulary

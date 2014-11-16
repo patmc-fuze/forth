@@ -111,6 +111,13 @@ ForthInputStack::GetBufferBasePointer( void )
 }
 
 
+int *
+ForthInputStack::GetReadOffsetPointer( void )
+{
+    return (mpHead == NULL) ? NULL : mpHead->GetReadOffsetPointer();
+}
+
+
 int
 ForthInputStack::GetBufferLength( void )
 {
@@ -124,6 +131,40 @@ ForthInputStack::SetBufferPointer( char *pBuff )
     if ( mpHead != NULL )
     {
         mpHead->SetBufferPointer( pBuff );
+    }
+}
+
+
+int
+ForthInputStack::GetReadOffset( void )
+{
+    return (mpHead == NULL) ? 0 : mpHead->GetReadOffset();
+}
+
+
+void
+ForthInputStack::SetReadOffset( int offset )
+{
+    if (mpHead == NULL)
+    {
+        mpHead->SetReadOffset( offset );
+    }
+}
+
+
+int
+ForthInputStack::GetWriteOffset( void )
+{
+    return (mpHead == NULL) ? 0 : mpHead->GetWriteOffset();
+}
+
+
+void
+ForthInputStack::SetWriteOffset( int offset )
+{
+    if (mpHead == NULL)
+    {
+        mpHead->SetWriteOffset( offset );
     }
 }
 
@@ -151,10 +192,12 @@ ForthInputStack::Reset( void )
 ForthInputStream::ForthInputStream( int bufferLen )
 : mpNext(NULL)
 , mBufferLen(bufferLen)
+, mReadOffset(0)
+, mWriteOffset(0)
 {
     mpBufferBase = new char[bufferLen];
-    mpBuffer = mpBufferBase;
-    mpBuffer[0] = '\0';
+    mpBufferBase[0] = '\0';
+    mpBufferBase[bufferLen - 1] = '\0';
 }
 
 
@@ -170,7 +213,7 @@ ForthInputStream::~ForthInputStream()
 char *
 ForthInputStream::GetBufferPointer( void )
 {
-    return mpBuffer;
+    return mpBufferBase + mReadOffset;
 }
 
 
@@ -191,8 +234,67 @@ ForthInputStream::GetBufferLength( void )
 void
 ForthInputStream::SetBufferPointer( char *pBuff )
 {
-    mpBuffer = pBuff;
+    int offset = pBuff - mpBufferBase;
+    if ( (offset < 0) || (offset >= mBufferLen) )
+    {
+        // TODO: report error!
+    }
+    else
+    {
+        mReadOffset = offset;
+    }
 }
+
+int*
+ForthInputStream::GetReadOffsetPointer( void )
+{
+    return &mReadOffset;
+}
+
+
+int
+ForthInputStream::GetReadOffset( void )
+{
+    return mReadOffset;
+}
+
+
+void
+ForthInputStream::SetReadOffset( int offset )
+{
+    if ( (offset < 0) || (offset >= mBufferLen) )
+    {
+        // TODO: report error!
+    }
+    else
+    {
+        mReadOffset = offset;
+    }
+    mReadOffset = offset;
+}
+
+
+int
+ForthInputStream::GetWriteOffset( void )
+{
+    return mWriteOffset;
+}
+
+
+void
+ForthInputStream::SetWriteOffset( int offset )
+{
+    if ( (offset < 0) || (offset >= mBufferLen) )
+    {
+        // TODO: report error!
+    }
+    else
+    {
+        mWriteOffset = offset;
+    }
+    mWriteOffset = offset;
+}
+
 
 int
 ForthInputStream::GetLineNumber( void )
@@ -236,7 +338,10 @@ ForthFileInputStream::GetLine( const char *pPrompt )
 
     pBuffer = fgets( mpBufferBase, mBufferLen, mpInFile );
 
-    mpBuffer = mpBufferBase;
+
+    mReadOffset = 0;
+    mpBufferBase[ mBufferLen - 1 ] = '\0';
+    mWriteOffset = strlen( mpBufferBase );
     mLineNumber++;
     return pBuffer;
 }
@@ -280,7 +385,9 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
     printf( "\n%s ", pPrompt );
     pBuffer = gets( mpBufferBase );
 
-    mpBuffer = mpBufferBase;
+    mReadOffset = 0;
+    const char* pEnd = (const char*) memchr( pBuffer, '\0', mBufferLen );
+    mWriteOffset = (pEnd == NULL) ? (mBufferLen - 1) : (pEnd - pBuffer);
     return pBuffer;
 }
 
@@ -335,10 +442,11 @@ ForthBufferInputStream::GetLine( const char *pPrompt )
 				*pDst++ = c;
 			}
 		}
-		*pDst++ = '\0';
+		*pDst = '\0';
 
-		mpBuffer = mpBufferBase;
-		pBuffer = mpBuffer;
+        mReadOffset = 0;
+        mWriteOffset = (pDst - mpBufferBase);
+		pBuffer = mpBufferBase;
     }
 
     return pBuffer;

@@ -486,6 +486,33 @@ code m*
   eax edx ] mov,
   next,
 
+code */
+  edx ebx mov,
+  4 ebx d] eax mov,
+  ecx push,
+  8 ebx d] ecx mov,
+  ecx eax imul,      // result hiword in edx, loword in eax
+  ecx pop,
+  ebx ] idiv,
+  8 # ebx add,
+  eax ebx ] mov,
+  ebx edx mov,
+  next,
+  
+code */mod
+  edx ebx mov,
+  4 ebx d] eax mov,
+  ecx push,
+  8 ebx d] ecx mov,
+  ecx eax imul,      // result hiword in edx, loword in eax
+  ecx pop,
+  ebx ] idiv,
+  4 # ebx add,
+  eax ebx ] mov,
+  edx 4 ebx d] mov,
+  ebx edx mov,
+  next,
+  
 code um/mod
   // edx: 32-bit unsigned denominator
   // edx+4: 64-bit unsigned numerator
@@ -515,8 +542,35 @@ code sm/rem
   eax ebx ] mov,
   ebx edx mov,
   next,
-	
+  
+: fm/mod
+  -> int denominator
+  -> long numerator
+  sm/rem( numerator denominator )
+  -> int quotient
+  -> int remainder
+  if( remainder 0= )
+    remainder quotient
+    exit
+  endif
+  if( and( denominator 0<  remainder 0< ) )
+    remainder quotient
+    exit
+  endif
+  if( and( denominator 0>  remainder 0>= ) )
+    remainder quotient
+    exit
+  endif
+  denominator ->+ remainder
+  1 ->- quotient
+  remainder quotient
+;
+
 loaddone
+
+
+
+
 
 // eax ebx ecx edx edi esi ebp
 // r and d need to be 64-bit

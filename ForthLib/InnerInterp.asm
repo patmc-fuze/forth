@@ -3777,24 +3777,24 @@ entry lshiftBop
 	
 ;========================================
 
-entry rshiftBop
+entry arshiftBop
 	mov	eax, ecx
 	mov	ecx, [edx]
 	add	edx, 4
 	mov	ebx, [edx]
-	sar	ebx,cl
+	sar	ebx, cl
 	mov	[edx], ebx
 	mov	ecx, eax
 	jmp	edi
 	
 ;========================================
 
-entry urshiftBop
+entry rshiftBop
 	mov	eax, ecx
 	mov	ecx, [edx]
 	add	edx, 4
 	mov	ebx, [edx]
-	shr	ebx,cl
+	shr	ebx, cl
 	mov	[edx], ebx
 	mov	ecx, eax
 	jmp	edi
