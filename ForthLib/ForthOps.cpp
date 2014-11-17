@@ -416,7 +416,7 @@ FORTHOP( ifOp )
     // save address for else/endif
     pShellStack->Push( (long)GET_DP );
     // flag that this is the "if" branch
-    pShellStack->Push( kShellTagIf );
+    pShellStack->Push( kShellTagBranchZ );
     // this will be fixed by else/endif
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
@@ -429,19 +429,19 @@ FORTHOP( elseOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "else", pShellStack->Pop(), kShellTagIf ) )
+    if ( !pShell->CheckSyntaxError( "else", pShellStack->Pop(), kShellTagBranchZ ) )
     {
         return;
     }
-    long *pIfOp = (long *) pShellStack->Pop();
+    long *pBranch = (long *) pShellStack->Pop();
     // save address for endif
     pShellStack->Push( (long) GET_DP );
     // flag that this is the "else" branch
-    pShellStack->Push( kShellTagElse );
+    pShellStack->Push( kShellTagBranch );
     // this will be fixed by endif
     pEngine->CompileBuiltinOpcode( OP_ABORT );
     // fill in the branch taken when "if" arg is false
-    *pIfOp = COMPILED_OP( kOpBranchZ, (GET_DP - pIfOp) - 1 );
+    *pBranch = COMPILED_OP( kOpBranchZ, (GET_DP - pBranch) - 1 );
 }
 
 
@@ -452,19 +452,13 @@ FORTHOP( endifOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    long tag = pShellStack->Pop();
-    long *pOp = (long *) pShellStack->Pop();
-    if ( tag == kShellTagElse )
-    {
-        // else branch
-        // fill in the branch at end of path taken when "if" arg is true
-        *pOp = COMPILED_OP( kOpBranch, (GET_DP - pOp) - 1 );
-    }
-    else if ( pShell->CheckSyntaxError( "endif", tag, kShellTagIf ) )
+    long branchTag = pShellStack->Pop();
+    if ( pShell->CheckSyntaxError( "endif", branchTag, kShellTagBranchZ ) )
     {
         // if branch
         // fill in the branch taken when "if" arg is false
-        *pOp = COMPILED_OP( kOpBranchZ, (GET_DP - pOp) - 1 );
+        long *pBranch = (long *) pShellStack->Pop();
+        *pBranch = COMPILED_OP( (branchTag == kShellTagBranchZ) ? kOpBranchZ : kOpBranch, (GET_DP - pBranch) - 1 );
     }
 }
 
@@ -489,27 +483,10 @@ FORTHOP( untilOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    long topTag = pShellStack->Pop();
-    // 
-    if ( topTag == kShellTagBegin )
+    if ( pShell->CheckSyntaxError( "until", pShellStack->Pop(), kShellTagBegin ) )
     {
         long *pBeginOp = (long *) pShellStack->Pop();
         pEngine->CompileOpcode( kOpBranchZ, (pBeginOp - GET_DP) - 1 );
-    }
-    else if ( pShell->CheckSyntaxError( "until", topTag, kShellTagWhile ) )
-    {
-        // support begin..while..until..endif
-        // shell stack: whileAddress beginAddress
-        long whileAddress = pShellStack->Pop();
-        long *pBeginOp = (long *) pShellStack->Pop();
-        pEngine->CompileOpcode( kOpBranchZ, (pBeginOp - GET_DP) - 1 );
-        // push ifTag/address for endif
-        pShellStack->Push( whileAddress );
-        pShellStack->Push( kShellTagIf );
-    }
-    else
-    {
-        return;
     }
 }
 
@@ -526,8 +503,12 @@ FORTHOP( whileOp )
     {
         return;
     }
+    // stick while tag/address under the begin tag/address
+    long oldAddress = pShellStack->Pop();
     pShellStack->Push( (long) GET_DP );
-    pShellStack->Push( kShellTagWhile );
+    pShellStack->Push( kShellTagBranchZ );
+    pShellStack->Push( oldAddress );
+    pShellStack->Push( kShellTagBegin );
     // repeat will fill this in
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
@@ -540,16 +521,20 @@ FORTHOP( repeatOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "repeat", pShellStack->Pop(), kShellTagWhile ) )
+    if ( !pShell->CheckSyntaxError( "repeat", pShellStack->Pop(), kShellTagBegin ) )
     {
         return;
     }
-    // get address of "while"
-    long *pOp =  (long *) pShellStack->Pop();
-    *pOp = COMPILED_OP( kOpBranchZ, (GET_DP - pOp) );
-    // get address of "begin"
-    pOp =  (long *) pShellStack->Pop();
-    pEngine->CompileOpcode( kOpBranch, (pOp - GET_DP) - 1 );
+    long *pBeginAddress =  (long *) pShellStack->Pop();
+    long branchTag = pShellStack->Pop();
+    if ( !pShell->CheckSyntaxError( "repeat", branchTag, kShellTagBranchZ ) )
+    {
+        return;
+    }
+    // fill in the branch taken when "while" fails
+    long *pBranch =  (long *) pShellStack->Pop();
+    *pBranch = COMPILED_OP( (branchTag == kShellTagBranchZ) ? kOpBranchZ : kOpBranch, (GET_DP - pBranch) );
+    pEngine->CompileOpcode( kOpBranch, (pBeginAddress - GET_DP) - 1 );
 }
 
 // again - has precedence
@@ -563,8 +548,8 @@ FORTHOP( againOp )
     {
         return;
     }
-    long *pBeginOp =  (long *) pShellStack->Pop();
-    pEngine->CompileOpcode( kOpBranch, (pBeginOp - GET_DP) - 1 );
+    long *pLoopTop =  (long *) pShellStack->Pop();
+    pEngine->CompileOpcode( kOpBranch, (pLoopTop - GET_DP) - 1 );
 }
 
 // case - has precedence
@@ -1152,17 +1137,6 @@ FORTHOP( strFindOp )
 
     char *pSymbol = (char *) (SPOP);
     long* pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSymbol, &pFoundVocab );
-    SPUSH( ((long) pEntry) );
-}
-
-
-FORTHOP( strFindIOp )
-{
-    ForthEngine *pEngine = GET_ENGINE;
-    ForthVocabulary* pFoundVocab;
-
-    char *pSymbol = (char *) (SPOP);
-    long* pEntry = pEngine->GetVocabularyStack()->FindSymbolCaseInsensitive( pSymbol, &pFoundVocab );
     SPUSH( ((long) pEntry) );
 }
 
@@ -1951,7 +1925,7 @@ FORTHOP( strTickOp )
     ForthEngine *pEngine = GET_ENGINE;
 	char* pToken = (char *) SPOP;
     ForthVocabulary* pFoundVocab;
-    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbolCaseInsensitive( pToken, &pFoundVocab );
+    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
     if ( pSymbol != NULL )
     {
         SPUSH( *pSymbol );
@@ -1979,7 +1953,7 @@ FORTHOP( postponeOp )
     ForthVocabulary* pFoundVocab;
 
     char *pToken = pEngine->GetNextSimpleToken();
-    long* pEntry = pEngine->GetVocabularyStack()->FindSymbolCaseInsensitive( pToken, &pFoundVocab );
+    long* pEntry = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
     if ( pEntry != NULL )
     {
         long op = *pEntry;
@@ -2012,7 +1986,7 @@ FORTHOP( bracketTickOp )
     ForthEngine *pEngine = GET_ENGINE;
     char *pToken = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
-    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbolCaseInsensitive( pToken, &pFoundVocab );
+    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
     if ( pSymbol != NULL )
     {
         pEngine->CompileBuiltinOpcode( OP_INT_VAL );
@@ -2024,6 +1998,35 @@ FORTHOP( bracketTickOp )
     }
 }
 
+FORTHOP( bodyOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthVocabulary* pFoundVocab;
+
+    long op = SPOP;
+    long opIndex = FORTH_OP_VALUE( op );
+    long opType = FORTH_OP_TYPE( op );
+    switch ( opType )
+    {
+    case kOpNativeImmediate:
+    case kOpUserDefImmediate:
+    case kOpNative:
+    case kOpUserDef:
+        if ( opIndex < GET_NUM_OPS )
+        {
+            SPUSH( ((long)(OP_TABLE[ opIndex ])) + 4 );
+        }
+        else
+        {
+            SET_ERROR( kForthErrorBadOpcode );
+        }
+        break;
+
+    default:
+        SET_ERROR( kForthErrorBadOpcodeType );
+        break;
+    }
+}
    
 //##############################
 //
@@ -3104,25 +3107,25 @@ FORTHOP( parenCommentOp )
 	char *pToken = pShell->GetToken( ')' );
 }
 
-// fake variable used to turn on/off old-style paren comments mode
-FORTHOP( parenIsCommentOp )
+// fake variable used to turn on/off ansi compatability mode
+FORTHOP( ansiModeOp )
 {
     NEEDS( 1 );
     if ( GET_VAR_OPERATION == kVarStore )
     {
         if ( SPOP )
         {
-            GET_ENGINE->SetFlag( kEngineFlagParenIsComment );
+            GET_ENGINE->SetFlag( kEngineFlagAnsiMode );
         }
         else
         {
-            GET_ENGINE->ClearFlag( kEngineFlagParenIsComment );
+            GET_ENGINE->ClearFlag( kEngineFlagAnsiMode );
         }
         CLEAR_VAR_OPERATION;
     }
     else
     {
-        SPUSH( GET_ENGINE->CheckFlag( kEngineFlagParenIsComment ) ? ~0 : 0 );
+        SPUSH( GET_ENGINE->CheckFlag( kEngineFlagAnsiMode ) ? ~0 : 0 );
     }
 }
 
@@ -3844,7 +3847,7 @@ FORTHOP( bracketIfDefOp )
     ForthEngine *pEngine = GET_ENGINE;
     char* pToken = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
-    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbolCaseInsensitive( pToken, &pFoundVocab );
+    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
     SPUSH ( (pSymbol != NULL) ? ~0 : 0 );
     bracketIfOp( pCore );
 }
@@ -3855,7 +3858,7 @@ FORTHOP( bracketIfUndefOp )
     ForthEngine *pEngine = GET_ENGINE;
     char* pToken = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
-    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbolCaseInsensitive( pToken, &pFoundVocab );
+    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
     SPUSH ( (pSymbol != NULL) ? 0 : ~0 );
     bracketIfOp( pCore );
 }
@@ -5985,6 +5988,15 @@ FORTHOP(memcpyBop)
     memcpy( pDst, pSrc, nBytes );
 }
 
+FORTHOP(memmoveBop)
+{
+    NEEDS(3);
+    size_t nBytes = (size_t) (SPOP);
+    const void* pSrc = (const void *) (SPOP);
+    void* pDst = (void *) (SPOP);
+    memmove( pDst, pSrc, nBytes );
+}
+
 FORTHOP(memsetBop)
 {
     NEEDS(3);
@@ -6518,7 +6530,7 @@ extern GFORTHOP( dswapBop ); extern GFORTHOP( ddropBop ); extern GFORTHOP( dover
 extern GFORTHOP( storeBop ); extern GFORTHOP( storeNextBop ); extern GFORTHOP( fetchNextBop ); extern GFORTHOP( cstoreBop ); extern GFORTHOP( cfetchBop ); extern GFORTHOP( cstoreNextBop );
 extern GFORTHOP( cfetchNextBop ); extern GFORTHOP( scfetchBop ); extern GFORTHOP( c2iBop ); extern GFORTHOP( wstoreBop ); extern GFORTHOP( wfetchBop ); extern GFORTHOP( wstoreNextBop );
 extern GFORTHOP( wfetchNextBop ); extern GFORTHOP( swfetchBop ); extern GFORTHOP( w2iBop ); extern GFORTHOP( dstoreBop ); extern GFORTHOP( dstoreNextBop ); extern GFORTHOP( dfetchNextBop );
-extern GFORTHOP( memcpyBop ); extern GFORTHOP( memsetBop ); extern GFORTHOP( setVarActionBop ); extern GFORTHOP( getVarActionBop ); extern GFORTHOP( byteVarActionBop ); extern GFORTHOP( ubyteVarActionBop );
+extern GFORTHOP( memcpyBop ); extern GFORTHOP( memmoveBop ); extern GFORTHOP( memsetBop ); extern GFORTHOP( setVarActionBop ); extern GFORTHOP( getVarActionBop ); extern GFORTHOP( byteVarActionBop ); extern GFORTHOP( ubyteVarActionBop );
 extern GFORTHOP( shortVarActionBop ); extern GFORTHOP( ushortVarActionBop ); extern GFORTHOP( intVarActionBop ); extern GFORTHOP( longVarActionBop ); extern GFORTHOP( floatVarActionBop ); extern GFORTHOP( doubleVarActionBop );
 extern GFORTHOP( stringVarActionBop ); extern GFORTHOP( opVarActionBop ); extern GFORTHOP( objectVarActionBop ); extern GFORTHOP( strcpyBop ); extern GFORTHOP( strncpyBop ); extern GFORTHOP( strlenBop );
 extern GFORTHOP( strcatBop ); extern GFORTHOP( strncatBop ); extern GFORTHOP( strchrBop ); extern GFORTHOP( strrchrBop ); extern GFORTHOP( strcmpBop ); extern GFORTHOP( stricmpBop );
@@ -6871,6 +6883,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dstoreNextBop,           "2@!++" ),
     NATIVE_DEF(    dfetchNextBop,           "2@@++" ),
     NATIVE_DEF(    memcpyBop,               "memcpy" ),
+    NATIVE_DEF(    memmoveBop,              "memmove" ),
     NATIVE_DEF(    memsetBop,               "memset" ),
     NATIVE_DEF(    setVarActionBop,         "varAction!" ),
     NATIVE_DEF(    getVarActionBop,         "varAction@" ),
@@ -7051,6 +7064,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    strTickOp,              "$\'" ),
     PRECOP_DEF(postponeOp,             "postpone" ),
     PRECOP_DEF(bracketTickOp,          "[\']" ),
+    OP_DEF(    bodyOp,                 ">body" ),
 
     ///////////////////////////////////////////
     //  vocabulary/symbol
@@ -7065,7 +7079,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    autoforgetOp,           "autoforget" ),
     OP_DEF(    vlistOp,                "vlist" ),
     OP_DEF(    strFindOp,              "$find" ),
-    OP_DEF(    strFindIOp,             "$findCaseInsensitive" ),
 
     ///////////////////////////////////////////
     //  data compilation/allocation
@@ -7121,7 +7134,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    strWordOp,              "$word" ),
     PRECOP_DEF(commentOp,              "/*" ),
     PRECOP_DEF(parenCommentOp,         "(" ),
-    OP_DEF(    parenIsCommentOp,       "parenIsComment" ),
     OP_DEF(    sourceOp,               "source" ),
     OP_DEF(    getInOffsetPointerOp,   ">in" ),
     OP_DEF(    fillInBufferOp,         "fillInBuffer" ),
@@ -7195,6 +7207,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    illegalMethodOp,        "illegalMethod" ),
 	OP_DEF(    setTraceOp,             "setTrace" ),
     NATIVE_DEF( intoBop,               "verbose" ),
+    OP_DEF(    ansiModeOp,             "ansiMode" ),
 
     ///////////////////////////////////////////
     //  conditional compilation

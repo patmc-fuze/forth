@@ -16,7 +16,7 @@ EXTRN	fprintf:NEAR, sprintf:NEAR, fscanf:NEAR, sscanf:NEAR
 EXTRN	atan2:NEAR, pow:NEAR, ldexp:NEAR, frexp:NEAR, modf:NEAR, fmod:NEAR, _ftol:NEAR
 EXTRN	atan2f:NEAR, powf:NEAR, ldexpf:NEAR, frexpf:NEAR, modff:NEAR, fmodf:NEAR
 EXTRN	strcpy:NEAR, strncpy:NEAR, strstr:NEAR, strcmp:NEAR, stricmp:NEAR, strchr:NEAR, strrchr:NEAR, strcat:NEAR, strncat:NEAR, strtok:NEAR
-EXTRN	memcpy:NEAR, memset:NEAR, strlen:NEAR
+EXTRN	memcpy:NEAR, memmove:NEAR, memset:NEAR, strlen:NEAR
 EXTRN	fopen:NEAR, fclose:NEAR, fseek:NEAR, fread:NEAR, fwrite:NEAR, fgetc:NEAR, fputc:NEAR, ftell:NEAR, feof:NEAR
 
 FCore		TYPEDEF		ForthCoreState
@@ -4568,6 +4568,25 @@ entry memcpyBop
 	mov	eax, [edx+8]
 	push	eax
 	call	memcpy
+	add	esp, 12
+	pop	ecx
+	pop	edx
+	add	edx, 12
+	jmp	edi
+
+;========================================
+
+entry memmoveBop
+	;	TOS: nBytes srcPtr dstPtr
+	push	edx
+	push	ecx
+	mov	eax, [edx]
+	push	eax
+	mov	eax, [edx+4]
+	push	eax
+	mov	eax, [edx+8]
+	push	eax
+	call	memmove
 	add	esp, 12
 	pop	ecx
 	pop	edx

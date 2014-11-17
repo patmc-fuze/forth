@@ -164,6 +164,23 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 16 2014
+
+John Hayes ANS compatability test has pointed out 2 somewhat major changes
+I need to make:
+
+1) ANS forth specifies the stack word order for 64-bit numbers to be the
+   opposite of what I've done, which is the 'natural' order - natural in the
+   sense that it is what the C++ compiler generates and C calls expect, that
+   is that the lower order word is at a lower address.
+2) ANS forth allows control flow words to be mixed and matched, I need to
+   remove some of the error checking to allow this, I need to replace the
+   existing tags like 'begin' and 'if' with more generic ones like 'looptop'
+   and 'forward branch'.
+   
+I'm going to put off the 64-bit order changes for now, I'm getting the tests
+to work by doing an order switch in the test.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 15 2014
 
 I've made a lot of changes trying to get closer to ANS forth compatability,

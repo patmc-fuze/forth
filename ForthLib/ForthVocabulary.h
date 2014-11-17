@@ -262,7 +262,6 @@ public:
     // ppFoundVocab will be set to the vocabulary the symbol was actually found in
     // set ppFoundVocab to NULL to search just this vocabulary (not the search chain)
     long *      FindSymbol( const char *pSymName, ForthVocabulary** ppFoundVocab=NULL );
-    long *      FindSymbolCaseInsensitive( const char *pSymName, ForthVocabulary** ppFoundVocab=NULL );
 
     // return pointer to symbol entry, NULL if not found, given its value
     long *      FindSymbolByValue( long val, ForthVocabulary** ppFoundVocab=NULL );

@@ -106,6 +106,6 @@ int holdend
     
 
 // display unsigned single number in free format followed by space
-: u. 0 ud. ;
+: u. 0 swap ud. ;
 
 base !

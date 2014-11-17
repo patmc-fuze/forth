@@ -285,9 +285,9 @@ code dd
   next,
   
 code l+
-  edx ] ebx mov,
-  4 edx d] eax mov,
-  4 # edx add,
+  edx ] ebx mov,		// ebx = lopart
+  4 edx d] eax mov,		// eax = hipart
+  8 # edx add,
   edx ] ebx add,
   4 edx d] eax adc,
   ebx edx ] mov,
@@ -297,7 +297,7 @@ code l+
 code l-
   edx ] ebx mov,
   4 edx d] eax mov,
-  4 # edx add,
+  8 # edx add,
   edx ] ebx sub,
   4 edx d] eax sbb,
   ebx edx ] mov,
@@ -423,7 +423,8 @@ code dsq
   edx ] .fl fstp,
   next,
   
-code recurse
+// this requires that caller not have extra junk on return stack
+code tailRecurse
   // tail recurse by popping the rstack and then moving the IP back one instruction
   _RP ebp d] eax mov,
   eax ] ebx mov,
@@ -565,6 +566,44 @@ code sm/rem
   1 ->- quotient
   remainder quotient
 ;
+
+
+// ud1 c-addr1 u1 -- ud2 c-addr2 u2 
+: >number
+  //ds
+  -> int numChars
+  -> int pSrc
+  -> long accum
+  base @ i2l -> long lbase
+  begin
+    pSrc @ -> byte ch
+    if( ch '0' >= ch '9' <= and )
+      '0' ->- ch
+    else
+      if( ch 'A' >= ch 'Z' <= and  ch 'a' >= ch 'z' <= and  or )
+        ch 0x20 or -> ch  // lowercase it
+        'a' ->- ch
+      else
+        // force exit
+        base @ -> ch
+      endif
+    endif
+    if( ch base @ < )
+      1 ->+ pSrc
+      1 ->- numChars
+      accum lbase l* ch i2l l+ -> accum
+      //"adding " %s ch %d " total " %s accum %2d  %bl %bl numChars %d " chars left" %s %nl
+      numChars 0=
+    else
+      true
+    endif
+  until
+  
+  accum
+  pSrc
+  numChars
+;
+
 
 loaddone
 

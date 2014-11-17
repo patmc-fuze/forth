@@ -73,7 +73,7 @@ precedence literal   precedence fliteral   precedence dliteral
 : find
   257 string symbol
   countedStringToString( dup symbol )
-  $findCaseInsensitive( symbol )
+  $find( symbol )
   // countedStr ptrToSymbolEntry
   if( dup )
     nip			// discard original counted string ptr
@@ -88,7 +88,7 @@ precedence literal   precedence fliteral   precedence dliteral
 
 : cmove %nl 0 do over i + c@ over i + c! loop 2drop ;
 : cmove> 0 swap 1- do over i + c@ over i + c! -1 +loop 2drop ;
-: move cmove ;
+: move >r swap r> memmove ;
 : ."
   '"' $word state @
   if
@@ -134,6 +134,7 @@ precedence s"
 : \ 0 $word drop ; precedence \
 : spaces ?dup if 0 do %bl loop endif ;
 : space %bl ;
+: fill swap memset ;
 
 : _abortQuote
   swap
@@ -217,9 +218,9 @@ int _handler
 ;
 
 : throw  ( error -- error )
-  dup 0= IF
-    drop EXIT
-  THEN
+  dup 0= if
+    drop exit
+  endif
   _handler -> rp
   // RTOS: oldSP oldHandlerRP
   r> swap >r -> sp
@@ -236,3 +237,8 @@ int _handler
 : marker blword drop ; // not actually functional, but it compiles
 : depth s0 sp - 2 rshift 1- ;
 : aligned 3+ 0xFFFFFFFC and ;
+
+: recurse
+  ref definitions
+  vocNewestEntry @ ,
+; precedence recurse

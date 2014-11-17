@@ -11,7 +11,7 @@ decimal
 // patmc definitions
 : A@ @ ;
 
-true -> parenIsComment
+true -> ansiMode
 
 \ Please see copyright information at the following site:
 \
@@ -1728,7 +1728,7 @@ new
 
 DECIMAL
 
-false -> parenIsComment
+false -> ansiMode
 
 loaddone
 

@@ -1072,7 +1072,6 @@ ForthVocabulary* ForthVocabularyStack::GetElement( int depth )
 long * ForthVocabularyStack::FindSymbol( const char *pSymName, ForthVocabulary** ppFoundVocab )
 {
     long *pEntry = NULL;
-
     mSerial++;
     for ( int i = mTop; i >= 0; i-- )
     {
@@ -1086,13 +1085,7 @@ long * ForthVocabularyStack::FindSymbol( const char *pSymName, ForthVocabulary**
             break;
         }
     }
-    return pEntry;
-}
-
-long * ForthVocabularyStack::FindSymbolCaseInsensitive( const char *pSymName, ForthVocabulary** ppFoundVocab )
-{
-    long *pEntry = FindSymbol( pSymName, ppFoundVocab );
-    if ( pEntry == NULL )
+    if ( (pEntry == NULL) && mpEngine->CheckFlag( kEngineFlagAnsiMode ) )
     {
         // if symbol wasn't found, convert it to lower case and try again
         char buffer[128];
@@ -1106,7 +1099,20 @@ long * ForthVocabularyStack::FindSymbolCaseInsensitive( const char *pSymName, Fo
             }
             buffer[i] = tolower( ch );
         }
-        pEntry = FindSymbol( buffer, ppFoundVocab );
+        // try to find the lower cased version
+        mSerial++;
+        for ( int i = mTop; i >= 0; i-- )
+        {
+            pEntry = mStack[i]->FindSymbol( buffer, mSerial );
+            if ( pEntry )
+            {
+                if ( ppFoundVocab != NULL )
+                {
+                    *ppFoundVocab = mStack[i];
+                }
+                break;
+            }
+        }
     }
 
     return pEntry;
@@ -1153,5 +1159,36 @@ long * ForthVocabularyStack::FindSymbol( ForthParseInfo *pInfo, ForthVocabulary*
             break;
         }
     }
+
+    if ( (pEntry == NULL) && mpEngine->CheckFlag( kEngineFlagAnsiMode ) )
+    {
+        // if symbol wasn't found, convert it to lower case and try again
+        char buffer[128];
+        strncpy( buffer, pInfo->GetToken(), sizeof(buffer) );
+        for ( int i = 0; i < sizeof(buffer); i++ )
+        {
+            char ch = buffer[i];
+            if ( ch == '\0' )
+            {
+                break;
+            }
+            buffer[i] = tolower( ch );
+        }
+        // try to find the lower cased version
+        mSerial++;
+        for ( int i = mTop; i >= 0; i-- )
+        {
+            pEntry = mStack[i]->FindSymbol( buffer, mSerial );
+            if ( pEntry )
+            {
+                if ( ppFoundVocab != NULL )
+                {
+                    *ppFoundVocab = mStack[i];
+                }
+                break;
+            }
+        }
+    }
+
     return pEntry;
 }

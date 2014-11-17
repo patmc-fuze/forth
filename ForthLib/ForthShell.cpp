@@ -956,7 +956,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                      break;
 
                   case '(':
-                     if ( (pEndSrc == pSrc) || mpEngine->CheckFlag( kEngineFlagParenIsComment ) )
+                     if ( (pEndSrc == pSrc) || mpEngine->CheckFlag( kEngineFlagAnsiMode ) )
                      {
                          // paren at start of token is part of token (allows old forth-style inline comments to work)
                          *pDst++ = *pEndSrc++;
@@ -973,7 +973,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                      break;
 
                   case ')':
-                     if ( mpEngine->CheckFlag( kEngineFlagParenIsComment ) )
+                     if ( mpEngine->CheckFlag( kEngineFlagAnsiMode ) )
                      {
                         *pDst++ = *pEndSrc++;
                      }
@@ -1305,7 +1305,13 @@ ForthShell::DeleteEnvironmentVars( void )
 bool
 ForthShell::CheckSyntaxError( const char *pString, long tag, long desiredTag )
 {
-    if ( tag != desiredTag )
+    bool tagsMatched = (tag == desiredTag);
+    // special case: BranchZ will match either Branch or BranchZ
+    if ( !tagsMatched && (desiredTag == kShellTagBranchZ) && (tag == kShellTagBranch) )
+    {
+        tagsMatched = true;
+    }
+    if ( !tagsMatched )
     {
         sprintf( mErrorString, "<%s> preceeded by <%s>, was expecting <%s>",
                  pString, GetTagString( tag ), GetTagString( desiredTag ) );

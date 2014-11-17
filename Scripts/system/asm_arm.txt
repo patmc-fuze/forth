@@ -7,9 +7,9 @@ autoforget asm_arm
 vocabulary assembler
 
 // allow inline comments using (...) to allow easier porting from GForth
-parenIsComment
+ansiMode
 base @
-true -> parenIsComment
+true -> ansiMode
 
 : there here ;
 : t@ @ ;
@@ -320,7 +320,7 @@ int had-cc
 00C00090 RRQ-op:  smull,	   00D00090 RRQ-op:  smulls,
 000E0090 RRQ-op:  smlal,	   00F00090 RRQ-op:  smlals,
 
-false -> parenIsComment
+false -> ansiMode
 
 // floating point ops
 // n m d vsub,		d=n-m
@@ -735,7 +735,7 @@ PREVIOUS DEFINITIONS
 : [END-ASM]   ASM[ ; precedence [END-ASM]
 
 base !
--> parenIsComment
+-> ansiMode
 
 loaddone
 

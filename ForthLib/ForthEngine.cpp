@@ -1289,6 +1289,7 @@ ForthEngine::ScanIntegerToken( char         *pToken,
     char *pLastChar = pToken + (len - 1);
     char lastChar = *pLastChar;
     bool isValid = false;
+    bool ansiMode = CheckFlag( kEngineFlagAnsiMode );
 
     isOffset = false;
     isSingle = true;
@@ -1323,7 +1324,18 @@ ForthEngine::ScanIntegerToken( char         *pToken,
         pLastChar = NULL;
     }
 
-    if ( (pToken[0] == '0') && (pToken[1] == 'x') )
+    if ( ansiMode && pToken[0] == '$')
+    {
+        if ( sscanf( pToken + 1, "%x", &value ) == 1 )
+        {
+            if ( isNegative )
+            {
+                value = 0 - value;
+            }
+            isValid = true;
+        }
+    }
+    if ( !isValid && ((pToken[0] == '0') && (pToken[1] == 'x')) )
     {
         if ( isSingle )
         {
@@ -1348,7 +1360,8 @@ ForthEngine::ScanIntegerToken( char         *pToken,
             }
         }
     }
-    else
+
+    if ( !isValid )
     {
 
         isValid = true;
@@ -2558,58 +2571,6 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     }
     else
     {
-		// last chance - for compatability with other forths which make kernel words be upper case,
-		// try lowercasing the token and looking it up in the forth vocab
-		char loweredToken[32];
-		if ( len < sizeof(loweredToken) )
-		{
-			bool allUpper = true;
-			for ( int i = 0; i < len; i++ )
-			{
-				char c = pToken[i];
-				if ( islower(c) )
-				{
-					allUpper = false;
-					break;
-				}
-				else
-				{
-					loweredToken[i] = tolower( c );
-				}
-			}
-			loweredToken[len] = '\0';
-			if ( allUpper )
-			{
-				pEntry = GetForthVocabulary()->FindSymbol( loweredToken );
-				if ( pEntry != NULL )
-				{
-					////////////////////////////////////
-					//
-					// symbol is a forth op that needed to be lowercased
-					//
-					////////////////////////////////////
-					SPEW_OUTER_INTERPRETER( "Forth op [%s] in vocabulary forth (after lowercasing)\n", pToken );
-					return GetForthVocabulary()->ProcessEntry( pEntry );
-				}
-			}
-		}
-        // really last chance - if token begins with $ and is a valid hex constant, process it
-        // this isn't ANSI standard, but a 'de-facto' standard
-        if ( *pToken == '$' )
-        {
-            if ( ScanIntegerToken( pToken + 1, value, lvalue, 16, isOffset, isSingle ) )
-            {
-
-                ////////////////////////////////////
-                //
-                // symbol is a hex integer literal
-                //
-                ////////////////////////////////////
-                SPEW_OUTER_INTERPRETER( "Integer literal %d\n", value );
-                ProcessConstant( value, false );
-                return exitStatus;
-            }
-        }
 		TRACE( "Unknown symbol %s\n", pToken );
 		mpCore->error = kForthErrorUnknownSymbol;
 		exitStatus = kResultError;
