@@ -2742,7 +2742,7 @@ entry fdivideBop
 	
 ;========================================
 	
-entry fEqualsZeroBop
+entry fEquals0Bop
 	fldz
 	jmp	fEqualsBop1
 	
@@ -2763,7 +2763,7 @@ fEqualsBop2:
 	
 ;========================================
 	
-entry fNotEqualsZeroBop
+entry fNotEquals0Bop
 	fldz
 	jmp	fNotEqualsBop1
 	
@@ -2784,7 +2784,7 @@ fNotEqualsBop2:
 	
 ;========================================
 	
-entry fGreaterThanZeroBop
+entry fGreaterThan0Bop
 	fldz
 	jmp	fGreaterThanBop1
 	
@@ -2806,7 +2806,7 @@ fGreaterThanBop2:
 	
 ;========================================
 	
-entry fGreaterEqualsZeroBop
+entry fGreaterEquals0Bop
 	fldz
 	jmp	fGreaterEqualsBop1
 	
@@ -2828,7 +2828,7 @@ fGreaterEqualsBop2:
 	
 ;========================================
 	
-entry fLessThanZeroBop
+entry fLessThan0Bop
 	fldz
 	jmp	fLessThanBop1
 	
@@ -2850,7 +2850,7 @@ fLessThanBop2:
 	
 ;========================================
 	
-entry fLessEqualsZeroBop
+entry fLessEquals0Bop
 	fldz
 	jmp	fLessEqualsBop1
 	
@@ -2964,7 +2964,7 @@ entry ddivideBop
 	
 ;========================================
 	
-entry dEqualsZeroBop
+entry dEquals0Bop
 	fldz
 	jmp	dEqualsBop1
 	
@@ -2986,7 +2986,7 @@ dEqualsBop2:
 	
 ;========================================
 	
-entry dNotEqualsZeroBop
+entry dNotEquals0Bop
 	fldz
 	jmp	dNotEqualsBop1
 	
@@ -3008,7 +3008,7 @@ dNotEqualsBop2:
 	
 ;========================================
 	
-entry dGreaterThanZeroBop
+entry dGreaterThan0Bop
 	fldz
 	jmp	dGreaterThanBop1
 	
@@ -3031,7 +3031,7 @@ dGreaterThanBop2:
 	
 ;========================================
 	
-entry dGreaterEqualsZeroBop
+entry dGreaterEquals0Bop
 	fldz
 	jmp	dGreaterEqualsBop1
 	
@@ -3054,7 +3054,7 @@ dGreaterEqualsBop2:
 	
 ;========================================
 	
-entry dLessThanZeroBop
+entry dLessThan0Bop
 	fldz
 	jmp	dLessThanBop1
 	
@@ -3077,7 +3077,7 @@ dLessThanBop2:
 	
 ;========================================
 	
-entry dLessEqualsZeroBop
+entry dLessEquals0Bop
 	fldz
 	jmp	dLessEqualsBop1
 	
@@ -3848,7 +3848,7 @@ entry dnullBop
 	
 ;========================================
 
-entry equalsZeroBop
+entry equals0Bop
 	xor	ebx, ebx
 	jmp	equalsBop1
 	
@@ -3868,7 +3868,7 @@ equalsBop2:
 	
 ;========================================
 
-entry notEqualsZeroBop
+entry notEquals0Bop
 	xor	ebx, ebx
 	jmp	notEqualsBop1
 	
@@ -3888,7 +3888,7 @@ notEqualsBop2:
 	
 ;========================================
 
-entry greaterThanZeroBop
+entry greaterThan0Bop
 	xor	ebx, ebx
 	jmp	gtBop1
 	
@@ -3908,7 +3908,7 @@ gtBop2:
 
 ;========================================
 
-entry greaterEqualsZeroBop
+entry greaterEquals0Bop
 	xor	ebx, ebx
 	jmp	geBop1
 	
@@ -3929,7 +3929,7 @@ geBop2:
 
 ;========================================
 
-entry lessThanZeroBop
+entry lessThan0Bop
 	xor	ebx, ebx
 	jmp	ltBop1
 	
@@ -3949,7 +3949,7 @@ ltBop2:
 	
 ;========================================
 
-entry lessEqualsZeroBop
+entry lessEquals0Bop
 	xor	ebx, ebx
 	jmp	leBop1
 	
@@ -4082,7 +4082,7 @@ entry rpBop
 	
 ;========================================
 
-entry rzeroBop
+entry r0Bop
 	mov	eax, [ebp].FCore.RTPtr
 	sub	edx, 4
 	mov	[edx], eax
@@ -4101,10 +4101,10 @@ entry dupBop
 entry checkDupBop
 	mov	eax, [edx]
 	or	eax, eax
-	jz	dupNonZeroBop1
+	jz	dupNon0Bop1
 	sub	edx, 4
 	mov	[edx], eax
-dupNonZeroBop1:
+dupNon0Bop1:
 	jmp	edi
 
 ;========================================
@@ -4234,7 +4234,7 @@ spActionTable:
 	
 ;========================================
 
-entry szeroBop
+entry s0Bop
 	mov	eax, [ebp].FCore.STPtr
 	sub	edx, 4
 	mov	[edx], eax

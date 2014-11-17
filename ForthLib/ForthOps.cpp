@@ -222,42 +222,42 @@ FORTHOP(lLessEqualsOp)
     SPUSH( ( a <= b ) ? -1L : 0 );
 }
 
-FORTHOP(lEqualsZeroOp)
+FORTHOP(lEquals0Op)
 {
     NEEDS(2);
     long long a = LPOP;
     SPUSH( ( a == 0 ) ? -1L : 0 );
 }
 
-FORTHOP(lNotEqualsZeroOp)
+FORTHOP(lNotEquals0Op)
 {
     NEEDS(2);
     long long a = LPOP;
     SPUSH( ( a != 0 ) ? -1L : 0 );
 }
 
-FORTHOP(lGreaterThanZeroOp)
+FORTHOP(lGreaterThan0Op)
 {
     NEEDS(2);
     long long a = LPOP;
     SPUSH( ( a > 0 ) ? -1L : 0 );
 }
 
-FORTHOP(lGreaterEqualsZeroOp)
+FORTHOP(lGreaterEquals0Op)
 {
     NEEDS(2);
     long long a = LPOP;
     SPUSH( ( a >= 0 ) ? -1L : 0 );
 }
 
-FORTHOP(lLessThanZeroOp)
+FORTHOP(lLessThan0Op)
 {
     NEEDS(2);
     long long a = LPOP;
     SPUSH( ( a < 0 ) ? -1L : 0 );
 }
 
-FORTHOP(lLessEqualsZeroOp)
+FORTHOP(lLessEquals0Op)
 {
     NEEDS(2);
     long long a = LPOP;
@@ -5121,42 +5121,42 @@ FORTHOP(lessEqualsBop)
     SPUSH( ( a <= b ) ? -1L : 0 );
 }
 
-FORTHOP(equalsZeroBop)
+FORTHOP(equals0Bop)
 {
     NEEDS(1);
     long a = SPOP;
     SPUSH( ( a == 0 ) ? -1L : 0 );
 }
 
-FORTHOP(notEqualsZeroBop)
+FORTHOP(notEquals0Bop)
 {
     NEEDS(1);
     long a = SPOP;
     SPUSH( ( a != 0 ) ? -1L : 0 );
 }
 
-FORTHOP(greaterThanZeroBop)
+FORTHOP(greaterThan0Bop)
 {
     NEEDS(1);
     long a = SPOP;
     SPUSH( ( a > 0 ) ? -1L : 0 );
 }
 
-FORTHOP(greaterEqualsZeroBop)
+FORTHOP(greaterEquals0Bop)
 {
     NEEDS(1);
     long a = SPOP;
     SPUSH( ( a >= 0 ) ? -1L : 0 );
 }
 
-FORTHOP(lessThanZeroBop)
+FORTHOP(lessThan0Bop)
 {
     NEEDS(1);
     long a = SPOP;
     SPUSH( ( a < 0 ) ? -1L : 0 );
 }
 
-FORTHOP(lessEqualsZeroBop)
+FORTHOP(lessEquals0Bop)
 {
     NEEDS(1);
     long a = SPOP;
@@ -5258,42 +5258,42 @@ FORTHOP(fLessEqualsBop)
     SPUSH( ( a <= b ) ? -1L : 0 );
 }
 
-FORTHOP(fEqualsZeroBop)
+FORTHOP(fEquals0Bop)
 {
     NEEDS(1);
     float a = FPOP;
     SPUSH( ( a == 0.0f ) ? -1L : 0 );
 }
 
-FORTHOP(fNotEqualsZeroBop)
+FORTHOP(fNotEquals0Bop)
 {
     NEEDS(1);
     float a = FPOP;
     SPUSH( ( a != 0.0f ) ? -1L : 0 );
 }
 
-FORTHOP(fGreaterThanZeroBop)
+FORTHOP(fGreaterThan0Bop)
 {
     NEEDS(1);
     float a = FPOP;
     SPUSH( ( a > 0.0f ) ? -1L : 0 );
 }
 
-FORTHOP(fGreaterEqualsZeroBop)
+FORTHOP(fGreaterEquals0Bop)
 {
     NEEDS(1);
     float a = FPOP;
     SPUSH( ( a >= 0.0f ) ? -1L : 0 );
 }
 
-FORTHOP(fLessThanZeroBop)
+FORTHOP(fLessThan0Bop)
 {
     NEEDS(1);
     float a = FPOP;
     SPUSH( ( a < 0.0f ) ? -1L : 0 );
 }
 
-FORTHOP(fLessEqualsZeroBop)
+FORTHOP(fLessEquals0Bop)
 {
     NEEDS(1);
     float a = FPOP;
@@ -5378,42 +5378,42 @@ FORTHOP(dLessEqualsBop)
     SPUSH( ( a <= b ) ? -1L : 0 );
 }
 
-FORTHOP(dEqualsZeroBop)
+FORTHOP(dEquals0Bop)
 {
     NEEDS(1);
     double a = DPOP;
     SPUSH( ( a == 0.0 ) ? -1L : 0 );
 }
 
-FORTHOP(dNotEqualsZeroBop)
+FORTHOP(dNotEquals0Bop)
 {
     NEEDS(1);
     double a = DPOP;
     SPUSH( ( a != 0.0 ) ? -1L : 0 );
 }
 
-FORTHOP(dGreaterThanZeroBop)
+FORTHOP(dGreaterThan0Bop)
 {
     NEEDS(1);
     double a = DPOP;
     SPUSH( ( a > 0.0 ) ? -1L : 0 );
 }
 
-FORTHOP(dGreaterEqualsZeroBop)
+FORTHOP(dGreaterEquals0Bop)
 {
     NEEDS(1);
     double a = DPOP;
     SPUSH( ( a >= 0.0 ) ? -1L : 0 );
 }
 
-FORTHOP(dLessThanZeroBop)
+FORTHOP(dLessThan0Bop)
 {
     NEEDS(1);
     double a = DPOP;
     SPUSH( ( a < 0.0 ) ? -1L : 0 );
 }
 
-FORTHOP(dLessEqualsZeroBop)
+FORTHOP(dLessEquals0Bop)
 {
     NEEDS(1);
     double a = DPOP;
@@ -5479,7 +5479,7 @@ FORTHOP(rpBop)
 	intVarAction( pCore, (int *)&(pCore->RP) );
 }
 
-FORTHOP(rzeroBop)
+FORTHOP(r0Bop)
 {
     long pR0 = (long) (pCore->RT);
     SPUSH( pR0 );
@@ -5614,7 +5614,7 @@ FORTHOP(spBop)
 	intVarAction( pCore, (int *)&(pCore->SP) );
 }
 
-FORTHOP(szeroBop)
+FORTHOP(s0Bop)
 {
     long pS0 = (long) (pCore->ST);
     SPUSH( pS0 );
@@ -6477,70 +6477,101 @@ typedef struct {
 #define NATIVE_DEF( func, funcName )  { funcName, kOpNative, (ulong) func }
 #define NATIVE_COMPILED_DEF( func, funcName, index ) { funcName, kOpNative, (ulong) func, index }
 
-extern GFORTHOP( abortBop ); extern GFORTHOP( dropBop ); extern GFORTHOP( doDoesBop );
-extern GFORTHOP( litBop ); extern GFORTHOP( dlitBop ); extern GFORTHOP( doVariableBop );
-extern GFORTHOP( doConstantBop ); extern GFORTHOP( doDConstantBop ); extern GFORTHOP( doneBop );
-extern GFORTHOP( doByteBop ); extern GFORTHOP( doUByteBop ); extern GFORTHOP( doShortBop );
-extern GFORTHOP( doUShortBop ); extern GFORTHOP( doIntBop ); extern GFORTHOP( doLongBop );
-extern GFORTHOP( doFloatBop ); extern GFORTHOP( doDoubleBop ); extern GFORTHOP( doStringBop );
-extern GFORTHOP( doOpBop ); extern GFORTHOP( doObjectBop ); extern GFORTHOP( doExitBop );
-extern GFORTHOP( doExitLBop ); extern GFORTHOP( doExitMBop ); extern GFORTHOP( doExitMLBop );
-extern GFORTHOP( doByteArrayBop ); extern GFORTHOP( doUByteArrayBop ); extern GFORTHOP( doShortArrayBop );
-extern GFORTHOP( doUShortArrayBop );extern GFORTHOP( doIntArrayBop ); extern GFORTHOP( doIntArrayBop );
-extern GFORTHOP( doLongArrayBop ); extern GFORTHOP( doLongArrayBop ); extern GFORTHOP( doFloatArrayBop );
-extern GFORTHOP( doDoubleArrayBop ); extern GFORTHOP( doStringArrayBop ); extern GFORTHOP( doOpArrayBop );
-extern GFORTHOP( doObjectArrayBop ); extern GFORTHOP( initStringBop ); extern GFORTHOP( plusBop );
-extern GFORTHOP( fetchBop ); extern GFORTHOP( doStructBop ); extern GFORTHOP( doStructArrayBop );
-extern GFORTHOP( doDoBop ); extern GFORTHOP( doLoopBop ); extern GFORTHOP( doLoopNBop );
-extern GFORTHOP( dfetchBop ); extern GFORTHOP( vocabToClassBop ); extern GFORTHOP( doCheckDoBop );
-extern GFORTHOP( thisBop ); extern GFORTHOP( thisDataBop ); extern GFORTHOP( thisMethodsBop );
-extern GFORTHOP( executeBop ); extern GFORTHOP( callBop ); extern GFORTHOP( gotoBop );
-extern GFORTHOP( iBop ); extern GFORTHOP( jBop ); extern GFORTHOP( unloopBop ); extern GFORTHOP( leaveBop );
-extern GFORTHOP( hereBop ); extern GFORTHOP( addressOfBop ); extern GFORTHOP( intoBop );
-extern GFORTHOP( addToBop ); extern GFORTHOP( subtractFromBop );extern GFORTHOP( removeEntryBop );
-extern GFORTHOP( entryLengthBop ); extern GFORTHOP( numEntriesBop ); extern GFORTHOP( minusBop );
-extern GFORTHOP( timesBop ); extern GFORTHOP( times2Bop ); extern GFORTHOP( times4Bop );
-extern GFORTHOP( times8Bop ); extern GFORTHOP( divideBop ); extern GFORTHOP( divide2Bop );
-extern GFORTHOP( divide4Bop ); extern GFORTHOP( divide8Bop ); extern GFORTHOP( divmodBop );
-extern GFORTHOP( modBop ); extern GFORTHOP( negateBop ); extern GFORTHOP( fplusBop );
-extern GFORTHOP( fminusBop ); extern GFORTHOP( ftimesBop ); extern GFORTHOP( fdivideBop );
-extern GFORTHOP( fEqualsBop ); extern GFORTHOP( fNotEqualsBop ); extern GFORTHOP( fGreaterThanBop );
-extern GFORTHOP( fGreaterEqualsBop ); extern GFORTHOP( fLessThanBop ); extern GFORTHOP( fLessEqualsBop );
-extern GFORTHOP( fEqualsZeroBop ); extern GFORTHOP( fNotEqualsZeroBop ); extern GFORTHOP( fGreaterThanZeroBop );
-extern GFORTHOP( fGreaterEqualsZeroBop ); extern GFORTHOP( fLessThanZeroBop );
-extern GFORTHOP( fLessEqualsZeroBop ); extern GFORTHOP( fWithinBop ); extern GFORTHOP( fMinBop );
-extern GFORTHOP( fMaxBop ); extern GFORTHOP( dplusBop ); extern GFORTHOP( dminusBop );
-extern GFORTHOP( dtimesBop ); extern GFORTHOP( ddivideBop ); extern GFORTHOP( dEqualsBop );
-extern GFORTHOP( dNotEqualsBop ); extern GFORTHOP( dGreaterThanBop ); extern GFORTHOP( dGreaterEqualsBop ); extern GFORTHOP( dLessThanBop ); extern GFORTHOP( dLessEqualsBop );
-extern GFORTHOP( dEqualsZeroBop ); extern GFORTHOP( dNotEqualsZeroBop ); extern GFORTHOP( dGreaterThanZeroBop ); extern GFORTHOP( dGreaterEqualsZeroBop ); extern GFORTHOP( dLessThanZeroBop ); extern GFORTHOP( dLessEqualsZeroBop );
-extern GFORTHOP( dWithinBop ); extern GFORTHOP( dMinBop ); extern GFORTHOP( dMaxBop ); extern GFORTHOP( dsinBop ); extern GFORTHOP( dasinBop ); extern GFORTHOP( dcosBop );
-extern GFORTHOP( dacosBop ); extern GFORTHOP( dtanBop ); extern GFORTHOP( datanBop ); extern GFORTHOP( datan2Bop ); extern GFORTHOP( dexpBop ); extern GFORTHOP( dlnBop );
-extern GFORTHOP( dlog10Bop ); extern GFORTHOP( dpowBop ); extern GFORTHOP( dsqrtBop ); extern GFORTHOP( dceilBop ); extern GFORTHOP( dfloorBop ); extern GFORTHOP( dabsBop );
-extern GFORTHOP( dldexpBop ); extern GFORTHOP( dfrexpBop ); extern GFORTHOP( dmodfBop ); extern GFORTHOP( dfmodBop ); extern GFORTHOP( i2fBop ); extern GFORTHOP( i2dBop );
-extern GFORTHOP( f2iBop ); extern GFORTHOP( f2dBop ); extern GFORTHOP( d2iBop ); extern GFORTHOP( d2fBop ); extern GFORTHOP( orBop ); extern GFORTHOP( andBop );
-extern GFORTHOP( xorBop ); extern GFORTHOP( invertBop ); extern GFORTHOP( lshiftBop ); extern GFORTHOP( rshiftBop ); extern GFORTHOP( arshiftBop ); extern GFORTHOP( notBop );
-extern GFORTHOP( trueBop ); extern GFORTHOP( falseBop ); extern GFORTHOP( nullBop ); extern GFORTHOP( dnullBop ); extern GFORTHOP( equalsBop ); extern GFORTHOP( notEqualsBop );
-extern GFORTHOP( greaterThanBop ); extern GFORTHOP( greaterEqualsBop ); extern GFORTHOP( lessThanBop ); extern GFORTHOP( lessEqualsBop ); extern GFORTHOP( equalsZeroBop ); extern GFORTHOP( notEqualsZeroBop );
-extern GFORTHOP( greaterThanZeroBop ); extern GFORTHOP( greaterEqualsZeroBop ); extern GFORTHOP( lessThanZeroBop ); extern GFORTHOP( lessEqualsZeroBop ); extern GFORTHOP( unsignedGreaterThanBop ); extern GFORTHOP( unsignedLessThanBop );
-extern GFORTHOP( withinBop ); extern GFORTHOP( minBop ); extern GFORTHOP( maxBop ); extern GFORTHOP( rpushBop ); extern GFORTHOP( rpopBop ); extern GFORTHOP( rpeekBop );
-extern GFORTHOP( rdropBop ); extern GFORTHOP( rpBop ); extern GFORTHOP( rzeroBop ); extern GFORTHOP( dupBop ); extern GFORTHOP( checkDupBop ); extern GFORTHOP( swapBop );
-extern GFORTHOP( overBop ); extern GFORTHOP( rotBop ); extern GFORTHOP( reverseRotBop ); extern GFORTHOP( nipBop ); extern GFORTHOP( tuckBop ); extern GFORTHOP( pickBop );
-extern GFORTHOP( spBop ); extern GFORTHOP( szeroBop ); extern GFORTHOP( fpBop ); extern GFORTHOP( ipBop ); extern GFORTHOP( ddupBop );
-extern GFORTHOP( dswapBop ); extern GFORTHOP( ddropBop ); extern GFORTHOP( doverBop ); extern GFORTHOP( drotBop ); extern GFORTHOP( startTupleBop ); extern GFORTHOP( endTupleBop );
-extern GFORTHOP( storeBop ); extern GFORTHOP( storeNextBop ); extern GFORTHOP( fetchNextBop ); extern GFORTHOP( cstoreBop ); extern GFORTHOP( cfetchBop ); extern GFORTHOP( cstoreNextBop );
-extern GFORTHOP( cfetchNextBop ); extern GFORTHOP( scfetchBop ); extern GFORTHOP( c2iBop ); extern GFORTHOP( wstoreBop ); extern GFORTHOP( wfetchBop ); extern GFORTHOP( wstoreNextBop );
-extern GFORTHOP( wfetchNextBop ); extern GFORTHOP( swfetchBop ); extern GFORTHOP( w2iBop ); extern GFORTHOP( dstoreBop ); extern GFORTHOP( dstoreNextBop ); extern GFORTHOP( dfetchNextBop );
-extern GFORTHOP( memcpyBop ); extern GFORTHOP( memmoveBop ); extern GFORTHOP( memsetBop ); extern GFORTHOP( setVarActionBop ); extern GFORTHOP( getVarActionBop ); extern GFORTHOP( byteVarActionBop ); extern GFORTHOP( ubyteVarActionBop );
-extern GFORTHOP( shortVarActionBop ); extern GFORTHOP( ushortVarActionBop ); extern GFORTHOP( intVarActionBop ); extern GFORTHOP( longVarActionBop ); extern GFORTHOP( floatVarActionBop ); extern GFORTHOP( doubleVarActionBop );
-extern GFORTHOP( stringVarActionBop ); extern GFORTHOP( opVarActionBop ); extern GFORTHOP( objectVarActionBop ); extern GFORTHOP( strcpyBop ); extern GFORTHOP( strncpyBop ); extern GFORTHOP( strlenBop );
-extern GFORTHOP( strcatBop ); extern GFORTHOP( strncatBop ); extern GFORTHOP( strchrBop ); extern GFORTHOP( strrchrBop ); extern GFORTHOP( strcmpBop ); extern GFORTHOP( stricmpBop );
-extern GFORTHOP( strstrBop ); extern GFORTHOP( strtokBop ); extern GFORTHOP( fopenBop ); extern GFORTHOP( fcloseBop ); extern GFORTHOP( fseekBop ); extern GFORTHOP( freadBop );
-extern GFORTHOP( fwriteBop ); extern GFORTHOP( fgetcBop ); extern GFORTHOP( fputcBop ); extern GFORTHOP( feofBop ); extern GFORTHOP( fexistsBop ); extern GFORTHOP( ftellBop );
-extern GFORTHOP( flenBop ); extern GFORTHOP( fgetsBop ); extern GFORTHOP( fputsBop ); extern GFORTHOP( archX86Bop ); extern GFORTHOP( archARMBop ); extern GFORTHOP( oclearBop );
-extern GFORTHOP( fsinBop ); extern GFORTHOP( fasinBop ); extern GFORTHOP( fcosBop );
-extern GFORTHOP( facosBop ); extern GFORTHOP( ftanBop ); extern GFORTHOP( fatanBop ); extern GFORTHOP( fatan2Bop ); extern GFORTHOP( fexpBop ); extern GFORTHOP( flnBop );
-extern GFORTHOP( flog10Bop ); extern GFORTHOP( fpowBop ); extern GFORTHOP( fsqrtBop ); extern GFORTHOP( fceilBop ); extern GFORTHOP( ffloorBop ); extern GFORTHOP( fabsBop );
-extern GFORTHOP( fldexpBop ); extern GFORTHOP( ffrexpBop ); extern GFORTHOP( fmodfBop ); extern GFORTHOP( ffmodBop );
+#define OPREF extern GFORTHOP
+
+OPREF( abortBop );          OPREF( dropBop );           OPREF( doDoesBop );
+OPREF( litBop );            OPREF( dlitBop );           OPREF( doVariableBop );
+OPREF( doConstantBop );     OPREF( doDConstantBop );    OPREF( doneBop );
+OPREF( doByteBop );         OPREF( doUByteBop );        OPREF( doShortBop );
+OPREF( doUShortBop );       OPREF( doIntBop );          OPREF( doLongBop );
+OPREF( doFloatBop );        OPREF( doDoubleBop );       OPREF( doStringBop );
+OPREF( doOpBop );           OPREF( doObjectBop );       OPREF( doExitBop );
+OPREF( doExitLBop );        OPREF( doExitMBop );        OPREF( doExitMLBop );
+OPREF( doByteArrayBop );    OPREF( doUByteArrayBop );   OPREF( doShortArrayBop );
+OPREF( doUShortArrayBop );  OPREF( doIntArrayBop );     OPREF( doIntArrayBop );
+OPREF( doLongArrayBop );    OPREF( doLongArrayBop );    OPREF( doFloatArrayBop );
+OPREF( doDoubleArrayBop );  OPREF( doStringArrayBop );  OPREF( doOpArrayBop );
+OPREF( doObjectArrayBop );  OPREF( initStringBop );     OPREF( plusBop );
+OPREF( fetchBop );          OPREF( doStructBop );       OPREF( doStructArrayBop );
+OPREF( doDoBop );           OPREF( doLoopBop );         OPREF( doLoopNBop );
+OPREF( dfetchBop );         OPREF( vocabToClassBop );   OPREF( doCheckDoBop );
+OPREF( thisBop );           OPREF( thisDataBop );       OPREF( thisMethodsBop );
+OPREF( executeBop );        OPREF( callBop );           OPREF( gotoBop );
+OPREF( iBop );              OPREF( jBop );              OPREF( unloopBop );
+OPREF( leaveBop );          OPREF( hereBop );           OPREF( addressOfBop );
+OPREF( intoBop );           OPREF( addToBop );          OPREF( subtractFromBop );
+OPREF( removeEntryBop );    OPREF( entryLengthBop );    OPREF( numEntriesBop );
+OPREF( minusBop );          OPREF( timesBop );          OPREF( times2Bop );
+OPREF( times4Bop );         OPREF( times8Bop );         OPREF( divideBop );
+OPREF( divide2Bop );        OPREF( divide4Bop );        OPREF( divide8Bop );
+OPREF( divmodBop );         OPREF( modBop );            OPREF( negateBop );
+OPREF( fplusBop );          OPREF( fminusBop );         OPREF( ftimesBop );
+OPREF( fdivideBop );        OPREF( fEqualsBop );        OPREF( fNotEqualsBop );
+OPREF( fGreaterThanBop );   OPREF( fGreaterEqualsBop ); OPREF( fLessThanBop );
+OPREF( fLessEqualsBop );    OPREF( fEquals0Bop );       OPREF( fNotEquals0Bop );
+OPREF( fLessThan0Bop );     OPREF( fGreaterThan0Bop );  OPREF( fGreaterEquals0Bop );
+OPREF( fLessEquals0Bop );   OPREF( fWithinBop );        OPREF( fMinBop );
+OPREF( fMaxBop );           OPREF( dplusBop );          OPREF( dminusBop );
+OPREF( dtimesBop );         OPREF( ddivideBop );        OPREF( dEqualsBop );
+OPREF( dNotEqualsBop );     OPREF( dGreaterThanBop );   OPREF( dGreaterEqualsBop );
+OPREF( dLessThanBop );      OPREF( dLessEqualsBop );    OPREF( dEquals0Bop );
+OPREF( dNotEquals0Bop );    OPREF( dGreaterThan0Bop );  OPREF( dGreaterEquals0Bop );
+OPREF( dLessThan0Bop );     OPREF( dLessEquals0Bop );   OPREF( dWithinBop );
+OPREF( dMinBop );           OPREF( dMaxBop );           OPREF( dsinBop );
+OPREF( dasinBop );          OPREF( dcosBop );           OPREF( dacosBop );
+OPREF( dtanBop );           OPREF( datanBop );          OPREF( datan2Bop );
+OPREF( dexpBop );           OPREF( dlnBop );            OPREF( dlog10Bop );
+OPREF( dpowBop );           OPREF( dsqrtBop );          OPREF( dceilBop );
+OPREF( dfloorBop );         OPREF( dabsBop );           OPREF( dldexpBop );
+OPREF( dfrexpBop );         OPREF( dmodfBop );          OPREF( dfmodBop );
+OPREF( i2fBop );            OPREF( i2dBop );            OPREF( f2iBop );
+OPREF( f2dBop );            OPREF( d2iBop );            OPREF( d2fBop );
+OPREF( orBop );             OPREF( andBop );            OPREF( xorBop );
+OPREF( invertBop );         OPREF( lshiftBop );         OPREF( rshiftBop );
+OPREF( arshiftBop );        OPREF( notBop );            OPREF( trueBop );
+OPREF( falseBop );          OPREF( nullBop );           OPREF( dnullBop );
+OPREF( equalsBop );         OPREF( notEqualsBop );      OPREF( greaterThanBop );
+OPREF( greaterEqualsBop );  OPREF( lessThanBop );       OPREF( lessEqualsBop );
+OPREF( equals0Bop );        OPREF( notEquals0Bop );     OPREF( greaterThan0Bop );
+OPREF( greaterEquals0Bop ); OPREF( lessThan0Bop );      OPREF( lessEquals0Bop );
+OPREF( unsignedGreaterThanBop );                        OPREF( unsignedLessThanBop );
+OPREF( withinBop );         OPREF( minBop );            OPREF( maxBop );
+OPREF( rpushBop );          OPREF( rpopBop );           OPREF( rpeekBop );
+OPREF( rdropBop );          OPREF( rpBop );             OPREF( r0Bop );
+OPREF( dupBop );            OPREF( checkDupBop );       OPREF( swapBop );
+OPREF( overBop );           OPREF( rotBop );            OPREF( reverseRotBop );
+OPREF( nipBop );            OPREF( tuckBop );           OPREF( pickBop );
+OPREF( spBop );             OPREF( s0Bop );             OPREF( fpBop );
+OPREF( ipBop );             OPREF( ddupBop );           OPREF( dswapBop );
+OPREF( ddropBop );          OPREF( doverBop );          OPREF( drotBop );
+OPREF( startTupleBop );     OPREF( endTupleBop );       OPREF( storeBop );
+OPREF( storeNextBop );      OPREF( fetchNextBop );      OPREF( cstoreBop );
+OPREF( cfetchBop );         OPREF( cstoreNextBop );     OPREF( cfetchNextBop );
+OPREF( scfetchBop );        OPREF( c2iBop );            OPREF( wstoreBop );
+OPREF( wfetchBop );         OPREF( wstoreNextBop );     OPREF( wfetchNextBop );
+OPREF( swfetchBop );        OPREF( w2iBop );            OPREF( dstoreBop );
+OPREF( dstoreNextBop );     OPREF( dfetchNextBop );     OPREF( memcpyBop );
+OPREF( memmoveBop );        OPREF( memsetBop );         OPREF( setVarActionBop );
+OPREF( getVarActionBop );   OPREF( byteVarActionBop );  OPREF( ubyteVarActionBop );
+OPREF( shortVarActionBop ); OPREF( ushortVarActionBop ); OPREF( intVarActionBop );
+OPREF( longVarActionBop );  OPREF( floatVarActionBop ); OPREF( doubleVarActionBop );
+OPREF( stringVarActionBop ); OPREF( opVarActionBop );   OPREF( objectVarActionBop );
+OPREF( strcpyBop );         OPREF( strncpyBop );        OPREF( strlenBop );
+OPREF( strcatBop );         OPREF( strncatBop );        OPREF( strchrBop );
+OPREF( strrchrBop );        OPREF( strcmpBop );         OPREF( stricmpBop );
+OPREF( strstrBop );         OPREF( strtokBop );         OPREF( fopenBop );
+OPREF( fcloseBop );         OPREF( fseekBop );          OPREF( freadBop );
+OPREF( fwriteBop );         OPREF( fgetcBop );          OPREF( fputcBop );
+OPREF( feofBop );           OPREF( fexistsBop );        OPREF( ftellBop );
+OPREF( flenBop );           OPREF( fgetsBop );          OPREF( fputsBop );
+OPREF( archX86Bop );        OPREF( archARMBop );        OPREF( oclearBop );
+OPREF( fsinBop );           OPREF( fasinBop );          OPREF( fcosBop );
+OPREF( facosBop );          OPREF( ftanBop );           OPREF( fatanBop );
+OPREF( fatan2Bop );         OPREF( fexpBop );           OPREF( flnBop );
+OPREF( flog10Bop );         OPREF( fpowBop );           OPREF( fsqrtBop );
+OPREF( fceilBop );          OPREF( ffloorBop );         OPREF( fabsBop );
+OPREF( fldexpBop );         OPREF( ffrexpBop );         OPREF( fmodfBop );
+OPREF( ffmodBop );
 #else
 
 // helper macro for built-in op entries in baseDictionary
@@ -6677,21 +6708,21 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  single-precision fp comparisons
     ///////////////////////////////////////////
-    NATIVE_DEF(    fEqualsBop,               "f=" ),
-    NATIVE_DEF(    fNotEqualsBop,            "f<>" ),
-    NATIVE_DEF(    fGreaterThanBop,          "f>" ),
-    NATIVE_DEF(    fGreaterEqualsBop,        "f>=" ),
-    NATIVE_DEF(    fLessThanBop,             "f<" ),
-    NATIVE_DEF(    fLessEqualsBop,           "f<=" ),
-    NATIVE_DEF(    fEqualsZeroBop,           "f0=" ),
-    NATIVE_DEF(    fNotEqualsZeroBop,        "f0<>" ),
-    NATIVE_DEF(    fGreaterThanZeroBop,      "f0>" ),
-    NATIVE_DEF(    fGreaterEqualsZeroBop,    "f0>=" ),
-    NATIVE_DEF(    fLessThanZeroBop,         "f0<" ),
-    NATIVE_DEF(    fLessEqualsZeroBop,       "f0<=" ),
-    NATIVE_DEF(    fWithinBop,               "fwithin" ),
-    NATIVE_DEF(    fMinBop,                  "fmin" ),
-    NATIVE_DEF(    fMaxBop,                  "fmax" ),
+    NATIVE_DEF(    fEqualsBop,              "f=" ),
+    NATIVE_DEF(    fNotEqualsBop,           "f<>" ),
+    NATIVE_DEF(    fGreaterThanBop,         "f>" ),
+    NATIVE_DEF(    fGreaterEqualsBop,       "f>=" ),
+    NATIVE_DEF(    fLessThanBop,            "f<" ),
+    NATIVE_DEF(    fLessEqualsBop,          "f<=" ),
+    NATIVE_DEF(    fEquals0Bop,             "f0=" ),
+    NATIVE_DEF(    fNotEquals0Bop,          "f0<>" ),
+    NATIVE_DEF(    fGreaterThan0Bop,        "f0>" ),
+    NATIVE_DEF(    fGreaterEquals0Bop,      "f0>=" ),
+    NATIVE_DEF(    fLessThan0Bop,           "f0<" ),
+    NATIVE_DEF(    fLessEquals0Bop,         "f0<=" ),
+    NATIVE_DEF(    fWithinBop,              "fwithin" ),
+    NATIVE_DEF(    fMinBop,                 "fmin" ),
+    NATIVE_DEF(    fMaxBop,                 "fmax" ),
 
     ///////////////////////////////////////////
     //  double-precision fp math
@@ -6705,21 +6736,21 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  double-precision fp comparisons
     ///////////////////////////////////////////
-    NATIVE_DEF(    dEqualsBop,               "d=" ),
-    NATIVE_DEF(    dNotEqualsBop,            "d<>" ),
-    NATIVE_DEF(    dGreaterThanBop,          "d>" ),
-    NATIVE_DEF(    dGreaterEqualsBop,        "d>=" ),
-    NATIVE_DEF(    dLessThanBop,             "d<" ),
-    NATIVE_DEF(    dLessEqualsBop,           "d<=" ),
-    NATIVE_DEF(    dEqualsZeroBop,           "d0=" ),
-    NATIVE_DEF(    dNotEqualsZeroBop,        "d0<>" ),
-    NATIVE_DEF(    dGreaterThanZeroBop,      "d0>" ),
-    NATIVE_DEF(    dGreaterEqualsZeroBop,    "d0>=" ),
-    NATIVE_DEF(    dLessThanZeroBop,         "d0<" ),
-    NATIVE_DEF(    dLessEqualsZeroBop,       "d0<=" ),
-    NATIVE_DEF(    dWithinBop,               "dwithin" ),
-    NATIVE_DEF(    dMinBop,                  "dmin" ),
-    NATIVE_DEF(    dMaxBop,                  "dmax" ),
+    NATIVE_DEF(    dEqualsBop,              "d=" ),
+    NATIVE_DEF(    dNotEqualsBop,           "d<>" ),
+    NATIVE_DEF(    dGreaterThanBop,         "d>" ),
+    NATIVE_DEF(    dGreaterEqualsBop,       "d>=" ),
+    NATIVE_DEF(    dLessThanBop,            "d<" ),
+    NATIVE_DEF(    dLessEqualsBop,          "d<=" ),
+    NATIVE_DEF(    dEquals0Bop,             "d0=" ),
+    NATIVE_DEF(    dNotEquals0Bop,          "d0<>" ),
+    NATIVE_DEF(    dGreaterThan0Bop,        "d0>" ),
+    NATIVE_DEF(    dGreaterEquals0Bop,      "d0>=" ),
+    NATIVE_DEF(    dLessThan0Bop,           "d0<" ),
+    NATIVE_DEF(    dLessEquals0Bop,         "d0<=" ),
+    NATIVE_DEF(    dWithinBop,              "dwithin" ),
+    NATIVE_DEF(    dMinBop,                 "dmin" ),
+    NATIVE_DEF(    dMaxBop,                 "dmax" ),
 
     ///////////////////////////////////////////
     //  double-precision fp functions
@@ -6806,14 +6837,13 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    greaterThanBop,          ">" ),
     NATIVE_DEF(    greaterEqualsBop,        ">=" ),
     NATIVE_DEF(    lessThanBop,             "<" ),
-
 	NATIVE_DEF(    lessEqualsBop,           "<=" ),
-    NATIVE_DEF(    equalsZeroBop,           "0=" ),
-    NATIVE_DEF(    notEqualsZeroBop,        "0<>" ),
-    NATIVE_DEF(    greaterThanZeroBop,      "0>" ),
-    NATIVE_DEF(    greaterEqualsZeroBop,    "0>=" ),
-    NATIVE_DEF(    lessThanZeroBop,         "0<" ),
-    NATIVE_DEF(    lessEqualsZeroBop,       "0<=" ),
+    NATIVE_DEF(    equals0Bop,              "0=" ),
+    NATIVE_DEF(    notEquals0Bop,           "0<>" ),
+    NATIVE_DEF(    greaterThan0Bop,         "0>" ),
+    NATIVE_DEF(    greaterEquals0Bop,       "0>=" ),
+    NATIVE_DEF(    lessThan0Bop,            "0<" ),
+    NATIVE_DEF(    lessEquals0Bop,          "0<=" ),
     NATIVE_DEF(    unsignedGreaterThanBop,  "u>" ),
     NATIVE_DEF(    unsignedLessThanBop,     "u<" ),
     NATIVE_DEF(    withinBop,               "within" ),
@@ -6828,7 +6858,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    rpeekBop,                "r@" ),
     NATIVE_DEF(    rdropBop,                "rdrop" ),
     NATIVE_DEF(    rpBop,                   "rp" ),
-    NATIVE_DEF(    rzeroBop,                "r0" ),
+    NATIVE_DEF(    r0Bop,                   "r0" ),
     NATIVE_DEF(    dupBop,                  "dup" ),
     NATIVE_DEF(    checkDupBop,             "?dup" ),
     NATIVE_DEF(    swapBop,                 "swap" ),
@@ -6840,7 +6870,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    tuckBop,                 "tuck" ),
     NATIVE_DEF(    pickBop,                 "pick" ),
     NATIVE_DEF(    spBop,                   "sp" ),
-    NATIVE_DEF(    szeroBop,                "s0" ),
+    NATIVE_DEF(    s0Bop,                   "s0" ),
     NATIVE_DEF(    fpBop,                   "fp" ),
     NATIVE_DEF(    ipBop,                   "ip" ),
     NATIVE_DEF(    ddupBop,                 "2dup" ),
@@ -6971,12 +7001,12 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    lGreaterEqualsOp,        "l>=" ),
     OP_DEF(    lLessThanOp,             "l<" ),
     OP_DEF(    lLessEqualsOp,           "l<=" ),
-    OP_DEF(    lEqualsZeroOp,           "l0=" ),
-    OP_DEF(    lNotEqualsZeroOp,        "l0<>" ),
-    OP_DEF(    lGreaterThanZeroOp,      "l0>" ),
-    OP_DEF(    lGreaterEqualsZeroOp,    "l0>=" ),
-    OP_DEF(    lLessThanZeroOp,         "l0<" ),
-    OP_DEF(    lLessEqualsZeroOp,       "l0<=" ),
+    OP_DEF(    lEquals0Op,              "l0=" ),
+    OP_DEF(    lNotEquals0Op,           "l0<>" ),
+    OP_DEF(    lGreaterThan0Op,         "l0>" ),
+    OP_DEF(    lGreaterEquals0Op,       "l0>=" ),
+    OP_DEF(    lLessThan0Op,            "l0<" ),
+    OP_DEF(    lLessEquals0Op,          "l0<=" ),
     OP_DEF(    lWithinOp,               "lwithin" ),
     OP_DEF(    lMinOp,                  "lmin" ),
     OP_DEF(    lMaxOp,                  "lmax" ),
