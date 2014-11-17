@@ -17,8 +17,8 @@ also assembler
 //
 
 code _inlineAsm
-  ecx eax mov,
-  eax ] ecx mov,
+  esi eax mov,
+  eax ] esi mov,
   4 # eax add,
   eax jmp,
 endcode

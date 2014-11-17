@@ -809,8 +809,8 @@ previous definitions
 // inline assembly support
 
 code _inlineAsm
-  ecx eax mov,
-  eax ] ecx mov,
+  esi eax mov,
+  eax ] esi mov,
   4 # eax add,
   eax jmp,
 endcode
@@ -819,7 +819,7 @@ int _asmPatch
 
 : asm[
   "_inlineAsm @ " %s here %x %nl
-  lit _inlineAsm ,
+  compile _inlineAsm
   here -> _asmPatch
   0 ,
   also assembler
@@ -868,19 +868,19 @@ enum: eForthCore
   0x70 _signedPrintMode
 ;enum
 
-// pop ecx off rstack using eax
+// pop IP off rstack using eax
 : rpop,
   _RP ebp d] eax mov,
-  eax ] ecx mov,
+  eax ] esi mov,
   4 # eax add,
   eax _RP ebp d] mov,
 ;
 
-// push ecx onto rstack using eax
+// push IP onto rstack using eax
 : rpush,
   _RP ebp d] eax mov,
   4 # eax sub,
-  ecx eax ] mov,
+  esi eax ] mov,
   eax _RP ebp d] mov,
 ;
 

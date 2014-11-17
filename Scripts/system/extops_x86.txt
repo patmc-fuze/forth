@@ -10,8 +10,8 @@ requires forth_internals
 : extops ;
 
 code _doDoesCode
-  // RTOS is data ptr, RTOS+1 is IP, ecx points to asm code for does action
-  ecx esi mov,				// esi is does action code
+  // RTOS is data ptr, RTOS+1 is IP, esi points to asm code for does action
+  esi ecx mov,				// ecx is does action code
   _RP ebp d] ebx mov,
   ebx ] eax mov,			// eax is data ptr
   4 ebx d] ecx mov,
@@ -78,7 +78,7 @@ code 1-!
   next,
   
 code roll
-  ecx push,
+  esi push,
   edx ] ecx mov,
   4 # edx add,
   ecx ecx or,
@@ -104,7 +104,7 @@ code roll
       esi eax ] mov,
     endif,
   endif,
-  ecx pop,
+  esi pop,
   next,
   
 code 2dup
@@ -136,7 +136,6 @@ code ndrop
   next,
   
 code ndup
-  ecx push,
   edx ] ecx mov,
   edx ecx *4 i] ebx lea,
   4 # edx add,
@@ -149,7 +148,6 @@ code ndup
       4 # ebx sub,
     loop,
   endif,
-  ecx pop,
   next,
   
 code 2over
@@ -225,7 +223,7 @@ code 2pick
   next,
   
 code 2roll
-  ecx push,
+  esi push,
   edi push,
   edx ] ecx mov,
   4 # edx add,
@@ -261,11 +259,10 @@ code 2roll
     endif,
   endif,
   edi pop,
-  ecx pop,
+  esi pop,
   next,
   
 code dd
-  ecx push,
   edx ] ecx mov,
   4 # edx add,
   ecx ecx or,
@@ -281,7 +278,6 @@ code dd
       1 # ecx sub,
     repeat,
   endif,
-  ecx pop,
   next,
   
 code l+
@@ -334,7 +330,7 @@ code labs
 
 code l*
   edi push,
-  ecx push,
+  esi push,
   // edx always holds hi 32 bits of mul result
   edx ebx mov,			// so we will use ebx for the forth stack ptr
   
@@ -404,7 +400,7 @@ code l*
   
   8 # ebx add,
   ebx edx mov,
-  ecx pop,
+  esi pop,
   edi pop,
   next,
 
@@ -429,7 +425,7 @@ code tailRecurse
   _RP ebp d] eax mov,
   eax ] ebx mov,
   4 # ebx sub,
-  ebx ecx mov,
+  ebx esi mov,
   4 # eax add,
   eax _RP ebp d] mov,
   next,
@@ -490,10 +486,8 @@ code m*
 code */
   edx ebx mov,
   4 ebx d] eax mov,
-  ecx push,
   8 ebx d] ecx mov,
   ecx eax imul,      // result hiword in edx, loword in eax
-  ecx pop,
   ebx ] idiv,
   8 # ebx add,
   eax ebx ] mov,
@@ -503,10 +497,8 @@ code */
 code */mod
   edx ebx mov,
   4 ebx d] eax mov,
-  ecx push,
   8 ebx d] ecx mov,
   ecx eax imul,      // result hiword in edx, loword in eax
-  ecx pop,
   ebx ] idiv,
   4 # ebx add,
   eax ebx ] mov,
@@ -518,7 +510,6 @@ code um/mod
   // edx: 32-bit unsigned denominator
   // edx+4: 64-bit unsigned numerator
   edx ebx mov,
-  ecx push,
   ebx ] ecx mov,      // denominator
   4 ebx d] eax mov,   // numerator low part
   8 ebx d] edx mov,   // numerator high part
@@ -527,7 +518,6 @@ code um/mod
   edx 4 ebx d] mov,
   eax ebx ] mov,
   ebx edx mov,
-  ecx pop,
   next,
 	
 code sm/rem
@@ -659,7 +649,7 @@ code l/
   endif,
   
   edi push,
-  ecx push,
+  esi push,
   ebx push,			// sign flag is top of regular stack
   
   // N  edx[12]  edx[8]
@@ -714,7 +704,7 @@ code l/
   
   8 # ebx add,
   ebx edx mov,
-  ecx pop,
+  esi pop,
   edi pop,
   next,
   
