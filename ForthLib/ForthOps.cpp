@@ -917,6 +917,8 @@ FORTHOP( createOp )
     // get next symbol, add it to vocabulary with type "user op"
     long* pEntry = pEngine->StartOpDefinition( NULL, false );
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
+    // remember current DP (for does)
+    gpSavedDP = GET_DP;
     pEngine->CompileBuiltinOpcode( OP_DO_VAR );
 }
 

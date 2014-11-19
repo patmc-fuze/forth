@@ -180,6 +180,10 @@ I need to make:
    
 I'm going to put off the 64-bit order changes for now, I'm getting the tests
 to work by doing an order switch in the test.
++ modified control flow words to be more flexible
+
+I changed the assembler inner interpreter to use ESI for the instruction pointer
+instead of ECX.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 15 2014
 
