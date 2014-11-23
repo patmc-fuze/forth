@@ -165,8 +165,9 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define DPOP                            *((double *)(pCore->SP)); pCore->SP += 2
 #define DPUSH( A )                      pCore->SP -= 2; *((double *)(pCore->SP)) = A
 
-#define LPOP                            *((long long *)(pCore->SP)); pCore->SP += 2
-#define LPUSH( A )                      pCore->SP -= 2; *((long long *)(pCore->SP)) = A
+// LPOP takes a stackInt64
+#define LPOP( _SI64 )                   _SI64.s32[1] = *(pCore->SP); _SI64.s32[0] = (pCore->SP)[1]; pCore->SP += 2
+#define LPUSH( _SI64 )                  pCore->SP -= 2; pCore->SP[1] = _SI64.s32[0]; pCore->SP[0] = _SI64.s32[1]
 
 #define RPOP                            (*pCore->RP++)
 #define RPUSH( A )                      (*--pCore->RP = (A))

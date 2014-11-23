@@ -843,6 +843,12 @@ ForthStructVocabulary::IsStruct()
 	return true;
 }
 
+const char *
+ForthStructVocabulary::GetTypeName( void )
+{
+    return "structVocabulary";
+}
+
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -955,7 +961,7 @@ ForthClassVocabulary::DefineInstance( void )
         long newGlobalOp = mpEngine->AddUserOp( pToken );
 
 		// create object which will release object referenced by this global when it is forgotten
-		new ForthForgettableGlobalObject( mpEngine->GetDP(), newGlobalOp, isArray ? numElements : 1 );
+		new ForthForgettableGlobalObject( pToken, mpEngine->GetDP(), newGlobalOp, isArray ? numElements : 1 );
 
         pEntry = mpEngine->GetDefinitionVocabulary()->GetNewestEntry();
         if ( isArray )
@@ -1285,6 +1291,12 @@ ForthClassVocabulary*
 ForthClassVocabulary::ParentClass( void )
 {
 	return mpSearchNext->IsClass() ? (ForthClassVocabulary *) mpSearchNext : NULL;
+}
+
+const char *
+ForthClassVocabulary::GetTypeName( void )
+{
+    return "classVocabulary";
 }
 
 // TBD: implement FindSymbol which iterates over all interfaces

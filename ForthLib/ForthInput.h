@@ -22,6 +22,7 @@ public:
     virtual char    *GetLine( const char *pPrompt ) = 0;
     virtual char    *GetBufferPointer( void );
     virtual char    *GetBufferBasePointer( void );
+    virtual const char    *GetReportedBufferBasePointer( void );
     virtual int     *GetReadOffsetPointer( void );
     virtual int     GetReadOffset( void );
     virtual void    SetReadOffset( int offset );
@@ -83,7 +84,9 @@ public:
     virtual char    *GetLine( const char *pPrompt );
     virtual bool    IsInteractive( void ) { return mIsInteractive; };
 	virtual const char* GetType( void );
+    virtual const char* GetReportedBufferBasePointer( void );
 protected:
+    const char      *mpSourceBuffer;
     char			*mpDataBuffer;
     char			*mpDataBufferBase;
     char			*mpDataBufferLimit;

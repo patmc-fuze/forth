@@ -4553,11 +4553,13 @@ namespace
         oLongArray& a = *(pArray->elements);
         ulong newSize = SPOP;
         a.resize( newSize );
+        stackInt64 a64;
 		if ( newSize > 0 )
 		{
 			for ( int i = newSize - 1; i >= 0; i-- )
 			{
-				a[i] = LPOP;
+                LPOP( a64 );
+				a[i] = a64.s64;
 			}
 		}
         METHOD_RETURN;
@@ -4594,7 +4596,9 @@ namespace
         ulong ix = (ulong) SPOP;
         if ( a.size() > ix )
         {
-	        LPUSH( a[ix] );
+            stackInt64 a64;
+            a64.s64 = a[ix];
+	        LPUSH( a64 );
         }
         else
         {
@@ -4609,9 +4613,11 @@ namespace
 		GET_THIS( oLongArrayStruct, pArray );
         oLongArray& a = *(pArray->elements);
         ulong ix = (ulong) SPOP;
+        stackInt64 a64;
         if ( a.size() > ix )
         {
-            a[ix] = LPOP;
+            LPOP( a64 );
+			a[ix] = a64.s64;
         }
         else
         {
@@ -4625,7 +4631,9 @@ namespace
     {
 		GET_THIS( oLongArrayStruct, pArray );
         long retVal = -1;
-        long long val = LPOP;
+        stackInt64 a64;
+        LPOP( a64 );
+        long long val = a64.s64;
         oLongArray& a = *(pArray->elements);
         for ( ulong i = 0; i < a.size(); i++ )
         {
@@ -4643,8 +4651,9 @@ namespace
     {
 		GET_THIS( oLongArrayStruct, pArray );
         oLongArray& a = *(pArray->elements);
-        long long val = LPOP;
-        a.push_back( val );
+        stackInt64 a64;
+        LPOP( a64 );
+        a.push_back( a64.s64 );
         METHOD_RETURN;
     }
 
@@ -4654,9 +4663,10 @@ namespace
         oLongArray& a = *(pArray->elements);
         if ( a.size() > 0 )
         {
-			long long val = a.back();
+            stackInt64 a64;
+			a64.s64 = a.back();
 			a.pop_back();
-			LPUSH( val );
+			LPUSH( a64 );
         }
         else
         {
@@ -4700,7 +4710,9 @@ namespace
     {
 		GET_THIS( oLongArrayStruct, pArray );
         long retVal = -1;
-		long long soughtLong = LPOP;
+        stackInt64 a64;
+        LPOP( a64 );
+		long long soughtLong = a64.s64;
         oLongArray::iterator iter;
         oLongArray& a = *(pArray->elements);
         for ( unsigned int i = 0; i < a.size(); i++ )
@@ -4848,7 +4860,8 @@ namespace
 		}
 		else
 		{
-			long long val = a[ pIter->cursor ];
+            stackInt64 val;
+			val.s64 = a[ pIter->cursor ];
 			LPUSH( val );
 			pIter->cursor++;
 		    SPUSH( ~0 );
@@ -4868,7 +4881,8 @@ namespace
 		else
 		{
 			pIter->cursor--;
-			long long val = a[ pIter->cursor ];
+            stackInt64 val;
+			val.s64 = a[ pIter->cursor ];
 			LPUSH( val );
 		    SPUSH( ~0 );
 		}
@@ -4886,7 +4900,8 @@ namespace
 		}
 		else
 		{
-			long long val = a[ pIter->cursor ];
+            stackInt64 val;
+			val.s64 = a[ pIter->cursor ];
 			LPUSH( val );
 		    SPUSH( ~0 );
 		}
@@ -4909,7 +4924,9 @@ namespace
     {
         GET_THIS( oLongArrayIterStruct, pIter );
         long retVal = 0;
-		long long soughtLong = LPOP;
+        stackInt64 a64;
+        LPOP( a64 );
+		long long soughtLong = a64.s64;
 		oLongArrayStruct* pArray = reinterpret_cast<oLongArrayStruct *>( pIter->parent.pData );
         oLongArray& a = *(pArray->elements);
 		unsigned int i = pIter->cursor;
@@ -5059,14 +5076,18 @@ namespace
     FORTHOP( oLongGetMethod )
     {
         GET_THIS( oLongStruct, pLong );
-		LPUSH( pLong->val );
+        stackInt64 val;
+        val.s64 = pLong->val;
+        LPUSH( val );
         METHOD_RETURN;
     }
 
     FORTHOP( oLongSetMethod )
     {
         GET_THIS( oLongStruct, pLong );
-		pLong->val = LPOP;
+        stackInt64 a64;
+        LPOP( a64 );
+		pLong->val = a64.s64;
         METHOD_RETURN;
     }
 
@@ -6164,14 +6185,30 @@ void ForthConsoleStringOut( ForthCoreState* pCore, const char* pBuffer )
 ///     ForthForgettableGlobalObject - handles forgetting of global forth objects
 //
 // 
-ForthForgettableGlobalObject::ForthForgettableGlobalObject( void* pOpAddress, long op, int numElements )
+ForthForgettableGlobalObject::ForthForgettableGlobalObject( const char* pName, void* pOpAddress, long op, int numElements )
 : ForthForgettable( pOpAddress, op )
 ,	mNumElements( numElements )
 {
+    int nameLen = strlen( pName );
+    mpName = new char[nameLen + 1];
+    strcpy( mpName, pName );
 }
 
 ForthForgettableGlobalObject::~ForthForgettableGlobalObject()
 {
+    delete [] mpName;
+}
+
+const char *
+ForthForgettableGlobalObject::GetName( void )
+{
+    return mpName;
+}
+
+const char *
+ForthForgettableGlobalObject::GetTypeName( void )
+{
+    return "globalObject";
 }
 
 void ForthForgettableGlobalObject::ForgetCleanup( void* pForgetLimit, long op )
@@ -6187,6 +6224,18 @@ void ForthForgettableGlobalObject::ForgetCleanup( void* pForgetLimit, long op )
 		pObject->pMethodOps = NULL;
 		pObject++;
 	}
+}
+
+const char *
+ForthTypesManager::GetName( void )
+{
+    return GetTypeName();
+}
+
+const char *
+ForthTypesManager::GetTypeName( void )
+{
+    return "typesManager";
 }
 
 void

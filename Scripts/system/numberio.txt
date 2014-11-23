@@ -7,13 +7,14 @@ autoforget numberio
 
 base @ decimal
 
-variable pad 84 allot
+250 constant padSize
+variable pad padSize allot
 
-variable holdbuf 84 allot
+variable holdbuf padSize allot				// permanent base of hold buffer
 align
-holdbuf 83+ -> int holdbuf-end
-int holdptr
-int holdend
+holdbuf padSize 1- + -> int holdbuf-end		// permanent end of hold buffer
+int holdptr									// current pos in hold buffer (grows downward)
+int holdend									// current nested end of hold buffer
 
 // hold <# #> sign # #s                                 25jan92py
 
@@ -23,6 +24,8 @@ int holdend
   if( holdptr holdbuf u< )
     drop
     1 ->+ holdptr
+    holdptr
+    "hold:{" %s holdbuf padSize type "}\n" %s
     error( "numeric output overflow in hold" )
   else
     holdptr c!
@@ -38,7 +41,9 @@ int holdend
 
 // start a nested numeric output
 : <<#
+  // stuff length of previous nested numeric output at bottom of hold
   holdend holdptr - hold
+  // holdend now points to stuffed length byte
   holdptr -> holdend
 ;
 
@@ -47,7 +52,7 @@ int holdend
   if( holdend holdbuf-end u< not )
     error( "bounds error in #>>" )
   else
-    holdend dup strlen + holdend -> holdptr -> holdend
+    holdend count bounds -> holdptr -> holdend
   endif
 ;
 
@@ -77,7 +82,8 @@ int holdend
 
 // ( D WIDTH -- )   display signed long number D in a filed WIDTH characters wide
 : d.r
-  >r dup -rot labs  <<# #s  rot sign #>
+  >r dup -rot labs    // ps: abs(long) sign    rs: minFieldWidth
+  <<# #s  rot sign #>
   r> over - spaces  type #>>
 ;
     
@@ -106,6 +112,6 @@ int holdend
     
 
 // display unsigned single number in free format followed by space
-: u. 0 swap ud. ;
+: u. 0 ud. ;
 
 base !

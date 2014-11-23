@@ -164,16 +164,112 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 22 2014
+
+I've got all the ANSI test problems fixed.
+Fixing the 'source' test required me to jump into the ForthBufferInputStream
+code, and it is a little messed up.  It sets the buffer size to 4k, plus it
+allocates another buffer that is as big as its input buffer and copies the
+entire input buffer there.  The code could have gotten this messy because it
+is used both for 'evaluate' which uses a single line of input just once,
+and ForthGuiDialog, which has a mutli-line buffer that it keeps reusing.
+
+I started working on making saved images, but ran out of steam.  Loading up
+a fairly full kernel is instantaneous in release, it does take a while in debug,
+mainly because of all the debug spew.
+
+Before I started using the ansi compliance test, I had first ported a robots
+game (robots.fth) and a newer version of the chess program (FCP.F).  The ported
+version of robots was working fine, I kept running into more and more problems
+porting FCP, which is what convinced me to try to get closer to ansi.
+After getting ansitest working, I tried the ported version of robots again,
+and it was now crashing.  The main problem was a bug in the original code,
+in a few places it was using int store/fetch on a byte array, so it was clobbering
+code just after the array.  It didn't fail before because I had 'allot' allocate
+longs instead of bytes, when I fixed that the bug showed up.
+
+My goal is to get ansi sources to work with little or no changes.  I've setup
+a new 'external' directory for ansi sources.  The minimally modified robots.fth
+still fails when you try to make your first move, it looks like it is executing
+an abort opcode.
+-> my '?csp' compatability word had an unterminated 'if'
+A lot of debugging could have been prevented by either:
+1) having ';' detect a non-empty shell stack
+2) having the abort opcode have a parameter indicating 'bad-if' (combo op?)
+
+fcp.f runs with no changes, but it crashes after a dozen or so moves, it looks
+like an array of ops is getting written over by part of a string.
+YOW! The bug was triggered by the source line:
+  ' sortKiller2 , ' sortKiller3 , ' sortKiller4 , ' sort , ' sortNoop ,
+The real cause of the bug was the multi-character constant code, which allows
+character constants surrounded by single quotes of up to 8 characters, usually
+they are just 1 character in length.  The tick sort near the end of the line
+was being turned in a characer constant { sort , }, then sortNoop was being
+executed instead of compiled, and finally comma was executed, which put the
+first 4 chars of the constant { sor} in the dictionary.
+The fix was to change the single quote handling code to reject the symbol
+if it contains a whitespace or tab, unless it is preceeded by a backslash.
+This bug could still be triggered if the user defines words like "'foo\".
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 20 2014
+
+I've got the 64-bit integer changes for ANSI compliance in, and ansitest works
+aside from the following problems:
+1) a test of 'source' which seems to require that 's"' which pushes a text
+   block and the result of evaluating s" source" return the exact same address
+   and length
+2) a test which prints 0...9 separated by a space is actually separated by two spaces 
+3) a test of 'accept' which looks like it has an extra linefeed at the end
+
+I'm not feeling good about the 64-bit integer changes - they require making
+some changes that will make 64-bit float code much more messy and not screwing
+up any code which tries to access a long long in memory directly.  I am not
+willing to change 64-bit float code to embrace this madness.  The first thing
+I should do is categorize all the situations where 64-bit values occur:
+
+o on pstack/rstack
+o as local vars
+o as member vars
+o as struct members
+o as params to DLL calls
+o as literals inlined in code
+
+I need to find a simple way to make these work for ANSI compliance.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 19 2014
+
+I've started making the changes to make 64-bit integers ANSI compliant.  The
+changes aren't that hard, but I don't know how 64-bit floats should relate to
+this, having them represented reversed on the stack would make using 64-bit
+ops like dlit, 2@!++, and 2@@++ less error prone.
+
+CREATE GN-BUF 0 C,
+: GN-STRING	GN-BUF 1 ;
+: GN-CONSUMED	GN-BUF CHAR+ 0 ;
+: GN'		[CHAR] ' WORD CHAR+ C@ GN-BUF C!  GN-STRING ;
+
+{ 1 0 GN' 1' >NUMBER -> BASE @ 1+ 0 GN-CONSUMED }
+
+just before >NUMBER:
+o GN-BUF has '1' in first pos
+o stack 9s: 1 0 GN-BUF 1
+
+after >NUMBER:
+o stack is: 1 0 GN-BUF+1 0
+o stack should be : 11 0 GN-BUF+1 0
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 16 2014
 
-John Hayes ANS compatability test has pointed out 2 somewhat major changes
+John Hayes ANSI compatability test has pointed out 2 somewhat major changes
 I need to make:
 
-1) ANS forth specifies the stack word order for 64-bit numbers to be the
+1) ANSI forth specifies the stack word order for 64-bit numbers to be the
    opposite of what I've done, which is the 'natural' order - natural in the
    sense that it is what the C++ compiler generates and C calls expect, that
    is that the lower order word is at a lower address.
-2) ANS forth allows control flow words to be mixed and matched, I need to
+2) ANSI forth allows control flow words to be mixed and matched, I need to
    remove some of the error checking to allow this, I need to replace the
    existing tags like 'begin' and 'if' with more generic ones like 'looptop'
    and 'forward branch'.
@@ -187,7 +283,7 @@ instead of ECX.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 15 2014
 
-I've made a lot of changes trying to get closer to ANS forth compatability,
+I've made a lot of changes trying to get closer to ANSI forth compatability,
 using the fcp.f chess program to expose incompatabilities.  Notable changes:
 
 o better support for case insensitive symbol search
@@ -486,7 +582,7 @@ the end was that 'next,' was compiling a relative branch, not a register
 branch, the opcode in David's original code was not even close to the right
 value.  I don't know if the 'bx,' opcode will work for more than a simple
 register argument, but that is okay for now.
-A lingering non-compatability with ANS-forth was revealed in the assembler
+A lingering non-compatability with ANSI-forth was revealed in the assembler
 port - it used CREATE...DOES> instead of build...does like my version, I had
 problems when I left it as create...does, I think my 'create' just makes a
 variable without allocated storage, and 'does' doesn't turn it into a real

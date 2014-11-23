@@ -23,6 +23,15 @@ public:
         return mpNext;
     };
 
+    // type of forgettable, like 'vocabulary' or 'globalObject'
+    virtual const char* GetTypeName();
+    virtual const char* GetName();
+
+    virtual void AfterStart();
+    virtual int Save( FILE* pOutFile );
+    // return false
+    virtual boolean Restore( const char* pBuffer, unsigned int numBytes );
+
 protected:
     virtual void    ForgetCleanup( void *pForgetLimit, long op ) = 0;
 

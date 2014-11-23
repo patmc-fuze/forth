@@ -1,6 +1,6 @@
 setTrace( 0 )
 
-autoforget forth_autoload
+"forth_autoload" $forget drop
 : forth_autoload "This is the forth_autoload.txt tools module" %s ;
 
 0x7FFFFFFF -> int MAXINT
@@ -9,6 +9,15 @@ autoforget forth_autoload
 : ' blword $' ;
 : load blword $load ;
 : precedence blword $precedence ;
+: forget
+  blword dup $forget
+  if( not( $forget ) )
+    "forget failed for " %s %s %nl
+  else
+    drop
+  endif
+;
+: autoforget blword $forget drop ;
 
 : ds dstack ;
 
@@ -378,7 +387,7 @@ int dumpWidth
     dumpWidth 1+ columns - 0 do %bl %bl %bl loop
     do( columns 0 )
       addr i + c@ -> ch
-      if( ch ' ' >  ch 127 < and )
+      if( ch '\ ' >  ch 127 < and )
         ch
       else
         '.'
@@ -416,7 +425,7 @@ int dumpWidth
     dumpWidth 1+ columns - 0 do %bl %bl %bl loop
     do( columns 0 )
       addr i + c@ -> ch
-      if( ch ' ' >  ch 127 < and )
+      if( ch '\ ' >  ch 127 < and )
         ch
       else
         '.'

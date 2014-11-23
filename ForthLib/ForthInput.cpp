@@ -224,6 +224,13 @@ ForthInputStream::GetBufferBasePointer( void )
 }
 
 
+const char *
+ForthInputStream::GetReportedBufferBasePointer( void )
+{
+    return mpBufferBase;
+}
+
+
 int
 ForthInputStream::GetBufferLength( void )
 {
@@ -405,14 +412,25 @@ ForthConsoleInputStream::GetType( void )
 //                     ForthBufferInputStream
 // 
 
-ForthBufferInputStream::ForthBufferInputStream( const char *pDataBuffer, int dataBufferLen, bool isInteractive, int bufferLen )
+// to be compliant with the ANSI Forth standard we have to:
+//
+// 1) allow the original input buffer to not be null terminated
+// 2) return the original input buffer pointer when queried
+//
+// so we make a copy of the original buffer with a null terminator,
+// but we return the original buffer pointer when queried
+
+ForthBufferInputStream::ForthBufferInputStream( const char *pSourceBuffer, int sourceBufferLen, bool isInteractive, int bufferLen )
 : ForthInputStream(bufferLen)
 , mIsInteractive(isInteractive)
+, mpSourceBuffer(pSourceBuffer)
 {
-	mpDataBufferBase = new char[ dataBufferLen ];
-	memcpy( mpDataBufferBase, pDataBuffer, dataBufferLen );
+	mpDataBufferBase = new char[ sourceBufferLen + 1];
+	memcpy( mpDataBufferBase, pSourceBuffer, sourceBufferLen );
+    mpDataBufferBase[ sourceBufferLen ] = '\0';
 	mpDataBuffer = mpDataBufferBase;
-	mpDataBufferLimit = mpDataBuffer + dataBufferLen;
+	mpDataBufferLimit = mpDataBuffer + sourceBufferLen;
+    mWriteOffset = sourceBufferLen;
 }
 
 ForthBufferInputStream::~ForthBufferInputStream()
@@ -457,6 +475,13 @@ const char*
 ForthBufferInputStream::GetType( void )
 {
     return "Buffer";
+}
+
+
+const char *
+ForthBufferInputStream::GetReportedBufferBasePointer( void )
+{
+    return mpSourceBuffer;
 }
 
 

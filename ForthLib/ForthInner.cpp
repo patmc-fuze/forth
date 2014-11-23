@@ -1497,30 +1497,34 @@ OPTYPE_ACTION( MemberObjectArrayAction )
 
 VAR_ACTION( doLongFetch ) 
 {
-    // IP points to data field
+    stackInt64 val64;
     long long *pA = (long long *) (SPOP);
-    LPUSH( *pA );
+    val64.s64 = *pA;
+    LPUSH( val64 );
 }
 
 VAR_ACTION( doLongStore ) 
 {
-    // IP points to data field
+    stackInt64 val64;
     long long *pA = (long long *) (SPOP);
-    *pA = LPOP;
+    LPOP( val64 );
+    *pA = val64.s64;
 }
 
 VAR_ACTION( doLongPlusStore ) 
 {
-    // IP points to data field
+    stackInt64 val64;
     long long *pA = (long long *) (SPOP);
-    *pA += LPOP;
+    LPOP( val64 );
+    *pA += val64.s64;
 }
 
 VAR_ACTION( doLongMinusStore ) 
 {
-    // IP points to data field
+    stackInt64 val64;
     long long *pA = (long long *) (SPOP);
-    *pA -= LPOP;
+    LPOP( val64 );
+    *pA -= val64.s64;
 }
 
 VarAction longOps[] =
@@ -1554,7 +1558,9 @@ inline void _doLongVarop( ForthCoreState* pCore, long long* pVar )
     else
     {
         // just a fetch
-        LPUSH( *pVar );
+        stackInt64 val64;
+        val64.s64 = *pVar;
+        LPUSH( val64 );
     }
 }
 
@@ -2007,7 +2013,8 @@ OPTYPE_ACTION( SquishedDoubleAction )
 
 OPTYPE_ACTION( SquishedLongAction )
 {
-	long long lval = ((ForthEngine *)pCore->pEngine)->UnsquishLong( opVal );
+    stackInt64 lval;
+	lval.s64 = ((ForthEngine *)pCore->pEngine)->UnsquishLong( opVal );
 	LPUSH( lval );
 }
 

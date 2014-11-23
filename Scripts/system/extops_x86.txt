@@ -281,47 +281,47 @@ code dd
   next,
   
 code l+
-  edx ] ebx mov,		// ebx = lopart
-  4 edx d] eax mov,		// eax = hipart
+  4 edx d] ebx mov,		// ebx = lopart
+  edx ] eax mov,		// eax = hipart
   8 # edx add,
-  edx ] ebx add,
-  4 edx d] eax adc,
-  ebx edx ] mov,
-  eax 4 edx d] mov,
+  4 edx d] ebx add,
+  edx ] eax adc,
+  eax edx ] mov,
+  ebx 4 edx d] mov,
   next,
   
 code l-
-  edx ] ebx mov,
-  4 edx d] eax mov,
+  4 edx d] ebx mov,
+  edx ] eax mov,
   8 # edx add,
-  edx ] ebx sub,
-  4 edx d] eax sbb,
-  ebx edx ] mov,
-  eax 4 edx d] mov,
+  4 edx d] ebx sub,
+  edx ] eax sbb,
+  eax edx ] mov,
+  ebx 4 edx d] mov,
   next,
   
 code lnegate
-  edx ] eax mov,
-  4 edx d] ebx mov,
+  4 edx d] eax mov,
+  edx ] ebx mov,
   eax not,
   ebx not,
   1 # eax add,
   0 # ebx adc,
-  ebx 4 edx d] mov,
-  eax edx ] mov,
+  ebx edx ] mov,
+  eax 4 edx d] mov,
   next,
   
 code labs
-  4 edx d] ebx mov,
+  edx ] ebx mov,
   ebx ebx or,
   0<, if,
-    edx ] eax mov,
+    4 edx d] eax mov,
     eax not,
     ebx not,
     1 # eax add,
     0 # ebx adc,
-    ebx 4 edx d] mov,
-    eax edx ] mov,
+    ebx edx ] mov,
+    eax 4 edx d] mov,
   endif,
   next,
   
@@ -334,26 +334,26 @@ code l*
   // edx always holds hi 32 bits of mul result
   edx ebx mov,			// so we will use ebx for the forth stack ptr
   
-  // TOS: blo ebx   bhi ebx+4   alo ebx+8   ahi ebx+12
+  // TOS: bhi ebx   blo ebx+4   ahi ebx+8   alo ebx+12
   
   ecx ecx xor,			// ecx holds sign flag
   
-  4 ebx d] eax mov,
+  ebx ] eax mov,
   eax eax or,
   0<, if,
   	// b is negative
     ecx not,
-    ebx ] esi mov,
+    4 ebx d] esi mov,
     esi not,
     eax not,
     1 # esi add,
     0 # eax adc,
-    esi ebx ] mov,
-    eax 4 ebx d] mov,
+    esi 4 ebx d] mov,
+    eax ebx ] mov,
   endif,
   
-  12 ebx d] eax mov,
-  8 ebx d] esi mov,
+  8 ebx d] eax mov,
+  12 ebx d] esi mov,
   eax eax or,
   0<, if,
   	// a is negative
@@ -362,41 +362,41 @@ code l*
     eax not,
     1 # esi add,
     0 # eax adc,
-    esi 8 ebx d] mov,
-    eax 12 ebx d] mov,
+    esi 12 ebx d] mov,
+    eax 8 ebx d] mov,
   endif,
   
   // alo(esi) * blo
-  ebx ] eax mov,
+  4 ebx d] eax mov,
   esi mul,				// edx is hipart, eax is final lopart
   edx edi mov,			// edi is hipart accumulator
   
-  8 ebx d] esi mov,		// esi = alo
-  eax 8 ebx d] mov,
+  12 ebx d] esi mov,		// esi = alo
+  eax 12 ebx d] mov,		// ebx+12 = final lopart
 
   // alo * bhi
-  4 ebx d] eax mov,		// eax = bhi
+  ebx ] eax mov,		// eax = bhi
   esi mul,
   eax edi add,
   
   // ahi * blo
-  12 ebx d] esi mov,
-  ebx ] eax mov,
+  8 ebx d] esi mov,		// esi = ahi
+  4 ebx d] eax mov,		// eax = blo
   esi mul,
   eax edi add,			// edi = hiResult
   
   // invert result if needed
   ecx ecx or,
   0<, if,
-    8 ebx d] eax mov,		// eax = loResult
+    12 ebx d] eax mov,		// eax = loResult
     eax not,
     edi not,
     1 # eax add,
     0 # edi adc,
-    eax 8 ebx d] mov,
+    eax 12 ebx d] mov,
   endif,
   
-  edi 12 ebx d] mov,
+  edi 8 ebx d] mov,
   
   8 # ebx add,
   ebx edx mov,
@@ -404,7 +404,6 @@ code l*
   edi pop,
   next,
 
-  
 // .fl for 64-bit, .fs for 32-bit
 
 code dpi
@@ -468,8 +467,8 @@ code um*
   ebx mul,      // result hiword in edx, loword in eax
   edx ebx mov,
   edx pop,
-  ebx 4 edx d] mov,
-  eax edx ] mov,
+  eax 4 edx d] mov,
+  ebx edx ] mov,
   next,
 
 code m*
@@ -479,8 +478,8 @@ code m*
   ebx eax imul,      // result hiword in edx, loword in eax
   edx ebx mov,
   edx pop,
-  ebx 4 edx d] mov,
-  eax edx ] mov,
+  eax 4 edx d] mov,
+  ebx edx ] mov,
   next,
 
 code */
@@ -511,8 +510,8 @@ code um/mod
   // edx+4: 64-bit unsigned numerator
   edx ebx mov,
   ebx ] ecx mov,      // denominator
-  4 ebx d] eax mov,   // numerator low part
-  8 ebx d] edx mov,   // numerator high part
+  8 ebx d] eax mov,   // numerator low part
+  4 ebx d] edx mov,   // numerator high part
   ecx div,            // eax is quotient, edx is remainder
   4 # ebx add,
   edx 4 ebx d] mov,
@@ -525,8 +524,8 @@ code sm/rem
   // edx+4: 64-bit signed numerator
   // idiv takes 64-bit numerator in edx:eax
   edx ebx mov,
-  4 ebx d] eax mov,   // numerator low part
-  8 ebx d] edx mov,   // numerator high part
+  8 ebx d] eax mov,   // numerator low part
+  4 ebx d] edx mov,   // numerator high part
   ebx ] idiv,
   4 # ebx add,
   edx 4 ebx d] mov,
@@ -558,6 +557,8 @@ code sm/rem
 ;
 
 
+  
+
 // ud1 c-addr1 u1 -- ud2 c-addr2 u2 
 : >number
   //ds
@@ -572,7 +573,7 @@ code sm/rem
     else
       if( ch 'A' >= ch 'Z' <= and  ch 'a' >= ch 'z' <= and  or )
         ch 0x20 or -> ch  // lowercase it
-        'a' ->- ch
+        'a' 0xa - ->- ch
       else
         // force exit
         base @ -> ch
@@ -594,10 +595,41 @@ code sm/rem
   numChars
 ;
 
-
 loaddone
 
 
+: l*
+  -> long b
+  -> long a
+  false -> int signs
+  
+  b l0< if
+    b lnegate -> b
+    true -> signs
+  endif
+  a l0< if
+    a lnegate -> a
+    signs 0= -> signs
+  endif
+  
+  b
+  -> int bhi
+  -> int blo
+  a
+  -> int ahi
+  -> int alo
+  
+  0 -> int mhi
+  0 -> int mlo
+  
+  alo blo um* -> mhi -> mlo
+  alo bhi um* drop ->+ mhi
+  ahi blo um* drop ->+ mhi
+  mlo mhi
+  signs if
+    lnegate
+  endif
+;
 
 
 

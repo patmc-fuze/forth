@@ -264,6 +264,17 @@ typedef struct {
     ulong               len;
 } ForthMemorySection;
 
+// this godawful mess is here because the ANSI Forth standard defines that the top item
+// on the parameter stack for 64-bit ints is the highword, which is opposite to the c++/c
+// standard (at least for x86 architectures).
+typedef union
+{
+    int s32[2];
+    unsigned int u32[2];
+    long long s64;
+    unsigned long long u64;
+} stackInt64;
+
 // this is what is placed on the stack to represent a forth object
 //  usually the 'data' field is actually a pointer to the data, but that is an
 //  implementation detail and not true for all classes

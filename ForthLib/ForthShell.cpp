@@ -663,14 +663,17 @@ ForthParseSingleQuote( const char       *pSrcIn,
     char cc[9];
 	bool isQuotedChar = false;
 
-    if ( (pSrcIn[1] != 0) && (pSrcIn[2] != 0) )
+    // in order to not break the standard forth word tick ('), don't allow character constants
+    //  to contain space or tab characters
+    // to have a space or tab in a char constant use a backslash
+    if ( (pSrcIn[1] != 0) && (pSrcIn[2] != 0) )      // there must be at least 2 more chars on line
     {
 		const char *pSrc = pSrcIn + 1;
 		int iDst = 0;
 		while ( iDst < 8 )
 		{
 			char ch = *pSrc++;
-			if ( ch == '\0' )
+            if ( (ch == '\0') || (ch == ' ') || (ch == '\t') )
 			{
 				break;
 			}

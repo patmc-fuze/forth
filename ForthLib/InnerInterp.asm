@@ -1806,9 +1806,9 @@ longEntry:
 localLongFetch:
 	sub	edx, 8
 	mov	ebx, [eax]
-	mov	[edx], ebx
-	mov	ebx, [eax+4]
 	mov	[edx+4], ebx
+	mov	ebx, [eax+4]
+	mov	[edx], ebx
 	jmp	edi
 
 localLongRef:
@@ -1821,9 +1821,9 @@ localLongRef:
 	
 localLongStore:
 	mov	ebx, [edx]
-	mov	[eax], ebx
-	mov	ebx, [edx+4]
 	mov	[eax+4], ebx
+	mov	ebx, [edx+4]
+	mov	[eax], ebx
 	add	edx, 8
 	; set var operation back to fetch
 	xor	eax, eax
@@ -1832,10 +1832,10 @@ localLongStore:
 
 localLongPlusStore:
 	mov	ebx, [eax]
-	add	ebx, [edx]
+	add	ebx, [edx+4]
 	mov	[eax], ebx
 	mov	ebx, [eax+4]
-	adc	ebx, [edx+4]
+	adc	ebx, [edx]
 	mov	[eax+4], ebx
 	; set var operation back to fetch
 	xor	ebx, ebx
@@ -1845,10 +1845,10 @@ localLongPlusStore:
 
 localLongMinusStore:
 	mov	ebx, [eax]
-	sub	ebx, [edx]
+	sub	ebx, [edx+4]
 	mov	[eax], ebx
 	mov	ebx, [eax+4]
-	sbb	ebx, [edx+4]
+	sbb	ebx, [edx]
 	mov	[eax+4], ebx
 	; set var operation back to fetch
 	xor	ebx, ebx

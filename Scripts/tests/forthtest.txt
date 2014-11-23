@@ -30,9 +30,9 @@ startTest
 test[ checkResult( "\a\b\t\n\v\f\r\"\'\\" ) ]
 
 // verify that character constants work
-: testCharacterConstants startTest 'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl ;
+: testCharacterConstants startTest 'a' %c '\ ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl ;
 outToTestBuffer( testBuff2 )
-'a' %c ' ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl
+'a' %c '\ ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl
 test[ testCharacterConstants checkResult( testBuff2.get ) ]
 
 ///////////////////////////////////////////////////////////

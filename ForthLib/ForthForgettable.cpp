@@ -57,6 +57,38 @@ ForthForgettable::~ForthForgettable()
         }
     }
 }
+const char *
+ForthForgettable::GetName( void )
+{
+    return "noName";
+}
+
+const char *
+ForthForgettable::GetTypeName( void )
+{
+    return "noType";
+}
+
+void
+ForthForgettable::AfterStart()
+{
+}
+
+int
+ForthForgettable::Save( FILE* pOutFile )
+{
+    (void) pOutFile;
+    return 0;
+}
+
+boolean
+ForthForgettable::Restore( const char* pBuffer, unsigned int numBytes )
+{
+    (void) pBuffer;
+    (void) numBytes;
+    return true;
+}
+
 
 void ForthForgettable::ForgetPropagate( void* pForgetLimit, long op )
 {
@@ -67,6 +99,7 @@ void ForthForgettable::ForgetPropagate( void* pForgetLimit, long op )
     pNext = mpChainHead;
     while ( pNext != NULL )
     {
+        TRACE( "forgetting %s:%s\n", pNext->GetTypeName(), pNext->GetName() );
         pNext->ForgetCleanup( pForgetLimit, op );
         pNext = pNext->mpNext;
     }

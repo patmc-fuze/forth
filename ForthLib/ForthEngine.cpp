@@ -566,6 +566,8 @@ ForthEngine::ForgetSymbol( const char *pSym, bool quietMode )
             case kOpNativeImmediate:
             case kOpCCode:
             case kOpCCodeImmediate:
+            case kOpUserDef:
+            case kOpUserDefImmediate:
 				if ( opIndex > mpCore->numBuiltinOps )
 				{
 					ForgetOp( op, quietMode );
@@ -577,13 +579,6 @@ ForthEngine::ForgetSymbol( const char *pSym, bool quietMode )
 					// sym is built-in op - no way
 					SNPRINTF( buff, sizeof(buff), "Error - attempt to forget builtin op %s from %s\n", pSym, pFoundVocab->GetName() );
 				}
-                break;
-
-            case kOpUserDef:
-            case kOpUserDefImmediate:
-                ForgetOp( op, quietMode );
-                ForthForgettable::ForgetPropagate( mDictionary.pCurrent, op );
-                forgotIt = true;
                 break;
 
             default:
@@ -1746,16 +1741,21 @@ ForthEngine::ProcessLongConstant( long long value )
 		else
 		{
 			CompileBuiltinOpcode( OP_DOUBLE_VAL );
-			long long* pDP = (long long *) mDictionary.pCurrent;
-			*pDP++ = value;
-			mDictionary.pCurrent = (long *) pDP;
+			long* pDP = mDictionary.pCurrent;
+            stackInt64 val;
+            val.s64 = value;
+			*pDP++ = val.s32[1];
+			*pDP++ = val.s32[0];
+			mDictionary.pCurrent = pDP;
 		}
     }
     else
     {
         // leave value on param stack
-        mpCore->SP -= 2;
-        *(long long *) mpCore->SP = value;
+        stackInt64 val;
+        val.s64 = value;
+        *--mpCore->SP = val.s32[0];
+        *--mpCore->SP = val.s32[1];
     }
 }
 

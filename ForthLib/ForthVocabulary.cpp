@@ -117,6 +117,12 @@ ForthVocabulary::GetName( void )
     return (mpName == NULL) ? "Unknown" : mpName;
 }
 
+const char *
+ForthVocabulary::GetTypeName( void )
+{
+    return "vocabulary";
+}
+
 int ForthVocabulary::GetEntryName( const long *pEntry, char *pDstBuff, int buffSize )
 {
     int symLen = GetEntryNameLength( pEntry );
@@ -797,6 +803,23 @@ bool
 ForthVocabulary::IsClass()
 {
 	return false;
+}
+
+void
+ForthVocabulary::AfterStart()
+{
+}
+
+int
+ForthVocabulary::Save( FILE* pOutFile )
+{
+    return 0;
+}
+
+boolean
+ForthVocabulary::Restore( const char* pBuffer, unsigned int numBytes )
+{
+    return true;
 }
 
 //////////////////////////////////////////////////////////////////////

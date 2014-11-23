@@ -12,6 +12,37 @@ o How to save the state of the forth system to avoid having to recompile
   they were saved at?
   
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+File format idea:
+File is a series of chunks, one per forgettable.
+Each chunk has:
+  typename as counted string
+  name as counted string
+  numBytes as long
+  dataSection - byte array of length numBytes
+
+The dataSection for each forgettable is interpreted by the class specified
+by typename.
+
+Forgettable types:
+  vocabularies
+  dictionary memory section
+  opcode dispatch table
+  
+Opcode dispatch table should have:
+  numStartOpcodes (for error checking)
+  numUserOpcodes
+  dataSection - long array with numUserOpcodes elements, as offsets from original DP
+  
+Dictionary section should have:
+  dataSection
+    
+Vocabularies should have at least:
+  numStartSymbols - number of symbols defined before any user definitions (for error checking)
+  startSize - size of vocabulary before any user definitions (for error checking)
+  numUserSymbols
+  userSize
+  
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 What would it take to save "compiled" forth?
 
 o a chunk file format where chunks have names and types

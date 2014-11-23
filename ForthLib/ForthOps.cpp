@@ -136,157 +136,198 @@ FORTHOP( argcOp )
 FORTHOP( ldivideOp )
 {
     NEEDS(4);
-    long long b = LPOP;
-    long long a = LPOP;
-    LPUSH( a / b );
+    stackInt64 a;
+    stackInt64 b;
+    stackInt64 quotient;
+    LPOP( b );
+    LPOP( a );
+    quotient.s64 = a.s64 / b.s64;
+    LPUSH( quotient );
 }
 
 FORTHOP( lmodOp )
 {
     NEEDS(4);
-    long long b = LPOP;
-    long long a = LPOP;
-    LPUSH( a % b );
+    stackInt64 a;
+    stackInt64 b;
+    stackInt64 remainder;
+    LPOP( b );
+    LPOP( a );
+    remainder.s64 = a.s64 % b.s64;
+    LPUSH( remainder );
 }
 
 FORTHOP( ldivmodOp )
 {
     NEEDS(4);
-    long long b = LPOP;
-    long long a = LPOP;
-    LPUSH( a % b );
-    LPUSH( a / b );
+    stackInt64 a;
+    stackInt64 b;
+    stackInt64 quotient;
+    stackInt64 remainder;
+    LPOP( b );
+    LPOP( a );
+    remainder.s64 = a.s64 % b.s64;
+    LPUSH( remainder );
+    quotient.s64 = a.s64 / b.s64;
+    LPUSH( quotient );
 }
 
 FORTHOP( udivmodOp )
 {
     NEEDS(3);
+    stackInt64 a;
+    stackInt64 quotient;
     unsigned long b = (unsigned long) SPOP;
-    unsigned long long a = LPOP;
-    unsigned long long quotient = a / b;
-	unsigned long remainder = a % b;
+    LPOP( a );
+    quotient.s64 = a.u64 / b;
+	unsigned long remainder = a.u64 % b;
     SPUSH( ((long) remainder) );
-    LPUSH( ((long long) quotient) );
+    LPUSH( quotient );
 }
 
 //##############################
 //
-// double-precision fp comparison ops
+// 64-bit integer comparison ops
 //
 
 FORTHOP(lEqualsOp)
 {
     NEEDS(4);
-    long long b = LPOP;
-    long long a = LPOP;
-    SPUSH( ( a == b ) ? -1L : 0 );
+    stackInt64 a;
+    stackInt64 b;
+    LPOP( b );
+    LPOP( a );
+    SPUSH( ( a.s64 == b.s64 ) ? -1L : 0 );
 }
 
 FORTHOP(lNotEqualsOp)
 {
     NEEDS(4);
-    long long b = LPOP;
-    long long a = LPOP;
-    SPUSH( ( a != b ) ? -1L : 0 );
+    stackInt64 a;
+    stackInt64 b;
+    LPOP( b );
+    LPOP( a );
+    SPUSH( ( a.s64 != b.s64 ) ? -1L : 0 );
 }
 
 FORTHOP(lGreaterThanOp)
 {
     NEEDS(4);
-    long long b = LPOP;
-    long long a = LPOP;
-    SPUSH( ( a > b ) ? -1L : 0 );
+    stackInt64 a;
+    stackInt64 b;
+    LPOP( b );
+    LPOP( a );
+    SPUSH( ( a.s64 > b.s64 ) ? -1L : 0 );
 }
 
 FORTHOP(lGreaterEqualsOp)
 {
     NEEDS(4);
-    long long b = LPOP;
-    long long a = LPOP;
-    SPUSH( ( a >= b ) ? -1L : 0 );
+    stackInt64 a;
+    stackInt64 b;
+    LPOP( b );
+    LPOP( a );
+    SPUSH( ( a.s64 >= b.s64 ) ? -1L : 0 );
 }
 
 FORTHOP(lLessThanOp)
 {
     NEEDS(4);
-    long long b = LPOP;
-    long long a = LPOP;
-    SPUSH( ( a < b ) ? -1L : 0 );
+    stackInt64 a;
+    stackInt64 b;
+    LPOP( b );
+    LPOP( a );
+    SPUSH( ( a.s64 < b.s64 ) ? -1L : 0 );
 }
 
 FORTHOP(lLessEqualsOp)
 {
     NEEDS(4);
-    long long b = LPOP;
-    long long a = LPOP;
-    SPUSH( ( a <= b ) ? -1L : 0 );
+    stackInt64 a;
+    stackInt64 b;
+    LPOP( b );
+    LPOP( a );
+    SPUSH( ( a.s64 <= b.s64 ) ? -1L : 0 );
 }
 
 FORTHOP(lEquals0Op)
 {
     NEEDS(2);
-    long long a = LPOP;
-    SPUSH( ( a == 0 ) ? -1L : 0 );
+    stackInt64 a;
+    LPOP( a );
+    SPUSH( ( a.s64 == 0L ) ? -1L : 0 );
 }
 
 FORTHOP(lNotEquals0Op)
 {
     NEEDS(2);
-    long long a = LPOP;
-    SPUSH( ( a != 0 ) ? -1L : 0 );
+    stackInt64 a;
+    LPOP( a );
+    SPUSH( ( a.s64 != 0L ) ? -1L : 0 );
 }
 
 FORTHOP(lGreaterThan0Op)
 {
     NEEDS(2);
-    long long a = LPOP;
-    SPUSH( ( a > 0 ) ? -1L : 0 );
+    stackInt64 a;
+    LPOP( a );
+    SPUSH( ( a.s64 > 0L ) ? -1L : 0 );
 }
 
 FORTHOP(lGreaterEquals0Op)
 {
     NEEDS(2);
-    long long a = LPOP;
-    SPUSH( ( a >= 0 ) ? -1L : 0 );
+    stackInt64 a;
+    LPOP( a );
+    SPUSH( ( a.s64 >= 0L ) ? -1L : 0 );
 }
 
 FORTHOP(lLessThan0Op)
 {
     NEEDS(2);
-    long long a = LPOP;
-    SPUSH( ( a < 0 ) ? -1L : 0 );
+    stackInt64 a;
+    LPOP( a );
+    SPUSH( ( a.s64 < 0L ) ? -1L : 0 );
 }
 
 FORTHOP(lLessEquals0Op)
 {
     NEEDS(2);
-    long long a = LPOP;
-    SPUSH( ( a <= 0 ) ? -1L : 0 );
+    stackInt64 a;
+    LPOP( a );
+    SPUSH( ( a.s64 <= 0L ) ? -1L : 0 );
 }
 
 FORTHOP(lWithinOp)
 {
     NEEDS(3);
-    long long hiLimit = LPOP;
-    long long loLimit = LPOP;
-    long long val = LPOP;
-    SPUSH( ( (loLimit <= val) && (val < hiLimit) ) ? -1L : 0 );
+    stackInt64 hiLimit;
+    stackInt64 loLimit;
+    stackInt64 val;
+    LPOP( hiLimit );
+    LPOP( loLimit );
+    LPOP( val );
+    SPUSH( ( (loLimit.s64 <= val.s64) && (val.s64 < hiLimit.s64) ) ? -1L : 0 );
 }
 
 FORTHOP(lMinOp)
 {
     NEEDS(4);
-    long long b = LPOP;
-    long long a = LPOP;
-    LPUSH( ( a < b ) ? a : b );
+    stackInt64 a;
+    stackInt64 b;
+    LPOP( b );
+    LPOP( a );
+    LPUSH( (( a.s64 < b.s64 ) ? a : b) );
 }
 
 FORTHOP(lMaxOp)
 {
     NEEDS(4);
-    long long b = LPOP;
-    long long a = LPOP;
-    LPUSH( ( a > b ) ? a : b );
+    stackInt64 a;
+    stackInt64 b;
+    LPOP( b );
+    LPOP( a );
+    LPUSH( (( a.s64 > b.s64 ) ? a : b) );
 }
 
 
@@ -295,23 +336,26 @@ FORTHOP( i2lOp )
 {
     NEEDS(1);
     int a = SPOP;
-    long long b = (long long) a;
+    stackInt64 b;
+    b.s64 = (long long) a;
     LPUSH( b );
 }
 
 FORTHOP( l2fOp )
 {
     NEEDS(1);
-    long long a = LPOP;
-    float b = (float) a;
+    stackInt64 a;
+    LPOP( a );
+    float b = (float) a.s64;
     FPUSH( b );
 }
 
 FORTHOP( l2dOp )
 {
     NEEDS(1);
-    long long a = LPOP;
-    double b = (double) a;
+    stackInt64 a;
+    LPOP( a );
+    double b = (double) a.s64;
     DPUSH( b );
 }
 
@@ -319,7 +363,8 @@ FORTHOP( f2lOp )
 {
     NEEDS(1);
     float a = FPOP;
-    long long b = (long long) a;
+    stackInt64 b;
+    b.s64 = (long long) a;
     LPUSH( b );
 }
 
@@ -327,7 +372,8 @@ FORTHOP( d2lOp )
 {
     NEEDS(2);
     double a = DPOP;
-    long long b = (long long) a;
+    stackInt64 b;
+    b.s64 = (long long) a;
     LPUSH( b );
 }
 
@@ -698,9 +744,13 @@ FORTHOP( cCommaOp )
 
 FORTHOP( unusedOp )
 {
-    ForthEngine *pEngine = GET_ENGINE;
-    ForthMemorySection* pDictionarySection = pEngine->GetDictionaryMemorySection();
+    ForthMemorySection* pDictionarySection = pCore->pDictionary;
     SPUSH( (4 * (pDictionarySection->len - (pDictionarySection->pCurrent - pDictionarySection->pBase))) );
+}
+
+FORTHOP( here0Op )
+{
+    SPUSH( (long)(pCore->pDictionary->pBase) );
 }
 
 FORTHOP( mallocOp )
@@ -858,6 +908,19 @@ FORTHOP( colonOp )
 }
 
 
+FORTHOP( strColonOp )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    // get next symbol, add it to vocabulary with type "user op"
+    const char* pName = (const char*)(SPOP);
+    long* pEntry = pEngine->StartOpDefinition( pName, true );
+    pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
+    // switch to compile mode
+    pEngine->SetCompileState( 1 );
+    pEngine->ClearFlag( kEngineFlagNoNameDefinition);
+}
+
+
 FORTHOP( colonNoNameOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
@@ -984,27 +1047,16 @@ FORTHOP( vocabularyOp )
     pEngine->CompileLong( (long) pVocab );
 }
 
-FORTHOP( forgetOp )
+FORTHOP( strForgetOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    char* pSym = pEngine->GetNextSimpleToken();
-    pEngine->ForgetSymbol( pSym, false );
+    const char* pSym = (const char *)(SPOP);
+    bool forgotIt = pEngine->ForgetSymbol( pSym, true );
     // reset search & definitions vocabs in case we deleted a vocab we were using
     pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
     ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
     pVocabStack->Clear();
-}
-
-// just like forget, but no error message if symbol not found
-FORTHOP( autoforgetOp )
-{
-    ForthEngine *pEngine = GET_ENGINE;
-    const char* pToken = pEngine->GetNextSimpleToken();
-	pEngine->ForgetSymbol( pToken, true );
-    // reset search & definitions vocabs in case we deleted a vocab we were using
-    pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
-    ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
-    pVocabStack->Clear();
+    SPUSH( forgotIt ? -1 : 0 );
 }
 
 #define SCREEN_COLUMNS 120
@@ -1893,6 +1945,20 @@ FORTHOP( requiresOp )
     }
 }
 
+FORTHOP( evaluateOp )
+{
+    int len = SPOP;
+    char* pStr = (char *) SPOP;
+    if ( (pStr != NULL) && (len > 0) )
+    {
+        ForthEngine *pEngine = GET_ENGINE;
+        pEngine->PushInputBuffer( pStr, len );
+		ForthShell* pShell = pEngine->GetShell();
+		pShell->ProcessLine( pStr );
+		pEngine->PopInputStream();
+    }
+}
+
 FORTHOP( strEvaluateOp )
 {
     char* pStr = (char *) SPOP;
@@ -2003,10 +2069,9 @@ FORTHOP( bracketTickOp )
 FORTHOP( bodyOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    ForthVocabulary* pFoundVocab;
 
     long op = SPOP;
-    long opIndex = FORTH_OP_VALUE( op );
+    unsigned long opIndex = FORTH_OP_VALUE( op );
     long opType = FORTH_OP_TYPE( op );
     switch ( opType )
     {
@@ -2029,7 +2094,7 @@ FORTHOP( bodyOp )
         break;
     }
 }
-   
+
 //##############################
 //
 //  output ops
@@ -2257,8 +2322,9 @@ FORTHOP( printNumOp )
 
 FORTHOP( printLongNumOp )
 {
-	long long val = LPOP;
-    printLongNumInCurrentBase( pCore, val );
+    stackInt64 val;
+    LPOP( val );
+    printLongNumInCurrentBase( pCore, val.s64 );
 }
 
 FORTHOP( printNumDecimalOp )
@@ -2294,8 +2360,9 @@ FORTHOP( printLongDecimalOp )
     NEEDS(2);
     char buff[40];
 
-    long long val = LPOP;
-    SNPRINTF( buff, sizeof(buff), "%I64d", val );
+    stackInt64 val;
+    LPOP( val );
+    SNPRINTF( buff, sizeof(buff), "%I64d", val.s64 );
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -2308,8 +2375,9 @@ FORTHOP( printLongHexOp )
     NEEDS(1);
     char buff[20];
 
-    long long val = LPOP;
-    SNPRINTF( buff, sizeof(buff), "%I64x", val );
+    stackInt64 val;
+    LPOP( val );
+    SNPRINTF( buff, sizeof(buff), "%I64x", val.s64 );
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -2412,8 +2480,9 @@ FORTHOP( format64Op )
 			}
 			default:
 			{
-				long long val = LPOP;
-				SNPRINTF( pDst, buffLen, pFmt, val );
+                stackInt64 val;
+                LPOP( val );
+				SNPRINTF( pDst, buffLen, pFmt, val.s64 );
 			}
 		}
 
@@ -3113,29 +3182,38 @@ FORTHOP( parenCommentOp )
 FORTHOP( ansiModeOp )
 {
     NEEDS( 1 );
-    if ( GET_VAR_OPERATION == kVarStore )
+    ForthEngine* pEngine = GET_ENGINE;
+
+    switch ( GET_VAR_OPERATION )
     {
+    case kVarStore:
         if ( SPOP )
         {
-            GET_ENGINE->SetFlag( kEngineFlagAnsiMode );
+            pEngine->SetFlag( kEngineFlagAnsiMode );
         }
         else
         {
-            GET_ENGINE->ClearFlag( kEngineFlagAnsiMode );
+            pEngine->ClearFlag( kEngineFlagAnsiMode );
         }
         CLEAR_VAR_OPERATION;
-    }
-    else
-    {
-        SPUSH( GET_ENGINE->CheckFlag( kEngineFlagAnsiMode ) ? ~0 : 0 );
+        break;
+
+    case kVarDefaultOp:
+    case kVarFetch:
+        SPUSH( pEngine->CheckFlag( kEngineFlagAnsiMode ) ? ~0 : 0 );
+        break;
+
+    default:
+        pEngine->SetError( kForthErrorBadVarOperation, "ansiMode variable only supports get and fetch" );
+        break;
     }
 }
 
 FORTHOP( sourceOp )
 {
     ForthInputStack* pInput = GET_ENGINE->GetShell()->GetInput();
-    SPUSH( (long) (pInput->GetBufferBasePointer()) );
-    SPUSH( pInput->GetWriteOffset() - 1 );
+    SPUSH( (long) (pInput->InputStream()->GetReportedBufferBasePointer()) );
+    SPUSH( pInput->GetWriteOffset() );
 }
 
 FORTHOP( getInOffsetPointerOp )
@@ -3321,7 +3399,6 @@ FORTHOP( randOp )
 FORTHOP( srandOp )
 {
     srand( (unsigned int) (SPOP) );
-    SPUSH( rand() );
 }
 
 #define get16bits(d) ((((unsigned long)(((const unsigned char *)(d))[1])) << 8)\
@@ -4221,6 +4298,11 @@ FORTHOP( shutdownOp )
 }
 
 
+FORTHOP( abortOp )
+{
+    SET_FATAL_ERROR( kForthErrorAbort );
+}
+
 #ifndef ASM_INNER_INTERPRETER
 
 
@@ -4358,9 +4440,10 @@ FORTHOP( ummodBop )
     NEEDS(2);
     ldiv_t v;
     unsigned long b = SPOP;
-    unsigned long long a = SPOP;
-    unsigned long quotient = a / b;
-    unsigned long remainder = a % b;
+    stackInt64 a;
+    LPOP( a );
+    unsigned long quotient = a.64 / b;
+    unsigned long remainder = a.64 % b;
     SPUSH( remainder );
     SPUSH( quotient );
 }
@@ -4370,9 +4453,10 @@ FORTHOP( smdivremBop )
     NEEDS(2);
     lldiv_t v;
     long long b = (long long) SPOP;
-    long long a = LPOP;
+    stackInt64 a;
+    LPOP( a );
 
-    v = lldiv(a, b);
+    v = lldiv(a.s64, b);
 
     SPUSH( (long) v.rem );
     SPUSH( (long) v.quot );
@@ -6584,7 +6668,8 @@ OPREF( ffmodBop );
 
 baseDictionaryCompiledEntry baseCompiledDictionary[] =
 {
-	NATIVE_COMPILED_DEF(    abortBop,                "abort",			OP_ABORT ),
+	//NATIVE_COMPILED_DEF(    abortBop,                "abort",			OP_ABORT ),
+	OP_COMPILED_DEF(    abortOp,                "abort",			OP_ABORT ),
     NATIVE_COMPILED_DEF(    dropBop,                 "drop",			OP_DROP ),
     NATIVE_COMPILED_DEF(    doDoesBop,               "_doDoes",			OP_DO_DOES ),
     NATIVE_COMPILED_DEF(    litBop,                  "lit",				OP_INT_VAL ),
@@ -7042,6 +7127,7 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(exitOp,                 "exit" ),
     PRECOP_DEF(semiOp,                 ";" ),
     OP_DEF(    colonOp,                ":" ),
+    OP_DEF(    strColonOp,             "$:" ),
     OP_DEF(    colonNoNameOp,          ":noname" ),
 	PRECOP_DEF(funcOp,                 "func:" ),
 	PRECOP_DEF(endfuncOp,               ";func" ),
@@ -7089,6 +7175,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    strLoadOp,              "$load" ),
     OP_DEF(    loadDoneOp,             "loaddone" ),
     OP_DEF(    requiresOp,             "requires" ),
+    OP_DEF(    evaluateOp,             "evaluate" ),
     OP_DEF(    strEvaluateOp,          "$evaluate" ),
     PRECOP_DEF(stateInterpretOp,       "[" ),
     OP_DEF(    stateCompileOp,         "]" ),
@@ -7107,8 +7194,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    alsoOp,                 "also" ),
     OP_DEF(    previousOp,             "previous" ),
     OP_DEF(    onlyOp,                 "only" ),
-    OP_DEF(    forgetOp,               "forget" ),
-    OP_DEF(    autoforgetOp,           "autoforget" ),
+    OP_DEF(    strForgetOp,            "$forget" ),
     OP_DEF(    vlistOp,                "vlist" ),
     OP_DEF(    strFindOp,              "$find" ),
 
@@ -7119,6 +7205,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    allotOp,                "allot" ),
     OP_DEF(    commaOp,                "," ),
     OP_DEF(    cCommaOp,               "c," ),
+    OP_DEF(    here0Op,                "here0" ),
     OP_DEF(    unusedOp,               "unused" ),
     OP_DEF(    mallocOp,               "malloc" ),
     OP_DEF(    reallocOp,              "realloc" ),

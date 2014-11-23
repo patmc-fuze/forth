@@ -99,6 +99,9 @@ public:
     long                    GetBaseTypeSizeFromName( const char* typeName );
     long*                   GetClassMethods();
 
+    virtual const char* GetTypeName();
+    virtual const char* GetName();
+
 protected:
     // mpStructInfo points to an array with an entry for each defined structure type
     ForthTypeInfo                   *mpStructInfo;
@@ -127,6 +130,8 @@ public:
 
     // forget all ops with a greater op#
     virtual void        ForgetOp( long op );
+
+    virtual const char* GetTypeName();
 
     virtual const char* GetType( void );
 
@@ -168,6 +173,8 @@ public:
     virtual void	    DefineInstance( void );
 
     virtual void        DoOp( ForthCoreState *pCore );
+
+    virtual const char* GetTypeName();
 
 	bool				IsAbstract( void )		{ return mNumAbstractMethods == 0; }
 

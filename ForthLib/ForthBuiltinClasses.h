@@ -43,10 +43,13 @@ typedef enum {
 class ForthForgettableGlobalObject : public ForthForgettable
 {
 public:
-    ForthForgettableGlobalObject( void *pOpAddress, long op, int numElements = 1 );
+    ForthForgettableGlobalObject( const char* pName, void *pOpAddress, long op, int numElements = 1 );
     virtual ~ForthForgettableGlobalObject();
 
+    virtual const char* GetTypeName();
+    virtual const char* GetName();
 protected:
+    char* mpName;
     virtual void    ForgetCleanup( void *pForgetLimit, long op );
 
 	int		mNumElements;

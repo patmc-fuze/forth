@@ -115,24 +115,36 @@ precedence .(
   endif
 ;
 precedence s"
-: accept stdin fgets strlen ;
+: accept
+  stdin fgets dup -> ptrTo byte buffer
+  strlen -> int bytesRead
+  if( bytesRead )
+    if( buffer bytesRead + 1- c@ '\n' = )
+      // trim trailing linefeed from count
+      1 ->- bytesRead
+    endif
+  endif
+  bytesRead
+;
 : quit r0 -> rp done ;
 : erase 0 swap memset ;
-: bl ' ' ;
+0x20 constant bl
 : emit %c ;
 : does> postpone does ; precedence does>
 : then postpone endif ; precedence then
 
-: evaluate
-  257 string str
-  blockToString( str )
-  $evaluate( str )
-;
 : [char]  opType:makeOpcode( opType:litInt blword c@ ) , ; precedence [char]
 : cr %nl ;
 : char+ 1+ ;
 : \ 0 $word drop ; precedence \
-: spaces ?dup if 0 do %bl loop endif ;
+: spaces
+  dup 0> if
+    0 do %bl loop
+  else
+    drop
+  endif
+;
+
 : space %bl ;
 : fill swap memset ;
 
@@ -154,12 +166,18 @@ precedence s"
   endif
 ; precedence abort"
 
-: value postpone int ;
+: value -> postpone int ;
 : to -> ;
 
 int __sp
 : !csp sp -> __sp ;
-: ?csp sp __sp <> if dstack 1 error "stack mismatch" addErrorText ;
+: ?csp
+  sp __sp <> if
+    dstack
+    1 error
+    "stack mismatch" addErrorText
+  endif
+;
 
 // the builtin $word op leaves an empty byte below parsed string for us to stuff length into
 : word $word dup strlen over 1- c! 1- ;
@@ -234,7 +252,15 @@ int _handler
 ;
 
 : include load ;
-: marker blword drop ; // not actually functional, but it compiles
+
+: marker
+  blword dup $:
+  compileStringLiteral
+  postpone $forget
+  postpone drop
+  postpone ;
+;
+
 : depth s0 sp - 2 rshift 1- ;
 : aligned 3+ 0xFFFFFFFC and ;
 
@@ -242,3 +268,8 @@ int _handler
   ref definitions
   vocNewestEntry @ ,
 ; precedence recurse
+
+: at-xy setConsoleCursor ;
+: page clearConsole 0 0 setConsoleCursor ;
+// addr count ... addr+count addr
+: bounds over + swap ;

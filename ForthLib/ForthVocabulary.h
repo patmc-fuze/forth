@@ -36,7 +36,8 @@ public:
     virtual void        DoOp( ForthCoreState *pCore );
 
     void                SetName( const char *pVocabName );
-    const char *        GetName( void );
+    virtual const char *GetName( void );
+    virtual const char *GetTypeName( void );
 
     void                Empty( void );
 
@@ -164,6 +165,10 @@ public:
 	virtual bool IsStruct();
 	virtual bool IsClass();
 
+    virtual void AfterStart();
+    virtual int Save( FILE* pOutFile );
+    virtual boolean Restore( const char* pBuffer, unsigned int numBytes );
+
 #ifdef MAP_LOOKUP
     void                        InitLookupMap();
 #endif
@@ -183,6 +188,10 @@ protected:
     int                 mValueLongs;
     ulong               mLastSerial;
     char                mNewestSymbol[ 256 ];
+    // these are set right after forth is started, before any user definitions are loaded
+    // they are used when saving/restoring vocabularies
+    int                 mStartNumSymbols;
+    int                 mStartLength;
 #ifdef MAP_LOOKUP
     CMapStringToPtr     mLookupMap;
 #endif
