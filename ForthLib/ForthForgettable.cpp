@@ -95,14 +95,6 @@ void ForthForgettable::ForgetPropagate( void* pForgetLimit, long op )
     ForthForgettable *pNext;
     ForthForgettable *pTmp;
 
-    // give each forgettable a chance to do internal cleanup
-    pNext = mpChainHead;
-    while ( pNext != NULL )
-    {
-        TRACE( "forgetting %s:%s\n", pNext->GetTypeName(), pNext->GetName() );
-        pNext->ForgetCleanup( pForgetLimit, op );
-        pNext = pNext->mpNext;
-    }
     // delete all forgettables that are below the forget limit
     pNext = mpChainHead;
     while ( pNext != NULL )
@@ -113,6 +105,14 @@ void ForthForgettable::ForgetPropagate( void* pForgetLimit, long op )
             delete pNext;
         }
         pNext = pTmp;
+    }
+    // give each forgettable a chance to do internal cleanup
+    pNext = mpChainHead;
+    while ( pNext != NULL )
+    {
+        TRACE( "forgetting %s:%s\n", pNext->GetTypeName(), pNext->GetName() );
+        pNext->ForgetCleanup( pForgetLimit, op );
+        pNext = pNext->mpNext;
     }
 }
 

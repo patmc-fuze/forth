@@ -1683,6 +1683,22 @@ OPTYPE_ACTION( UserDefAction )
     }
 }
 
+OPTYPE_ACTION( RelativeDefAction )
+{
+    // op is normal user-defined, push IP on rstack,
+    //  newIP is opVal + dictionary base
+    long* newIP = pCore->pDictionary->pBase + opVal;
+    if ( newIP < pCore->pDictionary->pCurrent )
+    {
+        RPUSH( (long) GET_IP );
+        SET_IP( newIP );
+    }
+    else
+    {
+        SET_ERROR( kForthErrorBadOpcode );
+    }
+}
+
 OPTYPE_ACTION( BranchAction )
 {
     if ( (opVal & 0x00800000) != 0 )
@@ -2111,14 +2127,14 @@ optypeActionRoutine builtinOptypeAction[] =
 {
     // 00 - 09
     NativeAction,
-    NativeAction,          // immediate
+    NativeAction,           // immediate
     UserDefAction,
     UserDefAction,          // immediate
     CCodeAction,
-    CCodeAction,         // immediate
+    CCodeAction,            // immediate
+    RelativeDefAction,
+    RelativeDefAction,      // immediate
     DLLEntryPointAction,
-    ReservedOptypeAction,
-    ReservedOptypeAction,
     ReservedOptypeAction,
 
     // 10 - 19

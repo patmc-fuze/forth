@@ -10,7 +10,7 @@ setTrace( 0 )
 : load blword $load ;
 : precedence blword $precedence ;
 : forget
-  blword dup $forget
+  blword dup
   if( not( $forget ) )
     "forget failed for " %s %s %nl
   else

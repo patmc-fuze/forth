@@ -164,6 +164,109 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 28 2014
+
+A change I made to get tetris to work broke ansitest.  The underlying problem
+is that ForthShell::ParseToken leaves the buffer pointer pointing to the
+delimiter of the token it just parsed, but ForthShell::GetToken leaves the
+pointer pointing at the character after the delimiter.  The tetris code builds
+its tetris pieces using s" indirectly executed by ' execute
+  s" abc" type
+    types "abc"
+  : boo ' execute ; boo s" abc" type
+    types "ab"
+
+Changing ParseToken seems dangerous, but I changed it to move past the terminating
+space or tab (not null though), and it seems to work.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 27 2014
+
+I made a maze generator for work yesterday, it works, but usually fails with
+a deadend because it doesn't have backtracking.  While working on it, I found
+a few problems:
+
+1) I ran into a crash because the first local variable I declared was inside a loop
+2) I was getting bad opcode errors when I reloaded a file in autoforget.
+
+The autoforget problem was because ForthForgettable::ForgetPropagate was first going
+down the chain, getting each forgettable to process the forget, then going down
+the chain a second time, deleting any forgettables which were above the new DP.
+The problem was that a global object existed whose class had been forgotten the
+first time through the forgettable chain, and on the second pass when the global
+object was deleted (I think) it was trying to execute its delete method, but
+the opcode was bad because the class had already been forgotten.  I tried
+swapping the order of the passes, but now I'm getting other errors which seem
+to be because autoforget isn't really forgetting anything. 
+Undoing that change didn't fix the problem, forgetting some ops causes the ops
+to be removed from the engines op table, but not removed from vocabularies.
+
+The bug is a strange one - in ForthVocabulary::ForgetOp for some reason I had
+code for processing constant entries that was causing the forget to always
+terminate the first time it hit a constant (an enum in this case).  The code
+was bizarre, it was trying to get the structure index from the 2nd word of
+value field, which is just the kBaseTypeUserDefinition, turns it into an
+opcode, and uses that to figure out if it should forget the constant.
+I removed the constant case, and added to the default case to have the
+forget search continue with the next entry.
+After that, I put back in the ForgetPropagate change, and it appears to work.
+
+The fcp.f chess program had been working, but failed when I tried it recently.
+The problem is that I had to change how $word worked to make tetris work, $word
+has always skipped all initial delimiters, and tetris created its pieces using
+a bunch of string which started with multiple whitespace characters.  I changed
+ForthShell::GetToken to take a skipLeadingWhitespace flag which defaulted to true,
+which $word set to false.  What I didn't know is that on entry to GetToken, the
+next character was actually the delimiter to the previous word, so $word was
+always terminating immediately and giving back an empty word.  I changed this
+to have it break out of the skip-initial-whitespace loop after the first char
+if the skip flag was false.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 24 2014
+
+Crazy idea that I've probably had before:
+
+Move the optype bits to the bottom 8 bits, and have the optypes which have
+the bottom 2 bits zero be used for native ops - that way the opcode is the
+same as the actual code address.  The next code for continuing on to the
+next native op is inlined, the inner interpreter branch register is used
+for all non-native types.
+
+Native ops would end with this macro:
+
+next macro:
+	mov eax, [esi]
+	add esi, 4
+	test eax, 3
+	jnz notNative
+	jmp eax
+notNative:
+	jmp edi
+	
+	
+edi points to this inner interp dispatcher:
+
+innerDispatch:
+	mov	[ebp].FCore.IPtr, esi
+	mov	[ebp].FCore.SPtr, edx
+	mov ebx, eax
+	and eax, 255
+	mov ecx, [ebp].FCore.ops
+	mov ecx, [ecx+eax*4]
+	jmp ecx
+
+o call this 'crack forth' for using the cracks between direct threaded
+  native addresses for token threaded opcodes
+  o source file type is .c4
+o there is no longer any checking for a bad native opcode
+o if native ops can be immediate, immediacy cannot be determined from the opcode
+o we lose a level of indirection, we can't patch the ops table to change what
+  native code an opcode dispatches to, which isn't currently used
+o this change makes saving a relocatable image harder - it would probably
+  require diffing 2 images saved with different base offsets.
+
+A related change I've been thinking about is to replace user defined ops with
+an optype with the opval being the longword offset from the base of the dictionary.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 22 2014
 
 I've got all the ANSI test problems fixed.

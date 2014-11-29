@@ -432,6 +432,10 @@ ForthVocabulary::ForgetOp( long op )
 				}
                 break;
 
+#if 0
+             // I can't figure out what the hell I was thinking here - a constant has
+             //  no associated code to be forgotten, and what the hell was I getting
+             //  the structure index for (from the wrong place also)?
              case kOpConstant:
                 opVal = CODE_TO_STRUCT_INDEX( pEntry[1] );
                 if ( opVal >= op )
@@ -446,6 +450,7 @@ ForthVocabulary::ForgetOp( long op )
                     symbolsLeft = 0;
                 }
                 break;
+#endif
 
             case kOpDLLEntryPoint:
                 opVal = CODE_TO_DLL_ENTRY_INDEX( GetEntryValue( pEntry ) );
@@ -463,6 +468,7 @@ ForthVocabulary::ForgetOp( long op )
                 break;
 
              default:
+				pEntry = NextEntry( pEntry );
                 break;
         }
     }

@@ -128,6 +128,7 @@ precedence s"
 ;
 : quit r0 -> rp done ;
 : erase 0 swap memset ;
+: blank 0x20 swap memset ;
 0x20 constant bl
 : emit %c ;
 : does> postpone does ; precedence does>
@@ -273,3 +274,31 @@ int _handler
 : page clearConsole 0 0 setConsoleCursor ;
 // addr count ... addr+count addr
 : bounds over + swap ;
+
+: ,"
+  '\"' $word
+  here over strlen 1+ allot
+  swap strcpy align
+;
+ 
+: refill
+  "refill" fillInBuffer null <>
+;
+ 
+: ms millisleep ;
+ 
+: cell- 4- ;
+: [defined] ( "word" -- tf ) bl word find nip ; precedence [defined]
+: -trailing
+  -> int numChars
+  -> ptrTo byte pStr
+  
+  begin
+  while( and( numChars 0>   pStr numChars + 1- c@ '\ ' <> ) )
+    1 ->- numChars
+  repeat
+    
+  pStr numChars
+;
+
+: d>s drop ;

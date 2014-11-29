@@ -833,18 +833,31 @@ FORTHOP( doesOp )
 {
     long newUserOp;
     ForthEngine *pEngine = GET_ENGINE;
-    
-    // compile dodoes opcode & dummy word
-    pEngine->CompileBuiltinOpcode( OP_END_BUILDS );
-    pEngine->CompileLong( 0 );
-    // create a nameless vocabulary entry for does-body opcode
-    newUserOp = pEngine->AddOp( GET_DP );
-    newUserOp = COMPILED_OP( kOpUserDef, newUserOp );
-    pEngine->CompileBuiltinOpcode( OP_DO_DOES );
-    // stuff does-body opcode in dummy word
-    GET_DP[-2] = newUserOp;
-    // compile local vars allocation op (if needed)
-    pEngine->EndOpDefinition();
+
+    if ( pEngine->IsCompiling() )
+    {
+        // compile dodoes opcode & dummy word
+        pEngine->CompileBuiltinOpcode( OP_END_BUILDS );
+        pEngine->CompileLong( 0 );
+        // create a nameless vocabulary entry for does-body opcode
+        newUserOp = pEngine->AddOp( GET_DP );
+        newUserOp = COMPILED_OP( kOpUserDef, newUserOp );
+        pEngine->CompileBuiltinOpcode( OP_DO_DOES );
+        // stuff does-body opcode in dummy word
+        GET_DP[-2] = newUserOp;
+        // compile local vars allocation op (if needed)
+        pEngine->EndOpDefinition();
+    }
+    else
+    {
+        // this is a one-off does body which will only be used by
+        //  the most recently created op
+        newUserOp = pEngine->AddOp( GET_DP );
+        *gpSavedDP = COMPILED_OP( kOpUserDef, newUserOp );
+        pEngine->CompileBuiltinOpcode( OP_DO_DOES );
+        // switch to compile mode
+        pEngine->SetCompileState( 1 );
+    }
 }
 
 // endBuilds
@@ -1051,7 +1064,8 @@ FORTHOP( strForgetOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     const char* pSym = (const char *)(SPOP);
-    bool forgotIt = pEngine->ForgetSymbol( pSym, true );
+	bool verbose = (GET_VAR_OPERATION != kVarDefaultOp);
+    bool forgotIt = pEngine->ForgetSymbol( pSym, !verbose );
     // reset search & definitions vocabs in case we deleted a vocab we were using
     pEngine->SetDefinitionVocabulary( pEngine->GetForthVocabulary() );
     ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
@@ -3115,7 +3129,7 @@ FORTHOP( strWordOp )
     ForthShell *pShell = GET_ENGINE->GetShell();
     char delim = (char) (SPOP);
     // leave an unused byte below string so string len can be stuck there in ANSI compatability mode
-	char *pSrc = pShell->GetToken( delim );
+	char *pSrc = pShell->GetToken( delim, false );
 	char *pDst = GET_ENGINE->GetTmpStringBuffer() + 1;
 	strncpy( pDst, pSrc, (TMP_STRING_BUFFER_LEN - 2) );
     SPUSH( (long) pDst );
@@ -3350,7 +3364,7 @@ FORTHOP( addErrorTextOp )
 FORTHOP( timeOp )
 {
     time_t rawtime;
-    time ( &rawtime );
+    time( &rawtime );
     DPUSH( *((double *) &rawtime) );
 }
 
@@ -3366,6 +3380,19 @@ FORTHOP( strftimeOp )
     timeinfo = localtime ( &rawtime );
     // Www Mmm dd yyyy (weekday, month, day, year)
     strftime( buffer, bufferSize, fmt, timeinfo);
+}
+
+FORTHOP( timeAndDateOp )
+{
+    time_t rawtime;
+    time( &rawtime );
+    struct tm* brokenDownTime = gmtime( &rawtime );
+    SPUSH( brokenDownTime->tm_year );
+    SPUSH( brokenDownTime->tm_mon );
+    SPUSH( brokenDownTime->tm_mday );
+    SPUSH( brokenDownTime->tm_hour );
+    SPUSH( brokenDownTime->tm_min );
+    SPUSH( brokenDownTime->tm_sec );
 }
 
 FORTHOP( millitimeOp )
@@ -6614,7 +6641,7 @@ OPREF( i2fBop );            OPREF( i2dBop );            OPREF( f2iBop );
 OPREF( f2dBop );            OPREF( d2iBop );            OPREF( d2fBop );
 OPREF( orBop );             OPREF( andBop );            OPREF( xorBop );
 OPREF( invertBop );         OPREF( lshiftBop );         OPREF( rshiftBop );
-OPREF( arshiftBop );        OPREF( notBop );            OPREF( trueBop );
+OPREF( arshiftBop );        OPREF( trueBop );
 OPREF( falseBop );          OPREF( nullBop );           OPREF( dnullBop );
 OPREF( equalsBop );         OPREF( notEqualsBop );      OPREF( greaterThanBop );
 OPREF( greaterEqualsBop );  OPREF( lessThanBop );       OPREF( lessEqualsBop );
@@ -6910,7 +6937,7 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  boolean logic
     ///////////////////////////////////////////
-    NATIVE_DEF(    notBop,                  "not" ),
+    NATIVE_DEF(    equals0Bop,              "not" ),
     NATIVE_DEF(    trueBop,                 "true" ),
     NATIVE_DEF(    falseBop,                "false" ),
     NATIVE_DEF(    nullBop,                 "null" ),
@@ -7290,6 +7317,7 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     OP_DEF(    timeOp,                 "time" ),
     OP_DEF(    strftimeOp,             "strftime" ),
+    OP_DEF(    timeAndDateOp,          "time&date" ),
     OP_DEF(    millitimeOp,            "millitime" ),
     OP_DEF(    millisleepOp,           "millisleep" ),
 

@@ -133,7 +133,7 @@ public:
     // NOTE: the input stream passed to Run will be deleted by ForthShell
     virtual int             Run( ForthInputStream *pStream );
     char *                  GetNextSimpleToken( void );
-    char *                  GetToken( char delim );
+    char *                  GetToken( char delim, bool bSkipLeadingWhiteSpace = true );
 
     void                    SetCommandLine( int argc, const char ** argv );
     void                    SetCommandLine( const char *pCmdLine );

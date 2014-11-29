@@ -27,6 +27,8 @@ typedef enum
     kOpUserDefImmediate,
     kOpCCode,         // low 24 bits is op number (index into ForthCoreState userOps table)
     kOpCCodeImmediate,
+    kOpRelativeDef,         // low 24 bits is offset from dictionary base
+    kOpRelativeDefImmediate,
     kOpDLLEntryPoint,   // bits 0:18 are index into ForthCoreState userOps table, 19:23 are arg count
     // 7 - 9 are unused
 
@@ -35,7 +37,7 @@ typedef enum
     kOpBranchZ,
     kOpCaseBranch,
 	kOpPushBranch,
-    // 145 - 19 are unused
+    // 15 - 19 are unused
 
     kOpConstant = 20,   // low 24 bits is signed symbol value
     kOpConstantString,  // low 24 bits is number of longwords to skip over

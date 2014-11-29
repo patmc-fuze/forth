@@ -815,7 +815,8 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
             pEndSrc = pSrc;
             while ( !done )
             {
-               switch ( *pEndSrc )
+               char ch = *pEndSrc;
+               switch ( ch )
                {
                   case ' ':
                   case '\t':
@@ -825,6 +826,10 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
                      // set token length byte
                      pInfo->SetToken();
                      gotAToken = true;
+                     if ( ch != '\0;' )
+                     {
+                         ++pEndSrc;
+                     }
                      break;
 
                   default:
@@ -946,7 +951,8 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
             pEndSrc = pSrc;
             while ( !done )
             {
-                switch ( *pEndSrc )
+                char ch = *pEndSrc;
+                switch ( ch )
                 {
                   case ' ':
                   case '\t':
@@ -956,6 +962,10 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                      // set token length byte
                      pInfo->SetToken();
                      gotAToken = true;
+                     if ( ch != '\0' )
+                     {
+                         pEndSrc++;
+                     }
                      break;
 
                   case '(':
@@ -1052,24 +1062,28 @@ ForthShell::GetNextSimpleToken( void )
     }
     mpInput->SetBufferPointer( pEndToken );
 
+    //TRACE( "GetNextSimpleToken: |%s|%s|\n", pToken, pEndToken );
     return pToken;
 }
 
 
 char *
-ForthShell::GetToken( char delim )
+ForthShell::GetToken( char delim, bool bSkipLeadingWhiteSpace )
 {
     char *pToken = mpInput->GetBufferPointer();
     char *pEndToken, c;
     bool bDone;
 
-    // eat any leading white space
-    while ( (*pToken == ' ') || (*pToken == '\t') )
+    if ( bSkipLeadingWhiteSpace )
     {
-        pToken++;
+        // eat any leading white space
+        while ( (*pToken == ' ') || (*pToken == '\t') )
+        {
+            pToken++;
+        }
     }
-
     pEndToken = pToken;
+
     bDone = false;
     while ( !bDone )
     {
@@ -1092,6 +1106,7 @@ ForthShell::GetToken( char delim )
     }
     mpInput->SetBufferPointer( pEndToken );
 
+    //TRACE( "GetToken: |%s|%s|\n", pToken, pEndToken );
     return pToken;
 }
 

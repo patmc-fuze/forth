@@ -231,10 +231,15 @@ create robots #max-robots 3 * cells allot
 : user-input ( -- ) \ waits for one key, then handles player movement
     key
     case
-        [char] h of left move endof
-        [char] j of down move endof
-        [char] k of up move endof
-        [char] l of right move endof
+// PJM - use aswd instead of hjkl    
+//        [char] h of left move endof
+//        [char] j of down move endof
+//        [char] k of up move endof
+//        [char] l of right move endof
+        [char] a of left move endof
+        [char] s of down move endof
+        [char] w of up move endof
+        [char] d of right move endof
         [char] q of ." Thanks for playing! " quit endof
         [char] t of #teleports @ 0>
             if #teleports @ 1- #teleports !

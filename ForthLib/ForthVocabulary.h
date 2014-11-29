@@ -191,7 +191,7 @@ protected:
     // these are set right after forth is started, before any user definitions are loaded
     // they are used when saving/restoring vocabularies
     int                 mStartNumSymbols;
-    int                 mStartLength;
+    int                 mStartStorageLongs;
 #ifdef MAP_LOOKUP
     CMapStringToPtr     mLookupMap;
 #endif

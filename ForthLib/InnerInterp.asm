@@ -36,9 +36,9 @@ _TEXT	SEGMENT
 ;
 ;	EAX		free
 ;	EBX		free
-;	ECX		IP
+;	ECX		free
 ;	EDX		SP
-;	ESI		free
+;	ESI		IP
 ;	EDI		inner interp PC (constant)
 ;	EBP		core ptr (constant)
 
@@ -460,6 +460,26 @@ entry userDefType
 badUserDef:
 	mov	eax, kForthErrorBadOpcode
 	jmp	interpLoopErrorExit
+
+;-----------------------------------------------
+;
+; user-defined ops (forth words defined with colon)
+;
+entry relativeDefType
+	; ebx is offset from dictionary base of user definition
+	and	ebx, 00FFFFFFh
+	sal	ebx, 2
+	mov	eax, [ebp].FCore.DictionaryPtr
+	add	ebx, [eax].ForthMemorySection.pBase
+	cmp	ebx, [eax].ForthMemorySection.pCurrent
+	jge	badUserDef
+	; push IP on rstack
+	mov	eax, [ebp].FCore.RPtr
+	sub	eax, 4
+	mov	[eax], esi
+	mov	[ebp].FCore.RPtr, eax
+	mov	esi, ebx
+	jmp	edi
 
 ;-----------------------------------------------
 ;
@@ -3759,8 +3779,7 @@ entry xorBop
 
 entry invertBop
 	mov	eax,0FFFFFFFFh
-	xor	eax, [edx]
-	mov	[edx], eax
+	xor	[edx], eax
 	jmp	edi
 	
 ;========================================
@@ -3791,13 +3810,6 @@ entry rshiftBop
 	mov	ebx, [edx]
 	shr	ebx, cl
 	mov	[edx], ebx
-	jmp	edi
-	
-;========================================
-
-entry notBop
-	mov	eax,0FFFFFFFFh
-	xor	[edx], eax
 	jmp	edi
 	
 ;========================================
@@ -5893,9 +5905,9 @@ entry opTypesTable
 	DD	FLAT:userDefType			; kOpUserDefImmediate,
 	DD	FLAT:cCodeType				; kOpCCode,         
 	DD	FLAT:cCodeType				; kOpCCodeImmediate,
+	DD	FLAT:relativeDefType		; kOpRelativeDef,
+	DD	FLAT:relativeDefType		; kOpRelativeDefImmediate,
 	DD	FLAT:dllEntryPointType		; kOpDLLEntryPoint,
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
 	DD	FLAT:extOpType	
 ;	10 - 19
 	DD	FLAT:branchType				; kOpBranch = 10,
