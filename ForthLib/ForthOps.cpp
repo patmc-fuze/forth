@@ -7327,8 +7327,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    timeOp,                 "time" ),
     OP_DEF(    strftimeOp,             "strftime" ),
     OP_DEF(    timeAndDateOp,          "time&date" ),
-    OP_DEF(    millitimeOp,            "millitime" ),
-    OP_DEF(    millisleepOp,           "millisleep" ),
+    OP_DEF(    millitimeOp,            "ms@" ),
+    OP_DEF(    millisleepOp,           "ms" ),
 
     ///////////////////////////////////////////
     //  computation utilities - randoms, hashing, sorting and searcing

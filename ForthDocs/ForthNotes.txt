@@ -127,7 +127,7 @@ cvs update
 	recursively update all directories from repository
 	can be used to show what files are not in CVS or what files have been modified
 	
-cvs log FILENMAE
+cvs log FILENAME
 	show history of a file
 	
 To revert changes to a file, delete the file then do cvs update FILENAME
@@ -136,8 +136,6 @@ colonOp
  ForthEngine::StartOpDefinition
   ForthVocabulary::AddSymbol
    ForthEngine::AddOp
-
-
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 Adding an optype checklist:
@@ -164,6 +162,23 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 29 2014
+
+I replaced ansiMode with 'features' which is a fake variable that allows you
+to change individual ansi features.
+The next ansi compatability change is string variables.  I'm going to change
+them from having 2 ints before the characters to having 2 bytes.  This will
+limit them from being able to have strings longer than 255 bytes, but will
+make compatability much easier.  I should add a builtin buffer type which acts
+like the old string, with an added read offset field.
+The next change after that should be floating point.  I should probably just
+just change all my floating point stuff to be ansi compliant instead of adding
+compatability ops and feature flags.
+Most forth implementations use a separate FP stack, since this is more efficient
+with hardware.  This would make moving the floating point ops out of the kernel
+easy, most of the ops are just a single FP instruction.  It would make the
+no assembler version a bit harder, it would need to emulate the FP stack.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 28 2014
 
 A change I made to get tetris to work broke ansitest.  The underlying problem
@@ -174,7 +189,7 @@ its tetris pieces using s" indirectly executed by ' execute
   s" abc" type
     types "abc"
   : boo ' execute ; boo s" abc" type
-    types "ab"
+    types "bc"
 
 Changing ParseToken seems dangerous, but I changed it to move past the terminating
 space or tab (not null though), and it seems to work.
@@ -263,6 +278,9 @@ o we lose a level of indirection, we can't patch the ops table to change what
   native code an opcode dispatches to, which isn't currently used
 o this change makes saving a relocatable image harder - it would probably
   require diffing 2 images saved with different base offsets.
+o this makes compiling combo ops harder - there would need to be a table of
+  the N native combo ops which can be combo-ed
+  -> maybe the vocabulary entry for combo-able ops would have the optable index
 
 A related change I've been thinking about is to replace user defined ops with
 an optype with the opval being the longword offset from the base of the dictionary.

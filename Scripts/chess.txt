@@ -1417,7 +1417,6 @@ VARIABLE lastScore
 #endif
 
 \ : ms@ ( -- n ) time&date 2drop drop 3600 * swap 60 * + + 1000 * ;
-: ms@ millitime ;
 
 : .searchHeader ." ply    nodes    time score pv" CR ;
 

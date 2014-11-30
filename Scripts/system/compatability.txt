@@ -221,8 +221,6 @@ true constant locals-ext
 : off false swap ! ;
 : on true swap ! ;
 
-: ms@ millitime ;
-
 : s>d i2l ;
 
 int _handler
@@ -284,8 +282,6 @@ int _handler
 : refill
   "refill" fillInBuffer null <>
 ;
- 
-: ms millisleep ;
  
 : cell- 4- ;
 : [defined] ( "word" -- tf ) bl word find nip ; precedence [defined]
