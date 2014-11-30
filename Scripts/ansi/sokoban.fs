@@ -1,3 +1,4 @@
+requires ansi  \ PJM
 \ sokoban - a maze game in FORTH
 
 \ Copyright (C) 1995,1997,1998,2003,2007,2012,2013 Free Software Foundation, Inc.
@@ -159,22 +160,22 @@ Variable score     0 score !  \ total number of scores
 	CASE
 	    [char] ? OF  print-help false  ENDOF
 
-	    // PJM - use wasd keys	    
+	    \ PJM - use wasd keys	    
 	    [char] a OF  soko-left  false  ENDOF
 	    [char] s OF  soko-down  false  ENDOF
 	    [char] w OF  soko-up    false  ENDOF
 	    [char] d OF  soko-right false  ENDOF
-	    //[char] h OF  soko-left  false  ENDOF
-	    //[char] j OF  soko-down  false  ENDOF
-	    //[char] k OF  soko-up    false  ENDOF
-	    //[char] l OF  soko-right false  ENDOF
+	    \ [char] h OF  soko-left  false  ENDOF
+	    \ [char] j OF  soko-down  false  ENDOF
+	    \ [char] k OF  soko-up    false  ENDOF
+	    \ [char] l OF  soko-right false  ENDOF
 
 	    \ vt100 cursor keys should work too
-	    //27       OF  key [char] [ <>   ENDOF
-	    //[char] D OF  soko-left  false  ENDOF
-	    //[char] B OF  soko-down  false  ENDOF
-	    //[char] A OF  soko-up    false  ENDOF
-	    //[char] C OF  soko-right false  ENDOF
+	    \ 27       OF  key [char] [ <>   ENDOF
+	    \ [char] D OF  soko-left  false  ENDOF
+	    \ [char] B OF  soko-down  false  ENDOF
+	    \ [char] A OF  soko-up    false  ENDOF
+	    \ [char] C OF  soko-right false  ENDOF
 
 	    [char] q OF  true              ENDOF
 	false swap  ENDCASE

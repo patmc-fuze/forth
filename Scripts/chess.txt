@@ -8,10 +8,10 @@ autoforget chess
 
 decimal
 
-// patmc definitions
+\ PJM definitions
 : A@ @ ;
 
-true -> ansiMode
+kFFAnsi -> features
 
 \ Please see copyright information at the following site:
 \
@@ -1728,7 +1728,7 @@ new
 
 DECIMAL
 
-false -> ansiMode
+kFFRegular -> features
 
 loaddone
 

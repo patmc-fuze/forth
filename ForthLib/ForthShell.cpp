@@ -274,7 +274,7 @@ ForthShell::PushInputFile( const char *pFilename )
     FILE *pInFile = OpenForthFile( pFilename );
     if ( pInFile != NULL )
     {
-        mpInput->PushInputStream( new ForthFileInputStream( pInFile ) );
+        mpInput->PushInputStream( new ForthFileInputStream( pInFile, pFilename ) );
         return true;
     }
     return false;
@@ -603,7 +603,7 @@ ForthShell::ReportError( void )
     int lineNumber = mpInput->InputStream()->GetLineNumber();
     if ( lineNumber > 0 )
     {
-        sprintf( errorBuf1, "%s at line number %d", errorBuf2, lineNumber );
+        sprintf( errorBuf1, "%s at line number %d of %s", errorBuf2, lineNumber, mpInput->InputStream()->GetName() );
     }
     else
     {
@@ -658,7 +658,8 @@ backslashChar( char c )
 
 static const char *
 ForthParseSingleQuote( const char       *pSrcIn,
-                       ForthParseInfo   *pInfo )
+                       ForthParseInfo   *pInfo,
+                       ForthEngine      *pEngine )
 {
     char cc[9];
 	bool isQuotedChar = false;
@@ -670,7 +671,8 @@ ForthParseSingleQuote( const char       *pSrcIn,
     {
 		const char *pSrc = pSrcIn + 1;
 		int iDst = 0;
-		while ( iDst < 8 )
+        int maxChars = pEngine->CheckFeature( kFFMultiCharacterLiterals ) ? 8 : 1;
+		while ( iDst < maxChars )
 		{
 			char ch = *pSrc++;
             if ( (ch == '\0') || (ch == ' ') || (ch == '\t') )
@@ -697,7 +699,7 @@ ForthParseSingleQuote( const char       *pSrcIn,
 				cc[iDst++] = ch;
 			}
 		}
-		if ( iDst == 8 )
+		if ( iDst == maxChars )
 		{
 			if ( *pSrc == '\'' )
 			{
@@ -790,7 +792,7 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
         }
 
         // support C++ end-of-line style comments
-        if ( (*pSrc == '/') && (pSrc[1] == '/') )
+        if ( (*pSrc == '/') && (pSrc[1] == '/') && mpEngine->CheckFeature( kFFDoubleSlashComment ) )
         {
             return true;
         }
@@ -800,8 +802,11 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
         {
            case '\"':
               // support C-style quoted strings...
-              pEndSrc = ForthParseDoubleQuote( pSrc, pInfo );
-              gotAToken = true;
+              if ( mpEngine->CheckFeature( kFFCStringLiterals ) )
+              {
+                  pEndSrc = ForthParseDoubleQuote( pSrc, pInfo );
+                  gotAToken = true;
+              }
               break;
 
            default:
@@ -920,7 +925,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
         }
 
         // support C++ end-of-line style comments
-        if ( (*pSrc == '/') && (pSrc[1] == '/') )
+        if ( (*pSrc == '/') && (pSrc[1] == '/') && mpEngine->CheckFeature( kFFDoubleSlashComment ) )
         {
             return true;
         }
@@ -930,14 +935,20 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
         {
            case '\"':
               // support C-style quoted strings...
-              pEndSrc = ForthParseDoubleQuote( pSrc, pInfo );
-              gotAToken = true;
+              if ( mpEngine->CheckFeature( kFFCStringLiterals ) )
+              {
+                  pEndSrc = ForthParseDoubleQuote( pSrc, pInfo );
+                  gotAToken = true;
+              }
               break;
 
            case '\'':
               // support C-style quoted characters like 'a' or '\n'
-              pEndSrc = ForthParseSingleQuote( pSrc, pInfo );
-              gotAToken = true;
+              if ( mpEngine->CheckFeature( kFFCCharacterLiterals ) )
+              {
+                  pEndSrc = ForthParseSingleQuote( pSrc, pInfo, mpEngine );
+                  gotAToken = true;
+              }
               break;
 
            default:
@@ -969,7 +980,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                      break;
 
                   case '(':
-                     if ( (pEndSrc == pSrc) || mpEngine->CheckFlag( kEngineFlagAnsiMode ) )
+                     if ( (pEndSrc == pSrc) || mpEngine->CheckFeature( kFFParenIsComment ) )
                      {
                          // paren at start of token is part of token (allows old forth-style inline comments to work)
                          *pDst++ = *pEndSrc++;
@@ -986,7 +997,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                      break;
 
                   case ')':
-                     if ( mpEngine->CheckFlag( kEngineFlagAnsiMode ) )
+                     if ( mpEngine->CheckFeature( kFFParenIsComment ) )
                      {
                         *pDst++ = *pEndSrc++;
                      }

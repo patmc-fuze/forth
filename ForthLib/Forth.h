@@ -182,7 +182,7 @@ typedef enum {
     kVarStore,
     kVarPlusStore,
     kVarMinusStore,
-
+    kNumVarops
 } varOperation;
 
 typedef enum {
@@ -257,6 +257,18 @@ typedef enum {
     kPrintAllSigned,
     kPrintAllUnsigned
 } ePrintSignedMode;
+
+typedef enum {
+    kFFParenIsComment           = 0x001,
+    kFFCCharacterLiterals       = 0x002,
+    kFFMultiCharacterLiterals   = 0x004,
+    kFFCStringLiterals          = 0x008,
+    kFFCHexLiterals             = 0x010,
+    kFFDoubleSlashComment       = 0x020,
+    kFFIgnoreCase               = 0x040,
+    kFFDollarHexLiterals        = 0x080,
+    kFFCFloatLiterals           = 0x100,
+} ForthFeatureFlags;
 
 
 typedef struct {

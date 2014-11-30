@@ -33,6 +33,41 @@ setTrace( 0 )
 ;
 
 //######################################################################
+// features support
+
+// values to be used with features variable
+enum: eFeatures
+  0x0001  kFFParenIsComment
+  0x0002  kFFCCharacterLiterals
+  0x0004  kFFMultiCharacterLiterals
+  0x0008  kFFCStringLiterals
+  0x0010  kFFCHexLiterals
+  0x0020  kFFDoubleSlashComment
+  0x0040  kFFIgnoreCase
+  0x0080  kFFDollarHexLiterals
+  0x0100  kFFCFloatLiterals
+  // kFFAnsi and kFFRegular are the most common feature combinations
+  kFFParenIsComment kFFIgnoreCase + kFFDollarHexLiterals + kFFAnsi
+  kFFCCharacterLiterals kFFMultiCharacterLiterals + kFFCStringLiterals +
+    kFFCHexLiterals + kFFDoubleSlashComment + kFFCFloatLiterals + kFFRegular
+    
+;enum
+
+: .features
+  features
+  "0x" %s dup %x
+  dup kFFParenIsComment and if " kFFParenIsComment" %s endif
+  dup kFFCCharacterLiterals and if " kFFCCharacterLiterals" %s endif
+  dup kFFMultiCharacterLiterals and if " kFFMultiCharacterLiterals" %s endif
+  dup kFFCStringLiterals and if " kFFCStringLiterals" %s endif
+  dup kFFCHexLiterals and if " kFFCHexLiterals" %s endif
+  dup kFFDoubleSlashComment and if " kFFDoubleSlashComment" %s endif
+  dup kFFIgnoreCase and if " kFFIgnoreCase" %s endif
+  dup kFFDollarHexLiterals and if " kFFDollarHexLiterals" %s endif
+  kFFCFloatLiterals and if " kFFCFloatLiterals" %s endif
+;
+
+//######################################################################
 // help support
 
 255 string _TempStringA

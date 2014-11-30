@@ -34,6 +34,7 @@ public:
     virtual bool    IsInteractive( void ) = 0;
     virtual int     GetLineNumber( void );
 	virtual const char* GetType( void );
+	virtual const char* GetName( void );
 
     friend class ForthInputStack;
 
@@ -49,15 +50,17 @@ protected:
 class ForthFileInputStream : public ForthInputStream
 {
 public:
-    ForthFileInputStream( FILE *pInFile, int bufferLen = DEFAULT_INPUT_BUFFER_LEN );
+    ForthFileInputStream( FILE *pInFile, const char* pFilename, int bufferLen = DEFAULT_INPUT_BUFFER_LEN );
     virtual ~ForthFileInputStream();
 
     virtual char    *GetLine( const char *pPrompt );
     virtual bool    IsInteractive( void ) { return false; };
     virtual int     GetLineNumber( void );
 	virtual const char* GetType( void );
+	virtual const char* GetName( void );
 protected:
     FILE        *mpInFile;
+    char*       mpName;
     int         mLineNumber;
 };
 

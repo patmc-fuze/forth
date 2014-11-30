@@ -134,6 +134,8 @@ ForthEngine::ForthEngine()
 , mTraceOutRoutine( defaultTraceOutRoutine )
 , mpTraceOutData( NULL )
 , mpOpcodeCompiler( NULL )
+, mFeatures( kFFCCharacterLiterals | kFFMultiCharacterLiterals | kFFCStringLiterals
+            | kFFCHexLiterals | kFFDoubleSlashComment | kFFCFloatLiterals )
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -1284,7 +1286,9 @@ ForthEngine::ScanIntegerToken( char         *pToken,
     char *pLastChar = pToken + (len - 1);
     char lastChar = *pLastChar;
     bool isValid = false;
-    bool ansiMode = CheckFlag( kEngineFlagAnsiMode );
+
+    // if CFloatLiterals is off, '.' indicates a double-precision number, not a float
+    bool periodMeansDoubleInt = !CheckFeature( kFFCFloatLiterals );
 
     isOffset = false;
     isSingle = true;
@@ -1319,7 +1323,13 @@ ForthEngine::ScanIntegerToken( char         *pToken,
         pLastChar = NULL;
     }
 
-    if ( ansiMode && pToken[0] == '$')
+    // see if this is ANSI style double precision int
+    if ( periodMeansDoubleInt )
+    {
+        isSingle = (strchr( pToken, '.' ) == NULL);
+    }
+
+    if ( (pToken[0] == '$') && CheckFeature(kFFDollarHexLiterals) )
     {
         if ( sscanf( pToken + 1, "%x", &value ) == 1 )
         {
@@ -1330,7 +1340,7 @@ ForthEngine::ScanIntegerToken( char         *pToken,
             isValid = true;
         }
     }
-    if ( !isValid && ((pToken[0] == '0') && (pToken[1] == 'x')) )
+    if ( !isValid && ((pToken[0] == '0') && (pToken[1] == 'x')) && CheckFeature(kFFCHexLiterals) )
     {
         if ( isSingle )
         {
@@ -1383,6 +1393,11 @@ ForthEngine::ScanIntegerToken( char         *pToken,
             else
             {
                 // char can't be a digit
+                if ( (c == '.') && periodMeansDoubleInt )
+                {
+                    // ignore . in double precision int
+                    continue;
+                }
                 isValid = false;
                 break;
             }
@@ -1447,9 +1462,19 @@ bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, b
    }
 
    int len = strlen( pToken );
-   if ( strchr( pToken, '.' ) == NULL )
+   if ( CheckFeature( kFFCFloatLiterals ) )
    {
-      return false;
+       if ( strchr( pToken, '.' ) == NULL )
+       {
+          return false;
+       }
+   }
+   else
+   {
+       if ( (strchr( pToken, 'e' ) == NULL) && (strchr( pToken, 'E' ) == NULL) )
+       {
+          return false;
+       }
    }
    char *pLastChar = pToken + (len - 1);
    char lastChar = *pLastChar;
@@ -2464,7 +2489,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     //    try to covert to a floating point number
     // else
     //    try to convert to an integer
-    if ( (pInfo->GetFlags() & PARSE_FLAG_HAS_PERIOD) 
+    if ( ((pInfo->GetFlags() & PARSE_FLAG_HAS_PERIOD) || !CheckFeature(kFFCFloatLiterals))
           && ScanFloatToken( pToken, fvalue, dvalue, isSingle, isApproximate ) )
     {
        if ( isSingle )

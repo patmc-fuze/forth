@@ -141,8 +141,8 @@ test[ strstr( aaa "ahab" ) 0= ]
 : _ok_ %d /* _fail_ */ ;
 // "The following line should have \"123456\" on it\n" %s
 startTest
-_ok_( 1 ) true -> ansiMode ( _fail_ ) 2 _ok_ ( _fail_
-) 3 _ok_ false -> ansiMode _ok_( 4 ) /* _fail_
+_ok_( 1 ) kFFParenIsComment ->+ features ( _fail_ ) 2 _ok_ ( _fail_
+) 3 _ok_ kFFParenIsComment ->- features _ok_( 4 ) /* _fail_
 */ 5 _ok_ /* _fail_ */ 6 _ok_ %nl
 test[ checkResult( "123456\n" ) ]
 

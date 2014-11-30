@@ -1198,6 +1198,11 @@ FORTHOP( vlistOp )
 	CLEAR_VAR_OPERATION;
 }
 
+FORTHOP( verboseBop )
+{
+    SET_VAR_OPERATION( kNumVarops );
+}
+
 FORTHOP( strFindOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
@@ -3192,8 +3197,8 @@ FORTHOP( parenCommentOp )
 	char *pToken = pShell->GetToken( ')' );
 }
 
-// fake variable used to turn on/off ansi compatability mode
-FORTHOP( ansiModeOp )
+// fake variable used to turn on/off features
+FORTHOP( featuresOp )
 {
     NEEDS( 1 );
     ForthEngine* pEngine = GET_ENGINE;
@@ -3201,26 +3206,31 @@ FORTHOP( ansiModeOp )
     switch ( GET_VAR_OPERATION )
     {
     case kVarStore:
-        if ( SPOP )
-        {
-            pEngine->SetFlag( kEngineFlagAnsiMode );
-        }
-        else
-        {
-            pEngine->ClearFlag( kEngineFlagAnsiMode );
-        }
-        CLEAR_VAR_OPERATION;
+        pEngine->SetFeatures( SPOP );
         break;
 
     case kVarDefaultOp:
     case kVarFetch:
-        SPUSH( pEngine->CheckFlag( kEngineFlagAnsiMode ) ? ~0 : 0 );
+        SPUSH( pEngine->GetFeatures() );
+        break;
+
+    case kVarRef:
+        SPUSH( (long)(&(pEngine->GetFeatures())) );
+        break;
+
+    case kVarPlusStore:
+        pEngine->SetFeature( SPOP );
+        break;
+
+    case kVarMinusStore:
+        pEngine->ClearFeature( SPOP );
         break;
 
     default:
-        pEngine->SetError( kForthErrorBadVarOperation, "ansiMode variable only supports get and fetch" );
+        pEngine->SetError( kForthErrorBadVarOperation, "features: unkown var operation" );
         break;
     }
+    CLEAR_VAR_OPERATION;
 }
 
 FORTHOP( sourceOp )
@@ -6870,12 +6880,12 @@ baseDictionaryEntry baseDictionary[] =
     //  double-precision fp functions
     ///////////////////////////////////////////
     NATIVE_DEF(    dsinBop,                 "dsin" ),
-    NATIVE_DEF(    dasinBop,                "darcsin" ),
+    NATIVE_DEF(    dasinBop,                "dasin" ),
     NATIVE_DEF(    dcosBop,                 "dcos" ),
-    NATIVE_DEF(    dacosBop,                "darccos" ),
+    NATIVE_DEF(    dacosBop,                "dacos" ),
     NATIVE_DEF(    dtanBop,                 "dtan" ),
-    NATIVE_DEF(    datanBop,                "darctan" ),
-    NATIVE_DEF(    datan2Bop,               "darctan2" ),
+    NATIVE_DEF(    datanBop,                "datan" ),
+    NATIVE_DEF(    datan2Bop,               "datan2" ),
     NATIVE_DEF(    dexpBop,                 "dexp" ),
     NATIVE_DEF(    dlnBop,                  "dln" ),
     NATIVE_DEF(    dlog10Bop,               "dlog10" ),
@@ -6893,20 +6903,19 @@ baseDictionaryEntry baseDictionary[] =
     //  single-precision fp functions
     ///////////////////////////////////////////
     NATIVE_DEF(    fsinBop,                 "fsin" ),
-    NATIVE_DEF(    fasinBop,                "farcsin" ),
+    NATIVE_DEF(    fasinBop,                "fasin" ),
     NATIVE_DEF(    fcosBop,                 "fcos" ),
-    NATIVE_DEF(    facosBop,                "farccos" ),
+    NATIVE_DEF(    facosBop,                "facos" ),
     NATIVE_DEF(    ftanBop,                 "ftan" ),
-    NATIVE_DEF(    fatanBop,                "farctan" ),
-    NATIVE_DEF(    fatan2Bop,               "farctan2" ),
+    NATIVE_DEF(    fatanBop,                "fatan" ),
+    NATIVE_DEF(    fatan2Bop,               "fatan2" ),
     NATIVE_DEF(    fexpBop,                 "fexp" ),
     NATIVE_DEF(    flnBop,                  "fln" ),
     NATIVE_DEF(    flog10Bop,               "flog10" ),
     NATIVE_DEF(    fpowBop,                 "fpow" ),
     NATIVE_DEF(    fsqrtBop,                "fsqrt" ),
-    NATIVE_DEF(    fsqrtBop,                "fsqrt" ),
     NATIVE_DEF(    fceilBop,                "fceil" ),
-    NATIVE_DEF(    ffloorBop,               "ffloor" ),
+    NATIVE_DEF(    ffloorBop,               "floor" ),
     NATIVE_DEF(    fabsBop,                 "fabs" ),
     NATIVE_DEF(    fldexpBop,               "fldexp" ),
     NATIVE_DEF(    ffrexpBop,               "ffrexp" ),
@@ -7353,8 +7362,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    unimplementedMethodOp,  "unimplementedMethod" ),
     OP_DEF(    illegalMethodOp,        "illegalMethod" ),
 	OP_DEF(    setTraceOp,             "setTrace" ),
-    NATIVE_DEF( intoBop,               "verbose" ),
-    OP_DEF(    ansiModeOp,             "ansiMode" ),
+    OP_DEF(    verboseBop,             "verbose" ),
+    OP_DEF(    featuresOp,             "features" ),
 
     ///////////////////////////////////////////
     //  conditional compilation

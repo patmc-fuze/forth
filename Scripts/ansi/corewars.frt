@@ -1,3 +1,5 @@
+requires ansi  \ PJM
+
 ( * DOC COREWARS					   13:31 02/02/87
 
  Modified to run on iForth 1.0: March 19, 1994
@@ -72,7 +74,7 @@ MARKER -overlay	DECIMAL
 : CHOOSE	RANDOM UM* NIP ;		\ ( u1 .. u2 )
 
 : 3DROP	2DROP DROP ;			\ <n1> <n2> <n3> --- <>
-// >>PJM
+\ PJM
 
 \ Port these to your system ------------------------------------------------
 
@@ -98,12 +100,12 @@ MARKER -overlay	DECIMAL
 : CW+!		DUP >R CW@ +  R> CW! ;		\ <n> <addr> --- <>
 : CW.R		SIGNED 0 .R ;
 
-// <<PJM
-//: VOCABULARY	WORDLIST			\ VOCABULARY "name"
-//		CREATE	,
-//		DOES>	@ >R  GET-ORDER NIP 
-//			R> SWAP SET-ORDER ;
-// >>PJM
+\ <<PJM
+\ : VOCABULARY	WORDLIST			\ VOCABULARY "name"
+\		CREATE	,
+\		DOES>	@ >R  GET-ORDER NIP 
+\			R> SWAP SET-ORDER ;
+\ >>PJM
 
 
 \ The COREWARS code

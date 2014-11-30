@@ -37,7 +37,7 @@ typedef enum {
     kEngineFlagInEnumDefinition          = 0x08,
     kEngineFlagIsMethod                  = 0x10,
     kEngineFlagInClassDefinition         = 0x20,
-    kEngineFlagAnsiMode            = 0x40,
+    //kEngineFlagAnsiMode                = 0x40,
     kEngineFlagNoNameDefinition          = 0x80,
 } FECompileFlags;
 
@@ -185,6 +185,11 @@ public:
     inline void             SetFlag( long flags ) { mCompileFlags |= flags; };
     inline void             ClearFlag( long flags ) { mCompileFlags &= (~flags); };
     inline long             CheckFlag( long flags ) { return mCompileFlags & flags; };
+    inline long&            GetFeatures( void ) { return mFeatures; };
+    inline void             SetFeatures( long features ) { mFeatures = features; };
+    inline void             SetFeature( long features ) { mFeatures |= features; };
+    inline void             ClearFeature( long features ) { mFeatures &= (~features); };
+    inline long             CheckFeature( long features ) { return mFeatures & features; };
     inline char *           GetTmpStringBuffer( void ) { return mpStringBufferB; };
 	inline int				GetTmpStringBufferSize( void ) { return MAX_STRING_SIZE; };
     inline void             SetArraySize( long numElements )        { mNumElements = numElements; };
@@ -280,6 +285,7 @@ protected:
     interpreterExtensionRoutine *mpInterpreterExtension;
 
     long            mCompileFlags;
+    long            mFeatures;
     long            mNumElements;       // number of elements in next array declared
 	long			mTraceFlags;
 

@@ -1,3 +1,5 @@
+requires ansi  \ PJM
+
 \ Robots.fth - An implementation of the BSD robots game
 \
 \ You ("@") are placed into a wide space covered with holes ("o") and
@@ -5,8 +7,8 @@
 \ robot catches you, you lose. You are able to teleport yourself to a
 \ random location 3 times.
 
-// PJM
-//require random.fs
+\ PJM
+\ require random.fs
 : random rand swap mod ;
 
 \ statistics
@@ -46,7 +48,7 @@ char | constant wall-sym
 
 : board-reset ( -- ) \ empties a board by placing floor tiles in it
     board-dimension 0 do \ for the whole board
-        // PJM: fix bug replace ! with c!
+        \ PJM: fix bug replace ! with c!
         floor-sym board i + c! \ store a floor tile
     loop ;
 
@@ -57,7 +59,7 @@ char | constant wall-sym
     board-dimension 0 do
         i board-cols mod 0= i 0> and if \ special case for first position at (0,0)
             wall cr wall then \ otherwise draw a wall at the end of each line
-        // PJM: fix bug replace @ with c@
+        \ PJM: fix bug replace @ with c@
         board i + c@ emit \ and draw the (next) tile
     loop
     wall cr border cr ;
@@ -101,7 +103,8 @@ create (player) 2 cells allot
     2dup player!                \ set player position, leave x y
     ( player-sym x y ) board! ; \ set player tile at new position
 
-: move ( dx dy -- )
+\ PJM - rename 'move' to 'move-player', move is a common op
+: move-player ( dx dy -- )
     \ high level movement word, taking a direction
     \ and moving the player if the new position is valid
     player@ 2swap new-position \ get new x y coordinates
@@ -231,15 +234,15 @@ create robots #max-robots 3 * cells allot
 : user-input ( -- ) \ waits for one key, then handles player movement
     key
     case
-// PJM - use aswd instead of hjkl    
-//        [char] h of left move endof
-//        [char] j of down move endof
-//        [char] k of up move endof
-//        [char] l of right move endof
-        [char] a of left move endof
-        [char] s of down move endof
-        [char] w of up move endof
-        [char] d of right move endof
+\ PJM - use aswd instead of hjkl    
+\        [char] h of left move-player endof
+\        [char] j of down move-player endof
+\        [char] k of up move-player endof
+\        [char] l of right move-player endof
+        [char] a of left move-player endof
+        [char] s of down move-player endof
+        [char] w of up move-player endof
+        [char] d of right move-player endof
         [char] q of ." Thanks for playing! " quit endof
         [char] t of #teleports @ 0>
             if #teleports @ 1- #teleports !
@@ -265,7 +268,7 @@ create robots #max-robots 3 * cells allot
         ?csp                            \ watch out for an unclean stack
     again ;
 
-// PJM
-//here seed ! \ initialise PRNG
+\ PJM
+\ here seed ! \ initialise PRNG
 here srand
 run \ start the game

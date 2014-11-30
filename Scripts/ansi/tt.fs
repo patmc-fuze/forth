@@ -1,3 +1,6 @@
+requires ansi   \ PJM
+kFFCHexLiterals ->+ features \ PJM
+
 \
 \ tt.pfe	Tetris for terminals, redone in ANSI-Forth.
 \		Written 05Apr94 by Dirk Uwe Zoller,
@@ -28,11 +31,11 @@ variable wiping			\ if true: wipe brick, else draw brick
 10 constant wide		\ size of pit in brick positions
 20 constant deep
 
-//char J	value left-key		\ customize if you don't like them
-//char K	value rot-key
-//char L	value right-key
-//bl	value drop-key
-// PJM - use AWSD
+\ PJM - use AWSD
+\ char J	value left-key		\ customize if you don't like them
+\ char K	value rot-key
+\ char L	value right-key
+\ bl	value drop-key
 char A value left-key
 char W value rot-key
 char D value right-key

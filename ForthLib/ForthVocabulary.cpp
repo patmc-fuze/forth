@@ -1114,7 +1114,7 @@ long * ForthVocabularyStack::FindSymbol( const char *pSymName, ForthVocabulary**
             break;
         }
     }
-    if ( (pEntry == NULL) && mpEngine->CheckFlag( kEngineFlagAnsiMode ) )
+    if ( (pEntry == NULL) && mpEngine->CheckFeature( kFFIgnoreCase ) )
     {
         // if symbol wasn't found, convert it to lower case and try again
         char buffer[128];
@@ -1189,7 +1189,7 @@ long * ForthVocabularyStack::FindSymbol( ForthParseInfo *pInfo, ForthVocabulary*
         }
     }
 
-    if ( (pEntry == NULL) && mpEngine->CheckFlag( kEngineFlagAnsiMode ) )
+    if ( (pEntry == NULL) && mpEngine->CheckFeature( kFFIgnoreCase ) )
     {
         // if symbol wasn't found, convert it to lower case and try again
         char buffer[128];

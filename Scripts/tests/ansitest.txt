@@ -3,6 +3,9 @@ requires ansi
 
 : ansitest ;
 
+\ PJM - can't save old features, breaks 'clean slate' test
+kFFAnsi -> features
+
 \ From: John Hayes S1I
 \ Subject: tester.fr
 \ Date: Mon, 27 Nov 95 13:10:09 PST  
@@ -1053,5 +1056,3 @@ TESTING DICTIONARY SEARCH RULES
 { GDX -> 123 234 }
 
 
-false to ansiMode
-"Returned to non-ANSI mode\n" %s

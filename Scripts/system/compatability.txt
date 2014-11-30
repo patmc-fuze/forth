@@ -126,7 +126,7 @@ precedence s"
   endif
   bytesRead
 ;
-: quit r0 -> rp done ;
+: quit r0 -> rp 0 -> fp done ;
 : erase 0 swap memset ;
 : blank 0x20 swap memset ;
 0x20 constant bl
@@ -302,3 +302,27 @@ int _handler
 ;
 
 : d>s drop ;
+
+: [defined] bl word find nip ;
+: [undefined] [defined] not ;
+precedence [defined]  precedence [undefined]
+
+: fconstant constant ;
+: s>f i2f ;
+: s>d i2l ;
+: f>d f2l ;
+: d>f l2f ;
+: fround
+  dup f0>= if
+    0.5 f+ floor
+  else
+    0.5 f- fceil
+  endif
+;
+
+: >float
+  float fval
+  _TempStringA blockToString
+  _TempStringA "%f" ref fval 1 sscanf
+  fval swap
+;

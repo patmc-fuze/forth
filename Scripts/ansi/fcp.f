@@ -1,3 +1,5 @@
+requires ansi  \ PJM
+
 \ FCP.F, version 1.3 by Ian Osgood  iano@quirkster.com
 \ A simple chess program written in ANS Forth.
 

@@ -315,17 +315,25 @@ ForthInputStream::GetType( void )
     return "Base";
 }
 
+const char*
+ForthInputStream::GetName( void )
+{
+    return "mysteriousStream";
+}
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
 //                     ForthFileInputStream
 // 
 
-ForthFileInputStream::ForthFileInputStream( FILE *pInFile, int bufferLen )
+ForthFileInputStream::ForthFileInputStream( FILE *pInFile, const char *pFilename, int bufferLen )
 : ForthInputStream(bufferLen)
 , mpInFile( pInFile )
 , mLineNumber( 0 )
 {
+    mpName = new char[strlen(pFilename) + 1];
+    strcpy( mpName, pFilename );
 }
 
 ForthFileInputStream::~ForthFileInputStream()
@@ -335,6 +343,13 @@ ForthFileInputStream::~ForthFileInputStream()
     {
         fclose( mpInFile );
     }
+    delete [] mpName;
+}
+
+const char*
+ForthFileInputStream::GetName( void )
+{
+    return mpName;
 }
 
 

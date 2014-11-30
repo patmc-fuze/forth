@@ -2,6 +2,10 @@
 autoforget forth_optype
 : forth_optype ;
 
+base @
+features
+kFFRegular -> features
+
 vocabulary opType
 also opType
 definitions
@@ -153,4 +157,6 @@ enum: _opType
 ;
 
 previous
+-> features
+base !
 

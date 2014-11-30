@@ -1,6 +1,9 @@
 // forth internal definitions
 autoforget forth_internals
 
+features
+kFFRegular -> features
+
 : forth_internals ;
 
 enum: eBaseType
@@ -156,6 +159,8 @@ struct: ForthCoreState
   int           base                   // output base
   int           signedPrintMode        // if numers are printed as signed/unsigned
 ;struct
+
+-> features
 
 loaddone
 
