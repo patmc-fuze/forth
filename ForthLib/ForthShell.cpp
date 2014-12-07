@@ -291,6 +291,13 @@ ForthShell::PushInputBuffer( char *pDataBuffer, int dataBufferLen )
 }
 
 
+void
+ForthShell::PushInputBlocks( unsigned int firstBlock, unsigned int lastBlock )
+{
+    mpInput->PushInputStream( new ForthBlockInputStream( firstBlock, lastBlock ) );
+}
+
+
 bool
 ForthShell::PopInputStream( void )
 {

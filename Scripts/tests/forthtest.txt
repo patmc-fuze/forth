@@ -205,7 +205,7 @@ test[ 87 5 ?dup 0 ?dup 0= rot 5 = rot 5 = and and over 87 = rot 87 = ]
 // -rot nip tuck roll
 // 2dup 2swap 2drop 2over 2rot r[ ]r
 // c! c@ sc@ w! w@ sw@ ! @ 2! 2@ 
-// memcpy memset varAction! varAction@
+// move fill varAction! varAction@
 // l+ l- l* l/ lmod l/mod lnegate i2l i2f i2d f2l f2i f2d d2l d2i d2f l2f l2d
 // l= l<> l> l>= l< l<= l0= l0> l0>= l0< l0<= lwithin lmin lmax
 // . %d %x %2d %2x %s %c type %bl %nl %f %2f format 2format

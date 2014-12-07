@@ -6,6 +6,8 @@
 
 #include "StdAfx.h"
 #include "ForthInput.h"
+#include "ForthEngine.h"
+#include "ForthBlockFileManager.h"
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -20,7 +22,7 @@ ForthInputStack::ForthInputStack()
 
 ForthInputStack::~ForthInputStack()
 {
-    // TBD: should we be closing file here?
+    // TODO: should we be closing file here?
     while ( mpHead != NULL )
     {
         ForthInputStream *pNextStream = mpHead->mpNext;
@@ -38,6 +40,8 @@ ForthInputStack::PushInputStream( ForthInputStream *pNewStream )
     pOldStream = mpHead;
     mpHead = pNewStream;
     mpHead->mpNext = pOldStream;
+
+    *(ForthEngine::GetInstance()->GetBlockPtr()) = mpHead->GetBlockNumber();
 
 	TRACE( "PushInputStream %s\n", pNewStream->GetType() );
 }
@@ -57,6 +61,8 @@ ForthInputStack::PopInputStream( void )
     pNext = mpHead->mpNext;
     delete mpHead;
     mpHead = pNext;
+
+    *(ForthEngine::GetInstance()->GetBlockPtr()) = mpHead->GetBlockNumber();
 
 	TRACE( "PopInputStream %s\n", (mpHead == NULL) ? "NULL" : mpHead->GetType() );
 
@@ -172,7 +178,7 @@ ForthInputStack::SetWriteOffset( int offset )
 void
 ForthInputStack::Reset( void )
 {
-    // dump all nested input stream
+    // dump all nested input streams
     if ( mpHead != NULL )
     {
         while ( mpHead->mpNext != NULL )
@@ -321,6 +327,19 @@ ForthInputStream::GetName( void )
     return "mysteriousStream";
 }
 
+void
+ForthInputStream::SeekToLineEnd()
+{
+    mReadOffset = mWriteOffset;
+}
+
+long
+ForthInputStream::GetBlockNumber()
+{
+    return 0;
+}
+
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -331,6 +350,7 @@ ForthFileInputStream::ForthFileInputStream( FILE *pInFile, const char *pFilename
 : ForthInputStream(bufferLen)
 , mpInFile( pInFile )
 , mLineNumber( 0 )
+, mLineStartOffset( 0 )
 {
     mpName = new char[strlen(pFilename) + 1];
     strcpy( mpName, pFilename );
@@ -338,7 +358,7 @@ ForthFileInputStream::ForthFileInputStream( FILE *pInFile, const char *pFilename
 
 ForthFileInputStream::~ForthFileInputStream()
 {
-    // TBD: should we be closing file here?
+    // TODO: should we be closing file here?
     if ( mpInFile != NULL )
     {
         fclose( mpInFile );
@@ -358,8 +378,9 @@ ForthFileInputStream::GetLine( const char *pPrompt )
 {
     char *pBuffer;
 
-    pBuffer = fgets( mpBufferBase, mBufferLen, mpInFile );
+    mLineStartOffset = ftell( mpInFile );
 
+    pBuffer = fgets( mpBufferBase, mBufferLen, mpInFile );
 
     mReadOffset = 0;
     mpBufferBase[ mBufferLen - 1 ] = '\0';
@@ -382,6 +403,62 @@ ForthFileInputStream::GetType( void )
     return "File";
 }
 
+int
+ForthFileInputStream::GetSourceID()
+{
+    return (int) mpInFile;
+}
+
+long*
+ForthFileInputStream::GetInputState()
+{
+    // save-input items:
+    //  0   5
+    //  1   this pointer
+    //  2   lineNumber
+    //  3   readOffset
+    //  4   writeOffset (count of valid bytes in buffer)
+    //  5   lineStartOffset
+
+    long* pState = &(mState[0]);
+    pState[0] = 5;
+    pState[1] = (int)this;
+    pState[2] = mLineNumber;
+    pState[3] = mReadOffset;
+    pState[4] = mWriteOffset;
+    pState[5] = mLineStartOffset;
+    
+    return pState;
+}
+
+bool
+ForthFileInputStream::SetInputState( long* pState )
+{
+    if ( pState[0] != 5 )
+    {
+        // TODO: report restore-input error - wrong number of parameters
+        return false;
+    }
+    if ( pState[1] != (long)this )
+    {
+        // TODO: report restore-input error - input object mismatch
+        return false;
+    }
+    if ( fseek( mpInFile, pState[5], SEEK_SET )  != 0 )
+    {
+        // TODO: report restore-input error - error seeking to beginning of line
+        return false;
+    }
+    GetLine(NULL);
+    if ( mWriteOffset != pState[4] )
+    {
+        // TODO: report restore-input error - line length doesn't match save-input value
+        return false;
+    }
+    mLineNumber = pState[2];
+    mReadOffset = pState[3];
+    return true;
+}
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -391,6 +468,7 @@ ForthFileInputStream::GetType( void )
 
 ForthConsoleInputStream::ForthConsoleInputStream( int bufferLen )
 : ForthInputStream(bufferLen)
+, mLineNumber(0)
 {
 }
 
@@ -410,6 +488,7 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
     mReadOffset = 0;
     const char* pEnd = (const char*) memchr( pBuffer, '\0', mBufferLen );
     mWriteOffset = (pEnd == NULL) ? (mBufferLen - 1) : (pEnd - pBuffer);
+    mLineNumber++;
     return pBuffer;
 }
 
@@ -419,6 +498,60 @@ ForthConsoleInputStream::GetType( void )
 {
     return "Console";
 }
+
+int
+ForthConsoleInputStream::GetSourceID()
+{
+    return 0;
+}
+
+long*
+ForthConsoleInputStream::GetInputState()
+{
+    // save-input items:
+    //  0   4
+    //  1   this pointer
+    //  2   lineNumber
+    //  3   readOffset
+    //  4   writeOffset (count of valid bytes in buffer)
+
+    long* pState = &(mState[0]);
+    pState[0] = 4;
+    pState[1] = (int)this;
+    pState[2] = mLineNumber;
+    pState[3] = mReadOffset;
+    pState[4] = mWriteOffset;
+    
+    return &(mState[0]);
+}
+
+bool
+ForthConsoleInputStream::SetInputState( long* pState )
+{
+    if ( pState[0] != 4 )
+    {
+        // TODO: report restore-input error - wrong number of parameters
+        return false;
+    }
+    if ( pState[1] != (long)this )
+    {
+        // TODO: report restore-input error - input object mismatch
+        return false;
+    }
+    if ( pState[2] != mLineNumber )
+    {
+        // TODO: report restore-input error - line number mismatch
+        return false;
+    }
+    if ( mWriteOffset != pState[4] )
+    {
+        // TODO: report restore-input error - line length doesn't match save-input value
+        return false;
+    }
+    mReadOffset = pState[3];
+    return true;
+}
+
 
 
 //////////////////////////////////////////////////////////////////////
@@ -435,6 +568,8 @@ ForthConsoleInputStream::GetType( void )
 // so we make a copy of the original buffer with a null terminator,
 // but we return the original buffer pointer when queried
 
+int ForthBufferInputStream::sInstanceNumber = 0;    // used for checking consistency in restore-input
+
 ForthBufferInputStream::ForthBufferInputStream( const char *pSourceBuffer, int sourceBufferLen, bool isInteractive, int bufferLen )
 : ForthInputStream(bufferLen)
 , mIsInteractive(isInteractive)
@@ -446,11 +581,18 @@ ForthBufferInputStream::ForthBufferInputStream( const char *pSourceBuffer, int s
 	mpDataBuffer = mpDataBufferBase;
 	mpDataBufferLimit = mpDataBuffer + sourceBufferLen;
     mWriteOffset = sourceBufferLen;
+    mInstanceNumber = sInstanceNumber++;
 }
 
 ForthBufferInputStream::~ForthBufferInputStream()
 {
 	delete [] mpDataBufferBase;
+}
+
+int
+ForthBufferInputStream::GetSourceID()
+{
+    return -1;
 }
 
 
@@ -499,4 +641,186 @@ ForthBufferInputStream::GetReportedBufferBasePointer( void )
     return mpSourceBuffer;
 }
 
+long*
+ForthBufferInputStream::GetInputState()
+{
+    // save-input items:
+    //  0   4
+    //  1   this pointer
+    //  2   mInstanceNumber
+    //  3   readOffset
+    //  4   writeOffset (count of valid bytes in buffer)
+
+    long* pState = &(mState[0]);
+    pState[0] = 4;
+    pState[1] = (int)this;
+    pState[2] = mInstanceNumber;
+    pState[3] = mReadOffset;
+    pState[4] = mWriteOffset;
+    
+    return pState;
+}
+
+bool
+ForthBufferInputStream::SetInputState( long* pState )
+{
+    if ( pState[0] != 4 )
+    {
+        // TODO: report restore-input error - wrong number of parameters
+        return false;
+    }
+    if ( pState[1] != (long)this )
+    {
+        // TODO: report restore-input error - input object mismatch
+        return false;
+    }
+    if ( pState[2] != mInstanceNumber )
+    {
+        // TODO: report restore-input error - instance number mismatch
+        return false;
+    }
+    if ( mWriteOffset != pState[4] )
+    {
+        // TODO: report restore-input error - line length doesn't match save-input value
+        return false;
+    }
+    mReadOffset = pState[3];
+    return true;
+}
+
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthBlockInputStream
+// 
+
+ForthBlockInputStream::ForthBlockInputStream( unsigned int firstBlock, unsigned int lastBlock )
+:   ForthInputStream( BYTES_PER_BLOCK + 1 )
+,   mCurrentBlock( firstBlock )
+,   mLastBlock( lastBlock )
+{
+    mReadOffset = 0;
+    mWriteOffset = BYTES_PER_BLOCK;
+    ReadBlock();
+}
+
+ForthBlockInputStream::~ForthBlockInputStream()
+{
+}
+
+int
+ForthBlockInputStream::GetSourceID()
+{
+    return -1;
+}
+
+
+char *
+ForthBlockInputStream::GetLine( const char *pPrompt )
+{
+    // TODO!
+    char* pBuffer = NULL;
+    if ( mCurrentBlock < mLastBlock )
+    {
+        mCurrentBlock++;
+        if ( ReadBlock() )
+        {
+            pBuffer = mpBufferBase;
+        }
+    }
+        
+    return pBuffer;
+}
+
+
+const char*
+ForthBlockInputStream::GetType( void )
+{
+    return "Block";
+}
+
+
+void
+ForthBlockInputStream::SeekToLineEnd()
+{
+    // TODO! this 
+    mReadOffset = (mReadOffset + 64) & 0xFFFFFFC0;
+    if ( mReadOffset > BYTES_PER_BLOCK )
+    {
+        mReadOffset = BYTES_PER_BLOCK;
+    }
+}
+
+
+long*
+ForthBlockInputStream::GetInputState()
+{
+    // save-input items:
+    //  0   3
+    //  1   this pointer
+    //  2   blockNumber
+    //  3   readOffset
+
+    long* pState = &(mState[0]);
+    pState[0] = 3;
+    pState[1] = (int)this;
+    pState[2] = mCurrentBlock;
+    pState[3] = mReadOffset;
+    
+    return pState;
+}
+
+bool
+ForthBlockInputStream::SetInputState( long* pState )
+{
+    if ( pState[0] != 4 )
+    {
+        // TODO: report restore-input error - wrong number of parameters
+        return false;
+    }
+    if ( pState[1] != (long)this )
+    {
+        // TODO: report restore-input error - input object mismatch
+        return false;
+    }
+    if ( pState[2] != mCurrentBlock )
+    {
+        // TODO: report restore-input error - wrong block
+        return false;
+    }
+    mReadOffset = pState[3];
+    return true;
+}
+
+long
+ForthBlockInputStream::GetBlockNumber()
+{
+    return mCurrentBlock;
+}
+
+bool
+ForthBlockInputStream::ReadBlock()
+{
+    bool success = true;
+    ForthEngine* pEngine = ForthEngine::GetInstance();
+    ForthBlockFileManager* pBlockManager = pEngine->GetBlockFileManager();
+    FILE * pInFile = pBlockManager->OpenBlockFile( false );
+    if ( pInFile == NULL )
+    {
+        pEngine->SetError( kForthErrorIO, "BlockInputStream - failed to open block file" );
+        success = false;
+    }
+    else
+    {
+        fseek( pInFile, BYTES_PER_BLOCK * mCurrentBlock, SEEK_SET );
+        int numRead = fread( mpBufferBase, BYTES_PER_BLOCK, 1, pInFile );
+        if ( numRead != 1 )
+        {
+            pEngine->SetError( kForthErrorIO, "BlockInputStream - failed to read block file" );
+            success = false;
+        }
+        fclose( pInFile );
+    }
+    return success;
+}
 

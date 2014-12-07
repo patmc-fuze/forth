@@ -27,11 +27,16 @@ public:
     ForthServerInputStream( ForthPipe* pMsgPipe, bool isFile = false, int bufferLen = DEFAULT_INPUT_BUFFER_LEN );
     virtual ~ForthServerInputStream();
 
+    virtual int     GetSourceID();
+
     virtual char    *GetLine( const char *pPrompt );
 
     virtual bool    IsInteractive( void );
 
     ForthPipe*      GetPipe();
+
+    virtual long*   GetInputState();
+    virtual bool    SetInputState( long* pState );
 
 protected:
     ForthPipe*      mpMsgPipe;

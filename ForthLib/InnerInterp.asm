@@ -4563,34 +4563,15 @@ entry dfetchNextBop
 	
 ;========================================
 
-entry memcpyBop
-	;	TOS: nBytes srcPtr dstPtr
+entry moveBop
+	;	TOS: nBytes dstPtr srcPtr
 	push	edx
 	push	esi
 	mov	eax, [edx]
 	push	eax
-	mov	eax, [edx+4]
-	push	eax
 	mov	eax, [edx+8]
 	push	eax
-	call	memcpy
-	add	esp, 12
-	pop	esi
-	pop	edx
-	add	edx, 12
-	jmp	edi
-
-;========================================
-
-entry memmoveBop
-	;	TOS: nBytes srcPtr dstPtr
-	push	edx
-	push	esi
-	mov	eax, [edx]
-	push	eax
 	mov	eax, [edx+4]
-	push	eax
-	mov	eax, [edx+8]
 	push	eax
 	call	memmove
 	add	esp, 12
@@ -4601,13 +4582,13 @@ entry memmoveBop
 
 ;========================================
 
-entry memsetBop
+entry fillBop
 	;	TOS: nBytes byteVal dstPtr
 	push	edx
 	push	esi
-	mov	eax, [edx]
-	push	eax
 	mov	eax, [edx+4]
+	push	eax
+	mov	eax, [edx]
 	and	eax, 0FFh
 	push	eax
 	mov	eax, [edx+8]

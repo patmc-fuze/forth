@@ -411,6 +411,10 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
+				RelativePath=".\ForthBlockFileManager.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\ForthBuiltinClasses.cpp"
 				>
 			</File>
@@ -1008,6 +1012,10 @@
 			</File>
 			<File
 				RelativePath="Forth.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ForthBlockFileManager.h"
 				>
 			</File>
 			<File

@@ -32,9 +32,12 @@ precedence literal   precedence fliteral   precedence dliteral
 
 : countedStringToString
   // src dst
-  swap 2dup
-  memcpy( count )
-  c@ + 0 swap c!
+  -> ptrTo byte dst
+  count
+  -> int numBytes
+  -> ptrTo byte src
+  move( src dst numBytes )
+  0 dst numBytes + c!
 ;
 
 : stringToCountedString
@@ -49,7 +52,7 @@ precedence literal   precedence fliteral   precedence dliteral
   -> ptrTo byte dst
   -> int numBytes
   -> ptrTo byte src
-  memcpy( dst src numBytes )
+  move( src dst numBytes )
   0 dst numBytes + c!
 ;
 
@@ -88,7 +91,6 @@ precedence literal   precedence fliteral   precedence dliteral
 
 : cmove %nl 0 do over i + c@ over i + c! loop 2drop ;
 : cmove> 0 swap 1- do over i + c@ over i + c! -1 +loop 2drop ;
-: move >r swap r> memmove ;
 : ."
   '"' $word state @
   if
@@ -127,17 +129,15 @@ precedence s"
   bytesRead
 ;
 : quit r0 -> rp 0 -> fp done ;
-: erase 0 swap memset ;
-: blank 0x20 swap memset ;
+: erase 0 fill ;
+: blank 0x20 fill ;
 0x20 constant bl
 : emit %c ;
 : does> postpone does ; precedence does>
 : then postpone endif ; precedence then
 
 : [char]  opType:makeOpcode( opType:litInt blword c@ ) , ; precedence [char]
-: cr %nl ;
 : char+ 1+ ;
-: \ 0 $word drop ; precedence \
 : spaces
   dup 0> if
     0 do %bl loop
@@ -146,8 +146,8 @@ precedence s"
   endif
 ;
 
+: cr %nl ;
 : space %bl ;
-: fill swap memset ;
 
 : _abortQuote
   swap
@@ -250,7 +250,7 @@ int _handler
   -
 ;
 
-: include load ;
+: include lf ;
 
 : marker
   blword dup $:

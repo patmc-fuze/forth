@@ -2,13 +2,13 @@
 
 ARCH_X86 [if]
 
-load asm_pentium.txt
+lf asm_pentium.txt
 
 [else]
 
 ARCH_ARM [if]
 
-load asm_arm.txt
+lf asm_arm.txt
 
 [endif]
 [endif]

@@ -20,6 +20,7 @@ class ForthThread;
 class ForthShell;
 class ForthExtension;
 class ForthOpcodeCompiler;
+class ForthBlockFileManager;
 
 #define DEFAULT_USER_STORAGE 16384
 
@@ -123,6 +124,7 @@ public:
     // returns true IFF file opened successfully
     bool            PushInputFile( const char *pInFileName );
     void            PushInputBuffer( char *pDataBuffer, int dataBufferLen );
+    void            PushInputBlocks( unsigned int firstBlock, unsigned int lastBlock );
     void            PopInputStream( void );
 
     // returns pointer to new vocabulary entry
@@ -241,6 +243,9 @@ public:
 	bool					SquishLong( long long lvalue, ulong& squishedLong );
 	long long				UnsquishLong( ulong squishedLong );
 
+    inline long*            GetBlockPtr() { return &mBlockNumber; };
+    ForthBlockFileManager*  GetBlockFileManager();
+
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char* pToken, long& value, long long& lvalue, int base, bool& isOffset, bool& isSingle );
@@ -263,6 +268,7 @@ protected:
     ForthVocabularyStack * mpVocabStack;
 
 	ForthOpcodeCompiler* mpOpcodeCompiler;
+    ForthBlockFileManager* mBlockFileManager;
 
     char        *mpStringBufferA;       // string buffer A is used for quoted strings when in interpreted mode
     char        *mpStringBufferANext;   // one char past last used in A
@@ -294,6 +300,8 @@ protected:
 
     long *          mpEnumStackBase;
     long            mNextEnum;
+
+    long            mBlockNumber;       // number returned by 'blk'
 
 	ForthObject		mDefaultConsoleOutStream;
 

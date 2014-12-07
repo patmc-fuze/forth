@@ -232,8 +232,8 @@ addHelp w@		PTR ... A	fetches unsigned word from address PTR
 addHelp sw@		PTR ... A	fetches signed word from address PTR
 addHelp w2i		WA ... LA	sign extends word to long
 addHelp 2!		DA PTR ...	store double at address PTR
-addHelp memcpy	DST SRC N ...	copy N bytes from SRC to DST
-addHelp memset	DST A N ...		fill N bytes at DST with byte value A
+addHelp move	SRC DST N ...	copy N bytes from SRC to DST
+addHelp fill	DST N A ...		fill N bytes at DST with byte value A
 addHelp varAction!	A varAction! ...	set varAction to A (use not recommended)
 addHelp varAction@	varAction@ ... A	fetch varAction (use not recommended)
 
@@ -260,8 +260,8 @@ addHelp feof				FILE ... RESULT						check if file is at end-of-file
 addHelp fexists				PATH_STR ... RESULT					check if file exists
 addHelp ftell				FILE ... OFFSET						return current read/write position in file
 addHelp flen				FILE ... FILE_LENGTH				return length of file
-addHelp fgets				
-addHelp fputs
+addHelp fgets				BUFFER MAXCHARS FILE ... NUMCHARS	read a line of up to MAXCHARS from FILE into BUFFER
+addHelp fputs				BUFFER FILE ...						write null-terminated string from BUFFER to FILE
 
 addHelp stdin				... FILE							get standard in file
 addHelp stdout				... FILE							get standard out file

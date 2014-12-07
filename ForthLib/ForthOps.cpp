@@ -28,6 +28,7 @@
 #include "ForthMessages.h"
 #include "ForthPortability.h"
 #include "ForthObject.h"
+#include "ForthBlockFileManager.h"
 
 #ifdef LINUX
 #include <strings.h>
@@ -2860,6 +2861,32 @@ FORTHOP( renameOp )
     SPUSH( result );
 }
 
+FORTHOP( sourceIdOp )
+{
+    ForthShell *pShell = GET_ENGINE->GetShell();
+    SPUSH( pShell->GetInput()->InputStream()->GetSourceID() );
+}
+
+FORTHOP( saveInputOp )
+{
+    ForthShell *pShell = GET_ENGINE->GetShell();
+    long* pData = pShell->GetInput()->InputStream()->GetInputState();
+    long nItems = *pData;
+    for ( int i = 0; i < nItems; i++ )
+    {
+        SPUSH( pData[nItems - i] );
+    }
+    SPUSH( nItems );
+}
+
+FORTHOP( restoreInputOp )
+{
+    ForthShell *pShell = GET_ENGINE->GetShell();
+    long* pSP = GET_SP;
+    long nItems = *pSP;
+    pShell->GetInput()->InputStream()->SetInputState( pSP );
+    SET_SP( pSP + (nItems + 1) );
+}
 
 //##############################
 //
@@ -3168,6 +3195,15 @@ FORTHOP( commentOp )
     {
         pInput->SetBufferPointer( pEnd + 2 );
     }
+}
+
+// has precedence!
+// comment to end of line using "\"
+FORTHOP( slashCommentOp )
+{
+    NEEDS( 0 );
+    ForthShell *pShell = GET_ENGINE->GetShell();
+    pShell->GetInput()->InputStream()->SeekToLineEnd();
 }
 
 // has precedence!
@@ -4033,6 +4069,53 @@ FORTHOP( setTraceOp )
 	int traceFlags = SPOP;
 	GET_ENGINE->SetTraceFlags( traceFlags );
 }
+
+///////////////////////////////////////////
+//  block i/o
+///////////////////////////////////////////
+
+FORTHOP( blkOp )
+{
+    SPUSH( (long)(GET_ENGINE->GetBlockPtr()) );
+}
+
+FORTHOP( blockOp )
+{
+    ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
+    SPUSH( (long)(pBlockManager->GetBlock(SPOP, true)) );
+}
+
+FORTHOP( bufferOp )
+{
+    ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
+    SPUSH( (long)(pBlockManager->GetBlock(SPOP, false)) );
+}
+
+FORTHOP( emptyBuffersOp )
+{
+    ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
+    pBlockManager->EmptyBuffers();
+}
+
+FORTHOP( flushOp )
+{
+    ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
+    pBlockManager->SaveBuffers( true );
+}
+
+FORTHOP( updateOp )
+{
+    ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
+    pBlockManager->UpdateCurrentBuffer();
+}
+
+FORTHOP( thruOp )
+{
+    unsigned int lastBlock = (unsigned int) SPOP;
+    unsigned int firstBlock = (unsigned int) SPOP;
+    GET_ENGINE->PushInputBlocks( firstBlock, lastBlock );
+}
+
 
 ///////////////////////////////////////////
 //  threads
@@ -6111,20 +6194,20 @@ FORTHOP(memcpyBop)
     memcpy( pDst, pSrc, nBytes );
 }
 
-FORTHOP(memmoveBop)
+FORTHOP(moveBop)
 {
     NEEDS(3);
     size_t nBytes = (size_t) (SPOP);
-    const void* pSrc = (const void *) (SPOP);
     void* pDst = (void *) (SPOP);
+    const void* pSrc = (const void *) (SPOP);
     memmove( pDst, pSrc, nBytes );
 }
 
-FORTHOP(memsetBop)
+FORTHOP(fillBop)
 {
     NEEDS(3);
-    size_t nBytes = (size_t) (SPOP);
     int byteVal = (int) (SPOP);
+    size_t nBytes = (size_t) (SPOP);
     void* pDst = (void *) (SPOP);
     memset( pDst, byteVal, nBytes );
 }
@@ -6674,7 +6757,7 @@ OPREF( scfetchBop );        OPREF( c2iBop );            OPREF( wstoreBop );
 OPREF( wfetchBop );         OPREF( wstoreNextBop );     OPREF( wfetchNextBop );
 OPREF( swfetchBop );        OPREF( w2iBop );            OPREF( dstoreBop );
 OPREF( dstoreNextBop );     OPREF( dfetchNextBop );     OPREF( memcpyBop );
-OPREF( memmoveBop );        OPREF( memsetBop );         OPREF( setVarActionBop );
+OPREF( moveBop );           OPREF( fillBop );           OPREF( setVarActionBop );
 OPREF( getVarActionBop );   OPREF( byteVarActionBop );  OPREF( ubyteVarActionBop );
 OPREF( shortVarActionBop ); OPREF( ushortVarActionBop ); OPREF( intVarActionBop );
 OPREF( longVarActionBop );  OPREF( floatVarActionBop ); OPREF( doubleVarActionBop );
@@ -7035,9 +7118,8 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dstoreBop,               "2!" ),
     NATIVE_DEF(    dstoreNextBop,           "2@!++" ),
     NATIVE_DEF(    dfetchNextBop,           "2@@++" ),
-    NATIVE_DEF(    memcpyBop,               "memcpy" ),
-    NATIVE_DEF(    memmoveBop,              "memmove" ),
-    NATIVE_DEF(    memsetBop,               "memset" ),
+    NATIVE_DEF(    moveBop,                 "move" ),
+    NATIVE_DEF(    fillBop,                 "fill" ),
     NATIVE_DEF(    setVarActionBop,         "varAction!" ),
     NATIVE_DEF(    getVarActionBop,         "varAction@" ),
     NATIVE_DEF(    byteVarActionBop,        "byteVarAction" ),
@@ -7094,6 +7176,9 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    mkdirOp,                "mkdir" ),
     OP_DEF(    rmdirOp,                "rmdir" ),
     OP_DEF(    renameOp,               "rename" ),
+    OP_DEF(    sourceIdOp,             "source-id" ),
+    OP_DEF(    restoreInputOp,         "restore-input" ),
+    OP_DEF(    saveInputOp,            "save-input" ),
 	OP_DEF(    opendirOp,              "opendir" ),
 	OP_DEF(    readdirOp,              "readdir" ),
 	OP_DEF(    closedirOp,             "closedir" ),
@@ -7102,6 +7187,17 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    errnoOp,			       "errno" ),
     OP_DEF(    strerrorOp,             "strerror" ),
     
+    ///////////////////////////////////////////
+    //  block i/o
+    ///////////////////////////////////////////
+    OP_DEF(    blkOp,                  "blk" ),
+    OP_DEF(    blockOp,                "block" ),
+    OP_DEF(    bufferOp,               "buffer" ),
+    OP_DEF(    emptyBuffersOp,         "empty-buffers" ),
+    OP_DEF(    flushOp,                "flush" ),
+    OP_DEF(    updateOp,               "update" ),
+    OP_DEF(    thruOp,                 "thru" ),
+
     ///////////////////////////////////////////
     //  64-bit integer math & conversions
     ///////////////////////////////////////////
@@ -7289,6 +7385,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    strWordOp,              "$word" ),
     PRECOP_DEF(commentOp,              "/*" ),
     PRECOP_DEF(parenCommentOp,         "(" ),
+    PRECOP_DEF(slashCommentOp,         "\\" ),
     OP_DEF(    sourceOp,               "source" ),
     OP_DEF(    getInOffsetPointerOp,   ">in" ),
     OP_DEF(    fillInBufferOp,         "fillInBuffer" ),

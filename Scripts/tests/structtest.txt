@@ -150,7 +150,7 @@ struct: colorTri
 
 // SRCTRI DSTTRI ...
 : copyColorTri
-  swap sizeOf colorTri memcpy
+  sizeOf colorTri move
 ;
 
 // X Y INDEX TRI ...

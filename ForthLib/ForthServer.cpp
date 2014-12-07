@@ -405,6 +405,13 @@ ForthServerInputStream::~ForthServerInputStream()
 {
 }
 
+int ForthServerInputStream::GetSourceID()
+{
+    // this is wrong, but will compile
+    return mIsFile ? 1 : 0;
+}
+
+
 char* ForthServerInputStream::GetLine( const char *pPrompt )
 {
     int msgType, msgLen;
@@ -464,6 +471,20 @@ ForthPipe* ForthServerInputStream::GetPipe()
     return mpMsgPipe;
 }
 
+
+long*
+ForthServerInputStream::GetInputState()
+{
+    // TBD!
+    return (long *) NULL;
+}
+
+bool
+ForthServerInputStream::SetInputState( long* pState )
+{
+    // TBD!
+    return false;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

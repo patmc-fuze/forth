@@ -19,6 +19,7 @@
 #include "ForthOpcodeCompiler.h"
 #include "ForthPortability.h"
 #include "ForthBuiltinClasses.h"
+#include "ForthBlockFileManager.h"
 
 extern "C"
 {
@@ -136,6 +137,7 @@ ForthEngine::ForthEngine()
 , mpOpcodeCompiler( NULL )
 , mFeatures( kFFCCharacterLiterals | kFFMultiCharacterLiterals | kFFCStringLiterals
             | kFFCHexLiterals | kFFDoubleSlashComment | kFFCFloatLiterals )
+, mBlockFileManager( NULL )
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -155,6 +157,7 @@ ForthEngine::ForthEngine()
 	mDefaultConsoleOutStream.pMethodOps = NULL;
 	mDefaultConsoleOutStream.pData = NULL;
 
+    mBlockFileManager = new ForthBlockFileManager;
     // At this point, the main thread does not exist, it will be created later in Initialize, this
     // is fairly screwed up, it is becauses originally ForthEngine was the center of the universe,
     // and it created the shell, but now the shell is created first, and the shell or the main app
@@ -211,6 +214,8 @@ ForthEngine::~ForthEngine()
     delete mpEngineScratch;
 
     delete mpVocabStack;
+
+    delete mBlockFileManager;
 
 	mpInstance = NULL;
 }
@@ -691,6 +696,12 @@ ForthEngine::PushInputBuffer( char *pDataBuffer, int dataBufferLen )
     mpShell->PushInputBuffer( pDataBuffer, dataBufferLen );
 }
 
+void
+ForthEngine::PushInputBlocks( unsigned int firstBlock, unsigned int lastBlock )
+{
+    mpShell->PushInputBlocks( firstBlock, lastBlock );
+}
+
 
 void
 ForthEngine::PopInputStream( void )
@@ -729,7 +740,14 @@ ForthEngine::EndOpDefinition( bool unsmudgeIt )
     if ( pLocalAllocOp != NULL )
     {
         int nLongs = mpLocalVocab->GetFrameLongs();
-        *pLocalAllocOp = COMPILED_OP( kOpAllocLocals, nLongs );
+	    long op = COMPILED_OP( kOpAllocLocals, nLongs );
+        *pLocalAllocOp = op;
+	    if ( mTraceFlags & kTraceCompilation )
+	    {
+		    char buff[ 256 ];
+		    SNPRINTF( buff, sizeof(buff),  "Backpatching allocLocals 0x%08x @ 0x%08x\n", op, pLocalAllocOp );
+		    TraceOut( buff );
+	    }
 		mpLocalVocab->ClearFrame();
     }
     mpOpcodeCompiler->ClearPeephole();
@@ -903,11 +921,6 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
 {
     long *pEntry;
 	int frameLongs = mpLocalVocab->GetFrameLongs();
-    if ( frameLongs == 0 )
-    {
-        // this is first local var definition, leave space for local alloc op
-        CompileLong( 0 );
-    }
 
     long elementType = CODE_TO_BASE_TYPE( typeCode );
     if ( elementType != kBaseTypeStruct )
@@ -916,7 +929,7 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
         long arraySize = elementSize * mNumElements;
         arraySize = ((arraySize + 3) & ~3) >> 2;
         long opcode = CODE_IS_PTR(typeCode) ? kOpLocalIntArray : (kOpLocalByteArray + CODE_TO_BASE_TYPE(typeCode));
-        pEntry = mpLocalVocab->AddVariable( pArrayName, opcode, frameLongs, arraySize );
+        pEntry = mpLocalVocab->AddVariable( pArrayName, opcode, frameLongs + arraySize, arraySize );
     }
     else
     {
@@ -930,12 +943,17 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
         long arraySize = paddedSize * mNumElements;
         if ( CODE_IS_PTR(typeCode) )
         {
-	        pEntry = mpLocalVocab->AddVariable( pArrayName, kOpLocalIntArray, frameLongs, arraySize );
+	        pEntry = mpLocalVocab->AddVariable( pArrayName, kOpLocalIntArray, frameLongs + arraySize, arraySize );
         }
         else
         {
-	        pEntry = mpLocalVocab->AddVariable( pArrayName, kOpLocalStructArray, (frameLongs << 12) + paddedSize, arraySize );
+	        pEntry = mpLocalVocab->AddVariable( pArrayName, kOpLocalStructArray, ((frameLongs + arraySize) << 12) + paddedSize, arraySize );
         }
+    }
+    if ( frameLongs == 0 )
+    {
+        // this is first local var definition, leave space for local alloc op
+        CompileLong( 0 );
     }
 
 	pEntry[1] = typeCode;
@@ -1684,7 +1702,7 @@ ForthEngine::UncompileLastOpcode( void )
 		if ( mTraceFlags & kTraceCompilation )
 		{
 			char buff[ 256 ];
-			SNPRINTF( buff, sizeof(buff),  "Uncompiling from 0x08x to 0x%08x\n", mDictionary.pCurrent, pLastCompiledOpcode );
+			SNPRINTF( buff, sizeof(buff),  "Uncompiling from 0x%08x to 0x%08x\n", mDictionary.pCurrent, pLastCompiledOpcode );
 			TraceOut( buff );
 		}
 		mpOpcodeCompiler->UncompileLastOpcode();
@@ -2243,6 +2261,14 @@ ForthCoreState*	ForthEngine::GetCoreState( void )
 	return mpCore;
 }
 
+
+ForthBlockFileManager*
+ForthEngine::GetBlockFileManager()
+{
+    return mBlockFileManager;
+}
+
+
 //############################################################################
 //
 //          O U T E R    I N T E R P R E T E R  (sort of)
@@ -2365,6 +2391,22 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             SPEW_OUTER_INTERPRETER( "Local variable [%s]\n", pToken );
             CompileOpcode( *pEntry );
             return kResultOk;
+        }
+        if ( (pToken[0] == '&') && (pToken[1] != '\0') )
+        {
+            pEntry = mpLocalVocab->FindSymbol( pToken + 1 );
+            if ( pEntry )
+            {
+                ////////////////////////////////////
+                //
+                // symbol is a reference to a local variable
+                //
+                ////////////////////////////////////
+                SPEW_OUTER_INTERPRETER( "Local variable reference [%s]\n", pToken + 1);
+                long varOffset = FORTH_OP_VALUE( *pEntry );
+                CompileOpcode( COMPILED_OP( kOpLocalRef, varOffset ) );
+                return kResultOk;
+            }
         }
     }
 

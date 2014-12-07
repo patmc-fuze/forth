@@ -162,6 +162,25 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 7 2014
+
+I added block file support to the kernel.  It is only partially tested, I
+haven't even tried 'load' or 'thru' yet.
+
+In testing block support I found a bug in local array support - the vocab
+entries for local arrays actually had the offset for the top of the array
+not the base.
+There was also a crash bug with the compilation of the allocLocals opcode when a
+local array was the first declared local.
+
+I added a new interpreter syntax for local variable references - &var will
+now leave a local variable reference on TOS.  This is currently only implemented
+for locals, I should add it at least for member variables, and maybe for
+global variables.
+
+There are multiple places where file operations are being done directly instead
+of thru the shell, I need to clean those up and test client/server in general.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 29 2014
 
 I replaced ansiMode with 'features' which is a fake variable that allows you
