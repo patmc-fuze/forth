@@ -52,7 +52,7 @@ ForthEngine* ForthEngine::mpInstance = NULL;
 
 static const char *opTypeNames[] =
 {
-    "BuiltIn", "BuiltInImmediate", "UserDefined", "UserDefinedImmediate", "UserCode", "UserCodeImmediate", "DLLEntryPoint", 0, 0, 0,
+    "BuiltIn", "BuiltInImmediate", "UserDefined", "UserDefinedImmediate", "CCode", "CCodeImmediate", "DLLEntryPoint", 0, 0, 0,
     "Branch", "BranchTrue", "BranchFalse", "CaseBranch", "PushBranch", 0, 0, 0, 0, 0,
 	"Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "LocalStringInit", "LocalStructArray", "OffsetFetch", "MemberRef",
     "LocalByte", "LocalUByte", "LocalShort", "LocalUShort", "LocalInt", "LocalUInt", "LocalLong", "LocalULong", "LocalFloat", "LocalDouble",
@@ -691,7 +691,7 @@ ForthEngine::PushInputFile( const char *pInFileName )
 }
 
 void
-ForthEngine::PushInputBuffer( char *pDataBuffer, int dataBufferLen )
+ForthEngine::PushInputBuffer( const char *pDataBuffer, int dataBufferLen )
 {
     mpShell->PushInputBuffer( pDataBuffer, dataBufferLen );
 }
@@ -2300,7 +2300,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         return kResultOk;
     }
     
-    SPEW_OUTER_INTERPRETER( "%s [%s] flags[%x]\t", mCompileState ? "Compile" : "Interpret", pToken, pInfo->GetFlags() );
+    SPEW_OUTER_INTERPRETER( "%s {%s} flags[%x]\t", mCompileState ? "Compile" : "Interpret", pToken, pInfo->GetFlags() );
     if ( isAString )
     {
         ////////////////////////////////////
@@ -2308,7 +2308,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         // symbol is a quoted string - the quotes have already been stripped
         //
         ////////////////////////////////////
-        SPEW_OUTER_INTERPRETER( "String[%s] flags[%x]\n", pToken, pInfo->GetFlags() );
+        SPEW_OUTER_INTERPRETER( "String{%s} flags[%x]\n", pToken, pInfo->GetFlags() );
         if ( mCompileState )
         {
             int lenLongs = ((len + 4) & ~3) >> 2;
@@ -2340,7 +2340,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         // symbol is a quoted character - the quotes have already been stripped
         //
         ////////////////////////////////////
-        SPEW_OUTER_INTERPRETER( "Character[%s] flags[%x]\n", pToken, pInfo->GetFlags() );
+        SPEW_OUTER_INTERPRETER( "Character{%s} flags[%x]\n", pToken, pInfo->GetFlags() );
 		if ( strlen( pToken ) < 5 )
         {
 			value = 0;
@@ -2388,7 +2388,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             // symbol is a local variable
             //
             ////////////////////////////////////
-            SPEW_OUTER_INTERPRETER( "Local variable [%s]\n", pToken );
+            SPEW_OUTER_INTERPRETER( "Local variable {%s}\n", pToken );
             CompileOpcode( *pEntry );
             return kResultOk;
         }
@@ -2402,7 +2402,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
                 // symbol is a reference to a local variable
                 //
                 ////////////////////////////////////
-                SPEW_OUTER_INTERPRETER( "Local variable reference [%s]\n", pToken + 1);
+                SPEW_OUTER_INTERPRETER( "Local variable reference {%s}\n", pToken + 1);
                 long varOffset = FORTH_OP_VALUE( *pEntry );
                 CompileOpcode( COMPILED_OP( kOpLocalRef, varOffset ) );
                 return kResultOk;
@@ -2463,7 +2463,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         // symbol is a forth op
         //
         ////////////////////////////////////
-        SPEW_OUTER_INTERPRETER( "Forth op [%s] in vocabulary %s\n", pToken, pFoundVocab->GetName() );
+        SPEW_OUTER_INTERPRETER( "Forth op {%s} in vocabulary %s\n", pToken, pFoundVocab->GetName() );
         return pFoundVocab->ProcessEntry( pEntry );
     }
 

@@ -577,7 +577,10 @@ addHelp outToScreen   restore output to the normal console
 : outToScreen getDefaultConsoleOut setConsoleOut ;
 
 addHelp list     BLOCK_NUM ...     display specified block
-: list block 16 0 do dup 64 type %nl 64+ loop drop ;
+variable scr  0 scr !
+: list dup scr ! block 16 0 do dup 64 type %nl 64+ loop drop ;
+: lb dup scr ! block 16 0 do i %d '\t' %c '|' %c dup 64 type '|' %c %nl 64+ loop drop ;
+: load dup thru ;
 
 #ifdef WINDOWS
 

@@ -343,7 +343,14 @@ ForthTypesManager::ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exi
         return false;
     }
 
-    long* pEntry = pVocab->FindSymbol( pInfo->GetToken() );
+    const char* pToken = pInfo->GetToken();
+    bool isRef = false;
+    long* pEntry = pVocab->FindSymbol( pToken );
+    if ( (pEntry == NULL) && (pToken[0] == '&') && (pToken[1] != '\0') )
+    {
+        pEntry = pVocab->FindSymbol( pToken + 1);
+        isRef = (pEntry != NULL);
+    }
     if ( pEntry )
     {
         long offset = *pEntry;
@@ -369,29 +376,36 @@ ForthTypesManager::ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exi
         else
         {
             // this is a member variable of current object
-            if ( isPtr )
+            if ( isRef )
             {
-                SPEW_STRUCTS( (isArray) ? " array of pointers\n" : " pointer\n" );
-                opType = (isArray) ? kOpMemberIntArray : kOpMemberInt;
+                opType = kOpMemberRef;
             }
             else
             {
-                if ( baseType == kBaseTypeStruct )
+                if ( isPtr )
                 {
-                    if ( isArray )
-                    {
-                        *pDst++ = COMPILED_OP( kOpMemberRef, offset );
-                        opType = kOpArrayOffset;
-                        offset = pEntry[2];
-                    }
-                    else
-                    {
-                        opType = kOpMemberRef;
-                    }
+                    SPEW_STRUCTS( (isArray) ? " array of pointers\n" : " pointer\n" );
+                    opType = (isArray) ? kOpMemberIntArray : kOpMemberInt;
                 }
                 else
                 {
-                    opType = ((isArray) ? kOpMemberByteArray : kOpMemberByte) + CODE_TO_BASE_TYPE( typeCode );
+                    if ( baseType == kBaseTypeStruct )
+                    {
+                        if ( isArray )
+                        {
+                            *pDst++ = COMPILED_OP( kOpMemberRef, offset );
+                            opType = kOpArrayOffset;
+                            offset = pEntry[2];
+                        }
+                        else
+                        {
+                            opType = kOpMemberRef;
+                        }
+                    }
+                    else
+                    {
+                        opType = ((isArray) ? kOpMemberByteArray : kOpMemberByte) + CODE_TO_BASE_TYPE( typeCode );
+                    }
                 }
             }
             SPEW_STRUCTS( " opcode 0x%x\n", COMPILED_OP( opType, offset ) );

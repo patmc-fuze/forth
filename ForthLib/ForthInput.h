@@ -29,9 +29,9 @@ public:
     virtual ~ForthInputStream();
 
     virtual char    *GetLine( const char *pPrompt ) = 0;
-    virtual char    *GetBufferPointer( void );
-    virtual char    *GetBufferBasePointer( void );
-    virtual const char    *GetReportedBufferBasePointer( void );
+    virtual const char* GetBufferPointer( void );
+    virtual const char* GetBufferBasePointer( void );
+    virtual const char* GetReportedBufferBasePointer( void );
     virtual int     *GetReadOffsetPointer( void );
     virtual int     GetReadOffset( void );
     virtual void    SetReadOffset( int offset );
@@ -39,7 +39,7 @@ public:
     virtual void    SetWriteOffset( int offset );
     
     virtual int     GetBufferLength( void );
-    virtual void    SetBufferPointer( char *pBuff );
+    virtual void    SetBufferPointer( const char *pBuff );
     virtual bool    IsInteractive( void ) = 0;
     virtual int     GetLineNumber( void );
 	virtual const char* GetType( void );
@@ -51,6 +51,8 @@ public:
 
     virtual long*   GetInputState() = 0;
     virtual bool    SetInputState( long* pState ) = 0;
+
+    virtual void    StuffBuffer( const char* pSrc );
 
     friend class ForthInputStack;
 
@@ -111,6 +113,7 @@ public:
     virtual char    *GetLine( const char *pPrompt );
     virtual bool    IsInteractive( void ) { return true; };
 	virtual const char* GetType( void );
+	virtual const char* GetName( void );
     virtual int     GetSourceID();
 
     virtual long*   GetInputState();
@@ -204,11 +207,11 @@ public:
     const char              *GetLine( const char *pPrompt );
     inline ForthInputStream *InputStream( void ) { return mpHead; };
 
-    char                    *GetBufferPointer( void );
-    char                    *GetBufferBasePointer( void );
+    const char*             GetBufferPointer( void );
+    const char*             GetBufferBasePointer( void );
     int                     *GetReadOffsetPointer( void );
     int                     GetBufferLength( void );
-    void                    SetBufferPointer( char *pBuff );
+    void                    SetBufferPointer( const char *pBuff );
     int                     GetReadOffset( void );
     void                    SetReadOffset( int );
     int                     GetWriteOffset( void );

@@ -26,6 +26,7 @@ public:
     void            SaveBuffers( bool unassignAfterSaving );
     void            EmptyBuffers();
     FILE*           OpenBlockFile( bool forWrite = false );
+    unsigned int    GetNumBlocksInFile();
 
 private:
 
@@ -35,6 +36,7 @@ private:
     void            ReportError( eForthError errorCode, const char* pErrorMessage );
 
     char*           mpBlockFilename;
+    unsigned int    mNumBlocksInFile;
     unsigned int    mNumBuffers;
     unsigned int    mCurrentBuffer;
     unsigned int*   mLRUBuffers;

@@ -103,14 +103,14 @@ ForthInputStack::GetLine( const char *pPrompt )
 }
 
 
-char *
+const char *
 ForthInputStack::GetBufferPointer( void )
 {
     return (mpHead == NULL) ? NULL : mpHead->GetBufferPointer();
 }
 
 
-char *
+const char *
 ForthInputStack::GetBufferBasePointer( void )
 {
     return (mpHead == NULL) ? NULL : mpHead->GetBufferBasePointer();
@@ -132,7 +132,7 @@ ForthInputStack::GetBufferLength( void )
 
 
 void
-ForthInputStack::SetBufferPointer( char *pBuff )
+ForthInputStack::SetBufferPointer( const char *pBuff )
 {
     if ( mpHead != NULL )
     {
@@ -216,14 +216,14 @@ ForthInputStream::~ForthInputStream()
 }
 
 
-char *
+const char *
 ForthInputStream::GetBufferPointer( void )
 {
     return mpBufferBase + mReadOffset;
 }
 
 
-char *
+const char *
 ForthInputStream::GetBufferBasePointer( void )
 {
     return mpBufferBase;
@@ -245,7 +245,7 @@ ForthInputStream::GetBufferLength( void )
 
 
 void
-ForthInputStream::SetBufferPointer( char *pBuff )
+ForthInputStream::SetBufferPointer( const char *pBuff )
 {
     int offset = pBuff - mpBufferBase;
     if ( (offset < 0) || (offset >= mBufferLen) )
@@ -339,6 +339,22 @@ ForthInputStream::GetBlockNumber()
     return 0;
 }
 
+void
+ForthInputStream::StuffBuffer( const char* pSrc )
+{
+    int len = strlen( pSrc );
+    if ( len > (mBufferLen - 1) )
+    {
+        len = mBufferLen - 1;
+    }
+
+    memcpy( mpBufferBase, pSrc, len );
+    mpBufferBase[len] = '\0';
+    mReadOffset = 0;
+    mWriteOffset = len;
+}
+
+
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -385,6 +401,15 @@ ForthFileInputStream::GetLine( const char *pPrompt )
     mReadOffset = 0;
     mpBufferBase[ mBufferLen - 1 ] = '\0';
     mWriteOffset = strlen( mpBufferBase );
+    if ( mWriteOffset > 0 )
+    {
+        // trim trailing linefeed if any
+        if ( mpBufferBase[ mWriteOffset - 1 ] == '\n' )
+        {
+            --mWriteOffset;
+            mpBufferBase[ mWriteOffset ] = '\0';
+        }
+    }
     mLineNumber++;
     return pBuffer;
 }
@@ -495,6 +520,12 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
 
 const char*
 ForthConsoleInputStream::GetType( void )
+{
+    return "Console";
+}
+
+const char*
+ForthConsoleInputStream::GetName( void )
 {
     return "Console";
 }
@@ -699,7 +730,7 @@ ForthBlockInputStream::ForthBlockInputStream( unsigned int firstBlock, unsigned 
 ,   mCurrentBlock( firstBlock )
 ,   mLastBlock( lastBlock )
 {
-    mReadOffset = 0;
+    mReadOffset = BYTES_PER_BLOCK;
     mWriteOffset = BYTES_PER_BLOCK;
     ReadBlock();
 }
@@ -720,12 +751,21 @@ ForthBlockInputStream::GetLine( const char *pPrompt )
 {
     // TODO!
     char* pBuffer = NULL;
-    if ( mCurrentBlock < mLastBlock )
+    if ( mReadOffset < BYTES_PER_BLOCK )
     {
-        mCurrentBlock++;
-        if ( ReadBlock() )
+        pBuffer = mpBufferBase + mReadOffset;
+    }
+    else
+    {
+        if ( mCurrentBlock <= mLastBlock )
         {
-            pBuffer = mpBufferBase;
+            if ( ReadBlock() )
+            {
+                pBuffer = mpBufferBase;
+                mReadOffset = 0;
+                mWriteOffset = BYTES_PER_BLOCK;
+            }
+            mCurrentBlock++;
         }
     }
         

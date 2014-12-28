@@ -29,6 +29,8 @@ class ForthExtension;
 #define PARSE_FLAG_HAS_PERIOD           4
 #define PARSE_FLAG_HAS_COLON            8
 
+#define MAX_TOKEN_BYTES     1024
+
 class ForthParseInfo
 {
 public:
@@ -128,7 +130,7 @@ public:
 
     // returns true IFF file opened successfully
     virtual bool            PushInputFile( const char *pInFileName );
-    virtual void            PushInputBuffer( char *pDataBuffer, int dataBufferLen );
+    virtual void            PushInputBuffer( const char *pDataBuffer, int dataBufferLen );
     virtual void            PushInputBlocks( unsigned int firstBlock, unsigned int lastBlock );
     virtual bool            PopInputStream( void );
     // NOTE: the input stream passed to Run will be deleted by ForthShell
@@ -213,6 +215,7 @@ protected:
     char **                 mpEnvVarValues;
     int                     mFlags;
     char                    mErrorString[ 128 ];
+    char                    mToken[MAX_TOKEN_BYTES + 1];
 
     int                     mPoundIfDepth;
 

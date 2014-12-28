@@ -1499,33 +1499,33 @@ FORTHOP( doMethodOp )
 
 FORTHOP( implementsOp )
 {
-    // TODO
     ForthEngine *pEngine = GET_ENGINE;
 
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->GetNewestClass();
-    if ( pVocab )
+    if ( pVocab && pEngine->CheckFlag( kEngineFlagInClassDefinition ) )
     {
         pVocab->Implements( pEngine->GetNextSimpleToken() );
     }
     else
     {
-        // TODO: report error - implements in struct
+        pEngine->SetError( kForthErrorBadSyntax, "implements: outside of class definition" );
     }
 }
 
 FORTHOP( endimplementsOp )
 {
-    // TODO
+    ForthEngine *pEngine = GET_ENGINE;
+
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->GetNewestClass();
-    if ( pVocab )
+    if ( pVocab && pEngine->CheckFlag( kEngineFlagInClassDefinition ) )
     {
         pVocab->EndImplements();
     }
     else
     {
-        // TODO: report error - ;implements in struct
+        pEngine->SetError( kForthErrorBadSyntax, ";implements outside of class definition" );
     }
 }
 
@@ -1968,7 +1968,7 @@ FORTHOP( requiresOp )
 FORTHOP( evaluateOp )
 {
     int len = SPOP;
-    char* pStr = (char *) SPOP;
+    const char* pStr = (const char *) SPOP;
     if ( (pStr != NULL) && (len > 0) )
     {
         ForthEngine *pEngine = GET_ENGINE;
@@ -1981,10 +1981,10 @@ FORTHOP( evaluateOp )
 
 FORTHOP( strEvaluateOp )
 {
-    char* pStr = (char *) SPOP;
+    const char* pStr = (const char *) SPOP;
     if ( pStr != NULL )
     {
-        int len = strlen( pStr ) + 1;
+        int len = strlen( pStr );
         ForthEngine *pEngine = GET_ENGINE;
         pEngine->PushInputBuffer( pStr, len );
 		ForthShell* pShell = pEngine->GetShell();
@@ -3174,8 +3174,8 @@ FORTHOP( commentOp )
     NEEDS( 0 );
     ForthShell *pShell = GET_ENGINE->GetShell();
     ForthInputStack* pInput = pShell->GetInput();
-    char *pBuffer = pInput->GetBufferPointer();
-    char *pEnd = strstr( pBuffer, "*/" );
+    const char *pBuffer = pInput->GetBufferPointer();
+    const char *pEnd = strstr( pBuffer, "*/" );
     if ( pInput->InputStream()->IsInteractive() && (pEnd == NULL) )
     {
         // in interactive mode, comment can't span lines
@@ -3213,7 +3213,7 @@ FORTHOP( parenCommentOp )
 {
     NEEDS( 0 );
     ForthShell *pShell = GET_ENGINE->GetShell();
-	char* pBuffer = pShell->GetInput()->GetBufferPointer();
+	const char* pBuffer = pShell->GetInput()->GetBufferPointer();
 	while ( strchr( pBuffer, ')' ) == NULL )
 	{
         if ( pShell->GetInput()->InputStream()->IsInteractive() )
@@ -3917,7 +3917,7 @@ FORTHOP( poundEndifOp )
     pShell->PoundEndif();
 }
 
-bool checkBracketToken( char*& pStart, const char* pToken )
+bool checkBracketToken( const char*& pStart, const char* pToken )
 {
     int len = strlen( pToken );
     if ( !_strnicmp( pStart, pToken, len ) )
@@ -3937,7 +3937,7 @@ FORTHOP( bracketIfOp )
     NEEDS( 1 );
     ForthShell *pShell = GET_ENGINE->GetShell();
     ForthInputStack* pInput = pShell->GetInput();
-	char* pBuffer = pShell->GetInput()->GetBufferPointer();
+	const char* pBuffer = pShell->GetInput()->GetBufferPointer();
     int depth = 0;
     int takeIfBranch = SPOP;
     //TRACE("bracketIf");
@@ -3947,7 +3947,7 @@ FORTHOP( bracketIfOp )
         // skip until you hit [else] or [endif], ignore nested [if][endif] pairs
 	    while ( true )
 	    {
-            char* pBracket = pBuffer;
+            const char* pBracket = pBuffer;
             while ( (pBracket = strchr( pBuffer, '[' )) != NULL )
             {
                 //TRACE("bracketIf {%s}", pBracket);
@@ -4020,13 +4020,13 @@ FORTHOP( bracketElseOp )
     NEEDS( 0 );
     ForthShell *pShell = GET_ENGINE->GetShell();
     ForthInputStack* pInput = pShell->GetInput();
-	char* pBuffer = pShell->GetInput()->GetBufferPointer();
+	const char* pBuffer = pShell->GetInput()->GetBufferPointer();
     int depth = 0;
 
     // skip until you hit [endif], ignore nested [if][endif] pairs
     while ( true )
     {
-        char* pBracket = pBuffer;
+        const char* pBracket = pBuffer;
         while ( (pBracket = strchr( pBuffer, '[' )) != NULL )
         {
             if ( checkBracketToken( pBracket, "[endif]" )  || checkBracketToken( pBracket, "[then]" ))
@@ -4103,6 +4103,12 @@ FORTHOP( flushOp )
     pBlockManager->SaveBuffers( true );
 }
 
+FORTHOP( saveBuffersOp )
+{
+    ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
+    pBlockManager->SaveBuffers( false );
+}
+
 FORTHOP( updateOp )
 {
     ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
@@ -4113,7 +4119,23 @@ FORTHOP( thruOp )
 {
     unsigned int lastBlock = (unsigned int) SPOP;
     unsigned int firstBlock = (unsigned int) SPOP;
-    GET_ENGINE->PushInputBlocks( firstBlock, lastBlock );
+    ForthEngine* pEngine = GET_ENGINE;
+    if ( lastBlock < firstBlock )
+    {
+        pEngine->SetError( kForthErrorIO, "thru - last block less than first block" );
+    }
+    else
+    {
+        ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
+        if ( lastBlock < pBlockManager->GetNumBlocksInFile())
+        {
+            GET_ENGINE->PushInputBlocks( firstBlock, lastBlock );
+        }
+        else
+        {
+            pEngine->SetError( kForthErrorIO, "thru - last block beyond end of block file" );
+        }
+    }
 }
 
 
@@ -7195,6 +7217,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    bufferOp,               "buffer" ),
     OP_DEF(    emptyBuffersOp,         "empty-buffers" ),
     OP_DEF(    flushOp,                "flush" ),
+    OP_DEF(    saveBuffersOp,          "save-buffers" ),
     OP_DEF(    updateOp,               "update" ),
     OP_DEF(    thruOp,                 "thru" ),
 

@@ -123,7 +123,7 @@ public:
 
     // returns true IFF file opened successfully
     bool            PushInputFile( const char *pInFileName );
-    void            PushInputBuffer( char *pDataBuffer, int dataBufferLen );
+    void            PushInputBuffer( const char *pDataBuffer, int dataBufferLen );
     void            PushInputBlocks( unsigned int firstBlock, unsigned int lastBlock );
     void            PopInputStream( void );
 

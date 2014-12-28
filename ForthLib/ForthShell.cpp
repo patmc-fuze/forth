@@ -285,7 +285,7 @@ ForthShell::PushInputFile( const char *pFilename )
 // create a new buffer input stream & push on stack
 //
 void
-ForthShell::PushInputBuffer( char *pDataBuffer, int dataBufferLen )
+ForthShell::PushInputBuffer( const char *pDataBuffer, int dataBufferLen )
 {
     mpInput->PushInputStream( new ForthBufferInputStream( pDataBuffer, dataBufferLen ) );
 }
@@ -400,11 +400,10 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
 {
     eForthResult result = kResultOk;
 
-    char* pLineBuff = mpInput->GetBufferBasePointer();
+    const char* pLineBuff = mpInput->GetBufferBasePointer();
     if ( pSrcLine != NULL )
 	{
-		strcpy( pLineBuff, pSrcLine );
-		mpInput->SetBufferPointer( pLineBuff );
+        mpInput->InputStream()->StuffBuffer( pSrcLine );
 	}
 
     if ( (mFlags & SHELL_FLAG_SKIP_SECTION) != 0 )
@@ -501,15 +500,14 @@ ForthShell::InterpretLine( const char *pSrcLine )
     bool bLineEmpty;
     ForthParseInfo parseInfo( mTokenBuffer, sizeof(mTokenBuffer) );
 
-    char *pLineBuff;
+    const char *pLineBuff;
 
     // TODO: set exit code on exit due to error
 
     pLineBuff = mpInput->GetBufferBasePointer();
     if ( pSrcLine != NULL )
 	{
-        strcpy( pLineBuff, pSrcLine );
-		mpInput->SetBufferPointer( pLineBuff );
+		mpInput->InputStream()->StuffBuffer( pSrcLine );
 	}
     SPEW_SHELL( "*** InterpretLine \"%s\"\n", pLineBuff );
 	if ( mpEngine->GetTraceFlags() & kTraceShell )
@@ -523,6 +521,8 @@ ForthShell::InterpretLine( const char *pSrcLine )
     while ( !bLineEmpty && (result == kResultOk) )
 	{
         bLineEmpty = ParseToken( &parseInfo );
+        SPEW_SHELL( "input %s buffer 0x%x readoffset %d write %d\n", mpInput->InputStream()->GetName(),
+            mpInput->InputStream()->GetBufferPointer(), mpInput->InputStream()->GetReadOffset(), mpInput->InputStream()->GetWriteOffset() );
 
         if ( !bLineEmpty )
 		{
@@ -593,7 +593,7 @@ ForthShell::ReportError( void )
 {
     char errorBuf1[512];
     char errorBuf2[512];
-    char *pLastInputToken;
+    const char *pLastInputToken;
 
     mpEngine->GetErrorString( errorBuf1, sizeof(errorBuf1) );
     pLastInputToken = mpEngine->GetLastInputToken();
@@ -618,7 +618,7 @@ ForthShell::ReportError( void )
     }
     TRACE( "%s", errorBuf1 );
 	CONSOLE_STRING_OUT( errorBuf1 );
-    char *pBase = mpInput->GetBufferBasePointer();
+    const char *pBase = mpInput->GetBufferBasePointer();
     pLastInputToken = mpInput->GetBufferPointer();
     if ( (pBase != NULL) && (pLastInputToken != NULL) )
     {
@@ -628,8 +628,15 @@ ForthShell::ReportError( void )
         {
             *pBuf++ = *pBase++;
         }
-		int bufferLimit = sizeof(errorBuf1) - (pBuf - &(errorBuf1[0]));
-        sprintf( pBuf, "{}%s\n", pLastInputToken );
+        *pBuf++ = '{';
+        *pBuf++ = '}';
+		char *pBufferLimit = &(errorBuf1[0]) + (sizeof(errorBuf1) - 2);
+        while ( (*pLastInputToken != '\0') && (pBuf < pBufferLimit))
+        {
+            *pBuf++ = *pLastInputToken++;
+        }
+        *pBuf++ = '\n';
+        *pBuf++ = '\0';
     }
 	TRACE( "%s", errorBuf1 );
 	CONSOLE_STRING_OUT( errorBuf1 );
@@ -665,6 +672,7 @@ backslashChar( char c )
 
 static const char *
 ForthParseSingleQuote( const char       *pSrcIn,
+                       const char       *pSrcLimit,
                        ForthParseInfo   *pInfo,
                        ForthEngine      *pEngine )
 {
@@ -679,7 +687,7 @@ ForthParseSingleQuote( const char       *pSrcIn,
 		const char *pSrc = pSrcIn + 1;
 		int iDst = 0;
         int maxChars = pEngine->CheckFeature( kFFMultiCharacterLiterals ) ? 8 : 1;
-		while ( iDst < maxChars )
+		while ( (iDst < maxChars) && (pSrc < pSrcLimit) )
 		{
 			char ch = *pSrc++;
             if ( (ch == '\0') || (ch == ' ') || (ch == '\t') )
@@ -728,6 +736,7 @@ ForthParseSingleQuote( const char       *pSrcIn,
 
 static const char *
 ForthParseDoubleQuote( const char       *pSrc,
+                       const char       *pSrcLimit,
                        ForthParseInfo   *pInfo )
 {
     char  *pDst = pInfo->GetToken();
@@ -735,7 +744,7 @@ ForthParseDoubleQuote( const char       *pSrc,
     pInfo->SetFlag( PARSE_FLAG_QUOTED_STRING );
 
     pSrc++;  // skip first double-quote
-    while ( *pSrc != '\0' )
+    while ( (*pSrc != '\0') && (pSrc < pSrcLimit) )
     {
 
         switch ( *pSrc )
@@ -776,6 +785,7 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
     const char *pEndSrc;
     char *pDst;
     bool gotAToken = false;
+    const char* pSrcLimit = mpInput->GetBufferBasePointer() + mpInput->GetWriteOffset();
 
     pInfo->SetAllFlags( 0 );
 
@@ -784,7 +794,7 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
 
         pSrc = mpInput->GetBufferPointer();
         pDst = pInfo->GetToken();
-        if ( *pSrc == '\0' )
+        if ( (*pSrc == '\0') || (pSrc >= pSrcLimit) )
         {
             // input buffer is empty
             return true;
@@ -811,7 +821,7 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
               // support C-style quoted strings...
               if ( mpEngine->CheckFeature( kFFCStringLiterals ) )
               {
-                  pEndSrc = ForthParseDoubleQuote( pSrc, pInfo );
+                  pEndSrc = ForthParseDoubleQuote( pSrc, pSrcLimit, pInfo );
                   gotAToken = true;
               }
               break;
@@ -825,7 +835,7 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
             // token is not a special case, just parse till blank, space or EOL
            bool done = false;
             pEndSrc = pSrc;
-            while ( !done )
+            while ( !done && (pEndSrc < pSrcLimit) )
             {
                char ch = *pEndSrc;
                switch ( ch )
@@ -912,12 +922,13 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
         return false;
     }
 
+    const char* pSrcLimit = mpInput->GetBufferBasePointer() + mpInput->GetWriteOffset();
     while ( !gotAToken )
     {
 
         pSrc = mpInput->GetBufferPointer();
         pDst = pInfo->GetToken();
-        if ( *pSrc == '\0' )
+        if ( pSrc >= pSrcLimit )
         {
             // input buffer is empty
             return true;
@@ -944,7 +955,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
               // support C-style quoted strings...
               if ( mpEngine->CheckFeature( kFFCStringLiterals ) )
               {
-                  pEndSrc = ForthParseDoubleQuote( pSrc, pInfo );
+                  pEndSrc = ForthParseDoubleQuote( pSrc, pSrcLimit, pInfo );
                   gotAToken = true;
               }
               break;
@@ -953,7 +964,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
               // support C-style quoted characters like 'a' or '\n'
               if ( mpEngine->CheckFeature( kFFCCharacterLiterals ) )
               {
-                  pEndSrc = ForthParseSingleQuote( pSrc, pInfo, mpEngine );
+                  pEndSrc = ForthParseSingleQuote( pSrc, pSrcLimit, pInfo, mpEngine );
                   gotAToken = true;
               }
               break;
@@ -967,7 +978,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
             // token is not a special case, just parse till blank, space or EOL
             bool done = false;
             pEndSrc = pSrc;
-            while ( !done )
+            while ( !done && (pSrc < pSrcLimit) )
             {
                 char ch = *pEndSrc;
                 switch ( ch )
@@ -980,10 +991,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                      // set token length byte
                      pInfo->SetToken();
                      gotAToken = true;
-                     if ( ch != '\0' )
-                     {
-                         pEndSrc++;
-                     }
+                     pEndSrc++;
                      break;
 
                   case '(':
@@ -1048,84 +1056,77 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
 char *
 ForthShell::GetNextSimpleToken( void )
 {
-    char *pToken = mpInput->GetBufferPointer();
-    char *pEndToken, c;
+    const char *pEndToken = mpInput->GetBufferPointer();
+    const char* pTokenLimit = mpInput->GetBufferBasePointer() + mpInput->GetWriteOffset();
+    char c;
     bool bDone;
+    char* pDst = &mToken[0];
 
     // eat any leading white space
-    while ( (*pToken == ' ') || (*pToken == '\t') )
+    while ( (*pEndToken == ' ') || (*pEndToken == '\t') )
     {
-        pToken++;
+        pEndToken++;
     }
 
-    pEndToken = pToken;
     bDone = false;
-    while ( !bDone )
+    while ( !bDone && (pEndToken <= pTokenLimit) )
     {
-        c = *pEndToken;
+        c = *pEndToken++;
         switch( c )
         {
         case ' ':
         case '\t':
-            bDone = true;
-            *pEndToken++ = '\0';
-            break;
         case '\0':
-            // symbol is last on line, don't go past terminator
             bDone = true;
             break;
         default:
-            pEndToken++;
+            *pDst++ = c;
         }
     }
+    *pDst++ = '\0';
     mpInput->SetBufferPointer( pEndToken );
 
-    //TRACE( "GetNextSimpleToken: |%s|%s|\n", pToken, pEndToken );
-    return pToken;
+    //TRACE( "GetNextSimpleToken: |%s|%s|\n", &mToken[0], pEndToken );
+    return &mToken[0];
 }
 
 
 char *
 ForthShell::GetToken( char delim, bool bSkipLeadingWhiteSpace )
 {
-    char *pToken = mpInput->GetBufferPointer();
-    char *pEndToken, c;
+    const char *pEndToken = mpInput->GetBufferPointer();
+    const char* pTokenLimit = mpInput->GetBufferBasePointer() + mpInput->GetWriteOffset();
+    char c;
     bool bDone;
+    char* pDst = &mToken[0];
 
     if ( bSkipLeadingWhiteSpace )
     {
         // eat any leading white space
-        while ( (*pToken == ' ') || (*pToken == '\t') )
-        {
-            pToken++;
-        }
-    }
-    pEndToken = pToken;
-
-    bDone = false;
-    while ( !bDone )
-    {
-        c = *pEndToken;
-        if ( c == '\0' )
-        {
-			// don't move input ptr past terminating null
-            bDone = true;
-            *pEndToken = '\0';
-        }
-        else if ( c == delim )
-        {
-            bDone = true;
-            *pEndToken++ = '\0';
-        }
-        else
+        while ( (*pEndToken == ' ') || (*pEndToken == '\t') )
         {
             pEndToken++;
         }
     }
+
+    bDone = false;
+    while ( !bDone && (pEndToken <= pTokenLimit) )
+    {
+        c = *pEndToken++;
+        if ( c == delim )
+        {
+            bDone = true;
+        }
+        else
+        {
+            *pDst++ = c;
+        }
+    }
+    *pDst++ = '\0';
     mpInput->SetBufferPointer( pEndToken );
 
-    //TRACE( "GetToken: |%s|%s|\n", pToken, pEndToken );
-    return pToken;
+    //TRACE( "GetToken: |%s|%s|\n", &mToken[0], pEndToken );
+    return &mToken[0];
 }
 
 void

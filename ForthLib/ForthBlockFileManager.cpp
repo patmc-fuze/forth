@@ -38,6 +38,7 @@
 ForthBlockFileManager::ForthBlockFileManager( const char* pBlockFilename , unsigned int numBuffers )
 :   mNumBuffers( numBuffers )
 ,   mCurrentBuffer( INVALID_BLOCK_NUMBER )
+,   mNumBlocksInFile( 0 )
 {
     if ( pBlockFilename == NULL )
     {
@@ -64,6 +65,24 @@ ForthBlockFileManager::~ForthBlockFileManager()
     delete [] mAssignedBlocks;
     delete [] mUpdatedBlocks;
     delete [] mpBlocks;
+}
+
+unsigned int
+ForthBlockFileManager::GetNumBlocksInFile()
+{
+    if ( mNumBlocksInFile == 0 )
+    {
+        FILE* pBlockFile = fopen( mpBlockFilename, "rb" );
+        if ( pBlockFile != NULL )
+        {
+            if ( !fseek( pBlockFile, 0, SEEK_END ) )
+            {
+                mNumBlocksInFile = ftell( pBlockFile ) / BYTES_PER_BLOCK;
+            }
+            fclose( pBlockFile );
+        }
+    }
+    return mNumBlocksInFile;
 }
 
 const char*
