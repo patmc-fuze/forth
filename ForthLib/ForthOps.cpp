@@ -2791,9 +2791,10 @@ FORTHOP( _filenoOp )
 
 FORTHOP( tmpnamOp )
 {
-	char* pOutname = (char *) malloc( L_tmpnam );
+	char* pOutname = (char *) malloc( L_tmpnam + 1 );
+	pOutname[0] = '.';
     ForthEngine *pEngine = GET_ENGINE;
-	if ( pCore->pFileFuncs->getTmpnam( pOutname ) == NULL )
+	if ( pCore->pFileFuncs->getTmpnam( pOutname + 1 ) == NULL )
 	{
         SET_ERROR( kForthErrorFileOpen );
         pEngine->AddErrorText( "system: failure creating standard out tempfile name" );
