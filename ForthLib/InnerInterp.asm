@@ -117,12 +117,12 @@ CallDLLRoutine PROC near C public uses ebx esi edx ecx edi ebp,
 	core:PTR
 	mov	eax, DWORD PTR funcAddr
 	mov	edi, argCount
-	mov ecx, flags
+	mov esi, flags
 	mov	ebp, DWORD PTR core
 	mov	edx, [ebp].FCore.SPtr
-	mov	esi, edi
+	mov	ecx, edi
 CallDLL1:
-	sub	esi, 1
+	sub	ecx, 1
 	jl	CallDLL2
 	mov	ebx, [edx]
 	add	edx, 4
@@ -135,7 +135,7 @@ CallDLL2:
 	call	eax
 	
 	; handle void return flag
-	mov	esi, ecx
+	mov	ecx, esi
 	and	esi, 0001h
 	jnz CallDLL4
 			
