@@ -6,8 +6,8 @@
 
 #ifdef WIN32
 #ifdef MSDEV
-// compile for Win2K or newer
-#define WINVER 0x0500
+// compile for WinVista or newer
+#define WINVER 0x0600
 
 #define VC_EXTRALEAN		// Exclude rarely-used stuff from Windows headers
 
@@ -22,7 +22,6 @@
 #include <string.h>
 
 #define ASSERT(x, ...)
-#define TRACE(x, ...)
 
 #endif
 
@@ -33,7 +32,6 @@
 #include <string.h>
 
 #define ASSERT(x, ...)
-#define TRACE(x, ...)
 
 #endif
 
@@ -66,6 +64,7 @@
 #include "ForthThread.h"
 #include "ForthVocabulary.h"
 #endif
+
 
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.

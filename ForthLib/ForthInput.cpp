@@ -43,7 +43,7 @@ ForthInputStack::PushInputStream( ForthInputStream *pNewStream )
 
     *(ForthEngine::GetInstance()->GetBlockPtr()) = mpHead->GetBlockNumber();
 
-	TRACE( "PushInputStream %s\n", pNewStream->GetType() );
+	SPEW_SHELL( "PushInputStream %s\n", pNewStream->GetType() );
 }
 
 
@@ -64,7 +64,7 @@ ForthInputStack::PopInputStream( void )
 
     *(ForthEngine::GetInstance()->GetBlockPtr()) = mpHead->GetBlockNumber();
 
-	TRACE( "PopInputStream %s\n", (mpHead == NULL) ? "NULL" : mpHead->GetType() );
+	SPEW_SHELL("PopInputStream %s\n", (mpHead == NULL) ? "NULL" : mpHead->GetType());
 
     return false;
 }

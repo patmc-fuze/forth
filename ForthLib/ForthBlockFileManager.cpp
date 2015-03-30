@@ -152,7 +152,7 @@ ForthBlockFileManager::SaveBuffer( unsigned int bufferNum )
         return false;
     }
 
-    TRACE( "ForthBlockFileManager::AssignBuffer writing block %d from buffer %d\n", mAssignedBlocks[bufferNum], bufferNum );
+    SPEW_IO( "ForthBlockFileManager::AssignBuffer writing block %d from buffer %d\n", mAssignedBlocks[bufferNum], bufferNum );
     fseek( pBlockFile, BYTES_PER_BLOCK * mAssignedBlocks[bufferNum], SEEK_SET );
     size_t numWritten = fwrite( &(mpBlocks[BYTES_PER_BLOCK * bufferNum]), BYTES_PER_BLOCK, 1, pBlockFile );
     if ( numWritten != 1 )
@@ -169,7 +169,7 @@ ForthBlockFileManager::SaveBuffer( unsigned int bufferNum )
 unsigned int
 ForthBlockFileManager::AssignBuffer( unsigned int blockNum, bool readContents )
 {
-    TRACE( "ForthBlockFileManager::AssignBuffer to block %d\n", blockNum );
+    SPEW_IO( "ForthBlockFileManager::AssignBuffer to block %d\n", blockNum );
     unsigned int availableBuffer = INVALID_BLOCK_NUMBER;
     for ( unsigned int i = 0; i < mNumBuffers; ++i )
     {
@@ -192,7 +192,7 @@ ForthBlockFileManager::AssignBuffer( unsigned int blockNum, bool readContents )
     }
     else
     {
-        TRACE( "ForthBlockFileManager::AssignBuffer using unassigned buffer %d\n", availableBuffer );
+        SPEW_IO( "ForthBlockFileManager::AssignBuffer using unassigned buffer %d\n", availableBuffer );
     }
 
     if ( mUpdatedBlocks[ availableBuffer ] )
@@ -211,7 +211,7 @@ ForthBlockFileManager::AssignBuffer( unsigned int blockNum, bool readContents )
         }
         else
         {
-            TRACE( "ForthBlockFileManager::AssignBuffer reading block %d into buffer %d\n", blockNum, availableBuffer );
+            SPEW_IO( "ForthBlockFileManager::AssignBuffer reading block %d into buffer %d\n", blockNum, availableBuffer );
             fseek( pInFile, BYTES_PER_BLOCK * blockNum, SEEK_SET );
             int numRead = fread( &(mpBlocks[BYTES_PER_BLOCK * availableBuffer]), BYTES_PER_BLOCK, 1, pInFile );
             if ( numRead != 1 )
@@ -228,7 +228,7 @@ ForthBlockFileManager::AssignBuffer( unsigned int blockNum, bool readContents )
 void
 ForthBlockFileManager::UpdateLRU()
 {
-    TRACE( "ForthBlockFileManager::UpdateLRU current=%d\n", mCurrentBuffer );
+    SPEW_IO( "ForthBlockFileManager::UpdateLRU current=%d\n", mCurrentBuffer );
     if ( mCurrentBuffer < mNumBuffers )
     {
         for ( unsigned int i = 0; i < mNumBuffers; ++i )
@@ -250,7 +250,7 @@ ForthBlockFileManager::UpdateLRU()
 
 void ForthBlockFileManager::SaveBuffers( bool unassignAfterSaving )
 {
-    TRACE( "ForthBlockFileManager::SaveBuffers\n" );
+    SPEW_IO( "ForthBlockFileManager::SaveBuffers\n" );
     FILE* pOutFile = OpenBlockFile( true );
     if ( pOutFile == NULL )
     {
@@ -281,7 +281,7 @@ void ForthBlockFileManager::SaveBuffers( bool unassignAfterSaving )
 void
 ForthBlockFileManager::EmptyBuffers()
 {
-    TRACE( "ForthBlockFileManager::EmptyBuffers\n" );
+    SPEW_IO( "ForthBlockFileManager::EmptyBuffers\n" );
     for ( unsigned int i = 0; i < mNumBuffers; ++i )
     {
         mLRUBuffers[i] = i;

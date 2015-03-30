@@ -1,40 +1,24 @@
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthLib", "ForthLib\ForthLib.vcproj", "{749E1CE7-CD96-4DCC-8D3C-DE275F32C926}"
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthLib", "ForthLib\ForthLib.vcxproj", "{749E1CE7-CD96-4DCC-8D3C-DE275F32C926}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthMain", "ForthMain\ForthMain.vcproj", "{60444DD2-7587-493E-A279-DDC0F6031B8B}"
-	ProjectSection(ProjectDependencies) = postProject
-		{749E1CE7-CD96-4DCC-8D3C-DE275F32C926} = {749E1CE7-CD96-4DCC-8D3C-DE275F32C926}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthMain", "ForthMain\ForthMain.vcxproj", "{60444DD2-7587-493E-A279-DDC0F6031B8B}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthGui", "ForthGui\ForthGui.vcproj", "{0A709A88-682A-42B9-912C-CC8047AFD32E}"
-	ProjectSection(ProjectDependencies) = postProject
-		{749E1CE7-CD96-4DCC-8D3C-DE275F32C926} = {749E1CE7-CD96-4DCC-8D3C-DE275F32C926}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthGui", "ForthGui\ForthGui.vcxproj", "{0A709A88-682A-42B9-912C-CC8047AFD32E}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthDocs", "ForthDocs\ForthDocs.vcproj", "{360D0E7C-0868-46BC-BD8C-2B4ADE8EAF73}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthDocs", "ForthDocs\ForthDocs.vcxproj", "{360D0E7C-0868-46BC-BD8C-2B4ADE8EAF73}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthCalc", "ForthCalc\ForthCalc.vcproj", "{14B06524-9AFE-40DA-89AA-7D63EF81F6A4}"
-	ProjectSection(ProjectDependencies) = postProject
-		{749E1CE7-CD96-4DCC-8D3C-DE275F32C926} = {749E1CE7-CD96-4DCC-8D3C-DE275F32C926}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthCalc", "ForthCalc\ForthCalc.vcxproj", "{14B06524-9AFE-40DA-89AA-7D63EF81F6A4}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthGuiApp", "ForthGuiApp\ForthGuiApp.vcproj", "{D627EA7D-896F-4D31-B6EE-D9A3920B04A5}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthGuiApp", "ForthGuiApp\ForthGuiApp.vcxproj", "{D627EA7D-896F-4D31-B6EE-D9A3920B04A5}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthClient", "ForthClient\ForthClient.vcproj", "{68C7964A-4824-419D-8663-FCBC515CBE62}"
-	ProjectSection(ProjectDependencies) = postProject
-		{749E1CE7-CD96-4DCC-8D3C-DE275F32C926} = {749E1CE7-CD96-4DCC-8D3C-DE275F32C926}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthClient", "ForthClient\ForthClient.vcxproj", "{68C7964A-4824-419D-8663-FCBC515CBE62}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthServer", "ForthServer\ForthServer.vcproj", "{435DF648-3D51-4207-B9AA-57073AB28437}"
-	ProjectSection(ProjectDependencies) = postProject
-		{749E1CE7-CD96-4DCC-8D3C-DE275F32C926} = {749E1CE7-CD96-4DCC-8D3C-DE275F32C926}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthServer", "ForthServer\ForthServer.vcxproj", "{435DF648-3D51-4207-B9AA-57073AB28437}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthMidi", "ForthMidi\ForthMidi.vcproj", "{F3F5174D-B58C-42EC-B613-DE41577F75D2}"
-	ProjectSection(ProjectDependencies) = postProject
-		{749E1CE7-CD96-4DCC-8D3C-DE275F32C926} = {749E1CE7-CD96-4DCC-8D3C-DE275F32C926}
-	EndProjectSection
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthMidi", "ForthMidi\ForthMidi.vcxproj", "{F3F5174D-B58C-42EC-B613-DE41577F75D2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

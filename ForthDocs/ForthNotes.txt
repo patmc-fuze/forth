@@ -162,6 +162,83 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 8 2015
+
+My current goal is to make using client/server for debugging, having trace output
+go to the server console window.
+
+o ForthLib/StdAfx.h defines TRACE macro
+  o TRACE uses CustomTrace routine, defined in ForthEngine
+o Forth.h defines TRACE_PRINTS/TRACE_OUTER_INTERPRETER/TRACE_SHELL for categories
+  which will have trace ability compiled in - if these are defined, SPEW_XXX
+  macros are defined to be TRACE, otherwise SPEW_XXX are undefined
+o ForthEngine::TraceOut sends output to either the console or to a custom defined trace output routine
+  o defaultTraceOutRoutine calls TRACE
+  o ForthGuiDlg defines a trace routine which sends trace output to debug pane
+  o ForthEngine & ForthShell methods conditionally call TraceOut if trace enable flags are set
+    o ForthEngine::TraceOp calls TraceOut
+    o ForthEngine::TraceStack calls TraceOut
+o Only MSDEV builds have TRACE functional, for all others it is a variadic no-op
+
+ForthEngine::TraceOut  ->  defaultTraceOutRoutine  ->  TRACE
+ForthEngine::TraceOut  ->  ForthEngine::ConsoleOut
+TRACE  ->  CustomTrace  ->  OutputDebugString
+
+ForthEngine::ConsoleOut  ->  ForthConsoleStringOut  ->  pCore->consoleOutStream->pOutFuncs->outString
+
+Overall plan:
+- change TraceOut to be variadic
+? make as many things go through TraceOut as possible
+  ? or should this be outside of ForthEngine, so it can be invoked before engine exists
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 13 2015
+
+I started working on an implementation of the atc game and I quickly ran into
+a major limitation of parenthesized expression support - it can't handle any
+expressions like a(b).c(d) where the result of a parenthesized expression is
+an object that has a method with parameters invoked on it.  That should be
+compiled as "d b a.c" but currently fails as soon as it hits ".c".
+
+This is a difficult problem, because the current outer interpreter parses a
+token and immediately processes it, fixing this problem would require parsing
+an entire parenthesized expression before processing any of its tokens.
+It is also common to have expressions span multiple lines, which the current
+implementation doesn't support.
+
+My current planned implementation is this:
+In parseToken, when you hit a left paren, enter parenthesized expression scan mode.
+In this mode:
+o scan input into a temp buffer, making a list of tokens found
+  o scanning deals with double-slash and backslash comments, comments are
+    not entered into temp buffer
+  o tokens have type, buffer offset, number of characters
+    o type is simple, leftParen, rightParen, characterLiteral, stringLiteral
+  o keep track of parenthesized expression level
+  o when paren level reaches zero, exit parenExpr scan mode
+o perform multiple passes over token list, reducing the level of parenthesized
+  expressions with each scan
+o 
+a(b.c(1).d(2) e f.g(3)).h(4).i(5 j)
+5 j  4  b.c(1).d(2) e f.g(3)  a.h.i
+5 j  4  2 1 b.c.d  e  3 f.g  a.h.i
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 1 2015
+
+I moved Forth development from Visual Studio 2008 under Windows Vista to Visual
+Studion 2013 under Windows 7 today.  The program was working fine, but pretty
+soon I ran into strange crashes like "Access violation executing location 0x005FF7DC."
+where the address was a valid address inside the dictionary.  The problem turned
+out to be the Data Execution Protection feature, it was triggered whenever I
+tried to execute an op which was defined in assembler.  The solution was to
+allocate the dictionary memory using VirtualAlloc with flags which say to allow
+execution in that memory block.
+
+I also had to change the tmpnam op, it had been returning a filename that
+started with '\', so I guess it was trying to put the temp file in the root
+directory, which caused opens to fail.  My solution was to prepend a '.' to
+the path, kinda hacky but it works so far.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 7 2014
 
 I added block file support to the kernel.  It is only partially tested, I

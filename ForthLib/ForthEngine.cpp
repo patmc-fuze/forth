@@ -33,6 +33,28 @@ extern "C"
     extern void consoleOutToFile( ForthCoreState   *pCore,  const char       *pMessage );
 };
 
+// default trace output in non-client/server mode
+void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
+{
+	(void)pData;
+	TCHAR buffer[1000];
+
+	ForthEngine* pEngine = ForthEngine::GetInstance();
+	if ((pEngine->GetTraceFlags() & kTraceToConsole) != 0)
+	{
+		wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
+
+		ForthEngine::GetInstance()->ConsoleOut(buffer);
+	}
+	else
+	{
+		wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
+
+		OutputDebugString(buffer);
+	}
+}
+
+
 //#ifdef TRACE_INNER_INTERPRETER
 
 // provide trace ability for builtin ops
@@ -102,11 +124,6 @@ static const char *pErrorStrings[] =
 	"Bad Object",
 };
 
-void defaultTraceOutRoutine( void*, const char* pBuff )
-{
-    TRACE( "%s", pBuff );
-}
-
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -132,12 +149,13 @@ ForthEngine::ForthEngine()
 , mpCore( NULL )
 , mpShell( NULL )
 , mTraceFlags( kTraceShell )
-, mTraceOutRoutine( defaultTraceOutRoutine )
+, mTraceOutRoutine(defaultTraceOutRoutine)
 , mpTraceOutData( NULL )
 , mpOpcodeCompiler( NULL )
 , mFeatures( kFFCCharacterLiterals | kFFMultiCharacterLiterals | kFFCStringLiterals
             | kFFCHexLiterals | kFFDoubleSlashComment | kFFCFloatLiterals )
 , mBlockFileManager( NULL )
+, mIsServer(false)
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -177,7 +195,11 @@ ForthEngine::~ForthEngine()
 
     if ( mDictionary.pBase )
     {
-        delete [] mDictionary.pBase;
+#ifdef WIN32
+		VirtualFree( mDictionary.pBase, 0, MEM_RELEASE );
+#else
+		free( mDictionary.pBase );
+#endif
         delete mpForthVocab;
         delete mpLocalVocab;
         delete mpTypesManager;
@@ -241,7 +263,14 @@ ForthEngine::Initialize( ForthShell*        pShell,
 {
     mpShell = pShell;
 
-    mDictionary.pBase = new long[totalLongs];
+	size_t dictionarySize = totalLongs * sizeof(long);
+#ifdef WIN32
+	void* dictionaryAddress = NULL;
+	// we need to allocate memory that is immune to Data Execution Prevention
+	mDictionary.pBase = (long *) VirtualAlloc( dictionaryAddress, dictionarySize, (MEM_COMMIT | MEM_RESERVE), PAGE_EXECUTE_READWRITE );
+#else
+	mDictionary.pBase = (long *) malloc( dictionarySize );
+#endif
     mDictionary.pCurrent = mDictionary.pBase;
     mDictionary.len = totalLongs;
 
@@ -494,7 +523,7 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
 				methodIndex = pVocab->AddMethod( pMemberName, methodIndex, methodOp );
                 pEntry[0] = methodIndex;
                 pEntry[1] = pEntries->returnType;
-                TRACE( "Method %s op is 0x%x\n", pMemberName, methodOp );
+                SPEW_ENGINE( "Method %s op is 0x%x\n", pMemberName, methodOp );
 
                 // do ";method"
                 EndOpDefinition( false );
@@ -538,7 +567,7 @@ ForthEngine::ForgetOp( ulong opNumber, bool quietMode )
     {
         if ( !quietMode )
         {
-            TRACE( "ForthEngine::ForgetOp error - attempt to forget bogus op # %d, only %d ops exist\n", opNumber, mpCore->numOps );
+            SPEW_ENGINE( "ForthEngine::ForgetOp error - attempt to forget bogus op # %d, only %d ops exist\n", opNumber, mpCore->numOps );
             printf( "ForthEngine::ForgetOp error - attempt to forget bogus op # %d, only %d ops exist\n", opNumber, mpCore->numOps );
         }
     }
@@ -605,7 +634,7 @@ ForthEngine::ForgetSymbol( const char *pSym, bool quietMode )
         {
             printf( "%s", buff );
         }
-        TRACE( "%s", buff );
+        SPEW_ENGINE( "%s", buff );
     }
     return forgotIt;
 }
@@ -668,7 +697,7 @@ ForthEngine::DestroyThread( ForthThread *pThread )
             pCurrent = pNext;
         }
 
-        TRACE( "ForthEngine::DestroyThread tried to destroy unknown thread 0x%x!\n", pThread );
+        SPEW_ENGINE( "ForthEngine::DestroyThread tried to destroy unknown thread 0x%x!\n", pThread );
         // TODO: raise the alarm
     }
 }
@@ -744,9 +773,7 @@ ForthEngine::EndOpDefinition( bool unsmudgeIt )
         *pLocalAllocOp = op;
 	    if ( mTraceFlags & kTraceCompilation )
 	    {
-		    char buff[ 256 ];
-		    SNPRINTF( buff, sizeof(buff),  "Backpatching allocLocals 0x%08x @ 0x%08x\n", op, pLocalAllocOp );
-		    TraceOut( buff );
+		    TraceOut( "Backpatching allocLocals 0x%08x @ 0x%08x\n", op, pLocalAllocOp );
 	    }
 		mpLocalVocab->ClearFrame();
     }
@@ -834,7 +861,7 @@ ForthEngine::DescribeSymbol( const char *pSymName )
     else
     {
         SNPRINTF( buff, sizeof(buff), "Symbol %s not found\n", pSymName );
-        TRACE( buff );
+        SPEW_ENGINE( buff );
         ConsoleOut( buff );
     }
 }
@@ -979,20 +1006,20 @@ static bool lookupUserTraces = true;
 
 
 void
-ForthEngine::TraceOut( const char* pBuff )
+ForthEngine::TraceOut(const char* pFormat, ...)
 {
-	if ( mTraceFlags & kTraceToConsole )
+	if (mTraceOutRoutine != NULL)
 	{
-		ConsoleOut( pBuff );
-	}
-	else
-	{
-		if ( mTraceOutRoutine != NULL )
-		{
-			mTraceOutRoutine( mpTraceOutData, pBuff );
-		}
+		va_list argList;
+		va_start(argList, pFormat);
+
+		mTraceOutRoutine(mpTraceOutData, pFormat, argList);
+
+		va_end(argList);
 	}
 }
+
+
 
 
 void
@@ -1002,6 +1029,12 @@ ForthEngine::SetTraceOutRoutine( traceOutRoutine traceRoutine, void* pTraceData 
 	mpTraceOutData = pTraceData;
 }
 
+void
+ForthEngine::GetTraceOutRoutine(traceOutRoutine& traceRoutine, void*& pTraceData) const
+{
+	traceRoutine = mTraceOutRoutine;
+	pTraceData = mpTraceOutData;
+}
 
 void
 ForthEngine::TraceOp( ForthCoreState* pCore )
@@ -1018,12 +1051,8 @@ ForthEngine::TraceOp( ForthCoreState* pCore )
     char* pIndent = sixteenSpaces + (16 - (rDepth << 1));
     if ( *pOp != gCompiledOps[OP_DONE] )
     {
-		SNPRINTF( buff, sizeof(buff),  "# 0x%08x ", pOp );
-		TraceOut( buff );
-		TraceOut( pIndent );
-        DescribeOp( pOp, buff, sizeof(buff), lookupUserTraces );
-		TraceOut( buff );
-		TraceOut( " # " );
+		DescribeOp(pOp, buff, sizeof(buff), lookupUserTraces);
+		TraceOut("# 0x%08x %s%s # ", pOp, pIndent, buff);
     }
 #endif
 }
@@ -1034,14 +1063,11 @@ ForthEngine::TraceStack( ForthCoreState* pCore )
 	long *pSP = GET_SP;
 	int nItems = GET_SDEPTH;
 	int i;
-	char buff[64];
 
-	SNPRINTF( buff, sizeof(buff), "  stack[%d]:", nItems );
-	TraceOut( buff );
+	TraceOut( "  stack[%d]:", nItems );
 	for ( i = 0; i < nItems; i++ )
 	{
-		SNPRINTF( buff, sizeof(buff), " %x", *pSP++ );
-		TraceOut( buff );
+		TraceOut( " %x", *pSP++ );
 	}
 }
 
@@ -1670,10 +1696,8 @@ ForthEngine::CompileOpcode( forthOpType opType, long opVal )
 {
 	if ( mTraceFlags & kTraceCompilation )
 	{
-		char buff[ 256 ];
 		long op = COMPILED_OP( opType, opVal );
-		SNPRINTF( buff, sizeof(buff),  "Compiling 0x%08x @ 0x%08x\n", op, mDictionary.pCurrent );
-		TraceOut( buff );
+		TraceOut( "Compiling 0x%08x @ 0x%08x\n", op, mDictionary.pCurrent);
 	}
 	mpOpcodeCompiler->CompileOpcode( opType, opVal );
 }
@@ -1701,15 +1725,13 @@ ForthEngine::UncompileLastOpcode( void )
     {
 		if ( mTraceFlags & kTraceCompilation )
 		{
-			char buff[ 256 ];
-			SNPRINTF( buff, sizeof(buff),  "Uncompiling from 0x%08x to 0x%08x\n", mDictionary.pCurrent, pLastCompiledOpcode );
-			TraceOut( buff );
+			TraceOut( "Uncompiling from 0x%08x to 0x%08x\n", mDictionary.pCurrent, pLastCompiledOpcode);
 		}
 		mpOpcodeCompiler->UncompileLastOpcode();
     }
     else
     {
-        TRACE( "ForthEngine::UncompileLastOpcode called with no previous opcode\n" );
+        SPEW_ENGINE( "ForthEngine::UncompileLastOpcode called with no previous opcode\n" );
         SetError( kForthErrorMissingSize, "UncompileLastOpcode called with no previous opcode" );
     }
 }
@@ -2269,6 +2291,17 @@ ForthEngine::GetBlockFileManager()
 }
 
 
+bool
+ForthEngine::IsServer() const
+{
+	return mIsServer;
+}
+
+void
+ForthEngine::SetIsServer(bool isServer)
+{
+	mIsServer = isServer;
+}
 //############################################################################
 //
 //          O U T E R    I N T E R P R E T E R  (sort of)
@@ -2638,7 +2671,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     }
     else
     {
-		TRACE( "Unknown symbol %s\n", pToken );
+		SPEW_ENGINE( "Unknown symbol %s\n", pToken );
 		mpCore->error = kForthErrorUnknownSymbol;
 		exitStatus = kResultError;
     }

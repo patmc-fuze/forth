@@ -512,9 +512,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
     SPEW_SHELL( "*** InterpretLine \"%s\"\n", pLineBuff );
 	if ( mpEngine->GetTraceFlags() & kTraceShell )
 	{
-		mpEngine->TraceOut( "InterpretLine {" );
-		mpEngine->TraceOut( pLineBuff );
-		mpEngine->TraceOut( "}\n" );
+		mpEngine->TraceOut( "InterpretLine {%s}\n", pLineBuff );
 	}
     bLineEmpty = false;
     mpEngine->SetError( kForthErrorNone );
@@ -616,7 +614,7 @@ ForthShell::ReportError( void )
     {
         strcpy( errorBuf1, errorBuf2 );
     }
-    TRACE( "%s", errorBuf1 );
+    SPEW_SHELL( "%s", errorBuf1 );
 	CONSOLE_STRING_OUT( errorBuf1 );
     const char *pBase = mpInput->GetBufferBasePointer();
     pLastInputToken = mpInput->GetBufferPointer();
@@ -638,7 +636,7 @@ ForthShell::ReportError( void )
         *pBuf++ = '\n';
         *pBuf++ = '\0';
     }
-	TRACE( "%s", errorBuf1 );
+	SPEW_SHELL( "%s", errorBuf1 );
 	CONSOLE_STRING_OUT( errorBuf1 );
 }
 
@@ -1086,7 +1084,7 @@ ForthShell::GetNextSimpleToken( void )
     *pDst++ = '\0';
     mpInput->SetBufferPointer( pEndToken );
 
-    //TRACE( "GetNextSimpleToken: |%s|%s|\n", &mToken[0], pEndToken );
+    //SPEW_SHELL( "GetNextSimpleToken: |%s|%s|\n", &mToken[0], pEndToken );
     return &mToken[0];
 }
 
@@ -1125,7 +1123,7 @@ ForthShell::GetToken( char delim, bool bSkipLeadingWhiteSpace )
     *pDst++ = '\0';
     mpInput->SetBufferPointer( pEndToken );
 
-    //TRACE( "GetToken: |%s|%s|\n", &mToken[0], pEndToken );
+    //SPEW_SHELL( "GetToken: |%s|%s|\n", &mToken[0], pEndToken );
     return &mToken[0];
 }
 
@@ -1238,7 +1236,7 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
                                 // filepos is at start of data section
                                 mpInternalFiles[i].offset = ftell( pFile );
                                 mpInternalFiles[i].length = count;
-                                TRACE( "Found file %s, %d bytes at 0x%x\n", mpInternalFiles[i].pName,
+                                SPEW_SHELL( "Found file %s, %d bytes at 0x%x\n", mpInternalFiles[i].pName,
                                         count, mpInternalFiles[i].offset );
                             }
                         }

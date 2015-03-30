@@ -334,7 +334,7 @@ ForthVocabulary::ForgetSymbol( const char *pSymName )
 		if ( opIndex < mpEngine->GetCoreState()->numBuiltinOps )
         {
             // sym is unknown, or in built-in ops - no way
-            TRACE( "Error - attempt to forget builtin op %s from %s\n", pSymName, GetName() );
+            SPEW_VOCABULARY( "Error - attempt to forget builtin op %s from %s\n", pSymName, GetName() );
             done = true;
         }
         else

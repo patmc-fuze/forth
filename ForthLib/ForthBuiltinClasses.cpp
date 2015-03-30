@@ -1320,7 +1320,48 @@ namespace
         METHOD_RETURN;
     }
 
-    baseMethodEntry oListMembers[] =
+	FORTHOP(oListRemoveMethod)
+	{
+		GET_THIS(oListStruct, pList);
+		oListElement* pCur = pList->head;
+		ForthObject soughtObj;
+		POP_OBJECT(soughtObj);
+		while (pCur != NULL)
+		{
+			ForthObject& o = pCur->obj;
+			if (OBJECTS_SAME(o, soughtObj))
+			{
+				break;
+			}
+			pCur = pCur->next;
+		}
+		if (pCur != NULL)
+		{
+			oListElement* pPrev = pCur->prev;
+			oListElement* pNext = pCur->next;
+			if (pCur == pList->head)
+			{
+				pList->head = pNext;
+			}
+			if (pCur == pList->tail)
+			{
+				pList->tail = pPrev;
+			}
+			if (pNext != NULL)
+			{
+				pNext->prev = pPrev;
+			}
+			if (pPrev != NULL)
+			{
+				pPrev->next = pNext;
+			}
+			SAFE_RELEASE(pCore, pCur->obj);
+			FREE_LINK(pCur);
+		}
+		METHOD_RETURN;
+	}
+
+	baseMethodEntry oListMembers[] =
     {
         METHOD(     "_%new%_",              oListNew ),
         METHOD(     "delete",               oListDeleteMethod ),
@@ -1341,7 +1382,8 @@ namespace
         METHOD(     "removeTail",           oListRemoveTailMethod ),
         METHOD(     "unrefHead",            oListUnrefHeadMethod ),
         METHOD(     "unrefTail",            oListUnrefTailMethod ),
-        // following must be last in table
+		METHOD(     "remove",               oListRemoveMethod),
+		// following must be last in table
         END_MEMBERS
     };
 

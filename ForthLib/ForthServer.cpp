@@ -232,6 +232,26 @@ namespace
         pShell->RewindDir( pDir );
 	}
 
+	// trace output in client/server mode
+	void serverTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
+	{
+		(void)pData;
+
+		ForthEngine* pEngine = ForthEngine::GetInstance();
+		if ((pEngine->GetTraceFlags() & kTraceToConsole) != 0)
+		{
+			vprintf(pFormat, argList);
+		}
+		else
+		{
+			TCHAR buffer[1000];
+			wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
+
+			OutputDebugString(buffer);
+		}
+	}
+
+
 };
 
 
@@ -369,13 +389,23 @@ int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short p
             {
 				ForthShell* pOldShell = pEngine->GetShell();
                 pShell = new ForthServerShell( doAutoload, pEngine );
-                bool notDone = true;
+
+				traceOutRoutine oldTraceRoutine;
+				void* pOldTraceData;
+				pEngine->GetTraceOutRoutine(oldTraceRoutine, pOldTraceData);
+				pEngine->SetTraceOutRoutine(serverTraceOutRoutine, pEngine);
+				pEngine->SetIsServer(true);
+
+				bool notDone = true;
                 while (notDone)
                 {
 					iRetVal = pShell->ProcessConnection( ServerSocket );
 					pShell->CloseConnection();
                 }
-                delete pShell;
+
+				pEngine->SetIsServer(false);
+				pEngine->GetTraceOutRoutine(oldTraceRoutine, pOldTraceData);
+				delete pShell;
 				pEngine->SetShell( pOldShell );
             }
         }
@@ -859,7 +889,7 @@ ForthServerShell::FilePutChar( FILE* pFile, int outChar )
     int msgType, msgLen;
     int result = -1;
 
-    mpMsgPipe->StartMessage( kClientMsgFileGetChar );
+    mpMsgPipe->StartMessage( kClientMsgFilePutChar );
     mpMsgPipe->WriteInt( (int) pFile );
     mpMsgPipe->WriteInt( outChar );
     mpMsgPipe->SendMessage();

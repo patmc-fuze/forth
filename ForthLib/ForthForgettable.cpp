@@ -110,7 +110,7 @@ void ForthForgettable::ForgetPropagate( void* pForgetLimit, long op )
     pNext = mpChainHead;
     while ( pNext != NULL )
     {
-        TRACE( "forgetting %s:%s\n", pNext->GetTypeName(), pNext->GetName() );
+        SPEW_ENGINE( "forgetting %s:%s\n", pNext->GetTypeName(), pNext->GetName() );
         pNext->ForgetCleanup( pForgetLimit, op );
         pNext = pNext->mpNext;
     }

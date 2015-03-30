@@ -223,13 +223,14 @@ public:
     // return milliseconds since engine was created
     unsigned long           GetElapsedTime( void );
 
-    void                    ConsoleOut( const char* pBuff );
-    void                    TraceOut( const char* pBuff );
+	void                    ConsoleOut( const char* pBuffer );
+	void                    TraceOut( const char* pFormat, ... );
 
 	long					GetTraceFlags( void );
 	void					SetTraceFlags( long flags );
 
-	void					SetTraceOutRoutine( traceOutRoutine traceRoutine, void* pTraceData );
+	void					SetTraceOutRoutine(traceOutRoutine traceRoutine, void* pTraceData);
+	void					GetTraceOutRoutine(traceOutRoutine& traceRoutine, void*& pTraceData) const;
 
 	void					DumpCrashState();
 
@@ -245,6 +246,9 @@ public:
 
     inline long*            GetBlockPtr() { return &mBlockNumber; };
     ForthBlockFileManager*  GetBlockFileManager();
+
+	bool					IsServer() const;
+	void					SetIsServer(bool isServer);
 
 protected:
     // NOTE: temporarily modifies string @pToken
@@ -319,5 +323,6 @@ protected:
 
     static ForthEngine* mpInstance;
     bool            mFastMode;
+	bool			mIsServer;
 };
 

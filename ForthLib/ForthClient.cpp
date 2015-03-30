@@ -32,7 +32,6 @@ namespace
 {
 	void ErrorExit( const char* message )
 	{
-		//TRACE( "%s\n", message );
 #ifdef WIN32
 		WSACleanup();
 #else
@@ -419,7 +418,21 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                 }
                 break;
 
-            case kClientMsgFileFlush:
+			case kClientMsgFilePutChar:
+			{
+				int file;
+				int ch;
+				pMsgPipe->ReadInt(file);
+				pMsgPipe->ReadInt(ch);
+				int result = fputc(ch, (FILE *)file);
+
+				pMsgPipe->StartMessage(kServerMsgFileOpResult);
+				pMsgPipe->WriteInt(result);
+				pMsgPipe->SendMessage();
+			}
+			break;
+
+			case kClientMsgFileFlush:
                 {
                     int file;
                     pMsgPipe->ReadInt( file );

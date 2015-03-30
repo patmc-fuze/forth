@@ -171,7 +171,7 @@ typedef void  (*ForthOp)( ForthCoreState * );
 typedef bool (*interpreterExtensionRoutine)( char *pToken );
 
 // traceOutRoutine is used when overriding builtin trace routines
-typedef void (*traceOutRoutine) ( void *pData, const char *pBuff );
+typedef void (*traceOutRoutine) ( void *pData, const char* pFormat, va_list argList );
 
 // the varMode state makes variables do something other
 //  than their default behaviour (fetch)
@@ -452,6 +452,17 @@ typedef struct
 #define TRACE_STRUCTS
 #endif
 
+enum
+{
+	kLogOuterInterpreter		= 1,
+	kLogInnerInterpreter		= 2,
+	kLogShell					= 4,
+	kLogStructs					= 8,
+	kLogVocabulary				= 16,
+	kLogIO						= 32,
+	kLogEngine					= 64
+};
+
 #ifdef TRACE_PRINTS
 #define SPEW_PRINTS TRACE
 #else
@@ -460,38 +471,45 @@ typedef struct
 #endif
 
 #ifdef TRACE_OUTER_INTERPRETER
-#define SPEW_OUTER_INTERPRETER TRACE
+#define SPEW_OUTER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogOuterInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
-#define SPEW_OUTER_INTERPRETER TRACE
-//#define SPEW_OUTER_INTERPRETER(...)
+#define SPEW_OUTER_INTERPRETER(...)
 #endif
 
 #ifdef TRACE_INNER_INTERPRETER
-#define SPEW_INNER_INTERPRETER TRACE
+#define SPEW_INNER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogInnerInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
-#define SPEW_INNER_INTERPRETER TRACE
-//#define SPEW_INNER_INTERPRETER(...)
+#define SPEW_INNER_INTERPRETER(...)
 #endif
 
 #ifdef TRACE_SHELL
-#define SPEW_SHELL TRACE
+#define SPEW_SHELL(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
-#define SPEW_SHELL TRACE
-//#define SPEW_SHELL(...)
+#define SPEW_SHELL(...)
 #endif
 
 #ifdef TRACE_VOCABULARY
-#define SPEW_VOCABULARY TRACE
+#define SPEW_VOCABULARY(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogVocabulary) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
-#define SPEW_VOCABULARY TRACE
-//#define SPEW_VOCABULARY(...)
+#define SPEW_VOCABULARY(...)
 #endif
 
 #ifdef TRACE_STRUCTS
-#define SPEW_STRUCTS TRACE
+#define SPEW_STRUCTS(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogStructs) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
-#define SPEW_STRUCTS TRACE
-//#define SPEW_STRUCTS(...)
+#define SPEW_STRUCTS(...)
+#endif
+
+#ifdef TRACE_IO
+#define SPEW_IO(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogIO) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
+#else
+#define SPEW_IO(...)
+#endif
+
+#ifdef TRACE_ENGINE
+#define SPEW_ENGINE(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogEngine) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
+#else
+#define SPEW_ENGINE(...)
 #endif
 
 

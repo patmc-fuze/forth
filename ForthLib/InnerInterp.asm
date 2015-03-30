@@ -5210,7 +5210,7 @@ entry	freadBop
 	add		sp, 16
 	pop	edx
 	pop	esi
-	add	edx, 8
+	add	edx, 12
 	mov	[edx], eax	; push fread result
 	jmp	edi
 	
@@ -5233,7 +5233,7 @@ entry	fwriteBop
 	add		sp, 16
 	pop	edx
 	pop	esi
-	add	edx, 8
+	add	edx, 12
 	mov	[edx], eax	; push fwrite result
 	jmp	edi
 	

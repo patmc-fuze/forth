@@ -17,8 +17,8 @@
 #include <unistd.h>
 #endif
 
-// compile for Win2K or newer
-#define WINVER 0x0500
+// compile for WinVista or newer
+#define WINVER 0x0600
 
 #define VC_EXTRALEAN		// Exclude rarely-used stuff from Windows headers
 

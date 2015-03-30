@@ -1908,7 +1908,7 @@ FORTHOP( strPrecedenceOp )
                 CONSOLE_STRING_OUT( "!!!! Can\'t set precedence for " );
                 CONSOLE_STRING_OUT( pSym );
                 CONSOLE_STRING_OUT( "s - wrong type !!!!\n" );
-                TRACE( "!!!! Can\'t set precedence for %s - wrong type !!!!\n", pSym );
+                SPEW_ENGINE( "!!!! Can\'t set precedence for %s - wrong type !!!!\n", pSym );
                 break;
         }
     }
@@ -1916,7 +1916,7 @@ FORTHOP( strPrecedenceOp )
     {
         CONSOLE_STRING_OUT( "!!!! Failure finding symbol " );
         CONSOLE_STRING_OUT( pSym );
-        TRACE( "!!!! Failure finding symbol %s !!!!\n", pSym );
+        SPEW_ENGINE( "!!!! Failure finding symbol %s !!!!\n", pSym );
     }
 }
 
@@ -1932,7 +1932,7 @@ FORTHOP( strLoadOp )
             CONSOLE_STRING_OUT( "!!!! Failure opening source file " );
             CONSOLE_STRING_OUT( pFileName );
             CONSOLE_STRING_OUT( " !!!!\n" );
-            TRACE( "!!!! Failure opening source file %s !!!!\n", pFileName );
+            SPEW_ENGINE( "!!!! Failure opening source file %s !!!!\n", pFileName );
         }
     }
 }
@@ -1959,7 +1959,7 @@ FORTHOP( requiresOp )
             CONSOLE_STRING_OUT( "!!!! Failure opening source file " );
             CONSOLE_STRING_OUT( pFileName );
             CONSOLE_STRING_OUT( " !!!!\n" );
-            TRACE( "!!!! Failure opening source file %s !!!!\n", pFileName );
+            SPEW_ENGINE( "!!!! Failure opening source file %s !!!!\n", pFileName );
         }
         delete [] pFileName;
     }
@@ -3941,7 +3941,7 @@ FORTHOP( bracketIfOp )
 	const char* pBuffer = pShell->GetInput()->GetBufferPointer();
     int depth = 0;
     int takeIfBranch = SPOP;
-    //TRACE("bracketIf");
+    //SPEW_ENGINE("bracketIf");
 
     if ( !takeIfBranch )
     {
@@ -3951,7 +3951,7 @@ FORTHOP( bracketIfOp )
             const char* pBracket = pBuffer;
             while ( (pBracket = strchr( pBuffer, '[' )) != NULL )
             {
-                //TRACE("bracketIf {%s}", pBracket);
+                //SPEW_ENGINE("bracketIf {%s}", pBracket);
                 if ( checkBracketToken( pBracket, "[else]" ) )
                 {
                     if ( depth == 0 )
@@ -3970,13 +3970,13 @@ FORTHOP( bracketIfOp )
                     else
                     {
                         --depth;
-                        //TRACE("bracketIf depth %d", depth);
+                        //SPEW_ENGINE("bracketIf depth %d", depth);
                     }
                 }
                 else if ( checkBracketToken( pBracket, "[if]" ) || checkBracketToken( pBracket, "[ifdef]" ) || checkBracketToken( pBracket, "[ifundef]" ) )
                 {
                     ++depth;
-                    //TRACE("bracketIf depth %d", depth);
+                    //SPEW_ENGINE("bracketIf depth %d", depth);
                 }
                 else
                 {
@@ -4065,10 +4065,16 @@ FORTHOP( bracketEndifOp )
 {
 }
 
-FORTHOP( setTraceOp )
+FORTHOP(setTraceOp)
 {
 	int traceFlags = SPOP;
-	GET_ENGINE->SetTraceFlags( traceFlags );
+	GET_ENGINE->SetTraceFlags(traceFlags);
+}
+
+FORTHOP(getTraceOp)
+{
+	int traceFlags = GET_ENGINE->GetTraceFlags();
+	SPUSH(traceFlags);
 }
 
 ///////////////////////////////////////////
@@ -7483,6 +7489,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    unimplementedMethodOp,  "unimplementedMethod" ),
     OP_DEF(    illegalMethodOp,        "illegalMethod" ),
 	OP_DEF(    setTraceOp,             "setTrace" ),
+	OP_DEF(    getTraceOp,             "getTrace" ),
     OP_DEF(    verboseBop,             "verbose" ),
     OP_DEF(    featuresOp,             "features" ),
 
