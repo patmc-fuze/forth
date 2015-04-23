@@ -10,6 +10,7 @@
 #include "ForthShell.h"
 #include "ForthForgettable.h"
 #include "ForthBuiltinClasses.h"
+#include "ForthParseInfo.h"
 
 // symbol entry layout for struct vocabulary (fields and method symbols
 // offset   contents

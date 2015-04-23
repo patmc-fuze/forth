@@ -20,6 +20,7 @@
 #include "ForthPortability.h"
 #include "ForthBuiltinClasses.h"
 #include "ForthBlockFileManager.h"
+#include "ForthParseInfo.h"
 
 extern "C"
 {
@@ -1018,8 +1019,6 @@ ForthEngine::TraceOut(const char* pFormat, ...)
 		va_end(argList);
 	}
 }
-
-
 
 
 void

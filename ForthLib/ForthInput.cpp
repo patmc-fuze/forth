@@ -8,6 +8,7 @@
 #include "ForthInput.h"
 #include "ForthEngine.h"
 #include "ForthBlockFileManager.h"
+#include "ForthParseInfo.h"
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -59,7 +60,10 @@ ForthInputStack::PopInputStream( void )
     }
 
     pNext = mpHead->mpNext;
-    delete mpHead;
+	if (mpHead->DeleteWhenEmpty())
+	{
+		delete mpHead;
+	}
     mpHead = pNext;
 
     *(ForthEngine::GetInstance()->GetBlockPtr()) = mpHead->GetBlockNumber();
@@ -352,6 +356,14 @@ ForthInputStream::StuffBuffer( const char* pSrc )
     mpBufferBase[len] = '\0';
     mReadOffset = 0;
     mWriteOffset = len;
+}
+
+
+bool
+ForthInputStream::DeleteWhenEmpty()
+{
+	// default behavior is to delete stream when empty
+	return true;
 }
 
 
@@ -864,3 +876,369 @@ ForthBlockInputStream::ReadBlock()
     return success;
 }
 
+//////////////////////////////////////////////////////////////////////
+////
+///
+//                     ForthExpressionInputStream
+// 
+#define INITIAL_EXPRESSION_STACK_SIZE 2048
+
+ForthExpressionInputStream::ForthExpressionInputStream()
+	: ForthInputStream(INITIAL_EXPRESSION_STACK_SIZE)
+	, mStackSize(INITIAL_EXPRESSION_STACK_SIZE)
+{
+	mpStackBase = static_cast<char *>(malloc(mStackSize));
+	mpLeftBase = static_cast<char *>(malloc(mStackSize + 1));
+	mpRightBase = static_cast<char *>(malloc(mStackSize + 1));
+	ResetStrings();
+}
+
+void
+ForthExpressionInputStream::ResetStrings()
+{
+	mpStackTop = mpStackBase + mStackSize;
+	mpStackCursor = mpStackTop;
+	*--mpStackCursor = '\0';
+	*--mpStackCursor = '\0';
+	mpLeftCursor = mpLeftBase;
+	mpLeftTop = mpLeftBase + mStackSize;
+	*mpLeftCursor = '\0';
+	*mpLeftTop = '\0';
+	mpRightCursor = mpRightBase;
+	mpRightTop = mpRightCursor + mStackSize;
+	*mpRightCursor = '\0';
+	*mpRightTop = '\0';
+}
+
+ForthExpressionInputStream::~ForthExpressionInputStream()
+{
+	free(mpStackBase);
+	free(mpLeftBase);
+	free(mpRightBase);
+}
+
+char* topStr = NULL;
+char* nextStr = NULL;
+
+#define LOG_EXPRESSION(STR) ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::%s L:{%s} R:{%s}  (%s)(%s)\n",\
+	STR, mpLeftBase, mpRightBase, mpStackCursor, (mpStackCursor + strlen(mpStackCursor) + 1))
+
+bool
+ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
+{
+	// z	(a,b) -> (a,bz)
+	// _	(a,b) -> (ab_,)		underscore represents space, tab or EOL
+	// )	(a,b)(c,d)  -> (c,ab_d)
+	// (	(a,b) -> (,)(a,b)
+
+	bool result = true;
+
+	int nestingDepth = 0;
+	ResetStrings();
+	const char* pSrc = pInputStream->GetBufferPointer();
+	const char* pNewSrc = pSrc;
+	char c;
+	char previousChar = '\0';
+	bool danglingPeriod = false;	 // to allow ")." at end of line to force continuation to next line
+	ForthParseInfo parseInfo((long *)mpBufferBase, mBufferLen);
+	ForthEngine* pEngine = ForthEngine::GetInstance();
+
+	bool done = false;
+	bool atEOL = false;
+	while (!done)
+	{
+		const char* pSrcLimit = pInputStream->GetBufferBasePointer() + pInputStream->GetWriteOffset();
+		if (atEOL || (pSrc >= pSrcLimit))
+		{
+			if ((nestingDepth != 0) || danglingPeriod)
+			{
+				// input buffer is empty
+				pSrc = pInputStream->GetLine("expression>");
+				pSrcLimit = pInputStream->GetBufferBasePointer() + pInputStream->GetWriteOffset();
+				// TODO: skip leading whitespace
+			}
+			else
+			{
+				done = true;
+			}
+		}
+		if (pSrc != NULL)
+		{
+			c = *pSrc++;
+			pInputStream->SetBufferPointer(pSrc);
+			switch (c)
+			{
+				case ' ':
+				case '\t':
+					// whitespace completes the token sitting in right string
+					if (mpRightCursor != mpRightBase)
+					{
+						CombineRightIntoLeft();
+						AppendCharToRight(c);
+					}
+					done = (nestingDepth == 0);
+					break;
+
+				case '\0':
+					atEOL = true;
+					break;
+
+				case '(':
+					PushStrings();
+					nestingDepth++;
+					break;
+
+				case ')':
+					PopStrings();
+					nestingDepth--;
+					break;
+
+				case '/':
+					if (*pSrc == '/')
+					{
+						// this is an end-of-line comment
+						atEOL = true;
+					}
+					else
+					{
+						AppendCharToRight(c);
+					}
+					break;
+
+				case '\'':
+					if (mpRightCursor != mpRightBase)
+					{
+						CombineRightIntoLeft();
+						AppendCharToRight(c);
+					}
+					pNewSrc = parseInfo.ParseSingleQuote(pSrc, pSrcLimit, pEngine);
+					if (pNewSrc == pSrc)
+					{
+						if ((*pSrc == ' ') || (*pSrc == '\t'))
+						{
+							// this is tick operator
+							AppendCharToRight(c);
+							AppendCharToRight(*pSrc++);
+							CombineRightIntoLeft();
+						}
+					}
+					else
+					{
+						AppendStringToRight(pNewSrc);
+						pSrc = pNewSrc;
+						AppendCharToRight('\'');
+						CombineRightIntoLeft();
+					}
+					break;
+
+				case '\"':
+					if (mpRightCursor != mpRightBase)
+					{
+						CombineRightIntoLeft();
+						AppendCharToRight(c);
+					}
+					pNewSrc = parseInfo.ParseDoubleQuote(pSrc, pSrcLimit);
+					if (pNewSrc == pSrc)
+					{
+						// TODO: report error
+					}
+					else
+					{
+						AppendStringToRight(pNewSrc);
+						pSrc = pNewSrc;
+						AppendCharToRight('\"');
+						CombineRightIntoLeft();
+					}
+					break;
+
+				default:
+					AppendCharToRight(c);
+					break;
+			}
+		}
+		else
+		{
+			AppendCharToRight(' ');		// TODO: is this necessary?
+			CombineRightIntoLeft();
+			done = true;
+		}
+		danglingPeriod = (previousChar == ')') && (c == '.');
+		previousChar = c;
+	}
+
+	strcpy(mpBufferBase, mpLeftBase);
+	strcat(mpBufferBase, " ");
+	strcat(mpBufferBase, mpRightBase);
+	mReadOffset = 0;
+	mWriteOffset = strlen(mpBufferBase);
+	ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::ProcessExpression  result:{%s}\n", mpBufferBase);
+	return result;
+}
+
+int
+ForthExpressionInputStream::GetSourceID()
+{
+	return -1;
+}
+
+char*
+ForthExpressionInputStream::GetLine(const char *pPrompt)
+{
+	return NULL;
+}
+
+const char*
+ForthExpressionInputStream::GetType(void)
+{
+	return "Expression";
+}
+
+void
+ForthExpressionInputStream::SeekToLineEnd()
+{
+
+}
+
+long*
+ForthExpressionInputStream::GetInputState()
+{
+	// TODO: error!
+	return NULL;
+}
+
+bool
+ForthExpressionInputStream::SetInputState(long* pState)
+{
+	// TODO: error!
+	return false;
+}
+
+void
+ForthExpressionInputStream::PushString(char *pString, int numBytes)
+{
+	char* pNewBase = mpStackCursor - (numBytes + 1);
+	if (pNewBase > mpStackBase)
+	{
+		memcpy(pNewBase, pString, numBytes + 1);
+		mpStackCursor = pNewBase;
+	}
+	else
+	{
+		// TODO: report stack overflow
+	}
+}
+
+void
+ForthExpressionInputStream::PushStrings()
+{
+	//ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::PushStrings  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
+	PushString(mpRightBase, mpRightCursor - mpRightBase);
+	nextStr = mpStackCursor;
+	PushString(mpLeftBase, mpLeftCursor - mpLeftBase);
+	mpRightCursor = mpRightBase;
+	*mpRightCursor = '\0';
+	mpLeftCursor = mpLeftBase;
+	*mpLeftCursor = '\0';
+	LOG_EXPRESSION("PushStrings");
+}
+
+void
+ForthExpressionInputStream::PopStrings()
+{
+	// at start, leftString is a, rightString is b, top of string stack is c, next on stack is d
+	// (a,b)(c,d)  -> (c,ab_d)   OR  leftString = stack[0], rightString = leftString + rightString + space + stack[1]
+	if (mpStackCursor < mpStackTop)
+	{
+		int lenA = mpLeftCursor - mpLeftBase;
+		int lenB = mpRightCursor - mpRightBase;
+		int lenStackTop = strlen(mpStackCursor);
+		char* pStackNext = mpStackCursor + lenStackTop + 1;
+		int lenStackNext = strlen(pStackNext);
+		// TODO: check that ab_d will fight in right string
+		// move b up by the length of a
+		char* pDst = mpRightCursor + lenA;
+		char* pSrc = mpRightCursor;
+		while (pSrc > mpRightBase)
+		{
+			*--pDst = *--pSrc;
+		}
+		// copy a to bottom of right
+		memcpy(mpRightBase, mpLeftBase, lenA);
+		mpRightCursor += lenA;
+		*mpRightCursor++ = ' ';
+		// copy top of stack to left
+		memcpy(mpLeftBase, mpStackCursor, lenStackTop + 1);
+		mpLeftCursor = mpLeftBase + lenStackTop;
+		// copy next on stack to end of right
+		memcpy(mpRightCursor, pStackNext, lenStackNext + 1);
+		mpRightCursor += lenStackNext;
+		// remove both strings from stack
+		mpStackCursor = pStackNext + lenStackNext + 1;
+		// TODO: check that stack cursor is not above stackTop
+		LOG_EXPRESSION("PopStrings");
+		//ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::PopStrings  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
+	}
+	else
+	{
+		// TODO: report pop of empty stack
+	}
+	nextStr = mpStackCursor + strlen(mpStackCursor) + 1;
+}
+
+void
+ForthExpressionInputStream::AppendStringToRight(const char* pString)
+{
+	int len = strlen(pString);
+	if ((mpRightCursor + len) < mpRightTop)
+	{
+		memcpy(mpRightCursor, pString, len + 1);
+		mpRightCursor += len;
+		LOG_EXPRESSION("AppendStringToRight");
+		//ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::AppendStringToRight  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
+	}
+	else
+	{
+		// TODO: report right string overflow
+	}
+}
+
+
+void
+ForthExpressionInputStream::AppendCharToRight(char c)
+{
+	if (mpRightCursor < mpRightTop)
+	{
+		*mpRightCursor++ = c;
+		*mpRightCursor = '\0';
+		LOG_EXPRESSION("AppendCharToRight");
+		//ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::AppendCharToRight  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
+	}
+	else
+	{
+		// TODO: report right string overflow
+	}
+}
+
+void
+ForthExpressionInputStream::CombineRightIntoLeft()
+{
+	int spaceRemainingInLeft = mpLeftTop - mpLeftCursor;
+	int rightLen = mpRightCursor - mpRightBase;
+	if (spaceRemainingInLeft > rightLen)
+	{
+		memcpy(mpLeftCursor, mpRightBase, rightLen + 1);
+		mpLeftCursor += rightLen;
+	}
+	mpRightCursor = mpRightBase;
+	*mpRightCursor = '\0';
+	LOG_EXPRESSION("CombineRightIntoLeft");
+	//ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::CombineRightIntoLeft  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
+}
+
+
+bool
+ForthExpressionInputStream::DeleteWhenEmpty()
+{
+	// don't delete when empty
+	return false;
+}

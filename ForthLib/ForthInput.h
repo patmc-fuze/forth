@@ -6,6 +6,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "Forth.h"
+#include <string>
 
 #ifndef DEFAULT_INPUT_BUFFER_LEN
 #define DEFAULT_INPUT_BUFFER_LEN MAX_STRING_SIZE
@@ -21,6 +22,7 @@ enum
 };
 
 class ForthInputStack;
+class ForthParseInfo;
 
 class ForthInputStream
 {
@@ -45,7 +47,7 @@ public:
 	virtual const char* GetType( void );
 	virtual const char* GetName( void );
     
-    virtual int     GetSourceID() = 0;
+    virtual int     GetSourceID() = 0;		// for the 'source' ansi forth op
     virtual void    SeekToLineEnd();
     virtual long    GetBlockNumber();
 
@@ -53,6 +55,8 @@ public:
     virtual bool    SetInputState( long* pState ) = 0;
 
     virtual void    StuffBuffer( const char* pSrc );
+
+	virtual bool	DeleteWhenEmpty();
 
     friend class ForthInputStack;
 
@@ -195,7 +199,52 @@ protected:
 };
 
 
-class ForthInputStack  
+class ForthExpressionInputStream : public ForthInputStream
+{
+public:
+	ForthExpressionInputStream();
+	virtual ~ForthExpressionInputStream();
+
+	// returns true IFF expression was processed successfully
+	bool ProcessExpression(ForthInputStream* pInputStream);
+
+	virtual int     GetSourceID();
+	virtual char    *GetLine(const char *pPrompt);
+	virtual bool    IsInteractive(void) { return false; };
+	virtual const char* GetType(void);
+
+	virtual void    SeekToLineEnd();
+
+	virtual long*   GetInputState();
+	virtual bool    SetInputState(long* pState);
+
+	virtual bool	DeleteWhenEmpty();
+
+protected:
+	void			PushStrings();
+	void			PushString(char *pString, int numBytes);
+	void			PopStrings();
+	void			AppendCharToRight(char c);
+	void			AppendStringToRight(const char* pString);
+	void			CombineRightIntoLeft();
+	void			ResetStrings();
+	inline bool		StackEmpty() { return mpStackCursor == mpStackTop; }
+
+	unsigned int		mStackSize;
+	char*				mpStackBase;
+	char*				mpStackTop;
+	char*				mpStackCursor;
+	char*				mpLeftBase;
+	char*				mpLeftCursor;
+	char*				mpLeftTop;
+	char*				mpRightBase;
+	char*				mpRightCursor;
+	char*				mpRightTop;
+	ForthParseInfo*		mpParseInfo;
+};
+
+
+class ForthInputStack
 {
 public:
     ForthInputStack();

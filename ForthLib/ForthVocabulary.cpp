@@ -9,6 +9,7 @@
 #include "ForthEngine.h"
 #include "ForthShell.h"
 #include "ForthForgettable.h"
+#include "ForthParseInfo.h"
 #ifdef LINUX
 #include <dlfcn.h>
 #endif
@@ -32,8 +33,6 @@
 
 // vocabulary symbol storage grows downward, and is searched from the
 // bottom upward (try to match newest symbols first)
-
-#define SYM_MAX_LONGS 64
 
 // this many longs are added to vocab storage whenever it runs out of room
 #define VOCAB_EXPANSION_INCREMENT   128
