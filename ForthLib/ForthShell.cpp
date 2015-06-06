@@ -880,6 +880,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
 						 {
 							 mExpressionInputStream = new ForthExpressionInputStream;
 						 }
+						 pInfo->SetAllFlags(0);
 						 mpInput->SetBufferPointer(pSrc);
 						 mExpressionInputStream->ProcessExpression(mpInput->InputStream());
 						 mpInput->PushInputStream(mExpressionInputStream);

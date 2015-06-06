@@ -864,6 +864,159 @@ ForthStructVocabulary::GetTypeName( void )
     return "structVocabulary";
 }
 
+void
+ForthStructVocabulary::ShowData(const void* pData)
+{
+	char buffer[32];
+	const char* pStruct = (const char*)pData;
+	ForthStructVocabulary* pVocab = this;
+	bool notFirstTime = false;
+	mpEngine->ConsoleOut("{ ");
+	mpEngine->ConsoleOut("'__type' : '");
+	mpEngine->ConsoleOut( GetName() );
+	mpEngine->ConsoleOut("', ");
+	bool foundSomething;
+
+	while (pVocab != NULL)
+	{
+		long* pEntry = pVocab->GetNewestEntry();
+		long* pEntriesEnd = pVocab->GetEntriesEnd();
+		while (pEntry < pEntriesEnd)
+		{
+			long typeCode = VOCABENTRY_TO_TYPECODE(pEntry);
+			long byteOffset = VOCABENTRY_TO_FIELD_OFFSET(pEntry);
+			long numElements = VOCABENTRY_TO_NUM_ELEMENTS(pEntry);
+
+			if (!CODE_IS_METHOD(typeCode))
+			{
+				bool isNative = CODE_IS_NATIVE(typeCode);
+				bool isPtr = CODE_IS_PTR(typeCode);
+				bool isArray = CODE_IS_ARRAY(typeCode);
+				long baseType = CODE_TO_BASE_TYPE(typeCode);
+				int sval;
+				unsigned int uval;
+
+				if (notFirstTime && foundSomething)
+				{
+					mpEngine->ConsoleOut(", ");
+				}
+
+				//mpEngine->ConsoleOut("\"");
+				mpEngine->ConsoleOut("'");
+				pVocab->GetEntryName(pEntry, buffer, sizeof(buffer));
+				mpEngine->ConsoleOut(buffer);
+				//mpEngine->ConsoleOut("\" : ");
+				mpEngine->ConsoleOut("' : ");
+
+				// mark buffer as empty by default
+				buffer[0] = 0;
+
+				foundSomething = true;
+				int numElements = 1;
+				if (isArray)
+				{
+					mpEngine->ConsoleOut("[ ");
+				}
+				else
+				{
+					numElements = 1;
+				}
+				if (isPtr)
+				{
+					// hack to print all pointers in hex
+					baseType = kBaseTypeOp;
+				}
+				switch (baseType)
+				{
+				case kBaseTypeByte:
+					sval = *((const char*)(pStruct + byteOffset));
+					sprintf(buffer, "%d", sval);
+					break;
+
+				case kBaseTypeUByte:
+					uval = *((const unsigned char*)(pStruct + byteOffset));
+					sprintf(buffer, "%u", uval);
+					break;
+
+				case kBaseTypeShort:
+					sval = *((const short*)(pStruct + byteOffset));
+					sprintf(buffer, "%d", sval);
+					break;
+
+				case kBaseTypeUShort:
+					uval = *((const unsigned short*)(pStruct + byteOffset));
+					sprintf(buffer, "%u", uval);
+					break;
+
+				case kBaseTypeInt:
+					sval = *((const int*)(pStruct + byteOffset));
+					sprintf(buffer, "%d", sval);
+					break;
+
+				case kBaseTypeUInt:
+					uval = *((const unsigned int*)(pStruct + byteOffset));
+					sprintf(buffer, "%u", uval);
+					break;
+
+				case kBaseTypeLong:
+					sprintf(buffer, "%lld", *((const long long*)(pStruct + byteOffset)));
+					break;
+
+				case kBaseTypeULong:
+					sprintf(buffer, "%llu", *((const unsigned long long*)(pStruct + byteOffset)));
+					break;
+
+				case kBaseTypeFloat:
+					sprintf(buffer, "%f", *((const float*)(pStruct + byteOffset)));
+					break;
+
+				case kBaseTypeDouble:
+					sprintf(buffer, "%f", *((const double*)(pStruct + byteOffset)));
+					break;
+
+				case kBaseTypeString:
+					mpEngine->ConsoleOut("'");
+					mpEngine->ConsoleOut(pStruct + byteOffset + 8);
+					mpEngine->ConsoleOut("'");
+					break;
+
+				case kBaseTypeOp:
+					sprintf(buffer, "0x%x", pEntry[0]);
+					break;
+
+					/*
+					kBaseTypeObject = kNumNativeTypes,      // 12 - object
+					kBaseTypeStruct,                        // 13 - struct
+					kBaseTypeUserDefinition,                // 14 - user defined forthop
+					kBaseTypeVoid,							// 15 - void
+					*/
+				default:
+					foundSomething = false;
+					break;
+				}
+				if (foundSomething)
+				{
+					notFirstTime = true;
+				}
+				// if something was put in the buffer, print it
+				if (buffer[0])
+				{
+					mpEngine->ConsoleOut(buffer);
+				}
+				if (isArray)
+				{
+					mpEngine->ConsoleOut(" ]");
+				}
+			}
+			pEntry = NextEntry(pEntry);
+		}
+
+		pVocab = pVocab->BaseVocabulary();
+	}
+	mpEngine->ConsoleOut(" }");
+
+}
+
 
 //////////////////////////////////////////////////////////////////////
 ////

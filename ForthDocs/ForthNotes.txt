@@ -162,6 +162,33 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 5 2015
+
+I added a first cut at 'show' for structs and objects.  The code currently just
+shows the native types.
+
+The next steps:
+o add recursive descent of nested structs/objects
+o add extensibility by invoking the show method for nested objects
+o add show methods for builtin container classes
+
+The show method probably should have these parameters:
+o maximum nesting depth
+o flag telling wether to display __refCount and __type
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 23 2015
+
+I wrote a parenthesized expression evaluator.  Previously if a method returned
+an object and you tried to invoke a method on it, the parameters for the original
+and second method were computed in the wrong order.
+
+The code is almost working, the problems I know about are:
+- double quote support is broken
+- there are some cases where a space is missing when groups of tokens are combined
+- there are some cases were extra spaces are added between tokens
+- single quote support is untested
+- multi-line support is untested
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 8 2015
 
 My current goal is to make using client/server for debugging, having trace output

@@ -974,7 +974,6 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 					if (mpRightCursor != mpRightBase)
 					{
 						CombineRightIntoLeft();
-						AppendCharToRight(c);
 					}
 					done = (nestingDepth == 0);
 					break;
@@ -1009,10 +1008,9 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 					if (mpRightCursor != mpRightBase)
 					{
 						CombineRightIntoLeft();
-						AppendCharToRight(c);
 					}
-					pNewSrc = parseInfo.ParseSingleQuote(pSrc, pSrcLimit, pEngine);
-					if (pNewSrc == pSrc)
+					pNewSrc = parseInfo.ParseSingleQuote(pSrc - 1, pSrcLimit, pEngine);
+					if (pNewSrc == (pSrc - 1))
 					{
 						if ((*pSrc == ' ') || (*pSrc == '\t'))
 						{
@@ -1024,9 +1022,20 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 					}
 					else
 					{
-						AppendStringToRight(pNewSrc);
+						AppendCharToRight(c);
+						const char* pChars = (char *)parseInfo.GetToken();
+						while (*pChars != '\0')
+						{
+							char cc = *pChars++;
+							if (cc == ' ')
+							{
+								// need to prefix spaces in character constants with backslash
+								AppendCharToRight('\\');
+							}
+							AppendCharToRight(cc);
+						}
 						pSrc = pNewSrc;
-						AppendCharToRight('\'');
+						AppendCharToRight(c);
 						CombineRightIntoLeft();
 					}
 					break;
@@ -1035,23 +1044,29 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 					if (mpRightCursor != mpRightBase)
 					{
 						CombineRightIntoLeft();
-						AppendCharToRight(c);
 					}
-					pNewSrc = parseInfo.ParseDoubleQuote(pSrc, pSrcLimit);
-					if (pNewSrc == pSrc)
+					pNewSrc = parseInfo.ParseDoubleQuote(pSrc - 1, pSrcLimit);
+					if (pNewSrc == (pSrc - 1))
 					{
 						// TODO: report error
 					}
 					else
 					{
-						AppendStringToRight(pNewSrc);
+						AppendCharToRight(c);
+						AppendStringToRight((char *)parseInfo.GetToken());
 						pSrc = pNewSrc;
-						AppendCharToRight('\"');
+						AppendCharToRight(c);
 						CombineRightIntoLeft();
 					}
 					break;
 
 				default:
+					if ((previousChar == ')') && (c != '.'))
+					{
+						// this seems hokey, but it fixes cases like "a(b(1)2)" becoming "1 b2 a" instead of "1 b 2 a"
+						//   and doesn't break "a(1).b(2)" like some other fixes
+						CombineRightIntoLeft();
+					}
 					AppendCharToRight(c);
 					break;
 			}
@@ -1146,7 +1161,7 @@ void
 ForthExpressionInputStream::PopStrings()
 {
 	// at start, leftString is a, rightString is b, top of string stack is c, next on stack is d
-	// (a,b)(c,d)  -> (c,ab_d)   OR  leftString = stack[0], rightString = leftString + rightString + space + stack[1]
+	// (a,b)(c,d)  -> (c,ab_d)   OR  rightString = leftString + rightString + space + stack[1], leftString = stack[0]
 	if (mpStackCursor < mpStackTop)
 	{
 		int lenA = mpLeftCursor - mpLeftBase;
@@ -1154,24 +1169,39 @@ ForthExpressionInputStream::PopStrings()
 		int lenStackTop = strlen(mpStackCursor);
 		char* pStackNext = mpStackCursor + lenStackTop + 1;
 		int lenStackNext = strlen(pStackNext);
-		// TODO: check that ab_d will fight in right string
-		// move b up by the length of a
-		char* pDst = mpRightCursor + lenA;
-		char* pSrc = mpRightCursor;
-		while (pSrc > mpRightBase)
+		// TODO: check that ab_d will fit in right string
+		// append right to left
+		if (lenB > 0)
 		{
-			*--pDst = *--pSrc;
+			if (lenA > 0)
+			{
+				*mpLeftCursor++ = ' ';
+			}
+			memcpy(mpLeftCursor, mpRightBase, lenB + 1);
+			mpLeftCursor += lenB;
 		}
-		// copy a to bottom of right
-		memcpy(mpRightBase, mpLeftBase, lenA);
-		mpRightCursor += lenA;
-		*mpRightCursor++ = ' ';
+		// append second stacked string to left
+		if (lenStackNext > 0)
+		{
+			if (mpLeftCursor != mpLeftBase)
+			{
+				*mpLeftCursor++ = ' ';
+			}
+			memcpy(mpLeftCursor, pStackNext, lenStackNext + 1);
+			mpLeftCursor += lenStackNext;
+		}
+		lenA = mpLeftCursor - mpLeftBase;
+		if (lenA > 0)
+		{
+			memcpy(mpRightBase, mpLeftBase, lenA + 1);
+		}
+		mpRightCursor = mpRightBase + lenA;
+		//AppendCharToRight(' ');
+
 		// copy top of stack to left
 		memcpy(mpLeftBase, mpStackCursor, lenStackTop + 1);
 		mpLeftCursor = mpLeftBase + lenStackTop;
-		// copy next on stack to end of right
-		memcpy(mpRightCursor, pStackNext, lenStackNext + 1);
-		mpRightCursor += lenStackNext;
+
 		// remove both strings from stack
 		mpStackCursor = pStackNext + lenStackNext + 1;
 		// TODO: check that stack cursor is not above stackTop
@@ -1226,6 +1256,10 @@ ForthExpressionInputStream::CombineRightIntoLeft()
 	int rightLen = mpRightCursor - mpRightBase;
 	if (spaceRemainingInLeft > rightLen)
 	{
+		if (mpLeftCursor != mpLeftBase)
+		{
+			*mpLeftCursor++ = ' ';
+		}
 		memcpy(mpLeftCursor, mpRightBase, rightLen + 1);
 		mpLeftCursor += rightLen;
 	}

@@ -278,6 +278,15 @@ typedef struct {
     ulong               len;
 } ForthMemorySection;
 
+// this is what is placed on the stack to represent a forth object
+//  usually the 'data' field is actually a pointer to the data, but that is an
+//  implementation detail and not true for all classes
+struct ForthObject
+{
+	long*       pMethodOps;
+	long*       pData;      // actually this isn't always a pointer
+};
+
 // this godawful mess is here because the ANSI Forth standard defines that the top item
 // on the parameter stack for 64-bit ints is the highword, which is opposite to the c++/c
 // standard (at least for x86 architectures).
@@ -287,16 +296,8 @@ typedef union
     unsigned int u32[2];
     long long s64;
     unsigned long long u64;
+	ForthObject obj;
 } stackInt64;
-
-// this is what is placed on the stack to represent a forth object
-//  usually the 'data' field is actually a pointer to the data, but that is an
-//  implementation detail and not true for all classes
-struct ForthObject
-{
-    long*       pMethodOps;
-    long*       pData;      // actually this isn't always a pointer
-};
 
 
 // stream character output routine type
@@ -596,6 +597,10 @@ typedef enum
 #define STRING_TYPE_TO_CODE( ARRAY_FLAG, MAX_BYTES )        ((ARRAY_FLAG) | kBaseTypeString | ((MAX_BYTES) << 8))
 #define STRUCT_TYPE_TO_CODE( ARRAY_FLAG, STRUCT_INDEX )     ((ARRAY_FLAG) | kBaseTypeStruct | ((STRUCT_INDEX) << 8))
 #define OBJECT_TYPE_TO_CODE( ARRAY_FLAG, STRUCT_INDEX )     ((ARRAY_FLAG) | kBaseTypeObject | ((STRUCT_INDEX) << 8))
+
+#define VOCABENTRY_TO_FIELD_OFFSET( PTR_TO_ENTRY )          (*(PTR_TO_ENTRY))
+#define VOCABENTRY_TO_TYPECODE( PTR_TO_ENTRY )              ((PTR_TO_ENTRY)[1])
+#define VOCABENTRY_TO_NUM_ELEMENTS( PTR_TO_ENTRY )          ((PTR_TO_ENTRY)[2])
 
 #define BASE_TYPE_TO_CODE( BASE_TYPE )                      (BASE_TYPE)
 

@@ -3268,7 +3268,7 @@ entry dpowBop
 	pop	esi
 	pop	edx
 	add	edx, 8
-	fstp	DWORD PTR [edx]
+	fstp	QWORD PTR [edx]
 	jmp	edi
 	
 ;========================================
@@ -3288,7 +3288,7 @@ entry fpowBop
 	pop	esi
 	pop	edx
 	add	edx, 4
-	fstp	QWORD PTR [edx]
+	fstp	DWORD PTR [edx]
 	jmp	edi
 	
 ;========================================

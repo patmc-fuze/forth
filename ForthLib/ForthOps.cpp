@@ -4357,9 +4357,9 @@ FORTHOP( getConsoleColorOp )
 	SPUSH( consoleInfo.wAttributes );
 }
 
-FORTHOP( clearConsoleOp )
+FORTHOP(clearConsoleOp)
 {
-	NEEDS( 0 );
+	NEEDS(0);
 	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
 	COORD coordScreen = { 0, 0 };    // home for the cursor 
     DWORD cCharsWritten;
@@ -4404,6 +4404,13 @@ FORTHOP( clearConsoleOp )
 	// Put the cursor at its home coordinates.
 
 	SetConsoleCursorPosition( hConsole, coordScreen );
+}
+
+FORTHOP( showConsoleOp )
+{
+	NEEDS(1);
+	bool showIt = (bool)(SPOP);
+	ShowWindow( GetConsoleWindow(), showIt ? SW_RESTORE : SW_HIDE );
 }
 
 
@@ -7549,6 +7556,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( setConsoleColorOp,          "setConsoleColor" ),
     OP_DEF( getConsoleColorOp,          "getConsoleColor" ),
     OP_DEF( clearConsoleOp,             "clearConsole" ),
+    OP_DEF( showConsoleOp,              "showConsole" ),
+
     OP_DEF( windowsConstantsOp,         "windowsConstants" ),
 
 	NATIVE_DEF( trueBop,				"WINDOWS" ),

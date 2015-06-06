@@ -155,6 +155,8 @@ public:
 
     virtual void        EndDefinition();
 
+	virtual void		ShowData(const void* pData);
+
 protected:
     long                    mNumBytes;
     long                    mMaxNumBytes;

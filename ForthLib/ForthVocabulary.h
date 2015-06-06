@@ -127,12 +127,17 @@ public:
         return FORTH_OP_VALUE( *pEntry );
     };
 
-    inline long *               GetNewestEntry( void )
-    {
-        return mpNewestSymbol;
-    };
+	inline long *               GetNewestEntry(void)
+	{
+		return mpNewestSymbol;
+	};
 
-    inline char *               GetEntryName( const long *pEntry ) {
+	inline long *               GetEntriesEnd(void)
+	{
+		return mpStorageTop;
+	};
+
+	inline char *               GetEntryName(const long *pEntry) {
         return ((char *) pEntry) + (mValueLongs << 2) + 1;
     };
 

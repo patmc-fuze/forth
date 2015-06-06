@@ -40,7 +40,7 @@ Builtin Class TBDs:
 - add string iterator
 ===========================================================================
 object
-	_%new%_
+	__new
 	delete
 	show
 	getClass
@@ -50,7 +50,7 @@ object
 		returns int
 	keep
 	release
-	refCount
+	__refCount
 		member variable, int at offset 0
 ---------------------------------------------------------------------------
 class
