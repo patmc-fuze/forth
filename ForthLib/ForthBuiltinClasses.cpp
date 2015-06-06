@@ -56,10 +56,7 @@ namespace
 
     FORTHOP( objectShowMethod )
     {
-        //char buff[512];
         ForthClassObject* pClassObject = (ForthClassObject *)(*((GET_TPM) - 1));
-        //sprintf( buff, "object %s  METHODS=0x%08x  DATA=0x%08x", pClassObject->pVocab->GetName(), GET_TPM, GET_TPD );
-        //CONSOLE_STRING_OUT( buff );
 		pClassObject->pVocab->ShowData(GET_TPD);
         METHOD_RETURN;
     }

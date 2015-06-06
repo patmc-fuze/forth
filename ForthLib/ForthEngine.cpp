@@ -495,7 +495,7 @@ ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pPar
         const char* pMemberName = pEntries->name;
         if ( (pEntries->returnType & kDTIsMethod) != 0 )
         {
-            if ( !strcmp( pMemberName, "__new" ) )
+            if ( !strcmp( pMemberName, "__newOp" ) )
             {
                 // this isn't a new method, it is the class constructor op
                 long* pEntry = AddBuiltinOp( pMemberName, kOpCCode, pEntries->value );
