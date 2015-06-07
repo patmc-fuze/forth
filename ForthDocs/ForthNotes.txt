@@ -162,6 +162,11 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 6 2015
+
+I added recursive descent to object/struct show, and also custom show methods
+for all the builtin container classes.  They are mostly untested.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 5 2015
 
 I added a first cut at 'show' for structs and objects.  The code currently just

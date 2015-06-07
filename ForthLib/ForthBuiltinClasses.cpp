@@ -32,6 +32,18 @@ extern "C" {
 namespace
 {
 
+	void ShowHeader(ForthEngine*pEngine, ForthCoreState* pCore, const char* pTypeName)
+	{
+		char buffer[16];
+		pEngine->ConsoleOut("{ '__type' : '");
+		pEngine->ConsoleOut(pTypeName);
+		pEngine->ConsoleOut("', '__refCount' : ");
+		sprintf(buffer, "%d, ", *(int *)(pCore->TPD));
+		pEngine->ConsoleOut(buffer);
+	}
+
+#define SHOW_HEADER(_TYPENAME)  ShowHeader(pEngine, pCore, _TYPENAME)
+
     //////////////////////////////////////////////////////////////////////
     ///
     //                 object
@@ -304,7 +316,28 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oArrayResizeMethod )
+	FORTHOP(oArrayShowMethod)
+	{
+		GET_THIS(oArrayStruct, pArray);
+		oArray::iterator iter;
+		oArray& a = *(pArray->elements);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oArray");
+		pEngine->ConsoleOut("'elements' : [ ");
+		for (iter = a.begin(); iter != a.end(); ++iter)
+		{
+			if (iter != a.begin())
+			{
+				pEngine->ConsoleOut(", ");
+			}
+			ForthObject& o = *iter;
+			ForthShowObject(o);
+		}
+		pEngine->ConsoleOut(" ] }");
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oArrayResizeMethod)
     {
         ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS( oArrayStruct, pArray );
@@ -648,6 +681,7 @@ namespace
     {
         METHOD(     "__newOp",              oArrayNew ),
         METHOD(     "delete",               oArrayDeleteMethod ),
+        METHOD(     "show",                 oArrayShowMethod ),
 
 		METHOD_RET( "headIter",             oArrayHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArrayIter) ),
         METHOD_RET( "tailIter",             oArrayTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArrayIter) ),
@@ -925,7 +959,28 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oListHeadMethod )
+	FORTHOP(oListShowMethod)
+	{
+		GET_THIS(oListStruct, pList);
+		oListElement* pCur = pList->head;
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oList");
+		pEngine->ConsoleOut("'elements' : [ ");
+		while (pCur != NULL)
+		{
+			oListElement* pNext = pCur->next;
+			if (pCur != pList->head)
+			{
+				pEngine->ConsoleOut(", ");
+			}
+			ForthShowObject(pCur->obj);
+			pCur = pNext;
+		}
+		pEngine->ConsoleOut(" ] }");
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oListHeadMethod)
     {
         GET_THIS( oListStruct, pList );
 		if ( pList->head == NULL )
@@ -1363,6 +1418,7 @@ namespace
     {
         METHOD(     "__newOp",              oListNew ),
         METHOD(     "delete",               oListDeleteMethod ),
+        METHOD(     "show",                 oListShowMethod ),
 
         METHOD_RET( "headIter",             oListHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIListIter) ),
         METHOD_RET( "tailIter",             oListTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIListIter) ),
@@ -1749,6 +1805,30 @@ namespace
 		METHOD_RETURN;
 	}
 
+	FORTHOP(oMapShowMethod)
+	{
+		GET_THIS(oMapStruct, pMap);
+		oMap::iterator iter;
+		oMap& a = *(pMap->elements);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oMap");
+		pEngine->ConsoleOut("'pairs:' [ ");
+		for (iter = a.begin(); iter != a.end(); ++iter)
+		{
+			stackInt64 key;
+			key.s64 = iter->first;
+			if (iter != a.begin())
+			{
+				pEngine->ConsoleOut(", ");
+			}
+			ForthShowObject(key.obj);
+			pEngine->ConsoleOut(" : ");
+			ForthShowObject(iter->second);
+		}
+		pEngine->ConsoleOut(" ] }");
+		METHOD_RETURN;
+	}
+
 	FORTHOP(oMapClearMethod)
 	{
 		// go through all elements and release any which are not null
@@ -2018,6 +2098,7 @@ namespace
 	{
 		METHOD("__newOp", oMapNew),
 		METHOD("delete", oMapDeleteMethod),
+		METHOD("show", oMapShowMethod),
 
 		METHOD_RET("headIter", oMapHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter)),
 		METHOD_RET("tailIter", oMapTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter)),
@@ -2276,7 +2357,30 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oIntMapClearMethod )
+	FORTHOP(oIntMapShowMethod)
+	{
+		char buffer[20];
+		GET_THIS(oIntMapStruct, pMap);
+		oIntMap::iterator iter;
+		oIntMap& a = *(pMap->elements);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oIntMap");
+		pEngine->ConsoleOut("'pairs:' [ ");
+		for (iter = a.begin(); iter != a.end(); ++iter)
+		{
+			if (iter != a.begin())
+			{
+				pEngine->ConsoleOut(", ");
+			}
+			sprintf(buffer, "%d : ", iter->first);
+			pEngine->ConsoleOut(buffer);
+			ForthShowObject(iter->second);
+		}
+		pEngine->ConsoleOut(" ] }");
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oIntMapClearMethod)
     {
         // go through all elements and release any which are not null
         GET_THIS( oIntMapStruct, pMap );
@@ -2706,6 +2810,7 @@ namespace
     {
         METHOD(     "__newOp",              oIntMapIterNew ),
         METHOD(     "delete",               oIntMapIterDeleteMethod ),
+        METHOD(     "show",                 oIntMapShowMethod ),
 
 		METHOD(     "seekNext",             oIntMapIterSeekNextMethod ),
         METHOD(     "seekPrev",             oIntMapIterSeekPrevMethod ),
@@ -2770,6 +2875,29 @@ namespace
 		}
 		delete pMap->elements;
 		FREE_OBJECT(pMap);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oLongMapShowMethod)
+	{
+		char buffer[20];
+		GET_THIS(oLongMapStruct, pMap);
+		oLongMap::iterator iter;
+		oLongMap& a = *(pMap->elements);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oLongMap");
+		pEngine->ConsoleOut("'pairs:' [ ");
+		for (iter = a.begin(); iter != a.end(); ++iter)
+		{
+			if (iter != a.begin())
+			{
+				pEngine->ConsoleOut(", ");
+			}
+			sprintf(buffer, "%lld : ", iter->first);
+			pEngine->ConsoleOut(buffer);
+			ForthShowObject(iter->second);
+		}
+		pEngine->ConsoleOut(" ] }");
 		METHOD_RETURN;
 	}
 
@@ -3025,6 +3153,7 @@ namespace
 	{
 		METHOD("__newOp", oLongMapNew),
 		METHOD("delete", oLongMapDeleteMethod),
+		METHOD("show", oLongMapShowMethod),
 
 		METHOD_RET("headIter", oLongMapHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter)),
 		METHOD_RET("tailIter", oLongMapTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter)),
@@ -3280,6 +3409,29 @@ namespace
 		METHOD_RETURN;
 	}
 
+	FORTHOP(oStringMapShowMethod)
+	{
+		GET_THIS(oStringMapStruct, pMap);
+		oStringMap::iterator iter;
+		oStringMap& a = *(pMap->elements);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oStringMap");
+		pEngine->ConsoleOut("'pairs:' [ ");
+		for (iter = a.begin(); iter != a.end(); ++iter)
+		{
+			if (iter != a.begin())
+			{
+				pEngine->ConsoleOut(", ");
+			}
+			pEngine->ConsoleOut("'");
+			pEngine->ConsoleOut(iter->first.c_str());
+			pEngine->ConsoleOut("' : ");
+			ForthShowObject(iter->second);
+		}
+		pEngine->ConsoleOut(" ] }");
+		METHOD_RETURN;
+	}
+
 	FORTHOP(oStringMapClearMethod)
 	{
 		// go through all elements and release any which are not null
@@ -3531,6 +3683,7 @@ namespace
 	{
 		METHOD("__newOp", oStringMapNew),
 		METHOD("delete", oStringMapDeleteMethod),
+		METHOD("show", oStringMapShowMethod),
 
 		METHOD_RET("headIter", oStringMapHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter)),
 		METHOD_RET("tailIter", oStringMapTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter)),
@@ -3793,10 +3946,13 @@ namespace
 
     FORTHOP( oStringShowMethod )
     {
-        ForthClassObject* pClassObject = (ForthClassObject *)(*((GET_TPM) - 1));
-        GET_THIS( oStringStruct, pString );
-        CONSOLE_STRING_OUT( &(pString->str->data[0]) );
-        METHOD_RETURN;
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oString");
+		pEngine->ConsoleOut("'value' : '");
+		GET_THIS(oStringStruct, pString);
+		pEngine->ConsoleOut(&(pString->str->data[0]));
+		pEngine->ConsoleOut("' }");
+		METHOD_RETURN;
     }
 
     FORTHOP( oStringCompareMethod )
@@ -4069,7 +4225,20 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oPairGetAMethod )
+	FORTHOP(oPairShowMethod)
+	{
+		GET_THIS(oPairStruct, pPair);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oPair");
+		pEngine->ConsoleOut("'a' : ");
+		ForthShowObject(pPair->a);
+		pEngine->ConsoleOut(", 'b' : ");
+		ForthShowObject(pPair->b);
+		pEngine->ConsoleOut(" }");
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oPairGetAMethod)
     {
         GET_THIS( oPairStruct, pPair );
 		PUSH_OBJECT( pPair->a );
@@ -4148,6 +4317,7 @@ namespace
     {
         METHOD(     "__newOp",              oPairNew ),
         METHOD(     "delete",               oPairDeleteMethod ),
+        METHOD(     "show",                 oPairShowMethod ),
 
         METHOD_RET( "headIter",             oPairHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIPairIter) ),
         METHOD_RET( "tailIter",             oPairTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIPairIter) ),
@@ -4356,7 +4526,22 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oTripleGetAMethod )
+	FORTHOP(oTripleShowMethod)
+	{
+		GET_THIS(oTripleStruct, pTriple);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oTriple");
+		pEngine->ConsoleOut("'a' : ");
+		ForthShowObject(pTriple->a);
+		pEngine->ConsoleOut(", 'b' : ");
+		ForthShowObject(pTriple->b);
+		pEngine->ConsoleOut(", 'c' : ");
+		ForthShowObject(pTriple->c);
+		pEngine->ConsoleOut(" }");
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oTripleGetAMethod)
     {
         GET_THIS( oTripleStruct, pTriple );
 		PUSH_OBJECT( pTriple->a );
@@ -4455,6 +4640,7 @@ namespace
     {
         METHOD(     "__newOp",              oTripleNew ),
         METHOD(     "delete",               oTripleDeleteMethod ),
+        METHOD(     "show",                 oTripleShowMethod ),
 
         METHOD_RET( "headIter",             oTripleHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCITripleIter) ),
         METHOD_RET( "tailIter",             oTripleTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCITripleIter) ),
@@ -4659,16 +4845,37 @@ namespace
         PUSH_PAIR( pPrimaryInterface->GetMethods(), pArray );
     }
 
-    FORTHOP( oByteArrayDeleteMethod )
-    {
-		GET_THIS( oByteArrayStruct, pArray );
-        ForthEngine *pEngine = ForthEngine::GetInstance();
-        delete pArray->elements;
-        FREE_OBJECT( pArray );
-        METHOD_RETURN;
-    }
+	FORTHOP(oByteArrayDeleteMethod)
+	{
+		GET_THIS(oByteArrayStruct, pArray);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		delete pArray->elements;
+		FREE_OBJECT(pArray);
+		METHOD_RETURN;
+	}
 
-    FORTHOP( oByteArrayResizeMethod )
+	FORTHOP(oByteArrayShowMethod)
+	{
+		char buffer[8];
+		GET_THIS(oByteArrayStruct, pArray);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oByteArray");
+		pEngine->ConsoleOut("'elements' : [ ");
+		oByteArray& a = *(pArray->elements);
+		for (unsigned int i = 0; i < a.size(); i++)
+		{
+			if (i != 0)
+			{
+				pEngine->ConsoleOut(", ");
+			}
+			sprintf(buffer, "%u", a[i] & 0xFF);
+			pEngine->ConsoleOut(buffer);
+		}
+		pEngine->ConsoleOut(" ] }");
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oByteArrayResizeMethod)
     {
         ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS( oByteArrayStruct, pArray );
@@ -4937,6 +5144,7 @@ namespace
     {
         METHOD(     "__newOp",              oByteArrayNew ),
         METHOD(     "delete",               oByteArrayDeleteMethod ),
+        METHOD(     "show",                 oByteArrayShowMethod ),
 
         METHOD_RET( "headIter",             oByteArrayHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIByteArrayIter) ),
         METHOD_RET( "tailIter",             oByteArrayTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIByteArrayIter) ),
@@ -5181,7 +5389,28 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oShortArrayResizeMethod )
+	FORTHOP(oShortArrayShowMethod)
+	{
+		char buffer[16];
+		GET_THIS(oShortArrayStruct, pArray);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oShortArray");
+		pEngine->ConsoleOut("'elements' : [ ");
+		oShortArray& a = *(pArray->elements);
+		for (unsigned int i = 0; i < a.size(); i++)
+		{
+			if (i != 0)
+			{
+				pEngine->ConsoleOut(", ");
+			}
+			sprintf(buffer, "%d", a[i]);
+			pEngine->ConsoleOut(buffer);
+		}
+		pEngine->ConsoleOut(" ] }");
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oShortArrayResizeMethod)
     {
         ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS( oShortArrayStruct, pArray );
@@ -5442,6 +5671,7 @@ namespace
     {
         METHOD(     "__newOp",              oShortArrayNew ),
         METHOD(     "delete",               oShortArrayDeleteMethod ),
+        METHOD(     "show",                 oShortArrayShowMethod ),
 
         METHOD_RET( "headIter",             oShortArrayHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIShortArrayIter) ),
         METHOD_RET( "tailIter",             oShortArrayTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIShortArrayIter) ),
@@ -5682,7 +5912,28 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oIntArrayResizeMethod )
+	FORTHOP(oIntArrayShowMethod)
+	{
+		char buffer[16];
+		GET_THIS(oIntArrayStruct, pArray);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oIntArray");
+		pEngine->ConsoleOut("'elements' : [ ");
+		oIntArray& a = *(pArray->elements);
+		for (unsigned int i = 0; i < a.size(); i++)
+		{
+			if (i != 0)
+			{
+				pEngine->ConsoleOut(", ");
+			}
+			sprintf(buffer, "%d", a[i]);
+			pEngine->ConsoleOut(buffer);
+		}
+		pEngine->ConsoleOut(" ] }");
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oIntArrayResizeMethod)
     {
         ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS( oIntArrayStruct, pArray );
@@ -5942,6 +6193,7 @@ namespace
     {
         METHOD(     "__newOp",              oIntArrayNew ),
         METHOD(     "delete",               oIntArrayDeleteMethod ),
+        METHOD(     "show",                 oIntArrayShowMethod ),
 
         METHOD_RET( "headIter",             oIntArrayHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIntArrayIter) ),
         METHOD_RET( "tailIter",             oIntArrayTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIntArrayIter) ),
@@ -6180,7 +6432,28 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oLongArrayResizeMethod )
+	FORTHOP(oLongArrayShowMethod)
+	{
+		char buffer[32];
+		GET_THIS(oLongArrayStruct, pArray);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oLongArray");
+		pEngine->ConsoleOut("'elements' : [ ");
+		oLongArray& a = *(pArray->elements);
+		for (unsigned int i = 0; i < a.size(); i++)
+		{
+			if (i != 0)
+			{
+				pEngine->ConsoleOut(", ");
+			}
+			sprintf(buffer, "%lld", a[i]);
+			pEngine->ConsoleOut(buffer);
+		}
+		pEngine->ConsoleOut(" ] }");
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oLongArrayResizeMethod)
     {
         ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS( oLongArrayStruct, pArray );
@@ -6451,6 +6724,7 @@ namespace
     {
         METHOD(     "__newOp",              oLongArrayNew ),
         METHOD(     "delete",               oLongArrayDeleteMethod ),
+        METHOD(     "show",                 oLongArrayShowMethod ),
 
         METHOD_RET( "headIter",             oLongArrayHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCILongArrayIter) ),
         METHOD_RET( "tailIter",             oLongArrayTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCILongArrayIter) ),
@@ -6696,11 +6970,13 @@ namespace
 
     FORTHOP( oIntShowMethod )
     {
-        char buff[16];
+        char buff[32];
         GET_THIS( oIntStruct, pInt );
-        sprintf( buff, "%d", pInt->val );
-        CONSOLE_STRING_OUT( buff );
-        METHOD_RETURN;
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oInt");
+		sprintf(buff, "'value' : %d }", pInt->val);
+		pEngine->ConsoleOut(buff);
+		METHOD_RETURN;
     }
 
     FORTHOP( oIntCompareMethod )
@@ -6771,14 +7047,17 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oLongShowMethod )
-    {
-        char buff[32];
-        GET_THIS( oLongStruct, pLong );
-        sprintf( buff, "%I64d", pLong->val );
-        CONSOLE_STRING_OUT( buff );
-        METHOD_RETURN;
-    }
+	FORTHOP(oLongShowMethod)
+	{
+		char buff[32];
+		GET_THIS(oLongStruct, pLong);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oLong");
+		sprintf(buff, "'value' : %lld }", pLong->val);
+		pEngine->ConsoleOut(buff);
+		METHOD_RETURN;
+	}
+
 
     FORTHOP( oLongCompareMethod )
     {
@@ -6844,14 +7123,16 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oFloatShowMethod )
-    {
-        char buff[32];
-        GET_THIS( oFloatStruct, pFloat );
-        sprintf( buff, "%f", pFloat->val );
-        CONSOLE_STRING_OUT( buff );
-        METHOD_RETURN;
-    }
+	FORTHOP(oFloatShowMethod)
+	{
+		char buff[32];
+		GET_THIS(oFloatStruct, pFloat);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oFloat");
+		sprintf(buff, "'value' : %f }", pFloat->val);
+		pEngine->ConsoleOut(buff);
+		METHOD_RETURN;
+	}
 
     FORTHOP( oFloatCompareMethod )
     {
@@ -6921,10 +7202,13 @@ namespace
     {
         char buff[32];
         GET_THIS( oDoubleStruct, pDouble );
-        sprintf( buff, "%g", pDouble->val );
-        CONSOLE_STRING_OUT( buff );
-        METHOD_RETURN;
-    }
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		SHOW_HEADER("oDouble");
+		sprintf(buff, "'value' : %g }", pDouble->val);
+		pEngine->ConsoleOut(buff);
+		METHOD_RETURN;
+	}
+
 
     FORTHOP( oDoubleCompareMethod )
     {
@@ -7857,6 +8141,19 @@ void ForthConsoleStringOut( ForthCoreState* pCore, const char* pBuffer )
 	{
 		SPUSH( ((long) pBuffer ) );
 		pEngine->ExecuteOneMethod( pCore, pCore->consoleOutStream, kOutStreamPutStringMethod );
+	}
+}
+
+void ForthShowObject(ForthObject& obj)
+{
+	ForthEngine* pEngine = ForthEngine::GetInstance();
+	if (obj.pData != NULL)
+	{
+		pEngine->ExecuteOneMethod(pEngine->GetCoreState(), obj, kOMShow);
+	}
+	else
+	{
+		pEngine->ConsoleOut("nullObject");
 	}
 }
 

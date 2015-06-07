@@ -9,7 +9,8 @@
 #include "ForthObject.h"
 
 // structtype indices for builtin classes
-typedef enum {
+typedef enum
+{
     kBCIObject,
     kBCIClass,
 	kBCIIter,
@@ -38,7 +39,18 @@ typedef enum {
 	kBCIFloat,
 	kBCIDouble,
 	kBCIThread
-} kBuiltinClassIndex;
+} eBuiltinClassIndex;
+
+typedef enum
+{
+	kOMDelete,
+	kOMShow,
+	kOMGetClass,
+	kOMCompare
+} eObjectMethod;
+#define kObjectShowMethodIndex 1
+
+void ForthShowObject(ForthObject& obj);
 
 class ForthForgettableGlobalObject : public ForthForgettable
 {

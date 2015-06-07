@@ -600,7 +600,7 @@ typedef enum
 
 #define VOCABENTRY_TO_FIELD_OFFSET( PTR_TO_ENTRY )          (*(PTR_TO_ENTRY))
 #define VOCABENTRY_TO_TYPECODE( PTR_TO_ENTRY )              ((PTR_TO_ENTRY)[1])
-#define VOCABENTRY_TO_NUM_ELEMENTS( PTR_TO_ENTRY )          ((PTR_TO_ENTRY)[2])
+#define VOCABENTRY_TO_ELEMENT_SIZE( PTR_TO_ENTRY )          ((PTR_TO_ENTRY)[2])
 
 #define BASE_TYPE_TO_CODE( BASE_TYPE )                      (BASE_TYPE)
 
