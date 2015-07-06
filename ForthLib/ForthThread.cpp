@@ -10,6 +10,8 @@
 #endif
 #include "ForthThread.h"
 #include "ForthEngine.h"
+#include "ForthShowContext.h"
+
 
 // this is the number of extra longs to allocate at top and
 //    bottom of stacks
@@ -32,6 +34,7 @@ ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnS
 , mHandle( 0 )
 , mThreadId( 0 )
 , mpPrivate( NULL )
+, mpShowContext(NULL)
 {
     mCore.pThread = this;
     mCore.SLen = paramStackLongs;
@@ -83,6 +86,11 @@ ForthThread::~ForthThread()
     delete [] mCore.SB;
     mCore.RB -= GAURD_AREA;
     delete [] mCore.RB;
+
+	if (mpShowContext != NULL)
+	{
+		delete mpShowContext;
+	}
 #ifdef WIN32
     if ( mHandle != 0 )
     {
@@ -142,6 +150,12 @@ ForthThread::Reset( void )
     mCore.base = 10;
     mCore.signedPrintMode = kPrintSignedDecimal;
 	mCore.IP = &(mOps[0]);
+
+	if (mpShowContext != NULL)
+	{
+		mpShowContext->Reset();
+	}
+
 }
 
 void
@@ -254,6 +268,14 @@ void ForthThread::Exit()
     }
 }
 
+ForthShowContext* ForthThread::GetShowContext()
+{
+	if (mpShowContext == NULL)
+	{
+		mpShowContext = new ForthShowContext;
+	}
+	return mpShowContext;
+}
 //////////////////////////////////////////////////////////////////////
 ////
 ///

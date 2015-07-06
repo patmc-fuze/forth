@@ -162,6 +162,72 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 5 2015
+
+I added ForthShowContext, which is a lazy created member of ForthThread, to
+hold info needed while showing objects, including the show depth, set of
+objects which have already been shown, and in the future show options like
+pretty print, hide __id, and showing objects in nested form.
+
+I was debugging it using atc, and I ran into a weird crash where suddenly the
+IP became NULL.  I finally tracked it down to another case of me putting the
+first local object declaration inside an if statement, so the local frame was
+not being allocated when the if true branch wasn't taken, and the exitL at
+the end was corrupting the state.  This type of error is too easy to cause,
+and is too hard to track down when it happens.
+
+One good thing that came out of this is that I added a way for setTrace to
+work inside of definitions - previously a setTrace inside a definition usually
+had no effect during execution until the program had returned to the outer
+interpreter since you were typically staying inside the assembler inner
+interpreter.  I changed setTrace to set the status to kResultTrace, which
+causes the asm interp to exit, and I changed the engine ExecuteOps to loop
+while the status is kResultTrace.  I need to take another look at it, I think
+it still doesn't do what I want, I am probably going from the asm interp right
+back into it since fast mode hasn't changed.
+
+Another problem is that the trace output is screwed up, particularly when doing
+MethodWithTOS calls.  It might be that the stack trace is being shown after the
+method returns, and the method has done its own stack trace on the same line?
+Also look at output from delete methods which are triggered by final releases.
+
+? is there a way to display the class/method for MethodWithTos
+? is there symbolic output for CCode types
+  ? is there symbolic output for BuiltinClass methods
+? is MethodWithThis ever used
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 28 2015
+
+The recursive show method works great, except when you have cyclic references,
+which actually happens a lot.  To try to fix this, I am adding an optional per
+thread object (ForthShowContext) which keeps track of objects which have already
+been shown.
+
+The current __type field will be replaced with __objid which will combine the
+class name and an index which increments for each object shown, so if you did
+show on an array the first __objid would be 'oArray_0'.  While recursively showing,
+if an object is reached which has already been shown, it is displayed as an @ char
+folled by the objid, so the above array would appear as @oArray_0.
+
+When you do object.show, it either goes to objectShowMethod for user defined
+types, or it goes to a builtin-class method like oArrayShowMethod.
+
+  objectShowMethod
+    ForthStructVocabulary::ShowData on the root object
+	  ForthShowObject on any object fields
+
+  oArrayShowMethod
+    ForthShowObject on each element
+	  ForthEngine::ExecuteOneMethod
+	    either objectShowMethod or a builtin-class ShowMethod
+
+? is ForthShowObject the right place to do the @object substitution
+? how do you know when it is safe to clear the list of shown objects
+  o ForthShowObject and builtin-class ShowMethods must call showContext Begin and End
+    ? maybe Begin adds an object to the map
+  The builtin container classes don't have to filter out already shown object,
+  they just call ForthShowObject which does the filtering for them
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 6 2015
 
 I added recursive descent to object/struct show, and also custom show methods

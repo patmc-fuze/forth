@@ -154,7 +154,7 @@ ForthEngine::ForthEngine()
 , mpTraceOutData( NULL )
 , mpOpcodeCompiler( NULL )
 , mFeatures( kFFCCharacterLiterals | kFFMultiCharacterLiterals | kFFCStringLiterals
-            | kFFCHexLiterals | kFFDoubleSlashComment | kFFCFloatLiterals )
+            | kFFCHexLiterals | kFFDoubleSlashComment | kFFCFloatLiterals | kFFParenIsExpression)
 , mBlockFileManager( NULL )
 , mIsServer(false)
 {
@@ -639,6 +639,29 @@ ForthEngine::ForgetSymbol( const char *pSym, bool quietMode )
         SPEW_ENGINE( "%s", buff );
     }
     return forgotIt;
+}
+
+void
+ForthEngine::ShowSearchInfo()
+{
+	ForthVocabularyStack* pVocabStack = GetVocabularyStack();
+	int depth = 0;
+	ForthConsoleStringOut(mpCore, "vocab stack:");
+	while (true)
+	{
+		ForthVocabulary* pVocab = pVocabStack->GetElement(depth);
+		if (pVocab == NULL)
+		{
+			break;
+		}
+		ForthConsoleCharOut(mpCore, ' ');
+		ForthConsoleStringOut(mpCore, pVocab->GetName());
+		depth++;
+	}
+	ForthConsoleCharOut(mpCore, '\n');
+	ForthConsoleStringOut(mpCore, "definitions vocab: ");
+	ForthConsoleStringOut(mpCore, GetDefinitionVocabulary()->GetName());
+	ForthConsoleCharOut(mpCore, '\n');
 }
 
 ForthThread *
@@ -1868,20 +1891,26 @@ inline eForthResult
 ForthEngine::ExecuteOps( long *pOps )
 {
     long *savedIP;
-    eForthResult exitStatus = kResultOk;
+	eForthResult exitStatus;
 
     savedIP = mpCore->IP;
     mpCore->IP = pOps;
+
+	do
+	{
+		exitStatus = kResultOk;
 #ifdef ASM_INNER_INTERPRETER
-    if ( mFastMode )
-    {
-        exitStatus = InnerInterpreterFast( mpCore );
-    }
-    else
+		if ( mFastMode )
+		{
+			exitStatus = InnerInterpreterFast( mpCore );
+		}
+		else
 #endif
-    {
-        exitStatus = InnerInterpreter( mpCore );
-    }
+		{
+			exitStatus = InnerInterpreter( mpCore );
+		}
+	} while (exitStatus == kResultTrace);
+
     mpCore->IP = savedIP;
     if ( exitStatus == kResultDone )
     {
@@ -1899,18 +1928,25 @@ ForthEngine::ExecuteOps( long *pOps )
 eForthResult
 ForthEngine::ExecuteOps( ForthCoreState* pCore )
 {
-    eForthResult exitStatus = kResultOk;
-
+	eForthResult exitStatus;
+	do
+	{
+		exitStatus = kResultOk;
 #ifdef ASM_INNER_INTERPRETER
-    if ( mFastMode )
-    {
-        exitStatus = InnerInterpreterFast( pCore );
-    }
-    else
+		if (mFastMode)
+		{
+			exitStatus = InnerInterpreterFast(pCore);
+		}
+		else
 #endif
-    {
-        exitStatus = InnerInterpreter( pCore );
-    }
+		{
+			exitStatus = InnerInterpreter(pCore);
+			if (exitStatus == kResultTrace)
+			{
+				exitStatus = InnerInterpreter(pCore);
+			}
+		}
+	} while (exitStatus == kResultTrace);
     return exitStatus;
 }
 

@@ -312,6 +312,66 @@ ForthShell::PopInputStream( void )
 
 
 //
+// interpret one stream, return when it is exhausted
+//
+int
+ForthShell::RunOneStream(ForthInputStream *pInStream)
+{
+	const char *pBuffer;
+	int retVal = 0;
+	bool bQuit = false;
+	eForthResult result = kResultOk;
+
+	mpInput->PushInputStream(pInStream);
+
+	while ((pInStream == mpInput->InputStream()) && !bQuit)
+	{
+		// try to fetch a line from current stream
+		pBuffer = mpInput->GetLine(mpEngine->GetFastMode() ? "ok>" : "OK>");
+		if (pBuffer == NULL)
+		{
+			bQuit = PopInputStream();
+		}
+
+		if (!bQuit)
+		{
+			result = ProcessLine();
+
+			switch (result)
+			{
+
+			case kResultOk:
+				break;
+
+			case kResultShutdown:			// what should shutdown do on non-client/server?
+			case kResultExitShell:
+				// users has typed "bye", exit the shell
+				bQuit = true;
+				retVal = 0;
+				break;
+
+			case kResultError:
+			case kResultException:
+				// an error has occured, empty input stream stack
+				// TODO
+				bQuit = true;
+				retVal = 0;
+				break;
+
+			case kResultFatalError:
+			default:
+				// a fatal error has occured, exit the shell
+				bQuit = true;
+				retVal = 1;
+				break;
+			}
+		}
+	}
+
+	return retVal;
+}
+
+//
 // interpret named file, interpret from standard in if
 //   pFileName is NULL
 // return 0 for normal exit
@@ -565,6 +625,11 @@ ForthShell::InterpretLine( const char *pSrcLine )
                 if ( !exitingShell )
 				{
                     ReportError();
+					if (mpEngine->GetError() == kForthErrorUnknownSymbol)
+					{
+						ForthConsoleCharOut(mpEngine->GetCoreState(), '\n');
+						mpEngine->ShowSearchInfo();
+					}
 					mpEngine->DumpCrashState();
                 }
 				ErrorReset();
@@ -611,10 +676,11 @@ ForthShell::ReportError( void )
     {
         sprintf( errorBuf2, "%s", errorBuf1 );
     }
-    int lineNumber = mpInput->InputStream()->GetLineNumber();
-    if ( lineNumber > 0 )
+	int lineNumber;
+	const char* fileName = mpInput->GetFilenameAndLineNumber(lineNumber);
+    if ( fileName != NULL )
     {
-        sprintf( errorBuf1, "%s at line number %d of %s", errorBuf2, lineNumber, mpInput->InputStream()->GetName() );
+		sprintf(errorBuf1, "%s at line number %d of %s", errorBuf2, lineNumber, fileName);
     }
     else
     {
@@ -872,7 +938,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                          // paren at start of token is part of token (allows old forth-style inline comments to work)
                          *pDst++ = *pEndSrc++;
                      }
-                     else
+					 else if (mpEngine->CheckFeature(kFFParenIsExpression))
                      {
                          // push accumulated token (if any) onto shell stack
 						 advanceInputBuffer = false;
@@ -891,6 +957,10 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                          mpStack->PushString( pDst );
                          mpStack->Push( kShellTagParen );*/
                      }
+					 else
+					 {
+						 *pDst++ = *pEndSrc++;
+					 }
                      break;
 
                   case ')':
@@ -898,8 +968,8 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                      {
                         *pDst++ = *pEndSrc++;
                      }
-                     else
-                     {
+					 else if (mpEngine->CheckFeature(kFFParenIsExpression))
+					 {
                         // process accumulated token (if any), pop shell stack, compile/interpret if not empty
                         pEndSrc++;
                         done = true;
@@ -908,7 +978,11 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                         pInfo->SetToken();
                         gotAToken = true;
                      }
-                     break;
+					 else
+					 {
+						 *pDst++ = *pEndSrc++;
+					 }
+					 break;
 
                   case '.':
                      pInfo->SetFlag( PARSE_FLAG_HAS_PERIOD );

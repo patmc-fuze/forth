@@ -255,6 +255,8 @@ public:
     void                    Reset( void );
     const char              *GetLine( const char *pPrompt );
     inline ForthInputStream *InputStream( void ) { return mpHead; };
+	// returns NULL if no filename can be found, else returns name & number of topmost input stream on stack which has info available
+	const char*             GetFilenameAndLineNumber(int& lineNumber);
 
     const char*             GetBufferPointer( void );
     const char*             GetBufferBasePointer( void );

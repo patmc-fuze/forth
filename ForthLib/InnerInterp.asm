@@ -2948,6 +2948,47 @@ fMaxBop2:
 	
 ;========================================
 	
+entry dcmpBop
+	fld	QWORD PTR [edx]
+	add	edx, 8
+	fld	QWORD PTR [edx]
+	add	edx, 4
+	xor	ebx, ebx
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	sahf
+	jz	dcmpBop3
+	jb	dcmpBop2
+	add	ebx, 2
+dcmpBop2:
+	dec	ebx
+dcmpBop3:
+	mov	[edx], ebx
+	jmp	edi
+
+;========================================
+	
+entry fcmpBop
+	fld	DWORD PTR [edx]
+	add	edx, 4
+	fld	DWORD PTR [edx]
+	xor	ebx, ebx
+	fcomp	ST(1)
+	fnstsw	ax
+	fstp	ST(0)
+	sahf
+	jz	fcmpBop3
+	jb	fcmpBop2
+	add	ebx, 2
+fcmpBop2:
+	dec	ebx
+fcmpBop3:
+	mov	[edx], ebx
+	jmp	edi
+
+;========================================
+	
 entry dplusBop
 	fld	QWORD PTR [edx+8]
 	fadd	QWORD PTR [edx]
@@ -4040,6 +4081,38 @@ entry maxBop
 maxBop1:
 	jmp	edi
 	
+	
+;========================================
+
+entry icmpBop
+	mov	ebx, [edx]		; ebx = b
+	add	edx, 4
+	xor	eax, eax
+	cmp	[edx], ebx
+	jz	icmpBop3
+	jl	icmpBop2
+	add	eax, 2
+icmpBop2:
+	dec	eax
+icmpBop3:
+	mov	[edx], eax
+	jmp	edi
+
+;========================================
+
+entry uicmpBop
+	mov	ebx, [edx]
+	add	edx, 4
+	xor	eax, eax
+	cmp	[edx], ebx
+	jz	uicmpBop3
+	jb	uicmpBop2
+	add	eax, 2
+uicmpBop2:
+	dec	eax
+uicmpBop3:
+	mov	[edx], eax
+	jmp	edi
 	
 ;========================================
 

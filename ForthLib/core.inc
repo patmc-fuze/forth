@@ -28,6 +28,7 @@ kResultError			EQU		3t
 kResultFatalError		EQU		4t
 kResultException		EQU		5t
 kResultShutdown			EQU		6t
+kResultTrace			EQU		7t
 
 
 kForthErrorNone						EQU		0t
@@ -54,7 +55,9 @@ kForthErrorUnimplementedMethod		EQU		20t
 kForthErrorShellStackUnderflow		EQU		21t
 kForthErrorShellStackOverflow		EQU		22t
 kForthErrorBadReferenceCount		EQU		23t
-kForthNumErrors						EQU		24t
+kForthErrorIO						EQU		24t
+kForthErrorBadObject				EQU		25t
+kForthNumErrors						EQU		26t
 
 kPrintSignedDecimal		EQU		0t
 kPrintAllSigned		EQU		1t

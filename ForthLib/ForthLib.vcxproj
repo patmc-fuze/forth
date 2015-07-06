@@ -342,6 +342,7 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release Midi|Win32'">MaxSpeed</Optimization>
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MaxSpeed</Optimization>
     </ClCompile>
+    <ClCompile Include="ForthShowContext.cpp" />
     <ClCompile Include="ForthStructCodeGenerator.cpp" />
     <ClCompile Include="ForthStructs.cpp" />
     <ClCompile Include="ForthThread.cpp">
@@ -435,6 +436,7 @@ move "%(Filename)".obj "$(OutDir)"
     <ClInclude Include="ForthPortability.h" />
     <ClInclude Include="ForthServer.h" />
     <ClInclude Include="ForthShell.h" />
+    <ClInclude Include="ForthShowContext.h" />
     <ClInclude Include="ForthStructCodeGenerator.h" />
     <ClInclude Include="ForthStructs.h" />
     <ClInclude Include="ForthThread.h" />

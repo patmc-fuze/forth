@@ -8,6 +8,7 @@
 
 #include <sys/types.h>
 #include <sys/timeb.h>
+#include <map>
 
 #include "Forth.h"
 #include "ForthThread.h"
@@ -172,6 +173,7 @@ public:
     inline ForthVocabulary  *GetDefinitionVocabulary( void )   { return mpDefinitionVocab; };
     inline void             SetDefinitionVocabulary( ForthVocabulary* pVocab )  { mpDefinitionVocab = pVocab; };
     inline ForthLocalVocabulary  *GetLocalVocabulary( void )   { return mpLocalVocab; };
+	void					ShowSearchInfo();
     inline ForthShell       *GetShell( void ) { return mpShell; };
 	inline void				SetShell( ForthShell *pShell ) { mpShell = pShell; };
     inline ForthVocabulary  *GetForthVocabulary( void )   { return mpForthVocab; };

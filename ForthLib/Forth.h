@@ -209,6 +209,7 @@ typedef enum {
     kResultFatalError,  // exit because of fatal error
     kResultException,   // exit because of uncaught exception
     kResultShutdown,    // exit because of a "shutdown" opcode
+	kResultTrace,		// exit because of a "setTrace" opcode
 } eForthResult;
 
 // Nothing uses these
@@ -220,8 +221,8 @@ typedef enum {
 */
 
 typedef enum {
-    kForthErrorNone,
-    kForthErrorBadOpcode,
+	kForthErrorNone,
+	kForthErrorBadOpcode,
     kForthErrorBadOpcodeType,
     kForthErrorBadParameter,
     kForthErrorBadVarOperation,
@@ -247,7 +248,7 @@ typedef enum {
 	kForthErrorBadReferenceCount,
 	kForthErrorIO,
 	kForthErrorBadObject,
-    // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
+	// NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
 } eForthError;
 
@@ -268,6 +269,7 @@ typedef enum {
     kFFIgnoreCase               = 0x040,
     kFFDollarHexLiterals        = 0x080,
     kFFCFloatLiterals           = 0x100,
+    kFFParenIsExpression        = 0x200,
 } ForthFeatureFlags;
 
 

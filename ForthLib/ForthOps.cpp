@@ -1165,26 +1165,10 @@ FORTHOP( vlistOp )
     bool quit = false;
     ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
     ForthVocabulary* pVocab;
-    int depth = 0;
 	bool verbose = (GET_VAR_OPERATION != kVarDefaultOp);
-    CONSOLE_STRING_OUT( "vocab stack:" ); 
-    while ( true )
-    {
-        pVocab = pVocabStack->GetElement( depth );
-        if ( pVocab == NULL )
-        {
-            break;
-        }
-        CONSOLE_CHAR_OUT( ' ' );
-        CONSOLE_STRING_OUT( pVocab->GetName() );
-        depth++;
-    }
-    CONSOLE_CHAR_OUT( '\n' );
-    CONSOLE_STRING_OUT( "definitions vocab: " );
-    CONSOLE_STRING_OUT( pEngine->GetDefinitionVocabulary()->GetName() );
-    CONSOLE_CHAR_OUT( '\n' );
-    depth = 0;
-    while ( !quit )
+	pEngine->ShowSearchInfo();
+	int depth = 0;
+	while (!quit)
     {
         pVocab = pVocabStack->GetElement( depth );
         if ( pVocab == NULL )
@@ -1920,24 +1904,48 @@ FORTHOP( strPrecedenceOp )
     }
 }
 
-FORTHOP( strLoadOp )
+FORTHOP(strLoadOp)
 {
-    char *pFileName = ((char *) (SPOP));
+	char *pFileName = ((char *)(SPOP));
 
-    if ( pFileName != NULL )
-    {
-        ForthEngine *pEngine = GET_ENGINE;
-        if ( pEngine->PushInputFile( pFileName ) == false )
-        {
-            CONSOLE_STRING_OUT( "!!!! Failure opening source file " );
-            CONSOLE_STRING_OUT( pFileName );
-            CONSOLE_STRING_OUT( " !!!!\n" );
-            SPEW_ENGINE( "!!!! Failure opening source file %s !!!!\n", pFileName );
-        }
-    }
+	if (pFileName != NULL)
+	{
+		ForthEngine *pEngine = GET_ENGINE;
+		if (pEngine->PushInputFile(pFileName) == false)
+		{
+			CONSOLE_STRING_OUT("!!!! Failure opening source file ");
+			CONSOLE_STRING_OUT(pFileName);
+			CONSOLE_STRING_OUT(" !!!!\n");
+			SPEW_ENGINE("!!!! Failure opening source file %s !!!!\n", pFileName);
+		}
+	}
 }
 
-FORTHOP( loadDoneOp )
+FORTHOP(strRunFileOp)
+{
+	char *pFileName = ((char *)(SPOP));
+
+	if (pFileName != NULL)
+	{
+		ForthEngine *pEngine = GET_ENGINE;
+		ForthShell* pShell = pEngine->GetShell();
+		FILE *pInFile = pShell->OpenForthFile(pFileName);
+		if (pInFile != NULL)
+		{
+			ForthFileInputStream* pInputStream = new ForthFileInputStream(pInFile, pFileName);
+			pShell->RunOneStream(pInputStream);
+		}
+		else
+		{
+			CONSOLE_STRING_OUT("!!!! Failure opening source file ");
+			CONSOLE_STRING_OUT(pFileName);
+			CONSOLE_STRING_OUT(" !!!!\n");
+			SPEW_ENGINE("!!!! Failure opening source file %s !!!!\n", pFileName);
+		}
+	}
+}
+
+FORTHOP(loadDoneOp)
 {
     GET_ENGINE->PopInputStream();
 }
@@ -4069,6 +4077,7 @@ FORTHOP(setTraceOp)
 {
 	int traceFlags = SPOP;
 	GET_ENGINE->SetTraceFlags(traceFlags);
+	SET_STATE(kResultTrace);
 }
 
 FORTHOP(getTraceOp)
@@ -5446,6 +5455,22 @@ FORTHOP(maxBop)
     SPUSH( ( a > b ) ? a : b );
 }
 
+FORTHOP(icmpBop)
+{
+	NEEDS(2);
+	long b = SPOP;
+	long a = SPOP;
+	SPUSH( (a == b) ? 0 : (( a > b ) ? 1 : -1 ) );
+}
+
+FORTHOP(uicmpBop)
+{
+	NEEDS(2);
+	ulong b = (ulong) SPOP;
+	ulong a = (ulong) SPOP;
+	SPUSH( (a == b) ? 0 : (( a > b ) ? 1 : -1 ) );
+}
+
 
 //##############################
 //
@@ -5565,6 +5590,14 @@ FORTHOP(fMaxBop)
     float b = FPOP;
     float a = FPOP;
     FPUSH( ( a > b ) ? a : b );
+}
+
+FORTHOP(fcmpBop)
+{
+	NEEDS(2);
+	float b = FPOP;
+	float a = FPOP;
+	SPUSH( (a == b) ? 0 : (( a > b ) ? 1 : -1 ) );
 }
 
 //##############################
@@ -5687,6 +5720,13 @@ FORTHOP(dMaxBop)
     DPUSH( ( a > b ) ? a : b );
 }
 
+FORTHOP(dcmpBop)
+{
+	NEEDS(2);
+	double b = DPOP;
+	double a = DPOP;
+	SPUSH( (a == b) ? 0 : (( a > b ) ? 1 : -1 ) );
+}
 
 //##############################
 //
@@ -6778,6 +6818,8 @@ OPREF( equals0Bop );        OPREF( notEquals0Bop );     OPREF( greaterThan0Bop )
 OPREF( greaterEquals0Bop ); OPREF( lessThan0Bop );      OPREF( lessEquals0Bop );
 OPREF( unsignedGreaterThanBop );                        OPREF( unsignedLessThanBop );
 OPREF( withinBop );         OPREF( minBop );            OPREF( maxBop );
+OPREF( icmpBop );           OPREF( uicmpBop );          OPREF( fcmpBop );
+OPREF( dcmpBop );
 OPREF( rpushBop );          OPREF( rpopBop );           OPREF( rpeekBop );
 OPREF( rdropBop );          OPREF( rpBop );             OPREF( r0Bop );
 OPREF( dupBop );            OPREF( checkDupBop );       OPREF( swapBop );
@@ -6966,6 +7008,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    fWithinBop,              "fwithin" ),
     NATIVE_DEF(    fMinBop,                 "fmin" ),
     NATIVE_DEF(    fMaxBop,                 "fmax" ),
+    NATIVE_DEF(    fcmpBop,                 "fcmp" ),
 
     ///////////////////////////////////////////
     //  double-precision fp math
@@ -6994,6 +7037,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dWithinBop,              "dwithin" ),
     NATIVE_DEF(    dMinBop,                 "dmin" ),
     NATIVE_DEF(    dMaxBop,                 "dmax" ),
+    NATIVE_DEF(    dcmpBop,                 "dcmp" ),
 
     ///////////////////////////////////////////
     //  double-precision fp functions
@@ -7091,7 +7135,10 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    withinBop,               "within" ),
     NATIVE_DEF(    minBop,                  "min" ),
     NATIVE_DEF(    maxBop,                  "max" ),
-    
+    NATIVE_DEF(    icmpBop,                 "icmp" ),
+    NATIVE_DEF(    uicmpBop,                "uicmp" ),
+
+
     ///////////////////////////////////////////
     //  stack manipulation
     ///////////////////////////////////////////
@@ -7341,6 +7388,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    endenumOp,              ";enum" ),
     PRECOP_DEF(recursiveOp,            "recursive" ),
     OP_DEF(    strPrecedenceOp,        "$precedence" ),
+    OP_DEF(    strRunFileOp,           "$runFile" ),
     OP_DEF(    strLoadOp,              "$load" ),
     OP_DEF(    loadDoneOp,             "loaddone" ),
     OP_DEF(    requiresOp,             "requires" ),

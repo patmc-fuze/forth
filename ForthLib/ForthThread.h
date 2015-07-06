@@ -12,6 +12,7 @@
 #endif
 
 class ForthEngine;
+class ForthShowContext;
 
 #define DEFAULT_PSTACK_SIZE 128
 #define DEFAULT_RSTACK_SIZE 128
@@ -54,6 +55,8 @@ public:
     inline ulong        WakeupTime() { return mWakeupTime; };
 
 	inline void			SetIP( long* newIP ) { mCore.IP = newIP; };
+	
+	ForthShowContext*	GetShowContext();
 
     friend class ForthEngine;
 
@@ -69,7 +72,8 @@ protected:
     ForthEngine         *mpEngine;
     ForthThread         *mpNext;
     void                *mpPrivate;
-    
+	ForthShowContext	*mpShowContext;
+
     //ForthThreadState    mState;
     ForthCoreState      mCore;
     long                mOps[2];

@@ -50,7 +50,7 @@ typedef enum
 } eObjectMethod;
 #define kObjectShowMethodIndex 1
 
-void ForthShowObject(ForthObject& obj);
+void ForthShowObject(ForthObject& obj, ForthCoreState* pCore);
 
 class ForthForgettableGlobalObject : public ForthForgettable
 {

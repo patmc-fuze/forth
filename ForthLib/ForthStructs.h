@@ -155,7 +155,7 @@ public:
 
     virtual void        EndDefinition();
 
-	virtual void		ShowData(const void* pData);
+	virtual void		ShowData(const void* pData, ForthCoreState* pCore);
 
 protected:
     long                    mNumBytes;
@@ -178,8 +178,6 @@ public:
 
     virtual const char* GetTypeName();
 
-	bool				IsAbstract( void )		{ return mNumAbstractMethods == 0; }
-
 	long				AddMethod( const char* pName, long methodIndex, long op );
 	long				FindMethod( const char* pName );
 	void				Implements( const char* pName );
@@ -197,8 +195,6 @@ public:
     virtual void        PrintEntry( long*   pEntry );
 
 protected:
-	long                        mNumMethods;
-	long                        mNumAbstractMethods;
     long                        mCurrentInterface;
 	ForthClassVocabulary*       mpParentClass;
 	std::vector<ForthInterface *>	mInterfaces;

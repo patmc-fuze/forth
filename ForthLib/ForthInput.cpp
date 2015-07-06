@@ -107,6 +107,25 @@ ForthInputStack::GetLine( const char *pPrompt )
 }
 
 
+const char*
+ForthInputStack::GetFilenameAndLineNumber(int& lineNumber)
+{
+	ForthInputStream *pStream = mpHead;
+	// find topmost input stream which has line number info, and return that
+	// without this, errors in parenthesized expressions never display the line number of the error
+	while (pStream != NULL)
+	{
+		int line = pStream->GetLineNumber();
+		if (line > 0)
+		{
+			lineNumber = line;
+			return pStream->GetName();
+		}
+		pStream = pStream->mpNext;
+	}
+	return NULL;
+}
+
 const char *
 ForthInputStack::GetBufferPointer( void )
 {
@@ -920,8 +939,9 @@ ForthExpressionInputStream::~ForthExpressionInputStream()
 char* topStr = NULL;
 char* nextStr = NULL;
 
-#define LOG_EXPRESSION(STR) ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::%s L:{%s} R:{%s}  (%s)(%s)\n",\
-	STR, mpLeftBase, mpRightBase, mpStackCursor, (mpStackCursor + strlen(mpStackCursor) + 1))
+//#define LOG_EXPRESSION(STR) ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::%s L:{%s} R:{%s}  (%s)(%s)\n",\
+//	STR, mpLeftBase, mpRightBase, mpStackCursor, (mpStackCursor + strlen(mpStackCursor) + 1))
+#define LOG_EXPRESSION(STR)
 
 bool
 ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
@@ -1086,7 +1106,7 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 	strcat(mpBufferBase, mpRightBase);
 	mReadOffset = 0;
 	mWriteOffset = strlen(mpBufferBase);
-	ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::ProcessExpression  result:{%s}\n", mpBufferBase);
+	//ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::ProcessExpression  result:{%s}\n", mpBufferBase);
 	return result;
 }
 

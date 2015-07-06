@@ -11,6 +11,7 @@
 #include "ForthForgettable.h"
 #include "ForthBuiltinClasses.h"
 #include "ForthParseInfo.h"
+#include "ForthShowContext.h"
 
 // symbol entry layout for struct vocabulary (fields and method symbols
 // offset   contents
@@ -865,15 +866,20 @@ ForthStructVocabulary::GetTypeName( void )
 }
 
 void
-ForthStructVocabulary::ShowData(const void* pData)
+ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore)
 {
 	char buffer[32];
 	const char* pStruct = (const char*)pData;
+	ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 	ForthStructVocabulary* pVocab = this;
 	bool notFirstTime = false;
-	mpEngine->ConsoleOut("{ '__type' : '");
-	mpEngine->ConsoleOut( GetName() );
-	mpEngine->ConsoleOut("', ");
+
+	pShowContext->EndElement("{");
+	pShowContext->BeginIndent();
+	pShowContext->ShowIndent("'__id' : '");
+	mpEngine->ConsoleOut(GetName());
+	sprintf(buffer, "_%08x',", pData);
+	pShowContext->EndElement(buffer);
 	bool foundSomething;
 
 	while (pVocab != NULL)
@@ -901,11 +907,11 @@ ForthStructVocabulary::ShowData(const void* pData)
 
 				if (notFirstTime && foundSomething)
 				{
-					mpEngine->ConsoleOut(", ");
+					pShowContext->EndElement(",");
 				}
 
 				//mpEngine->ConsoleOut("\"");
-				mpEngine->ConsoleOut("'");
+				pShowContext->ShowIndent("'");
 				pVocab->GetEntryName(pEntry, buffer, sizeof(buffer));
 				mpEngine->ConsoleOut(buffer);
 				//mpEngine->ConsoleOut("\" : ");
@@ -917,7 +923,7 @@ ForthStructVocabulary::ShowData(const void* pData)
 				foundSomething = true;
 				if (isArray)
 				{
-					mpEngine->ConsoleOut("[ ");
+					mpEngine->ConsoleOut("[");
 				}
 				else
 				{
@@ -992,7 +998,7 @@ ForthStructVocabulary::ShowData(const void* pData)
 					case kBaseTypeStruct:
 					{
 						ForthTypeInfo* pStructInfo = ForthTypesManager::GetInstance()->GetStructInfo(CODE_TO_STRUCT_INDEX(typeCode));
-						pStructInfo->pVocab->ShowData(pStruct + byteOffset);
+						pStructInfo->pVocab->ShowData(pStruct + byteOffset, pCore);
 						//elementSize = pStructInfo->pVocab->GetSize();
 						break;
 					}
@@ -1000,7 +1006,7 @@ ForthStructVocabulary::ShowData(const void* pData)
 					case kBaseTypeObject:
 					{
 						ForthObject obj = *((ForthObject*)(pStruct + byteOffset));
-						ForthShowObject(obj);
+						ForthShowObject(obj, pCore);
 						break;
 					}
 
@@ -1026,14 +1032,15 @@ ForthStructVocabulary::ShowData(const void* pData)
 					--numElements;
 					if (numElements > 0)
 					{
-						mpEngine->ConsoleOut(", ");
+						pShowContext->EndElement(",");
+						pShowContext->ShowIndent();
 					}
 
 				}  // end while numElements > 0
 		
 				if (isArray)
 				{
-					mpEngine->ConsoleOut(" ]");
+					pShowContext->EndElement(" ]");
 				}
 			}
 			pEntry = NextEntry(pEntry);
@@ -1041,8 +1048,9 @@ ForthStructVocabulary::ShowData(const void* pData)
 
 		pVocab = pVocab->BaseVocabulary();
 	}
-	mpEngine->ConsoleOut(" }");
-
+	pShowContext->EndIndent();
+	pShowContext->EndElement();
+	pShowContext->ShowIndent("}");
 }
 
 

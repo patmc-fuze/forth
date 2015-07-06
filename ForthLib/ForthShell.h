@@ -108,8 +108,9 @@ public:
     virtual void            PushInputBlocks( unsigned int firstBlock, unsigned int lastBlock );
     virtual bool            PopInputStream( void );
     // NOTE: the input stream passed to Run will be deleted by ForthShell
-    virtual int             Run( ForthInputStream *pStream );
-    char *                  GetNextSimpleToken( void );
+	virtual int             Run(ForthInputStream *pStream);
+	virtual int             RunOneStream(ForthInputStream *pStream);
+	char *                  GetNextSimpleToken(void);
     char *                  GetToken( char delim, bool bSkipLeadingWhiteSpace = true );
 
     void                    SetCommandLine( int argc, const char ** argv );
