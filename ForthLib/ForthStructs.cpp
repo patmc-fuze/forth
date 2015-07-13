@@ -876,10 +876,7 @@ ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore)
 
 	pShowContext->EndElement("{");
 	pShowContext->BeginIndent();
-	pShowContext->ShowIndent("'__id' : '");
-	mpEngine->ConsoleOut(GetName());
-	sprintf(buffer, "_%08x',", pData);
-	pShowContext->EndElement(buffer);
+	pShowContext->ShowIDElement(GetName(), pData);
 	bool foundSomething;
 
 	while (pVocab != NULL)

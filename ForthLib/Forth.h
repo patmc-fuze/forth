@@ -10,6 +10,11 @@
 
 struct ForthCoreState;
 
+typedef unsigned int uint32;
+typedef int int32;
+typedef unsigned long long uint64;
+typedef long long int64;
+
 #ifndef ulong
 #define ulong   unsigned long
 #endif
@@ -396,7 +401,7 @@ enum {
 	OP_DO_LOOP,
 
 	OP_DO_LOOPN,		// 0x30
-	OP_DFETCH,
+	OP_OFETCH,
 	OP_VOCAB_TO_CLASS,
 	OP_REF,
 	OP_INTO,
@@ -457,13 +462,16 @@ typedef struct
 
 enum
 {
-	kLogOuterInterpreter		= 1,
-	kLogInnerInterpreter		= 2,
-	kLogShell					= 4,
-	kLogStructs					= 8,
-	kLogVocabulary				= 16,
-	kLogIO						= 32,
-	kLogEngine					= 64
+	kLogStack					= 1,
+	kLogOuterInterpreter		= 2,
+	kLogInnerInterpreter		= 4,
+	kLogShell					= 8,
+	kLogStructs					= 16,
+	kLogVocabulary				= 32,
+	kLogIO						= 64,
+	kLogEngine					= 128,
+	kLogToConsole				= 256,
+	kLogCompilation				= 512
 };
 
 #ifdef TRACE_PRINTS
@@ -515,6 +523,11 @@ enum
 #define SPEW_ENGINE(...)
 #endif
 
+#ifdef TRACE_COMPILATION
+#define SPEW_COMPILATION(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogCompilation) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
+#else
+#define SPEW_COMPILATION(...)
+#endif
 
 // user-defined ops vocab entries have the following value fields:
 // - opcode

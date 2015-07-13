@@ -575,6 +575,13 @@ long *
 ForthVocabulary::FindNextSymbolByValue( long val, long* pStartEntry, ulong serial )
 {
     int i;
+
+	// for convenience, allow callers to pass pStartEntry==NULL on first search
+	if (pStartEntry == NULL)
+	{
+		pStartEntry = mpStorageBottom;
+	}
+
     long *pEntry = pStartEntry;
 
     if ( (serial != 0) && (serial == mLastSerial) )

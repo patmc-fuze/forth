@@ -238,7 +238,7 @@ namespace
 		(void)pData;
 
 		ForthEngine* pEngine = ForthEngine::GetInstance();
-		if ((pEngine->GetTraceFlags() & kTraceToConsole) != 0)
+		if ((pEngine->GetTraceFlags() & kLogToConsole) != 0)
 		{
 			vprintf(pFormat, argList);
 		}

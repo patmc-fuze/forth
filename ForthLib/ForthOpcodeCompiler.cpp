@@ -53,8 +53,8 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
 {
     long* pOpcode = mpDictionarySection->pCurrent;
 	long op = COMPILED_OP( opType, opVal );
-	forthOpType previousType;
-	long previousVal;
+	//forthOpType previousType;
+	//long previousVal;
 	
 	switch( opType )
 	{

@@ -162,6 +162,91 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 12 2015
+
+There is also a problem with forget - I forgot a colon definition, and a global
+object variable which was defined before the colon definition was deleted.
+
+The bug I spent over a day chasing was because when a release caused an object
+to be deleted, the delete was done by calling ForthEngine::ExecuteOneMethod,
+which had the side effect of setting the core state to 'done', which caused the
+inner interpreter to exit out of display.init right after the delete, and so it
+didn't execute the exitML code, so the next thing executed was trying to execute
+bad data out of the stack frame of the previous ExecuteOneOp invocation.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 11 2015
+
+End of the night: there is still a crash when running atc in no-asm mode.  The
+problem is triggered by the deleting of an iterator inside a method under certain
+circumstances - a method calls a method on another class of object, that method
+creates, uses and deletes the iterator - the crash doesn't happen if you don't
+delete the iterator and just let it leak.
+
+I added printing out of class:method when tracing MethodWithTOS or MethodWithThis opcodes.
+---
+I think the 'test[' bug is because ForthShell::InterpretLine loops until a
+line empty flag is set, and it ignores the input stream stack depth, so when
+an expression stream inside a buffer stream reaches the end it is returning
+without executing the stuff at the end of the buffer stream after the parenthesized
+expression.  That doesn't explain how the stuff at the end of the buffer eventually
+does get executed.
+
+forthtest has been broken since I replaced the shell stack based parenthesis
+implementation with expression streams.
+
+The changes to fix forthtest:
++ $evaluate needed to be change to use ForthShell::RunOneStream not ProcessLine
++ the loop in ForthShell::RunOneStream needed to be changed from exiting as soon
+  as the input stream changed to exiting as soon as the input stream became the
+  original input stream
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 10 2015
+
+End of a long unfinished debugging session:
+forthtest is failing because 'test[' is failing sometimes when it contains a
+parenthesized expression, it may have something to do with quoted characters or
+strings, maybe not.  'test[' evaluates a string, so it is using a buffer input
+stream, and the paren expression means it is using an expression stream inside the
+buffer stream.  After the expression stream has been interpreted, it is popped and
+the buffer stream should be effectively empty, so it should also immediately pop,
+but it looks like instead of checking the read and write offsets on the main stream
+buffer it is looking at the pointers to its input data buffer, and the src pointer
+mpDataBuffer is still pointing to the start of the input data buffer.  The input data
+buffer is there to permit buffer streams to contain multiple lines, I think that was
+to support interpreting stuff coming from ForthGUI.  I don't know why my recent
+changes triggered this bug yet.
+? but ForthBufferInputStream::GetLine advances mpDataBuffer as it copies data from
+  the input buffer to the main buffer
+  -> GetLine isn't called for the first line in the buffer - I tried adding a
+     GetLine at the end of the buffers stream constructor, it didn't fix the problem
+! the '0=' after the strcmp is being executed after 'test[' has already failed
+---
+I tried fixing the potential 64-bit object dfetch problem, and after doing it
+nothing worked.  I backed out those changes
+
+forthtest.txt fails for both fast and slow modes:
+- "string(200) svar" fails because after the end paren is parsed, "200 string"
+  is interpreted, but when it tries to get the next token, it gets an empty
+  string instead of "svar" because the current input stream is the string stream
+  created by the parenthesized expression code, which is empty at that point.
+ansitest.txt works for slow mode
+atc.txt works for fast and slow mods
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 9 2015
+
+I did more work on object show methods, and I ran into a problem with the double
+map and array show methods, because I implemented them as just the long array
+and show with different show methods, forgetting that longs get word reversed
+when they are moved between memory and the stack to be ansi forth compliant,
+but that I hadn't done that with the stack representation of doubles.  If I
+want to keep the double array and map I need to give them their own implementation
+methods which don't do the word reversal.
+
+A more important problem is that I noticed that there is only one 64-bit fetch op '2@',
+there is no 64-bit fetch which doesn't do word reversal, I need to check if any
+code compiled for accessing object locals or fields are using 2@.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 5 2015
 
 I added ForthShowContext, which is a lazy created member of ForthThread, to

@@ -93,8 +93,8 @@ ForthParseInfo::SetToken(const char *pSrc)
 }
 
 
-static char
-backslashChar(char c)
+char
+ForthParseInfo::BackslashChar(char c)
 {
 	char cResult;
 
@@ -122,7 +122,7 @@ backslashChar(char c)
 
 
 const char *
-ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, ForthEngine *pEngine)
+ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, ForthEngine *pEngine, bool keepBackslashes)
 {
 	char cc[9];
 	bool isQuotedChar = false;
@@ -144,12 +144,16 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 			}
 			else if (ch == '\\')
 			{
+				if (keepBackslashes)
+				{
+					cc[iDst++] = ch;
+				}
 				ch = *pSrc++;
 				if (ch == '\0')
 				{
 					break;
 				}
-				cc[iDst++] = backslashChar(ch);
+				cc[iDst++] = BackslashChar(ch);
 			}
 			else if (ch == '\'')
 			{
@@ -183,7 +187,7 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 
 
 const char *
-ForthParseInfo::ParseDoubleQuote(const char *pSrc, const char *pSrcLimit)
+ForthParseInfo::ParseDoubleQuote(const char *pSrc, const char *pSrcLimit, bool keepBackslashes)
 {
 	char  *pDst = GetToken();
 
@@ -203,8 +207,12 @@ ForthParseInfo::ParseDoubleQuote(const char *pSrc, const char *pSrcLimit)
 			return pSrc + 1;
 
 		case '\\':
+			if (keepBackslashes)
+			{
+				*pDst++ = '\\';
+			}
 			pSrc++;
-			*pDst++ = backslashChar(*pSrc);
+			*pDst++ = BackslashChar(*pSrc);
 			break;
 
 		default:

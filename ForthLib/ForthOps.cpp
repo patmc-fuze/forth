@@ -1994,10 +1994,9 @@ FORTHOP( strEvaluateOp )
     {
         int len = strlen( pStr );
         ForthEngine *pEngine = GET_ENGINE;
-        pEngine->PushInputBuffer( pStr, len );
 		ForthShell* pShell = pEngine->GetShell();
-		pShell->ProcessLine( pStr );
-		pEngine->PopInputStream();
+		ForthBufferInputStream* pInputStream = new ForthBufferInputStream(pStr, len, false, len + 4);
+		pShell->RunOneStream(pInputStream);
     }
 }
 
@@ -4418,8 +4417,8 @@ FORTHOP(clearConsoleOp)
 FORTHOP( showConsoleOp )
 {
 	NEEDS(1);
-	bool showIt = (bool)(SPOP);
-	ShowWindow( GetConsoleWindow(), showIt ? SW_RESTORE : SW_HIDE );
+	long showIt = SPOP;
+	ShowWindow( GetConsoleWindow(), (showIt != 0) ? SW_RESTORE : SW_HIDE );
 }
 
 
@@ -6228,37 +6227,115 @@ FORTHOP(w2iBop)
 
 FORTHOP(dstoreBop)
 {
-    NEEDS(3);
-    double *pB = (double *) (SPOP); 
-    double a= DPOP;
-    *pB = a;
+	NEEDS(3);
+	double *pB = (double *) (SPOP); 
+	double a= DPOP;
+	*pB = a;
 }
 
 FORTHOP(dfetchBop)
 {
-    NEEDS(1);
-    double *pA = (double *) (SPOP);
-    DPUSH( *pA );
+	NEEDS(1);
+	double *pA = (double *) (SPOP);
+	DPUSH( *pA );
 }
 
 FORTHOP(dstoreNextBop)
 {
-    NEEDS(2);
-    double **ppB = (double **)(SPOP);
-    double *pB = *ppB;
-    double a = DPOP;
-    *pB++ = a;
-    *ppB = pB;
+	NEEDS(2);
+	double **ppB = (double **)(SPOP);
+	double *pB = *ppB;
+	double a = DPOP;
+	*pB++ = a;
+	*ppB = pB;
 }
 
 FORTHOP(dfetchNextBop)
 {
+	NEEDS(1);
+	double **ppA = (double **)(SPOP); 
+	double *pA = *ppA;
+	double a = *pA++;
+	DPUSH( a );
+	*ppA = pA;
+}
+
+/*FORTHOP(lstoreBop)
+{
+    NEEDS(3);
+	long long *pB = (long long *) (SPOP);
+	stackInt64 a;
+	LPOP(a);
+    *pB = a.s64;
+}
+
+FORTHOP(lfetchBop)
+{
     NEEDS(1);
-    double **ppA = (double **)(SPOP); 
-    double *pA = *ppA;
-    double a = *pA++;
-    DPUSH( a );
+	long long *pA = (long long *) (SPOP);
+	stackInt64 b;
+	b.s64 = *pA;
+    LPUSH( b );
+}
+
+FORTHOP(lstoreNextBop)
+{
+    NEEDS(2);
+	long long **ppB = (long long **) (SPOP);
+    long long *pB = *ppB;
+	stackInt64 a;
+	LPOP(a);
+    *pB++ = a.s64;
+    *ppB = pB;
+}
+
+FORTHOP(lfetchNextBop)
+{
+    NEEDS(1);
+	long long **ppA = (long long **) (SPOP);
+	long long *pA = *ppA;
+	stackInt64 a;
+	a.s64 = *pA++;
+	LPUSH( a );
     *ppA = pA;
+}
+*/
+
+FORTHOP(ostoreBop)
+{
+	NEEDS(3);
+	ForthObject *pB = (ForthObject *) (SPOP); 
+	ForthObject a;
+	POP_OBJECT(a);
+	*pB = a;
+}
+
+FORTHOP(ofetchBop)
+{
+	NEEDS(1);
+	ForthObject *pA = (ForthObject *) (SPOP); 
+	PUSH_OBJECT(*pA);
+}
+
+FORTHOP(ostoreNextBop)
+{
+	NEEDS(2);
+	ForthObject **ppB = (ForthObject **) (SPOP); 
+	ForthObject *pB = *ppB;
+	ForthObject a;
+	POP_OBJECT(a);
+	*pB++ = a;
+	*ppB = pB;
+}
+
+FORTHOP(ofetchNextBop)
+{
+	NEEDS(1);
+	ForthObject **ppA = (ForthObject **) (SPOP); 
+	ForthObject *pA = *ppA;
+	ForthObject a = *pA++;
+	PUSH_OBJECT(a);
+	*ppA = pA;
 }
 
 FORTHOP(memcpyBop)
@@ -6776,6 +6853,7 @@ OPREF( doDoubleArrayBop );  OPREF( doStringArrayBop );  OPREF( doOpArrayBop );
 OPREF( doObjectArrayBop );  OPREF( initStringBop );     OPREF( plusBop );
 OPREF( fetchBop );          OPREF( doStructBop );       OPREF( doStructArrayBop );
 OPREF( doDoBop );           OPREF( doLoopBop );         OPREF( doLoopNBop );
+//OPREF( ofetchBop );         OPREF( vocabToClassBop );   OPREF( doCheckDoBop );
 OPREF( dfetchBop );         OPREF( vocabToClassBop );   OPREF( doCheckDoBop );
 OPREF( thisBop );           OPREF( thisDataBop );       OPREF( thisMethodsBop );
 OPREF( executeBop );        OPREF( callBop );           OPREF( gotoBop );
@@ -6833,8 +6911,12 @@ OPREF( storeNextBop );      OPREF( fetchNextBop );      OPREF( cstoreBop );
 OPREF( cfetchBop );         OPREF( cstoreNextBop );     OPREF( cfetchNextBop );
 OPREF( scfetchBop );        OPREF( c2iBop );            OPREF( wstoreBop );
 OPREF( wfetchBop );         OPREF( wstoreNextBop );     OPREF( wfetchNextBop );
+//OPREF( swfetchBop );        OPREF( w2iBop );            OPREF( ostoreBop );
+//OPREF( ostoreNextBop );     OPREF( ofetchNextBop );     OPREF( lfetchBop );
 OPREF( swfetchBop );        OPREF( w2iBop );            OPREF( dstoreBop );
-OPREF( dstoreNextBop );     OPREF( dfetchNextBop );     OPREF( memcpyBop );
+OPREF( dstoreNextBop );     OPREF( dfetchNextBop );     OPREF( lfetchBop );
+OPREF( lstoreBop );         OPREF( lstoreNextBop );     OPREF( lfetchNextBop );
+OPREF( memcpyBop );
 OPREF( moveBop );           OPREF( fillBop );           OPREF( setVarActionBop );
 OPREF( getVarActionBop );   OPREF( byteVarActionBop );  OPREF( ubyteVarActionBop );
 OPREF( shortVarActionBop ); OPREF( ushortVarActionBop ); OPREF( intVarActionBop );
@@ -6916,7 +6998,8 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     NATIVE_COMPILED_DEF(    doDoBop,                 "_do",				OP_DO_DO ),				// 52
     NATIVE_COMPILED_DEF(    doLoopBop,               "_loop",			OP_DO_LOOP ),
     NATIVE_COMPILED_DEF(    doLoopNBop,              "_+loop",			OP_DO_LOOPN ),
-    NATIVE_COMPILED_DEF(    dfetchBop,               "2@",				OP_DFETCH ),				// 56
+    //NATIVE_COMPILED_DEF(    ofetchBop,               "o@",				OP_OFETCH ),				// 56
+    NATIVE_COMPILED_DEF(    dfetchBop,               "2@",				OP_OFETCH ),				// 56
     NATIVE_COMPILED_DEF(    vocabToClassBop,         "vocabToClass",	OP_VOCAB_TO_CLASS ),
     // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
     NATIVE_COMPILED_DEF(    addressOfBop,            "ref",				OP_REF ),
@@ -7201,6 +7284,16 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dstoreBop,               "2!" ),
     NATIVE_DEF(    dstoreNextBop,           "2@!++" ),
     NATIVE_DEF(    dfetchNextBop,           "2@@++" ),
+	/*
+	NATIVE_DEF(    lfetchBop,               "l@" ),
+    NATIVE_DEF(    lstoreBop,               "2!" ),
+    NATIVE_DEF(    lstoreNextBop,           "2@!++" ),
+    NATIVE_DEF(    lfetchNextBop,           "2@@++" ),
+    NATIVE_DEF(    ofetchBop,               "o@" ),
+    NATIVE_DEF(    ostoreBop,               "o!" ),
+    NATIVE_DEF(    ostoreNextBop,           "o@!++" ),
+    NATIVE_DEF(    ofetchNextBop,           "o@@++" ),
+	*/
     NATIVE_DEF(    moveBop,                 "move" ),
     NATIVE_DEF(    fillBop,                 "fill" ),
     NATIVE_DEF(    setVarActionBop,         "varAction!" ),

@@ -4636,6 +4636,56 @@ entry dfetchNextBop
 	
 ;========================================
 
+entry ostoreBop
+	mov	eax, [edx]
+	mov	ebx, [edx+4]
+	mov	[eax+4], ebx
+	mov	ebx, [edx+8]
+	mov	[eax], ebx
+	add	edx, 12
+	jmp	edi
+	
+;========================================
+
+entry ostoreNextBop
+	mov	eax, [edx]		; eax -> dst ptr
+	mov	ecx, [eax]
+	mov	ebx, [edx+4]
+	mov	[ecx+4], ebx
+	mov	ebx, [edx+8]
+	mov	[ecx], ebx
+	add	ecx, 8
+	mov	[eax], ecx
+	add	edx, 12
+	jmp	edi
+	
+;========================================
+
+entry ofetchBop
+	mov	eax, [edx]
+	sub	edx, 4
+	mov	ebx, [eax+4]
+	mov	[edx], ebx
+	mov	ebx, [eax]
+	mov	[edx+4], ebx
+	jmp	edi
+	
+;========================================
+
+entry ofetchNextBop
+	mov	eax, [edx]
+	sub	edx, 4
+	mov	ecx, [eax]
+	mov	ebx, [ecx+4]
+	mov	[edx], ebx
+	mov	ebx, [ecx]
+	mov	[edx+4], ebx
+	add	ecx, 8
+	mov	[eax], ecx
+	jmp	edi
+	
+;========================================
+
 entry moveBop
 	;	TOS: nBytes dstPtr srcPtr
 	push	edx

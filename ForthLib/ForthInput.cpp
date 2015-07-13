@@ -44,7 +44,7 @@ ForthInputStack::PushInputStream( ForthInputStream *pNewStream )
 
     *(ForthEngine::GetInstance()->GetBlockPtr()) = mpHead->GetBlockNumber();
 
-	SPEW_SHELL( "PushInputStream %s\n", pNewStream->GetType() );
+	SPEW_SHELL("PushInputStream %s:%s\n", pNewStream->GetType(), pNewStream->GetName());
 }
 
 
@@ -157,7 +157,7 @@ ForthInputStack::GetBufferLength( void )
 void
 ForthInputStack::SetBufferPointer( const char *pBuff )
 {
-    if ( mpHead != NULL )
+	if (mpHead != NULL)
     {
         mpHead->SetBufferPointer( pBuff );
     }
@@ -209,6 +209,13 @@ ForthInputStack::Reset( void )
             PopInputStream();
         }
     }
+}
+
+
+bool
+ForthInputStack::IsEmpty(void)
+{
+	return (mpHead == NULL) ? true : mpHead->IsEmpty();
 }
 
 
@@ -270,7 +277,7 @@ ForthInputStream::GetBufferLength( void )
 void
 ForthInputStream::SetBufferPointer( const char *pBuff )
 {
-    int offset = pBuff - mpBufferBase;
+	int offset = pBuff - mpBufferBase;
     if ( (offset < 0) || (offset >= mBufferLen) )
     {
         // TODO: report error!
@@ -279,6 +286,7 @@ ForthInputStream::SetBufferPointer( const char *pBuff )
     {
         mReadOffset = offset;
     }
+	//SPEW_SHELL("SetBufferPointer %s:%s  offset %d  {%s}\n", GetType(), GetName(), offset, pBuff);
 }
 
 int*
@@ -385,6 +393,18 @@ ForthInputStream::DeleteWhenEmpty()
 	return true;
 }
 
+bool
+ForthInputStream::IsEmpty()
+{
+	return mReadOffset >= mWriteOffset;
+}
+
+
+bool
+ForthInputStream::IsGenerated(void)
+{
+	return false;
+}
 
 
 //////////////////////////////////////////////////////////////////////
@@ -637,7 +657,8 @@ ForthBufferInputStream::ForthBufferInputStream( const char *pSourceBuffer, int s
 , mIsInteractive(isInteractive)
 , mpSourceBuffer(pSourceBuffer)
 {
-	mpDataBufferBase = new char[ sourceBufferLen + 1];
+	SPEW_SHELL("ForthBufferInputStream %s:%s  {%s}\n", GetType(), GetName(), pSourceBuffer);
+	mpDataBufferBase = new char[sourceBufferLen + 1];
 	memcpy( mpDataBufferBase, pSourceBuffer, sourceBufferLen );
     mpDataBufferBase[ sourceBufferLen ] = '\0';
 	mpDataBuffer = mpDataBufferBase;
@@ -664,7 +685,8 @@ ForthBufferInputStream::GetLine( const char *pPrompt )
     char *pBuffer = NULL;
     char *pDst, c;
 
-    if ( mpDataBuffer < mpDataBufferLimit )
+	SPEW_SHELL("ForthBufferInputStream::GetLine %s:%s  {%s}\n", GetType(), GetName(), mpDataBuffer);
+	if (mpDataBuffer < mpDataBufferLimit)
     {
 		pDst = mpBufferBase;
 		while ( mpDataBuffer < mpDataBufferLimit )
@@ -939,7 +961,7 @@ ForthExpressionInputStream::~ForthExpressionInputStream()
 char* topStr = NULL;
 char* nextStr = NULL;
 
-//#define LOG_EXPRESSION(STR) ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::%s L:{%s} R:{%s}  (%s)(%s)\n",\
+//#define LOG_EXPRESSION(STR) SPEW_SHELL("ForthExpressionInputStream::%s L:{%s} R:{%s}  (%s)(%s)\n",\
 //	STR, mpLeftBase, mpRightBase, mpStackCursor, (mpStackCursor + strlen(mpStackCursor) + 1))
 #define LOG_EXPRESSION(STR)
 
@@ -985,6 +1007,15 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 		if (pSrc != NULL)
 		{
 			c = *pSrc++;
+			if (c == '\\')
+			{
+				c = *pSrc;
+				if (c != '\0')
+				{
+					pSrc++;
+					c = ForthParseInfo::BackslashChar(c);
+				}
+			}
 			pInputStream->SetBufferPointer(pSrc);
 			switch (c)
 			{
@@ -1029,7 +1060,7 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 					{
 						CombineRightIntoLeft();
 					}
-					pNewSrc = parseInfo.ParseSingleQuote(pSrc - 1, pSrcLimit, pEngine);
+					pNewSrc = parseInfo.ParseSingleQuote(pSrc - 1, pSrcLimit, pEngine, true);
 					if (pNewSrc == (pSrc - 1))
 					{
 						if ((*pSrc == ' ') || (*pSrc == '\t'))
@@ -1047,11 +1078,13 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 						while (*pChars != '\0')
 						{
 							char cc = *pChars++;
+							/*
 							if (cc == ' ')
 							{
 								// need to prefix spaces in character constants with backslash
 								AppendCharToRight('\\');
 							}
+							*/
 							AppendCharToRight(cc);
 						}
 						pSrc = pNewSrc;
@@ -1065,7 +1098,7 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 					{
 						CombineRightIntoLeft();
 					}
-					pNewSrc = parseInfo.ParseDoubleQuote(pSrc - 1, pSrcLimit);
+					pNewSrc = parseInfo.ParseDoubleQuote(pSrc - 1, pSrcLimit, true);
 					if (pNewSrc == (pSrc - 1))
 					{
 						// TODO: report error
@@ -1106,7 +1139,7 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 	strcat(mpBufferBase, mpRightBase);
 	mReadOffset = 0;
 	mWriteOffset = strlen(mpBufferBase);
-	//ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::ProcessExpression  result:{%s}\n", mpBufferBase);
+	SPEW_SHELL("ForthExpressionInputStream::ProcessExpression  result:{%s}\n", mpBufferBase);
 	return result;
 }
 
@@ -1166,7 +1199,7 @@ ForthExpressionInputStream::PushString(char *pString, int numBytes)
 void
 ForthExpressionInputStream::PushStrings()
 {
-	//ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::PushStrings  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
+	//SPEW_SHELL("ForthExpressionInputStream::PushStrings  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
 	PushString(mpRightBase, mpRightCursor - mpRightBase);
 	nextStr = mpStackCursor;
 	PushString(mpLeftBase, mpLeftCursor - mpLeftBase);
@@ -1226,7 +1259,7 @@ ForthExpressionInputStream::PopStrings()
 		mpStackCursor = pStackNext + lenStackNext + 1;
 		// TODO: check that stack cursor is not above stackTop
 		LOG_EXPRESSION("PopStrings");
-		//ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::PopStrings  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
+		//SPEW_SHELL("ForthExpressionInputStream::PopStrings  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
 	}
 	else
 	{
@@ -1244,7 +1277,7 @@ ForthExpressionInputStream::AppendStringToRight(const char* pString)
 		memcpy(mpRightCursor, pString, len + 1);
 		mpRightCursor += len;
 		LOG_EXPRESSION("AppendStringToRight");
-		//ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::AppendStringToRight  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
+		//SPEW_SHELL("ForthExpressionInputStream::AppendStringToRight  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
 	}
 	else
 	{
@@ -1261,7 +1294,7 @@ ForthExpressionInputStream::AppendCharToRight(char c)
 		*mpRightCursor++ = c;
 		*mpRightCursor = '\0';
 		LOG_EXPRESSION("AppendCharToRight");
-		//ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::AppendCharToRight  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
+		//SPEW_SHELL("ForthExpressionInputStream::AppendCharToRight  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
 	}
 	else
 	{
@@ -1286,7 +1319,7 @@ ForthExpressionInputStream::CombineRightIntoLeft()
 	mpRightCursor = mpRightBase;
 	*mpRightCursor = '\0';
 	LOG_EXPRESSION("CombineRightIntoLeft");
-	//ForthEngine::GetInstance()->TraceOut("ForthExpressionInputStream::CombineRightIntoLeft  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
+	//SPEW_SHELL("ForthExpressionInputStream::CombineRightIntoLeft  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
 }
 
 
@@ -1295,4 +1328,11 @@ ForthExpressionInputStream::DeleteWhenEmpty()
 {
 	// don't delete when empty
 	return false;
+}
+
+
+bool
+ForthExpressionInputStream::IsGenerated()
+{
+	return true;
 }

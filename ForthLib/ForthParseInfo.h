@@ -27,8 +27,10 @@ public:
 	inline int      GetTokenLength(void) { return (int)(*((char *)mpToken)); };
 	inline int      GetNumLongs(void) { return mNumLongs; };
 
-	const char*		ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, ForthEngine *pEngine);
-	const char *	ParseDoubleQuote(const char *pSrc, const char *pSrcLimit);
+	const char*		ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, ForthEngine *pEngine, bool keepBackslashes = false);
+	const char *	ParseDoubleQuote(const char *pSrc, const char *pSrcLimit, bool keepBackslashes = false);
+	
+	static char		BackslashChar(char c);
 
 private:
 	long *      mpToken;         // pointer to token buffer, first byte is strlen(token)

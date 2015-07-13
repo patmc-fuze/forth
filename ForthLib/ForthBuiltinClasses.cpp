@@ -34,24 +34,7 @@ extern "C" {
 namespace
 {
 
-	void ShowHeader(ForthEngine*pEngine, ForthCoreState* pCore, const char* pTypeName, void* pData)
-	{
-		char buffer[16];
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-
-		pShowContext->EndElement("{");
-		pShowContext->ShowIndent();
-		pEngine->ConsoleOut("'__id' : '");
-		pEngine->ConsoleOut(pTypeName);
-		sprintf(buffer, "_%08x',", pData);
-		pShowContext->EndElement(buffer);
-		pShowContext->ShowIndent();
-		pEngine->ConsoleOut("'__refCount' : ");
-		sprintf(buffer, "%d,", *(int *)(pData));
-		pShowContext->EndElement(buffer);
-	}
-
-#define SHOW_HEADER(_TYPENAME)  ShowHeader(pEngine, pCore, _TYPENAME, GET_TPD)
+#define SHOW_HEADER(_TYPENAME)  pShowContext->ShowHeader(pCore, _TYPENAME, GET_TPD)
 
     //////////////////////////////////////////////////////////////////////
     ///
@@ -86,11 +69,9 @@ namespace
 
 		if (pShowContext->AddObject(obj))
 		{
-			char buffer[16];
-			pEngine->ConsoleOut("@");
-			pEngine->ConsoleOut(pClassObject->pVocab->GetName());
-			sprintf(buffer, "_%08x", obj.pData);
-			pEngine->ConsoleOut(buffer);
+			pEngine->ConsoleOut("'@");
+			pShowContext->ShowID(pClassObject->pVocab->GetName(), obj.pData);
+			pEngine->ConsoleOut("'");
 		}
 		else
 		{
@@ -359,6 +340,7 @@ namespace
 		if (a.size() > 0)
 		{
 			pShowContext->EndElement();
+			pShowContext->BeginIndent();
 			for (iter = a.begin(); iter != a.end(); ++iter)
 			{
 				if (iter != a.begin())
@@ -370,6 +352,7 @@ namespace
 				ForthShowObject(o, pCore);
 			}
 			pShowContext->EndElement();
+			pShowContext->EndIndent();
 			pShowContext->ShowIndent();
 		}
 		pShowContext->EndElement("]");
@@ -795,20 +778,22 @@ namespace
 
 	FORTHOP(oArrayIterShowMethod)
 	{
-		char buff[32];
-
 		GET_THIS(oArrayIterStruct, pIter);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
+		oArrayStruct* pArray = reinterpret_cast<oArrayStruct *>(pIter->parent.pData);
+		oArray& a = *(pArray->elements);
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		SHOW_HEADER("oArrayIter");
-		pShowContext->ShowIndent();
-		sprintf(buff, "'cursor' : %d,", pIter->cursor);
-		pShowContext->EndElement(buff);
-		pShowContext->ShowIndent();
-		sprintf(buff, "'parent' : ");
-		pShowContext->EndElement(buff);
-		ForthShowObject(pIter->parent, pCore);
+		pShowContext->ShowIndent("'cursor : ");
+		ForthShowObject(a[pIter->cursor], pCore);
+		pShowContext->EndElement(",");
+		pShowContext->ShowIndent("'parent' : '@");
+		long* pParentData = pIter->parent.pData;
+		long* pParentMethods = pIter->parent.pMethodOps;
+		ForthClassObject* pClassObject = (ForthClassObject *)(*((pParentMethods)-1));
+		pShowContext->ShowID(pClassObject->pVocab->GetName(), pParentData);
+		pShowContext->EndElement("'");
 		pShowContext->EndIndent();
 		pEngine->ConsoleOut("}");
 		METHOD_RETURN;
@@ -1097,18 +1082,20 @@ namespace
 		if (pCur != NULL)
 		{
 			pShowContext->EndElement();
+			pShowContext->BeginIndent();
 			while (pCur != NULL)
 			{
 				oListElement* pNext = pCur->next;
 				if (pCur != pList->head)
 				{
-					pEngine->ConsoleOut(", ");
+					pShowContext->EndElement(",");
 				}
 				pShowContext->ShowIndent();
 				ForthShowObject(pCur->obj, pCore);
 				pCur = pNext;
 			}
 			pShowContext->EndElement();
+			pShowContext->EndIndent();
 			pShowContext->ShowIndent();
 		}
 		pShowContext->EndElement("]");
@@ -1600,21 +1587,20 @@ namespace
 
 	FORTHOP(oListIterShowMethod)
 	{
-		char buff[32];
-
 		GET_THIS(oListIterStruct, pIter);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		SHOW_HEADER("oListIter");
-		pShowContext->ShowIndent();
-		// TODO: show object at cursor
-		sprintf(buff, "'cursor' : %d,", pIter->cursor);
-		pShowContext->EndElement(buff);
-		pShowContext->ShowIndent();
-		sprintf(buff, "'parent' : ");
-		pShowContext->EndElement(buff);
-		ForthShowObject(pIter->parent, pCore);
+		pShowContext->ShowIndent("'cursor : ");
+		ForthShowObject(pIter->cursor->obj, pCore);
+		pShowContext->EndElement(",");
+		pShowContext->ShowIndent("'parent' : '@");
+		long* pParentData = pIter->parent.pData;
+		long* pParentMethods = pIter->parent.pMethodOps;
+		ForthClassObject* pClassObject = (ForthClassObject *)(*((pParentMethods)-1));
+		pShowContext->ShowID(pClassObject->pVocab->GetName(), pParentData);
+		pShowContext->EndElement("'");
 		pShowContext->EndIndent();
 		pEngine->ConsoleOut("}");
 		METHOD_RETURN;
@@ -1973,23 +1959,28 @@ namespace
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		SHOW_HEADER("oMap");
-		pShowContext->ShowIndent();
-		pShowContext->EndElement("'map' : {");
-		for (iter = a.begin(); iter != a.end(); ++iter)
+		pShowContext->ShowIndent("'map' : {");
+		if (a.size() > 0)
 		{
-			stackInt64 key;
-			key.s64 = iter->first;
-			if (iter != a.begin())
+			pShowContext->EndElement();
+			pShowContext->BeginIndent();
+			for (iter = a.begin(); iter != a.end(); ++iter)
 			{
-				pShowContext->EndElement(",");
+				stackInt64 key;
+				key.s64 = iter->first;
+				if (iter != a.begin())
+				{
+					pShowContext->EndElement(",");
+				}
+				pShowContext->ShowIndent();
+				ForthShowObject(key.obj, pCore);
+				pEngine->ConsoleOut(" : ");
+				ForthShowObject(iter->second, pCore);
 			}
+			pShowContext->EndElement();
+			pShowContext->EndIndent();
 			pShowContext->ShowIndent();
-			ForthShowObject(key.obj, pCore);
-			pEngine->ConsoleOut(" : ");
-			ForthShowObject(iter->second, pCore);
 		}
-		pShowContext->EndElement();
-		pShowContext->ShowIndent();
 		pShowContext->EndElement("}");
 		pShowContext->EndIndent();
 		pShowContext->ShowIndent("}");
@@ -2534,21 +2525,25 @@ namespace
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		SHOW_HEADER("oIntMap");
-		pShowContext->ShowIndent();
-		pShowContext->EndElement("'map' : { ");
-		for (iter = a.begin(); iter != a.end(); ++iter)
+		pShowContext->ShowIndent("'map' : {");
+		if (a.size() > 0)
 		{
-			if (iter != a.begin())
+			pShowContext->EndElement();
+			pShowContext->BeginIndent();
+			for (iter = a.begin(); iter != a.end(); ++iter)
 			{
-				pShowContext->EndElement(",");
+				if (iter != a.begin())
+				{
+					pShowContext->EndElement(",");
+				}
+				sprintf(buffer, "%d : ", iter->first);
+				pShowContext->ShowIndent(buffer);
+				ForthShowObject(iter->second, pCore);
 			}
+			pShowContext->EndElement();
+			pShowContext->EndIndent();
 			pShowContext->ShowIndent();
-			sprintf(buffer, "%d : ", iter->first);
-			pEngine->ConsoleOut(buffer);
-			ForthShowObject(iter->second, pCore);
 		}
-		pShowContext->EndElement();
-		pShowContext->ShowIndent();
 		pShowContext->EndElement("}");
 		pShowContext->EndIndent();
 		pShowContext->ShowIndent("}");
@@ -2938,12 +2933,6 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oIntMapIterFindNextMethod )
-    {
-	    SPUSH( 0 );
-        METHOD_RETURN;
-	}
-
     FORTHOP( oIntMapIterNextPairMethod )
     {
         GET_THIS( oIntMapIterStruct, pIter );
@@ -2995,7 +2984,7 @@ namespace
         METHOD_RET( "prev",                 oIntMapIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "current",				oIntMapIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "remove",				oIntMapIterRemoveMethod ),
-        METHOD_RET( "findNext",				oIntMapIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+        METHOD_RET( "findNext",				oMapIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         //METHOD_RET( "clone",                oIntMapIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter) ),
 
 		METHOD_RET( "nextPair",				oIntMapIterNextPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
@@ -3017,25 +3006,39 @@ namespace
 		oIntMap::iterator iter;
 		oIntMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+		pShowContext->BeginIndent();
 		SHOW_HEADER("oFloatMap");
-		pEngine->ConsoleOut("'map' :  { ");
-		for (iter = a.begin(); iter != a.end(); ++iter)
+		pShowContext->ShowIndent("'map' : {");
+		if (a.size() > 0)
 		{
-			if (iter != a.begin())
+			pShowContext->EndElement();
+			pShowContext->BeginIndent();
+			for (iter = a.begin(); iter != a.end(); ++iter)
 			{
-				pEngine->ConsoleOut(", ");
+				if (iter != a.begin())
+				{
+					pShowContext->EndElement(",");
+				}
+				float fval = *((float *)(&(iter->first)));
+				sprintf(buffer, "%f : ", fval);
+				pShowContext->ShowIndent(buffer);
+				ForthShowObject(iter->second, pCore);
 			}
-			float fval = *((float *)(&(iter->first)));
-			sprintf(buffer, "%f : ", fval);
-			pEngine->ConsoleOut(buffer);
-			ForthShowObject(iter->second, pCore);
+			pShowContext->EndElement();
+			pShowContext->EndIndent();
+			pShowContext->ShowIndent();
 		}
-		pEngine->ConsoleOut(" } }");
+		pShowContext->EndElement("}");
+		pShowContext->EndIndent();
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
+
     baseMethodEntry oFloatMapMembers[] =
     {
+        METHOD(     "__newOp",              oIntMapNew ),
         METHOD(     "show",                 oFloatMapShowMethod ),
         // following must be last in table
         END_MEMBERS
@@ -3098,19 +3101,31 @@ namespace
 		oLongMap::iterator iter;
 		oLongMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+		pShowContext->BeginIndent();
 		SHOW_HEADER("oLongMap");
-		pEngine->ConsoleOut("'map' :  { ");
-		for (iter = a.begin(); iter != a.end(); ++iter)
+		pShowContext->ShowIndent("'map' : {");
+		if (a.size() > 0)
 		{
-			if (iter != a.begin())
+			pShowContext->EndElement();
+			pShowContext->BeginIndent();
+			for (iter = a.begin(); iter != a.end(); ++iter)
 			{
-				pEngine->ConsoleOut(", ");
+				if (iter != a.begin())
+				{
+					pShowContext->EndElement(",");
+				}
+				sprintf(buffer, "%lld : ", iter->first);
+				pShowContext->ShowIndent(buffer);
+				ForthShowObject(iter->second, pCore);
 			}
-			sprintf(buffer, "%lld : ", iter->first);
-			pEngine->ConsoleOut(buffer);
-			ForthShowObject(iter->second, pCore);
+			pShowContext->EndElement();
+			pShowContext->EndIndent();
+			pShowContext->ShowIndent();
 		}
-		pEngine->ConsoleOut(" } }");
+		pShowContext->EndElement("}");
+		pShowContext->EndIndent();
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -3503,12 +3518,6 @@ namespace
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oLongMapIterFindNextMethod)
-	{
-		SPUSH(0);
-		METHOD_RETURN;
-	}
-
 	FORTHOP(oLongMapIterNextPairMethod)
 	{
 		GET_THIS(oLongMapIterStruct, pIter);
@@ -3564,7 +3573,7 @@ namespace
 		METHOD_RET("prev", oLongMapIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("current", oLongMapIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oLongMapIterRemoveMethod),
-		METHOD_RET("findNext", oLongMapIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("findNext", oMapIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		//METHOD_RET( "clone",                oLongMapIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter) ),
 
 		METHOD_RET("nextPair", oLongMapIterNextPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
@@ -3587,26 +3596,39 @@ namespace
 		oLongMap::iterator iter;
 		oLongMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+		pShowContext->BeginIndent();
 		SHOW_HEADER("oDoubleMap");
-		pEngine->ConsoleOut("'map' :  { ");
-		for (iter = a.begin(); iter != a.end(); ++iter)
+		pShowContext->ShowIndent("'map' : {");
+		if (a.size() > 0)
 		{
-			if (iter != a.begin())
+			pShowContext->EndElement();
+			pShowContext->BeginIndent();
+			for (iter = a.begin(); iter != a.end(); ++iter)
 			{
-				pEngine->ConsoleOut(", ");
+				if (iter != a.begin())
+				{
+					pShowContext->EndElement(",");
+				}
+				double dval = *((double *)(&(iter->first)));
+				sprintf(buffer, "%g : ", dval);
+				pShowContext->ShowIndent(buffer);
+				ForthShowObject(iter->second, pCore);
 			}
-			double dval = *((double *)(&(iter->first)));
-			sprintf(buffer, "%g : ", dval);
-			pEngine->ConsoleOut(buffer);
-			ForthShowObject(iter->second, pCore);
+			pShowContext->EndElement();
+			pShowContext->EndIndent();
+			pShowContext->ShowIndent();
 		}
-		pEngine->ConsoleOut(" } }");
+		pShowContext->EndElement("}");
+		pShowContext->EndIndent();
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
 
 	baseMethodEntry oDoubleMapMembers[] =
 	{
+		METHOD("__newOp", oLongMapNew),
 		METHOD("show", oDoubleMapShowMethod),
 		// following must be last in table
 		END_MEMBERS
@@ -3667,22 +3689,35 @@ namespace
 		oStringMap::iterator iter;
 		oStringMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+		pShowContext->BeginIndent();
 		SHOW_HEADER("oStringMap");
-		pEngine->ConsoleOut("'map' :  { ");
-		for (iter = a.begin(); iter != a.end(); ++iter)
+		pShowContext->ShowIndent("'map' : {");
+		if (a.size() > 0)
 		{
-			if (iter != a.begin())
+			pShowContext->EndElement();
+			pShowContext->BeginIndent();
+			for (iter = a.begin(); iter != a.end(); ++iter)
 			{
-				pEngine->ConsoleOut(", ");
+				if (iter != a.begin())
+				{
+					pShowContext->EndElement(",");
+				}
+				pShowContext->ShowIndent("'");
+				pEngine->ConsoleOut(iter->first.c_str());
+				pEngine->ConsoleOut("' : ");
+				ForthShowObject(iter->second, pCore);
 			}
-			pEngine->ConsoleOut("'");
-			pEngine->ConsoleOut(iter->first.c_str());
-			pEngine->ConsoleOut("' : ");
-			ForthShowObject(iter->second, pCore);
+			pShowContext->EndIndent();
+			pShowContext->EndElement();
+			pShowContext->ShowIndent();
 		}
-		pEngine->ConsoleOut(" } }");
+		pShowContext->EndElement("}");
+		pShowContext->EndIndent();
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
+
 
 	FORTHOP(oStringMapClearMethod)
 	{
@@ -4072,12 +4107,6 @@ namespace
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oStringMapIterFindNextMethod)
-	{
-		SPUSH(0);
-		METHOD_RETURN;
-	}
-
 	FORTHOP(oStringMapIterNextPairMethod)
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
@@ -4129,7 +4158,7 @@ namespace
 		METHOD_RET("prev", oStringMapIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("current", oStringMapIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oStringMapIterRemoveMethod),
-		METHOD_RET("findNext", oStringMapIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("findNext", oMapIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		//METHOD_RET( "clone",                oStringMapIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIMapIter) ),
 
 		METHOD_RET("nextPair", oStringMapIterNextPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
@@ -4486,12 +4515,17 @@ namespace
 	{
 		GET_THIS(oPairStruct, pPair);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		SHOW_HEADER("oPair");
-		pEngine->ConsoleOut("'a' : ");
+		pShowContext->BeginIndent();
+		pShowContext->ShowIndent("'a' : ");
 		ForthShowObject(pPair->a, pCore);
-		pEngine->ConsoleOut(", 'b' : ");
+		pShowContext->EndElement(",");
+		pShowContext->ShowIndent("'b' : ");
 		ForthShowObject(pPair->b, pCore);
-		pEngine->ConsoleOut(" }");
+		pShowContext->EndElement();
+		pShowContext->EndIndent();
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -4787,14 +4821,20 @@ namespace
 	{
 		GET_THIS(oTripleStruct, pTriple);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		SHOW_HEADER("oTriple");
-		pEngine->ConsoleOut("'a' : ");
+		pShowContext->BeginIndent();
+		pShowContext->ShowIndent("'a' : ");
 		ForthShowObject(pTriple->a, pCore);
-		pEngine->ConsoleOut(", 'b' : ");
+		pShowContext->EndElement(",");
+		pShowContext->ShowIndent("'b' : ");
 		ForthShowObject(pTriple->b, pCore);
-		pEngine->ConsoleOut(", 'c' : ");
+		pShowContext->EndElement();
+		pShowContext->ShowIndent("'c' : ");
 		ForthShowObject(pTriple->c, pCore);
-		pEngine->ConsoleOut(" }");
+		pShowContext->EndElement();
+		pShowContext->EndIndent();
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -5124,6 +5164,7 @@ namespace
 		if (a.size() > 0)
 		{
 			pShowContext->EndElement();
+			pShowContext->BeginIndent();
 			pShowContext->ShowIndent();
 			for (unsigned int i = 0; i < a.size(); i++)
 			{
@@ -5143,6 +5184,7 @@ namespace
 				pEngine->ConsoleOut(buffer);
 			}
 			pShowContext->EndElement();
+			pShowContext->EndIndent();
 			pShowContext->ShowIndent();
 		}
 		pShowContext->EndElement("]");
@@ -5670,19 +5712,40 @@ namespace
 		char buffer[16];
 		GET_THIS(oShortArrayStruct, pArray);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		SHOW_HEADER("oShortArray");
-		pEngine->ConsoleOut("'elements' : [ ");
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+		pShowContext->BeginIndent();
 		oShortArray& a = *(pArray->elements);
-		for (unsigned int i = 0; i < a.size(); i++)
+		SHOW_HEADER("oShortArray");
+		pShowContext->ShowIndent("'elements' : [");
+		if (a.size() > 0)
 		{
-			if (i != 0)
+			pShowContext->EndElement();
+			pShowContext->BeginIndent();
+			pShowContext->ShowIndent();
+			for (unsigned int i = 0; i < a.size(); i++)
 			{
-				pEngine->ConsoleOut(", ");
+				if (i != 0)
+				{
+					if ((i % 10) == 0)
+					{
+						pShowContext->EndElement(",");
+						pShowContext->ShowIndent();
+					}
+					else
+					{
+						pEngine->ConsoleOut(", ");
+					}
+				}
+				sprintf(buffer, "%d", a[i]);
+				pEngine->ConsoleOut(buffer);
 			}
-			sprintf(buffer, "%d", a[i]);
-			pEngine->ConsoleOut(buffer);
+			pShowContext->EndElement();
+			pShowContext->EndIndent();
+			pShowContext->ShowIndent();
 		}
-		pEngine->ConsoleOut(" ] }");
+		pShowContext->EndElement("]");
+		pShowContext->EndIndent();
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -6193,19 +6256,40 @@ namespace
 		char buffer[16];
 		GET_THIS(oIntArrayStruct, pArray);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		SHOW_HEADER("oIntArray");
-		pEngine->ConsoleOut("'elements' : [ ");
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+		pShowContext->BeginIndent();
 		oIntArray& a = *(pArray->elements);
-		for (unsigned int i = 0; i < a.size(); i++)
+		SHOW_HEADER("oIntArray");
+		pShowContext->ShowIndent("'elements' : [");
+		if (a.size() > 0)
 		{
-			if (i != 0)
+			pShowContext->EndElement();
+			pShowContext->BeginIndent();
+			pShowContext->ShowIndent();
+			for (unsigned int i = 0; i < a.size(); i++)
 			{
-				pEngine->ConsoleOut(", ");
+				if (i != 0)
+				{
+					if ((i % 10) == 0)
+					{
+						pShowContext->EndElement(",");
+						pShowContext->ShowIndent();
+					}
+					else
+					{
+						pEngine->ConsoleOut(", ");
+					}
+				}
+				sprintf(buffer, "%d", a[i]);
+				pEngine->ConsoleOut(buffer);
 			}
-			sprintf(buffer, "%d", a[i]);
-			pEngine->ConsoleOut(buffer);
+			pShowContext->EndElement();
+			pShowContext->EndIndent();
+			pShowContext->ShowIndent();
 		}
-		pEngine->ConsoleOut(" ] }");
+		pShowContext->EndElement("]");
+		pShowContext->EndIndent();
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -6680,25 +6764,47 @@ namespace
 		char buffer[32];
 		GET_THIS(oIntArrayStruct, pArray);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		SHOW_HEADER("oFloatArray");
-		pEngine->ConsoleOut("'elements' : [ ");
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+		pShowContext->BeginIndent();
 		oIntArray& a = *(pArray->elements);
-		for (unsigned int i = 0; i < a.size(); i++)
+		SHOW_HEADER("oFloatArray");
+		pShowContext->ShowIndent("'elements' : [");
+		if (a.size() > 0)
 		{
-			if (i != 0)
+			pShowContext->EndElement();
+			pShowContext->BeginIndent();
+			pShowContext->ShowIndent();
+			for (unsigned int i = 0; i < a.size(); i++)
 			{
-				pEngine->ConsoleOut(", ");
+				if (i != 0)
+				{
+					if ((i % 10) == 0)
+					{
+						pShowContext->EndElement(",");
+						pShowContext->ShowIndent();
+					}
+					else
+					{
+						pEngine->ConsoleOut(", ");
+					}
+				}
+				float fval = *((float *)(&(a[i])));
+				sprintf(buffer, "%f", fval);
+				pEngine->ConsoleOut(buffer);
 			}
-			float fval = *((float *)(&(a[i])));
-			sprintf(buffer, "%f", fval);
-			pEngine->ConsoleOut(buffer);
+			pShowContext->EndElement();
+			pShowContext->EndIndent();
+			pShowContext->ShowIndent();
 		}
-		pEngine->ConsoleOut(" ] }");
+		pShowContext->EndElement("]");
+		pShowContext->EndIndent();
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
 	baseMethodEntry oFloatArrayMembers[] =
 	{
+		METHOD("__newOp", oIntArrayNew),
 		METHOD("show", oFloatArrayShowMethod),
 
 		// following must be last in table
@@ -6750,19 +6856,40 @@ namespace
 		char buffer[32];
 		GET_THIS(oLongArrayStruct, pArray);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		SHOW_HEADER("oLongArray");
-		pEngine->ConsoleOut("'elements' : [ ");
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+		pShowContext->BeginIndent();
 		oLongArray& a = *(pArray->elements);
-		for (unsigned int i = 0; i < a.size(); i++)
+		SHOW_HEADER("oLongArray");
+		pShowContext->ShowIndent("'elements' : [");
+		if (a.size() > 0)
 		{
-			if (i != 0)
+			pShowContext->EndElement();
+			pShowContext->BeginIndent();
+			pShowContext->ShowIndent();
+			for (unsigned int i = 0; i < a.size(); i++)
 			{
-				pEngine->ConsoleOut(", ");
+				if (i != 0)
+				{
+					if ((i % 10) == 0)
+					{
+						pShowContext->EndElement(",");
+						pShowContext->ShowIndent();
+					}
+					else
+					{
+						pEngine->ConsoleOut(", ");
+					}
+				}
+				sprintf(buffer, "%lld", a[i]);
+				pEngine->ConsoleOut(buffer);
 			}
-			sprintf(buffer, "%lld", a[i]);
-			pEngine->ConsoleOut(buffer);
+			pShowContext->EndElement();
+			pShowContext->EndIndent();
+			pShowContext->ShowIndent();
 		}
-		pEngine->ConsoleOut(" ] }");
+		pShowContext->EndElement("]");
+		pShowContext->EndIndent();
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -7257,26 +7384,49 @@ namespace
 		char buffer[32];
 		GET_THIS(oLongArrayStruct, pArray);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		SHOW_HEADER("oDoubleArray");
-		pEngine->ConsoleOut("'elements' : [ ");
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+		pShowContext->BeginIndent();
 		oLongArray& a = *(pArray->elements);
-		for (unsigned int i = 0; i < a.size(); i++)
+		SHOW_HEADER("oDoubleArray");
+		pShowContext->ShowIndent("'elements' : [");
+		if (a.size() > 0)
 		{
-			if (i != 0)
+			pShowContext->EndElement();
+			pShowContext->BeginIndent();
+			pShowContext->ShowIndent();
+			for (unsigned int i = 0; i < a.size(); i++)
 			{
-				pEngine->ConsoleOut(", ");
+				if (i != 0)
+				{
+					if ((i % 10) == 0)
+					{
+						pShowContext->EndElement(",");
+						pShowContext->ShowIndent();
+					}
+					else
+					{
+						pEngine->ConsoleOut(", ");
+					}
+				}
+				double dval = *((double *)(&(a[i])));
+				sprintf(buffer, "%g", dval);
+				pEngine->ConsoleOut(buffer);
 			}
-			double dval = *((double *)(&(a[i])));
-			sprintf(buffer, "%g : ", dval);
-			pEngine->ConsoleOut(buffer);
+			pShowContext->EndElement();
+			pShowContext->EndIndent();
+			pShowContext->ShowIndent();
 		}
-		pEngine->ConsoleOut(" ] }");
+		pShowContext->EndElement("]");
+		pShowContext->EndIndent();
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
+
     baseMethodEntry oDoubleArrayMembers[] =
     {
-        METHOD(     "show",                 oDoubleArrayShowMethod ),
+		METHOD("__newOp", oLongArrayNew),
+		METHOD("show", oDoubleArrayShowMethod),
         // following must be last in table
         END_MEMBERS
     };
@@ -7323,9 +7473,12 @@ namespace
         char buff[32];
         GET_THIS( oIntStruct, pInt );
 		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		SHOW_HEADER("oInt");
-		sprintf(buff, "'value' : %d }", pInt->val);
-		pEngine->ConsoleOut(buff);
+		pShowContext->ShowIndent("'value' : ");
+		sprintf(buff, "%d", pInt->val);
+		pShowContext->EndElement(buff);
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
     }
 
@@ -7402,12 +7555,14 @@ namespace
 		char buff[32];
 		GET_THIS(oLongStruct, pLong);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		SHOW_HEADER("oLong");
-		sprintf(buff, "'value' : %lld }", pLong->val);
-		pEngine->ConsoleOut(buff);
+		pShowContext->ShowIndent("'value' : ");
+		sprintf(buff, "%lld", pLong->val);
+		pShowContext->EndElement(buff);
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
-
 
     FORTHOP( oLongCompareMethod )
     {
@@ -7478,9 +7633,12 @@ namespace
 		char buff[32];
 		GET_THIS(oFloatStruct, pFloat);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		SHOW_HEADER("oFloat");
-		sprintf(buff, "'value' : %f }", pFloat->val);
-		pEngine->ConsoleOut(buff);
+		pShowContext->ShowIndent("'value' : ");
+		sprintf(buff, "%f", pFloat->val);
+		pShowContext->EndElement(buff);
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -7553,12 +7711,14 @@ namespace
         char buff[32];
         GET_THIS( oDoubleStruct, pDouble );
 		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		SHOW_HEADER("oDouble");
-		sprintf(buff, "'value' : %g }", pDouble->val);
-		pEngine->ConsoleOut(buff);
+		pShowContext->ShowIndent("'value' : ");
+		sprintf(buff, "%f", pDouble->val);
+		pShowContext->EndElement(buff);
+		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
-
 
     FORTHOP( oDoubleCompareMethod )
     {
@@ -8503,7 +8663,10 @@ void ForthShowObject(ForthObject& obj, ForthCoreState* pCore)
 	}
 	else
 	{
-		pEngine->ConsoleOut("@nullObject_00000000");
+		pEngine->ConsoleOut("'@");
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+		pShowContext->ShowID("nullObject", NULL);
+		pEngine->ConsoleOut("'");
 	}
 }
 
@@ -8541,15 +8704,18 @@ ForthForgettableGlobalObject::GetTypeName( void )
 void ForthForgettableGlobalObject::ForgetCleanup( void* pForgetLimit, long op )
 {
 	// first longword is OP_DO_OBJECT or OP_DO_OBJECT_ARRAY, after that are object elements
-	ForthObject* pObject = (ForthObject *) ((long *)mpOpAddress + 1);
-	ForthCoreState* pCore = ForthEngine::GetInstance()->GetCoreState();
-	for ( int i = 0; i < mNumElements; i++ )
+	if ((ulong)mpOpAddress > (ulong)pForgetLimit)
 	{
-		// TODO: release each 
-		SAFE_RELEASE( pCore, *pObject );
-		pObject->pData = NULL;
-		pObject->pMethodOps = NULL;
-		pObject++;
+		ForthObject* pObject = (ForthObject *)((long *)mpOpAddress + 1);
+		ForthCoreState* pCore = ForthEngine::GetInstance()->GetCoreState();
+		for (int i = 0; i < mNumElements; i++)
+		{
+			// TODO: release each 
+			SAFE_RELEASE(pCore, *pObject);
+			pObject->pData = NULL;
+			pObject->pMethodOps = NULL;
+			pObject++;
+		}
 	}
 }
 

@@ -1869,7 +1869,51 @@ OPTYPE_ACTION( DLLEntryPointAction )
 #endif
 }
 
-OPTYPE_ACTION( MethodWithThisAction )
+void SpewMethodName(long* pMethods, long opVal)
+{
+	char buffer[256];
+	ForthClassObject* pClassObject = (ForthClassObject *)(*((pMethods)-1));
+	ForthClassVocabulary* pVocab = pClassObject->pVocab;
+	const char* pVocabName = pVocab->GetName();
+	if (pClassObject != NULL)
+	{
+		strcpy(buffer, "UNKNOWN_METHOD");
+		while (pVocab != NULL)
+		{
+			long *pEntry = NULL;
+			while (true)
+			{
+				pEntry = pVocab->FindNextSymbolByValue(opVal, pEntry);
+				if (pEntry != NULL)
+				{
+					long typeCode = pEntry[1];
+					bool isMethod = CODE_IS_METHOD(typeCode);
+					if (isMethod)
+					{
+						int len = pVocab->GetEntryNameLength(pEntry);
+						char* pBuffer = &(buffer[0]);
+						const char* pName = pVocab->GetEntryName(pEntry);
+						for (int i = 0; i < len; i++)
+						{
+							*pBuffer++ = *pName++;
+						}
+						*pBuffer = '\0';
+						pVocab = NULL;
+						break;
+					}
+				}
+				else
+				{
+					pVocab = pVocab->ParentClass();
+					break;
+				}
+			}
+		}
+		SPEW_INNER_INTERPRETER(" %s:%s  ", pVocabName, buffer);
+	}
+}
+
+OPTYPE_ACTION(MethodWithThisAction)
 {
     // this is called when an object method invokes another method on itself
     // opVal is the method number
@@ -1877,7 +1921,11 @@ OPTYPE_ACTION( MethodWithThisAction )
     long* pMethods = GET_TPM;
     RPUSH( ((long) GET_TPD) );
     RPUSH( ((long) pMethods) );
-    pEngine->ExecuteOneOp( pMethods[ opVal ] );
+	if (pEngine->GetTraceFlags() & kLogInnerInterpreter)
+	{
+		SpewMethodName(pMethods, opVal);
+	}
+	pEngine->ExecuteOneOp(pMethods[opVal]);
 }
 
 OPTYPE_ACTION( MethodWithTOSAction )
@@ -1888,12 +1936,18 @@ OPTYPE_ACTION( MethodWithTOSAction )
     // there is no explicit source for the "this" pointer, we just keep
     // on using the current "this" pointer
     ForthEngine *pEngine = GET_ENGINE;
+	//pEngine->TraceOut(">>MethodWithTOSAction IP %p  RP %p\n", GET_IP, GET_RP);
     RPUSH( ((long) GET_TPD) );
     RPUSH( ((long) GET_TPM) );
     long* pMethods = (long *)(SPOP);
     SET_TPM( pMethods );
     SET_TPD( (long *) (SPOP) );
+	if (pEngine->GetTraceFlags() & kLogInnerInterpreter)
+	{
+		SpewMethodName(pMethods, opVal);
+	}
     pEngine->ExecuteOneOp( pMethods[ opVal ] );
+	//pEngine->TraceOut("<<MethodWithTOSAction IP %p  RP %p\n", GET_IP, GET_RP);
 }
 
 OPTYPE_ACTION( MemberStringInitAction )
@@ -2319,7 +2373,7 @@ InnerInterpreter( ForthCoreState *pCore )
 #ifdef TRACE_INNER_INTERPRETER
 	ForthEngine* pEngine = GET_ENGINE;
 	int traceFlags = pEngine->GetTraceFlags();
-	if ( traceFlags & kTraceInnerInterpreter )
+	if ( traceFlags & kLogInnerInterpreter )
 	{
 		while ( GET_STATE == kResultOk )
 		{
@@ -2329,11 +2383,14 @@ InnerInterpreter( ForthCoreState *pCore )
 			long op = *pIP++;
 			SET_IP( pIP );
 			DISPATCH_FORTH_OP( pCore, op );
-			if ( traceFlags & kTraceStack )
+			if (GET_STATE != kResultDone)
 			{
-				pEngine->TraceStack( pCore );
+				if (traceFlags & kLogStack)
+				{
+					pEngine->TraceStack(pCore);
+				}
+				pEngine->TraceOut("\n");
 			}
-			pEngine->TraceOut( "\n" );
 		}
 	}
 	else
@@ -2361,12 +2418,12 @@ InterpretOneOp( ForthCoreState *pCore, long op )
 #ifdef TRACE_INNER_INTERPRETER
 	ForthEngine* pEngine = GET_ENGINE;
 	int traceFlags = pEngine->GetTraceFlags();
-	if ( traceFlags & kTraceInnerInterpreter )
+	if ( traceFlags & kLogInnerInterpreter )
 	{
 		// fetch op at IP, advance IP
 		pEngine->TraceOp( pCore );
 		DISPATCH_FORTH_OP( pCore, op );
-		if ( traceFlags & kTraceStack )
+		if ( traceFlags & kLogStack )
 		{
 			pEngine->TraceStack( pCore );
 		}
@@ -2395,7 +2452,7 @@ InnerInterpreter( ForthCoreState *pCore )
 #ifdef TRACE_INNER_INTERPRETER
 	ForthEngine* pEngine = GET_ENGINE;
 	int traceFlags = pEngine->GetTraceFlags();
-	if ( traceFlags & kTraceInnerInterpreter )
+	if ( traceFlags & kLogInnerInterpreter )
 	{
 		while ( GET_STATE == kResultOk )
 		{
@@ -2407,7 +2464,7 @@ InnerInterpreter( ForthCoreState *pCore )
 			opType = FORTH_OP_TYPE( op );
 			opVal = FORTH_OP_VALUE( op );
 			pCore->optypeAction[ (int) opType ]( pCore, opVal );
-			if ( traceFlags & kTraceStack )
+			if ( traceFlags & kLogStack )
 			{
 				pEngine->TraceStack( pCore );
 			}

@@ -337,7 +337,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 						if ( isPtr )
 						{
 							COMPILE_OP( "object ptr array", kOpMemberIntArray, pEntry[0] );
-							COMPILE_SIMPLE_OP( "dfetch", gCompiledOps[OP_DFETCH] );
+							COMPILE_SIMPLE_OP( "ofetch", gCompiledOps[OP_OFETCH] );
 						}
 						else
 						{
@@ -366,7 +366,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 						if ( isPtr )
 						{
 							COMPILE_OP( "object ptr", kOpMemberInt, pEntry[0] );
-							COMPILE_SIMPLE_OP( "dfetch", gCompiledOps[OP_DFETCH] );
+							COMPILE_SIMPLE_OP( "ofetch", gCompiledOps[OP_OFETCH] );
 						}
 						else
 						{
@@ -397,7 +397,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 		}
         if ( isObject && isPtr )
         {
-            *mpDst++ = gCompiledOps[OP_DFETCH];
+            *mpDst++ = gCompiledOps[OP_OFETCH];
         }
     }
 
@@ -547,8 +547,8 @@ bool ForthStructCodeGenerator::HandleMiddle()
             }
             if ( isObject )
             {
-                SPEW_STRUCTS( " dfetchOp 0x%x", gCompiledOps[OP_DFETCH] );
-                *mpDst++ = gCompiledOps[OP_DFETCH];
+                SPEW_STRUCTS( " ofetchOp 0x%x", gCompiledOps[OP_OFETCH] );
+                *mpDst++ = gCompiledOps[OP_OFETCH];
             }
         }
         else if ( isObject )
@@ -559,8 +559,8 @@ bool ForthStructCodeGenerator::HandleMiddle()
                 *mpDst++ = COMPILED_OP( kOpOffset, mOffset );
                 mOffset = 0;
             }
-            SPEW_STRUCTS( " dfetchOp 0x%x", gCompiledOps[OP_DFETCH] );
-            *mpDst++ = gCompiledOps[OP_DFETCH];
+            SPEW_STRUCTS( " ofetchOp 0x%x", gCompiledOps[OP_OFETCH] );
+            *mpDst++ = gCompiledOps[OP_OFETCH];
         }
 	    ForthTypeInfo* pStructInfo = mpTypeManager->GetStructInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
 	    if ( pStructInfo == NULL )

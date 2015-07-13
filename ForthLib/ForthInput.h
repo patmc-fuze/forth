@@ -39,7 +39,9 @@ public:
     virtual void    SetReadOffset( int offset );
     virtual int     GetWriteOffset( void );
     virtual void    SetWriteOffset( int offset );
-    
+	virtual bool	IsEmpty();
+	virtual bool	IsGenerated();
+
     virtual int     GetBufferLength( void );
     virtual void    SetBufferPointer( const char *pBuff );
     virtual bool    IsInteractive( void ) = 0;
@@ -151,6 +153,8 @@ public:
     virtual long*   GetInputState();
     virtual bool    SetInputState( long* pState );
 
+	// TODO: should this return true?
+	//virtual bool	IsGenerated();
 
 protected:
     static int      sInstanceNumber;    // used for checking consistency in restore-input
@@ -219,6 +223,7 @@ public:
 	virtual bool    SetInputState(long* pState);
 
 	virtual bool	DeleteWhenEmpty();
+	virtual bool	IsGenerated();
 
 protected:
 	void			PushStrings();
@@ -267,7 +272,7 @@ public:
     void                    SetReadOffset( int );
     int                     GetWriteOffset( void );
     void                    SetWriteOffset( int offset );
-
+	virtual bool			IsEmpty();
 protected:
     ForthInputStream        *mpHead;
 };

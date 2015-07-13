@@ -41,7 +41,7 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 	TCHAR buffer[1000];
 
 	ForthEngine* pEngine = ForthEngine::GetInstance();
-	if ((pEngine->GetTraceFlags() & kTraceToConsole) != 0)
+	if ((pEngine->GetTraceFlags() & kLogToConsole) != 0)
 	{
 		wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
 
@@ -149,7 +149,7 @@ ForthEngine::ForthEngine()
 , mpExtension( NULL )
 , mpCore( NULL )
 , mpShell( NULL )
-, mTraceFlags( kTraceShell )
+, mTraceFlags( kLogShell )
 , mTraceOutRoutine(defaultTraceOutRoutine)
 , mpTraceOutData( NULL )
 , mpOpcodeCompiler( NULL )
@@ -796,10 +796,7 @@ ForthEngine::EndOpDefinition( bool unsmudgeIt )
         int nLongs = mpLocalVocab->GetFrameLongs();
 	    long op = COMPILED_OP( kOpAllocLocals, nLongs );
         *pLocalAllocOp = op;
-	    if ( mTraceFlags & kTraceCompilation )
-	    {
-		    TraceOut( "Backpatching allocLocals 0x%08x @ 0x%08x\n", op, pLocalAllocOp );
-	    }
+		SPEW_COMPILATION("Backpatching allocLocals 0x%08x @ 0x%08x\n", op, pLocalAllocOp);
 		mpLocalVocab->ClearFrame();
     }
     mpOpcodeCompiler->ClearPeephole();
@@ -1066,17 +1063,19 @@ ForthEngine::TraceOp( ForthCoreState* pCore )
     long *pOp = pCore->IP;
     char buff[ 256 ];
     int rDepth = pCore->RT - pCore->RP;
-    if ( rDepth > 8 )
-    {
-        rDepth = 8;
-    }
     char* sixteenSpaces = "                ";     // 16 spaces
-    char* pIndent = sixteenSpaces + (16 - (rDepth << 1));
-    if ( *pOp != gCompiledOps[OP_DONE] )
-    {
+	//if ( *pOp != gCompiledOps[OP_DONE] )
+	{
 		DescribeOp(pOp, buff, sizeof(buff), lookupUserTraces);
-		TraceOut("# 0x%08x %s%s # ", pOp, pIndent, buff);
-    }
+		TraceOut("# 0x%08x #", pOp);
+		while (rDepth > 8)
+		{
+			TraceOut(sixteenSpaces);
+			rDepth -= 8;
+		}
+		char* pIndent = sixteenSpaces + (16 - (rDepth << 1));
+		TraceOut("%s%s # ", pIndent, buff);
+	}
 #endif
 }
 
@@ -1717,11 +1716,7 @@ ForthEngine::UnsquishLong( ulong squishedLong )
 void
 ForthEngine::CompileOpcode( forthOpType opType, long opVal )
 {
-	if ( mTraceFlags & kTraceCompilation )
-	{
-		long op = COMPILED_OP( opType, opVal );
-		TraceOut( "Compiling 0x%08x @ 0x%08x\n", op, mDictionary.pCurrent);
-	}
+	SPEW_COMPILATION("Compiling 0x%08x @ 0x%08x\n", COMPILED_OP(opType, opVal), mDictionary.pCurrent);
 	mpOpcodeCompiler->CompileOpcode( opType, opVal );
 }
 
@@ -1746,10 +1741,7 @@ ForthEngine::UncompileLastOpcode( void )
 	long *pLastCompiledOpcode = mpOpcodeCompiler->GetLastCompiledOpcodePtr();
     if ( pLastCompiledOpcode != NULL )
     {
-		if ( mTraceFlags & kTraceCompilation )
-		{
-			TraceOut( "Uncompiling from 0x%08x to 0x%08x\n", mDictionary.pCurrent, pLastCompiledOpcode);
-		}
+		SPEW_COMPILATION("Uncompiling from 0x%08x to 0x%08x\n", mDictionary.pCurrent, pLastCompiledOpcode);
 		mpOpcodeCompiler->UncompileLastOpcode();
     }
     else
@@ -1876,9 +1868,8 @@ ForthEngine::ExecuteOneOp( long opCode )
 
     opScratch[0] = opCode;
     opScratch[1] = gCompiledOps[OP_DONE];
-
     eForthResult exitStatus = ExecuteOps( &(opScratch[0]) );
-    return exitStatus;
+	return exitStatus;
 }
 
 //
@@ -1968,6 +1959,11 @@ ForthEngine::ExecuteOneMethod( ForthCoreState* pCore, ForthObject& obj, long met
     pCore->IP = opScratch;
 
 	eForthResult exitStatus = ExecuteOps( pCore );
+	if (exitStatus == kResultDone)
+	{
+		exitStatus = kResultOk;
+		SET_STATE(exitStatus);
+	}
     pCore->IP = savedIP;
     return exitStatus;
 }

@@ -47,14 +47,6 @@ typedef enum {
     //long                *DBase;         // base of dictionary
     //ulong               DLen;           // max size of dictionary memory segment
 
-enum {
-	kTraceInnerInterpreter = 0x01,
-	kTraceShell = 0x02,
-	kTraceStack = 0x04,
-	kTraceToConsole = 0x08,
-	kTraceCompilation = 0x010
-};
-
 class ForthEngine
 {
 public:

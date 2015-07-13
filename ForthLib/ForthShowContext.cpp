@@ -19,7 +19,7 @@
 ForthShowContext::ForthShowContext()
 	: mDepth(0)
 {
-
+	mpEngine = ForthEngine::GetInstance();
 }
 
 ForthShowContext::~ForthShowContext()
@@ -55,28 +55,24 @@ void ForthShowContext::EndIndent()
 
 void ForthShowContext::ShowIndent(const char* pText)
 {
-	ForthEngine* pEngine = ForthEngine::GetInstance();
-
-	for (int i = 0; i < mDepth; i++)
+	for (uint32 i = 0; i < mDepth; i++)
 	{
-		pEngine->ConsoleOut("  ");
+		mpEngine->ConsoleOut("  ");
 	}
 	if (pText != NULL)
 	{
-		pEngine->ConsoleOut(pText);
+		mpEngine->ConsoleOut(pText);
 	}
 }
 
 void ForthShowContext::EndElement(const char* pEndText)
 {
-	ForthEngine* pEngine = ForthEngine::GetInstance();
-
 	if (pEndText != NULL)
 	{
-		pEngine->ConsoleOut(pEndText);
+		mpEngine->ConsoleOut(pEndText);
 	}
 	// TODO: do this based on prettyPrint flag
-	pEngine->ConsoleOut("\n");
+	mpEngine->ConsoleOut("\n");
 }
 
 bool ForthShowContext::AddObject(ForthObject& obj)
@@ -93,5 +89,34 @@ bool ForthShowContext::AddObject(ForthObject& obj)
 std::vector<ForthObject>& ForthShowContext::GetObjects()
 {
 	return mObjects;
+}
+
+void ForthShowContext::ShowHeader(ForthCoreState* pCore, const char* pTypeName, const void* pData)
+{
+	char buffer[16];
+
+	EndElement("{");
+	ShowIDElement(pTypeName, pData);
+	ShowIndent();
+	mpEngine->ConsoleOut("'__refCount' : ");
+	sprintf(buffer, "%d,", *(int *)(pData));
+	EndElement(buffer);
+}
+
+void ForthShowContext::ShowID(const char* pTypeName, const void* pData)
+{
+	char buffer[16];
+
+	mpEngine->ConsoleOut(pTypeName);
+	sprintf(buffer, "_%08x", pData);
+	mpEngine->ConsoleOut(buffer);
+}
+
+void ForthShowContext::ShowIDElement(const char* pTypeName, const void* pData)
+{
+	ShowIndent("'__id' : '");
+	ShowID(pTypeName, pData);
+	mpEngine->ConsoleOut("',");
+	EndElement();
 }
 

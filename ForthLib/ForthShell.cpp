@@ -322,9 +322,10 @@ ForthShell::RunOneStream(ForthInputStream *pInStream)
 	bool bQuit = false;
 	eForthResult result = kResultOk;
 
+	ForthInputStream* pOldInput = mpInput->InputStream();
 	mpInput->PushInputStream(pInStream);
 
-	while ((pInStream == mpInput->InputStream()) && !bQuit)
+	while ((mpInput->InputStream() != pOldInput) && !bQuit)
 	{
 		// try to fetch a line from current stream
 		pBuffer = mpInput->GetLine(mpEngine->GetFastMode() ? "ok>" : "OK>");
@@ -575,17 +576,13 @@ ForthShell::InterpretLine( const char *pSrcLine )
 	{
 		mpInput->InputStream()->StuffBuffer( pSrcLine );
 	}
-    SPEW_SHELL( "*** InterpretLine \"%s\"\n", pLineBuff );
-	if ( mpEngine->GetTraceFlags() & kTraceShell )
-	{
-		mpEngine->TraceOut( "InterpretLine {%s}\n", pLineBuff );
-	}
+	SPEW_SHELL( "*** InterpretLine {%s}\n", pLineBuff );
     bLineEmpty = false;
     mpEngine->SetError( kForthErrorNone );
     while ( !bLineEmpty && (result == kResultOk) )
 	{
         bLineEmpty = ParseToken( &parseInfo );
-        SPEW_SHELL( "input %s buffer 0x%x readoffset %d write %d\n", mpInput->InputStream()->GetName(),
+        SPEW_SHELL( "input %s:%s buffer 0x%x readoffset %d write %d\n", mpInput->InputStream()->GetType(), mpInput->InputStream()->GetName(),
             mpInput->InputStream()->GetBufferPointer(), mpInput->InputStream()->GetReadOffset(), mpInput->InputStream()->GetWriteOffset() );
 
         if ( !bLineEmpty )
@@ -1015,6 +1012,15 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
 char *
 ForthShell::GetNextSimpleToken( void )
 {
+	while (mpInput->IsEmpty() && mpInput->InputStream()->IsGenerated())
+	{
+		SPEW_SHELL("GetNextSimpleToken: %s:%s empty, popping\n", mpInput->InputStream()->GetType(), mpInput->InputStream()->GetName());
+		if (mpInput->PopInputStream())
+		{
+			// no more input streams available
+			return NULL;
+		}
+	}
     const char *pEndToken = mpInput->GetBufferPointer();
     const char* pTokenLimit = mpInput->GetBufferBasePointer() + mpInput->GetWriteOffset();
     char c;
@@ -1053,7 +1059,16 @@ ForthShell::GetNextSimpleToken( void )
 char *
 ForthShell::GetToken( char delim, bool bSkipLeadingWhiteSpace )
 {
-    const char *pEndToken = mpInput->GetBufferPointer();
+	while (mpInput->IsEmpty() && mpInput->InputStream()->IsGenerated())
+	{
+		SPEW_SHELL("GetToken: %s %s empty, popping\n", mpInput->InputStream()->GetType(), mpInput->InputStream()->GetName());
+		if (mpInput->PopInputStream())
+		{
+			// no more input streams available
+			return NULL;
+		}
+	}
+	const char *pEndToken = mpInput->GetBufferPointer();
     const char* pTokenLimit = mpInput->GetBufferBasePointer() + mpInput->GetWriteOffset();
     char c;
     bool bDone;
