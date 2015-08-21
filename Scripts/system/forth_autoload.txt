@@ -23,9 +23,12 @@ setTrace( 0 )
 
 : see verbose describe ;
 
+: %nc swap 0 do dup %c loop drop ;
+0x20 constant bl
+: spaces bl %nc ;
+
 : autoload
-  blword $find
-  if( 0= )
+  if( blword $find  0= )
     $load( blword )
   else
     blword drop
@@ -46,6 +49,7 @@ enum: eFeatures
   0x0040  kFFIgnoreCase
   0x0080  kFFDollarHexLiterals
   0x0100  kFFCFloatLiterals
+  0x0200  kFFParenIsExpression
   // kFFAnsi and kFFRegular are the most common feature combinations
   kFFParenIsComment kFFIgnoreCase + kFFDollarHexLiterals + kFFAnsi
   kFFCCharacterLiterals kFFMultiCharacterLiterals + kFFCStringLiterals +
@@ -187,8 +191,8 @@ addHelp cd	cd BLAH			change working directory to BLAH
   if( outName )
     fopen( outName "w" ) -> outStream
     if( outStream 0= )
-      error( "system: failure opening standard out file " )
-      addErrorText( outName )
+      addErrorText( "system: failure opening standard out file " )
+      error( outName )
       false -> okay
     endif
   endif
@@ -197,8 +201,8 @@ addHelp cd	cd BLAH			change working directory to BLAH
   if( errName )
     fopen( errName "w" ) -> errStream
     if( errStream 0= )
-      error( "system: failure opening standard error file " )
-      addErrorText( errName )
+      addErrorText( "system: failure opening standard error file " )
+      error( errName )
       false -> okay
     endif
   endif
@@ -266,8 +270,8 @@ addHelp cd	cd BLAH			change working directory to BLAH
       fclose( outStream ) drop
       null -> outStream
     else
-      error( "system: failure reopening standard output file " )
-      addErrorText( outName )
+      addErrorText( "system: failure reopening standard output file " )
+      error( outName )
       false -> okay
     endif
     
@@ -281,8 +285,8 @@ addHelp cd	cd BLAH			change working directory to BLAH
       fclose( errStream ) drop
       null -> errStream
     else
-      error( "system: failure reopening standard error file " )
-      addErrorText( errName )
+      addErrorText( "system: failure reopening standard error file " )
+      error( errName )
       false -> okay
     endif
   endif
@@ -333,8 +337,8 @@ addHelp mv	mv OLDNAME NEWNAME		rename a file
   blword -> _TempStringB
   rename( _TempStringA _TempStringB )
   if( 0<> )
-    error( "mv: failure renaming file " )
-    addErrorText( _TempStringA )
+    addErrorText( "mv: failure renaming file " )
+    error( _TempStringA )
   endif
 ;
 
@@ -343,8 +347,8 @@ addHelp rm	rm FILENAME		remove a file
   blword -> _TempStringA
   remove( _TempStringA )
   if( 0<> )
-    error( "rm: failure removing file " )
-    addErrorText( _TempStringA )
+    addErrorText( "rm: failure removing file " )
+    error( _TempStringA )
   endif
 ;
 
@@ -422,7 +426,7 @@ int dumpWidth
     dumpWidth 1+ columns - 0 do %bl %bl %bl loop
     do( columns 0 )
       addr i + c@ -> ch
-      if( ch '\ ' >  ch 127 < and )
+      if( ch bl >  ch 127 < and )
         ch
       else
         '.'
@@ -460,7 +464,7 @@ int dumpWidth
     dumpWidth 1+ columns - 0 do %bl %bl %bl loop
     do( columns 0 )
       addr i + c@ -> ch
-      if( ch '\ ' >  ch 127 < and )
+      if( ch bl >  ch 127 < and )
         ch
       else
         '.'

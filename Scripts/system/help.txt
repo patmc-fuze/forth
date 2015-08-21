@@ -398,6 +398,8 @@ addHelp %2d					LNUM ...			prints 64-bit number in decimal
 addHelp %2x					LNUM ...			prints 64-bit number in hex
 addHelp %s					STRING ...			prints string
 addHelp %c					CHARVAL ...			prints character
+addHelp %nc					NUM CHARVAL ...			prints character NUM times
+addHelp spaces
 addHelp type				STRING NCHARS ...	print a block of NCHARS characters of text
 addHelp %bl										prints a space
 addHelp %nl										prints a newline

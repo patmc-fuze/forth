@@ -2,6 +2,7 @@ autoforget testbase
 : testbase ;
 
 false -> int testFailed
+false -> int beNoisy
 
 new oString -> oString testBuff
 new oString -> oString testBuff2
@@ -30,6 +31,9 @@ new oStringOutStream -> oStringOutStream testOut
     false
     true -> testFailed
   else
+    if( beNoisy )
+      expected %s " passed\n" %s
+	endif
     true
   endif
 ;
@@ -51,9 +55,13 @@ new oStringOutStream -> oStringOutStream testOut
   if( failed )
     "FAILED: { " %s ops %s " } => " %s
     do( numItems 0 )
-      i %d "=" %s pick( numItems 1- i - ) . %bl
+      i %d "=" %s pick( numItems 1- i - ) . %bl %nl
     loop
     true -> testFailed
+  else
+    if( beNoisy )
+      ops %s " passed\n" %s
+	endif
   endif
   
   do( numItems 0 )

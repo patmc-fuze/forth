@@ -9,7 +9,6 @@ autoforget compatability
 : cells 4* ;
 : cell+ 4+ ;
 : chars ;
-: spaces 0 do %bl loop ;
 : char blword c@ ;
 
 // given ptr to cstring, compile code which will push ptr to cstring
@@ -130,8 +129,7 @@ precedence s"
 ;
 : quit r0 -> rp 0 -> fp done ;
 : erase 0 fill ;
-: blank 0x20 fill ;
-0x20 constant bl
+: blank bl fill ;
 : emit %c ;
 : does> postpone does ; precedence does>
 : then postpone endif ; precedence then

@@ -84,7 +84,7 @@ autoforget rctest
 ;
 
 : showMap
-  <oMap>.headIter -> oMapIter iter
+  <oIntMap>.headIter -> oIntMapIter iter
   begin
     iter.nextPair
   while
@@ -94,7 +94,7 @@ autoforget rctest
 ;
 
 : showMapR
-  <oMap>.tailIter -> oMapIter iter
+  <oIntMap>.tailIter -> oIntMapIter iter
   begin
     iter.prevPair
   while
@@ -108,7 +108,7 @@ autoforget rctest
 "corgie" str dogC
 obj oArray adogs
 obj oList ldogs
-obj oMap mdogs
+obj oIntMap mdogs
 
 
 : test
