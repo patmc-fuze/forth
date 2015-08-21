@@ -1,11 +1,14 @@
 
+
+
+
+
 kVarDefaultOp			=		0
 kVarFetch				=		1
 kVarRef					=		2
 kVarStore				=		3
 kVarPlusStore			=		4
 kVarMinusStore			=		5
-
 
 kVocabSetCurrent		=	0
 kVocabNewestEntry		=	1
@@ -18,7 +21,6 @@ kVocabEntryLength		=	7
 kVocabNumEntries		=	8
 kVocabGetClass			=	9
 
-
 kResultOk				=		0
 kResultDone				=		1
 kResultExitShell		=		2
@@ -26,6 +28,7 @@ kResultError			=		3
 kResultFatalError		=		4
 kResultException		=		5
 kResultShutdown			=		6
+kResultTrace			=		7
 
 kForthErrorNone						=		0
 kForthErrorBadOpcode				=		1
@@ -51,23 +54,25 @@ kForthErrorUnimplementedMethod		=		20
 kForthErrorShellStackUnderflow		=		21
 kForthErrorShellStackOverflow		=		22
 kForthErrorBadReferenceCount		=		23
-kForthNumErrors						=		24
+kForthErrorIO						=		24
+kForthErrorBadObject				=		25
+kForthNumErrors						=		26
 
 kPrintSignedDecimal		=		0
 kPrintAllSigned			=		1
 kPrintAllUnsigned		=		2
 
 	
-//	ForthMemorySection	STRUCT	2t
-pCurrent		=	0
-pBase			=	4
-len				=	8
 
+# ForthMemorySection
+MemSectionCurrentPtr	=	0
+MemSectionBasePtr		=	4
+MemSectionLength		=	8
 
-//	ForthCoreState	STRUCT	2t
-/
-/	core (EBP) offsets:
-/
+#	ForthCoreState	STRUCT	2t
+#
+#	core (EBP) offsets:
+#
 optypeAction		=	0   	 	#	table of C opType action routines
 numBuiltinOps		=	4			#	number of builtin ops
 ops					=	8			#	table of ops
@@ -93,8 +98,11 @@ ThreadPtr			=	84			#	current ForthThread pointer
 DictionaryPtr		=	88			#	dictionary pointer
 FileFuncs			=	92			#	shell file functions
 innerLoop			=	96			#	inner loop reentry point
+consoleOutStream	=	100
+base				=	108
+signedPrintMode		=	112
 
-//	ForthFileInterface
+#	ForthFileInterface
 fileOpen			=	0
 fileClose			=	4
 fileRead			=	8
@@ -110,4 +118,3 @@ fileGetString		=	44
 filePutString		=	48
 
 
-/ End of file core.h

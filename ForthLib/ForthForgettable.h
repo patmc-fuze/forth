@@ -30,7 +30,7 @@ public:
     virtual void AfterStart();
     virtual int Save( FILE* pOutFile );
     // return false
-    virtual boolean Restore( const char* pBuffer, unsigned int numBytes );
+    virtual bool Restore( const char* pBuffer, unsigned int numBytes );
 
 protected:
     virtual void    ForgetCleanup( void *pForgetLimit, long op ) = 0;

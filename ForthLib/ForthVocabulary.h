@@ -172,7 +172,7 @@ public:
 
     virtual void AfterStart();
     virtual int Save( FILE* pOutFile );
-    virtual boolean Restore( const char* pBuffer, unsigned int numBytes );
+    virtual bool Restore( const char* pBuffer, unsigned int numBytes );
 
 #ifdef MAP_LOOKUP
     void                        InitLookupMap();

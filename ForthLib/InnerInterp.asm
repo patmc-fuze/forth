@@ -108,7 +108,7 @@ opLabel:
 	
 ;========================================
 
-; extern void CallDLLRoutine( DLLRoutine function, long argCount, void *core, ulong flags );
+; extern void CallDLLRoutine( DLLRoutine function, long argCount, ulong flags, void *core );
 
 CallDLLRoutine PROC near C public uses ebx esi edx ecx edi ebp,
 	funcAddr:PTR,
@@ -344,6 +344,20 @@ InnerInterpreterFast ENDP
 
 ;-----------------------------------------------
 ;
+; inner interpreter C entry point
+;
+; extern eForthResult InnerInterpreterSingleStep( ForthCoreState *pCore );
+PUBLIC InnerInterpreterSingleStep
+InnerInterpreterSingleStep PROC near C public uses ebx esi edx ecx edi ebp,
+	core:PTR
+	mov	ebp, DWORD PTR core
+	mov	eax, [ebp].FCore.state
+	call	interpFuncSingleStep
+	ret
+InnerInterpreterSingleStep ENDP
+
+;-----------------------------------------------
+;
 ; inner interpreter
 ;	jump to interpFunc if you need to reload IP, SP, interpLoop
 entry interpFunc
@@ -351,6 +365,12 @@ entry interpFunc
 	mov	edx, [ebp].FCore.SPtr
 	;mov	edi, interpLoopDebug
 	mov	edi, [ebp].FCore.innerLoop
+	jmp	edi
+
+entry interpFuncSingleStep
+	mov	esi, [ebp].FCore.IPtr
+	mov	edx, [ebp].FCore.SPtr
+	mov	edi, interpLoopExit
 	jmp	edi
 
 entry interpLoopDebug

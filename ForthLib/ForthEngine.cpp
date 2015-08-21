@@ -8,6 +8,7 @@
 
 #ifdef LINUX
 #include <ctype.h>
+#include <stdarg.h>
 #endif
 #include "ForthEngine.h"
 #include "ForthThread.h"
@@ -38,20 +39,32 @@ extern "C"
 void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 {
 	(void)pData;
+#ifdef LINUX
+	char buffer[1000];
+#else
 	TCHAR buffer[1000];
+#endif
 
 	ForthEngine* pEngine = ForthEngine::GetInstance();
 	if ((pEngine->GetTraceFlags() & kLogToConsole) != 0)
 	{
+#ifdef LINUX
+		vsnprintf(buffer, sizeof(buffer), pFormat, argList);
+#else
 		wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
+#endif
 
 		ForthEngine::GetInstance()->ConsoleOut(buffer);
 	}
 	else
 	{
+#ifdef LINUX
+		vprintf(pFormat, argList);
+#else
 		wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
 
 		OutputDebugString(buffer);
+#endif
 	}
 }
 
@@ -1886,12 +1899,12 @@ ForthEngine::ExecuteOps( long *pOps )
 
     savedIP = mpCore->IP;
     mpCore->IP = pOps;
-
+	bool bFast = mFastMode && ((mTraceFlags & kLogInnerInterpreter) != 0);
 	do
 	{
 		exitStatus = kResultOk;
 #ifdef ASM_INNER_INTERPRETER
-		if ( mFastMode )
+		if ( bFast )
 		{
 			exitStatus = InnerInterpreterFast( mpCore );
 		}
@@ -1938,7 +1951,8 @@ ForthEngine::ExecuteOps( ForthCoreState* pCore )
 			}
 		}
 	} while (exitStatus == kResultTrace);
-    return exitStatus;
+
+	return exitStatus;
 }
 
 
@@ -2167,7 +2181,7 @@ ForthEngine::DumpCrashState()
 	long* pSP = mpCore->SP;
 	if ( (pSP < mpCore->ST) && (pSP > mpCore->SB) )
 	{
-		int numToShow = 16;
+		int numToShow = 64;
 		int depth = mpCore->ST - pSP;
 		if ( depth < numToShow )
 		{
@@ -2188,7 +2202,7 @@ ForthEngine::DumpCrashState()
 	long* pRP = mpCore->RP;
 	if ( (pRP < mpCore->RT) && (pRP > mpCore->RB) )
 	{
-		int numToShow = 16;
+		int numToShow = 64;
 		int depth = mpCore->RT - pRP;
 		long* pFP = mpCore->FP;
 		if ( depth < numToShow )

@@ -782,7 +782,7 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
                      // set token length byte
                      pInfo->SetToken();
                      gotAToken = true;
-                     if ( ch != '\0;' )
+                     if ( ch != '\0' )
                      {
                          ++pEndSrc;
                      }

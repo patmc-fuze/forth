@@ -1796,6 +1796,7 @@ FORTHOP( enumOp )
     long* pEntry = pEngine->StartOpDefinition();
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_ENUM );
+	pEngine->CompileLong(4);	// default enum size is 4 bytes
 }
 
 FORTHOP( endenumOp )
@@ -1842,10 +1843,34 @@ FORTHOP( doClassTypeOp )
 // this is compiled as the only op for each enum set defining word
 // an enum set defining word acts just like the "int" op - it defines
 // a variable or field that is 4 bytes in size
-extern FORTHOP( intOp );
 FORTHOP( doEnumOp )
 {
-    intOp( pCore );
+	switch (*GET_IP)
+	{
+	case 1:
+		byteOp(pCore);
+		break;
+
+	case 2:
+		shortOp(pCore);
+		break;
+
+	case 4:
+		intOp(pCore);
+		break;
+
+	case 8:
+		longOp(pCore);
+		break;
+
+	default:
+		{
+
+			SET_ERROR(kForthErrorBadParameter);
+			ForthEngine *pEngine = GET_ENGINE;
+			pEngine->SetError(kForthErrorBadParameter, "enum size must be 1, 2, 4 or 8");
+		}
+	}
     // we need to pop the IP, since there is no instruction after this one
     SET_IP( (long *) (RPOP) );
 }
@@ -1866,9 +1891,9 @@ FORTHOP( recursiveOp )
 
 FORTHOP( strPrecedenceOp )
 {
-    ForthEngine *pEngine = GET_ENGINE;
     char *pSym = (char *)(SPOP);
-    long *pEntry = pEngine->GetDefinitionVocabulary()->FindSymbol( pSym );
+	ForthEngine *pEngine = GET_ENGINE;
+	long *pEntry = pEngine->GetDefinitionVocabulary()->FindSymbol(pSym);
     
     if ( pEntry )
     {
@@ -3928,7 +3953,11 @@ FORTHOP( poundEndifOp )
 bool checkBracketToken( const char*& pStart, const char* pToken )
 {
     int len = strlen( pToken );
+#if defined(WIN32)
     if ( !_strnicmp( pStart, pToken, len ) )
+#elif defined(LINUX)
+    if ( !strncasecmp( pStart, pToken, len ) )
+#endif
     {
         char delim = pStart[len];
         if ((delim == ' ') || (delim == '\t') || (delim == '\0'))

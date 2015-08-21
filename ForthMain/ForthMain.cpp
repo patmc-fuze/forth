@@ -13,6 +13,7 @@
 #include "ForthShell.h"
 #include "ForthInput.h"
 
+
 #if AFX_BUILD
 
 /////////////////////////////////////////////////////////////////////////////
@@ -23,7 +24,7 @@ CWinApp theApp;
 
 using namespace std;
 
-static boolean InitSystem()
+static bool InitSystem()
 {
 #if AFX_BUILD
 

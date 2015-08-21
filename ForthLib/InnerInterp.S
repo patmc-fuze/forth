@@ -11,9 +11,9 @@
 #
 #	EAX		free
 #	EBX		free
-#	ECX		IP
+#	ECX		free
 #	EDX		SP
-#	ESI		free
+#	ESI		IP
 #	EDI		inner interp PC (constant)
 #	EBP		core ptr (constant)
 
@@ -25,8 +25,8 @@
 # 1) they are free to stomp EAX, EBX, ECX and EDX
 # 2) they are free to modify their input params on stack
 
-# if you need more than EAX and EBX in a routine, save ECX/IP & EDX/SP in FCore at start with these instructions:
-#	mov	%ecx,IPtr(ebp)
+# if you need more than EAX and EBX in a routine, save ESI/IP & EDX/SP in FCore at start with these instructions:
+#	mov	%esi,IPtr(ebp)
 #	mov	%edx,SPtr(ebp)
 # jump to interpFunc at end - interpFunc will restore ECX, EDX, and EDI and go back to inner loop
 
@@ -148,8 +148,9 @@ CallDLLRoutine1:
 	push %edi
 	push %ebp
 	
-	mov	16(%ebp),%eax		# eax = funcAddr
-	mov	12(%ebp),%edi		# eax = argCount
+	mov	20(%ebp),%eax		# eax = funcAddr
+	mov	16(%ebp),%edi		# eax = argCount
+	mov	12(%ebp),%esi		# esi = flags
 	mov	8(%ebp),%ebp		# ebp -> ForthCore
 	mov	SPtr(%ebp),%edx
 	mov	%edi,%ecx
@@ -168,15 +169,15 @@ CallDLL2:
 	
 	# handle void return flag
 	mov	%esi,%ecx
-	and	$1,%ecx
+	and	$1,%esi
 	jnz	CallDLL4
 	
 	mov	SPtr(%ebp),%ebx
 	sub	$4,%ebx
 	
 	# push high part of result if 64-bit return flag set
-	mov	%esi,%ecx
-	and	$2,%ecx
+	mov	%ecx,%esi
+	and	$2,%esi
 	jz	CallDLL3
 	mov	%edx,(%ebx)		# return high part of result on parameter stack
 	sub	$4,%ebx
@@ -188,8 +189,8 @@ CallDLL3:
 	
 CallDLL4:
 	# cleanup PC stack
-	mov	%esi,%ecx
-	and	$4,%ecx		# stdcall calling convention flag
+	mov	%ecx,%esi
+	and	$4,%esi		# stdcall calling convention flag
 	jnz	CallDLL5
 	mov	%edi,%ebx
 	sal	$2,%ebx
@@ -241,14 +242,14 @@ CallDLL5:
 
 #	.globl native1
 native1:
-	mov	IPtr(%ebp),%ecx
+	mov	IPtr(%ebp),%esi
 	mov	SPtr(%ebp),%edx
-	mov	ops(%ebp),%esi
+	mov	ops(%ebp),%ecx
 	mov	$nativeActionExit,%edi
-	mov	(%esi,%eax,4),%eax
+	mov	(%ecx,%eax,4),%eax
 	jmp	*%eax
 nativeActionExit:
-	mov	%ecx,IPtr(%ebp)
+	mov	%esi,IPtr(%ebp)
 	mov	%edx,SPtr(%ebp)
 	ret
 	
@@ -266,7 +267,7 @@ extOp:
 	mov	ops(%ebp),%ebx
 	mov	(%ebx,%eax,4),%eax				# eax is C routine to dispatch to
 	# save current IP and SP	
-	mov	%ecx,IPtr(%ebp)
+	mov	%esi,IPtr(%ebp)
 	mov	%edx,SPtr(%ebp)
 	# we need to push ebp twice - the C compiler feels free to overwrite its input parameters,
 	# so the top copy of EBP may be trashed on return from C land
@@ -275,14 +276,21 @@ extOp:
 	call	*%eax
 	add	$4,%esp		# discard inputs to C routine
 	pop	%ebp
+	# load IP and SP from core, in case C routine modified them
+	# NOTE: we can't just jump to interpFunc, since that will replace edi & break single stepping
+	mov	IPtr(%ebp),%esi
+	mov	SPtr(%ebp),%edx
 	mov	state(%ebp),%eax
 	or	%eax,%eax
-	jz	interpFunc		# if everything is ok
+	jnz	extOp1		# if something went wrong
+	jmp	*%edi		# if everything is ok
+
 # NOTE: Feb. 14 '07 - doing the right thing here - restoring IP & SP and jumping to
 # the interpreter loop exit point - causes an access violation exception ?why?
-	#mov	IPtr(ebp),%ecx
+	#mov	IPtr(ebp),%esi
 	#mov	SPtr(ebp),%edx
-	#jmp	interpLoopExit	; if something went wrong
+	#jmp	interpLoopExit	# if something went wrong
+extOp1:
 	ret
 
 #-----------------------------------------------
@@ -295,10 +303,10 @@ extOpType:
 	# get the C routine to handle this optype from optypeAction table in FCore
 	mov	%ebx,%eax
 	shr	$24,%eax							# eax is 8-bit optype
-	mov	optypeAction(%ebp),%esi
-	mov	(%esi,%eax,4),%eax				# eax is C routine to dispatch to
+	mov	optypeAction(%ebp),%ecx
+	mov	(%ecx,%eax,4),%eax				# eax is C routine to dispatch to
 	# save current IP and SP	
-	mov	%ecx,IPtr(%ebp)
+	mov	%esi,IPtr(%ebp)
 	mov	%edx,SPtr(%ebp)
 	# we need to push ebp twice - the C compiler feels free to overwrite its input parameters,
 	# so the top copy of EBP may be trashed on return from C land
@@ -309,14 +317,21 @@ extOpType:
 	call	*%eax
 	add	$8,%esp		# discard inputs to C routine 
 	pop	%ebp
+	# load IP and SP from core, in case C routine modified them
+	# NOTE: we can't just jump to interpFunc, since that will replace edi & break single stepping
+	mov	IPtr(%ebp),%esi
+	mov	SPtr(%ebp),%edx
 	mov	state(%ebp),%eax
 	or	%eax,%eax
-	jz	interpFunc		# if everything is ok
+	jnz	extOpType1		# if something went wrong
+	jmp	*%edi		# if everything is ok
+
 # NOTE: Feb. 14 '07 - doing the right thing here - restoring IP & SP and jumping to
 # the interpreter loop exit point - causes an access violation exception ?why?
-	#mov	IPtr(ebp),%ecx
+	#mov	IPtr(ebp),%esi
 	#mov	SPtr(ebp),%edx
-	#jmp	interpLoopExit	; if something went wrong
+	#jmp	interpLoopExit	# if something went wrong
+extOpType1:
 	ret
 
 #-----------------------------------------------
@@ -325,9 +340,9 @@ extOpType:
 #
 	subEntry	InitAsmTables
 #	.func	InitAsmTables
-#	InitAsmTables	,PROC	near	C	public	uses	%ebx	ecx	%edx	%edi	%ebp
+#	InitAsmTables	,PROC	near	C	public	uses	%ebx	esi	%edx	%edi	%ebp
 	push %ebp
-	mov	%esp,%ebp	# 0(ebp) = old_ebp 4(ebp)=return_addr  8(ebp)=ForthCore_ptr
+	mov	%esp, %ebp	# 0(ebp) = old_ebp 4(ebp)=return_addr  8(ebp)=ForthCore_ptr
 	push %ebx
 	push %ecx
 	push %edx
@@ -336,8 +351,8 @@ extOpType:
 
 	mov	8(%ebp),%ebp		# ebp -> ForthCore struct
 	
-	mov	$interpLoopDebug1,%ebx
-	mov	%ebx,innerLoop(%ebp)
+	mov	$interpLoopDebug1, %ebx
+	mov	%ebx, innerLoop(%ebp)
 
 	pop %ebp
 	pop	%edi
@@ -357,7 +372,7 @@ extOpType:
 	subEntry	InterpretOneOpFast
 #	.func	InterpretOneOpFast
 	push %ebp
-	mov	%esp,%ebp
+	mov	%esp, %ebp
 	push %ebx
 	push %ecx
 	push %edx
@@ -365,17 +380,26 @@ extOpType:
 	push %edi
 	push %ebp
 	
-	mov	12(%ebp),%eax
-	mov	8(%ebp),%ebp		# ebp -> ForthCore
-	mov	IPtr(%ebp),%ecx
-	mov	SPtr(%ebp),%edx
+	mov	12(%ebp), %ebx
+	mov	8(%ebp), %ebp		# ebp -> ForthCore
+	mov	IPtr(%ebp), %esi
+	mov	SPtr(%ebp), %edx
 	mov	$InterpretOneOpFastExit,%edi
 	
-	jmp	interpLoopExecuteEntry
+	# TODO: should we reset state to OK before every step?
+	mov	$kResultOk, %eax
+	mov	%eax, state(%ebp)
+	# instead of jumping directly to the inner loop, do a call so that
+	# error exits which do a return instead of branching to inner loop will work
+	call	interpLoopExecuteEntry
+	jmp	InterpretOneOpFastExit2
 
-InterpretOneOpFastExit:
-	mov	%ecx,IPtr(%ebp)
-	mov	%edx,SPtr(%ebp)
+InterpretOneOpFastExit:		# this is exit for state == OK - discard the unused return address from call above
+	add	$4, %esp
+InterpretOneOpFastExit2:	# this is exit for state != OK
+	mov	%esi, IPtr(%ebp)
+	mov	%edx, SPtr(%ebp)
+	mov	state(%ebp), %eax
 	pop %ebp
 	pop	%edi
 	pop	%esi
@@ -425,7 +449,7 @@ InnerInterpreterFast:
 # inner interpreter
 #	jump to interpFunc if you nead to reload IP, SP, interpLoop
 interpFunc:
-	mov	IPtr(%ebp),%ecx
+	mov	IPtr(%ebp),%esi
 	mov	SPtr(%ebp),%edx
 	mov	innerLoop(%ebp),%edi
 	jmp	*%edi
@@ -434,24 +458,24 @@ interpFunc:
 interpLoopDebug1:
 	# while debugging, store IP,SP in corestate shadow copies after every instruction
 	#   so crash stacktrace will be more accurate (off by only one instruction)
-	mov	%ecx,IPtr(%ebp)
+	mov	%esi,IPtr(%ebp)
 	mov	%edx,SPtr(%ebp)
 interpLoop:
-	mov	(%ecx),%ebx		# eax is opcode
-	add	$4,%ecx			# advance IP
+	mov	(%esi),%ebx		# eax is opcode
+	add	$4,%esi			# advance IP
 	# interpLoopExecuteEntry is entry for executeBop - expects opcode in ebx
 	.globl	interpLoopExecuteEntry
 interpLoopExecuteEntry:
 	cmp	numOps(%ebp),%ebx	
 	jae	notNative1
 	mov	ops(%ebp),%eax
-	mov	(%eax,%ebx,4),%esi
-	jmp	*%esi
+	mov	(%eax,%ebx,4),%ecx
+	jmp	*%ecx
 
 	.globl	interpLoopExit
 interpLoopExit:
 	mov	%eax,state(%ebp)
-	mov	%ecx,IPtr(%ebp)
+	mov	%esi,IPtr(%ebp)
 	mov	%edx,SPtr(%ebp)
 	ret
 
@@ -498,8 +522,8 @@ notNative1:
 	cmp	numOps(%ebp),%ebx
 	jae	badOpcode
 	mov	ops(%ebp),%eax
-	mov	(%eax,%ebx,4),%esi
-	jmp	*%esi
+	mov	(%eax,%ebx,4),%ecx
+	jmp	*%ecx
 
 # externalBuiltin is invoked when a builtin op which is outside of range of table is invoked
 	optypeEntry	externalBuiltin
@@ -526,16 +550,36 @@ notNative1:
 	# push IP on rstack
 	mov	RPtr(%ebp),%eax
 	sub	$4,%eax
-	mov	%ecx,(%eax)
+	mov	%esi,(%eax)
 	mov	%eax,RPtr(%ebp)
 	# get new IP
 	mov	ops(%ebp),%eax
-	mov	(%eax,%ebx,4),%ecx
+	mov	(%eax,%ebx,4),%esi
 	jmp	*%edi
 
 badUserDef:
 	mov	$kForthErrorBadOpcode,%eax
 	jmp	interpLoopErrorExit
+
+#-----------------------------------------------
+#
+# user-defined ops (forth words defined with colon)
+#
+	optypeEntry	relativeDefType
+	# ebx is offset from dictionary base of user definition
+	and	$0x00FFFFFF,%ebx
+	sal	$2,%ebx
+	mov	DictionaryPtr(%ebp),%eax
+	add	MemSectionBasePtr(%eax),%ebx
+	cmp	MemSectionCurrentPtr(%eax),%ebx
+	jge	badUserDef
+	# push IP on rstack
+	mov	RPtr(%ebp),%eax
+	sub	$4,%eax
+	mov	%esi,(%eax)
+	mov	%eax,RPtr(%ebp)
+	mov	%ebx,%esi
+	jmp	*%edi
 
 #-----------------------------------------------
 #
@@ -550,13 +594,13 @@ branchType1:						# for internal branching
 	# branch forward
 	and	$0x00FFFFFF,%ebx
 	sal	$2,%ebx
-	add	%ebx,%ecx
+	add	%ebx,%esi
 	jmp	*%edi
 
 branchBack:
 	or	$0xFF000000,%ebx
 	sal	$2,%ebx
-	add	%ebx,%ecx
+	add	%ebx,%esi
 	jmp	*%edi
 
 #-----------------------------------------------
@@ -594,7 +638,7 @@ branchBack:
 	# case didn't match - branch to next case
 	and	$0x00FFFFFF,%ebx
 	sal	$2,%ebx
-	add	%ebx,%ecx
+	add	%ebx,%esi
 	jmp	*%edi
 
 caseMatched:
@@ -607,10 +651,10 @@ caseMatched:
 #
 	optypeEntry	pushBranchType
 	sub	$4,%edx			# push IP (pointer to block)
-	mov	%ecx,(%edx)
+	mov	%esi,(%edx)
 	and	$0x00FFFFFF,%ebx	# branch around block
 	sal	$2,%ebx
-	add	%ebx,%ecx
+	add	%ebx,%esi
 	jmp	*%edi
 
 
@@ -715,12 +759,12 @@ offsetFetchNegative:
 	# IP points to beginning of string
 	# low 24-bits of ebx is string len in longs
 	sub	$4,%edx
-	mov	%ecx,(%edx)		# push string ptr
+	mov	%esi,(%edx)		# push string ptr
 	# get low-24 bits of opcode
 	and	$0x00FFFFFF,%ebx
 	shl	$2,%ebx
 	# advance IP past string
-	add	%ebx,%ecx
+	add	%ebx,%esi
 	jmp	*%edi
 
 #-----------------------------------------------
@@ -729,10 +773,10 @@ offsetFetchNegative:
 #
 	optypeEntry	allocLocalsType
 	# rpush old FP
-	mov	FPtr(%ebp),%esi
+	mov	FPtr(%ebp),%ecx
 	mov	RPtr(%ebp),%eax
 	sub	$4,%eax
-	mov	%esi,(%eax)
+	mov	%ecx,(%eax)
 	# set FP = RP, points at old FP
 	mov	%eax,FPtr(%ebp)
 	# allocate amount of storage specified by low 24-bits of op on rstack
@@ -741,11 +785,11 @@ offsetFetchNegative:
 	sub	%ebx,%eax
 	mov	%eax,RPtr(%ebp)
 	# clear out allocated storage
-	mov	%eax,%esi
+	mov	%eax,%ecx
 	xor	%eax,%eax
 alt1:
-	mov	%eax,(%esi)
-	add	$4,%esi
+	mov	%eax,(%ecx)
+	add	$4,%ecx
 	sub	$4,%ebx
 	jnz	alt1
 	jmp	*%edi
@@ -760,13 +804,13 @@ alt1:
 	mov	$0x00FFF000,%eax
 	and	%ebx,%eax
 	sar	$10,%eax							# eax = frame offset in bytes
-	mov	FPtr(%ebp),%esi
-	sub	%eax,%esi						# esi -> max length field
+	mov	FPtr(%ebp),%ecx
+	sub	%eax,%ecx						# esi -> max length field
 	and	$0x00000FFF,%ebx					# ebx = max length
-	mov	%ebx,(%esi)						# set max length
+	mov	%ebx,(%ecx)						# set max length
 	xor	%eax,%eax
-	mov	%eax,4(%esi)					# set current length to 0
-	movb	%al,5(%esi)						# add terminating null
+	mov	%eax,4(%ecx)					# set current length to 0
+	movb	%al,5(%ecx)						# add terminating null
 	jmp	*%edi
 
 #-----------------------------------------------
@@ -1624,12 +1668,12 @@ localStringRef:
 localStringStore:
 	# eax -> dest string maxLen field
 	# TOS is src string addr
-	mov	%ecx,IPtr(%ebp)	# IP will get stomped
-	mov	(%edx),%esi			# esi -> chars of src string
+	mov	%esi,IPtr(%ebp)	# IP will get stomped
+	mov	(%edx),%ecx			# ecx -> chars of src string
 	add	$4,%edx
 	mov	%edx,SPtr(%ebp)
 	lea	8(%eax),%edi		# edi -> chars of dst string
-	push	%esi
+	push	%ecx
 	xcall	strlen
 	add	$4,%esp
 	# eax is src string length
@@ -1646,15 +1690,15 @@ lsStore1:
 	# do the copy
 	push	%eax		# push numBytes
 	push	%eax		# and save a copy in case strncpy modifies its stack inputs
-	push	%esi		# srcPtr
+	push	%ecx		# srcPtr
 	push	%edi		# dstPtr
 	xcall	strncpy
 	add	$12,%esp
-	pop	%ecx			# ecx = numBytes
+	pop	%esi			# esi = numBytes
 
 	# add the terminating null
 	xor	%eax,%eax
-	movb	%al,(%edi,%ecx)
+	movb	%al,(%edi,%esi)
 
 	# set var operation back to fetch
 	mov	%eax,varMode(%ebp)
@@ -1663,32 +1707,32 @@ lsStore1:
 localStringAppend:
 	# eax -> dest string maxLen field
 	# TOS is src string addr
-	mov	%ecx,IPtr(%ebp)	# IP will get stomped
-	mov	(%edx),%esi			# esi -> chars of src string
+	mov	%esi,IPtr(%ebp)	# IP will get stomped
+	mov	(%edx),%ecx			# ecx -> chars of src string
 	add	$4,%edx
 	mov	%edx,SPtr(%ebp)
 	lea	8(%eax),%edi		# edi -> chars of dst string
-	push	%esi
+	push	%ecx
 	xcall	strlen
 	add	$4,%esp
 	# eax is src string length
 
 	# figure how many chars to copy
 	mov	-8(%edi),%ebx		# ebx = max string length
-	mov	-4(%edi),%ecx		# ecx = cur string length
-	add	%eax,%ecx
-	cmp	%ebx,%ecx
+	mov	-4(%edi),%esi		# esi = cur string length
+	add	%eax,%esi
+	cmp	%ebx,%esi
 	jle	lsAppend1
 	mov	%ebx,%eax
 	sub	-4(%edi),%eax		# #bytes to copy = maxLen - curLen
-	mov	%ebx,%ecx			# new curLen = maxLen
+	mov	%ebx,%esi			# new curLen = maxLen
 lsAppend1:
 	# set current length field
-	mov	%ecx,-4(%edi)
+	mov	%esi,-4(%edi)
 
 	# do the append
 	push	%eax		# push numBytes
-	push	%esi		# srcPtr
+	push	%ecx		# srcPtr
 	push	%edi		# dstPtr
 	# don't need to worry about stncat stomping registers since we jump to interpFunc
 	xcall	strncat
@@ -1696,8 +1740,8 @@ lsAppend1:
 
 	# add the terminating null
 	xor	%eax,%eax
-	mov	-4(%edi),%ecx
-	movb	%al,(%edi,%ecx)
+	mov	-4(%edi),%esi
+	movb	%al,(%edi,%esi)
 
 	# set var operation back to fetch
 	mov	%eax,varMode(%ebp)
@@ -1883,9 +1927,9 @@ longEntry:
 localLongFetch:
 	sub	$8,%edx
 	mov	(%eax),%ebx
-	mov	%ebx,(%edx)
-	mov	4(%eax),%ebx
 	mov	%ebx,4(%edx)
+	mov	4(%eax),%ebx
+	mov	%ebx,(%edx)
 	jmp	*%edi
 
 localLongRef:
@@ -1898,9 +1942,9 @@ localLongRef:
 
 localLongStore:
 	mov	(%edx),%ebx
-	mov	%ebx,(%eax)
-	mov	4(%edx),%ebx
 	mov	%ebx,4(%eax)
+	mov	4(%edx),%ebx
+	mov	%ebx,(%eax)
 	add	$8,%edx
 	# set var operation back to fetch
 	xor	%eax,%eax
@@ -1909,10 +1953,10 @@ localLongStore:
 
 localLongPlusStore:
 	mov	(%eax),%ebx
-	add	(%edx),%ebx
+	add	4(%edx),%ebx
 	mov	%ebx,(%eax)
 	mov	4(%eax),%ebx
-	adc	4(%edx),%ebx
+	adc	(%edx),%ebx
 	mov	%ebx,4(%eax)
 	# set var operation back to fetch
 	xor	%ebx,%ebx
@@ -1922,10 +1966,10 @@ localLongPlusStore:
 
 localLongMinusStore:
 	mov	(%eax),%ebx
-	sub	(%edx),%ebx
+	sub	4(%edx),%ebx
 	mov	%ebx,(%eax)
 	mov	4(%eax),%ebx
-	sbb	4(%edx),%ebx
+	sbb	(%edx),%ebx
 	mov	%ebx,4(%eax)
 	# set var operation back to fetch
 	xor	%ebx,%ebx
@@ -2037,9 +2081,9 @@ localObjectStore:
 	# TOS is new object, eax points to destination#old object
 	xor	%ebx,%ebx			# set var operation back to default#fetch
 	mov	%ebx,varMode(%ebp)
-	mov	%eax,%esi		# esi -> destination
+	mov	%eax,%ecx		# ecx -> destination
 	mov	4(%edx),%eax	# eax = newObj data
-	mov	4(%esi),%ebx	# ebx = olbObj data
+	mov	4(%ecx),%ebx	# ebx = olbObj data
 	cmp	%ebx,%eax
 	jz	losx				# objects have same data ptr, don't change refcount
 	# handle newObj refcount
@@ -2053,17 +2097,17 @@ los1:
 	decb	(%ebx)
 	jz	los3
 los2:
-	mov	%eax,4(%esi)	# oldObj.data = newObj.data
+	mov	%eax,4(%ecx)	# oldObj.data = newObj.data
 losx:
 	mov	(%edx),%ebx		# ebx = newObj methods
-	mov	%ebx,(%esi)		# var.methods = newObj.methods
+	mov	%ebx,(%ecx)		# var.methods = newObj.methods
 	add	$8,%edx
 	jmp	*%edi
 
 	# object var held last reference to oldObj, invoke olbObj.delete method
 	# eax = newObj.data
 	# ebx = oldObj.data
-	# [esi] = var.methods
+	# [ecx] = var.methods
 los3:
 	push	%edi
 	push	%eax
@@ -2080,7 +2124,7 @@ los3:
 	mov	%eax,(%edi)
 
 	mov	%ebx,TDPtr(%ebp)
-	mov	(%esi),%ebx
+	mov	(%ecx),%ebx
 	mov	%ebx,TMPtr(%ebp)
 
 	mov	(%ebx),%ebx	# ebx = method 0 (delete) opcode
@@ -2088,9 +2132,9 @@ los3:
 	pop	%eax
 	pop	%edi
 
-	mov	%eax,4(%esi)	# var.data = newObj.data
+	mov	%eax,4(%ecx)	# var.data = newObj.data
 	mov	(%edx),%eax		# ebx = newObj methods
-	mov	%eax,(%esi)		# var.methods = newObj.methods
+	mov	%eax,(%ecx)		# var.methods = newObj.methods
 	add	$8,%edx
 
 	# execute the delete method opcode which is in ebx
@@ -2108,10 +2152,10 @@ localObjectUnref:
 	or	%ebx, %ebx
 	jz	lou2
 	# clear object var
-	mov	%eax,%esi		# esi -> object var
+	mov	%eax,%ecx		# ecx -> object var
 	xor	%eax,%eax
-	mov	%eax,(%esi)
-	mov	%eax,4(%esi)
+	mov	%eax,(%ecx)
+	mov	%eax,4(%ecx)
 	# set var operation back to fetch
 	mov	%eax,varMode(%ebp)
 	# get object refcount, see if it is already 0
@@ -2203,16 +2247,17 @@ localObject1:
 #
 
 # invoke a method on object currently referenced by this ptr pair
+
 	optypeEntry	methodWithThisType
 	# ebx is method number
 	# push this ptr pair on return stack
-	mov	RPtr(%ebp),%esi
-	sub	$8,%esi
-	mov	%esi,RPtr(%ebp)
+	mov	RPtr(%ebp),%ecx
+	sub	$8,%ecx
+	mov	%ecx,RPtr(%ebp)
 	mov	TDPtr(%ebp),%eax
-	mov	%eax,4(%esi)
+	mov	%eax,4(%ecx)
 	mov	TMPtr(%ebp),%eax
-	mov	%eax,(%esi)
+	mov	%eax,(%ecx)
 
 	and	$0x00FFFFFF,%ebx
 	sal	$2,%ebx
@@ -2225,13 +2270,13 @@ localObject1:
 	# TOS is object vtable, NOS is object data ptr
 	# ebx is method number
 	# push this ptr pair on return stack
-	mov	RPtr(%ebp),%esi
-	sub	$8,%esi
-	mov	%esi,RPtr(%ebp)
+	mov	RPtr(%ebp),%ecx
+	sub	$8,%ecx
+	mov	%ecx,RPtr(%ebp)
 	mov	TDPtr(%ebp),%eax
-	mov	%eax,4(%esi)
+	mov	%eax,4(%ecx)
 	mov	TMPtr(%ebp),%eax
-	mov	%eax,(%esi)
+	mov	%eax,(%ecx)
 
 	# set data ptr from TOS	
 	mov	4(%edx),%eax
@@ -2256,13 +2301,13 @@ localObject1:
 	mov	$0x00FFF000,%eax
 	and	%ebx,%eax
 	sar	$10,%eax							# eax = member offset in bytes
-	mov	TDPtr(%ebp),%esi
-	add	%eax,%esi						# esi -> max length field
+	mov	TDPtr(%ebp),%ecx
+	add	%eax,%ecx						# esi -> max length field
 	and	$0x00000FFF,%ebx					# ebx = max length
-	mov	%ebx,(%esi)						# set max length
+	mov	%ebx,(%ecx)						# set max length
 	xor	%eax,%eax
-	mov	%eax,4(%esi)					# set current length to 0
-	movb	%al,8(%esi)						# add terminating null
+	mov	%eax,4(%ecx)					# set current length to 0
+	movb	%al,8(%ecx)						# add terminating null
 	jmp	*%edi
 
 #-----------------------------------------------
@@ -2277,10 +2322,10 @@ localObject1:
 #
 	opEntry	doByteBop
 	# get ptr to byte var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	byteEntry
@@ -2292,10 +2337,10 @@ localObject1:
 #
 	opEntry	doUByteBop
 	# get ptr to byte var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	ubyteEntry
@@ -2307,24 +2352,24 @@ localObject1:
 #
 	opEntry	doByteArrayBop
 	# get ptr to byte var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	add	(%edx),%eax
 	add	$4,%edx
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	byteEntry
 
 	opEntry	doUByteArrayBop
 	# get ptr to byte var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	add	(%edx),%eax
 	add	$4,%edx
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	ubyteEntry
@@ -2336,10 +2381,10 @@ localObject1:
 #
 	opEntry	doShortBop
 	# get ptr to short var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	shortEntry
@@ -2351,10 +2396,10 @@ localObject1:
 #
 	opEntry	doUShortBop
 	# get ptr to short var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	ushortEntry
@@ -2366,28 +2411,28 @@ localObject1:
 #
 	opEntry	doShortArrayBop
 	# get ptr to short var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	mov	(%edx),%ebx		# ebx = array index
 	add	$4,%edx
 	sal	$1,%ebx
 	add	%ebx,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	shortEntry
 
 	opEntry	doUShortArrayBop
 	# get ptr to short var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	mov	(%edx),%ebx		# ebx = array index
 	add	$4,%edx
 	sal	$1,%ebx
 	add	%ebx,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	ushortEntry
@@ -2399,10 +2444,10 @@ localObject1:
 #
 	opEntry	doIntBop
 	# get ptr to int var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	intEntry
@@ -2414,14 +2459,14 @@ localObject1:
 #
 	opEntry	doIntArrayBop
 	# get ptr to int var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	mov	(%edx),%ebx		# ebx = array index
 	add	$4,%edx
 	sal	$2,%ebx
 	add	%ebx,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	intEntry
@@ -2433,10 +2478,10 @@ localObject1:
 #
 	opEntry	doFloatBop
 	# get ptr to float var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	floatEntry
@@ -2448,14 +2493,14 @@ localObject1:
 #
 	opEntry	doFloatArrayBop
 	# get ptr to float var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	mov	(%edx),%ebx		# ebx = array index
 	add	$4,%edx
 	sal	$2,%ebx
 	add	%ebx,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	floatEntry
@@ -2467,10 +2512,10 @@ localObject1:
 #
 	opEntry	doDoubleBop
 	# get ptr to double var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	doubleEntry
@@ -2482,14 +2527,14 @@ localObject1:
 #
 	opEntry	doDoubleArrayBop
 	# get ptr to double var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	mov	(%edx),%ebx		# ebx = array index
 	add	$4,%edx
 	sal	$3,%ebx
 	add	%ebx,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	doubleEntry
@@ -2501,10 +2546,10 @@ localObject1:
 #
 	opEntry	doStringBop
 	# get ptr to string var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	stringEntry
@@ -2516,7 +2561,7 @@ localObject1:
 #
 	opEntry	doStringArrayBop
 	# get ptr to string var into eax
-	mov	%ecx,%eax		# eax -> maxLen field of string[0]
+	mov	%esi,%eax		# eax -> maxLen field of string[0]
 	mov	(%eax),%ebx		# ebx = maxLen
 	sar	$2,%ebx
 	add	$3,%ebx			# ebx is element length in longs
@@ -2526,7 +2571,7 @@ localObject1:
 	add	%ebx,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	stringEntry
@@ -2538,10 +2583,10 @@ localObject1:
 #
 	opEntry	doOpBop
 	# get ptr to int var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	opEntry
@@ -2553,14 +2598,14 @@ localObject1:
 #
 	opEntry	doOpArrayBop
 	# get ptr to op var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	mov	(%edx),%ebx		# ebx = array index
 	add	$4,%edx
 	sal	$2,%ebx
 	add	%ebx,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	opEntry
@@ -2572,10 +2617,10 @@ localObject1:
 #
 	opEntry	doLongBop
 	# get ptr to double var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	longEntry
@@ -2587,14 +2632,14 @@ localObject1:
 #
 	opEntry	doLongArrayBop
 	# get ptr to double var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	mov	(%edx),%ebx		# ebx = array index
 	add	$4,%edx
 	sal	$3,%ebx
 	add	%ebx,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	longEntry
@@ -2606,10 +2651,10 @@ localObject1:
 #
 	opEntry	doObjectBop
 	# get ptr to Object var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	objectEntry
@@ -2621,14 +2666,14 @@ localObject1:
 #
 	opEntry	doObjectArrayBop
 	# get ptr to Object var into eax
-	mov	%ecx,%eax
+	mov	%esi,%eax
 	mov	(%edx),%ebx		# ebx = array index
 	add	$4,%edx
 	sal	$3,%ebx
 	add	%ebx,%eax
 	# pop rstack
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	objectEntry
@@ -2832,7 +2877,7 @@ localObject1:
 
 #========================================
 
-	opEntry	fEqualsZeroBop
+	opEntry	fEquals0Bop
 	fldz
 	jmp	fEqualsBop1
 
@@ -2853,7 +2898,7 @@ fEqualsBop2:
 
 #========================================
 
-	opEntry	fNotEqualsZeroBop
+	opEntry	fNotEquals0Bop
 	fldz
 	jmp	fNotEqualsBop1
 
@@ -2874,7 +2919,7 @@ fNotEqualsBop2:
 
 #========================================
 
-	opEntry	fGreaterThanZeroBop
+	opEntry	fGreaterThan0Bop
 	fldz
 	jmp	fGreaterThanBop1
 
@@ -2896,7 +2941,7 @@ fGreaterThanBop2:
 
 #========================================
 
-	opEntry	fGreaterEqualsZeroBop
+	opEntry	fGreaterEquals0Bop
 	fldz
 	jmp	fGreaterEqualsBop1
 
@@ -2918,7 +2963,7 @@ fGreaterEqualsBop2:
 
 #========================================
 
-	opEntry	fLessThanZeroBop
+	opEntry	fLessThan0Bop
 	fldz
 	jmp	fLessThanBop1
 
@@ -2940,7 +2985,7 @@ fLessThanBop2:
 
 #========================================
 
-	opEntry	fLessEqualsZeroBop
+	opEntry	fLessEquals0Bop
 	fldz
 	jmp	fLessEqualsBop1
 
@@ -3018,6 +3063,48 @@ fMaxBop2:
 
 #========================================
 
+	opEntry	dcmpBop
+	fldl	(%edx)
+	add	$8,%edx
+	fldl	(%edx)
+	add	$4,%edx
+	xor	%ebx, %ebx
+	fcomp	%st(1)
+	fnstsw	%ax
+	fstp	%st(0)
+	sahf
+	jz	dcmpBop3
+	jb	dcmpBop2
+	add	$2,%ebx
+dcmpBop2:
+	dec	%ebx
+dcmpBop3:
+	mov	%ebx,(%edx)
+	jmp	*%edi
+
+#========================================
+
+	opEntry	fcmpBop
+	flds	(%edx)
+	add	$4,%edx
+	flds	(%edx)
+	add	$4,%edx
+	xor	%ebx, %ebx
+	fcomp	%st(1)
+	fnstsw	%ax
+	fstp	%st(0)
+	sahf
+	jz	fcmpBop3
+	jb	fcmpBop2
+	add	$2,%ebx
+fcmpBop2:
+	dec	%ebx
+fcmpBop3:
+	mov	%ebx,(%edx)
+	jmp	*%edi
+
+#========================================
+
 	opEntry	dplusBop
 	fldl	8(%edx)
 	faddl	(%edx)
@@ -3054,7 +3141,7 @@ fMaxBop2:
 
 #========================================
 
-	opEntry	dEqualsZeroBop
+	opEntry	dEquals0Bop
 	fldz
 	jmp	dEqualsBop1
 
@@ -3076,7 +3163,7 @@ dEqualsBop2:
 
 #========================================
 
-	opEntry	dNotEqualsZeroBop
+	opEntry	dNotEquals0Bop
 	fldz
 	jmp	dNotEqualsBop1
 
@@ -3098,7 +3185,7 @@ dNotEqualsBop2:
 
 #========================================
 
-	opEntry	dGreaterThanZeroBop
+	opEntry	dGreaterThan0Bop
 	fldz
 	jmp	dGreaterThanBop1
 
@@ -3121,7 +3208,7 @@ dGreaterThanBop2:
 
 #========================================
 
-	opEntry	dGreaterEqualsZeroBop
+	opEntry	dGreaterEquals0Bop
 	fldz
 	jmp	dGreaterEqualsBop1
 
@@ -3144,7 +3231,7 @@ dGreaterEqualsBop2:
 
 #========================================
 
-	opEntry	dLessThanZeroBop
+	opEntry	dLessThan0Bop
 	fldz
 	jmp	dLessThanBop1
 
@@ -3167,7 +3254,7 @@ dLessThanBop2:
 
 #========================================
 
-	opEntry	dLessEqualsZeroBop
+	opEntry	dLessEquals0Bop
 	fldz
 	jmp	dLessEqualsBop1
 
@@ -3283,7 +3370,7 @@ unaryFloatFunc	ffloorBop, floorf
 
 	opEntry	datan2Bop
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	4(%edx),%eax
 	push	%eax
 	mov	(%edx),%eax
@@ -3294,7 +3381,7 @@ unaryFloatFunc	ffloorBop, floorf
 	push	%eax
 	xcall	atan2
 	add	$16,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$8,%edx
 	fstpl	(%edx)
@@ -3304,14 +3391,14 @@ unaryFloatFunc	ffloorBop, floorf
 	
 	opEntry fatan2Bop
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
 	push	%eax
 	mov	4(%edx),%eax
 	push	%eax
 	xcall	atan2f
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$4,%edx
 	fstp	(%edx)
@@ -3322,7 +3409,7 @@ unaryFloatFunc	ffloorBop, floorf
 	opEntry	dpowBop
 	# a^x
 	push	%edx
-	push	%ecx
+	push	%esi
 	# push x
 	mov	4(%edx),%eax
 	push	%eax
@@ -3335,7 +3422,7 @@ unaryFloatFunc	ffloorBop, floorf
 	push	%eax
 	xcall	pow
 	add	$16,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$8,%edx
 	fstpl	(%edx)
@@ -3346,7 +3433,7 @@ unaryFloatFunc	ffloorBop, floorf
 	opEntry fpowBop
 	# a^x
 	push	%edx
-	push	%ecx
+	push	%esi
 	# push x
 	mov	(%edx),%eax
 	push	%eax
@@ -3355,7 +3442,7 @@ unaryFloatFunc	ffloorBop, floorf
 	push	%eax
 	xcall	powf
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$4,%edx
 	fstp	(%edx)
@@ -3382,7 +3469,7 @@ unaryFloatFunc	ffloorBop, floorf
 	opEntry	dldexpBop
 	# ldexp( a, n )
 	push	%edx
-	push	%ecx
+	push	%esi
 	# TOS is n (int), a (double)
 	# get arg n
 	mov	(%edx),%eax
@@ -3394,7 +3481,7 @@ unaryFloatFunc	ffloorBop, floorf
 	push	%eax
 	xcall	ldexp
 	add	$12,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$4,%edx
 	fstpl	(%edx)
@@ -3405,7 +3492,7 @@ unaryFloatFunc	ffloorBop, floorf
 	opEntry	fldexpBop
 	# ldexpf( a, n )
 	push	%edx
-	push	%ecx
+	push	%esi
 	# TOS is n (int), a (float)
 	# get arg n
 	mov	(%edx),%eax
@@ -3415,7 +3502,7 @@ unaryFloatFunc	ffloorBop, floorf
 	push	%eax
 	xcall	ldexpf
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$4,%edx
 	fstp	(%edx)
@@ -3427,7 +3514,7 @@ unaryFloatFunc	ffloorBop, floorf
 	# frexp( a, ptrToIntExponentReturn )
 	sub	$4,%edx
 	push	%edx
-	push	%ecx
+	push	%esi
 	# TOS is a (double)
 	# we return TOS: nInt aFrac
 	# alloc nInt
@@ -3439,7 +3526,7 @@ unaryFloatFunc	ffloorBop, floorf
 	push	%eax
 	xcall	frexp
 	add	$12,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	fstpl	4(%edx)
 	jmp	*%edi
@@ -3452,7 +3539,7 @@ unaryFloatFunc	ffloorBop, floorf
 	mov	(%edx),%eax
 	sub	$4,%edx
 	push	%edx
-	push	%ecx
+	push	%esi
 	# TOS is a (float)
 	# we return TOS: nInt aFrac
 	# alloc nInt
@@ -3460,7 +3547,7 @@ unaryFloatFunc	ffloorBop, floorf
 	push	%eax
 	xcall	frexpf
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	fstp	4(%edx)
 	jmp	*%edi
@@ -3472,7 +3559,7 @@ unaryFloatFunc	ffloorBop, floorf
 	mov	%edx,%eax
 	sub	$8,%edx
 	push	%edx
-	push	%ecx
+	push	%esi
 	# TOS is a (double)
 	# we return TOS: bFrac aWhole
 	# alloc nInt
@@ -3484,7 +3571,7 @@ unaryFloatFunc	ffloorBop, floorf
 	push	%eax
 	xcall	modf
 	add	$12,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	fstpl	(%edx)
 	jmp	*%edi
@@ -3496,7 +3583,7 @@ unaryFloatFunc	ffloorBop, floorf
 	mov	%edx,%eax
 	sub	$4,%edx
 	push	%edx
-	push	%ecx
+	push	%esi
 	# TOS is a (float)
 	# we return TOS: bFrac aWhole
 	# alloc nInt
@@ -3506,7 +3593,7 @@ unaryFloatFunc	ffloorBop, floorf
 	push	%eax
 	xcall	modff
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	fstp	(%edx)
 	jmp	*%edi
@@ -3515,7 +3602,7 @@ unaryFloatFunc	ffloorBop, floorf
 
 	opEntry	dfmodBop
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	4(%edx),%eax
 	push	%eax
 	mov	(%edx),%eax
@@ -3526,7 +3613,7 @@ unaryFloatFunc	ffloorBop, floorf
 	push	%eax
 	xcall	fmod
 	add	$16,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$8,%edx
 	fstpl	(%edx)
@@ -3536,14 +3623,14 @@ unaryFloatFunc	ffloorBop, floorf
 
 	opEntry	ffmodBop
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
 	push	%eax
 	mov	4(%edx),%eax
 	push	%eax
 	xcall	fmodf
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$4,%edx
 	fstp	(%edx)
@@ -3602,7 +3689,7 @@ unaryFloatFunc	ffloorBop, floorf
 	mov	RTPtr(%ebp),%ebx
 	cmp	%eax,%ebx
 	jle	doExitBop1
-	mov	(%eax),%ecx
+	mov	(%eax),%esi
 	add	$4,%eax
 	mov	%eax,RPtr(%ebp)
 	jmp	*%edi
@@ -3617,8 +3704,8 @@ doExitBop1:
     # rstack: local_var_storage oldFP oldIP
     # FP points to oldFP
 	mov	FPtr(%ebp),%eax
-	mov	(%eax),%ecx
-	mov	%ecx,FPtr(%ebp)
+	mov	(%eax),%esi
+	mov	%esi,FPtr(%ebp)
 	add	$4,%eax
 	mov	RTPtr(%ebp),%ebx
 	cmp	%eax,%ebx
@@ -3639,7 +3726,7 @@ doExitBop1:
 	cmp	%eax,%ebx
 	jl	doExitBop1
 	mov	%eax,RPtr(%ebp)
-	mov	-12(%eax),%ecx	# IP = oldIP
+	mov	-12(%eax),%esi	# IP = oldIP
 	mov	-8(%eax),%ebx
 	mov	%ebx,TMPtr(%ebp)
 	mov	-4(%eax),%ebx
@@ -3652,14 +3739,14 @@ doExitBop1:
     # rstack: local_var_storage oldFP oldIP oldTPV oldTPD
     # FP points to oldFP
 	mov	FPtr(%ebp),%eax
-	mov	(%eax),%ecx
-	mov	%ecx,FPtr(%ebp)
+	mov	(%eax),%esi
+	mov	%esi,FPtr(%ebp)
 	add	$16,%eax
 	mov	RTPtr(%ebp),%ebx
 	cmp	%eax,%ebx
 	jl	doExitBop1
 	mov	%eax,RPtr(%ebp)
-	mov	-12(%eax),%ecx	# IP = oldIP
+	mov	-12(%eax),%esi	# IP = oldIP
 	mov	-8(%eax),%ebx
 	mov	%ebx,TMPtr(%ebp)
 	mov	-4(%eax),%ebx
@@ -3672,17 +3759,17 @@ doExitBop1:
 	# rpush current IP
 	mov	RPtr(%ebp),%eax
 	sub	$4,%eax
-	mov	%ecx,(%eax)
+	mov	%esi,(%eax)
 	mov	%eax,RPtr(%ebp)
 	# pop new IP
-	mov	(%edx),%ecx
+	mov	(%edx),%esi
 	add	$4,%edx
 	jmp	*%edi
 
 #========================================
 
 	opEntry	gotoBop
-	mov	(%edx),%ecx
+	mov	(%edx),%esi
 	jmp	*%edi
 
 #========================================
@@ -3696,8 +3783,8 @@ doExitBop1:
 	sub	$12,%ebx
 	mov	%ebx,RPtr(%ebp)
 	# @RP-2 holds top-of-loop-IP
-	add	$4,%ecx    # skip over loop exit branch right after this op
-	mov	%ecx,8(%ebx)
+	add	$4,%esi    # skip over loop exit branch right after this op
+	mov	%esi,8(%ebx)
 	# @RP-1 holds end-index
 	mov	4(%edx),%eax
 	mov	%eax,4(%ebx)
@@ -3715,19 +3802,19 @@ doExitBop1:
 # 
 	opEntry	doCheckDoBop
 	mov	(%edx),%eax		# eax is start index
-	mov	4(%edx),%esi	# esi is end index
+	mov	4(%edx),%ecx	# esi is end index
 	add	$8,%edx
-	cmp	%esi,%eax
+	cmp	%ecx,%eax
 	jge	doCheckDoBop1
 	
 	mov	RPtr(%ebp),%ebx
 	sub	$12,%ebx
 	mov	%ebx,RPtr(%ebp)
 	# @RP-2 holds top-of-loop-IP
-	add	$4,%ecx    # skip over loop exit branch right after this op
-	mov	%ecx,8(%ebx)
+	add	$4,%esi    # skip over loop exit branch right after this op
+	mov	%esi,8(%ebx)
 	# @RP-1 holds end-index
-	mov	%esi,4(%ebx)
+	mov	%ecx,4(%ebx)
 	# @RP holds current-index
 	mov	%eax,(%ebx)
 doCheckDoBop1:
@@ -3742,7 +3829,7 @@ doCheckDoBop1:
 	cmp	4(%ebx),%eax
 	jge	doLoopBop1	# jump if done
 	mov	%eax,(%ebx)
-	mov	8(%ebx),%ecx
+	mov	8(%ebx),%esi
 	jmp	*%edi
 
 doLoopBop1:
@@ -3762,7 +3849,7 @@ doLoopBop1:
 	cmp	4(%ebx),%eax
 	jge	doLoopBop1		# jump if done
 	mov	%eax,(%ebx)		# update i
-	mov	8(%ebx),%ecx		# branch to top of loop
+	mov	8(%ebx),%esi		# branch to top of loop
 	jmp	*%edi
 
 doLoopNBop1:
@@ -3770,7 +3857,7 @@ doLoopNBop1:
 	cmp	4(%ebx),%eax
 	jl	doLoopBop1		# jump if done
 	mov	%eax,(%ebx)		# ipdate i
-	mov	8(%ebx),%ecx		# branch to top of loop
+	mov	8(%ebx),%esi		# branch to top of loop
 	jmp	*%edi
 
 #========================================
@@ -3804,8 +3891,8 @@ doLoopNBop1:
 	opEntry	leaveBop
 	mov	RPtr(%ebp),%eax
 	# point IP at the branch instruction which is just before top of loop
-	mov	8(%eax),%ecx
-	sub	$4,%ecx
+	mov	8(%eax),%esi
+	sub	$4,%esi
 	# drop current index, end index, top-of-loop-IP
 	add	$12,%eax
 	mov	%eax,RPtr(%ebp)
@@ -3839,44 +3926,37 @@ doLoopNBop1:
 
 	opEntry	invertBop
 	mov	$0x0FFFFFFFF,%eax
-	xor	(%edx),%eax
-	mov	%eax,(%edx)
+	xor	%eax,(%edx)
 	jmp	*%edi
 
 #========================================
 
 	opEntry	lshiftBop
-	mov	%ecx,%eax
 	mov	(%edx),%ecx
 	add	$4,%edx
 	mov	(%edx),%ebx
 	shl	%cl,%ebx
 	mov	%ebx,(%edx)
-	mov	%eax,%ecx
 	jmp	*%edi
 
 #========================================
 
-	opEntry	rshiftBop
-	mov	%ecx,%eax
+	opEntry	arshiftBop
 	mov	(%edx),%ecx
 	add	$4,%edx
 	mov	(%edx),%ebx
 	sar	%cl,%ebx
 	mov	%ebx,(%edx)
-	mov	%eax,%ecx
 	jmp	*%edi
 
 #========================================
 
-	opEntry	urshiftBop
-	mov	%ecx,%eax
+	opEntry	rshiftBop
 	mov	(%edx),%ecx
 	add	$4,%edx
 	mov	(%edx),%ebx
 	shr	%cl,%ebx
 	mov	%ebx,(%edx)
-	mov	%eax,%ecx
 	jmp	*%edi
 
 #========================================
@@ -3928,7 +4008,7 @@ doLoopNBop1:
 
 #========================================
 
-	opEntry	equalsZeroBop
+	opEntry	equals0Bop
 	xor	%ebx,%ebx
 	jmp	equalsBop1
 
@@ -3948,7 +4028,7 @@ equalsBop2:
 
 #========================================
 
-	opEntry	notEqualsZeroBop
+	opEntry	notEquals0Bop
 	xor	%ebx,%ebx
 	jmp	notEqualsBop1
 
@@ -3968,7 +4048,7 @@ notEqualsBop2:
 
 #========================================
 
-	opEntry	greaterThanZeroBop
+	opEntry	greaterThan0Bop
 	xor	%ebx,%ebx
 	jmp	gtBop1
 
@@ -3988,7 +4068,7 @@ gtBop2:
 
 #========================================
 
-	opEntry	greaterEqualsZeroBop
+	opEntry	greaterEquals0Bop
 	xor	%ebx,%ebx
 	jmp	geBop1
 
@@ -4009,7 +4089,7 @@ geBop2:
 
 #========================================
 
-	opEntry	lessThanZeroBop
+	opEntry	lessThan0Bop
 	xor	%ebx,%ebx
 	jmp	ltBop1
 
@@ -4029,7 +4109,7 @@ ltBop2:
 
 #========================================
 
-	opEntry	lessEqualsZeroBop
+	opEntry	lessEquals0Bop
 	xor	%ebx,%ebx
 	jmp	leBop1
 
@@ -4114,6 +4194,38 @@ minBop1:
 maxBop1:
 	jmp	*%edi
 
+#========================================
+
+	opEntry	icmpBop
+	mov	(%edx),%ebx		# ebx = b
+	add	$4,%edx
+	xor	%eax, %eax
+	cmp	%ebx,(%edx)
+	jz	icmpBop3
+	jl	icmpBop2
+	add	$2,%eax
+icmpBop2:
+	dec	%eax
+icmpBop3:
+	mov	%eax,(%edx)
+	jmp	*%edi
+
+#========================================
+
+	opEntry	uicmpBop
+	mov	(%edx),%ebx		# ebx = b
+	add	$4,%edx
+	xor	%eax, %eax
+	cmp	%ebx,(%edx)
+	jz	uicmpBop3
+	jb	uicmpBop2
+	add	$2,%eax
+uicmpBop2:
+	dec	%eax
+uicmpBop3:
+	mov	%eax,(%edx)
+	jmp	*%edi
+
 
 #========================================
 
@@ -4162,7 +4274,7 @@ maxBop1:
 
 #========================================
 
-	opEntry	rzeroBop
+	opEntry	r0Bop
 	mov	RTPtr(%ebp),%eax
 	sub	$4,%edx
 	mov	%eax,(%edx)
@@ -4181,10 +4293,10 @@ maxBop1:
 	opEntry	checkDupBop
 	mov	(%edx),%eax
 	or	%eax,%eax
-	jz	dupNonZeroBop1
+	jz	dupNon0Bop1
 	sub	$4,%edx
 	mov	%eax,(%edx)
-dupNonZeroBop1:
+dupNon0Bop1:
 	jmp	*%edi
 
 #========================================
@@ -4319,7 +4431,7 @@ spActionTable:
 
 #========================================
 
-	opEntry	szeroBop
+	opEntry	s0Bop
 	mov	STPtr(%ebp),%eax
 	sub	$4,%edx
 	mov	%eax,(%edx)
@@ -4335,16 +4447,16 @@ spActionTable:
 
 	opEntry	ipBop
 	# let the common intVarAction code change the shadow copy of IP,
-	# then jump back to ipFixup to copy the shadow copy of IP into IP register (ecx)
+	# then jump back to ipFixup to copy the shadow copy of IP into IP register (esi)
 	push	%edi
-	mov	%ecx,IPtr(%ebp)
+	mov	%esi,IPtr(%ebp)
 	lea	IPtr(%ebp),%eax
 	mov	$ipFixup1,%edi
 	jmp	intEntry
 	
 	opEntry	ipFixup
 ipFixup1:
-	mov	IPtr(%ebp),%ecx
+	mov	IPtr(%ebp),%esi
 	pop	%edi
 	jmp	*%edi
 	
@@ -4430,7 +4542,7 @@ ipFixup1:
 
 	opEntry	hereBop
 	mov	DictionaryPtr(%ebp),%eax
-	mov	pCurrent(%eax),%eax
+	mov	MemSectionCurrentPtr(%eax),%eax
 	sub	$4,%edx
 	mov	%eax,(%edx)
 	jmp	*%edi
@@ -4456,23 +4568,23 @@ ipFixup1:
 
 	opEntry	storeNextBop
 	mov	(%edx),%eax
-	mov (%eax),%esi
+	mov (%eax),%ecx
 	mov	4(%edx),%ebx
 	add	$8,%edx
-	mov	%ebx,(%esi)
-	add $4,%esi
-	mov %esi,(%eax)
+	mov	%ebx,(%ecx)
+	add $4,%ecx
+	mov %ecx,(%eax)
 	jmp	*%edi
 
 #========================================
 
 	opEntry	fetchNextBop
 	mov	(%edx),%eax
-	mov (%eax),%esi
-	mov	(%esi),%ebx
+	mov (%eax),%ecx
+	mov	(%ecx),%ebx
 	mov	%ebx,(%edx)
-	add $4,%esi
-	mov %esi,(%eax)
+	add $4,%ecx
+	mov %ecx,(%eax)
 	jmp	*%edi
 
 #========================================
@@ -4497,24 +4609,24 @@ ipFixup1:
 
 	opEntry	cstoreNextBop
 	mov	(%edx),%eax
-	mov (%eax),%esi
+	mov (%eax),%ecx
 	mov	4(%edx),%ebx
 	add	$8,%edx
-	movb	%bl,(%esi)
-	add $1,%esi
-	mov %esi,(%eax)
+	movb	%bl,(%ecx)
+	add $1,%ecx
+	mov %ecx,(%eax)
 	jmp	*%edi
 
 #========================================
 
 	opEntry	cfetchNextBop
 	mov	(%edx),%eax
-	mov (%eax),%esi
+	mov (%eax),%ecx
 	xor	%ebx,%ebx
-	movb	(%esi),%bl
+	movb	(%ecx),%bl
 	mov	%ebx,(%edx)
-	add $1,%esi
-	mov %esi,(%eax)
+	add $1,%ecx
+	mov %ecx,(%eax)
 	jmp	*%edi
 
 #========================================
@@ -4546,12 +4658,12 @@ ipFixup1:
 
 	opEntry	wstoreNextBop
 	mov	(%edx),%eax
-	mov (%eax),%esi
+	mov (%eax),%ecx
 	mov	4(%edx),%ebx
 	add	$8,%edx
-	movw	%bx,(%esi)
-	add $2,%esi
-	mov %esi,(%eax)
+	movw	%bx,(%ecx)
+	add $2,%ecx
+	mov %ecx,(%eax)
 	jmp	*%edi
 
 #========================================
@@ -4567,12 +4679,12 @@ ipFixup1:
 
 	opEntry	wfetchNextBop
 	mov	(%edx),%eax
-	mov (%eax),%esi
+	mov (%eax),%ecx
 	xor	%ebx,%ebx
-	movw	(%esi),%bx
+	movw	(%ecx),%bx
 	mov	%ebx,(%edx)
-	add $2,%esi
-	mov %esi,(%eax)
+	add $2,%ecx
+	mov %ecx,(%eax)
 	jmp	*%edi
 
 #========================================
@@ -4606,13 +4718,13 @@ ipFixup1:
 
 	opEntry	dstoreNextBop
 	mov	(%edx),%eax
-	mov (%eax),%esi
+	mov (%eax),%ecx
 	mov	4(%edx),%ebx
-	mov	%ebx,(%esi)
+	mov	%ebx,(%ecx)
 	mov	8(%edx),%ebx
-	mov	%ebx,4(%esi)
-	add $8,%esi
-	mov %esi,(%eax)
+	mov	%ebx,4(%ecx)
+	add $8,%ecx
+	mov %ecx,(%eax)
 	add	$12,%edx
 	jmp	*%edi
 
@@ -4632,50 +4744,101 @@ ipFixup1:
 	opEntry	dfetchNextBop
 	mov	(%edx),%eax
 	sub	$4,%edx
-	mov (%eax),%esi
-	mov	(%esi),%ebx
+	mov (%eax),%ecx
+	mov	(%ecx),%ebx
 	mov	%ebx,(%edx)
-	mov	4(%esi),%ebx
+	mov	4(%ecx),%ebx
 	mov	%ebx,4(%edx)
-	add $8,%esi
-	mov %esi,(%eax)
+	add $8,%ecx
+	mov %ecx,(%eax)
 	jmp	*%edi
 
 #========================================
 
-	opEntry	memcpyBop
+	opEntry	ostoreBop
+	mov	(%edx),%eax
+	mov	4(%edx),%ebx
+	mov	%ebx,4(%eax)
+	mov	8(%edx),%ebx
+	mov	%ebx,(%eax)
+	add	$12,%edx
+	jmp	*%edi
+
+#========================================
+
+	opEntry	ostoreNextBop
+	mov	(%edx),%eax
+	mov (%eax),%ecx
+	mov	4(%edx),%ebx
+	mov	%ebx,4(%ecx)
+	mov	8(%edx),%ebx
+	mov	%ebx,(%ecx)
+	add $8,%ecx
+	mov %ecx,(%eax)
+	add	$12,%edx
+	jmp	*%edi
+
+#========================================
+
+	opEntry	ofetchBop
+	mov	(%edx),%eax
+	sub	$4,%edx
+	mov	4(%eax),%ebx
+	mov	%ebx,(%edx)
+	mov	(%eax),%ebx
+	mov	%ebx,4(%edx)
+	jmp	*%edi
+
+#========================================
+
+	opEntry	ofetchNextBop
+	mov	(%edx),%eax
+	sub	$4,%edx
+	mov (%eax),%ecx
+	mov	4(%ecx),%ebx
+	mov	%ebx,(%edx)
+	mov	(%ecx),%ebx
+	mov	%ebx,4(%edx)
+	add $8,%ecx
+	mov %ecx,(%eax)
+	jmp	*%edi
+
+#========================================
+
+	opEntry	moveBop
+	#	TOS: nBytes dstPtr srcPtr
 	#	TOS: nBytes srcPtr dstPtr
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
-	push	%eax
-	mov	4(%edx),%eax
 	push	%eax
 	mov	8(%edx),%eax
 	push	%eax
-	xcall	memcpy
+	mov	4(%edx),%eax
+	push	%eax
+	xcall	memmove
 	add	$12,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$12,%edx
 	jmp	*%edi
 
 #========================================
 
-	opEntry	memsetBop
+	opEntry	fillBop
 	#	TOS: nBytes byteVal dstPtr
 	push	%edx
-	push	%ecx
-	mov	(%edx),%eax
-	push	%eax
+	push	%esi
 	mov	4(%edx),%eax
+	push	%eax
+	mov	(%edx),%eax
 	and	$0x0FF,%eax
 	push	%eax
 	mov	8(%edx),%eax
 	push	%eax
 	xcall	memset
 	add	$12,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$12,%edx
 	jmp	*%edi
@@ -4834,14 +4997,14 @@ ipFixup1:
 	opEntry	strcpyBop
 	#	TOS: srcPtr dstPtr
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
 	push	%eax
 	mov	4(%edx),%eax
 	push	%eax
 	xcall	strcpy
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$8,%edx
 	jmp	*%edi
@@ -4851,7 +5014,7 @@ ipFixup1:
 	opEntry	strncpyBop
 	#	TOS: maxBytes srcPtr dstPtr
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
 	push	%eax
 	mov	4(%edx),%eax
@@ -4860,7 +5023,7 @@ ipFixup1:
 	push	%eax
 	xcall	strncpy
 	add	$12,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$12,%edx
 	jmp	*%edi
@@ -4888,14 +5051,14 @@ strlenBop2:
 	opEntry	strcatBop
 	#	TOS: srcPtr dstPtr
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
 	push	%eax
 	mov	4(%edx),%eax
 	push	%eax
 	xcall	strcat
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$8,%edx
 	jmp	*%edi
@@ -4905,7 +5068,7 @@ strlenBop2:
 	opEntry	strncatBop
 	#	TOS: maxBytes srcPtr dstPtr
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
 	push	%eax
 	mov	4(%edx),%eax
@@ -4914,7 +5077,7 @@ strlenBop2:
 	push	%eax
 	xcall	strncat
 	add	$12,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$12,%edx
 	jmp	*%edi
@@ -4924,14 +5087,14 @@ strlenBop2:
 	opEntry	strchrBop
 	#	TOS: char strPtr
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
 	push	%eax
 	mov	4(%edx),%eax
 	push	%eax
 	xcall	strchr
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$4,%edx
 	mov	%eax,(%edx)
@@ -4942,14 +5105,14 @@ strlenBop2:
 	opEntry	strrchrBop
 	#	TOS: char strPtr
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
 	push	%eax
 	mov	4(%edx),%eax
 	push	%eax
 	xcall	strrchr
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$4,%edx
 	mov	%eax,(%edx)
@@ -4960,7 +5123,7 @@ strlenBop2:
 	opEntry	strcmpBop
 	#	TOS: ptr2 ptr1
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
 	push	%eax
 	mov	4(%edx),%eax
@@ -4976,7 +5139,7 @@ strcmp2:
 	inc	%ebx
 strcmp3:
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$4,%edx
 	mov	%ebx,(%edx)
@@ -4987,7 +5150,7 @@ strcmp3:
 	opEntry	stricmpBop
 	#	TOS: ptr2 ptr1
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
 	push	%eax
 	mov	4(%edx),%eax
@@ -5000,14 +5163,14 @@ strcmp3:
 	opEntry	strstrBop
 	#	TOS: ptr2 ptr1
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
 	push	%eax
 	mov	4(%edx),%eax
 	push	%eax
 	xcall	strstr
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$4,%edx
 	mov	%eax,(%edx)
@@ -5018,14 +5181,14 @@ strcmp3:
 	opEntry	strtokBop
 	#	TOS: ptr2 ptr1
 	push	%edx
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax
 	push	%eax
 	mov	4(%edx),%eax
 	push	%eax
 	xcall	strtok
 	add	$8,%esp
-	pop	%ecx
+	pop	%esi
 	pop	%edx
 	add	$4,%edx
 	mov	%eax,(%edx)
@@ -5035,8 +5198,8 @@ strcmp3:
 
 	opEntry	litBop
 	opEntry	flitBop
-	mov	(%ecx),%eax
-	add	$4,%ecx
+	mov	(%esi),%eax
+	add	$4,%esi
 	sub	$4,%edx
 	mov	%eax,(%edx)
 	jmp	*%edi
@@ -5044,9 +5207,9 @@ strcmp3:
 #========================================
 
 	opEntry	dlitBop
-	mov	(%ecx),%eax
-	mov	4(%ecx),%ebx
-	add	$8,%ecx
+	mov	(%esi),%eax
+	mov	4(%esi),%ebx
+	add	$8,%esi
 	sub	$8,%edx
 	mov	%eax,(%edx)
 	mov	%ebx,4(%edx)
@@ -5114,10 +5277,10 @@ strcmp3:
 	opEntry	doVariableBop
 	# push IP
 	sub	$4,%edx
-	mov	%ecx,(%edx)
+	mov	%esi,(%edx)
 	# rpop new ip
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	*%edi
@@ -5126,12 +5289,12 @@ strcmp3:
 
 	opEntry	doConstantBop
 	# push longword @ IP
-	mov	(%ecx),%eax
+	mov	(%esi),%eax
 	sub	$4,%edx
 	mov	%eax,(%edx)
 	# rpop new ip
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	*%edi
@@ -5140,14 +5303,14 @@ strcmp3:
 
 	opEntry	doDConstantBop
 	# push quadword @ IP
-	mov	(%ecx),%eax
+	mov	(%esi),%eax
 	sub	$8,%edx
 	mov	%eax,(%edx)
-	mov	4(%ecx),%eax
+	mov	4(%esi),%eax
 	mov	%eax,4(%edx)
 	# rpop new ip
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	*%edi
@@ -5157,10 +5320,10 @@ strcmp3:
 	opEntry	doStructBop
 	# push IP
 	sub	$4,%edx
-	mov	%ecx,(%edx)
+	mov	%esi,(%edx)
 	# rpop new ip
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	*%edi
@@ -5169,15 +5332,15 @@ strcmp3:
 
 	opEntry	doStructArrayBop
 	# TOS is array index
-	# ecx -> bytes per element, followed by element 0
-	mov	(%ecx),%eax		# eax = bytes per element
-	add	$4,%ecx			# ecx -> element 0
+	# esi -> bytes per element, followed by element 0
+	mov	(%esi),%eax		# eax = bytes per element
+	add	$4,%esi			# ecx -> element 0
 	imul	(%edx),%eax
-	add	%ecx,%eax		# add in array base addr
+	add	%esi,%eax		# add in array base addr
 	mov	%eax,(%edx)
 	# rpop new ip
 	mov	RPtr(%ebp),%ebx
-	mov	(%ebx),%ecx
+	mov	(%ebx),%esi
 	add	$4,%ebx
 	mov	%ebx,RPtr(%ebp)
 	jmp	*%edi
@@ -5218,7 +5381,7 @@ strcmp3:
 #========================================
 
 	opEntry	fopenBop
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax	# pop access string
 	add	$4,%edx
 	push	%edx
@@ -5230,14 +5393,14 @@ strcmp3:
 	call	*%eax
 	addw	$8,%sp
 	pop	%edx
-	pop	%ecx
+	pop	%esi
 	mov	%eax,(%edx)	# push fopen result
 	jmp	*%edi
 
 #========================================
 
 	opEntry	fcloseBop
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax	# pop file pointer
 	push	%edx
 	push	%eax
@@ -5246,14 +5409,14 @@ strcmp3:
 	call	*%eax
 	addw	$4,%sp
 	pop	%edx
-	pop	%ecx
+	pop	%esi
 	mov	%eax,(%edx)	# push fclose result
 	jmp	*%edi
 
 #========================================
 
 	opEntry	fseekBop
-	push	%ecx
+	push	%esi
 	push	%edx
 	mov	(%edx),%eax	# pop control
 	push	%eax
@@ -5266,7 +5429,7 @@ strcmp3:
 	call	*%eax
 	addw	$12,%sp
 	pop	%edx
-	pop	%ecx
+	pop	%esi
 	add	$8,%edx
 	mov	%eax,(%edx)	# push fseek result
 	jmp	*%edi
@@ -5274,7 +5437,7 @@ strcmp3:
 #========================================
 
 	opEntry	freadBop
-	push	%ecx
+	push	%esi
 	push	%edx
 	mov	(%edx),%eax	# pop file pointer
 	push	%eax
@@ -5289,15 +5452,15 @@ strcmp3:
 	call	*%eax
 	addw	$16,%sp
 	pop	%edx
-	pop	%ecx
-	add	$8,%edx
+	pop	%esi
+	add	$12,%edx
 	mov	%eax,(%edx)	# push fread result
 	jmp	*%edi
 
 #========================================
 
 	opEntry	fwriteBop
-	push	%ecx
+	push	%esi
 	push	%edx
 	mov	(%edx),%eax	# pop file pointer
 	push	%eax
@@ -5312,15 +5475,15 @@ strcmp3:
 	call	*%eax
 	addw	$16,%sp
 	pop	%edx
-	pop	%ecx
-	add	$8,%edx
+	pop	%esi
+	add	$12,%edx
 	mov	%eax,(%edx)	# push fwrite result
 	jmp	*%edi
 
 #========================================
 
 	opEntry	fgetcBop
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax	# pop file pointer
 	push	%edx
 	push	%eax
@@ -5329,14 +5492,14 @@ strcmp3:
 	call	*%eax
 	addw	$4,%sp
 	pop	%edx
-	pop	%ecx
+	pop	%esi
 	mov	%eax,(%edx)	# push fgetc result
 	jmp	*%edi
 
 #========================================
 
 	opEntry	fputcBop
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax	# pop char to put
 	add	$4,%edx
 	push	%edx
@@ -5348,14 +5511,14 @@ strcmp3:
 	call	*%eax
 	addw	$8,%sp
 	pop	%edx
-	pop	%ecx
+	pop	%esi
 	mov	%eax,(%edx)	# push fputc result
 	jmp	*%edi
 
 #========================================
 
 	opEntry	feofBop
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax	# pop file pointer
 	push	%edx
 	push	%eax
@@ -5364,14 +5527,14 @@ strcmp3:
 	call	*%eax
 	addw	$4,%sp
 	pop	%edx
-	pop	%ecx
+	pop	%esi
 	mov	%eax,(%edx)	# push feof result
 	jmp	*%edi
 
 #========================================
 
 	opEntry	fexistsBop
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax	# pop filename pointer
 	push	%edx
 	push	%eax
@@ -5380,14 +5543,14 @@ strcmp3:
 	call	*%eax
 	addw	$4,%sp
 	pop	%edx
-	pop	%ecx
+	pop	%esi
 	mov	%eax,(%edx)	# push fexists result
 	jmp	*%edi
 
 #========================================
 
 	opEntry	ftellBop
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax	# pop file pointer
 	push	%edx
 	push	%eax
@@ -5396,14 +5559,14 @@ strcmp3:
 	call	*%eax
 	addw	$4,%sp
 	pop	%edx
-	pop	%ecx
+	pop	%esi
 	mov	%eax,(%edx)	# push ftell result
 	jmp	*%edi
 
 #========================================
 
 	opEntry	flenBop
-	push	%ecx
+	push	%esi
 	mov	(%edx),%eax	# pop file pointer
 	push	%edx
 	push	%eax
@@ -5412,14 +5575,14 @@ strcmp3:
 	call	*%eax
 	addw	$4,%sp
 	pop	%edx
-	pop	%ecx
+	pop	%esi
 	mov	%eax,(%edx)	# push flen result
 	jmp	*%edi
 
 #========================================
 
 	opEntry	fgetsBop
-	push	%ecx
+	push	%esi
 	push	%edx
 	mov	(%edx),%eax	# pop file
 	push	%eax
@@ -5432,7 +5595,7 @@ strcmp3:
 	call	*%eax
 	addw	$12,%sp
 	pop	%edx
-	pop	%ecx
+	pop	%esi
 	add	$8,%edx
 	mov	%eax,(%edx)	# push fgets result
 	jmp	*%edi
@@ -5440,7 +5603,7 @@ strcmp3:
 #========================================
 
 	opEntry	fputsBop
-	push	%ecx
+	push	%esi
 	push	%edx
 	mov	(%edx),%eax	# pop file
 	push	%eax
@@ -5451,7 +5614,7 @@ strcmp3:
 	call	*%eax
 	addw	$8,%sp
 	pop	%edx
-	pop	%ecx
+	pop	%esi
 	add	$4,%edx
 	mov	%eax,(%edx)	# push fseek result
 	jmp	*%edi
@@ -5468,9 +5631,9 @@ fprintfSubCore:
 	mov	(%edx),%edi
 	add	$2,%edi
 	add	$4,%edx
-	mov	%edi,%ecx
+	mov	%edi,%esi
 fprintfSub1:
-	sub	$1,%ecx
+	sub	$1,%esi
 	jl	fprintfSub2
 	mov	(%edx),%ebx
 	add	$4,%edx
@@ -5522,9 +5685,9 @@ sprintfSubCore:
 	mov	(%edx),%edi
 	add	$2,%edi
 	add	$4,%edx
-	mov	%edi,%ecx
+	mov	%edi,%esi
 sprintfSub1:
-	sub	$1,%ecx
+	sub	$1,%esi
 	jl	sprintfSub2
 	mov	(%edx),%ebx
 	add	$4,%edx
@@ -5576,9 +5739,9 @@ fscanfSubCore:
 	mov	(%edx),%edi
 	add	$2,%edi
 	add	$4,%edx
-	mov	%edi,%ecx
+	mov	%edi,%esi
 fscanfSub1:
-	sub	$1,%ecx
+	sub	$1,%esi
 	jl	fscanfSub2
 	mov	(%edx),%ebx
 	add	$4,%edx
@@ -5630,9 +5793,9 @@ sscanfSubCore:
 	mov	(%edx),%edi
 	add	$2,%edi
 	add	$4,%edx
-	mov	%edi,%ecx
+	mov	%edi,%esi
 sscanfSub1:
-	sub	$1,%ecx
+	sub	$1,%esi
 	jl	sscanfSub2
 	mov	(%edx),%ebx
 	add	$4,%edx
@@ -5680,7 +5843,7 @@ sscanfSub2:
 
 #========================================
 	optypeEntry	dllEntryPointType
-	mov	%ecx,IPtr(%ebp)
+	mov	%esi,IPtr(%ebp)
 	mov	%edx,SPtr(%ebp)
 	mov	%ebx,%eax
 	and	$0x0000FFFF,%eax
@@ -5689,19 +5852,19 @@ sscanfSub2:
 	# push core ptr
 	push	%ebp
 	# push flags
-	mov	%ebx,%ecx
-	shr	$15,%ecx
-	and	$7,%ecx
-	push	%ecx
+	mov	%ebx,%esi
+	shr	$15,%esi
+	and	$7,%esi
+	push	%esi
 	# push arg count
-	mov	%ebx,%ecx
-	and	$0x00F80000,%ecx
-	sar	$19,%ecx
-	and	$0x1F,%ecx
-	push	%ecx
+	mov	%ebx,%esi
+	and	$0x00F80000,%esi
+	sar	$19,%esi
+	and	$0x1F,%esi
+	push	%esi
 	# push entry point address
-	mov	ops(%ebp),%ecx
-	mov	(%ecx,%eax,4),%edx
+	mov	ops(%ebp),%esi
+	mov	(%esi,%eax,4),%edx
 	push	%edx
 	xcall	CallDLLRoutine
 	add	$12,%esp
@@ -5847,7 +6010,7 @@ ozbCombo1:
 	or	$0xFFFFC000,%ebx
 
 ozbNegative:
-	add	%ebx,%ecx
+	add	%ebx,%esi
 ozbCombo2:
 	jmp	*%edi
 	
@@ -5877,7 +6040,7 @@ obCombo1:
 	or	$0xFFFFC000,%ebx
 
 obNegative:
-	add	%ebx,%ecx
+	add	%ebx,%esi
 	jmp	*%edi
 	
 
@@ -5892,25 +6055,25 @@ obNegative:
 	#   exponent = (((inVal >> 18) & 0x1f) + (127 - 15)) << 23
 	#   mantissa = (inVal & 0x3ffff) << 5
 	#   outVal = sign | exponent | mantissa
-	push	%ecx
+	push	%esi
 	mov	%ebx,%eax
 	and	$0x00800000,%eax
 	shl	$8,%eax			# sign bit
 	
-	mov	%ebx,%ecx
+	mov	%ebx,%esi
 	shr	$18,%ebx
 	and	$0x1F,%ebx
 	add	$112,%ebx
 	shl	$23,%ebx			# ebx is exponent
 	or	%ebx,%eax
 	
-	and	$0x03FFFF,%ecx
-	shl	$5,%ecx
-	or	%ecx,%eax
+	and	$0x03FFFF,%esi
+	shl	$5,%esi
+	or	%esi,%eax
 	
 	sub	$4,%edx
 	mov	%eax,(%edx)
-	pop	%ecx
+	pop	%esi
 	jmp	*%edi
 	
 
@@ -5925,21 +6088,21 @@ obNegative:
 	#   exponent = (((inVal >> 18) & 0x1f) + (1023 - 15)) << 20
 	#   mantissa = (inVal & 0x3ffff) << 2
 	#   outVal = (sign | exponent | mantissa) << 32
-	push	%ecx
+	push	%esi
 	mov	%ebx,%eax
 	and	$0x00800000,%eax
 	shl	$8,%eax			# sign bit
 	
-	mov	%ebx,%ecx
+	mov	%ebx,%esi
 	shr	$18,%ebx
 	and	$0x1F,%ebx
 	add	$0x1008,%ebx
 	shl	$0x20,%ebx			# ebx is exponent
 	or	%ebx,%eax
 	
-	and	$0x03FFFF,%ecx
-	shl	$2,%ecx
-	or	%ecx,%eax
+	and	$0x03FFFF,%esi
+	shl	$2,%esi
+	or	%esi,%eax
 	
 	sub	$4,%edx
 	mov	%eax,(%edx)
@@ -5947,7 +6110,7 @@ obNegative:
 	# loword of double is all zeros
 	xor	%eax,%eax
 	mov	%eax,(%edx)
-	pop	%ecx
+	pop	%esi
 	jmp	*%edi
 	
 
@@ -6034,9 +6197,9 @@ opTypesTable1:
 	optypeRef	userDefType				# kOpUserDefImmediate,
 	optypeRef	cCodeType				# kOpCCode,         
 	optypeRef	cCodeType				# kOpCCodeImmediate,
+	optypeRef	relativeDefType			# kOpRelativeDef,
+	optypeRef	relativeDefType			# kOpRelativeDefImmediate,
 	optypeRef	dllEntryPointType		# kOpDLLEntryPoint,
-	.long	extOpType
-	.long	extOpType
 	.long	extOpType
 #	10 - 19
 	optypeRef	branchType				# kOpBranch = 10,

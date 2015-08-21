@@ -828,7 +828,7 @@ ForthVocabulary::Save( FILE* pOutFile )
     return 0;
 }
 
-boolean
+bool
 ForthVocabulary::Restore( const char* pBuffer, unsigned int numBytes )
 {
     return true;

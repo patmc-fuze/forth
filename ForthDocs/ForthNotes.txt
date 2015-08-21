@@ -162,6 +162,119 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 21 2015
+
+I added atc to git.
+
+I had forgotten that classes which define their own delete method need to do a
+super.delete to actually free the memory malloced to the object.
+
+There is still a mysterious 100 byte allocation leftover after running atc.
+
+Also, I moved the atc files from the sandbox level into an atc subdirectory,
+after running the game and exiting the atc subdir contains a _blocks.blk file.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 16 2015
+
+I've been working on the atc game a bit.
+There is definitely a problem with forgetting global variables, at least global
+object variables.  For a simple test case, try running forthtest two times in a
+row.  forthtest requires testbase.txt, which uses some oString global vars, the
+second time you run it assigning to the global oStrings throws an exception.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 7 2015
+
+I need to look at oString, define how size/length/resize relate, using
+resize( length 1- ) should trim off last character of string, it doesn't.
+Decide if the size of an oString should always be a multiple of 4.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 26 2015
+
+There were 2 problems in InnerInterp.S I found while debugging forthtest on the
+Linux build:
+
++ exitLBop was still using ECX instead of ESI
++ localStringStore - the source string pointer in ECX was getting clobbered when I
+  called strlen
+
+The second problem could happen in other places - I used to be using ESI for a
+bunch of things, ESI is preserved by clib routines, now I am using ECX in its
+place, ECX is not preserved by clib.
+
+The Linux build can now run forthtest and biclasstest without any errors.
+
+I don't know if it is a new problem, but if you run forthtest 2 times in a row,
+it will crash the second time when it tries to do a testBuff.set, it could be
+a problem with global object variables.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 25 2015
+
+I'm working on getting tracing to work in fast and slow modes, mostly to make
+debugging the Linux version easier.  The Linux version passes forthtest in
+no-assembler mode, but crashes in assembler mode.  Knowing what opcode was
+being executed at the time of crash would be a big help.  I am thinking of
+repurposing the trace engine state to not just be used when switching the
+fast/slow or trace flags, and having it be used for single stepping.
+
+The problem I'm trying to figure out is how to run in slow mode with tracing
+on and with the assembler inner interpreter used for native ops.  Right now
+that would mean InnerInterpreter would dispatch to NativeAction
+Call stack when executing a regular forth op from outer interpreter:
+	ForthDebug.exe!InnerInterpreter(ForthCoreState * pCore) Line 2375	C++
+ 	ForthDebug.exe!ForthEngine::ExecuteOps(long * pOps) Line 1914	C++
+ 	ForthDebug.exe!ForthEngine::ExecuteOneOp(long opCode) Line 1884	C++
+ 	ForthDebug.exe!ForthVocabulary::ProcessEntry(long * pEntry) Line 634	C++
+ 	ForthDebug.exe!ForthEngine::ProcessToken(ForthParseInfo * pInfo) Line 2546	C++
+ 	ForthDebug.exe!ForthShell::InterpretLine(const char * pSrcLine) Line 597	C++
+---
+Who calls InnerInterpreter/ForthEngine::ExecuteOneOp/ForthEngine::ExecuteOps:
+
+	InnerInterpreter
+ForthEngine::ExecuteOps( long *)
+ForthEngine::ExecuteOps( ForthCoreState* )
+ForthThread::RunLoop
+ForthThread::Run
+
+	InnerInterpreterFast
+ForthEngine::ExecuteOps( long *)
+ForthEngine::ExecuteOps( ForthCoreState* )
+ForthThread::RunLoop
+ForthThread::Run
+
+	ForthEngine::ExecuteOps( long *)
+ForthEngine::ExecuteOneOp
+ForthEngine::ExecuteOneMethod
+ForthTypesManager::ProcessSymbol
+
+	ForthEngine::ExecuteOneOp
+objectReleaseMethod
+classCreateMethod
+doOpExecute - op var default action
+_doOpVarop
+MethodWithThisAction
+MethodWithTOSAction
+XXXComboAction
+doMethodOp ?
+newOp
+doNewOp
+executeBop
+ForthStructVocabulary::DefineInstance ? initialization of ptr-to-struct instance?
+ForthNativeType::DefineInstance ? init global single variable?
+ForthNativeType::DefineInstance ? init global single string variable?
+ForthVocabulary::ProcessEntry
+  
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 19 2015
+
+I spent the weekend getting Ubuntu running on virtual box to bring the Linux
+version up to date.  It is almost compiling, the inner interpreter has a fair
+number of changes since the last working x86 linux build, most notably the
+change of the IP register from ECX to ESI.  There is something wierd going on
+with core_gas.inc, changes to it aren't reflected when you rebuild.
+Could it somehow be getting the file from a different path when it includes it?
+I did copy the old forth eclipse projects from the machine I originally did the
+linux version on, maybe it has some screwy include paths setup.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 12 2015
 
 There is also a problem with forget - I forgot a colon definition, and a global

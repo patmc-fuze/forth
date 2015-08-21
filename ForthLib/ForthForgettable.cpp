@@ -81,7 +81,7 @@ ForthForgettable::Save( FILE* pOutFile )
     return 0;
 }
 
-boolean
+bool
 ForthForgettable::Restore( const char* pBuffer, unsigned int numBytes )
 {
     (void) pBuffer;

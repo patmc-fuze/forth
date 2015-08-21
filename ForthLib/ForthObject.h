@@ -99,12 +99,17 @@ extern long gStatReleases;
 #define TRACK_RELEASE
 #endif
 
-#define MALLOCATE( _type, _ptr ) _type* _ptr = (_type *) malloc( sizeof(_type) );
+void* ForthAllocateBlock(size_t numBytes);
+void ForthFreeBlock(void* pBlock);
+
+#define __MALLOC ForthAllocateBlock
+#define __FREE ForthFreeBlock
+#define MALLOCATE( _type, _ptr ) _type* _ptr = (_type *) __MALLOC( sizeof(_type) );
 
 #define MALLOCATE_OBJECT( _type, _ptr )  MALLOCATE( _type, _ptr );  TRACK_NEW
-#define FREE_OBJECT( _obj )  free( _obj );  TRACK_DELETE
+#define FREE_OBJECT( _obj )  __FREE( _obj );  TRACK_DELETE
 #define MALLOCATE_LINK( _type, _ptr )  MALLOCATE( _type, _ptr );  TRACK_LINK_NEW
-#define FREE_LINK( _link )  free( _link );  TRACK_LINK_DELETE
+#define FREE_LINK( _link )  __FREE( _link );  TRACK_LINK_DELETE
 #define MALLOCATE_ITER( _type, _ptr )  MALLOCATE_OBJECT( _type, _ptr );  TRACK_ITER_NEW
 #define FREE_ITER( _link )  FREE_OBJECT( _link );  TRACK_ITER_DELETE
 

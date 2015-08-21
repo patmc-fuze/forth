@@ -2370,41 +2370,53 @@ InnerInterpreter( ForthCoreState *pCore )
 {
     SET_STATE( kResultOk );
 
+	bool bContinueLooping = true;
+	while (bContinueLooping)
+	{
 #ifdef TRACE_INNER_INTERPRETER
-	ForthEngine* pEngine = GET_ENGINE;
-	int traceFlags = pEngine->GetTraceFlags();
-	if ( traceFlags & kLogInnerInterpreter )
-	{
-		while ( GET_STATE == kResultOk )
+		ForthEngine* pEngine = GET_ENGINE;
+		int traceFlags = pEngine->GetTraceFlags();
+		if (traceFlags & kLogInnerInterpreter)
 		{
-			// fetch op at IP, advance IP
-			pEngine->TraceOp( pCore );
-			long* pIP = GET_IP;
-			long op = *pIP++;
-			SET_IP( pIP );
-			DISPATCH_FORTH_OP( pCore, op );
-			if (GET_STATE != kResultDone)
+			eForthResult result = GET_STATE;
+			while (result == kResultOk)
 			{
-				if (traceFlags & kLogStack)
+				// fetch op at IP, advance IP
+				pEngine->TraceOp(pCore);
+				long* pIP = GET_IP;
+				long op = *pIP++;
+				SET_IP(pIP);
+				DISPATCH_FORTH_OP(pCore, op);
+				result = GET_STATE;
+				if (result != kResultDone)
 				{
-					pEngine->TraceStack(pCore);
+					if (traceFlags & kLogStack)
+					{
+						pEngine->TraceStack(pCore);
+					}
+					pEngine->TraceOut("\n");
+					if (result == kResultTrace)
+					{
+						result = kResultOk;
+					}
 				}
-				pEngine->TraceOut("\n");
 			}
+			break;
 		}
-	}
-	else
+		else
 #endif
-	{
-		while ( GET_STATE == kResultOk )
 		{
-			long* pIP = GET_IP;
-			long op = *pIP++;
-			SET_IP( pIP );
-			//DISPATCH_FORTH_OP( pCore, op );
-//#define DISPATCH_FORTH_OP( _pCore, _op ) 	_pCore->optypeAction[ (int) FORTH_OP_TYPE( _op ) ]( _pCore, FORTH_OP_VALUE( _op ) )
-			optypeActionRoutine typeAction = pCore->optypeAction[ (int) FORTH_OP_TYPE( op ) ];
-			typeAction( pCore, FORTH_OP_VALUE( op ) );
+			while (GET_STATE == kResultOk)
+			{
+				long* pIP = GET_IP;
+				long op = *pIP++;
+				SET_IP(pIP);
+				//DISPATCH_FORTH_OP( pCore, op );
+				//#define DISPATCH_FORTH_OP( _pCore, _op ) 	_pCore->optypeAction[ (int) FORTH_OP_TYPE( _op ) ]( _pCore, FORTH_OP_VALUE( _op ) )
+				optypeActionRoutine typeAction = pCore->optypeAction[(int)FORTH_OP_TYPE(op)];
+				typeAction(pCore, FORTH_OP_VALUE(op));
+			}
+			break;
 		}
 	}
     return GET_STATE;

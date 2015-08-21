@@ -1689,7 +1689,14 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
 
     bool isString = (baseType == kBaseTypeString);
 
-    if ( isString )
+	if (!isString && ((pEngine->GetFlags() & kEngineFlagInEnumDefinition) != 0))
+	{
+		// byte/short/int/long inside an enum definition sets the number of bytes an enum of this type requires
+		pEngine->GetDP()[-1] = mNumBytes;
+		return;
+	}
+
+	if ( isString )
     {
         // get maximum string length
         if ( pEngine->IsCompiling() )

@@ -242,6 +242,7 @@ namespace
 		{
 			vprintf(pFormat, argList);
 		}
+#ifndef LINUX
 		else
 		{
 			TCHAR buffer[1000];
@@ -249,6 +250,7 @@ namespace
 
 			OutputDebugString(buffer);
 		}
+#endif
 	}
 
 
