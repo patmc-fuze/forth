@@ -1,0 +1,271 @@
+//======== atcConsoleDisplay ========
+
+class: atcConsoleDisplay extends iAtcDisplay
+  iAtcRegion region
+  int rowBytes
+  int statusColumn
+  int statusRow
+  int commandRow
+  int helpRow
+  int defaultColors
+  
+  method: delete
+    t{ "deleting display " %s %nl }t
+    oclear region
+    oclear text
+    super.delete
+  ;method
+  
+  // each tile corresponds to 2 horizontal chars
+  
+  enum: consoleColors
+    kCCBlack  kCCDarkBlue  kCCDarkGreen  kCCDarkCyan  kCCDarkRed  kCCDarkPurple  kCCDarkYellow  kCCDimWhite
+    kCCGray   kCCBlue      kCCGreen      kCCCyan      kCCRed      kCCPurple      kCCYellow      kCCWhite
+  ;enum
+
+  : setTextColors    // BACKGROUND_COLOR TEXT_COLOR ...
+    swap 4 lshift or setConsoleColor
+  ;
+
+  : xyAddr        // X Y ... BYTE_ADDR
+    rowBytes * swap 2* + text.base +
+  ;
+
+  : drawRadar
+    do( region.rows 0 )
+      xyAddr(0 i) %s %nl
+    loop
+  ;
+  
+  method: init         // REGION ...
+    'disp' -> tag
+    -> region
+    getConsoleColor -> defaultColors
+    new oByteArray -> text
+    region.columns -> int columns
+    region.rows -> int rows
+    columns 2* 1+ -> rowBytes
+    text.resize(rowBytes columns *)
+    text.base -> ptrTo byte pBase
+    ref pBase -> int pDst
+
+    columns 2* 2+ -> statusColumn
+    3 -> statusRow      // row of first airplane status
+    rows 2+ -> helpRow
+    rows 1+ -> commandRow
+
+    // each tile in our region will have 2 characters in a horizontal row
+    // the extra space characters 
+
+    // fill 'text' byte array with the ascii image of the airspace
+    
+    // draw the top line of dashes   ------
+    do( rowBytes 2- 0 )
+      '-' pDst c@!++
+    loop
+    bl pDst c@!++
+    0 pDst c@!++
+
+    // draw the lines below top line | . . . |
+    do( rows 2- 0 )
+      '|' pDst c@!++
+      bl pDst c@!++
+      do( columns 2- 0)
+        '.' pDst c@!++
+        bl pDst c@!++
+      loop
+      '|' pDst c@!++
+      bl pDst c@!++
+      0 pDst c@!++
+    loop
+    
+    // draw the bottom line of dashes   ------
+    do( rowBytes 2- 0 )
+      '-' pDst c@!++
+    loop
+    bl pDst c@!++
+    0 pDst c@!++
+
+    // draw the lines
+    region.lines.headIter -> oIter iter
+    begin
+    while( iter.next )
+      -> iAtcLine line
+      line.x0 -> int x
+      line.y0 -> int y
+      line.x1 line.x0 icmp -> int dx
+      line.y1 line.y0 icmp -> int dy
+      
+      begin
+        //x %d %bl y %d %nl
+        '+' xyAddr(x y) c!
+        dx ->+ x
+        dy ->+ y
+      until( and(x line.x1 =  y line.y1 =) )
+      '+' xyAddr(x y) c!
+      
+      oclear line
+    repeat
+    oclear iter
+  
+    int id
+  
+    // draw the beacons
+    region.beacons.headIter -> iter
+    begin
+    while( iter.next )
+      -> iAtcBeacon beacon
+      xyAddr(beacon.x beacon.y) '*' over c!
+      1 ->- id
+      1+ beacon.id '0' + swap c!
+      oclear beacon
+    repeat
+    oclear iter
+
+    // draw the portals
+    region.portals.headIter -> iter
+    begin
+    while( iter.next )
+      -> iAtcPortal portal
+      portal.id '0' + xyAddr(portal.x portal.y)  c!
+      oclear portal
+    repeat
+    oclear iter
+  
+    // draw the airports
+    region.airports.headIter -> iter
+    begin
+    while( iter.next )
+      -> iAtcAirport airport
+      xyAddr(airport.x airport.y) airport.entryDirection "^^>>vv<<" + c@ over c!
+      1+ airport.id '0' +  swap c!
+      oclear airport
+    repeat
+    oclear iter
+
+    // draw the airspace on the screen
+    setConsoleCursor(0 0)
+    drawRadar
+  ;method
+  
+  : updateStatus
+  
+    setConsoleCursor(statusColumn 0)
+    "Time: " %s game.status.moves %d
+    setConsoleCursor(statusColumn 12+ 0)
+    "Safe: " %s game.status.score %d
+  
+    setConsoleCursor(statusColumn 2)
+    "pl dt  comm" %s
+  
+    setConsoleCursor(statusColumn helpRow)
+    "*******************" %s
+    setConsoleCursor(statusColumn helpRow 1+)
+    " ATC - by Ed James" %s
+    setConsoleCursor(statusColumn helpRow 2+)
+    "*******************" %s
+  ;
+
+  : updatePlaneStatus
+    -> oList activeAirplanes
+    statusRow -> int planeRow
+  
+    // display flying airplanes
+    activeAirplanes.headIter -> oIter iter
+    begin
+    while( iter.next )
+      -> iAtcAirplane plane
+      if( plane.moving)
+        setConsoleCursor(plane.x 2* plane.y)
+        setTextColors( kCCWhite kCCBlack )
+        plane.name.get %s plane.altitude 1000 / %d
+        setConsoleCursor(statusColumn planeRow)
+        setConsoleColor(defaultColors)
+        1 ->+ planeRow
+        plane.name.get %s plane.altitude 1000 / %d %bl
+        if( plane.destinationType kATTPortal = )
+          'E' %c
+        else
+          'A' %c
+        endif
+        plane.destination %d ':' %c
+      endif
+      oclear plane
+    repeat
+  
+    1 ->+ planeRow
+
+    // display airplanes waiting to takeoff
+    activeAirplanes.headIter -> iter
+    begin
+    while( iter.next )
+      -> iAtcAirplane plane
+      if( not(plane.moving))
+        setConsoleCursor(statusColumn planeRow)
+        1 ->+ planeRow
+        plane.name.get %s 0 %d %bl
+        if( plane.destinationType kATTPortal = )
+          'E' %c
+        else
+          'A' %c
+        endif
+        plane.destination %d ':' %c
+      " Holding @ A" %s region.getAirport@(plane.x plane.y).id %d
+      endif
+      oclear plane
+    repeat
+    oclear iter
+  
+    oclear activeAirplanes
+  ;
+  
+  method: update      // ACTIVE_AIRPLANE_LIST ...
+    getConsoleCursor -> long oldPos
+
+    updatePlaneStatus
+    updateStatus
+    //updateRadar
+
+  ;method
+  
+  method: showWarning      // CSTRING ...
+    getConsoleColor swap
+  
+    setConsoleCursor(0 helpRow)
+    region.columns 2* 0 do %bl loop
+    setTextColors(kCCRed  kCCWhite)
+    setConsoleCursor(0 helpRow)
+    %s
+
+    setConsoleColor  // restore original console colors
+  ;method
+  
+  method: showCommand    // CSTRING ...
+    setConsoleCursor(0 commandRow)
+    region.columns 2* 0 do %bl loop
+    setConsoleCursor(0 commandRow)
+    %s
+  ;method
+  
+  method: hideAirplanes    // ACTIVE_AIRPLANE_LIST
+    -> oList activeAirplanes
+    // hide flying airplanes
+    activeAirplanes.headIter -> oIter iter
+
+    begin
+    while( iter.next )
+      -> iAtcAirplane plane
+      if( plane.moving)
+        setConsoleCursor(plane.x 2* plane.y)
+        xyAddr(plane.x plane.y) dup c@ %c 1+ c@ %c
+      endif
+      oclear plane
+    repeat
+  
+    oclear iter
+    oclear activeAirplanes
+  ;method
+  
+;class
+
+

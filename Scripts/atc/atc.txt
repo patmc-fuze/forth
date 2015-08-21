@@ -1,0 +1,454 @@
+
+autoforget atc
+: atc ;
+
+-1 -> int traceFile
+oFileOutStream traceFileStream
+: openTrace
+  new oFileOutStream -> traceFileStream
+  fopen( "traceOut.txt" "w") -> traceFile
+  traceFileStream.setData( traceFile )
+;
+
+: closeTrace
+  fclose( traceFile ) drop
+  -1 -> traceFile
+  oclear traceFileStream
+;
+
+: t{ setConsoleOut( traceFileStream ) ;
+: }t setConsoleOut( getDefaultConsoleOut ) ;
+
+enum: atcTileType  byte
+  kATTEmpty
+  kATTBoundary
+  kATTBeacon
+  kATTAirport
+  kATTPortal
+;enum
+
+//  7 0 1    q w e
+//  6   2    a   d
+//  5 4 3    z x c
+
+9 string directionChars
+"wedcxzaq" -> directionChars
+
+enum: atcDirection  byte
+  kADNorth
+  kADNorthEast
+  kADEast
+  kADSouthEast
+  kADSouth
+  kADSouthWest
+  kADWest
+  kADNorthWest
+  kNumDirections
+;enum
+
+9000 constant kMaxAltitude
+
+enum: atcCommandType  // uses command info:
+  kACTAltitude        // isRelative amount
+  kACTMark
+  kACTIgnore
+  kACTUnmark
+  kACTCircle          // isClockWise beacon
+  kACTTurn            // isRelative amount beacon
+  kACTTurnTowards     // targetType target beacon
+  kNumCommands
+;enum
+
+struct: atcCommandInfo      // used by:
+  int airplaneNum
+  atcCommandType command    // all
+  int isRelative            // altitude turn
+  int amount                // altitude turn
+  int isClockWise           // circle
+  int targetNum             // turnTowards
+  atcTileType targetType    // turnTowards
+  int beaconNum             // circle turn turnTowards
+  int isReady
+;struct
+
+enum: atcCommandState
+  kACSIdle                  // valid input is plane identifier in a..z
+  kACSPlaneSelected
+  kACSCommandReady          // return is only valid input
+  kACSAltitude              // *a - valid is cd# - climb, descend or altitude
+  kACSAltitudeClimb         // *ac - valid is #
+  kACSAltitudeDescend       // *ad - valid is #
+  kACSCircle                // *c - valid is lr
+  kACSCircleReady
+  kACSTurn
+  kACSTurnDirection
+  kACSTurnTowards
+  kACSTurnTowardsAirport
+  kACSTurnTowardsBeacon
+  kACSTurnTowardsExit
+  kACSTurnReady
+  kACSAt
+  kACSAtBeacon
+  kNumCommandStates
+;enum
+
+struct: atcStatus
+  int score
+  int gameStartTime         // system time at game start in milliseconds
+  int nextMoveTime          // system time in milliseconds
+  int moves                 // game time in moves
+  int nextPlaneMove
+  int moveInterval          // time between moves in milliseconds
+  int keepPlaying
+;struct
+
+//======== atcTile ========
+
+class: atcTile
+  int tag
+  
+  byte altitude
+  byte index                // index of airport, portal or beacon
+  atcTileType tileType      // airport, portal, boundary, beacon
+  atcDirection direction    // for airports, currently unused
+
+  oList airplanes
+
+  method: addAirplane       // airplane ...
+    airplanes.addTail
+  ;method
+
+  method: removeAirplane    // airplane ...
+    // TODO
+    airplanes.remove
+  ;method
+  
+  method: init
+    'tile' -> tag
+    0 -> altitude
+    kATTEmpty -> tileType
+    new oList -> airplanes
+  ;method
+    
+  method: reset
+    airplanes.clear
+  ;method
+    
+  method: delete
+    t{ "deleting tile\n" %s }t
+    oclear airplanes
+    super.delete
+  ;method
+    
+;class
+
+
+class: iAtcDisplay
+  int tag
+  oByteArray text
+  ptrTo byte textBase
+  
+  method: init            ;method // REGION ...
+  method: update          ;method // ACTIVE_AIRPLANE_LIST ...
+  method: showWarning     ;method // CSTRING ...
+  method: showCommand     ;method // CSTRING ...
+  method: restorePos      ;method // X Y ...
+  method: hideAirplanes   ;method // ACTIVE_AIRPLANE_LIST ...
+  
+;class
+
+class: iAtcGame
+  int tag
+  oArray airplanes
+  oList activeAirplanes
+  oList inactiveAirplanes
+  iAtcDisplay display
+  atcStatus status
+  oString name
+  
+  method: init                ;method   // GAME_NAME
+  method: reset               ;method
+  method: activateAirplane    ;method   // PLANE_OBJ ...
+  method: deactivateAirplane  ;method   // PLANE_OBJ ...
+  method: moveAirplane        ;method   // newPlaneX newPlaneY plane ...
+  method: play                ;method
+;class
+
+iAtcGame game
+
+//======== interfaces ========
+
+class: iAtcAirplane
+  int tag
+  oString name
+  int id
+  int altitude
+  int moving                // false for airplanes which are waiting to takeoff, true for others
+  int x
+  int y
+  int destination           // -1 for destination is any exit, 0 or greater is airport
+  atcTileType destinationType    // kATTPortal or kATTAirport
+  atcDirection heading
+  int commandedAltitude
+  atcDirection commandedHeading
+  int beaconNum             // -1 for no delaying beacon
+  int circle                // +1 for circle clockwise, -1 for counterclockwise
+  
+  method: init            ;method // ID REGION ...
+  method: setPosition     ;method // X Y ALTITUDE HEADING
+  method: setDestination  ;method // DESTINATION DESTINATION_TYPE ...
+  method: activate        ;method // UPDATE_TIME IS_JET IS_MOVING ...
+
+  method: update          ;method // NOW ...
+  method: executeCommand  ;method // COMMAND_INFO_PTR ...
+  method: getPos  x y     ;method // ... X Y
+;class
+
+class: iAtcAirport
+  int tag
+  int id
+  int altitude
+  int x
+  int y
+  atcDirection entryDirection
+
+  method: init            ;method // X Y ENTRY_DIRECTION ID REGION
+  method: updateMove      ;method
+  method: updateStatus    ;method
+;class
+
+class: iAtcPortal
+  int tag
+  int id
+  int x
+  int y
+  int exitAltitude
+  int entryAltitude
+  int lastEntryTime
+  atcDirection entryDirection
+  
+  method: init            ;method // X Y ENTRY_DIRECTION ID REGION
+  method: update          ;method
+;class
+
+class: iAtcBeacon
+  int tag
+  int x
+  int y
+  int id
+  
+  method: init  // X Y ID
+    'becn' -> tag
+    -> id
+    -> y
+    -> x
+  ;method
+  
+  method: delete
+    t{ "deleting beacon " %s id %d %nl }t
+    super.delete
+  ;method
+  
+  method: at returns int  // X Y BOOL
+    and( y = swap x = )
+  ;method
+  
+;class
+
+class: iAtcLine
+  int tag
+  int x0
+  int y0
+  int x1
+  int y1
+  
+  method: init        // x0 y0 x1 y1
+    'line' -> tag
+    -> y1  -> x1  -> y0  -> x0
+  ;method
+
+  method: delete
+    t{ "deleting line " %s %nl }t
+    super.delete
+  ;method
+  
+;class
+
+class: iAtcRegion
+  int tag
+  int rows
+  int columns
+  
+  oArray tiles
+  oArray airports
+  oArray portals
+  oArray beacons
+  oArray lines
+  
+  method: init                                ;method // width height game
+  method: reset                               ;method
+  method: getTile returns atcTile             ;method // x y ... atcTile@x,y
+  method: setTile                             ;method // atcTile x y ...  
+  method: update                              ;method
+  method: getBeacon returns iAtcBeacon        ;method // BEACON_NUM ... BEACON_OBJ
+  method: getAirport returns iAtcAirport      ;method // AIRPORT_NUM ... AIRPORT_OBJ
+  method: getPortal returns iAtcPortal        ;method // PORTAL_NUM ... PORTAL_OBJ
+  method: getAirport@ returns iAtcAirport     ;method // X Y ... AIRPORT_OBJ
+  method: getPortal@ returns iAtcPortal       ;method // X Y ... PORTAL_OBJ  
+  method: getBeacon@ returns iAtcBeacon       ;method // X Y ... BEACON_OBJ  
+  
+  method: addPortal                           ;method // x y entryAltitude exitAltitude ...
+  method: addAirport                          ;method // x y altitude ...
+  method: addBeacon                           ;method // x y ...
+  method: addLine                             ;method // x0 y0 x1 y1 ...
+;class
+
+class: iAtcInputHandler
+  int tag
+  iAtcDisplay display
+  iAtcRegion region
+  oString displayString
+  oString commandString
+  atcCommandInfo commandInfo
+  atcCommandState commandState
+  int isGameOver
+  
+  method: init                              ;method // REGION DISPLAY_OBJ ...
+  method: update                            ;method // ...
+  method: getString returns oString         ;method // ... STRING_OBJ
+  method: getCommandString returns oString  ;method // ... STRING_OBJ
+
+  method: delete
+    oclear displayString
+    oclear commandString
+    oclear display
+    oclear region
+  ;method
+  
+;class
+
+// debugging aid
+: sh setConsoleCursor(90 0) "                                    " %s setConsoleCursor(90 0) %s ;
+  
+lf atcPortal.txt
+
+lf atcConsoleDisplay.txt
+
+lf atcAirplane.txt
+
+lf atcAirport.txt
+
+lf atcRegion.txt
+
+lf atcInputHandler.txt
+
+lf atcGame.txt
+
+lf atcFileReader.txt
+
+
+//  new atcGame -> atcGame game
+
+: atc
+  openTrace
+  getConsoleColor -> int color
+  new atcGame -> game
+  game.init( blword )
+  atcFileReader:loadAtcFile( game.name.get game)
+  clearConsole
+  //t{ game.show "\n\n\n=====================================\n\n\n" %s }t
+  game.play
+  //t{ game.show }t
+  game.reset
+  oclear game
+  setConsoleColor( color )
+  closeTrace
+;
+
+
+
+loaddone
+
+
+
+
+
+
+
+7-----------------------0---------------------------------1 Time: 667  Safe: 56
+| + . . . . . . . . . . + . . . . . . . . . . . . . . . + |
+| . + . . . . . . . . . + . . . . . . . . . . . . . . + . | pl dt  comm
+| . . + . . . . . . . . + . . . . . . . . . . . . . + . . | e9 E0: ---------
+| . . . + . g9. . . . . + . . . . . . . . . . . . + . . . | f9 E7:
+| . . . . f9. . . . . . e9. . . . . . . . . . . + . . . . | g9 E0: Circle
+| . . . . . + . . . . . + . . . . . . . . . . + . . . . . |
+6 + + + + + + + + + + + *0+ + + + + + + + + + + + + + + + 2 h0 A1: Holding @ A0
+| . . . . . . . . . . . + . . . . . . . . + . . . . . . . |
+| . . . . . . . . . . . + . . . . . . . + . . . . . . . . |
+| . . . . . . . . . . . + . . . . . . + . . . . . . . . . |
+| . . . . . . . . . . . + . . . . . + . . . . . . . . . . |
+| . . . . . . . . . . . + . . . . + . . . . . . . . . . . |
+5 + + + + + + + + + + + + . . . + . . . . . . . . . . . . |
+| . . . . . . . . . . . + . . + . . . . . . . . . . . . . |
+| . . . . . . . . . . . + . + . . . . . ^0. . . . . . . . |
+| . . . . . . . . . . . + + . . . . . . . . . . . . . . . |
+| . . . . . . . . . . . *1+ + + + + + + + + + + + + + + + 3
+| . . . . . . . . . . + . . . . . . . . >1. . . . . . . . |
+| . . . . . . . . . + . . . . . . . . . . . . . . . . . . |
+------------------4----------------------------------------
+
+Plane 'f' collided with plane 'g'.                          *******************
+                                                             ATC - by Ed James
+Hit space for top players list...                           *******************
+     # This is the default game.
+
+     update = 5;
+     newplane = 5;
+     width = 30;
+     height = 21;
+
+     exit:           ( 12  0 x ) ( 29  0 z ) ( 29  7 a ) ( 29 17 a )
+                     (  9 20 e ) (  0 13 d ) (  0  7 d ) (  0  0 c ) ;
+
+     beacon:         ( 12  7 ) ( 12 17 ) ;
+
+     airport:        ( 20 15 w ) ( 20 18 d ) ;
+
+     line:           [ (  1  1 ) (  6  6 ) ]
+                     [ ( 12  1 ) ( 12  6 ) ]
+                     [ ( 13  7 ) ( 28  7 ) ]
+                     [ ( 28  1 ) ( 13 16 ) ]
+                     [ (  1 13 ) ( 11 13 ) ]
+                     [ ( 12  8 ) ( 12 16 ) ]
+                     [ ( 11 18 ) ( 10 19 ) ]
+                     [ ( 13 17 ) ( 28 17 ) ]
+                     [ (  1  7 ) ( 11  7 ) ] ;
+
+
+
+
+------------0-----------------------1---------------------- Time: 285  Safe: 44
+| . . . . . + . . . . . . . . . . . + . . . . . . . . . . |
+| . . . . . + . . . . . . . . . . . + . . . . . . . . . . | pl dt  comm
+| . . . . . + . . . . . . . . . . . + . . . . . . . . . . | b9 E3:
+| . . . . . + . . . . . . . . . . . + . . . . . . . . . . | c9 E2:
+| . . . . . *0+ + + + + x1+ + + + + *1+ + + + + + D7+ u9+ 2 D7 E4:
+| . . . . . + . . . . . . . . . . . . . . . . . . . . . b9| E7 E3:
+| . . . . . + . . . . . . . . . . . . . . . . . . . . + . | P9 E3: ---------
+| . . . . . + . >0. . . . . . . . Z7. . . . . . . . + . . | u9 E2: ---------
+| . . . . . c9. . . . . . . . . . . . . . . . . . + . . . | v8 E4:
+| . . . . . + . . . . . . . . . . . . . . . . . + . . . . | x1 A0:
+| . . . . . + . . . . . . . . . . . . . . . . + . . . . . | Z7 E0:
+| . . . . . + . . . . . . . . . . . . . . . + . . . . . . |
+| . . . . . *2+ + + + + + + + + P9+ + + + + + + + + + + + 3 A0 E0: Holding @ A0
+| . . . . . + . . . . . . . . . . . . . + . . . . . . . . | F0 E1: Holding @ A0
+| . . . . . + . . . . . . . . . . . . + . . . . . . . . . | s0 E3: Holding @ A0
+| . . . . . + . . . . . . v8. . . . + . . . . . . . . . . | T0 E5: Holding @ A0
+| . . . . . + . . . . . . . . . . + . . . . . . . . . . . | Y0 E2: Holding @ A0
+| . . . . . + . . . . . . . . . E7. . . . . . . . . . . . |
+| . . . . . + . . . . . . . . + . . . . . . . . . . . . . |
+------------5---------------4------------------------------
+Plane 'b' collided with plane 'u'.                          *******************
+                                                             ATC - by Ed James
+Hit space for top players list...                           *******************
+

@@ -1,0 +1,216 @@
+//======== atcRegion ========
+
+class: atcRegion extends iAtcRegion
+
+  method: init
+    'regn' -> tag
+    2dup
+    -> rows
+    -> columns
+    new oArray -> tiles
+    do(* 0)
+      new atcTile
+      2dup <atcTile>.init
+      tiles.push
+    loop
+    new oArray -> airports
+    new oArray -> portals
+    new oArray -> beacons
+    new oArray -> lines
+  ;method
+  
+  // x y ... atcTile@x,y
+  : tile@
+    columns * + tiles.get
+  ;
+
+  method: getTile returns atcTile
+    columns * + tiles.get
+  ;method
+
+  // atcTile x y ...  
+  method: setTile
+    columns * + tiles.set
+  ;method
+
+  : resetTiles
+    tiles.headIter -> oIter iter
+    begin
+    while( iter.next )
+      -> atcTile tile
+      tile.reset
+      oclear tile
+    repeat
+    oclear iter
+  ;
+  
+  method: reset
+    if(or(tiles))
+      resetTiles
+      oclear tiles
+      t{ airports.show }t
+      oclear airports
+      oclear portals
+      oclear beacons
+      oclear lines
+    endif
+  ;method
+    
+  method: delete
+    t{ "deleting region\n" %s }t
+    reset
+    super.delete
+  ;method
+
+  method: update
+  ;method
+
+  method: getBeacon returns iAtcBeacon
+    beacons.get
+  ;method
+  
+  method: getAirport returns iAtcAirport
+    airports.get
+  ;method // AIRPORT_NUM ... AIRPORT_OBJ
+  
+  method: getPortal returns iAtcPortal
+    portals.get
+  ;method // PORTAL_NUM ... PORTAL_OBJ
+  
+  method: getAirport@ returns iAtcAirport  // X Y ... AIRPORT_OBJ
+    -> int y
+    -> int x
+
+    airports.headIter -> oIter iter
+    begin
+    while( iter.next )
+      -> iAtcAirport airport
+      if(and( airport.x x =  airport.y y =))
+        airport
+        oclear airport
+        oclear iter
+        exit
+      endif
+      oclear airport
+    repeat
+    oclear iter
+    dnull
+
+  ;method
+  
+  method: getPortal@ returns iAtcPortal  // X Y ... PORTAL_OBJ
+    -> int y
+    -> int x
+
+    portals.headIter -> oIter iter
+    begin
+    while( iter.next )
+      -> iAtcPortal portal
+      if(and( portal.x x =  portal.y y =))
+        portal
+        oclear portal
+        oclear iter
+        exit
+      endif
+      oclear portal
+    repeat
+    oclear iter
+    dnull
+
+  ;method
+  
+  method: getBeacon@ returns iAtcBeacon  // X Y ... BEACON_OBJ
+    -> int y
+    -> int x
+
+    beacons.headIter -> oIter iter
+    begin
+    while( iter.next )
+      -> iAtcBeacon beacon
+      if(and( beacon.x x =  beacon.y y =))
+        beacon
+        oclear beacon
+        oclear iter
+        exit
+      endif
+      oclear beacon
+    repeat
+    oclear iter
+    dnull
+  
+  ;method
+  
+  : setTileType
+    getTile -> atcTile tile
+    -> tile.tileType
+    oclear tile
+  ;
+  
+  // x y direction id ...
+  method: addPortal
+    -> int id
+    -> int dir
+    -> int y
+    -> int x
+    //"new portal at " %s x %d %bl y %d "  direction: " %s dir %d %nl
+    new atcPortal -> atcPortal portal
+    portal.init(x y dir id)
+    portals.insert(portal 0)
+    //portals.push(portal)
+    oclear portal
+    getTile(x y) -> atcTile tile
+    kATTPortal -> tile.tileType
+    id -> tile.index
+    oclear tile
+  ;method
+
+  // x y direction id ...
+  method: addAirport
+    -> int id
+    -> int dir
+    -> int y
+    -> int x
+    t{ "new airport at " %s x %d %bl y %d "  direction: " %s dir %d %nl }t
+    new atcAirport -> atcAirport airport
+    airport.init(x y dir id)
+    airports.insert(airport 0)
+    //airports.push(airport)
+    oclear airport
+    getTile(x y) -> atcTile tile
+    kATTAirport -> tile.tileType
+    id -> tile.index
+    oclear tile
+  ;method
+  
+  // x y id ...
+  method: addBeacon
+    -> int id
+    -> int y
+    -> int x
+    //"new beacon at " %s x %d %bl y %d %nl
+    new iAtcBeacon -> iAtcBeacon beacon
+    beacon.init(x y id)
+    beacons.insert(beacon 0)
+    //beacons.push(beacon)
+    oclear beacon
+    getTile(x y) -> atcTile tile
+    kATTBeacon -> tile.tileType
+    id -> tile.index
+    oclear tile
+  ;method
+  
+  // x0 y0 x1 y1 ...
+  method: addLine
+    -> int y1
+    -> int x1
+    -> int y0
+    -> int x0
+    //"new line from " %s x0 %d ',' %c y0 %d " to " %s x1 %d ',' %c y1 %d %nl
+    new iAtcLine -> iAtcLine line
+    line.init(x0 y0 x1 y1)
+    lines.insert(line 0)
+    //lines.push(line)
+    oclear line
+  ;method
+  
+;class

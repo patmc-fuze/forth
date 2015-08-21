@@ -1,0 +1,23 @@
+//======== airport ========
+
+class: atcAirport extends iAtcAirport
+
+  // X Y ENTRY_DIRECTION ID
+  method: init
+    'airp' -> tag
+    0 -> altitude
+    -> id
+    -> entryDirection
+    -> y
+    -> x
+  ;method
+  
+  
+  method: delete
+    t{ "deleting airport " %s id %d %nl }t
+    super.delete
+  ;method
+  
+;class
+
+

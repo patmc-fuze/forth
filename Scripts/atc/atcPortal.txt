@@ -1,0 +1,26 @@
+//======== atcPortal ========
+
+class: atcPortal extends iAtcPortal
+
+  
+  method: delete
+    t{ "deleting portal " %s id %d %nl }t
+	super.delete
+  ;method
+  
+  // X Y ENTRY_DIRECTION ID
+  method: init
+    'prtl' -> tag
+    9000 -> exitAltitude
+	7000 -> entryAltitude
+	-> id
+	-> entryDirection
+	-> y
+	-> x
+  ;method
+  
+  method: update
+  ;method
+  
+  
+;class
