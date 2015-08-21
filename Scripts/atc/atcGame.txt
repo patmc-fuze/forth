@@ -15,10 +15,11 @@ class: atcGame extends iAtcGame
   method: init
     'game' -> tag
     new oString -> name
-    name.set
-    if(name.length 0=)
-      name.set("default.atc")
+    name.set("games/")
+    if( dup strlen 0=)
+      drop "default"
     endif
+    name.append
     //name.get %s '!' %c %nl
     new oArray -> airplanes
     new oList -> activeAirplanes
