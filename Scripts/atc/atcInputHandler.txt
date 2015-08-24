@@ -38,17 +38,17 @@ class: atcInputHandler extends iAtcInputHandler
   ;
   
   : executeCommand
-    //show
-    //displayString.get %s %nl
+    t{ "command: " %s displayString.get %s %nl }t
     setIdle
     display.showCommand("")
     display.showWarning("")
-    //displayString.get %s %nl
     true -> commandInfo.isReady
   ;
   
   : handleIdle
     false -> commandInfo.isReady
+    -1 -> commandInfo.beaconNum
+    0 -> commandInfo.forceDirection
     if( within( cmdChar 'a' 'z' 1+ ))
       cmdChar 'a' - -> commandInfo.airplaneNum
       kACSPlaneSelected -> commandState
@@ -100,6 +100,7 @@ class: atcInputHandler extends iAtcInputHandler
         commandString.appendChar( cmdChar )
         displayString.append( " circle" )
         kACSCircle -> commandState
+        0 -> commandInfo.forceDirection
         kACTCircle -> commandInfo.command
       endof
       
@@ -108,6 +109,7 @@ class: atcInputHandler extends iAtcInputHandler
         displayString.append( " turn" )
         kACSTurn -> commandState
         kACTTurn -> commandInfo.command
+        0 -> commandInfo.forceDirection
       endof
       
       display.showWarning( "valid command letters are actmui  altitude/circle/turn/mark/unmark/ignore" )
@@ -195,14 +197,14 @@ class: atcInputHandler extends iAtcInputHandler
         commandString.appendChar( cmdChar )
         displayString.append( " left" )
         kACSCircleReady -> commandState
-        false -> commandInfo.isClockWise
+        -1 -> commandInfo.forceDirection
       endof
     
       'r' of
         commandString.appendChar( cmdChar )
         displayString.append( " right" )
         kACSCircleReady -> commandState
-        true -> commandInfo.isClockWise
+        1 -> commandInfo.forceDirection
       endof
     
       'a' of
@@ -218,7 +220,7 @@ class: atcInputHandler extends iAtcInputHandler
       endof
     
       '\r' of
-        true -> commandInfo.isClockWise
+        0 -> commandInfo.forceDirection
         executeCommand
       endof
     
@@ -261,6 +263,7 @@ class: atcInputHandler extends iAtcInputHandler
         kACSTurnDirection -> commandState
         -1 -> commandInfo.amount
         true -> commandInfo.isRelative
+        -1 -> commandInfo.forceDirection
       endof
       
       'r' of
@@ -269,6 +272,7 @@ class: atcInputHandler extends iAtcInputHandler
         kACSTurnDirection -> commandState
         1 -> commandInfo.amount
         true -> commandInfo.isRelative
+        1 -> commandInfo.forceDirection
       endof
       
       'L' of
@@ -277,6 +281,7 @@ class: atcInputHandler extends iAtcInputHandler
         kACSTurnReady -> commandState
         -2 -> commandInfo.amount
         true -> commandInfo.isRelative
+        -1 -> commandInfo.forceDirection
       endof
       
       'R' of
@@ -285,6 +290,7 @@ class: atcInputHandler extends iAtcInputHandler
         kACSTurnReady -> commandState
         2 -> commandInfo.amount
         true -> commandInfo.isRelative
+        1 -> commandInfo.forceDirection
       endof
       
       't' of
@@ -440,6 +446,15 @@ class: atcInputHandler extends iAtcInputHandler
   ' handleAt -> inputStateOps( kACSAt )
   ' handleAtBeacon -> inputStateOps( kACSAtBeacon )
 
+  : setCommandCharacter
+    dup -> oCmdChar
+    -> cmdChar
+    if( within( cmdChar 'A' 'Z' 1+ ))
+      // cmdChar is lowercased oCmdChar
+      'a' 'A' - ->+ cmdChar
+    endif
+  ;
+
   : handleBackspace
     // handle backspace/delete:
     //  set state back to idle
@@ -447,8 +462,16 @@ class: atcInputHandler extends iAtcInputHandler
     new oString -> oString tmpCommandString
     tmpCommandString.set( commandString.get )
     tmpCommandString.resize( tmpCommandString.length 1- )
+    tmpCommandString.get -> ptrTo byte pSrc
     setIdle
-    // TODO: process commandString chars one at a times
+    // process commandString chars one at a times
+    begin
+      c@@++(ref pSrc) -> byte ch
+    while( ch 0<> )
+      setCommandCharacter( ch )
+      inputStateOps( commandState )
+    repeat
+    display.showCommand( displayString.get )
   ;
   
   method: init     // REGION DISPLAY_OBJ  ...
@@ -462,7 +485,7 @@ class: atcInputHandler extends iAtcInputHandler
   ;method
   
   method: delete
-    t{ "deleting inputHandler " %s %nl }t
+    //t{ "deleting inputHandler " %s %nl }t
     oclear region
     oclear display
     super.delete
@@ -471,12 +494,7 @@ class: atcInputHandler extends iAtcInputHandler
   method: update
     if( key? )
       
-      key dup -> oCmdChar
-      -> cmdChar
-      if( within( cmdChar 'A' 'Z' 1+ ))
-        // cmdChar is lowercased oCmdChar
-        'a' 'A' - ->+ cmdChar
-      endif
+      setCommandCharacter(key)
 
       if( or( cmdChar '\b' = cmdChar 0x7f = ) )
 
@@ -496,7 +514,7 @@ class: atcInputHandler extends iAtcInputHandler
       endif
       
       display.showCommand( displayString.get )
-      
+   
     endif
   ;method
   

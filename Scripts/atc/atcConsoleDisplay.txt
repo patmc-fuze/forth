@@ -10,7 +10,7 @@ class: atcConsoleDisplay extends iAtcDisplay
   int defaultColors
   
   method: delete
-    t{ "deleting display " %s %nl }t
+    //t{ "deleting display " %s %nl }t
     oclear region
     oclear text
     super.delete
@@ -166,6 +166,12 @@ class: atcConsoleDisplay extends iAtcDisplay
     "*******************" %s
   ;
 
+  : startPlaneStatus
+    setConsoleCursor(statusColumn over)
+    44 bl %nc
+    setConsoleCursor(statusColumn swap)
+  ;
+  
   : updatePlaneStatus
     -> oList activeAirplanes
     statusRow -> int planeRow
@@ -175,24 +181,48 @@ class: atcConsoleDisplay extends iAtcDisplay
     begin
     while( iter.next )
       -> iAtcAirplane plane
-      if( plane.moving)
+      if( plane.status kAASMovingMarked >= )
         setConsoleCursor(plane.x 2* plane.y)
-        setTextColors( kCCWhite kCCBlack )
-        plane.name.get %s plane.altitude 1000 / %d
-        setConsoleCursor(statusColumn planeRow)
-        setConsoleColor(defaultColors)
-        1 ->+ planeRow
-        plane.name.get %s plane.altitude 1000 / %d %bl
-        if( plane.destinationType kATTPortal = )
-          'E' %c
-        else
-          'A' %c
+        if( plane.status kAASMovingMarked =)
+          setTextColors( kCCWhite kCCBlack )
+          plane.name.get %s plane.altitude 1000 / %d
+          setConsoleColor(defaultColors)
+          startPlaneStatus(planeRow)
+          1 ->+ planeRow
+          plane.name.get %s plane.altitude 1000 / %d %bl
+          if( plane.destinationType kATTPortal = )
+            'E' %c
+          else
+            'A' %c
+          endif
+          plane.destination %d ':' %c
+          if( plane.circle )
+            " Circle " %s
+            if( plane.circle 0< )
+              "counter" %s
+            endif
+            "clockwise" %s
+          else
+            if( plane.heading plane.commandedHeading <>)
+              case(plane.forceDirection)
+                of(1) " Turn right" endof
+                of(-1) " Turn left" endof
+                drop " Turn"
+              endcase
+              %s " to " %s plane.commandedHeading 45 * %d
+            endif
+          endif
+          if( plane.beaconNum 0>=)
+            " at beacon " %s plane.beaconNum %d
+          endif
+       else
+          plane.name.get %s plane.altitude 1000 / %d
         endif
-        plane.destination %d ':' %c
       endif
       oclear plane
     repeat
   
+    startPlaneStatus(planeRow)
     1 ->+ planeRow
 
     // display airplanes waiting to takeoff
@@ -200,8 +230,8 @@ class: atcConsoleDisplay extends iAtcDisplay
     begin
     while( iter.next )
       -> iAtcAirplane plane
-      if( not(plane.moving))
-        setConsoleCursor(statusColumn planeRow)
+      if( plane.status kAASMovingMarked < )
+        startPlaneStatus(planeRow)
         1 ->+ planeRow
         plane.name.get %s 0 %d %bl
         if( plane.destinationType kATTPortal = )
@@ -215,7 +245,13 @@ class: atcConsoleDisplay extends iAtcDisplay
       oclear plane
     repeat
     oclear iter
-  
+
+    begin
+    while(planeRow region.rows <)
+      startPlaneStatus(planeRow)
+      1 ->+ planeRow
+    repeat
+    
     oclear activeAirplanes
   ;
   
@@ -255,7 +291,7 @@ class: atcConsoleDisplay extends iAtcDisplay
     begin
     while( iter.next )
       -> iAtcAirplane plane
-      if( plane.moving)
+      if( plane.status kAASMovingMarked >= )
         setConsoleCursor(plane.x 2* plane.y)
         xyAddr(plane.x plane.y) dup c@ %c 1+ c@ %c
       endif

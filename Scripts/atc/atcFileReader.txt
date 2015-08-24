@@ -113,6 +113,14 @@ kFFParenIsExpression ->+ features
   0 -> numArgs
 forth:;
 
+: );
+  ) ;
+forth:;
+
+: ];
+  ] ;
+forth:;
+
 //only forth
 
 // ATC_FILENAME ATC_GAME_OBJ ...

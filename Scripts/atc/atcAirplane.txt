@@ -22,23 +22,55 @@ class: atcAirplane extends iAtcAirplane
   : updateHeading
     0 -> int rightTurns
     0 -> int leftTurns
+    0 -> int deltaHeading
+    
+    if( circle )
+      heading circle 2* + 7 and dup -> heading -> commandedHeading
+      exit
+    endif
+    
     if( commandedHeading heading = )
       exit
     endif
+    
     if( commandedHeading heading > )
       commandedHeading heading - dup -> rightTurns
       8 swap - -> leftTurns
     else
-      commandedHeading heading - dup -> leftTurns
+      heading commandedHeading - dup -> leftTurns
       8 swap - -> rightTurns
     endif
-    t{ "old heading " %s heading %d " commandedHeading " %s commandedHeading %d }t
-    if( rightTurns leftTurns < )
-      1 ->+ heading
+    t{ "old heading " %s heading 45 * %d " commandedHeading " %s commandedHeading 45 * %d }t
+    
+    case(forceDirection)
+
+      of(1)
+        rightTurns -> deltaHeading
+      endof
+
+      of(-1)
+        negate(leftTurns) -> deltaHeading
+      endof
+
+      drop
+      if( rightTurns leftTurns < )
+        rightTurns -> deltaHeading
+      else
+        negate(leftTurns) -> deltaHeading
+      endif
+      
+    endcase
+
+    if(deltaHeading 2 >)
+      2 -> deltaHeading
     else
-      1 ->- heading
+      if(deltaHeading -2 <)
+        -2 -> deltaHeading
+      endif
     endif
-    t{ "  rightTurns " %s rightTurns %d " left turns " %s leftTurns %d "   new heading " %s heading %d %nl }t
+   
+    heading deltaHeading + 7 and -> heading
+    t{ "  rightTurns " %s rightTurns %d " left turns " %s leftTurns %d "   new heading " %s heading 45 * %d %nl }t
   ;
   
   : calculateNextPosition
@@ -75,7 +107,7 @@ class: atcAirplane extends iAtcAirplane
   ;method
   
   method: activate    // UPDATE_TIME IS_JET IS_MOVING ...
-    -> moving
+    if kAASMovingMarked else kAASHolding endif -> status
 
     name.clear
     if
@@ -93,7 +125,7 @@ class: atcAirplane extends iAtcAirplane
   ;method
   
   method: delete
-    t{ "deleting plane " %s name.get %s %nl }t
+    //t{ "deleting plane " %s name.get %s %nl }t
     oclear name
     oclear region
     super.delete
@@ -103,7 +135,7 @@ class: atcAirplane extends iAtcAirplane
     -> int now
     
     if( now nextUpdateTime > )
-      if( moving )
+      if( status kAASMovingMarked >= )
         updateInterval ->+ nextUpdateTime
         updateAltitude
         
@@ -114,6 +146,9 @@ class: atcAirplane extends iAtcAirplane
           if( region.getBeacon(beaconNum).at(x y) )
             // plane has arrived at beacon
             -1 -> beaconNum
+            if(kAASMovingUnmarked status =)
+              kAASMovingMarked -> status
+            endif
             updateHeading
           endif
         endif
@@ -127,6 +162,7 @@ class: atcAirplane extends iAtcAirplane
   method: commandTurn
     -> beaconNum
     -> commandedHeading
+    0 -> circle
   ;method
   
   method: commandAltitude
@@ -141,7 +177,7 @@ class: atcAirplane extends iAtcAirplane
   method: executeCommand // COMMAND_INFO_PTR DISPLAY_OBJECT ...
     -> iAtcDisplay display
     -> ptrTo atcCommandInfo commandInfo
-    if( moving)
+    if( status kAASMovingMarked >= )
       case( commandInfo.command)
       
         of(kACTAltitude)
@@ -159,21 +195,26 @@ class: atcAirplane extends iAtcAirplane
         endof
     
         of(kACTMark)
+          kAASMovingMarked -> status
         endof
     
         of(kACTIgnore)
+          kAASMovingIgnored -> status
         endof
       
         of(kACTUnmark)
+          kAASMovingUnmarked -> status
         endof
       
         of(kACTCircle)
-          commandInfo.amount -> circle
+          if(commandInfo.forceDirection 0<) -1 else 1 endif -> circle
+          commandInfo.beaconNum -> beaconNum
         endof
     
         of(kACTTurn)
           0 -> circle
           commandInfo.amount -> commandedHeading
+          commandInfo.beaconNum -> beaconNum
           if(commandInfo.isRelative)
             heading ->+ commandedHeading
           endif
@@ -187,6 +228,7 @@ class: atcAirplane extends iAtcAirplane
         endof
       
         of(kACTTurnTowards)
+          commandInfo.beaconNum -> beaconNum
         endof
    
         display.showWarning("unexpected command ") %d
@@ -198,7 +240,7 @@ class: atcAirplane extends iAtcAirplane
       if( commandInfo.command kACTAltitude = )
         if( commandInfo.amount 0> )
           // handle takeoff
-          true -> moving
+          kAASMovingMarked -> status
           commandInfo.amount -> commandedAltitude
         endif
       else

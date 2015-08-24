@@ -12,12 +12,6 @@ class: atcAirport extends iAtcAirport
     -> x
   ;method
   
-  
-  method: delete
-    t{ "deleting airport " %s id %d %nl }t
-    super.delete
-  ;method
-  
 ;class
 
 

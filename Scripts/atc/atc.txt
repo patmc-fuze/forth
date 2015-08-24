@@ -27,9 +27,9 @@ enum: atcTileType  byte
   kATTPortal
 ;enum
 
-//  7 0 1    q w e
-//  6   2    a   d
-//  5 4 3    z x c
+//  7 0 1    q w e    315   0    45
+//  6   2    a   d    270        90
+//  5 4 3    z x c    225  180  135
 
 9 string directionChars
 "wedcxzaq" -> directionChars
@@ -46,6 +46,13 @@ enum: atcDirection  byte
   kNumDirections
 ;enum
 
+enum: atcAirplaneStatus byte
+  kAASHolding
+  kAASMovingMarked
+  kAASMovingUnmarked
+  kAASMovingIgnored
+;enum
+
 9000 constant kMaxAltitude
 
 enum: atcCommandType  // uses command info:
@@ -53,9 +60,9 @@ enum: atcCommandType  // uses command info:
   kACTMark
   kACTIgnore
   kACTUnmark
-  kACTCircle          // isClockWise beacon
-  kACTTurn            // isRelative amount beacon
-  kACTTurnTowards     // targetType target beacon
+  kACTCircle          // forceDirection beaconNum
+  kACTTurn            // forceDirection isRelative amount beaconNum
+  kACTTurnTowards     // targetType target beaconNum
   kNumCommands
 ;enum
 
@@ -64,7 +71,7 @@ struct: atcCommandInfo      // used by:
   atcCommandType command    // all
   int isRelative            // altitude turn
   int amount                // altitude turn
-  int isClockWise           // circle
+  int forceDirection        // circle turn (1 for clockwise/right, 0 for closest direction, -1 for counterclockwise/left)
   int targetNum             // turnTowards
   atcTileType targetType    // turnTowards
   int beaconNum             // circle turn turnTowards
@@ -135,7 +142,7 @@ class: atcTile
   ;method
     
   method: delete
-    t{ "deleting tile\n" %s }t
+    //t{ "deleting tile\n" %s }t
     oclear airplanes
     super.delete
   ;method
@@ -183,16 +190,17 @@ class: iAtcAirplane
   oString name
   int id
   int altitude
-  int moving                // false for airplanes which are waiting to takeoff, true for others
+  int commandedAltitude
   int x
   int y
-  int destination           // -1 for destination is any exit, 0 or greater is airport
-  atcTileType destinationType    // kATTPortal or kATTAirport
+  int destination                 // index of destination airport or portal
+  atcAirplaneStatus status        // holding for takeoff, marked/unmarked/ignored
+  atcTileType destinationType     // kATTPortal or kATTAirport
   atcDirection heading
-  int commandedAltitude
   atcDirection commandedHeading
   int beaconNum             // -1 for no delaying beacon
-  int circle                // +1 for circle clockwise, -1 for counterclockwise
+  int circle                // 0 for not circling
+  int forceDirection
   
   method: init            ;method // ID REGION ...
   method: setPosition     ;method // X Y ALTITUDE HEADING
@@ -244,11 +252,6 @@ class: iAtcBeacon
     -> x
   ;method
   
-  method: delete
-    t{ "deleting beacon " %s id %d %nl }t
-    super.delete
-  ;method
-  
   method: at returns int  // X Y BOOL
     and( y = swap x = )
   ;method
@@ -267,11 +270,6 @@ class: iAtcLine
     -> y1  -> x1  -> y0  -> x0
   ;method
 
-  method: delete
-    t{ "deleting line " %s %nl }t
-    super.delete
-  ;method
-  
 ;class
 
 class: iAtcRegion
@@ -370,6 +368,19 @@ lf atcFileReader.txt
 loaddone
 
 
++ handle backspace
++ only jets are being created
++ when number of planes decreases, there are stale lines at bottom of status display
++ circle commmand does nothing
++ add delayable commands
++ display commands in plane status
++ implement unmark
++ implement ignore
+
+- leftover junk on stack
+  seems to be altitude command letters
+- check for airplane collisions
+- implement turn towards
 
 
 
