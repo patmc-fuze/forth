@@ -27,6 +27,9 @@ setTrace( 0 )
 0x20 constant bl
 : spaces bl %nc ;
 
+: depth s0 sp - 2 rshift 1- ;
+: aligned 3+ 0xFFFFFFFC and ;
+
 : autoload
   if( blword $find  0= )
     $load( blword )

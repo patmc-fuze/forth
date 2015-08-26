@@ -258,9 +258,6 @@ int _handler
   postpone ;
 ;
 
-: depth s0 sp - 2 rshift 1- ;
-: aligned 3+ 0xFFFFFFFC and ;
-
 : recurse
   ref definitions
   vocNewestEntry @ ,

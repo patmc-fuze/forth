@@ -7,6 +7,8 @@ class: atcRegion extends iAtcRegion
     2dup
     -> rows
     -> columns
+    rows columns + -> startingFuel
+    startingFuel 3+ 4 / -> warningFuel
     new oArray -> tiles
     do(* 0)
       new atcTile
@@ -145,6 +147,52 @@ class: atcRegion extends iAtcRegion
     -> tile.tileType
     oclear tile
   ;
+  
+  method: checkCollisions    // PLANE ... COLLIDED_PLANE_INDEX  returns -1 if no collision
+    -> iAtcAirplane plane
+    -1 -> int collidedPlaneIndex
+    int minRow int maxRow int minColumn int maxColumn
+    
+    plane.x 1- -> minColumn
+    if(minColumn 0<) 0 -> minColumn endif
+    plane.x 1+ -> maxColumn
+    if(maxColumn columns >=) 1 ->- maxColumn endif
+    
+    plane.y 1- -> minRow
+    if(minRow 0<) 0 -> minRow endif
+    plane.y 1+ -> maxRow
+    if(maxRow rows >=) 1 ->- maxRow endif
+    
+    minRow -> int checkRow
+    begin
+    while(and(collidedPlaneIndex 0<  checkRow maxRow <=))
+      minColumn -> int checkColumn
+      begin
+      while(and(collidedPlaneIndex 0<  checkColumn maxColumn <=))
+        //"checking at " %s checkColumn %d %bl checkRow %d %nl
+        getTile(checkColumn checkRow) -> atcTile tile
+        tile.airplanes.headIter -> oIter iter
+        begin
+        while(iter.next)
+          -> iAtcAirplane checkPlane
+          //"checking " %s checkPlane.name.get %s " against " %s plane.name.get %s %nl
+          if(checkPlane.id plane.id <>)
+            if(within(checkPlane.altitude plane.altitude - -1 2))
+              checkPlane.id -> collidedPlaneIndex
+            endif
+          endif
+          oclear checkPlane
+        repeat
+        1 ->+ checkColumn
+        oclear tile
+        oclear iter
+      repeat
+      1 ->+ checkRow
+    repeat
+
+    oclear plane
+    collidedPlaneIndex
+  ;method
   
   // x y direction id ...
   method: addPortal

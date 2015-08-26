@@ -27,7 +27,7 @@ class: atcInputHandler extends iAtcInputHandler
       'z' of "225" endof
       'a' of "270" endof
       'q' of "315" endof
-      "???"
+      "<bad direction>"
     endcase
   ;
   
@@ -45,6 +45,10 @@ class: atcInputHandler extends iAtcInputHandler
     true -> commandInfo.isReady
   ;
   
+  : unrecognizedCommandWarning
+    display.startWarning '"' %c cmdChar %c '"' %c "unrecognized, valid command letters are " %s %s
+  ;
+
   : handleIdle
     false -> commandInfo.isReady
     -1 -> commandInfo.beaconNum
@@ -60,7 +64,8 @@ class: atcInputHandler extends iAtcInputHandler
         // force an immediate game turn
         ms@ -> game.status.nextMoveTime
       else
-        display.showWarning( "airplane name a..z is required" )
+        //display.showWarning( "airplane name a..z is required" )
+        display.startWarning "airplane name a..z is required" %s
       endif
     endif
   ;
@@ -112,7 +117,9 @@ class: atcInputHandler extends iAtcInputHandler
         0 -> commandInfo.forceDirection
       endof
       
-      display.showWarning( "valid command letters are actmui  altitude/circle/turn/mark/unmark/ignore" )
+      drop
+      //display.showWarning( "valid command letters are actmui  altitude/circle/turn/mark/unmark/ignore" )
+      unrecognizedCommandWarning( "actmui  altitude/circle/turn/mark/unmark/ignore" )
     endcase
   ;
   
@@ -120,7 +127,8 @@ class: atcInputHandler extends iAtcInputHandler
     if( cmdChar '\r' =)
       executeCommand
     else
-      display.showWarning( "hit ENTER" )
+      //display.showWarning( "hit ENTER" )
+      display.startWarning "hit ENTER" %s
     endif
   ;
 
@@ -129,6 +137,7 @@ class: atcInputHandler extends iAtcInputHandler
     case( cmdChar )
       '-' of  'd' -> cmdChar endof
       '+' of  'c' -> cmdChar endof
+      drop
     endcase
   
     case( cmdChar )
@@ -143,7 +152,8 @@ class: atcInputHandler extends iAtcInputHandler
         displayString.append( " descend" )
         kACSAltitudeDescend -> commandState
       endof
-      
+
+      drop
       if( within(altitude 0 10) )
         commandString.appendChar( cmdChar )
         displayString.appendChar( '\ ' )
@@ -153,7 +163,8 @@ class: atcInputHandler extends iAtcInputHandler
         altitude -> commandInfo.amount
         false -> commandInfo.isRelative
       else
-        display.showWarning( "valid command letters are cd0123456789" )
+        //display.showWarning( "valid command letters are cd0123456789" )
+        unrecognizedCommandWarning("cd0123456789")
       endif
       
     endcase
@@ -171,7 +182,8 @@ class: atcInputHandler extends iAtcInputHandler
       true -> commandInfo.isRelative
       // TODO: check climb is in range
     else
-      display.showWarning( "valid command letters are 0123456789" )
+      //display.showWarning( "valid command letters are 0123456789" )
+      unrecognizedCommandWarning("0123456789")
     endif
   ;
   
@@ -224,7 +236,8 @@ class: atcInputHandler extends iAtcInputHandler
         executeCommand
       endof
     
-      display.showWarning( "valid command letters are lra or ENTER" )
+      //drop display.showWarning( "valid command letters are lra or ENTER" )
+      drop unrecognizedCommandWarning("lra or ENTER")
     endcase
   ;
   
@@ -246,7 +259,8 @@ class: atcInputHandler extends iAtcInputHandler
         executeCommand
       endof
       
-      display.showWarning( "valid command letters are a or ENTER" )
+      //drop display.showWarning( "valid command letters are a or ENTER" )
+      drop unrecognizedCommandWarning("a or ENTER")
     endcase
   ;
   
@@ -299,6 +313,7 @@ class: atcInputHandler extends iAtcInputHandler
         kACSTurnTowards -> commandState
       endof
       
+      drop
       c2dir( cmdChar )
       if( dup 0>= )
         -> commandInfo.amount
@@ -308,8 +323,8 @@ class: atcInputHandler extends iAtcInputHandler
         false -> commandInfo.isRelative
         kACSTurnReady -> commandState
       else
-        drop
-        display.showWarning( "valid command letters are lrLRt or a direction key wedcxzaq" )
+        //drop display.showWarning( "valid command letters are lrLRt or a direction key wedcxzaq" )
+        drop unrecognizedCommandWarning("lrLRt or a direction key wedcxzaq")
       endif
     
     endcase
@@ -333,7 +348,7 @@ class: atcInputHandler extends iAtcInputHandler
         executeCommand
       endof
       
-      c2dir( cmdChar )
+      c2dir
       if( dup 0>= )
         -> commandInfo.amount
         commandString.appendChar( cmdChar )
@@ -341,9 +356,8 @@ class: atcInputHandler extends iAtcInputHandler
         displayString.append( c2dir$( cmdChar ) )
         kACSTurnReady -> commandState
       else
-        drop
-        display.showWarning( "valid command letters are a, ENTER or a direction key wedcxzaq" )
-          // TODO: report error
+        //drop display.showWarning( "valid command letters are a, ENTER or a direction key wedcxzaq" )
+        drop unrecognizedCommandWarning("a, ENTER or a direction key wedcxzaq")
       endif
     
     endcase
@@ -376,7 +390,8 @@ class: atcInputHandler extends iAtcInputHandler
       endof
       
         // TODO: report error
-      display.showWarning( "valid command letters are abe" )
+      //drop display.showWarning( "valid command letters are abe" )
+      drop unrecognizedCommandWarning("abe")
     
     endcase
   ;
@@ -391,7 +406,8 @@ class: atcInputHandler extends iAtcInputHandler
       displayString.appendChar( '\ ' )
       displayString.appendChar( cmdChar )
     else
-        display.showWarning( "valid command letters are 0123456789" )
+      //display.showWarning( "valid command letters are 0123456789" )
+      unrecognizedCommandWarning("0123456789")
     endif
   ;
   
@@ -411,7 +427,8 @@ class: atcInputHandler extends iAtcInputHandler
       commandString.appendChar( cmdChar )
       displayString.append( " beacon" )
     else
-      display.showWarning( "hit b" )
+      //display.showWarning( "hit b" )
+      unrecognizedCommandWarning("b")
     endif
   ;
   
@@ -424,7 +441,7 @@ class: atcInputHandler extends iAtcInputHandler
       displayString.appendChar( '\ ' )
       displayString.appendChar( cmdChar )
     else
-      display.showWarning( "hit ENTER" )
+      unrecognizedCommandWarning("ENTER")
     endif
   ;
   
@@ -513,6 +530,7 @@ class: atcInputHandler extends iAtcInputHandler
 
       endif
       
+      display.useDefaultColors
       display.showCommand( displayString.get )
    
     endif

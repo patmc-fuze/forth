@@ -3302,6 +3302,12 @@ FORTHOP( featuresOp )
     CLEAR_VAR_OPERATION;
 }
 
+FORTHOP( dumpCrashStateOp )
+{
+	ForthEngine* pEngine = GET_ENGINE;
+	pEngine->DumpCrashState();
+}
+
 FORTHOP( sourceOp )
 {
     ForthInputStack* pInput = GET_ENGINE->GetShell()->GetInput();
@@ -7669,6 +7675,7 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF(    getTraceOp,             "getTrace" ),
     OP_DEF(    verboseBop,             "verbose" ),
     OP_DEF(    featuresOp,             "features" ),
+    OP_DEF(    dumpCrashStateOp,       "dumpCrashState" ),
 
     ///////////////////////////////////////////
     //  conditional compilation

@@ -5,7 +5,6 @@ class: atcAirplane extends iAtcAirplane
   iAtcRegion region
   int nextUpdateTime
   int updateInterval        // 1 for jets, 2 for regular planes
-  int fuel  
     
   : updateAltitude
     int airportNum
@@ -122,6 +121,7 @@ class: atcAirplane extends iAtcAirplane
 
     -1 -> beaconNum
     0 -> circle
+    region.startingFuel -> fuel
   ;method
   
   method: delete
@@ -158,21 +158,6 @@ class: atcAirplane extends iAtcAirplane
     endif
   ;method
   
-  
-  method: commandTurn
-    -> beaconNum
-    -> commandedHeading
-    0 -> circle
-  ;method
-  
-  method: commandAltitude
-    -> commandedAltitude
-  ;method
-  
-  method: commandCircle
-    -> beaconNum
-    -> circle
-  ;method
   
   method: executeCommand // COMMAND_INFO_PTR DISPLAY_OBJECT ...
     -> iAtcDisplay display
@@ -231,7 +216,8 @@ class: atcAirplane extends iAtcAirplane
           commandInfo.beaconNum -> beaconNum
         endof
    
-        display.showWarning("unexpected command ") %d
+        //display.showWarning("unexpected command ") %d
+        display.startWarning "unexpected command " %s %d
       endcase
     
     else
@@ -241,10 +227,12 @@ class: atcAirplane extends iAtcAirplane
         if( commandInfo.amount 0> )
           // handle takeoff
           kAASMovingMarked -> status
+          region.startingFuel -> fuel
           commandInfo.amount -> commandedAltitude
         endif
       else
-        display.showWarning("only valid command is altitude(takeoff)")
+        //display.showWarning("only valid command is altitude(takeoff)")
+        display.startWarning "only valid command is altitude(takeoff)" %s
       endif
     endif
   

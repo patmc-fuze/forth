@@ -155,12 +155,15 @@ class: iAtcDisplay
   oByteArray text
   ptrTo byte textBase
   
-  method: init            ;method // REGION ...
-  method: update          ;method // ACTIVE_AIRPLANE_LIST ...
-  method: showWarning     ;method // CSTRING ...
-  method: showCommand     ;method // CSTRING ...
-  method: restorePos      ;method // X Y ...
-  method: hideAirplanes   ;method // ACTIVE_AIRPLANE_LIST ...
+  method: init                  ;method // REGION ...
+  method: update                ;method // ACTIVE_AIRPLANE_LIST ...
+  method: showWarning           ;method // CSTRING ...
+  method: startWarning          ;method
+  method: showCommand           ;method // CSTRING ...
+  method: restorePos            ;method // X Y ...
+  method: hideAirplanes         ;method // ACTIVE_AIRPLANE_LIST ...
+  method: useDefaultColors      ;method
+  method: useHighlightColors    ;method
   
 ;class
 
@@ -187,6 +190,7 @@ iAtcGame game
 
 class: iAtcAirplane
   int tag
+  int fuel
   oString name
   int id
   int altitude
@@ -276,6 +280,8 @@ class: iAtcRegion
   int tag
   int rows
   int columns
+  int startingFuel
+  int warningFuel
   
   oArray tiles
   oArray airports
@@ -294,11 +300,11 @@ class: iAtcRegion
   method: getAirport@ returns iAtcAirport     ;method // X Y ... AIRPORT_OBJ
   method: getPortal@ returns iAtcPortal       ;method // X Y ... PORTAL_OBJ  
   method: getBeacon@ returns iAtcBeacon       ;method // X Y ... BEACON_OBJ  
-  
-  method: addPortal                           ;method // x y entryAltitude exitAltitude ...
-  method: addAirport                          ;method // x y altitude ...
-  method: addBeacon                           ;method // x y ...
-  method: addLine                             ;method // x0 y0 x1 y1 ...
+  method: checkCollisions                     ;method // PLANE ... COLLIDED_PLANE_ID  returns -1 if no collision
+  method: addPortal                           ;method // X Y ENTRY_ALTITUDE EXIT_ALTITUDE ...
+  method: addAirport                          ;method // X Y ALTITUDE ...
+  method: addBeacon                           ;method // X Y ...
+  method: addLine                             ;method // X0 Y0 X1 Y1 ...
 ;class
 
 class: iAtcInputHandler
@@ -376,13 +382,13 @@ loaddone
 + display commands in plane status
 + implement unmark
 + implement ignore
++ check for airplane collisions
++ fuel consumption isn't tracked
 
-- leftover junk on stack
-  seems to be altitude command letters
-- check for airplane collisions
 - implement turn towards
-
-
+- invalid airport/beacon/portal number isn't reported in commands
+- having an 'if' without an ending 'endif' at the top level of a method
+  did not trigger an error - change <method: ;method> pair to do this checking
 
 
 

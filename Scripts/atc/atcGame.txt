@@ -90,11 +90,11 @@ class: atcGame extends iAtcGame
       // plane still in airspace
       region.getTile(newX newY) -> atcTile newTile
       
+      message.set("Plane ")
+      message.append(plane.name.get)
       if( plane.altitude 0=)
         true -> int legalLanding
         // plane either landed or crashed
-        message.set("Plane ")
-        message.append(plane.name.get)
         message.append(" crashed ")
         if(newTile.tileType kATTAirport <>)
           message.append("- must land at an airport")
@@ -124,7 +124,12 @@ class: atcGame extends iAtcGame
         // plane still flying
         newX -> plane.x   newY -> plane.y
         newTile.addAirplane( plane )
-        // TODO: check for delayed command if new tile is a beacon
+        if( plane.fuel 0<)
+          message.append(" ran out of fuel")
+          exitWithFailure
+        else
+          1 ->- plane.fuel
+        endif
       endif
       oclear newTile
     else
@@ -259,6 +264,27 @@ class: atcGame extends iAtcGame
   ;
   
   : checkAirplanes
+    activeAirplanes.headIter -> oIter iter
+    -1 -> int collidedPlaneId
+    setConsoleCursor(0 40)
+    begin
+    while( iter.next )
+      -> atcAirplane plane
+      if(plane.status kAASMovingMarked >=)
+        region.checkCollisions(plane) -> collidedPlaneId
+        if(collidedPlaneId 0>=)
+          airplanes.get(collidedPlaneId) -> iAtcAirplane collidedPlane
+          message.set("Plane ")
+          message.append(plane.name.get)
+          message.append(" collided with Plane ")
+          message.append(collidedPlane.name.get)
+          oclear collidedPlane
+          exitWithFailure
+        endif
+      endif
+      oclear plane
+    repeat
+    oclear iter
   ;
   
   : reportGameResults
@@ -309,11 +335,12 @@ class: atcGame extends iAtcGame
     -> ptrTo atcCommandInfo commandInfo
     if( commandInfo.airplaneNum airplanes.count < )
       airplanes.get(commandInfo.airplaneNum) -> iAtcAirplane plane
-      sh("execute ")  commandInfo.airplaneNum %d %bl plane.beaconNum %d %bl
+      //sh("execute ")  commandInfo.airplaneNum %d %bl plane.beaconNum %d %bl
       if( and(commandInfo.command kNumCommands <   commandInfo.command 0>=) )
         plane.executeCommand( commandInfo display )
       else
-        display.showWarning("unexpected command ") commandInfo.command %d
+        //display.showWarning("unexpected command ") commandInfo.command %d
+        display.startWarning "unexpected command " %s commandInfo.command %d
       endif
       oclear plane
     endif
