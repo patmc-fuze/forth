@@ -38,6 +38,13 @@ void* ForthAllocateBlock(size_t numBytes)
 	return pData;
 }
 
+void* ForthReallocateBlock(void *pMemory, size_t numBytes)
+{
+	void* pData = realloc(pMemory, numBytes);
+	ForthEngine::GetInstance()->TraceOut("realloc %d bytes @ %p\n", numBytes, pData);
+	return pData;
+}
+
 void ForthFreeBlock(void* pBlock)
 {
 	free(pBlock);
@@ -59,7 +66,7 @@ namespace
         ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
         ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
         long nBytes = pClassVocab->GetSize();
-        long* pData = (long *) malloc( nBytes );
+		long* pData = (long *)ForthAllocateBlock(nBytes);
 		// clear the entire object area - this handles both its refcount and any object pointers it might contain
 		memset( pData, 0, nBytes );
 		TRACK_NEW;
@@ -4257,6 +4264,7 @@ namespace
 //#define DEFAULT_STRING_DATA_BYTES 32
 #define DEFAULT_STRING_DATA_BYTES 256
 	int gDefaultRCStringSize = DEFAULT_STRING_DATA_BYTES - 1;
+	ForthClassVocabulary* gpOStringClass;
 
 	struct oString
 	{
@@ -4272,7 +4280,7 @@ namespace
 	{
 		int dataBytes = ((maxChars  + 4) & ~3);
         size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
-		oString* str = (oString *) malloc( nBytes +  RCSTRING_SLOP );
+		oString* str = (oString *) ForthAllocateBlock(nBytes + RCSTRING_SLOP);
 		str->maxLen = dataBytes - 1;
 		str->curLen = 0;
 		str->data[0] = '\0';
@@ -4309,15 +4317,30 @@ namespace
 
     FORTHOP( oStringShowMethod )
     {
+		char buffer[16];
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		SHOW_HEADER("oString");
+
 		pShowContext->ShowIndent();
 		pEngine->ConsoleOut("'value' : '");
 		GET_THIS(oStringStruct, pString);
 		pEngine->ConsoleOut(&(pString->str->data[0]));
 		pShowContext->EndElement("'");
+
+		pShowContext->ShowIndent();
+		pEngine->ConsoleOut("'curLen' : ");
+		sprintf(buffer, "%d", pString->str->curLen);
+		pEngine->ConsoleOut(buffer);
+		pShowContext->EndElement();
+
+		pShowContext->ShowIndent();
+		pEngine->ConsoleOut("'maxLen' : ");
+		sprintf(buffer, "%d", pString->str->maxLen);
+		pEngine->ConsoleOut(buffer);
+		pShowContext->EndElement();
+
 		pShowContext->EndIndent();
 		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
@@ -4385,7 +4408,7 @@ namespace
 			//int dataBytes = ((((newLen * 6) >> 2)  + 4) & ~3);
 			int dataBytes = ((newLen + 4) & ~3);
 	        size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
-			dst = (oString *) realloc( dst, nBytes );
+			dst = (oString *) __REALLOC( dst, nBytes );
 			dst->maxLen = dataBytes - 1;
 			pString->str = dst;
 		}
@@ -4411,7 +4434,7 @@ namespace
 		oString* dst = pString->str;
 		int dataBytes = ((newLen + 4) & ~3);
         size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
-		dst = (oString *) realloc( dst, nBytes );
+		dst = (oString *) __REALLOC(dst, nBytes);
 		dst->maxLen = dataBytes - 1;
 		pString->str = dst;
 		dst->data[newLen] = '\0';
@@ -4523,6 +4546,93 @@ namespace
 		METHOD_RETURN;
 	}
 
+	FORTHOP(oStringSplitMethod)
+	{
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		GET_THIS(oStringStruct, pString);
+		
+		MALLOCATE_OBJECT(oArrayStruct, pArray);
+		pArray->refCount = 0;
+		pArray->elements = new oArray;
+
+		int delimiter = SPOP;
+
+		if (pString->str->curLen != 0)
+		{
+			ForthObject obj;
+			obj.pMethodOps = gpOStringClass->GetInterface(0)->GetMethods();
+
+			const char* pSrc = pString->str->data;
+			int substringSize;
+			bool notDone = true;
+
+			while (notDone)
+			{
+				substringSize = 0;
+				const char* pEnd = strchr(pSrc, delimiter);
+				if (pEnd != NULL)
+				{
+					substringSize = pEnd - pSrc;
+				}
+				else
+				{
+					substringSize = strlen(pSrc);
+					notDone = false;
+				}
+				oString* str = CreateRCString(substringSize);
+				MALLOCATE_OBJECT(oStringStruct, pSubString);
+				pSubString->refCount = 0;
+				pSubString->hash = 0;
+				pSubString->str = str;
+				memcpy(str->data, pSrc, substringSize);
+				str->data[substringSize] = '\0';
+				str->curLen = substringSize;
+				obj.pData = (long *) pSubString;
+				pArray->elements->push_back(obj);
+				pSrc = pEnd + 1;
+			}
+		}
+
+		ForthInterface* pArrayInterface = gpArrayClassVocab->GetInterface(0);
+		PUSH_PAIR(pArrayInterface->GetMethods(), pArray);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oStringJoinMethod)
+	{
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		GET_THIS(oStringStruct, pString);
+		pString->str->curLen = 0;
+		int delimiter = SPOP;
+		char delimStr[4];
+		delimStr[0] = (char)delimiter;
+		delimStr[1] = '\0';
+
+		ForthObject obj;
+		
+		POP_OBJECT(obj);
+		
+		oArrayStruct* pArray = reinterpret_cast<oArrayStruct *>(obj.pData);
+		oArray::iterator iter;
+		oArray& a = *(pArray->elements);
+		bool firstTime = true;
+		for (iter = a.begin(); iter != a.end(); ++iter)
+		{
+			ForthObject& o = *iter;
+			oStringStruct* pStr = (oStringStruct *)o.pData;
+
+			if (!firstTime)
+			{
+				oStringAppendBytes(pString, delimStr, 1);
+			}
+
+			oStringAppendBytes(pString, pStr->str->data, pStr->str->curLen);
+			firstTime = false;
+		}
+
+		METHOD_RETURN;
+	}
+
 
     baseMethodEntry oStringMembers[] =
     {
@@ -4543,6 +4653,8 @@ namespace
         METHOD(     "hash",                 oStringHashMethod ),
         METHOD(     "appendChar",           oStringAppendCharMethod ),
         METHOD(     "load",                 oStringLoadMethod ),
+        METHOD_RET( "split",                oStringSplitMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArray) ),
+		METHOD(		"join",					oStringJoinMethod ),
         // following must be last in table
         END_MEMBERS
     };
@@ -5488,18 +5600,21 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oByteArrayCloneMethod )
-    {
-		GET_THIS( oByteArrayStruct, pArray );
-        oByteArray& a = *(pArray->elements);
-        ForthEngine *pEngine = ForthEngine::GetInstance();
-        // create clone array and set is size to match this array
-		MALLOCATE_OBJECT( oByteArrayStruct, pCloneArray );
-        pCloneArray->refCount = 0;
-        pCloneArray->elements = new oByteArray;
-        pCloneArray->elements->resize( a.size() );
-        // copy this array contents to clone array
-        memcpy( &(pCloneArray->elements[0]), &(a[0]), a.size() );
+	FORTHOP(oByteArrayCloneMethod)
+	{
+		GET_THIS(oByteArrayStruct, pArray);
+		oByteArray& a = *(pArray->elements);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		// create clone array and set is size to match this array
+		MALLOCATE_OBJECT(oByteArrayStruct, pCloneArray);
+		pCloneArray->refCount = 0;
+		pCloneArray->elements = new oByteArray;
+		pCloneArray->elements->resize(a.size());
+		// copy this array contents to clone array
+		if (a.size() > 0)
+		{
+			memcpy(&(pCloneArray->elements[0]), &(a[0]), a.size());
+		}
         // push cloned array on TOS
         PUSH_PAIR( GET_TPM, pCloneArray );
         METHOD_RETURN;
@@ -5509,7 +5624,7 @@ namespace
     {
 		GET_THIS( oByteArrayStruct, pArray );
         oByteArray& a = *(pArray->elements);
-        SPUSH( (long) &(a[0]) );
+        SPUSH( a.size() > 0 ? (long) &(a[0]) : NULL);
         METHOD_RETURN;
 	}
 
@@ -8595,7 +8710,6 @@ namespace
     };
 
 
-    ForthClassVocabulary* gpOStringClass;
     ForthClassVocabulary* gpOFileOutStreamClass;
     ForthClassVocabulary* gpOStringOutStreamClass;
     ForthClassVocabulary* gpOConsoleOutStreamClass;
@@ -8763,13 +8877,13 @@ ForthForgettableGlobalObject::ForthForgettableGlobalObject( const char* pName, v
 ,	mNumElements( numElements )
 {
     int nameLen = strlen( pName );
-    mpName = new char[nameLen + 1];
+    mpName = (char *) __MALLOC(nameLen + 1);
     strcpy( mpName, pName );
 }
 
 ForthForgettableGlobalObject::~ForthForgettableGlobalObject()
 {
-    delete [] mpName;
+    __FREE( mpName );
 }
 
 const char *

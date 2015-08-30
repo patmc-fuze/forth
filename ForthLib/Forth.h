@@ -637,3 +637,19 @@ typedef enum
 #define DLL_ENTRY_FLAG_RETURN_VOID		0x10000
 #define DLL_ENTRY_FLAG_RETURN_64BIT		0x20000
 #define DLL_ENTRY_FLAG_STDCALL			0x40000
+
+// memory allocation wrappers
+void* ForthAllocateBlock(size_t numBytes);
+void* ForthReallocateBlock(void *pMemory, size_t numBytes);
+void ForthFreeBlock(void* pBlock);
+
+#if 1
+#define __MALLOC ForthAllocateBlock
+#define __REALLOC ForthReallocateBlock
+#define __FREE ForthFreeBlock
+#else
+#define __MALLOC malloc
+#define __REALLOC realloc
+#define __FREE free
+#endif
+

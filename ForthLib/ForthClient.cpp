@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #endif
+#include "Forth.h"
 #include "ForthPipe.h"
 #include "ForthClient.h"
 #include "ForthMessages.h"
@@ -110,7 +111,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
     bool done = false;
     char buffer[ 1024 ];
     int readBufferSize = 16384;
-    char* pReadBuffer = new char[ readBufferSize ];
+    char* pReadBuffer = (char *)__MALLOC( readBufferSize );
     FILE*   inputStack[ 16 ];
     int inputStackDepth = 0;
     inputStack[ 0 ] = stdin;
@@ -279,8 +280,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                     int numBytes = numItems * itemSize;
                     if ( numBytes > readBufferSize )
                     {
-                        delete [] pReadBuffer;
-                        pReadBuffer = new char[ numBytes ];
+						pReadBuffer = (char *)__REALLOC(pReadBuffer, numBytes);
                         readBufferSize = numBytes;
                     }
                     int result = fread( pReadBuffer, itemSize, numItems, (FILE *) file );
@@ -392,8 +392,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                     pMsgPipe->ReadInt( maxChars );
                     if ( maxChars > readBufferSize )
                     {
-                        delete [] pReadBuffer;
-                        pReadBuffer = new char[ maxChars ];
+						pReadBuffer = (char *)__REALLOC(pReadBuffer, maxChars);
                         readBufferSize = maxChars;
                     }
                     char* result = fgets( pReadBuffer, maxChars, (FILE *) file );
@@ -508,13 +507,13 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgGetTempFilename:
                 {
-					char* pBuffer = (char *) malloc( L_tmpnam );
+					char* pBuffer = (char *) __MALLOC( L_tmpnam );
 					char* pResult = tmpnam( pBuffer );
 
                     pMsgPipe->StartMessage( kServerMsgGetTmpnamResult );
                     pMsgPipe->WriteString( pResult );
                     pMsgPipe->SendMessage();
-					free( pBuffer );
+					__FREE( pBuffer );
                 }
                 break;
 
@@ -629,7 +628,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 #else
     // TODO
 #endif
-    delete [] pReadBuffer;
+    __FREE( pReadBuffer );
     delete pMsgPipe;
     return 0;
 }

@@ -99,11 +99,6 @@ extern long gStatReleases;
 #define TRACK_RELEASE
 #endif
 
-void* ForthAllocateBlock(size_t numBytes);
-void ForthFreeBlock(void* pBlock);
-
-#define __MALLOC ForthAllocateBlock
-#define __FREE ForthFreeBlock
 #define MALLOCATE( _type, _ptr ) _type* _ptr = (_type *) __MALLOC( sizeof(_type) );
 
 #define MALLOCATE_OBJECT( _type, _ptr )  MALLOCATE( _type, _ptr );  TRACK_NEW

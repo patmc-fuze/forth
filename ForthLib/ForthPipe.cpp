@@ -6,6 +6,7 @@
 
 #include "StdAfx.h"
 
+#include "Forth.h"
 #include "ForthPipe.h"
 
 #define FORTH_PIPE_INITIAL_BYTES   		8192
@@ -97,14 +98,14 @@ ForthPipe::ForthPipe( SOCKET s, int messageTypeMin, int messageTypeLimit )
 ,	mMessageTypeMin( messageTypeMin )
 ,	mMessageTypeLimit( messageTypeLimit )
 {
-    mOutBuffer = new char[ mOutLen ];
-    mInBuffer = new char[ mInLen ];
+    mOutBuffer = (char *) __MALLOC( mOutLen );
+	mInBuffer = (char *)__MALLOC(mInLen);
 }
 
 ForthPipe::~ForthPipe()
 {
-    delete [] mOutBuffer;
-    delete [] mInBuffer;
+    __FREE(mOutBuffer);
+    __FREE(mInBuffer);
 }
 
 void
@@ -133,7 +134,7 @@ ForthPipe::WriteData( const void* pData, int numBytes )
     {
         // resize output buffer
         mOutLen = newOffset + FORTH_PIPE_BUFFER_INCREMENT;
-        mOutBuffer = (char *) realloc( mOutBuffer, mOutLen );
+		mOutBuffer = (char *)__REALLOC(mOutBuffer, mOutLen);
     }
     const char* pSrc = (char *) pData;
     char* pDst = &(mOutBuffer[mOutOffset]);
@@ -203,7 +204,7 @@ ForthPipe::ReceiveBytes( int numBytes )
     {
         // resize input buffer
         mInLen = newOffset + FORTH_PIPE_BUFFER_INCREMENT;
-        mInBuffer = (char *) realloc( mInBuffer, mInLen );
+		mInBuffer = (char *)__REALLOC(mInBuffer, mInLen);
     }
     char* pDst = &(mInBuffer[ mInOffset ]);
     int bytesRead = 0;

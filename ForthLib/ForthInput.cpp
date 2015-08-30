@@ -231,7 +231,7 @@ ForthInputStream::ForthInputStream( int bufferLen )
 , mReadOffset(0)
 , mWriteOffset(0)
 {
-    mpBufferBase = new char[bufferLen];
+    mpBufferBase = (char *)__MALLOC(bufferLen);
     mpBufferBase[0] = '\0';
     mpBufferBase[bufferLen - 1] = '\0';
 }
@@ -241,7 +241,7 @@ ForthInputStream::~ForthInputStream()
 {
     if ( mpBufferBase != NULL )
     {
-        delete [] mpBufferBase;
+        __FREE( mpBufferBase );
     }
 }
 
@@ -419,7 +419,7 @@ ForthFileInputStream::ForthFileInputStream( FILE *pInFile, const char *pFilename
 , mLineNumber( 0 )
 , mLineStartOffset( 0 )
 {
-    mpName = new char[strlen(pFilename) + 1];
+	mpName = (char *)__MALLOC(strlen(pFilename) + 1);
     strcpy( mpName, pFilename );
 }
 
@@ -430,7 +430,7 @@ ForthFileInputStream::~ForthFileInputStream()
     {
         fclose( mpInFile );
     }
-    delete [] mpName;
+    __FREE( mpName );
 }
 
 const char*
@@ -658,7 +658,7 @@ ForthBufferInputStream::ForthBufferInputStream( const char *pSourceBuffer, int s
 , mpSourceBuffer(pSourceBuffer)
 {
 	SPEW_SHELL("ForthBufferInputStream %s:%s  {%s}\n", GetType(), GetName(), pSourceBuffer);
-	mpDataBufferBase = new char[sourceBufferLen + 1];
+	mpDataBufferBase = (char *)__MALLOC(sourceBufferLen + 1);
 	memcpy( mpDataBufferBase, pSourceBuffer, sourceBufferLen );
     mpDataBufferBase[ sourceBufferLen ] = '\0';
 	mpDataBuffer = mpDataBufferBase;
@@ -669,7 +669,7 @@ ForthBufferInputStream::ForthBufferInputStream( const char *pSourceBuffer, int s
 
 ForthBufferInputStream::~ForthBufferInputStream()
 {
-	delete [] mpDataBufferBase;
+	__FREE(mpDataBufferBase);
 }
 
 int
@@ -928,9 +928,9 @@ ForthExpressionInputStream::ForthExpressionInputStream()
 	: ForthInputStream(INITIAL_EXPRESSION_STACK_SIZE)
 	, mStackSize(INITIAL_EXPRESSION_STACK_SIZE)
 {
-	mpStackBase = static_cast<char *>(malloc(mStackSize));
-	mpLeftBase = static_cast<char *>(malloc(mStackSize + 1));
-	mpRightBase = static_cast<char *>(malloc(mStackSize + 1));
+	mpStackBase = static_cast<char *>(__MALLOC(mStackSize));
+	mpLeftBase = static_cast<char *>(__MALLOC(mStackSize + 1));
+	mpRightBase = static_cast<char *>(__MALLOC(mStackSize + 1));
 	ResetStrings();
 }
 
@@ -953,9 +953,9 @@ ForthExpressionInputStream::ResetStrings()
 
 ForthExpressionInputStream::~ForthExpressionInputStream()
 {
-	free(mpStackBase);
-	free(mpLeftBase);
-	free(mpRightBase);
+	__FREE(mpStackBase);
+	__FREE(mpLeftBase);
+	__FREE(mpRightBase);
 }
 
 char* topStr = NULL;

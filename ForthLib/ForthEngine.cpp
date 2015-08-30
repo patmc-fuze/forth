@@ -212,7 +212,7 @@ ForthEngine::~ForthEngine()
 #ifdef WIN32
 		VirtualFree( mDictionary.pBase, 0, MEM_RELEASE );
 #else
-		free( mDictionary.pBase );
+		__FREE( mDictionary.pBase );
 #endif
         delete mpForthVocab;
         delete mpLocalVocab;
@@ -233,11 +233,11 @@ ForthEngine::~ForthEngine()
 
     if ( mpCore->optypeAction )
     {
-        free( mpCore->optypeAction );
+		__FREE(mpCore->optypeAction);
     }
     if ( mpCore->ops )
     {
-        free( mpCore->ops );
+		__FREE(mpCore->ops);
     }
 
     // delete all threads;
@@ -283,7 +283,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
 	// we need to allocate memory that is immune to Data Execution Prevention
 	mDictionary.pBase = (long *) VirtualAlloc( dictionaryAddress, dictionarySize, (MEM_COMMIT | MEM_RESERVE), PAGE_EXECUTE_READWRITE );
 #else
-	mDictionary.pBase = (long *) malloc( dictionarySize );
+	mDictionary.pBase = (long *) __MALLOC( dictionarySize );
 #endif
     mDictionary.pCurrent = mDictionary.pBase;
     mDictionary.len = totalLongs;
@@ -298,11 +298,11 @@ ForthEngine::Initialize( ForthShell*        pShell,
 
     mpMainThread = CreateThread( 0, MAIN_THREAD_PSTACK_LONGS, MAIN_THREAD_RSTACK_LONGS );
     mpCore = mpMainThread->GetCore();
-    mpCore->optypeAction = (optypeActionRoutine *) malloc( sizeof(optypeActionRoutine) * 256 );
+	mpCore->optypeAction = (optypeActionRoutine *) __MALLOC(sizeof(optypeActionRoutine) * 256);
     mpCore->numBuiltinOps = 0;
     mpCore->numOps = 0;
     mpCore->maxOps = 1024;
-    mpCore->ops = (long **) malloc( sizeof(long *) * mpCore->maxOps );
+	mpCore->ops = (long **) __MALLOC(sizeof(long *) * mpCore->maxOps);
 
 	if ( mpTypesManager == NULL )
 	{
@@ -1899,7 +1899,7 @@ ForthEngine::ExecuteOps( long *pOps )
 
     savedIP = mpCore->IP;
     mpCore->IP = pOps;
-	bool bFast = mFastMode && ((mTraceFlags & kLogInnerInterpreter) != 0);
+	bool bFast = mFastMode && ((mTraceFlags & kLogInnerInterpreter) == 0);
 	do
 	{
 		exitStatus = kResultOk;

@@ -107,6 +107,8 @@
 #include <sys/stat.h>
 #include <errno.h>
 
+#include "Forth.h"		// for __MALLOC/__FREE
+
 /* Indicates that d_type field is available in dirent structure */
 #define _DIRENT_HAVE_D_TYPE
 
@@ -313,7 +315,7 @@ _wopendir(
     }
 
     /* Allocate new _WDIR structure */
-    dirp = (_WDIR*) malloc (sizeof (struct _WDIR));
+    dirp = (_WDIR*) __MALLOC (sizeof (struct _WDIR));
     if (dirp != NULL) {
         DWORD n;
 
@@ -326,7 +328,7 @@ _wopendir(
         n = GetFullPathNameW (dirname, 0, NULL, NULL);
 
         /* Allocate room for absolute directory name and search pattern */
-        dirp->patt = (wchar_t*) malloc (sizeof (wchar_t) * n + 16);
+		dirp->patt = (wchar_t*)__MALLOC(sizeof(wchar_t) * n + 16);
         if (dirp->patt) {
 
             /*
@@ -473,12 +475,12 @@ _wclosedir(
 
         /* Release search pattern */
         if (dirp->patt) {
-            free (dirp->patt);
+            __FREE(dirp->patt);
             dirp->patt = NULL;
         }
 
         /* Release directory structure */
-        free (dirp);
+        __FREE(dirp);
         ok = /*success*/0;
 
     } else {
@@ -587,7 +589,7 @@ opendir(
     }
 
     /* Allocate memory for DIR structure */
-    dirp = (DIR*) malloc (sizeof (struct DIR));
+	dirp = (DIR*) __MALLOC(sizeof(struct DIR));
     if (dirp) {
         wchar_t wname[PATH_MAX + 1];
         size_t n;
@@ -624,7 +626,7 @@ opendir(
 
     /* Clean up in case of error */
     if (error  &&  dirp) {
-        free (dirp);
+        __FREE(dirp);
         dirp = NULL;
     }
 
@@ -740,7 +742,7 @@ closedir(
         dirp->wdirp = NULL;
 
         /* Release multi-byte character version */
-        free (dirp);
+        __FREE(dirp);
 
     } else {
 

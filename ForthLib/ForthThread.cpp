@@ -12,7 +12,6 @@
 #include "ForthEngine.h"
 #include "ForthShowContext.h"
 
-
 // this is the number of extra longs to allocate at top and
 //    bottom of stacks
 #ifdef CHECK_GAURD_AREAS
@@ -287,12 +286,12 @@ ForthThreadQueue::ForthThreadQueue( int initialSize )
 ,   mCount( 0 )
 ,   mSize( initialSize )
 {
-    mQueue = (ForthThread **) malloc( sizeof(ForthThread*) *  mSize );
+    mQueue = (ForthThread **) __MALLOC( sizeof(ForthThread*) *  mSize );
 }
 
 ForthThreadQueue::~ForthThreadQueue()
 {
-    free( mQueue );
+	__FREE(mQueue);
 }
 
 void ForthThreadQueue::AddThread( ForthThread* pThread )
@@ -300,7 +299,7 @@ void ForthThreadQueue::AddThread( ForthThread* pThread )
     if ( mCount == mSize )
     {
         mSize += 16;
-        mQueue = (ForthThread **) realloc( mQueue, sizeof(ForthThread*) *  mSize );
+		mQueue = (ForthThread **)__REALLOC(mQueue, sizeof(ForthThread*) *  mSize);
     }
     int ix = mFirst + mCount;
     if ( ix >= mSize )

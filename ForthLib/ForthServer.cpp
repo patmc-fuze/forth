@@ -1201,7 +1201,7 @@ ForthServerShell::GetTmpnam( char* pBuffer )
         mpMsgPipe->ReadCountedData( pData, numBytes );
 		if ( numBytes > 0 )
 		{
-			pResult = (char *) malloc( numBytes );
+			pResult = (char *) __MALLOC( numBytes );
             memcpy( pResult, pData, numBytes );
 		}
     }

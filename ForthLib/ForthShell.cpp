@@ -43,11 +43,10 @@ namespace
         "else",
         "paren",
         "string",
-        "colon",
+        "define",
         "poundDirective",
 		"of",
 		"ofif",
-		"func"
     };
 
     const char * GetTagString( long tag )
@@ -249,12 +248,6 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 
 ForthShell::~ForthShell()
 {
-    // engine will destroy thread for us if we created it
-    if ( mFlags & SHELL_FLAG_CREATED_ENGINE )
-    {
-        delete mpEngine;
-    }
-
     DeleteEnvironmentVars();
     DeleteCommandLine();
     delete mpInput;
@@ -262,6 +255,12 @@ ForthShell::~ForthShell()
 	if (mExpressionInputStream != NULL)
 	{
 		delete mExpressionInputStream;
+	}
+
+	// engine will destroy thread for us if we created it
+	if (mFlags & SHELL_FLAG_CREATED_ENGINE)
+	{
+		delete mpEngine;
 	}
 #if 0
     delete mpReadyThreads;
@@ -503,7 +502,13 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
             {
                 if ( mPoundIfDepth == 0 )
                 {
-                    mFlags &= ~SHELL_FLAG_SKIP_SECTION;
+					long marker = mpStack->Pop();
+					if (marker != kShellTagPoundIf)
+					{
+						// error - unexpected else
+						mpEngine->SetError(kForthErrorBadPreprocessorDirective, "unexpected #endif");
+					}
+					mFlags &= ~SHELL_FLAG_SKIP_SECTION;
                 }
                 else
                 {
@@ -707,6 +712,12 @@ ForthShell::ReportError( void )
     }
 	SPEW_SHELL( "%s", errorBuf1 );
 	CONSOLE_STRING_OUT( errorBuf1 );
+
+	if (mpStack->GetDepth() > 0)
+	{
+		CONSOLE_STRING_OUT("\n");
+		mpStack->ShowStack();
+	}
 }
 
 // return true IFF done parsing line - in this case no string is returned in pInfo
@@ -1314,22 +1325,59 @@ ForthShell::DeleteEnvironmentVars( void )
 
 
 bool
-ForthShell::CheckSyntaxError( const char *pString, long tag, long desiredTag )
+ForthShell::CheckSyntaxError(const char *pString, long tag, long desiredTag)
 {
-    bool tagsMatched = (tag == desiredTag);
-    // special case: BranchZ will match either Branch or BranchZ
-    if ( !tagsMatched && (desiredTag == kShellTagBranchZ) && (tag == kShellTagBranch) )
-    {
-        tagsMatched = true;
-    }
-    if ( !tagsMatched )
-    {
-        sprintf( mErrorString, "<%s> preceeded by <%s>, was expecting <%s>",
-                 pString, GetTagString( tag ), GetTagString( desiredTag ) );
-        mpEngine->SetError( kForthErrorBadSyntax, mErrorString );
-        return false;
-    }
-    return true;
+	bool tagsMatched = (tag == desiredTag);
+	// special case: BranchZ will match either Branch or BranchZ
+	if (!tagsMatched && (desiredTag == kShellTagBranchZ) && (tag == kShellTagBranch))
+	{
+		tagsMatched = true;
+	}
+	if (!tagsMatched)
+	{
+		sprintf(mErrorString, "<%s> preceeded by <%s>, was expecting <%s>",
+			pString, GetTagString(tag), GetTagString(desiredTag));
+		mpStack->Push(tag);
+		mpEngine->SetError(kForthErrorBadSyntax, mErrorString);
+		return false;
+	}
+	return true;
+}
+
+
+void
+ForthShell::StartDefinition(const char* pFourCharCode)
+{
+	mpStack->Push(FourCharToLong(pFourCharCode));
+	mpStack->Push(kShellTagDefine);
+}
+
+
+bool
+ForthShell::CheckDefinitionEnd(const char* pDisplayName, const char* pFourCharCode)
+{
+	long defineTag = mpStack->Pop();
+
+	if (CheckSyntaxError(pDisplayName, defineTag, kShellTagDefine))
+	{
+		long defineType = mpStack->Pop();
+		
+		long expectedDefineType = FourCharToLong(pFourCharCode);
+		char actualType[8];
+		memcpy(actualType, &defineType, sizeof(defineType));
+		actualType[4] = '\0';
+
+		if (defineType == expectedDefineType)
+		{
+			return true;
+		}
+		sprintf(mErrorString, "at end of <%s> definition, got <%s>, was expecting <%s>",
+			pDisplayName, actualType, pFourCharCode);
+		mpStack->Push(defineType);
+		mpStack->Push(defineTag);
+		mpEngine->SetError(kForthErrorBadSyntax, mErrorString);
+	}
+	return false;
 }
 
 
@@ -1573,6 +1621,13 @@ FILE* ForthShell::OpenForthFile( const char* pPath )
 }
 
 
+long ForthShell::FourCharToLong(const char* pFourCC)
+{
+	long retVal = 0;
+	memcpy(&retVal, pFourCC, sizeof(retVal));
+	return retVal;
+}
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -1668,6 +1723,42 @@ ForthShellStack::PopString( char *pString )
     SPEW_SHELL( "Popped Tag string\n" );
     SPEW_SHELL( "Popped String \"%s\"\n", pString );
     return true;
+}
+
+void
+ForthShellStack::ShowStack()
+{
+	long* pSP = mSSP;
+	char buff[256];
+
+	ForthEngine::GetInstance()->ConsoleOut("Shell Stack:\n");
+	
+	while (pSP != mSST)
+	{
+		long tag = *pSP++;
+		if (tag < kNumShellTags)
+		{
+			sprintf(buff, "%08x   <%s>\n", tag, TagStrings[tag]);
+		}
+		else
+		{
+			char* pTag = (char *)&tag;
+			long dispTag = tag;
+			char b[4];
+			for (int i = 0; i < 4; i++)
+			{
+				char c = pTag[i];
+				if (c == '\0')
+				{
+					// replace nuls with spaces to avoid terminating display
+					c = ' ';
+				}
+				b[i] = c;
+			}
+			sprintf(buff, "%08x   %c%c%c%c\n", tag, b[0], b[1], b[2], b[3]);
+		}
+		ForthEngine::GetInstance()->ConsoleOut(buff);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////

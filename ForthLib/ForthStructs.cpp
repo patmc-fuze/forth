@@ -129,7 +129,7 @@ ForthTypesManager::StartStructDefinition( const char *pName )
     {
         mMaxStructs += STRUCTS_EXPANSION_INCREMENT;
         SPEW_STRUCTS( "StartStructDefinition expanding structs table to %d entries\n", mMaxStructs );
-        mpStructInfo = (ForthTypeInfo *) realloc( mpStructInfo, sizeof(ForthTypeInfo) * mMaxStructs );
+		mpStructInfo = (ForthTypeInfo *)__REALLOC(mpStructInfo, sizeof(ForthTypeInfo) * mMaxStructs);
     }
     ForthTypeInfo *pInfo = &(mpStructInfo[mNumStructs]);
 
@@ -160,7 +160,7 @@ ForthTypesManager::StartClassDefinition( const char *pName )
     {
         mMaxStructs += STRUCTS_EXPANSION_INCREMENT;
         SPEW_STRUCTS( "StartClassDefinition expanding structs table to %d entries\n", mMaxStructs );
-        mpStructInfo = (ForthTypeInfo *) realloc( mpStructInfo, sizeof(ForthTypeInfo) * mMaxStructs );
+		mpStructInfo = (ForthTypeInfo *)__REALLOC(mpStructInfo, sizeof(ForthTypeInfo) * mMaxStructs);
     }
     ForthTypeInfo *pInfo = &(mpStructInfo[mNumStructs]);
 

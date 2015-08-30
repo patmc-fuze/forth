@@ -43,11 +43,10 @@ typedef enum
    kShellTagBranch   = 6,
    kShellTagParen    = 7,
    kShellTagString   = 8,
-   kShellTagColon    = 9,
+   kShellTagDefine   = 9,
    kShellTagPoundIf  = 10,
    kShellTagOf       = 11,
    kShellTagOfIf     = 12,
-   kShellTagFunc     = 13,
    // if you add tags, remember to update TagStrings in ForthShell.cpp
    kNumShellTags
 } eShellTag;
@@ -74,6 +73,8 @@ public:
    void                PushString( const char *pString );
    // return true IFF item on top of shell stack is a string
    bool                PopString( char *pString );
+
+   void					ShowStack();
 
 protected:
    long                *mSSP;       // shell stack pointer
@@ -127,6 +128,8 @@ public:
     inline char *           GetArg( int argNum ) { return mpArgs[argNum]; };
 
     bool                    CheckSyntaxError( const char *pString, long tag, long desiredTag );
+	void					StartDefinition( const char* pFourCharCode );
+	bool					CheckDefinitionEnd( const char* pDisplayName, const char* pFourCharCode );
 
     virtual eForthResult    InterpretLine( const char *pSrcLine = NULL );
     virtual eForthResult    ProcessLine( const char *pSrcLine = NULL );
@@ -156,6 +159,7 @@ public:
     virtual void            PoundElse();
     virtual void            PoundEndif();
 
+	static long				FourCharToLong(const char* pFourCC);
 protected:
 
     // parse next token from input stream into mTokenBuff, padded with 0's up

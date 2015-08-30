@@ -12,6 +12,50 @@ o the code generated for control structures
 o the code generated for local variables
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Shell stack usage:
+
+do
+	pushes OP_DO_DO
+	pushes DP
+	pushes kShellTagDo
+	compiles OP_ABORT, 0 at DP
+
+?do
+	pushes OP_DO_CHECKDO
+	pushes DP
+	pushes kShellTagDo
+	compiles OP_ABORT, 0 at DP
+
+loop/+loop
+	pops kShellTagDo
+	pops OLD_DP
+	pops opcode
+	compiles opcode at OLD_DP
+	compiles kOpBranch(DP - OLD_DP) at OLD_DP+1 (branch used by 'leave')
+
+if
+	pushes DP
+	pushes kShellTagBranchZ
+	compiles OP_ABORT at DP
+
+else
+	pops kShellTagBranchZ
+	pops OLD_DP
+	pushes DP
+	pushes kShellTagBranch
+	compiles OP_ABORT at DP
+	compiles kOpBranchZ(DP - OLD_DP) at OLD_DP
+
+endif
+	pops kShellTagBranch/kShellTagBranchZ
+	pops OLD_DP
+	compiles kOpBranch/kOpBranchZ(DP - OLD_DP) at OLD_DP
+	
+begin
+	pushes DP
+	pushes kShellTagBegin
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 Code optimizations and combo ops.
 
 Compilation of combo ops:

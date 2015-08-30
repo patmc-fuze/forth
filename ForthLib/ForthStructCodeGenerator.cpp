@@ -44,12 +44,12 @@ ForthStructCodeGenerator::ForthStructCodeGenerator( ForthTypesManager* pTypeMana
 ,	mTOSTypeCode( BASE_TYPE_TO_CODE(kBaseTypeVoid) )
 {
 	mBufferBytes = 512;
-	mpBuffer = new char[ mBufferBytes ];
+	mpBuffer = (char *)__MALLOC(mBufferBytes);
 }
 
 ForthStructCodeGenerator::~ForthStructCodeGenerator()
 {
-	delete [] mpBuffer;
+	__FREE(mpBuffer);
 }
 
 bool ForthStructCodeGenerator::Generate( ForthParseInfo *pInfo, long*& pDst, int dstLongs )
@@ -60,9 +60,8 @@ bool ForthStructCodeGenerator::Generate( ForthParseInfo *pInfo, long*& pDst, int
 	int srcBytes = strlen( pSource ) + 1;
 	if ( srcBytes > mBufferBytes )
 	{
-		delete [] mpBuffer;
 		mBufferBytes = srcBytes + 64;
-		mpBuffer = new char[ mBufferBytes ];
+		mpBuffer = (char*)__REALLOC(mpBuffer, mBufferBytes);
 	}
     // get first token
 

@@ -44,14 +44,14 @@ ForthBlockFileManager::ForthBlockFileManager( const char* pBlockFilename , unsig
     {
         pBlockFilename = "_blocks.blk";
     }
-    mpBlockFilename = new char[ strlen( pBlockFilename ) + 1 ];
+	mpBlockFilename = (char *)__MALLOC(strlen(pBlockFilename) + 1);
     strcpy( mpBlockFilename, pBlockFilename );
 
-    mLRUBuffers = new unsigned int[ numBuffers ];
-    mAssignedBlocks = new unsigned int[ numBuffers ];
-    mUpdatedBlocks = new bool[ numBuffers ];
+	mLRUBuffers = (unsigned int *)__MALLOC(sizeof(unsigned int) * numBuffers);
+	mAssignedBlocks = (unsigned int *)__MALLOC(sizeof(unsigned int) * numBuffers);
+	mUpdatedBlocks = (bool *)__MALLOC(sizeof(bool) * numBuffers);
 
-    mpBlocks = new char[ BYTES_PER_BLOCK * numBuffers ];
+	mpBlocks = (char *)__MALLOC(BYTES_PER_BLOCK * numBuffers);
 
     EmptyBuffers();
 }
@@ -60,11 +60,11 @@ ForthBlockFileManager::~ForthBlockFileManager()
 {
     SaveBuffers( false );
 
-    delete [] mpBlockFilename;
-    delete [] mLRUBuffers;
-    delete [] mAssignedBlocks;
-    delete [] mUpdatedBlocks;
-    delete [] mpBlocks;
+    __FREE( mpBlockFilename );
+    __FREE( mLRUBuffers );
+    __FREE( mAssignedBlocks );
+    __FREE( mUpdatedBlocks );
+    __FREE( mpBlocks );
 }
 
 unsigned int

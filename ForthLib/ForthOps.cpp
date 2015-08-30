@@ -758,7 +758,7 @@ FORTHOP( mallocOp )
 {
     NEEDS(1);
     long numBytes = SPOP;
-    void* pMemory = malloc( numBytes );
+	void* pMemory = __MALLOC(numBytes);
     SPUSH( (long) pMemory  );
 }
 
@@ -767,13 +767,13 @@ FORTHOP( reallocOp )
     NEEDS(2);
     size_t newSize = (size_t)(SPOP);
     void* allocPtr = (void *)(SPOP);
-    SPUSH(  (long) realloc( allocPtr, newSize )  );
+    SPUSH(  (long) __REALLOC( allocPtr, newSize )  );
 }
 
 FORTHOP( freeOp )
 {
     NEEDS(1);
-    free( (void *) SPOP );
+    __FREE( (void *) SPOP );
 }
 
 FORTHOP( initStringArrayOp )
@@ -908,6 +908,8 @@ FORTHOP( semiOp )
     // compile local vars allocation op (if needed)
 	pEngine->EndOpDefinition( !pEngine->CheckFlag( kEngineFlagNoNameDefinition ) );
     pEngine->ClearFlag( kEngineFlagNoNameDefinition );
+
+	pEngine->GetShell()->CheckDefinitionEnd(":", "coln");
 }
 
 FORTHOP( colonOp )
@@ -919,6 +921,8 @@ FORTHOP( colonOp )
     // switch to compile mode
     pEngine->SetCompileState( 1 );
     pEngine->ClearFlag( kEngineFlagNoNameDefinition);
+
+	pEngine->GetShell()->StartDefinition("coln");
 }
 
 
@@ -932,6 +936,8 @@ FORTHOP( strColonOp )
     // switch to compile mode
     pEngine->SetCompileState( 1 );
     pEngine->ClearFlag( kEngineFlagNoNameDefinition);
+
+	pEngine->GetShell()->StartDefinition("coln");
 }
 
 
@@ -943,9 +949,10 @@ FORTHOP( colonNoNameOp )
 	newOp = COMPILED_OP( kOpUserDef, newOp );
 	SPUSH( newOp );
     // switch to compile mode
-    pEngine->SetCompileState( 1 );
-	
+    pEngine->SetCompileState( 1 );	
     pEngine->SetFlag( kEngineFlagNoNameDefinition );
+
+	pEngine->GetShell()->StartDefinition("coln");
 }
 
 // func: has precedence
@@ -962,6 +969,8 @@ FORTHOP( funcOp )
     pEngine->SetCompileState( 1 );
 	// TODO: push hasLocalVars flag?
     //pEngine->ClearFlag( kEngineFlagNoNameDefinition);
+
+	pEngine->GetShell()->StartDefinition("func");
 }
 
 // ;func has precedence
@@ -976,6 +985,8 @@ FORTHOP( endfuncOp )
     // compile local vars allocation op (if needed)
 	pEngine->EndOpDefinition( !pEngine->CheckFlag( kEngineFlagNoNameDefinition ) );
     pEngine->ClearFlag( kEngineFlagNoNameDefinition );
+
+	pEngine->GetShell()->CheckDefinitionEnd("func", "func");
 }
 
 FORTHOP( codeOp )
@@ -1352,6 +1363,8 @@ FORTHOP( structOp )
     ForthStructVocabulary* pVocab = pManager->StartStructDefinition( pEngine->GetNextSimpleToken() );
     pEngine->CompileBuiltinOpcode( OP_DO_STRUCT_TYPE );
     pEngine->CompileLong( (long) pVocab );
+
+	pEngine->GetShell()->StartDefinition("stru");
 }
 
 FORTHOP( endstructOp )
@@ -1360,18 +1373,22 @@ FORTHOP( endstructOp )
     pEngine->ClearFlag( kEngineFlagInStructDefinition );
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     pManager->EndStructDefinition();
+	pEngine->GetShell()->CheckDefinitionEnd("struct", "stru");
 }
 
 FORTHOP( classOp )
 {
     ForthEngine* pEngine = GET_ENGINE;
     pEngine->StartClassDefinition( pEngine->GetNextSimpleToken() );
+
+	pEngine->GetShell()->StartDefinition("clas");
 }
 
 FORTHOP( endclassOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     pEngine->EndClassDefinition();
+	pEngine->GetShell()->CheckDefinitionEnd("class", "clas");
 }
 
 FORTHOP( methodOp )
@@ -1405,6 +1422,8 @@ FORTHOP( methodOp )
     {
         // TODO: report adding a method outside a class definition
     }
+
+	pEngine->GetShell()->StartDefinition("meth");
 }
 
 FORTHOP( endmethodOp )
@@ -1419,6 +1438,8 @@ FORTHOP( endmethodOp )
     // compile local vars allocation op (if needed)
     pEngine->EndOpDefinition( true );
     pEngine->ClearFlag( kEngineFlagIsMethod );
+
+	pEngine->GetShell()->CheckDefinitionEnd("method", "meth");
 }
 
 FORTHOP( returnsOp )
@@ -1725,7 +1746,7 @@ FORTHOP( allocObjectOp )
     if ( pPrimaryInterface )
     {
         long nBytes = pClassVocab->GetSize();
-        void* pData = malloc( nBytes );
+        void* pData = __MALLOC( nBytes );
 		memset( pData, 0, nBytes );
         SPUSH( (long) pData );
         SPUSH( (long) (pPrimaryInterface->GetMethods()) );
@@ -1797,12 +1818,15 @@ FORTHOP( enumOp )
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_ENUM );
 	pEngine->CompileLong(4);	// default enum size is 4 bytes
+
+	pEngine->GetShell()->StartDefinition("enum");
 }
 
 FORTHOP( endenumOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     pEngine->EndEnumDefinition();
+	pEngine->GetShell()->CheckDefinitionEnd("enum", "enum");
 }
 
 FORTHOP( doVocabOp )
@@ -1985,7 +2009,7 @@ FORTHOP( requiresOp )
     {
         // symbol not found - load symbol.txt
 		int buffLen = strlen( pSymbolName ) + 8;
-        char *pFileName = new char[ buffLen ];
+        char *pFileName = (char *) __MALLOC( buffLen );
 		SNPRINTF( pFileName, buffLen, "%s.txt", pSymbolName );
         if ( pEngine->PushInputFile( pFileName ) == false )
         {
@@ -1994,7 +2018,7 @@ FORTHOP( requiresOp )
             CONSOLE_STRING_OUT( " !!!!\n" );
             SPEW_ENGINE( "!!!! Failure opening source file %s !!!!\n", pFileName );
         }
-        delete [] pFileName;
+        __FREE( pFileName );
     }
 }
 
@@ -2823,14 +2847,14 @@ FORTHOP( _filenoOp )
 
 FORTHOP( tmpnamOp )
 {
-	char* pOutname = (char *) malloc( L_tmpnam + 1 );
+	char* pOutname = (char *)__MALLOC(L_tmpnam + 1);
 	pOutname[0] = '.';
     ForthEngine *pEngine = GET_ENGINE;
 	if ( pCore->pFileFuncs->getTmpnam( pOutname + 1 ) == NULL )
 	{
         SET_ERROR( kForthErrorFileOpen );
         pEngine->AddErrorText( "system: failure creating standard out tempfile name" );
-		free( pOutname );
+		__FREE(pOutname);
 		pOutname = NULL;
 	}
     SPUSH( (long) pOutname );
@@ -3753,7 +3777,7 @@ FORTHOP( qsortOp )
     long numElements = SPOP;
     void* pArrayBase = (void *)(SPOP);
 
-    qs.temp = malloc( qs.elementSize );
+	qs.temp = __MALLOC(qs.elementSize);
 
     switch ( CODE_TO_BASE_TYPE(compareType) )
     {
@@ -3818,7 +3842,7 @@ FORTHOP( qsortOp )
 
     qsStep( pArrayBase, &qs, 0, (numElements - 1) );
 
-    free( qs.temp );
+    __FREE( qs.temp );
 }
 
 FORTHOP(bsearchOp)
@@ -4118,6 +4142,28 @@ FORTHOP(getTraceOp)
 {
 	int traceFlags = GET_ENGINE->GetTraceFlags();
 	SPUSH(traceFlags);
+}
+
+FORTHOP(ssPushBop)
+{
+	NEEDS(1);
+	long v = SPOP;
+	GET_ENGINE->GetShell()->GetShellStack()->Push(v);
+}
+
+FORTHOP(ssPopBop)
+{
+	SPUSH(GET_ENGINE->GetShell()->GetShellStack()->Pop());
+}
+
+FORTHOP(ssPeekBop)
+{
+	SPUSH(GET_ENGINE->GetShell()->GetShellStack()->Peek());
+}
+
+FORTHOP(ssDepthBop)
+{
+	SPUSH(GET_ENGINE->GetShell()->GetShellStack()->GetDepth());
 }
 
 ///////////////////////////////////////////
@@ -7676,6 +7722,10 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    verboseBop,             "verbose" ),
     OP_DEF(    featuresOp,             "features" ),
     OP_DEF(    dumpCrashStateOp,       "dumpCrashState" ),
+	OP_DEF(		ssPushBop,				">ss"),
+	OP_DEF(		ssPopBop,				"ss>"),
+	OP_DEF(		ssPeekBop,				"ss@"),
+	OP_DEF(		ssDepthBop,				"ssdepth"),
 
     ///////////////////////////////////////////
     //  conditional compilation
