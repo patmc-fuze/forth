@@ -104,6 +104,10 @@ ForthVocabulary::SetName( const char *pVocabName )
     if ( pVocabName != NULL )
     {
         int len = strlen( pVocabName ) + 1;
+		if (mpName != NULL)
+		{
+			delete [] mpName;
+		}
         mpName = new char[len];
         strcpy( mpName, pVocabName );
     }
