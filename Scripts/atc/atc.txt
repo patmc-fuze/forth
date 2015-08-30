@@ -322,13 +322,6 @@ class: iAtcInputHandler
   method: getString returns oString         ;method // ... STRING_OBJ
   method: getCommandString returns oString  ;method // ... STRING_OBJ
 
-  method: delete
-    oclear displayString
-    oclear commandString
-    oclear display
-    oclear region
-  ;method
-  
 ;class
 
 // debugging aid
@@ -358,12 +351,13 @@ lf atcFileReader.txt
   getConsoleColor -> int color
   new atcGame -> game
   game.init( blword )
-  atcFileReader:loadAtcFile( game.name.get game)
-  clearConsole
-  //t{ game.show "\n\n\n=====================================\n\n\n" %s }t
-  game.play
-  //t{ game.show }t
-  game.reset
+  if(atcFileReader:loadAtcFile( game.name.get game))
+    clearConsole
+    //t{ game.show "\n\n\n=====================================\n\n\n" %s }t
+    game.play
+    //t{ game.show }t
+    game.reset
+  endif
   oclear game
   setConsoleColor( color )
   closeTrace

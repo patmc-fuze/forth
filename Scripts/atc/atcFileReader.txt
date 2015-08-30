@@ -113,9 +113,11 @@ kFFParenIsExpression ->+ features
   0 -> numArgs
 forth:;
 
+kFFParenIsExpression ->- features
 : );
   ) ;
 forth:;
+kFFParenIsExpression ->+ features
 
 : ];
   ] ;
@@ -123,23 +125,32 @@ forth:;
 
 //only forth
 
-// ATC_FILENAME ATC_GAME_OBJ ...
+// ATC_FILENAME ATC_GAME_OBJ ... TRUE   if successfuly read file
 : loadAtcFile
   -> daGame
   -> ptrTo byte gameName
-  0 -> regionWidth
-  0 -> regionHeight
   
-  also atcFileReader
-  decimal
-  kFFParenIsExpression ->- features
+  if( fexists(gameName))
   
-  $runFile( gameName )
-
+    0 -> regionWidth
+    0 -> regionHeight
+  
+  
+    also atcFileReader
+    decimal
+    kFFParenIsExpression ->- features
+  
+    $runFile( gameName )
+  
+    only forth
+    kFFParenIsExpression ->+ features
+    true
+  else
+    "Could not find atc game file " %s gameName %s %nl
+    false
+  endif
+  
   oclear daGame
-  
-  only forth
-  kFFParenIsExpression ->+ features
 forth:;
 
 only forth definitions

@@ -82,7 +82,7 @@ class: atcGame extends iAtcGame
     -> iAtcAirplane plane
     -> int newY
     -> int newX
-    display.showWarning(plane.name.get) %bl newX %d %bl newY %d %bl
+    //display.showWarning(plane.name.get) %bl newX %d %bl newY %d %bl
     region.getTile( plane.x plane.y ) -> atcTile oldTile
     oldTile.removeAirplane( plane )
     t{ "plane " %s plane.name.get %s " moved to " %s newX %d ',' %c newY %d " at " %s plane.altitude %d %nl }t
@@ -326,7 +326,7 @@ class: atcGame extends iAtcGame
       generateNewAirplanes
       checkAirplanes
       display.update( activeAirplanes )
-      setConsoleCursor(0 40) ds
+      // setConsoleCursor(0 40) ds
     endif
   ;
 

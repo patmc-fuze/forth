@@ -492,6 +492,7 @@ class: atcInputHandler extends iAtcInputHandler
   ;
   
   method: init     // REGION DISPLAY_OBJ  ...
+    'inph' -> tag
     -> display
     -> region
     new oString -> displayString
@@ -505,6 +506,8 @@ class: atcInputHandler extends iAtcInputHandler
     //t{ "deleting inputHandler " %s %nl }t
     oclear region
     oclear display
+    oclear displayString
+    oclear commandString
     super.delete
   ;method
   
