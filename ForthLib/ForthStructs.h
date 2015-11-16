@@ -31,7 +31,8 @@ typedef struct
 
 typedef struct
 {
-    ForthClassVocabulary*       pVocab;
+	ulong						refCount;
+	ForthClassVocabulary*       pVocab;
     long                        newOp;
 } ForthClassObject;
 

@@ -2079,12 +2079,14 @@ ForthEngine::CheckStacks( void )
 
 void ForthEngine::SetDefaultConsoleOut( ForthObject& newOutStream )
 {
-	OBJECT_ASSIGN( mpCore, mDefaultConsoleOutStream, newOutStream );
+	SPEW_SHELL("SetDefaultConsoleOut pCore=%p  pMethods=%p  pData=%p", mpCore, newOutStream.pMethodOps, newOutStream.pData);
+	OBJECT_ASSIGN(mpCore, mDefaultConsoleOutStream, newOutStream);
 	mDefaultConsoleOutStream = newOutStream;
 }
 
 void ForthEngine::SetConsoleOut( ForthCoreState* pCore, ForthObject& newOutStream )
 {
+	SPEW_SHELL("SetConsoleOut pCore=%p  pMethods=%p  pData=%p", pCore, newOutStream.pMethodOps, newOutStream.pData);
 	OBJECT_ASSIGN( pCore, pCore->consoleOutStream, newOutStream );
 	pCore->consoleOutStream = newOutStream;
 }
@@ -2105,7 +2107,8 @@ void ForthEngine::ResetConsoleOut( ForthCoreState* pCore )
 	//  without doing a release, and possibly leak a stream object, or we do a release
 	//  and risk a crash, since ResetConsoleOut is called when an error is detected,
 	//  so the object we are releasing may already be deleted or otherwise corrupted.
-	OBJECT_ASSIGN( pCore, pCore->consoleOutStream, mDefaultConsoleOutStream );
+	SPEW_SHELL("ResetConsoleOut pCore=%p  pMethods=%p  pData=%p", pCore, mDefaultConsoleOutStream.pMethodOps, mDefaultConsoleOutStream.pData);
+	OBJECT_ASSIGN(pCore, pCore->consoleOutStream, mDefaultConsoleOutStream);
 	pCore->consoleOutStream = mDefaultConsoleOutStream;
 }
 

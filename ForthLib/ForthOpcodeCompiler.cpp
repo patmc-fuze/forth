@@ -60,7 +60,7 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
 	{
 	case NATIVE_OPTYPE:
 		{
-			if ( op == gCompiledOps[OP_INTO] )
+			if ((op == gCompiledOps[OP_INTO]) || (op == gCompiledOps[OP_INTO_PLUS]))
 			{
 			   // we need this to support initialization of local string vars (ugh)
 			   mpLastIntoOpcode = pOpcode;

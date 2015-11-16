@@ -114,7 +114,15 @@ public:
         return (pTmp + ( (( ((char *) pTmp)[0] ) + 4) >> 2));
     };
 
-    static inline forthOpType   GetEntryType( const long *pEntry ) {
+	// return next entry in vocabulary, return NULL if this is last entry
+	inline long *       NextEntrySafe(long *pEntry) {
+		long *pTmp = pEntry + mValueLongs;
+		// add in 1 for length, and 3 for longword rounding
+		pTmp += (((((char *)pTmp)[0]) + 4) >> 2);
+		return (pTmp < mpStorageTop) ? pTmp : NULL;
+	};
+
+	static inline forthOpType   GetEntryType(const long *pEntry) {
         return FORTH_OP_TYPE( *pEntry );
 
     };

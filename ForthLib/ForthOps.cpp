@@ -3028,10 +3028,24 @@ FORTHOP( describeOp )
     char* pSym = pEngine->GetNextSimpleToken();
 	strcpy( buff, pSym );
 
+	// allow stuff like CLASS.METHOD or VOCAB:OP
 	char* pMethod = strchr( buff, '.' );
+	if (pMethod == NULL)
+	{
+		pMethod = strchr(buff, ':');
+	}
 	if ( pMethod != NULL )
 	{
-		*pMethod++ = '\0';
+		if ((pMethod == &(buff[0])) || (pMethod[1] == '\0'))
+		{
+			// don't split if ./: is at beginning or end of word
+			pMethod = NULL;
+		}
+		else
+		{
+			// replace ./: with a null to split into 2 strings
+			*pMethod++ = '\0';
+		}
 	}
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthStructVocabulary* pVocab = pManager->GetStructVocabulary( buff );
@@ -3363,7 +3377,19 @@ FORTHOP( keyHitOp )
     SPUSH( keyHit );
 }
 
-FORTHOP( vocNewestEntryOp )
+FORTHOP(vocChainHeadOp)
+{
+	SPUSH((long)(ForthVocabulary::GetVocabularyChainHead()));
+}
+
+FORTHOP(vocChainNextOp)
+{
+	ForthVocabulary* pVocab = (ForthVocabulary *)(SPOP);
+	SPUSH((long)(pVocab->GetNextChainVocabulary()));
+}
+
+#if 0
+FORTHOP(vocNewestEntryOp)
 {
 	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
 	SPUSH( (long) (pVocab->GetNewestEntry()) );
@@ -3386,17 +3412,6 @@ FORTHOP( vocNameOp )
 {
 	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
 	SPUSH( (long) (pVocab->GetName()) );
-}
-
-FORTHOP( vocChainHeadOp )
-{
-	SPUSH( (long) (ForthVocabulary::GetVocabularyChainHead()) );
-}
-
-FORTHOP( vocChainNextOp )
-{
-	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
-	SPUSH( (long) (pVocab->GetNextChainVocabulary()) );
 }
 
 FORTHOP( vocFindEntryOp )
@@ -3451,6 +3466,7 @@ FORTHOP( vocValueLengthOp )
 	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
 	SPUSH( (long) (pVocab->GetValueLength()) );
 }
+#endif
 
 FORTHOP( turboOp )
 {
@@ -7558,6 +7574,7 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(offsetOfOp,             "offsetOf" ),
     PRECOP_DEF(newOp,                  "new" ),
     PRECOP_DEF(initMemberStringOp,     "initMemberString" ),
+	NATIVE_DEF(intoBop,                "->o" ),
     OP_DEF(    enumOp,                 "enum:" ),
     OP_DEF(    endenumOp,              ";enum" ),
     PRECOP_DEF(recursiveOp,            "recursive" ),
@@ -7654,12 +7671,13 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  vocabulary ops
     ///////////////////////////////////////////
-    OP_DEF(    vocNewestEntryOp,       "vocNewestEntry" ),
+    OP_DEF(    vocChainHeadOp,         "vocChainHead" ),
+    OP_DEF(    vocChainNextOp,         "vocChainNext" ),
+#if 0
+	OP_DEF(    vocNewestEntryOp,       "vocNewestEntry" ),
     OP_DEF(    vocNextEntryOp,         "vocNextEntry" ),
     OP_DEF(    vocNumEntriesOp,        "vocNumEntries" ),
     OP_DEF(    vocNameOp,              "vocName" ),
-    OP_DEF(    vocChainHeadOp,         "vocChainHead" ),
-    OP_DEF(    vocChainNextOp,         "vocChainNext" ),
     OP_DEF(    vocFindEntryOp,         "vocFindEntry" ),
     OP_DEF(    vocFindNextEntryOp,     "vocFindNextEntry" ),
     OP_DEF(    vocFindEntryByValueOp,  "vocFindEntryByValue" ),
@@ -7667,6 +7685,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    vocAddEntryOp,          "vocAddEntry" ),
     OP_DEF(    vocRemoveEntryOp,       "vocRemoveEntry" ),
     OP_DEF(    vocValueLengthOp,       "vocValueLength" ),
+#endif
 
     ///////////////////////////////////////////
     //  DLL support

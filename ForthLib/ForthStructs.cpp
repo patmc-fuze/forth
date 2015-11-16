@@ -1065,6 +1065,7 @@ ForthClassVocabulary::ForthClassVocabulary( const char*     pName,
 , mCurrentInterface( 0 )
 {
     mpClassObject = new ForthClassObject;
+	mpClassObject->refCount = 1;				// TBD: should this be 0? or a huge number?
     mpClassObject->pVocab = this;
     mpClassObject->newOp = gCompiledOps[OP_ALLOC_OBJECT];
     ForthInterface* pPrimaryInterface = new ForthInterface( this );

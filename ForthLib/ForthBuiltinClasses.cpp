@@ -34,21 +34,21 @@ extern "C" {
 void* ForthAllocateBlock(size_t numBytes)
 {
 	void* pData = malloc(numBytes);
-	ForthEngine::GetInstance()->TraceOut("malloc %d bytes @ %p\n", numBytes, pData);
+	ForthEngine::GetInstance()->TraceOut("malloc %d bytes @ 0x%p\n", numBytes, pData);
 	return pData;
 }
 
 void* ForthReallocateBlock(void *pMemory, size_t numBytes)
 {
 	void* pData = realloc(pMemory, numBytes);
-	ForthEngine::GetInstance()->TraceOut("realloc %d bytes @ %p\n", numBytes, pData);
+	ForthEngine::GetInstance()->TraceOut("realloc %d bytes @ 0x%p\n", numBytes, pData);
 	return pData;
 }
 
 void ForthFreeBlock(void* pBlock)
 {
 	free(pBlock);
-	ForthEngine::GetInstance()->TraceOut("free @ %p\n", pBlock);
+	ForthEngine::GetInstance()->TraceOut("free @ 0x%p\n", pBlock);
 }
 
 namespace
@@ -66,7 +66,7 @@ namespace
         ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
         ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
         long nBytes = pClassVocab->GetSize();
-		long* pData = (long *)ForthAllocateBlock(nBytes);
+		long* pData = (long *) __MALLOC(nBytes);
 		// clear the entire object area - this handles both its refcount and any object pointers it might contain
 		memset( pData, 0, nBytes );
 		TRACK_NEW;
@@ -251,6 +251,10 @@ namespace
         METHOD_RET( "getVocabulary",    classVocabularyMethod,      NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt) ),
         METHOD_RET( "getInterface",     classGetInterfaceMethod,    OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) ),
         METHOD(     "setNew",           classSetNewMethod ),
+
+		MEMBER_VAR( "vocab",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+		MEMBER_VAR( "newOp",			NATIVE_TYPE_TO_CODE(0, kBaseTypeOp) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -833,6 +837,8 @@ namespace
         METHOD(     "push",                 oArrayPushMethod ),
         METHOD_RET( "popUnref",             oArrayPopUnrefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject) ),
         METHOD(     "insert",               oArrayInsertMethod ),
+
+        MEMBER_VAR( "__elements",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
         // following must be last in table
         END_MEMBERS
     };
@@ -1089,6 +1095,10 @@ namespace
         METHOD_RET( "findNext",				oArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "clone",                oArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArrayIter) ),
         METHOD(     "insert",               oArrayIterInsertMethod ),
+
+        MEMBER_VAR( "parent",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "__cursor",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -1106,6 +1116,7 @@ namespace
 		ForthObject		parent;
 		oListElement*	cursor;
     };
+
 	static ForthClassVocabulary* gpListIterClassVocab = NULL;
 
 
@@ -1650,6 +1661,10 @@ namespace
         METHOD(     "unrefHead",            oListUnrefHeadMethod ),
         METHOD(     "unrefTail",            oListUnrefTailMethod ),
 		METHOD(     "remove",               oListRemoveMethod),
+
+        MEMBER_VAR( "__head",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        MEMBER_VAR( "__tail",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
 		// following must be last in table
         END_MEMBERS
     };
@@ -1982,6 +1997,11 @@ namespace
 		METHOD(     "swapNext",             oListIterSwapNextMethod ),
         METHOD(     "swapPrev",             oListIterSwapPrevMethod ),
         METHOD(     "split",                oListIterSplitMethod ),
+
+
+        MEMBER_VAR( "parent",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "__cursor",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -2003,10 +2023,10 @@ namespace
 	{
 		ulong				refCount;
 		ForthObject			parent;
-		oMap::iterator	cursor;
+		oMap::iterator*		cursor;
 	};
-	static ForthClassVocabulary* gpMapIterClassVocab = NULL;
 
+	static ForthClassVocabulary* gpMapIterClassVocab = NULL;
 
 
 	FORTHOP(oMapNew)
@@ -2094,7 +2114,6 @@ namespace
 		a.clear();
 		METHOD_RETURN;
 	}
-
 
 
 	FORTHOP(oMapLoadMethod)
@@ -2274,9 +2293,8 @@ namespace
 		pIter->refCount = 0;
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pMap);
-		oMap::iterator iter = pMap->elements->begin();
-		pIter->cursor = iter;
-		//pIter->cursor = pMap->elements->begin();
+		pIter->cursor = new oMap::iterator;
+		*(pIter->cursor) = pMap->elements->begin();
 		ForthInterface* pPrimaryInterface = gpMapIterClassVocab->GetInterface(0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
@@ -2294,7 +2312,8 @@ namespace
 		pIter->refCount = 0;
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pMap);
-		pIter->cursor = pMap->elements->end();
+		pIter->cursor = new oMap::iterator;
+		*(pIter->cursor) = pMap->elements->end();
 		ForthInterface* pPrimaryInterface = gpMapIterClassVocab->GetInterface(0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
@@ -2328,7 +2347,8 @@ namespace
 			pIter->refCount = 0;
 			pIter->parent.pMethodOps = GET_TPM;
 			pIter->parent.pData = reinterpret_cast<long *>(pMap);
-			pIter->cursor = iter;
+			pIter->cursor = new oMap::iterator;
+			*(pIter->cursor) = iter;
 			ForthInterface* pPrimaryInterface = gpMapIterClassVocab->GetInterface(0);
 			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 			SPUSH(~0);
@@ -2360,6 +2380,9 @@ namespace
 		METHOD_RET("findKey", oMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oMapRemoveMethod),
 		METHOD("unref", oMapUnrefMethod),
+
+        MEMBER_VAR( "__elements",       NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -2380,6 +2403,7 @@ namespace
 	{
 		GET_THIS(oMapIterStruct, pIter);
 		SAFE_RELEASE(pCore, pIter->parent);
+		delete pIter->cursor;
 		delete pIter;
 		TRACK_ITER_DELETE;
 		METHOD_RETURN;
@@ -2388,14 +2412,14 @@ namespace
 	FORTHOP(oMapIterSeekNextMethod)
 	{
 		GET_THIS(oMapIterStruct, pIter);
-		pIter->cursor++;
+		(*pIter->cursor)++;
 		METHOD_RETURN;
 	}
 
 	FORTHOP(oMapIterSeekPrevMethod)
 	{
 		GET_THIS(oMapIterStruct, pIter);
-		pIter->cursor--;
+		(*pIter->cursor)--;
 		METHOD_RETURN;
 	}
 
@@ -2403,7 +2427,7 @@ namespace
 	{
 		GET_THIS(oMapIterStruct, pIter);
 		oMapStruct* pMap = reinterpret_cast<oMapStruct *>(pIter->parent.pData);
-		pIter->cursor = pMap->elements->begin();
+		*(pIter->cursor) = pMap->elements->begin();
 		METHOD_RETURN;
 	}
 
@@ -2411,7 +2435,7 @@ namespace
 	{
 		GET_THIS(oMapIterStruct, pIter);
 		oMapStruct* pMap = reinterpret_cast<oMapStruct *>(pIter->parent.pData);
-		pIter->cursor = pMap->elements->end();
+		*(pIter->cursor) = pMap->elements->end();
 		METHOD_RETURN;
 	}
 
@@ -2419,15 +2443,15 @@ namespace
 	{
 		GET_THIS(oMapIterStruct, pIter);
 		oMapStruct* pMap = reinterpret_cast<oMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->end())
+		if (*(pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
-			pIter->cursor++;
+			(*pIter->cursor)++;
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -2437,14 +2461,14 @@ namespace
 	{
 		GET_THIS(oMapIterStruct, pIter);
 		oMapStruct* pMap = reinterpret_cast<oMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->begin())
+		if (*(pIter->cursor) == pMap->elements->begin())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			pIter->cursor--;
-			ForthObject& o = pIter->cursor->second;
+			(*pIter->cursor)--;
+			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
 			SPUSH(~0);
 		}
@@ -2455,13 +2479,13 @@ namespace
 	{
 		GET_THIS(oMapIterStruct, pIter);
 		oMapStruct* pMap = reinterpret_cast<oMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->end())
+		if ((*pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
 			SPUSH(~0);
 		}
@@ -2472,15 +2496,15 @@ namespace
 	{
 		GET_THIS(oMapIterStruct, pIter);
 		oMapStruct* pMap = reinterpret_cast<oMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor != pMap->elements->end())
+		if ((*pIter->cursor) != pMap->elements->end())
 		{
 			stackInt64 key;
-			key.s64 = pIter->cursor->first;
+			key.s64 = (*pIter->cursor)->first;
 			SAFE_RELEASE(pCore, key.obj);
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*pIter->cursor)->second;
 			SAFE_RELEASE(pCore, o);
-			pMap->elements->erase(pIter->cursor);
-			pIter->cursor++;
+			pMap->elements->erase((*pIter->cursor));
+			(*pIter->cursor)++;
 		}
 		METHOD_RETURN;
 	}
@@ -2495,18 +2519,18 @@ namespace
 	{
 		GET_THIS(oMapIterStruct, pIter);
 		oMapStruct* pMap = reinterpret_cast<oMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->end())
+		if ((*pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*pIter->cursor)->second;
 			PUSH_OBJECT(o);
 			stackInt64 key;
-			key.s64 = pIter->cursor->first;
+			key.s64 = (*pIter->cursor)->first;
 			LPUSH(key);
-			pIter->cursor++;
+			(*pIter->cursor)++;
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -2516,17 +2540,17 @@ namespace
 	{
 		GET_THIS(oMapIterStruct, pIter);
 		oMapStruct* pMap = reinterpret_cast<oMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->begin())
+		if ((*pIter->cursor) == pMap->elements->begin())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			pIter->cursor--;
-			ForthObject& o = pIter->cursor->second;
+			(*pIter->cursor)--;
+			ForthObject& o = (*pIter->cursor)->second;
 			PUSH_OBJECT(o);
 			stackInt64 key;
-			key.s64 = pIter->cursor->first;
+			key.s64 = (*pIter->cursor)->first;
 			LPUSH(key);
 			SPUSH(~0);
 		}
@@ -2551,6 +2575,10 @@ namespace
 
 		METHOD_RET("nextPair", oMapIterNextPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("prevPair", oMapIterPrevPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+
+        MEMBER_VAR( "parent",			NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "__cursor",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -2571,7 +2599,7 @@ namespace
     {
         ulong				refCount;
 		ForthObject			parent;
-		oIntMap::iterator		cursor;
+		oIntMap::iterator	*cursor;
     };
 	static ForthClassVocabulary* gpIntMapIterClassVocab = NULL;
 
@@ -2815,8 +2843,8 @@ namespace
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pMap);
         oIntMap::iterator iter = pMap->elements->begin();
-		pIter->cursor = iter;
-		//pIter->cursor = pMap->elements->begin();
+		pIter->cursor = new oIntMap::iterator;
+		*(pIter->cursor) = pMap->elements->begin();
         ForthInterface* pPrimaryInterface = gpIntMapIterClassVocab->GetInterface( 0 );
         PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
         METHOD_RETURN;
@@ -2834,7 +2862,8 @@ namespace
 		pIter->refCount = 0;
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pMap);
-		pIter->cursor = pMap->elements->end();
+		pIter->cursor = new oIntMap::iterator;
+		*(pIter->cursor) = pMap->elements->end();
 		ForthInterface* pPrimaryInterface = gpIntMapIterClassVocab->GetInterface(0);
         PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
         METHOD_RETURN;
@@ -2868,7 +2897,8 @@ namespace
 			pIter->refCount = 0;
 			pIter->parent.pMethodOps = GET_TPM;
 			pIter->parent.pData = reinterpret_cast<long *>(pMap);
-			pIter->cursor = iter;
+			pIter->cursor = new oIntMap::iterator;
+			*(pIter->cursor) = iter;
 			ForthInterface* pPrimaryInterface = gpIntMapIterClassVocab->GetInterface(0);
 			PUSH_PAIR( pPrimaryInterface->GetMethods(), pIter );
 	        SPUSH( ~0 );
@@ -2900,6 +2930,9 @@ namespace
         METHOD_RET( "findKey",              oIntMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "remove",               oIntMapRemoveMethod ),
         METHOD(     "unref",                oIntMapUnrefMethod ),
+
+        MEMBER_VAR( "__elements",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -2920,6 +2953,7 @@ namespace
     {
         GET_THIS( oIntMapIterStruct, pIter );
 		SAFE_RELEASE( pCore, pIter->parent );
+		delete pIter->cursor;
 		delete pIter;
 		TRACK_ITER_DELETE;
         METHOD_RETURN;
@@ -2928,14 +2962,14 @@ namespace
     FORTHOP( oIntMapIterSeekNextMethod )
     {
         GET_THIS( oIntMapIterStruct, pIter );
-		pIter->cursor++;
+		(*pIter->cursor)++;
         METHOD_RETURN;
     }
 
     FORTHOP( oIntMapIterSeekPrevMethod )
     {
         GET_THIS( oIntMapIterStruct, pIter );
-		pIter->cursor--;
+		(*pIter->cursor)--;
         METHOD_RETURN;
     }
 
@@ -2943,31 +2977,31 @@ namespace
     {
         GET_THIS( oIntMapIterStruct, pIter );
 		oIntMapStruct* pMap = reinterpret_cast<oIntMapStruct *>( pIter->parent.pData );
-		pIter->cursor = pMap->elements->begin();
-        METHOD_RETURN;
+		*(pIter->cursor) = pMap->elements->begin();
+		METHOD_RETURN;
     }
 
     FORTHOP( oIntMapIterSeekTailMethod )
     {
         GET_THIS( oIntMapIterStruct, pIter );
 		oIntMapStruct* pMap = reinterpret_cast<oIntMapStruct *>( pIter->parent.pData );
-		pIter->cursor = pMap->elements->end();
-        METHOD_RETURN;
+		*(pIter->cursor) = pMap->elements->end();
+		METHOD_RETURN;
     }
 
     FORTHOP( oIntMapIterNextMethod )
     {
         GET_THIS( oIntMapIterStruct, pIter );
 		oIntMapStruct* pMap = reinterpret_cast<oIntMapStruct *>( pIter->parent.pData );
-		if ( pIter->cursor == pMap->elements->end() )
+		if (*(pIter->cursor) == pMap->elements->end())
 		{
-			SPUSH( 0 );
+			SPUSH(0);
 		}
 		else
 		{
-			ForthObject& o = pIter->cursor->second;
-			PUSH_OBJECT( o );
-			pIter->cursor++;
+			ForthObject& o = (*(pIter->cursor))->second;
+			PUSH_OBJECT(o);
+			(*pIter->cursor)++;
 		    SPUSH( ~0 );
 		}
         METHOD_RETURN;
@@ -2977,16 +3011,16 @@ namespace
     {
         GET_THIS( oIntMapIterStruct, pIter );
 		oIntMapStruct* pMap = reinterpret_cast<oIntMapStruct *>( pIter->parent.pData );
-		if ( pIter->cursor == pMap->elements->begin() )
+		if (*(pIter->cursor) == pMap->elements->begin())
 		{
-			SPUSH( 0 );
+			SPUSH(0);
 		}
 		else
 		{
-			pIter->cursor--;
-			ForthObject& o = pIter->cursor->second;
-			PUSH_OBJECT( o );
-		    SPUSH( ~0 );
+			(*pIter->cursor)--;
+			ForthObject& o = (*(pIter->cursor))->second;
+			PUSH_OBJECT(o);
+			SPUSH(~0);
 		}
         METHOD_RETURN;
     }
@@ -2995,29 +3029,29 @@ namespace
     {
         GET_THIS( oIntMapIterStruct, pIter );
 		oIntMapStruct* pMap = reinterpret_cast<oIntMapStruct *>( pIter->parent.pData );
-		if ( pIter->cursor == pMap->elements->end() )
+		if ((*pIter->cursor) == pMap->elements->end())
 		{
-			SPUSH( 0 );
+			SPUSH(0);
 		}
 		else
 		{
-			ForthObject& o = pIter->cursor->second;
-			PUSH_OBJECT( o );
-		    SPUSH( ~0 );
+			ForthObject& o = (*(pIter->cursor))->second;
+			PUSH_OBJECT(o);
+			SPUSH(~0);
 		}
-        METHOD_RETURN;
+		METHOD_RETURN;
     }
 
     FORTHOP( oIntMapIterRemoveMethod )
     {
         GET_THIS( oIntMapIterStruct, pIter );
 		oIntMapStruct* pMap = reinterpret_cast<oIntMapStruct *>( pIter->parent.pData );
-		if ( pIter->cursor != pMap->elements->end() )
+		if ((*pIter->cursor) != pMap->elements->end())
 		{
-            ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*pIter->cursor)->second;
             SAFE_RELEASE( pCore, o );
-			pMap->elements->erase( pIter->cursor );
-			pIter->cursor++;
+			pMap->elements->erase((*pIter->cursor));
+			(*pIter->cursor)++;
 		}
         METHOD_RETURN;
     }
@@ -3026,16 +3060,16 @@ namespace
     {
         GET_THIS( oIntMapIterStruct, pIter );
 		oIntMapStruct* pMap = reinterpret_cast<oIntMapStruct *>( pIter->parent.pData );
-		if ( pIter->cursor == pMap->elements->end() )
+		if ((*pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH( 0 );
 		}
 		else
 		{
-			ForthObject& o = pIter->cursor->second;
-			PUSH_OBJECT( o );
-			SPUSH( pIter->cursor->first );
-			pIter->cursor++;
+			ForthObject& o = (*pIter->cursor)->second;
+			PUSH_OBJECT(o);
+			SPUSH( (*pIter->cursor)->first );
+			(*pIter->cursor)++;
 		    SPUSH( ~0 );
 		}
         METHOD_RETURN;
@@ -3045,16 +3079,16 @@ namespace
     {
         GET_THIS( oIntMapIterStruct, pIter );
 		oIntMapStruct* pMap = reinterpret_cast<oIntMapStruct *>( pIter->parent.pData );
-		if ( pIter->cursor == pMap->elements->begin() )
+		if ((*pIter->cursor) == pMap->elements->begin())
 		{
 			SPUSH( 0 );
 		}
 		else
 		{
-			pIter->cursor--;
-			ForthObject& o = pIter->cursor->second;
+			(*pIter->cursor)--;
+			ForthObject& o = (*pIter->cursor)->second;
 			PUSH_OBJECT( o );
-			SPUSH( pIter->cursor->first );
+			SPUSH((*pIter->cursor)->first);
 		    SPUSH( ~0 );
 		}
         METHOD_RETURN;
@@ -3078,6 +3112,10 @@ namespace
 
 		METHOD_RET( "nextPair",				oIntMapIterNextPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "prevPair",             oIntMapIterPrevPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+
+        MEMBER_VAR( "parent",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "__cursor",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        
         // following must be last in table
         END_MEMBERS
     };
@@ -3150,10 +3188,10 @@ namespace
 	{
 		ulong				refCount;
 		ForthObject			parent;
-		oLongMap::iterator	cursor;
+		oLongMap::iterator*	cursor;
 	};
-	static ForthClassVocabulary* gpLongMapIterClassVocab = NULL;
 
+	static ForthClassVocabulary* gpLongMapIterClassVocab = NULL;
 
 
 	FORTHOP(oLongMapNew)
@@ -3399,9 +3437,8 @@ namespace
 		pIter->refCount = 0;
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pMap);
-		oLongMap::iterator iter = pMap->elements->begin();
-		pIter->cursor = iter;
-		//pIter->cursor = pMap->elements->begin();
+		pIter->cursor = new oLongMap::iterator;
+		*(pIter->cursor) = pMap->elements->begin();
 		ForthInterface* pPrimaryInterface = gpLongMapIterClassVocab->GetInterface(0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
@@ -3419,7 +3456,8 @@ namespace
 		pIter->refCount = 0;
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pMap);
-		pIter->cursor = pMap->elements->end();
+		pIter->cursor = new oLongMap::iterator;
+		*(pIter->cursor) = pMap->elements->end();
 		ForthInterface* pPrimaryInterface = gpLongMapIterClassVocab->GetInterface(0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
@@ -3453,7 +3491,8 @@ namespace
 			pIter->refCount = 0;
 			pIter->parent.pMethodOps = GET_TPM;
 			pIter->parent.pData = reinterpret_cast<long *>(pMap);
-			pIter->cursor = iter;
+			pIter->cursor = new oLongMap::iterator;
+			*(pIter->cursor) = iter;
 			ForthInterface* pPrimaryInterface = gpLongMapIterClassVocab->GetInterface(0);
 			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 			SPUSH(~0);
@@ -3485,6 +3524,9 @@ namespace
 		METHOD_RET("findKey", oLongMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oLongMapRemoveMethod),
 		METHOD("unref", oLongMapUnrefMethod),
+
+		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -3505,6 +3547,7 @@ namespace
 	{
 		GET_THIS(oLongMapIterStruct, pIter);
 		SAFE_RELEASE(pCore, pIter->parent);
+		delete pIter->cursor;
 		delete pIter;
 		TRACK_ITER_DELETE;
 		METHOD_RETURN;
@@ -3513,14 +3556,14 @@ namespace
 	FORTHOP(oLongMapIterSeekNextMethod)
 	{
 		GET_THIS(oLongMapIterStruct, pIter);
-		pIter->cursor++;
+		(*pIter->cursor)++;
 		METHOD_RETURN;
 	}
 
 	FORTHOP(oLongMapIterSeekPrevMethod)
 	{
 		GET_THIS(oLongMapIterStruct, pIter);
-		pIter->cursor--;
+		(*pIter->cursor)--;
 		METHOD_RETURN;
 	}
 
@@ -3528,7 +3571,7 @@ namespace
 	{
 		GET_THIS(oLongMapIterStruct, pIter);
 		oLongMapStruct* pMap = reinterpret_cast<oLongMapStruct *>(pIter->parent.pData);
-		pIter->cursor = pMap->elements->begin();
+		*(pIter->cursor) = pMap->elements->begin();
 		METHOD_RETURN;
 	}
 
@@ -3536,7 +3579,7 @@ namespace
 	{
 		GET_THIS(oLongMapIterStruct, pIter);
 		oLongMapStruct* pMap = reinterpret_cast<oLongMapStruct *>(pIter->parent.pData);
-		pIter->cursor = pMap->elements->end();
+		*(pIter->cursor) = pMap->elements->end();
 		METHOD_RETURN;
 	}
 
@@ -3544,15 +3587,15 @@ namespace
 	{
 		GET_THIS(oLongMapIterStruct, pIter);
 		oLongMapStruct* pMap = reinterpret_cast<oLongMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->end())
+		if (*(pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
-			pIter->cursor++;
+			(*pIter->cursor)++;
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -3562,14 +3605,14 @@ namespace
 	{
 		GET_THIS(oLongMapIterStruct, pIter);
 		oLongMapStruct* pMap = reinterpret_cast<oLongMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->begin())
+		if (*(pIter->cursor) == pMap->elements->begin())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			pIter->cursor--;
-			ForthObject& o = pIter->cursor->second;
+			(*pIter->cursor)--;
+			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
 			SPUSH(~0);
 		}
@@ -3580,13 +3623,13 @@ namespace
 	{
 		GET_THIS(oLongMapIterStruct, pIter);
 		oLongMapStruct* pMap = reinterpret_cast<oLongMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->end())
+		if ((*pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
 			SPUSH(~0);
 		}
@@ -3597,12 +3640,12 @@ namespace
 	{
 		GET_THIS(oLongMapIterStruct, pIter);
 		oLongMapStruct* pMap = reinterpret_cast<oLongMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor != pMap->elements->end())
+		if ((*pIter->cursor) != pMap->elements->end())
 		{
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*pIter->cursor)->second;
 			SAFE_RELEASE(pCore, o);
-			pMap->elements->erase(pIter->cursor);
-			pIter->cursor++;
+			pMap->elements->erase((*pIter->cursor));
+			(*pIter->cursor)++;
 		}
 		METHOD_RETURN;
 	}
@@ -3611,18 +3654,18 @@ namespace
 	{
 		GET_THIS(oLongMapIterStruct, pIter);
 		oLongMapStruct* pMap = reinterpret_cast<oLongMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->end())
+		if ((*pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*pIter->cursor)->second;
 			PUSH_OBJECT(o);
 			stackInt64 key;
-			key.s64 = pIter->cursor->first;
+			key.s64 = (*pIter->cursor)->first;
 			LPUSH(key);
-			pIter->cursor++;
+			(*pIter->cursor)++;
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -3632,17 +3675,17 @@ namespace
 	{
 		GET_THIS(oLongMapIterStruct, pIter);
 		oLongMapStruct* pMap = reinterpret_cast<oLongMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->begin())
+		if ((*pIter->cursor) == pMap->elements->begin())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			pIter->cursor--;
-			ForthObject& o = pIter->cursor->second;
+			(*pIter->cursor)--;
+			ForthObject& o = (*pIter->cursor)->second;
 			PUSH_OBJECT(o);
 			stackInt64 key;
-			key.s64 = pIter->cursor->first;
+			key.s64 = (*pIter->cursor)->first;
 			LPUSH(key);
 			SPUSH(~0);
 		}
@@ -3667,6 +3710,10 @@ namespace
 
 		METHOD_RET("nextPair", oLongMapIterNextPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("prevPair", oLongMapIterPrevPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+
+        MEMBER_VAR( "parent",			NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "__cursor",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -3739,10 +3786,10 @@ namespace
 	{
 		ulong				refCount;
 		ForthObject			parent;
-		oStringMap::iterator	cursor;
+		oStringMap::iterator	*cursor;
 	};
-	static ForthClassVocabulary* gpStringMapIterClassVocab = NULL;
 
+	static ForthClassVocabulary* gpStringMapIterClassVocab = NULL;
 
 
 	FORTHOP(oStringMapNew)
@@ -3989,7 +4036,7 @@ namespace
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pMap);
 		oStringMap::iterator iter = pMap->elements->begin();
-		pIter->cursor = iter;
+		*(pIter->cursor) = iter;
 		//pIter->cursor = pMap->elements->begin();
 		ForthInterface* pPrimaryInterface = gpStringMapIterClassVocab->GetInterface(0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
@@ -4008,7 +4055,7 @@ namespace
 		pIter->refCount = 0;
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pMap);
-		pIter->cursor = pMap->elements->end();
+		*(pIter->cursor) = pMap->elements->end();
 		ForthInterface* pPrimaryInterface = gpStringMapIterClassVocab->GetInterface(0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
@@ -4042,7 +4089,8 @@ namespace
 			pIter->refCount = 0;
 			pIter->parent.pMethodOps = GET_TPM;
 			pIter->parent.pData = reinterpret_cast<long *>(pMap);
-			pIter->cursor = iter;
+			pIter->cursor = new oStringMap::iterator;
+			*(pIter->cursor) = iter;
 			ForthInterface* pPrimaryInterface = gpStringMapIterClassVocab->GetInterface(0);
 			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 			SPUSH(~0);
@@ -4074,6 +4122,9 @@ namespace
 		METHOD_RET("findKey", oStringMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oStringMapRemoveMethod),
 		METHOD("unref", oStringMapUnrefMethod),
+
+        MEMBER_VAR( "__elements",       NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -4094,6 +4145,7 @@ namespace
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
 		SAFE_RELEASE(pCore, pIter->parent);
+		delete pIter->cursor;
 		delete pIter;
 		TRACK_ITER_DELETE;
 		METHOD_RETURN;
@@ -4102,14 +4154,14 @@ namespace
 	FORTHOP(oStringMapIterSeekNextMethod)
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
-		pIter->cursor++;
+		(*pIter->cursor)++;
 		METHOD_RETURN;
 	}
 
 	FORTHOP(oStringMapIterSeekPrevMethod)
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
-		pIter->cursor--;
+		(*pIter->cursor)--;
 		METHOD_RETURN;
 	}
 
@@ -4117,7 +4169,7 @@ namespace
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
 		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
-		pIter->cursor = pMap->elements->begin();
+		*(pIter->cursor) = pMap->elements->begin();
 		METHOD_RETURN;
 	}
 
@@ -4125,7 +4177,7 @@ namespace
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
 		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
-		pIter->cursor = pMap->elements->end();
+		*(pIter->cursor) = pMap->elements->end();
 		METHOD_RETURN;
 	}
 
@@ -4133,15 +4185,15 @@ namespace
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
 		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->end())
+		if (*(pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
-			pIter->cursor++;
+			(*pIter->cursor)++;
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -4151,14 +4203,14 @@ namespace
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
 		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->begin())
+		if (*(pIter->cursor) == pMap->elements->begin())
 		{
 			SPUSH(0);
 		}
 		else
 		{
 			pIter->cursor--;
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
 			SPUSH(~0);
 		}
@@ -4169,13 +4221,13 @@ namespace
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
 		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->end())
+		if (*(pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
 			SPUSH(~0);
 		}
@@ -4186,12 +4238,12 @@ namespace
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
 		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor != pMap->elements->end())
+		if (*(pIter->cursor) != pMap->elements->end())
 		{
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*(pIter->cursor))->second;
 			SAFE_RELEASE(pCore, o);
-			pMap->elements->erase(pIter->cursor);
-			pIter->cursor++;
+			pMap->elements->erase((*pIter->cursor));
+			(*pIter->cursor)++;
 		}
 		METHOD_RETURN;
 	}
@@ -4200,16 +4252,16 @@ namespace
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
 		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->end())
+		if (*(pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			ForthObject& o = pIter->cursor->second;
+			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
-			SPUSH((long)(pIter->cursor->first.c_str()));
-			pIter->cursor++;
+			SPUSH((long)(*(pIter->cursor))->first.c_str());
+			(*pIter->cursor)++;
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -4219,16 +4271,16 @@ namespace
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
 		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
-		if (pIter->cursor == pMap->elements->begin())
+		if (*(pIter->cursor) == pMap->elements->begin())
 		{
 			SPUSH(0);
 		}
 		else
 		{
-			pIter->cursor--;
-			ForthObject& o = pIter->cursor->second;
+			(*pIter->cursor)--;
+			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
-			SPUSH((long)(pIter->cursor->first.c_str()));
+			SPUSH((long)(*(pIter->cursor))->first.c_str());
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -4252,6 +4304,10 @@ namespace
 
 		METHOD_RET("nextPair", oStringMapIterNextPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("prevPair", oStringMapIterPrevPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+
+        MEMBER_VAR( "parent",			NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "__cursor",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -4280,7 +4336,7 @@ namespace
 	{
 		int dataBytes = ((maxChars  + 4) & ~3);
         size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
-		oString* str = (oString *) ForthAllocateBlock(nBytes + RCSTRING_SLOP);
+		oString* str = (oString *) __MALLOC(nBytes + RCSTRING_SLOP);
 		str->maxLen = dataBytes - 1;
 		str->curLen = 0;
 		str->data[0] = '\0';
@@ -4655,6 +4711,9 @@ namespace
         METHOD(     "load",                 oStringLoadMethod ),
         METHOD_RET( "split",                oStringSplitMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArray) ),
 		METHOD(		"join",					oStringJoinMethod ),
+
+        MEMBER_VAR( "__str",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -4678,6 +4737,7 @@ namespace
 		ForthObject			parent;
 		int					cursor;
     };
+
 	static ForthClassVocabulary* gpPairIterClassVocab = NULL;
 
 
@@ -4816,6 +4876,10 @@ namespace
         METHOD_RET( "getA",                 oPairGetAMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) ),
         METHOD(     "setB",                 oPairSetBMethod ),
         METHOD_RET( "getB",                 oPairGetBMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) ),
+
+        MEMBER_VAR( "objectA",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "objectB",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -4957,6 +5021,10 @@ namespace
         //METHOD(     "remove",				oPairIterRemoveMethod ),
         //METHOD_RET( "findNext",				oPairIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         //METHOD_RET( "clone",                oPairIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIPairIter) ),
+
+        MEMBER_VAR( "parent",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "__cursor",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -5147,6 +5215,11 @@ namespace
         METHOD_RET( "getB",                 oTripleGetBMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) ),
         METHOD(     "setC",                 oTripleSetCMethod ),
         METHOD_RET( "getC",                 oTripleGetCMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) ),
+
+        MEMBER_VAR( "objectA",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "objectB",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "objectC",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+		
         // following must be last in table
         END_MEMBERS
     };
@@ -5302,6 +5375,10 @@ namespace
         //METHOD(     "remove",				oTripleIterRemoveMethod ),
         //METHOD_RET( "findNext",				oTripleIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         //METHOD_RET( "clone",                oTripleIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCITripleIter) ),
+
+        MEMBER_VAR( "parent",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "__cursor",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -5680,6 +5757,9 @@ namespace
         METHOD_RET( "base",                 oByteArrayBaseMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte|kDTIsPtr) ),
 		METHOD(     "fromString",           oByteArrayFromStringMethod ),
 		METHOD(     "fromMemory",           oByteArrayFromMemoryMethod ),
+
+        MEMBER_VAR( "__elements",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
 		// following must be last in table
         END_MEMBERS
     };
@@ -5860,6 +5940,10 @@ namespace
         METHOD(     "remove",				oByteArrayIterRemoveMethod ),
         METHOD_RET( "findNext",				oByteArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "clone",                oByteArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIByteArrayIter) ),
+
+        MEMBER_VAR( "parent",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "__cursor",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        
         // following must be last in table
         END_MEMBERS
     };
@@ -6227,6 +6311,9 @@ namespace
         METHOD_RET( "pop",                  oShortArrayPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeShort) ),
         METHOD_RET( "base",                 oShortArrayBaseMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeShort|kDTIsPtr) ),
 		METHOD(     "fromMemory",           oShortArrayFromMemoryMethod ),
+
+        MEMBER_VAR( "__elements",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        
 		// following must be last in table
         END_MEMBERS
     };
@@ -6406,6 +6493,10 @@ namespace
         METHOD(     "remove",				oShortArrayIterRemoveMethod ),
         METHOD_RET( "findNext",				oShortArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "clone",                oShortArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIShortArrayIter) ),
+
+        MEMBER_VAR( "parent",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "__cursor",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        
         // following must be last in table
         END_MEMBERS
     };
@@ -6770,6 +6861,9 @@ namespace
         METHOD_RET( "pop",                  oIntArrayPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "base",                 oIntArrayBaseMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt|kDTIsPtr) ),
 		METHOD(     "fromMemory",           oIntArrayFromMemoryMethod ),
+
+        MEMBER_VAR( "__elements",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        
 		// following must be last in table
         END_MEMBERS
     };
@@ -6946,6 +7040,10 @@ namespace
         METHOD(     "remove",				oIntArrayIterRemoveMethod ),
         METHOD_RET( "findNext",				oIntArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "clone",                oIntArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIntArrayIter) ),
+
+        MEMBER_VAR( "parent",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "__cursor",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        
         // following must be last in table
         END_MEMBERS
     };
@@ -7381,6 +7479,9 @@ namespace
         METHOD_RET( "pop",                  oLongArrayPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong) ),
         METHOD_RET( "base",                 oLongArrayBaseMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong|kDTIsPtr) ),
 		METHOD(     "fromMemory",           oLongArrayFromMemoryMethod ),
+
+        MEMBER_VAR( "__elements",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
 		// following must be last in table
         END_MEMBERS
     };
@@ -7566,6 +7667,10 @@ namespace
         METHOD(     "remove",				oLongArrayIterRemoveMethod ),
         METHOD_RET( "findNext",				oLongArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD_RET( "clone",                oLongArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCILongArrayIter) ),
+
+        MEMBER_VAR( "parent",				NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+        MEMBER_VAR( "__cursor",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        
         // following must be last in table
         END_MEMBERS
     };
@@ -7703,7 +7808,10 @@ namespace
         METHOD_RET( "get",                  oIntGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "show",                 oIntShowMethod ),
         METHOD_RET( "compare",              oIntCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
-        // following must be last in table
+
+        MEMBER_VAR( "value",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
+		// following must be last in table
         END_MEMBERS
     };
 
@@ -7785,7 +7893,10 @@ namespace
         METHOD_RET( "get",                  oLongGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong) ),
         METHOD(     "show",                 oLongShowMethod ),
         METHOD_RET( "compare",              oLongCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
-        // following must be last in table
+
+		MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeLong)),
+
+		// following must be last in table
         END_MEMBERS
     };
 
@@ -7863,7 +7974,10 @@ namespace
         METHOD_RET( "get",                  oFloatGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeFloat) ),
         METHOD(     "show",                 oFloatShowMethod ),
         METHOD_RET( "compare",              oFloatCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
-        // following must be last in table
+
+        MEMBER_VAR( "value",				NATIVE_TYPE_TO_CODE(0, kBaseTypeFloat) ),
+
+		// following must be last in table
         END_MEMBERS
     };
 
@@ -7941,6 +8055,9 @@ namespace
         METHOD_RET( "get",                  oDoubleGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeDouble) ),
         METHOD(     "show",                 oDoubleShowMethod ),
         METHOD_RET( "compare",              oDoubleCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
+
+        MEMBER_VAR( "value",				NATIVE_TYPE_TO_CODE(0, kBaseTypeDouble) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -8103,6 +8220,9 @@ namespace
         METHOD_RET( "step",                 oThreadStepMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "reset",                oThreadResetMethod ),
         METHOD(     "resetIP",              oThreadResetIPMethod ),
+
+        MEMBER_VAR( "__thread",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -8135,7 +8255,7 @@ namespace
     {
         ulong			refCount;
 		FILE*			pInFile;
-		bool			trimEOL;
+		int				trimEOL;
     };
 
     FORTHOP( oFileInStreamNew )
@@ -8249,6 +8369,10 @@ namespace
         METHOD(     "getBytes",             oFileInStreamGetBytesMethod ),
         METHOD(     "getLine",              oFileInStreamGetLineMethod ),
         METHOD(     "setTrimEOL",           oFileInStreamSetTrimEOLMethod ),
+
+        MEMBER_VAR( "inFile",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        MEMBER_VAR( "trimEOL",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -8481,6 +8605,10 @@ namespace
         METHOD(     "putString",            oOutStreamPutStringMethod ),
         METHOD_RET( "getData",              oOutStreamGetDataMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
         METHOD(     "setData",              oOutStreamSetDataMethod ),
+
+        MEMBER_VAR( "__outFuncs",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        MEMBER_VAR( "userData",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -8627,6 +8755,8 @@ namespace
         METHOD_RET( "getString",            oStringOutStreamGetStringMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIString) ),
         METHOD(     "setData",              illegalMethodOp ),
 		
+        MEMBER_VAR( "outString",			NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -8705,6 +8835,9 @@ namespace
     {
         METHOD(     "__newOp",              oFunctionOutStreamNew ),
         METHOD(     "init",					oFunctionOutStreamInitMethod ),
+
+        MEMBER_VAR( "__outFuncs",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+
         // following must be last in table
         END_MEMBERS
     };
@@ -8867,6 +9000,241 @@ void ForthShowObject(ForthObject& obj, ForthCoreState* pCore)
 	}
 }
 
+
+//////////////////////////////////////////////////////////////////////
+///
+//                 oVocabulary
+//
+struct oVocabularyStruct
+{
+	ulong				refCount;
+	ForthVocabulary*	vocabulary;
+	long*				cursor;
+};
+
+FORTHOP(oVocabularyNew)
+{
+	ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
+	ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
+	MALLOCATE_OBJECT(oVocabularyStruct, pVocabulary);
+	pVocabulary->refCount = 0;
+	pVocabulary->vocabulary = NULL;
+	pVocabulary->cursor = NULL;
+	PUSH_PAIR(pPrimaryInterface->GetMethods(), pVocabulary);
+}
+
+FORTHOP(oVocabularyOpenMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	pVocabulary->vocabulary = (ForthVocabulary*)(SPOP);
+	pVocabulary->cursor = (pVocabulary->vocabulary != NULL) ? pVocabulary->vocabulary->GetNewestEntry() : NULL;
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularyCloseMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	pVocabulary->vocabulary = NULL;
+	pVocabulary->cursor = NULL;
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularyGetNameMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	SPUSH((pVocab != NULL) ? (long)(pVocab->GetName()) : NULL);
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularySetDefinitionsVocabMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	if (pVocab != NULL)
+	{
+		ForthEngine *pEngine = GET_ENGINE;
+		ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+		pEngine->SetDefinitionVocabulary(pVocabStack->GetTop());
+	}
+	METHOD_RETURN;
+}
+FORTHOP(oVocabularySetSearchVocabMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	if (pVocab != NULL)
+	{
+		ForthEngine *pEngine = GET_ENGINE;
+		ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+		pVocabStack = pEngine->GetVocabularyStack();
+		pVocabStack->SetTop(pVocab);
+	}
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularySeekNewestMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	long* pEntry = NULL;
+	if (pVocab != NULL)
+	{
+		pVocabulary->cursor = pVocab->GetNewestEntry();
+		pEntry = pVocabulary->cursor;
+	}
+	SPUSH((long)pEntry);
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularySeekNextMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	long* pEntry = NULL;
+	if ((pVocab != NULL) && (pVocabulary->cursor != NULL))
+	{
+		pVocabulary->cursor = pVocab->NextEntrySafe(pVocabulary->cursor);
+		pEntry = pVocabulary->cursor;
+	}
+	SPUSH((long)pEntry);
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularyFindEntryByNameMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	long* pEntry = NULL;
+	const char* pName = (const char *)(SPOP);
+	if (pVocab != NULL)
+	{
+		pVocabulary->cursor = pVocab->FindSymbol(pName);
+		pEntry = pVocabulary->cursor;
+	}
+	SPUSH((long)pEntry);
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularyFindNextEntryByNameMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	long* pEntry = NULL;
+	const char* pName = (const char *)(SPOP);
+	if (pVocab != NULL)
+	{
+		pVocabulary->cursor = pVocab->FindNextSymbol(pName, pEntry);
+		pEntry = pVocabulary->cursor;
+	}
+	SPUSH((long)pEntry);
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularyFindEntryByValueMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	long* pEntry = NULL;
+	long val = SPOP;
+	if (pVocab != NULL)
+	{
+		pVocabulary->cursor = pVocab->FindSymbolByValue(val);
+		pEntry = pVocabulary->cursor;
+	}
+	SPUSH((long)pEntry);
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularyFindNextEntryByValueMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	long* pEntry = NULL;
+	long val = SPOP;
+	if (pVocab != NULL)
+	{
+		pVocabulary->cursor = pVocab->FindNextSymbolByValue(val, pEntry);
+		pEntry = pVocabulary->cursor;
+	}
+	SPUSH((long)pEntry);
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularyGetNumEntriesMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	SPUSH((pVocab != NULL) ? (long)(pVocab->GetNumEntries()) : 0);
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularyGetValueLengthMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	SPUSH((pVocab != NULL) ? (long)(pVocab->GetValueLength()) : 0);
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularyAddSymbolMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	long addToEngineFlags = SPOP;
+	long opVal = SPOP;
+	long opType = SPOP;
+	char* pSymbol = (char *)(SPOP);
+	bool addToEngineOps = (addToEngineFlags < 0) ? (opType <= kOpDLLEntryPoint) : (addToEngineFlags > 0);
+	if (pVocab != NULL)
+	{
+		pVocab->AddSymbol(pSymbol, opType, opVal, addToEngineOps);
+		pVocabulary->cursor = pVocab->GetNewestEntry();
+	}
+	METHOD_RETURN;
+}
+
+FORTHOP(oVocabularyRemoveEntryMethod)
+{
+	GET_THIS(oVocabularyStruct, pVocabulary);
+	ForthVocabulary* pVocab = pVocabulary->vocabulary;
+	long* pEntry = (long *)(SPOP);
+	if ((pEntry != NULL) && (pVocab != NULL) && (pVocabulary->cursor != NULL))
+	{
+		pVocab->DeleteEntry(pEntry);
+		pVocabulary->cursor = pVocab->GetNewestEntry();
+	}
+	METHOD_RETURN;
+}
+
+baseMethodEntry oVocabularyMembers[] =
+{
+	METHOD("__newOp", oVocabularyNew),
+	METHOD("open", oVocabularyOpenMethod),
+	//METHOD("openByName", oVocabularyOpenByNameMethod),
+	METHOD("close", oVocabularyCloseMethod),
+	METHOD("getName", oVocabularyGetNameMethod),
+	METHOD("setDefinitionsVocab", oVocabularySetDefinitionsVocabMethod),
+	METHOD("setSearchVocab", oVocabularySetSearchVocabMethod),
+	METHOD("seekNewestEntry", oVocabularySeekNewestMethod),
+	METHOD("seekNextEntry", oVocabularySeekNextMethod),
+	METHOD("findEntryByName", oVocabularyFindEntryByNameMethod),
+	METHOD("findNextEntryByName", oVocabularyFindNextEntryByNameMethod),
+	METHOD("findEntryByValue", oVocabularyFindEntryByValueMethod),
+	METHOD("findNextEntryByValue", oVocabularyFindNextEntryByValueMethod),
+	METHOD("getNumEntries", oVocabularyGetNumEntriesMethod),
+	METHOD("getValueLength", oVocabularyGetValueLengthMethod),
+	METHOD("addSymbol", oVocabularyAddSymbolMethod),
+	METHOD("removeEntry", oVocabularyRemoveEntryMethod),
+
+	MEMBER_VAR("vocabulary", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt)),
+	MEMBER_VAR("cursor", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt)),
+
+	// following must be last in table
+	END_MEMBERS
+};
+
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///     ForthForgettableGlobalObject - handles forgetting of global forth objects
@@ -9004,6 +9372,8 @@ ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
     gpOConsoleOutStreamClass = pEngine->AddBuiltinClass( "oConsoleOutStream", gpOFileOutStreamClass, oConsoleOutStreamMembers );
     gpOFunctionOutStreamClass = pEngine->AddBuiltinClass( "oFunctionOutStream", pOOutStreamClass, oFunctionOutStreamMembers );
 
+	ForthClassVocabulary* pOVocabularyClass = pEngine->AddBuiltinClass("oVocabulary", pObjectClass, oVocabularyMembers);
+	
     mpClassMethods = pClassClass->GetInterface( 0 )->GetMethods();
 }
 

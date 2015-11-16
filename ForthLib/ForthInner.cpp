@@ -1396,6 +1396,36 @@ inline void _doObjectVarop( ForthCoreState* pCore, ForthObject* pVar )
 		}
 		break;
 
+	case kVarPlusStore:
+		{
+			// store but don't increment refcount
+			ForthObject& oldObj = *pVar;
+			ForthObject newObj;
+			POP_OBJECT(newObj);
+			*pVar = newObj;
+		}
+		break;
+
+	case kVarMinusStore:
+		{
+			// unref - push object on stack, clear out variable, decrement refcount but don't delete if 0
+			ForthObject& oldObj = *pVar;
+			PUSH_OBJECT(oldObj);
+			if (oldObj.pMethodOps != NULL)
+			{
+				long* pData = oldObj.pData;
+				if (pData > 0)
+				{
+					*pData -= 1;
+				}
+				else
+				{
+					pEngine->SetError(kForthErrorBadReferenceCount);
+				}
+			}
+		}
+		break;
+
 	default:
 		// report GET_VAR_OPERATION out of range
 		pEngine->SetError( kForthErrorBadVarOperation );

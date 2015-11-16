@@ -643,7 +643,7 @@ void* ForthAllocateBlock(size_t numBytes);
 void* ForthReallocateBlock(void *pMemory, size_t numBytes);
 void ForthFreeBlock(void* pBlock);
 
-#if 1
+#if 0
 #define __MALLOC ForthAllocateBlock
 #define __REALLOC ForthReallocateBlock
 #define __FREE ForthFreeBlock

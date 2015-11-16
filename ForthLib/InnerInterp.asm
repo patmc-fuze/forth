@@ -1168,6 +1168,7 @@ entry memberUShortArrayType
 	add	eax, ebx		; add in field offset
 	jmp	ushortEntry
 
+
 ;-----------------------------------------------
 ;
 ; local int ops
@@ -2059,6 +2060,19 @@ los3:
 	; execute the delete method opcode which is in ebx
 	jmp	interpLoopExecuteEntry
 
+; store object on TOS in variable pointed to by eax
+; do not adjust reference counts of old object or new object
+localObjectStoreNoRef:
+	; TOS is new object, eax points to destination/old object
+	xor	ebx, ebx			; set var operation back to default/fetch
+	mov	[ebp].FCore.varMode, ebx
+	mov	ebx, [edx]
+	mov	[eax], ebx
+	mov	ebx, [edx+4]
+	mov	[eax+4], ebx
+	add	edx, 8
+	jmp	edi
+
 ; clear object reference, leave on TOS
 localObjectUnref:
 	; leave object on TOS
@@ -2097,7 +2111,7 @@ localObjectActionTable:
 	DD	FLAT:localObjectFetch
 	DD	FLAT:localObjectRef
 	DD	FLAT:localObjectStore
-	DD	FLAT:badVarOperation		; '->+' not defined for object
+	DD	FLAT:localObjectStoreNoRef
 	DD	FLAT:localObjectUnref
 
 localObject1:
@@ -4075,6 +4089,23 @@ withinBop1:
 	jg	withinFail
 	dec	eax
 withinFail:
+	add edx, 8
+	mov	[edx], eax		
+	jmp	edi
+	
+;========================================
+
+entry clampBop
+	; tos: hiLimit loLimit value
+	mov	ebx, [edx+8]	; ebx = value
+	mov	eax, [edx]		; eax = hiLimit
+	cmp	eax, ebx
+	jle clampFail
+	mov	eax, [edx+4]
+	cmp	eax, ebx
+	jg	clampFail
+	mov	eax, ebx		; value was within range
+clampFail:
 	add edx, 8
 	mov	[edx], eax		
 	jmp	edi

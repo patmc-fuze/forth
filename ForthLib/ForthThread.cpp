@@ -69,6 +69,7 @@ ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnS
 
     mCore.pDictionary = NULL;
 
+	SPEW_SHELL("ForthThread pCore=%p NULLing consoleOutStream", &mCore);
 	mCore.consoleOutStream.pData = NULL;
 	mCore.consoleOutStream.pMethodOps = NULL;
 
