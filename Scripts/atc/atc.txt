@@ -346,17 +346,60 @@ lf atcFileReader.txt
 
 //  new atcGame -> atcGame game
 
+: listFilesToArray
+  int dirHandle
+  ptrTo dirent pEntry
+  int pName
+  new oArray -> oArray filenames
+  
+  opendir -> dirHandle
+  if( dirHandle )
+    begin
+      readdir(dirHandle) -> pEntry
+    while( pEntry )
+      pEntry.d_name(0 ref) -> pName
+      if(pName c@ '.' <>)
+        new oString -> oString filename
+        filename.set(pName)
+        filenames.push(filename)
+        oclear filename
+      endif
+    repeat
+    closedir(dirHandle) drop
+  endif
+  unref filenames
+;
+
+: listGames
+  listFilesToArray("games") -> oArray gameFilenames
+  
+  gameFilenames.headIter -> oIter iter
+  begin
+  while( iter.next )
+    -> oString gameFilename
+    "   " %s gameFilename.get %s %nl
+    oclear gameFilename
+  repeat
+  oclear iter
+  
+  oclear gameFilenames
+;
+
 : atc
   openTrace
   getConsoleColor -> int color
   new atcGame -> game
   game.init( blword )
+  srand(xor(time))
   if(atcFileReader:loadAtcFile( game.name.get game))
     clearConsole
     //t{ game.show "\n\n\n=====================================\n\n\n" %s }t
     game.play
     //t{ game.show }t
     game.reset
+  else
+    "Available games:" %s %nl
+    listGames
   endif
   oclear game
   setConsoleColor( color )
@@ -366,6 +409,26 @@ lf atcFileReader.txt
 
 
 loaddone
+
+: listGames
+  int dirHandle
+  ptrTo dirent pEntry
+  int pName   //ptrTo byte pName
+  
+  opendir("games") -> dirHandle
+  if( dirHandle )
+    begin
+      readdir(dirHandle) -> pEntry
+    while( pEntry )
+      pEntry.d_name(0 ref) -> pName // ref pName !
+      //pEntry %x %bl pName %x %bl pName %s %nl
+      if(pName c@ '.' <>)
+        "   " %s pName %s %nl
+      endif
+    repeat
+    closedir(dirHandle) drop
+  endif
+;
 
 
 + handle backspace

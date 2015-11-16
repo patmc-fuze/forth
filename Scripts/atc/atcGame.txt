@@ -83,12 +83,12 @@ class: atcGame extends iAtcGame
     -> int newY
     -> int newX
     //display.showWarning(plane.name.get) %bl newX %d %bl newY %d %bl
-    region.getTile( plane.x plane.y ) -> atcTile oldTile
+    region.getTile( plane.x plane.y ) ->o atcTile oldTile
     oldTile.removeAirplane( plane )
     t{ "plane " %s plane.name.get %s " moved to " %s newX %d ',' %c newY %d " at " %s plane.altitude %d %nl }t
     if( and(within(newX 0 region.columns) within(newY 0 region.rows)) )
       // plane still in airspace
-      region.getTile(newX newY) -> atcTile newTile
+      region.getTile(newX newY) ->o atcTile newTile
       
       message.set("Plane ")
       message.append(plane.name.get)
@@ -131,7 +131,6 @@ class: atcGame extends iAtcGame
           1 ->- plane.fuel
         endif
       endif
-      oclear newTile
     else
       // plane exited airspace
       true -> int legalExit
@@ -149,12 +148,11 @@ class: atcGame extends iAtcGame
       endif
       
       if(oldTile.tileType kATTPortal =)
-        region.portals.get(oldTile.index) -> iAtcPortal portal
+        region.portals.get(oldTile.index) ->o iAtcPortal portal
         if( portal.id plane.destination <>)
           false -> legalExit
           message.append(" - wrong exit")
         endif
-        oclear portal
       else
         false -> legalExit
         message.append(" - not at an exit")
@@ -168,22 +166,19 @@ class: atcGame extends iAtcGame
         exitWithFailure
       endif
     endif
-    oclear oldTile
     oclear plane  
   ;method
 
   method: activateAirplane  // PLANE_OBJ ...
-    -> atcAirplane plane
+    ->o atcAirplane plane
     activeAirplanes.addTail( plane )
     inactiveAirplanes.remove( plane )
-    oclear plane
   ;method
   
   method: deactivateAirplane  // PLANE_OBJ ...
-    -> atcAirplane plane
+    ->o atcAirplane plane
     inactiveAirplanes.addTail( plane )
     activeAirplanes.remove( plane )
-    oclear plane
   ;method
   
   : getGameTime
@@ -224,25 +219,28 @@ class: atcGame extends iAtcGame
         rand 1 and 0<> -> isJet
         if( source numPortals < )
           // generate plane at a portal
-          region.portals.get( source ) -> iAtcPortal portal
+          region.portals.get( source ) ->o iAtcPortal portal
           // TODO: don't allow portal to generate planes too close together
           portal.entryAltitude -> altitude
           true -> isMoving
           portal.x -> x
           portal.y -> y
           portal.entryDirection -> heading
-          oclear portal
         else
           // generate plane at an airport
-          region.airports.get( source numPortals - ) -> iAtcAirport airport
+          region.airports.get( source numPortals - ) ->o iAtcAirport airport
           airport.altitude -> altitude
           airport.x -> x
           airport.y -> y
           airport.entryDirection -> heading
-          oclear airport
         endif
     
-        mod( rand numDestinations ) -> int destination
+        source -> int destination
+        begin
+        while(source destination =)   // make sure source and destination are different
+          mod( rand numDestinations ) -> destination
+        repeat
+        
         if( destination numPortals < )
           // destination is a portal
           kATTPortal -> destinationType

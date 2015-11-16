@@ -489,6 +489,7 @@ class: atcInputHandler extends iAtcInputHandler
       inputStateOps( commandState )
     repeat
     display.showCommand( displayString.get )
+    oclear tmpCommandString
   ;
   
   method: init     // REGION DISPLAY_OBJ  ...

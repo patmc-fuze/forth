@@ -127,7 +127,7 @@ forth:;
 
 // ATC_FILENAME ATC_GAME_OBJ ... TRUE   if successfuly read file
 : loadAtcFile
-  -> daGame
+  ->o daGame
   -> ptrTo byte gameName
   
   if( fexists(gameName))
@@ -150,7 +150,6 @@ forth:;
     false
   endif
   
-  oclear daGame
 forth:;
 
 only forth definitions

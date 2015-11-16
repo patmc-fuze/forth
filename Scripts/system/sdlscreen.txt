@@ -1,13 +1,21 @@
 
 autoforget sdlscreen
-requires sdl
-also sdl
+requires sdl2
+also sdl2
 
 : sdlscreen ;
 
-class: sdlScreen
+640 ->  int defaultWindowWidth
+512 ->  int defaultWindowHeight
+4 ->    int defaultWindowBytesPerPixel
+
+class: SDLScreen
 
   ptrTo SDL_Surface surface
+  int window           // SDL_Window
+  int renderer         // SDL_Renderer
+  int windowTexture    // SDL_Texture
+
   int width
   int height
   int leftLimit
@@ -26,6 +34,8 @@ class: sdlScreen
   int sdlStarted
   int curX
   int curY
+  int bytesPerPixel
+  int bytesPerRow
 
 
   : dummyFetchOp drop 0 ;
@@ -37,12 +47,18 @@ class: sdlScreen
   
   method: init
     null -> surface
+    null -> window
+    null -> renderer
+    null -> windowTexture
     
-    initLimits( 640 512 )
+    initLimits( defaultWindowWidth defaultWindowHeight )
     
     ['] dummyFetchOp -> pixel@
     ['] 2drop -> pixel!
     0x00FFFF00 -> pixelColor
+    
+    defaultWindowBytesPerPixel -> bytesPerPixel
+    bytesPerPixel width * -> bytesPerRow
 
     0 -> drawDepth
     0 -> srcPos.x 0 -> srcPos.y
@@ -53,45 +69,62 @@ class: sdlScreen
     
   ;method
 
-  method: endSDL
+  method: end
     if( sdlStarted )
       SDL_Quit
       false -> sdlStarted
     endif
   ;method
   
-  method: startSDL
+
+  
+  method: start
+    init
     if( sdlStarted )
-      endSDL
+      end
     endif
     true -> sdlStarted
   
     SDL_Init( SDL_INIT_VIDEO ) "SDL_Init returns " %s %d %nl
     
-    SDL_GetVideoInfo -> ptrTo SDL_VideoInfo videoInfo
-    "SDL_GetVideoInfo returns " %s videoInfo.current_w %d "x" %s videoInfo.current_h %d %bl
-    videoInfo.vfmt.BitsPerPixel %d " bits/pixel " %s %bl videoInfo.video_mem %d " bytes of video memory\n" %s
+    //SDL_GetVideoInfo -> ptrTo SDL_VideoInfo videoInfo
+    //"SDL_GetVideoInfo returns " %s videoInfo.current_w %d "x" %s videoInfo.current_h %d %bl
+    //videoInfo.vfmt.BitsPerPixel %d " bits/pixel " %s %bl videoInfo.video_mem %d " bytes of video memory\n" %s
    
     //initLimits( videoInfo.current_w videoInfo.current_h )
     
-    SDL_SetVideoMode( width height 0 SDL_SWSURFACE ) -> surface
-    if( surface 0= )
-      "SDL_SetVideoMode failed!\n" %s abort
+    //SDL_SetVideoMode( width height 0 SDL_SWSURFACE ) -> surface
+    
+    SDL_CreateWindow( "My Game Window" SDL_WINDOWPOS_UNDEFINED_MASK SDL_WINDOWPOS_UNDEFINED_MASK width height SDL_WINDOW_SHOWN ) -> window
+
+    if( window 0= )
+      "SDL_CreateWindow failed!\n" %s abort
     else
-      surface.format.BitsPerPixel
-      "bits per pixel: " %s dup %d %nl
+
+    show
+      SDL_CreateRGBSurface(SDL_SWSURFACE width height bytesPerPixel 8 * 0 0 0 0) -> surface
+      if(surface 0=)
+        SDL_GetError %s %nl
+      endif
+      SDL_CreateRenderer(window -1 0) -> renderer
+      SDL_CreateTexture(renderer SDL_PIXELFORMAT_ARGB8888 SDL_TEXTUREACCESS_STREAMING width height) -> windowTexture
+
+      surface %x %bl renderer %x %bl windowTexture %x %nl
+      //surface.format.BitsPerPixel
+      //"bits per pixel: " %s dup %d %nl
+      bytesPerPixel
       case
-        of( 8 )
+        of( 1 )
           lit c@ -> pixel@
           lit c! -> pixel!
           0x55 -> pixelColor
         endof
-        of( 16 )
+        of( 2 )
           lit w@ -> pixel@
           lit w! -> pixel!
           0x5555 -> pixelColor
         endof
-        of( 32 )
+        of( 4 )
           lit @ -> pixel@
           lit ! -> pixel!
           0x00FFFF00 -> pixelColor
@@ -120,7 +153,7 @@ class: sdlScreen
 
   : beginDraw
     if( drawDepth 0= )
-      SDL_LockSurface( surface ) drop
+      //SDL_LockSurface( surface ) drop
     endif
     1 ->+ drawDepth
   ;
@@ -128,8 +161,14 @@ class: sdlScreen
   : endDraw
     1 ->- drawDepth
     if( drawDepth 0= )
-      SDL_UnlockSurface( surface )
-      SDL_UpdateRects( surface 1 dstPos )
+      //SDL_UnlockSurface( surface )
+      //SDL_UpdateRects( surface 1 dstPos )
+      // At the end of the frame, we want to upload to the texture like this:
+      SDL_UpdateTexture(windowTexture null surface.pixels bytesPerRow) drop
+      SDL_RenderClear(renderer) drop
+      SDL_RenderCopy(renderer windowTexture null null) drop
+      SDL_RenderPresent(renderer)
+  
     else
       if( drawDepth 0< )
         "endDraw called with drawDepth " %s drawDepth %d %nl
@@ -460,39 +499,39 @@ class: sdlScreen
   ;method
   
   method: flip
-    SDL_Flip( surface ) drop
+    //SDL_Flip( surface ) drop
   ;method
     
 ;class
 
-sdlScreen _screen
+SDLScreen screenInstance
 
 : startSDL
-  new sdlScreen -> _screen
-  _screen.init
-  _screen.startSDL
+  new SDLScreen -> screenInstance
+  screenInstance.init
+  screenInstance.start
 ;
 
 : endSDL
-  if( _screen l0<> )
-    _screen.endSDL
-    dnull -> _screen
+  if( screenInstance l0<> )
+    screenInstance.end
+    oclear screenInstance
   endif
 ;
 
-: sc _screen.setColor ;
-: mt _screen.moveTo ;
+: sc screenInstance.setColor ;
+: mt screenInstance.moveTo ;
 
-: dp _screen.drawPoint ;
-: dl _screen.drawLine ;
-: de _screen.drawEllipse ;
-: dc _screen.drawCircle ;
-: dsq _screen.drawSquare ;
-: dr _screen.drawRectangle ;
-: dpl _screen.drawPolyLine ;
-: dml _screen.drawMultiLine ;
-: fs _screen.flip ;
-: cl _screen.clear( 0 ) fs ;
+: dp screenInstance.drawPoint ;
+: dl screenInstance.drawLine ;
+: de screenInstance.drawEllipse ;
+: dc screenInstance.drawCircle ;
+: dsq screenInstance.drawSquare ;
+: dr screenInstance.drawRectangle ;
+: dpl screenInstance.drawPolyLine ;
+: dml screenInstance.drawMultiLine ;
+: fs screenInstance.flip ;
+: cl screenInstance.clear( 0 ) fs ;
 
 : test
   sc( 0xFFFF00 )

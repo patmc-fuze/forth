@@ -182,14 +182,14 @@ class: atcConsoleDisplay extends iAtcDisplay
   ;
   
   : updatePlaneStatus
-    -> oList activeAirplanes
+    ->o oList activeAirplanes
     statusRow -> int planeRow
   
     // display flying airplanes
     activeAirplanes.headIter -> oIter iter
     begin
     while( iter.next )
-      -> iAtcAirplane plane
+      ->o iAtcAirplane plane
       if( plane.status kAASMovingMarked >= )
         setConsoleCursor(plane.x 2* plane.y)
         if( plane.status kAASMovingMarked =)
@@ -228,7 +228,6 @@ class: atcConsoleDisplay extends iAtcDisplay
           plane.name.get %s plane.altitude 1000 / %d
         endif
       endif
-      oclear plane
     repeat
   
     startPlaneStatus(planeRow)
@@ -238,7 +237,7 @@ class: atcConsoleDisplay extends iAtcDisplay
     activeAirplanes.headIter -> iter
     begin
     while( iter.next )
-      -> iAtcAirplane plane
+      ->o iAtcAirplane plane
       if( plane.status kAASMovingMarked < )
         startPlaneStatus(planeRow)
         1 ->+ planeRow
@@ -251,7 +250,6 @@ class: atcConsoleDisplay extends iAtcDisplay
         plane.destination %d ':' %c
       " Holding @ A" %s region.getAirport@(plane.x plane.y).id %d
       endif
-      oclear plane
     repeat
     oclear iter
 
@@ -260,8 +258,6 @@ class: atcConsoleDisplay extends iAtcDisplay
       startPlaneStatus(planeRow)
       1 ->+ planeRow
     repeat
-    
-    oclear activeAirplanes
   ;
   
   method: update      // ACTIVE_AIRPLANE_LIST ...
@@ -300,22 +296,20 @@ class: atcConsoleDisplay extends iAtcDisplay
   ;method
   
   method: hideAirplanes    // ACTIVE_AIRPLANE_LIST
-    -> oList activeAirplanes
+    ->o oList activeAirplanes
     // hide flying airplanes
     activeAirplanes.headIter -> oIter iter
 
     begin
     while( iter.next )
-      -> iAtcAirplane plane
+      ->o iAtcAirplane plane
       if( plane.status kAASMovingMarked >= )
         setConsoleCursor(plane.x 2* plane.y)
         xyAddr(plane.x plane.y) dup c@ %c 1+ c@ %c
       endif
-      oclear plane
     repeat
   
     oclear iter
-    oclear activeAirplanes
   ;method
   
 ;class

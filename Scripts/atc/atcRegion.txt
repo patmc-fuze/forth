@@ -39,9 +39,8 @@ class: atcRegion extends iAtcRegion
     tiles.headIter -> oIter iter
     begin
     while( iter.next )
-      -> atcTile tile
+      ->o atcTile tile
       tile.reset
-      oclear tile
     repeat
     oclear iter
   ;
@@ -86,14 +85,12 @@ class: atcRegion extends iAtcRegion
     airports.headIter -> oIter iter
     begin
     while( iter.next )
-      -> iAtcAirport airport
+      ->o iAtcAirport airport
       if(and( airport.x x =  airport.y y =))
         airport
-        oclear airport
         oclear iter
         exit
       endif
-      oclear airport
     repeat
     oclear iter
     dnull
@@ -107,14 +104,12 @@ class: atcRegion extends iAtcRegion
     portals.headIter -> oIter iter
     begin
     while( iter.next )
-      -> iAtcPortal portal
+      ->o iAtcPortal portal
       if(and( portal.x x =  portal.y y =))
         portal
-        oclear portal
         oclear iter
         exit
       endif
-      oclear portal
     repeat
     oclear iter
     dnull
@@ -128,14 +123,12 @@ class: atcRegion extends iAtcRegion
     beacons.headIter -> oIter iter
     begin
     while( iter.next )
-      -> iAtcBeacon beacon
+      ->o iAtcBeacon beacon
       if(and( beacon.x x =  beacon.y y =))
         beacon
-        oclear beacon
         oclear iter
         exit
       endif
-      oclear beacon
     repeat
     oclear iter
     dnull
@@ -143,13 +136,12 @@ class: atcRegion extends iAtcRegion
   ;method
   
   : setTileType
-    getTile -> atcTile tile
+    getTile ->o atcTile tile
     -> tile.tileType
-    oclear tile
   ;
   
   method: checkCollisions    // PLANE ... COLLIDED_PLANE_INDEX  returns -1 if no collision
-    -> iAtcAirplane plane
+    ->o iAtcAirplane plane
     -1 -> int collidedPlaneIndex
     int minRow int maxRow int minColumn int maxColumn
     
@@ -170,27 +162,24 @@ class: atcRegion extends iAtcRegion
       begin
       while(and(collidedPlaneIndex 0<  checkColumn maxColumn <=))
         //"checking at " %s checkColumn %d %bl checkRow %d %nl
-        getTile(checkColumn checkRow) -> atcTile tile
+        getTile(checkColumn checkRow) ->o atcTile tile
         tile.airplanes.headIter -> oIter iter
         begin
         while(iter.next)
-          -> iAtcAirplane checkPlane
+          ->o iAtcAirplane checkPlane
           //"checking " %s checkPlane.name.get %s " against " %s plane.name.get %s %nl
           if(checkPlane.id plane.id <>)
             if(within(checkPlane.altitude plane.altitude - -1 2))
               checkPlane.id -> collidedPlaneIndex
             endif
           endif
-          oclear checkPlane
         repeat
         1 ->+ checkColumn
-        oclear tile
         oclear iter
       repeat
       1 ->+ checkRow
     repeat
 
-    oclear plane
     collidedPlaneIndex
   ;method
   
@@ -206,10 +195,9 @@ class: atcRegion extends iAtcRegion
     portals.insert(portal 0)
     //portals.push(portal)
     oclear portal
-    getTile(x y) -> atcTile tile
+    getTile(x y) ->o atcTile tile
     kATTPortal -> tile.tileType
     id -> tile.index
-    oclear tile
   ;method
 
   // x y direction id ...
@@ -224,10 +212,9 @@ class: atcRegion extends iAtcRegion
     airports.insert(airport 0)
     //airports.push(airport)
     oclear airport
-    getTile(x y) -> atcTile tile
+    getTile(x y) ->o atcTile tile
     kATTAirport -> tile.tileType
     id -> tile.index
-    oclear tile
   ;method
   
   // x y id ...
@@ -241,10 +228,9 @@ class: atcRegion extends iAtcRegion
     beacons.insert(beacon 0)
     //beacons.push(beacon)
     oclear beacon
-    getTile(x y) -> atcTile tile
+    getTile(x y) ->o atcTile tile
     kATTBeacon -> tile.tileType
     id -> tile.index
-    oclear tile
   ;method
   
   // x0 y0 x1 y1 ...

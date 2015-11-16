@@ -259,8 +259,10 @@ int _handler
 ;
 
 : recurse
-  ref definitions
-  vocNewestEntry @ ,
+  new oVocabulary -> oVocabulary vocab
+  ref definitions vocab.open
+  vocab.seekNewestEntry @ ,
+  oclear vocab
 ; precedence recurse
 
 : at-xy setConsoleCursor ;

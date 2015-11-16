@@ -160,7 +160,7 @@ class: atcAirplane extends iAtcAirplane
   
   
   method: executeCommand // COMMAND_INFO_PTR DISPLAY_OBJECT ...
-    -> iAtcDisplay display
+    ->o iAtcDisplay display
     -> ptrTo atcCommandInfo commandInfo
     if( status kAASMovingMarked >= )
       case( commandInfo.command)
@@ -236,7 +236,6 @@ class: atcAirplane extends iAtcAirplane
       endif
     endif
   
-    oclear display
   ;method
   
 ;class

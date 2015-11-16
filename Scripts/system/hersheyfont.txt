@@ -1,0 +1,133 @@
+
+: hersheyfont ;
+
+class: HersheyGlyph
+  int mLeftPos
+  int mRightPos
+  // mCoords has 2 bytes per vertex, first byte is (y coord + 64) with move flag in hibit, second byte is (x coord + 64)
+  oByteArray mCoords
+
+  method: init      // leftPos rightPos
+    -> mRightPos
+    -> mLeftPos
+    new oByteArray -> mCoords
+  ;method
+  
+  method: delete
+    oclear mCoords
+  ;method
+
+  method: addVertex  // x y isMove ...
+    // x and y are in range -64...63
+    if
+      64+ 0x80 or
+    else
+      64+
+    endif
+    mCoords.push      // add y+isMove
+    64+ mCoords.push  // add x
+  ;method
+  
+  method: numVertices
+    mCoords.count 2/
+  ;method
+  
+  method: getVertex // index ... x y isMove
+    2* dup 1+ mCoords.get 64-   // x
+
+    swap mCoords.get
+    if(dup 0x80 and)
+      0x7F and 64- true
+    else
+      64- false
+    endif
+  ;method
+  
+;class
+
+
+class: HersheyFont
+
+  oIntMap mGlyphs
+  oString mFilename  
+
+  method: delete
+    oclear mGlyphs
+    oclear mFilename
+  ;method
+    
+  method: loadFromFile   // FILENAME ... SUCCESS
+    new oString -> mFilename
+    mFilename.set
+    fopen(mFilename.get "r") -> int inFile
+    if(inFile)
+      new oIntMap -> mGlyphs
+      new oByteArray -> oByteArray buffer
+      buffer.resize(2048) // biggest number of verts is 999, biggest string should be 1998
+      int glyphIndex
+      int numVerts
+      32 -> int nextGlyphIndex
+      byte x
+      byte y
+      true -> int keepGoing
+      begin
+      while(keepGoing)
+        fscanf(inFile "%5d%3d" r[ ref glyphIndex ref numVerts ]r) -> int numResults
+        if(numResults 2 =)
+          fgets(buffer.base buffer.count 4- inFile) -> int numCharsRead
+          if(numCharsRead 2/ numVerts >=)
+          
+            // index 12345 means assign next sequential index
+            if(glyphIndex 12345 =)
+              nextGlyphIndex -> glyphIndex
+              1 ->+ nextGlyphIndex
+            endif
+            1 ->- numVerts
+            
+            buffer.base -> int buffptr
+            ref buffptr -> int pSrc
+            true -> int isMove
+            
+            new HersheyGlyph -> HersheyGlyph glyph
+            mGlyphs.set(glyph glyphIndex)
+            // set leftPos and rightPos
+            glyph.init(pSrc c@@++ 'R' -   pSrc c@@++ 'R' -)
+            fprintf(stdout "glyph %d with %d verts  l:%d r:%d\n" r[ glyphIndex numVerts glyph.mLeftPos glyph.mRightPos ]r) drop
+            ?do(numVerts 0)
+              pSrc c@@++ -> byte cx
+              pSrc c@@++ -> byte cy
+              if(and(cx '\ ' = cy 'R' =))
+                true -> isMove
+              else
+                // offset original -64..63 range to 0..127 so we can use high bit of x to flag move mode
+                'R' ->- cx   'R' ->- cy
+                fprintf(stdout "%s to %d,%d\n" r[ if(isMove) "Move" else "Draw" endif cx cy ]r) drop
+                glyph.addVertex(cx cy isMove)
+                false -> isMove
+              endif
+            loop
+          else
+            false -> keepGoing
+            fprintf(stdout "Only read %d characters, expected at least %d\n" r[ numCharsRead numVerts 2* ]r) drop
+          endif
+          if(feof(inFile))
+            false -> keepGoing
+          endif
+        else
+          false -> keepGoing
+        endif
+      repeat
+      fclose(inFile) drop
+      oclear buffer
+      true
+    else
+      mFilename.get %s " not found!\n" %s
+      false
+    endif
+  ;method
+  
+;class
+  
+
+loaddone
+
