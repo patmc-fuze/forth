@@ -41,8 +41,7 @@ autoforget builtinClassTest
 
 int nextObjId
 
-class: tobj
-extends object
+class: tobj    extends object
   int objId
 
   method: setObjId
@@ -134,15 +133,16 @@ listFromArrayA.show
 listFromArrayA.toArray -> oArray arrayFromListA
 arrayFromListA.show
 
+oclear listFromArrayA  oclear arrayFromListA
+
 //"{clearing map}" %s
-oclear imapA   //ma.clear
-oclear smapA
+oclear imapA  oclear lmapA  oclear fmapA  oclear dmapA  oclear smapA
 
 //"{clearing list}" %s
 oclear listA
 
 //"{clearing array}" %s
-oclear arrayA // aa.resize( 0 )
+oclear arrayA
 
 oclear valA  oclear valB  oclear valC  oclear valD  oclear valE
 

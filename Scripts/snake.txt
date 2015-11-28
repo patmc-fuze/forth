@@ -1,0 +1,217 @@
+autoforget _snake
+: _snake ;
+
+// ported from snake program on http://skilldrick.github.io/easyforth/ by Nick Morgan   11/27/2015
+
+40 constant width
+40 constant height
+
+width height * arrayOf int snake-x-head
+width height * arrayOf int snake-y-head
+width height * arrayOf byte graphics
+
+int apple-x
+int apple-y
+
+0 constant left
+1 constant up
+2 constant right
+3 constant down
+
+int direction
+int length
+
+: random
+  rand swap mod
+;
+
+: snake-x       // offset -- address
+  ref snake-x-head
+;
+: snake-y       // offset -- address
+  ref snake-y-head
+;
+
+: convert-x-y       // x y -- offset
+  width * +
+;
+: draw       // color x y --
+  -> int y   -> int x   -> int color
+  color convert-x-y(x y) -> graphics
+  
+  setConsoleCursor(x y)
+  if(color)
+    '.'
+  else
+    '#'
+  endif
+  %c
+;
+
+: draw-white       // x y --
+  1 rot rot draw
+;
+
+: draw-black       // x y --
+  0 rot rot draw
+;
+
+: draw-walls 
+  do(width 0)
+    draw-black(i 0) 
+    draw-black(i height 1-)
+  loop 
+  do(height 0)
+    draw-black(0 i)
+    draw-black(width 1- i)
+  loop
+;
+: initialize-snake 
+  4 -> length 
+  do(length 1+ 0) 
+    12 i - i snake-x !
+    12 i snake-y !
+  loop
+  right -> direction
+;
+
+: set-apple-position -> apple-x -> apple-y ;
+
+: initialize-apple  set-apple-position(4 4) ;
+
+: initialize 
+  do(width 0)
+    do(height 0)
+      draw-white(j i) 
+    loop 
+  loop 
+  draw-walls 
+  initialize-snake 
+  initialize-apple
+;
+
+: move-up  -1 ->+ snake-y-head(0) ;
+: move-left  -1 ->+ snake-x-head(0) ;
+: move-down  1 ->+ snake-y-head(0) ;
+: move-right  1 ->+ snake-x-head(0) ;
+
+: move-snake-head  direction
+  left over  = if move-left else 
+  up over    = if move-up else 
+  right over = if move-right else 
+  down over  = if move-down 
+  endif endif endif endif drop
+;
+
+// Move each segment of the snake forward by one
+: move-snake-tail
+  do(0 length)
+    i snake-x @ i 1+ snake-x !
+    i snake-y @ i 1+ snake-y !
+  +loop(-1)
+;
+
+: is-horizontal 
+  direction dup 
+  left = swap 
+  right = or
+;
+
+: is-vertical
+  direction dup 
+  up = swap 
+  down = or
+;
+
+: turn-up     is-horizontal if up -> direction endif ;
+: turn-left   is-vertical if left -> direction endif ;
+: turn-down   is-horizontal if down -> direction endif ;
+: turn-right  is-vertical if right -> direction endif ;
+
+false -> int gameOver
+
+: change-direction       // key -- ) 
+  case
+    of('a') turn-left   endof
+    of('w') turn-up     endof
+    of('d') turn-right  endof
+    of('s') turn-down   endof
+    of(0x1b) true -> gameOver endof
+    drop
+  endcase
+;
+
+: check-input 
+  if(key?)
+    key change-direction 
+  endif
+;
+
+// get random x or y position within playable area
+: random-position       // -- pos ) 
+  4- random 2 +
+;
+
+: move-apple 
+  apple-x apple-y draw-white 
+  width random-position height random-position 
+  set-apple-position
+;
+
+: grow-snake  1 ->+ length ;
+
+: check-apple 
+  snake-x-head(0) apple-x = 
+  snake-y-head(0) apple-y = 
+  and if 
+    move-apple 
+    grow-snake 
+  endif
+;
+
+: check-collision       // -- flag ) 
+  // get current x/y position 
+  snake-x-head(0) snake-y-head(0) 
+ 
+  // get color at current position 
+  convert-x-y graphics
+ 
+  // leave boolean flag on stack 
+  0=
+;
+
+: draw-snake 
+  do(length 0)
+    draw-black(i snake-x @ i snake-y @)
+  loop 
+  length snake-x @
+  length snake-y @
+  draw-white
+;
+
+: draw-apple 
+  draw-black(apple-x apple-y)
+;
+
+: game-loop       // -- ) 
+  false -> gameOver
+  begin 
+    draw-snake 
+    draw-apple 
+    ms(100)
+    check-input 
+    move-snake-tail 
+    move-snake-head 
+    check-apple 
+  until(or(check-collision gameOver))
+  setConsoleCursor(0 height 1+)
+  "Game Over, Final Lenghth: " %s length %d %nl
+;
+
+: start
+  initialize
+  game-loop
+;
+
+loaddone
+
