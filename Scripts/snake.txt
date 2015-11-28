@@ -13,10 +13,16 @@ width height * arrayOf byte graphics
 int apple-x
 int apple-y
 
-0 constant left
-1 constant up
-2 constant right
-3 constant down
+enum: snakeEnums
+  0     left
+  1     up
+  2     right
+  3     down
+  '#'   wallChar
+  '.'   emptyChar
+  '@'   appleChar
+  '*'   snakeChar
+;enum
 
 int direction
 int length
@@ -35,35 +41,39 @@ int length
 : convert-x-y       // x y -- offset
   width * +
 ;
+
 : draw       // color x y --
   -> int y   -> int x   -> int color
   color convert-x-y(x y) -> graphics
   
   setConsoleCursor(x y)
-  if(color)
-    '.'
-  else
-    '#'
-  endif
-  %c
+  color %c
 ;
 
-: draw-white       // x y --
-  1 rot rot draw
+: drawWall      // x y --
+  wallChar rot rot draw
 ;
 
-: draw-black       // x y --
-  0 rot rot draw
+: drawApple       // x y --
+  appleChar rot rot draw
+;
+
+: drawSnake       // x y --
+  snakeChar rot rot draw
+;
+
+: drawEmpty       // x y --
+  emptyChar rot rot draw
 ;
 
 : draw-walls 
   do(width 0)
-    draw-black(i 0) 
-    draw-black(i height 1-)
+    drawWall(i 0) 
+    drawWall(i height 1-)
   loop 
   do(height 0)
-    draw-black(0 i)
-    draw-black(width 1- i)
+    drawWall(0 i)
+    drawWall(width 1- i)
   loop
 ;
 : initialize-snake 
@@ -82,7 +92,7 @@ int length
 : initialize 
   do(width 0)
     do(height 0)
-      draw-white(j i) 
+      drawEmpty(j i) 
     loop 
   loop 
   draw-walls 
@@ -95,12 +105,14 @@ int length
 : move-down  1 ->+ snake-y-head(0) ;
 : move-right  1 ->+ snake-x-head(0) ;
 
-: move-snake-head  direction
-  left over  = if move-left else 
-  up over    = if move-up else 
-  right over = if move-right else 
-  down over  = if move-down 
-  endif endif endif endif drop
+: move-snake-head
+  case(direction)
+    of(left)    move-left   endof
+    of(up)      move-up     endof
+    of(right)   move-right  endof
+    of(down)    move-down   endof
+    drop
+  endcase
 ;
 
 // Move each segment of the snake forward by one
@@ -153,7 +165,7 @@ false -> int gameOver
 ;
 
 : move-apple 
-  apple-x apple-y draw-white 
+  apple-x apple-y drawApple 
   width random-position height random-position 
   set-apple-position
 ;
@@ -161,9 +173,7 @@ false -> int gameOver
 : grow-snake  1 ->+ length ;
 
 : check-apple 
-  snake-x-head(0) apple-x = 
-  snake-y-head(0) apple-y = 
-  and if 
+  if( and(snake-x-head(0) apple-x =   snake-y-head(0) apple-y =) )
     move-apple 
     grow-snake 
   endif
@@ -177,20 +187,18 @@ false -> int gameOver
   convert-x-y graphics
  
   // leave boolean flag on stack 
-  0=
+  or( dup wallChar = swap snakeChar =)
 ;
 
 : draw-snake 
   do(length 0)
-    draw-black(i snake-x @ i snake-y @)
+    drawSnake(i snake-x @ i snake-y @)
   loop 
-  length snake-x @
-  length snake-y @
-  draw-white
+  drawEmpty(length snake-x @  length snake-y @)
 ;
 
 : draw-apple 
-  draw-black(apple-x apple-y)
+  drawApple(apple-x apple-y)
 ;
 
 : game-loop       // -- ) 
