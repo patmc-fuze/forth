@@ -1677,6 +1677,14 @@ FORTHOP( offsetOfOp )
     }
 }
 
+FORTHOP(showStructOp)
+{
+	// TOS: structVocabPtr ptrToStructData
+	ForthStructVocabulary *pStructVocab = (ForthStructVocabulary *)(SPOP);
+	void* pStruct = (void *)(SPOP);
+	pStructVocab->ShowData(pStruct, pCore);
+}
+
 FORTHOP( superOp )
 {
 	// push version of this which has current objects data pointer and super class method pointer
@@ -1842,7 +1850,14 @@ FORTHOP( doStructTypeOp )
 {
     // IP points to data field
     ForthStructVocabulary *pVocab = (ForthStructVocabulary *) (*GET_IP);
-    pVocab->DefineInstance();
+	if (GET_VAR_OPERATION == kVarDefaultOp)
+	{
+		pVocab->DefineInstance();
+	}
+	else
+	{
+		pVocab->DoOp(pCore);
+	}
     SET_IP( (long *) (RPOP) );
 }
 
@@ -1858,7 +1873,14 @@ FORTHOP( doClassTypeOp )
     }
     else
     {
-        pVocab->DefineInstance();
+		if (GET_VAR_OPERATION == kVarDefaultOp)
+		{
+			pVocab->DefineInstance();
+		}
+		else
+		{
+			pVocab->DoOp(pCore);
+		}
     }
     SET_IP( (long *) (RPOP) );
 }
@@ -7572,6 +7594,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    extendsOp,              "extends" ),
     PRECOP_DEF(sizeOfOp,               "sizeOf" ),
     PRECOP_DEF(offsetOfOp,             "offsetOf" ),
+    OP_DEF(    showStructOp,           "showStruct" ),
     PRECOP_DEF(newOp,                  "new" ),
     PRECOP_DEF(initMemberStringOp,     "initMemberString" ),
 	NATIVE_DEF(intoBop,                "->o" ),

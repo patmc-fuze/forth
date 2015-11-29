@@ -162,6 +162,51 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 21 2015
+
+I have added the member variable definitions to builtin classes so that they
+can be extended.  There is a remaining problem with that, if the extension
+classes need there own newOp there is no builtin mechanism to do both.
+
+Currently there are several situations where you can define an old-style string
+that leaves the string max-length field uninitialized.
+
+Working cases:
+o global string
+o local string
+Failing cases:
+o string inside a global struct
+o string inside a local struct
+o string members
+
+There is a initMemberString <MEMBER_NAME> immediate op for initializing string
+members, but it would be much nicer for this to happen automatically.
+
+o a struct needs to initialize its string members
+o a struct needs to initialize its struct members recursively
+o an object needs to initialize its string members
+o an object needs to initialize its struct members
+o add an array of string field offsets to struct vocabularies
+
+A struct can have an initializer opcode which initializes its string and struct fields.
+
+Struct initializer:
+o takes a pointer to base of struct, returns ?nothing or same pointer?
+o is a sequence of ops which init either a string or a struct field
+  ? maybe it should just init a sequence of string fields, 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 15 2015
+
+I added an oVocabulary builtin class to allow searching and manipulating vocabularies.
+I also updated the SDL libraries to support SDL2.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 30 2015
+
+I changed defining words like colon, struct:, class: etc. to use the shell
+stack to make tracking down nesting errors easier.
+I added ops for manipulating the shell stack so it can be used in creating
+other defining words.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 21 2015
 
 I added atc to git.

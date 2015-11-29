@@ -1822,7 +1822,8 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             if ( numElements )
             {
                 // define local string array
-                varOffset = pEngine->AddLocalArray( pToken, typeCode, storageLen );
+				pEngine->SetArraySize(numElements);
+				varOffset = pEngine->AddLocalArray(pToken, typeCode, storageLen);
                 pEngine->CompileOpcode( kOpConstant, numElements );
                 pEngine->CompileOpcode( kOpConstant, len );
                 pEngine->CompileOpcode( kOpLocalRef, varOffset - 2);
