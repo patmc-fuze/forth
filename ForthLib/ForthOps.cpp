@@ -776,25 +776,49 @@ FORTHOP( freeOp )
     __FREE( (void *) SPOP );
 }
 
-FORTHOP( initStringArrayOp )
+FORTHOP(initStringArrayOp)
 {
-    // TOS: ptr to first char of first element, maximum length, number of elements
-    long len, nLongs;
-    long* pStr;
-    int i, numElements;
+	// TOS: maximum length, number of elements, ptr to first char of first element
+	long len, nLongs;
+	long* pStr;
+	int i, numElements;
 
-    pStr = ((long *) (SPOP)) - 2;
-    len = SPOP;
-    numElements = SPOP;
-    nLongs = (len >> 2) + 3;
+	len = SPOP;
+	numElements = SPOP;
+	pStr = ((long *)(SPOP)) - 2;
+	nLongs = (len >> 2) + 3;
 
-    for ( i = 0; i < numElements; i++ )
-    {
-        *pStr = len;
-        pStr[1] = 0;
-        *((char *) (pStr + 2)) = 0;
-        pStr += nLongs;
-    }
+	for (i = 0; i < numElements; i++)
+	{
+		*pStr = len;
+		pStr[1] = 0;
+		*((char *)(pStr + 2)) = 0;
+		pStr += nLongs;
+	}
+}
+
+FORTHOP(initStructArrayOp)
+{
+	// TOS: struct index, number of elements, ptr to first struct
+	ForthEngine *pEngine = GET_ENGINE;
+	ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+
+	long structIndex = SPOP;
+	long numElements = SPOP;
+	char* pStruct = (char *)(SPOP);
+	ForthStructVocabulary* pVocab = pManager->GetStructInfo(structIndex)->pVocab;
+	long initStructOp = pVocab->GetInitOpcode();
+	if (initStructOp != 0)
+	{
+		long len = pVocab->GetSize();
+
+		for (int i = 0; i < numElements; i++)
+		{
+			SPUSH((long)pStruct);
+			pEngine->ExecuteOneOp(initStructOp);
+			pStruct += len;
+		}
+	}
 }
 
 //##############################
@@ -1713,16 +1737,29 @@ FORTHOP( newOp )
 
         if ( pClassVocab && pClassVocab->IsClass() )
         {
-            if ( pEngine->IsCompiling() )
+			long initOpcode = pClassVocab->GetInitOpcode();
+			if (pEngine->IsCompiling())
             {
                 pEngine->CompileBuiltinOpcode( OP_DO_NEW );
                 pEngine->CompileLong( (long) pClassVocab );
-            }
+				if (initOpcode != 0)
+				{
+					pEngine->CompileBuiltinOpcode(OP_OVER);
+					pEngine->CompileOpcode(initOpcode);
+				}
+			}
             else
             {
                 SPUSH( (long) pClassVocab );
                 pEngine->ExecuteOneOp( pClassVocab->GetClassObject()->newOp );
-            }
+				if (initOpcode != 0)
+				{
+					// copy object data pointer to TOS to be used by init 
+					long a = (GET_SP)[1];
+					SPUSH(a);
+					pEngine->ExecuteOneOp(initOpcode);
+				}
+			}
         }
         else
         {
@@ -1850,6 +1887,21 @@ FORTHOP( doStructTypeOp )
 {
     // IP points to data field
     ForthStructVocabulary *pVocab = (ForthStructVocabulary *) (*GET_IP);
+
+	ForthEngine *pEngine = GET_ENGINE;
+	if (pEngine->IsCompiling())
+	{
+		// handle the case 'ref STRUCT_TYPE'
+		long* pLastOp = pEngine->GetLastCompiledOpcodePtr();
+		if ((pLastOp != NULL) && (*pLastOp == gCompiledOps[OP_REF]))
+		{
+			// compile this opcode so at runtime (ref STRUCT_OP) will push struct vocab address
+			ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+			pEngine->CompileOpcode(pManager->GetStructInfo(pVocab->GetTypeIndex())->op);
+			SET_IP((long *)(RPOP));
+			return;
+		}
+	}
 	if (GET_VAR_OPERATION == kVarDefaultOp)
 	{
 		pVocab->DefineInstance();
@@ -1858,7 +1910,7 @@ FORTHOP( doStructTypeOp )
 	{
 		pVocab->DoOp(pCore);
 	}
-    SET_IP( (long *) (RPOP) );
+	SET_IP((long *)(RPOP));
 }
 
 // doClassTypeOp is compiled at the start of each user-defined class defining word 
@@ -1866,22 +1918,22 @@ FORTHOP( doClassTypeOp )
 {
     // IP points to data field
     ForthClassVocabulary *pVocab = (ForthClassVocabulary *) (*GET_IP);
-    if ( GET_VAR_OPERATION == kVocabGetClass )
-    {
-        // this is invoked at runtime when code explicitly invokes methods on class objects (IE CLASSNAME.new)
-        pVocab->DoOp( pCore );
-    }
-    else
-    {
-		if (GET_VAR_OPERATION == kVarDefaultOp)
-		{
-			pVocab->DefineInstance();
-		}
-		else
-		{
-			pVocab->DoOp(pCore);
-		}
-    }
+	switch (GET_VAR_OPERATION)
+	{
+	case kVocabGetClass:
+		// this is invoked at runtime when code explicitly invokes methods on class objects (IE CLASSNAME.new)
+		pVocab->DoOp(pCore);
+		break;
+
+	case kVarDefaultOp:
+	case kVarStore:
+		pVocab->DefineInstance();
+		break;
+
+	default:
+		pVocab->DoOp(pCore);
+		break;
+	}
     SET_IP( (long *) (RPOP) );
 }
 
@@ -3079,22 +3131,36 @@ FORTHOP( describeOp )
 		{
 			ForthVocabulary* pFoundVocab = NULL;
 			long* pEntry = pVocab->FindSymbol( pMethod );
-			if ( (pEntry != NULL) && pVocab->IsClass() )
+			if (pEntry != NULL) 
 			{
-				ForthClassVocabulary* pClassVocab = (ForthClassVocabulary*) pVocab;
 				long typeCode = pEntry[1];
-				if ( CODE_IS_METHOD( typeCode ) )
+				if (pVocab->IsClass())
 				{
-					// TODO: support secondary interfaces
-					pEngine->DescribeOp( pSym, pClassVocab->GetInterface(0)->GetMethod(pEntry[0]), pEntry[1] );
-				}
-				else if ( CODE_TO_BASE_TYPE( typeCode ) == kBaseTypeUserDefinition )
-				{
-					pEngine->DescribeOp( pSym, pEntry[0], pEntry[1] );
+					ForthClassVocabulary* pClassVocab = (ForthClassVocabulary*)pVocab;
+					if (CODE_IS_METHOD(typeCode))
+					{
+						// TODO: support secondary interfaces
+						pEngine->DescribeOp(pSym, pClassVocab->GetInterface(0)->GetMethod(pEntry[0]), pEntry[1]);
+					}
+					else if (CODE_TO_BASE_TYPE(typeCode) == kBaseTypeUserDefinition)
+					{
+						pEngine->DescribeOp(pSym, pEntry[0], pEntry[1]);
+					}
+					else
+					{
+						pVocab->PrintEntry(pEntry);
+					}
 				}
 				else
 				{
-					pVocab->PrintEntry( pEntry );
+					if (CODE_TO_BASE_TYPE(typeCode) == kBaseTypeUserDefinition)
+					{
+						pEngine->DescribeOp(pSym, pEntry[0], pEntry[1]);
+					}
+					else
+					{
+						pVocab->PrintEntry(pEntry);
+					}
 				}
 			}
 			else
@@ -6621,10 +6687,10 @@ FORTHOP( initStringBop )
     long len;
     long* pStr;
 
-    // TOS: ptr to first char, maximum length
-    pStr = (long *) (SPOP);
+    // TOS: maximum length, ptr to first char
     len = SPOP;
-    pStr[-2] = len;
+	pStr = (long *) (SPOP);
+	pStr[-2] = len;
     pStr[-1] = 0;
     *((char *) pStr) = 0;
 }
@@ -7138,6 +7204,10 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
 	OP_COMPILED_DEF(		superOp,                "super",			OP_SUPER ),
     OP_COMPILED_DEF(		endBuildsOp,            "_endBuilds",		OP_END_BUILDS ),
     OP_COMPILED_DEF(		compileOp,              "compile",		    OP_COMPILE ),
+	OP_COMPILED_DEF(		initStructArrayOp,      "initStructArray",	OP_INIT_STRUCT_ARRAY ),
+	NATIVE_COMPILED_DEF(    dupBop,					"dup",				OP_DUP ),
+	NATIVE_COMPILED_DEF(    overBop,				"over",				OP_OVER ),
+
     // following must be last in table
     OP_COMPILED_DEF(		NULL,                   NULL,					-1 )
 };
@@ -7350,10 +7420,8 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    rdropBop,                "rdrop" ),
     NATIVE_DEF(    rpBop,                   "rp" ),
     NATIVE_DEF(    r0Bop,                   "r0" ),
-    NATIVE_DEF(    dupBop,                  "dup" ),
     NATIVE_DEF(    checkDupBop,             "?dup" ),
     NATIVE_DEF(    swapBop,                 "swap" ),
-    NATIVE_DEF(    overBop,                 "over" ),
     NATIVE_DEF(    rotBop,                  "rot" ),
     NATIVE_DEF(    reverseRotBop,           "-rot" ),
     NATIVE_DEF(    nipBop,                  "nip" ),

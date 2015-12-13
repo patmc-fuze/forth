@@ -104,7 +104,7 @@ bool ForthStructCodeGenerator::Generate( ForthParseInfo *pInfo, long*& pDst, int
 
 void ForthStructCodeGenerator::HandlePreceedingVarop()
 {
-    // handle case where previous opcode was varAction setting op (one of addressOf -> ->+ ->-)
+    // handle case where previous opcode was varAction setting op (one of [ref -> ->+ ->-])
     // we need to execute the varAction setting op after the first op, since if the first op is
     // a pointer type, it will use the varAction and clear it, when the varAction is meant to be
     // used by the final field op

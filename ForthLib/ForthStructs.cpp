@@ -148,6 +148,121 @@ ForthTypesManager::EndStructDefinition()
     ForthEngine *pEngine = ForthEngine::GetInstance();
     pEngine->EndOpDefinition( true );
     GetNewestStruct()->EndDefinition();
+	DefineInitOpcode();
+}
+
+void
+ForthTypesManager::DefineInitOpcode()
+{
+	ForthTypeInfo *pInfo = &(mpStructInfo[mNumStructs - 1]);
+	ForthStructVocabulary *pVocab = pInfo->pVocab;
+
+	// TODO: define new init opcode
+	if (mFieldInitInfos.size() > 0)
+	{
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+
+		ForthVocabulary* pOldDefinitionsVocab = pEngine->GetDefinitionVocabulary();
+		pEngine->SetDefinitionVocabulary(pVocab);
+
+		long *pEntry = pEngine->StartOpDefinition("_init", true, kOpUserDef);
+		pEntry[1] = BASE_TYPE_TO_CODE(kBaseTypeUserDefinition);
+		long structInitOp = *pEntry;
+		pVocab->SetInitOpcode(structInitOp);
+
+		for (int i = 0; i < mFieldInitInfos.size(); i++)
+		{
+			const ForthFieldInitInfo& initInfo = mFieldInitInfos[i];
+			if (i != (mFieldInitInfos.size() - 1))
+			{
+				// compile a dup opcode for all but the last initialized field
+				pEngine->CompileBuiltinOpcode(OP_DUP);
+			}
+
+			switch (initInfo.fieldType)
+			{
+
+			case kFSITSuper:
+			{
+				ForthStructVocabulary *pParentVocab = pVocab->BaseVocabulary();
+				ASSERT(pParentVocab != NULL);
+				long parentInitOp = pVocab->BaseVocabulary()->GetInitOpcode();
+				ASSERT(parentInitOp != 0);
+				pEngine->CompileOpcode(parentInitOp);
+				break;
+			}
+
+			case kFSITString:
+			{
+				pEngine->CompileOpcode(kOpOffset, initInfo.offset + 8);
+				pEngine->CompileOpcode(kOpConstant, initInfo.len);
+				pEngine->CompileBuiltinOpcode(OP_INIT_STRING);
+				break;
+			}
+
+			case kFSITStruct:
+			{
+				ForthStructVocabulary *pStructVocab = mpStructInfo[initInfo.structIndex].pVocab;
+				ASSERT(pStructVocab != NULL);
+				long structFieldInitOpcode = pStructVocab->GetInitOpcode();
+				ASSERT(structFieldInitOpcode != 0);
+				if (initInfo.offset != 0)
+				{
+					pEngine->CompileOpcode(kOpOffset, initInfo.offset);
+				}
+				pEngine->CompileOpcode(structFieldInitOpcode);
+				break;
+			}
+
+			case kFSITStringArray:
+			{
+				// TOS: maximum length, number of elements, ptr to first char of first element
+				pEngine->CompileOpcode(kOpOffset, initInfo.offset + 8);
+				pEngine->CompileOpcode(kOpConstant, initInfo.numElements);
+				pEngine->CompileOpcode(kOpConstant, initInfo.len);
+				pEngine->CompileBuiltinOpcode(OP_INIT_STRING_ARRAY);
+				break;
+			}
+
+			case kFSITStructArray:
+			{
+				// TOS: struct index, number of elements, ptr to first struct
+				if (initInfo.offset != 0)
+				{
+					pEngine->CompileOpcode(kOpOffset, initInfo.offset);
+				}
+				pEngine->CompileOpcode(kOpConstant, initInfo.numElements);
+				pEngine->CompileOpcode(kOpConstant, initInfo.structIndex);
+				pEngine->CompileBuiltinOpcode(OP_INIT_STRUCT_ARRAY);
+				break;
+			}
+
+			default:
+				// TODO!
+				ASSERT(false);
+				break;
+			}
+
+		}
+		pEngine->CompileBuiltinOpcode(OP_DO_EXIT);
+		pEngine->EndOpDefinition(true);
+		mFieldInitInfos.clear();
+
+		pEngine->SetDefinitionVocabulary(pOldDefinitionsVocab);
+	}
+	else
+	{
+		// newest struct/class doesn't have any fields which need initializers
+		ForthStructVocabulary *pParentVocab = pVocab->BaseVocabulary();
+		if (pParentVocab != NULL)
+		{
+			long parentInitOp = pVocab->BaseVocabulary()->GetInitOpcode();
+			if (parentInitOp != 0)
+			{
+				pVocab->SetInitOpcode(parentInitOp);
+			}
+		}
+	}
 }
 
 ForthClassVocabulary*
@@ -181,7 +296,8 @@ ForthTypesManager::EndClassDefinition()
     SPEW_STRUCTS( "EndClassDefinition\n" );
     ForthEngine *pEngine = ForthEngine::GetInstance();
     pEngine->EndOpDefinition( false );
-    pEngine->SetDefinitionVocabulary( mpSavedDefinitionVocab );
+	DefineInitOpcode();
+	pEngine->SetDefinitionVocabulary(mpSavedDefinitionVocab);
     mpSavedDefinitionVocab = NULL;
 }
 
@@ -474,6 +590,10 @@ ForthTypesManager::GetClassMethods()
     return mpClassMethods;
 }
 
+void ForthTypesManager::AddFieldInitInfo(const ForthFieldInitInfo& fieldInitInfo)
+{
+	mFieldInitInfos.push_back(fieldInitInfo);
+}
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -489,6 +609,7 @@ ForthStructVocabulary::ForthStructVocabulary( const char    *pName,
 , mNumBytes( 0 )
 , mMaxNumBytes( 0 )
 , mpSearchNext( NULL )
+, mInitOpcode( 0 )
 {
 
 }
@@ -553,6 +674,16 @@ ForthStructVocabulary::DefineInstance( void )
         {
             mpEngine->SetArraySize( numElements );
             mpEngine->AddLocalArray( pToken, typeCode, nBytes );
+
+			if (!isPtr && (mInitOpcode != 0))
+			{
+				// initialize the local struct array at runtime
+				int offsetLongs = mpEngine->GetLocalVocabulary()->GetFrameLongs();
+				mpEngine->CompileOpcode(kOpLocalRef, offsetLongs);
+				mpEngine->CompileOpcode(kOpConstant, numElements);
+				mpEngine->CompileOpcode(kOpConstant, mStructIndex);
+				mpEngine->CompileBuiltinOpcode(OP_INIT_STRUCT_ARRAY);
+			}
         }
         else
         {
@@ -570,6 +701,15 @@ ForthStructVocabulary::DefineInstance( void )
                     mpEngine->CompileOpcode( pEntry[0] );
                 }
             }
+			else
+			{
+				if (mInitOpcode != 0)
+				{
+					int offsetLongs = mpEngine->GetLocalVocabulary()->GetFrameLongs();
+					mpEngine->CompileOpcode(kOpLocalRef, offsetLongs);
+					mpEngine->CompileOpcode(mInitOpcode);
+				}
+			}
         }
     }
     else
@@ -591,18 +731,26 @@ ForthStructVocabulary::DefineInstance( void )
             {
                 padding = mAlignment - (nBytes & alignMask);
             }
-            if ( isPtr )
+			int elementSize = nBytes + padding;
+			if (isPtr)
             {
                 mpEngine->CompileBuiltinOpcode( OP_DO_INT_ARRAY );
             }
             else
             {
                 mpEngine->CompileBuiltinOpcode( OP_DO_STRUCT_ARRAY );
-                mpEngine->CompileLong( nBytes + padding );
+				mpEngine->CompileLong(elementSize);
             }
             pHere = (char *) (mpEngine->GetDP());
-            mpEngine->AllotLongs( (((nBytes + padding) * (numElements - 1)) + nBytes + 3) >> 2 );
-            memset( pHere, 0, ((nBytes * numElements) + 3) );
+			mpEngine->AllotLongs(((elementSize * (numElements - 1)) + nBytes + 3) >> 2);
+			memset(pHere, 0, (elementSize * numElements));
+			if (!isPtr && (mInitOpcode != 0))
+			{
+				SPUSH((long)pHere);
+				SPUSH(numElements);
+				SPUSH(mStructIndex);
+				mpEngine->ExecuteOneOp(gCompiledOps[OP_INIT_STRUCT_ARRAY]);
+			}
         }
         else
         {
@@ -615,7 +763,12 @@ ForthStructVocabulary::DefineInstance( void )
                 // var definition was preceeded by "->", so initialize var
                 mpEngine->ExecuteOneOp( pEntry[0] );
             }
-        }
+			if (!isPtr && (mInitOpcode != 0))
+			{
+				SPUSH((long)pHere);
+				mpEngine->ExecuteOneOp(mInitOpcode);
+			}
+		}
         pEntry[1] = typeCode;
     }
 }
@@ -674,6 +827,38 @@ ForthStructVocabulary::AddField( const char* pName, long fieldType, int numEleme
            fieldBytes *= numElements;
         }
     }
+	
+	if (!isPtr)
+	{
+		ForthFieldInitInfo initInfo;
+
+		bool isArray = CODE_IS_ARRAY(fieldType);
+		forthBaseType baseType = (forthBaseType) CODE_TO_BASE_TYPE(fieldType);
+		initInfo.numElements = numElements;
+		initInfo.offset = mNumBytes;
+		initInfo.structIndex = 0;
+		initInfo.len = 0;
+
+		if (baseType == kBaseTypeString)
+		{
+			initInfo.len = CODE_TO_STRING_BYTES(fieldType);
+			initInfo.fieldType = (isArray) ? kFSITStringArray : kFSITString;
+			pManager->AddFieldInitInfo(initInfo);
+		}
+		else if (baseType == kBaseTypeStruct)
+		{
+			int structIndex = CODE_TO_STRUCT_INDEX(fieldType);
+			ForthTypeInfo* structInfo = pManager->GetStructInfo(structIndex);
+			if (structInfo->pVocab->GetInitOpcode() != 0)
+			{
+				initInfo.structIndex = structIndex;
+				initInfo.len = fieldBytes;
+				initInfo.fieldType = (isArray) ? kFSITStructArray : kFSITStruct;
+				pManager->AddFieldInitInfo(initInfo);
+			}
+		}
+	}
+
     mNumBytes += fieldBytes;
     if ( mNumBytes > mMaxNumBytes )
     {
@@ -920,7 +1105,10 @@ ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore)
 				foundSomething = true;
 				if (isArray)
 				{
-					mpEngine->ConsoleOut("[");
+					//mpEngine->ConsoleOut("[");
+					pShowContext->EndElement("[");
+					pShowContext->BeginIndent();
+					pShowContext->ShowIndent();
 				}
 				else
 				{
@@ -985,7 +1173,6 @@ ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore)
 						mpEngine->ConsoleOut("'");
 						mpEngine->ConsoleOut(pStruct + byteOffset + 8);
 						mpEngine->ConsoleOut("'");
-						byteOffset += pEntry[2];
 						break;
 
 					case kBaseTypeOp:
@@ -1037,7 +1224,9 @@ ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore)
 		
 				if (isArray)
 				{
-					pShowContext->EndElement(" ]");
+					pShowContext->EndIndent();
+					pShowContext->EndElement();
+					pShowContext->ShowIndent("]");
 				}
 			}
 			pEntry = NextEntry(pEntry);
@@ -1050,6 +1239,10 @@ ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore)
 	pShowContext->ShowIndent("}");
 }
 
+void ForthStructVocabulary::SetInitOpcode(long op)
+{
+	mInitOpcode = op;
+}
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -1743,6 +1936,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
 
     if ( pEngine->InStructDefinition() && !pEngine->IsCompiling() )
     {
+		ForthFieldInitInfo initInfo;
         pManager->GetNewestStruct()->AddField( pToken, typeCode, numElements );
         return;
     }
@@ -1824,9 +2018,9 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
                 // define local string array
 				pEngine->SetArraySize(numElements);
 				varOffset = pEngine->AddLocalArray(pToken, typeCode, storageLen);
-                pEngine->CompileOpcode( kOpConstant, numElements );
+				pEngine->CompileOpcode(kOpLocalRef, varOffset - 2);
+				pEngine->CompileOpcode(kOpConstant, numElements);
                 pEngine->CompileOpcode( kOpConstant, len );
-                pEngine->CompileOpcode( kOpLocalRef, varOffset - 2);
                 pEngine->CompileBuiltinOpcode( OP_INIT_STRING_ARRAY );
             }
             else

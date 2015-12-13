@@ -49,7 +49,7 @@ typedef enum
     kOpOffset,          // low 24 bits is signed offset value, TOS is number to add it to
     kOpArrayOffset,     // low 24 bits is array element size, TOS is array base, NTOS is index
     kOpAllocLocals,     // low 24 bits is frame size in longs
-    kOpLocalRef,        // low 24 bits is offset in bytes
+    kOpLocalRef,        // low 24 bits is offset in longs
     kOpLocalStringInit,     // bits 0:11 are string length in bytes, bits 12:23 are frame offset in longs
     kOpLocalStructArray,   // bits 0:11 are padded struct size in bytes, bits 12:23 are frame offset in longs
     kOpOffsetFetch,          // low 24 bits is signed offset in longs, TOS is long ptr
@@ -422,6 +422,9 @@ enum {
 	OP_SUPER,		// 0x40
 	OP_END_BUILDS,
     OP_COMPILE,
+	OP_INIT_STRUCT_ARRAY,
+	OP_DUP,
+	OP_OVER,
 
 	NUM_COMPILED_OPS
 };

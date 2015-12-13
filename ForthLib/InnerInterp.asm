@@ -1726,7 +1726,7 @@ entry fieldStringArrayType
 	sal	eax, 2
 	add	eax, ebx		; eax -> maxLen field of string[N]
 	add	edx, 8
-	jmp	opEntry
+	jmp	stringEntry
 
 entry memberStringArrayType
 	; get ptr to string var into eax
@@ -1741,7 +1741,7 @@ entry memberStringArrayType
 	sal	eax, 2
 	add	eax, ebx		; eax -> maxLen field of string[N]
 	add	edx, 4
-	jmp	opEntry
+	jmp	stringEntry
 
 ;-----------------------------------------------
 ;
@@ -2613,12 +2613,12 @@ entry doObjectArrayBop
 ;========================================
 
 entry initStringBop
-	;	TOS: strPtr len
-	mov	ebx, [edx]		; ebx -> first char of string
+	;	TOS: len strPtr
+	mov	ebx, [edx+4]	; ebx -> first char of string
 	xor	eax, eax
 	mov	[ebx-4], eax	; set current length = 0
 	mov	[ebx], al		; set first char to terminating null
-	mov	eax, [edx+4]	; eax == string length
+	mov	eax, [edx]		; eax == string length
 	mov	[ebx-8], eax	; set maximum length field
 	add	edx, 8
 	jmp	edi

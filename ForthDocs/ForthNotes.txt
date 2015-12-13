@@ -162,6 +162,97 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 6 2015
+
+I have a mostly working implementtation of struct initialization ops.
+
+Currently if you define structs or objects which have string fields, the strings maxLength field is uninitialized.
+This change would add an automatically generated init op whenever any struct is defined which
+contains strings or contains structs which themself have an init op.
+A struct which contains an object member which contains strings would not need to have an init op,
+when the object is created it will take care of initing its strings.
+A secondary motivation for this change is to allow user explicit creation of the equivalent of C++ constructors.
+
+Assuming we create an _init op for each struct which has either string fields or struct fields which
+have their own _init op, the code generated would look something like this:
+
+struct: structA
+  int iX
+  20 string sY
+;struct
+
+: _init  // for structA
+  // TOS: ptr to struct
+  offsetOf sY + 20 initString
+;
+
+struct: structB
+  int iR
+  30 string sQ
+  structA m
+  4 arrayOf 6 string sT
+  3 arrayOf structA w
+;struct
+
+: _init  // for structB
+  dup offsetOf sQ + 30 initString
+  dup offsetOf m + structA:_init
+  dup offsetOf sT + 4 6 initStringArray
+  offsetOf w + 3 ' structA:_init initStructArray
+;
+
+struct: structC extends structA
+  structB sb
+  10 string baba
+;struct
+
+: _init  // for structC
+  dup structA:_init		// init parent
+  dup offsetOf sb + structB:_init
+  offsetOf baba + 10 initString
+;
+  
+4 types of initializations:
+o string
+o string array
+o struct
+o struct array
+
+4 situations:
+o global instance
+o local instance
+o struct field
+o object member
+
++ create init op at struct/class definition time
+  + save info about fields which need initialization when fields are defined
+  + define new init op and compile its code when struct definition is complete
+  + deal with structure extension
+    + if new struct's parent struct has an init op, and this struct adds no new initable fields, use parents init op
+  + if new struct has initable fields, compile parents init op at start
++ compile init op for local instances
+  + string (already done)
+  + string array (already done)
+  + struct
+  + struct array
++ execute init op for global instances
+  + string (already done)
+  + string array (already done?)
+  + struct
+  + struct array
++ invoke init op at end of 'new'
+
+? add an op for getting the structIndex given a struct/class name
+  - have definition of "_init" in struct or class definitions
+
+For some reason, when you start a struct definition, it doesn't change the
+definitions vocab to be the new struct vocab, which is unlike class definitions,
+which do change the definitions vocab.  Why did I do that?
+
+There was a bug (I think) in memberStringArrayType and fieldStringArrayType, they
+were jumping to opEntry instead of stringEntry, I can't see how that could be
+right, so I changed it.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 21 2015
 
 I have added the member variable definitions to builtin classes so that they
@@ -191,9 +282,9 @@ o add an array of string field offsets to struct vocabularies
 A struct can have an initializer opcode which initializes its string and struct fields.
 
 Struct initializer:
-o takes a pointer to base of struct, returns ?nothing or same pointer?
+o takes a pointer to base of struct, returns nothing
 o is a sequence of ops which init either a string or a struct field
-  ? maybe it should just init a sequence of string fields, 
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 15 2015
 

@@ -7,6 +7,7 @@
 
 #include "Forth.h"
 #include "ForthForgettable.h"
+#include "ForthVocabulary.h"
 #include "ForthStructCodeGenerator.h"
 #include <vector>
 
@@ -36,6 +37,27 @@ typedef struct
     long                        newOp;
 } ForthClassObject;
 
+///////////////////////////////////////
+
+// these are the types of struct/object fields which need to be set by struct init ops
+enum eForthStructInitType
+{
+	kFSITSuper,
+	kFSITString,
+	kFSITStruct,
+	kFSITStringArray,
+	kFSITStructArray,
+};
+
+typedef struct
+{
+	eForthStructInitType fieldType;
+	long offset;
+	long len;
+	long structIndex;
+	long numElements;
+} ForthFieldInitInfo;
+
 class ForthInterface
 {
 public:
@@ -64,44 +86,48 @@ protected:
 class ForthTypesManager : public ForthForgettable
 {
 public:
-    ForthTypesManager();
-    ~ForthTypesManager();
+	ForthTypesManager();
+	~ForthTypesManager();
 
-    virtual void    ForgetCleanup( void *pForgetLimit, long op );
+	virtual void    ForgetCleanup(void *pForgetLimit, long op);
 
-    // compile/interpret symbol if it is a valid structure accessor
-    virtual bool    ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
+	// compile/interpret symbol if it is a valid structure accessor
+	virtual bool    ProcessSymbol(ForthParseInfo *pInfo, eForthResult& exitStatus);
 
-    // compile symbol if it is a class member variable or method
-    virtual bool    ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
+	// compile symbol if it is a class member variable or method
+	virtual bool    ProcessMemberSymbol(ForthParseInfo *pInfo, eForthResult& exitStatus);
 
-    void            AddBuiltinClasses( ForthEngine* pEngine );
+	void            AddBuiltinClasses(ForthEngine* pEngine);
 
-    // add a new structure type
-    ForthStructVocabulary*          StartStructDefinition( const char *pName );
-    void                            EndStructDefinition( void );
-    ForthClassVocabulary*           StartClassDefinition( const char *pName );
-    void                            EndClassDefinition( void );
-    static ForthTypesManager*       GetInstance( void );
+	// add a new structure type
+	ForthStructVocabulary*          StartStructDefinition(const char *pName);
+	void                            EndStructDefinition(void);
+	ForthClassVocabulary*           StartClassDefinition(const char *pName);
+	void                            EndClassDefinition(void);
+	static ForthTypesManager*       GetInstance(void);
 
-    // return info structure for struct type specified by structIndex
-    ForthTypeInfo*        GetStructInfo( int structIndex );
+	// return info structure for struct type specified by structIndex
+	ForthTypeInfo*        GetStructInfo(int structIndex);
 
-    // return vocabulary for a struct type given its opcode or name
-    ForthStructVocabulary*  GetStructVocabulary( long op );
-	ForthStructVocabulary*	GetStructVocabulary( const char* pName );
+	// return vocabulary for a struct type given its opcode or name
+	ForthStructVocabulary*  GetStructVocabulary(long op);
+	ForthStructVocabulary*	GetStructVocabulary(const char* pName);
 
-    void GetFieldInfo( long fieldType, long& fieldBytes, long& alignment );
+	void GetFieldInfo(long fieldType, long& fieldBytes, long& alignment);
 
-    ForthStructVocabulary*  GetNewestStruct( void );
-    ForthClassVocabulary*   GetNewestClass( void );
-    forthBaseType           GetBaseTypeFromName( const char* typeName );
-    ForthNativeType*        GetNativeTypeFromName( const char* typeName );
-    long                    GetBaseTypeSizeFromName( const char* typeName );
-    long*                   GetClassMethods();
+	ForthStructVocabulary*  GetNewestStruct(void);
+	ForthClassVocabulary*   GetNewestClass(void);
+	forthBaseType           GetBaseTypeFromName(const char* typeName);
+	ForthNativeType*        GetNativeTypeFromName(const char* typeName);
+	long                    GetBaseTypeSizeFromName(const char* typeName);
+	long*                   GetClassMethods();
 
-    virtual const char* GetTypeName();
-    virtual const char* GetName();
+	virtual const char* GetTypeName();
+	virtual const char* GetName();
+
+	inline const std::vector<ForthFieldInitInfo>&	GetFieldInitInfos() {  return mFieldInitInfos;  }
+	void AddFieldInitInfo(const ForthFieldInitInfo& fieldInitInfo);
+	void					DefineInitOpcode();
 
 protected:
     // mpStructInfo points to an array with an entry for each defined structure type
@@ -114,6 +140,7 @@ protected:
     long                            mCode[ MAX_ACCESSOR_LONGS ];
     long*                           mpClassMethods;
 	ForthStructCodeGenerator*		mpCodeGenerator;
+	std::vector<ForthFieldInitInfo>	mFieldInitInfos;
 };
 
 class ForthStructVocabulary : public ForthVocabulary
@@ -158,12 +185,16 @@ public:
 
 	virtual void		ShowData(const void* pData, ForthCoreState* pCore);
 
+	inline long			GetInitOpcode() { return mInitOpcode;  }
+	void				SetInitOpcode(long op);
+
 protected:
     long                    mNumBytes;
     long                    mMaxNumBytes;
     long                    mStructIndex;
     long                    mAlignment;
     ForthStructVocabulary   *mpSearchNext;
+	long					mInitOpcode;
 };
 
 class ForthClassVocabulary : public ForthStructVocabulary
