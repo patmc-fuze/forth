@@ -6,12 +6,12 @@ autoforget _snake
 40 constant width
 40 constant height
 
-width height * arrayOf int snake-x-head
-width height * arrayOf int snake-y-head
+width height * arrayOf int snakeXHead
+width height * arrayOf int snakeYHead
 width height * arrayOf byte graphics
 
-int apple-x
-int apple-y
+int appleX
+int appleY
 
 enum: snakeEnums
   0     left
@@ -31,123 +31,113 @@ int length
   rand swap mod
 ;
 
-: snake-x       // offset -- address
-  ref snake-x-head
+: snakeX       // offset -- address
+  ref snakeXHead
 ;
-: snake-y       // offset -- address
-  ref snake-y-head
+: snakeY       // offset -- address
+  ref snakeYHead
 ;
 
-: convert-x-y       // x y -- offset
+: convertXY       // x y -- offset
   width * +
 ;
 
-: draw       // color x y --
-  -> int y   -> int x   -> int color
-  color convert-x-y(x y) -> graphics
+int penChar
+: setPen -> penChar ;
+
+: draw       // x y --
+  -> int y   -> int x
+  penChar convertXY(x y) -> graphics
   
   setConsoleCursor(x y)
-  color %c
+  penChar %c
 ;
 
-: drawWall      // x y --
-  wallChar rot rot draw
-;
-
-: drawApple       // x y --
-  appleChar rot rot draw
-;
-
-: drawSnake       // x y --
-  snakeChar rot rot draw
-;
-
-: drawEmpty       // x y --
-  emptyChar rot rot draw
-;
-
-: draw-walls 
+: drawWalls
+  setPen(wallChar)
   do(width 0)
-    drawWall(i 0) 
-    drawWall(i height 1-)
+    draw(i 0) 
+    draw(i height 1-)
   loop 
   do(height 0)
-    drawWall(0 i)
-    drawWall(width 1- i)
+    draw(0 i)
+    draw(width 1- i)
   loop
 ;
-: initialize-snake 
+
+: initializeSnake 
   4 -> length 
   do(length 1+ 0) 
-    12 i - i snake-x !
-    12 i snake-y !
+    12 i - i snakeX !
+    12 i snakeY !
   loop
   right -> direction
 ;
 
-: set-apple-position -> apple-x -> apple-y ;
+: setApplePosition -> appleX -> appleY ;
 
-: initialize-apple  set-apple-position(4 4) ;
+: initializeApple  setApplePosition(4 4) ;
 
-: initialize 
+: initialize
+  setPen(emptyChar)
   do(width 0)
     do(height 0)
-      drawEmpty(j i) 
+      draw(j i) 
     loop 
   loop 
-  draw-walls 
-  initialize-snake 
-  initialize-apple
+  drawWalls 
+  initializeSnake 
+  initializeApple
 ;
 
-: move-up  -1 ->+ snake-y-head(0) ;
-: move-left  -1 ->+ snake-x-head(0) ;
-: move-down  1 ->+ snake-y-head(0) ;
-: move-right  1 ->+ snake-x-head(0) ;
+: moveUp  -1 ->+ snakeYHead(0) ;
+: moveLeft  -1 ->+ snakeXHead(0) ;
+: moveDown  1 ->+ snakeYHead(0) ;
+: moveRight  1 ->+ snakeXHead(0) ;
 
-: move-snake-head
+: moveSnakeHead
   case(direction)
-    of(left)    move-left   endof
-    of(up)      move-up     endof
-    of(right)   move-right  endof
-    of(down)    move-down   endof
+    of(left)    moveLeft   endof
+    of(up)      moveUp     endof
+    of(right)   moveRight  endof
+    of(down)    moveDown   endof
     drop
   endcase
 ;
 
 // Move each segment of the snake forward by one
-: move-snake-tail
+: moveSnakeTail
   do(0 length)
-    i snake-x @ i 1+ snake-x !
-    i snake-y @ i 1+ snake-y !
+    i snakeX @ i 1+ snakeX !
+    i snakeY @ i 1+ snakeY !
   +loop(-1)
 ;
 
-: is-horizontal 
+: isHorizontal 
   direction dup 
   left = swap 
   right = or
 ;
 
-: is-vertical
+: isVertical
   direction dup 
   up = swap 
   down = or
 ;
 
-: turn-up     is-horizontal if up -> direction endif ;
-: turn-left   is-vertical if left -> direction endif ;
-: turn-down   is-horizontal if down -> direction endif ;
-: turn-right  is-vertical if right -> direction endif ;
+: turnUp     isHorizontal if up -> direction endif ;
+: turnLeft   isVertical if left -> direction endif ;
+: turnDown   isHorizontal if down -> direction endif ;
+: turnRight  isVertical if right -> direction endif ;
 
 false -> int gameOver
 
-: change-direction       // key -- ) 
+: changeDirection       // key -- 
   case
-    of('a') turn-left   endof
-    of('w') turn-up     endof
-    of('d') turn-right  endof
-    of('s') turn-down   endof
+    of('a') turnLeft   endof
+    of('w') turnUp     endof
+    of('d') turnRight  endof
+    of('s') turnDown   endof
     of(0x1b) true -> gameOver endof
     drop
   endcase
@@ -155,70 +145,74 @@ false -> int gameOver
 
 : check-input 
   if(key?)
-    key change-direction 
+    key changeDirection 
   endif
 ;
 
 // get random x or y position within playable area
-: random-position       // -- pos ) 
-  4- random 2 +
+: randomPosition       // -- pos 
+  4- random 2+
 ;
 
-: move-apple 
-  apple-x apple-y drawApple 
-  width random-position height random-position 
-  set-apple-position
+: moveApple
+  setPen(appleChar)
+  appleX appleY draw
+  width randomPosition height randomPosition 
+  setApplePosition
 ;
 
-: grow-snake  1 ->+ length ;
+: growSnake  1 ->+ length ;
 
-: check-apple 
-  if( and(snake-x-head(0) apple-x =   snake-y-head(0) apple-y =) )
-    move-apple 
-    grow-snake 
+: checkApple 
+  if( and(snakeXHead(0) appleX =   snakeYHead(0) appleY =) )
+    moveApple 
+    growSnake 
   endif
 ;
 
-: check-collision       // -- flag ) 
+: checkCollision       // -- flag 
   // get current x/y position 
-  snake-x-head(0) snake-y-head(0) 
+  snakeXHead(0) snakeYHead(0) 
  
   // get color at current position 
-  convert-x-y graphics
+  convertXY graphics
  
   // leave boolean flag on stack 
   or( dup wallChar = swap snakeChar =)
 ;
 
-: draw-snake 
+: drawSnake 
+  setPen(snakeChar)
   do(length 0)
-    drawSnake(i snake-x @ i snake-y @)
+    draw(i snakeX @ i snakeY @)
   loop 
-  drawEmpty(length snake-x @  length snake-y @)
+  setPen(emptyChar)
+  draw(length snakeX @  length snakeY @)
 ;
 
-: draw-apple 
-  drawApple(apple-x apple-y)
+: drawApple 
+  setPen(appleChar)
+  draw(appleX appleY)
 ;
 
-: game-loop       // -- ) 
+: gameLoop       // -- 
   false -> gameOver
   begin 
-    draw-snake 
-    draw-apple 
+    drawSnake 
+    drawApple 
     ms(100)
     check-input 
-    move-snake-tail 
-    move-snake-head 
-    check-apple 
-  until(or(check-collision gameOver))
+    moveSnakeTail 
+    moveSnakeHead 
+    checkApple 
+  until(or(checkCollision gameOver))
   setConsoleCursor(0 height 1+)
   "Game Over, Final Lenghth: " %s length %d %nl
 ;
 
 : start
   initialize
-  game-loop
+  gameLoop
 ;
 
 loaddone
