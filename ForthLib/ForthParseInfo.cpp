@@ -64,8 +64,8 @@ ForthParseInfo::SetToken(const char *pSrc)
 
 		// token has already been copied to mpToken, just set length byte
 		symLen = strlen(((char *)mpToken) + 1);
-		*((char *)mpToken) = symLen;
-		pDst = ((char *)mpToken) + symLen + 2;
+*((char *)mpToken) = symLen;
+pDst = ((char *)mpToken) + symLen + 2;
 	}
 
 	// in diagram, first char is length byte, 'a' are symbol chars, '0' is terminator, '#' is padding
@@ -126,6 +126,7 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 {
 	char cc[9];
 	bool isQuotedChar = false;
+	bool isLongConstant = false;
 
 	// in order to not break the standard forth word tick ('), don't allow character constants
 	//  to contain space or tab characters
@@ -159,6 +160,24 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 			{
 				cc[iDst++] = '\0';
 				isQuotedChar = true;
+				if (pSrc < pSrcLimit)
+				{
+					ch = *pSrc;
+					if ((ch == 'l') || (ch == 'L'))
+					{
+						isLongConstant = true;
+						ch = *++pSrc;
+					}
+					if (pSrc < pSrcLimit)
+					{
+						// if there are still more chars after closing quote, next char must be a delimiter
+						if ((ch != '\0') && (ch != ' ') && (ch != '\t'))
+						{
+							isQuotedChar = false;
+							isLongConstant = false;
+						}
+					}
+				}
 				break;
 			}
 			else
@@ -178,6 +197,10 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 		if (isQuotedChar)
 		{
 			SetFlag(PARSE_FLAG_QUOTED_CHARACTER);
+			if (isLongConstant)
+			{
+				SetFlag(PARSE_FLAG_FORCE_LONG);
+			}
 			SetToken(cc);
 			pSrcIn = pSrc;
 		}

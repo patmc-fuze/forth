@@ -1176,7 +1176,8 @@ ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore)
 						break;
 
 					case kBaseTypeOp:
-						sprintf(buffer, "0x%x", pEntry[0]);
+						uval = *((const unsigned int*)(pStruct + byteOffset));
+						sprintf(buffer, "0x%x", uval);
 						break;
 
 					case kBaseTypeStruct:

@@ -162,6 +162,15 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 28 2015
+
+I've been trying to get SDL_TTF to work, but I keep getting a bogus surface
+back from the TTF_RenderText_XXX calls.  I've done the equivalent set of SDL
+calls in a CPP program successfully.
+
+DOH! I updated sdl_ttf.txt to match version 2, but it was still loading the
+version 1 sdl_ttf DLL.  Updating it to use version 2 fixed the problems.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 6 2015
 
 I have a mostly working implementtation of struct initialization ops.

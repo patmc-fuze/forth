@@ -2776,7 +2776,24 @@ FORTHOP( printCharOp )
     CONSOLE_CHAR_OUT( ch );
 }
 
-FORTHOP( printSpaceOp )
+FORTHOP(print4Op)
+{
+	NEEDS(1);
+	int chars = SPOP;
+	const char* pChars = (const char*)&chars;
+	CONSOLE_BYTES_OUT(pChars, 4);
+}
+
+FORTHOP(print8Op)
+{
+	NEEDS(2);
+	stackInt64 chars;
+	LPOP(chars);
+	const char* pChars = (const char*)&chars;
+	CONSOLE_BYTES_OUT(pChars, 8);
+}
+
+FORTHOP(printSpaceOp)
 {
     CONSOLE_CHAR_OUT( ' ' );
 }
@@ -7722,6 +7739,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    printStrOp,             "%s" ),
     OP_DEF(    printCharOp,            "%c" ),
     OP_DEF(    printBlockOp,           "type" ),
+    OP_DEF(    print4Op,               "%4c" ),
+    OP_DEF(    print8Op,               "%8c" ),
     OP_DEF(    printSpaceOp,           "%bl" ),
     OP_DEF(    printNewlineOp,         "%nl" ),
     OP_DEF(    printFloatOp,           "%f" ),

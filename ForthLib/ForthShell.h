@@ -29,6 +29,7 @@ class ForthExpressionInputStream;
 #define PARSE_FLAG_QUOTED_CHARACTER     2
 #define PARSE_FLAG_HAS_PERIOD           4
 #define PARSE_FLAG_HAS_COLON            8
+#define PARSE_FLAG_FORCE_LONG           16
 
 #define MAX_TOKEN_BYTES     1024
 

@@ -1556,10 +1556,11 @@ bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, b
        }
    }
    char *pLastChar = pToken + (len - 1);
-   char lastChar = *pLastChar;
+   char lastChar = tolower(*pLastChar);
    switch ( lastChar )
    {
    case 'd':
+   case 'l':
    case 'g':
       *pLastChar = 0;
       if ( sscanf( pToken, "%lf", &dvalue ) == 1)
@@ -2423,27 +2424,29 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         //
         ////////////////////////////////////
         SPEW_OUTER_INTERPRETER( "Character{%s} flags[%x]\n", pToken, pInfo->GetFlags() );
-		if ( strlen( pToken ) < 5 )
-        {
-			value = 0;
-			char* cval = (char *)&value;
-			for ( int i = 0; i < len; i++ )
-			{
-				cval[i] = pToken[i];
-			}
-            ProcessConstant( value, false );
-        }
-        else
-        {
+		bool isALongQuotedCharacter = (pInfo->GetFlags() & PARSE_FLAG_FORCE_LONG) != 0;
+		int tokenLen = strlen(pToken);
+		if (isALongQuotedCharacter || (tokenLen > 4))
+		{
 			lvalue = 0;
 			char* cval = (char *)&lvalue;
-			for ( int i = 0; i < len; i++ )
+			for (int i = 0; i < len; i++)
 			{
 				cval[i] = pToken[i];
 			}
-            ProcessLongConstant( lvalue );
-        }
-        return kResultOk;
+			ProcessLongConstant(lvalue);
+		}
+		else
+		{
+			value = 0;
+			char* cval = (char *)&value;
+			for (int i = 0; i < len; i++)
+			{
+				cval[i] = pToken[i];
+			}
+			ProcessConstant(value, false);
+		}
+		return kResultOk;
     }
     
     if ( mpInterpreterExtension != NULL )

@@ -1,4 +1,22 @@
 pqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpq
+|                        Where This All Started                                |
+bdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbd
+The first version of client/server Forth was an attempt at creating a development
+environment for the Nintendo DS where the 'server' ran on the DS and used a
+'client' running on Windows which handled all the file access.
+This didn't actually get to the working stage.
+The next cross-platform attempt was similar, but a Raspberry Pi was used for the
+server.  This actually worked.
+
+Client:
+o has a user console for text input and output
+o has a filesystem where forth source files are stored
+
+Server:
+o executes forth ops
+  o ops which do file or console IO are redirected to client
+o may have a console for debug text output
+pqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpqpq
 |                              Overall Design                                  |
 bdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbd
 The client is passive, just acting on messages from the server.

@@ -30,6 +30,20 @@ extern "C" {
 	extern void illegalMethodOp( ForthCoreState *pCore );
 };
 
+float __cdecl cdecl_boohoo(int aa, int bb, int cc)
+{
+	return (float)((aa + bb) * cc);
+}
+
+float __stdcall stdcall_boohoo(int aa, int bb, int cc)
+{
+	return (float)((aa + bb) * cc);
+}
+
+float boohoo(int aa, int bb, int cc)
+{
+	return (float)((aa + bb) * cc);
+}
 
 void* ForthAllocateBlock(size_t numBytes)
 {
@@ -8440,6 +8454,13 @@ namespace
 		void*               pUserData;
     };
 
+	enum
+	{
+		kOutStreamPutCharMethod = kNumBaseMethods,
+		kOutStreamPutBytesMethod = kNumBaseMethods + 1,
+		kOutStreamPutStringMethod = kNumBaseMethods + 2
+	};
+
 
     FORTHOP( oOutStreamNew )
     {
@@ -8477,7 +8498,7 @@ namespace
 
 		if ( pOutStream->pOutFuncs == NULL )
 		{
-			ForthEngine::GetInstance()->SetError( kForthErrorIO, " output stream has no output routines" );
+			ForthEngine::GetInstance()->SetError(kForthErrorIO, " output stream has no output routines");
 		}
 		else
 		{
@@ -8522,9 +8543,18 @@ namespace
 		int numBytes = SPOP;
 		char* pBuffer = reinterpret_cast<char *>(SPOP);
 
-		if ( pOutStream->pOutFuncs == NULL )
+		if (pOutStream->pOutFuncs == NULL)
 		{
-			ForthEngine::GetInstance()->SetError( kForthErrorIO, " output stream has no output routines" );
+			ForthEngine *pEngine = ForthEngine::GetInstance();
+			ForthObject obj;
+			obj.pData= pCore->TPD;
+			obj.pMethodOps = pCore->TPM;
+			for (int i = 0; i < numBytes; i++)
+			{
+				char ch = *pBuffer++;
+				SPUSH(((long)ch));
+				pEngine->ExecuteOneMethod(pCore, obj, kOutStreamPutCharMethod);
+			}
 		}
 		else
 		{
@@ -8567,7 +8597,17 @@ namespace
 
 		if ( pOutStream->pOutFuncs == NULL )
 		{
-			ForthEngine::GetInstance()->SetError( kForthErrorIO, " output stream has no output routines" );
+			ForthEngine *pEngine = ForthEngine::GetInstance();
+			ForthObject obj;
+			obj.pData = pCore->TPD;
+			obj.pMethodOps = pCore->TPM;
+			int numBytes = strlen(pBuffer);
+			for (int i = 0; i < numBytes; i++)
+			{
+				char ch = *pBuffer++;
+				SPUSH(((long)ch));
+				pEngine->ExecuteOneMethod(pCore, obj, kOutStreamPutCharMethod);
+			}
 		}
 		else
 		{
@@ -8589,13 +8629,6 @@ namespace
 		pOutStream->pUserData = reinterpret_cast<void *>(SPOP);
         METHOD_RETURN;
     }
-
-	enum
-	{
-		kOutStreamPutCharMethod = kNumBaseMethods,
-		kOutStreamPutBytesMethod = kNumBaseMethods + 1,
-		kOutStreamPutStringMethod = kNumBaseMethods + 2
-	};
 
     baseMethodEntry oOutStreamMembers[] =
     {
