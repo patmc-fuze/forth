@@ -89,7 +89,14 @@ int main( int argc, char* argv[], char* envp[] )
         delete pShell;
     }
 
-    return nRetCode;
+	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+	_CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);    // or _CRTDBG_FILE_STDERR?
+	if (_CrtDumpMemoryLeaks())        // returns TRUE if a memory leak was found
+	{
+		printf("\nHit RETURN to exit\n");
+		getchar();
+	}
+	return nRetCode;
 }
 
 
