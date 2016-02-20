@@ -64,8 +64,8 @@ ForthParseInfo::SetToken(const char *pSrc)
 
 		// token has already been copied to mpToken, just set length byte
 		symLen = strlen(((char *)mpToken) + 1);
-*((char *)mpToken) = symLen;
-pDst = ((char *)mpToken) + symLen + 2;
+		*((char *)mpToken) = symLen;
+		pDst = ((char *)mpToken) + symLen + 2;
 	}
 
 	// in diagram, first char is length byte, 'a' are symbol chars, '0' is terminator, '#' is padding
