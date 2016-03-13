@@ -1,26 +1,26 @@
 
-autoforget file
+autoforget File
 
-class: file extends object
+class: File extends Object
 
   int fp
-  oByteArray buffer		// line buffer for getLine
+  OByteArray buffer		// line buffer for getLine
   byte readOnly
   byte unixEol			// end-of-line for putLine
   byte noTrimEol		// defined bass-ackwards so it will default to 'trim eol' IE remove trailing CR and/or LF in getLine
   byte stdHandle		// true if file is stdin, stdout or stderr, used to prevent mistakenly closing stdout
   
-  method: error
+  : error
     "error in file." %s %s %nl
-  ;method
+  ;
 
-  method: show
-    "fp " %s fp %x
-    "  buffer " %s buffer %x 
-    "  unixEol " %s unixEol %d
-    "  noTrimEol " %s noTrimEol %d
-    "  stdHandle " %s stdHandle %d %nl
-  ;method
+  //method: show
+  //  "fp " %s fp %x
+  //  "  buffer " %s buffer %x 
+  //  "  unixEol " %s unixEol %d
+  //  "  noTrimEol " %s noTrimEol %d
+  //  "  stdHandle " %s stdHandle %d %nl
+  //;method
   
   method: delete
     if( fp )
@@ -95,6 +95,7 @@ class: file extends object
     endif
   ;method
 
+  // ... BYTE_VALUE
   method: getByte
     if( fp )
       fgetc( fp )
@@ -107,6 +108,7 @@ class: file extends object
     endif
   ;method
 
+  // ... SHORT_VALUE
   method: getShort
     0 -> short val
     if( fp )
@@ -119,7 +121,8 @@ class: file extends object
     endif
     val
   ;method
-        
+  
+  // ... INT_VALUE
   method: getInt
     0 -> int val
     if( fp )
@@ -132,7 +135,8 @@ class: file extends object
     endif
     val
   ;method
-        
+
+  // ... LONG_VALUE
   method: getLong
     dnull -> long val
     if( fp )
@@ -145,7 +149,8 @@ class: file extends object
     endif
     val
   ;method
-        
+
+  // BYTE_VALUE ...
   method: putByte
     if( fp )
       if( readOnly )
@@ -162,6 +167,7 @@ class: file extends object
     endif
   ;method
 
+  // SHORT_VALUE ...
   method: putShort
     -> short val
     if( fp )
@@ -177,7 +183,8 @@ class: file extends object
       error( "putShort - not open" )
     endif
   ;method
-        
+
+  // INT_VALUE ...
   method: putInt
     -> int val
     if( fp )
@@ -193,7 +200,8 @@ class: file extends object
       error( "putInt - not open" )
     endif
   ;method
-        
+
+  // LONG_VALUE ...
   method: putLong
     -> long val
     if( fp )
@@ -209,7 +217,8 @@ class: file extends object
       error( "putLong - not open" )
     endif
   ;method
-  
+
+  // CHAR_PTR ...  
   method: putLine
     if( fp )
       if( readOnly )
@@ -232,6 +241,7 @@ class: file extends object
     endif
   ;method
 
+  // ... CHAR_PTR
   method: getLine
     null -> ptrTo byte result
     if( fp )
@@ -239,7 +249,7 @@ class: file extends object
       
       if( buffer l0= )
         d[ "file.getLine allocating buffer\n" %s ]d
-        new oByteArray -> buffer
+        new OByteArray -> buffer
         buffer.resize( 8 )
         //buffer.resize( 32000 )
       endif
@@ -291,46 +301,55 @@ class: file extends object
     result
   ;method
 
+  // BOOL ...
   method: setUnixEol
     -> unixEol
   ;method
   
+  // ... BOOL
   method: getUnixEol
     unixEol
   ;method
   
+  // BOOL ...
   method: setTrimEol
     not -> noTrimEol
   ;method
 
+  // ... BOOL
   method: getTrimEol
     noTrimEol not
   ;method
     
+  // ... BOOL
   method: eof
     feof( fp )
   ;method
 
+  // ... FILE_LENGTH
   method: len
     flen( fp )
   ;method
-  
+
+  // ... FILE_POSITION  
   method: tell
     ftell( fp )
   ;method
-  
+
+  // FILE_POSITION ...  
   method: seekAbs
     if( fseek( fp swap 0 ) )
       error( "seekAbs" )
     endif
   ;method
   
+  // FILE_POSITION ...  
   method: seekRel
     if( fseek( fp swap 1 ) )
       error( "seekAbs" )
     endif
   ;method
-  
+
   method: seekEnd
     if( fseek( fp swap 2 ) )
       error( "seekAbs" )
@@ -345,9 +364,10 @@ class: file extends object
     endif
   ;method
 
+  // BUFFER_SIZE_BYTES ...
   method: setBufferSize
     if( buffer l0= )
-      new oByteArray -> buffer
+      new OByteArray -> buffer
     endif
     buffer.resize
   ;method

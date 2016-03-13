@@ -95,18 +95,18 @@ class: SDLScreen
     
     //SDL_SetVideoMode( width height 0 SDL_SWSURFACE ) -> surface
     
-    SDL_CreateWindow( "My Game Window" SDL_WINDOWPOS_UNDEFINED_MASK SDL_WINDOWPOS_UNDEFINED_MASK width height SDL_WINDOW_SHOWN ) -> window
+    //SDL_CreateWindow( "My Game Window" SDL_WINDOWPOS_UNDEFINED_MASK SDL_WINDOWPOS_UNDEFINED_MASK width height SDL_WINDOW_SHOWN ) -> window
+    SDL_CreateWindowAndRenderer(width height 0 ref window ref renderer)
 
     if( window 0= )
       "SDL_CreateWindow failed!\n" %s abort
     else
 
-    show
       SDL_CreateRGBSurface(SDL_SWSURFACE width height bytesPerPixel 8 * 0 0 0 0) -> surface
       if(surface 0=)
         SDL_GetError %s %nl
       endif
-      SDL_CreateRenderer(window -1 0) -> renderer
+      //SDL_CreateRenderer(window -1 0) -> renderer
       SDL_CreateTexture(renderer SDL_PIXELFORMAT_ARGB8888 SDL_TEXTUREACCESS_STREAMING width height) -> windowTexture
 
       surface %x %bl renderer %x %bl windowTexture %x %nl
@@ -152,17 +152,12 @@ class: SDLScreen
   ;method
 
   : beginDraw
-    if( drawDepth 0= )
-      //SDL_LockSurface( surface ) drop
-    endif
     1 ->+ drawDepth
   ;
 
   : endDraw
     1 ->- drawDepth
     if( drawDepth 0= )
-      //SDL_UnlockSurface( surface )
-      //SDL_UpdateRects( surface 1 dstPos )
       // At the end of the frame, we want to upload to the texture like this:
       SDL_UpdateTexture(windowTexture null surface.pixels bytesPerRow) drop
       SDL_RenderClear(renderer) drop
@@ -176,6 +171,14 @@ class: SDLScreen
     endif
   ;
 
+  method: beginFrame
+    beginDraw
+  ;method
+  
+  method: endFrame
+    endDraw
+  ;method
+  
   method: moveTo
     -> curY -> curX
   ;method
@@ -485,6 +488,7 @@ class: SDLScreen
   ;method
 
   method: fillRectangle
+    beginDraw
     SDL_Rect rect
     -> rect.h
     -> rect.w
@@ -492,16 +496,31 @@ class: SDLScreen
     curY -> rect.y
     
     SDL_FillRect( surface rect pixelColor ) drop
+    endDraw
   ;method
 
   method: clear
+    beginDraw
     SDL_FillRect( surface null rot ) drop
+    endDraw
   ;method
   
   method: flip
     //SDL_Flip( surface ) drop
   ;method
+
+  method: drawBitmap
+    SDL_Rect dstPos
+    curX -> dstPos.x
+    curY -> dstPos.y
+    SDL_LoadBMP() -> int bmSurface
     
+    beginDraw
+    SDL_BlitSurface(bmSurface null surface dstPos)
+    SDL_FreeSurface( bmSurface )
+    endDraw
+  ;method
+  
 ;class
 
 SDLScreen screenInstance
@@ -532,6 +551,7 @@ SDLScreen screenInstance
 : dml screenInstance.drawMultiLine ;
 : fs screenInstance.flip ;
 : cl screenInstance.clear( 0 ) fs ;
+: dbmap screenInstance.drawBitmap ;
 
 : test
   sc( 0xFFFF00 )
@@ -553,7 +573,6 @@ SDLScreen screenInstance
 3.14159g -> double pi
 
 : test2
-  //beginDraw
   pi -1.0g d* -> double angle
   pi 4.0g d* 200.0g d/ -> double dangle
   
@@ -566,7 +585,11 @@ SDLScreen screenInstance
     dp( i y y d* y d* yscale d* d2i )
     dangle ->+ angle
   loop
-  //endDraw
+;
+
+: test3
+  mt(0 0)
+  dbmap("SimFunWorld.bmp")
 ;
 
 previous

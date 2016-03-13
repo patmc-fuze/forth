@@ -1265,13 +1265,13 @@ ForthClassVocabulary::ForthClassVocabulary( const char*     pName,
     ForthInterface* pPrimaryInterface = new ForthInterface( this );
     mInterfaces.push_back( pPrimaryInterface );
 
-	if ( strcmp( pName, "object" ) == 0 )
+	if ( strcmp( pName, "Object" ) == 0 )
 	{
 		smpObjectClass = this;
 	}
 	else
 	{
-		if ( strcmp( pName, "class" ) != 0 )
+		if ( strcmp( pName, "Class" ) != 0 )
 		{
 			Extends( smpObjectClass );
 		}

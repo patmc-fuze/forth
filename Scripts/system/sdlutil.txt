@@ -5,14 +5,17 @@ also sdl
 
 : sdlutil ;
 
-null  -> ptrTo SDL_Surface sdlScreen
+null  -> ptrTo SDL_Surface sdlSurface
+null  -> ptrTo byte sdlWindow
+null  -> ptrTo byte sdlRenderer
+null  -> ptrTo byte sdlTexture
  640  -> int screenW
  480  -> int screenH
 -320  -> int screenLeftLimit
  320  -> int screenRightLimit
 -240  -> int screenTopLimit
  240  -> int screenBottomLimit
- 
+32    -> bitsPerPixel
  
 : dummyFetchOp drop 0 ;
 
@@ -52,12 +55,17 @@ SDL_Rect dstPos
   true -> _sdlStarted
   
   SDL_Init( SDL_INIT_VIDEO ) "SDL_Init returns " %s %d %nl
-  SDL_SetVideoMode( screenW screenH 0 SDL_SWSURFACE ) -> sdlScreen
-  if( sdlScreen 0= )
-    "SDL_SetVideoMode failed!\n" %s abort
+  //SDL_SetVideoMode( screenW screenH 0 SDL_SWSURFACE ) -> sdlSurface
+  SDL_CreateWindow( "My Game Window" SDL_WINDOWPOS_UNDEFINED_MASK SDL_WINDOWPOS_UNDEFINED_MASK screenW screenH SDL_WINDOW_SHOWN ) -> sdlWindow
+  
+  if( sdlWindow 0= )
+    "SDL_CreateWindow failed!\n" %s abort
   else
-    sdlScreen.format.BitsPerPixel
-    "bits per pixel: " %s dup %d %nl
+    SDL_GetWindowSurface(sdlWindow) -> sdlSurface
+    SDL_CreateRenderer(sdlWindow -1 0) -> sdlRenderer
+    SDL_CreateTexture(sdlRenderer SDL_PIXELFORMAT_ARGB8888 SDL_TEXTUREACCESS_STREAMING screenW screenH) -> sdlTexture
+    bitsPerPixel
+    //"bits per pixel: " %s dup %d %nl
     case
       8 of
         lit c@ -> pixel@
@@ -83,9 +91,9 @@ SDL_Rect dstPos
     // set coordinates so center of screen is 0,0
     screenW 2/ dup -> screenCenterX dup -> screenRightLimit negate -> screenLeftLimit
     screenH 2/ dup -> screenCenterY dup -> screenBottomLimit negate -> screenTopLimit
-    screenCenterY sdlScreen.pitch *
-    screenCenterX sdlScreen.format.BytesPerPixel *
-    + sdlScreen.pixels + -> _screenCenterPixelAddr
+    screenCenterY sdlSurface.pitch *
+    screenCenterX sdlSurface.format.BytesPerPixel *
+    + sdlSurface.pixels + -> _screenCenterPixelAddr
     
     // setup draw count and full-screen dirty rect for beginDraw/endDraw
     screenW -> srcPos.w
@@ -98,7 +106,7 @@ SDL_Rect dstPos
 
 : beginDraw
   drawDepth 0= if
-    SDL_LockSurface( sdlScreen ) drop
+    SDL_LockSurface( sdlSurface ) drop
   endif
   1 ->+ drawDepth
 ;
@@ -106,8 +114,9 @@ SDL_Rect dstPos
 : endDraw
   1 ->- drawDepth
   drawDepth 0= if
-    SDL_UnlockSurface( sdlScreen )
-    SDL_UpdateRects( sdlScreen 1 dstPos )
+    SDL_UnlockSurface( sdlSurface )
+    SDL_UpdateRects( sdlSurface 1 dstPos )
+    SDL_UpdateWindowSurface(sdlWindow)
   else
     drawDepth 0< if
       "endDraw called with drawDepth " %s drawDepth %d %nl
@@ -124,17 +133,17 @@ SDL_Rect dstPos
 
 // X Y screenAddress -> address of pixel on screen
 : screenAddress
-  sdlScreen.pitch * negate
+  sdlSurface.pitch * negate
   swap
-  sdlScreen.format.BytesPerPixel *
+  sdlSurface.format.BytesPerPixel *
   + _screenCenterPixelAddr +
 ;
 
 // dX dY screenAddressRelative -> address of pixel on screen
 : screenAddressRelative
-  curY + sdlScreen.pitch * negate
+  curY + sdlSurface.pitch * negate
   swap
-  curX + sdlScreen.format.BytesPerPixel *
+  curX + sdlSurface.format.BytesPerPixel *
   + _screenCenterPixelAddr +
 ;
 

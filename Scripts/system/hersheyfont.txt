@@ -4,13 +4,24 @@
 class: HersheyGlyph
   int mLeftPos
   int mRightPos
+  int mTopDY
+  int mBottomDY
+  
   // mCoords has 2 bytes per vertex, first byte is (y coord + 64) with move flag in hibit, second byte is (x coord + 64)
-  oByteArray mCoords
+  OByteArray mCoords
 
+  // the coordinates in hershey glyphs are offsets from a position in the rough center of the character.
+  // mLeftPos is the offset from the center to the left edge of the character, and should be negative.
+  // mRightPos is the offset from the center to the right edge of the character, and should be positive.
+  // Assuming that your character draw position is specified as the left edge of the character box, you
+  // should start by subtracting mLeftPos from the draw position X to get the character center X.
+  // After you are done drawing and want to move to the next character, the new draw position is gotten by
+  // adding mRightPos to the character center X.
+  
   method: init      // leftPos rightPos
     -> mRightPos
     -> mLeftPos
-    new oByteArray -> mCoords
+    new OByteArray -> mCoords
   ;method
   
   method: delete
@@ -43,13 +54,23 @@ class: HersheyGlyph
     endif
   ;method
   
+  method: getWidth
+    mRightPos mLeftPos -
+  ;method
+  
 ;class
 
 
 class: HersheyFont
 
-  oIntMap mGlyphs
-  oString mFilename  
+  OIntMap mGlyphs
+  OString mFilename
+  int mMaxWidth     // widest glyph
+  int mMinY         // 
+  int mMaxY
+  // these are the top and bottom vertical offsets for capital M
+  int mTopDY
+  int mBottomDY
 
   method: delete
     oclear mGlyphs
@@ -57,12 +78,15 @@ class: HersheyFont
   ;method
     
   method: loadFromFile   // FILENAME ... SUCCESS
-    new oString -> mFilename
+    0 -> mMaxWidth
+    0 -> mMinY
+    0 -> mMaxY
+    new OString -> mFilename
     mFilename.set
     fopen(mFilename.get "r") -> int inFile
     if(inFile)
-      new oIntMap -> mGlyphs
-      new oByteArray -> oByteArray buffer
+      new OIntMap -> mGlyphs
+      new OByteArray -> OByteArray buffer
       buffer.resize(2048) // biggest number of verts is 999, biggest string should be 1998
       int glyphIndex
       int numVerts
@@ -92,7 +116,11 @@ class: HersheyFont
             mGlyphs.set(glyph glyphIndex)
             // set leftPos and rightPos
             glyph.init(pSrc c@@++ 'R' -   pSrc c@@++ 'R' -)
-            fprintf(stdout "glyph %d with %d verts  l:%d r:%d\n" r[ glyphIndex numVerts glyph.mLeftPos glyph.mRightPos ]r) drop
+            glyph.mRightPos glyph.mLeftPos - -> int glyphWidth
+            if(glyphWidth mMaxWidth >)
+              glyphWidth -> mMaxWidth
+            endif
+            fprintf(stdout "glyph %d with %d verts  l:%d r:%d w:%d\n" r[ glyphIndex numVerts glyph.mLeftPos glyph.mRightPos glyphWidth ]r) drop
             ?do(numVerts 0)
               pSrc c@@++ -> byte cx
               pSrc c@@++ -> byte cy
@@ -101,6 +129,12 @@ class: HersheyFont
               else
                 // offset original -64..63 range to 0..127 so we can use high bit of x to flag move mode
                 'R' ->- cx   'R' ->- cy
+                if(cy mMinY <)
+                  cy -> mMinY
+                endif
+                if(cy mMaxY >)
+                  cy -> mMaxY
+                endif
                 fprintf(stdout "%s to %d,%d\n" r[ if(isMove) "Move" else "Draw" endif cx cy ]r) drop
                 glyph.addVertex(cx cy isMove)
                 false -> isMove
@@ -131,3 +165,15 @@ class: HersheyFont
 
 loaddone
 
+-------------------
+// Most .jhf files use 12345 for all glyphnums, this means the glyphs are in ASCII order starting at ascii 33.
+// rowmans.jhf is a file which doesn't use 12345, I don't know how these glyph codes are supposed to be used.
+12345 94G]IHKFMFOGQF RLGNG RIHKGMHOHQF RNKMLLNLOJOIPIRJQLQLW RMMMU RJPMP RNKNTMVLW RQMRJSHTGVFXF[G RTHVGXGZH RRJSIUHWHYI[G RQURRSPTOVOXP RTPVPWQ RRRSQUQVRXP RK[NYRXWX[Y RMZPYWYZZ RK[OZVZY[[Y RQMQX
+
+12345 	glyphnum, 12345 is special meaning use ascending ASCII ordering, starting at ASCII 33
+ 94	  	# vertices (3 digit field)
+G		leftPos
+]		rightPos
+IHKFMFOGQF RLGNG RIHKGMHOHQF RNKMLLNLOJOIPIRJQLQLW RMMMU RJPMP RNKNTMVLW RQMRJSHTGVFXF[G RTHVGXGZH RRJSIUHWHYI[G RQURRSPTOVOXP RTPVPWQ RRRSQUQVRXP RK[NYRXWX[Y RMZPYWYZZ RK[OZVZY[[Y RQMQX
+coord pairs are relative to 'R'
+" R"	next coord pair is a move

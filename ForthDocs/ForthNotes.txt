@@ -21,7 +21,7 @@ TBDs:
   ? what should happen if object already has refcount 0
 - add unref method to object containers to do unref for elements
   - add unref methods to iterators
-- it looks like oListRemoveHead and oListRemoveTail didn't do a release
+- it looks like OListRemoveHead and OListRemoveTail didn't do a release
 
 - add 'generator' class, it has:
   o lastIP member
@@ -162,6 +162,11 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 21 2016
+
+I changed the builtin classes to have the first character capitalized, so class
+and object became Class and Object, oArray and oList became OArray and OList, etc.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 28 2015
 
 I've been trying to get SDL_TTF to work, but I keep getting a bogus surface
@@ -297,7 +302,7 @@ o is a sequence of ops which init either a string or a struct field
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 15 2015
 
-I added an oVocabulary builtin class to allow searching and manipulating vocabularies.
+I added an OVocabulary builtin class to allow searching and manipulating vocabularies.
 I also updated the SDL libraries to support SDL2.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 30 2015
@@ -324,14 +329,14 @@ August 16 2015
 I've been working on the atc game a bit.
 There is definitely a problem with forgetting global variables, at least global
 object variables.  For a simple test case, try running forthtest two times in a
-row.  forthtest requires testbase.txt, which uses some oString global vars, the
-second time you run it assigning to the global oStrings throws an exception.
+row.  forthtest requires testbase.txt, which uses some OString global vars, the
+second time you run it assigning to the global OStrings throws an exception.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 7 2015
 
-I need to look at oString, define how size/length/resize relate, using
+I need to look at OString, define how size/length/resize relate, using
 resize( length 1- ) should trim off last character of string, it doesn't.
-Decide if the size of an oString should always be a multiple of 4.
+Decide if the size of an OString should always be a multiple of 4.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 26 2015
 
@@ -548,21 +553,21 @@ been shown.
 
 The current __type field will be replaced with __objid which will combine the
 class name and an index which increments for each object shown, so if you did
-show on an array the first __objid would be 'oArray_0'.  While recursively showing,
+show on an array the first __objid would be 'OArray_0'.  While recursively showing,
 if an object is reached which has already been shown, it is displayed as an @ char
-folled by the objid, so the above array would appear as @oArray_0.
+folled by the objid, so the above array would appear as @OArray_0.
 
 When you do object.show, it either goes to objectShowMethod for user defined
-types, or it goes to a builtin-class method like oArrayShowMethod.
+types, or it goes to a builtin-class method like OArrayShowMethod.
 
-  objectShowMethod
+  ObjectShowMethod
     ForthStructVocabulary::ShowData on the root object
 	  ForthShowObject on any object fields
 
-  oArrayShowMethod
+  OArrayShowMethod
     ForthShowObject on each element
 	  ForthEngine::ExecuteOneMethod
-	    either objectShowMethod or a builtin-class ShowMethod
+	    either ObjectShowMethod or a builtin-class ShowMethod
 
 ? is ForthShowObject the right place to do the @object substitution
 ? how do you know when it is safe to clear the list of shown objects
@@ -1019,13 +1024,13 @@ much more likely to fail catastrophically - re-initializing after an error can
 cause the release/delete of stream objects, and if they are already deleted
 or corrupted, this could cause another error.
 
-I refactored things so that oOutStream wasn't completely abstract, and output
+I refactored things so that OOutStream wasn't completely abstract, and output
 streams have an optional pointer to a block of functions for outputting chars, blocks
 or strings, and these functions can called directly without the overhead of
 setting the current object to the output stream and pushing/popping arguments.
 ForthGui app appears to be working.
 
-- ops for redirecting output (replacements for outToString/File/Screen) aren't done yet.
+- ops for redirecting output (replacements for outTOString/File/Screen) aren't done yet.
 - reference counting when setting/resetting streams isn't right yet
 - client/server is written but untested
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
@@ -1162,8 +1167,8 @@ decrementing the refcount, but not deleting the object if refcount is 0.
 I also added unref methods to the containers and container iterators wherever
 it made sense to do so.  I also removed or modified methods which would leave
 a dangling object reference on the stack in the case where the container was
-the only reference to the object (replaced oArray.pop with oArray.popUnref and
-changed oList.removeHead and removeTail to not leave any object ref on stack).
+the only reference to the object (replaced OArray.pop with OArray.popUnref and
+changed OList.removeHead and removeTail to not leave any object ref on stack).
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 February 9 2014
@@ -1424,19 +1429,19 @@ o 'forget' would need to distinguish between builtin ops and user assembler ops
 August 30 2013
 
 Add unimplementedMethod op
-Add remove, findNext, clone to oIter and derived classes
-Add find, clone, count to oIterable and derived classes
+Add remove, findNext, clone to OIter and derived classes
+Add find, clone, count to OIterable and derived classes
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 26 2013
 
 The builtin class collections operations which remove an object from the
-collection and leave it on TOS need to be changed - if you do a oArray.push
-of a new object, followed by a oArray.pop, it will leave an object reference
+collection and leave it on TOS need to be changed - if you do a OArray.push
+of a new object, followed by a OArray.pop, it will leave an object reference
 on TOS, but the object will have been deleted.
 The problem is that if the collection was the only thing that had a reference
 to the object, removing it from the collection will delete the object.
 The options:
-1) get rid of oArray.pop, oList.removeHead and oList.removeTail, and do the
+1) get rid of OArray.pop, OList.removeHead and OList.removeTail, and do the
    equivalent with multiple operations
 2) have the 'pop' methods leave an object on TOS which has refCount 0, but has
    not been deleted - just like what happens when an object is created
@@ -1462,7 +1467,7 @@ At the end of the day, both classtest and rctest run with no errors and no leaks
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 21 2013
 
-+ added a oThread class
++ added a OThread class
 
 I added an enum of opcode types in forth_optype.txt, I ran into a problem
 because one of the optype names was also the name of an operator with
@@ -1486,8 +1491,8 @@ few bugs, the biggest being that I forgot that delete doesn't automatically
 propagate - to support this, I had a way to do 'super.delete'.  I added a
 super opcode and added support for it as the first symbol to the struct code
 generator.  Adding that made the number of unfreed object on exit become 0.
-I added a built in hashing function to oString, the hash is generated the
-first time you request it with oString.hash, and is only regenerated if it
+I added a built in hashing function to OString, the hash is generated the
+first time you request it with OString.hash, and is only regenerated if it
 has been invalidated by a set or append operation.
 I added 'ofif', a case op which is like 'of' except it is preceeded by an
 arbitrary boolean expression, not a constant.
@@ -1557,17 +1562,17 @@ May 29 2013
 
 + added 'verbose' prefix op for vlist and describe, eliminated vlistq
 + added the ability to disassemble method ops with describe CLASS.METHOD
-- in file.getLine the oByteArray.resize method is getting compiled wrong, the
+- in file.getLine the OByteArray.resize method is getting compiled wrong, the
   opcode used to prefix global byte variables is being compiled where it should
-  be putting something to fetch the oByteArray member variable
+  be putting something to fetch the OByteArray member variable
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 28 2013
 
 I started implementing a 'file' class and ran into a few problems
 
-+ the file class has an oByteArray member - 4 bytes were allocated for this
++ the file class has an OByteArray member - 4 bytes were allocated for this
   member, all object references need 8 - fixed
-- the getLine method includes 'new oByteArray' - forth:new isn't executed,
+- the getLine method includes 'new OByteArray' - forth:new isn't executed,
   instead object:new is compiled as 0x520001ef - 1ef is object:new, but the
   0x52 opType is MemberByte which makes no sense, the opType should be
   0x6C opType MethodWithThis.
@@ -1659,7 +1664,7 @@ output to be sent to a ForthGui pane.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 18 2012
 
-Updated classtest.txt to do some testing of oArray, oList and oMap.
+Updated classtest.txt to do some testing of OArray, OList and OMap.
 Completed changes to have refCounts be 0 at creation time and have object
 variable assignment affect refCounts.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
@@ -1716,7 +1721,7 @@ object that contains a single object.
 When I was looking through the existing container code, I kept seeing cases
 where assigning an object to a container didn't do a keep on the object.
 
-Another odd thing is oListRemoveHead and oListRemoveTail - if I make them
+Another odd thing is OListRemoveHead and OListRemoveTail - if I make them
 do a release on the removed object, it will often be destroyed, but leave a
 dangling object reference on TOS - I guess the rule will be that the user
 has to remember to do a release
@@ -3638,7 +3643,7 @@ First field code for object accessors:
 + 1 gaobj1.blah					global object array
 	gaobj1			doObjectArray drop
 + 1 gapobj1.blah				global ptrTo object array
-	gapobj1			doIntArray d@ drop
+	gapobj1			dOIntArray d@ drop
 
 + lobj1.blah					local object
 					LocalObject drop
@@ -3668,9 +3673,9 @@ compiles into
 	lit 5
 	->
 	lit 4
-	_doIntArray(pFoo)
+	_dOIntArray(pFoo)
 	FieldInt(A)
-and the varAction set by "->" is used by _doIntArray, not FieldInt.  The code
+and the varAction set by "->" is used by _dOIntArray, not FieldInt.  The code
 which compiles field accesses does handle the case where the varAction symbol
 is just before the field accessor, but in array access cases the array index
 calculating op(s) are usually just before the field accessor.
@@ -3706,7 +3711,7 @@ First field code for struct accessors:
 + 1 gastr1.blah					global struct array
 	gastr1			doStructArray
 + 1 gapstr1.blah				global ptrTo struct array
-	gapstr1			doIntArray
+	gapstr1			dOIntArray
 	
 + lstr1.blah					local struct
 	lstr1			LocalRef
@@ -4628,8 +4633,8 @@ outToFileOp
   sets consoleOut = consoleOutToFile
   sets output file = file on TOS
 
-outToStringOp
-  sets consoleOut = consoleOutToString
+outTOStringOp
+  sets consoleOut = consoleOutTOString
   sets output file = NULL
   sets output string = string ptr on TOS
 
@@ -4642,7 +4647,7 @@ SET_CON_OUT_ROUTINE( OUTPUT_ROUTINE )
 SET_CON_OUT_STRING( A )
 SET_CON_OUT_OP( OUTPUT_OP )
 
-consoleOutToString just appends the string to the end of the buffer, it should
+consoleOutTOString just appends the string to the end of the buffer, it should
 be changed to use the string current length & max length fields.
 
 Got outToOp working, but found an apparent bug in local variables - if I
@@ -4962,7 +4967,7 @@ otherwise it pushes the string address on param stack and invokes an internal
 op called ConOutOpInvoke, which pops the string and appends it to the console
 output string buffer.
 
-OutToStringOp sets the current output file to NULL.
+OutTOStringOp sets the current output file to NULL.
 OutToScreenOp sets the current output file to stdout.
 OutToFileOp sets the current output file to the specified file.
 
@@ -4975,7 +4980,7 @@ printCharOp (%c) also uses ConOutOpInvoke.
 ? does anything currently use output to buffer?
 
 It looks like nothing uses output to buffer, and the console output buffer
-is always NULL unless the user executes the "outToString" op.
+is always NULL unless the user executes the "outTOString" op.
 
 I should probably implement the changes to strings which set the current
 and maximum length fields for local strings before doing the output ops.

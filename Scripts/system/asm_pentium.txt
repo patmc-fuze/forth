@@ -468,6 +468,8 @@ int .osize               int .onow
     -> disp  1 -> disp#  r> c@ finish ;
 0xE0 sb: loopne,  0xE1 sb: loope,   0xE2 sb: loop,    0xE3 sb: jcxz,
 
+// preceeding a ret, or retf, with "# N" will generate opcodes which will remove N bytes of arguments
+// this will make 0xC3 and 0xCB opcodes become 0xC2 and 0xCA respectively
 : (ret ( op -- )  imm#  if  2 -> imm#  1-  endif  finish ;
 : ret,  ( -- )  0xC3  (ret ;
 : retf, ( -- )  0xCB  (ret ;

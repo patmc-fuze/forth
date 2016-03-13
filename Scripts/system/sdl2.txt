@@ -1014,10 +1014,10 @@ dll_3           SDL_RenderSetScale          // SDL_Renderer * renderer, float sc
 DLLVoid dll_3   SDL_RenderGetScale          // SDL_Renderer * renderer, float *scaleX, float *scaleY
 
 // Set the color used for drawing operations (Rect, Line and Clear).
-dll_4           SDL_SetRenderDrawColor      // SDL_Renderer * renderer,  Uint8 r, Uint8 g, Uint8 b, Uint8 a
+dll_5           SDL_SetRenderDrawColor      // SDL_Renderer * renderer,  Uint8 r, Uint8 g, Uint8 b, Uint8 a
 
 // Get the color used for drawing operations (Rect, Line and Clear).
-dll_4           SDL_GetRenderDrawColor      // SDL_Renderer * renderer, Uint8 * r, Uint8 * g, Uint8 * b, Uint8 * a
+dll_5           SDL_GetRenderDrawColor      // SDL_Renderer * renderer, Uint8 * r, Uint8 * g, Uint8 * b, Uint8 * a
 
 // Set the blend mode used for drawing operations (Fill and Line).
 dll_2           SDL_SetRenderDrawBlendMode  // SDL_Renderer * renderer, SDL_BlendMode blendMode
@@ -1218,192 +1218,211 @@ struct: SDL_CommonEvent
 
 
 // Window state change event data (event.window.*)
-struct: SDL_WindowEvent extends SDL_CommonEvent
-    uint windowID    // The associated window
-    ubyte event        // ::SDL_WindowEventID
-    ubyte padding1
-    ubyte padding2
-    ubyte padding3
-    int data1       // event dependent data
-    int data2       // event dependent data
+struct: SDL_WindowEvent
+  int type          int timestamp
+  uint windowID    // The associated window
+  ubyte event        // ::SDL_WindowEventID
+  ubyte padding1
+  ubyte padding2
+  ubyte padding3
+  int data1       // event dependent data
+  int data2       // event dependent data
 ;struct
 
 // Keyboard button event structure (event.key.*)
-struct: SDL_KeyboardEvent extends SDL_CommonEvent
-    uint windowID    // The window with keyboard focus, if any
-    ubyte state        // ::SDL_PRESSED or ::SDL_RELEASED
-    ubyte repeat       // Non-zero if this is a key repeat
-    ubyte padding2
-    ubyte padding3
-    SDL_Keysym keysym  // The key that was pressed or released
+struct: SDL_KeyboardEvent
+  int type          int timestamp
+  uint windowID    // The window with keyboard focus, if any
+  ubyte state        // ::SDL_PRESSED or ::SDL_RELEASED
+  ubyte repeat       // Non-zero if this is a key repeat
+  ubyte padding2
+  ubyte padding3
+  SDL_Keysym keysym  // The key that was pressed or released
 ;struct
 
 32 constant SDL_TEXTEDITINGEVENT_TEXT_SIZE
 // Keyboard text editing event structure (event.edit.*)
-struct: SDL_TextEditingEvent extends SDL_CommonEvent
-    uint windowID                            // The window with keyboard focus, if any
-    SDL_TEXTEDITINGEVENT_TEXT_SIZE arrayOf byte text  // The editing text
-    int start                               // The start cursor of selected editing text
-    int length                              // The length of selected editing text
+struct: SDL_TextEditingEvent
+  int type          int timestamp
+  uint windowID                            // The window with keyboard focus, if any
+  SDL_TEXTEDITINGEVENT_TEXT_SIZE arrayOf byte text  // The editing text
+  int start                               // The start cursor of selected editing text
+  int length                              // The length of selected editing text
 ;struct
 
 
 32 constant SDL_TEXTINPUTEVENT_TEXT_SIZE
 
 // Keyboard text input event structure (event.text.*)
-struct: SDL_TextInputEvent extends SDL_CommonEvent
-    uint windowID                          // The window with keyboard focus, if any
-    SDL_TEXTEDITINGEVENT_TEXT_SIZE arrayOf byte text  // The input text
+struct: SDL_TextInputEvent
+  int type          int timestamp
+  uint windowID                          // The window with keyboard focus, if any
+  SDL_TEXTEDITINGEVENT_TEXT_SIZE arrayOf byte text  // The input text
 ;struct
 
 // Mouse motion event structure (event.motion.*)
 
-struct: SDL_MouseMotionEvent extends SDL_CommonEvent
-    uint windowID    // The window with mouse focus, if any
-    uint which       // The mouse instance id, or SDL_TOUCH_MOUSEID
-    uint state       // The current button state
-    int x           // X coordinate, relative to window
-    int y           // Y coordinate, relative to window
-    int xrel        // The relative motion in the X direction
-    int yrel        // The relative motion in the Y direction
+struct: SDL_MouseMotionEvent
+  int type          int timestamp
+  uint windowID    // The window with mouse focus, if any
+  uint which       // The mouse instance id, or SDL_TOUCH_MOUSEID
+  uint state       // The current button state
+  int x           // X coordinate, relative to window
+  int y           // Y coordinate, relative to window
+  int xrel        // The relative motion in the X direction
+  int yrel        // The relative motion in the Y direction
 ;struct
 
 // Mouse button event structure (event.button.*)
 
-struct: SDL_MouseButtonEvent extends SDL_CommonEvent
-    uint windowID    // The window with mouse focus, if any
-    uint which       // The mouse instance id, or SDL_TOUCH_MOUSEID
-    ubyte button       // The mouse button index
-    ubyte state        // ::SDL_PRESSED or ::SDL_RELEASED
-    ubyte clicks       // 1 for single-click, 2 for double-click, etc.
-    ubyte padding1
-    int x           // X coordinate, relative to window
-    int y           // Y coordinate, relative to window
+struct: SDL_MouseButtonEvent
+  int type          int timestamp
+  uint windowID    // The window with mouse focus, if any
+  uint which       // The mouse instance id, or SDL_TOUCH_MOUSEID
+  ubyte button       // The mouse button index
+  ubyte state        // ::SDL_PRESSED or ::SDL_RELEASED
+  ubyte clicks       // 1 for single-click, 2 for double-click, etc.
+  ubyte padding1
+  int x           // X coordinate, relative to window
+  int y           // Y coordinate, relative to window
 ;struct
 
 // Mouse wheel event structure (event.wheel.*)
 
-struct: SDL_MouseWheelEvent extends SDL_CommonEvent
-    uint windowID    // The window with mouse focus, if any
-    uint which       // The mouse instance id, or SDL_TOUCH_MOUSEID
-    int x           // The amount scrolled horizontally, positive to the right and negative to the left
-    int y           // The amount scrolled vertically, positive away from the user and negative toward the user
+struct: SDL_MouseWheelEvent
+  int type          int timestamp
+  uint windowID    // The window with mouse focus, if any
+  uint which       // The mouse instance id, or SDL_TOUCH_MOUSEID
+  int x           // The amount scrolled horizontally, positive to the right and negative to the left
+  int y           // The amount scrolled vertically, positive away from the user and negative toward the user
 ;struct
 
 // Joystick axis motion event structure (event.jaxis.*)
 
-struct: SDL_JoyAxisEvent extends SDL_CommonEvent
-    int which // The joystick instance id
-    ubyte axis         // The joystick axis index
-    ubyte padding1
-    ubyte padding2
-    ubyte padding3
-    short value       // The axis value (range: -32768 to 32767)
-    ushort padding4
+struct: SDL_JoyAxisEvent
+  int type          int timestamp
+  int which // The joystick instance id
+  ubyte axis         // The joystick axis index
+  ubyte padding1
+  ubyte padding2
+  ubyte padding3
+  short value       // The axis value (range: -32768 to 32767)
+  ushort padding4
 ;struct
 
 // Joystick trackball motion event structure (event.jball.*)
-struct: SDL_JoyBallEvent extends SDL_CommonEvent
-    int which // The joystick instance id
-    ubyte ball         // The joystick trackball index
-    ubyte padding1
-    ubyte padding2
-    ubyte padding3
-    short xrel        // The relative motion in the X direction
-    short yrel        // The relative motion in the Y direction
+struct: SDL_JoyBallEvent
+  int type          int timestamp
+  int which // The joystick instance id
+  ubyte ball         // The joystick trackball index
+  ubyte padding1
+  ubyte padding2
+  ubyte padding3
+  short xrel        // The relative motion in the X direction
+  short yrel        // The relative motion in the Y direction
 ;struct
 
 // Joystick hat position change event structure (event.jhat.*)
-struct: SDL_JoyHatEvent extends SDL_CommonEvent
-    int which // The joystick instance id
-    ubyte hat          // The joystick hat index
-    ubyte value        // The hat position value.
-                        //   \sa ::SDL_HAT_LEFTUP ::SDL_HAT_UP ::SDL_HAT_RIGHTUP
-                        //   \sa ::SDL_HAT_LEFT ::SDL_HAT_CENTERED ::SDL_HAT_RIGHT
-                        //   \sa ::SDL_HAT_LEFTDOWN ::SDL_HAT_DOWN ::SDL_HAT_RIGHTDOWN
-                        //   Note that zero means the POV is centered.
-                        
-    ubyte padding1
-    ubyte padding2
+struct: SDL_JoyHatEvent
+  int type          int timestamp
+  int which // The joystick instance id
+  ubyte hat          // The joystick hat index
+  ubyte value        // The hat position value.
+                      //   \sa ::SDL_HAT_LEFTUP ::SDL_HAT_UP ::SDL_HAT_RIGHTUP
+                      //   \sa ::SDL_HAT_LEFT ::SDL_HAT_CENTERED ::SDL_HAT_RIGHT
+                      //   \sa ::SDL_HAT_LEFTDOWN ::SDL_HAT_DOWN ::SDL_HAT_RIGHTDOWN
+                      //   Note that zero means the POV is centered.
+                      
+  ubyte padding1
+  ubyte padding2
 ;struct
 
 // Joystick button event structure (event.jbutton.*)
-struct: SDL_JoyButtonEvent extends SDL_CommonEvent
-    int which // The joystick instance id
-    ubyte button       // The joystick button index
-    ubyte state        // ::SDL_PRESSED or ::SDL_RELEASED
-    ubyte padding1
-    ubyte padding2
+struct: SDL_JoyButtonEvent
+  int type          int timestamp
+  int which // The joystick instance id
+  ubyte button       // The joystick button index
+  ubyte state        // ::SDL_PRESSED or ::SDL_RELEASED
+  ubyte padding1
+  ubyte padding2
 ;struct
 
 // Joystick device event structure (event.jdevice.*)
-struct: SDL_JoyDeviceEvent extends SDL_CommonEvent
-    int which       // The joystick device index for the ADDED event, instance id for the REMOVED event
+struct: SDL_JoyDeviceEvent
+  int type          int timestamp
+  int which       // The joystick device index for the ADDED event, instance id for the REMOVED event
 ;struct
 
 
 // Game controller axis motion event structure (event.caxis.*)
 
-struct: SDL_ControllerAxisEvent extends SDL_CommonEvent
-    int which // The joystick instance id
-    ubyte axis         // The controller axis (SDL_GameControllerAxis)
-    ubyte padding1
-    ubyte padding2
-    ubyte padding3
-    short value       // The axis value (range: -32768 to 32767)
-    ushort padding4
+struct: SDL_ControllerAxisEvent
+  int type          int timestamp
+  int which // The joystick instance id
+  ubyte axis         // The controller axis (SDL_GameControllerAxis)
+  ubyte padding1
+  ubyte padding2
+  ubyte padding3
+  short value       // The axis value (range: -32768 to 32767)
+  ushort padding4
 ;struct
 
 // Game controller button event structure (event.cbutton.*)
-struct: SDL_ControllerButtonEvent extends SDL_CommonEvent
-    int which // The joystick instance id
-    ubyte button       // The controller button (SDL_GameControllerButton)
-    ubyte state        // ::SDL_PRESSED or ::SDL_RELEASED
-    ubyte padding1
-    ubyte padding2
+struct: SDL_ControllerButtonEvent
+  int type          int timestamp
+  int which // The joystick instance id
+  ubyte button       // The controller button (SDL_GameControllerButton)
+  ubyte state        // ::SDL_PRESSED or ::SDL_RELEASED
+  ubyte padding1
+  ubyte padding2
 ;struct
 
 
 // Controller device event structure (event.cdevice.*)
-struct: SDL_ControllerDeviceEvent extends SDL_CommonEvent
-    int which       // The joystick device index for the ADDED event, instance id for the REMOVED or REMAPPED event
+struct: SDL_ControllerDeviceEvent
+  int type          int timestamp
+  int which       // The joystick device index for the ADDED event, instance id for the REMOVED or REMAPPED event
 ;struct
 
 // Touch finger event structure (event.tfinger.*)
-struct: SDL_TouchFingerEvent extends SDL_CommonEvent
-    long touchId // The touch device id
-    long fingerId
-    float x            // Normalized in the range 0...1
-    float y            // Normalized in the range 0...1
-    float dx           // Normalized in the range 0...1
-    float dy           // Normalized in the range 0...1
-    float pressure     // Normalized in the range 0...1
+struct: SDL_TouchFingerEvent
+  int type          int timestamp
+  long touchId // The touch device id
+  long fingerId
+  float x            // Normalized in the range 0...1
+  float y            // Normalized in the range 0...1
+  float dx           // Normalized in the range 0...1
+  float dy           // Normalized in the range 0...1
+  float pressure     // Normalized in the range 0...1
 ;struct
 
 // Multiple Finger Gesture Event (event.mgesture.*)
-struct: SDL_MultiGestureEvent extends SDL_CommonEvent
-    long touchId // The touch device index
-    float dTheta
-    float dDist
-    float x
-    float y
-    ushort numFingers
-    ushort padding
+struct: SDL_MultiGestureEvent
+  int type          int timestamp
+  long touchId // The touch device index
+  float dTheta
+  float dDist
+  float x
+  float y
+  ushort numFingers
+  ushort padding
 ;struct
 
 // Dollar Gesture Event (event.dgesture.*)
-struct: SDL_DollarGestureEvent extends SDL_CommonEvent
-    long touchId // The touch device id
-    long gestureId
-    uint numFingers
-    float error
-    float x            // Normalized center of gesture
-    float y            // Normalized center of gesture
+struct: SDL_DollarGestureEvent
+  int type          int timestamp
+  long touchId // The touch device id
+  long gestureId
+  uint numFingers
+  float error
+  float x            // Normalized center of gesture
+  float y            // Normalized center of gesture
 ;struct
 
 // An event used to request a file open by the system (event.drop.*)
-struct: SDL_DropEvent extends SDL_CommonEvent
-    ptrTo byte file         // The file name, which should be freed with SDL_free()
+struct: SDL_DropEvent
+  int type          int timestamp
+  ptrTo byte file         // The file name, which should be freed with SDL_free()
 ;struct
 
 
@@ -1411,18 +1430,43 @@ struct: SDL_DropEvent extends SDL_CommonEvent
 
 // A user-defined event type (event.user.*)
 
-struct: SDL_UserEvent extends SDL_CommonEvent
-    uint windowID    // The associated window if any
-    int code        // User defined event code
-    ptrTo byte data1        // User defined data pointer
-    ptrTo byte data2        // User defined data pointer
+struct: SDL_UserEvent
+  int type          int timestamp
+  uint windowID    // The associated window if any
+  int code        // User defined event code
+  ptrTo byte data1        // User defined data pointer
+  ptrTo byte data2        // User defined data pointer
 ;struct
 
 
 
 // General event structure
-struct: SDL_Event extends SDL_CommonEvent
-    ubyte padding[56]
+struct: SDL_Event
+  ubyte padding[56]
+  union SDL_CommonEvent common
+  union SDL_WindowEvent window
+  union SDL_KeyboardEvent key
+  union SDL_TextEditingEvent edit
+  union SDL_TextInputEvent text
+  union SDL_MouseMotionEvent motion
+  union SDL_MouseButtonEvent button
+  union SDL_MouseWheelEvent wheel
+  union SDL_JoyAxisEvent jaxiz
+  union SDL_JoyBallEvent jball
+  union SDL_JoyHatEvent jhat
+  union SDL_JoyButtonEvent jbutton
+  union SDL_JoyDeviceEvent jdevice
+  union SDL_ControllerAxisEvent caxis
+  union SDL_ControllerButtonEvent cbutton
+  union SDL_ControllerDeviceEvent cdevice
+  union SDL_UserEvent user
+  union SDL_TouchFingerEvent tfinger
+  union SDL_MultiGestureEvent mgesture
+  union SDL_DollarGestureEvent dgesture
+  union SDL_DropEvent drop
+ 
+  //    SDL_QuitEvent quit;             /**< Quit request event data */
+  //  SDL_SysWMEvent syswm;           /**< System dependent window event data */
 ;struct
 
 

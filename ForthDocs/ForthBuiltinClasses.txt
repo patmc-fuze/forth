@@ -1,45 +1,45 @@
 
 Forth Built-in Classes
 
-object
-class
-oIterable
-oIter
-oArray
-oArrayIter
-oList
-oListIter
-oMap
-oMapIter
-oString
-oPair
-oPairIter
-oTriple
-oTripleIter
-oByteArray
-oByteArrayIter
-oShortArray
-oShortArrayIter
-oIntArray
-oIntArrayIter
-oLongArray
-oLongArrayIter
-oThread
+Object
+Class
+OIterable
+OIter
+OArray
+OArrayIter
+OList
+OListIter
+OMap
+OMapIter
+OString
+OPair
+OPairIter
+OTriple
+OTripleIter
+OByteArray
+OByteArrayIter
+OShortArray
+OShortArrayIter
+OIntArray
+OIntArrayIter
+OLongArray
+OLongArrayIter
+OThread
 
 ===========================================================================
 Builtin Class TBDs:
 
-- deal with oArray.pop/oList.removeHead/oList.removeTail leaving dangling objects
-- make 'find' a standard oIterable method which returns an oIter positioned on the found object
-+ add oListIter.split
-+ add oListIter.swapNext, oListIter.swapPrev 
-- oIter.remove
-- add oString character iterator
+- deal with oArray.pop/OList.removeHead/OList.removeTail leaving dangling objects
+- make 'find' a standard OIterable method which returns an OIter positioned on the found object
++ add OListIter.split
++ add OListIter.swapNext, OListIter.swapPrev 
+- OIter.remove
+- add OString character iterator
 - add static strings
 - add int/float/double/long types
 - add string iterator
 ===========================================================================
-object
+Object
 	__new
 	delete
 	show
@@ -53,7 +53,7 @@ object
 	__refCount
 		member variable, int at offset 0
 ---------------------------------------------------------------------------
-class
+Class
 
 	delete
 	create
@@ -71,12 +71,12 @@ class
 	setNew
 		takes 'new' operator
 ---------------------------------------------------------------------------
-oIterable
+OIterable
 
 	headIter
 	tailIter
 ---------------------------------------------------------------------------
-oIter
+OIter
 
 	seekNext
 	seekPrev
@@ -92,7 +92,7 @@ oIter
 		returns 0 if iterator is at end of collection
 		returns ~0, current object otherwise
 ---------------------------------------------------------------------------
-oArray
+OArray
 
 	resize
 		takes new number of elements
@@ -124,7 +124,7 @@ oArray
 ---------------------------------------------------------------------------
 oArrayIter
 ---------------------------------------------------------------------------
-oList
+OList
 	head
 		returns head object
 	tail
@@ -151,39 +151,39 @@ oList
 	clone
 		returns cloned list object
 ---------------------------------------------------------------------------
-oListIter
+OListIter
 ---------------------------------------------------------------------------
-oMap
+OMap
 ---------------------------------------------------------------------------
-oMapIter
+OMapIter
 ---------------------------------------------------------------------------
-oString
+OString
 ---------------------------------------------------------------------------
-oPair
+OPair
 ---------------------------------------------------------------------------
-oPairIter
+OPairIter
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
-oTriple
+OTriple
 ---------------------------------------------------------------------------
-oTripleIter
+OTripleIter
 ---------------------------------------------------------------------------
-oByteArray
+OByteArray
 ---------------------------------------------------------------------------
-oByteArrayIter
+OByteArrayIter
 ---------------------------------------------------------------------------
-oShortArray
+OShortArray
 ---------------------------------------------------------------------------
-oShortArrayIter
+OShortArrayIter
 ---------------------------------------------------------------------------
-oIntArray
+OIntArray
 ---------------------------------------------------------------------------
-oIntArrayIter
+OIntArrayIter
 ---------------------------------------------------------------------------
-oLongArray
+OLongArray
 ---------------------------------------------------------------------------
-oLongArrayIter
+OLongArrayIter
 ---------------------------------------------------------------------------
-oThread
+OThread
 ---------------------------------------------------------------------------
 

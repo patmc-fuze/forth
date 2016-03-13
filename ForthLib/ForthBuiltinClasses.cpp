@@ -9330,83 +9330,83 @@ ForthTypesManager::GetTypeName( void )
 }
 
 void
-ForthTypesManager::AddBuiltinClasses( ForthEngine* pEngine )
+ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 {
-    ForthClassVocabulary* pObjectClass = pEngine->AddBuiltinClass( "object", NULL, objectMembers );
-    ForthClassVocabulary* pClassClass = pEngine->AddBuiltinClass( "class", pObjectClass, classMembers );
+	ForthClassVocabulary* pObjectClass = pEngine->AddBuiltinClass("Object", NULL, objectMembers);
+	ForthClassVocabulary* pClassClass = pEngine->AddBuiltinClass("Class", pObjectClass, classMembers);
 
-	ForthClassVocabulary* pOIterClass = pEngine->AddBuiltinClass( "oIter", pObjectClass, oIterMembers );
-	ForthClassVocabulary* pOIterableClass = pEngine->AddBuiltinClass( "oIterable", pObjectClass, oIterableMembers );
+	ForthClassVocabulary* pOIterClass = pEngine->AddBuiltinClass("OIter", pObjectClass, oIterMembers);
+	ForthClassVocabulary* pOIterableClass = pEngine->AddBuiltinClass("OIterable", pObjectClass, oIterableMembers);
 
-	gpArrayClassVocab = pEngine->AddBuiltinClass("oArray", pOIterableClass, oArrayMembers);
-    gpArrayIterClassVocab = pEngine->AddBuiltinClass( "oArrayIter", pOIterClass, oArrayIterMembers );
+	gpArrayClassVocab = pEngine->AddBuiltinClass("OArray", pOIterableClass, oArrayMembers);
+	gpArrayIterClassVocab = pEngine->AddBuiltinClass("OArrayIter", pOIterClass, oArrayIterMembers);
 
-    gpListClassVocab = pEngine->AddBuiltinClass( "oList", pOIterableClass, oListMembers );
-    gpListIterClassVocab = pEngine->AddBuiltinClass( "oListIter", pOIterClass, oListIterMembers );
+	gpListClassVocab = pEngine->AddBuiltinClass("OList", pOIterableClass, oListMembers);
+	gpListIterClassVocab = pEngine->AddBuiltinClass("OListIter", pOIterClass, oListIterMembers);
 
-	ForthClassVocabulary* pOMapClass = pEngine->AddBuiltinClass("oMap", pOIterableClass, oMapMembers);
-	gpMapIterClassVocab = pEngine->AddBuiltinClass("oMapIter", pOIterClass, oMapIterMembers);
+	ForthClassVocabulary* pOMapClass = pEngine->AddBuiltinClass("OMap", pOIterableClass, oMapMembers);
+	gpMapIterClassVocab = pEngine->AddBuiltinClass("OMapIter", pOIterClass, oMapIterMembers);
 
-	ForthClassVocabulary* pOIntMapClass = pEngine->AddBuiltinClass("oIntMap", pOIterableClass, oIntMapMembers);
-	gpIntMapIterClassVocab = pEngine->AddBuiltinClass("oIntMapIter", pOIterClass, oIntMapIterMembers);
+	ForthClassVocabulary* pOIntMapClass = pEngine->AddBuiltinClass("OIntMap", pOIterableClass, oIntMapMembers);
+	gpIntMapIterClassVocab = pEngine->AddBuiltinClass("OIntMapIter", pOIterClass, oIntMapIterMembers);
 
-	ForthClassVocabulary* pOFloatMapClass = pEngine->AddBuiltinClass("oFloatMap", pOIntMapClass, oFloatMapMembers);
-	gpFloatMapIterClassVocab = pEngine->AddBuiltinClass("oFloatMapIter", pOIterClass, oIntMapIterMembers);
+	ForthClassVocabulary* pOFloatMapClass = pEngine->AddBuiltinClass("OFloatMap", pOIntMapClass, oFloatMapMembers);
+	gpFloatMapIterClassVocab = pEngine->AddBuiltinClass("OFloatMapIter", pOIterClass, oIntMapIterMembers);
 
-	ForthClassVocabulary* pOLongMapClass = pEngine->AddBuiltinClass("oLongMap", pOIterableClass, oLongMapMembers);
-	gpLongMapIterClassVocab = pEngine->AddBuiltinClass("oLongMapIter", pOIterClass, oLongMapIterMembers);
+	ForthClassVocabulary* pOLongMapClass = pEngine->AddBuiltinClass("OLongMap", pOIterableClass, oLongMapMembers);
+	gpLongMapIterClassVocab = pEngine->AddBuiltinClass("OLongMapIter", pOIterClass, oLongMapIterMembers);
 
-	ForthClassVocabulary* pODoubleMapClass = pEngine->AddBuiltinClass("oDoubleMap", pOLongMapClass, oDoubleMapMembers);
-	gpDoubleMapIterClassVocab = pEngine->AddBuiltinClass("oDoubleMapIter", pOIterClass, oLongMapIterMembers);
+	ForthClassVocabulary* pODoubleMapClass = pEngine->AddBuiltinClass("ODoubleMap", pOLongMapClass, oDoubleMapMembers);
+	gpDoubleMapIterClassVocab = pEngine->AddBuiltinClass("ODoubleMapIter", pOIterClass, oLongMapIterMembers);
 
-	ForthClassVocabulary* pOStringMapClass = pEngine->AddBuiltinClass("oStringMap", pOIterableClass, oStringMapMembers);
-	gpStringMapIterClassVocab = pEngine->AddBuiltinClass("oStringMapIter", pOIterClass, oStringMapIterMembers);
+	ForthClassVocabulary* pOStringMapClass = pEngine->AddBuiltinClass("OStringMap", pOIterableClass, oStringMapMembers);
+	gpStringMapIterClassVocab = pEngine->AddBuiltinClass("OStringMapIter", pOIterClass, oStringMapIterMembers);
 
-	gpOStringClass = pEngine->AddBuiltinClass("oString", pObjectClass, oStringMembers);
+	gpOStringClass = pEngine->AddBuiltinClass("OString", pObjectClass, oStringMembers);
 
-    ForthClassVocabulary* pOPairClass = pEngine->AddBuiltinClass( "oPair", pOIterableClass, oPairMembers );
-    gpPairIterClassVocab = pEngine->AddBuiltinClass( "oPairIter", pOIterClass, oPairIterMembers );
+	ForthClassVocabulary* pOPairClass = pEngine->AddBuiltinClass("OPair", pOIterableClass, oPairMembers);
+	gpPairIterClassVocab = pEngine->AddBuiltinClass("OPairIter", pOIterClass, oPairIterMembers);
 
-	ForthClassVocabulary* pOTripleClass = pEngine->AddBuiltinClass( "oTriple", pOIterableClass, oTripleMembers );
-    gpTripleIterClassVocab = pEngine->AddBuiltinClass( "oTripleIter", pOIterClass, oTripleIterMembers );
+	ForthClassVocabulary* pOTripleClass = pEngine->AddBuiltinClass("OTriple", pOIterableClass, oTripleMembers);
+	gpTripleIterClassVocab = pEngine->AddBuiltinClass("OTripleIter", pOIterClass, oTripleIterMembers);
 
-    ForthClassVocabulary* pOByteArrayClass = pEngine->AddBuiltinClass( "oByteArray", pOIterableClass, oByteArrayMembers );
-    gpByteArraryIterClassVocab = pEngine->AddBuiltinClass( "oByteArrayIter", pOIterClass, oByteArrayIterMembers );
+	ForthClassVocabulary* pOByteArrayClass = pEngine->AddBuiltinClass("OByteArray", pOIterableClass, oByteArrayMembers);
+	gpByteArraryIterClassVocab = pEngine->AddBuiltinClass("OByteArrayIter", pOIterClass, oByteArrayIterMembers);
 
-    ForthClassVocabulary* pOShortArrayClass = pEngine->AddBuiltinClass( "oShortArray", pOIterableClass, oShortArrayMembers );
-    gpShortArraryIterClassVocab = pEngine->AddBuiltinClass( "oShortArrayIter", pOIterClass, oShortArrayIterMembers );
+	ForthClassVocabulary* pOShortArrayClass = pEngine->AddBuiltinClass("OShortArray", pOIterableClass, oShortArrayMembers);
+	gpShortArraryIterClassVocab = pEngine->AddBuiltinClass("OShortArrayIter", pOIterClass, oShortArrayIterMembers);
 
-    ForthClassVocabulary* pOIntArrayClass = pEngine->AddBuiltinClass( "oIntArray", pOIterableClass, oIntArrayMembers );
-    gpIntArraryIterClassVocab = pEngine->AddBuiltinClass( "oIntArrayIter", pOIterClass, oIntArrayIterMembers );
+	ForthClassVocabulary* pOIntArrayClass = pEngine->AddBuiltinClass("OIntArray", pOIterableClass, oIntArrayMembers);
+	gpIntArraryIterClassVocab = pEngine->AddBuiltinClass("OIntArrayIter", pOIterClass, oIntArrayIterMembers);
 
-	ForthClassVocabulary* pOFloatArrayClass = pEngine->AddBuiltinClass("oFloatArray", pOIntArrayClass, oFloatArrayMembers);
-	gpFloatArraryIterClassVocab = pEngine->AddBuiltinClass("oFloatArrayIter", pOIterClass, oIntArrayIterMembers);
+	ForthClassVocabulary* pOFloatArrayClass = pEngine->AddBuiltinClass("OFloatArray", pOIntArrayClass, oFloatArrayMembers);
+	gpFloatArraryIterClassVocab = pEngine->AddBuiltinClass("OFloatArrayIter", pOIterClass, oIntArrayIterMembers);
 
-	ForthClassVocabulary* pOLongArrayClass = pEngine->AddBuiltinClass("oLongArray", pOIterableClass, oLongArrayMembers);
-	gpLongArraryIterClassVocab = pEngine->AddBuiltinClass("oLongArrayIter", pOIterClass, oLongArrayIterMembers);
+	ForthClassVocabulary* pOLongArrayClass = pEngine->AddBuiltinClass("OLongArray", pOIterableClass, oLongArrayMembers);
+	gpLongArraryIterClassVocab = pEngine->AddBuiltinClass("OLongArrayIter", pOIterClass, oLongArrayIterMembers);
 
-	ForthClassVocabulary* pODoubleArrayClass = pEngine->AddBuiltinClass("oDoubleArray", pOLongArrayClass, oDoubleArrayMembers);
-	gpDoubleArrayIterClassVocab = pEngine->AddBuiltinClass("oDoubleArrayIter", pOIterClass, oLongArrayIterMembers);
+	ForthClassVocabulary* pODoubleArrayClass = pEngine->AddBuiltinClass("ODoubleArray", pOLongArrayClass, oDoubleArrayMembers);
+	gpDoubleArrayIterClassVocab = pEngine->AddBuiltinClass("ODoubleArrayIter", pOIterClass, oLongArrayIterMembers);
 
-	ForthClassVocabulary* pOIntClass = pEngine->AddBuiltinClass("oInt", pObjectClass, oIntMembers);
-    ForthClassVocabulary* pOLongClass = pEngine->AddBuiltinClass( "oLong", pObjectClass, oLongMembers );
-    ForthClassVocabulary* pOFloatClass = pEngine->AddBuiltinClass( "oFloat", pObjectClass, oFloatMembers );
-    ForthClassVocabulary* pODoubleClass = pEngine->AddBuiltinClass( "oDouble", pObjectClass, oDoubleMembers );
+	ForthClassVocabulary* pOIntClass = pEngine->AddBuiltinClass("OInt", pObjectClass, oIntMembers);
+	ForthClassVocabulary* pOLongClass = pEngine->AddBuiltinClass("OLong", pObjectClass, oLongMembers);
+	ForthClassVocabulary* pOFloatClass = pEngine->AddBuiltinClass("OFloat", pObjectClass, oFloatMembers);
+	ForthClassVocabulary* pODoubleClass = pEngine->AddBuiltinClass("ODouble", pObjectClass, oDoubleMembers);
 
-    ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass( "oThread", pObjectClass, oThreadMembers );
+	ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass("OThread", pObjectClass, oThreadMembers);
 
-    ForthClassVocabulary* pOInStreamClass = pEngine->AddBuiltinClass( "oInStream", pObjectClass, oInStreamMembers );
-    ForthClassVocabulary* pOFileInStreamClass = pEngine->AddBuiltinClass( "oFileInStream", pOInStreamClass, oFileInStreamMembers );
-    ForthClassVocabulary* pOConsoleInStreamClass = pEngine->AddBuiltinClass( "oConsoleInStream", pOFileInStreamClass, oConsoleInStreamMembers );
+	ForthClassVocabulary* pOInStreamClass = pEngine->AddBuiltinClass("OInStream", pObjectClass, oInStreamMembers);
+	ForthClassVocabulary* pOFileInStreamClass = pEngine->AddBuiltinClass("OFileInStream", pOInStreamClass, oFileInStreamMembers);
+	ForthClassVocabulary* pOConsoleInStreamClass = pEngine->AddBuiltinClass("OConsoleInStream", pOFileInStreamClass, oConsoleInStreamMembers);
 
-    ForthClassVocabulary* pOOutStreamClass = pEngine->AddBuiltinClass( "oOutStream", pObjectClass, oOutStreamMembers );
-    gpOFileOutStreamClass = pEngine->AddBuiltinClass( "oFileOutStream", pOOutStreamClass, oFileOutStreamMembers );
-    gpOStringOutStreamClass = pEngine->AddBuiltinClass( "oStringOutStream", pOOutStreamClass, oStringOutStreamMembers );
-    gpOConsoleOutStreamClass = pEngine->AddBuiltinClass( "oConsoleOutStream", gpOFileOutStreamClass, oConsoleOutStreamMembers );
-    gpOFunctionOutStreamClass = pEngine->AddBuiltinClass( "oFunctionOutStream", pOOutStreamClass, oFunctionOutStreamMembers );
+	ForthClassVocabulary* pOOutStreamClass = pEngine->AddBuiltinClass("OOutStream", pObjectClass, oOutStreamMembers);
+	gpOFileOutStreamClass = pEngine->AddBuiltinClass("OFileOutStream", pOOutStreamClass, oFileOutStreamMembers);
+	gpOStringOutStreamClass = pEngine->AddBuiltinClass("OStringOutStream", pOOutStreamClass, oStringOutStreamMembers);
+	gpOConsoleOutStreamClass = pEngine->AddBuiltinClass("OConsoleOutStream", gpOFileOutStreamClass, oConsoleOutStreamMembers);
+	gpOFunctionOutStreamClass = pEngine->AddBuiltinClass("OFunctionOutStream", pOOutStreamClass, oFunctionOutStreamMembers);
 
-	ForthClassVocabulary* pOVocabularyClass = pEngine->AddBuiltinClass("oVocabulary", pObjectClass, oVocabularyMembers);
-	
-    mpClassMethods = pClassClass->GetInterface( 0 )->GetMethods();
+	ForthClassVocabulary* pOVocabularyClass = pEngine->AddBuiltinClass("OVocabulary", pObjectClass, oVocabularyMembers);
+
+	mpClassMethods = pClassClass->GetInterface(0)->GetMethods();
 }
 
