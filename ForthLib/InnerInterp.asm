@@ -3556,6 +3556,134 @@ entry ffmodBop
 	
 ;========================================
 
+entry lplusBop
+	mov     ebx, [edx+4]
+	mov     eax, [edx]
+	add     edx, 8
+	add     ebx, [edx+4]
+	adc     eax, [edx]
+	mov     [edx+4], ebx
+	mov     [edx], eax
+	jmp     edi
+
+;========================================
+
+entry lminusBop
+	mov     ebx, [edx+12]
+	mov     eax, [edx+8]
+	sub     ebx, [edx+4]
+	sbb     eax, [edx]
+	add     edx, 8
+	mov     [edx+4], ebx
+	mov     [edx], eax
+	jmp     edi
+
+;========================================
+
+entry ltimesBop
+	; based on http://stackoverflow.com/questions/1131833/how-do-you-multiply-two-64-bit-numbers-in-x86-assembler
+	push	edi
+	push	esi
+	; edx always holds hi 32 bits of mul result
+	mov	ebx, edx	; so we will use ebx for the forth stack ptr
+	; TOS: bhi ebx   blo ebx+4   ahi ebx+8   alo ebx+12
+	xor	ecx, ecx	; ecx holds sign flag
+	mov	eax, [ebx]
+
+	or	eax, eax
+	jge	ltimes1
+	; b is negative
+	not	ecx
+	mov	esi, [ebx+4]
+	not	esi
+	not	eax
+	add	esi, 1
+	adc	eax, 0
+	mov	[ebx+4], esi
+	mov	[ebx], eax
+ltimes1:
+
+	mov	eax, [ebx+8]
+	mov	esi, [ebx+12]
+	or	eax, eax
+	jge	ltimes2
+	; a is negative
+	not	ecx
+	not	esi
+	not	eax
+	add	esi, 1
+	adc	eax, 0
+	mov	[ebx+12], esi
+	mov	[ebx+8], eax
+ltimes2:
+  
+	; alo(esi) * blo
+	mov	eax, [ebx+4]
+	mul	esi				; edx is hipart, eax is final lopart
+	mov	edi, edx		; edi is hipart accumulator
+  
+	mov	esi, [ebx+12]	; esi = alo
+	mov	[ebx+12], eax	; ebx+12 = final lopart
+
+	; alo * bhi
+	mov	eax, [ebx]		; eax = bhi
+	mul	esi
+	add	edi, eax
+  
+	; ahi * blo
+	mov	esi, [ebx+8]	; esi = ahi
+	mov	eax, [ebx+4]	; eax = blo
+	mul	esi
+	add	edi, eax		; edi = hiResult
+  
+	; invert result if needed
+	or	ecx, ecx
+	jge	ltimes3
+	mov	eax, [ebx+12]	; eax = loResult
+	not	eax
+	not	edi
+	add	eax, 1
+	adc	edi, 0
+	mov	[ebx+12], eax
+ltimes3:
+
+	mov	[ebx+8], edi
+
+	add	ebx, 8
+	mov	edx, ebx
+	pop	esi
+	pop	edi
+
+	jmp     edi
+
+;========================================
+
+entry umtimesBop
+	mov	eax, [edx]
+	mov	ebx, [edx+4]
+	push edx
+	mul	ebx		; result hiword in edx, loword in eax
+	mov	ebx, edx
+	pop	edx
+	mov	[edx+4], eax
+	mov	[edx], ebx
+	jmp	edi
+
+;========================================
+
+entry mtimesBop
+	mov	eax, [edx]
+	mov	ebx, [edx+4]
+	push edx
+	imul	ebx		; result hiword in edx, loword in eax
+	mov	ebx, edx
+	pop	edx
+	mov	[edx+4], eax
+	mov	[edx], ebx
+	jmp	edi
+
+;========================================
+
 entry i2fBop
 	fild	DWORD PTR [edx]
 	fstp	DWORD PTR [edx]

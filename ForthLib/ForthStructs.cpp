@@ -170,7 +170,7 @@ ForthTypesManager::DefineInitOpcode()
 		long structInitOp = *pEntry;
 		pVocab->SetInitOpcode(structInitOp);
 
-		for (int i = 0; i < mFieldInitInfos.size(); i++)
+		for (unsigned int i = 0; i < mFieldInitInfos.size(); i++)
 		{
 			const ForthFieldInitInfo& initInfo = mFieldInitInfos[i];
 			if (i != (mFieldInitInfos.size() - 1))
@@ -1937,7 +1937,6 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
 
     if ( pEngine->InStructDefinition() && !pEngine->IsCompiling() )
     {
-		ForthFieldInitInfo initInfo;
         pManager->GetNewestStruct()->AddField( pToken, typeCode, numElements );
         return;
     }

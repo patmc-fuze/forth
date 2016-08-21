@@ -5194,6 +5194,42 @@ FORTHOP( ffmodBop )
     FPUSH( fmodf( a, b ) );
 }
 
+FORTHOP( lplusBop )
+{
+	NEEDS(4);
+	stackInt64 a;
+	stackInt64 b;
+	stackInt64 result;
+	LPOP( b );
+	LPOP( a );
+	result.s64 = a.s64 + b.s64;
+	LPUSH( quotient );
+}
+
+FORTHOP( lminusBop )
+{
+	NEEDS(4);
+	stackInt64 a;
+	stackInt64 b;
+	stackInt64 result;
+	LPOP( b );
+	LPOP( a );
+	result.s64 = a.s64 - b.s64;
+	LPUSH( quotient );
+}
+
+FORTHOP( ltimesBop )
+{
+	NEEDS(4);
+	stackInt64 a;
+	stackInt64 b;
+	stackInt64 result;
+	LPOP( b );
+	LPOP( a );
+	result.s64 = a.s64 * b.s64;
+	LPUSH( quotient );
+}
+
 FORTHOP( i2fBop )
 {
     NEEDS(1);
@@ -7086,6 +7122,8 @@ OPREF( dexpBop );           OPREF( dlnBop );            OPREF( dlog10Bop );
 OPREF( dpowBop );           OPREF( dsqrtBop );          OPREF( dceilBop );
 OPREF( dfloorBop );         OPREF( dabsBop );           OPREF( dldexpBop );
 OPREF( dfrexpBop );         OPREF( dmodfBop );          OPREF( dfmodBop );
+OPREF( lplusBop );          OPREF( lminusBop );         OPREF( ltimesBop );
+OPREF( mtimesBop );         OPREF( umtimesBop);
 OPREF( i2fBop );            OPREF( i2dBop );            OPREF( f2iBop );
 OPREF( f2dBop );            OPREF( d2iBop );            OPREF( d2fBop );
 OPREF( orBop );             OPREF( andBop );            OPREF( xorBop );
@@ -7546,6 +7584,12 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    flenBop,                 "flen" ),
     NATIVE_DEF(    fgetsBop,                "fgets" ),
     NATIVE_DEF(    fputsBop,                "fputs" ),
+
+    NATIVE_DEF(    lplusBop,                "l+" ),
+    NATIVE_DEF(    lminusBop,               "l-" ),
+    NATIVE_DEF(    ltimesBop,               "l*" ),
+    NATIVE_DEF(    mtimesBop,               "m*" ),
+    NATIVE_DEF(    umtimesBop,              "um*" ),
 
     // everything below this line does not have an assembler version
 
