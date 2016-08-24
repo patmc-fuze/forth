@@ -162,6 +162,35 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 22 2016
+
+I decided to go back to getting the no-asm-inner-interpreter build working first
+on rpi3.  My first step was to test it on x86, and forthtest.txt worked, but
+ansitest.txt failed.
+-> the c++ version of 'sp' was wrong for the fetch case - it first made room
+   on the stack, which decremented sp, then stored sp in the top element of
+   the stack.  This meant that on an empty stack doing "sp s0 -" would not
+   return 0, so the test code failed.
+
+I am still having the build problem where changing the custom build rule for InnerInterp.asm
+to not define ASM_INNER_INTERP doesn't work - I finally tracked it down to the
+fact that when I change that in the Debug configuration, the change actually
+shows up in the Debug Midi configuration.  I have no idea why this happens or
+how to fix it.  For now I just have to change the ForthLib defines to handle C++
+and edit InnerInterp.asm and change the ifdef symbol to something other than ASM_INNER_INTERP.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 21 2016
+
+I got my Raspberry Pi 3 working as a git client and updated the Makefile.
+I got it compiling, it needs some work in the inner interpreter assembler code.
+- I think datan2Bop was broken, it was only taking one argument
+- a few ops are undefined, look for a TODO near the end of the file
+- I haven't looked at the changes to the optypes table - there are definitely some changes there
+- I haven't checked for other core changes
+  ? were there output system changes that affected assembly code
+- forth crashes on startup
+- I think ->o may be defined to be the wrong opcode (->, should be ->+) in the windows version
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 February 21 2016
 
 I changed the builtin classes to have the first character capitalized, so class

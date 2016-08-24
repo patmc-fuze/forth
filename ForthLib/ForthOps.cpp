@@ -4791,16 +4791,27 @@ FORTHOP( divmodBop )
     SPUSH( v.quot );
 }
 
-#if 0
 FORTHOP( mtimesBop )
 {
     NEEDS(2);
     long b = SPOP;
     long a = SPOP;
-    long long prod = ((long long) a) * b;
-    LPUSH( prod );
+    stackInt64 result;
+    result.s64 = ((long long) a) * b;
+    LPUSH( result );
 }
 
+FORTHOP( umtimesBop )
+{
+    NEEDS(2);
+    ulong b = (ulong)(SPOP);
+    ulong a = (ulong)(SPOP);
+    stackInt64 result;
+    result.u64 = ((unsigned long long) a) * b;
+    LPUSH( result );
+}
+
+#if 0
 FORTHOP( ummodBop )
 {
     NEEDS(2);
@@ -5203,7 +5214,7 @@ FORTHOP( lplusBop )
 	LPOP( b );
 	LPOP( a );
 	result.s64 = a.s64 + b.s64;
-	LPUSH( quotient );
+	LPUSH( result );
 }
 
 FORTHOP( lminusBop )
@@ -5215,7 +5226,7 @@ FORTHOP( lminusBop )
 	LPOP( b );
 	LPOP( a );
 	result.s64 = a.s64 - b.s64;
-	LPUSH( quotient );
+    LPUSH(result);
 }
 
 FORTHOP( ltimesBop )
@@ -5227,7 +5238,7 @@ FORTHOP( ltimesBop )
 	LPOP( b );
 	LPOP( a );
 	result.s64 = a.s64 * b.s64;
-	LPUSH( quotient );
+	LPUSH( result );
 }
 
 FORTHOP( i2fBop )
@@ -6130,7 +6141,12 @@ FORTHOP(rollBop)
 
 FORTHOP(spBop)
 {
-	intVarAction( pCore, (int *)&(pCore->SP) );
+    ulong varOp = GET_VAR_OPERATION;
+    intVarAction(pCore, (int *)&(pCore->SP));
+    if ((varOp == kVarDefaultOp) || (varOp == kVarFetch))
+    {
+        *(pCore->SP) += sizeof(long);
+    }
 }
 
 FORTHOP(s0Bop)

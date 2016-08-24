@@ -194,7 +194,8 @@ nativeActionExit:
 	mov	[ebp].FCore.SPtr, edx
 	ret
 	
-	
+; for some reason, this is always true, you need to change the name,
+; changing the build rule to not define it isn't enough	
 ifdef	ASM_INNER_INTERPRETER
 ;-----------------------------------------------
 ;
