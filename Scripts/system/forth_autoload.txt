@@ -81,7 +81,7 @@ enum: eFeatures
 255 string _TempStringB
 
 : immediate
-  new oVocabulary -> oVocabulary vocab
+  new OVocabulary -> OVocabulary vocab
   vocab.open(ref definitions)
   vocab.seekNewestEntry
   vocab.getValueLength + >r // top of rstack points to length byte of counted string
@@ -95,7 +95,7 @@ enum: eFeatures
 : $alias
   -> int oldSymbol
   -> int newSymbol
-  new oVocabulary -> oVocabulary vocab
+  new OVocabulary -> OVocabulary vocab
   vocab.open(ref definitions)
   vocab.findEntryByName(oldSymbol) -> int oldEntry
   if(oldEntry)
@@ -739,7 +739,7 @@ precedence assert[
   if( 2dup l0= )
     "NULLObj" %s 2drop
   else
-    <object>.show
+    <Object>.show
   endif
 ;
 addHelp oshow   OBJECT oshow ...    like OBJECT.show, but doesn't crash if OBJECT is NULL
