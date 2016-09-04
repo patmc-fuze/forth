@@ -30,6 +30,7 @@ extern "C" {
 	extern void illegalMethodOp( ForthCoreState *pCore );
 };
 
+#ifdef _WINDOWS
 float __cdecl cdecl_boohoo(int aa, int bb, int cc)
 {
 	return (float)((aa + bb) * cc);
@@ -44,6 +45,7 @@ float boohoo(int aa, int bb, int cc)
 {
 	return (float)((aa + bb) * cc);
 }
+#endif
 
 void* ForthAllocateBlock(size_t numBytes)
 {

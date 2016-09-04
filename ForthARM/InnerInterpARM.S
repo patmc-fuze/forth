@@ -162,11 +162,11 @@ filePutString	=		48
 	.global fplusBop, fminusBop, ftimesBop, fdivideBop,	dplusBop, dminusBop, dtimesBop, ddivideBop
 	.global orBop, andBop, xorBop, invertBop, lshiftBop, rshiftBop, notBop, trueBop, falseBop, nullBop, dnullBop
 	.global equalsBop, notEqualsBop, greaterThanBop, greaterEqualsBop, lessThanBop, lessEqualsBop
-	.global equalsZeroBop, notEqualsZeroBop, greaterThanZeroBop, greaterEqualsZeroBop, lessThanZeroBop, lessEqualsZeroBop
-	.global rpushBop, rpopBop, rdropBop, rpBop, rzeroBop, dupBop, checkDupBop, swapBop, overBop
-	.global rotBop, tuckBop, pickBop, spBop, szeroBop, fpBop, ddupBop, dswapBop, ddropBop, doverBop, drotBop,
+	.global equals0Bop, notEquals0Bop, greaterThan0Bop, greaterEquals0Bop, lessThan0Bop, lessEquals0Bop
+	.global rpushBop, rpopBop, rdropBop, rpBop, r0Bop, dupBop, checkDupBop, swapBop, overBop
+	.global rotBop, tuckBop, pickBop, spBop, s0Bop, fpBop, ddupBop, dswapBop, ddropBop, doverBop, drotBop,
 	.global storeBop, cstoreBop, cfetchBop, scfetchBop, c2iBop, wstoreBop, wfetchBop, swfetchBop, w2iBop, dstoreBop
-	.global	memcpyBop, memsetBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop
+	.global	moveBop, fillBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop
 	.global	strchrBop, strrchrBop, strcmpBop, stricmpBop, strstrBop, strtokBop, initStringBop
 	.global doUByteBop, doUByteArrayBop, doUShortBop, doUShortArrayBop
 	.global dsinBop, dasinBop, dcosBop, dacosBop, dtanBop, datanBop, datan2Bop, dexpBop, dlnBop, dlog10Bop, dpowBop
@@ -174,9 +174,9 @@ filePutString	=		48
 	.global ipBop, startTupleBop, endTupleBop, rpeekBop, minBop, maxBop, storeNextBop, fetchNextBop, cstoreNextBop, cfetchNextBop
 	.global wstoreNextBop, wfetchNextBop, dstoreNextBop, dfetchNextBop
 	.global fEqualsBop, fNotEqualsBop, fGreaterThanBop, fGreaterEqualsBop, fLessThanBop, fLessEqualsBop
-	.global fEqualsZeroBop, fNotEqualsZeroBop, fGreaterThanZeroBop, fGreaterEqualsZeroBop, fLessThanZeroBop, fLessEqualsZeroBop
+	.global fEquals0Bop, fNotEquals0Bop, fGreaterThan0Bop, fGreaterEquals0Bop, fLessThan0Bop, fLessEquals0Bop
 	.global dEqualsBop, dNotEqualsBop, dGreaterThanBop, dGreaterEqualsBop, dLessThanBop, dLessEqualsBop
-	.global dEqualsZeroBop, dNotEqualsZeroBop, dGreaterThanZeroBop, dGreaterEqualsZeroBop, dLessThanZeroBop, dLessEqualsZeroBop
+	.global dEquals0Bop, dNotEquals0Bop, dGreaterThan0Bop, dGreaterEquals0Bop, dLessThan0Bop, dLessEquals0Bop
 	.global byteVarActionBop, ubyteVarActionBop, shortVarActionBop, ushortVarActionBop, intVarActionBop, floatVarActionBop
 	.global fopenBop, fcloseBop, fseekBop, freadBop, fwriteBop, fgetcBop, fputcBop, feofBop, fexistsBop, ftellBop, flenBop, fgetsBop, fputsBop
 	.global withinBop, fMinBop, fMaxBop, fWithinBop, dMinBop, dMaxBop, dWithinBop, unsignedGreaterThanBop, unsignedLessThanBop
@@ -184,6 +184,11 @@ filePutString	=		48
 	@ these are just dummies:
 	.global doLongBop, doDoubleBop, doStringBop, doOpBop, doObjectBop, doLongArrayBop, doDoubleArrayBop, doObjectArrayBop, doStringArrayBop, doOpArrayBop
 	.global longVarActionBop, doubleVarActionBop, stringVarActionBop, opVarActionBop, objectVarActionBop
+	.global fsinBop, fasinBop, fcosBop, facosBop, ftanBop, fatanBop, fatan2Bop, fexpBop, flnBop, flog10Bop
+	.global fpowBop, fsqrtBop, fceilBop, ffloorBop, fabsBop
+	.global fcmpBop, dcmpBop, fldexpBop, ffrexpBop, fmodfBop, ffmodBop
+	.global icmpBop, uicmpBop, arshiftBop, oclearBop, lplusBop, lminusBop, ltimesBop, mtimesBop, umtimesBop
+
 	.global fprintfSub, fscanfSub, sprintfSub, sscanfSub
 	.global InterpretOneOpFast
 	
@@ -2673,6 +2678,181 @@ ddivideBop:
 	
 @#############################################@
 @                                             @
+@       single precision fp functions         @
+@                                             @
+@#############################################@
+
+fsinBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	bl	sinf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+fasinBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	bl	asinf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+fcosBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	bl	cosf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+facosBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	bl	acosf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+ftanBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	bl	tanf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+fatanBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	bl	atanf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+fatan2Bop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	add		rsp, #4
+	flds	s1, [rsp]
+	bl	atan2f
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+fexpBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	bl	expf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+flnBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	bl	logf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+flog10Bop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	bl	log10f
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+fpowBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	add		rsp, #4
+	flds	s1, [rsp]
+	bl	powf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+fsqrtBop:
+	push	{rcore, lr}
+	flds	s7, [rsp]
+	fsqrts	s7, s7
+	fcmps	s7, s7
+	fmstat
+	beq	.fsqrt1
+	bl	sqrtf
+	fcpys	s7, s0
+.fsqrt1:
+	fsts	s7, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+fceilBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	bl	ceilf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+ffloorBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	bl	floorf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+fabsBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	fabss	s0, s0
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+fldexpBop:
+	push	{rcore, lr}
+	ldmia	rsp!, {r0}
+	flds	s0, [rsp]
+	bl	ldexpf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+ffrexpBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	sub	rsp, #4
+	mov	r0, rsp
+	bl	frexpf
+	fsts	s0, [rsp, #4]
+	pop	{rcore, lr}
+	bx	lr
+	
+fmodfBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	sub	rsp, #8
+	mov	r0, rsp
+	bl	modff
+	fsts	s0, [rsp, #4]
+	pop	{rcore, lr}
+	bx	lr
+	
+ffmodBop:
+	push	{rcore, lr}
+	flds	s0, [rsp]
+	add		rsp, #4
+	flds	s1, [rsp]
+	bl	fmodf
+	fsts	s0, [rsp]
+	pop	{rcore, lr}
+	bx	lr
+
+@#############################################@
+@                                             @
 @       double precision fp functions         @
 @                                             @
 @#############################################@
@@ -2728,6 +2908,8 @@ datanBop:
 datan2Bop:
 	push	{rcore, lr}
 	fldd	d0, [rsp]
+	add		rsp, #8
+	fldd	d1, [rsp]
 	bl	atan2
 	fstd	d0, [rsp]
 	pop	{rcore, lr}
@@ -3080,7 +3262,7 @@ lessEqualsBop:
 
 @@@@@@@@@@@@@@@@@  0=  @@@@@@@@@@@@@@@@@
 
-equalsZeroBop:
+equals0Bop:
 	ldmia	rsp!, {r0}
 	eor	r2, r2
 	cmp	r2, r0
@@ -3090,7 +3272,7 @@ equalsZeroBop:
 
 @@@@@@@@@@@@@@@@@  0<>  @@@@@@@@@@@@@@@@@
 
-notEqualsZeroBop:
+notEquals0Bop:
 	ldmia	rsp!, {r0}
 	eor	r2, r2
 	cmp	r2, r0
@@ -3100,7 +3282,7 @@ notEqualsZeroBop:
 
 @@@@@@@@@@@@@@@@@  0>  @@@@@@@@@@@@@@@@@
 
-greaterThanZeroBop:
+greaterThan0Bop:
 	ldmia	rsp!, {r0}
 	eor	r2, r2
 	cmp	r0, r2
@@ -3110,7 +3292,7 @@ greaterThanZeroBop:
 
 @@@@@@@@@@@@@@@@@  0>=  @@@@@@@@@@@@@@@@@
 
-greaterEqualsZeroBop:
+greaterEquals0Bop:
 	ldmia	rsp!, {r0}
 	eor	r2, r2
 	cmp	r0, r2
@@ -3120,7 +3302,7 @@ greaterEqualsZeroBop:
 
 @@@@@@@@@@@@@@@@@  0<  @@@@@@@@@@@@@@@@@
 
-lessThanZeroBop:
+lessThan0Bop:
 	ldmia	rsp!, {r0}
 	eor	r2, r2
 	cmp	r0, r2
@@ -3130,7 +3312,7 @@ lessThanZeroBop:
 
 @@@@@@@@@@@@@@@@@  0<=  @@@@@@@@@@@@@@@@@
 
-lessEqualsZeroBop:
+lessEquals0Bop:
 	ldmia	rsp!, {r0}
 	eor	r2, r2
 	cmp	r0, r2
@@ -3139,6 +3321,28 @@ lessEqualsZeroBop:
 	bx	lr
 
 	
+@@@@@@@@@@@@@@@@@  icmp  @@@@@@@@@@@@@@@@@
+	
+icmpBop:
+	ldmia	rsp!, {r0, r1}
+	eor	r2, r2
+	cmp	r1, r0
+	sublt	r2, #1
+	addgt	r2, #1
+	stmdb	rsp!, {r2}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  uicmp  @@@@@@@@@@@@@@@@@
+	
+uicmpBop:
+	ldmia	rsp!, {r0, r1}
+	eor	r2, r2
+	cmp	r1, r0
+	subhi	r2, #1
+	addcc	r2, #1
+	stmdb	rsp!, {r2}
+	bx	lr
+
 @#############################################@
 @                                             @
 @     single precision fp comparisons         @
@@ -3225,7 +3429,7 @@ fLessEqualsBop:
 
 @@@@@@@@@@@@@@@@@  f0=  @@@@@@@@@@@@@@@@@
 
-fEqualsZeroBop:
+fEquals0Bop:
 	eor	r2, r2
 	flds	s15, [rsp]
 	fcmpzs	s15
@@ -3236,7 +3440,7 @@ fEqualsZeroBop:
 
 @@@@@@@@@@@@@@@@@  f0<>  @@@@@@@@@@@@@@@@@
 
-fNotEqualsZeroBop:
+fNotEquals0Bop:
 	eor	r2, r2
 	flds	s15, [rsp]
 	fcmpzs	s15
@@ -3247,7 +3451,7 @@ fNotEqualsZeroBop:
 
 @@@@@@@@@@@@@@@@@  f0>  @@@@@@@@@@@@@@@@@
 
-fGreaterThanZeroBop:
+fGreaterThan0Bop:
 	eor	r2, r2
 	flds	s15, [rsp]
 	fcmpzs	s15
@@ -3258,7 +3462,7 @@ fGreaterThanZeroBop:
 
 @@@@@@@@@@@@@@@@@  f0>=  @@@@@@@@@@@@@@@@@
 
-fGreaterEqualsZeroBop:
+fGreaterEquals0Bop:
 	eor	r2, r2
 	flds	s15, [rsp]
 	fcmpzs	s15
@@ -3269,7 +3473,7 @@ fGreaterEqualsZeroBop:
 
 @@@@@@@@@@@@@@@@@  f0<  @@@@@@@@@@@@@@@@@
 
-fLessThanZeroBop:
+fLessThan0Bop:
 	eor	r2, r2
 	flds	s15, [rsp]
 	fcmpzs	s15
@@ -3280,7 +3484,7 @@ fLessThanZeroBop:
 
 @@@@@@@@@@@@@@@@@  f0<=  @@@@@@@@@@@@@@@@@
 
-fLessEqualsZeroBop:
+fLessEquals0Bop:
 	eor	r2, r2
 	flds	s15, [rsp]
 	fcmpzs	s15
@@ -3333,6 +3537,20 @@ fWithinBop:
 	sublt	r3, #1
 .fwithin1:
 	str	r3, [rsp]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  fcmp  @@@@@@@@@@@@@@@@@
+	
+fcmpBop:
+	eor	r2, r2
+	flds	s14, [rsp]
+	add	rsp, #4
+	flds	s15, [rsp]
+	fcmps	s15, s14
+	fmstat
+	subgt	r2, #1
+	addlt	r2, #1
+	str	r2, [rsp]
 	bx	lr
 
 @#############################################@
@@ -3421,7 +3639,7 @@ dLessEqualsBop:
 
 @@@@@@@@@@@@@@@@@  d0=  @@@@@@@@@@@@@@@@@
 
-dEqualsZeroBop:
+dEquals0Bop:
 	eor	r2, r2
 	fldd	d7, [rsp]
 	add	rsp, #4
@@ -3433,7 +3651,7 @@ dEqualsZeroBop:
 
 @@@@@@@@@@@@@@@@@  d0<>  @@@@@@@@@@@@@@@@@
 
-dNotEqualsZeroBop:
+dNotEquals0Bop:
 	eor	r2, r2
 	fldd	d7, [rsp]
 	add	rsp, #4
@@ -3445,7 +3663,7 @@ dNotEqualsZeroBop:
 
 @@@@@@@@@@@@@@@@@  d0>  @@@@@@@@@@@@@@@@@
 
-dGreaterThanZeroBop:
+dGreaterThan0Bop:
 	eor	r2, r2
 	fldd	d7, [rsp]
 	add	rsp, #4
@@ -3457,7 +3675,7 @@ dGreaterThanZeroBop:
 
 @@@@@@@@@@@@@@@@@  d0>=  @@@@@@@@@@@@@@@@@
 
-dGreaterEqualsZeroBop:
+dGreaterEquals0Bop:
 	eor	r2, r2
 	fldd	d7, [rsp]
 	add	rsp, #4
@@ -3469,7 +3687,7 @@ dGreaterEqualsZeroBop:
 
 @@@@@@@@@@@@@@@@@  d0<  @@@@@@@@@@@@@@@@@
 
-dLessThanZeroBop:
+dLessThan0Bop:
 	eor	r2, r2
 	fldd	d7, [rsp]
 	add	rsp, #4
@@ -3481,7 +3699,7 @@ dLessThanZeroBop:
 
 @@@@@@@@@@@@@@@@@  d0<=  @@@@@@@@@@@@@@@@@
 
-dLessEqualsZeroBop:
+dLessEquals0Bop:
 	eor	r2, r2
 	fldd	d7, [rsp]
 	add	rsp, #4
@@ -3542,6 +3760,21 @@ dWithinBop:
 	str	r3, [rsp]
 	bx	lr
 
+@@@@@@@@@@@@@@@@@  dcmp  @@@@@@@@@@@@@@@@@
+	
+dcmpBop:
+	eor	r2, r2
+	fldd	d6, [rsp]
+	add	rsp, #8
+	fldd	d7, [rsp]
+	add rsp, #4
+	fcmpd	d7, d6
+	fmstat
+	subgt	r2, #1
+	addlt	r2, #1
+	str	r2, [rsp]
+	bx	lr
+
 @#############################################@
 @                                             @
 @            stack manipulation               @
@@ -3577,7 +3810,7 @@ rpBop:
 	
 @@@@@@@@@@@@@@@@@  r0  @@@@@@@@@@@@@@@@@
 
-rzeroBop:
+r0Bop:
 	ldr	r0, [rcore, #rp0]
 	stmdb	rsp!, {r0}
 	bx	lr
@@ -3655,7 +3888,7 @@ spBop:
 	
 @@@@@@@@@@@@@@@@@  s0  @@@@@@@@@@@@@@@@@
 
-szeroBop:
+s0Bop:
 	ldr	r0, [rcore, #sp0]
 	stmdb	rsp!, {r0}
 	bx	lr
@@ -3910,21 +4143,23 @@ dfetchNextBop:
 	stmdb	rsp!, {r0, r1}
 	bx	lr
 	
-@@@@@@@@@@@@@@@@@  memcpy  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  move  @@@@@@@@@@@@@@@@@
 
-memcpyBop:
-	@	TOS is #bytes, TOS-1 is src, TOS-2 is dst
+moveBop:
+	@	TOS is #bytes, TOS-1 is dst, TOS-2 is src
 	push	{rcore, lr}
-	ldmia	rsp!, {r0, r1, r3}		@ r0 = #bytes, r1 = src r3 = dst
+	ldmia	rsp!, {r0, r1, r3}		@ r0 = #bytes, r1 = dst r3 = src
+	@ memcpy takes r0 = dst, r1 = src, r2 = #bytes
 	mov	r2, r0
-	mov	r0, r3
+	mov	r0, r1
+	mov	r1, r3
 	bl	memcpy
 	pop	{rcore, lr}
 	bx	lr
 	
-@@@@@@@@@@@@@@@@@  memset  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  fill  @@@@@@@@@@@@@@@@@
 
-memsetBop:
+fillBop:
 	@	TOS is #bytes, TOS-1 is fillValue, TOS-2 is dst
 	push	{rcore, lr}
 	ldmia	rsp!, {r0, r1, r3}		@ r0 = #bytes, r1 = fillValue r3 = dst
@@ -4767,7 +5002,16 @@ methodWithTOSType:
 	ldr	r0, [r2, r1, lsl #2]
 	b	interpLoopExecuteEntry
 	
-	
+@ TODO: fill in these ops
+arshiftBop:
+oclearBop:
+lplusBop:
+lminusBop:
+ltimesBop:
+mtimesBop:
+umtimesBop:
+	b	badOpcode
+
 @-----------------------------------------------
 @
 @ InitAsmTables - initializes FCore.numAsmBuiltinOps

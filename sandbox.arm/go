@@ -1,0 +1,7 @@
+cd ../ForthLib/
+make -f Makefile.arm libforth.a
+cd ../ForthARM/
+make -f Makefile forth
+cd ../sandbox.arm
+../ForthARM/forth
+
