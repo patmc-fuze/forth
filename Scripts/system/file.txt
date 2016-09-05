@@ -95,6 +95,30 @@ class: File extends Object
     endif
   ;method
 
+  method: openRead
+    "r" open
+  ;method
+  
+  method: openWrite
+    "w" open
+  ;method
+  
+  method: openAppend
+    "a" open
+  ;method
+  
+  method: openReadBinary
+    "rb" open
+  ;method
+  
+  method: openWriteBinary
+    "wb" open
+  ;method
+  
+  method: openAppendBinary
+    "ab" open
+  ;method
+  
   // ... BYTE_VALUE
   method: getByte
     if( fp )

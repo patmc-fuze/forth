@@ -2,46 +2,46 @@ autoforget builtinClassTest
 
 : builtinClassTest ;
 
-// object: delete show getClass compare(OBJ) keep release refCount
-// class: delete create getParent getName getVocabulary getInterface("INTERFACE_NAME") setNew(OP)
+// Object: delete show getClass compare(OBJ) keep release refCount
+// Class: delete create getParent getName getVocabulary getInterface("INTERFACE_NAME") setNew(OP)
 
-// oIterable: headIter tailIter find clone count clear
-// oIter: seekNext seekPrev seekHead seekTail next prev current remove unref findNext(OBJ) clone
+// OIterable: headIter tailIter find clone count clear
+// OIter: seekNext seekPrev seekHead seekTail next prev current remove unref findNext(OBJ) clone
 
-// oArray: resize(N) ref(N) unref(N) get(N) set(OBJ N) findIndex(OBJ) push(OBJ) popUnref load(N_OBJECTS N)
-// oArrayIter:
-// oList: head tail addHead(OBJ) addTail(OBJ) removeHead removeTail unrefHead unrefTail load(N_OBJECTS N)
-// oListIter: swapNext swapPrev split
-// oIntMap: get(KEY) set(OBJ KEY) findKey(OBJ) remove(KEY)
-// oIntMapIter: nextPair prevPair
+// OArray: resize(N) ref(N) unref(N) get(N) set(OBJ N) findIndex(OBJ) push(OBJ) popUnref load(N_OBJECTS N)
+// OArrayIter:
+// OList: head tail addHead(OBJ) addTail(OBJ) removeHead removeTail unrefHead unrefTail load(N_OBJECTS N)
+// OListIter: swapNext swapPrev split
+// OIntMap: get(KEY) set(OBJ KEY) findKey(OBJ) remove(KEY)
+// OIntMapIter: nextPair prevPair
 
-// oString: size length get set(STR) append(STR) resize(N) startsWith(STR) endsWith(STR) contains(STR) clear hash appendChar(CHAR)
+// OString: size length get set(STR) append(STR) resize(N) startsWith(STR) endsWith(STR) contains(STR) clear hash appendChar(CHAR)
 
-// oPair: setA(OBJ) getA setB(OBJ) getB   (no find, clone, count, clear)
-// oPairIter: (no remove, findNext, clone)
-// oTriple: setA(OBJ) getA setB(OBJ) getB setC(OBJ) getC   (no find, clone, count, clear)
-// oTripleIter: (no remove, findNext, clone)
+// OPair: setA(OBJ) getA setB(OBJ) getB   (no find, clone, count, clear)
+// OPairIter: (no remove, findNext, clone)
+// OTriple: setA(OBJ) getA setB(OBJ) getB setC(OBJ) getC   (no find, clone, count, clear)
+// OTripleIter: (no remove, findNext, clone)
 
-// oByteArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
-// oByteArrayIter: 
-// oShortArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
-// oShortArrayIter: 
-// oIntArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
-// oIntArrayIter: 
-// oLongArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
-// oLongArrayIter: 
+// OByteArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
+// OByteArrayIter: 
+// OShortArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
+// OShortArrayIter: 
+// OIntArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
+// OIntArrayIter: 
+// OLongArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
+// OLongArrayIter: 
 
 // oInt: get set(N) show compare(N)
-// oLong: get set(N) show compare(N)
-// oFloat: get set(N) show compare(N)
-// oDouble: get set(N) show compare(N)
+// OLong: get set(N) show compare(N)
+// OFloat: get set(N) show compare(N)
+// ODouble: get set(N) show compare(N)
 
-// oThread: init(PSTACK_SIZE RSTACK_SIZE OP) start push(N) pop rpush(N) rpop getState step reset
+// OThread: init(PSTACK_SIZE RSTACK_SIZE OP) start push(N) pop rpush(N) rpop getState step reset
 
 
 int nextObjId
 
-class: tobj    extends object
+class: tobj    extends Object
   int objId
 
   method: setObjId
@@ -73,51 +73,51 @@ new tobj -> tobj valC
 new tobj -> tobj valD
 new tobj -> tobj valE
 
-// oArray:   clear   resize(N)   count   get(I)   set(O I)   findIndex(O)   push(O)   pop   headIter   tailIter   clone
-// oList:   head   tail   addHead(O)   addTail(O)   removeHead   removeTail   headIter   tailIter   count   find(O)   clone
-// oIntMap:   clear   count   get(KEY)   set(O KEY)   findIndex(O)   remove(KEY)   headIter   tailIter   
+// OArray:   clear   resize(N)   count   get(I)   set(O I)   findIndex(O)   push(O)   pop   headIter   tailIter   clone
+// OList:   head   tail   addHead(O)   addTail(O)   removeHead   removeTail   headIter   tailIter   count   find(O)   clone
+// OIntMap:   clear   count   get(KEY)   set(O KEY)   findIndex(O)   remove(KEY)   headIter   tailIter   
 
 //"(vb=" %s tb <tobj>.refCount %d " before adding to map)" %s
-new oIntMap -> oIntMap imapA
+new OIntMap -> OIntMap imapA
 imapA.set( valA 'a' )  imapA.set( valB 'b' )  imapA.set( valC 'c' )  imapA.set( valD 'd' )  imapA.set( valE 'e' )
 %nl imapA.show %nl
 
-new oLongMap -> oLongMap lmapA
+new OLongMap -> OLongMap lmapA
 lmapA.set( valA 1l )  lmapA.set( valB '22l )  lmapA.set( valC 1000000000l )  lmapA.set( valD -15l )  lmapA.set( valE 66l )
 %nl lmapA.show %nl
 
-new oFloatMap -> oFloatMap fmapA
+new OFloatMap -> OFloatMap fmapA
 fmapA.set( valA 1.7 )  fmapA.set( valB 2.3 )  fmapA.set( valC 33.0 )  fmapA.set( valD 1.234 )  fmapA.set( valE 5.789 )
 %nl fmapA.show %nl
 
-new oDoubleMap -> oDoubleMap dmapA
+new ODoubleMap -> ODoubleMap dmapA
 dmapA.set( valA 1.7d )  dmapA.set( valB 2.3d )  dmapA.set( valC 33.0d )  dmapA.set( valD 1.234d )  dmapA.set( valE 5.789d )
 %nl dmapA.show %nl
 
-new oStringMap -> oStringMap smapA
+new OStringMap -> OStringMap smapA
 smapA.set( valA "aa" )  smapA.set( valB "bb" )  smapA.set( valC "cc" )  smapA.set( valD "dd" )  smapA.set( valE "ee" )
 smapA.get("aa").show smapA.get("bb").show smapA.get("cc").show smapA.get("dd").show smapA.get("ee").show  smapA.get("foo") %2x %nl
 %nl smapA.show %nl
 
-new oList -> oList listA
+new OList -> OList listA
 listA.addHead(imapA.get( 'b' ))  listA.addHead(imapA.get( 'c' ))  listA.addHead(imapA.get( 'd' ))
 %nl listA.show %nl
 
-new oArray -> oArray arrayA
+new OArray -> OArray arrayA
 arrayA.push(imapA.get( 'a' ))  arrayA.push(valB)  arrayA.push(imapA.get( 'c' ))
 %nl arrayA.show %nl
 
 : showArray
-  -> oArray a
-  a.headIter -> oArrayIter iter
+  -> OArray a
+  a.headIter -> OArrayIter iter
   a.show %nl
   begin
   while( iter.next )
-    <object>.show
+    <Object>.show
   repeat
   begin
   while( iter.prev )
-    <object>.show
+    <Object>.show
   repeat
   oclear a
   oclear iter
@@ -126,11 +126,11 @@ arrayA.push(imapA.get( 'a' ))  arrayA.push(valB)  arrayA.push(imapA.get( 'c' ))
 arrayA showArray
 
 "toList\n" %s
-arrayA.toList -> oList listFromArrayA
+arrayA.toList -> OList listFromArrayA
 "toList 2\n" %s
 listFromArrayA.show
 "toList 3\n" %s
-listFromArrayA.toArray -> oArray arrayFromListA
+listFromArrayA.toArray -> OArray arrayFromListA
 arrayFromListA.show
 
 oclear listFromArrayA  oclear arrayFromListA
@@ -146,12 +146,12 @@ oclear arrayA
 
 oclear valA  oclear valB  oclear valC  oclear valD  oclear valE
 
-new oList -> oList zz
-new oString -> oString za
-new oString -> oString zb
-new oString -> oString zc
-new oString -> oString zd
-new oString -> oString zr
+new OList -> OList zz
+new OString -> OString za
+new OString -> OString zb
+new OString -> OString zc
+new OString -> OString zd
+new OString -> OString zr
 za.set( "a" )
 zb.set( "b" )
 zc.set( "c" )
@@ -161,7 +161,7 @@ zz.addTail( za ) zz.addTail( zb ) zz.addTail( zr ) zz.addTail( za )
 zz.addTail( zc ) zz.addTail( za ) zz.addTail( zd ) 
 zz.addTail( za ) zz.addTail( zb ) zz.addTail( zr ) zz.addTail( za ) 
 
-zz.clone -> oList zz2
+zz.clone -> OList zz2
 
 : so
   drop dup %x %bl @ %d %bl
@@ -169,12 +169,12 @@ zz.clone -> oList zz2
 
 // abra cad abra
 : ff
-  -> oIterable oi
+  -> OIterable oi
   "list " %s oi so %nl
-  oi.headIter -> oIter iter
+  oi.headIter -> OIter iter
   begin
   while( iter.next )
-    -> oString ss
+    -> OString ss
     ss.show
     oclear ss
   repeat
@@ -182,14 +182,14 @@ zz.clone -> oList zz2
   oclear oi
 ;
 
-// oIterable: headIter tailIter find clone count clear
-// oIter: seekNext seekPrev seekHead seekTail next prev current remove findNext(OBJ) clone
+// OIterable: headIter tailIter find clone count clear
+// OIter: seekNext seekPrev seekHead seekTail next prev current remove findNext(OBJ) clone
 
-// oArray: resize(N) ref(N) get(N) set(OBJ N) findIndex(OBJ) push(OBJ) pop
-// oArrayIter:
+// OArray: resize(N) ref(N) get(N) set(OBJ N) findIndex(OBJ) push(OBJ) pop
+// OArrayIter:
 
 : testArray
-  new oArray -> oArray aa
+  new OArray -> OArray aa
   r[ 1 17 42 53 89 ]r
   -> int nItems
   do( nItems 0 )
@@ -198,10 +198,10 @@ zz.clone -> oList zz2
 ;
 
 : test
-  new oArray -> oArray aa
-  new oList -> oList la
+  new OArray -> OArray aa
+  new OList -> OList la
   do( 15 0 )
-    new oInt -> oInt bob
+    new OInt -> OInt bob
     bob.set( i )
     aa.push( bob )
     la.addTail( bob )
@@ -222,51 +222,51 @@ test
 
 loaddone
 
-+	object
--	class
-+	oArray
-+	oArrayIter
-+	oList
--	oListIter
--	oMap
--	oMapIter
--	oIntMap
--	oIntMapIter
--	oLongMap
--	oLongMapIter
--	oFloatMap
-?	oFloatMapIter
--	oDoubleMap
-?	oDoubleMapIter
--	oStringMap
--	oStringMapIter
-+	oString
-+	oPair
--	oPairIter
-+	oTriple
--	oTripleIter
-+	oByteArray
-+	oByteArrayIter
-+	oShortArray
-+	oShortArrayIter
-+	oIntArray
-+	oIntArrayIter
-+	oLongArray
-+	oLongArrayIter
-+	oFloatArray
-?	oFloatArrayIter
-+	oDoubleArray
-?	oDoubleArrayIter
-+	oInt
-+	oLong
-+	oFloat
-+	oDouble
--	oThread
--	oInStream
--	oFileInStream
--	oConsoleInStream
--	oOutStream
--	oFileOutStream
--	oStringOutStream
--	oConsoleOutStream
--	oFunctionOutStream
++	Object
+-	Class
++	OArray
++	OArrayIter
++	OList
+-	OListIter
+-	OMap
+-	OMapIter
+-	OIntMap
+-	OIntMapIter
+-	OLongMap
+-	OLongMapIter
+-	OFloatMap
+?	OFloatMapIter
+-	ODoubleMap
+?	ODoubleMapIter
+-	OStringMap
+-	OStringMapIter
++	OString
++	OPair
+-	OPairIter
++	OTriple
+-	OTripleIter
++	OByteArray
++	OByteArrayIter
++	OShortArray
++	OShortArrayIter
++	OIntArray
++	OIntArrayIter
++	OLongArray
++	OLongArrayIter
++	OFloatArray
+?	OFloatArrayIter
++	ODoubleArray
+?	ODoubleArrayIter
++	OInt
++	OLong
++	OFloat
++	ODouble
+-	OThread
+-	OInStream
+-	OFileInStream
+-	OConsoleInStream
+-	OOutStream
+-	OFileOutStream
+-	OStringOutStream
+-	OConsoleOutStream
+-	OFunctionOutStream

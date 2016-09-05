@@ -4,9 +4,9 @@ autoforget testbase
 false -> int testFailed
 false -> int beNoisy
 
-new oString -> oString testBuff
-new oString -> oString testBuff2
-new oStringOutStream -> oStringOutStream testOut
+new OString -> OString testBuff
+new OString -> OString testBuff2
+new OStringOutStream -> OStringOutStream testOut
 
 : cleanupTestBase  oclear testBuff  oclear testBuff2  oclear testOut  ;
 
@@ -14,7 +14,7 @@ new oStringOutStream -> oStringOutStream testOut
 : addBuff testBuff.append ;
 
 : outToTestBuffer
-  -> oString stringBuff
+  -> OString stringBuff
   stringBuff.clear
   testOut.setString( stringBuff )
   setConsoleOut( testOut )

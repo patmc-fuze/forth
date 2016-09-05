@@ -259,7 +259,7 @@ int _handler
 ;
 
 : recurse
-  new oVocabulary -> oVocabulary vocab
+  new OVocabulary -> OVocabulary vocab
   ref definitions vocab.open
   vocab.seekNewestEntry @ ,
   oclear vocab

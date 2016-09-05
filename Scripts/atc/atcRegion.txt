@@ -9,16 +9,16 @@ class: atcRegion extends iAtcRegion
     -> columns
     rows columns + -> startingFuel
     startingFuel 3+ 4 / -> warningFuel
-    new oArray -> tiles
+    new OArray -> tiles
     do(* 0)
       new atcTile
       2dup <atcTile>.init
       tiles.push
     loop
-    new oArray -> airports
-    new oArray -> portals
-    new oArray -> beacons
-    new oArray -> lines
+    new OArray -> airports
+    new OArray -> portals
+    new OArray -> beacons
+    new OArray -> lines
   ;method
   
   // x y ... atcTile@x,y
@@ -36,7 +36,7 @@ class: atcRegion extends iAtcRegion
   ;method
 
   : resetTiles
-    tiles.headIter -> oIter iter
+    tiles.headIter -> OIter iter
     begin
     while( iter.next )
       ->o atcTile tile
@@ -82,7 +82,7 @@ class: atcRegion extends iAtcRegion
     -> int y
     -> int x
 
-    airports.headIter -> oIter iter
+    airports.headIter -> OIter iter
     begin
     while( iter.next )
       ->o iAtcAirport airport
@@ -101,7 +101,7 @@ class: atcRegion extends iAtcRegion
     -> int y
     -> int x
 
-    portals.headIter -> oIter iter
+    portals.headIter -> OIter iter
     begin
     while( iter.next )
       ->o iAtcPortal portal
@@ -120,7 +120,7 @@ class: atcRegion extends iAtcRegion
     -> int y
     -> int x
 
-    beacons.headIter -> oIter iter
+    beacons.headIter -> OIter iter
     begin
     while( iter.next )
       ->o iAtcBeacon beacon
@@ -163,7 +163,7 @@ class: atcRegion extends iAtcRegion
       while(and(collidedPlaneIndex 0<  checkColumn maxColumn <=))
         //"checking at " %s checkColumn %d %bl checkRow %d %nl
         getTile(checkColumn checkRow) ->o atcTile tile
-        tile.airplanes.headIter -> oIter iter
+        tile.airplanes.headIter -> OIter iter
         begin
         while(iter.next)
           ->o iAtcAirplane checkPlane
