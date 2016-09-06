@@ -77,7 +77,9 @@ cur_thread		=	84			@	current ForthThread pointer
 dict_mem_sect	=	88			@	dictionary memory section pointer
 file_funcs		=	92			@
 inner_loop		=	96			@	inner interpreter asm reentry point
-
+conout_stream  = 100
+base          = 104
+signed_print_mode = 108
 
 kVarDefaultOp			=		0
 kVarFetch				=		1
@@ -160,7 +162,7 @@ filePutString	=		48
 	.global	addressOfBop, intoBop, addToBop, subtractFromBop, removeEntryBop, entryLengthBop, numEntriesBop, minusBop
 	.global	timesBop, times2Bop, times4Bop, times8Bop, divideBop, divide2Bop, divide4Bop, divide8Bop, divmodBop, modBop, negateBop
 	.global fplusBop, fminusBop, ftimesBop, fdivideBop,	dplusBop, dminusBop, dtimesBop, ddivideBop
-	.global orBop, andBop, xorBop, invertBop, lshiftBop, rshiftBop, notBop, trueBop, falseBop, nullBop, dnullBop
+	.global orBop, andBop, xorBop, invertBop, lshiftBop, arshiftBop, notBop, trueBop, falseBop, nullBop, dnullBop
 	.global equalsBop, notEqualsBop, greaterThanBop, greaterEqualsBop, lessThanBop, lessEqualsBop
 	.global equals0Bop, notEquals0Bop, greaterThan0Bop, greaterEquals0Bop, lessThan0Bop, lessEquals0Bop
 	.global rpushBop, rpopBop, rdropBop, rpBop, r0Bop, dupBop, checkDupBop, swapBop, overBop
@@ -180,14 +182,14 @@ filePutString	=		48
 	.global byteVarActionBop, ubyteVarActionBop, shortVarActionBop, ushortVarActionBop, intVarActionBop, floatVarActionBop
 	.global fopenBop, fcloseBop, fseekBop, freadBop, fwriteBop, fgetcBop, fputcBop, feofBop, fexistsBop, ftellBop, flenBop, fgetsBop, fputsBop
 	.global withinBop, fMinBop, fMaxBop, fWithinBop, dMinBop, dMaxBop, dWithinBop, unsignedGreaterThanBop, unsignedLessThanBop
-	.global utimesBop, urshiftBop, reverseRotBop, vocabToClassBop, doCheckDoBop, archARMBop, archX86Bop
+	.global umtimesBop, rshiftBop, reverseRotBop, vocabToClassBop, doCheckDoBop, archARMBop, archX86Bop
 	@ these are just dummies:
 	.global doLongBop, doDoubleBop, doStringBop, doOpBop, doObjectBop, doLongArrayBop, doDoubleArrayBop, doObjectArrayBop, doStringArrayBop, doOpArrayBop
 	.global longVarActionBop, doubleVarActionBop, stringVarActionBop, opVarActionBop, objectVarActionBop
 	.global fsinBop, fasinBop, fcosBop, facosBop, ftanBop, fatanBop, fatan2Bop, fexpBop, flnBop, flog10Bop
 	.global fpowBop, fsqrtBop, fceilBop, ffloorBop, fabsBop
 	.global fcmpBop, dcmpBop, fldexpBop, ffrexpBop, fmodfBop, ffmodBop
-	.global icmpBop, uicmpBop, arshiftBop, oclearBop, lplusBop, lminusBop, ltimesBop, mtimesBop, umtimesBop
+	.global icmpBop, uicmpBop, oclearBop, lplusBop, lminusBop, ltimesBop, mtimesBop, umtimesBop
 
 	.global fprintfSub, fscanfSub, sprintfSub, sscanfSub
 	.global InterpretOneOpFast
@@ -1191,7 +1193,8 @@ longEntry:
 	@ fetch local long
 localLongFetch:
 	ldrd	r2, [r0]
-	stmdb	rsp!, {r2,r3}			@ push long on TOS
+	ldr	r1, r3
+	stmdb	rsp!, {r1,r2}			@ push long on TOS
 	bx	lr
 
 localLongRef:
@@ -1200,15 +1203,16 @@ localLongRef:
 	
 localLongStore:
 	ldmia	rsp!, {r2,r3}			@ pop TOS long value into r2,r3
-	strd	r2, [r0]				@ store long
+	ldr	r1, r3
+	strd	r1, [r0]				@ store long
 	bx	lr
 	
 localLongPlusStore:
 	ldmia	rsp!, {r2,r3}			@ pop TOS long value into r2,r3
 	push	{rcore, rip}
 	ldm	r0!, {rcore, rip}
-	adds	rcore, r2, rcore
-	adc	rip, r3, rip
+	adds rip, r2, rip
+	adc	rcore, r3, rcore
 	stm	r0!, {rcore,rip}
 	pop	{rcore, rip}
 	bx	lr
@@ -1217,8 +1221,8 @@ localLongMinusStore:
 	ldmia	rsp!, {r2,r3}			@ pop TOS long value into r2,r3
 	push	{rcore, rip}
 	ldm	r0!, {rcore, rip}
-	subs	rcore, r2, rcore
-	sbc	rip, r3, rip
+	subs	rip, r2, rip
+	sbc	rcore, r3, rcore
 	stm	r0!, {rcore,rip}
 	pop	{rcore, rip}
 	bx	lr
@@ -1626,12 +1630,47 @@ localObjectStore:
 	@ r1 is varMode
 	@ r2 is 0
 	str	r2, [rcore, #varmode]		@ set varMode back to fetch
-	cmp	r1, #kVarStore
+	cmp	r1, #kVarMinusStore
 	bgt	badVarOperation
 	ldr	r3, .localObject3
 	ldr	r1, [r3, r1, lsl #2]
 	bx	r1
 	
+@ store object on TOS in variable pointed to by r0
+@ do not adjust reference counts of old object or new object
+localObjectStoreNoRef:
+	@ TOS is new object, r0 points to destination/old object
+	ldmia	rsp!, {r1}			@ r1 = hi, r2 = lo
+	ldr	r3, r1
+	strd	r2, [r0]
+	bx	lr
+
+@ clear object reference, leave on TOS
+localObjectUnref:
+	@ leave object on TOS
+	ldrd	r1, [r0]	@ r1 = methods, r2 = data
+	stmdb rsp!, {r1, r2}
+	@ if object var is already null, do nothing else
+	orrs	r3, r2, r1
+	beq	lou2
+	@ clear object var
+	eorr	r3, r3
+	str	r3, [r0]
+	str	r3, [r0, #4]
+	@ get object refcount, see if it is already 0
+	ldr r3, [r2]
+	orr r3, r3
+	bne lou1
+	@ report refcount negative error
+	mov	r0, kForthErrorBadReferenceCount
+	b	interpLoopErrorExit
+lou1:
+	@ decrement object refcount
+	sub	r3, #1
+	str	r3, [r2]
+lou2:
+	bx	lr
+
 	.align	2	
 .localObject3:
 	.word	localObjectActionTable
@@ -1641,7 +1680,10 @@ localObjectActionTable:
 	.word	localObjectFetch
 	.word	localObjectRef
 	.word	localObjectStore
+	.word	localObjectStoreNoRef
+	.word	localObjectUnref
 
+	
 fieldObjectType:
 	@ get ptr to object var into r0
 	@ TOS is base ptr, r1 is field offset in bytes
@@ -2212,7 +2254,6 @@ doExitMLBop:
 	@ TBD	doStringArrayBop
 	@ TBD	doOpArrayBop
 	@ TBD	doObjectArrayBop
-	@ TBD	initStringBop
 	
 @@@@@@@@@@@@@@@@@  +  @@@@@@@@@@@@@@@@@
 
@@ -2590,13 +2631,6 @@ timesBop:
 	ldr	r1, [rsp]		@ r1 = A
 	mul	r1, r0
 	str	r1, [rsp]
-	bx	lr
-	
-utimesBop:
-	ldr	r0, [rsp]		@ r0 = B
-	ldr	r1, [rsp, #4]	@ r1 = A
-	umull	r2, r3, r1, r0
-	stmia	rsp, {r2, r3}
 	bx	lr
 	
 @#############################################@
@@ -3027,6 +3061,81 @@ dfmodBop:
 	pop	{rcore, lr}
 	bx	lr
 
+lplusBop:
+	ldmia	rsp!, {r2, r3}			@ pop TOS long value into r3(lo),r2(hi)
+	ldm	rsp!, {r0, r1}			@ pop TOS long value into r1(lo),r0(hi)
+	adds	r1, r3, r1
+	addc	r0, r2, r0
+	stm	!rsp, {r0, r1}
+	bx	lr
+
+lminusBop:
+	ldmia	rsp!, {r2, r3}			@ pop TOS long value into r3(lo),r2(hi)
+	ldm	rsp!, {r0, r1}			@ pop TOS long value into r1(lo),r0(hi)
+	subs	r1, r1, r3
+	sbc	r0, r0, r2
+	stm	!rsp, {r0, r1}
+	bx	lr
+
+ltimesBop:
+	@ based on http://stackoverflow.com/questions/1131833/how-do-you-multiply-two-64-bit-numbers-in-x86-assembler
+	@ TOS: bhi blo ahi alo
+	@ umull RdLo, RdHi, Rn, Rm
+	add	r2, rcore, #ipsave			@ r1 -> IP
+	stmia	r2!, {rip, rsp, rfp}				@ save IP, RP, FP (r5-r8) in core
+	@ rip will be the sign flag
+	eor	rip, rip
+	eor	rfp, rfp
+	@ negate a and/or b and stuff absolute values back in stack
+	ldmia	rsp!, {r0, r1}			@ r0=bhi r1=blo
+	ldm	rsp!, {r2, r3}				@ r2=ahi r3=alo
+	@ negate b if necessary
+	orrs	r0, r0
+	bge	ltimes1
+	@ negate b
+	add	rip, #1
+	subs	r1, rfp, r1
+	sbc	r0, rfp, r0
+ltimes1:	
+	@ negate a if necessary
+	orrs	r2, r2
+	bge	ltimes2
+	@ negate a
+	add	rip, #1
+	subs	r3, rfp, r3
+	sbc	r2, rfp, r2
+ltimes2:
+	umull	rrp, rfp, r1, r3		@ rrp = resultLo, rfp = resultHi
+	umull	r0, r3, r0, r3			@ r0 = low 32 bits of (bhi * alo)
+	add	rfp, r0
+	umull	r0, r3, r2, r1			@ r0 = low 32 bits of (ahi * blo)
+	add	rfp, r0
+	@ rrp = resultLo, rfp = resultHi
+	tst	rip, #1
+	beq	ltimes3
+	@ invert result
+	eor rip, rip
+	subs	rrp, rip, rrp
+	sbc	rfp, rip, rfp
+ltimes3:
+	str	rfp, [rsp]
+	str	rrp, [rsp, #4]
+	bx	lr
+
+umtimesBop:
+	ldr	r0, [rsp]		@ r0 = B
+	ldr	r1, [rsp, #4]	@ r1 = A
+	umull	r3, r2, r1, r0
+	stmia	rsp, {r2, r3}
+	bx	lr
+
+mtimesBop:
+	ldr	r0, [rsp]		@ r0 = B
+	ldr	r1, [rsp, #4]	@ r1 = A
+	smull	r3, r2, r1, r0
+	stmia	rsp, {r2, r3}
+	bx	lr
+
 @#############################################@
 @                                             @
 @       int/float/double conversions          @
@@ -3120,14 +3229,14 @@ lshiftBop:
 	str	r1, [rsp]
 	bx	lr
 
-rshiftBop:
+arshiftBop:
 	ldmia	rsp!, {r0}		@ r0 = shift count
 	ldr	r1, [rsp]
 	asr	r1, r0
 	str	r1, [rsp]
 	bx	lr
 
-urshiftBop:
+rshiftBop:
 	ldmia	rsp!, {r0}		@ r0 = shift count
 	ldr	r1, [rsp]
 	mov	r2, r1, lsr r0
@@ -3165,6 +3274,12 @@ nullBop:
 	eor	r0, r0
 	stmdb	rsp!, {r0}
 	bx	lr
+	
+
+oclearBop
+	mov	r0, #kVarStore
+	str	r0, [rcore, #varmode]
+	@ fall thru to dnull
 	
 @@@@@@@@@@@@@@@@@  dnull  @@@@@@@@@@@@@@@@@
 
@@ -4121,7 +4236,6 @@ w2iBop:
 	
 @@@@@@@@@@@@@@@@@  d!  @@@@@@@@@@@@@@@@@
 
-
 dstoreBop:
 	ldmia	rsp!, {r0, r1, r2}
 	str	r1, [r0]
@@ -4141,6 +4255,37 @@ dfetchNextBop:
 	ldmia	r3!, {r0, r1}		@ r0,r1 = fetched value
 	str	r3, [r2]				@ update stored src ptr
 	stmdb	rsp!, {r0, r1}
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  o!  @@@@@@@@@@@@@@@@@
+ostoreBop:
+	ldmia	rsp!, {r0, r1, r2}
+	str	r2, [r0]
+	str	r1, [r0, #4]
+	bx	lr
+	
+ostoreNextBop:
+	ldmia	rsp!, {r0, r1, r2}	@ r1,r2 = value, r0 = ptr to dest ptr
+	ldr	r3, r1
+	ldr	r1, [r0]				@ r1 = dest ptr
+	stmia	r1!, {r2, r3}	@ store value and advance dest ptr
+	str	r1, [r0]				@ update stored dest ptr
+	bx	lr
+
+ofetchBop:
+	ldr	r0, [rsp]
+	ldmia	r0!, {r1, r2}
+	str	r1, [rsp]
+	stmdb	rsp!, {r2}
+	bx	lr
+
+ofetchNextBop:
+	ldmia	rsp!, {r2}			@ r2 = ptr to src ptr
+	ldr	r3, [r2]					@ r3 = src ptr
+	ldmia	r3!, {r0, r1}		@ r0,r1 = fetched value
+	str	r3, [r2]					@ update stored src ptr
+	stmdb	rsp!, {r1}
+	stmdb	rsp!, {r0}
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  move  @@@@@@@@@@@@@@@@@
@@ -4363,7 +4508,7 @@ strtokBop:
 
 initStringBop:
 	eor	r2,r2
-	ldmia	rsp!, {r0, r1}
+	ldmia	rsp!, {r0, r1}		@ r0 = len, r1 = strptr
 	str	r2,	[r1, #-4]		@ set current length = 0
 	str	r0, [r1, #-8]		@ set maximum length
 	strb	r2, [r1]		@ set first char to terminating null
@@ -4626,7 +4771,7 @@ sscanfSub2:
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @                                                    @
 @                                                    @
-@		      OP TYPE ACTION ROUTINES                @
+@		      OP TYPE ACTION ROUTINES                    @
 @                                                    @
 @                                                    @
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -4655,10 +4800,20 @@ extOpType:
 	ldr	r2, [r3, r2, lsl #2]	@ r2 = action routine for this optype
 	mov	r0, rcore					@ C++ optype routines take core ptr as 1st argument
 	bx	r2
-	
 
-nativeOp:
-@ is there any way we can get here?
+nativeImmediate:
+	ldr	r3, [rcore, #n_ops]
+	cmp	r1, r3
+	bge	badOpcode
+	ldr	r0, [rcore, #ops]
+	ldr	r2, [r0, r1, lsl #2]
+  bx  r2
+
+@ externalBuiltin is invoked when a builtin op which is outside of range of table is invoked
+externalBuiltin:
+	@ it should be impossible to get here now
+	b	badOpcode
+	
 
 badOpcode:
 	mov	r0, #kForthErrorBadOpcode
@@ -4667,7 +4822,7 @@ badOpcode:
 userDefType:
 	ldr	r3, [rcore, #n_ops]
 	cmp	r1, r3
-	bge	badOpcode
+	bge	badUserDef
 	@ rpush IP
 	stmdb	rrp!, {rip}
 	@ fetch new IP
@@ -4675,6 +4830,30 @@ userDefType:
 	ldr	rip, [r0, r1, lsl #2]
 	bx	lr
 	
+badUserDef:
+	mov	eax, kForthErrorBadOpcode
+	jmp	interpLoopErrorExit
+;-----------------------------------------------
+;
+; user-defined ops (forth words defined with colon)
+;
+entry relativeDefType
+	@ r1 is offset from dictionary base of user definition
+	ldr	r2,=0x00FFFFFF
+  ands  r1, r2
+  lsl r1, #2
+
+  @ check that new IP is below top of dictionary
+	ldr	r2, [rcore, #dict_mem_sect]
+  add r1, [r2, #FMSBase]
+  cmp r1, [r2, #FMSCurrent]
+	bge	badUserDef
+
+	@ rpush IP
+	stmdb	rrp!, {rip}
+  ldr rip, r1
+	bx	lr
+
 branchType:
 	ldr	r2,=0xFF000000
 	ldr	r3,=0x00800000
@@ -4695,6 +4874,15 @@ branchZType:
 	cmp	r0, #0
 	beq	branchType
 	bx	lr
+
+@ branch around block ops
+pushBranchType:
+	stmdb	rsp!, {rip}   @ push IP (pointer to block)
+	ldr	r2,=0x00FFFFFF
+  ands  r1, r2
+  lsl r1, #2  
+  add rip, r1
+  bx  lr
 
 caseBranchType:
 	@ TOS is current case value to match against, TOS-1 is value to check
@@ -5002,15 +5190,117 @@ methodWithTOSType:
 	ldr	r0, [r2, r1, lsl #2]
 	b	interpLoopExecuteEntry
 	
-@ TODO: fill in these ops
-arshiftBop:
-oclearBop:
-lplusBop:
-lminusBop:
-ltimesBop:
-mtimesBop:
-umtimesBop:
-	b	badOpcode
+@ squished float literal
+entry squishedFloatType
+	@ r1: bit 23 is sign, bits 22..18 are exponent, bits 17..0 are mantissa
+	@ to unsquish a float:
+	@   sign = (inVal & 0x800000) << 8
+	@   exponent = (((inVal >> 18) & 0x1f) + (127 - 15)) << 23
+	@   mantissa = (inVal & 0x3ffff) << 5
+	@   outVal = sign | exponent | mantissa
+	ldr	r0, =0x00800000     @ get sign bit
+	and	r0, r1
+	lsl	r0, #8
+
+	ldr	r3, r1
+	lsr	r3, #18
+	ldr	r2, =0x1F
+	and	r3, r2
+	lsl	r3, #23			@ r3 is exponent
+	orr	r0, r3
+	
+	ldr	r2, =0x03FFFF
+	and	r2, r1
+	shl	r2, #5			@ r2 is mantissa
+	or	r0, r2
+	
+	stmdb	rsp!, {r0}
+	bx	lr
+
+@ squished double literal
+squishedDoubleType:
+	@ r1: bit 23 is sign, bits 22..18 are exponent, bits 17..0 are mantissa
+	@ to unsquish a double:
+	@   sign = (inVal & 0x800000) << 8
+	@   exponent = (((inVal >> 18) & 0x1f) + (1023 - 15)) << 20
+	@   mantissa = (inVal & 0x3ffff) << 2
+	@   outVal = (sign | exponent | mantissa) << 32
+	ldr	r0, =0x00800000     @ get sign bit
+	and	r0, r1
+	lsl	r0, #8
+
+	ldr	r3, r1
+	lsr	r3, #18
+	ldr	r2, =0x1F
+	and	r3, r2
+	ldr	r2, =1008
+	add	r3, r2
+	lsl	r3, #20			@ r3 is exponent
+	orr	r0, r3
+	
+	ldr	r2, =0x03FFFF
+	and	r2, r1
+	shl	r2, #2			@ r2 is mantissa
+	or	r0, r2
+	
+	stmdb	rsp!, {r0}
+	eorr	r2, r2
+	stmdb	rsp!, {r0}		@ loword of double is all zeros
+	bx	lr
+	
+@ squished long literal
+squishedLongType:
+	ldr	r0, =0x00800000     @ get sign bit
+	and	r0, r1
+	cmp	r0, #0
+	bne longConstantNegative
+	
+	@ positive constant
+	ldr	r0, =0x00FFFFFF
+	and	r0, r1
+	stmdb	rsp!, {r0}
+	eorr	r0, r0
+	stmdb	rsp!, {r0}
+	bx	lr
+	
+longConstantNegative:
+	ldr	r0, =0xFF000000
+	or	r0, r1
+	stmdb	rsp!, {r0}
+	ldr	r0, =0xFFFFFFFF
+	stmdb	rsp!, {r0}
+	bx	lr
+
+
+@ LOCALREF OP combo ops
+lroComboType:
+	@ r1: bits 0..11 are frame offset in longs, bits 12-23 are op
+	ldr	r0, =0x0FFF
+	and	r0, r1
+	lsl	r0, #2
+	sub	r2, rfp, r0					@ r2 points to the local var
+	stmdb	rsp!, {r2}
+
+	lsr	r1, #12
+	ldr	r0, =0x0FFF
+	and	r0, r2				@ opcode is in r0
+	bx	interpLoopExecuteEntry
+	
+@ MEMBERREF OP combo ops
+mroComboType:
+	@ r1: bits 0..11 are member offset in bytes, bits 12-23 are op
+	@ r1: bits 0..11 are frame offset in longs, bits 12-23 are op
+	ldr	r0, =0x0FFF
+	and	r0, r1
+	ldr	r2, [rcore, #tpd]
+	add	r2, r0							@ r2 points to the member var
+	stmdb	rsp!, {r2}
+
+	lsr	r1, #12
+	ldr	r0, =0x0FFF
+	and	r0, r2				@ opcode is in r0
+	bx	interpLoopExecuteEntry
+
 
 @-----------------------------------------------
 @
@@ -5037,22 +5327,22 @@ InitAsmTables:
 	.align	4
 opTypesTable:
 @	00 - 09
-	.word	nativeOp				@ kOpNative = 0,
-	.word	nativeOp				@ kOpNativeImmediate,
+	.word	externalBuiltin		@ kOpNative = 0,
+	.word	nativeImmediate		@ kOpNativeImmediate,
 	.word	userDefType				@ kOpUserDef,
 	.word	userDefType				@ kOpUserDefImmediate,
-	.word	cCodeType				@ kOpCCode,         
-	.word	cCodeType				@ kOpCCodeImmediate,
-	.word	dllEntryPointType		@ kOpDLLEntryPoint,
-	.word	extOpType	
-	.word	extOpType	
+	.word	cCodeType				  @ kOpCCode,         
+	.word	cCodeType				  @ kOpCCodeImmediate,
+	.word	relativeDefType	  @ kOpRelativeDef
+	.word	relativeDefType	  @ kOpRelativeDefImmediate
+	.word	dllEntryPointType	@ kOpDLLEntryPoint,
 	.word	extOpType	
 @	10 - 19
 	.word	branchType				@ kOpBranch = 10,
 	.word	branchNZType			@ kOpBranchNZ,
 	.word	branchZType				@ kOpBranchZ,
-	.word	caseBranchType			@ kOpCaseBranch,
-	.word	extOpType	
+	.word	caseBranchType		@ kOpCaseBranch,
+	.word	pushBranchType    @ kOpPushBranch,	
 	.word	extOpType	
 	.word	extOpType	
 	.word	extOpType	
@@ -5165,17 +5455,25 @@ opTypesTable:
 	.word	methodWithThisType
 	.word	methodWithTOSType
 	
-@	110 - 114
+@	110 - 119
 	.word	memberStringInitType
 	.word	extOpType @ nvoComboType
 	.word	extOpType @ nvComboType
 	.word	extOpType @ noComboType
 	.word	extOpType @ voComboType
+	.word	extOpType @ ozbComboType
+	.word	extOpType @ obComboType
+
+	.word	squishedFloatType 
+	.word	squishedDoubleType
+	.word	squishedLongType
 	
-@	115 - 149
-	.word	extOpType,extOpType,extOpType,extOpType,extOpType
-	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
-	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+@	120 - 121
+	.word	lroComboType
+	.word	mroComboType
+
+@	122 - 149
+	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 @	150 - 199
