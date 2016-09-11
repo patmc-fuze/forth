@@ -35,6 +35,7 @@ extern "C"
     extern void consoleOutToFile( ForthCoreState   *pCore,  const char       *pMessage );
 };
 
+extern void OutputToLogger(const char* pBuffer);
 // default trace output in non-client/server mode
 void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 {
@@ -63,11 +64,10 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 #else
 		wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
 
-		OutputDebugString(buffer);
+        OutputToLogger(buffer);
 #endif
 	}
 }
-
 
 //#ifdef TRACE_INNER_INTERPRETER
 

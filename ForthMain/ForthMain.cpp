@@ -24,6 +24,40 @@ CWinApp theApp;
 
 using namespace std;
 
+
+static HANDLE hLoggingPipe = INVALID_HANDLE_VALUE;
+
+void OutputToLogger(const char* pBuffer)
+{
+    //OutputDebugString(buffer);
+
+    DWORD dwWritten;
+    int bufferLen = 1 + strlen(pBuffer);
+
+    if (hLoggingPipe == INVALID_HANDLE_VALUE)
+    {
+        hLoggingPipe = CreateFile(TEXT("\\\\.\\pipe\\ForthLogPipe"),
+            GENERIC_READ | GENERIC_WRITE,
+            0,
+            NULL,
+            OPEN_EXISTING,
+            0,
+            NULL);
+    }
+    if (hLoggingPipe != INVALID_HANDLE_VALUE)
+    {
+        WriteFile(hLoggingPipe,
+            pBuffer,
+            bufferLen,   // = length of string + terminating '\0' !!!
+            &dwWritten,
+            NULL);
+
+        //CloseHandle(hPipe);
+    }
+
+    return;
+}
+
 static bool InitSystem()
 {
 #if AFX_BUILD
@@ -78,7 +112,6 @@ int main( int argc, char* argv[], char* envp[] )
         else
 #endif
         {
-
             //
             // run forth in interactive mode
             //

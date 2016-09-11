@@ -162,6 +162,14 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 10 2016
+
+I added a named pipe logger program which just waits for a client to connect
+to pipe ForthLogPipe and then prints everything logged to it.
+
+Next I need to implement a similar thing for Linux and use it to debug the
+ARM assembler version of Forth which currently is crashing during startup.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 22 2016
 
 I decided to go back to getting the no-asm-inner-interpreter build working first
