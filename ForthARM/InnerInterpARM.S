@@ -4526,8 +4526,12 @@ initStringBop:
 
 strFixupBop:
 	ldmia	rsp!, {r0}
-  mov r2, r0
   eor r1, r1
+	@ stuff a nul at end of string storage - there should already be one there or earlier
+  ldr r2, [r0, #-8]
+  add r2, r0
+  strb  r1, [r2]
+  mov r2, r0
 strFixupBop1:
 	ldrb	r1, [r0]
   cmp r1, #0
