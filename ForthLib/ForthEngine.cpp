@@ -136,6 +136,7 @@ static const char *pErrorStrings[] =
 	"Bad Reference Count",
 	"IO error",
 	"Bad Object",
+    "StringOverflow",
 };
 
 //////////////////////////////////////////////////////////////////////

@@ -52,12 +52,14 @@ kForthErrorUserDefined				EQU		17t
 kForthErrorBadSyntax				EQU		18t
 kForthErrorBadPreprocessorDirective	EQU		19t
 kForthErrorUnimplementedMethod		EQU		20t
-kForthErrorShellStackUnderflow		EQU		21t
-kForthErrorShellStackOverflow		EQU		22t
-kForthErrorBadReferenceCount		EQU		23t
-kForthErrorIO						EQU		24t
-kForthErrorBadObject				EQU		25t
-kForthNumErrors						EQU		26t
+kForthErrorIllegalMethod			EQU		21t
+kForthErrorShellStackUnderflow		EQU		22t
+kForthErrorShellStackOverflow		EQU		23t
+kForthErrorBadReferenceCount		EQU		24t
+kForthErrorIO						EQU		25t
+kForthErrorBadObject				EQU		26t
+kForthErrorStringOverflow			EQU		27t
+kForthNumErrors						EQU		28t
 
 kPrintSignedDecimal		EQU		0t
 kPrintAllSigned		EQU		1t

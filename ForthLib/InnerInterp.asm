@@ -11,7 +11,7 @@ PUBLIC	HelloString		; `string'
 EXTRN	_filbuf:NEAR
 EXTRN	printf:NEAR
 EXTRN	_chkesp:NEAR
-EXTRN	fprintf:NEAR, sprintf:NEAR, fscanf:NEAR, sscanf:NEAR
+EXTRN	fprintf:NEAR, sprintf:NEAR, _snprintf:NEAR, fscanf:NEAR, sscanf:NEAR
 
 EXTRN	atan2:NEAR, pow:NEAR, ldexp:NEAR, frexp:NEAR, modf:NEAR, fmod:NEAR, _ftol:NEAR
 EXTRN	atan2f:NEAR, powf:NEAR, ldexpf:NEAR, frexpf:NEAR, modff:NEAR, fmodf:NEAR
@@ -2626,6 +2626,37 @@ entry initStringBop
 
 ;========================================
 
+entry strFixupBop
+	mov	eax, [edx]
+	add	edx, 4
+	mov ecx, eax
+	xor	ebx, ebx
+	; stuff a nul at end of string storage - there should already be one there or earlier
+	add	ecx, [eax-8]
+	mov	[ecx], bl
+	mov ecx, eax
+strFixupBop1:
+	mov	bl, [eax]
+	test	bl, 255
+	jz	strFixupBop2
+	add	eax, 1
+	jmp	strFixupBop1
+
+strFixupBop2:
+	sub	eax, ecx
+	mov	ebx, [ecx-8]
+	cmp	ebx, eax
+	jge	strFixupBop3
+	; characters have been written past string storage end
+	mov	eax, kForthErrorStringOverflow
+	jmp	interpLoopErrorExit
+
+strFixupBop3:
+	mov	[ecx-4], eax
+	jmp	edi
+
+;========================================
+
 entry doneBop
 	mov	eax,kResultDone
 	jmp	interpLoopExit
@@ -5092,18 +5123,18 @@ entry strncpyBop
 
 entry strlenBop
 	mov	eax, [edx]
+	mov ecx, eax
 	xor	ebx, ebx
 strlenBop1:
-	mov	bh, [eax]
-	test	bh, 255
+	mov	bl, [eax]
+	test	bl, 255
 	jz	strlenBop2
-	add	bl, 1
 	add	eax, 1
 	jmp	strlenBop1
 
 strlenBop2:
-	xor	bh, bh
-	mov	[edx], ebx
+	sub eax, ecx
+	mov	[edx], eax
 	jmp	edi
 
 ;========================================
@@ -5682,12 +5713,14 @@ entry	fputsBop
 ;========================================
 
 ;extern void sprintfSub( ForthCoreState* pCore );
+;extern void snprintfSub( ForthCoreState* pCore );
 ;extern void fscanfSub( ForthCoreState* pCore );
 ;extern void sscanfSub( ForthCoreState* pCore );
 
 ;========================================
 
 entry fprintfSubCore
+    ; TOS: N argN ... arg1 formatStr filePtr       (arg1 to argN are optional)
 	mov	edi, [edx]
 	add	edi, 2
 	add	edx, 4
@@ -5726,6 +5759,7 @@ fprintfSub ENDP
 ;========================================
 
 entry sprintfSubCore
+    ; TOS: N argN ... arg1 formatStr bufferPtr       (arg1 to argN are optional)
 	mov	edi, [edx]
 	add	edi, 2
 	add	edx, 4
@@ -5760,6 +5794,45 @@ sprintfSub PROC near C public uses ebx esi edx ecx edi ebp,
 	call	sprintfSubCore
 	ret
 sprintfSub ENDP
+
+;========================================
+
+entry snprintfSubCore
+    ; TOS: N argN ... arg1 formatStr bufferSize bufferPtr       (arg1 to argN are optional)
+	mov	edi, [edx]
+	add	edi, 3
+	add	edx, 4
+	mov	esi, edi
+snprintfSub1:
+	sub	esi, 1
+	jl	snprintfSub2
+	mov	ebx, [edx]
+	add	edx, 4
+	push	ebx
+	jmp snprintfSub1
+snprintfSub2:
+	; all args have been moved from parameter stack to PC stack
+	mov	[ebp].FCore.SPtr, edx
+	call	_snprintf
+	mov	edx, [ebp].FCore.SPtr
+	sub	edx, 4
+	mov	[edx], eax		; return result on parameter stack
+	mov	[ebp].FCore.SPtr, edx
+	; cleanup PC stack
+	mov	ebx, edi
+	sal	ebx, 2
+	add	esp, ebx
+	ret
+	
+; extern long snprintfSub( ForthCoreState* pCore );
+
+snprintfSub PROC near C public uses ebx esi edx ecx edi ebp,
+	core:PTR
+	mov	ebp, DWORD PTR core
+	mov	edx, [ebp].FCore.SPtr
+	call	snprintfSubCore
+	ret
+snprintfSub ENDP
 
 ;========================================
 

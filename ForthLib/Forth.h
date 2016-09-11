@@ -253,7 +253,8 @@ typedef enum {
 	kForthErrorBadReferenceCount,
 	kForthErrorIO,
 	kForthErrorBadObject,
-	// NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
+    kForthErrorStringOverflow,
+    // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
 } eForthError;
 

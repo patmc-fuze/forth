@@ -5,6 +5,8 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
+#include <stdio.h>
+#include <string.h>
 #include <map>
 
 #include "ForthEngine.h"
@@ -4490,16 +4492,25 @@ namespace
 		pString->hash = 0;
     }
 
-    FORTHOP( oStringAppendMethod )
+    FORTHOP(oStringAppendMethod)
     {
-        GET_THIS( oStringStruct, pString );
-		const char* srcStr = (const char *) SPOP;
-		int len = strlen( srcStr );
-		oStringAppendBytes( pString, srcStr, len );
+        GET_THIS(oStringStruct, pString);
+        const char* srcStr = (const char *)SPOP;
+        int len = strlen(srcStr);
+        oStringAppendBytes(pString, srcStr, len);
         METHOD_RETURN;
     }
 
-    FORTHOP( oStringResizeMethod )
+    FORTHOP(oStringAppendBlockMethod)
+    {
+        GET_THIS(oStringStruct, pString);
+        int len = SPOP;
+        const char* srcStr = (const char *)SPOP;
+        oStringAppendBytes(pString, srcStr, len);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringResizeMethod)
     {
         GET_THIS( oStringStruct, pString );
 		long newLen = SPOP;
@@ -4705,6 +4716,63 @@ namespace
 		METHOD_RETURN;
 	}
 
+#define MAX_OSTRING_PRINTF_ARGS 10
+    FORTHOP(oStringPrintfMethod)
+    {
+        // TOS: N argN ... arg1 formatStr     (arg1 to argN are optional)
+        // TOS: N 
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        GET_THIS(oStringStruct, pString);
+        int numArgs = SPOP;
+        oString* pOStr = pString->str;
+        char* pDst = &(pOStr->data[0]);
+        int len;
+        int maxLen = pOStr->maxLen;
+        int args[MAX_OSTRING_PRINTF_ARGS];
+        
+
+        if (numArgs > MAX_OSTRING_PRINTF_ARGS)
+        {
+            pEngine->SetError(kForthErrorBadParameter, " too many arguments to OString::Printf");
+        }
+        else
+        {
+            for (int i = 1; i <= numArgs; ++i)
+            {
+                args[numArgs - i] = SPOP;
+            }
+            const char* formatStr = (const char *)(SPOP);
+            switch (numArgs)
+            {
+            case 0: len = _snprintf(pDst, maxLen, formatStr); break;
+            case 1: len = _snprintf(pDst, maxLen, formatStr, args[0]); break;
+            case 2: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1]); break;
+            case 3: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2]); break;
+            case 4: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3]); break;
+            case 5: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4]); break;
+            case 6: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5]); break;
+            case 7: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6]); break;
+            case 8: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]); break;
+            case 9: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]); break;
+            default:
+            case 10: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9]); break;
+            }
+            if (len > 0)
+            {
+                if (len <= maxLen)
+                {
+                    pOStr->curLen = len;
+                    pDst[len] = '\0';
+                }
+                else
+                {
+                    pDst[maxLen] = '\0';
+                }
+            }
+        }
+        METHOD_RETURN;
+    }
+    
 
     baseMethodEntry oStringMembers[] =
     {
@@ -4717,6 +4785,7 @@ namespace
         METHOD(     "get",                  oStringGetMethod ),
         METHOD(     "set",                  oStringSetMethod ),
         METHOD(     "append",               oStringAppendMethod ),
+        METHOD(     "appendBlock",          oStringAppendBlockMethod ),
         METHOD(     "resize",               oStringResizeMethod ),
         METHOD(     "startsWith",           oStringStartsWithMethod ),
         METHOD(     "endsWith",             oStringEndsWithMethod ),
@@ -4727,6 +4796,7 @@ namespace
         METHOD(     "load",                 oStringLoadMethod ),
         METHOD_RET( "split",                oStringSplitMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArray) ),
 		METHOD(		"join",					oStringJoinMethod ),
+		METHOD(		"printf",				oStringPrintfMethod ),
 
         MEMBER_VAR( "__str",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
 

@@ -128,7 +128,14 @@ kForthErrorUserDefined				=		17
 kForthErrorBadSyntax				=		18
 kForthErrorBadPreprocessorDirective	=		19
 kForthErrorUnimplementedMethod		=		20
-kForthNumErrors						=		21
+kForthErrorIllegalMethod			=		21
+kForthErrorShellStackUnderflow		=		22
+kForthErrorShellStackOverflow		=		23
+kForthErrorBadReferenceCount		=		24
+kForthErrorIO						=		25
+kForthErrorBadObject				=		26
+kForthErrorStringOverflow			=		27
+kForthNumErrors						=		28
 
 kPrintSignedDecimal		=		0
 kPrintAllSigned			=		1
@@ -169,7 +176,7 @@ filePutString	=		48
 	.global rotBop, tuckBop, pickBop, spBop, s0Bop, fpBop, ddupBop, dswapBop, ddropBop, doverBop, drotBop,
 	.global storeBop, cstoreBop, cfetchBop, scfetchBop, c2iBop, wstoreBop, wfetchBop, swfetchBop, w2iBop, dstoreBop
 	.global	moveBop, fillBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop
-	.global	strchrBop, strrchrBop, strcmpBop, stricmpBop, strstrBop, strtokBop, initStringBop
+	.global	strchrBop, strrchrBop, strcmpBop, stricmpBop, strstrBop, strtokBop, initStringBop, strFixupBop
 	.global doUByteBop, doUByteArrayBop, doUShortBop, doUShortArrayBop
 	.global dsinBop, dasinBop, dcosBop, dacosBop, dtanBop, datanBop, datan2Bop, dexpBop, dlnBop, dlog10Bop, dpowBop
 	.global dsqrtBop, dceilBop, dfloorBop, dabsBop, dldexpBop, dfrexpBop, dmodfBop, dfmodBop, i2fBop, i2dBop, f2iBop, f2dBop, d2iBop, d2fBop
@@ -191,7 +198,7 @@ filePutString	=		48
 	.global fcmpBop, dcmpBop, fldexpBop, ffrexpBop, fmodfBop, ffmodBop
 	.global icmpBop, uicmpBop, oclearBop, lplusBop, lminusBop, ltimesBop, mtimesBop, umtimesBop
 
-	.global fprintfSub, fscanfSub, sprintfSub, sscanfSub
+	.global fprintfSub, fscanfSub, sprintfSub, snprintfSub, sscanfSub
 	.global InterpretOneOpFast
 	
 	.global	break_me
@@ -4505,6 +4512,7 @@ strtokBop:
 	pop	{rcore, lr}
 	bx	lr
 
+@@@@@@@@@@@@@@@@@  initString  @@@@@@@@@@@@@@@@@
 
 initStringBop:
 	eor	r2,r2
@@ -4514,7 +4522,32 @@ initStringBop:
 	strb	r2, [r1]		@ set first char to terminating null
 	bx	lr
 		
-	
+@@@@@@@@@@@@@@@@@  $fixup  @@@@@@@@@@@@@@@@@
+
+strFixupBop:
+	ldmia	rsp!, {r0}
+  mov r2, r0
+  eor r1, r1
+strFixupBop1:
+	ldrb	r1, [r0]
+  cmp r1, #0
+  bz strFixupBop2
+  add r0, #1
+  b strFixupBop1
+
+strFixupBop2:
+  sub r0, r2
+  ldr r1, [r2, #-8]
+  cmp r1, r0
+	bge	strFixupBop3
+	@ characters have been written past string storage end
+	mov	r0, #kForthErrorStringOverflow
+	b	interpLoopErrorExit
+
+strFixupBop3:
+  str r0, [r2, #-4]
+	bx	lr
+
 @#############################################@
 @                                             @
 @           file manipulation                 @   
@@ -4740,6 +4773,27 @@ sprintfSub1:
 sprintfSub2:
 	@ all args have been moved from parameter stack to PC stack
 	bl	sprintf
+	stmdb	rsp!, {r0}
+	ldmia	rrp!, {sp}		@ cleanup PC stack
+	pop	{rcore, lr}
+	bx	lr
+
+	
+snprintfSub:
+	push	{rcore, lr}
+	ldmia	rsp!, {r1}		@ r1 is argument count
+	add	r1, #3
+	mov	r2, r1
+	stmdb	rrp!, {sp}		@ save old PC SP for cleanup on rstack
+snprintfSub1:
+	sub	r2, #1
+	bl	snprintfSub2
+	ldmia	rsp!, {r0}
+	push	{r0}
+	b	snprintfSub1
+snprintfSub2:
+	@ all args have been moved from parameter stack to PC stack
+	bl	snprintf
 	stmdb	rsp!, {r0}
 	ldmia	rrp!, {sp}		@ cleanup PC stack
 	pop	{rcore, lr}

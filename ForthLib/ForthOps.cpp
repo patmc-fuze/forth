@@ -2650,7 +2650,8 @@ FORTHOP( format64Op )
 #ifdef PRINTF_SUBS_IN_ASM
 extern long fprintfSub( ForthCoreState* pCore );
 extern long sprintfSub( ForthCoreState* pCore );
-extern long fscanfSub( ForthCoreState* pCore );
+extern long snprintfSub(ForthCoreState* pCore);
+extern long fscanfSub(ForthCoreState* pCore);
 extern long sscanfSub( ForthCoreState* pCore );
 #else
 
@@ -2680,6 +2681,21 @@ long sprintfSub( ForthCoreState* pCore )
     const char* fmt = (const char *) SPOP;
     char* outbuff = (char *) SPOP;
     return sprintf( outbuff, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
+}
+
+long snprintfSub( ForthCoreState* pCore )
+{
+    int a[8];
+    // TODO: assert if numArgs > 8
+    long numArgs = SPOP;
+    for ( int i = numArgs - 1; i >= 0; --i )
+    {
+        a[i] = SPOP;
+    }
+    const char* fmt = (const char *) SPOP;
+    size_t maxLen = (size_t) SPOP;
+    char* outbuff = (char *) SPOP;
+    return snprintf( outbuff, maxLen, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
 }
 
 long fscanfSub( ForthCoreState* pCore )
@@ -2724,7 +2740,13 @@ FORTHOP( sprintfOp )
     sprintfSub( pCore );
 }
 
-FORTHOP( fscanfOp )
+FORTHOP(snprintfOp)
+{
+    // TOS: N argN ... arg1 formatStr bufferLen bufferPtr       (arg1 to argN are optional)
+    snprintfSub(pCore);
+}
+
+FORTHOP(fscanfOp)
 {
     // TOS: N argN ... arg1 formatStr filePtr       (arg1 to argN are optional)
     fscanfSub( pCore );
@@ -6764,6 +6786,23 @@ FORTHOP( initStringBop )
     *((char *) pStr) = 0;
 }
 
+FORTHOP( strFixupBop )
+{
+    long *pSrcLongs = (long *) SPOP;
+    char* pSrc = (char *) pSrcLongs;
+    pSrc[pSrcLongs[-2]] = '\0';
+    int len = strlen( pSrc );
+    if (len > pSrcLongs[-2])
+    {
+        // characters have been written past string storage end
+        SET_ERROR( kForthErrorStringOverflow );
+    }
+    else
+    {
+        pSrcLongs[-1] = len;
+    }
+}
+
 // push the immediately following literal 32-bit constant
 FORTHOP(litBop)
 {
@@ -7105,6 +7144,8 @@ OPREF( doUShortArrayBop );  OPREF( doIntArrayBop );     OPREF( doIntArrayBop );
 OPREF( doLongArrayBop );    OPREF( doLongArrayBop );    OPREF( doFloatArrayBop );
 OPREF( doDoubleArrayBop );  OPREF( doStringArrayBop );  OPREF( doOpArrayBop );
 OPREF( doObjectArrayBop );  OPREF( initStringBop );     OPREF( plusBop );
+OPREF( strFixupBop );
+
 OPREF( fetchBop );          OPREF( doStructBop );       OPREF( doStructArrayBop );
 OPREF( doDoBop );           OPREF( doLoopBop );         OPREF( doLoopNBop );
 //OPREF( ofetchBop );         OPREF( vocabToClassBop );   OPREF( doCheckDoBop );
@@ -7583,6 +7624,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    stricmpBop,              "stricmp" ),
     NATIVE_DEF(    strstrBop,               "strstr" ),
     NATIVE_DEF(    strtokBop,               "strtok" ),
+    NATIVE_DEF(    strFixupBop,             "$fixup" ),
 
     ///////////////////////////////////////////
     //  file manipulation
@@ -7809,6 +7851,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    format64Op,             "2format" ),
     OP_DEF(    fprintfOp,              "fprintf" ),
     OP_DEF(    sprintfOp,              "sprintf" ),
+    OP_DEF(    snprintfOp,             "snprintf" ),
     OP_DEF(    fscanfOp,               "fscanf" ),
     OP_DEF(    sscanfOp,               "sscanf" ),
     OP_DEF(    baseOp,                 "base" ),
