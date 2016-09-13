@@ -1,6 +1,0 @@
-cd ../ForthLib/
-make -f Makefile.arm clean
-cd ../ForthARM/
-make -f Makefile clean
-cd ../sandbox.arm
-
