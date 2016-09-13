@@ -25,6 +25,9 @@ $(OBJDIR)/ForthMainARM.o:	ForthMainARM.cpp
 forth:	$(OBJDIR)/ForthMainARM.o ../ForthLib/libforth.a
 	gcc $(OBJDIR)/ForthMainARM.o $(DEFINES) -o forth -I ../ForthLib $(LD_LIBRARIES)
 
+logger:
+	gcc ForthLoggerARM.cpp -o logger
+
 #-include $(DEPS)
 
 #$(DEPDIR)/%.d: %.cpp

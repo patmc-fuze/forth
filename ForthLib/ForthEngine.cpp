@@ -60,12 +60,11 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 	else
 	{
 #ifdef LINUX
-		vprintf(pFormat, argList);
+		vsnprintf(buffer, sizeof(buffer), pFormat, argList);
 #else
 		wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
-
-        OutputToLogger(buffer);
 #endif
+        OutputToLogger(buffer);
 	}
 }
 
@@ -288,7 +287,6 @@ ForthEngine::Initialize( ForthShell*        pShell,
 #endif
     mDictionary.pCurrent = mDictionary.pBase;
     mDictionary.len = totalLongs;
-
 	mpOpcodeCompiler = new ForthOpcodeCompiler( &mDictionary );
 
     mpForthVocab = new ForthVocabulary( "forth", NUM_FORTH_VOCAB_VALUE_LONGS );
@@ -2081,14 +2079,14 @@ ForthEngine::CheckStacks( void )
 
 void ForthEngine::SetDefaultConsoleOut( ForthObject& newOutStream )
 {
-	SPEW_SHELL("SetDefaultConsoleOut pCore=%p  pMethods=%p  pData=%p", mpCore, newOutStream.pMethodOps, newOutStream.pData);
+	SPEW_SHELL("SetDefaultConsoleOut pCore=%p  pMethods=%p  pData=%p\n", mpCore, newOutStream.pMethodOps, newOutStream.pData);
 	OBJECT_ASSIGN(mpCore, mDefaultConsoleOutStream, newOutStream);
 	mDefaultConsoleOutStream = newOutStream;
 }
 
 void ForthEngine::SetConsoleOut( ForthCoreState* pCore, ForthObject& newOutStream )
 {
-	SPEW_SHELL("SetConsoleOut pCore=%p  pMethods=%p  pData=%p", pCore, newOutStream.pMethodOps, newOutStream.pData);
+	SPEW_SHELL("SetConsoleOut pCore=%p  pMethods=%p  pData=%p\n", pCore, newOutStream.pMethodOps, newOutStream.pData);
 	OBJECT_ASSIGN( pCore, pCore->consoleOutStream, newOutStream );
 	pCore->consoleOutStream = newOutStream;
 }
@@ -2109,7 +2107,7 @@ void ForthEngine::ResetConsoleOut( ForthCoreState* pCore )
 	//  without doing a release, and possibly leak a stream object, or we do a release
 	//  and risk a crash, since ResetConsoleOut is called when an error is detected,
 	//  so the object we are releasing may already be deleted or otherwise corrupted.
-	SPEW_SHELL("ResetConsoleOut pCore=%p  pMethods=%p  pData=%p", pCore, mDefaultConsoleOutStream.pMethodOps, mDefaultConsoleOutStream.pData);
+	SPEW_SHELL("ResetConsoleOut pCore=%p  pMethods=%p  pData=%p\n", pCore, mDefaultConsoleOutStream.pMethodOps, mDefaultConsoleOutStream.pData);
 	OBJECT_ASSIGN(pCore, pCore->consoleOutStream, mDefaultConsoleOutStream);
 	pCore->consoleOutStream = mDefaultConsoleOutStream;
 }

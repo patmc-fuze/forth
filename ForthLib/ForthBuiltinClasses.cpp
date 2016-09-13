@@ -49,6 +49,12 @@ float boohoo(int aa, int bb, int cc)
 }
 #endif
 
+#ifdef _WINDOWS
+#define SNPRINTF _snprintf
+#else
+#define SNPRINTF snprintf
+#endif
+
 void* ForthAllocateBlock(size_t numBytes)
 {
 	void* pData = malloc(numBytes);
@@ -4744,18 +4750,18 @@ namespace
             const char* formatStr = (const char *)(SPOP);
             switch (numArgs)
             {
-            case 0: len = _snprintf(pDst, maxLen, formatStr); break;
-            case 1: len = _snprintf(pDst, maxLen, formatStr, args[0]); break;
-            case 2: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1]); break;
-            case 3: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2]); break;
-            case 4: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3]); break;
-            case 5: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4]); break;
-            case 6: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5]); break;
-            case 7: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6]); break;
-            case 8: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]); break;
-            case 9: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]); break;
+            case 0: len = SNPRINTF(pDst, maxLen, formatStr); break;
+            case 1: len = SNPRINTF(pDst, maxLen, formatStr, args[0]); break;
+            case 2: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1]); break;
+            case 3: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2]); break;
+            case 4: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3]); break;
+            case 5: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4]); break;
+            case 6: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5]); break;
+            case 7: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6]); break;
+            case 8: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]); break;
+            case 9: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]); break;
             default:
-            case 10: len = _snprintf(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9]); break;
+            case 10: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9]); break;
             }
             if (len > 0)
             {

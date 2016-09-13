@@ -486,49 +486,81 @@ enum
 #endif
 
 #ifdef TRACE_OUTER_INTERPRETER
+#ifdef _WINDOWS
 #define SPEW_OUTER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogOuterInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
+#else
+#define SPEW_OUTER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogOuterInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
+#endif
 #else
 #define SPEW_OUTER_INTERPRETER(...)
 #endif
 
 #ifdef TRACE_INNER_INTERPRETER
+#ifdef _WINDOWS
 #define SPEW_INNER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogInnerInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
+#else
+#define SPEW_INNER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogInnerInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
+#endif
 #else
 #define SPEW_INNER_INTERPRETER(...)
 #endif
 
 #ifdef TRACE_SHELL
+#ifdef _WINDOWS
 #define SPEW_SHELL(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
+#else
+#define SPEW_SHELL(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
+#endif
 #else
 #define SPEW_SHELL(...)
 #endif
 
 #ifdef TRACE_VOCABULARY
+#ifdef _WINDOWS
 #define SPEW_VOCABULARY(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogVocabulary) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
+#else
+#define SPEW_VOCABULARY(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogVocabulary) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
+#endif
 #else
 #define SPEW_VOCABULARY(...)
 #endif
 
 #ifdef TRACE_STRUCTS
+#ifdef _WINDOWS
 #define SPEW_STRUCTS(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogStructs) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
+#else
+#define SPEW_STRUCTS(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogStructs) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
+#endif
 #else
 #define SPEW_STRUCTS(...)
 #endif
 
 #ifdef TRACE_IO
+#ifdef _WINDOWS
 #define SPEW_IO(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogIO) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
+#else
+#define SPEW_IO(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogIO) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
+#endif
 #else
 #define SPEW_IO(...)
 #endif
 
 #ifdef TRACE_ENGINE
+#ifdef _WINDOWS
 #define SPEW_ENGINE(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogEngine) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
+#else
+#define SPEW_ENGINE(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogEngine) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
+#endif
 #else
 #define SPEW_ENGINE(...)
 #endif
 
 #ifdef TRACE_COMPILATION
+#ifdef _WINDOWS
 #define SPEW_COMPILATION(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogCompilation) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
+#else
+#define SPEW_COMPILATION(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogCompilation) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
+#endif
 #else
 #define SPEW_COMPILATION(...)
 #endif

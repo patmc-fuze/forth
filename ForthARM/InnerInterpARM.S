@@ -292,6 +292,7 @@ InnerInterpreter:
 	@
 	@ we come back here whenever an op does a "bx lr"
 	@
+innerInterpLoop:
 .II1:
 	@swi	#0xFD
 	ldrb	r0, [rcore, #istate]	@ get state from core
@@ -344,7 +345,26 @@ interpLoopFatalErrorExit:
 	.align	2
 .opTypesTable:
 	.word	opTypesTable
+.innerInterpLoop:
+	.word	innerInterpLoop
 	
+@-----------------------------------------------
+@
+@ InitAsmTables
+@
+@ extern void InitAsmTables( ForthCoreState *pCore );
+
+	.global	InitAsmTables
+InitAsmTables:
+	@
+	@	TBD: set inner interpreter reentry point in pCore (inner_loop)
+	@
+	stmdb	sp!, {r1}
+	ldr	r1, .innerInterpLoop
+	str	r1, [r0, #inner_loop]
+	ldmia	sp!, {r1}
+	bx	lr
+
 @-----------------------------------------------
 @
 @ cCodeType is used by "builtin" ops which are only defined in C++
@@ -1200,7 +1220,7 @@ longEntry:
 	@ fetch local long
 localLongFetch:
 	ldrd	r2, [r0]
-	ldr	r1, r3
+	mov	r1, r3
 	stmdb	rsp!, {r1,r2}			@ push long on TOS
 	bx	lr
 
@@ -1209,9 +1229,9 @@ localLongRef:
 	bx	lr
 	
 localLongStore:
-	ldmia	rsp!, {r2,r3}			@ pop TOS long value into r2,r3
-	ldr	r1, r3
-	strd	r1, [r0]				@ store long
+	ldmia	rsp!, {r1,r2}			@ pop TOS long value into r2,r3
+	mov	r3, r1
+	strd	r2, [r0]				@ store long
 	bx	lr
 	
 localLongPlusStore:
@@ -1648,20 +1668,20 @@ localObjectStore:
 localObjectStoreNoRef:
 	@ TOS is new object, r0 points to destination/old object
 	ldmia	rsp!, {r1}			@ r1 = hi, r2 = lo
-	ldr	r3, r1
+	mov	r3, r1
 	strd	r2, [r0]
 	bx	lr
 
 @ clear object reference, leave on TOS
 localObjectUnref:
 	@ leave object on TOS
-	ldrd	r1, [r0]	@ r1 = methods, r2 = data
-	stmdb rsp!, {r1, r2}
+	ldrd	r2, [r0]	@ r2 = methods, r3 = data
+	stmdb rsp!, {r2, r3}
 	@ if object var is already null, do nothing else
 	orrs	r3, r2, r1
 	beq	lou2
 	@ clear object var
-	eorr	r3, r3
+	eor	r3, r3
 	str	r3, [r0]
 	str	r3, [r0, #4]
 	@ get object refcount, see if it is already 0
@@ -1669,7 +1689,7 @@ localObjectUnref:
 	orr r3, r3
 	bne lou1
 	@ report refcount negative error
-	mov	r0, kForthErrorBadReferenceCount
+	mov	r0, #kForthErrorBadReferenceCount
 	b	interpLoopErrorExit
 lou1:
 	@ decrement object refcount
@@ -3072,8 +3092,8 @@ lplusBop:
 	ldmia	rsp!, {r2, r3}			@ pop TOS long value into r3(lo),r2(hi)
 	ldm	rsp!, {r0, r1}			@ pop TOS long value into r1(lo),r0(hi)
 	adds	r1, r3, r1
-	addc	r0, r2, r0
-	stm	!rsp, {r0, r1}
+	adc	r0, r2, r0
+	stm	rsp!, {r0, r1}
 	bx	lr
 
 lminusBop:
@@ -3081,7 +3101,7 @@ lminusBop:
 	ldm	rsp!, {r0, r1}			@ pop TOS long value into r1(lo),r0(hi)
 	subs	r1, r1, r3
 	sbc	r0, r0, r2
-	stm	!rsp, {r0, r1}
+	stm	rsp!, {r0, r1}
 	bx	lr
 
 ltimesBop:
@@ -3283,7 +3303,7 @@ nullBop:
 	bx	lr
 	
 
-oclearBop
+oclearBop:
 	mov	r0, #kVarStore
 	str	r0, [rcore, #varmode]
 	@ fall thru to dnull
@@ -4273,7 +4293,7 @@ ostoreBop:
 	
 ostoreNextBop:
 	ldmia	rsp!, {r0, r1, r2}	@ r1,r2 = value, r0 = ptr to dest ptr
-	ldr	r3, r1
+	mov	r3, r1
 	ldr	r1, [r0]				@ r1 = dest ptr
 	stmia	r1!, {r2, r3}	@ store value and advance dest ptr
 	str	r1, [r0]				@ update stored dest ptr
@@ -4526,30 +4546,30 @@ initStringBop:
 
 strFixupBop:
 	ldmia	rsp!, {r0}
-  eor r1, r1
+	eor r1, r1
 	@ stuff a nul at end of string storage - there should already be one there or earlier
-  ldr r2, [r0, #-8]
-  add r2, r0
-  strb  r1, [r2]
-  mov r2, r0
+	ldr r2, [r0, #-8]
+	add r2, r0
+	strb  r1, [r2]
+	mov r2, r0
 strFixupBop1:
 	ldrb	r1, [r0]
-  cmp r1, #0
-  bz strFixupBop2
-  add r0, #1
-  b strFixupBop1
+	cmp r1, #0
+	beq strFixupBop2
+	add r0, #1
+	b strFixupBop1
 
 strFixupBop2:
-  sub r0, r2
-  ldr r1, [r2, #-8]
-  cmp r1, r0
+	sub r0, r2
+	ldr r1, [r2, #-8]
+	cmp r1, r0
 	bge	strFixupBop3
 	@ characters have been written past string storage end
 	mov	r0, #kForthErrorStringOverflow
 	b	interpLoopErrorExit
 
 strFixupBop3:
-  str r0, [r2, #-4]
+	str r0, [r2, #-4]
 	bx	lr
 
 @#############################################@
@@ -4865,7 +4885,7 @@ nativeImmediate:
 	bge	badOpcode
 	ldr	r0, [rcore, #ops]
 	ldr	r2, [r0, r1, lsl #2]
-  bx  r2
+ 	bx  r2
 
 @ externalBuiltin is invoked when a builtin op which is outside of range of table is invoked
 externalBuiltin:
@@ -4880,7 +4900,7 @@ badOpcode:
 userDefType:
 	ldr	r3, [rcore, #n_ops]
 	cmp	r1, r3
-	bge	badUserDef
+	bge	badOpcode
 	@ rpush IP
 	stmdb	rrp!, {rip}
 	@ fetch new IP
@@ -4888,28 +4908,24 @@ userDefType:
 	ldr	rip, [r0, r1, lsl #2]
 	bx	lr
 	
-badUserDef:
-	mov	eax, kForthErrorBadOpcode
-	jmp	interpLoopErrorExit
-;-----------------------------------------------
-;
-; user-defined ops (forth words defined with colon)
-;
-entry relativeDefType
+@ user-defined ops (forth words defined with colon)
+relativeDefType:
 	@ r1 is offset from dictionary base of user definition
 	ldr	r2,=0x00FFFFFF
-  ands  r1, r2
-  lsl r1, #2
+	ands  r1, r2
+	lsl r1, #2
 
-  @ check that new IP is below top of dictionary
+	@ check that new IP is below top of dictionary
 	ldr	r2, [rcore, #dict_mem_sect]
-  add r1, [r2, #FMSBase]
-  cmp r1, [r2, #FMSCurrent]
-	bge	badUserDef
+	ldr r3, [r2, #FMSBase]
+	add r1, r3
+	ldr r3, [r2, #FMSCurrent]
+	cmp r1, r3
+	bge	badOpcode
 
 	@ rpush IP
 	stmdb	rrp!, {rip}
-  ldr rip, r1
+	mov rip, r1
 	bx	lr
 
 branchType:
@@ -5249,7 +5265,7 @@ methodWithTOSType:
 	b	interpLoopExecuteEntry
 	
 @ squished float literal
-entry squishedFloatType
+squishedFloatType:
 	@ r1: bit 23 is sign, bits 22..18 are exponent, bits 17..0 are mantissa
 	@ to unsquish a float:
 	@   sign = (inVal & 0x800000) << 8
@@ -5260,7 +5276,7 @@ entry squishedFloatType
 	and	r0, r1
 	lsl	r0, #8
 
-	ldr	r3, r1
+	mov	r3, r1
 	lsr	r3, #18
 	ldr	r2, =0x1F
 	and	r3, r2
@@ -5269,8 +5285,8 @@ entry squishedFloatType
 	
 	ldr	r2, =0x03FFFF
 	and	r2, r1
-	shl	r2, #5			@ r2 is mantissa
-	or	r0, r2
+	lsl	r2, #5			@ r2 is mantissa
+	orr	r0, r2
 	
 	stmdb	rsp!, {r0}
 	bx	lr
@@ -5287,7 +5303,7 @@ squishedDoubleType:
 	and	r0, r1
 	lsl	r0, #8
 
-	ldr	r3, r1
+	mov	r3, r1
 	lsr	r3, #18
 	ldr	r2, =0x1F
 	and	r3, r2
@@ -5298,11 +5314,11 @@ squishedDoubleType:
 	
 	ldr	r2, =0x03FFFF
 	and	r2, r1
-	shl	r2, #2			@ r2 is mantissa
-	or	r0, r2
+	lsl	r2, #2			@ r2 is mantissa
+	orr	r0, r2
 	
 	stmdb	rsp!, {r0}
-	eorr	r2, r2
+	eor	r2, r2
 	stmdb	rsp!, {r0}		@ loword of double is all zeros
 	bx	lr
 	
@@ -5317,13 +5333,13 @@ squishedLongType:
 	ldr	r0, =0x00FFFFFF
 	and	r0, r1
 	stmdb	rsp!, {r0}
-	eorr	r0, r0
+	eor	r0, r0
 	stmdb	rsp!, {r0}
 	bx	lr
 	
 longConstantNegative:
 	ldr	r0, =0xFF000000
-	or	r0, r1
+	orr	r0, r1
 	stmdb	rsp!, {r0}
 	ldr	r0, =0xFFFFFFFF
 	stmdb	rsp!, {r0}
@@ -5342,7 +5358,7 @@ lroComboType:
 	lsr	r1, #12
 	ldr	r0, =0x0FFF
 	and	r0, r2				@ opcode is in r0
-	bx	interpLoopExecuteEntry
+	b	interpLoopExecuteEntry
 	
 @ MEMBERREF OP combo ops
 mroComboType:
@@ -5357,21 +5373,8 @@ mroComboType:
 	lsr	r1, #12
 	ldr	r0, =0x0FFF
 	and	r0, r2				@ opcode is in r0
-	bx	interpLoopExecuteEntry
+	b	interpLoopExecuteEntry
 
-
-@-----------------------------------------------
-@
-@ InitAsmTables - initializes FCore.numAsmBuiltinOps
-@
-@ extern void InitAsmTables( ForthCoreState *pCore );
-
-	.global	InitAsmTables
-InitAsmTables:
-	@
-	@	TBD: set inner interpreter reentry point in pCore (inner_loop)
-	@
-	bx	lr
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @                                                    @

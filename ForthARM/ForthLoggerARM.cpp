@@ -5,22 +5,38 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <string.h>
 
 #define MAX_BUF 1024
 
 int main()
 {
-    int fd;
+    int fd = -1;
     char * myfifo = "/tmp/myfifo";
     char buf[MAX_BUF];
 
+	unlink(myfifo);
     /* open, read, and display the message from the FIFO */
     fd = open(myfifo, O_RDONLY);
-    int nread = read(fd, buf, MAX_BUF);
-    while (nread != 0)
+	while (fd < 0)
+	{
+        printf("Sleeping\n");
+		sleep(1);
+	    fd = open(myfifo, O_RDONLY);
+	}
+
+    int numRead = read(fd, buf, MAX_BUF);
+    while (numRead > 0)
     {
-        printf("Received: %s\n", buf);
-        nread = read(fd, buf, MAX_BUF);
+		char* pLine = &buf[0];
+		char* pBuffEnd = pLine + numRead;
+		while (pLine < pBuffEnd)
+		{
+			int lineLen = strlen(pLine);
+	        printf("%s", pLine);
+			pLine += (lineLen + 1);
+		}
+        numRead = read(fd, buf, MAX_BUF);
     }
     close(fd);
     return 0;
