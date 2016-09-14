@@ -49,10 +49,10 @@ float boohoo(int aa, int bb, int cc)
 }
 #endif
 
-#ifdef _WINDOWS
-#define SNPRINTF _snprintf
-#else
+#ifdef LINUX
 #define SNPRINTF snprintf
+#else
+#define SNPRINTF _snprintf
 #endif
 
 void* ForthAllocateBlock(size_t numBytes)
