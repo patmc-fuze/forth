@@ -162,6 +162,27 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 17 2016
+
+I got the ARM assembler versions of snprintf/sscanf/fprintf/fscanf debugged.
+I had a few simple mistakes, but when debugging I found out that somehow the
+C++ code had been compiled as 16-bit thumb instead of 32-bit arm, the docs
+say that arm is the default for gcc, and I couldn't find anywhere I was overriding that.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 14 2016
+
+I looked at the ARM assembly code generated for the snprintf op, I found that
+it does special stuff for floating point arguments, stuffing things in FP
+registers, which won't work for dynamic argument lists, so I think the only
+way to fix that is to only use the vsnprintf procedure.
+I should do the same thing for the fprintf, fscanf, sscanf ops.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 13 2016
+
+I've got the pipe logger programs working on both windows and ARM.
+The ARM forth assembler version is mostly working, it passes forthtest, but it
+crashes when I try printf/sprintf/snprintf.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 10 2016
 
 I added a named pipe logger program which just waits for a client to connect
