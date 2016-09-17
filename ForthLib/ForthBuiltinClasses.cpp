@@ -30,6 +30,7 @@ extern "C" {
 	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
 	extern void unimplementedMethodOp( ForthCoreState *pCore );
 	extern void illegalMethodOp( ForthCoreState *pCore );
+	extern void oStringPrintfSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
 };
 
 #ifdef _WINDOWS
@@ -4722,60 +4723,12 @@ namespace
 		METHOD_RETURN;
 	}
 
-#define MAX_OSTRING_PRINTF_ARGS 10
     FORTHOP(oStringPrintfMethod)
     {
         // TOS: N argN ... arg1 formatStr     (arg1 to argN are optional)
-        // TOS: N 
-        ForthEngine *pEngine = ForthEngine::GetInstance();
         GET_THIS(oStringStruct, pString);
-        int numArgs = SPOP;
         oString* pOStr = pString->str;
-        char* pDst = &(pOStr->data[0]);
-        int len;
-        int maxLen = pOStr->maxLen;
-        int args[MAX_OSTRING_PRINTF_ARGS];
-        
-
-        if (numArgs > MAX_OSTRING_PRINTF_ARGS)
-        {
-            pEngine->SetError(kForthErrorBadParameter, " too many arguments to OString::Printf");
-        }
-        else
-        {
-            for (int i = 1; i <= numArgs; ++i)
-            {
-                args[numArgs - i] = SPOP;
-            }
-            const char* formatStr = (const char *)(SPOP);
-            switch (numArgs)
-            {
-            case 0: len = SNPRINTF(pDst, maxLen, formatStr); break;
-            case 1: len = SNPRINTF(pDst, maxLen, formatStr, args[0]); break;
-            case 2: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1]); break;
-            case 3: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2]); break;
-            case 4: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3]); break;
-            case 5: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4]); break;
-            case 6: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5]); break;
-            case 7: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6]); break;
-            case 8: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]); break;
-            case 9: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]); break;
-            default:
-            case 10: len = SNPRINTF(pDst, maxLen, formatStr, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9]); break;
-            }
-            if (len > 0)
-            {
-                if (len <= maxLen)
-                {
-                    pOStr->curLen = len;
-                    pDst[len] = '\0';
-                }
-                else
-                {
-                    pDst[maxLen] = '\0';
-                }
-            }
-        }
+		oStringPrintfSub(pCore, &(pOStr->data[0]), pOStr->maxLen);
         METHOD_RETURN;
     }
     
