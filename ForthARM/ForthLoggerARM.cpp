@@ -9,18 +9,18 @@
 
 #define MAX_BUF 1024
 
-int main()
+void runLogger()
 {
     int fd = -1;
-    char * myfifo = "/tmp/myfifo";
+    char* myfifo = "/tmp/forthLoggerFIFO";
     char buf[MAX_BUF];
 
 	unlink(myfifo);
     /* open, read, and display the message from the FIFO */
+    printf("\nWaiting for named fifo connect on %s.  Hit CONTROL-C to exit.\n", myfifo);
     fd = open(myfifo, O_RDONLY);
 	while (fd < 0)
 	{
-        printf("Sleeping\n");
 		sleep(1);
 	    fd = open(myfifo, O_RDONLY);
 	}
@@ -39,7 +39,16 @@ int main()
         numRead = read(fd, buf, MAX_BUF);
     }
     close(fd);
-    return 0;
+}
+
+int main()
+{
+	
+	while (true)
+	{
+		runLogger();
+	}
+	return 0;
 }
 
 #if 0

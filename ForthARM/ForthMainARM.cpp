@@ -19,7 +19,7 @@ void OutputToLogger(const char* pBuffer)
 {
 	if (loggerFD < 0)
 	{
-	    char * myfifo = "/tmp/myfifo";
+	    char* myfifo = "/tmp/forthLoggerFIFO";
 
 	    /* create the FIFO (named pipe) */
 		unlink(myfifo);
