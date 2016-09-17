@@ -2649,7 +2649,6 @@ FORTHOP( format64Op )
 
 #ifdef PRINTF_SUBS_IN_ASM
 extern long fprintfSub( ForthCoreState* pCore );
-extern long sprintfSub( ForthCoreState* pCore );
 extern long snprintfSub(ForthCoreState* pCore);
 extern long fscanfSub(ForthCoreState* pCore);
 extern long sscanfSub( ForthCoreState* pCore );
@@ -2667,20 +2666,6 @@ long fprintfSub( ForthCoreState* pCore )
     const char* fmt = (const char *) SPOP;
     FILE* outfile = (FILE *) SPOP;
     return fprintf( outfile, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
-}
-
-long sprintfSub( ForthCoreState* pCore )
-{
-    int a[8];
-    // TODO: assert if numArgs > 8
-    long numArgs = SPOP;
-    for ( int i = numArgs - 1; i >= 0; --i )
-    {
-        a[i] = SPOP;
-    }
-    const char* fmt = (const char *) SPOP;
-    char* outbuff = (char *) SPOP;
-    return sprintf( outbuff, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
 }
 
 long snprintfSub( ForthCoreState* pCore )
@@ -2732,12 +2717,6 @@ FORTHOP( fprintfOp )
 {
     // TOS: N argN ... arg1 formatStr filePtr       (arg1 to argN are optional)
     fprintfSub( pCore );
-}
-
-FORTHOP( sprintfOp )
-{
-    // TOS: N argN ... arg1 formatStr bufferPtr       (arg1 to argN are optional)
-    sprintfSub( pCore );
 }
 
 FORTHOP(snprintfOp)
@@ -7850,7 +7829,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    format32Op,             "format" ),
     OP_DEF(    format64Op,             "2format" ),
     OP_DEF(    fprintfOp,              "fprintf" ),
-    OP_DEF(    sprintfOp,              "sprintf" ),
     OP_DEF(    snprintfOp,             "snprintf" ),
     OP_DEF(    fscanfOp,               "fscanf" ),
     OP_DEF(    sscanfOp,               "sscanf" ),

@@ -198,7 +198,8 @@ filePutString	=		48
 	.global fcmpBop, dcmpBop, fldexpBop, ffrexpBop, fmodfBop, ffmodBop
 	.global icmpBop, uicmpBop, oclearBop, lplusBop, lminusBop, ltimesBop, mtimesBop, umtimesBop
 
-	.global fprintfSub, fscanfSub, sprintfSub, snprintfSub, sscanfSub
+	.global fprintfSub, fscanfSub, snprintfSub, sscanfSub, oStringPrintfSub
+
 	.global InterpretOneOpFast
 	
 	.global	break_me
@@ -4580,13 +4581,12 @@ strFixupBop3:
 
 fopenBop:
 	push	{rcore, lr}
-	ldr	r1, [rsp]
-	ldr	r0, [rsp, #4]
+	ldmia	rsp!,{r1}
+	ldr	r0, [rsp]
 	@ r0=path, r1=access
 	ldr	r2, [rcore, #file_funcs]
 	ldr	r3, [r2, #fileOpen]
 	blx	r3
-	add	r0, #4
 	str	r0, [rsp]
 	pop	{rcore, lr}
 	bx	lr
@@ -4739,109 +4739,158 @@ fputsBop:
 
 	
 @ extern void fprintfSub( ForthCoreState* pCore );
-	
-fprintfSub:
-	push	{rcore, lr}
-	ldmia	rsp!, {r1}		@ r1 is argument count
-	add	r1, #2				
-	mov	r2, r1
+fprintfSub:	@ r0 = corePtr
+	@ TOS: numArgs ARGS format filePtr
+	push	{r0-r3, rcore, rsp, rrp, lr}
+	mov rcore, r0
+	ldr rsp, [rcore, #spsave]
+	ldr rrp, [rcore, #rpsave]
+	ldmia	rsp!, {r2}		@ r2 is argument count
 	stmdb	rrp!, {sp}		@ save old PC SP for cleanup on rstack
+	@ move args from param stack to PC stack
 fprintfSub1:
-	sub	r2, #1
-	bl	fprintfSub2
+	subs	r2, #1
+	blt	fprintfSub2
 	ldmia	rsp!, {r0}
 	push	{r0}
 	b	fprintfSub1
 fprintfSub2:
-	@ all args have been moved from parameter stack to PC stack
-	bl	fprintf
-	stmdb	rsp!, {r0}
+	ldmia	rsp!, {r1}
+	ldr	r0, [rsp]
+	mov r2, sp
+	@ r0 = filePtr   r1 = format   r2 = pointer to args
+
+	bl	vfprintf
+
+	str	r0, [rsp]
+	str rsp, [rcore, #spsave]
 	ldmia	rrp!, {sp}		@ cleanup PC stack
-	pop	{rcore, lr}
+	pop	{r0-r3, rcore, rsp, rrp, lr}
 	bx	lr
 
 	
-fscanfSub:
-	push	{rcore, lr}
-	ldmia	rsp!, {r1}		@ r1 is argument count
-	add	r1, #2				
-	mov	r2, r1
+@ extern void fscanfSub( ForthCoreState* pCore );
+fscanfSub:	@ r0 = corePtr
+	@ TOS: numArgs ARGS format filePtr
+	push	{r0-r3, rcore, rsp, rrp, lr}
+	mov rcore, r0
+	ldr rsp, [rcore, #spsave]
+	ldr rrp, [rcore, #rpsave]
+	ldmia	rsp!, {r2}		@ r2 is argument count
 	stmdb	rrp!, {sp}		@ save old PC SP for cleanup on rstack
+	@ move args from param stack to PC stack
 fscanfSub1:
-	sub	r2, #1
-	bl	fscanfSub2
+	subs	r2, #1
+	blt	fscanfSub2
 	ldmia	rsp!, {r0}
 	push	{r0}
 	b	fscanfSub1
 fscanfSub2:
-	@ all args have been moved from parameter stack to PC stack
-	bl	fscanf
-	stmdb	rsp!, {r0}
+	ldmia	rsp!, {r1}
+	ldr	r0, [rsp]
+	mov r2, sp
+	@ r0 = filePtr   r1 = format   r2 = pointer to args
+
+	bl	vfscanf
+
+	str	r0, [rsp]
+	str rsp, [rcore, #spsave]
 	ldmia	rrp!, {sp}		@ cleanup PC stack
-	pop	{rcore, lr}
+	pop	{r0-r3, rcore, rsp, rrp, lr}
 	bx	lr
 
 	
-sprintfSub:
-	push	{rcore, lr}
-	ldmia	rsp!, {r1}		@ r1 is argument count
-	add	r1, #2				
-	mov	r2, r1
+@ extern void snprintfSub( ForthCoreState* pCore );
+snprintfSub:	@ r0 = corePtr
+	@ TOS: numArgs ARGS format bufferSize bufferPtr
+	push	{r0-r3, rcore, rsp, rrp, lr}
+	mov rcore, r0
+	ldr rsp, [rcore, #spsave]
+	ldr rrp, [rcore, #rpsave]
+	ldmia	rsp!, {r2}		@ r2 is argument count
 	stmdb	rrp!, {sp}		@ save old PC SP for cleanup on rstack
-sprintfSub1:
-	sub	r2, #1
-	bl	sprintfSub2
-	ldmia	rsp!, {r0}
-	push	{r0}
-	b	sprintfSub1
-sprintfSub2:
-	@ all args have been moved from parameter stack to PC stack
-	bl	sprintf
-	stmdb	rsp!, {r0}
-	ldmia	rrp!, {sp}		@ cleanup PC stack
-	pop	{rcore, lr}
-	bx	lr
-
-	
-snprintfSub:
-	push	{rcore, lr}
-	ldmia	rsp!, {r1}		@ r1 is argument count
-	add	r1, #3
-	mov	r2, r1
-	stmdb	rrp!, {sp}		@ save old PC SP for cleanup on rstack
+	@ move args from param stack to PC stack
 snprintfSub1:
-	sub	r2, #1
-	bl	snprintfSub2
+	subs	r2, #1
+	blt	snprintfSub2
 	ldmia	rsp!, {r0}
 	push	{r0}
 	b	snprintfSub1
 snprintfSub2:
-	@ all args have been moved from parameter stack to PC stack
-	bl	snprintf
-	stmdb	rsp!, {r0}
+	ldmia	rsp!, {r2}
+	ldmia	rsp!, {r1}
+	ldr	r0, [rsp]
+	mov r3, sp
+	@ r0 = bufferPtr   r1 = bufferSize   r2 = format   r3 = pointer to args
+
+	bl	vsnprintf
+
+	str	r0, [rsp]
+	str rsp, [rcore, #spsave]
 	ldmia	rrp!, {sp}		@ cleanup PC stack
-	pop	{rcore, lr}
+	pop	{r0-r3, rcore, rsp, rrp, lr}
 	bx	lr
 
 	
-sscanfSub:
-	push	{rcore, lr}
-	ldmia	rsp!, {r1}		@ r1 is argument count
-	add	r1, #2				
-	mov	r2, r1
+@ extern void oStringPrintfSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
+oStringPrintfSub:	@ r0 = corePtr   r1 = bufferPtr   r2 = bufferSize
+	push	{r0-r3, rcore, rsp, rrp, lr}
+	mov rcore, r0
+	ldr rsp, [rcore, #spsave]
+	ldr rrp, [rcore, #rpsave]
+	@ TOS: bufferSize bufferPtr numArgs ARGS format
 	stmdb	rrp!, {sp}		@ save old PC SP for cleanup on rstack
+	stmdb	rrp!, {r1-r2}	@ save bufferPtr, size on rstack
+	ldmia	rsp!, {r2}		@ r2 is argument count
+osprintfSub1:
+	subs	r2, #1
+	blt	osprintfSub2
+	ldmia	rsp!, {r0}
+	push	{r0}
+	b	osprintfSub1
+osprintfSub2:
+	ldr	r2, [rsp]
+	mov r3, sp
+	@ all args have been moved from parameter stack to PC stack
+	ldmia	rrp!, {r0-r1}	@ get bufferPtr, size from rstack
+	@ r0 = bufferPtr   r1 = bufferSize   r2 = format   r3 = pointer to args
+	bl	vsnprintf
+
+	str	r0, [rsp]
+	str rsp, [rcore, #spsave]
+	ldmia	rrp!, {sp}		@ cleanup PC stack
+	pop	{r0-r3, rcore, rsp, rrp, lr}
+	bx	lr
+
+	
+@ extern void sscanfSub( ForthCoreState* pCore );
+sscanfSub:	@ r0 = corePtr
+	@ TOS: numArgs ARGS format bufferPtr
+	push	{r0-r3, rcore, rsp, rrp, lr}
+	mov rcore, r0
+	ldr rsp, [rcore, #spsave]
+	ldr rrp, [rcore, #rpsave]
+	ldmia	rsp!, {r2}		@ r2 is argument count
+	stmdb	rrp!, {sp}		@ save old PC SP for cleanup on rstack
+	@ move args from param stack to PC stack
 sscanfSub1:
-	sub	r2, #1
-	bl	sscanfSub2
+	subs	r2, #1
+	blt	sscanfSub2
 	ldmia	rsp!, {r0}
 	push	{r0}
 	b	sscanfSub1
 sscanfSub2:
-	@ all args have been moved from parameter stack to PC stack
-	bl	sscanf
-	stmdb	rsp!, {r0}
+	ldmia	rsp!, {r1}
+	ldr	r0, [rsp]
+	mov r2, sp
+	@ r0 = bufferPtr   r1 = format   r2 = pointer to args
+
+	bl	vsscanf
+
+	str	r0, [rsp]
+	str rsp, [rcore, #spsave]
 	ldmia	rrp!, {sp}		@ cleanup PC stack
-	pop	{rcore, lr}
+	pop	{r0-r3, rcore, rsp, rrp, lr}
 	bx	lr
 
 	
@@ -4849,7 +4898,7 @@ sscanfSub2:
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @                                                    @
 @                                                    @
-@		      OP TYPE ACTION ROUTINES                    @
+@		      OP TYPE ACTION ROUTINES                @
 @                                                    @
 @                                                    @
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
