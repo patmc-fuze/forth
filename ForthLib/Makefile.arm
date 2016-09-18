@@ -1,0 +1,85 @@
+#.PHONY:	all clean depends
+
+CC = g++
+GAS = as
+CDEBUG = -g
+DEFINES = -DRASPI -DLINUX -DASM_INNER_INTERPRETER -DINCLUDE_TRACE
+CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -save-temps=obj -marm
+#WARNING_FLAGS = -Wall -Wno-format -Wno-reorder -Wno-unused-variable -Wsign-compare -Wunused-but-set-variable
+WARNING_FLAGS = -Wno-format -Wno-reorder -Wno-unused-variable
+CPPFLAGS = $(CFLAGS)
+
+GASFLAGS = --defsym ASM_INNER_INTERPRETER=1
+#GASFLAGS =
+
+LDFLAGS = $(CDEBUG)
+
+DEPDIR := dep
+#$(shell mkdir -p $(DEPDIR) >/dev/null)
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.Td
+POSTCOMPILE = mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d
+
+$(DEPDIR)/%.d: ;
+.PRECIOUS: $(DEPDIR)/%.d
+
+LIBCPPSRCS = \
+	ForthShell.cpp \
+	ForthEngine.cpp \
+	ForthInner.cpp \
+	ForthInput.cpp \
+	ForthVocabulary.cpp \
+	ForthBuiltinClasses.cpp \
+	ForthExtension.cpp \
+	ForthStructs.cpp \
+	ForthStructCodeGenerator.cpp \
+	ForthOps.cpp \
+	ForthServer.cpp \
+	ForthClient.cpp \
+	ForthPipe.cpp \
+	ForthForgettable.cpp \
+	ForthThread.cpp \
+	ForthParseInfo.cpp \
+	ForthBlockFileManager.cpp \
+	ForthShowContext.cpp \
+	ForthOpcodeCompiler.cpp
+
+
+
+OBJDIR = obj
+LIBCPPOBJS := $(patsubst %.cpp,$(OBJDIR)/%.o,$(LIBCPPSRCS))
+LIBASMOBJS := $(OBJDIR)/InnerInterpArm.o
+
+LIBSRCS = $(LIBCPPSRCS) $(LIBASMSRCS)
+LIBOBJS = $(LIBCPPOBJS) $(LIBASMOBJS)
+
+$(OBJDIR)/%.o: %.cpp $(DEPDIR)/%.d
+	echo "* " $*
+	echo "< " $<
+	echo "@ " $@
+	$(CC) $(DEPFLAGS) $(CFLAGS) -o $(OBJDIR)/$*.o $<
+	$(POSTCOMPILE)
+
+$(OBJDIR)/InnerInterpArm.o: ../ForthARM/InnerInterpARM.S
+	$(CC) $(CFLAGS) -o $*.o -c $<
+    
+libforth.a:	$(LIBOBJS)
+	ar rcs libforth.a $(LIBOBJS)
+	
+stuff:
+	echo "OBJS=" $(LIBOBJS)
+	echo "SRCS=" $(LIBSRCS)
+
+#	echo "DEP at=" $@ "   less=" $< "   star=" $*
+	
+#$(OBJDIR)/%.o: %.s
+#	$(GAS) $(GASFLAGS) -o $(OBJDIR)/$*.o $<
+    
+clean:
+	-rm -f libforth.a
+	-rm -f $(OBJDIR)/*.*
+	-rm -f $(DEPDIR)/*.d
+
+all:	libforth.a
+
+-include $(patsubst %,$(DEPDIR)/%.d,$(basename $(SRCS)))
+
