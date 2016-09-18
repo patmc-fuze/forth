@@ -338,7 +338,14 @@ addHelp cd	cd BLAH			change working directory to BLAH
 
 
 addHelp pwd	pwd			display working directory
-: pwd $system( "chdir" ) drop ;
+: pwd
+#ifdef WINDOWS
+  "chdir"
+#else
+  "pwd"
+#endif
+  $system drop
+;
 
 addHelp ls	ls BLAH		display directory (BLAH is optional filespec)
 : ls

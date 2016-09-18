@@ -408,7 +408,7 @@ addHelp %2f					DOUBLE_FPNUM ...	prints a double-precision floating point number
 addHelp format				ARG FORMAT_STRING ... STRING_ADDR		format a 32-bit numeric value
 addHelp 2format				ARG64 FORMAT_STRING ... STRING_ADDR		format a 64-bit numeric value
 addHelp fprintf				FILE FORMAT_STRING (ARGS) NUM_ARGS ... RESULT		print formatted string to file
-addHelp sprintf				BUFFER FORMAT_STRING (ARGS) NUM_ARGS ... RESULT		print formatted string to BUFFER
+addHelp snprintf			BUFFER BUFFER_SIZE FORMAT_STRING (ARGS) NUM_ARGS ... RESULT		print formatted string to BUFFER
 addHelp fscanf				FILE FORMAT_STRING (ARGS) NUM_ARGS ... RESULT		read formatted string from file
 addHelp sscanf				BUFFER FORMAT_STRING (ARGS) NUM_ARGS ... RESULT		read formatted string from BUFFER
 addHelp base				leaves address of "base" var on TOS
