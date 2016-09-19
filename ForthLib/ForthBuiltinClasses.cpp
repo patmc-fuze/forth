@@ -4738,8 +4738,8 @@ namespace
         int maxLen = pOStr->maxLen;
         while (tryAgain)
         {
-            int numChars = oStringPrintfSub(pCore, &(pOStr->data[0]), maxLen);
-            if (numChars >= 0)
+            int numChars = oStringPrintfSub(pCore, &(pOStr->data[0]), maxLen + 1);
+            if ((numChars >= 0) && (numChars <= maxLen))
             {
                 tryAgain = false;
             }

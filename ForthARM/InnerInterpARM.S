@@ -4834,7 +4834,7 @@ snprintfSub2:
 	
 @ extern void oStringPrintfSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
 oStringPrintfSub:	@ r0 = corePtr   r1 = bufferPtr   r2 = bufferSize
-	push	{r0-r3, rcore, rsp, rrp, lr}
+	push	{r1-r3, rcore, rsp, rrp, lr}
 	mov rcore, r0
 	ldr rsp, [rcore, #spsave]
 	ldr rrp, [rcore, #rpsave]
@@ -4849,17 +4849,16 @@ osprintfSub1:
 	push	{r0}
 	b	osprintfSub1
 osprintfSub2:
-	ldr	r2, [rsp]
+	ldmia	rsp!, {r2}
 	mov r3, sp
 	@ all args have been moved from parameter stack to PC stack
 	ldmia	rrp!, {r0-r1}	@ get bufferPtr, size from rstack
 	@ r0 = bufferPtr   r1 = bufferSize   r2 = format   r3 = pointer to args
 	bl	vsnprintf
 
-	str	r0, [rsp]
-	str rsp, [rcore, #spsave]
+	@ leave args on param stack since we may need to retry printf is overflow occurs
 	ldmia	rrp!, {sp}		@ cleanup PC stack
-	pop	{r0-r3, rcore, rsp, rrp, lr}
+	pop	{r1-r3, rcore, rsp, rrp, lr}
 	bx	lr
 
 	
