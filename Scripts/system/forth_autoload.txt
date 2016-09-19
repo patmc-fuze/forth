@@ -111,7 +111,7 @@ enum: eFeatures
 : alias blword -> 250 string aa  aa blword $alias ;
 
 alias ->o ->+    // ->o stores to an object variable without changing refcounts
-
+alias mko makeObject
   
 : $,
   // TOS is ptr to nul terminated string at DP
