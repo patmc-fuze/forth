@@ -1292,11 +1292,17 @@ ForthClassVocabulary::~ForthClassVocabulary()
 void
 ForthClassVocabulary::DefineInstance( void )
 {
+    DefineInstance(mpEngine->GetNextSimpleToken());
+}
+
+
+void
+ForthClassVocabulary::DefineInstance( const char* pToken )
+{
     // do one of the following:
     // - define a global instance of this class type
     // - define a local instance of this class type
     // - define a field of this class type
-    char *pToken = mpEngine->GetNextSimpleToken();
     int nBytes = 8;
     long *pHere;
     long val = 0;

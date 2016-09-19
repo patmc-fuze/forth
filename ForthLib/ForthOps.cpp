@@ -1721,12 +1721,11 @@ FORTHOP( superOp )
     SPUSH( ((long) pMethods) );
 }
 
-FORTHOP( newOp )
+void __newOp(ForthCoreState* pCore, const char* pSym)
 {
     // TODO: allow sizeOf to be applied to variables
     // TODO: allow sizeOf to apply to native types, including strings
     ForthEngine *pEngine = GET_ENGINE;
-    char *pSym = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
     long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSym, &pFoundVocab );
 
@@ -1773,7 +1772,54 @@ FORTHOP( newOp )
     }
 }
 
-FORTHOP( doNewOp )
+FORTHOP(newOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    char *pSym = pEngine->GetNextSimpleToken();
+    __newOp(pCore, pSym);
+}
+
+FORTHOP(makeObjectOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    char *pClassName = pEngine->GetNextSimpleToken();
+    __newOp(pCore, pClassName);
+
+    ForthVocabulary* pFoundVocab;
+    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pClassName, &pFoundVocab);
+
+    if (pEntry)
+    {
+        ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+        ForthClassVocabulary* pClassVocab = (ForthClassVocabulary *)(pManager->GetStructVocabulary(pEntry[0]));
+
+        if (pClassVocab && pClassVocab->IsClass())
+        {
+            long initOpcode = pClassVocab->GetInitOpcode();
+            if (pEngine->IsCompiling())
+            {
+                pEngine->CompileBuiltinOpcode(OP_INTO);
+            }
+            else
+            {
+                SET_VAR_OPERATION(kVarStore);
+            }
+            pClassVocab->DefineInstance();
+        }
+        else
+        {
+            pEngine->AddErrorText(pClassName);
+            pEngine->SetError(kForthErrorUnknownSymbol, " is not a class");
+        }
+    }
+    else
+    {
+        pEngine->SetError(kForthErrorUnknownSymbol, pClassName);
+    }
+
+}
+
+FORTHOP(doNewOp)
 {
 	// this op is compiled for 'new foo', the class vocabulary ptr is compiled immediately after it
     ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (*pCore->IP++);
@@ -7780,8 +7826,9 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(offsetOfOp,             "offsetOf" ),
     OP_DEF(    showStructOp,           "showStruct" ),
     PRECOP_DEF(newOp,                  "new" ),
-    PRECOP_DEF(initMemberStringOp,     "initMemberString" ),
-	NATIVE_DEF(intoBop,                "->o" ),
+    PRECOP_DEF(makeObjectOp,           "makeObject"),
+    PRECOP_DEF(initMemberStringOp, "initMemberString"),
+	//NATIVE_DEF(intoBop,                "->o" ),
     OP_DEF(    enumOp,                 "enum:" ),
     OP_DEF(    endenumOp,              ";enum" ),
     PRECOP_DEF(recursiveOp,            "recursive" ),

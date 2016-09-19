@@ -204,7 +204,8 @@ public:
     virtual ~ForthClassVocabulary();
 
     // handle invocation of a struct op - define a local/global struct or struct array, or define a field
-    virtual void	    DefineInstance( void );
+    virtual void	    DefineInstance(void);
+    virtual void	    DefineInstance(const char* pSym);
 
     virtual void        DoOp( ForthCoreState *pCore );
 
