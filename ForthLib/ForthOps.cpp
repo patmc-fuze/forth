@@ -3028,13 +3028,29 @@ FORTHOP( saveInputOp )
     SPUSH( nItems );
 }
 
-FORTHOP( restoreInputOp )
+FORTHOP(restoreInputOp)
 {
     ForthShell *pShell = GET_ENGINE->GetShell();
     long* pSP = GET_SP;
     long nItems = *pSP;
-    pShell->GetInput()->InputStream()->SetInputState( pSP );
-    SET_SP( pSP + (nItems + 1) );
+    pShell->GetInput()->InputStream()->SetInputState(pSP);
+    SET_SP(pSP + (nItems + 1));
+}
+
+FORTHOP(getEnvironmentVarOp)
+{
+    ForthShell *pShell = GET_ENGINE->GetShell();
+    const char* pVarName = (const char *)(SPOP);
+    SPUSH((long)(pShell->GetEnvironmentVar(pVarName)));
+}
+
+FORTHOP(getEnvironmentOp)
+{
+    ForthShell *pShell = GET_ENGINE->GetShell();
+    const char* pVarName = (const char *)(SPOP);
+    SPUSH((long)(pShell->GetEnvironmentVarNames()));
+    SPUSH((long)(pShell->GetEnvironmentVarValues()));
+    SPUSH(pShell->GetEnvironmentVarCount());
 }
 
 //##############################
@@ -7647,7 +7663,9 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    fflushOp,               "fflush" ),
     OP_DEF(    errnoOp,			       "errno" ),
     OP_DEF(    strerrorOp,             "strerror" ),
-    
+    OP_DEF(    getEnvironmentOp,       "getEnvironment" ),
+    OP_DEF(    getEnvironmentVarOp,    "getEnvironmentVar" ),
+ 
     ///////////////////////////////////////////
     //  block i/o
     ///////////////////////////////////////////

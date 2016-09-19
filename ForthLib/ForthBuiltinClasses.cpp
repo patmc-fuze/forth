@@ -26,11 +26,16 @@ long gStatKeeps = 0;
 long gStatReleases = 0;
 #endif
 
+// first time OString:printf fails due to overflow, it buffer is increased to this size
+#define OSTRING_PRINTF_FIRST_OVERFLOW_SIZE 256
+// this is size limit of buffer expansion upon OString:printf overflow
+#define OSTRING_PRINTF_LAST_OVERFLOW_SIZE 0x2000000
+
 extern "C" {
 	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
 	extern void unimplementedMethodOp( ForthCoreState *pCore );
 	extern void illegalMethodOp( ForthCoreState *pCore );
-	extern void oStringPrintfSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
+	extern int oStringPrintfSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
 };
 
 #ifdef _WINDOWS
@@ -4478,6 +4483,16 @@ namespace
         METHOD_RETURN;
     }
 
+    inline oString* resizeOString(oString* dstString, int newLen)
+    {
+        int dataBytes = ((newLen + 4) & ~3);
+        size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
+        dstString = (oString *)__REALLOC(dstString, nBytes);
+        dstString->maxLen = dataBytes - 1;
+        dstString->data[newLen] = '\0';
+        return dstString;
+    }
+
     void oStringAppendBytes( oStringStruct* pString, const char* pSrc, int numNewBytes )
     {
 		long len = (long) strlen( pSrc );
@@ -4486,16 +4501,12 @@ namespace
 		if ( newLen > dst->maxLen )
 		{
 			// enlarge string
-			//int dataBytes = ((((newLen * 6) >> 2)  + 4) & ~3);
-			int dataBytes = ((newLen + 4) & ~3);
-	        size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
-			dst = (oString *) __REALLOC( dst, nBytes );
-			dst->maxLen = dataBytes - 1;
+            dst = resizeOString(dst, newLen);
 			pString->str = dst;
 		}
 		memcpy( &(dst->data[dst->curLen]), pSrc, numNewBytes );
-		dst->data[newLen] = '\0';
-		dst->curLen = newLen;
+        dst->data[newLen] = '\0';
+        dst->curLen = newLen;
 		pString->hash = 0;
     }
 
@@ -4521,12 +4532,7 @@ namespace
     {
         GET_THIS( oStringStruct, pString );
 		long newLen = SPOP;
-		oString* dst = pString->str;
-		int dataBytes = ((newLen + 4) & ~3);
-        size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
-		dst = (oString *) __REALLOC(dst, nBytes);
-		dst->maxLen = dataBytes - 1;
-		pString->str = dst;
+		oString* dst = resizeOString(pString->str, newLen);
 		dst->data[newLen] = '\0';
 		if ( dst->curLen > dst->maxLen )
 		{
@@ -4728,7 +4734,37 @@ namespace
         // TOS: N argN ... arg1 formatStr     (arg1 to argN are optional)
         GET_THIS(oStringStruct, pString);
         oString* pOStr = pString->str;
-		oStringPrintfSub(pCore, &(pOStr->data[0]), pOStr->maxLen);
+        bool tryAgain = true;
+        int maxLen = pOStr->maxLen;
+        while (tryAgain)
+        {
+            int numChars = oStringPrintfSub(pCore, &(pOStr->data[0]), maxLen);
+            if (numChars >= 0)
+            {
+                tryAgain = false;
+            }
+            else
+            {
+                if (maxLen < OSTRING_PRINTF_FIRST_OVERFLOW_SIZE)
+                {
+                    maxLen = OSTRING_PRINTF_FIRST_OVERFLOW_SIZE;
+                }
+                else
+                {
+                    maxLen <<= 1;
+                    if (maxLen >= OSTRING_PRINTF_LAST_OVERFLOW_SIZE)
+                    {
+                        tryAgain = false;
+                    }
+                }
+                pOStr = resizeOString(pOStr, maxLen);
+            }
+        }
+        // remove args from parameter stack
+        int numArgs = SPOP;
+        pCore->SP += (numArgs + 1);
+
+        pString->str = pOStr;
         METHOD_RETURN;
     }
     

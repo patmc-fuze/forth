@@ -154,6 +154,8 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 , mpInternalFiles(NULL)
 , mInternalFileCount(0)
 , mExpressionInputStream(NULL)
+, mSystemDir(NULL)
+, mTempDir(NULL)
 {
     mFileInterface.fileOpen = fopen;
     mFileInterface.fileClose = fclose;
@@ -256,8 +258,9 @@ ForthShell::~ForthShell()
 	{
 		delete mExpressionInputStream;
 	}
-
-	// engine will destroy thread for us if we created it
+    delete [] mTempDir;
+    delete [] mSystemDir;
+    // engine will destroy thread for us if we created it
 	if (mFlags & SHELL_FLAG_CREATED_ENGINE)
 	{
 		delete mpEngine;
@@ -1245,7 +1248,7 @@ ForthShell::SetCommandLine( const char *pCmdLine )
 void
 ForthShell::SetEnvironmentVars( const char ** envp )
 {
-    int i, len;
+    int i, nameLen;
     char *pValue;
 
     DeleteEnvironmentVars();
@@ -1258,25 +1261,53 @@ ForthShell::SetEnvironmentVars( const char ** envp )
     }
     mpEnvVarNames = new char *[ mNumEnvVars ];
     mpEnvVarValues = new char *[ mNumEnvVars ];
+    const char* tempDir = NULL;
 
     // make copies of vars
     i = 0;
     while ( i < mNumEnvVars )
     {
-        len = strlen( envp[i] ) + 1;
-        mpEnvVarNames[i] = new char[ len ];
+        nameLen = strlen( envp[i] ) + 1;
+        mpEnvVarNames[i] = new char[nameLen];
         strcpy( mpEnvVarNames[i], envp[i] );
         pValue = strchr( mpEnvVarNames[i], '=' );
         if ( pValue != NULL )
         {
             *pValue++ = '\0';
             mpEnvVarValues[i] = pValue;
+            if (strcmp(mpEnvVarNames[i], "FORTH_SYSTEM_DIR") == 0)
+            {
+                delete [] mSystemDir;
+                mSystemDir = new char[strlen(pValue) + 1];
+                strcpy(mSystemDir, pValue);
+            }
+            else if (strcmp(mpEnvVarNames[i], "FORTH_TEMP_DIR") == 0)
+            {
+                delete[] mTempDir;
+                mTempDir = new char[strlen(pValue) + 1];
+                strcpy(mTempDir, pValue);
+            }
+            else if (strcmp(mpEnvVarNames[i], "TMP") == 0)
+            {
+                tempDir = mpEnvVarValues[i];
+            }
+            else if (strcmp(mpEnvVarNames[i], "TEMP") == 0)
+            {
+                tempDir = mpEnvVarValues[i];
+            }
         }
         else
         {
             printf( "Malformed environment variable: %s\n", envp[i] );
         }
         i++;
+    }
+
+    if ((mTempDir == NULL) && (tempDir != NULL))
+    {
+        delete[] mTempDir;
+        mTempDir = new char[strlen(tempDir) + 1];
+        strcpy(mTempDir, tempDir);
     }
 }
 
@@ -1321,6 +1352,21 @@ ForthShell::DeleteEnvironmentVars( void )
 
     mpEnvVarNames = NULL;
     mpEnvVarValues = NULL;
+}
+
+
+const char*
+ForthShell::GetEnvironmentVar(const char* envVarName)
+{
+    const char* envVarValue = NULL;
+    for (int i = 0; i < mNumEnvVars; i++)
+    {
+        if (strcmp(envVarName, mpEnvVarNames[i]) == 0)
+        {
+            return mpEnvVarValues[i];
+        }
+    }
+    return NULL;
 }
 
 

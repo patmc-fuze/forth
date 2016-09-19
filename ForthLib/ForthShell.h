@@ -125,8 +125,14 @@ public:
     inline ForthInputStack * GetInput( void ) { return mpInput; };
 	inline ForthShellStack * GetShellStack( void ) { return mpStack; };
 
-    inline int              GetArgCount( void ) { return mNumArgs; };
-    inline char *           GetArg( int argNum ) { return mpArgs[argNum]; };
+    inline int              GetArgCount( void ) const { return mNumArgs; };
+    inline const char *     GetArg( int argNum ) const { return mpArgs[argNum]; };
+    const char*             GetEnvironmentVar(const char* envVarName);
+    inline char**           GetEnvironmentVarNames() { return mpEnvVarNames; }
+    inline char**           GetEnvironmentVarValues() const { return mpEnvVarValues; }
+    inline int              GetEnvironmentVarCount() const { return mNumEnvVars;  }
+    inline const char*      GetTempDir() const { return mTempDir; }
+    inline const char*      GetSystemDir() const { return mSystemDir; }
 
     bool                    CheckSyntaxError( const char *pString, long tag, long desiredTag );
 	void					StartDefinition( const char* pFourCharCode );
@@ -197,7 +203,8 @@ protected:
     int                     mFlags;
     char                    mErrorString[ 128 ];
     char                    mToken[MAX_TOKEN_BYTES + 1];
-
+    char*                   mTempDir;
+    char*                   mSystemDir;
     int                     mPoundIfDepth;
 
 #ifdef LINUX

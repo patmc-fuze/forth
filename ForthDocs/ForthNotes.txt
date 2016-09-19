@@ -162,6 +162,14 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 18 2016
+
+I got the x86 version of OString:printf working.  It currently uses _snprintf,
+I tried to get it working with vsnprintf to be more consistent with the ARM
+version, but I couldn't get it to work.
+I modified the x86 version of OString:printf to automatically resize the string
+if the formatted output won't fit the current buffer.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 17 2016
 
 I got the ARM assembler versions of snprintf/sscanf/fprintf/fscanf debugged.

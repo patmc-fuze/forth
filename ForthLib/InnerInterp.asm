@@ -5712,7 +5712,7 @@ entry	fputsBop
 	
 ;========================================
 
-;extern void sprintfSub( ForthCoreState* pCore );
+;extern void fprintfSub( ForthCoreState* pCore );
 ;extern void snprintfSub( ForthCoreState* pCore );
 ;extern void fscanfSub( ForthCoreState* pCore );
 ;extern void sscanfSub( ForthCoreState* pCore );
@@ -5758,45 +5758,6 @@ fprintfSub ENDP
 
 ;========================================
 
-entry sprintfSubCore
-    ; TOS: N argN ... arg1 formatStr bufferPtr       (arg1 to argN are optional)
-	mov	edi, [edx]
-	add	edi, 2
-	add	edx, 4
-	mov	esi, edi
-sprintfSub1:
-	sub	esi, 1
-	jl	sprintfSub2
-	mov	ebx, [edx]
-	add	edx, 4
-	push	ebx
-	jmp sprintfSub1
-sprintfSub2:
-	; all args have been moved from parameter stack to PC stack
-	mov	[ebp].FCore.SPtr, edx
-	call	sprintf
-	mov	edx, [ebp].FCore.SPtr
-	sub	edx, 4
-	mov	[edx], eax		; return result on parameter stack
-	mov	[ebp].FCore.SPtr, edx
-	; cleanup PC stack
-	mov	ebx, edi
-	sal	ebx, 2
-	add	esp, ebx
-	ret
-	
-; extern long sprintfSub( ForthCoreState* pCore );
-
-sprintfSub PROC near C public uses ebx esi edx ecx edi ebp,
-	core:PTR
-	mov	ebp, DWORD PTR core
-	mov	edx, [ebp].FCore.SPtr
-	call	sprintfSubCore
-	ret
-sprintfSub ENDP
-
-;========================================
-
 entry snprintfSubCore
     ; TOS: N argN ... arg1 formatStr bufferSize bufferPtr       (arg1 to argN are optional)
 	mov	edi, [edx]
@@ -5833,6 +5794,55 @@ snprintfSub PROC near C public uses ebx esi edx ecx edi ebp,
 	call	snprintfSubCore
 	ret
 snprintfSub ENDP
+
+;========================================
+
+; extern int oStringPrintfSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
+PUBLIC	oStringPrintfSub;
+oStringPrintfSub PROC near C public uses ebx esi edx ecx edi ebp,
+	core:PTR,
+	pBuffer:PTR,
+	bufferSize:DWORD
+    ; TOS: numArgs argN ... arg1 formatStr (arg1 to argN are optional)
+
+	mov	ebx, DWORD PTR core
+
+	; store old SP on rstack
+	mov	edx, [ebx].FCore.RPtr
+	sub	edx, 4
+	mov	[edx], esp
+	mov	[ebx].FCore.RPtr, edx
+
+	; copy arg1 ... argN from param stack to PC stack
+	mov	edx, [ebx].FCore.SPtr
+	mov	edi, [edx]	; get numArgs
+	add	edi, 1		; add one for the format string
+	add	edx, 4
+osnprintfSub1:
+	sub	edi, 1
+	jl	osnprintfSub2
+	mov	eax, [edx]
+	add	edx, 4
+	push	eax
+	jmp osnprintfSub1
+osnprintfSub2:
+	; all args have been copied from parameter stack to PC stack
+	; we don't remove args from parameter stack in case printf fails and we need to retry with a bigger buffer
+	mov	eax, bufferSize
+	push eax
+	mov	eax, DWORD PTR pBuffer
+	push eax
+
+	call	_snprintf
+
+	; cleanup PC stack
+	mov	edx, [ebx].FCore.RPtr
+	mov	esp, [edx]
+	add	edx, 4
+	mov	[ebx].FCore.RPtr, edx
+
+	ret
+oStringPrintfSub ENDP
 
 ;========================================
 
