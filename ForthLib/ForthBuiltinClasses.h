@@ -50,7 +50,68 @@ typedef enum
 } eObjectMethod;
 #define kObjectShowMethodIndex 1
 
+#define SHOW_OBJ_HEADER(_TYPENAME)  pShowContext->ShowHeader(pCore, _TYPENAME, GET_TPD)
 void ForthShowObject(ForthObject& obj, ForthCoreState* pCore);
+
+void unrefObject(ForthObject& fobj);
+
+extern ForthClassVocabulary* gpObjectClassVocab;
+extern ForthClassVocabulary* gpClassClassVocab;
+extern ForthClassVocabulary* gpOIterClassVocab;
+extern ForthClassVocabulary* gpOIterableClassVocab;
+
+
+// oOutStream is an abstract output stream class
+
+struct OutStreamFuncs
+{
+	streamCharOutRoutine		outChar;
+	streamBytesOutRoutine		outBytes;
+	streamStringOutRoutine		outString;
+};
+
+
+struct oOutStreamStruct
+{
+	ulong               refCount;
+	OutStreamFuncs*     pOutFuncs;
+	void*               pUserData;
+};
+
+enum
+{
+	kOutStreamPutCharMethod = kNumBaseMethods,
+	kOutStreamPutBytesMethod = kNumBaseMethods + 1,
+	kOutStreamPutStringMethod = kNumBaseMethods + 2
+};
+
+typedef std::vector<ForthObject> oArray;
+struct oArrayStruct
+{
+	ulong       refCount;
+	oArray*    elements;
+};
+
+struct oListElement
+{
+	oListElement*	prev;
+	oListElement*	next;
+	ForthObject		obj;
+};
+
+struct oListStruct
+{
+	ulong			refCount;
+	oListElement*	head;
+	oListElement*	tail;
+};
+
+struct oArrayIterStruct
+{
+	ulong			refCount;
+	ForthObject		parent;
+	ulong			cursor;
+};
 
 class ForthForgettableGlobalObject : public ForthForgettable
 {

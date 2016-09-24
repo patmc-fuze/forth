@@ -1,0 +1,16 @@
+#pragma once
+//////////////////////////////////////////////////////////////////////
+//
+// OMap.h: builtin map related classes
+//
+//////////////////////////////////////////////////////////////////////
+
+
+class ForthClassVocabulary;
+
+namespace OMap
+{
+	extern ForthClassVocabulary* gpMapClassVocab;
+
+	void AddClasses(ForthEngine* pEngine);
+}

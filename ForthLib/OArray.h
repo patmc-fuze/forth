@@ -1,0 +1,16 @@
+#pragma once
+//////////////////////////////////////////////////////////////////////
+//
+// OArray.h: builtin array related classes
+//
+//////////////////////////////////////////////////////////////////////
+
+
+class ForthClassVocabulary;
+
+namespace OArray
+{
+	extern ForthClassVocabulary* gpOArrayClassVocab;
+
+	void AddClasses(ForthEngine* pEngine);
+}
