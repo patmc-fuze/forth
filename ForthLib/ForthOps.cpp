@@ -2798,7 +2798,7 @@ FORTHOP( printStrOp )
     CONSOLE_STRING_OUT( buff );
 }
 
-FORTHOP( printBlockOp )
+FORTHOP( printBytesOp )
 {
     NEEDS(2);
     long count = SPOP;
@@ -7827,8 +7827,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    showStructOp,           "showStruct" ),
     PRECOP_DEF(newOp,                  "new" ),
     PRECOP_DEF(makeObjectOp,           "makeObject"),
-    PRECOP_DEF(initMemberStringOp, "initMemberString"),
-	//NATIVE_DEF(intoBop,                "->o" ),
+    PRECOP_DEF(initMemberStringOp,     "initMemberString"),
     OP_DEF(    enumOp,                 "enum:" ),
     OP_DEF(    endenumOp,              ";enum" ),
     PRECOP_DEF(recursiveOp,            "recursive" ),
@@ -7884,7 +7883,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    printLongHexOp,         "%2x" ),
     OP_DEF(    printStrOp,             "%s" ),
     OP_DEF(    printCharOp,            "%c" ),
-    OP_DEF(    printBlockOp,           "type" ),
+    OP_DEF(    printBytesOp,           "type" ),
     OP_DEF(    print4Op,               "%4c" ),
     OP_DEF(    print8Op,               "%8c" ),
     OP_DEF(    printSpaceOp,           "%bl" ),

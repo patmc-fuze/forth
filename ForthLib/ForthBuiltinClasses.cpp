@@ -35,7 +35,7 @@ extern "C" {
 	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
 	extern void unimplementedMethodOp( ForthCoreState *pCore );
 	extern void illegalMethodOp( ForthCoreState *pCore );
-	extern int oStringPrintfSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
+	extern int oStringFormatSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
 };
 
 #ifdef _WINDOWS
@@ -4359,10 +4359,17 @@ namespace
 		char		data[DEFAULT_STRING_DATA_BYTES];
 	};
 
+    struct oStringStruct
+    {
+        ulong		refCount;
+		ulong		hash;
+        oString*	str;
+    };
+
 // temp hackaround for a heap corruption when expanding a string
 //#define RCSTRING_SLOP 16
 #define RCSTRING_SLOP 0
-	oString* CreateRCString( int maxChars )
+	oString* createOString( int maxChars )
 	{
 		int dataBytes = ((maxChars  + 4) & ~3);
         size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
@@ -4373,12 +4380,49 @@ namespace
 		return str;
 	}
 
-    struct oStringStruct
+    inline oString* resizeOString(oString* dstString, int newLen)
     {
-        ulong		refCount;
-		ulong		hash;
-        oString*	str;
-    };
+        int dataBytes = ((newLen + 4) & ~3);
+        size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
+        dstString = (oString *)__REALLOC(dstString, nBytes);
+        dstString->maxLen = dataBytes - 1;
+        dstString->data[newLen] = '\0';
+        return dstString;
+    }
+
+    void appendOString(oStringStruct* pString, const char* pSrc, int numNewBytes)
+    {
+        oString* dst = pString->str;
+        long newLen = dst->curLen + numNewBytes;
+        if (newLen > dst->maxLen)
+        {
+            // enlarge string
+            dst = resizeOString(dst, newLen);
+            pString->str = dst;
+        }
+        memmove(&(dst->data[dst->curLen]), pSrc, numNewBytes);
+        dst->data[newLen] = '\0';
+        dst->curLen = newLen;
+        pString->hash = 0;
+    }
+
+    void prependOString(oStringStruct* pString, const char* pSrc, int numNewBytes)
+    {
+        oString* dst = pString->str;
+        long newLen = dst->curLen + numNewBytes;
+        if (newLen > dst->maxLen)
+        {
+            // enlarge string
+            dst = resizeOString(dst, newLen);
+            pString->str = dst;
+        }
+        char* pDst = &(dst->data[0]);
+        memmove((void *)(pDst + numNewBytes), pDst, dst->curLen);
+        memmove(pDst, pSrc, numNewBytes);
+        dst->data[newLen] = '\0';
+        dst->curLen = newLen;
+        pString->hash = 0;
+    }
 
 
     FORTHOP( oStringNew )
@@ -4388,7 +4432,7 @@ namespace
         MALLOCATE_OBJECT( oStringStruct, pString );
         pString->refCount = 0;
         pString->hash = 0;
-		pString->str = CreateRCString( gDefaultRCStringSize );
+		pString->str = createOString( gDefaultRCStringSize );
         PUSH_PAIR( pPrimaryInterface->GetMethods(), pString );
     }
 
@@ -4474,40 +4518,13 @@ namespace
 		{
 			// enlarge string
 			free( dst );
-			dst = CreateRCString( len );
+			dst = createOString( len );
 			pString->str = dst;
 		}
 		dst->curLen = len;
-		memcpy( &(dst->data[0]), srcStr, len + 1 );
+		memmove( &(dst->data[0]), srcStr, len + 1 );
 		pString->hash = 0;
         METHOD_RETURN;
-    }
-
-    inline oString* resizeOString(oString* dstString, int newLen)
-    {
-        int dataBytes = ((newLen + 4) & ~3);
-        size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
-        dstString = (oString *)__REALLOC(dstString, nBytes);
-        dstString->maxLen = dataBytes - 1;
-        dstString->data[newLen] = '\0';
-        return dstString;
-    }
-
-    void oStringAppendBytes( oStringStruct* pString, const char* pSrc, int numNewBytes )
-    {
-		long len = (long) strlen( pSrc );
-		oString* dst = pString->str;
-		long newLen = dst->curLen + numNewBytes;
-		if ( newLen > dst->maxLen )
-		{
-			// enlarge string
-            dst = resizeOString(dst, newLen);
-			pString->str = dst;
-		}
-		memcpy( &(dst->data[dst->curLen]), pSrc, numNewBytes );
-        dst->data[newLen] = '\0';
-        dst->curLen = newLen;
-		pString->hash = 0;
     }
 
     FORTHOP(oStringAppendMethod)
@@ -4515,16 +4532,62 @@ namespace
         GET_THIS(oStringStruct, pString);
         const char* srcStr = (const char *)SPOP;
         int len = strlen(srcStr);
-        oStringAppendBytes(pString, srcStr, len);
+        appendOString(pString, srcStr, len);
         METHOD_RETURN;
     }
 
-    FORTHOP(oStringAppendBlockMethod)
+    FORTHOP(oStringPrependMethod)
+    {
+        GET_THIS(oStringStruct, pString);
+        const char* srcStr = (const char *)SPOP;
+        int len = strlen(srcStr);
+        prependOString(pString, srcStr, len);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringGetBytesMethod)
+    {
+        GET_THIS(oStringStruct, pString);
+        SPUSH((long)&(pString->str->data[0]));
+        SPUSH(pString->str->curLen);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringSetBytesMethod)
     {
         GET_THIS(oStringStruct, pString);
         int len = SPOP;
         const char* srcStr = (const char *)SPOP;
-        oStringAppendBytes(pString, srcStr, len);
+        oString* dst = pString->str;
+        if (len > dst->maxLen)
+        {
+            // enlarge string
+            free(dst);
+            dst = createOString(len);
+            pString->str = dst;
+        }
+        dst->curLen = len;
+        memmove(&(dst->data[0]), srcStr, len);
+        dst->data[len] = '\0';
+        pString->hash = 0;
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringAppendBytesMethod)
+    {
+        GET_THIS(oStringStruct, pString);
+        int len = SPOP;
+        const char* srcStr = (const char *)SPOP;
+        appendOString(pString, srcStr, len);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringPrependBytesMethod)
+    {
+        GET_THIS(oStringStruct, pString);
+        int len = SPOP;
+        const char* srcStr = (const char *)SPOP;
+        prependOString(pString, srcStr, len);
         METHOD_RETURN;
     }
 
@@ -4542,7 +4605,188 @@ namespace
         METHOD_RETURN;
     }
 
-    FORTHOP( oStringStartsWithMethod )
+    FORTHOP(oStringKeepLeftMethod)
+    {
+        GET_THIS(oStringStruct, pString);
+        oString* str = pString->str;
+        long newLen = SPOP;
+        if (newLen < 0)
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError(kForthErrorBadParameter, " OString.leftBytes negative length");
+            newLen = 0;
+        }
+        else if (newLen < str->curLen)
+        {
+            newLen = str->curLen;
+        }
+        str->curLen = newLen;
+        str->data[newLen] = '\0';
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringKeepRightMethod)
+    {
+        GET_THIS(oStringStruct, pString);
+        oString* str = pString->str;
+        long newLen = SPOP;
+        char* data = &(str->data[0]);
+        if (newLen < 0)
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError(kForthErrorBadParameter, " OString.rightBytes negative length");
+            newLen = 0;
+        }
+        else if (newLen < str->curLen)
+        {
+            memmove(data, data + (str->curLen - newLen), newLen);
+        }
+        else
+        {
+            // trying to keep more bytes than are in string, do nothing
+            newLen = str->curLen;
+        }
+        str->curLen = newLen;
+        str->data[newLen] = '\0';
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringKeepMiddleMethod)
+    {
+        GET_THIS(oStringStruct, pString);
+        oString* str = pString->str;
+        long newLen = SPOP;
+        long firstChar = SPOP;
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        if (firstChar < 0)
+        {
+            pEngine->SetError(kForthErrorBadParameter, " OString.mid negative first character");
+        }
+        else if (newLen < 0)
+        {
+            pEngine->SetError(kForthErrorBadParameter, " OString.mid negative length");
+        }
+        else
+        {
+            if (firstChar >= str->curLen)
+            {
+                // starting char is beyond end of string, string is empty
+                str->data[0] = '\0';
+                str->curLen = 0;
+            }
+            else
+            {
+                long charsLeft = str->curLen - firstChar;
+                if (newLen > charsLeft)
+                {
+                    newLen = charsLeft;
+                }
+                if (newLen > 0)
+                {
+
+                    char* data = &(str->data[0]);
+                    memmove(data, data + firstChar, newLen);
+                }
+                else
+                {
+                    newLen = 0;
+                }
+                str->curLen = newLen;
+                str->data[newLen] = '\0';
+            }
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringLeftBytesMethod)
+    {
+        GET_THIS(oStringStruct, pString);
+        oString* str = pString->str;
+        long newLen = SPOP;
+        if (newLen < 0)
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError(kForthErrorBadParameter, " OString.leftBytes negative length");
+            newLen = 0;
+        }
+        else if (newLen < str->curLen)
+        {
+            newLen = str->curLen;
+        }
+        SPUSH((long)(&(str->data[0])));
+        SPUSH(newLen);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringRightBytesMethod)
+    {
+        GET_THIS(oStringStruct, pString);
+        oString* str = pString->str;
+        long newLen = SPOP;
+        char* data = &(str->data[0]);
+        if (newLen < 0)
+        {
+            ForthEngine *pEngine = ForthEngine::GetInstance();
+            pEngine->SetError(kForthErrorBadParameter, " OString.rightBytes negative length");
+            newLen = 0;
+        }
+        else if (newLen >= str->curLen)
+        {
+            newLen = str->curLen;
+        }
+        else
+        {
+            data += (str->curLen - newLen);
+        }
+        SPUSH((long)data);
+        SPUSH(newLen);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringMiddleBytesMethod)
+    {
+        GET_THIS(oStringStruct, pString);
+        oString* str = pString->str;
+        long newLen = SPOP;
+        long firstChar = SPOP;
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        char* pBytes = &(str->data[0]);
+        if (firstChar < 0)
+        {
+            newLen = 0;
+            pEngine->SetError(kForthErrorBadParameter, " OString.mid negative first character");
+        }
+        else if (newLen < 0)
+        {
+            newLen = 0;
+            pEngine->SetError(kForthErrorBadParameter, " OString.mid negative length");
+        }
+        else
+        {
+            if (firstChar >= str->curLen)
+            {
+                // starting char is beyond end of string, string is empty
+                newLen = 0;
+                pBytes += str->curLen;
+            }
+            else
+            {
+                // starting char is within string
+                pBytes += firstChar;
+                long charsLeft = str->curLen - firstChar;
+                if (newLen > charsLeft)
+                {
+                    newLen = charsLeft;
+                }
+            }
+        }
+
+        SPUSH(newLen);
+        SPUSH((long)(pBytes));
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringStartsWithMethod)
     {
         GET_THIS( oStringStruct, pString );
 		const char* srcStr = (const char *) SPOP;
@@ -4623,7 +4867,7 @@ namespace
     {
         GET_THIS( oStringStruct, pString );
 		char c = (char) SPOP;
-		oStringAppendBytes( pString, &c, 1 );
+		appendOString( pString, &c, 1 );
         METHOD_RETURN;
     }
 
@@ -4637,7 +4881,7 @@ namespace
 		{
 			const char* srcStr = pStrings[i];
 			int len = strlen(srcStr);
-			oStringAppendBytes(pString, srcStr, len);
+			appendOString(pString, srcStr, len);
 		}
 		METHOD_RETURN;
 	}
@@ -4675,7 +4919,7 @@ namespace
 					substringSize = strlen(pSrc);
 					notDone = false;
 				}
-				oString* str = CreateRCString(substringSize);
+				oString* str = createOString(substringSize);
 				MALLOCATE_OBJECT(oStringStruct, pSubString);
 				pSubString->refCount = 0;
 				pSubString->hash = 0;
@@ -4719,17 +4963,17 @@ namespace
 
 			if (!firstTime)
 			{
-				oStringAppendBytes(pString, delimStr, 1);
+				appendOString(pString, delimStr, 1);
 			}
 
-			oStringAppendBytes(pString, pStr->str->data, pStr->str->curLen);
+			appendOString(pString, pStr->str->data, pStr->str->curLen);
 			firstTime = false;
 		}
 
 		METHOD_RETURN;
 	}
 
-    FORTHOP(oStringPrintfMethod)
+    FORTHOP(oStringFormatMethod)
     {
         // TOS: N argN ... arg1 formatStr     (arg1 to argN are optional)
         GET_THIS(oStringStruct, pString);
@@ -4738,7 +4982,7 @@ namespace
         int maxLen = pOStr->maxLen;
         while (tryAgain)
         {
-            int numChars = oStringPrintfSub(pCore, &(pOStr->data[0]), maxLen + 1);
+            int numChars = oStringFormatSub(pCore, &(pOStr->data[0]), maxLen + 1);
             if ((numChars >= 0) && (numChars <= maxLen))
             {
                 tryAgain = false;
@@ -4780,8 +5024,18 @@ namespace
         METHOD(     "get",                  oStringGetMethod ),
         METHOD(     "set",                  oStringSetMethod ),
         METHOD(     "append",               oStringAppendMethod ),
-        METHOD(     "appendBlock",          oStringAppendBlockMethod ),
+        METHOD(     "prepend",              oStringPrependMethod ),
+        METHOD(     "getBytes",             oStringGetBytesMethod ),
+        METHOD(     "setBytes",             oStringSetBytesMethod ),
+        METHOD(     "appendBytes",          oStringAppendBytesMethod ),
+        METHOD(     "prependBytes",         oStringPrependBytesMethod ),
         METHOD(     "resize",               oStringResizeMethod ),
+        METHOD(     "keepLeft",             oStringKeepLeftMethod ),
+        METHOD(     "keepRight",            oStringKeepRightMethod ),
+        METHOD(     "keepMiddle",           oStringKeepMiddleMethod ),
+        METHOD(     "leftBytes",            oStringLeftBytesMethod ),
+        METHOD(     "rightBytes",           oStringRightBytesMethod ),
+        METHOD(     "middleBytes",          oStringMiddleBytesMethod ),
         METHOD(     "startsWith",           oStringStartsWithMethod ),
         METHOD(     "endsWith",             oStringEndsWithMethod ),
         METHOD(     "contains",             oStringContainsMethod ),
@@ -4791,7 +5045,7 @@ namespace
         METHOD(     "load",                 oStringLoadMethod ),
         METHOD_RET( "split",                oStringSplitMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArray) ),
 		METHOD(		"join",					oStringJoinMethod ),
-		METHOD(		"printf",				oStringPrintfMethod ),
+		METHOD(		"format",				oStringFormatMethod ),
 
         MEMBER_VAR( "__str",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
 
@@ -5797,7 +6051,7 @@ namespace
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oByteArrayFromMemoryMethod)
+	FORTHOP(oByteArrayFromBytesMethod)
 	{
 		GET_THIS(oByteArrayStruct, pArray);
 		oByteArray& a = *(pArray->elements);
@@ -5836,8 +6090,8 @@ namespace
         METHOD(     "push",                 oByteArrayPushMethod ),
         METHOD_RET( "pop",                  oByteArrayPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte) ),
         METHOD_RET( "base",                 oByteArrayBaseMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte|kDTIsPtr) ),
-		METHOD(     "fromString",           oByteArrayFromStringMethod ),
-		METHOD(     "fromMemory",           oByteArrayFromMemoryMethod ),
+		METHOD(     "setFromString",           oByteArrayFromStringMethod ),
+		METHOD(     "setFromBytes",            oByteArrayFromBytesMethod ),
 
         MEMBER_VAR( "__elements",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
 
@@ -8787,20 +9041,20 @@ namespace
 	void stringCharOut( ForthCoreState* pCore, void *pData, char ch )
 	{
 		oStringStruct* pString = reinterpret_cast<oStringStruct*>( static_cast<ForthObject*>(static_cast<oOutStreamStruct*>(pData)->pUserData)->pData );
-		oStringAppendBytes( pString, &ch, 1 );
+		appendOString( pString, &ch, 1 );
 	}
 
 	void stringBlockOut( ForthCoreState* pCore, void *pData, const char *pBuffer, int numChars )
 	{
 		oStringStruct* pString = reinterpret_cast<oStringStruct*>( static_cast<ForthObject*>(static_cast<oOutStreamStruct*>(pData)->pUserData)->pData );
-		oStringAppendBytes( pString, pBuffer, numChars );
+		appendOString( pString, pBuffer, numChars );
 	}
 
 	void stringStringOut( ForthCoreState* pCore, void *pData, const char *pBuffer )
 	{
 		oStringStruct* pString = reinterpret_cast<oStringStruct*>( static_cast<ForthObject*>(static_cast<oOutStreamStruct*>(pData)->pUserData)->pData );
 		int numChars = strlen( pBuffer );
-		oStringAppendBytes( pString, pBuffer, numChars );
+		appendOString( pString, pBuffer, numChars );
 	}
 
 	OutStreamFuncs stringOutFuncs =
@@ -8990,7 +9244,7 @@ void CreateForthStringOutStream( ForthCoreState* pCore, ForthObject& outObject )
     MALLOCATE_OBJECT( oStringStruct, pString );
     pString->refCount = 0;
     pString->hash = 0;
-	pString->str = CreateRCString( gDefaultRCStringSize );
+	pString->str = createOString( gDefaultRCStringSize );
     pPrimaryInterface = gpOStringClass->GetInterface( 0 );
 	pStringOutStream->outString.pData = reinterpret_cast<long *>(pString);
 	pStringOutStream->outString.pMethodOps = pPrimaryInterface->GetMethods();

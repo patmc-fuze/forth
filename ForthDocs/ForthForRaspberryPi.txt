@@ -38,20 +38,42 @@ cond 1101 ud00  rn   vd  101s imm8
 =============================================================================
 gdb
 
-b FUNC			set breakpoint
-d NUM			delete breakpoint NUM
-r				run
-s				step into
-n				step over
-q				quit
+gdb can't start programs on Ubuntu Mate, get the processid P of forth and do this:
+  grep -i forth
+  gdb -p FORTH_PROCESS_ID
+  
+r
+  run program
+bt
+  show stacktrace
+i args
+  show 
+b FUNCTION
+  set breakpoint
+delete N
+  delete breakpoint N
+c
+  continue running
+s
+  step into
+n
+  step over
+si
+  step instruction
+ni
+  step over instruction (over calls)
+p VARNAME
+  print variable
+p/x VARNAME
+  print variable in hex
 
-si				step asm instruction
+layout regs
+  go into mode which shows registers and disassembly
+layout asm
+  show disassembly window
+layout src
+  show source window
 
-layout asm		show disassembly window
-layout src		show source window
-layout regs		show registers window
-layout prev		switch to previous layout command
-info reg		show registers
 source PATH		load gdb script from PATH\
 b *ADDR			set breakpoint at address
 x /Nw ADDR		show N 32-bit words at ADDR

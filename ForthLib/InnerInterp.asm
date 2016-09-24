@@ -5797,9 +5797,9 @@ snprintfSub ENDP
 
 ;========================================
 
-; extern int oStringPrintfSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
-PUBLIC	oStringPrintfSub;
-oStringPrintfSub PROC near C public uses ebx esi edx ecx edi ebp,
+; extern int oStringFormatSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
+PUBLIC	oStringFormatSub;
+oStringFormatSub PROC near C public uses ebx esi edx ecx edi ebp,
 	core:PTR,
 	pBuffer:PTR,
 	bufferSize:DWORD
@@ -5818,14 +5818,14 @@ oStringPrintfSub PROC near C public uses ebx esi edx ecx edi ebp,
 	mov	edi, [edx]	; get numArgs
 	add	edi, 1		; add one for the format string
 	add	edx, 4
-osnprintfSub1:
+oSFormatSub1:
 	sub	edi, 1
-	jl	osnprintfSub2
+	jl	oSFormatSub2
 	mov	eax, [edx]
 	add	edx, 4
 	push	eax
-	jmp osnprintfSub1
-osnprintfSub2:
+	jmp oSFormatSub1
+oSFormatSub2:
 	; all args have been copied from parameter stack to PC stack
 	; we don't remove args from parameter stack in case printf fails and we need to retry with a bigger buffer
 	mov	eax, bufferSize
@@ -5842,7 +5842,7 @@ osnprintfSub2:
 	mov	[ebx].FCore.RPtr, edx
 
 	ret
-oStringPrintfSub ENDP
+oStringFormatSub ENDP
 
 ;========================================
 
