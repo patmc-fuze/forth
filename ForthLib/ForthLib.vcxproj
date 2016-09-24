@@ -371,6 +371,12 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release Midi|Win32'">MaxSpeed</Optimization>
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MaxSpeed</Optimization>
     </ClCompile>
+    <ClCompile Include="OArray.cpp" />
+    <ClCompile Include="OList.cpp" />
+    <ClCompile Include="OMap.cpp" />
+    <ClCompile Include="ONumber.cpp" />
+    <ClCompile Include="OStream.cpp" />
+    <ClCompile Include="OString.cpp" />
     <ClCompile Include="StdAfx.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">Disabled</Optimization>
       <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">EnableFastChecks</BasicRuntimeChecks>
@@ -441,6 +447,12 @@ move "%(Filename)".obj "$(OutDir)"
     <ClInclude Include="ForthStructs.h" />
     <ClInclude Include="ForthThread.h" />
     <ClInclude Include="ForthVocabulary.h" />
+    <ClInclude Include="OArray.h" />
+    <ClInclude Include="OList.h" />
+    <ClInclude Include="OMap.h" />
+    <ClInclude Include="ONumber.h" />
+    <ClInclude Include="OStream.h" />
+    <ClInclude Include="OString.h" />
     <ClInclude Include="StdAfx.h" />
   </ItemGroup>
   <ItemGroup>
