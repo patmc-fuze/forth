@@ -198,7 +198,7 @@ filePutString	=		48
 	.global fcmpBop, dcmpBop, fldexpBop, ffrexpBop, fmodfBop, ffmodBop
 	.global icmpBop, uicmpBop, oclearBop, lplusBop, lminusBop, ltimesBop, mtimesBop, umtimesBop
 
-	.global fprintfSub, fscanfSub, snprintfSub, sscanfSub, oStringPrintfSub
+	.global fprintfSub, fscanfSub, snprintfSub, sscanfSub, oStringFormatSub
 
 	.global InterpretOneOpFast
 	
@@ -4832,8 +4832,8 @@ snprintfSub2:
 	bx	lr
 
 	
-@ extern void oStringPrintfSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
-oStringPrintfSub:	@ r0 = corePtr   r1 = bufferPtr   r2 = bufferSize
+@ extern void oStringFormatSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
+oStringFormatSub:	@ r0 = corePtr   r1 = bufferPtr   r2 = bufferSize
 	push	{r1-r3, rcore, rsp, rrp, lr}
 	mov rcore, r0
 	ldr rsp, [rcore, #spsave]
@@ -4842,13 +4842,13 @@ oStringPrintfSub:	@ r0 = corePtr   r1 = bufferPtr   r2 = bufferSize
 	stmdb	rrp!, {sp}		@ save old PC SP for cleanup on rstack
 	stmdb	rrp!, {r1-r2}	@ save bufferPtr, size on rstack
 	ldmia	rsp!, {r2}		@ r2 is argument count
-osprintfSub1:
+oSFormatSub1:
 	subs	r2, #1
-	blt	osprintfSub2
+	blt	oSFormatSub2
 	ldmia	rsp!, {r0}
 	push	{r0}
-	b	osprintfSub1
-osprintfSub2:
+	b	oSFormatSub1
+oSFormatSub2:
 	ldmia	rsp!, {r2}
 	mov r3, sp
 	@ all args have been moved from parameter stack to PC stack

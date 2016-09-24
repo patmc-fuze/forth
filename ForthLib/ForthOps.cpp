@@ -4593,48 +4593,91 @@ FORTHOP( findCloseOp )
     SPUSH( (long) result );
 }
 
+FORTHOP( showConsoleOp )
+{
+	NEEDS(1);
+	long showIt = SPOP;
+	ShowWindow( GetConsoleWindow(), (showIt != 0) ? SW_RESTORE : SW_HIDE );
+}
+
+FORTHOP( windowsConstantsOp )
+{
+    static int winConstants[5] =
+    {
+        (sizeof(winConstants)/sizeof(int)) - 1,
+        sizeof(TCHAR),
+        MAX_PATH,
+        sizeof(WIN32_FIND_DATA),
+        sizeof(CRITICAL_SECTION)
+    };
+    SPUSH( (long) (&(winConstants[0])) );
+}
+
+#endif
+
 FORTHOP( setConsoleCursorOp )
 {
 	NEEDS( 2 );
+#ifdef WIN32
 	COORD screenPos;
 	screenPos.Y = (SHORT) SPOP;
 	screenPos.X = (SHORT) SPOP;
 	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
 	SetConsoleCursorPosition( hConsole, screenPos );
+#else
+	int line = SPOP;
+	int column = SPOP;
+	printf("%c[%d;%dH", 0x1b, line, column);
+#endif
 }
 
 FORTHOP( getConsoleCursorOp )
 {
 	NEEDS( 0 );
+#ifdef WIN32
 	CONSOLE_SCREEN_BUFFER_INFO consoleInfo;
 	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
 	GetConsoleScreenBufferInfo( hConsole, &consoleInfo );
 	SPUSH( consoleInfo.dwCursorPosition.X );
 	SPUSH( consoleInfo.dwCursorPosition.Y );
+#else
+	SPUSH(0);
+	SPUSH(0);
+#endif
 }
 
 FORTHOP( setConsoleColorOp )
 {
 	NEEDS( 1 );
+#ifdef WIN32
 	WORD attributes = (WORD) SPOP;
 	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
 	SetConsoleTextAttribute( hConsole, attributes );
+#else
+	int attributes = SPOP;
+	printf("%c[%dm", 0x1b, attributes);
+#endif
 }
 
 FORTHOP( getConsoleColorOp )
 {
+#ifdef WIN32
 	NEEDS( 0 );
 	CONSOLE_SCREEN_BUFFER_INFO consoleInfo;
 	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
 	GetConsoleScreenBufferInfo( hConsole, &consoleInfo );
 	SPUSH( consoleInfo.wAttributes );
+#else
+	SPUSH(0xF0);
+#endif
 }
 
 FORTHOP(clearConsoleOp)
 {
 	NEEDS(0);
-	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
+#ifdef WIN32
 	COORD coordScreen = { 0, 0 };    // home for the cursor 
+	HANDLE hConsole = GetStdHandle( STD_OUTPUT_HANDLE );
     DWORD cCharsWritten;
     CONSOLE_SCREEN_BUFFER_INFO csbi; 
     DWORD dwConSize;
@@ -4673,34 +4716,15 @@ FORTHOP(clearConsoleOp)
 	{
 		return;
 	}
-
 	// Put the cursor at its home coordinates.
 
 	SetConsoleCursorPosition( hConsole, coordScreen );
-}
-
-FORTHOP( showConsoleOp )
-{
-	NEEDS(1);
-	long showIt = SPOP;
-	ShowWindow( GetConsoleWindow(), (showIt != 0) ? SW_RESTORE : SW_HIDE );
-}
-
-
-FORTHOP( windowsConstantsOp )
-{
-    static int winConstants[5] =
-    {
-        (sizeof(winConstants)/sizeof(int)) - 1,
-        sizeof(TCHAR),
-        MAX_PATH,
-        sizeof(WIN32_FIND_DATA),
-        sizeof(CRITICAL_SECTION)
-    };
-    SPUSH( (long) (&(winConstants[0])) );
-}
-
+#else
+	printf("%c[2J%c[0;0H", 0x1b, 0x1b);
 #endif
+}
+
+
 
 ///////////////////////////////////////////
 //  Network support
@@ -8052,11 +8076,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( findFirstFileOp,            "FindFirstFile" ),
     OP_DEF( findNextFileOp,             "FindNextFile" ),
     OP_DEF( findCloseOp,                "FindClose" ),
-    OP_DEF( setConsoleCursorOp,         "setConsoleCursor" ),
-    OP_DEF( getConsoleCursorOp,         "getConsoleCursor" ),
-    OP_DEF( setConsoleColorOp,          "setConsoleColor" ),
-    OP_DEF( getConsoleColorOp,          "getConsoleColor" ),
-    OP_DEF( clearConsoleOp,             "clearConsole" ),
     OP_DEF( showConsoleOp,              "showConsole" ),
 
     OP_DEF( windowsConstantsOp,         "windowsConstants" ),
@@ -8065,6 +8084,11 @@ baseDictionaryEntry baseDictionary[] =
 #elif defined(LINUX)
 	NATIVE_DEF( trueBop,				"LINUX" ),
 #endif
+    OP_DEF( setConsoleCursorOp,         "setConsoleCursor" ),
+    OP_DEF( getConsoleCursorOp,         "getConsoleCursor" ),
+    OP_DEF( getConsoleColorOp,          "getConsoleColor" ),
+    OP_DEF( setConsoleColorOp,          "setConsoleColor" ),
+    OP_DEF( clearConsoleOp,             "clearConsole" ),
 
 	NATIVE_DEF( archARMBop,				"ARCH_ARM" ),
 	NATIVE_DEF( archX86Bop,				"ARCH_X86" ),
