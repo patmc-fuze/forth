@@ -162,6 +162,11 @@ Gotchas with structure and object support:
    means that index calculation ops must appear before the varAction op
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 24 2016
+
+I broke up ForthBuiltinClasses.cpp/h into OArray/OList/OMap/ONumber/OStream/OString
+files.  It took a couple hours to sort out all the issues but wasn't too bad.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 18 2016
 
 I got the x86 version of OString:printf working.  It currently uses _snprintf,
