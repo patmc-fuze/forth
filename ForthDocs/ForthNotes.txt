@@ -166,6 +166,24 @@ September 24 2016
 
 I broke up ForthBuiltinClasses.cpp/h into OArray/OList/OMap/ONumber/OStream/OString
 files.  It took a couple hours to sort out all the issues but wasn't too bad.
+
+Later I moved the OVocabulary and OThread classes into ForthVocabulary and ForthThread.
+
+While testing, I ran into a problem in the snake game.  There was a problem where
+some combinations of parenthesized expressions and character constants were failing:
+
+dup('a' )    would work
+dup( 'a')    would fail
+
+This was caused by a combination of a bugfix for the tick operator being used
+inside parenthesized expressions and a check in character constants which invalidated
+character constants if the character after the ending single quote wasn't one of
+tab/space/EOL.  Oh the joy of ad-hoc parsers!
+
+The ARM version is working pretty well, I am working on getting the atc game to
+run on it.  I had to make version of the console cursor/color ops that use VT100
+escape sequences, the getCursorPosition one doesn't quite work.  Also I can't
+load a game map because the code that reads game files is broken (problem with dirent?).
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 18 2016
 

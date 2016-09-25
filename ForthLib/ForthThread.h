@@ -118,3 +118,7 @@ protected:
     int             mSize;
 };
 
+namespace OThread
+{
+	void AddClasses(ForthEngine* pEngine);
+}

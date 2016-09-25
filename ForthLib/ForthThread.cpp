@@ -11,6 +11,7 @@
 #include "ForthThread.h"
 #include "ForthEngine.h"
 #include "ForthShowContext.h"
+#include "ForthBuiltinClasses.h"
 
 // this is the number of extra longs to allocate at top and
 //    bottom of stacks
@@ -397,3 +398,176 @@ int ForthThreadQueue::FindEarliest()
     return result;
 }
 
+namespace OThread
+{
+	//////////////////////////////////////////////////////////////////////
+	///
+	//                 oThread
+	//
+
+	struct oThreadStruct
+	{
+		ulong			refCount;
+		ForthThread		*pThread;
+	};
+
+	// TODO: add tracking of run state of thread - this should be done inside ForthThread, not here
+	FORTHOP(oThreadNew)
+	{
+		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
+		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
+		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct);
+		pThreadStruct->refCount = 0;
+		pThreadStruct->pThread = NULL;
+		PUSH_PAIR(pPrimaryInterface->GetMethods(), pThreadStruct);
+	}
+
+	FORTHOP(oThreadDeleteMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		if (pThreadStruct->pThread != NULL)
+		{
+			GET_ENGINE->DestroyThread(pThreadStruct->pThread);
+			pThreadStruct->pThread = NULL;
+		}
+		FREE_OBJECT(pThreadStruct);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadInitMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		ForthEngine* pEngine = GET_ENGINE;
+		if (pThreadStruct->pThread != NULL)
+		{
+			pEngine->DestroyThread(pThreadStruct->pThread);
+		}
+		long threadOp = SPOP;
+		int returnStackSize = (int)(SPOP);
+		int paramStackSize = (int)(SPOP);
+		pThreadStruct->pThread = GET_ENGINE->CreateThread(threadOp, paramStackSize, returnStackSize);
+		pThreadStruct->pThread->Reset();
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadStartMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		long result = pThreadStruct->pThread->Start();
+		SPUSH(result);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadExitMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		pThreadStruct->pThread->Exit();
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadPushMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		pThreadStruct->pThread->Push(SPOP);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadPopMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		long val = pThreadStruct->pThread->Pop();
+		SPUSH(val);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadRPushMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		pThreadStruct->pThread->RPush(SPOP);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadRPopMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		long val = pThreadStruct->pThread->RPop();
+		SPUSH(val);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadGetStateMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		SPUSH((long)(pThreadStruct->pThread->GetCore()));
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadStepMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		ForthThread* pThread = pThreadStruct->pThread;
+		ForthCoreState* pThreadCore = pThread->GetCore();
+		long op = *(pThreadCore->IP)++;
+		long result;
+		ForthEngine *pEngine = GET_ENGINE;
+#ifdef ASM_INNER_INTERPRETER
+		if (pEngine->GetFastMode())
+		{
+			result = (long)InterpretOneOpFast(pThreadCore, op);
+		}
+		else
+#endif
+		{
+			result = (long)InterpretOneOp(pThreadCore, op);
+		}
+		if (result == kResultDone)
+		{
+			pThread->ResetIP();
+		}
+		SPUSH(result);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadResetMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		pThreadStruct->pThread->Reset();
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadResetIPMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		pThreadStruct->pThread->ResetIP();
+		METHOD_RETURN;
+	}
+
+	baseMethodEntry oThreadMembers[] =
+	{
+		METHOD("__newOp", oThreadNew),
+		METHOD("delete", oThreadDeleteMethod),
+		METHOD("init", oThreadInitMethod),
+		METHOD_RET("start", oThreadStartMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD("exit", oThreadExitMethod),
+		METHOD("push", oThreadPushMethod),
+		METHOD_RET("pop", oThreadPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD("rpush", oThreadRPushMethod),
+		METHOD_RET("rpop", oThreadRPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("getState", oThreadGetStateMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("step", oThreadStepMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD("reset", oThreadResetMethod),
+		METHOD("resetIP", oThreadResetIPMethod),
+
+		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+
+		// following must be last in table
+		END_MEMBERS
+	};
+
+
+	void AddClasses(ForthEngine* pEngine)
+	{
+		ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass("OThread", gpObjectClassVocab, oThreadMembers);
+	}
+
+} // namespace OThread

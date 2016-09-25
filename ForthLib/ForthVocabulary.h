@@ -301,3 +301,7 @@ private:
     ulong               mSerial;
 };
 
+namespace OVocabulary
+{
+	void AddClasses(ForthEngine* pEngine);
+}
