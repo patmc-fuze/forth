@@ -171,7 +171,7 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 					if (pSrc < pSrcLimit)
 					{
 						// if there are still more chars after closing quote, next char must be a delimiter
-						if ((ch != '\0') && (ch != ' ') && (ch != '\t'))
+						if ((ch != '\0') && (ch != ' ') && (ch != '\t') && (ch != ')'))
 						{
 							isQuotedChar = false;
 							isLongConstant = false;

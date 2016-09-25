@@ -650,7 +650,7 @@ void GetForthConsoleOutStream(ForthCoreState* pCore, ForthObject& outObject)
 
 void CreateForthFileOutStream(ForthCoreState* pCore, ForthObject& outObject, FILE* pOutFile)
 {
-	ASSERT(gpOConsoleOutStreamClass != NULL);
+	ASSERT(OStream::gpOConsoleOutStreamClass != NULL);
 	MALLOCATE_OBJECT(oOutStreamStruct, pFileOutStream);
 	pFileOutStream->refCount = 1;
 	pFileOutStream->pOutFuncs = &OStream::fileOutFuncs;
@@ -662,8 +662,8 @@ void CreateForthFileOutStream(ForthCoreState* pCore, ForthObject& outObject, FIL
 
 void CreateForthStringOutStream(ForthCoreState* pCore, ForthObject& outObject)
 {
-	ASSERT(gpOConsoleOutStreamClass != NULL);
-	ASSERT(gpOStringClass != NULL);
+	ASSERT(OStream::gpOConsoleOutStreamClass != NULL);
+	ASSERT(OString::gpOStringClass != NULL);
 
 	MALLOCATE_OBJECT(OStream::oStringOutStreamStruct, pStringOutStream);
 	pStringOutStream->ostream.refCount = 1;
@@ -693,7 +693,7 @@ const char* GetForthStringOutStreamData(ForthCoreState* pCore, ForthObject& stre
 void CreateForthFunctionOutStream(ForthCoreState* pCore, ForthObject& outObject, streamCharOutRoutine outChar,
 	streamBytesOutRoutine outBytes, streamStringOutRoutine outString, void* pUserData)
 {
-	ASSERT(gpOConsoleOutStreamClass != NULL);
+	ASSERT(OStream::gpOConsoleOutStreamClass != NULL);
 	MALLOCATE_OBJECT(OStream::oFunctionOutStreamStruct, pFunctionOutStream);
 	pFunctionOutStream->ostream.refCount = 1;
 	pFunctionOutStream->ostream.pOutFuncs = &(pFunctionOutStream->outFuncs);

@@ -1007,6 +1007,7 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 		if (pSrc != NULL)
 		{
 			c = *pSrc++;
+			//SPEW_SHELL("process character {%c} 0x%x\n", c, c);
 			if (c == '\\')
 			{
 				c = *pSrc;
@@ -1061,15 +1062,12 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 						CombineRightIntoLeft();
 					}
 					pNewSrc = parseInfo.ParseSingleQuote(pSrc - 1, pSrcLimit, pEngine, true);
-					if (pNewSrc == (pSrc - 1))
+					if ((pNewSrc == (pSrc - 1)) && ((*pSrc == ' ') || (*pSrc == '\t')))
 					{
-						if ((*pSrc == ' ') || (*pSrc == '\t'))
-						{
-							// this is tick operator
-							AppendCharToRight(c);
-							AppendCharToRight(*pSrc++);
-							CombineRightIntoLeft();
-						}
+						// this is tick operator
+						AppendCharToRight(c);
+						AppendCharToRight(*pSrc++);
+						CombineRightIntoLeft();
 					}
 					else
 					{

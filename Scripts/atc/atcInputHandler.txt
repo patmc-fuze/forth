@@ -476,7 +476,7 @@ class: atcInputHandler extends iAtcInputHandler
     // handle backspace/delete:
     //  set state back to idle
     //  remove last char from commandString
-    new OString -> OString tmpCommandString
+    mko OString tmpCommandString
     tmpCommandString.set( commandString.get )
     tmpCommandString.resize( tmpCommandString.length 1- )
     tmpCommandString.get -> ptrTo byte pSrc

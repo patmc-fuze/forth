@@ -210,10 +210,14 @@ false -> int gameOver
   "Game Over, Final Lenghth: " %s length %d %nl
 ;
 
-: start
+: snake
   initialize
   gameLoop
 ;
+
+"snake      begins a game of snake\n" %s
+"wasd       movement controls\n" %s
+"<ESCAPE>   quits game\n" %s
 
 loaddone
 
