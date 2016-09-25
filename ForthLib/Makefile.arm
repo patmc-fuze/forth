@@ -41,7 +41,13 @@ LIBCPPSRCS = \
 	ForthParseInfo.cpp \
 	ForthBlockFileManager.cpp \
 	ForthShowContext.cpp \
-	ForthOpcodeCompiler.cpp
+	ForthOpcodeCompiler.cpp \
+	OArray.cpp \
+	OList.cpp \
+	OMap.cpp \
+	OStream.cpp \
+	OString.cpp \
+	ONumber.cpp
 
 
 
@@ -52,10 +58,14 @@ LIBASMOBJS := $(OBJDIR)/InnerInterpArm.o
 LIBSRCS = $(LIBCPPSRCS) $(LIBASMSRCS)
 LIBOBJS = $(LIBCPPOBJS) $(LIBASMOBJS)
 
+#$(OBJDIR)/%.o: %.cpp $(DEPDIR)/%.d
+#	echo "* " $*
+#	echo "< " $<
+#	echo "@ " $@
+#	$(CC) $(DEPFLAGS) $(CFLAGS) -o $(OBJDIR)/$*.o $<
+#	$(POSTCOMPILE)
+
 $(OBJDIR)/%.o: %.cpp $(DEPDIR)/%.d
-	echo "* " $*
-	echo "< " $<
-	echo "@ " $@
 	$(CC) $(DEPFLAGS) $(CFLAGS) -o $(OBJDIR)/$*.o $<
 	$(POSTCOMPILE)
 

@@ -16,7 +16,7 @@
 #include "ForthShowContext.h"
 
 #include "OArray.h"
-#include "OLIst.h"
+#include "OList.h"
 
 extern "C" {
 	extern void unimplementedMethodOp(ForthCoreState *pCore);
