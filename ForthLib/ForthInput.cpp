@@ -1072,22 +1072,29 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 					else
 					{
 						AppendCharToRight(c);
-						const char* pChars = (char *)parseInfo.GetToken();
-						while (*pChars != '\0')
+						if (parseInfo.GetFlags() & PARSE_FLAG_QUOTED_CHARACTER)
 						{
-							char cc = *pChars++;
-							/*
-							if (cc == ' ')
+							const char* pChars = (char *)parseInfo.GetToken();
+							while (*pChars != '\0')
 							{
+								char cc = *pChars++;
+								/*
+								if (cc == ' ')
+								{
 								// need to prefix spaces in character constants with backslash
 								AppendCharToRight('\\');
+								}
+								*/
+								AppendCharToRight(cc);
 							}
-							*/
-							AppendCharToRight(cc);
+							pSrc = pNewSrc;
+							AppendCharToRight(c);
+							if (parseInfo.GetFlags() & PARSE_FLAG_FORCE_LONG)
+							{
+								AppendCharToRight('L');
+							}
+							CombineRightIntoLeft();
 						}
-						pSrc = pNewSrc;
-						AppendCharToRight(c);
-						CombineRightIntoLeft();
 					}
 					break;
 

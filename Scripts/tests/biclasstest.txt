@@ -67,43 +67,43 @@ class: tobj    extends Object
 ;class
 
 
-new tobj -> tobj valA
-new tobj -> tobj valB
-new tobj -> tobj valC
-new tobj -> tobj valD
-new tobj -> tobj valE
+mko tobj valA
+mko tobj valB
+mko tobj valC
+mko tobj valD
+mko tobj valE
 
 // OArray:   clear   resize(N)   count   get(I)   set(O I)   findIndex(O)   push(O)   pop   headIter   tailIter   clone
 // OList:   head   tail   addHead(O)   addTail(O)   removeHead   removeTail   headIter   tailIter   count   find(O)   clone
 // OIntMap:   clear   count   get(KEY)   set(O KEY)   findIndex(O)   remove(KEY)   headIter   tailIter   
 
 //"(vb=" %s tb <tobj>.refCount %d " before adding to map)" %s
-new OIntMap -> OIntMap imapA
+mko OIntMap imapA
 imapA.set( valA 'a' )  imapA.set( valB 'b' )  imapA.set( valC 'c' )  imapA.set( valD 'd' )  imapA.set( valE 'e' )
 %nl imapA.show %nl
 
-new OLongMap -> OLongMap lmapA
-lmapA.set( valA 1l )  lmapA.set( valB '22l )  lmapA.set( valC 1000000000l )  lmapA.set( valD -15l )  lmapA.set( valE 66l )
+mko OLongMap lmapA
+lmapA.set( valA 1l )  lmapA.set( valB '22'l )  lmapA.set( valC 1000000000l )  lmapA.set( valD -15l )  lmapA.set( valE 66l )
 %nl lmapA.show %nl
 
-new OFloatMap -> OFloatMap fmapA
+mko OFloatMap fmapA
 fmapA.set( valA 1.7 )  fmapA.set( valB 2.3 )  fmapA.set( valC 33.0 )  fmapA.set( valD 1.234 )  fmapA.set( valE 5.789 )
 %nl fmapA.show %nl
 
-new ODoubleMap -> ODoubleMap dmapA
+mko ODoubleMap dmapA
 dmapA.set( valA 1.7d )  dmapA.set( valB 2.3d )  dmapA.set( valC 33.0d )  dmapA.set( valD 1.234d )  dmapA.set( valE 5.789d )
 %nl dmapA.show %nl
 
-new OStringMap -> OStringMap smapA
+mko OStringMap smapA
 smapA.set( valA "aa" )  smapA.set( valB "bb" )  smapA.set( valC "cc" )  smapA.set( valD "dd" )  smapA.set( valE "ee" )
 smapA.get("aa").show smapA.get("bb").show smapA.get("cc").show smapA.get("dd").show smapA.get("ee").show  smapA.get("foo") %2x %nl
 %nl smapA.show %nl
 
-new OList -> OList listA
+mko OList listA
 listA.addHead(imapA.get( 'b' ))  listA.addHead(imapA.get( 'c' ))  listA.addHead(imapA.get( 'd' ))
 %nl listA.show %nl
 
-new OArray -> OArray arrayA
+mko OArray arrayA
 arrayA.push(imapA.get( 'a' ))  arrayA.push(valB)  arrayA.push(imapA.get( 'c' ))
 %nl arrayA.show %nl
 
@@ -146,12 +146,12 @@ oclear arrayA
 
 oclear valA  oclear valB  oclear valC  oclear valD  oclear valE
 
-new OList -> OList zz
-new OString -> OString za
-new OString -> OString zb
-new OString -> OString zc
-new OString -> OString zd
-new OString -> OString zr
+mko OList zz
+mko OString za
+mko OString zb
+mko OString zc
+mko OString zd
+mko OString zr
 za.set( "a" )
 zb.set( "b" )
 zc.set( "c" )
@@ -189,7 +189,7 @@ zz.clone -> OList zz2
 // OArrayIter:
 
 : testArray
-  new OArray -> OArray aa
+  mko OArray aa
   r[ 1 17 42 53 89 ]r
   -> int nItems
   do( nItems 0 )
@@ -198,10 +198,10 @@ zz.clone -> OList zz2
 ;
 
 : test
-  new OArray -> OArray aa
-  new OList -> OList la
+  mko OArray aa
+  mko OList la
   do( 15 0 )
-    new OInt -> OInt bob
+    mko OInt bob
     bob.set( i )
     aa.push( bob )
     la.addTail( bob )

@@ -103,6 +103,7 @@ ForthParseInfo::BackslashChar(char c)
 
 	case 'a':        cResult = '\a';        break;
 	case 'b':        cResult = '\b';        break;
+	case 'e':        cResult = 0x1b;        break;
 	case 'f':        cResult = '\f';        break;
 	case 'n':        cResult = '\n';        break;
 	case 'r':        cResult = '\r';        break;
