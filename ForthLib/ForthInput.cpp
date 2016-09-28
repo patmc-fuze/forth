@@ -567,6 +567,7 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
 #ifdef LINUX
 	pBuffer = readline("");
 	add_history(pBuffer);
+	strncpy(mpBufferBase, pBuffer, mBufferLen - 1);
 #else
 	pBuffer = gets(mpBufferBase);
 #endif
