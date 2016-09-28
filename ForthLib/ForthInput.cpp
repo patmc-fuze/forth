@@ -10,6 +10,11 @@
 #include "ForthBlockFileManager.h"
 #include "ForthParseInfo.h"
 
+#ifdef LINUX
+#include <readline/readline.h>
+#include <readline/history.h>
+#endif
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -558,8 +563,13 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
 {
     char *pBuffer;
 
-    printf( "\n%s ", pPrompt );
-    pBuffer = gets( mpBufferBase );
+	printf("\n%s ", pPrompt);
+#ifdef LINUX
+	pBuffer = readline("");
+	add_history(pBuffer);
+#else
+	pBuffer = gets(mpBufferBase);
+#endif
 
     mReadOffset = 0;
     const char* pEnd = (const char*) memchr( pBuffer, '\0', mBufferLen );
