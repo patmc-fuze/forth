@@ -183,7 +183,16 @@ namespace OString
     {
         GET_THIS( oStringStruct, pString );
 		const char* srcStr = (const char *) SPOP;
-		long len = (long) strlen( srcStr );
+		long len = 0;
+		if (srcStr != NULL)
+		{
+			long len = (long)strlen(srcStr);
+		}
+		else
+		{
+			// treat null input as an empty string
+			srcStr = "";
+		}
 		oString* dst = pString->str;
 		if ( len > dst->maxLen )
 		{
@@ -198,7 +207,41 @@ namespace OString
         METHOD_RETURN;
     }
 
-    FORTHOP(oStringAppendMethod)
+	FORTHOP(oStringCopyMethod)
+	{
+		GET_THIS(oStringStruct, pString);
+		ForthObject srcObj;
+		POP_OBJECT(srcObj);
+		long srcLen = 0;
+		oStringStruct* srcStr = nullptr;
+		if (srcObj.pData != nullptr)
+		{
+			srcStr = (oStringStruct *)srcObj.pData;
+			srcLen = srcStr->str->curLen;
+		}
+		
+		oString* dst = pString->str;
+		if (srcLen == 0)
+		{
+			dst->data[0] = '\0';
+		}
+		else
+		{
+			if (srcLen > dst->maxLen)
+			{
+				// enlarge string
+				free(dst);
+				dst = createOString(srcLen);
+				pString->str = dst;
+			}
+			memmove(&(dst->data[0]), &(srcStr->str->data[0]), srcLen + 1);
+		}
+		dst->curLen = srcLen;
+		pString->hash = 0;
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oStringAppendMethod)
     {
         GET_THIS(oStringStruct, pString);
         const char* srcStr = (const char *)SPOP;
@@ -613,11 +656,8 @@ namespace OString
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oStringStruct, pString);
-		pString->str->curLen = 0;
-		int delimiter = SPOP;
-		char delimStr[4];
-		delimStr[0] = (char)delimiter;
-		delimStr[1] = '\0';
+		const char* delimStr = (const char*)(SPOP);
+		int delimLen = (delimStr == nullptr) ? 0 : strlen(delimStr);
 
 		ForthObject obj;
 		
@@ -632,9 +672,9 @@ namespace OString
 			ForthObject& o = *iter;
 			oStringStruct* pStr = (oStringStruct *)o.pData;
 
-			if (!firstTime)
+			if (!firstTime && (delimLen != 0))
 			{
-				appendOString(pString, delimStr, 1);
+				appendOString(pString, delimStr, delimLen);
 			}
 
 			appendOString(pString, pStr->str->data, pStr->str->curLen);
@@ -644,17 +684,19 @@ namespace OString
 		METHOD_RETURN;
 	}
 
-    FORTHOP(oStringFormatMethod)
-    {
-        // TOS: N argN ... arg1 formatStr     (arg1 to argN are optional)
+	FORTHOP(oStringAppendFormattedMethod)
+	{
+		// TOS: N argN ... arg1 formatStr     (arg1 to argN are optional)
         GET_THIS(oStringStruct, pString);
         oString* pOStr = pString->str;
         bool tryAgain = true;
         int maxLen = pOStr->maxLen;
+		int curLen = pOStr->curLen;
         while (tryAgain)
         {
-            int numChars = oStringFormatSub(pCore, &(pOStr->data[0]), maxLen + 1);
-            if ((numChars >= 0) && (numChars <= maxLen))
+			int roomLeft = maxLen - curLen;
+			int numChars = oStringFormatSub(pCore, &(pOStr->data[curLen]), roomLeft + 1);
+			if ((numChars >= 0) && (numChars <= roomLeft))
             {
                 tryAgain = false;
             }
@@ -683,6 +725,14 @@ namespace OString
         METHOD_RETURN;
     }
     
+	FORTHOP(oStringFormatMethod)
+	{
+		GET_THIS(oStringStruct, pString);
+		pString->str->curLen = 0;
+		pString->str->data[0] = '\0';
+		oStringAppendFormattedMethod(pCore);
+	}
+
 
     baseMethodEntry oStringMembers[] =
     {
@@ -694,6 +744,7 @@ namespace OString
         METHOD(     "length",               oStringLengthMethod ),
         METHOD(     "get",                  oStringGetMethod ),
         METHOD(     "set",                  oStringSetMethod ),
+        METHOD(     "copy",                 oStringCopyMethod ),
         METHOD(     "append",               oStringAppendMethod ),
         METHOD(     "prepend",              oStringPrependMethod ),
         METHOD(     "getBytes",             oStringGetBytesMethod ),
@@ -717,7 +768,8 @@ namespace OString
         METHOD_RET( "split",                oStringSplitMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArray) ),
 		METHOD(		"join",					oStringJoinMethod ),
 		METHOD(		"format",				oStringFormatMethod ),
-
+		METHOD(     "appendFormatted",      oStringAppendFormattedMethod ),
+		
         MEMBER_VAR( "__str",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
 
         // following must be last in table
