@@ -186,7 +186,7 @@ namespace OString
 		long len = 0;
 		if (srcStr != NULL)
 		{
-			long len = (long)strlen(srcStr);
+			len = (long)strlen(srcStr);
 		}
 		else
 		{

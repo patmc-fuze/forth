@@ -69,6 +69,7 @@ static bool InitSystem()
         cerr << _T("Fatal Error: MFC initialization failed") << endl;
 		return false;
 	}
+#if 0
 	// Set output mode to handle virtual terminal sequences
 	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
 	if (hOut != INVALID_HANDLE_VALUE)
@@ -87,7 +88,7 @@ static bool InitSystem()
 		dwMode |= 0x200;// ENABLE_VIRTUAL_TERMINAL_INPUT;
 		SetConsoleMode(hIn, dwMode);
 	}
-
+#endif
 
 #endif
 	return true;

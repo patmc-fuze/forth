@@ -1542,7 +1542,7 @@ FORTHOP( implementsOp )
     }
 }
 
-FORTHOP( endimplementsOp )
+FORTHOP( endImplementsOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
 
@@ -1619,31 +1619,28 @@ FORTHOP( extendsOp )
     }
 }
 
-FORTHOP( sizeOfOp )
+FORTHOP( strSizeOfOp )
 {
     // TODO: allow sizeOf to be applied to variables
     // TODO: allow sizeOf to apply to native types, including strings
     ForthEngine *pEngine = GET_ENGINE;
-    char *pSym = pEngine->GetNextSimpleToken();
+	char *pSym = (char *)(SPOP);
     ForthVocabulary* pFoundVocab;
     long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSym, &pFoundVocab );
+	long size = 0;
 
     if ( pEntry )
     {
         ForthTypesManager* pManager = ForthTypesManager::GetInstance();
         ForthStructVocabulary* pStructVocab = pManager->GetStructVocabulary( pEntry[0] );
-        if ( pStructVocab )
+        if ( pStructVocab == NULL)
         {
-            pEngine->ProcessConstant( pStructVocab->GetSize() );
+			size = pStructVocab->GetSize();
         }
         else
         {
-            long size = pManager->GetBaseTypeSizeFromName( pSym );
-            if ( size > 0 )
-            {
-                pEngine->ProcessConstant( size );
-            }
-            else
+            size = pManager->GetBaseTypeSizeFromName( pSym );
+            if ( size <= 0 )
             {
                 pEngine->AddErrorText( pSym );
                 pEngine->SetError( kForthErrorUnknownSymbol, " is not a structure or base type" );
@@ -1654,51 +1651,72 @@ FORTHOP( sizeOfOp )
     {
         pEngine->SetError( kForthErrorUnknownSymbol, pSym );
     }
+	SPUSH(size);
 }
 
-FORTHOP( offsetOfOp )
+FORTHOP( strOffsetOfOp )
 {
-    // TODO: allow offsetOf to be take variable.field instead of just type.field
+    // TODO: allow offsetOf to be variable.field instead of just type.field
     ForthEngine *pEngine = GET_ENGINE;
-    char *pType = pEngine->GetNextSimpleToken();
+	long size = 0;
+
+	char *pType = (char *)(SPOP);
     char *pField = strchr( pType, '.' );
     if ( pField == NULL )
     {
         pEngine->SetError( kForthErrorBadSyntax, "argument must contain a period" );
-        return;
     }
-    *pField++ = '\0';
+	else
+	{
+		char oldChar = *pField;
+		*pField++ = '\0';
 
-    ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pType, &pFoundVocab );
-    if ( pEntry )
-    {
-        ForthTypesManager* pManager = ForthTypesManager::GetInstance();
-        ForthStructVocabulary* pStructVocab = pManager->GetStructVocabulary( pEntry[0] );
-        if ( pStructVocab )
-        {
-            pEntry = pStructVocab->FindSymbol( pField );
-            if ( pEntry )
-            {
-                pEngine->ProcessConstant( pEntry[0] );
-            }
-            else
-            {
-                pEngine->AddErrorText( pField );
-                pEngine->AddErrorText( " is not a field in " );
-                pEngine->SetError( kForthErrorUnknownSymbol, pType );
-            }
-        }
-        else
-        {
-            pEngine->AddErrorText( pType );
-            pEngine->SetError( kForthErrorUnknownSymbol, " is not a structure" );
-        }
-    }
-    else
-    {
-        pEngine->SetError( kForthErrorUnknownSymbol, pType );
-    }
+		ForthVocabulary* pFoundVocab;
+		long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pType, &pFoundVocab);
+		if (pEntry)
+		{
+			ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+			ForthStructVocabulary* pStructVocab = pManager->GetStructVocabulary(pEntry[0]);
+			if (pStructVocab)
+			{
+				pEntry = pStructVocab->FindSymbol(pField);
+				if (pEntry)
+				{
+					size = pEntry[0];
+				}
+				else
+				{
+					pEngine->AddErrorText(pField);
+					pEngine->AddErrorText(" is not a field in ");
+					pEngine->SetError(kForthErrorUnknownSymbol, pType);
+				}
+			}
+			else
+			{
+				pEngine->AddErrorText(pType);
+				pEngine->SetError(kForthErrorUnknownSymbol, " is not a structure");
+			}
+		}
+		else
+		{
+			pEngine->SetError(kForthErrorUnknownSymbol, pType);
+		}
+		pField[-1] = oldChar;
+	}
+
+	SPUSH(size);
+}
+
+FORTHOP( processConstantOp )
+{
+	// if interpreting, do nothing
+	// if compiling, get value from TOS and compile what is needed to push that value at runtime
+    ForthEngine *pEngine = GET_ENGINE;
+	if (pEngine->IsCompiling())
+	{
+		int constantValue = (SPOP);
+		pEngine->ProcessConstant(constantValue);
+	}
 }
 
 FORTHOP(showStructOp)
@@ -1772,17 +1790,18 @@ void __newOp(ForthCoreState* pCore, const char* pSym)
     }
 }
 
-FORTHOP(newOp)
+FORTHOP(strNewOp)
 {
-    ForthEngine *pEngine = GET_ENGINE;
-    char *pSym = pEngine->GetNextSimpleToken();
-    __newOp(pCore, pSym);
+	ForthEngine *pEngine = GET_ENGINE;
+	char *pSym = (char*)(SPOP);
+	__newOp(pCore, pSym);
 }
 
-FORTHOP(makeObjectOp)
+FORTHOP(strMakeObjectOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
-    char *pClassName = pEngine->GetNextSimpleToken();
+	const char *pClassName = (const char*)(SPOP);
+	const char* pInstanceName = (const char*)(SPOP);
     __newOp(pCore, pClassName);
 
     ForthVocabulary* pFoundVocab;
@@ -1804,7 +1823,7 @@ FORTHOP(makeObjectOp)
             {
                 SET_VAR_OPERATION(kVarStore);
             }
-            pClassVocab->DefineInstance();
+			pClassVocab->DefineInstance(pInstanceName);
         }
         else
         {
@@ -7460,6 +7479,29 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    fcmpBop,                 "fcmp" ),
 
     ///////////////////////////////////////////
+    //  single-precision fp functions
+    ///////////////////////////////////////////
+    NATIVE_DEF(    fsinBop,                 "fsin" ),
+    NATIVE_DEF(    fasinBop,                "fasin" ),
+    NATIVE_DEF(    fcosBop,                 "fcos" ),
+    NATIVE_DEF(    facosBop,                "facos" ),
+    NATIVE_DEF(    ftanBop,                 "ftan" ),
+    NATIVE_DEF(    fatanBop,                "fatan" ),
+    NATIVE_DEF(    fatan2Bop,               "fatan2" ),
+    NATIVE_DEF(    fexpBop,                 "fexp" ),
+    NATIVE_DEF(    flnBop,                  "fln" ),
+    NATIVE_DEF(    flog10Bop,               "flog10" ),
+    NATIVE_DEF(    fpowBop,                 "fpow" ),
+    NATIVE_DEF(    fsqrtBop,                "fsqrt" ),
+    NATIVE_DEF(    fceilBop,                "fceil" ),
+    NATIVE_DEF(    ffloorBop,               "floor" ),
+    NATIVE_DEF(    fabsBop,                 "fabs" ),
+    NATIVE_DEF(    fldexpBop,               "fldexp" ),
+    NATIVE_DEF(    ffrexpBop,               "ffrexp" ),
+    NATIVE_DEF(    fmodfBop,                "fmodf" ),
+    NATIVE_DEF(    ffmodBop,                "ffmod" ),
+    
+    ///////////////////////////////////////////
     //  double-precision fp math
     ///////////////////////////////////////////
     NATIVE_DEF(    dplusBop,                "d+" ),
@@ -7512,29 +7554,6 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dfmodBop,                "dfmod" ),
     
     ///////////////////////////////////////////
-    //  single-precision fp functions
-    ///////////////////////////////////////////
-    NATIVE_DEF(    fsinBop,                 "fsin" ),
-    NATIVE_DEF(    fasinBop,                "fasin" ),
-    NATIVE_DEF(    fcosBop,                 "fcos" ),
-    NATIVE_DEF(    facosBop,                "facos" ),
-    NATIVE_DEF(    ftanBop,                 "ftan" ),
-    NATIVE_DEF(    fatanBop,                "fatan" ),
-    NATIVE_DEF(    fatan2Bop,               "fatan2" ),
-    NATIVE_DEF(    fexpBop,                 "fexp" ),
-    NATIVE_DEF(    flnBop,                  "fln" ),
-    NATIVE_DEF(    flog10Bop,               "flog10" ),
-    NATIVE_DEF(    fpowBop,                 "fpow" ),
-    NATIVE_DEF(    fsqrtBop,                "fsqrt" ),
-    NATIVE_DEF(    fceilBop,                "fceil" ),
-    NATIVE_DEF(    ffloorBop,               "floor" ),
-    NATIVE_DEF(    fabsBop,                 "fabs" ),
-    NATIVE_DEF(    fldexpBop,               "fldexp" ),
-    NATIVE_DEF(    ffrexpBop,               "ffrexp" ),
-    NATIVE_DEF(    fmodfBop,                "fmodf" ),
-    NATIVE_DEF(    ffmodBop,                "ffmod" ),
-    
-    ///////////////////////////////////////////
     //  integer/long/float/double conversion
     ///////////////////////////////////////////
     NATIVE_DEF(    i2fBop,                  "i2f" ), 
@@ -7543,6 +7562,11 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    f2dBop,                  "f2d" ),
     NATIVE_DEF(    d2iBop,                  "d2i" ),
     NATIVE_DEF(    d2fBop,                  "d2f" ),
+    OP_DEF(    i2lOp,                  "i2l" ), 
+    OP_DEF(    l2fOp,                  "l2f" ), 
+    OP_DEF(    l2dOp,                  "l2d" ), 
+    OP_DEF(    f2lOp,                  "f2l" ),
+    OP_DEF(    d2lOp,                  "d2l" ),
     
     ///////////////////////////////////////////
     //  bit-vector logic
@@ -7714,8 +7738,6 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    mtimesBop,               "m*" ),
     NATIVE_DEF(    umtimesBop,              "um*" ),
 
-    // everything below this line does not have an assembler version
-
     OP_DEF(    stdinOp,                "stdin" ),
     OP_DEF(    stdoutOp,               "stdout" ),
     OP_DEF(    stderrOp,               "stderr" ),
@@ -7749,17 +7771,12 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    thruOp,                 "thru" ),
 
     ///////////////////////////////////////////
-    //  64-bit integer math & conversions
+    //  64-bit integer math
     ///////////////////////////////////////////
     OP_DEF(    ldivideOp,              "l/" ),
     OP_DEF(    lmodOp,                 "lmod" ),
     OP_DEF(    ldivmodOp,              "l/mod" ),
     OP_DEF(    udivmodOp,              "ud/mod" ),
-    OP_DEF(    i2lOp,                  "i2l" ), 
-    OP_DEF(    l2fOp,                  "l2f" ), 
-    OP_DEF(    l2dOp,                  "l2d" ), 
-    OP_DEF(    f2lOp,                  "f2l" ),
-    OP_DEF(    d2lOp,                  "d2l" ),
     
     ///////////////////////////////////////////
     //  64-bit integer comparisons
@@ -7843,14 +7860,15 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(returnsOp,              "returns" ),
     OP_DEF(    doMethodOp,             "doMethod" ),
     OP_DEF(    implementsOp,           "implements:" ),
-    OP_DEF(    endimplementsOp,        ";implements" ),
+    OP_DEF(    endImplementsOp,        ";implements" ),
     OP_DEF(    unionOp,                "union" ),
     OP_DEF(    extendsOp,              "extends" ),
-    PRECOP_DEF(sizeOfOp,               "sizeOf" ),
-    PRECOP_DEF(offsetOfOp,             "offsetOf" ),
+    OP_DEF(    strSizeOfOp,            "$sizeOf" ),
+    OP_DEF(    strOffsetOfOp,          "$offsetOf" ),
+    OP_DEF(    processConstantOp,      "processConstant" ),
     OP_DEF(    showStructOp,           "showStruct" ),
-    PRECOP_DEF(newOp,                  "new" ),
-    PRECOP_DEF(makeObjectOp,           "makeObject"),
+    OP_DEF(    strNewOp,               "$new" ),
+    OP_DEF(    strMakeObjectOp,        "$makeObject" ),
     PRECOP_DEF(initMemberStringOp,     "initMemberString"),
     OP_DEF(    enumOp,                 "enum:" ),
     OP_DEF(    endenumOp,              ";enum" ),
