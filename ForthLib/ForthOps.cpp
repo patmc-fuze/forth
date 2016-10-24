@@ -950,34 +950,33 @@ FORTHOP( colonOp )
 }
 
 
-FORTHOP( strColonOp )
-{
-    ForthEngine *pEngine = GET_ENGINE;
-    // get next symbol, add it to vocabulary with type "user op"
-    const char* pName = (const char*)(SPOP);
-    long* pEntry = pEngine->StartOpDefinition( pName, true );
-    pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
-    // switch to compile mode
-    pEngine->SetCompileState( 1 );
-    pEngine->ClearFlag( kEngineFlagNoNameDefinition);
-
-	pEngine->GetShell()->StartDefinition("coln");
-}
-
-
 FORTHOP( colonNoNameOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
-	long newOp = pEngine->AddOp( GET_DP );
-	newOp = COMPILED_OP( kOpUserDef, newOp );
-	SPUSH( newOp );
+	long newDef = pEngine->AddOp( GET_DP );
+	newDef = COMPILED_OP(kOpUserDef, newDef);
+	SPUSH(newDef);
     // switch to compile mode
     pEngine->SetCompileState( 1 );	
     pEngine->SetFlag( kEngineFlagNoNameDefinition );
 
 	pEngine->GetShell()->StartDefinition("coln");
 }
+
+
+FORTHOP(pushTokenOp)
+{
+	char* pName = (char*)(SPOP);
+	GET_ENGINE->GetTokenStack()->Push(pName);
+}
+
+
+FORTHOP(popTokenOp)
+{
+	SPUSH((long)(GET_ENGINE->GetTokenStack()->Pop()));
+}
+
 
 // func: has precedence
 FORTHOP( funcOp )
@@ -1719,6 +1718,19 @@ FORTHOP( processConstantOp )
 	}
 }
 
+FORTHOP( processLongConstantOp )
+{
+	// if interpreting, do nothing
+	// if compiling, get value from TOS and compile what is needed to push that value at runtime
+    ForthEngine *pEngine = GET_ENGINE;
+	if (pEngine->IsCompiling())
+	{
+		stackInt64 val;
+		LPOP(val);
+		pEngine->ProcessLongConstant(val.s64);
+	}
+}
+
 FORTHOP(showStructOp)
 {
 	// TOS: structVocabPtr ptrToStructData
@@ -1790,18 +1802,58 @@ void __newOp(ForthCoreState* pCore, const char* pSym)
     }
 }
 
-FORTHOP(strNewOp)
+FORTHOP(newOp)
 {
 	ForthEngine *pEngine = GET_ENGINE;
-	char *pSym = (char*)(SPOP);
+	ForthVocabulary* pFoundVocab;
+
+	char *pSym = pEngine->GetNextSimpleToken();
 	__newOp(pCore, pSym);
 }
 
-FORTHOP(strMakeObjectOp)
+FORTHOP(strNewOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	ForthVocabulary* pFoundVocab;
+
+	char *pSym = (char*)(SPOP);
+	long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pSym, &pFoundVocab);
+
+	if (pEntry)
+	{
+		ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+		ForthClassVocabulary* pClassVocab = (ForthClassVocabulary *)(pManager->GetStructVocabulary(pEntry[0]));
+
+		if (pClassVocab && pClassVocab->IsClass())
+		{
+			long initOpcode = pClassVocab->GetInitOpcode();
+			SPUSH((long)pClassVocab);
+			pEngine->ExecuteOneOp(pClassVocab->GetClassObject()->newOp);
+			if (initOpcode != 0)
+			{
+				// copy object data pointer to TOS to be used by init 
+				long a = (GET_SP)[1];
+				SPUSH(a);
+				pEngine->ExecuteOneOp(initOpcode);
+			}
+		}
+		else
+		{
+			pEngine->AddErrorText(pSym);
+			pEngine->SetError(kForthErrorUnknownSymbol, " is not a class");
+		}
+	}
+	else
+	{
+		pEngine->SetError(kForthErrorUnknownSymbol, pSym);
+	}
+}
+
+FORTHOP(makeObjectOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
-	const char *pClassName = (const char*)(SPOP);
-	const char* pInstanceName = (const char*)(SPOP);
+	const char *pClassName = pEngine->GetNextSimpleToken();
+	const char* pInstanceName = pEngine->GetNextSimpleToken();
     __newOp(pCore, pClassName);
 
     ForthVocabulary* pFoundVocab;
@@ -2052,10 +2104,10 @@ FORTHOP( recursiveOp )
     GET_ENGINE->GetDefinitionVocabulary()->UnSmudgeNewestSymbol();
 }
 
-FORTHOP( strPrecedenceOp )
+FORTHOP( precedenceOp )
 {
-    char *pSym = (char *)(SPOP);
 	ForthEngine *pEngine = GET_ENGINE;
+	char *pSym = pEngine->GetNextSimpleToken();
 	long *pEntry = pEngine->GetDefinitionVocabulary()->FindSymbol(pSym);
     
     if ( pEntry )
@@ -7826,8 +7878,9 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(exitOp,                 "exit" ),
     PRECOP_DEF(semiOp,                 ";" ),
     OP_DEF(    colonOp,                ":" ),
-    OP_DEF(    strColonOp,             "$:" ),
     OP_DEF(    colonNoNameOp,          ":noname" ),
+	OP_DEF(    pushTokenOp,            "pushToken"),
+	OP_DEF(    popTokenOp,             "popToken"),
 	PRECOP_DEF(funcOp,                 "func:" ),
 	PRECOP_DEF(endfuncOp,               ";func" ),
     OP_DEF(    codeOp,                 "code" ),
@@ -7866,14 +7919,16 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    strSizeOfOp,            "$sizeOf" ),
     OP_DEF(    strOffsetOfOp,          "$offsetOf" ),
     OP_DEF(    processConstantOp,      "processConstant" ),
+    OP_DEF(    processLongConstantOp,  "processLongConstant" ),
     OP_DEF(    showStructOp,           "showStruct" ),
+    PRECOP_DEF(newOp,                  "new" ),
     OP_DEF(    strNewOp,               "$new" ),
-    OP_DEF(    strMakeObjectOp,        "$makeObject" ),
+    PRECOP_DEF(makeObjectOp,           "makeObject" ),
     PRECOP_DEF(initMemberStringOp,     "initMemberString"),
     OP_DEF(    enumOp,                 "enum:" ),
     OP_DEF(    endenumOp,              ";enum" ),
     PRECOP_DEF(recursiveOp,            "recursive" ),
-    OP_DEF(    strPrecedenceOp,        "$precedence" ),
+    OP_DEF(    precedenceOp,           "precedence" ),
     OP_DEF(    strRunFileOp,           "$runFile" ),
     OP_DEF(    strLoadOp,              "$load" ),
     OP_DEF(    loadDoneOp,             "loaddone" ),

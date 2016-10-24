@@ -8,7 +8,6 @@ setTrace( 0 )
 
 : ' blword $' ;
 : lf blword $load ;
-: precedence blword $precedence ;
 : forget
   blword dup
   if( not( $forget ) )
@@ -37,6 +36,10 @@ setTrace( 0 )
     blword drop
   endif
 ;
+
+: sizeOf blword $sizeOf processConstant ; precedence sizeOf
+: offsetOf blword $offsetOf processConstant ; precedence offsetOf
+: $: pushToken : ;
 
 //######################################################################
 // features support
@@ -88,7 +91,7 @@ enum: eFeatures
   move( r@ 1+ _TempStringA r@ c@ )
   r> c@ dup _TempStringA 4- !
   0 swap _TempStringA + c!
-  _TempStringA $precedence
+  precedence(pushToken(_TempStringA))
   oclear vocab
 ;
   

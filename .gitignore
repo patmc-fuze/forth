@@ -2,6 +2,7 @@
 *.aps
 *.bmp
 *.bsc
+*.blk
 *.clw
 *.dep
 *.dll
@@ -30,7 +31,11 @@
 *.vpj
 *.vtg
 *.zip
+*.sdf
+*.opensdf
 build
+Backup
+ColossalCaveAdventure
 CVS
 Debug
 ForthCalc
@@ -42,9 +47,11 @@ ForthLib/MakefileProject
 ForthLib/NewFolder
 ForthRelease
 ForthND
+ipch
 Junk
 booga
 rel
+relOld
 relSource
 Sandbox
 TestDLL

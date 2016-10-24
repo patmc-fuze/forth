@@ -47,6 +47,25 @@ typedef enum {
     //long                *DBase;         // base of dictionary
     //ulong               DLen;           // max size of dictionary memory segment
 
+class ForthEngineTokenStack
+{
+public:
+	ForthEngineTokenStack();
+	~ForthEngineTokenStack();
+	void Initialize(ulong numBytes);
+	inline bool IsEmpty() const { return mpCurrent == mpLimit; };
+	void Push(const char* pToken);
+	char* Pop();
+	char* Peek();
+	void Clear();
+
+private:
+	char*               mpCurrent;
+	char*               mpBase;
+	char*				mpLimit;
+	ulong               mNumBytes;
+};
+
 class ForthEngine
 {
 public:
@@ -160,6 +179,9 @@ public:
 	inline void             AllotBytes( int n )	{ mDictionary.pCurrent = reinterpret_cast<long *>(reinterpret_cast<int>(mDictionary.pCurrent) + n); };
     inline void             AlignDP( void ) { mDictionary.pCurrent = (long *)(( ((int)mDictionary.pCurrent) + 3 ) & ~3); };
     inline ForthMemorySection* GetDictionaryMemorySection() { return &mDictionary; };
+
+	inline ForthEngineTokenStack* GetTokenStack() { return &mTokenStack; };
+
     inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpVocabStack->GetTop(); };
     inline void             SetSearchVocabulary( ForthVocabulary* pVocab )  { mpVocabStack->SetTop( pVocab ); };
     inline ForthVocabulary  *GetDefinitionVocabulary( void )   { return mpDefinitionVocab; };
@@ -259,7 +281,9 @@ protected:
 
     ForthMemorySection mDictionary;
 
-    ForthVocabulary * mpForthVocab;              // main forth vocabulary
+	ForthEngineTokenStack mTokenStack;		// contains tokens which will be gotten by GetNextSimpleToken instead of from input stream
+
+	ForthVocabulary * mpForthVocab;              // main forth vocabulary
     ForthLocalVocabulary * mpLocalVocab;         // local variable vocabulary
 
     ForthVocabulary * mpDefinitionVocab;    // vocabulary which new definitions are added to

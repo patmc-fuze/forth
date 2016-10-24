@@ -141,6 +141,86 @@ static const char *pErrorStrings[] =
 //////////////////////////////////////////////////////////////////////
 ////
 ///
+//                     ForthEngineTokenStack
+// 
+
+ForthEngineTokenStack::ForthEngineTokenStack()
+	: mpCurrent(nullptr)
+	, mpBase(nullptr)
+	, mpLimit(nullptr)
+	, mNumBytes(0)
+{
+}
+
+ForthEngineTokenStack::~ForthEngineTokenStack()
+{
+	if (mpCurrent != nullptr)
+	{
+		__FREE(mpBase);
+	}
+}
+
+void ForthEngineTokenStack::Initialize(ulong numBytes)
+{
+	mpBase = (char *)__MALLOC(numBytes);
+	mpLimit = mpBase + numBytes;
+	mpCurrent = mpLimit;
+	mNumBytes = numBytes;
+}
+
+void ForthEngineTokenStack::Push(const char* pToken)
+{
+	ulong newTokenBytes = strlen(pToken) + 1;
+	char* newCurrent = mpCurrent - newTokenBytes;
+	if (newCurrent >= mpBase)
+	{
+		mpCurrent = newCurrent;
+	}
+	else
+	{
+		// resize stack to fit pushed token plus a little bit
+		ulong currentBytes = mpLimit - mpCurrent;
+		mNumBytes = newTokenBytes + 64 + (mNumBytes - currentBytes);
+		mpBase = (char *)__REALLOC(mpBase, mNumBytes);
+		mpLimit = mpBase + mNumBytes;
+		mpCurrent = mpLimit - (currentBytes + newTokenBytes);
+	}
+	memcpy(mpCurrent, pToken, newTokenBytes);
+}
+
+char* ForthEngineTokenStack::Pop()
+{
+	char* pResult = nullptr;
+	if (mpCurrent != mpLimit)
+	{
+		pResult = mpCurrent;
+		ulong bytesToRemove = strlen(mpCurrent) + 1;
+		mpCurrent += bytesToRemove;
+	}
+
+	return pResult;
+}
+
+char* ForthEngineTokenStack::Peek()
+{
+	char* pResult = nullptr;
+	if (mpCurrent != mpLimit)
+	{
+		pResult = mpCurrent;
+	}
+
+	return pResult;
+}
+
+void ForthEngineTokenStack::Clear()
+{
+	mpCurrent = mpLimit;
+}
+
+
+//////////////////////////////////////////////////////////////////////
+////
+///
 //                     ForthEngine
 // 
 
@@ -190,6 +270,9 @@ ForthEngine::ForthEngine()
 	mDefaultConsoleOutStream.pData = NULL;
 
     mBlockFileManager = new ForthBlockFileManager;
+
+	mDictionary.pBase = NULL;
+
     // At this point, the main thread does not exist, it will be created later in Initialize, this
     // is fairly screwed up, it is becauses originally ForthEngine was the center of the universe,
     // and it created the shell, but now the shell is created first, and the shell or the main app
@@ -206,7 +289,7 @@ ForthEngine::~ForthEngine()
     {
         mpExtension->Shutdown();
     }
-
+	
     if ( mDictionary.pBase )
     {
 #ifdef WIN32
@@ -214,7 +297,7 @@ ForthEngine::~ForthEngine()
 #else
 		__FREE( mDictionary.pBase );
 #endif
-        delete mpForthVocab;
+		delete mpForthVocab;
         delete mpLocalVocab;
         delete mpTypesManager;
 		delete mpOpcodeCompiler;
@@ -287,6 +370,9 @@ ForthEngine::Initialize( ForthShell*        pShell,
 #endif
     mDictionary.pCurrent = mDictionary.pBase;
     mDictionary.len = totalLongs;
+
+	mTokenStack.Initialize(4);
+	
 	mpOpcodeCompiler = new ForthOpcodeCompiler( &mDictionary );
 
     mpForthVocab = new ForthVocabulary( "forth", NUM_FORTH_VOCAB_VALUE_LONGS );
@@ -369,6 +455,8 @@ ForthEngine::Reset( void )
     mpOpcodeCompiler->Reset();
     mCompileState = 0;
     mCompileFlags = 0;
+
+	mTokenStack.Clear();
 
     if ( mpExtension != NULL )
     {
@@ -740,16 +828,15 @@ ForthEngine::DestroyThread( ForthThread *pThread )
 }
 
 
-// interpret named file, interpret from standard in if pFileName is NULL
-// return 0 for normal exit
-//int             ForthShell( ForthThread *g, char *pFileName );
 char *
 ForthEngine::GetNextSimpleToken( void )
 {
-    return mpShell->GetNextSimpleToken();
+	return mTokenStack.IsEmpty() ? mpShell->GetNextSimpleToken() : mTokenStack.Pop();
 }
 
 
+// interpret named file, interpret from standard in if pFileName is NULL
+// return 0 for normal exit
 bool
 ForthEngine::PushInputFile( const char *pInFileName )
 {
