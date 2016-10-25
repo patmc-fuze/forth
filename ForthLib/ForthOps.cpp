@@ -1853,7 +1853,6 @@ FORTHOP(makeObjectOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
 	const char *pClassName = pEngine->GetNextSimpleToken();
-	const char* pInstanceName = pEngine->GetNextSimpleToken();
     __newOp(pCore, pClassName);
 
     ForthVocabulary* pFoundVocab;
@@ -1875,6 +1874,7 @@ FORTHOP(makeObjectOp)
             {
                 SET_VAR_OPERATION(kVarStore);
             }
+			const char *pInstanceName = pEngine->GetNextSimpleToken();
 			pClassVocab->DefineInstance(pInstanceName);
         }
         else
