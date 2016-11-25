@@ -45,8 +45,5 @@ namespace OString
 	extern void stringBlockOut( ForthCoreState* pCore, void *pData, const char *pBuffer, int numChars );
 	extern void stringStringOut( ForthCoreState* pCore, void *pData, const char *pBuffer );
     
-	extern ForthClassVocabulary* gpOStringClass;
-	extern ForthClassVocabulary* gpOStringMapIterClassVocab;
-
 	void AddClasses(ForthEngine* pEngine);
 } // namespace oString

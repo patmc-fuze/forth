@@ -21,6 +21,7 @@
 #include "OMap.h"
 #include "OStream.h"
 #include "ONumber.h"
+#include "OSystem.h"
 
 #ifdef TRACK_OBJECT_ALLOCATIONS
 long gStatNews = 0;
@@ -105,11 +106,6 @@ void unrefObject(ForthObject& fobj)
 	}
 }
 
-ForthClassVocabulary* gpObjectClassVocab;
-ForthClassVocabulary* gpClassClassVocab;
-ForthClassVocabulary* gpOIterClassVocab;
-ForthClassVocabulary* gpOIterableClassVocab;
-
 namespace
 {
 
@@ -131,6 +127,7 @@ namespace
 
 	FORTHOP(objectDeleteMethod)
 	{
+		// TODO: warn if refcount isn't zero
 		FREE_OBJECT(GET_TPD);
 		METHOD_RETURN;
 	}
@@ -333,7 +330,7 @@ namespace
 		METHOD_RET("prev", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("current", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", unimplementedMethodOp),
-		METHOD_RET("unref", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject)),
+		METHOD_RET("unref", unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 		METHOD_RET("findNext", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("clone", unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIter)),
 		// following must be last in table
@@ -444,12 +441,13 @@ ForthTypesManager::GetTypeName( void )
 void
 ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 {
-	gpObjectClassVocab = pEngine->AddBuiltinClass("Object", NULL, objectMembers);
-	gpClassClassVocab = pEngine->AddBuiltinClass("Class", gpObjectClassVocab, classMembers);
+	pEngine->AddBuiltinClass("Object", kBCIObject, kBCIInvalid, objectMembers);
+	ForthClassVocabulary* pClassClassVocab = pEngine->AddBuiltinClass("Class", kBCIClass, kBCIObject, classMembers);
 
-	gpOIterClassVocab = pEngine->AddBuiltinClass("OIter", gpObjectClassVocab, oIterMembers);
-	gpOIterableClassVocab = pEngine->AddBuiltinClass("OIterable", gpObjectClassVocab, oIterableMembers);
+	pEngine->AddBuiltinClass("OIter", kBCIIter, kBCIObject, oIterMembers);
+	pEngine->AddBuiltinClass("OIterable", kBCIIterable, kBCIObject, oIterableMembers);
 
+	OSystem::AddClasses(pEngine);
 	OArray::AddClasses(pEngine);
 	OList::AddClasses(pEngine);
 	OMap::AddClasses(pEngine);
@@ -459,6 +457,6 @@ ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 	OVocabulary::AddClasses(pEngine);
 	OThread::AddClasses(pEngine);
 
-	mpClassMethods = gpClassClassVocab->GetInterface(0)->GetMethods();
+	mpClassMethods = pClassClassVocab->GetInterface(0)->GetMethods();
 }
 

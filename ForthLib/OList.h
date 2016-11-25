@@ -10,9 +10,6 @@ class ForthClassVocabulary;
 
 namespace OList
 {
-	extern ForthClassVocabulary* gpOListClassVocab;
-	extern ForthClassVocabulary* gpOListIterClassVocab;
-
 	struct oListIterStruct
 	{
 		ulong			refCount;

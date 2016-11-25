@@ -10,7 +10,5 @@ class ForthClassVocabulary;
 
 namespace OArray
 {
-	extern ForthClassVocabulary* gpOArrayClassVocab;
-
 	void AddClasses(ForthEngine* pEngine);
 }

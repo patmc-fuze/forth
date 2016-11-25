@@ -31,9 +31,6 @@ namespace OArray
 	//                 oArray
 	//
 
-	ForthClassVocabulary* gpOArrayClassVocab;
-	ForthClassVocabulary* gpArrayIterClassVocab;
-
 	FORTHOP(oArrayNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
@@ -69,7 +66,7 @@ namespace OArray
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("oArray");
+		SHOW_OBJ_HEADER("OArray");
 		pShowContext->ShowIndent("'elements' : [");
 		if (a.size() > 0)
 		{
@@ -213,7 +210,7 @@ namespace OArray
 		}
 
 		// push list on TOS
-		ForthInterface* pPrimaryInterface = OList::gpOListClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIList, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pList);
 		METHOD_RETURN;
 	}
@@ -379,7 +376,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pIter->cursor = 0;
-		ForthInterface* pPrimaryInterface = gpArrayIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIArrayIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -394,7 +391,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pIter->cursor = pArray->elements->size();
-		ForthInterface* pPrimaryInterface = gpArrayIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIArrayIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -429,7 +426,7 @@ namespace OArray
 			pIter->parent.pMethodOps = GET_TPM;
 			pIter->parent.pData = reinterpret_cast<long *>(pArray);
 			pIter->cursor = retVal;
-			ForthInterface* pPrimaryInterface = gpArrayIterClassVocab->GetInterface(0);
+			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIArrayIter, 0);
 			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 			SPUSH(~0);
 		}
@@ -506,12 +503,12 @@ namespace OArray
 		METHOD("load", oArrayLoadMethod),
 		METHOD_RET("toList", oArrayToListMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIList)),
 		METHOD_RET("ref", oArrayRefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject | kDTIsPtr)),
-		METHOD_RET("unref", oArrayUnrefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject)),
-		METHOD_RET("get", oArrayGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject)),
+		METHOD("unref", oArrayUnrefMethod),
+		METHOD_RET("get", oArrayGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 		METHOD("set", oArraySetMethod),
 		METHOD_RET("findIndex", oArrayFindIndexMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("push", oArrayPushMethod),
-		METHOD_RET("popUnref", oArrayPopUnrefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject)),
+		METHOD("popUnref", oArrayPopUnrefMethod),
 		METHOD("insert", oArrayInsertMethod),
 
 		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
@@ -546,7 +543,7 @@ namespace OArray
 		oArray& a = *(pArray->elements);
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("oArrayIter");
+		SHOW_OBJ_HEADER("OArrayIter");
 		pShowContext->ShowIndent("'cursor : ");
 		ForthShowObject(a[pIter->cursor], pCore);
 		pShowContext->EndElement(",");
@@ -767,12 +764,12 @@ namespace OArray
 		METHOD_RET("prev", oArrayIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("current", oArrayIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oArrayIterRemoveMethod),
-		METHOD_RET("unref", oArrayIterUnrefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject)),
+		METHOD("unref", oArrayIterUnrefMethod),
 		METHOD_RET("findNext", oArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("clone", oArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArrayIter)),
 		METHOD("insert", oArrayIterInsertMethod),
 
-		MEMBER_VAR("parent", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
+		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIArray)),
 		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
 		// following must be last in table
@@ -798,7 +795,6 @@ namespace OArray
 		ForthObject		parent;
 		ulong			cursor;
 	};
-	static ForthClassVocabulary* gpByteArraryIterClassVocab = NULL;
 
 	FORTHOP(oByteArrayNew)
 	{
@@ -827,7 +823,7 @@ namespace OArray
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		oByteArray& a = *(pArray->elements);
-		SHOW_OBJ_HEADER("oByteArray");
+		SHOW_OBJ_HEADER("OByteArray");
 		pShowContext->ShowIndent("'elements' : [");
 		if (a.size() > 0)
 		{
@@ -1018,7 +1014,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pIter->cursor = 0;
-		ForthInterface* pPrimaryInterface = gpByteArraryIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIByteArrayIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -1033,7 +1029,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pIter->cursor = pArray->elements->size();
-		ForthInterface* pPrimaryInterface = gpByteArraryIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIByteArrayIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -1066,7 +1062,7 @@ namespace OArray
 			pIter->parent.pMethodOps = GET_TPM;
 			pIter->parent.pData = reinterpret_cast<long *>(pArray);
 			pIter->cursor = retVal;
-			ForthInterface* pPrimaryInterface = gpByteArraryIterClassVocab->GetInterface(0);
+			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIByteArrayIter, 0);
 			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 			SPUSH(~0);
 		}
@@ -1316,7 +1312,6 @@ namespace OArray
 		pNewIter->parent.pMethodOps = pIter->parent.pMethodOps;
 		pNewIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pNewIter->cursor = pIter->cursor;
-		ForthInterface* pPrimaryInterface = gpByteArraryIterClassVocab->GetInterface(0);
 		PUSH_PAIR(GET_TPM, pNewIter);
 		METHOD_RETURN;
 	}
@@ -1337,7 +1332,7 @@ namespace OArray
 		METHOD_RET("findNext", oByteArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("clone", oByteArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIByteArrayIter)),
 
-		MEMBER_VAR("parent", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
+		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIByteArray)),
 		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
 		// following must be last in table
@@ -1364,7 +1359,6 @@ namespace OArray
 		ForthObject		parent;
 		ulong			cursor;
 	};
-	static ForthClassVocabulary* gpShortArraryIterClassVocab = NULL;
 
 	FORTHOP(oShortArrayNew)
 	{
@@ -1393,7 +1387,7 @@ namespace OArray
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		oShortArray& a = *(pArray->elements);
-		SHOW_OBJ_HEADER("oShortArray");
+		SHOW_OBJ_HEADER("OShortArray");
 		pShowContext->ShowIndent("'elements' : [");
 		if (a.size() > 0)
 		{
@@ -1586,7 +1580,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pIter->cursor = 0;
-		ForthInterface* pPrimaryInterface = gpShortArraryIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIShortArrayIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -1601,7 +1595,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pIter->cursor = pArray->elements->size();
-		ForthInterface* pPrimaryInterface = gpShortArraryIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIShortArrayIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -1634,7 +1628,7 @@ namespace OArray
 			pIter->parent.pMethodOps = GET_TPM;
 			pIter->parent.pData = reinterpret_cast<long *>(pArray);
 			pIter->cursor = retVal;
-			ForthInterface* pPrimaryInterface = gpShortArraryIterClassVocab->GetInterface(0);
+			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIShortArrayIter, 0);
 			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 			SPUSH(~0);
 		}
@@ -1870,7 +1864,6 @@ namespace OArray
 		pNewIter->parent.pMethodOps = pIter->parent.pMethodOps;
 		pNewIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pNewIter->cursor = pIter->cursor;
-		ForthInterface* pPrimaryInterface = gpShortArraryIterClassVocab->GetInterface(0);
 		PUSH_PAIR(GET_TPM, pNewIter);
 		METHOD_RETURN;
 	}
@@ -1890,7 +1883,7 @@ namespace OArray
 		METHOD_RET("findNext", oShortArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("clone", oShortArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIShortArrayIter)),
 
-		MEMBER_VAR("parent", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
+		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIShortArray)),
 		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
 		// following must be last in table
@@ -1915,7 +1908,6 @@ namespace OArray
 		ForthObject		parent;
 		ulong			cursor;
 	};
-	static ForthClassVocabulary* gpIntArraryIterClassVocab = NULL;
 
 	FORTHOP(oIntArrayNew)
 	{
@@ -1944,7 +1936,7 @@ namespace OArray
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		oIntArray& a = *(pArray->elements);
-		SHOW_OBJ_HEADER("oIntArray");
+		SHOW_OBJ_HEADER("OIntArray");
 		pShowContext->ShowIndent("'elements' : [");
 		if (a.size() > 0)
 		{
@@ -2137,7 +2129,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pIter->cursor = 0;
-		ForthInterface* pPrimaryInterface = gpIntArraryIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIIntArrayIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -2152,7 +2144,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pIter->cursor = pArray->elements->size();
-		ForthInterface* pPrimaryInterface = gpIntArraryIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIIntArrayIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -2185,7 +2177,7 @@ namespace OArray
 			pIter->parent.pMethodOps = GET_TPM;
 			pIter->parent.pData = reinterpret_cast<long *>(pArray);
 			pIter->cursor = retVal;
-			ForthInterface* pPrimaryInterface = gpIntArraryIterClassVocab->GetInterface(0);
+			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIIntArrayIter, 0);
 			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 			SPUSH(~0);
 		}
@@ -2417,7 +2409,6 @@ namespace OArray
 		pNewIter->parent.pMethodOps = pIter->parent.pMethodOps;
 		pNewIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pNewIter->cursor = pIter->cursor;
-		ForthInterface* pPrimaryInterface = gpIntArraryIterClassVocab->GetInterface(0);
 		PUSH_PAIR(GET_TPM, pNewIter);
 		METHOD_RETURN;
 	}
@@ -2437,7 +2428,7 @@ namespace OArray
 		METHOD_RET("findNext", oIntArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("clone", oIntArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIntArrayIter)),
 
-		MEMBER_VAR("parent", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
+		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIIntArray)),
 		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
 		// following must be last in table
@@ -2449,7 +2440,6 @@ namespace OArray
 	///
 	//                 oFloatArray
 	//
-	static ForthClassVocabulary* gpFloatArraryIterClassVocab = NULL;
 
 	FORTHOP(oFloatArrayShowMethod)
 	{
@@ -2459,7 +2449,7 @@ namespace OArray
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		oIntArray& a = *(pArray->elements);
-		SHOW_OBJ_HEADER("oFloatArray");
+		SHOW_OBJ_HEADER("OFloatArray");
 		pShowContext->ShowIndent("'elements' : [");
 		if (a.size() > 0)
 		{
@@ -2522,7 +2512,6 @@ namespace OArray
 		ForthObject		parent;
 		ulong			cursor;
 	};
-	static ForthClassVocabulary* gpLongArraryIterClassVocab = NULL;
 
 	FORTHOP(oLongArrayNew)
 	{
@@ -2551,7 +2540,7 @@ namespace OArray
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		oLongArray& a = *(pArray->elements);
-		SHOW_OBJ_HEADER("oLongArray");
+		SHOW_OBJ_HEADER("OLongArray");
 		pShowContext->ShowIndent("'elements' : [");
 		if (a.size() > 0)
 		{
@@ -2753,7 +2742,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pIter->cursor = 0;
-		ForthInterface* pPrimaryInterface = gpLongArraryIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCILongArrayIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -2768,7 +2757,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pIter->cursor = pArray->elements->size();
-		ForthInterface* pPrimaryInterface = gpLongArraryIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCILongArrayIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -2803,7 +2792,7 @@ namespace OArray
 			pIter->parent.pMethodOps = GET_TPM;
 			pIter->parent.pData = reinterpret_cast<long *>(pArray);
 			pIter->cursor = retVal;
-			ForthInterface* pPrimaryInterface = gpLongArraryIterClassVocab->GetInterface(0);
+			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCILongArrayIter, 0);
 			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 			SPUSH(~0);
 		}
@@ -3043,7 +3032,6 @@ namespace OArray
 		pNewIter->parent.pMethodOps = pIter->parent.pMethodOps;
 		pNewIter->parent.pData = reinterpret_cast<long *>(pArray);
 		pNewIter->cursor = pIter->cursor;
-		ForthInterface* pPrimaryInterface = gpLongArraryIterClassVocab->GetInterface(0);
 		PUSH_PAIR(GET_TPM, pNewIter);
 		METHOD_RETURN;
 	}
@@ -3064,7 +3052,7 @@ namespace OArray
 		METHOD_RET("findNext", oLongArrayIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("clone", oLongArrayIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCILongArrayIter)),
 
-		MEMBER_VAR("parent", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
+		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCILongArray)),
 		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
 		// following must be last in table
@@ -3076,7 +3064,6 @@ namespace OArray
 	///
 	//                 oDoubleArray
 	//
-	static ForthClassVocabulary* gpDoubleArrayIterClassVocab = NULL;
 
 	FORTHOP(oDoubleArrayShowMethod)
 	{
@@ -3086,7 +3073,7 @@ namespace OArray
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		oLongArray& a = *(pArray->elements);
-		SHOW_OBJ_HEADER("oDoubleArray");
+		SHOW_OBJ_HEADER("ODoubleArray");
 		pShowContext->ShowIndent("'elements' : [");
 		if (a.size() > 0)
 		{
@@ -3149,8 +3136,6 @@ namespace OArray
 		int					cursor;
 	};
 
-	static ForthClassVocabulary* gpPairIterClassVocab = NULL;
-
 
 	FORTHOP(oPairNew)
 	{
@@ -3182,7 +3167,7 @@ namespace OArray
 		GET_THIS(oPairStruct, pPair);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER("oPair");
+		SHOW_OBJ_HEADER("OPair");
 		pShowContext->BeginIndent();
 		pShowContext->ShowIndent("'a' : ");
 		ForthShowObject(pPair->a, pCore);
@@ -3248,7 +3233,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pPair);
 		pIter->cursor = 0;
-		ForthInterface* pPrimaryInterface = gpPairIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIPairIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -3264,7 +3249,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pPair);
 		pIter->cursor = 2;
-		ForthInterface* pPrimaryInterface = gpPairIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIPairIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -3288,8 +3273,8 @@ namespace OArray
 		METHOD("setB", oPairSetBMethod),
 		METHOD_RET("getB", oPairGetBMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 
-		MEMBER_VAR("objectA", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
-		MEMBER_VAR("objectB", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
+		MEMBER_VAR("objectA", OBJECT_TYPE_TO_CODE(0, kBCIObject)),
+		MEMBER_VAR("objectB", OBJECT_TYPE_TO_CODE(0, kBCIObject)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -3433,7 +3418,7 @@ namespace OArray
 		//METHOD_RET( "findNext",				oPairIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
 		//METHOD_RET( "clone",                oPairIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIPairIter) ),
 
-		MEMBER_VAR("parent", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
+		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIPair)),
 		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
 		// following must be last in table
@@ -3459,7 +3444,6 @@ namespace OArray
 		ForthObject			parent;
 		int					cursor;
 	};
-	static ForthClassVocabulary* gpTripleIterClassVocab = NULL;
 
 
 	FORTHOP(oTripleNew)
@@ -3496,7 +3480,7 @@ namespace OArray
 		GET_THIS(oTripleStruct, pTriple);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER("oTriple");
+		SHOW_OBJ_HEADER("OTriple");
 		pShowContext->BeginIndent();
 		pShowContext->ShowIndent("'a' : ");
 		ForthShowObject(pTriple->a, pCore);
@@ -3586,7 +3570,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pTriple);
 		pIter->cursor = 0;
-		ForthInterface* pPrimaryInterface = gpTripleIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCITripleIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -3602,7 +3586,7 @@ namespace OArray
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pTriple);
 		pIter->cursor = 3;
-		ForthInterface* pPrimaryInterface = gpTripleIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCITripleIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -3627,9 +3611,9 @@ namespace OArray
 		METHOD("setC", oTripleSetCMethod),
 		METHOD_RET("getC", oTripleGetCMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 
-		MEMBER_VAR("objectA", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
-		MEMBER_VAR("objectB", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
-		MEMBER_VAR("objectC", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
+		MEMBER_VAR("objectA", OBJECT_TYPE_TO_CODE(0, kBCIObject)),
+		MEMBER_VAR("objectB", OBJECT_TYPE_TO_CODE(0, kBCIObject)),
+		MEMBER_VAR("objectC", OBJECT_TYPE_TO_CODE(0, kBCIObject)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -3787,7 +3771,7 @@ namespace OArray
 		//METHOD_RET( "findNext",				oTripleIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) ),
 		//METHOD_RET( "clone",                oTripleIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCITripleIter) ),
 
-		MEMBER_VAR("parent", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
+		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCITriple)),
 		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
 		// following must be last in table
@@ -3797,32 +3781,32 @@ namespace OArray
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		gpOArrayClassVocab = pEngine->AddBuiltinClass("OArray", gpOIterableClassVocab, oArrayMembers);
-		gpArrayIterClassVocab = pEngine->AddBuiltinClass("OArrayIter", gpOIterClassVocab, oArrayIterMembers);
+		pEngine->AddBuiltinClass("OArray", kBCIArray, kBCIIterable, oArrayMembers);
+		pEngine->AddBuiltinClass("OArrayIter", kBCIArrayIter, kBCIIter, oArrayIterMembers);
 
-		ForthClassVocabulary* pOByteArrayClass = pEngine->AddBuiltinClass("OByteArray", gpOArrayClassVocab, oByteArrayMembers);
-		gpByteArraryIterClassVocab = pEngine->AddBuiltinClass("OByteArrayIter", gpOIterClassVocab, oByteArrayIterMembers);
+		pEngine->AddBuiltinClass("OByteArray", kBCIByteArray, kBCIArray, oByteArrayMembers);
+		pEngine->AddBuiltinClass("OByteArrayIter", kBCIByteArrayIter, kBCIIter, oByteArrayIterMembers);
 
-		ForthClassVocabulary* pOShortArrayClass = pEngine->AddBuiltinClass("OShortArray", gpOArrayClassVocab, oShortArrayMembers);
-		gpShortArraryIterClassVocab = pEngine->AddBuiltinClass("OShortArrayIter", gpOIterClassVocab, oShortArrayIterMembers);
+		pEngine->AddBuiltinClass("OShortArray", kBCIShortArray, kBCIArray, oShortArrayMembers);
+		pEngine->AddBuiltinClass("OShortArrayIter", kBCIShortArrayIter, kBCIIter, oShortArrayIterMembers);
 
-		ForthClassVocabulary* pOIntArrayClass = pEngine->AddBuiltinClass("OIntArray", gpOArrayClassVocab, oIntArrayMembers);
-		gpIntArraryIterClassVocab = pEngine->AddBuiltinClass("OIntArrayIter", gpOIterClassVocab, oIntArrayIterMembers);
+		pEngine->AddBuiltinClass("OIntArray", kBCIIntArray, kBCIArray, oIntArrayMembers);
+		pEngine->AddBuiltinClass("OIntArrayIter", kBCIIntArrayIter, kBCIIter, oIntArrayIterMembers);
 
-		ForthClassVocabulary* pOFloatArrayClass = pEngine->AddBuiltinClass("OFloatArray", pOIntArrayClass, oFloatArrayMembers);
-		gpFloatArraryIterClassVocab = pEngine->AddBuiltinClass("OFloatArrayIter", gpOIterClassVocab, oIntArrayIterMembers);
+		pEngine->AddBuiltinClass("OFloatArray", kBCIFloatArray, kBCIIntArray, oFloatArrayMembers);
+		pEngine->AddBuiltinClass("OFloatArrayIter", kBCIFloatArrayIter, kBCIIter, oIntArrayIterMembers);
 
-		ForthClassVocabulary* pOLongArrayClass = pEngine->AddBuiltinClass("OLongArray", gpOArrayClassVocab, oLongArrayMembers);
-		gpLongArraryIterClassVocab = pEngine->AddBuiltinClass("OLongArrayIter", gpOIterClassVocab, oLongArrayIterMembers);
+		pEngine->AddBuiltinClass("OLongArray", kBCILongArray, kBCIArray, oLongArrayMembers);
+		pEngine->AddBuiltinClass("OLongArrayIter", kBCILongArrayIter, kBCIIter, oLongArrayIterMembers);
 
-		ForthClassVocabulary* pODoubleArrayClass = pEngine->AddBuiltinClass("ODoubleArray", pOLongArrayClass, oDoubleArrayMembers);
-		gpDoubleArrayIterClassVocab = pEngine->AddBuiltinClass("ODoubleArrayIter", gpOIterClassVocab, oLongArrayIterMembers);
+		pEngine->AddBuiltinClass("ODoubleArray", kBCIDoubleArray, kBCILongArray, oDoubleArrayMembers);
+		pEngine->AddBuiltinClass("ODoubleArrayIter", kBCIDoubleArrayIter, kBCIIter, oLongArrayIterMembers);
 
-		ForthClassVocabulary* pOPairClass = pEngine->AddBuiltinClass("OPair", gpOIterableClassVocab, oPairMembers);
-		gpPairIterClassVocab = pEngine->AddBuiltinClass("OPairIter", gpOIterClassVocab, oPairIterMembers);
+		pEngine->AddBuiltinClass("OPair", kBCIPair, kBCIIterable, oPairMembers);
+		pEngine->AddBuiltinClass("OPairIter", kBCIPairIter, kBCIIter, oPairIterMembers);
 
-		ForthClassVocabulary* pOTripleClass = pEngine->AddBuiltinClass("OTriple", gpOIterableClassVocab, oTripleMembers);
-		gpTripleIterClassVocab = pEngine->AddBuiltinClass("OTripleIter", gpOIterClassVocab, oTripleIterMembers);
+		pEngine->AddBuiltinClass("OTriple", kBCITriple, kBCIIterable, oTripleMembers);
+		pEngine->AddBuiltinClass("OTripleIter", kBCITripleIter, kBCIIter, oTripleIterMembers);
 	}
 
 } // namespace OArray

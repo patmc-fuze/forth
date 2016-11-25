@@ -1931,6 +1931,10 @@ void SpewMethodName(long* pMethods, long opVal)
 						pVocab = NULL;
 						break;
 					}
+					else
+					{
+						pEntry = pVocab->NextEntrySafe(pEntry);
+					}
 				}
 				else
 				{

@@ -88,17 +88,6 @@ kVarStore				=		3
 kVarPlusStore			=		4
 kVarMinusStore			=		5
 
-kVocabSetCurrent		=	0
-kVocabNewestEntry		=	1
-kVocabRef				=	2
-kVocabFindEntry			=	3
-kVocabFindEntryValue	=	4
-kVocabAddEntry			=	5
-kVocabRemoveEntry		=	6
-kVocabEntryLength		=	7
-kVocabNumEntries		=	8
-kVocabGetClass			=	9
-
 kResultOk				=		0
 kResultDone				=		1
 kResultExitShell		=		2
@@ -162,11 +151,11 @@ fileGetString	=		44
 filePutString	=		48
 
 	.global	abortBop, dropBop, nipBop, doDoesBop, litBop, litBop, dlitBop, doVariableBop, doConstantBop, doDConstantBop, doneBop
-	.global	doByteBop, doShortBop, doIntBop, doFloatBop, addressOfBop, intoBop, addToBop, subtractFromBop, doExitBop
+	.global	doByteBop, doShortBop, doIntBop, doFloatBop, refBop, intoBop, addToBop, subtractFromBop, doExitBop
 	.global	doExitLBop, doExitMBop, doExitMLBop, doVocabBop, doByteArrayBop, doShortArrayBop, doIntArrayBop, doFloatArrayBop
 	.global	plusBop, fetchBop, doStructBop, doStructArrayBop, doDoBop, doLoopBop, doLoopNBop, dfetchBop
 	.global	thisBop, thisDataBop, thisMethodsBop, executeBop, callBop, gotoBop, iBop, jBop, unloopBop, leaveBop, hereBop
-	.global	addressOfBop, intoBop, addToBop, subtractFromBop, removeEntryBop, entryLengthBop, numEntriesBop, minusBop
+	.global	minusBop
 	.global	timesBop, times2Bop, times4Bop, times8Bop, divideBop, divide2Bop, divide4Bop, divide8Bop, divmodBop, modBop, negateBop
 	.global fplusBop, fminusBop, ftimesBop, fdivideBop,	dplusBop, dminusBop, dtimesBop, ddivideBop
 	.global orBop, andBop, xorBop, invertBop, lshiftBop, arshiftBop, notBop, trueBop, falseBop, nullBop, dnullBop
@@ -189,7 +178,7 @@ filePutString	=		48
 	.global byteVarActionBop, ubyteVarActionBop, shortVarActionBop, ushortVarActionBop, intVarActionBop, floatVarActionBop
 	.global fopenBop, fcloseBop, fseekBop, freadBop, fwriteBop, fgetcBop, fputcBop, feofBop, fexistsBop, ftellBop, flenBop, fgetsBop, fputsBop
 	.global withinBop, fMinBop, fMaxBop, fWithinBop, dMinBop, dMaxBop, dWithinBop, unsignedGreaterThanBop, unsignedLessThanBop
-	.global umtimesBop, rshiftBop, reverseRotBop, vocabToClassBop, doCheckDoBop, archARMBop, archX86Bop
+	.global umtimesBop, rshiftBop, reverseRotBop, doCheckDoBop, archARMBop, archX86Bop
 	@ these are just dummies:
 	.global doLongBop, doDoubleBop, doStringBop, doOpBop, doObjectBop, doLongArrayBop, doDoubleArrayBop, doObjectArrayBop, doStringArrayBop, doOpArrayBop
 	.global longVarActionBop, doubleVarActionBop, stringVarActionBop, opVarActionBop, objectVarActionBop
@@ -2172,7 +2161,7 @@ doObjectArrayBop:
 	
 @@@@@@@@@@@@@@@@@  addressOf  @@@@@@@@@@@@@@@@@
 
-addressOfBop:
+refBop:
 	mov	r0,	#kVarRef
 	str	r0, [rcore, #varmode]
 	bx	lr
@@ -2513,32 +2502,6 @@ hereBop:
 	stmdb	rsp!, {r1}
 	bx	lr
 			
-@@@@@@@@@@@@@@@@@  removeEntry  @@@@@@@@@@@@@@@@@
-
-removeEntryBop:
-	mov	r0, #kVocabRemoveEntry
-	str	r0, [rcore, #varmode]
-	bx	lr
-
-@@@@@@@@@@@@@@@@@  entryLength  @@@@@@@@@@@@@@@@@
-
-entryLengthBop:
-	mov	r0, #kVocabEntryLength
-	str	r0, [rcore, #varmode]
-	bx	lr
-
-@@@@@@@@@@@@@@@@@  numEntries  @@@@@@@@@@@@@@@@@
-
-numEntriesBop:
-	mov	r0, #kVocabNumEntries
-	str	r0, [rcore, #varmode]
-	bx	lr
-
-vocabToClassBop:
-	mov	r0, #kVocabGetClass
-	str	r0, [rcore, #varmode]
-	bx	lr
-
 
 @#############################################@
 @                                             @

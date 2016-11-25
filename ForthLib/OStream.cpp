@@ -527,7 +527,7 @@ namespace OStream
 		METHOD_RET("getString", oStringOutStreamGetStringMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIString)),
 		METHOD("setData", illegalMethodOp),
 
-		MEMBER_VAR("outString", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
+		MEMBER_VAR("outString", OBJECT_TYPE_TO_CODE(0, kBCIString)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -615,61 +615,50 @@ namespace OStream
 	};
 
 
-	ForthClassVocabulary* gpOFileOutStreamClass;
-	ForthClassVocabulary* gpOStringOutStreamClass;
-	ForthClassVocabulary* gpOConsoleOutStreamClass;
-	ForthClassVocabulary* gpOFunctionOutStreamClass;
-
 	void AddClasses(ForthEngine* pEngine)
 	{
-		ForthClassVocabulary* pOInStreamClass = pEngine->AddBuiltinClass("OInStream", gpObjectClassVocab, oInStreamMembers);
-		ForthClassVocabulary* pOFileInStreamClass = pEngine->AddBuiltinClass("OFileInStream", pOInStreamClass, oFileInStreamMembers);
-		ForthClassVocabulary* pOConsoleInStreamClass = pEngine->AddBuiltinClass("OConsoleInStream", pOFileInStreamClass, oConsoleInStreamMembers);
+		pEngine->AddBuiltinClass("OInStream", kBCIInStream, kBCIObject, oInStreamMembers);
+		pEngine->AddBuiltinClass("OFileInStream", kBCIFileInStream, kBCIInStream, oFileInStreamMembers);
+		pEngine->AddBuiltinClass("OConsoleInStream", kBCIConsoleInStream, kBCIFileInStream, oConsoleInStreamMembers);
 
-		ForthClassVocabulary* pOOutStreamClass = pEngine->AddBuiltinClass("OOutStream", gpObjectClassVocab, oOutStreamMembers);
-		gpOFileOutStreamClass = pEngine->AddBuiltinClass("OFileOutStream", pOOutStreamClass, oFileOutStreamMembers);
-		gpOStringOutStreamClass = pEngine->AddBuiltinClass("OStringOutStream", pOOutStreamClass, oStringOutStreamMembers);
-		gpOConsoleOutStreamClass = pEngine->AddBuiltinClass("OConsoleOutStream", gpOFileOutStreamClass, oConsoleOutStreamMembers);
-		gpOFunctionOutStreamClass = pEngine->AddBuiltinClass("OFunctionOutStream", pOOutStreamClass, oFunctionOutStreamMembers);
+		pEngine->AddBuiltinClass("OOutStream", kBCIOutStream, kBCIObject, oOutStreamMembers);
+		pEngine->AddBuiltinClass("OFileOutStream", kBCIFileOutStream, kBCIOutStream, oFileOutStreamMembers);
+		pEngine->AddBuiltinClass("OStringOutStream", kBCIStringOutStream, kBCIOutStream, oStringOutStreamMembers);
+		pEngine->AddBuiltinClass("OConsoleOutStream", kBCIConsoleOutStream, kBCIFileOutStream, oConsoleOutStreamMembers);
+		pEngine->AddBuiltinClass("OFunctionOutStream", kBCIFunctionOutStream, kBCIOutStream, oFunctionOutStreamMembers);
 
 	}
-
 } // namespace OStream
 
 void GetForthConsoleOutStream(ForthCoreState* pCore, ForthObject& outObject)
 {
-	ASSERT(OStream::gpOConsoleOutStreamClass != NULL);
 	OStream::consoleOutSingleton.refCount = 1000;
 	OStream::consoleOutSingleton.pOutFuncs = &OStream::fileOutFuncs;
 	OStream::consoleOutSingleton.pUserData = GET_ENGINE->GetShell()->GetFileInterface()->getStdOut();
 
-	ForthInterface* pPrimaryInterface = OStream::gpOConsoleOutStreamClass->GetInterface(0);
+	ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIOutStream, 0);
 	outObject.pMethodOps = pPrimaryInterface->GetMethods();
 	outObject.pData = reinterpret_cast<long *>(&OStream::consoleOutSingleton);
 }
 
 void CreateForthFileOutStream(ForthCoreState* pCore, ForthObject& outObject, FILE* pOutFile)
 {
-	ASSERT(OStream::gpOConsoleOutStreamClass != NULL);
 	MALLOCATE_OBJECT(oOutStreamStruct, pFileOutStream);
 	pFileOutStream->refCount = 1;
 	pFileOutStream->pOutFuncs = &OStream::fileOutFuncs;
 	pFileOutStream->pUserData = pOutFile;
-	ForthInterface* pPrimaryInterface = OStream::gpOFileOutStreamClass->GetInterface(0);
+	ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIFileOutStream, 0);
 	outObject.pMethodOps = pPrimaryInterface->GetMethods();
 	outObject.pData = reinterpret_cast<long *>(pFileOutStream);
 }
 
 void CreateForthStringOutStream(ForthCoreState* pCore, ForthObject& outObject)
 {
-	ASSERT(OStream::gpOConsoleOutStreamClass != NULL);
-	ASSERT(OString::gpOStringClass != NULL);
-
 	MALLOCATE_OBJECT(OStream::oStringOutStreamStruct, pStringOutStream);
 	pStringOutStream->ostream.refCount = 1;
 	pStringOutStream->ostream.pOutFuncs = &OStream::stringOutFuncs;
 	pStringOutStream->ostream.pUserData = &(pStringOutStream->outString);
-	ForthInterface* pPrimaryInterface = OStream::gpOFileOutStreamClass->GetInterface(0);
+	ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringOutStream, 0);
 	outObject.pMethodOps = pPrimaryInterface->GetMethods();
 	outObject.pData = reinterpret_cast<long *>(pStringOutStream);
 
@@ -678,7 +667,7 @@ void CreateForthStringOutStream(ForthCoreState* pCore, ForthObject& outObject)
 	pString->refCount = 0;
 	pString->hash = 0;
 	pString->str = OString::createOString(OString::gDefaultOStringSize);
-	pPrimaryInterface = OString::gpOStringClass->GetInterface(0);
+	ForthInterface* pStringInterface = GET_BUILTIN_INTERFACE(kBCIString, 0);
 	pStringOutStream->outString.pData = reinterpret_cast<long *>(pString);
 	pStringOutStream->outString.pMethodOps = pPrimaryInterface->GetMethods();
 }
@@ -693,7 +682,6 @@ const char* GetForthStringOutStreamData(ForthCoreState* pCore, ForthObject& stre
 void CreateForthFunctionOutStream(ForthCoreState* pCore, ForthObject& outObject, streamCharOutRoutine outChar,
 	streamBytesOutRoutine outBytes, streamStringOutRoutine outString, void* pUserData)
 {
-	ASSERT(OStream::gpOConsoleOutStreamClass != NULL);
 	MALLOCATE_OBJECT(OStream::oFunctionOutStreamStruct, pFunctionOutStream);
 	pFunctionOutStream->ostream.refCount = 1;
 	pFunctionOutStream->ostream.pOutFuncs = &(pFunctionOutStream->outFuncs);
@@ -701,7 +689,7 @@ void CreateForthFunctionOutStream(ForthCoreState* pCore, ForthObject& outObject,
 	pFunctionOutStream->outFuncs.outChar = outChar;
 	pFunctionOutStream->outFuncs.outBytes = outBytes;
 	pFunctionOutStream->outFuncs.outString = outString;
-	ForthInterface* pPrimaryInterface = OStream::gpOFunctionOutStreamClass->GetInterface(0);
+	ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIFunctionOutStream, 0);
 	outObject.pMethodOps = pPrimaryInterface->GetMethods();
 	outObject.pData = reinterpret_cast<long *>(pFunctionOutStream);
 }

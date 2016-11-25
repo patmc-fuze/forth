@@ -83,10 +83,12 @@ enum: eFeatures
 255 string _TempStringA
 255 string _TempStringB
 
+// create the system singleton
+makeObject OSystem system
+
 : immediate
-  new OVocabulary -> OVocabulary vocab
-  vocab.open(ref definitions)
-  vocab.seekNewestEntry
+  system.getDefinitionsVocab -> OVocabulary vocab
+  vocab.getNewestEntry
   vocab.getValueLength + >r // top of rstack points to length byte of counted string
   move( r@ 1+ _TempStringA r@ c@ )
   r> c@ dup _TempStringA 4- !
@@ -98,12 +100,11 @@ enum: eFeatures
 : $alias
   -> int oldSymbol
   -> int newSymbol
-  new OVocabulary -> OVocabulary vocab
-  vocab.open(ref definitions)
+  system.getDefinitionsVocab -> OVocabulary vocab
   vocab.findEntryByName(oldSymbol) -> int oldEntry
   if(oldEntry)
     vocab.addSymbol(newSymbol 0 0 0)
-    vocab.seekNewestEntry -> int newEntry
+    vocab.getNewestEntry -> int newEntry
     move(oldEntry  newEntry  vocab.getValueLength)
   else
     "Symbol " %s oldSymbol %s " not found!\n" %s
@@ -115,7 +116,8 @@ enum: eFeatures
 
 alias ->o ->+    // ->o stores to an object variable without changing refcounts
 alias mko makeObject
-  
+alias m: method:    alias ;m ;method
+
 : $,
   // TOS is ptr to nul terminated string at DP
   here over strlen 1+ allot

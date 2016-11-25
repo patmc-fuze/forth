@@ -835,7 +835,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
         if ( CheckSyntaxError( ")", mpStack->Pop(), kShellTagParen ) )
         {
             long tag = mpStack->Peek();
-            if ( mpStack->PopString( pInfo->GetToken() ) )
+            if ( mpStack->PopString( pInfo->GetToken(), pInfo->GetMaxChars() ) )
             {
                  pInfo->SetToken();
 				 pSrc = pInfo->GetToken();
@@ -1392,8 +1392,9 @@ ForthShell::CheckSyntaxError(const char *pString, long tag, long desiredTag)
 
 
 void
-ForthShell::StartDefinition(const char* pFourCharCode)
+ForthShell::StartDefinition(const char* pSymbol, const char* pFourCharCode)
 {
+	mpStack->PushString(pSymbol);
 	mpStack->Push(FourCharToLong(pFourCharCode));
 	mpStack->Push(kShellTagDefine);
 }
@@ -1407,18 +1408,23 @@ ForthShell::CheckDefinitionEnd(const char* pDisplayName, const char* pFourCharCo
 	if (CheckSyntaxError(pDisplayName, defineTag, kShellTagDefine))
 	{
 		long defineType = mpStack->Pop();
-		
 		long expectedDefineType = FourCharToLong(pFourCharCode);
-		char actualType[8];
-		memcpy(actualType, &defineType, sizeof(defineType));
-		actualType[4] = '\0';
+		char* definedSymbol = mpEngine->GetTmpStringBuffer();
+		definedSymbol[0] = '\0';
+		bool gotString = mpStack->PopString(definedSymbol, mpEngine->GetTmpStringBufferSize());
 
-		if (defineType == expectedDefineType)
+		if (gotString && (defineType == expectedDefineType))
 		{
 			return true;
 		}
-		sprintf(mErrorString, "at end of <%s> definition, got <%s>, was expecting <%s>",
-			pDisplayName, actualType, pFourCharCode);
+
+		char actualType[8];
+		memcpy(actualType, &defineType, sizeof(defineType));
+		actualType[4] = '\0';
+		sprintf(mErrorString, "at end of <%s> definition of {%s}, got <%s>, was expecting <%s>",
+			pDisplayName, definedSymbol, actualType, pFourCharCode);
+
+		mpStack->PushString(definedSymbol);
 		mpStack->Push(defineType);
 		mpStack->Push(defineTag);
 		mpEngine->SetError(kForthErrorBadSyntax, mErrorString);
@@ -1753,7 +1759,7 @@ ForthShellStack::PushString( const char *pString )
 }
 
 bool
-ForthShellStack::PopString( char *pString )
+ForthShellStack::PopString(char *pString, int maxLen)
 {
     if ( *mSSP != kShellTagString )
     {
@@ -1764,7 +1770,13 @@ ForthShellStack::PopString( char *pString )
     }
     mSSP++;
     int len = strlen( (char *) mSSP );
-    strcpy( pString, (char *) mSSP );
+	if (len > (maxLen - 1))
+	{
+		// TODO: warn about truncating symbol
+		len = maxLen - 1;
+	}
+    memcpy( pString, (char *) mSSP, len );
+	pString[len] = '\0';
     mSSP += (len >> 2) + 1;
     SPEW_SHELL( "Popped Tag string\n" );
     SPEW_SHELL( "Popped String \"%s\"\n", pString );

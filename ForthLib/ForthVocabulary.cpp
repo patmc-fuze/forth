@@ -70,6 +70,12 @@ ForthVocabulary::ForthVocabulary( const char    *pName,
     }
     mpEngine = ForthEngine::GetInstance();
     Empty();
+
+	mVocabStruct.refCount = 10000;
+	mVocabStruct.vocabulary = this;
+	// initialize vocab object when it is first requested to avoid an order-of-creation problem with OVocabulary class object
+	mVocabObject.pMethodOps = nullptr;
+	mVocabObject.pData = nullptr;
 }
 
 ForthVocabulary::~ForthVocabulary()
@@ -668,6 +674,19 @@ ForthVocabulary::UnSmudgeNewestSymbol( void )
     ((char *) mpNewestSymbol)[1 + (mValueLongs << 2)] &= 0x7F;
 }
 
+ForthObject&
+ForthVocabulary::GetVocabularyObject(void)
+{
+	if (mVocabObject.pMethodOps == nullptr)
+	{
+		// vocabulary object is lazy initialized to fix an order-of-creation problem between vocabularies and the OVocabulary class object
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIVocabulary, 0);
+		mVocabObject.pMethodOps = pPrimaryInterface->GetMethods();
+		mVocabObject.pData = reinterpret_cast<long *>(&mVocabStruct);
+	}
+	return mVocabObject;
+}
+
 const char*
 ForthVocabulary::GetType( void )
 {
@@ -678,66 +697,10 @@ ForthVocabulary::GetType( void )
 void
 ForthVocabulary::DoOp( ForthCoreState *pCore )
 {
-    long* pEntry;
-    char* pSymbol;
-    ulong opVal, opType;
-    bool addToEngineOps;
     ForthVocabularyStack* pVocabStack;
 
-    // IP points to data field
-    switch ( GET_VAR_OPERATION )
-    {
-        case kVocabSetCurrent:
-            pVocabStack = mpEngine->GetVocabularyStack();
-            pVocabStack->SetTop( this );
-            break;
-
-        case kVocabNewestEntry:
-            SPUSH( (long) mpNewestSymbol );
-            break;
-
-        case kVocabFindEntry:
-            pSymbol = (char *) (SPOP);
-            pEntry = FindSymbol( pSymbol );
-            SPUSH( (long) pEntry );
-            break;
-
-        case kVocabFindEntryValue:
-            opVal = SPOP;
-            pEntry = FindSymbolByValue( (long) opVal );
-            SPUSH( (long) pEntry );
-            break;
-
-        case kVocabAddEntry:
-            opVal = SPOP;
-            opType = SPOP;
-            pSymbol = (char *) (SPOP);
-            addToEngineOps = (opType <= kOpDLLEntryPoint);
-            AddSymbol( pSymbol, opType, opVal, addToEngineOps );
-            break;
-
-        case kVocabRemoveEntry:
-            pEntry = (long *) (SPOP);
-            DeleteEntry( pEntry );
-            break;
-
-        case kVocabEntryLength:
-            SPUSH( mValueLongs );
-            break;
-
-        case kVocabNumEntries:
-            SPUSH( mNumSymbols );
-            break;
-
-        case kVocabRef:
-            SPUSH( (long) this );
-            break;
-
-        default:
-            mpEngine->SetError( kForthErrorBadVarOperation, " vocabulary operation out of range" );
-            break;
-    }
-    CLEAR_VAR_OPERATION;
+	pVocabStack = mpEngine->GetVocabularyStack();
+	pVocabStack->SetTop(this);
 }
 
 
@@ -1243,34 +1206,27 @@ namespace OVocabulary
 	{
 		ulong				refCount;
 		ForthVocabulary*	vocabulary;
+	};
+
+	struct oVocabularyIterStruct
+	{
+		ulong				refCount;
+		ForthObject			parent;
 		long*				cursor;
+		ForthVocabulary*	vocabulary;
 	};
 
 	FORTHOP(oVocabularyNew)
 	{
-		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oVocabularyStruct, pVocabulary);
-		pVocabulary->refCount = 0;
-		pVocabulary->vocabulary = NULL;
-		pVocabulary->cursor = NULL;
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pVocabulary);
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		pEngine->SetError(kForthErrorException, " cannot explicitly create an OVocabulary object");
 	}
 
-	FORTHOP(oVocabularyOpenMethod)
+	FORTHOP(oVocabularyDeleteMethod)
 	{
 		GET_THIS(oVocabularyStruct, pVocabulary);
-		pVocabulary->vocabulary = (ForthVocabulary*)(SPOP);
-		pVocabulary->cursor = (pVocabulary->vocabulary != NULL) ? pVocabulary->vocabulary->GetNewestEntry() : NULL;
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oVocabularyCloseMethod)
-	{
-		GET_THIS(oVocabularyStruct, pVocabulary);
-		pVocabulary->vocabulary = NULL;
-		pVocabulary->cursor = NULL;
-		METHOD_RETURN;
+		pVocabulary->refCount = 1;
+		// TODO: warn about deleting a vocabulary object
 	}
 
 	FORTHOP(oVocabularyGetNameMethod)
@@ -1280,7 +1236,7 @@ namespace OVocabulary
 		SPUSH((pVocab != NULL) ? (long)(pVocab->GetName()) : NULL);
 		METHOD_RETURN;
 	}
-
+	/*
 	FORTHOP(oVocabularySetDefinitionsVocabMethod)
 	{
 		GET_THIS(oVocabularyStruct, pVocabulary);
@@ -1293,6 +1249,7 @@ namespace OVocabulary
 		}
 		METHOD_RETURN;
 	}
+
 	FORTHOP(oVocabularySetSearchVocabMethod)
 	{
 		GET_THIS(oVocabularyStruct, pVocabulary);
@@ -1301,97 +1258,62 @@ namespace OVocabulary
 		{
 			ForthEngine *pEngine = GET_ENGINE;
 			ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
-			pVocabStack = pEngine->GetVocabularyStack();
 			pVocabStack->SetTop(pVocab);
 		}
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oVocabularySeekNewestMethod)
+	FORTHOP(oVocabularyPushSearchVocabMethod)
 	{
 		GET_THIS(oVocabularyStruct, pVocabulary);
 		ForthVocabulary* pVocab = pVocabulary->vocabulary;
-		long* pEntry = NULL;
 		if (pVocab != NULL)
 		{
-			pVocabulary->cursor = pVocab->GetNewestEntry();
-			pEntry = pVocabulary->cursor;
+			ForthEngine *pEngine = GET_ENGINE;
+			ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+			pVocabStack->DupTop();
+			pVocabStack->SetTop(pVocab);
 		}
-		SPUSH((long)pEntry);
 		METHOD_RETURN;
 	}
-
-	FORTHOP(oVocabularySeekNextMethod)
+	*/
+	FORTHOP(oVocabularyHeadIterMethod)
 	{
 		GET_THIS(oVocabularyStruct, pVocabulary);
+		pVocabulary->refCount++;
+		TRACK_KEEP;
+		MALLOCATE_ITER(oVocabularyIterStruct, pIter);
+		pIter->refCount = 0;
+		pIter->parent.pMethodOps = GET_TPM;
+		pIter->parent.pData = reinterpret_cast<long *>(pVocabulary);
 		ForthVocabulary* pVocab = pVocabulary->vocabulary;
-		long* pEntry = NULL;
-		if ((pVocab != NULL) && (pVocabulary->cursor != NULL))
-		{
-			pVocabulary->cursor = pVocab->NextEntrySafe(pVocabulary->cursor);
-			pEntry = pVocabulary->cursor;
-		}
-		SPUSH((long)pEntry);
+		pIter->vocabulary = pVocab;
+		pIter->cursor = pVocab->GetNewestEntry();
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIVocabularyIter, 0);
+		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
 
 	FORTHOP(oVocabularyFindEntryByNameMethod)
 	{
 		GET_THIS(oVocabularyStruct, pVocabulary);
+		GET_THIS(oVocabularyIterStruct, pIter);
 		ForthVocabulary* pVocab = pVocabulary->vocabulary;
 		long* pEntry = NULL;
 		const char* pName = (const char *)(SPOP);
 		if (pVocab != NULL)
 		{
-			pVocabulary->cursor = pVocab->FindSymbol(pName);
-			pEntry = pVocabulary->cursor;
+			pEntry = pVocab->FindSymbol(pName);
 		}
 		SPUSH((long)pEntry);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oVocabularyFindNextEntryByNameMethod)
+	FORTHOP(oVocabularyGetNewestEntryMethod)
 	{
 		GET_THIS(oVocabularyStruct, pVocabulary);
 		ForthVocabulary* pVocab = pVocabulary->vocabulary;
-		long* pEntry = NULL;
-		const char* pName = (const char *)(SPOP);
-		if (pVocab != NULL)
-		{
-			pVocabulary->cursor = pVocab->FindNextSymbol(pName, pEntry);
-			pEntry = pVocabulary->cursor;
-		}
-		SPUSH((long)pEntry);
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oVocabularyFindEntryByValueMethod)
-	{
-		GET_THIS(oVocabularyStruct, pVocabulary);
-		ForthVocabulary* pVocab = pVocabulary->vocabulary;
-		long* pEntry = NULL;
-		long val = SPOP;
-		if (pVocab != NULL)
-		{
-			pVocabulary->cursor = pVocab->FindSymbolByValue(val);
-			pEntry = pVocabulary->cursor;
-		}
-		SPUSH((long)pEntry);
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oVocabularyFindNextEntryByValueMethod)
-	{
-		GET_THIS(oVocabularyStruct, pVocabulary);
-		ForthVocabulary* pVocab = pVocabulary->vocabulary;
-		long* pEntry = NULL;
-		long val = SPOP;
-		if (pVocab != NULL)
-		{
-			pVocabulary->cursor = pVocab->FindNextSymbolByValue(val, pEntry);
-			pEntry = pVocabulary->cursor;
-		}
-		SPUSH((long)pEntry);
+		SPUSH((pVocab != NULL) ? (long)(pVocab->GetNewestEntry()) : 0);
 		METHOD_RETURN;
 	}
 
@@ -1423,20 +1345,6 @@ namespace OVocabulary
 		if (pVocab != NULL)
 		{
 			pVocab->AddSymbol(pSymbol, opType, opVal, addToEngineOps);
-			pVocabulary->cursor = pVocab->GetNewestEntry();
-		}
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oVocabularyRemoveEntryMethod)
-	{
-		GET_THIS(oVocabularyStruct, pVocabulary);
-		ForthVocabulary* pVocab = pVocabulary->vocabulary;
-		long* pEntry = (long *)(SPOP);
-		if ((pEntry != NULL) && (pVocab != NULL) && (pVocabulary->cursor != NULL))
-		{
-			pVocab->DeleteEntry(pEntry);
-			pVocabulary->cursor = pVocab->GetNewestEntry();
 		}
 		METHOD_RETURN;
 	}
@@ -1444,25 +1352,159 @@ namespace OVocabulary
 	baseMethodEntry oVocabularyMembers[] =
 	{
 		METHOD("__newOp", oVocabularyNew),
-		METHOD("open", oVocabularyOpenMethod),
-		//METHOD("openByName", oVocabularyOpenByNameMethod),
-		METHOD("close", oVocabularyCloseMethod),
+		METHOD("delete", oVocabularyDeleteMethod),
 		METHOD("getName", oVocabularyGetNameMethod),
-		METHOD("setDefinitionsVocab", oVocabularySetDefinitionsVocabMethod),
-		METHOD("setSearchVocab", oVocabularySetSearchVocabMethod),
-		METHOD("seekNewestEntry", oVocabularySeekNewestMethod),
-		METHOD("seekNextEntry", oVocabularySeekNextMethod),
+		METHOD_RET("headIter", oVocabularyHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIVocabularyIter)),
 		METHOD("findEntryByName", oVocabularyFindEntryByNameMethod),
-		METHOD("findNextEntryByName", oVocabularyFindNextEntryByNameMethod),
-		METHOD("findEntryByValue", oVocabularyFindEntryByValueMethod),
-		METHOD("findNextEntryByValue", oVocabularyFindNextEntryByValueMethod),
+		METHOD("getNewestEntry", oVocabularyGetNewestEntryMethod),
 		METHOD("getNumEntries", oVocabularyGetNumEntriesMethod),
 		METHOD("getValueLength", oVocabularyGetValueLengthMethod),
 		METHOD("addSymbol", oVocabularyAddSymbolMethod),
-		METHOD("removeEntry", oVocabularyRemoveEntryMethod),
 
 		MEMBER_VAR("vocabulary", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt)),
+
+		// following must be last in table
+		END_MEMBERS
+	};
+
+
+	//////////////////////////////////////////////////////////////////////
+	///
+	//                 oVocabularyIter
+	//
+
+	FORTHOP(oVocabularyIterNew)
+	{
+		ForthEngine *pEngine = ForthEngine::GetInstance();
+		pEngine->SetError(kForthErrorException, " cannot explicitly create an OVocabulary object");
+	}
+
+	FORTHOP(oVocabularyIterDeleteMethod)
+	{
+		GET_THIS(oVocabularyStruct, pVocabulary);
+		// TODO: warn about deleting a vocabulary object
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oVocabularyIterSeekNewestMethod)
+	{
+		GET_THIS(oVocabularyIterStruct, pIter);
+		ForthVocabulary* pVocab = pIter->vocabulary;
+		long* pEntry = NULL;
+		if (pVocab != NULL)
+		{
+			pIter->cursor = pVocab->GetNewestEntry();
+			pEntry = pIter->cursor;
+		}
+		SPUSH((long)pEntry);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oVocabularyIterSeekNextMethod)
+	{
+		GET_THIS(oVocabularyIterStruct, pIter);
+		ForthVocabulary* pVocab = pIter->vocabulary;
+		long* pEntry = NULL;
+		if ((pVocab != NULL) && (pIter->cursor != NULL))
+		{
+			pIter->cursor = pVocab->NextEntrySafe(pIter->cursor);
+			pEntry = pIter->cursor;
+		}
+		SPUSH((long)pEntry);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oVocabularyIterFindEntryByNameMethod)
+	{
+		GET_THIS(oVocabularyIterStruct, pIter);
+		ForthVocabulary* pVocab = pIter->vocabulary;
+		long* pEntry = NULL;
+		const char* pName = (const char *)(SPOP);
+		if (pVocab != NULL)
+		{
+			pIter->cursor = pVocab->FindSymbol(pName);
+			pEntry = pIter->cursor;
+		}
+		SPUSH((long)pEntry);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oVocabularyIterFindNextEntryByNameMethod)
+	{
+		GET_THIS(oVocabularyIterStruct, pIter);
+		ForthVocabulary* pVocab = pIter->vocabulary;
+		long* pEntry = NULL;
+		const char* pName = (const char *)(SPOP);
+		if (pVocab != NULL)
+		{
+			pIter->cursor = pVocab->FindNextSymbol(pName, pEntry);
+			pEntry = pIter->cursor;
+		}
+		SPUSH((long)pEntry);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oVocabularyIterFindEntryByValueMethod)
+	{
+		GET_THIS(oVocabularyIterStruct, pIter);
+		ForthVocabulary* pVocab = pIter->vocabulary;
+		long* pEntry = NULL;
+		long val = SPOP;
+		if (pVocab != NULL)
+		{
+			pIter->cursor = pVocab->FindSymbolByValue(val);
+			pEntry = pIter->cursor;
+		}
+		SPUSH((long)pEntry);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oVocabularyIterFindNextEntryByValueMethod)
+	{
+		GET_THIS(oVocabularyIterStruct, pIter);
+		ForthVocabulary* pVocab = pIter->vocabulary;
+		long* pEntry = NULL;
+		long val = SPOP;
+		if (pVocab != NULL)
+		{
+			pIter->cursor = pVocab->FindNextSymbolByValue(val, pEntry);
+			pEntry = pIter->cursor;
+		}
+		SPUSH((long)pEntry);
+		METHOD_RETURN;
+	}
+
+	// TODO: add oVocabularyIterInsertEntryMethod?
+
+	FORTHOP(oVocabularyIterRemoveEntryMethod)
+	{
+		GET_THIS(oVocabularyIterStruct, pIter);
+		ForthVocabulary* pVocab = pIter->vocabulary;
+		long* pEntry = (long *)(SPOP);
+		if ((pEntry != NULL) && (pVocab != NULL) && (pIter->cursor != NULL))
+		{
+			pVocab->DeleteEntry(pEntry);
+			pIter->cursor = pVocab->GetNewestEntry();
+		}
+		METHOD_RETURN;
+	}
+	
+	baseMethodEntry oVocabularyIterMembers[] =
+	{
+		METHOD("__newOp", oVocabularyIterNew),
+		METHOD("delete", oVocabularyIterDeleteMethod),
+		//METHOD("show", oVocabularyIterShowMethod),
+		METHOD("seekNewestEntry", oVocabularyIterSeekNewestMethod),
+		METHOD("seekNextEntry", oVocabularyIterSeekNextMethod),
+		METHOD("findEntryByName", oVocabularyIterFindEntryByNameMethod),
+		METHOD("findNextEntryByName", oVocabularyIterFindNextEntryByNameMethod),
+		METHOD("findEntryByValue", oVocabularyIterFindEntryByValueMethod),
+		METHOD("findNextEntryByValue", oVocabularyIterFindNextEntryByValueMethod),
+		METHOD("removeEntry", oVocabularyIterRemoveEntryMethod),
+
+		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIArray)),
 		MEMBER_VAR("cursor", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt)),
+		//MEMBER_VAR("vocabulary", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1470,7 +1512,8 @@ namespace OVocabulary
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		ForthClassVocabulary* pOVocabularyClass = pEngine->AddBuiltinClass("OVocabulary", gpObjectClassVocab, oVocabularyMembers);
+		pEngine->AddBuiltinClass("OVocabulary", kBCIVocabulary, kBCIObject, oVocabularyMembers);
+		pEngine->AddBuiltinClass("OVocabularyIter", kBCIVocabularyIter, kBCIObject, oVocabularyIterMembers);
 	}
 
 } // namespace OVocabulary 

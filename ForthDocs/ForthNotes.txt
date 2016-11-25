@@ -161,6 +161,68 @@ Gotchas with structure and object support:
 2) varAction ops must be the symbol just before a field selector symbol, which
    means that index calculation ops must appear before the varAction op
 
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Double and long memory and stack layouts:
+
+           memory                       param stack
+0.5d    00 00 00 00  00 00 e0 3f     00 00 00 00  00 00 e0 3f
+ll      10 32 54 76  98 ba dc fe     98 ba dc fe  10 32 54 76  
+
+ll == 0xfedcba9876543210L
+
+Double has consistent layout, long is reversed on param stack.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 24 2016
+
+The hang in biclasstest was in SpewMethodName, which was trying to find the name
+of method 0 (delete), it had a bug where if it found a vocab entry with the correct value,
+but the value wasn't a method, it never advanced the vocab search point, so it found
+__refCount, which has a value of 0 but is an int member, and kept looping and rejecting
+that entry in an infinite loop.  I don't see how this could be a new bug, maybe I just
+haven't run biclasstest with inner interpreter spew turned on since the bug was added,
+which is probably when I made the reference count have a member variable.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 23 2016
+
+I created the simplest case of a class and a derived class and the derived class
+delete method doing super.delete, and it doesn't have the hang.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 19 2016
+
+I made a lot of progress with the OSystem and OVocabulary changes.  There is
+still a hang in biclasstest when it tries to delete a class object whose destructor
+calls parent.delete, I'm not sure if this is a problem with using super, or if
+it is because 'delete' is method 0.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 16 2016
+
+Things that need to be fixed with removing vocabulary varop stuff:
+- definitions (ref)
+- _doStructType
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 14 2016
+
+Crunch has been keeping me busy.
+
+I foolishly started two relatively big things at almost the same time:
+1) Add an OSystem class and system singleton, which will be used to access things
+   like streams, threads, files and vocabularies.  The idea was to remove a bunch
+   of native ops with methods on native classes.
+2) I decided to replace the manual management of the structure info definitions in
+   the type manager with a standard vector.
+
+While debugging the type manager change I ran into some bugs which are because
+some things were previously working by accident, and only because the struct index
+for Object was defined to be 0.  I need to go through all the method and field
+definitions in the builtin classes and see if there are more with this bug.
+
+Should unref really have a return type, since it isn't intended to be chained
+to a following method - you could do obj.unref.show but it isn't really the
+intended use of unref, and would allow you to invoke a method on an object which
+has a zero refcount.
+
+Currently forth compiles, but gets an exception 300 lines into autoload.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 24 2016
 

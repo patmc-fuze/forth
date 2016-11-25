@@ -60,30 +60,29 @@ public:
    virtual ~ForthShellStack();
 
 
-   inline long *       GetSP( void )           { return mSSP; };
-   inline void         SetSP( long *pNewSP )   { mSSP = pNewSP; };
-   inline long         GetSize( void )         { return mSSLen; };
-   inline long         GetDepth( void )        { return mSST - mSSP; };
-   inline void         EmptyStack( void )      { mSSP = mSST; };
+   inline long *       GetSP(void)           { return mSSP; };
+   inline void         SetSP(long *pNewSP)   { mSSP = pNewSP; };
+   inline long         GetSize(void)         { return mSSLen; };
+   inline long         GetDepth(void)        { return mSST - mSSP; };
+   inline void         EmptyStack(void)      { mSSP = mSST; };
    // push tag telling what control structure we are compiling (if/else/for/...)
-   void         Push( long tag );
-   long         Pop( void );
-   long         Peek( void );
+   void         Push(long tag);
+   long         Pop(void);
+   long         Peek(void);
 
    // push a string, this should be followed by a PushTag of a tag which uses this string (such as paren)
-   void                PushString( const char *pString );
+   void                PushString(const char *pString);
    // return true IFF item on top of shell stack is a string
-   bool                PopString( char *pString );
+   bool                PopString(char *pString, int maxLen);
 
    void					ShowStack();
 
 protected:
-   long                *mSSP;       // shell stack pointer
-   long                *mSSB;       // shell stack base
-   long                *mSST;       // empty shell stack pointer
-   ulong               mSSLen;      // size of shell stack in longwords
-   ForthEngine         *mpEngine;
-
+	long                *mSSP;       // shell stack pointer
+	long                *mSSB;       // shell stack base
+	long                *mSST;       // empty shell stack pointer
+	ulong               mSSLen;      // size of shell stack in longwords
+	ForthEngine         *mpEngine;
 };
 
 #define SHELL_FLAG_CREATED_ENGINE   1
@@ -135,7 +134,7 @@ public:
     inline const char*      GetSystemDir() const { return mSystemDir; }
 
     bool                    CheckSyntaxError( const char *pString, long tag, long desiredTag );
-	void					StartDefinition( const char* pFourCharCode );
+	void					StartDefinition(const char*pDefinedSymbol, const char* pFourCharCode);
 	bool					CheckDefinitionEnd( const char* pDisplayName, const char* pFourCharCode );
 
     virtual eForthResult    InterpretLine( const char *pSrcLine = NULL );

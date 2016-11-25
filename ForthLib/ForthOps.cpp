@@ -806,18 +806,40 @@ FORTHOP(initStructArrayOp)
 	long structIndex = SPOP;
 	long numElements = SPOP;
 	char* pStruct = (char *)(SPOP);
-	ForthStructVocabulary* pVocab = pManager->GetStructInfo(structIndex)->pVocab;
-	long initStructOp = pVocab->GetInitOpcode();
-	if (initStructOp != 0)
+	ForthTypeInfo* typeInfo = pManager->GetTypeInfo(structIndex);
+	if (typeInfo != nullptr)
 	{
-		long len = pVocab->GetSize();
-
-		for (int i = 0; i < numElements; i++)
+		ForthStructVocabulary* pVocab = typeInfo->pVocab;
+		if (pVocab != nullptr)
 		{
-			SPUSH((long)pStruct);
-			pEngine->ExecuteOneOp(initStructOp);
-			pStruct += len;
+			if (pVocab->IsStruct())
+			{
+				long initStructOp = pVocab->GetInitOpcode();
+				if (initStructOp != 0)
+				{
+					long len = pVocab->GetSize();
+
+					for (int i = 0; i < numElements; i++)
+					{
+						SPUSH((long)pStruct);
+						pEngine->ExecuteOneOp(initStructOp);
+						pStruct += len;
+					}
+				}
+			}
+			else
+			{
+				// TODO report that vocab isn't a struct
+			}
 		}
+		else
+		{
+			// TODO report struct has no vocabulary
+		}
+	}
+	else
+	{
+		// TODO report unknown type for structIndex
 	}
 }
 
@@ -940,13 +962,15 @@ FORTHOP( colonOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
-    long* pEntry = pEngine->StartOpDefinition( NULL, true );
+	const char* pName = pEngine->GetNextSimpleToken();
+
+	long* pEntry = pEngine->StartOpDefinition(pName, true);
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     // switch to compile mode
     pEngine->SetCompileState( 1 );
     pEngine->ClearFlag( kEngineFlagNoNameDefinition);
 
-	pEngine->GetShell()->StartDefinition("coln");
+	pEngine->GetShell()->StartDefinition(pName, "coln");
 }
 
 
@@ -961,7 +985,7 @@ FORTHOP( colonNoNameOp )
     pEngine->SetCompileState( 1 );	
     pEngine->SetFlag( kEngineFlagNoNameDefinition );
 
-	pEngine->GetShell()->StartDefinition("coln");
+	pEngine->GetShell()->StartDefinition("", "coln");
 }
 
 
@@ -993,7 +1017,7 @@ FORTHOP( funcOp )
 	// TODO: push hasLocalVars flag?
     //pEngine->ClearFlag( kEngineFlagNoNameDefinition);
 
-	pEngine->GetShell()->StartDefinition("func");
+	pEngine->GetShell()->StartDefinition("", "func");
 }
 
 // ;func has precedence
@@ -1383,11 +1407,12 @@ FORTHOP( structOp )
     ForthEngine* pEngine = GET_ENGINE;
     pEngine->SetFlag( kEngineFlagInStructDefinition );
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
-    ForthStructVocabulary* pVocab = pManager->StartStructDefinition( pEngine->GetNextSimpleToken() );
+	const char* pName = pEngine->GetNextSimpleToken();
+    ForthStructVocabulary* pVocab = pManager->StartStructDefinition(pName);
     pEngine->CompileBuiltinOpcode( OP_DO_STRUCT_TYPE );
     pEngine->CompileLong( (long) pVocab );
 
-	pEngine->GetShell()->StartDefinition("stru");
+	pEngine->GetShell()->StartDefinition(pName, "stru");
 }
 
 FORTHOP( endstructOp )
@@ -1402,9 +1427,10 @@ FORTHOP( endstructOp )
 FORTHOP( classOp )
 {
     ForthEngine* pEngine = GET_ENGINE;
-    pEngine->StartClassDefinition( pEngine->GetNextSimpleToken() );
+	const char* pName = pEngine->GetNextSimpleToken();
+	pEngine->StartClassDefinition(pName);
 
-	pEngine->GetShell()->StartDefinition("clas");
+	pEngine->GetShell()->StartDefinition(pName, "clas");
 }
 
 FORTHOP( endclassOp )
@@ -1446,7 +1472,7 @@ FORTHOP( methodOp )
         // TODO: report adding a method outside a class definition
     }
 
-	pEngine->GetShell()->StartDefinition("meth");
+	pEngine->GetShell()->StartDefinition(pMethodName, "meth");
 }
 
 FORTHOP( endmethodOp )
@@ -1769,8 +1795,8 @@ void __newOp(ForthCoreState* pCore, const char* pSym)
 			long initOpcode = pClassVocab->GetInitOpcode();
 			if (pEngine->IsCompiling())
             {
+				pEngine->ProcessConstant(pClassVocab->GetTypeIndex(), false);
                 pEngine->CompileBuiltinOpcode( OP_DO_NEW );
-                pEngine->CompileLong( (long) pClassVocab );
 				if (initOpcode != 0)
 				{
 					pEngine->CompileBuiltinOpcode(OP_OVER);
@@ -1805,7 +1831,6 @@ void __newOp(ForthCoreState* pCore, const char* pSym)
 FORTHOP(newOp)
 {
 	ForthEngine *pEngine = GET_ENGINE;
-	ForthVocabulary* pFoundVocab;
 
 	char *pSym = pEngine->GetNextSimpleToken();
 	__newOp(pCore, pSym);
@@ -1853,6 +1878,7 @@ FORTHOP(makeObjectOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
 	const char *pClassName = pEngine->GetNextSimpleToken();
+
     __newOp(pCore, pClassName);
 
     ForthVocabulary* pFoundVocab;
@@ -1865,7 +1891,6 @@ FORTHOP(makeObjectOp)
 
         if (pClassVocab && pClassVocab->IsClass())
         {
-            long initOpcode = pClassVocab->GetInitOpcode();
             if (pEngine->IsCompiling())
             {
                 pEngine->CompileBuiltinOpcode(OP_INTO);
@@ -1892,11 +1917,29 @@ FORTHOP(makeObjectOp)
 
 FORTHOP(doNewOp)
 {
-	// this op is compiled for 'new foo', the class vocabulary ptr is compiled immediately after it
-    ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (*pCore->IP++);
-    SPUSH( (long) pClassVocab );
-    ForthEngine *pEngine = GET_ENGINE;
-    pEngine->ExecuteOneOp( pClassVocab->GetClassObject()->newOp );
+	// this op is compiled for 'new foo', the class structIndex is on TOS
+	ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+	ForthEngine *pEngine = GET_ENGINE;
+
+	int structIndex = SPOP;
+	ForthTypeInfo* pTypeInfo = pManager->GetTypeInfo(structIndex);
+	if (pTypeInfo != nullptr)
+	{
+		if (pTypeInfo->pVocab->IsClass())
+		{
+			ForthClassVocabulary *pClassVocab = static_cast<ForthClassVocabulary *>(pTypeInfo->pVocab);
+			SPUSH((long)pClassVocab);
+			pEngine->ExecuteOneOp(pClassVocab->GetClassObject()->newOp);
+		}
+		else
+		{
+			// TODO: report that vocab is not a class vocab
+		}
+	}
+	else
+	{
+		// TODO report unknown class with index N
+	}
 }
 
 FORTHOP( allocObjectOp )
@@ -1976,12 +2019,13 @@ FORTHOP( enumOp )
     //    return;
     //}
     pEngine->StartEnumDefinition();
-    long* pEntry = pEngine->StartOpDefinition();
+	const char* pName = pEngine->GetNextSimpleToken();
+	long* pEntry = pEngine->StartOpDefinition(pName);
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_ENUM );
 	pEngine->CompileLong(4);	// default enum size is 4 bytes
 
-	pEngine->GetShell()->StartDefinition("enum");
+	pEngine->GetShell()->StartDefinition(pName, "enum");
 }
 
 FORTHOP( endenumOp )
@@ -1999,6 +2043,28 @@ FORTHOP( doVocabOp )
     SET_IP( (long *) (RPOP) );
 }
 
+FORTHOP(getClassByIndexOp)
+{
+	// IP points to data field
+	int typeIndex = SPOP;
+	ForthObject classObject;
+	classObject.pMethodOps = nullptr;
+	classObject.pData = nullptr;
+	ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+	ForthClassVocabulary* pClassVocabulary = pManager->GetClassVocabulary(typeIndex);
+	if (pClassVocabulary != nullptr)
+	{
+		ForthClassObject* pClassObject = pClassVocabulary->GetClassObject();
+		if (pClassObject != nullptr)
+		{
+			classObject.pMethodOps = pManager->GetClassVocabulary(kBCIClass)->GetInterface(0)->GetMethods();
+			classObject.pData = reinterpret_cast<long *>(pClassObject);
+		}
+	}
+	PUSH_OBJECT(classObject);
+}
+
+
 // doStructTypeOp is compiled at the start of each user-defined structure defining word 
 FORTHOP( doStructTypeOp )
 {
@@ -2014,7 +2080,7 @@ FORTHOP( doStructTypeOp )
 		{
 			// compile this opcode so at runtime (ref STRUCT_OP) will push struct vocab address
 			ForthTypesManager* pManager = ForthTypesManager::GetInstance();
-			pEngine->CompileOpcode(pManager->GetStructInfo(pVocab->GetTypeIndex())->op);
+			pEngine->CompileOpcode(pManager->GetTypeInfo(pVocab->GetTypeIndex())->op);
 			SET_IP((long *)(RPOP));
 			return;
 		}
@@ -2034,23 +2100,9 @@ FORTHOP( doStructTypeOp )
 FORTHOP( doClassTypeOp )
 {
     // IP points to data field
+	// TODO: change this to take class typeIndex on TOS like doNewOp
     ForthClassVocabulary *pVocab = (ForthClassVocabulary *) (*GET_IP);
-	switch (GET_VAR_OPERATION)
-	{
-	case kVocabGetClass:
-		// this is invoked at runtime when code explicitly invokes methods on class objects (IE CLASSNAME.new)
-		pVocab->DoOp(pCore);
-		break;
-
-	case kVarDefaultOp:
-	case kVarStore:
-		pVocab->DefineInstance();
-		break;
-
-	default:
-		pVocab->DoOp(pCore);
-		break;
-	}
+	pVocab->DefineInstance();
     SET_IP( (long *) (RPOP) );
 }
 
@@ -6792,7 +6844,7 @@ FORTHOP(subtractFromBop)
     SET_VAR_OPERATION( kVarMinusStore );
 }
 
-FORTHOP(addressOfBop)
+FORTHOP(refBop)
 {
     SET_VAR_OPERATION( kVarRef );
 }
@@ -7161,26 +7213,6 @@ FORTHOP( fputsBop )
     SPUSH( result );
 }
 
-FORTHOP( removeEntryBop )
-{
-    SET_VAR_OPERATION( kVocabRemoveEntry );
-}
-
-FORTHOP( entryLengthBop )
-{
-    SET_VAR_OPERATION( kVocabEntryLength );
-}
-
-FORTHOP( numEntriesBop )
-{
-    SET_VAR_OPERATION( kVocabNumEntries );
-}
-
-FORTHOP( vocabToClassBop )
-{
-    SET_VAR_OPERATION( kVocabGetClass );
-}
-
 FORTHOP( hereBop )
 {
     ForthEngine *pEngine = GET_ENGINE;
@@ -7284,14 +7316,13 @@ OPREF( strFixupBop );
 
 OPREF( fetchBop );          OPREF( doStructBop );       OPREF( doStructArrayBop );
 OPREF( doDoBop );           OPREF( doLoopBop );         OPREF( doLoopNBop );
-//OPREF( ofetchBop );         OPREF( vocabToClassBop );   OPREF( doCheckDoBop );
-OPREF( dfetchBop );         OPREF( vocabToClassBop );   OPREF( doCheckDoBop );
+//OPREF( ofetchBop );          OPREF( doCheckDoBop );
+OPREF( dfetchBop );         OPREF( doCheckDoBop );
 OPREF( thisBop );           OPREF( thisDataBop );       OPREF( thisMethodsBop );
 OPREF( executeBop );        OPREF( callBop );           OPREF( gotoBop );
 OPREF( iBop );              OPREF( jBop );              OPREF( unloopBop );
-OPREF( leaveBop );          OPREF( hereBop );           OPREF( addressOfBop );
+OPREF( leaveBop );          OPREF( hereBop );           OPREF( refBop );
 OPREF( intoBop );           OPREF( addToBop );          OPREF( subtractFromBop );
-OPREF( removeEntryBop );    OPREF( entryLengthBop );    OPREF( numEntriesBop );
 OPREF( minusBop );          OPREF( timesBop );          OPREF( times2Bop );
 OPREF( times4Bop );         OPREF( times8Bop );         OPREF( divideBop );
 OPREF( divide2Bop );        OPREF( divide4Bop );        OPREF( divide8Bop );
@@ -7433,15 +7464,15 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     NATIVE_COMPILED_DEF(    doLoopNBop,              "_+loop",			OP_DO_LOOPN ),
     //NATIVE_COMPILED_DEF(    ofetchBop,               "o@",				OP_OFETCH ),				// 56
     NATIVE_COMPILED_DEF(    dfetchBop,               "2@",				OP_OFETCH ),				// 56
-    NATIVE_COMPILED_DEF(    vocabToClassBop,         "vocabToClass",	OP_VOCAB_TO_CLASS ),
     // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
-    NATIVE_COMPILED_DEF(    addressOfBop,            "ref",				OP_REF ),
-	NATIVE_COMPILED_DEF(    intoBop,                 "->",				OP_INTO ),				// 60
+    NATIVE_COMPILED_DEF(    refBop,            "ref",				OP_REF ),
+	NATIVE_COMPILED_DEF(    intoBop,                 "->",				OP_INTO ),				// 59
     NATIVE_COMPILED_DEF(    addToBop,                "->+",				OP_INTO_PLUS ),
     NATIVE_COMPILED_DEF(    subtractFromBop,         "->-",				OP_INTO_MINUS ),
 	NATIVE_COMPILED_DEF(    doCheckDoBop,            "_?do",			OP_DO_CHECKDO ),
 
 	OP_COMPILED_DEF(		doVocabOp,              "_doVocab",			OP_DO_VOCAB ),
+	OP_COMPILED_DEF(		getClassByIndexOp,      "getClassByIndex",	OP_GET_CLASS_BY_INDEX ),
 	OP_COMPILED_DEF(		initStringArrayOp,      "initStringArray",	OP_INIT_STRING_ARRAY ),
     OP_COMPILED_DEF(		badOpOp,                "badOp",			OP_BAD_OP ),
 	OP_COMPILED_DEF(		doStructTypeOp,         "_doStructType",	OP_DO_STRUCT_TYPE ),
@@ -7475,14 +7506,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    unloopBop,               "unloop" ),
     NATIVE_DEF(    leaveBop,                "leave" ),
     NATIVE_DEF(    hereBop,                 "here" ),
-    // vocabulary varActions
-    NATIVE_DEF(    addressOfBop,            "getNewest" ),
-    NATIVE_DEF(    intoBop,                 "findEntry" ),
-    NATIVE_DEF(    addToBop,                "findEntryValue" ),
-    NATIVE_DEF(    subtractFromBop,         "addEntry" ),
-    NATIVE_DEF(    removeEntryBop,          "removeEntry" ),
-    NATIVE_DEF(    entryLengthBop,          "entryLength" ),
-    NATIVE_DEF(    numEntriesBop,           "numEntries" ),
+
 	// object varActions
     NATIVE_DEF(    subtractFromBop,         "unref" ),
     

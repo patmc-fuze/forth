@@ -5,12 +5,17 @@
 //
 //////////////////////////////////////////////////////////////////////
 
+#include <vector>
+
 #include "ForthForgettable.h"
 #include "ForthObject.h"
+
+class ForthClassVocabulary;
 
 // structtype indices for builtin classes
 typedef enum
 {
+	kBCIInvalid,
     kBCIObject,
     kBCIClass,
 	kBCIIter,
@@ -21,7 +26,25 @@ typedef enum
 	kBCIListIter,
 	kBCIMap,
 	kBCIMapIter,
+	kBCIIntMap,
+	kBCIIntMapIter,
+	kBCIFloatMap,
+	kBCIFloatMapIter,
+	kBCILongMap,
+	kBCILongMapIter,
+	kBCIDoubleMap,
+	kBCIDoubleMapIter,
+	kBCIStringIntMap,
+	kBCIStringIntMapIter,
+	kBCIStringFloatMap,
+	kBCIStringFloatMapIter,
+	kBCIStringLongMap,
+	kBCIStringLongMapIter,
+	kBCIStringDoubleMap,
+	kBCIStringDoubleMapIter,
 	kBCIString,
+	kBCIStringMap,
+	kBCIStringMapIter,
 	kBCIPair,
 	kBCIPairIter,
 	kBCITriple,
@@ -32,13 +55,29 @@ typedef enum
 	kBCIShortArrayIter,
 	kBCIIntArray,
 	kBCIIntArrayIter,
+	kBCIFloatArray,
+	kBCIFloatArrayIter,
+	kBCIDoubleArray,
+	kBCIDoubleArrayIter,
 	kBCILongArray,
 	kBCILongArrayIter,
 	kBCIInt,
 	kBCILong,
 	kBCIFloat,
 	kBCIDouble,
-	kBCIThread
+	kBCIThread,
+	kBCISystem,
+	kBCIVocabulary,
+	kBCIVocabularyIter,
+	kBCIInStream,
+	kBCIFileInStream,
+	kBCIConsoleInStream,
+	kBCIOutStream,
+	kBCIFileOutStream,
+	kBCIStringOutStream,
+	kBCIConsoleOutStream,
+	kBCIFunctionOutStream,
+	kNumBuiltinClasses		// must be last
 } eBuiltinClassIndex;
 
 typedef enum
@@ -55,11 +94,7 @@ void ForthShowObject(ForthObject& obj, ForthCoreState* pCore);
 
 void unrefObject(ForthObject& fobj);
 
-extern ForthClassVocabulary* gpObjectClassVocab;
-extern ForthClassVocabulary* gpClassClassVocab;
-extern ForthClassVocabulary* gpOIterClassVocab;
-extern ForthClassVocabulary* gpOIterableClassVocab;
-
+#define GET_BUILTIN_INTERFACE(BCI_INDEX, INTERFACE_INDEX) ForthTypesManager::GetInstance()->GetClassVocabulary(BCI_INDEX)->GetInterface(INTERFACE_INDEX)
 
 // oOutStream is an abstract output stream class
 

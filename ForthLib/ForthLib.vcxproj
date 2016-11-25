@@ -377,6 +377,7 @@
     <ClCompile Include="ONumber.cpp" />
     <ClCompile Include="OStream.cpp" />
     <ClCompile Include="OString.cpp" />
+    <ClCompile Include="OSystem.cpp" />
     <ClCompile Include="StdAfx.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">Disabled</Optimization>
       <BasicRuntimeChecks Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">EnableFastChecks</BasicRuntimeChecks>
@@ -453,6 +454,7 @@ move "%(Filename)".obj "$(OutDir)"
     <ClInclude Include="ONumber.h" />
     <ClInclude Include="OStream.h" />
     <ClInclude Include="OString.h" />
+    <ClInclude Include="OSystem.h" />
     <ClInclude Include="StdAfx.h" />
   </ItemGroup>
   <ItemGroup>

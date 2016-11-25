@@ -10,17 +10,6 @@ kVarStore			EQU		3t
 kVarPlusStore		EQU		4t
 kVarMinusStore		EQU		5t
 
-kVocabSetCurrent		EQU	0t
-kVocabNewestEntry		EQU	1t
-kVocabRef				EQU 2t
-kVocabFindEntry			EQU	3t
-kVocabFindEntryValue	EQU	4t
-kVocabAddEntry			EQU	5t
-kVocabRemoveEntry		EQU	6t
-kVocabEntryLength		EQU	7t
-kVocabNumEntries		EQU	8t
-kVocabGetClass			EQU	9t
-
 kResultOk				EQU		0t
 kResultDone				EQU		1t
 kResultExitShell		EQU		2t

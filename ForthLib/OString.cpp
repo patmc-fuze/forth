@@ -34,8 +34,6 @@ namespace OString
     //
 
 	int gDefaultOStringSize = DEFAULT_STRING_DATA_BYTES - 1;
-	ForthClassVocabulary* gpOStringClass;
-	ForthClassVocabulary* gpOStringMapIterClassVocab;
 
 // temp hackaround for a heap corruption when expanding a string
 //#define RCSTRING_SLOP 16
@@ -122,7 +120,7 @@ namespace OString
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("oString");
+		SHOW_OBJ_HEADER("OString");
 
 		pShowContext->ShowIndent();
 		pEngine->ConsoleOut("'value' : '");
@@ -614,7 +612,8 @@ namespace OString
 		if (pString->str->curLen != 0)
 		{
 			ForthObject obj;
-			obj.pMethodOps = gpOStringClass->GetInterface(0)->GetMethods();
+			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIString, 0);
+			obj.pMethodOps = pPrimaryInterface->GetMethods();
 
 			const char* pSrc = pString->str->data;
 			int substringSize;
@@ -647,7 +646,8 @@ namespace OString
 			}
 		}
 
-		ForthInterface* pArrayInterface = OArray::gpOArrayClassVocab->GetInterface(0);
+		ForthClassVocabulary* pArrayClass = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIArray);
+		ForthInterface* pArrayInterface = pArrayClass->GetInterface(0);
 		PUSH_PAIR(pArrayInterface->GetMethods(), pArray);
 		METHOD_RETURN;
 	}
@@ -832,7 +832,7 @@ namespace OString
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("oStringMap");
+		SHOW_OBJ_HEADER("OStringMap");
 		pShowContext->ShowIndent("'map' : {");
 		if (a.size() > 0)
 		{
@@ -1043,7 +1043,7 @@ namespace OString
 		oStringMap::iterator iter = pMap->elements->begin();
 		*(pIter->cursor) = iter;
 		//pIter->cursor = pMap->elements->begin();
-		ForthInterface* pPrimaryInterface = gpOStringMapIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -1061,7 +1061,7 @@ namespace OString
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pMap);
 		*(pIter->cursor) = pMap->elements->end();
-		ForthInterface* pPrimaryInterface = gpOStringMapIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -1096,7 +1096,7 @@ namespace OString
 			pIter->parent.pData = reinterpret_cast<long *>(pMap);
 			pIter->cursor = new oStringMap::iterator;
 			*(pIter->cursor) = iter;
-			ForthInterface* pPrimaryInterface = gpOStringMapIterClassVocab->GetInterface(0);
+			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
 			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 			SPUSH(~0);
 		}
@@ -1122,7 +1122,7 @@ namespace OString
 		METHOD("clear", oStringMapClearMethod),
 		METHOD("load", oStringMapLoadMethod),
 
-		METHOD_RET("get", oStringMapGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject)),
+		METHOD_RET("get", oStringMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 		METHOD("set", oStringMapSetMethod),
 		METHOD_RET("findKey", oStringMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oStringMapRemoveMethod),
@@ -1316,7 +1316,7 @@ namespace OString
 		METHOD_RET("nextPair", oStringMapIterNextPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("prevPair", oStringMapIterPrevPairMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 
-        MEMBER_VAR( "parent",			NATIVE_TYPE_TO_CODE(0, kBaseTypeObject) ),
+		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIStringMap)),
         MEMBER_VAR( "__cursor",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
         
 		// following must be last in table
@@ -1345,10 +1345,10 @@ namespace OString
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		gpOStringClass = pEngine->AddBuiltinClass("OString", gpObjectClassVocab, OString::oStringMembers);
+		pEngine->AddBuiltinClass("OString", kBCIString, kBCIObject, oStringMembers);
 
-		ForthClassVocabulary* pOStringMapClass = pEngine->AddBuiltinClass("OStringMap", gpOIterableClassVocab, OString::oStringMapMembers);
-		gpOStringMapIterClassVocab = pEngine->AddBuiltinClass("OStringMapIter", gpOIterClassVocab, OString::oStringMapIterMembers);
+		pEngine->AddBuiltinClass("OStringMap", kBCIStringMap, kBCIIterable, oStringMapMembers);
+		pEngine->AddBuiltinClass("OStringMapIter", kBCIStringMapIter, kBCIIter, oStringMapIterMembers);
 	}
 
 } // namespace oString

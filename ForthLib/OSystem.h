@@ -1,14 +1,21 @@
 #pragma once
 //////////////////////////////////////////////////////////////////////
 //
-// OMap.h: builtin map related classes
+// OSystem.h: builtin system class
 //
 //////////////////////////////////////////////////////////////////////
 
 
 class ForthClassVocabulary;
 
-namespace OMap
+namespace OSystem
 {
+	extern ForthClassVocabulary* gpOSystemClassVocab;
+
+	struct oSystemStruct
+	{
+		ulong			refCount;
+	};
+
 	void AddClasses(ForthEngine* pEngine);
 }

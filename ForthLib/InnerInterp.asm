@@ -4957,39 +4957,11 @@ entry subtractFromBop
 	
 ;========================================
 
-entry addressOfBop
+entry refBop
 	mov	eax, kVarRef
 	mov	[ebp].FCore.varMode, eax
 	jmp	edi
 
-;========================================
-
-entry removeEntryBop
-	mov	eax, kVocabRemoveEntry
-	mov	[ebp].FCore.varMode, eax
-	jmp	edi
-	
-;========================================
-
-entry entryLengthBop
-	mov	eax, kVocabEntryLength
-	mov	[ebp].FCore.varMode, eax
-	jmp	edi
-	
-;========================================
-
-entry numEntriesBop
-	mov	eax, kVocabNumEntries
-	mov	[ebp].FCore.varMode, eax
-	jmp	edi
-	
-;========================================
-
-entry vocabToClassBop
-	mov	eax, kVocabGetClass
-	mov	[ebp].FCore.varMode, eax
-	jmp	edi
-	
 ;========================================
 
 entry setVarActionBop

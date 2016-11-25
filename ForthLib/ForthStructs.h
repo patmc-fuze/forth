@@ -6,6 +6,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "Forth.h"
+#include "ForthBuiltinClasses.h"
 #include "ForthForgettable.h"
 #include "ForthVocabulary.h"
 #include "ForthStructCodeGenerator.h"
@@ -24,11 +25,24 @@ class ForthStructCodeGenerator;
 // - recorded in the type info field of struct vocabulary entries for members of this type
 // - used to get from a struct field to the struct vocabulary which defines its subfields
 
-typedef struct
+struct ForthTypeInfo
 {
+	ForthTypeInfo()
+		: pVocab(NULL)
+		, op(OP_ABORT)
+		, structIndex(static_cast<int>(kBCIInvalid))
+	{}
+
+	ForthTypeInfo(ForthStructVocabulary* inVocab, long inOp, int inStructIndex)
+		: pVocab(inVocab)
+		, op(inOp)
+		, structIndex(inStructIndex)
+	{}
+
     ForthStructVocabulary*      pVocab;
     long                        op;
-} ForthTypeInfo;
+	int						structIndex;
+};
 
 typedef struct
 {
@@ -102,12 +116,15 @@ public:
     // add a new structure type
     ForthStructVocabulary*          StartStructDefinition( const char *pName );
     void                            EndStructDefinition( void );
-    ForthClassVocabulary*           StartClassDefinition( const char *pName );
+	// default classIndex value means assign next available classIndex
+	ForthClassVocabulary*           StartClassDefinition(const char *pName, int classIndex = kNumBuiltinClasses);
     void                            EndClassDefinition( void );
     static ForthTypesManager*       GetInstance( void );
 
     // return info structure for struct type specified by structIndex
-    ForthTypeInfo*        GetStructInfo( int structIndex );
+    ForthTypeInfo*        GetTypeInfo( int structIndex );
+	ForthClassVocabulary* GetClassVocabulary(int typeIndex) const;
+	ForthInterface* GetClassInterface(int typeIndex, int interfaceIndex) const;
 
     // return vocabulary for a struct type given its opcode or name
     ForthStructVocabulary*  GetStructVocabulary( long op );
@@ -130,10 +147,8 @@ public:
 	void					DefineInitOpcode();
 
 protected:
-    // mpStructInfo points to an array with an entry for each defined structure type
-    ForthTypeInfo                   *mpStructInfo;
-    int                             mNumStructs;
-    int                             mMaxStructs;
+    // mStructInfo is an array with an entry for each defined structure type
+	std::vector<ForthTypeInfo>      mStructInfo;
     static ForthTypesManager*       mpInstance;
     ForthVocabulary*                mpSavedDefinitionVocab;
     char                            mToken[ DEFAULT_INPUT_BUFFER_LEN ];
@@ -141,6 +156,7 @@ protected:
     long*                           mpClassMethods;
 	ForthStructCodeGenerator*		mpCodeGenerator;
 	std::vector<ForthFieldInitInfo>	mFieldInitInfos;
+	int								mNewestStructIndex;
 };
 
 class ForthStructVocabulary : public ForthVocabulary
@@ -206,8 +222,6 @@ public:
     // handle invocation of a struct op - define a local/global struct or struct array, or define a field
     virtual void	    DefineInstance(void);
     virtual void	    DefineInstance(const char* pSym);
-
-    virtual void        DoOp( ForthCoreState *pCore );
 
     virtual const char* GetTypeName();
 

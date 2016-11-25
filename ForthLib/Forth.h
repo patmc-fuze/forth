@@ -190,19 +190,6 @@ typedef enum {
     kNumVarops
 } varOperation;
 
-typedef enum {
-    kVocabSetCurrent = 0,
-    kVocabNewestEntry,
-	kVocabRef,				// must be same index as kVarRef
-    kVocabFindEntry,
-    kVocabFindEntryValue,
-    kVocabAddEntry,
-    kVocabRemoveEntry,
-    kVocabEntryLength,
-    kVocabNumEntries,
-    kVocabGetClass,
-} vocabOperation;
-
 #define DEFAULT_INPUT_BUFFER_LEN   (16 * 1024)
 
 // these are the results of running the inner interpreter
@@ -403,7 +390,6 @@ enum {
 
 	OP_DO_LOOPN,		// 0x30
 	OP_OFETCH,
-	OP_VOCAB_TO_CLASS,
 	OP_REF,
 	OP_INTO,
 	OP_INTO_PLUS,
@@ -412,6 +398,7 @@ enum {
 
 	OP_DO_VOCAB,
 	// below this line are ops defined in C
+	OP_GET_CLASS_BY_INDEX,
 	OP_INIT_STRING_ARRAY,
 	OP_BAD_OP,
 	OP_DO_STRUCT_TYPE,

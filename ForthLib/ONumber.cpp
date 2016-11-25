@@ -62,7 +62,7 @@ namespace ONumber
 		GET_THIS(oIntStruct, pInt);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER("oInt");
+		SHOW_OBJ_HEADER("OInt");
 		pShowContext->ShowIndent("'value' : ");
 		sprintf(buff, "%d", pInt->val);
 		pShowContext->EndElement(buff);
@@ -147,7 +147,7 @@ namespace ONumber
 		GET_THIS(oLongStruct, pLong);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER("oLong");
+		SHOW_OBJ_HEADER("OLong");
 		pShowContext->ShowIndent("'value' : ");
 		sprintf(buff, "%lld", pLong->val);
 		pShowContext->EndElement(buff);
@@ -228,7 +228,7 @@ namespace ONumber
 		GET_THIS(oFloatStruct, pFloat);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER("oFloat");
+		SHOW_OBJ_HEADER("OFloat");
 		pShowContext->ShowIndent("'value' : ");
 		sprintf(buff, "%f", pFloat->val);
 		pShowContext->EndElement(buff);
@@ -309,7 +309,7 @@ namespace ONumber
 		GET_THIS(oDoubleStruct, pDouble);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER("oDouble");
+		SHOW_OBJ_HEADER("ODouble");
 		pShowContext->ShowIndent("'value' : ");
 		sprintf(buff, "%f", pDouble->val);
 		pShowContext->EndElement(buff);
@@ -350,10 +350,10 @@ namespace ONumber
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		ForthClassVocabulary* pOIntClass = pEngine->AddBuiltinClass("OInt", gpObjectClassVocab, oIntMembers);
-		ForthClassVocabulary* pOLongClass = pEngine->AddBuiltinClass("OLong", gpObjectClassVocab, oLongMembers);
-		ForthClassVocabulary* pOFloatClass = pEngine->AddBuiltinClass("OFloat", gpObjectClassVocab, oFloatMembers);
-		ForthClassVocabulary* pODoubleClass = pEngine->AddBuiltinClass("ODouble", gpObjectClassVocab, oDoubleMembers);
+		pEngine->AddBuiltinClass("OInt", kBCIInt, kBCIObject, oIntMembers);
+		pEngine->AddBuiltinClass("OLong", kBCILong, kBCIObject, oLongMembers);
+		pEngine->AddBuiltinClass("OFloat", kBCIFloat, kBCIObject, oFloatMembers);
+		pEngine->AddBuiltinClass("ODouble", kBCIDouble, kBCIObject, oDoubleMembers);
 	}
 
 } // namespace ONumber

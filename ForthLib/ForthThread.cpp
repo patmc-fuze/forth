@@ -567,7 +567,7 @@ namespace OThread
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass("OThread", gpObjectClassVocab, oThreadMembers);
+		ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass("OThread", kBCIThread, kBCIObject, oThreadMembers);
 	}
 
 } // namespace OThread

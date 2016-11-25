@@ -375,7 +375,12 @@ ForthEngine::Initialize( ForthShell*        pShell,
 	
 	mpOpcodeCompiler = new ForthOpcodeCompiler( &mDictionary );
 
-    mpForthVocab = new ForthVocabulary( "forth", NUM_FORTH_VOCAB_VALUE_LONGS );
+	if (mpTypesManager == NULL)
+	{
+		mpTypesManager = new ForthTypesManager();
+	}
+
+	mpForthVocab = new ForthVocabulary("forth", NUM_FORTH_VOCAB_VALUE_LONGS);
     mpLocalVocab = new ForthLocalVocabulary( "locals", NUM_LOCALS_VOCAB_VALUE_LONGS );
 	mStringBufferASize = 3 *  MAX_STRING_SIZE;
     mpStringBufferA = new char[mStringBufferASize];
@@ -388,11 +393,6 @@ ForthEngine::Initialize( ForthShell*        pShell,
     mpCore->numOps = 0;
     mpCore->maxOps = 1024;
 	mpCore->ops = (long **) __MALLOC(sizeof(long *) * mpCore->maxOps);
-
-	if ( mpTypesManager == NULL )
-	{
-	    mpTypesManager = new ForthTypesManager();
-	}
 
     mpVocabStack = new ForthVocabularyStack;
     mpVocabStack->Initialize();
@@ -547,13 +547,13 @@ ForthEngine::AddBuiltinOps( baseDictionaryEntry *pEntries )
 
 
 ForthClassVocabulary*
-ForthEngine::StartClassDefinition( const char* pClassName )
+ForthEngine::StartClassDefinition(const char* pClassName, eBuiltinClassIndex classIndex)
 {
     SetFlag( kEngineFlagInStructDefinition );
     SetFlag( kEngineFlagInClassDefinition );
 	
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
-    ForthClassVocabulary* pVocab = pManager->StartClassDefinition( pClassName );
+	ForthClassVocabulary* pVocab = pManager->StartClassDefinition(pClassName, classIndex);
 
 	// add new class vocab to top of search order
 	mpVocabStack->DupTop();
@@ -577,11 +577,12 @@ ForthEngine::EndClassDefinition()
 }
 
 ForthClassVocabulary*
-ForthEngine::AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseMethodEntry *pEntries )
+ForthEngine::AddBuiltinClass(const char* pClassName, eBuiltinClassIndex classIndex, eBuiltinClassIndex parentClassIndex, baseMethodEntry *pEntries)
 {
     // do "class:" - define class subroutine
-    ForthClassVocabulary* pVocab = StartClassDefinition( pClassName );
+	ForthClassVocabulary* pVocab = StartClassDefinition(pClassName, classIndex);
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+	ForthClassVocabulary* pParentClass = pManager->GetClassVocabulary(parentClassIndex);
 
     if ( pParentClass )
     {
