@@ -69,6 +69,43 @@ END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
 ///
+//  trace output to logger client via pipe
+//
+static HANDLE hLoggingPipe = INVALID_HANDLE_VALUE;
+
+void OutputToLogger(const char* pBuffer)
+{
+	//OutputDebugString(buffer);
+
+	DWORD dwWritten;
+	int bufferLen = 1 + strlen(pBuffer);
+
+	if (hLoggingPipe == INVALID_HANDLE_VALUE)
+	{
+		hLoggingPipe = CreateFile(TEXT("\\\\.\\pipe\\ForthLogPipe"),
+			GENERIC_READ | GENERIC_WRITE,
+			0,
+			NULL,
+			OPEN_EXISTING,
+			0,
+			NULL);
+	}
+	if (hLoggingPipe != INVALID_HANDLE_VALUE)
+	{
+		WriteFile(hLoggingPipe,
+			pBuffer,
+			bufferLen,   // = length of string + terminating '\0' !!!
+			&dwWritten,
+			NULL);
+
+		//CloseHandle(hPipe);
+	}
+
+	return;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+///
 //  stuff to connect Forth output to output pane edit control
 //
 struct sStreamInScratch
@@ -142,14 +179,28 @@ void StreamToOutputPane( CRichEditCtrl* pOutEdit, const char* pMessage )
 }
 
 CRichEditCtrl* gpOutEdit = NULL;
-void ForthOutRoutine( void *pCBData, const char *pBuff )
+void ForthOutRoutine(ForthCoreState* pCore, void *pCBData, const char *pBuff)
 {
 	StreamToOutputPane( gpOutEdit, pBuff );
 }
 
-void ForthTraceOutRoutine( void *pCBData, const char *pBuff )
+//extern void OutputToLogger(const char* pBuffer);
+void ForthTraceOutRoutine(void *pCBData, const char* pFormat, va_list argList)
 {
-	StreamToOutputPane( (CRichEditCtrl *) pCBData, pBuff );
+#ifdef LINUX
+	char buffer[1000];
+#else
+	TCHAR buffer[1000];
+#endif
+
+	ForthEngine* pEngine = ForthEngine::GetInstance();
+#ifdef LINUX
+	vsnprintf(buffer, sizeof(buffer), pFormat, argList);
+#else
+	wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
+#endif
+	//OutputToLogger(buffer);
+	//StreamToOutputPane( (CRichEditCtrl *) pCBData, buffer );
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -294,17 +345,22 @@ CForthGuiDlg::~CForthGuiDlg()
 
 void CForthGuiDlg::CreateForth()
 {
+	char autoloadBuffer[64];
 	mpShell = new ForthShell;
 	ForthEngine* pEngine = mpShell->GetEngine();
 	ForthCoreState* pCore = pEngine->GetCoreState();
 	CreateForthFunctionOutStream( pCore, mConsoleOutObject, NULL, NULL, ForthOutRoutine, GetDlgItem( IDC_RICHEDIT_OUTPUT ) );
 
-	pEngine->SetConsoleOutStream( mConsoleOutObject );
+	CreateDialogOps();
+
+	pEngine->SetDefaultConsoleOut(mConsoleOutObject );
 	pEngine->ResetConsoleOut( pCore );
-	pEngine->SetTraceOutRoutine( ForthTraceOutRoutine, GetDlgItem( IDC_RICHEDT_DEBUG ) );
+	//pEngine->SetTraceOutRoutine(ForthTraceOutRoutine, GetDlgItem(IDC_RICHEDT_DEBUG));
+	mInBuffer[0] = '\0';
     mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE, true );
     mpShell->GetInput()->PushInputStream( mpInStream );
-    CreateDialogOps();
+	strncpy(autoloadBuffer, "\"forth_autoload.txt\" $load", sizeof(autoloadBuffer) - 1);
+	ProcessLine(autoloadBuffer);
 #ifdef TEST_MIDI
     /* Open MIDI In */
 	MIDIINCAPS deviceCaps;
@@ -410,7 +466,10 @@ BOOL CForthGuiDlg::OnInitDialog()
 
 	CreateForth();
 
-	return TRUE;  // return TRUE  unless you set the focus to a control
+	// Set the input focus to the input edit box
+	GotoDlgCtrl(GetDlgItem(IDC_EDIT_INPUT));
+	
+	return FALSE;  // return TRUE  unless you set the focus to a control
 }
 
 void CForthGuiDlg::SetupTabbedPane( int tabNum, int tabID, LPSTR tabText )

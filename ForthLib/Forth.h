@@ -627,7 +627,7 @@ typedef enum
 //   7          unused
 // 31...8       depends on base type:
 //      string      length
-//      struct      structIndex
+//      struct      typeIndex
 //      object      classId
 
 // when kDTArray and kDTIsPtr are both set, it means the field is an array of pointers

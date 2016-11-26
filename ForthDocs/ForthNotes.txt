@@ -175,6 +175,28 @@ Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 24 2016
 
+ForthGUI didn't work immediately, I needed to make some changes because of the
+stream object changes, it mostly works now, problems:
+
++ forth_autoload.txt isn't autoloaded
+- ops like pwd and ls don't show any output
++ input box doesn't automatically get focus
+
+I also had to turn off safe structured exception handlers (/SAFESEH:NO) in the
+link of ForthGUI.  I could have added an SEH handler to the assembly file:
+
+.safeseh SEH_handler
+
+SEH_handler   proc
+;handler
+ret
+
+SEH_handler   endp
+
+I replaced structIndex with typeIndex everywhere.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 24 2016
+
 The hang in biclasstest was in SpewMethodName, which was trying to find the name
 of method 0 (delete), it had a bug where if it found a vocab entry with the correct value,
 but the value wasn't a method, it never advanced the vocab search point, so it found
@@ -407,7 +429,7 @@ o object member
   + struct array
 + invoke init op at end of 'new'
 
-? add an op for getting the structIndex given a struct/class name
+? add an op for getting the typeIndex given a struct/class name
   - have definition of "_init" in struct or class definitions
 
 For some reason, when you start a struct definition, it doesn't change the
@@ -3904,7 +3926,7 @@ o bottom 4 bits are baseType
   o baseType are the old native types, plus struct
     o object is a baseType, but it is no longer a native
 o isArray is a separate bit, there is no idea of single/none/illegal
-o the top 24 bits is the stringLen/structIndex/classIndex
+o the top 24 bits is the stringLen/typeIndex/classIndex
 ? Are there any changes needed in the assembler code, or is all the typeCode
   stuff always handled by the outer interpreter or C++ only code?
 

@@ -107,6 +107,15 @@ opLabel:
 	ENDM
 	
 ;========================================
+;  safe exception handler
+;.safeseh SEH_handler
+
+;SEH_handler   PROC
+;	ret
+
+;SEH_handler   ENDP
+
+;========================================
 
 ; extern void CallDLLRoutine( DLLRoutine function, long argCount, ulong flags, void *core );
 

@@ -803,10 +803,10 @@ FORTHOP(initStructArrayOp)
 	ForthEngine *pEngine = GET_ENGINE;
 	ForthTypesManager* pManager = ForthTypesManager::GetInstance();
 
-	long structIndex = SPOP;
+	long typeIndex = SPOP;
 	long numElements = SPOP;
 	char* pStruct = (char *)(SPOP);
-	ForthTypeInfo* typeInfo = pManager->GetTypeInfo(structIndex);
+	ForthTypeInfo* typeInfo = pManager->GetTypeInfo(typeIndex);
 	if (typeInfo != nullptr)
 	{
 		ForthStructVocabulary* pVocab = typeInfo->pVocab;
@@ -839,7 +839,7 @@ FORTHOP(initStructArrayOp)
 	}
 	else
 	{
-		// TODO report unknown type for structIndex
+		// TODO report unknown type for typeIndex
 	}
 }
 
@@ -1917,12 +1917,12 @@ FORTHOP(makeObjectOp)
 
 FORTHOP(doNewOp)
 {
-	// this op is compiled for 'new foo', the class structIndex is on TOS
+	// this op is compiled for 'new foo', the class typeIndex is on TOS
 	ForthTypesManager* pManager = ForthTypesManager::GetInstance();
 	ForthEngine *pEngine = GET_ENGINE;
 
-	int structIndex = SPOP;
-	ForthTypeInfo* pTypeInfo = pManager->GetTypeInfo(structIndex);
+	int typeIndex = SPOP;
+	ForthTypeInfo* pTypeInfo = pManager->GetTypeInfo(typeIndex);
 	if (pTypeInfo != nullptr)
 	{
 		if (pTypeInfo->pVocab->IsClass())

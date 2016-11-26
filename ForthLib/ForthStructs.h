@@ -30,18 +30,18 @@ struct ForthTypeInfo
 	ForthTypeInfo()
 		: pVocab(NULL)
 		, op(OP_ABORT)
-		, structIndex(static_cast<int>(kBCIInvalid))
+		, typeIndex(static_cast<int>(kBCIInvalid))
 	{}
 
-	ForthTypeInfo(ForthStructVocabulary* inVocab, long inOp, int inStructIndex)
+	ForthTypeInfo(ForthStructVocabulary* inVocab, long inOp, int inTypeIndex)
 		: pVocab(inVocab)
 		, op(inOp)
-		, structIndex(inStructIndex)
+		, typeIndex(inTypeIndex)
 	{}
 
     ForthStructVocabulary*      pVocab;
     long                        op;
-	int						structIndex;
+	int						typeIndex;
 };
 
 typedef struct
@@ -68,7 +68,7 @@ typedef struct
 	eForthStructInitType fieldType;
 	long offset;
 	long len;
-	long structIndex;
+	long typeIndex;
 	long numElements;
 } ForthFieldInitInfo;
 
@@ -121,8 +121,8 @@ public:
     void                            EndClassDefinition( void );
     static ForthTypesManager*       GetInstance( void );
 
-    // return info structure for struct type specified by structIndex
-    ForthTypeInfo*        GetTypeInfo( int structIndex );
+    // return info structure for struct type specified by typeIndex
+    ForthTypeInfo*        GetTypeInfo( int typeIndex );
 	ForthClassVocabulary* GetClassVocabulary(int typeIndex) const;
 	ForthInterface* GetClassInterface(int typeIndex, int interfaceIndex) const;
 
@@ -156,7 +156,7 @@ protected:
     long*                           mpClassMethods;
 	ForthStructCodeGenerator*		mpCodeGenerator;
 	std::vector<ForthFieldInitInfo>	mFieldInitInfos;
-	int								mNewestStructIndex;
+	int								mNewestTypeIndex;
 };
 
 class ForthStructVocabulary : public ForthVocabulary
@@ -195,7 +195,7 @@ public:
 
     inline ForthStructVocabulary* BaseVocabulary( void ) { return mpSearchNext; }
 
-    inline long         GetTypeIndex( void ) { return mStructIndex; };
+    inline long         GetTypeIndex( void ) { return mTypeIndex; };
 
     virtual void        EndDefinition();
 
@@ -207,7 +207,7 @@ public:
 protected:
     long                    mNumBytes;
     long                    mMaxNumBytes;
-    long                    mStructIndex;
+    long                    mTypeIndex;
     long                    mAlignment;
     ForthStructVocabulary   *mpSearchNext;
 	long					mInitOpcode;
@@ -229,7 +229,7 @@ public:
 	long				FindMethod( const char* pName );
 	void				Implements( const char* pName );
 	void				EndImplements( void );
-	long				GetClassId( void )		{ return mStructIndex; }
+	long				GetClassId( void )		{ return mTypeIndex; }
 
 	ForthInterface*		GetInterface( long index );
     long                FindInterfaceIndex( long classId );
