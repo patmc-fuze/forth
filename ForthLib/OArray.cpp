@@ -60,6 +60,7 @@ namespace OArray
 
 	FORTHOP(oArrayShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oArrayStruct, pArray);
 		oArray::iterator iter;
 		oArray& a = *(pArray->elements);
@@ -537,6 +538,7 @@ namespace OArray
 
 	FORTHOP(oArrayIterShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oArrayIterStruct, pIter);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		oArrayStruct* pArray = reinterpret_cast<oArrayStruct *>(pIter->parent.pData);
@@ -817,6 +819,7 @@ namespace OArray
 
 	FORTHOP(oByteArrayShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[8];
 		GET_THIS(oByteArrayStruct, pArray);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
@@ -1381,6 +1384,7 @@ namespace OArray
 
 	FORTHOP(oShortArrayShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[16];
 		GET_THIS(oShortArrayStruct, pArray);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
@@ -1930,6 +1934,7 @@ namespace OArray
 
 	FORTHOP(oIntArrayShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[16];
 		GET_THIS(oIntArrayStruct, pArray);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
@@ -2443,6 +2448,7 @@ namespace OArray
 
 	FORTHOP(oFloatArrayShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[32];
 		GET_THIS(oIntArrayStruct, pArray);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
@@ -2534,6 +2540,7 @@ namespace OArray
 
 	FORTHOP(oLongArrayShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[32];
 		GET_THIS(oLongArrayStruct, pArray);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
@@ -3067,6 +3074,7 @@ namespace OArray
 
 	FORTHOP(oDoubleArrayShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[32];
 		GET_THIS(oLongArrayStruct, pArray);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
@@ -3164,6 +3172,7 @@ namespace OArray
 
 	FORTHOP(oPairShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oPairStruct, pPair);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
@@ -3477,6 +3486,7 @@ namespace OArray
 
 	FORTHOP(oTripleShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oTripleStruct, pTriple);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();

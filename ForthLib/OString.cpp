@@ -826,6 +826,7 @@ namespace OString
 
 	FORTHOP(oStringMapShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oStringMapStruct, pMap);
 		oStringMap::iterator iter;
 		oStringMap& a = *(pMap->elements);

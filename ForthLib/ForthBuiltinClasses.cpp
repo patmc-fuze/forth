@@ -141,7 +141,7 @@ namespace
 		ForthClassObject* pClassObject = (ForthClassObject *)(*((GET_TPM)-1));
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 
-		if (pShowContext->AddObject(obj))
+		if (pShowContext->ObjectAlreadyShown(obj))
 		{
 			pEngine->ConsoleOut("'@");
 			pShowContext->ShowID(pClassObject->pVocab->GetName(), obj.pData);
@@ -149,6 +149,7 @@ namespace
 		}
 		else
 		{
+			pShowContext->AddObject(obj);
 			pClassObject->pVocab->ShowData(GET_TPD, pCore);
 			if (pShowContext->GetDepth() == 0)
 			{
@@ -300,8 +301,8 @@ namespace
 		METHOD("delete", classDeleteMethod),
 		METHOD_RET("create", classCreateMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 		METHOD_RET("getParent", classSuperMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIClass)),
-		METHOD_RET("getName", classNameMethod, NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeByte)),
-		METHOD_RET("getVocabulary", classVocabularyMethod, NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt)),
+		METHOD_RET("getName", classNameMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kDTIsPtr|kBaseTypeByte)),
+		METHOD_RET("getVocabulary", classVocabularyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kDTIsPtr|kBaseTypeInt)),
 		METHOD_RET("getInterface", classGetInterfaceMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 		METHOD("setNew", classSetNewMethod),
 
@@ -360,19 +361,47 @@ namespace
 
 } // namespace
 
-void ForthShowObject(ForthObject& obj, ForthCoreState* pCore)
+// return true IFF object was already shown
+bool ForthShowAlreadyShownObject(ForthObject* obj, ForthCoreState* pCore, bool addIfUnshown)
 {
 	ForthEngine* pEngine = ForthEngine::GetInstance();
-	if (obj.pData != NULL)
+	ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+	if (obj->pData != NULL)
 	{
-		pEngine->ExecuteOneMethod(pCore, obj, kOMShow);
+		ForthClassObject* pClassObject = (ForthClassObject *)(*((obj->pMethodOps) - 1));
+		if (pShowContext->ObjectAlreadyShown(*obj))
+		{
+			pEngine->ConsoleOut("'@");
+			pShowContext->ShowID(pClassObject->pVocab->GetName(), obj->pData);
+			pEngine->ConsoleOut("'");
+		}
+		else
+		{
+			if (addIfUnshown)
+			{
+				pShowContext->AddObject(*obj);
+			}
+			return false;
+		}
 	}
 	else
 	{
 		pEngine->ConsoleOut("'@");
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->ShowID("nullObject", NULL);
 		pEngine->ConsoleOut("'");
+	}
+	return true;
+}
+
+void ForthShowObject(ForthObject& obj, ForthCoreState* pCore)
+{
+	if (!ForthShowAlreadyShownObject(&obj, pCore, false))
+	{
+		ForthEngine* pEngine = ForthEngine::GetInstance();
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+		ForthClassObject* pClassObject = (ForthClassObject *)(*((obj.pMethodOps) - 1));
+		pEngine->ExecuteOneMethod(pCore, obj, kOMShow);
+		pShowContext->AddObject(obj);
 	}
 }
 

@@ -173,7 +173,12 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-November 24 2016
+December 3 2016
+
+I fixed a bunch of bugs in object show methods, showing an object that had
+circular references would loop indefinitely.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 25 2016
 
 ForthGUI didn't work immediately, I needed to make some changes because of the
 stream object changes, it mostly works now, problems:

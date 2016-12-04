@@ -90,7 +90,11 @@ typedef enum
 #define kObjectShowMethodIndex 1
 
 #define SHOW_OBJ_HEADER(_TYPENAME)  pShowContext->ShowHeader(pCore, _TYPENAME, GET_TPD)
+// ForthShowAlreadyShownObject returns true if object was already shown (or null), does display for those cases
+bool ForthShowAlreadyShownObject(ForthObject* obj, ForthCoreState* pCore, bool addIfUnshown);
 void ForthShowObject(ForthObject& obj, ForthCoreState* pCore);
+
+#define EXIT_IF_OBJECT_ALREADY_SHOWN if (ForthShowAlreadyShownObject(GET_THIS_PTR, pCore, true)) { METHOD_RETURN; return; }
 
 void unrefObject(ForthObject& fobj);
 

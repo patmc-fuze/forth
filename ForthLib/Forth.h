@@ -449,6 +449,7 @@ typedef struct
 #define TRACE_SHELL
 #define TRACE_VOCABULARY
 #define TRACE_STRUCTS
+#define TRACE_ENGINE
 #endif
 
 enum

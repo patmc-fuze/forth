@@ -152,6 +152,7 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define GET_TPD                         (pCore->TPD)
 #define SET_TPM( A )                    (pCore->TPM = (A))
 #define SET_TPD( A )                    (pCore->TPD = (A))
+#define GET_THIS_PTR                    ((ForthObject *)&(pCore->TPM))
 
 #define GET_DP                          (pCore->pDictionary->pCurrent)
 #define SET_DP( A )                     (pCore->pDictionary->pCurrent = (A))

@@ -60,6 +60,7 @@ namespace OList
 
 	FORTHOP(oListShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oListStruct, pList);
 		oListElement* pCur = pList->head;
 		ForthEngine *pEngine = ForthEngine::GetInstance();
@@ -602,6 +603,7 @@ namespace OList
 
 	FORTHOP(oListIterShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oListIterStruct, pIter);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
