@@ -173,6 +173,28 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 31 2017
+
+For some reason, the ;m alias wasn't working - its dictionary entry had 0xFEEEFEEE
+in it.  I rearranged forth_autoload.txt so that dump was defined before alias so
+that I could dump the dictionary info while creating the alias, but that the problem
+disappear.  Ugh.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 24 2016
+
+I added an invalid parameter handler to the window forth main program to catch
+a crash which wasn't caught by the existing exception handling code, which happens
+if you pass an invalid format parameter to strftime.  The docs for the function
+say its behavior is undefined for invalid formats, but crashing still seems a
+bit extreme.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 13 2016
+
+DOH! When I created the system object, I forgot that 'system' was already used
+as the way to execute a string in the system shell.  I changed it to be _shellRun
+for the builtin op and $shellRun for the op which does output redirection, and
+it works now in command line forth and in ForthGUI.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 3 2016
 
 I fixed a bunch of bugs in object show methods, showing an object that had

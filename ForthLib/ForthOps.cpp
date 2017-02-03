@@ -3139,7 +3139,7 @@ FORTHOP( strerrorOp)
     SPUSH( reinterpret_cast<long>(strerror(errVal)) );
 }
 
-FORTHOP( systemOp )
+FORTHOP( shellRunOp )
 {
     NEEDS(1);
     int result = pCore->pFileFuncs->runSystem( (char *) SPOP );
@@ -3220,6 +3220,26 @@ FORTHOP(getEnvironmentOp)
     SPUSH((long)(pShell->GetEnvironmentVarNames()));
     SPUSH((long)(pShell->GetEnvironmentVarValues()));
     SPUSH(pShell->GetEnvironmentVarCount());
+}
+
+FORTHOP(getCwdOp)
+{
+	int maxChars = (SPOP) - 1;
+	char* pDst = (char *)(SPOP);
+	pDst[maxChars] = '\0';
+#if defined( WIN32 )
+	DWORD result = GetCurrentDirectory(maxChars, pDst);
+	if (result == 0)
+	{
+		pDst[0] = '\0';
+	}
+#elif defined( LINUX )
+	if (getcwd(pDst, maxChars) == NULL)
+	{
+		// failed to get current directory
+		strcpy(pDst, ".");
+	}
+#endif
 }
 
 //##############################
@@ -3795,7 +3815,12 @@ FORTHOP( strftimeOp )
 
     timeinfo = localtime ( &rawtime );
     // Www Mmm dd yyyy (weekday, month, day, year)
-    strftime( buffer, bufferSize, fmt, timeinfo);
+	errno = 0;
+	strftime(buffer, bufferSize, fmt, timeinfo);
+	if (errno)
+	{
+		GET_ENGINE->SetError(kForthErrorBadVarOperation);
+	}
 }
 
 FORTHOP( timeAndDateOp )
@@ -7833,7 +7858,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    strerrorOp,             "strerror" ),
     OP_DEF(    getEnvironmentOp,       "getEnvironment" ),
     OP_DEF(    getEnvironmentVarOp,    "getEnvironmentVar" ),
- 
+	OP_DEF(    getCwdOp,               "getCurrentDirectory"),
+
     ///////////////////////////////////////////
     //  block i/o
     ///////////////////////////////////////////
@@ -8100,7 +8126,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    _dup2Op,                "_dup2" ),
     OP_DEF(    _filenoOp,              "_fileno" ),
     OP_DEF(    tmpnamOp,               "tmpnam" ),
-    OP_DEF(    systemOp,               "system" ),
+    OP_DEF(    shellRunOp,             "_shellRun" ),
     OP_DEF(    byeOp,                  "bye" ),
     OP_DEF(    argvOp,                 "argv" ),
     OP_DEF(    argcOp,                 "argc" ),
