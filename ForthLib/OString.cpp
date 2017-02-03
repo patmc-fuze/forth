@@ -314,6 +314,7 @@ namespace OString
 			dst->curLen = dst->maxLen;
 			pString->hash = 0;
 		}
+		pString->str = dst;
         METHOD_RETURN;
     }
 
@@ -575,7 +576,7 @@ namespace OString
         METHOD_RETURN;
     }
 
-    FORTHOP( oStringAppendCharMethod )
+    FORTHOP( oStringAppendByteMethod )
     {
         GET_THIS( oStringStruct, pString );
 		char c = (char) SPOP;
@@ -603,13 +604,13 @@ namespace OString
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oStringStruct, pString);
 		
-		MALLOCATE_OBJECT(oArrayStruct, pArray);
-		pArray->refCount = 0;
-		pArray->elements = new oArray;
+		ForthObject dstArrayObj;
+		POP_OBJECT(dstArrayObj);
+		oArrayStruct* pArray = (oArrayStruct *)(dstArrayObj.pData);
 
 		int delimiter = SPOP;
 
-		if (pString->str->curLen != 0)
+		if ((pArray != nullptr) && (pString->str->curLen != 0))
 		{
 			ForthObject obj;
 			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIString, 0);
@@ -646,9 +647,6 @@ namespace OString
 			}
 		}
 
-		ForthClassVocabulary* pArrayClass = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIArray);
-		ForthInterface* pArrayInterface = pArrayClass->GetInterface(0);
-		PUSH_PAIR(pArrayInterface->GetMethods(), pArray);
 		METHOD_RETURN;
 	}
 
@@ -763,12 +761,12 @@ namespace OString
         METHOD(     "contains",             oStringContainsMethod ),
         METHOD(     "clear",                oStringClearMethod ),
         METHOD(     "hash",                 oStringHashMethod ),
-        METHOD(     "appendChar",           oStringAppendCharMethod ),
+        METHOD(     "appendChar",           oStringAppendByteMethod ),
         METHOD(     "load",                 oStringLoadMethod ),
         METHOD_RET( "split",                oStringSplitMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArray) ),
-		METHOD(		"join",					oStringJoinMethod ),
-		METHOD(		"format",				oStringFormatMethod ),
-		METHOD(     "appendFormatted",      oStringAppendFormattedMethod ),
+        METHOD(		"join",					oStringJoinMethod ),
+        METHOD(		"format",				oStringFormatMethod ),
+        METHOD(     "appendFormatted",      oStringAppendFormattedMethod ),
 		
         MEMBER_VAR( "__str",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
 
