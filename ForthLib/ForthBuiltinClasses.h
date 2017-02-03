@@ -113,15 +113,27 @@ struct OutStreamFuncs
 struct oOutStreamStruct
 {
 	ulong               refCount;
-	OutStreamFuncs*     pOutFuncs;
 	void*               pUserData;
+	OutStreamFuncs*     pOutFuncs;
+	char				eolChars[4];
 };
 
 enum
 {
 	kOutStreamPutCharMethod = kNumBaseMethods,
 	kOutStreamPutBytesMethod = kNumBaseMethods + 1,
-	kOutStreamPutStringMethod = kNumBaseMethods + 2
+	kOutStreamPutStringMethod = kNumBaseMethods + 2,
+	kInStreamGetCharMethod = kNumBaseMethods,
+	kInStreamGetBytesMethod = kNumBaseMethods + 1,
+	kInStreamGetLineMethod = kNumBaseMethods + 2,
+	kInStreamAtEOFMethod = kNumBaseMethods + 3
+};
+
+struct oInStreamStruct
+{
+	ulong               refCount;
+	void*               pUserData;
+	int					bTrimEOL;
 };
 
 typedef std::vector<ForthObject> oArray;
