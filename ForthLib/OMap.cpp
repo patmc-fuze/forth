@@ -77,6 +77,7 @@ namespace OMap
 
 	FORTHOP(oMapShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oMapStruct, pMap);
 		oMap::iterator iter;
 		oMap& a = *(pMap->elements);
@@ -648,6 +649,7 @@ namespace OMap
 
 	FORTHOP(oIntMapShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[20];
 		GET_THIS(oIntMapStruct, pMap);
 		oIntMap::iterator iter;
@@ -1167,6 +1169,7 @@ namespace OMap
 
 	FORTHOP(oFloatMapShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[20];
 		GET_THIS(oFloatMapStruct, pMap);
 		oFloatMap::iterator iter;
@@ -1494,6 +1497,7 @@ namespace OMap
 
 	FORTHOP(oLongMapShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[20];
 		GET_THIS(oLongMapStruct, pMap);
 		oLongMap::iterator iter;
@@ -2039,6 +2043,7 @@ namespace OMap
 
 	FORTHOP(oDoubleMapShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[64];
 		GET_THIS(oDoubleMapStruct, pMap);
 		oDoubleMap::iterator iter;
@@ -2570,6 +2575,7 @@ namespace OMap
 
 	FORTHOP(oStringIntMapShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[16];
 		GET_THIS(oStringIntMapStruct, pMap);
 		oStringIntMap::iterator iter;
@@ -3004,6 +3010,7 @@ namespace OMap
 
 	FORTHOP(oStringFloatMapShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[16];
 		GET_THIS(oStringIntMapStruct, pMap);
 		oStringIntMap::iterator iter;
@@ -3095,6 +3102,7 @@ namespace OMap
 
 	FORTHOP(oStringLongMapShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[32];
 		GET_THIS(oStringLongMapStruct, pMap);
 		oStringLongMap::iterator iter;
@@ -3541,6 +3549,7 @@ namespace OMap
 
 	FORTHOP(oStringDoubleMapShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[32];
 		GET_THIS(oStringLongMapStruct, pMap);
 		oStringLongMap::iterator iter;
