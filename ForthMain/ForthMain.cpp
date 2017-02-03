@@ -58,6 +58,17 @@ void OutputToLogger(const char* pBuffer)
     return;
 }
 
+void myInvalidParameterHandler(const wchar_t* expression,
+	const wchar_t* function,
+	const wchar_t* file,
+	unsigned int line,
+	uintptr_t pReserved)
+{
+	wprintf(L"Invalid parameter detected in function %s.", function);
+	//wprintf(L"Expression: %s\n", expression);
+	//abort();
+}
+
 static bool InitSystem()
 {
 #if AFX_BUILD
@@ -69,6 +80,9 @@ static bool InitSystem()
         cerr << _T("Fatal Error: MFC initialization failed") << endl;
 		return false;
 	}
+
+	_set_invalid_parameter_handler(myInvalidParameterHandler);
+	_CrtSetReportMode(_CRT_ASSERT, 0);
 #if 0
 	// Set output mode to handle virtual terminal sequences
 	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
