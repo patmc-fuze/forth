@@ -571,3 +571,85 @@ namespace OThread
 	}
 
 } // namespace OThread
+
+namespace OLock
+{
+	//////////////////////////////////////////////////////////////////////
+	///
+	//                 OLock
+	//
+
+	struct oLockStruct
+	{
+		ulong			refCount;
+#ifdef WIN32
+		CRITICAL_SECTION* pLock;
+#else
+#endif
+	};
+
+	FORTHOP(oLockNew)
+	{
+		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
+		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
+		MALLOCATE_OBJECT(oLockStruct, pLockStruct);
+		pLockStruct->refCount = 0;
+		pLockStruct->pLock = new CRITICAL_SECTION();
+		InitializeCriticalSection(pLockStruct->pLock);
+		PUSH_PAIR(pPrimaryInterface->GetMethods(), pLockStruct);
+	}
+
+	FORTHOP(oLockDeleteMethod)
+	{
+		GET_THIS(oLockStruct, pLockStruct);
+		if (pLockStruct->pLock != NULL)
+		{
+			DeleteCriticalSection(pLockStruct->pLock);
+			pLockStruct->pLock = NULL;
+		}
+		FREE_OBJECT(pLockStruct);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oLockGrabMethod)
+	{
+		GET_THIS(oLockStruct, pLockStruct);
+		EnterCriticalSection(pLockStruct->pLock);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oLockTryGrabMethod)
+	{
+		GET_THIS(oLockStruct, pLockStruct);
+		BOOL result = TryEnterCriticalSection(pLockStruct->pLock);
+		SPUSH((int)result);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oLockUngrabMethod)
+	{
+		GET_THIS(oLockStruct, pLockStruct);
+		LeaveCriticalSection(pLockStruct->pLock);
+		METHOD_RETURN;
+	}
+
+	baseMethodEntry oLockMembers[] =
+	{
+		METHOD("__newOp", oLockNew),
+		METHOD("delete", oLockDeleteMethod),
+		METHOD("grab", oLockGrabMethod),
+		METHOD_RET("tryGrab", oLockTryGrabMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD("ungrab", oLockUngrabMethod),
+
+		// following must be last in table
+		END_MEMBERS
+	};
+
+
+	void AddClasses(ForthEngine* pEngine)
+	{
+		ForthClassVocabulary* pOLock = pEngine->AddBuiltinClass("OLock", kBCILock, kBCIObject, oLockMembers);
+	}
+
+} // namespace OLock
+

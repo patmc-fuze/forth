@@ -770,6 +770,14 @@ addHelp oshow   OBJECT oshow ...    like OBJECT.show, but doesn't crash if OBJEC
 : goclient 0x6701a8c0 client ;
 : goserver server ;
 
+: vd verbose describe ;
+: f. %f %bl ;
+: g. %g %bl ;
+: x. %x %bl ;
+: 2f. %2f %bl ;
+: 2g. %2g %bl ;
+: 2x. %2x %bl ;
+
 //######################################################################
 //  DLL support
 

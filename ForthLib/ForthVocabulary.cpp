@@ -957,7 +957,7 @@ void ForthDLLVocabulary::UnloadDLL( void )
 #endif
 }
 
-long * ForthDLLVocabulary::AddEntry( const char *pFuncName, long numArgs )
+long * ForthDLLVocabulary::AddEntry( const char *pFuncName, const char* pEntryName, long numArgs )
 {
     long *pEntry = NULL;
 #if defined(WIN32)
@@ -967,7 +967,7 @@ long * ForthDLLVocabulary::AddEntry( const char *pFuncName, long numArgs )
 #endif
     if ( pFunc )
     {
-        pEntry = AddSymbol( pFuncName, kOpDLLEntryPoint, pFunc, true );
+		pEntry = AddSymbol(pEntryName, kOpDLLEntryPoint, pFunc, true);
         // the opcode at this point is just the opType and dispatch table index or-ed together
         // we need to combine in the argument count
         *pEntry |= ((numArgs << 19) | mDLLFlags);

@@ -450,6 +450,7 @@ addHelp vocValueLength		pVocab ... valueLengthInLongs			get length of vocabulary
 
 addHelp DLLVocabulary			DLLVocabulary VOCAB_NAME DLL_FILEPATH			creates a new DLL vocabulary, also loads the dll
 addHelp addDLLEntry				NUM_ARGS "ENTRY_NAME" addDLLEntry	adds a new entry point to current definitions DLL vocabulary
+addHelp addDLLEntryEx				NUM_ARGS "OP_NAME" "ENTRY_NAME" addDLLEntryEx	adds a new entry point to current definitions DLL vocabulary
 addHelp DLLVoid     when used prior to dll_0...dll_15, newly defined word will return nothing on TOS
 addHelp time		... TIME_AS_INT64
 addHelp strftime 	BUFFADDR BUFFLEN FORMAT_STRING TIME_AS_INT64 ...	puts formatted string in buffer

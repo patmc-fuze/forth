@@ -2732,7 +2732,35 @@ FORTHOP( printDoubleOp )
     CONSOLE_STRING_OUT( buff );
 }
 
-FORTHOP( format32Op )
+FORTHOP(printFloatGOp)
+{
+	NEEDS(1);
+	char buff[36];
+
+	float fval = FPOP;
+	SNPRINTF(buff, sizeof(buff), "%g", fval);
+#ifdef TRACE_PRINTS
+	SPEW_PRINTS("printed %s\n", buff);
+#endif
+
+	CONSOLE_STRING_OUT(buff);
+}
+
+FORTHOP(printDoubleGOp)
+{
+	NEEDS(2);
+	char buff[36];
+	double dval = DPOP;
+
+	SNPRINTF(buff, sizeof(buff), "%g", dval);
+#ifdef TRACE_PRINTS
+	SPEW_PRINTS("printed %s\n", buff);
+#endif
+
+	CONSOLE_STRING_OUT(buff);
+}
+
+FORTHOP(format32Op)
 {
     NEEDS(2);
 
@@ -3471,10 +3499,27 @@ FORTHOP( addDLLEntryOp )
         pEngine->SetError( kForthErrorBadParameter, " is not a DLL vocabulary - addDllEntry" );
     }
     ulong numArgs = SPOP;
-    pVocab->AddEntry( pProcName, numArgs );
+	pVocab->AddEntry(pProcName, pProcName, numArgs);
 }
 
-FORTHOP( DLLVoidOp )
+FORTHOP(addDLLEntryExOp)
+{
+	NEEDS(2);
+
+	ForthEngine *pEngine = GET_ENGINE;
+	char* pProcName = (char *)SPOP;
+	char* pEntryName = (char *)SPOP;
+	ForthDLLVocabulary* pVocab = (ForthDLLVocabulary *)(pEngine->GetDefinitionVocabulary());
+	if (strcmp(pVocab->GetType(), "dllOp"))
+	{
+		pEngine->AddErrorText(pVocab->GetName());
+		pEngine->SetError(kForthErrorBadParameter, " is not a DLL vocabulary - addDllEntry");
+	}
+	ulong numArgs = SPOP;
+	pVocab->AddEntry(pProcName, pEntryName, numArgs);
+}
+
+FORTHOP(DLLVoidOp)
 {
 	NEEDS( 0 );
 
@@ -8023,7 +8068,7 @@ baseDictionaryEntry baseDictionary[] =
     //  text display
     ///////////////////////////////////////////
     OP_DEF(    printNumOp,             "." ),
-    OP_DEF(    printLongNumOp,         "2." ),
+    OP_DEF(    printLongNumOp,         "l." ),
     OP_DEF(    printNumDecimalOp,      "%d" ),
     OP_DEF(    printNumHexOp,          "%x" ),
     OP_DEF(    printLongDecimalOp,     "%2d" ),
@@ -8037,6 +8082,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    printNewlineOp,         "%nl" ),
     OP_DEF(    printFloatOp,           "%f" ),
     OP_DEF(    printDoubleOp,          "%2f" ),
+    OP_DEF(    printFloatGOp,          "%g" ),
+    OP_DEF(    printDoubleGOp,         "%2g" ),
     OP_DEF(    format32Op,             "format" ),
     OP_DEF(    format64Op,             "2format" ),
     OP_DEF(    fprintfOp,              "fprintf" ),

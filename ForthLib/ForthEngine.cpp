@@ -136,6 +136,7 @@ static const char *pErrorStrings[] =
 	"IO error",
 	"Bad Object",
     "StringOverflow",
+	"Bad Array Index",
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -1648,7 +1649,6 @@ bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, b
    {
    case 'd':
    case 'l':
-   case 'g':
       *pLastChar = 0;
       if ( sscanf( pToken, "%lf", &dvalue ) == 1)
       {
@@ -1658,7 +1658,7 @@ bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, b
       *pLastChar = lastChar;
       break;
    case 'f':
-      *pLastChar = 0;
+	   *pLastChar = 0;
       if ( sscanf( pToken, "%f", &fvalue ) == 1)
       {
          retVal = true;
@@ -2491,7 +2491,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             // in interpret mode, stick the string in string buffer A
             //   and leave the address on param stack
             // this hooha turns mpStringBufferA into NUM_INTERP_STRINGS string buffers
-            // so that you can user multiple interpretive string buffers
+            // so that you can use multiple interpretive string buffers
             if ( (mStringBufferASize - (mpStringBufferANext - mpStringBufferA)) <= (len + 1) )
             {
 				mpStringBufferANext = mpStringBufferA;

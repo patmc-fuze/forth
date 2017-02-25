@@ -241,7 +241,8 @@ typedef enum {
 	kForthErrorIO,
 	kForthErrorBadObject,
     kForthErrorStringOverflow,
-    // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
+	kForthErrorBadArrayIndex,
+	// NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
 } eForthError;
 

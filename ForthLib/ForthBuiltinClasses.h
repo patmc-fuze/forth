@@ -77,6 +77,7 @@ typedef enum
 	kBCIStringOutStream,
 	kBCIConsoleOutStream,
 	kBCIFunctionOutStream,
+	kBCILock,
 	kNumBuiltinClasses		// must be last
 } eBuiltinClassIndex;
 

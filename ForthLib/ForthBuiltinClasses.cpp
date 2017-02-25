@@ -485,6 +485,7 @@ ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 	ONumber::AddClasses(pEngine);
 	OVocabulary::AddClasses(pEngine);
 	OThread::AddClasses(pEngine);
+	OLock::AddClasses(pEngine);
 
 	mpClassMethods = pClassClassVocab->GetInterface(0)->GetMethods();
 }

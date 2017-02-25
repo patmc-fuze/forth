@@ -6184,17 +6184,17 @@ entry squishedLongType
 	jnz	longConstantNegative
 	; positive constant
 	and	ebx,00FFFFFFh
-	mov	[edx], ebx
-	xor	ebx, ebx
 	mov	[edx+4], ebx
+	xor	ebx, ebx
+	mov	[edx], ebx
 	jmp	edi
 
 longConstantNegative:
 	or	ebx, 0FF000000h
-	mov	[edx], ebx
+	mov	[edx+4], ebx
 	xor	ebx, ebx
 	sub	ebx, 1
-	mov	[edx+4], ebx
+	mov	[edx], ebx
 	jmp	edi
 	
 

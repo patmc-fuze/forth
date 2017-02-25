@@ -122,3 +122,8 @@ namespace OThread
 {
 	void AddClasses(ForthEngine* pEngine);
 }
+
+namespace OLock
+{
+	void AddClasses(ForthEngine* pEngine);
+}

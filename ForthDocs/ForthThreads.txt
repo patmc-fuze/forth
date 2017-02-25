@@ -158,6 +158,27 @@ o threads yielding the CPU until a specified event occurs
 o some notion of thread priority, so threads can specify that they should
   only run when the system is idle
 
+------------------------------------------------------------------------------
+February 2017
 
+Things to keep in mind:
 
+o support both asynchronous threads (1 system thread for each asynch thread) and synchronous threads (cooperative)
 
+o there need to be both sync and async lock mechanisms
+? are there any restrictions about type of thread using type of lock
+
+o deal with object lifetime issues - each async thread has its own heap, so an object must be
+destroyed in the same thread it was created in - delete due to reference count changes could make this easier to screw up
+
+New tentative plan:
+
+When forth starts up it creates:
+  a primary async thread like it currently does.
+  an async thread which does a blocking fgets on stdin
+  a sync thread which will process lines of text gotten by the async thread
+
+or maybe:
+  main program loop does the blocking fgets(stdin)
+  a primary async thread which runs all sync threads
+  a sync thread which processes lines of user input

@@ -275,7 +275,7 @@ public:
 
     long                LoadDLL( void );
     void                UnloadDLL( void );
-    long *              AddEntry( const char* pFuncName, long numArgs );
+	long *              AddEntry(const char* pFuncName, const char* pEntryName, long numArgs);
 	void				SetFlag( unsigned long flag );
 protected:
     char *              mpDLLName;
