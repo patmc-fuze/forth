@@ -4643,10 +4643,8 @@ entry endTupleBop
 
 entry hereBop
 	mov	eax, [ebp].FCore.DictionaryPtr
-	mov	eax, [eax].ForthMemorySection.pCurrent
-	sub	edx, 4
-	mov	[edx], eax
-	jmp	edi
+	lea	eax, [eax].ForthMemorySection.pCurrent
+	jmp	intEntry
 	
 ;========================================
 

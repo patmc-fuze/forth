@@ -23,6 +23,13 @@ extern "C" {
 	extern void illegalMethodOp(ForthCoreState *pCore);
 };
 
+static void ReportBadArrayIndex(const char* pWhere, int ix, int arraySize)
+{
+	char buff[64];
+	sprintf_s(buff, sizeof(buff), " in %s index:%d size:%d", pWhere, ix, arraySize);
+	ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, buff);
+}
+
 namespace OArray
 {
 
@@ -47,7 +54,6 @@ namespace OArray
 		GET_THIS(oArrayStruct, pArray);
 		oArray::iterator iter;
 		oArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		for (iter = a.begin(); iter != a.end(); ++iter)
 		{
 			ForthObject& o = *iter;
@@ -64,7 +70,6 @@ namespace OArray
 		GET_THIS(oArrayStruct, pArray);
 		oArray::iterator iter;
 		oArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		SHOW_OBJ_HEADER("OArray");
@@ -95,7 +100,6 @@ namespace OArray
 
 	FORTHOP(oArrayResizeMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oArrayStruct, pArray);
 		oArray& a = *(pArray->elements);
 		ulong newSize = SPOP;
@@ -128,7 +132,6 @@ namespace OArray
 
 	FORTHOP(oArrayLoadMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oArrayStruct, pArray);
 		oArray& a = *(pArray->elements);
 		ulong newSize = SPOP;
@@ -179,7 +182,6 @@ namespace OArray
 		GET_THIS(oArrayStruct, pArray);
 		oArray::iterator iter;
 		oArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 
 		MALLOCATE_OBJECT(oListStruct, pList);
 		pList->refCount = 0;
@@ -222,7 +224,6 @@ namespace OArray
 		GET_THIS(oArrayStruct, pArray);
 		oArray::iterator iter;
 		oArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		for (iter = a.begin(); iter != a.end(); ++iter)
 		{
 			ForthObject& o = *iter;
@@ -250,7 +251,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OArray:ref");
+			ReportBadArrayIndex("OArray:ref", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -270,7 +271,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OArray:unref");
+			ReportBadArrayIndex("OArray:unref", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -287,7 +288,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OArray:get");
+			ReportBadArrayIndex("OArray:get", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -307,7 +308,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OArray:set");
+			ReportBadArrayIndex("OArray:set", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -326,7 +327,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OArray:swap");
+			ReportBadArrayIndex("OArray:swap", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -376,7 +377,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadParameter, " pop of empty OArray");
+			GET_ENGINE->SetError(kForthErrorBadParameter, " pop of empty OArray");
 		}
 		METHOD_RETURN;
 	}
@@ -453,7 +454,6 @@ namespace OArray
 		GET_THIS(oArrayStruct, pArray);
 		oArray::iterator iter;
 		oArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		// bump reference counts of all valid elements in this array
 		for (iter = a.begin(); iter != a.end(); ++iter)
 		{
@@ -464,9 +464,14 @@ namespace OArray
 		MALLOCATE_OBJECT(oArrayStruct, pCloneArray);
 		pCloneArray->refCount = 0;
 		pCloneArray->elements = new oArray;
-		pCloneArray->elements->resize(a.size());
-		// copy this array contents to clone array
-		memcpy(&(pCloneArray->elements[0]), &(a[0]), a.size() << 3);
+		size_t numElements = a.size();
+		if (numElements != 0)
+		{
+			pCloneArray->elements->resize(numElements);
+			// copy this array contents to clone array
+			oArray& cloneElements = *(pCloneArray->elements);
+			memcpy(&(cloneElements[0]), &(a[0]), numElements << 3);
+		}
 		// push cloned array on TOS
 		PUSH_PAIR(GET_TPM, pCloneArray);
 		METHOD_RETURN;
@@ -477,7 +482,6 @@ namespace OArray
 		GET_THIS(oArrayStruct, pArray);
 
 		oArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ulong ix = (ulong)SPOP;
 		ulong oldSize = a.size();
 		if (oldSize >= ix)
@@ -496,8 +500,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine *pEngine = ForthEngine::GetInstance();
-			pEngine->SetError(kForthErrorBadParameter, " array index out of range");
+			ReportBadArrayIndex("OArray:insert", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -539,8 +542,7 @@ namespace OArray
 
 	FORTHOP(oArrayIterNew)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oArrayIter object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a oArrayIter object");
 	}
 
 	FORTHOP(oArrayIterDeleteMethod)
@@ -554,8 +556,8 @@ namespace OArray
 	FORTHOP(oArrayIterShowMethod)
 	{
 		EXIT_IF_OBJECT_ALREADY_SHOWN;
+		ForthEngine *pEngine = GET_ENGINE;
 		GET_THIS(oArrayIterStruct, pIter);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		oArrayStruct* pArray = reinterpret_cast<oArrayStruct *>(pIter->parent.pData);
 		oArray& a = *(pArray->elements);
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
@@ -676,6 +678,10 @@ namespace OArray
 			SAFE_RELEASE(pCore, o);
 			pArray->elements->erase(pArray->elements->begin() + pIter->cursor);
 		}
+		else
+		{
+			ReportBadArrayIndex("OArrayIter:remove", pIter->cursor, a.size());
+		}
 		METHOD_RETURN;
 	}
 
@@ -742,7 +748,6 @@ namespace OArray
 
 		oArrayStruct* pArray = reinterpret_cast<oArrayStruct *>(pIter->parent.pData);
 		oArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ulong ix = pIter->cursor;
 		ulong oldSize = a.size();
 		if (oldSize >= ix)
@@ -761,8 +766,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine *pEngine = ForthEngine::GetInstance();
-			pEngine->SetError(kForthErrorBadParameter, " array index out of range");
+			ReportBadArrayIndex("OArrayIter:insert", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -826,7 +830,6 @@ namespace OArray
 	FORTHOP(oByteArrayDeleteMethod)
 	{
 		GET_THIS(oByteArrayStruct, pArray);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		delete pArray->elements;
 		FREE_OBJECT(pArray);
 		METHOD_RETURN;
@@ -837,7 +840,7 @@ namespace OArray
 		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[8];
 		GET_THIS(oByteArrayStruct, pArray);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthEngine *pEngine = GET_ENGINE;
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		oByteArray& a = *(pArray->elements);
@@ -877,7 +880,6 @@ namespace OArray
 
 	FORTHOP(oByteArrayResizeMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oByteArrayStruct, pArray);
 		oByteArray& a = *(pArray->elements);
 		ulong newSize = SPOP;
@@ -897,7 +899,6 @@ namespace OArray
 		// go through all elements and release any which are not null
 		GET_THIS(oByteArrayStruct, pArray);
 		oByteArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		char* pElement = &(a[0]);
 		memset(pElement, 0, a.size());
 		METHOD_RETURN;
@@ -905,7 +906,6 @@ namespace OArray
 
 	FORTHOP(oByteArrayLoadMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oByteArrayStruct, pArray);
 		oByteArray& a = *(pArray->elements);
 		ulong newSize = SPOP;
@@ -939,7 +939,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OByteArray:ref");
+			ReportBadArrayIndex("OByteArray:ref", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -955,7 +955,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OByteArray:get");
+			ReportBadArrayIndex("OByteArray:get", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -971,7 +971,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OByteArray:set");
+			ReportBadArrayIndex("OByteArray:set", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -990,7 +990,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OByteArray:swap");
+			ReportBadArrayIndex("OByteArray:swap", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -1032,7 +1032,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadParameter, " pop of empty oByteArray");
+			GET_ENGINE->SetError(kForthErrorBadParameter, " pop of empty oByteArray");
 		}
 		METHOD_RETURN;
 	}
@@ -1106,16 +1106,17 @@ namespace OArray
 	{
 		GET_THIS(oByteArrayStruct, pArray);
 		oByteArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		// create clone array and set is size to match this array
 		MALLOCATE_OBJECT(oByteArrayStruct, pCloneArray);
 		pCloneArray->refCount = 0;
 		pCloneArray->elements = new oByteArray;
-		pCloneArray->elements->resize(a.size());
-		// copy this array contents to clone array
-		if (a.size() > 0)
+		size_t numElements = a.size();
+		if (numElements != 0)
 		{
-			memcpy(&(pCloneArray->elements[0]), &(a[0]), a.size());
+			pCloneArray->elements->resize(numElements);
+			// copy this array contents to clone array
+			oByteArray& cloneElements = *(pCloneArray->elements);
+			memcpy(&(cloneElements[0]), &(a[0]), numElements);
 		}
 		// push cloned array on TOS
 		PUSH_PAIR(GET_TPM, pCloneArray);
@@ -1163,12 +1164,11 @@ namespace OArray
 		GET_THIS(oByteArrayStruct, pArray);
 
 		oByteArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ulong ix = (ulong)SPOP;
 		ulong oldSize = a.size();
 		if (oldSize >= ix)
 		{
-            char insertedVal = (ulong)SPOP;
+            char insertedVal = (char)SPOP;
 			// add dummy element to end of array
 			a.resize(oldSize + 1);
 			if ((oldSize > 0) && (ix < oldSize))
@@ -1180,7 +1180,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OByteArray:insert");
+			ReportBadArrayIndex("OByteArray:insert", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -1198,7 +1198,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OByteArray:remove");
+			ReportBadArrayIndex("OByteArray:remove", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -1246,7 +1246,7 @@ namespace OArray
 
 	FORTHOP(oByteArrayIterNew)
 	{
-		ForthEngine::GetInstance()->SetError(kForthErrorException, " cannot explicitly create a oByteArrayIter object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a oByteArrayIter object");
 	}
 
 	FORTHOP(oByteArrayIterDeleteMethod)
@@ -1454,7 +1454,6 @@ namespace OArray
 	FORTHOP(oShortArrayDeleteMethod)
 	{
 		GET_THIS(oShortArrayStruct, pArray);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		delete pArray->elements;
 		FREE_OBJECT(pArray);
 		METHOD_RETURN;
@@ -1465,7 +1464,7 @@ namespace OArray
 		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[16];
 		GET_THIS(oShortArrayStruct, pArray);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthEngine *pEngine = GET_ENGINE;
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		oShortArray& a = *(pArray->elements);
@@ -1505,7 +1504,6 @@ namespace OArray
 
 	FORTHOP(oShortArrayResizeMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oShortArrayStruct, pArray);
 		oShortArray& a = *(pArray->elements);
 		ulong newSize = SPOP;
@@ -1525,7 +1523,6 @@ namespace OArray
 		// go through all elements and release any which are not null
 		GET_THIS(oShortArrayStruct, pArray);
 		oShortArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		short* pElement = &(a[0]);
 		memset(pElement, 0, (a.size() << 1));
 		METHOD_RETURN;
@@ -1533,7 +1530,6 @@ namespace OArray
 
 	FORTHOP(oShortArrayLoadMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oShortArrayStruct, pArray);
 		oShortArray& a = *(pArray->elements);
 		ulong newSize = SPOP;
@@ -1567,7 +1563,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OShortArray:ref");
+			ReportBadArrayIndex("OShortArray:ref", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -1583,7 +1579,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OShortArray:get");
+			ReportBadArrayIndex("OShortArray:get", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -1599,7 +1595,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OShortArray:set");
+			ReportBadArrayIndex("OShortArray:set", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -1618,7 +1614,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OShortArray:swap");
+			ReportBadArrayIndex("OShortArray:swap", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -1662,7 +1658,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadParameter, " pop of empty oShortArray");
+			GET_ENGINE->SetError(kForthErrorBadParameter, " pop of empty oShortArray");
 		}
 		METHOD_RETURN;
 	}
@@ -1736,14 +1732,18 @@ namespace OArray
 	{
 		GET_THIS(oShortArrayStruct, pArray);
 		oShortArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		// create clone array and set is size to match this array
 		MALLOCATE_OBJECT(oShortArrayStruct, pCloneArray);
 		pCloneArray->refCount = 0;
 		pCloneArray->elements = new oShortArray;
-		pCloneArray->elements->resize(a.size());
-		// copy this array contents to clone array
-		memcpy(&(pCloneArray->elements[0]), &(a[0]), a.size() << 1);
+		size_t numElements = a.size();
+		if (numElements != 0)
+		{
+			pCloneArray->elements->resize(numElements);
+			// copy this array contents to clone array
+			oShortArray& cloneElements = *(pCloneArray->elements);
+			memcpy(&(cloneElements[0]), &(a[0]), numElements << 1);
+		}
 		// push cloned array on TOS
 		PUSH_PAIR(GET_TPM, pCloneArray);
 		METHOD_RETURN;
@@ -1780,7 +1780,6 @@ namespace OArray
 		GET_THIS(oShortArrayStruct, pArray);
 
 		oShortArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ulong ix = (ulong)SPOP;
 		ulong oldSize = a.size();
 		if (oldSize >= ix)
@@ -1797,7 +1796,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OShortArray:insert");
+			ReportBadArrayIndex("OShortArray:insert", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -1815,7 +1814,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OShortArray:remove");
+			ReportBadArrayIndex("OShortArray:remove", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -1861,7 +1860,7 @@ namespace OArray
 
 	FORTHOP(oShortArrayIterNew)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthEngine *pEngine = GET_ENGINE;
 		pEngine->SetError(kForthErrorException, " cannot explicitly create a oShortArrayIter object");
 	}
 
@@ -2067,7 +2066,6 @@ namespace OArray
 	FORTHOP(oIntArrayDeleteMethod)
 	{
 		GET_THIS(oIntArrayStruct, pArray);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		delete pArray->elements;
 		FREE_OBJECT(pArray);
 		METHOD_RETURN;
@@ -2078,7 +2076,7 @@ namespace OArray
 		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[16];
 		GET_THIS(oIntArrayStruct, pArray);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthEngine *pEngine = GET_ENGINE;
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		oIntArray& a = *(pArray->elements);
@@ -2118,7 +2116,6 @@ namespace OArray
 
 	FORTHOP(oIntArrayResizeMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oIntArrayStruct, pArray);
 		oIntArray& a = *(pArray->elements);
 		ulong newSize = SPOP;
@@ -2138,7 +2135,6 @@ namespace OArray
 		// go through all elements and release any which are not null
 		GET_THIS(oIntArrayStruct, pArray);
 		oIntArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		int* pElement = &(a[0]);
 		memset(pElement, 0, (a.size() << 2));
 		METHOD_RETURN;
@@ -2146,7 +2142,6 @@ namespace OArray
 
 	FORTHOP(oIntArrayLoadMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oIntArrayStruct, pArray);
 		oIntArray& a = *(pArray->elements);
 		ulong newSize = SPOP;
@@ -2180,9 +2175,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OIntArray:ref");
-			ForthEngine *pEngine = ForthEngine::GetInstance();
-			pEngine->SetError(kForthErrorBadParameter, " array index out of range");
+			ReportBadArrayIndex("OIntArray:ref", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -2198,7 +2191,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OIntArray:get");
+			ReportBadArrayIndex("OIntArray:get", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -2214,7 +2207,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OIntArray:ref");
+			ReportBadArrayIndex("OIntArray:set", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -2233,7 +2226,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OIntArray:swap");
+			ReportBadArrayIndex("OIntArray:swap", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -2277,8 +2270,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine *pEngine = ForthEngine::GetInstance();
-			pEngine->SetError(kForthErrorBadParameter, " pop of empty oIntArray");
+			GET_ENGINE->SetError(kForthErrorBadParameter, " pop of empty oIntArray");
 		}
 		METHOD_RETURN;
 	}
@@ -2352,14 +2344,18 @@ namespace OArray
 	{
 		GET_THIS(oIntArrayStruct, pArray);
 		oIntArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		// create clone array and set is size to match this array
 		MALLOCATE_OBJECT(oIntArrayStruct, pCloneArray);
 		pCloneArray->refCount = 0;
 		pCloneArray->elements = new oIntArray;
-		pCloneArray->elements->resize(a.size());
-		// copy this array contents to clone array
-		memcpy(&(pCloneArray->elements[0]), &(a[0]), a.size() << 2);
+		size_t numElements = a.size();
+		if (numElements != 0)
+		{
+			pCloneArray->elements->resize(numElements);
+			// copy this array contents to clone array
+			oIntArray& cloneElements = *(pCloneArray->elements);
+			memcpy(&(cloneElements[0]), &(a[0]), numElements << 2);
+		}
 		// push cloned array on TOS
 		PUSH_PAIR(GET_TPM, pCloneArray);
 		METHOD_RETURN;
@@ -2395,7 +2391,6 @@ namespace OArray
 		GET_THIS(oIntArrayStruct, pArray);
 
 		oIntArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ulong ix = (ulong)SPOP;
 		ulong oldSize = a.size();
 		if (oldSize >= ix)
@@ -2412,7 +2407,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OIntArray:insert");
+			ReportBadArrayIndex("OIntArray:insert", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -2430,7 +2425,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OIntArray:remove");
+			ReportBadArrayIndex("OIntArray:remove", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -2477,8 +2472,7 @@ namespace OArray
 
 	FORTHOP(oIntArrayIterNew)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oIntArrayIter object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a oIntArrayIter object");
 	}
 
 	FORTHOP(oIntArrayIterDeleteMethod)
@@ -2659,7 +2653,7 @@ namespace OArray
 		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[32];
 		GET_THIS(oIntArrayStruct, pArray);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthEngine *pEngine = GET_ENGINE;
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		oIntArray& a = *(pArray->elements);
@@ -2740,7 +2734,6 @@ namespace OArray
 	FORTHOP(oLongArrayDeleteMethod)
 	{
 		GET_THIS(oLongArrayStruct, pArray);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		delete pArray->elements;
 		FREE_OBJECT(pArray);
 		METHOD_RETURN;
@@ -2751,7 +2744,7 @@ namespace OArray
 		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[32];
 		GET_THIS(oLongArrayStruct, pArray);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthEngine *pEngine = GET_ENGINE;
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		oLongArray& a = *(pArray->elements);
@@ -2791,7 +2784,6 @@ namespace OArray
 
 	FORTHOP(oLongArrayResizeMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oLongArrayStruct, pArray);
 		oLongArray& a = *(pArray->elements);
 		ulong newSize = SPOP;
@@ -2811,7 +2803,6 @@ namespace OArray
 		// go through all elements and release any which are not null
 		GET_THIS(oLongArrayStruct, pArray);
 		oLongArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		long long* pElement = &(a[0]);
 		memset(pElement, 0, (a.size() << 3));
 		METHOD_RETURN;
@@ -2819,7 +2810,6 @@ namespace OArray
 
 	FORTHOP(oLongArrayLoadMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oLongArrayStruct, pArray);
 		oLongArray& a = *(pArray->elements);
 		ulong newSize = SPOP;
@@ -2854,7 +2844,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OLongArray:ref");
+			ReportBadArrayIndex("OLongArray:ref", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -2872,7 +2862,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OLongArray:get");
+			ReportBadArrayIndex("OLongArray:get", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -2890,7 +2880,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OLongArray:ref");
+			ReportBadArrayIndex("OLongArray:set", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -2909,7 +2899,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OLongArray:swap");
+			ReportBadArrayIndex("OLongArray:swap", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -2957,8 +2947,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine *pEngine = ForthEngine::GetInstance();
-			pEngine->SetError(kForthErrorBadParameter, " pop of empty oLongArray");
+			GET_ENGINE->SetError(kForthErrorBadParameter, " pop of empty oLongArray");
 		}
 		METHOD_RETURN;
 	}
@@ -3034,14 +3023,18 @@ namespace OArray
 	{
 		GET_THIS(oLongArrayStruct, pArray);
 		oLongArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		// create clone array and set is size to match this array
 		MALLOCATE_OBJECT(oLongArrayStruct, pCloneArray);
 		pCloneArray->refCount = 0;
 		pCloneArray->elements = new oLongArray;
-		pCloneArray->elements->resize(a.size());
-		// copy this array contents to clone array
-		memcpy(&(pCloneArray->elements[0]), &(a[0]), a.size() << 3);
+		size_t numElements = a.size();
+		if (numElements != 0)
+		{
+			pCloneArray->elements->resize(numElements);
+			// copy this array contents to clone array
+			oLongArray& cloneElements = *(pCloneArray->elements);
+			memcpy(&(cloneElements[0]), &(a[0]), numElements << 3);
+		}
 		// push cloned array on TOS
 		PUSH_PAIR(GET_TPM, pCloneArray);
 		METHOD_RETURN;
@@ -3077,7 +3070,6 @@ namespace OArray
 		GET_THIS(oLongArrayStruct, pArray);
 
 		oLongArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ulong ix = (ulong)SPOP;
 		ulong oldSize = a.size();
 		if (oldSize >= ix)
@@ -3095,7 +3087,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OLongArray:insert");
+			ReportBadArrayIndex("OLongArray:insert", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -3115,7 +3107,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in OLongArray:remove");
+			ReportBadArrayIndex("OLongArray:remove", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -3161,8 +3153,7 @@ namespace OArray
 
 	FORTHOP(oLongArrayIterNew)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oLongArrayIter object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a oLongArrayIter object");
 	}
 
 	FORTHOP(oLongArrayIterDeleteMethod)
@@ -3374,7 +3365,6 @@ namespace OArray
 	FORTHOP(oDoubleArrayDeleteMethod)
 	{
 		GET_THIS(oDoubleArrayStruct, pArray);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		delete pArray->elements;
 		FREE_OBJECT(pArray);
 		METHOD_RETURN;
@@ -3385,7 +3375,7 @@ namespace OArray
 		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[32];
 		GET_THIS(oLongArrayStruct, pArray);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
+		ForthEngine *pEngine = GET_ENGINE;
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		oLongArray& a = *(pArray->elements);
@@ -3426,7 +3416,6 @@ namespace OArray
 
 	FORTHOP(oDoubleArrayLoadMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oDoubleArrayStruct, pArray);
 		oDoubleArray& a = *(pArray->elements);
 		ulong newSize = SPOP;
@@ -3453,7 +3442,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in ODoubleArray:get");
+			ReportBadArrayIndex("ODoubleArray:get", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -3470,7 +3459,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in ODoubleArray:set");
+			ReportBadArrayIndex("ODoubleArray:set", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -3514,7 +3503,7 @@ namespace OArray
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadParameter, " pop of empty oDoubleArray");
+			GET_ENGINE->SetError(kForthErrorBadParameter, " pop of empty oDoubleArray");
 		}
 		METHOD_RETURN;
 	}
@@ -3589,25 +3578,23 @@ namespace OArray
 		GET_THIS(oDoubleArrayStruct, pArray);
 
 		oDoubleArray& a = *(pArray->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ulong ix = (ulong)SPOP;
 		ulong oldSize = a.size();
 		if (oldSize >= ix)
 		{
-			stackInt64 a64;
-			LPOP(a64);
+			double dval = DPOP;
 			// add dummy element to end of array
 			a.resize(oldSize + 1);
 			if ((oldSize > 0) && (ix < oldSize))
 			{
 				// move old entries up by size of ForthObject
-				memmove(&(a[ix + 1]), &(a[ix]), sizeof(long long) * (oldSize - ix));
+				memmove(&(a[ix + 1]), &(a[ix]), sizeof(double) * (oldSize - ix));
 			}
-			a[ix] = a64.s64;
+			a[ix] = dval;
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in ODoubleArray:insert");
+			ReportBadArrayIndex("ODoubleArray:insert", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -3620,14 +3607,13 @@ namespace OArray
 		oDoubleArray& a = *(pArray->elements);
 		if (ix < a.size())
 		{
-			stackInt64 a64;
-			a64.s64 = a[ix];
-			LPUSH(a64);
+			double dval = a[ix];
+			DPUSH(dval);
 			a.erase(a.begin() + ix);
 		}
 		else
 		{
-			ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, " in ODoubleArray:remove");
+			ReportBadArrayIndex("ODoubleArray:remove", ix, a.size());
 		}
 		METHOD_RETURN;
 	}
@@ -3707,7 +3693,6 @@ namespace OArray
 	{
 		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oPairStruct, pPair);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		SHOW_OBJ_HEADER("OPair");
 		pShowContext->BeginIndent();
@@ -3830,8 +3815,7 @@ namespace OArray
 
 	FORTHOP(oPairIterNew)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oPairIter object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a oPairIter object");
 	}
 
 	FORTHOP(oPairIterDeleteMethod)
@@ -4021,7 +4005,6 @@ namespace OArray
 	{
 		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oTripleStruct, pTriple);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		SHOW_OBJ_HEADER("OTriple");
 		pShowContext->BeginIndent();
@@ -4170,8 +4153,7 @@ namespace OArray
 
 	FORTHOP(oTripleIterNew)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oTripleIter object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a oTripleIter object");
 	}
 
 	FORTHOP(oTripleIterDeleteMethod)

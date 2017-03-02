@@ -3914,6 +3914,7 @@ FORTHOP( srandOp )
     srand( (unsigned int) (SPOP) );
 }
 
+// Paul Hsieh's fast hash    http://www.azillionmonkeys.com/qed/hash.html
 #define get16bits(d) ((((unsigned long)(((const unsigned char *)(d))[1])) << 8)\
 						+(unsigned long)(((const unsigned char *)(d))[0]) )
 
@@ -3964,13 +3965,74 @@ SuperFastHash (const char * data, int len, unsigned long hash)
 }
 
 // data len hashIn ... hashOut
-FORTHOP( hashOp )
+FORTHOP( phHashContinueOp )
 {
     unsigned int hashVal = SPOP;
     int len = SPOP;
     const char* pData = (const char*) (SPOP);
     hashVal = SuperFastHash( pData, len, hashVal );
     SPUSH( hashVal );
+}
+
+// data len ... hashOut
+FORTHOP(phHashOp)
+{
+	unsigned int hashVal = 0;
+	int len = SPOP;
+	const char* pData = (const char*)(SPOP);
+	hashVal = SuperFastHash(pData, len, hashVal);
+	SPUSH(hashVal);
+}
+
+// Fowler/Noll/Vo hash from http://www.isthe.com/chongo/src/fnv/hash_32.c and http://www.isthe.com/chongo/src/fnv/fnv.h
+#define FNV_32_PRIME ((Fnv32_t)0x01000193)
+#define FNV1_32_INIT ((Fnv32_t)0x811c9dc5)
+typedef unsigned long Fnv32_t;
+
+Fnv32_t
+fnv_32_buf(const void *buf, size_t len, Fnv32_t hval)
+{
+	unsigned char *bp = (unsigned char *)buf;	/* start of buffer */
+	unsigned char *be = bp + len;		/* beyond end of buffer */
+
+	/*
+	* FNV-1 hash each octet in the buffer
+	*/
+	while (bp < be) {
+
+		/* multiply by the 32 bit FNV magic prime mod 2^32 */
+#if defined(NO_FNV_GCC_OPTIMIZATION)
+		hval *= FNV_32_PRIME;
+#else
+		hval += (hval << 1) + (hval << 4) + (hval << 7) + (hval << 8) + (hval << 24);
+#endif
+
+		/* xor the bottom with the current octet */
+		hval ^= (Fnv32_t)*bp++;
+	}
+
+	/* return our new hash value */
+	return hval;
+}
+
+// data len ... hashOut
+FORTHOP(fnvHashOp)
+{
+	unsigned int hashVal = FNV1_32_INIT;
+	int len = SPOP;
+	const char* pData = (const char*)(SPOP);
+	hashVal = fnv_32_buf(pData, len, hashVal);
+	SPUSH(hashVal);
+}
+
+// data len hashIn ... hashOut
+FORTHOP(fnvHashContinueOp)
+{
+	unsigned int hashVal = SPOP;
+	int len = SPOP;
+	const char* pData = (const char*)(SPOP);
+	hashVal = fnv_32_buf(pData, len, hashVal);
+	SPUSH(hashVal);
 }
 
 namespace
@@ -4088,16 +4150,52 @@ namespace
     int qsPartition( char* pData, qsInfo* pQS, int left, int right )
     {
         int elementSize = pQS->elementSize;
-        char* pLeft = pData + (pQS->elementSize * left) + pQS->offset;
-        char* pRight = pData + (pQS->elementSize * right) + pQS->offset;
+		int elementOffset = pQS->offset;
+        char* pLeft = pData + (pQS->elementSize * left) + elementOffset;
+		char* pRight = pData + (pQS->elementSize * right) + elementOffset;
+
         // pivot = pData[left]
         char* pivot = (char *)(pQS->temp);
         int compareSize = pQS->compareSize;
         memcpy( pivot, pLeft, compareSize );
 
-	    while ( true )
-	    {
-		    // while (a[left] < pivot) left++;
+#if 1
+		long long tmp;
+		left--;
+		pLeft -= elementSize;
+		right++;
+		pRight += elementSize;
+		while (true)
+		{
+			do
+			{
+				left++;
+				pLeft += elementSize;
+			} while (pQS->compare(pLeft, pivot, compareSize) < 0);
+
+			do
+			{
+				right--;
+				pRight -= elementSize;
+			} while (pQS->compare(pRight, pivot, compareSize) > 0);
+
+			if (left >= right)
+			{
+				return right;
+			}
+
+			// swap(a[left], a[right]);
+			char* pLeftBase = pLeft - elementOffset;
+			char* pRightBase = pRight - elementOffset;
+			memcpy(&tmp, pLeftBase, pQS->elementSize);
+			memcpy(pLeftBase, pRightBase, pQS->elementSize);
+			memcpy(pRightBase, &tmp, pQS->elementSize);
+		}
+#else
+		// this should be more efficient, but it doesn't actually work
+		while (true)
+		{
+			// while (a[left] < pivot) left++;
             while ( pQS->compare( pLeft, pivot, compareSize ) < 0 )
             {
                 left++;
@@ -4110,7 +4208,6 @@ namespace
                 right--;
                 pRight -= elementSize;
             }
-
             if ( pQS->compare( pLeft, pRight, compareSize ) == 0 )
             {
                 left++;
@@ -4128,15 +4225,17 @@ namespace
 			    return right;
 		    }
 	    }
-    }
+#endif
+	}
 
     void qsStep( void* pData, qsInfo* pQS, int left, int right )
     {
 	    if ( left < right )
 	    {
 		    int pivot = qsPartition( (char *) pData, pQS, left, right );
-		    qsStep( pData, pQS, left, (pivot-1) );
-		    qsStep( pData, pQS, (pivot+1), right );
+			//qsStep(pData, pQS, left, (pivot - 1));
+			qsStep(pData, pQS, left, (pivot));
+			qsStep(pData, pQS, (pivot + 1), right);
 	    }
     }
 
@@ -4153,7 +4252,6 @@ FORTHOP( qsortOp )
     qs.elementSize = SPOP;
     long numElements = SPOP;
     void* pArrayBase = (void *)(SPOP);
-
 	qs.temp = __MALLOC(qs.elementSize);
 
     switch ( CODE_TO_BASE_TYPE(compareType) )
@@ -4214,7 +4312,10 @@ FORTHOP( qsortOp )
         break;
 
     default:
-        break;
+		GET_ENGINE->SetError(kForthErrorBadParameter, " failure in qsort - unknown sort element type");
+		__FREE(qs.temp);
+		return;
+		break;
     }
 
     qsStep( pArrayBase, &qs, 0, (numElements - 1) );
@@ -8159,7 +8260,10 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     OP_DEF(    randOp,                 "rand" ),
     OP_DEF(    srandOp,                "srand" ),
-    OP_DEF(    hashOp,                 "hash" ),
+    OP_DEF(    phHashOp,               "phHash" ),
+    OP_DEF(    phHashContinueOp,       "phHashContinue" ),
+    OP_DEF(    fnvHashOp,              "fnvHash" ),
+    OP_DEF(    fnvHashContinueOp,      "fnvHashContinue" ),
     OP_DEF(    qsortOp,                "qsort" ),
     OP_DEF(    bsearchOp,              "bsearch" ),
 

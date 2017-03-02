@@ -277,6 +277,8 @@ ForthShowContext* ForthThread::GetShowContext()
 	}
 	return mpShowContext;
 }
+
+#if 0
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -397,34 +399,35 @@ int ForthThreadQueue::FindEarliest()
     }
     return result;
 }
+#endif
 
 namespace OThread
 {
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oThread
+	//                 oAsyncThread
 	//
 
-	struct oThreadStruct
+	struct oAsyncThreadStruct
 	{
 		ulong			refCount;
 		ForthThread		*pThread;
 	};
 
 	// TODO: add tracking of run state of thread - this should be done inside ForthThread, not here
-	FORTHOP(oThreadNew)
+	FORTHOP(oAsyncThreadNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct);
+		MALLOCATE_OBJECT(oAsyncThreadStruct, pThreadStruct);
 		pThreadStruct->refCount = 0;
 		pThreadStruct->pThread = NULL;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pThreadStruct);
 	}
 
-	FORTHOP(oThreadDeleteMethod)
+	FORTHOP(oAsyncThreadDeleteMethod)
 	{
-		GET_THIS(oThreadStruct, pThreadStruct);
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		if (pThreadStruct->pThread != NULL)
 		{
 			GET_ENGINE->DestroyThread(pThreadStruct->pThread);
@@ -434,9 +437,9 @@ namespace OThread
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadInitMethod)
+	FORTHOP(oAsyncThreadInitMethod)
 	{
-		GET_THIS(oThreadStruct, pThreadStruct);
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		ForthEngine* pEngine = GET_ENGINE;
 		if (pThreadStruct->pThread != NULL)
 		{
@@ -450,61 +453,61 @@ namespace OThread
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadStartMethod)
+	FORTHOP(oAsyncThreadStartMethod)
 	{
-		GET_THIS(oThreadStruct, pThreadStruct);
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		long result = pThreadStruct->pThread->Start();
 		SPUSH(result);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadExitMethod)
+	FORTHOP(oAsyncThreadExitMethod)
 	{
-		GET_THIS(oThreadStruct, pThreadStruct);
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->Exit();
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadPushMethod)
+	FORTHOP(oAsyncThreadPushMethod)
 	{
-		GET_THIS(oThreadStruct, pThreadStruct);
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->Push(SPOP);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadPopMethod)
+	FORTHOP(oAsyncThreadPopMethod)
 	{
-		GET_THIS(oThreadStruct, pThreadStruct);
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		long val = pThreadStruct->pThread->Pop();
 		SPUSH(val);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadRPushMethod)
+	FORTHOP(oAsyncThreadRPushMethod)
 	{
-		GET_THIS(oThreadStruct, pThreadStruct);
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->RPush(SPOP);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadRPopMethod)
+	FORTHOP(oAsyncThreadRPopMethod)
 	{
-		GET_THIS(oThreadStruct, pThreadStruct);
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		long val = pThreadStruct->pThread->RPop();
 		SPUSH(val);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadGetStateMethod)
+	FORTHOP(oAsyncThreadGetStateMethod)
 	{
-		GET_THIS(oThreadStruct, pThreadStruct);
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		SPUSH((long)(pThreadStruct->pThread->GetCore()));
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadStepMethod)
+	FORTHOP(oAsyncThreadStepMethod)
 	{
-		GET_THIS(oThreadStruct, pThreadStruct);
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		ForthThread* pThread = pThreadStruct->pThread;
 		ForthCoreState* pThreadCore = pThread->GetCore();
 		long op = *(pThreadCore->IP)++;
@@ -528,35 +531,35 @@ namespace OThread
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadResetMethod)
+	FORTHOP(oAsyncThreadResetMethod)
 	{
-		GET_THIS(oThreadStruct, pThreadStruct);
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->Reset();
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadResetIPMethod)
+	FORTHOP(oAsyncThreadResetIPMethod)
 	{
-		GET_THIS(oThreadStruct, pThreadStruct);
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->ResetIP();
 		METHOD_RETURN;
 	}
 
-	baseMethodEntry oThreadMembers[] =
+	baseMethodEntry oAsyncThreadMembers[] =
 	{
-		METHOD("__newOp", oThreadNew),
-		METHOD("delete", oThreadDeleteMethod),
-		METHOD("init", oThreadInitMethod),
-		METHOD_RET("start", oThreadStartMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD("exit", oThreadExitMethod),
-		METHOD("push", oThreadPushMethod),
-		METHOD_RET("pop", oThreadPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD("rpush", oThreadRPushMethod),
-		METHOD_RET("rpop", oThreadRPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD_RET("getState", oThreadGetStateMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD_RET("step", oThreadStepMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD("reset", oThreadResetMethod),
-		METHOD("resetIP", oThreadResetIPMethod),
+		METHOD("__newOp", oAsyncThreadNew),
+		METHOD("delete", oAsyncThreadDeleteMethod),
+		METHOD("init", oAsyncThreadInitMethod),
+		METHOD_RET("start", oAsyncThreadStartMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD("exit", oAsyncThreadExitMethod),
+		METHOD("push", oAsyncThreadPushMethod),
+		METHOD_RET("pop", oAsyncThreadPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD("rpush", oAsyncThreadRPushMethod),
+		METHOD_RET("rpop", oAsyncThreadRPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("getState", oAsyncThreadGetStateMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("step", oAsyncThreadStepMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD("reset", oAsyncThreadResetMethod),
+		METHOD("resetIP", oAsyncThreadResetIPMethod),
 
 		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
@@ -567,7 +570,7 @@ namespace OThread
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass("OThread", kBCIThread, kBCIObject, oThreadMembers);
+		ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass("OThread", kBCIThread, kBCIObject, oAsyncThreadMembers);
 	}
 
 } // namespace OThread
@@ -579,7 +582,7 @@ namespace OLock
 	//                 OLock
 	//
 
-	struct oLockStruct
+	struct oAsyncLockStruct
 	{
 		ulong			refCount;
 #ifdef WIN32
@@ -588,20 +591,20 @@ namespace OLock
 #endif
 	};
 
-	FORTHOP(oLockNew)
+	FORTHOP(oAsyncLockNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oLockStruct, pLockStruct);
+		MALLOCATE_OBJECT(oAsyncLockStruct, pLockStruct);
 		pLockStruct->refCount = 0;
 		pLockStruct->pLock = new CRITICAL_SECTION();
 		InitializeCriticalSection(pLockStruct->pLock);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pLockStruct);
 	}
 
-	FORTHOP(oLockDeleteMethod)
+	FORTHOP(oAsyncLockDeleteMethod)
 	{
-		GET_THIS(oLockStruct, pLockStruct);
+		GET_THIS(oAsyncLockStruct, pLockStruct);
 		if (pLockStruct->pLock != NULL)
 		{
 			DeleteCriticalSection(pLockStruct->pLock);
@@ -611,35 +614,35 @@ namespace OLock
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oLockGrabMethod)
+	FORTHOP(oAsyncLockGrabMethod)
 	{
-		GET_THIS(oLockStruct, pLockStruct);
+		GET_THIS(oAsyncLockStruct, pLockStruct);
 		EnterCriticalSection(pLockStruct->pLock);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oLockTryGrabMethod)
+	FORTHOP(oAsyncLockTryGrabMethod)
 	{
-		GET_THIS(oLockStruct, pLockStruct);
+		GET_THIS(oAsyncLockStruct, pLockStruct);
 		BOOL result = TryEnterCriticalSection(pLockStruct->pLock);
 		SPUSH((int)result);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oLockUngrabMethod)
+	FORTHOP(oAsyncLockUngrabMethod)
 	{
-		GET_THIS(oLockStruct, pLockStruct);
+		GET_THIS(oAsyncLockStruct, pLockStruct);
 		LeaveCriticalSection(pLockStruct->pLock);
 		METHOD_RETURN;
 	}
 
-	baseMethodEntry oLockMembers[] =
+	baseMethodEntry oAsyncLockMembers[] =
 	{
-		METHOD("__newOp", oLockNew),
-		METHOD("delete", oLockDeleteMethod),
-		METHOD("grab", oLockGrabMethod),
-		METHOD_RET("tryGrab", oLockTryGrabMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD("ungrab", oLockUngrabMethod),
+		METHOD("__newOp", oAsyncLockNew),
+		METHOD("delete", oAsyncLockDeleteMethod),
+		METHOD("grab", oAsyncLockGrabMethod),
+		METHOD_RET("tryGrab", oAsyncLockTryGrabMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD("ungrab", oAsyncLockUngrabMethod),
 
 		// following must be last in table
 		END_MEMBERS
@@ -648,7 +651,7 @@ namespace OLock
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		ForthClassVocabulary* pOLock = pEngine->AddBuiltinClass("OLock", kBCILock, kBCIObject, oLockMembers);
+		ForthClassVocabulary* pOLock = pEngine->AddBuiltinClass("OLock", kBCILock, kBCIObject, oAsyncLockMembers);
 	}
 
 } // namespace OLock

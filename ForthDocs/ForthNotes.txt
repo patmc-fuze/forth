@@ -173,12 +173,28 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 1 2017
+
+I added a bunch of methods to the array classes.
+I've started thinking about threads again.  My new leaning is to change the
+name of ForthThread to ForthAsyncThread, but leave it comparatively unchanged.
+I'll add a new ForthThread, which is a soft thread that does cooperative
+thread switching.  ForthThreads are created under a ForthAsyncThread, and are
+only run when that asyncThread runs its soft thread manager.
+
+The existing main thread will be unmodified, there will be a background async
+thread, and there will be a way to create soft threads that will run under the
+background thread.
+
+The existing untested OLock class will be changed to OAsyncLock and a soft OLock
+class will be added.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 January 31 2017
 
 For some reason, the ;m alias wasn't working - its dictionary entry had 0xFEEEFEEE
 in it.  I rearranged forth_autoload.txt so that dump was defined before alias so
-that I could dump the dictionary info while creating the alias, but that the problem
-disappear.  Ugh.
+that I could dump the dictionary info while creating the alias, but that made
+the problem disappear.  Ugh.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 24 2016
 

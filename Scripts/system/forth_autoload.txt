@@ -305,7 +305,7 @@ addHelp	ds	ds			dump stack
 
 addHelp $hash   STRING_ADDR $hash     return hash of string
 : $hash
-  strlen( dup ) 0 hash
+  strlen( dup ) phHash
 ;
 
 addHelp cd	cd BLAH			change working directory to BLAH

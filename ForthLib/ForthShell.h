@@ -214,8 +214,10 @@ protected:
     HANDLE                  mConsoleInputEvent;
 #endif
 	char					mWorkingDirPath[MAX_PATH + 1];
-    ForthThreadQueue*       mpReadyThreads;
+#if 0
+	ForthThreadQueue*       mpReadyThreads;
     ForthThreadQueue*       mpSleepingThreads;
+#endif
 
     struct sInternalFile
     {

@@ -88,6 +88,7 @@ protected:
     ulong               mThreadId;
 };
 
+#if 0
 class ForthThreadQueue
 {
 public:
@@ -117,6 +118,7 @@ protected:
     int             mCount;
     int             mSize;
 };
+#endif
 
 namespace OThread
 {
