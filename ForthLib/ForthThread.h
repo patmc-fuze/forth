@@ -47,9 +47,6 @@ public:
     inline void         RPush( long value ) { *--mCore.RP = value; };
     inline long         RPop() { return *mCore.RP++; };
 
-    long                Start();
-    void                Exit();
-
 	void				Run();
 
     inline ulong        WakeupTime() { return mWakeupTime; };
@@ -78,47 +75,27 @@ protected:
     ForthCoreState      mCore;
     long                mOps[2];
     unsigned long       mWakeupTime;
-#ifdef LINUX
-    int                 mHandle;
-    pthread_t           mThread;
-    int					mExitStatus;
-#else
-    HANDLE              mHandle;
-#endif
     ulong               mThreadId;
 };
 
-#if 0
-class ForthThreadQueue
+class ForthAsyncThread : public ForthThread
 {
 public:
-    ForthThreadQueue( int initialSize=16 );
-    ~ForthThreadQueue();
+	ForthAsyncThread(ForthEngine *pEngine, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_PSTACK_SIZE);
+	virtual ~ForthAsyncThread();
 
-    void                AddThread( ForthThread* pThread );
-
-    // how many threads are in queue
-    int                 Count();
-
-    // returns NULL if queue is empty
-    ForthThread*        RemoveThread();
-
-    // returns NULL if index is out of range
-    ForthThread*        RemoveThread( int index );
-
-    // returns NULL if index is out of range
-    ForthThread*        GetThread( int index );
-
-    // returns -1 if queue is empty
-    int                 FindEarliest();
+	long                Start();
+	void                Exit();
 
 protected:
-    ForthThread**   mQueue;
-    int             mFirst;
-    int             mCount;
-    int             mSize;
-};
+#ifdef LINUX
+	int                 mHandle;
+	pthread_t           mThread;
+	int					mExitStatus;
+#else
+	HANDLE              mHandle;
 #endif
+};
 
 namespace OThread
 {

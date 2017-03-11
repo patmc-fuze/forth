@@ -93,6 +93,19 @@ namespace OList
 		METHOD_RETURN;
 	}
 
+	FORTHOP(oListIsEmptyMethod)
+	{
+		GET_THIS(oListStruct, pList);
+		int result = 0;
+		if (pList->head == NULL)
+		{
+			ASSERT(pList->tail == NULL);
+			result = ~0;
+		}
+		SPUSH(result);
+		METHOD_RETURN;
+	}
+
 	FORTHOP(oListHeadMethod)
 	{
 		GET_THIS(oListStruct, pList);
@@ -173,12 +186,7 @@ namespace OList
 	{
 		GET_THIS(oListStruct, pList);
 		oListElement* oldHead = pList->head;
-		if (oldHead == NULL)
-		{
-			ASSERT(pList->tail == NULL);
-			PUSH_PAIR(NULL, NULL);
-		}
-		else
+		if (oldHead != NULL)
 		{
 			ForthObject& obj = oldHead->obj;
 			if (oldHead == pList->tail)
@@ -205,12 +213,7 @@ namespace OList
 	{
 		GET_THIS(oListStruct, pList);
 		oListElement* oldTail = pList->tail;
-		if (oldTail == NULL)
-		{
-			ASSERT(pList->head == NULL);
-			PUSH_PAIR(NULL, NULL);
-		}
-		else
+		if (oldTail != NULL)
 		{
 			ForthObject& obj = oldTail->obj;
 			if (pList->head == oldTail)
@@ -564,6 +567,7 @@ namespace OList
 		METHOD("load", oListLoadMethod),
 		METHOD_RET("toArray", oListToArrayMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArray)),
 
+		METHOD_RET("isEmpty", oListIsEmptyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("head", oListHeadMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 		METHOD_RET("tail", oListTailMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 		METHOD("addHead", oListAddHeadMethod),

@@ -284,8 +284,6 @@ ForthEngine::ForthEngine()
 
 ForthEngine::~ForthEngine()
 {
-    ForthThread *pNextThread;
-
     if ( mpExtension != NULL )
     {
         mpExtension->Shutdown();
@@ -325,12 +323,14 @@ ForthEngine::~ForthEngine()
     }
 
     // delete all threads;
-    while ( mpThreads != NULL )
+	ForthThread *pThread = mpThreads->mpNext;
+	while (pThread != NULL)
     {
-        pNextThread = mpThreads->mpNext;
-        delete mpThreads;
-        mpThreads = pNextThread;
+		ForthThread *pNextThread = pThread->mpNext;
+		delete pThread;
+		pThread = pNextThread;
     }
+	mpThreads = nullptr;
     delete mpEngineScratch;
 
     delete mpVocabStack;
@@ -766,10 +766,10 @@ ForthEngine::ShowSearchInfo()
 	ForthConsoleCharOut(mpCore, '\n');
 }
 
-ForthThread *
+ForthAsyncThread *
 ForthEngine::CreateThread( long threadOp, int paramStackSize, int returnStackSize )
 {
-    ForthThread *pNewThread = new ForthThread( this, paramStackSize, returnStackSize );
+	ForthAsyncThread *pNewThread = new ForthAsyncThread(this, paramStackSize, returnStackSize);
     pNewThread->SetOp( threadOp );
 
     pNewThread->mCore.pEngine = this;
@@ -795,15 +795,15 @@ ForthEngine::CreateThread( long threadOp, int paramStackSize, int returnStackSiz
 
 
 void
-ForthEngine::DestroyThread( ForthThread *pThread )
+ForthEngine::DestroyThread(ForthAsyncThread *pThread)
 {
-    ForthThread *pNext, *pCurrent;
+	ForthAsyncThread *pNext, *pCurrent;
 
     if ( mpThreads == pThread )
     {
 
         // special case - thread is head of list
-        mpThreads = mpThreads->mpNext;
+		mpThreads = (ForthAsyncThread *)(mpThreads->mpNext);
         delete pThread;
 
     }
@@ -814,7 +814,7 @@ ForthEngine::DestroyThread( ForthThread *pThread )
         pCurrent = mpThreads;
         while ( pCurrent != NULL )
         {
-            pNext = pCurrent->mpNext;
+			pNext = (ForthAsyncThread *)(pCurrent->mpNext);
             if ( pThread == pNext )
             {
                 pCurrent->mpNext = pNext->mpNext;

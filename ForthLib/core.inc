@@ -9,6 +9,7 @@ kVarRef				EQU		2t
 kVarStore			EQU		3t
 kVarPlusStore		EQU		4t
 kVarMinusStore		EQU		5t
+kVarObjectClear		EQU		6t
 
 kResultOk				EQU		0t
 kResultDone				EQU		1t

@@ -505,6 +505,90 @@ namespace OArray
 		METHOD_RETURN;
 	}
 
+	int objectArrayQuicksortPartition(ForthCoreState* pCore, ForthObject* pData, int left, int right)
+	{
+		ForthObject* pLeft = pData + left;
+		ForthObject* pRight = pData + right;
+		ForthObject pivot = *pLeft;
+		ForthObject tmp;
+		int compareResult;
+		ForthEngine* pEngine = ForthEngine::GetInstance();
+
+		left--;
+		pLeft--;
+		right++;
+		pRight++;
+		while (true)
+		{
+			do
+			{
+				left++;
+				pLeft++;
+				PUSH_OBJECT(pivot);
+				pEngine->ExecuteOneMethod(pCore, *pLeft, kOMCompare);
+				compareResult = SPOP;
+			} while (compareResult < 0);
+
+			do
+			{
+				right--;
+				pRight--;
+				PUSH_OBJECT(pivot);
+				pEngine->ExecuteOneMethod(pCore, *pRight, kOMCompare);
+				compareResult = SPOP;
+			} while (compareResult > 0);
+
+			if (left >= right)
+			{
+				return right;
+			}
+
+			// swap(a[left], a[right]);
+			tmp = *pLeft;
+			*pLeft = *pRight;
+			*pRight = tmp;
+		}
+	}
+
+	void objectArrayQuicksortStep(ForthCoreState* pCore, ForthObject* pData, int left, int right)
+	{
+		if (left < right)
+		{
+			int pivot = objectArrayQuicksortPartition(pCore, pData, left, right);
+			objectArrayQuicksortStep(pCore, pData, left, pivot);
+			objectArrayQuicksortStep(pCore, pData, pivot + 1, right);
+		}
+	}
+
+	FORTHOP(oArraySortMethod)
+	{
+		GET_THIS(oArrayStruct, pArray);
+		oArray::iterator iter;
+		oArray& a = *(pArray->elements);
+		if (a.size() > 1)
+		{
+			objectArrayQuicksortStep(pCore, &(a[0]), 0, a.size() - 1);
+		}
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oArrayReverseMethod)
+	{
+		GET_THIS(oArrayStruct, pArray);
+		oArray& a = *(pArray->elements);
+		int i = 0;
+		int j = a.size() - 1;
+		while (i < j)
+		{
+			ForthObject tmp = a[i];
+			a[i] = a[j];
+			a[j] = tmp;
+			++i;
+			--j;
+		}
+		METHOD_RETURN;
+	}
+
 	baseMethodEntry oArrayMembers[] =
 	{
 		METHOD("__newOp", oArrayNew),
@@ -529,6 +613,8 @@ namespace OArray
 		METHOD("push", oArrayPushMethod),
 		METHOD("popUnref", oArrayPopUnrefMethod),
 		METHOD("insert", oArrayInsertMethod),
+		METHOD("sort", oArraySortMethod),
+		METHOD("reverse", oArrayReverseMethod),
 
 		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 		// following must be last in table

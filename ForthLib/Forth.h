@@ -187,6 +187,7 @@ typedef enum {
     kVarStore,
     kVarPlusStore,
     kVarMinusStore,
+	kVarObjectClear,
     kNumVarops
 } varOperation;
 
@@ -383,7 +384,7 @@ enum {
 	OP_DO_OBJECT_ARRAY,
 	OP_INIT_STRING,
 	OP_PLUS,
-	OP_FETCH,
+	OP_IFETCH,
 	OP_DO_STRUCT,
 	OP_DO_STRUCT_ARRAY,
 	OP_DO_DO,
@@ -395,6 +396,7 @@ enum {
 	OP_INTO,
 	OP_INTO_PLUS,
 	OP_INTO_MINUS,
+	OP_OCLEAR,
 	OP_DO_CHECKDO,
 
 	OP_DO_VOCAB,
@@ -406,9 +408,9 @@ enum {
 	OP_DO_CLASS_TYPE,
 	OP_DO_ENUM,
 	OP_DO_NEW,
-	OP_ALLOC_OBJECT,
 
-	OP_SUPER,		// 0x40
+	OP_ALLOC_OBJECT, 		// 0x40
+	OP_SUPER,
 	OP_END_BUILDS,
     OP_COMPILE,
 	OP_INIT_STRUCT_ARRAY,

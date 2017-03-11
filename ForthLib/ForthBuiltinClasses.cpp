@@ -171,8 +171,10 @@ namespace
 
 	FORTHOP(objectCompareMethod)
 	{
+		ForthObject obj;
 		long thisVal = (long)(GET_TPD);
-		long thatVal = SPOP;
+		POP_OBJECT(obj);
+		long thatVal = (long)(obj.pData);
 		long result = 0;
 		if (thisVal != thatVal)
 		{

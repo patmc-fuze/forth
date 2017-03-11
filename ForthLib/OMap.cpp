@@ -1345,7 +1345,7 @@ namespace OMap
 				break;
 			}
 		}
-		SPUSH(retVal);
+		FPUSH(retVal);
 		SPUSH(found);
 		METHOD_RETURN;
 	}

@@ -182,12 +182,24 @@ I'll add a new ForthThread, which is a soft thread that does cooperative
 thread switching.  ForthThreads are created under a ForthAsyncThread, and are
 only run when that asyncThread runs its soft thread manager.
 
-The existing main thread will be unmodified, there will be a background async
+The existing main thread will be unmodified, there may be a background async
 thread, and there will be a way to create soft threads that will run under the
 background thread.
 
 The existing untested OLock class will be changed to OAsyncLock and a soft OLock
 class will be added.
+
+The soft thread manager has
+  a ready thread list
+  a sleeping thread list
+  a runThreads method which will
+    move any sleeping threads which are past their wakeup time to the ready list
+	run the next thread in the ready thread list
+
+When code in a soft thread tries to get a soft lock and fails, it is removed from the ready thread list
+and is put on a queue waiting for that lock.
+? what if an async thread fails to get a soft lock
+
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 January 31 2017
 

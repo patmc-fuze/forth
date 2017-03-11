@@ -4722,13 +4722,13 @@ FORTHOP( createThreadOp )
     long threadOp  = SPOP;
     int returnStackSize = (int)(SPOP);
     int paramStackSize = (int)(SPOP);
-    ForthThread* pThread = GET_ENGINE->CreateThread( threadOp, paramStackSize, returnStackSize );
+	ForthAsyncThread* pThread = GET_ENGINE->CreateThread(threadOp, paramStackSize, returnStackSize);
     SPUSH( (long) pThread );
 }
 
 FORTHOP( destroyThreadOp )
 {
-    ForthThread* pThread = (ForthThread*)(SPOP);
+	ForthAsyncThread* pThread = (ForthAsyncThread*)(SPOP);
     GET_ENGINE->DestroyThread( pThread );
 }
 
@@ -4760,14 +4760,14 @@ FORTHOP( stepThreadOp )
 
 FORTHOP( startThreadOp )
 {
-    ForthThread* pThread = (ForthThread*)(SPOP);
+	ForthAsyncThread* pThread = (ForthAsyncThread*)(SPOP);
     long result = pThread->Start();
     SPUSH( result );
 }
 
 FORTHOP( exitThreadOp )
 {
-    ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	ForthAsyncThread* pThread = (ForthAsyncThread*)(pCore->pThread);
     pThread->Exit();
 }
 
@@ -6723,7 +6723,7 @@ FORTHOP(npickBop)
 // loads & stores
 //
 
-FORTHOP(storeBop)
+FORTHOP(istoreBop)
 {
     NEEDS(2);
     long *pB = (long *)(SPOP); 
@@ -6731,7 +6731,7 @@ FORTHOP(storeBop)
     *pB = a;
 }
 
-FORTHOP(fetchBop)
+FORTHOP(ifetchBop)
 {
     NEEDS(1);
     long *pA = (long *)(SPOP); 
@@ -6998,6 +6998,11 @@ FORTHOP(fillBop)
     size_t nBytes = (size_t) (SPOP);
     void* pDst = (void *) (SPOP);
     memset( pDst, byteVal, nBytes );
+}
+
+FORTHOP(fetchBop)
+{
+	SET_VAR_OPERATION( kVarFetch );
 }
 
 FORTHOP(intoBop)
@@ -7412,8 +7417,7 @@ FORTHOP( archX86Bop )
 
 FORTHOP( oclearBop )
 {
-    SET_VAR_OPERATION( kVarStore );
-	DPUSH( 0L );
+	SET_VAR_OPERATION( kVarObjectClear );
 }
 
 #endif
@@ -7483,9 +7487,9 @@ OPREF( doUShortArrayBop );  OPREF( doIntArrayBop );     OPREF( doIntArrayBop );
 OPREF( doLongArrayBop );    OPREF( doLongArrayBop );    OPREF( doFloatArrayBop );
 OPREF( doDoubleArrayBop );  OPREF( doStringArrayBop );  OPREF( doOpArrayBop );
 OPREF( doObjectArrayBop );  OPREF( initStringBop );     OPREF( plusBop );
-OPREF( strFixupBop );
+OPREF( strFixupBop );       OPREF( fetchBop );
 
-OPREF( fetchBop );          OPREF( doStructBop );       OPREF( doStructArrayBop );
+OPREF( ifetchBop );          OPREF( doStructBop );       OPREF( doStructArrayBop );
 OPREF( doDoBop );           OPREF( doLoopBop );         OPREF( doLoopNBop );
 //OPREF( ofetchBop );          OPREF( doCheckDoBop );
 OPREF( dfetchBop );         OPREF( doCheckDoBop );
@@ -7627,7 +7631,7 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     NATIVE_COMPILED_DEF(    doObjectArrayBop,        "_doObjectArray",	OP_DO_OBJECT_ARRAY ),
 	NATIVE_COMPILED_DEF(    initStringBop,           "initString",		OP_INIT_STRING ),
     NATIVE_COMPILED_DEF(    plusBop,                 "+",				OP_PLUS ),				// 44
-    NATIVE_COMPILED_DEF(    fetchBop,                "@",				OP_FETCH ),
+    NATIVE_COMPILED_DEF(    ifetchBop,               "@",				OP_IFETCH ),
     NATIVE_COMPILED_DEF(    doStructBop,             "_doStruct",		OP_DO_STRUCT ),
     NATIVE_COMPILED_DEF(    doStructArrayBop,        "_doStructArray",	OP_DO_STRUCT_ARRAY ),	// 48
     NATIVE_COMPILED_DEF(    doDoBop,                 "_do",				OP_DO_DO ),				// 52
@@ -7636,10 +7640,11 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     //NATIVE_COMPILED_DEF(    ofetchBop,               "o@",				OP_OFETCH ),				// 56
     NATIVE_COMPILED_DEF(    dfetchBop,               "2@",				OP_OFETCH ),				// 56
     // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
-    NATIVE_COMPILED_DEF(    refBop,            "ref",				OP_REF ),
+    NATIVE_COMPILED_DEF(    refBop,                  "ref",				OP_REF ),
 	NATIVE_COMPILED_DEF(    intoBop,                 "->",				OP_INTO ),				// 59
     NATIVE_COMPILED_DEF(    addToBop,                "->+",				OP_INTO_PLUS ),
     NATIVE_COMPILED_DEF(    subtractFromBop,         "->-",				OP_INTO_MINUS ),
+    NATIVE_COMPILED_DEF(    oclearBop,               "oclear",          OP_OCLEAR ),
 	NATIVE_COMPILED_DEF(    doCheckDoBop,            "_?do",			OP_DO_CHECKDO ),
 
 	OP_COMPILED_DEF(		doVocabOp,              "_doVocab",			OP_DO_VOCAB ),
@@ -7677,6 +7682,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    unloopBop,               "unloop" ),
     NATIVE_DEF(    leaveBop,                "leave" ),
     NATIVE_DEF(    hereBop,                 "here" ),
+    NATIVE_DEF(    fetchBop,                "fetch" ),
 
 	// object varActions
     NATIVE_DEF(    subtractFromBop,         "unref" ),
@@ -7944,7 +7950,6 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    stringVarActionBop,      "stringVarAction" ),
     NATIVE_DEF(    opVarActionBop,          "opVarAction" ),
     NATIVE_DEF(    objectVarActionBop,      "objectVarAction" ),
-    NATIVE_DEF(    oclearBop,               "oclear" ),
 
     ///////////////////////////////////////////
     //  string manipulation

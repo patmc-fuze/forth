@@ -2011,6 +2011,7 @@ localObjectStore:
 	; TOS is new object, eax points to destination/old object
 	xor	ebx, ebx			; set var operation back to default/fetch
 	mov	[ebp].FCore.varMode, ebx
+los0:
 	mov ecx, eax		; ecx -> destination
 	mov eax, [edx+4]	; eax = newObj data
 	mov ebx, [ecx+4]	; ebx = olbObj data
@@ -2070,6 +2071,17 @@ los3:
 	; execute the delete method opcode which is in ebx
 	jmp	interpLoopExecuteEntry
 
+localObjectClear:
+	; TOS is new object, eax points to destination/old object
+	xor	ebx, ebx			; set var operation back to default/fetch
+	mov	[ebp].FCore.varMode, ebx
+	sub	edx, 8
+	mov [edx], ebx
+	mov [edx+4], ebx
+	; for now, do the clear operation by pushing dnull on TOS then doing a regular object store
+	; later on optimize it since we know source is a dnull
+	jmp	los0
+
 ; store object on TOS in variable pointed to by eax
 ; do not adjust reference counts of old object or new object
 localObjectStoreNoRef:
@@ -2123,9 +2135,10 @@ localObjectActionTable:
 	DD	FLAT:localObjectStore
 	DD	FLAT:localObjectStoreNoRef
 	DD	FLAT:localObjectUnref
+	DD	FLAT:localObjectClear
 
 localObject1:
-	cmp	ebx, kVarMinusStore
+	cmp	ebx, kVarObjectClear
 	jg	badVarOperation
 	; dispatch based on value in ebx
 	mov	ebx, DWORD PTR localObjectActionTable[ebx*4]
@@ -4084,11 +4097,6 @@ entry nullBop
 	
 ;========================================
 
-entry oclearBop
-	mov	eax, kVarStore
-	mov	[ebp].FCore.varMode, eax
-	; fall thru to dnull
-		
 entry dnullBop
 	xor	eax, eax
 	sub	edx, 8
@@ -4657,7 +4665,7 @@ entry storeBop
 	
 ;========================================
 
-entry fetchBop
+entry ifetchBop
 	mov	eax, [edx]
 	mov	ebx, [eax]
 	mov	[edx], ebx
@@ -4943,6 +4951,13 @@ entry fillBop
 
 ;========================================
 
+entry fetchBop
+	mov	eax, kVarFetch
+	mov	[ebp].FCore.varMode, eax
+	jmp	edi
+	
+;========================================
+
 entry intoBop
 	mov	eax, kVarStore
 	mov	[ebp].FCore.varMode, eax
@@ -4962,6 +4977,13 @@ entry subtractFromBop
 	mov	[ebp].FCore.varMode, eax
 	jmp	edi
 	
+;========================================
+
+entry oclearBop
+	mov	eax, kVarObjectClear
+	mov	[ebp].FCore.varMode, eax
+	jmp	edi
+		
 ;========================================
 
 entry refBop

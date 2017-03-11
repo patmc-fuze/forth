@@ -31,7 +31,6 @@ ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnS
 : mpEngine( pEngine )
 , mWakeupTime( 0 )
 , mpNext( NULL )
-, mHandle( 0 )
 , mThreadId( 0 )
 , mpPrivate( NULL )
 , mpShowContext(NULL)
@@ -92,18 +91,6 @@ ForthThread::~ForthThread()
 	{
 		delete mpShowContext;
 	}
-#ifdef WIN32
-    if ( mHandle != 0 )
-    {
-        CloseHandle( mHandle );
-    }
-#else
-    if ( mHandle != 0 )
-    {
-    	// TODO
-        //CloseHandle( mHandle );
-    }
-#endif
 }
 
 #ifdef CHECK_GAURD_AREAS
@@ -234,41 +221,6 @@ void ForthThread::Run()
     }
 }
 
-long ForthThread::Start()
-{
-#ifdef WIN32
-    // securityAttribPtr, stackSize, threadCodeAddr, threadUserData, flags, pThreadIdReturn
-    if ( mHandle != 0 )
-    {
-        ::CloseHandle( mHandle );
-    }
-    mHandle = (HANDLE) _beginthreadex( NULL, 0, ForthThread::RunLoop, this, 0, (unsigned *) &mThreadId );
-#else
-    // securityAttribPtr, stackSize, threadCodeAddr, threadUserData, flags, pThreadIdReturn
-    if ( mHandle != 0 )
-    {
-    	// TODO
-        //::CloseHandle( mHandle );
-    }
-    mHandle = pthread_create( &mThread, NULL, ForthThread::RunLoop, this );
-
-#endif
-    return (long) mHandle;
-}
-
-void ForthThread::Exit()
-{
-    // TBD: make sure this isn't the main thread
-    if ( mpNext != NULL )
-    {
-#ifdef WIN32
-        _endthreadex( 0 );
-#else
-        pthread_exit( &mExitStatus );
-#endif
-    }
-}
-
 ForthShowContext* ForthThread::GetShowContext()
 {
 	if (mpShowContext == NULL)
@@ -278,128 +230,68 @@ ForthShowContext* ForthThread::GetShowContext()
 	return mpShowContext;
 }
 
-#if 0
 //////////////////////////////////////////////////////////////////////
 ////
 ///
-//                     ForthThreadQueue
+//                     ForthAsyncThread
 // 
 
-ForthThreadQueue::ForthThreadQueue( int initialSize )
-:   mFirst( 0 )
-,   mCount( 0 )
-,   mSize( initialSize )
+ForthAsyncThread::ForthAsyncThread(ForthEngine *pEngine, int paramStackLongs, int returnStackLongs)
+	: ForthThread(pEngine, paramStackLongs, returnStackLongs)
+	, mHandle(0)
 {
-    mQueue = (ForthThread **) __MALLOC( sizeof(ForthThread*) *  mSize );
 }
 
-ForthThreadQueue::~ForthThreadQueue()
+ForthAsyncThread::~ForthAsyncThread()
 {
-	__FREE(mQueue);
-}
-
-void ForthThreadQueue::AddThread( ForthThread* pThread )
-{
-    if ( mCount == mSize )
-    {
-        mSize += 16;
-		mQueue = (ForthThread **)__REALLOC(mQueue, sizeof(ForthThread*) *  mSize);
-    }
-    int ix = mFirst + mCount;
-    if ( ix >= mSize )
-    {
-        ix -= mSize;
-    }
-    mQueue[ix] = pThread;
-    ++mCount;
-}
-
-int ForthThreadQueue::Count()
-{
-    return mCount;
-}
-
-// returns NULL if queue is empty
-ForthThread* ForthThreadQueue::RemoveThread()
-{
-    ForthThread* result = NULL;
-    if ( mCount != 0 )
-    {
-        result = mQueue[mFirst++];
-        if ( mFirst == mSize )
-        {
-            mFirst = 0;
-        }
-        --mCount;
-    }
-    return result;
-}
-
-// returns NULL if index is out of range
-ForthThread* ForthThreadQueue::RemoveThread( int index )
-{
-    ForthThread* result = NULL;
-    if ( index < mCount )
-    {
-        int ix = mFirst + index;
-        if ( ix > mSize )
-        {
-            ix -= mSize;
-        }
-        result = mQueue[ix];
-        if ( index != 0 )
-        {
-            // move first element into slot where removed thread was
-            mQueue[ix] = mQueue[mFirst];
-        }
-        mFirst++;
-        if ( mFirst == mSize )
-        {
-            mFirst = 0;
-        }
-        --mCount;
-    }
-    return result;
-}
-
-// returns NULL if index is out of range
-ForthThread* ForthThreadQueue::GetThread( int index )
-{
-    ForthThread* result = NULL;
-    if ( index < mCount )
-    {
-        int ix = mFirst + index;
-        if ( ix > mSize )
-        {
-            ix -= mSize;
-        }
-        result = mQueue[ix];
-    }
-    return result;
-}
-
-// returns -1 if queue is empty
-int ForthThreadQueue::FindEarliest()
-{
-    int result = -1;
-    unsigned long earliest = 0;
-    for ( int i = 0; i < mCount; i++ )
-    {
-        int ix = mFirst + i;
-        if ( ix > mSize )
-        {
-            ix -= mSize;
-        }
-        unsigned long wakeupTime = mQueue[ix]->WakeupTime();
-        if ( wakeupTime <= earliest )
-        {
-            result = i;
-            earliest = wakeupTime;
-        }
-    }
-    return result;
-}
+#ifdef WIN32
+	if (mHandle != 0)
+	{
+		CloseHandle(mHandle);
+	}
+#else
+	if (mHandle != 0)
+	{
+		// TODO
+		//CloseHandle( mHandle );
+	}
 #endif
+}
+
+long ForthAsyncThread::Start()
+{
+#ifdef WIN32
+	// securityAttribPtr, stackSize, threadCodeAddr, threadUserData, flags, pThreadIdReturn
+	if (mHandle != 0)
+	{
+		::CloseHandle(mHandle);
+	}
+	mHandle = (HANDLE)_beginthreadex(NULL, 0, ForthThread::RunLoop, this, 0, (unsigned *)&mThreadId);
+#else
+	// securityAttribPtr, stackSize, threadCodeAddr, threadUserData, flags, pThreadIdReturn
+	if (mHandle != 0)
+	{
+		// TODO
+		//::CloseHandle( mHandle );
+	}
+	mHandle = pthread_create(&mThread, NULL, ForthThread::RunLoop, this);
+
+#endif
+	return (long)mHandle;
+}
+
+void ForthAsyncThread::Exit()
+{
+	// TBD: make sure this isn't the main thread
+	if (mpNext != NULL)
+	{
+#ifdef WIN32
+		_endthreadex(0);
+#else
+		pthread_exit(&mExitStatus);
+#endif
+	}
+}
 
 namespace OThread
 {
@@ -410,8 +302,8 @@ namespace OThread
 
 	struct oAsyncThreadStruct
 	{
-		ulong			refCount;
-		ForthThread		*pThread;
+		ulong				refCount;
+		ForthAsyncThread	*pThread;
 	};
 
 	// TODO: add tracking of run state of thread - this should be done inside ForthThread, not here
@@ -570,7 +462,7 @@ namespace OThread
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass("OThread", kBCIThread, kBCIObject, oAsyncThreadMembers);
+		ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass("OAsyncThread", kBCIThread, kBCIObject, oAsyncThreadMembers);
 	}
 
 } // namespace OThread
@@ -651,7 +543,7 @@ namespace OLock
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		ForthClassVocabulary* pOLock = pEngine->AddBuiltinClass("OLock", kBCILock, kBCIObject, oAsyncLockMembers);
+		ForthClassVocabulary* pOLock = pEngine->AddBuiltinClass("OAsyncLock", kBCILock, kBCIObject, oAsyncLockMembers);
 	}
 
 } // namespace OLock

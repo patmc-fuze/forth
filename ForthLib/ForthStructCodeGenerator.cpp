@@ -104,7 +104,7 @@ bool ForthStructCodeGenerator::Generate( ForthParseInfo *pInfo, long*& pDst, int
 
 void ForthStructCodeGenerator::HandlePreceedingVarop()
 {
-    // handle case where previous opcode was varAction setting op (one of [ref -> ->+ ->-])
+    // handle case where previous opcode was varAction setting op (one of [ref -> ->+ ->- oclear])
     // we need to execute the varAction setting op after the first op, since if the first op is
     // a pointer type, it will use the varAction and clear it, when the varAction is meant to be
     // used by the final field op
@@ -116,7 +116,7 @@ void ForthStructCodeGenerator::HandlePreceedingVarop()
     {
         long *pLastOp = pEngine->GetLastCompiledOpcodePtr();
         if ( pLastOp && ((pLastOp + 1) == GET_DP)
-            && (*pLastOp >= gCompiledOps[OP_REF]) && (*pLastOp <= gCompiledOps[OP_INTO_MINUS]) )
+            && (*pLastOp >= gCompiledOps[OP_REF]) && (*pLastOp <= gCompiledOps[OP_OCLEAR]) )
         {
             // overwrite the varAction setting op with first accessor op
             mCompileVarop = *pLastOp;
@@ -356,7 +356,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 						if ( isPtr )
 						{
 							COMPILE_OP( "member struct ptr array", kOpMemberIntArray, pEntry[0] );
-							COMPILE_SIMPLE_OP( "fetch", gCompiledOps[OP_FETCH] );
+							COMPILE_SIMPLE_OP( "fetch", gCompiledOps[OP_IFETCH] );
 						}
 						else
 						{
@@ -385,7 +385,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 						{
 							// just a struct
 							COMPILE_OP( "member struct ptr", kOpMemberRef, pEntry[0] );
-							COMPILE_SIMPLE_OP( "fetch", gCompiledOps[OP_FETCH] );
+							COMPILE_SIMPLE_OP( "fetch", gCompiledOps[OP_IFETCH] );
 						}
 						else
 						{
@@ -551,8 +551,8 @@ bool ForthStructCodeGenerator::HandleMiddle()
             }
             if ( isPtr )
             {
-                SPEW_STRUCTS( " fetchOp 0x%x", gCompiledOps[OP_FETCH] );
-                *mpDst++ = gCompiledOps[OP_FETCH];
+                SPEW_STRUCTS( " ifetchOp 0x%x", gCompiledOps[OP_IFETCH] );
+                *mpDst++ = gCompiledOps[OP_IFETCH];
             }
             if ( isObject )
             {

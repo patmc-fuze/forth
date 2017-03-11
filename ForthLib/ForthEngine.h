@@ -114,8 +114,8 @@ public:
 
     // create a thread which will be managed by the engine - the engine destructor will delete all threads
     //  which were created with CreateThread 
-    ForthThread *   CreateThread( long threadLoopOp = OP_DONE, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
-    void            DestroyThread( ForthThread *pThread );
+    ForthAsyncThread * CreateThread( long threadLoopOp = OP_DONE, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
+	void               DestroyThread(ForthAsyncThread *pThread);
 
     // return true IFF the last compiled opcode was an integer literal
     bool            GetLastConstant( long& constantValue );
@@ -299,8 +299,8 @@ protected:
 
     long        mCompileState;          // true iff compiling
 
-    ForthThread *   mpThreads;
-    ForthThread *   mpMainThread;
+	ForthAsyncThread * mpThreads;
+	ForthAsyncThread * mpMainThread;
     ForthShell  *   mpShell;
     long *          mpEngineScratch;
     char *          mpLastToken;
