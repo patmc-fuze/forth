@@ -297,6 +297,7 @@ alias ->o ->+    // ->o stores to an object variable without changing refcounts
 alias mko makeObject
 alias m: method:
 alias ;m ;method
+alias bool int
 
 addHelp addHelp	addHelp SYMBOL REST_OF_LINE		add help entry
 addHelp $,	STRING_ADDR $,		compiles string (can leave DP unaligned)

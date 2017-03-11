@@ -91,8 +91,8 @@ int holdend									// current nested end of hold buffer
 : ud.r >r <<# #s #> r> over - spaces type #>> ;
 
 : .r // n1 n2 -- ) \ core-ext	dot-r
-    // Display @var{n1} right-aligned in a field @var{n2} characters wide. If more than
-    // @var{n2} characters are needed to display the number, all digits are displayed.
+    // Display n1 right-aligned in a field n2 characters wide. If more than
+    // n2 characters are needed to display the number, all digits are displayed.
     // If appropriate, @var{n2} must include a character for a leading ``-''.
     >r i2l r> d.r ;
 
