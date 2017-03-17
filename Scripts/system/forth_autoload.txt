@@ -633,6 +633,14 @@ variable scr  0 scr !
 : lb dup scr ! block 16 0 do i %d '\t' %c '|' %c dup 64 type '|' %c %nl 64+ loop drop ;
 : load dup thru ;
 
+enum: threadRunStates
+  kFTRSStopped		// initial state, or after executing stop, needs another thread to Start it
+  kFTRSReady		// ready to continue running
+  kFTRSSleeping		// sleeping until wakeup time is reached
+  kFTRSBlocked		// blocked on a soft lock
+  kFTRSExited		// done running - executed exitThread
+;enum
+
 #ifdef WINDOWS
 
 enum:	WIN32_FILE_ATTRIB
