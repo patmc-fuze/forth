@@ -173,6 +173,41 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 17 2017
+
+I finished debugging and testing the soft and async threads today.  I'm not
+positive there aren't still problems, but they are good enough to checkin.
+I don't know if setTrace inside a user defined op will still work for instance.
+
+Something that would probably be good to do would be to move more stuff from
+the C++ thread classes into the forth objects, for example the queue of soft
+threads blocked on an OLock, or the array of child threads of an async thread.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 14 2017
+
+Yesterday I decided to stop analyzing how to implement soft threads and just
+get started with my rough thoughts.  Things went pretty well, but what I am
+currently stumbling on is how to execute an opcode which isn't associated with
+a particular IP - the current code relies on copying the opcode into the first
+element of a 2 element int array which is a declared inside ExecuteOneOp or ExecuteOneMethod
+and sticking a 'done' opcode in the second element.  The inner interpreter runs
+until it executes 'done' then exits because that op changes the status to done.
+
+Cases to think about:
+
+o executing a user-defined op in outer interpreter
+o 'execute' opcode
+o executing an object method
+
+I stuck code into the ops which set the IP (mainly exit and its local/method variants)
+to set result to kResultDone if the new IP is null.
+
+ForthEngine::TraceOp(pCore) crashes if the IP is null, since it is trying to
+fetch the op it is going to display from there.
+
+Lots of things call ForthEngine::ExecuteOneOp, some of them need the op and anything
+it calls to completely finish, other things just need that single op to execute.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 1 2017
 
 I added a bunch of methods to the array classes.

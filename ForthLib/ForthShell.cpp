@@ -205,7 +205,7 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 #if 0
     if ( mpThread == NULL )
     {
-        mpThread = mpEngine->CreateThread( 0, PSTACK_LONGS, RSTACK_LONGS );
+        mpThread = mpEngine->CreateAsyncThread( 0, PSTACK_LONGS, RSTACK_LONGS );
     }
     mpEngine->SetCurrentThread( mpThread );
 #endif

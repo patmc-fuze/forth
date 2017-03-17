@@ -642,7 +642,7 @@ ForthVocabulary::ProcessEntry( long* pEntry )
     else
     {
         // execute the opcode
-        exitStatus = mpEngine->ExecuteOneOp( *pEntry );
+        exitStatus = mpEngine->FullyExecuteOp(mpEngine->GetCoreState(), *pEntry );
     }
 
     return exitStatus;

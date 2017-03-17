@@ -822,7 +822,7 @@ FORTHOP(initStructArrayOp)
 					for (int i = 0; i < numElements; i++)
 					{
 						SPUSH((long)pStruct);
-						pEngine->ExecuteOneOp(initStructOp);
+						pEngine->FullyExecuteOp(pCore, initStructOp);
 						pStruct += len;
 					}
 				}
@@ -1548,7 +1548,7 @@ FORTHOP( doMethodOp )
     long* pMethods = ((long *) (SPOP));
     SET_TPM( pMethods );
     SET_TPD( ((long *) (SPOP)) );
-    pEngine->ExecuteOneOp( pMethods[ methodIndex ] );
+    pEngine->ExecuteOp(pCore,  pMethods[ methodIndex ] );
 }
 
 FORTHOP( implementsOp )
@@ -1806,13 +1806,13 @@ void __newOp(ForthCoreState* pCore, const char* pSym)
             else
             {
                 SPUSH( (long) pClassVocab );
-                pEngine->ExecuteOneOp( pClassVocab->GetClassObject()->newOp );
+				pEngine->FullyExecuteOp(pCore, pClassVocab->GetClassObject()->newOp);
 				if (initOpcode != 0)
 				{
 					// copy object data pointer to TOS to be used by init 
 					long a = (GET_SP)[1];
 					SPUSH(a);
-					pEngine->ExecuteOneOp(initOpcode);
+					pEngine->ExecuteOp(pCore, initOpcode);
 				}
 			}
         }
@@ -1853,13 +1853,13 @@ FORTHOP(strNewOp)
 		{
 			long initOpcode = pClassVocab->GetInitOpcode();
 			SPUSH((long)pClassVocab);
-			pEngine->ExecuteOneOp(pClassVocab->GetClassObject()->newOp);
+			pEngine->FullyExecuteOp(pCore, pClassVocab->GetClassObject()->newOp);
 			if (initOpcode != 0)
 			{
 				// copy object data pointer to TOS to be used by init 
 				long a = (GET_SP)[1];
 				SPUSH(a);
-				pEngine->ExecuteOneOp(initOpcode);
+				pEngine->FullyExecuteOp(pCore, initOpcode);
 			}
 		}
 		else
@@ -1929,7 +1929,7 @@ FORTHOP(doNewOp)
 		{
 			ForthClassVocabulary *pClassVocab = static_cast<ForthClassVocabulary *>(pTypeInfo->pVocab);
 			SPUSH((long)pClassVocab);
-			pEngine->ExecuteOneOp(pClassVocab->GetClassObject()->newOp);
+			pEngine->FullyExecuteOp(pCore, pClassVocab->GetClassObject()->newOp);
 		}
 		else
 		{
@@ -2456,7 +2456,7 @@ consoleOutToOp( ForthCoreState   *pCore,
     SPUSH( (long) pMessage );
     long op = GET_CON_OUT_OP;
     ForthEngine* pEngine = GET_ENGINE;
-    pEngine->ExecuteOneOp( op );
+    pEngine->ExecuteOneOp(pCore,  op );
 }
 */
 static void
@@ -2877,7 +2877,7 @@ long snprintfSub( ForthCoreState* pCore )
     const char* fmt = (const char *) SPOP;
     size_t maxLen = (size_t) SPOP;
     char* outbuff = (char *) SPOP;
-    return snprintf( outbuff, maxLen, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
+	return SNPRINTF(outbuff, maxLen, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]);
 }
 
 long fscanfSub( ForthCoreState* pCore )
@@ -2906,6 +2906,19 @@ long sscanfSub( ForthCoreState* pCore )
     const char* fmt = (const char *) SPOP;
     char* inbuff = (char *) SPOP;
     return sscanf( inbuff, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
+}
+
+int oStringFormatSub(ForthCoreState* pCore, char* pBuffer, int bufferSize)
+{
+	int a[8];
+	// TODO: assert if numArgs > 8
+	long numArgs = SPOP;
+	for (int i = numArgs - 1; i >= 0; --i)
+	{
+		a[i] = SPOP;
+	}
+	const char* fmt = (const char *)SPOP;
+	return (int)(SNPRINTF(pBuffer, bufferSize, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]));
 }
 
 #endif
@@ -4717,21 +4730,34 @@ FORTHOP( thruOp )
 //  threads
 ///////////////////////////////////////////
 
-FORTHOP( createThreadOp )
+FORTHOP( createAsyncThreadOp )
 {
-    long threadOp  = SPOP;
-    int returnStackSize = (int)(SPOP);
-    int paramStackSize = (int)(SPOP);
-	ForthAsyncThread* pThread = GET_ENGINE->CreateThread(threadOp, paramStackSize, returnStackSize);
-    SPUSH( (long) pThread );
+	ForthObject asyncThread;
+	int returnStackLongs = (int)(SPOP);
+	int paramStackLongs = (int)(SPOP);
+	long threadOp = SPOP;
+	ForthEngine* pEngine = GET_ENGINE;
+	OThread::CreateAsyncThreadObject(asyncThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
+
+	PUSH_OBJECT(asyncThread);
 }
 
-FORTHOP( destroyThreadOp )
+FORTHOP(createThreadOp)
 {
-	ForthAsyncThread* pThread = (ForthAsyncThread*)(SPOP);
-    GET_ENGINE->DestroyThread( pThread );
+	ForthEngine* pEngine = GET_ENGINE;
+	ForthObject thread;
+
+	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	ForthAsyncThread* pAsyncThread = pThread->GetParent();
+	int returnStackLongs = (int)(SPOP);
+	int paramStackLongs = (int)(SPOP);
+	long threadOp = SPOP;
+	OThread::CreateThreadObject(thread, pAsyncThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
+
+	PUSH_OBJECT(thread);
 }
 
+#if 0
 FORTHOP( threadGetStateOp )
 {
     ForthThread* pThread = (ForthThread*)(SPOP);
@@ -4764,11 +4790,52 @@ FORTHOP( startThreadOp )
     long result = pThread->Start();
     SPUSH( result );
 }
+#endif
 
-FORTHOP( exitThreadOp )
+FORTHOP( exitAsyncThreadOp )
 {
-	ForthAsyncThread* pThread = (ForthAsyncThread*)(pCore->pThread);
-    pThread->Exit();
+	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	ForthAsyncThread* pAsyncThread = pThread->GetParent();
+	pAsyncThread->Exit();
+}
+
+FORTHOP(yieldOp)
+{
+	SET_STATE(kResultYield);
+}
+
+FORTHOP(stopThreadOp)
+{
+	SET_STATE(kResultYield);
+	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	pThread->Wake();
+}
+
+FORTHOP(sleepThreadOp)
+{
+	SET_STATE(kResultYield);
+	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	ulong sleepMilliseconds = (ulong)(SPOP);
+	pThread->Sleep(sleepMilliseconds);
+}
+
+FORTHOP(exitThreadOp)
+{
+	SET_STATE(kResultYield);
+	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	pThread->Exit();
+}
+
+FORTHOP(getCurrentThreadOp)
+{
+	PUSH_OBJECT(((ForthThread *)(pCore->pThread))->GetThreadObject());
+}
+
+FORTHOP(getCurrentAsyncThreadOp)
+{
+	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	ForthAsyncThread* pAsyncThread = pThread->GetParent();
+	PUSH_OBJECT(pAsyncThread->GetAsyncThreadObject());
 }
 
 #ifdef WIN32
@@ -5679,7 +5746,12 @@ FORTHOP(doExitBop)
     }
     else
     {
-        SET_IP( (long *) RPOP );
+		long* newIP = (long *)RPOP;
+        SET_IP( newIP );
+		if (newIP == nullptr)
+		{
+			SET_STATE(kResultDone);
+		}
     }
 }
 
@@ -5696,8 +5768,13 @@ FORTHOP(doExitLBop)
     }
     else
     {
-        SET_IP( (long *) RPOP );
-    }
+		long* newIP = (long *)RPOP;
+		SET_IP(newIP);
+		if (newIP == nullptr)
+		{
+			SET_STATE(kResultDone);
+		}
+	}
 }
 
 // exit method op with no local vars
@@ -5710,10 +5787,16 @@ FORTHOP(doExitMBop)
     }
     else
     {
-        SET_IP( (long *) RPOP );
-        SET_TPM( (long *) RPOP );
+		long* newIP = (long *)RPOP;
+		SET_IP(newIP);
+		SET_TPM((long *)RPOP);
         SET_TPD( (long *) RPOP );
-    }
+
+		if (newIP == nullptr)
+		{
+			SET_STATE(kResultDone);
+		}
+	}
 }
 
 // exit method op with local vars
@@ -5729,10 +5812,16 @@ FORTHOP(doExitMLBop)
     }
     else
     {
-        SET_IP( (long *) RPOP );
-        SET_TPM( (long *) RPOP );
+		long* newIP = (long *)RPOP;
+		SET_IP(newIP);
+		SET_TPM((long *)RPOP);
         SET_TPD( (long *) RPOP );
-    }
+
+		if (newIP == nullptr)
+		{
+			SET_STATE(kResultDone);
+		}
+	}
 }
 
 FORTHOP(callBop)
@@ -6723,7 +6812,7 @@ FORTHOP(npickBop)
 // loads & stores
 //
 
-FORTHOP(istoreBop)
+FORTHOP(storeBop)
 {
     NEEDS(2);
     long *pB = (long *)(SPOP); 
@@ -7248,7 +7337,7 @@ FORTHOP( executeBop )
 {
 	long op = SPOP;
     ForthEngine *pEngine = GET_ENGINE;
-	pEngine->ExecuteOneOp( op );
+	pEngine->ExecuteOp(pCore,  op );
 #if 0
     long prog[2];
     long *oldIP = GET_IP;
@@ -7392,9 +7481,8 @@ FORTHOP( fputsBop )
 FORTHOP( hereBop )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    char *pChar = (char *)GET_DP;
-    SPUSH( (long) pChar );
-	CLEAR_VAR_OPERATION;
+	int *pDP = (int *)&(pCore->pDictionary->pCurrent);
+	_doIntVarop(pCore, pDP);
 }
 
 FORTHOP( archARMBop )
@@ -8329,13 +8417,21 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  threads
     ///////////////////////////////////////////
+	OP_DEF( createAsyncThreadOp,        "createAsyncThread" ),
     OP_DEF( createThreadOp,             "createThread" ),
-    OP_DEF( destroyThreadOp,            "destroyThread" ),
+	/*
     OP_DEF( threadGetStateOp,           "threadGetState" ),
     OP_DEF( stepThreadOp,               "stepThread" ),
     OP_DEF( startThreadOp,              "startThread" ),
-    OP_DEF( exitThreadOp,               "exitThread" ),
-
+	*/
+    OP_DEF( exitAsyncThreadOp,          "exitAsyncThread" ),
+    OP_DEF( yieldOp,					"yield" ),
+    OP_DEF( stopThreadOp,				"stopThread" ),
+    OP_DEF( sleepThreadOp,				"sleepThread" ),
+    OP_DEF( exitThreadOp,				"exitThread" ),
+	OP_DEF( getCurrentThreadOp,         "getCurrentThread"),
+	OP_DEF( getCurrentAsyncThreadOp,    "getCurrentAsyncThread"),
+	
 #ifdef WIN32
     ///////////////////////////////////////////
     //  Windows support

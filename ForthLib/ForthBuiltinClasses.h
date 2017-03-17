@@ -65,7 +65,10 @@ typedef enum
 	kBCILong,
 	kBCIFloat,
 	kBCIDouble,
+	kBCIAsyncThread,
 	kBCIThread,
+	kBCIAsyncLock,
+	kBCILock,
 	kBCISystem,
 	kBCIVocabulary,
 	kBCIVocabularyIter,
@@ -77,7 +80,6 @@ typedef enum
 	kBCIStringOutStream,
 	kBCIConsoleOutStream,
 	kBCIFunctionOutStream,
-	kBCILock,
 	kNumBuiltinClasses		// must be last
 } eBuiltinClassIndex;
 

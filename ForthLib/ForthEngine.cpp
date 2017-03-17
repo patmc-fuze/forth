@@ -323,10 +323,10 @@ ForthEngine::~ForthEngine()
     }
 
     // delete all threads;
-	ForthThread *pThread = mpThreads->mpNext;
+	ForthAsyncThread *pThread = mpThreads->mpNext;
 	while (pThread != NULL)
     {
-		ForthThread *pNextThread = pThread->mpNext;
+		ForthAsyncThread *pNextThread = pThread->mpNext;
 		delete pThread;
 		pThread = pNextThread;
     }
@@ -387,8 +387,8 @@ ForthEngine::Initialize( ForthShell*        pShell,
     mpStringBufferA = new char[mStringBufferASize];
     mpStringBufferB = new char[MAX_STRING_SIZE];
 
-    mpMainThread = CreateThread( 0, MAIN_THREAD_PSTACK_LONGS, MAIN_THREAD_RSTACK_LONGS );
-    mpCore = mpMainThread->GetCore();
+    mpMainThread = CreateAsyncThread( 0, MAIN_THREAD_PSTACK_LONGS, MAIN_THREAD_RSTACK_LONGS );
+    mpCore = mpMainThread->GetThread(0)->GetCore();
 	mpCore->optypeAction = (optypeActionRoutine *) __MALLOC(sizeof(optypeActionRoutine) * 256);
     mpCore->numBuiltinOps = 0;
     mpCore->numOps = 0;
@@ -414,6 +414,9 @@ ForthEngine::Initialize( ForthShell*        pShell,
 		AddForthOps( this );
         mpTypesManager->AddBuiltinClasses( this );
     }
+
+	// the primary thread objects can't be inited until builtin classes are initialized
+	OThread::FixupPrimaryThread(mpMainThread);
 
     if ( pExtension != NULL )
     {
@@ -767,10 +770,11 @@ ForthEngine::ShowSearchInfo()
 }
 
 ForthAsyncThread *
-ForthEngine::CreateThread( long threadOp, int paramStackSize, int returnStackSize )
+ForthEngine::CreateAsyncThread( long threadOp, int paramStackSize, int returnStackSize )
 {
-	ForthAsyncThread *pNewThread = new ForthAsyncThread(this, paramStackSize, returnStackSize);
-    pNewThread->SetOp( threadOp );
+	ForthAsyncThread *pAsyncThread = new ForthAsyncThread(this, paramStackSize, returnStackSize);
+	ForthThread *pNewThread = pAsyncThread->GetThread(0);
+	pNewThread->SetOp(threadOp);
 
     pNewThread->mCore.pEngine = this;
     pNewThread->mCore.pDictionary = &mDictionary;
@@ -787,15 +791,15 @@ ForthEngine::CreateThread( long threadOp, int paramStackSize, int returnStackSiz
 		pNewThread->mCore.innerLoop = mpCore->innerLoop;
     }
 
-    pNewThread->mpNext = mpThreads;
-    mpThreads = pNewThread;
+	pAsyncThread->mpNext = mpThreads;
+	mpThreads = pAsyncThread;
 
-    return pNewThread;
+	return pAsyncThread;
 }
 
 
 void
-ForthEngine::DestroyThread(ForthAsyncThread *pThread)
+ForthEngine::DestroyAsyncThread(ForthAsyncThread *pThread)
 {
 	ForthAsyncThread *pNext, *pCurrent;
 
@@ -1158,7 +1162,16 @@ ForthEngine::GetTraceOutRoutine(traceOutRoutine& traceRoutine, void*& pTraceData
 }
 
 void
-ForthEngine::TraceOp( ForthCoreState* pCore )
+ForthEngine::TraceOp(ForthCoreState* pCore, long op)
+{
+	long* savedIP = pCore->IP;
+	pCore->IP = &op;
+	TraceOp(pCore);
+	pCore->IP = savedIP;
+}
+
+void
+ForthEngine::TraceOp(ForthCoreState* pCore)
 {
 #ifdef TRACE_INNER_INTERPRETER
     long *pOp = pCore->IP;
@@ -1959,34 +1972,48 @@ ForthEngine::GetLastConstant( long& constantValue )
 }
 
 //
-// ExecuteOneOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
+// FullyExecuteOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
 // execute forth ops, and is also how systems external to forth execute ops
 //
 eForthResult
-ForthEngine::ExecuteOneOp( long opCode )
+ForthEngine::FullyExecuteOp(ForthCoreState* pCore, long opCode)
 {
-    long opScratch[2];
+	long opScratch[2];
 
-    opScratch[0] = opCode;
-    opScratch[1] = gCompiledOps[OP_DONE];
-    eForthResult exitStatus = ExecuteOps( &(opScratch[0]) );
+	opScratch[0] = opCode;
+	opScratch[1] = gCompiledOps[OP_DONE];
+	eForthResult exitStatus = ExecuteOps(pCore, &(opScratch[0]));
+	if (exitStatus == kResultYield)
+	{
+		SetError(kForthErrorException, " yield not allowed in FullyExecuteOp");
+	}
+
 	return exitStatus;
 }
 
 //
-// ExecuteOps is used by the Outer Interpreter (ForthEngine::ProcessToken) to
-// execute a sequence of forth ops, and is also how systems external to forth execute ops
+// ExecuteOp executes a single op.  If the op is a user-defined op or method, only the
+//   very first op is executed before returning.
 //
+eForthResult
+ForthEngine::ExecuteOp(ForthCoreState* pCore, long opCode)
+{
+	eForthResult exitStatus = InterpretOneOp(pCore, opCode);
+	return exitStatus;
+}
+
+//
+// ExecuteOps executes a sequence of forth ops.
 // code at pOps must be terminated with OP_DONE
 //
-inline eForthResult
-ForthEngine::ExecuteOps( long *pOps )
+eForthResult
+ForthEngine::ExecuteOps(ForthCoreState* pCore, long *pOps)
 {
     long *savedIP;
 	eForthResult exitStatus;
 
-    savedIP = mpCore->IP;
-    mpCore->IP = pOps;
+    savedIP = pCore->IP;
+    pCore->IP = pOps;
 	bool bFast = mFastMode && ((mTraceFlags & kLogInnerInterpreter) == 0);
 	do
 	{
@@ -1994,59 +2021,28 @@ ForthEngine::ExecuteOps( long *pOps )
 #ifdef ASM_INNER_INTERPRETER
 		if ( bFast )
 		{
-			exitStatus = InnerInterpreterFast( mpCore );
-		}
-		else
-#endif
-		{
-			exitStatus = InnerInterpreter( mpCore );
-		}
-	} while (exitStatus == kResultTrace);
-
-    mpCore->IP = savedIP;
-    if ( exitStatus == kResultDone )
-    {
-        mpCore->state = kResultOk;
-        exitStatus = kResultOk;
-    }
-    return exitStatus;
-}
-
-
-//
-// Use this version of ExecuteOps to execute code in a particular thread
-// Caller must have already set the thread IP to point to a sequence of ops which ends with 'done'
-//
-eForthResult
-ForthEngine::ExecuteOps( ForthCoreState* pCore )
-{
-	eForthResult exitStatus;
-	do
-	{
-		exitStatus = kResultOk;
-#ifdef ASM_INNER_INTERPRETER
-		if (mFastMode)
-		{
 			exitStatus = InnerInterpreterFast(pCore);
 		}
 		else
 #endif
 		{
 			exitStatus = InnerInterpreter(pCore);
-			if (exitStatus == kResultTrace)
-			{
-				exitStatus = InnerInterpreter(pCore);
-			}
 		}
 	} while (exitStatus == kResultTrace);
 
-	return exitStatus;
+	pCore->IP = savedIP;
+    if ( exitStatus == kResultDone )
+    {
+		pCore->state = kResultOk;
+        exitStatus = kResultOk;
+    }
+    return exitStatus;
 }
-
 
 eForthResult
 ForthEngine::ExecuteOneMethod( ForthCoreState* pCore, ForthObject& obj, long methodNum )
 {
+#if 0
     long opScratch[2];
 
 	opScratch[0] = obj.pMethodOps[ methodNum ];
@@ -2067,7 +2063,29 @@ ForthEngine::ExecuteOneMethod( ForthCoreState* pCore, ForthObject& obj, long met
 		SET_STATE(exitStatus);
 	}
     pCore->IP = savedIP;
-    return exitStatus;
+#else
+	long opCode = obj.pMethodOps[methodNum];
+
+	RPUSH(((long)GET_TPD));
+	RPUSH(((long)GET_TPM));
+	SET_TPM(obj.pMethodOps);
+	SET_TPD(obj.pData);
+
+	bool bFast = mFastMode && ((mTraceFlags & kLogInnerInterpreter) == 0);
+	eForthResult exitStatus = kResultOk;
+#ifdef ASM_INNER_INTERPRETER
+	if (bFast)
+	{
+		exitStatus = InterpretOneOpFast(pCore, opCode);
+	}
+	else
+#endif
+	{
+		exitStatus = InterpretOneOp(pCore, opCode);
+	}
+#endif
+
+	return exitStatus;
 }
 
 

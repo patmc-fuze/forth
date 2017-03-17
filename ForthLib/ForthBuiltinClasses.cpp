@@ -43,7 +43,7 @@ extern "C" {
 	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
 	extern void unimplementedMethodOp( ForthCoreState *pCore );
 	extern void illegalMethodOp( ForthCoreState *pCore );
-	extern int oStringFormatSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
+	extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 };
 
 #ifdef _WINDOWS
@@ -205,7 +205,7 @@ namespace
 		{
 			ForthEngine *pEngine = ForthEngine::GetInstance();
 			ulong deleteOp = GET_TPM[kMethodDelete];
-			pEngine->ExecuteOneOp(deleteOp);
+			pEngine->ExecuteOp(pCore, deleteOp);
 			// we are effectively chaining to the delete op, its method return will pop TPM & TPD for us
 		}
 	}
@@ -234,8 +234,8 @@ namespace
 		ForthClassObject* pClassObject = (ForthClassObject *)(GET_TPD);
 		SPUSH((long)pClassObject->pVocab);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->ExecuteOneOp(pClassObject->newOp);
 		METHOD_RETURN;
+		pEngine->ExecuteOp(pCore, pClassObject->newOp);
 	}
 
 	FORTHOP(classSuperMethod)

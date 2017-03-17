@@ -14,6 +14,7 @@
 #include "ForthObject.h"
 #include "ForthBuiltinClasses.h"
 #include "ForthShowContext.h"
+#include "ForthThread.h"
 
 #include "OSystem.h"
 
@@ -24,6 +25,7 @@ extern "C" {
 
 namespace OSystem
 {
+	// TODO: delete gSystemSingleton object at shutdown
 	static ForthObject gSystemSingleton;
 
 	//////////////////////////////////////////////////////////////////////
@@ -204,6 +206,29 @@ namespace OSystem
 		METHOD_RETURN;
 	}
 
+	FORTHOP(oSystemCreateAsyncThreadMethod)
+	{
+		ForthEngine* pEngine = GET_ENGINE;
+		ForthObject asyncThread;
+		int returnStackLongs = (int)(SPOP);
+		int paramStackLongs = (int)(SPOP);
+		long threadOp = SPOP;
+		OThread::CreateAsyncThreadObject(asyncThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
+
+		PUSH_OBJECT(asyncThread);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oSystemCreateAsyncLockMethod)
+	{
+		ForthEngine *pEngine = GET_ENGINE;
+		ForthObject asyncLock;
+		OLock::CreateAsyncLockObject(asyncLock, pEngine);
+
+		PUSH_OBJECT(asyncLock);
+		METHOD_RETURN;
+	}
+
 	baseMethodEntry oSystemMembers[] =
 	{
 		METHOD("__newOp", oSystemNew),
@@ -218,6 +243,9 @@ namespace OSystem
 		METHOD("setSearchVocabTop", oSystemSetSearchVocabTopMethod),
 		METHOD("pushSearchVocab", oSystemPushSearchVocabMethod),
 		METHOD("getVocabByName", oSystemGetVocabByNameMethod),
+		METHOD_RET("createAsyncThread", oSystemCreateAsyncThreadMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncThread)),
+		METHOD_RET("createAsyncLock", oSystemCreateAsyncLockMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncLock)),
+
 
 		// following must be last in table
 		END_MEMBERS

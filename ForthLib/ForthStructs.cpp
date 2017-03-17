@@ -476,7 +476,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
 		else
 		{
 			*pDst++ = gCompiledOps[ OP_DONE ];
-			exitStatus = pEngine->ExecuteOps( &(mCode[0]) );
+			exitStatus = pEngine->ExecuteOps(pCore, &(mCode[0]));
 		}
 	}
     return result;
@@ -786,7 +786,7 @@ ForthStructVocabulary::DefineInstance( void )
 				SPUSH((long)pHere);
 				SPUSH(numElements);
 				SPUSH(mTypeIndex);
-				mpEngine->ExecuteOneOp(gCompiledOps[OP_INIT_STRUCT_ARRAY]);
+				mpEngine->ExecuteOp(pCore, gCompiledOps[OP_INIT_STRUCT_ARRAY]);
 			}
         }
         else
@@ -798,12 +798,12 @@ ForthStructVocabulary::DefineInstance( void )
             if ( isPtr && (GET_VAR_OPERATION == kVarStore) )
             {
                 // var definition was preceeded by "->", so initialize var
-                mpEngine->ExecuteOneOp( pEntry[0] );
+                mpEngine->ExecuteOp(pCore,  pEntry[0] );
             }
 			if (!isPtr && (mInitOpcode != 0))
 			{
 				SPUSH((long)pHere);
-				mpEngine->ExecuteOneOp(mInitOpcode);
+				mpEngine->FullyExecuteOp(pCore, mInitOpcode);
 			}
 		}
         pEntry[1] = typeCode;
@@ -2020,7 +2020,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
                 if ( GET_VAR_OPERATION == kVarStore )
                 {
                     // var definition was preceeded by "->", so initialize var
-                    pEngine->ExecuteOneOp( pEntry[0] );
+                    pEngine->ExecuteOp(pCore,  pEntry[0] );
                 }
                 else
                 {
@@ -2100,7 +2100,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
                 if ( GET_VAR_OPERATION == kVarStore )
                 {
                     // var definition was preceeded by "->", so initialize var
-                    pEngine->ExecuteOneOp( pEntry[0] );
+                    pEngine->ExecuteOp(pCore,  pEntry[0] );
                 }
             }
             pEntry[1] = typeCode;

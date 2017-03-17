@@ -8,6 +8,7 @@
 #else
 #include <pthread.h>
 #endif
+#include <deque>
 #include "ForthThread.h"
 #include "ForthEngine.h"
 #include "ForthShowContext.h"
@@ -27,11 +28,10 @@
 //                     ForthThread
 // 
 
-ForthThread::ForthThread( ForthEngine *pEngine, int paramStackLongs, int returnStackLongs )
+ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, int paramStackLongs, int returnStackLongs)
 : mpEngine( pEngine )
-, mWakeupTime( 0 )
-, mpNext( NULL )
-, mThreadId( 0 )
+, mpParentThread(pParentThread)
+, mWakeupTime(0)
 , mpPrivate( NULL )
 , mpShowContext(NULL)
 {
@@ -123,6 +123,17 @@ ForthThread::CheckGaurdAreas( void )
 }
 #endif
 
+void ForthThread::InitTables(ForthThread* pSourceThread)
+{
+	ForthCoreState& sourceCore = pSourceThread->mCore;
+	mCore.optypeAction = sourceCore.optypeAction;
+	mCore.numBuiltinOps = sourceCore.numBuiltinOps;
+	mCore.numOps = sourceCore.numOps;
+	mCore.maxOps = sourceCore.maxOps;
+	mCore.ops = sourceCore.ops;
+	mCore.innerLoop = sourceCore.innerLoop;
+}
+
 void
 ForthThread::Reset( void )
 {
@@ -138,6 +149,7 @@ ForthThread::Reset( void )
     mCore.base = 10;
     mCore.signedPrintMode = kPrintSignedDecimal;
 	mCore.IP = &(mOps[0]);
+	//mCore.IP = nullptr;
 
 	if (mpShowContext != NULL)
 	{
@@ -150,61 +162,16 @@ void
 ForthThread::ResetIP( void )
 {
 	mCore.IP = &(mOps[0]);
+	//mCore.IP = nullptr;
 }
-
-#ifdef WIN32
-
-unsigned __stdcall ForthThread::RunLoop( void *pUserData )
-{
-    ForthThread* pThis = (ForthThread*) pUserData;
-    eForthResult exitStatus = kResultOk;
-
-    pThis->Reset();
-    pThis->mCore.IP = &(pThis->mOps[0]);
-#ifdef ASM_INNER_INTERPRETER
-    if ( pThis->mpEngine->GetFastMode() )
-    {
-        exitStatus = InnerInterpreterFast( &(pThis->mCore) );
-    }
-    else
-#endif
-    {
-        exitStatus = InnerInterpreter( &(pThis->mCore) );
-    }
-
-    return 0;
-}
-
-#else
-
-void* ForthThread::RunLoop( void *pUserData )
-{
-    ForthThread* pThis = (ForthThread*) pUserData;
-    eForthResult exitStatus = kResultOk;
-
-    pThis->Reset();
-    pThis->mCore.IP = &(pThis->mOps[0]);
-#ifdef ASM_INNER_INTERPRETER
-    if ( pThis->mpEngine->GetFastMode() )
-    {
-        exitStatus = InnerInterpreterFast( &(pThis->mCore) );
-    }
-    else
-#endif
-    {
-        exitStatus = InnerInterpreter( &(pThis->mCore) );
-    }
-
-    return NULL;
-}
-
-#endif
 
 void ForthThread::Run()
 {
     eForthResult exitStatus;
 
-    mCore.IP = &(mOps[0]);
+	Wake();
+	mCore.IP = &(mOps[0]);
+	//mCore.IP = nullptr;
 	// the user defined ops could have changed since this thread was created, update it to match the engine
 	ForthCoreState* pEngineState = mpEngine->GetCoreState();
 	mCore.ops = pEngineState->ops;
@@ -212,12 +179,18 @@ void ForthThread::Run()
 #ifdef ASM_INNER_INTERPRETER
     if ( mpEngine->GetFastMode() )
     {
-        exitStatus = InnerInterpreterFast( &mCore );
+		do
+		{
+			exitStatus = InnerInterpreterFast(&mCore);
+		} while (exitStatus == kResultYield);
     }
     else
 #endif
     {
-        exitStatus = InnerInterpreter( &mCore );
+		do
+		{
+			exitStatus = InnerInterpreter(&mCore);
+		} while (exitStatus == kResultYield);
     }
 }
 
@@ -230,6 +203,41 @@ ForthShowContext* ForthThread::GetShowContext()
 	return mpShowContext;
 }
 
+void ForthThread::SetRunState(eForthThreadRunState newState)
+{
+	// TODO!
+	mRunState = newState;
+}
+
+void ForthThread::Sleep(ulong sleepMilliSeconds)
+{
+	ulong now = mpEngine->GetElapsedTime();
+	mWakeupTime = now + sleepMilliSeconds;
+	mRunState = kFTRSSleeping;
+}
+
+void ForthThread::Block()
+{
+	mRunState = kFTRSBlocked;
+}
+
+void ForthThread::Wake()
+{
+	mRunState = kFTRSReady;
+	mWakeupTime = 0;
+}
+
+void ForthThread::Stop()
+{
+	mRunState = kFTRSStopped;
+}
+
+void ForthThread::Exit()
+{
+	mRunState = kFTRSExited;
+}
+
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -237,9 +245,15 @@ ForthShowContext* ForthThread::GetShowContext()
 // 
 
 ForthAsyncThread::ForthAsyncThread(ForthEngine *pEngine, int paramStackLongs, int returnStackLongs)
-	: ForthThread(pEngine, paramStackLongs, returnStackLongs)
-	, mHandle(0)
+	: mHandle(0)
+	, mThreadId(0)
+	, mpNext(NULL)
+	, mActiveThreadIndex(0)
+	, mRunState(kFTRSStopped)
 {
+	ForthThread* pPrimaryThread = new ForthThread(pEngine, this, paramStackLongs, returnStackLongs);
+	pPrimaryThread->SetRunState(kFTRSReady);
+	mSoftThreads.push_back(pPrimaryThread);
 }
 
 ForthAsyncThread::~ForthAsyncThread()
@@ -256,6 +270,201 @@ ForthAsyncThread::~ForthAsyncThread()
 		//CloseHandle( mHandle );
 	}
 #endif
+	for (ForthThread* pThread : mSoftThreads)
+	{
+		if (pThread != nullptr)
+		{
+			delete pThread;
+		}
+	}
+}
+
+#ifdef WIN32
+unsigned __stdcall ForthAsyncThread::RunLoop(void *pUserData)
+#else
+void* ForthAsyncThread::RunLoop(void *pUserData)
+#endif
+{
+	ForthAsyncThread* pParentThread = (ForthAsyncThread*)pUserData;
+	ForthThread* pActiveThread = pParentThread->GetActiveThread();
+	ForthEngine* pEngine = pActiveThread->GetEngine();
+
+	pParentThread->mRunState = kFTRSReady;
+	eForthResult exitStatus = kResultOk;
+	bool keepRunning = true;
+	while (keepRunning)
+	{
+		bool checkForAllDone = false;
+		ForthCoreState* pCore = pActiveThread->GetCore();
+#ifdef ASM_INNER_INTERPRETER
+		if (pEngine->GetFastMode())
+		{
+			exitStatus = InnerInterpreterFast(pCore);
+		}
+		else
+#endif
+		{
+			exitStatus = InnerInterpreter(pCore);
+		}
+
+		bool switchActiveThread = false;
+		switch (exitStatus)
+		{
+		case kResultYield:
+			switchActiveThread = true;
+			SET_STATE(kResultOk);
+			break;
+
+		case kResultDone:
+			switchActiveThread = true;
+			checkForAllDone = true;
+			break;
+
+		default:
+			break;
+		}
+
+		if (switchActiveThread)
+		{
+			// TODO!
+			// - switch to next runnable thread
+			// - sleep if all threads are sleeping
+			// - deal with all threads stopped
+			ulong now = pEngine->GetElapsedTime();
+
+			ForthThread* pNextThread = pParentThread->GetNextReadyThread();
+			if (pNextThread != nullptr)
+			{
+				pActiveThread = pNextThread;
+			}
+			else
+			{
+				pNextThread = pParentThread->GetNextSleepingThread();
+				if (pNextThread != nullptr)
+				{
+					ulong wakeupTime = pNextThread->GetWakeupTime();
+					if (now >= wakeupTime)
+					{
+						pNextThread->Wake();
+						pActiveThread = pNextThread;
+					}
+					else
+					{
+						// TODO: don't always sleep until wakeupTime, since threads which are blocked or stopped
+						//  could be unblocked or started by other async threads
+						int sleepMilliseconds = wakeupTime - now;
+#ifdef WIN32
+						::Sleep((DWORD)sleepMilliseconds);
+#else
+						usleep(sleepMilliseconds * 1000);
+#endif
+						pActiveThread = pNextThread;
+					}
+				}
+				else
+				{
+					// there are no ready or sleeping soft threads, should we exit this asyncThread?
+					checkForAllDone = true;
+				}
+			}
+		}
+		if (checkForAllDone)
+		{
+			keepRunning = false;
+			for (ForthThread* pThread : pParentThread->mSoftThreads)
+			{
+				if (pThread->GetRunState() != kFTRSExited)
+				{
+					keepRunning = true;
+					break;
+				}
+			}
+		}
+	}
+
+	pParentThread->mRunState = kFTRSExited;
+#ifdef WIN32
+	return 0;
+#else
+	return nullptr;
+#endif
+}
+
+ForthThread* ForthAsyncThread::GetThread(int threadIndex)
+{
+	if (threadIndex < (int)mSoftThreads.size())
+	{
+		return mSoftThreads[threadIndex];
+	}
+	return nullptr;
+}
+
+ForthThread* ForthAsyncThread::GetActiveThread()
+{
+	if (mActiveThreadIndex < (int)mSoftThreads.size())
+	{
+		return mSoftThreads[mActiveThreadIndex];
+	}
+	return nullptr;
+}
+
+void
+ForthAsyncThread::Reset(void)
+{ 
+	for (ForthThread* pThread : mSoftThreads)
+	{
+		if (pThread != nullptr)
+		{
+			pThread->Reset();
+		}
+	}
+}
+
+ForthThread* ForthAsyncThread::GetNextReadyThread()
+{
+	int originalThreadIndex = mActiveThreadIndex;
+
+	do	
+	{
+		mActiveThreadIndex++;
+		if (mActiveThreadIndex >= (int)mSoftThreads.size())
+		{
+			mActiveThreadIndex = 0;
+		}
+		ForthThread* pNextThread = mSoftThreads[mActiveThreadIndex];
+		if (pNextThread->GetRunState() == kFTRSReady)
+		{
+			return pNextThread;
+		}
+	} while (originalThreadIndex != mActiveThreadIndex);
+
+	return nullptr;
+}
+
+ForthThread* ForthAsyncThread::GetNextSleepingThread()
+{
+	ForthThread* pThreadToWake = nullptr;
+	int originalThreadIndex = mActiveThreadIndex;
+	ulong minWakeupTime = (ulong)(~0);
+	do
+	{
+		if (mActiveThreadIndex >= (int)mSoftThreads.size())
+		{
+			mActiveThreadIndex = 0;
+		}
+		ForthThread* pNextThread = mSoftThreads[mActiveThreadIndex];
+		if (pNextThread->GetRunState() == kFTRSSleeping)
+		{
+			ulong wakeupTime = pNextThread->GetWakeupTime();
+			if (wakeupTime < minWakeupTime)
+			{
+				minWakeupTime = wakeupTime;
+				pThreadToWake = pNextThread;
+			}
+		}
+		mActiveThreadIndex++;
+	} while (originalThreadIndex != mActiveThreadIndex);
+	return pThreadToWake;
 }
 
 long ForthAsyncThread::Start()
@@ -266,7 +475,7 @@ long ForthAsyncThread::Start()
 	{
 		::CloseHandle(mHandle);
 	}
-	mHandle = (HANDLE)_beginthreadex(NULL, 0, ForthThread::RunLoop, this, 0, (unsigned *)&mThreadId);
+	mHandle = (HANDLE)_beginthreadex(NULL, 0, ForthAsyncThread::RunLoop, this, 0, (unsigned *)&mThreadId);
 #else
 	// securityAttribPtr, stackSize, threadCodeAddr, threadUserData, flags, pThreadIdReturn
 	if (mHandle != 0)
@@ -285,11 +494,44 @@ void ForthAsyncThread::Exit()
 	// TBD: make sure this isn't the main thread
 	if (mpNext != NULL)
 	{
+		mRunState = kFTRSExited;
 #ifdef WIN32
 		_endthreadex(0);
 #else
 		pthread_exit(&mExitStatus);
 #endif
+	}
+}
+
+ForthThread* ForthAsyncThread::CreateThread(ForthEngine *pEngine, long threadOp, int paramStackLongs, int returnStackLongs)
+{
+	ForthThread* pThread = new ForthThread(pEngine, this, paramStackLongs, returnStackLongs);
+	pThread->SetOp(threadOp);
+	pThread->SetRunState(kFTRSStopped);
+	ForthThread* pPrimaryThread = GetThread(0);
+	pThread->InitTables(pPrimaryThread);
+	mSoftThreads.push_back(pThread);
+
+	return pThread;
+}
+
+void ForthAsyncThread::DeleteThread(ForthThread* pInThread)
+{
+	// TODO: do something when erasing last thread?  what about thread 0?
+	int lastIndex = mSoftThreads.size() - 1;
+	for (int i = 0; i <= lastIndex; ++i)
+	{
+		ForthThread* pThread = mSoftThreads[i];
+		if (pThread == pInThread)
+		{
+			delete pThread;
+			mSoftThreads.erase(mSoftThreads.begin() + i);
+		}
+		break;
+	}
+	if (mActiveThreadIndex == lastIndex)
+	{
+		mActiveThreadIndex = 0;
 	}
 }
 
@@ -303,18 +545,29 @@ namespace OThread
 	struct oAsyncThreadStruct
 	{
 		ulong				refCount;
+		int					id;
 		ForthAsyncThread	*pThread;
 	};
 
-	// TODO: add tracking of run state of thread - this should be done inside ForthThread, not here
-	FORTHOP(oAsyncThreadNew)
+	static ForthClassVocabulary* gpAsyncThreadVocabulary;
+	static ForthClassVocabulary* gpThreadVocabulary;
+
+	void CreateAsyncThreadObject(ForthObject& outAsyncThread, ForthEngine *pEngine, long threadOp, int paramStackLongs, int returnStackLongs)
 	{
-		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = gpAsyncThreadVocabulary->GetInterface(0);
+
 		MALLOCATE_OBJECT(oAsyncThreadStruct, pThreadStruct);
 		pThreadStruct->refCount = 0;
-		pThreadStruct->pThread = NULL;
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pThreadStruct);
+		pThreadStruct->pThread = pEngine->CreateAsyncThread(threadOp, paramStackLongs, returnStackLongs);
+		pThreadStruct->pThread->Reset();
+		outAsyncThread.pMethodOps = pPrimaryInterface->GetMethods();
+		outAsyncThread.pData = (long *) pThreadStruct;
+		pThreadStruct->pThread->SetAsyncThreadObject(outAsyncThread);
+	}
+
+	FORTHOP(oAsyncThreadNew)
+	{
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an OAsyncThread object");
 	}
 
 	FORTHOP(oAsyncThreadDeleteMethod)
@@ -322,33 +575,39 @@ namespace OThread
 		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		if (pThreadStruct->pThread != NULL)
 		{
-			GET_ENGINE->DestroyThread(pThreadStruct->pThread);
+			GET_ENGINE->DestroyAsyncThread(pThreadStruct->pThread);
 			pThreadStruct->pThread = NULL;
 		}
 		FREE_OBJECT(pThreadStruct);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oAsyncThreadInitMethod)
-	{
-		GET_THIS(oAsyncThreadStruct, pThreadStruct);
-		ForthEngine* pEngine = GET_ENGINE;
-		if (pThreadStruct->pThread != NULL)
-		{
-			pEngine->DestroyThread(pThreadStruct->pThread);
-		}
-		long threadOp = SPOP;
-		int returnStackSize = (int)(SPOP);
-		int paramStackSize = (int)(SPOP);
-		pThreadStruct->pThread = GET_ENGINE->CreateThread(threadOp, paramStackSize, returnStackSize);
-		pThreadStruct->pThread->Reset();
-		METHOD_RETURN;
-	}
-
 	FORTHOP(oAsyncThreadStartMethod)
 	{
 		GET_THIS(oAsyncThreadStruct, pThreadStruct);
-		long result = pThreadStruct->pThread->Start();
+		ForthAsyncThread* pAsyncThread = pThreadStruct->pThread;
+		ForthThread* pThread = pAsyncThread->GetThread(0);
+		pThread->Reset();
+		long result = pAsyncThread->Start();
+		SPUSH(result);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oAsyncThreadStartWithArgsMethod)
+	{
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
+		ForthAsyncThread* pAsyncThread = pThreadStruct->pThread;
+		ForthThread* pThread = pAsyncThread->GetThread(0);
+		pThread->Reset();
+		ForthCoreState* pDstCore = pThread->GetCore();
+		int numArgs = SPOP;
+		if (numArgs > 0)
+		{
+			pDstCore->SP -= numArgs;
+			memcpy(pDstCore->SP, pCore->SP, numArgs << 2);
+			pCore->SP += numArgs;
+		}
+		long result = pAsyncThread->Start();
 		SPUSH(result);
 		METHOD_RETURN;
 	}
@@ -360,46 +619,195 @@ namespace OThread
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oAsyncThreadPushMethod)
+	FORTHOP(oAsyncThreadResetMethod)
 	{
 		GET_THIS(oAsyncThreadStruct, pThreadStruct);
+		pThreadStruct->pThread->Reset();
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oAsyncThreadCreateThreadMethod)
+	{
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
+		ForthEngine* pEngine = GET_ENGINE;
+		ForthObject thread;
+
+		long threadOp = SPOP;
+		int returnStackLongs = (int)(SPOP);
+		int paramStackLongs = (int)(SPOP);
+		CreateThreadObject(thread, pThreadStruct->pThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
+
+		PUSH_OBJECT(thread);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oAsyncThreadGetRunStateMethod)
+	{
+		GET_THIS(oAsyncThreadStruct, pThreadStruct);
+		SPUSH((long)(pThreadStruct->pThread->GetRunState()));
+		METHOD_RETURN;
+	}
+
+	baseMethodEntry oAsyncThreadMembers[] =
+	{
+		METHOD("__newOp", oAsyncThreadNew),
+		METHOD("delete", oAsyncThreadDeleteMethod),
+		METHOD_RET("start", oAsyncThreadStartMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("startWithArgs", oAsyncThreadStartWithArgsMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD("exit", oAsyncThreadExitMethod),
+		METHOD("reset", oAsyncThreadResetMethod),
+		METHOD_RET("createThread", oAsyncThreadCreateThreadMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIThread)),
+		METHOD_RET("getRunState", oAsyncThreadGetRunStateMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+
+		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+
+		// following must be last in table
+		END_MEMBERS
+	};
+	
+
+	//////////////////////////////////////////////////////////////////////
+	///
+	//                 oThread
+	//
+
+	struct oThreadStruct
+	{
+		ulong				refCount;
+		int					id;
+		ForthThread			*pThread;
+	};
+
+	void CreateThreadObject(ForthObject& outThread, ForthAsyncThread *pParentAsyncThread, ForthEngine *pEngine, long threadOp, int paramStackLongs, int returnStackLongs)
+	{
+		ForthInterface* pPrimaryInterface = gpThreadVocabulary->GetInterface(0);
+
+		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct);
+		pThreadStruct->refCount = 0;
+		pThreadStruct->pThread = pParentAsyncThread->CreateThread(pEngine, threadOp, paramStackLongs, returnStackLongs);
+		pThreadStruct->pThread->Reset();
+
+		outThread.pMethodOps = pPrimaryInterface->GetMethods();
+		outThread.pData = (long *)pThreadStruct;
+		pThreadStruct->pThread->SetThreadObject(outThread);
+	}
+
+	void FixupPrimaryThread(ForthAsyncThread* pPrimaryAsyncThread)
+	{
+		ForthInterface* pPrimaryInterface = gpAsyncThreadVocabulary->GetInterface(0);
+
+		MALLOCATE_OBJECT(oAsyncThreadStruct, pAsyncThreadStruct);
+		pAsyncThreadStruct->refCount = 0;
+		pAsyncThreadStruct->pThread = pPrimaryAsyncThread;
+		ForthObject& primaryAsyncThread = pPrimaryAsyncThread->GetAsyncThreadObject();
+		primaryAsyncThread.pMethodOps = pPrimaryInterface->GetMethods();
+		primaryAsyncThread.pData = (long *)pAsyncThreadStruct;
+
+		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct);
+		ForthThread* pPrimaryThread = pPrimaryAsyncThread->GetThread(0);
+		ForthObject& primaryThread = pPrimaryThread->GetThreadObject();
+		pThreadStruct->refCount = 0;
+		pThreadStruct->pThread = pPrimaryThread;
+		primaryThread.pMethodOps = pPrimaryInterface->GetMethods();
+		primaryThread.pData = (long *)pThreadStruct;
+	}
+
+	FORTHOP(oThreadNew)
+	{
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an OThread object");
+	}
+
+	FORTHOP(oThreadDeleteMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		if (pThreadStruct->pThread != NULL)
+		{
+			delete pThreadStruct->pThread;
+			pThreadStruct->pThread = NULL;
+		}
+		FREE_OBJECT(pThreadStruct);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadStartMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		pThreadStruct->pThread->SetRunState(kFTRSReady);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadStartWithArgsMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		ForthThread* pThread = pThreadStruct->pThread;
+		ForthCoreState* pDstCore = pThread->GetCore();
+		int numArgs = SPOP;
+		if (numArgs > 0)
+		{
+			pDstCore->SP -= numArgs;
+			memcpy(pDstCore->SP, pCore->SP, numArgs << 2);
+			pCore->SP += numArgs;
+		}
+		pThread->SetRunState(kFTRSReady);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadStopMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		pThreadStruct->pThread->SetRunState(kFTRSStopped);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadSleepMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
+		ulong sleepMilliseconds = SPOP;
+		pThreadStruct->pThread->Sleep(sleepMilliseconds);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oThreadPushMethod)
+	{
+		GET_THIS(oThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->Push(SPOP);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oAsyncThreadPopMethod)
+	FORTHOP(oThreadPopMethod)
 	{
-		GET_THIS(oAsyncThreadStruct, pThreadStruct);
+		GET_THIS(oThreadStruct, pThreadStruct);
 		long val = pThreadStruct->pThread->Pop();
 		SPUSH(val);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oAsyncThreadRPushMethod)
+	FORTHOP(oThreadRPushMethod)
 	{
-		GET_THIS(oAsyncThreadStruct, pThreadStruct);
+		GET_THIS(oThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->RPush(SPOP);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oAsyncThreadRPopMethod)
+	FORTHOP(oThreadRPopMethod)
 	{
-		GET_THIS(oAsyncThreadStruct, pThreadStruct);
+		GET_THIS(oThreadStruct, pThreadStruct);
 		long val = pThreadStruct->pThread->RPop();
 		SPUSH(val);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oAsyncThreadGetStateMethod)
+	FORTHOP(oThreadGetRunStateMethod)
 	{
-		GET_THIS(oAsyncThreadStruct, pThreadStruct);
-		SPUSH((long)(pThreadStruct->pThread->GetCore()));
+		GET_THIS(oThreadStruct, pThreadStruct);
+		SPUSH((long)(pThreadStruct->pThread->GetRunState()));
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oAsyncThreadStepMethod)
+	FORTHOP(oThreadStepMethod)
 	{
-		GET_THIS(oAsyncThreadStruct, pThreadStruct);
+		GET_THIS(oThreadStruct, pThreadStruct);
 		ForthThread* pThread = pThreadStruct->pThread;
 		ForthCoreState* pThreadCore = pThread->GetCore();
 		long op = *(pThreadCore->IP)++;
@@ -423,36 +831,39 @@ namespace OThread
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oAsyncThreadResetMethod)
+	FORTHOP(oThreadResetMethod)
 	{
-		GET_THIS(oAsyncThreadStruct, pThreadStruct);
+		GET_THIS(oThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->Reset();
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oAsyncThreadResetIPMethod)
+	FORTHOP(oThreadResetIPMethod)
 	{
-		GET_THIS(oAsyncThreadStruct, pThreadStruct);
+		GET_THIS(oThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->ResetIP();
 		METHOD_RETURN;
 	}
 
-	baseMethodEntry oAsyncThreadMembers[] =
+	baseMethodEntry oThreadMembers[] =
 	{
-		METHOD("__newOp", oAsyncThreadNew),
-		METHOD("delete", oAsyncThreadDeleteMethod),
-		METHOD("init", oAsyncThreadInitMethod),
-		METHOD_RET("start", oAsyncThreadStartMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD("exit", oAsyncThreadExitMethod),
-		METHOD("push", oAsyncThreadPushMethod),
-		METHOD_RET("pop", oAsyncThreadPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD("rpush", oAsyncThreadRPushMethod),
-		METHOD_RET("rpop", oAsyncThreadRPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD_RET("getState", oAsyncThreadGetStateMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD_RET("step", oAsyncThreadStepMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD("reset", oAsyncThreadResetMethod),
-		METHOD("resetIP", oAsyncThreadResetIPMethod),
+		METHOD("__newOp", oThreadNew),
+		METHOD("delete", oThreadDeleteMethod),
+		METHOD("start", oThreadStartMethod),
+		METHOD("startWithArgs", oThreadStartWithArgsMethod),
+		METHOD("stop", oThreadStopMethod),
+		METHOD("sleep", oThreadSleepMethod),
+		METHOD("push", oThreadPushMethod),
+		METHOD_RET("pop", oThreadPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD("rpush", oThreadRPushMethod),
+		METHOD_RET("rpop", oThreadRPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("getRunState", oThreadGetRunStateMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("step", oThreadStepMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD("reset", oThreadResetMethod),
+		METHOD("resetIP", oThreadResetIPMethod),
+		//METHOD_RET("getParent", oThreadGetParentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseType)),
 
+		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
 		// following must be last in table
@@ -462,7 +873,8 @@ namespace OThread
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		ForthClassVocabulary* pOThreadClass = pEngine->AddBuiltinClass("OAsyncThread", kBCIThread, kBCIObject, oAsyncThreadMembers);
+		gpThreadVocabulary = pEngine->AddBuiltinClass("OThread", kBCIThread, kBCIObject, oThreadMembers);
+		gpAsyncThreadVocabulary = pEngine->AddBuiltinClass("OAsyncThread", kBCIAsyncThread, kBCIObject, oAsyncThreadMembers);
 	}
 
 } // namespace OThread
@@ -471,27 +883,37 @@ namespace OLock
 {
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 OLock
+	//                 OAsyncLock
 	//
 
 	struct oAsyncLockStruct
 	{
 		ulong			refCount;
+		int				id;
 #ifdef WIN32
 		CRITICAL_SECTION* pLock;
 #else
 #endif
 	};
 
-	FORTHOP(oAsyncLockNew)
+	static ForthClassVocabulary* gpAsyncLockVocabulary;
+
+	void CreateAsyncLockObject(ForthObject& outAsyncLock, ForthEngine *pEngine)
 	{
-		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = gpAsyncLockVocabulary->GetInterface(0);
+
 		MALLOCATE_OBJECT(oAsyncLockStruct, pLockStruct);
 		pLockStruct->refCount = 0;
 		pLockStruct->pLock = new CRITICAL_SECTION();
 		InitializeCriticalSection(pLockStruct->pLock);
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pLockStruct);
+
+		outAsyncLock.pMethodOps = pPrimaryInterface->GetMethods();
+		outAsyncLock.pData = (long *)pLockStruct;
+	}
+
+	FORTHOP(oAsyncLockNew)
+	{
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an OAsyncLock object");
 	}
 
 	FORTHOP(oAsyncLockDeleteMethod)
@@ -536,6 +958,190 @@ namespace OLock
 		METHOD_RET("tryGrab", oAsyncLockTryGrabMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("ungrab", oAsyncLockUngrabMethod),
 
+		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		// following must be last in table
+		END_MEMBERS
+	};
+
+
+	//////////////////////////////////////////////////////////////////////
+	///
+	//                 OLock
+	//
+
+	struct oLockStruct
+	{
+		ulong			refCount;
+		int				id;
+		int				lockDepth;
+#ifdef WIN32
+		CRITICAL_SECTION* pLock;
+#else
+#endif
+		ForthThread* pLockHolder;
+		std::deque<ForthThread*> *pBlockedThreads;
+	};
+
+	FORTHOP(oLockNew)
+	{
+		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
+		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
+		MALLOCATE_OBJECT(oLockStruct, pLockStruct);
+
+		pLockStruct->refCount = 0;
+		pLockStruct->pLock = new CRITICAL_SECTION();
+		InitializeCriticalSection(pLockStruct->pLock);
+		pLockStruct->pLockHolder = nullptr;
+		pLockStruct->pBlockedThreads = new std::deque<ForthThread*>;
+		pLockStruct->lockDepth = 0;
+
+		PUSH_PAIR(pPrimaryInterface->GetMethods(), pLockStruct);
+	}
+
+	FORTHOP(oLockDeleteMethod)
+	{
+		GET_THIS(oLockStruct, pLockStruct);
+		GET_ENGINE->SetError(kForthErrorException, " OLock.delete called with threads blocked on lock");
+
+		DeleteCriticalSection(pLockStruct->pLock);
+		delete pLockStruct->pBlockedThreads;
+		FREE_OBJECT(pLockStruct);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oLockGrabMethod)
+	{
+		GET_THIS(oLockStruct, pLockStruct);
+		EnterCriticalSection(pLockStruct->pLock);
+
+		ForthThread* pThread = (ForthThread*)(pCore->pThread);
+		if (pLockStruct->pLockHolder == nullptr)
+		{
+			if (pLockStruct->lockDepth != 0)
+			{
+				GET_ENGINE->SetError(kForthErrorException, " OLock.grab called with no lock holder and lock depth not 0");
+			}
+			else
+			{
+				pLockStruct->pLockHolder = pThread;
+				pLockStruct->lockDepth++;
+			}
+		}
+		else
+		{
+			if (pLockStruct->pLockHolder == pThread)
+			{
+				pLockStruct->lockDepth++;
+			}
+			else
+			{
+				pThread->Block();
+				SET_STATE(kResultYield);
+				pLockStruct->pBlockedThreads->push_back(pThread);
+			}
+		}
+
+		LeaveCriticalSection(pLockStruct->pLock);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oLockTryGrabMethod)
+	{
+		GET_THIS(oLockStruct, pLockStruct);
+		EnterCriticalSection(pLockStruct->pLock);
+
+		int result = (int)false;
+		ForthThread* pThread = (ForthThread*)(pCore->pThread);
+		if (pLockStruct->pLockHolder == nullptr)
+		{
+			if (pLockStruct->lockDepth != 0)
+			{
+				GET_ENGINE->SetError(kForthErrorException, " OLock.tryGrab called with no lock holder and lock depth not 0");
+			}
+			else
+			{
+				pLockStruct->pLockHolder = pThread;
+				pLockStruct->lockDepth++;
+				result = true;
+			}
+		}
+		else
+		{
+			if (pLockStruct->pLockHolder == pThread)
+			{
+				pLockStruct->lockDepth++;
+				result = true;
+			}
+		}
+		SPUSH(result);
+
+		LeaveCriticalSection(pLockStruct->pLock);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oLockUngrabMethod)
+	{
+		GET_THIS(oLockStruct, pLockStruct);
+		EnterCriticalSection(pLockStruct->pLock);
+
+		if (pLockStruct->pLockHolder == nullptr)
+		{
+			GET_ENGINE->SetError(kForthErrorException, " OLock.ungrab called on ungrabbed lock");
+		}
+		else
+		{
+			if (pLockStruct->pLockHolder != (ForthThread*)(pCore->pThread))
+			{
+				GET_ENGINE->SetError(kForthErrorException, " OLock.ungrab called by thread which does not have lock");
+			}
+			else
+			{
+				if (pLockStruct->lockDepth <= 0)
+				{
+					GET_ENGINE->SetError(kForthErrorException, " OLock.ungrab called with lock depth <= 0");
+				}
+				else
+				{
+					pLockStruct->lockDepth--;
+					if (pLockStruct->lockDepth == 0)
+					{
+						if (pLockStruct->pBlockedThreads->size() == 0)
+						{
+							pLockStruct->pLockHolder = nullptr;
+						}
+						else
+						{
+							ForthThread* pThread = pLockStruct->pBlockedThreads->front();
+							pLockStruct->pBlockedThreads->pop_front();
+							pLockStruct->pLockHolder = pThread;
+							pLockStruct->lockDepth++;
+							pThread->Wake();
+							SET_STATE(kResultYield);
+						}
+					}
+				}
+			}
+		}
+
+		LeaveCriticalSection(pLockStruct->pLock);
+		METHOD_RETURN;
+	}
+
+	baseMethodEntry oLockMembers[] =
+	{
+		METHOD("__newOp", oLockNew),
+		METHOD("delete", oLockDeleteMethod),
+		METHOD("grab", oLockGrabMethod),
+		METHOD_RET("tryGrab", oLockTryGrabMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD("ungrab", oLockUngrabMethod),
+
+		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("lockDepth", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__lockHolder", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__blockedThreads", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -543,7 +1149,8 @@ namespace OLock
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		ForthClassVocabulary* pOLock = pEngine->AddBuiltinClass("OAsyncLock", kBCILock, kBCIObject, oAsyncLockMembers);
+		gpAsyncLockVocabulary = pEngine->AddBuiltinClass("OAsyncLock", kBCIAsyncLock, kBCIObject, oAsyncLockMembers);
+		pEngine->AddBuiltinClass("OLock", kBCILock, kBCIObject, oLockMembers);
 	}
 
 } // namespace OLock

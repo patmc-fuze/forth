@@ -67,7 +67,7 @@ VarAction byteOps[] =
     doByteMinusStore
 };
 
-inline void _doByteVarop( ForthCoreState* pCore, signed char* pVar )
+void _doByteVarop( ForthCoreState* pCore, signed char* pVar )
 {
     ForthEngine *pEngine = (ForthEngine *)pCore->pEngine;
     ulong varOp = GET_VAR_OPERATION;
@@ -127,7 +127,7 @@ VarAction ubyteOps[] =
     doByteMinusStore
 };
 
-inline void _doUByteVarop( ForthCoreState* pCore, unsigned char* pVar )
+static void _doUByteVarop( ForthCoreState* pCore, unsigned char* pVar )
 {
     ForthEngine *pEngine = (ForthEngine *)pCore->pEngine;
     ulong varOp = GET_VAR_OPERATION;
@@ -348,7 +348,7 @@ VarAction shortOps[] =
     doShortMinusStore
 };
 
-inline void _doShortVarop( ForthCoreState* pCore, short* pVar )
+static void _doShortVarop( ForthCoreState* pCore, short* pVar )
 {
     ForthEngine *pEngine = (ForthEngine *)pCore->pEngine;
     ulong varOp = GET_VAR_OPERATION;
@@ -408,7 +408,7 @@ VarAction ushortOps[] =
     doShortMinusStore
 };
 
-inline void _doUShortVarop( ForthCoreState* pCore, unsigned short* pVar )
+static void _doUShortVarop( ForthCoreState* pCore, unsigned short* pVar )
 {
     ForthEngine *pEngine = (ForthEngine *)pCore->pEngine;
     ulong varOp = GET_VAR_OPERATION;
@@ -629,7 +629,7 @@ VarAction intOps[] =
     doIntMinusStore
 };
 
-inline void _doIntVarop( ForthCoreState* pCore, int* pVar )
+void _doIntVarop( ForthCoreState* pCore, int* pVar )
 {
     ForthEngine *pEngine = (ForthEngine *)pCore->pEngine;
     ulong varOp = GET_VAR_OPERATION;
@@ -774,7 +774,7 @@ VarAction floatOps[] =
     doFloatMinusStore
 };
 
-inline void _doFloatVarop( ForthCoreState* pCore, float* pVar )
+static void _doFloatVarop( ForthCoreState* pCore, float* pVar )
 {
     ForthEngine *pEngine = (ForthEngine *)pCore->pEngine;
     ulong varOp = GET_VAR_OPERATION;
@@ -926,7 +926,7 @@ VarAction doubleOps[] =
     doDoubleMinusStore
 };
 
-inline void _doDoubleVarop( ForthCoreState* pCore, double* pVar )
+static void _doDoubleVarop( ForthCoreState* pCore, double* pVar )
 {
     ForthEngine *pEngine = (ForthEngine *)pCore->pEngine;
     ulong varOp = GET_VAR_OPERATION;
@@ -1100,7 +1100,7 @@ VarAction stringOps[] =
     doStringAppend
 };
 
-inline void _doStringVarop( ForthCoreState* pCore, char* pVar )
+static void _doStringVarop( ForthCoreState* pCore, char* pVar )
 {
     ForthEngine *pEngine = (ForthEngine *)pCore->pEngine;
     ulong varOp = GET_VAR_OPERATION;
@@ -1228,7 +1228,7 @@ OPTYPE_ACTION( MemberStringArrayAction )
 
 VAR_ACTION( doOpExecute ) 
 {
-    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( *(long *)(SPOP) );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  *(long *)(SPOP) );
 }
 
 VarAction opOps[] =
@@ -1239,7 +1239,7 @@ VarAction opOps[] =
     doIntStore,
 };
 
-inline void _doOpVarop( ForthCoreState* pCore, long* pVar )
+static void _doOpVarop( ForthCoreState* pCore, long* pVar )
 {
     ForthEngine *pEngine = (ForthEngine *)pCore->pEngine;
     ulong varOp = GET_VAR_OPERATION;
@@ -1260,7 +1260,7 @@ inline void _doOpVarop( ForthCoreState* pCore, long* pVar )
     else
     {
         // just a fetch - execute the op
-        pEngine->ExecuteOneOp( *pVar );
+        pEngine->ExecuteOp(pCore,  *pVar );
     }
 }
 
@@ -1356,15 +1356,7 @@ OPTYPE_ACTION( MemberOpArrayAction )
 // 
 
 
-VarAction objectOps[] =
-{
-    doDoubleFetch,
-    doDoubleFetch,
-    doIntRef,
-    doDoubleStore,
-};
-
-inline void _doObjectVarop( ForthCoreState* pCore, ForthObject* pVar )
+static void _doObjectVarop( ForthCoreState* pCore, ForthObject* pVar )
 {
     ForthEngine *pEngine = (ForthEngine *)pCore->pEngine;
 
@@ -1426,6 +1418,18 @@ inline void _doObjectVarop( ForthCoreState* pCore, ForthObject* pVar )
 		}
 		break;
 
+	case kVarObjectClear:
+		{
+			ForthObject& oldObj = *pVar;
+			if (oldObj.pMethodOps != NULL)
+			{
+				SAFE_RELEASE(pCore, oldObj);
+				pVar->pData = nullptr;
+				pVar->pMethodOps = nullptr;
+			}
+		}
+		break;
+
 	default:
 		// report GET_VAR_OPERATION out of range
 		pEngine->SetError( kForthErrorBadVarOperation );
@@ -1438,9 +1442,9 @@ GFORTHOP( doObjectBop )
 {
     // IP points to data field
 	ForthObject* pVar = (ForthObject *)(GET_IP);
+	SET_IP((long *)(RPOP));
 
 	_doObjectVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
 }
 
 GFORTHOP( objectVarActionBop )
@@ -1567,7 +1571,7 @@ VarAction longOps[] =
     doLongMinusStore
 };
 
-inline void _doLongVarop( ForthCoreState* pCore, long long* pVar )
+static void _doLongVarop( ForthCoreState* pCore, long long* pVar )
 {
     ForthEngine *pEngine = (ForthEngine *)pCore->pEngine;
     ulong varOp = GET_VAR_OPERATION;
@@ -1959,7 +1963,7 @@ OPTYPE_ACTION(MethodWithThisAction)
 	{
 		SpewMethodName(pMethods, opVal);
 	}
-	pEngine->ExecuteOneOp(pMethods[opVal]);
+	pEngine->ExecuteOp(pCore, pMethods[opVal]);
 }
 
 OPTYPE_ACTION( MethodWithTOSAction )
@@ -1980,7 +1984,7 @@ OPTYPE_ACTION( MethodWithTOSAction )
 	{
 		SpewMethodName(pMethods, opVal);
 	}
-    pEngine->ExecuteOneOp( pMethods[ opVal ] );
+    pEngine->ExecuteOp(pCore,  pMethods[ opVal ] );
 	//pEngine->TraceOut("<<MethodWithTOSAction IP %p  RP %p\n", GET_IP, GET_RP);
 }
 
@@ -2016,7 +2020,7 @@ OPTYPE_ACTION( NumVaropOpComboAction )
 
 	// execute op in bits 13:23
 	long op = COMPILED_OP( kOpNative, (opVal >> 13) );
-    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
 }
 
 OPTYPE_ACTION( NumVaropComboAction )
@@ -2057,7 +2061,7 @@ OPTYPE_ACTION( NumOpComboAction )
 
 	// execute op in bits 13:23
 	long op = COMPILED_OP( kOpNative, (opVal >> 13) );
-    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
 }
 
 OPTYPE_ACTION( VaropOpComboAction )
@@ -2069,14 +2073,14 @@ OPTYPE_ACTION( VaropOpComboAction )
 
 	// execute op in bits 2:23
 	long op = COMPILED_OP( kOpNative, (opVal >> 2) );
-    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
 }
 
 OPTYPE_ACTION( OpZBranchComboAction )
 {
 	// bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
 	long op = COMPILED_OP( kOpNative, (opVal & 0xFFF) );
-    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
     if ( SPOP == 0 )
     {
 		long branchOffset = opVal >> 12;
@@ -2093,7 +2097,7 @@ OPTYPE_ACTION( OpBranchComboAction )
 {
 	// bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
 	long op = COMPILED_OP( kOpNative, (opVal & 0xFFF) );
-    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
 	long branchOffset = opVal >> 12;
     if ( (branchOffset & 0x800) != 0 )
     {
@@ -2129,7 +2133,7 @@ OPTYPE_ACTION( LocalRefOpComboAction )
 
 	// execute op in bits 12:23
 	long op = COMPILED_OP( kOpNative, (opVal >> 12) );
-    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
 }
 
 OPTYPE_ACTION( MemberRefOpComboAction )
@@ -2140,7 +2144,7 @@ OPTYPE_ACTION( MemberRefOpComboAction )
 
 	// execute op in bits 12:23
 	long op = COMPILED_OP( kOpNative, (opVal >> 12) );
-    ((ForthEngine *)pCore->pEngine)->ExecuteOneOp( op );
+    ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
 }
 
 OPTYPE_ACTION( IllegalOptypeAction )
@@ -2467,9 +2471,11 @@ InterpretOneOp( ForthCoreState *pCore, long op )
 	if ( traceFlags & kLogInnerInterpreter )
 	{
 		// fetch op at IP, advance IP
-		pEngine->TraceOp( pCore );
-		DISPATCH_FORTH_OP( pCore, op );
-		if ( traceFlags & kLogStack )
+		pEngine->TraceOp( pCore, op );
+		//DISPATCH_FORTH_OP( pCore, op );
+		optypeActionRoutine typeAction = pCore->optypeAction[(int)FORTH_OP_TYPE(op)];
+		typeAction(pCore, FORTH_OP_VALUE(op));
+		if (traceFlags & kLogStack)
 		{
 			pEngine->TraceStack( pCore );
 		}
@@ -2478,7 +2484,9 @@ InterpretOneOp( ForthCoreState *pCore, long op )
 	else
 #endif
 	{
-		DISPATCH_FORTH_OP( pCore, op );
+		//DISPATCH_FORTH_OP( pCore, op );
+		optypeActionRoutine typeAction = pCore->optypeAction[(int)FORTH_OP_TYPE(op)];
+		typeAction(pCore, FORTH_OP_VALUE(op));
 	}
     return GET_STATE;
 }

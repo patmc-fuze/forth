@@ -203,15 +203,18 @@ typedef enum {
     kResultException,   // exit because of uncaught exception
     kResultShutdown,    // exit because of a "shutdown" opcode
 	kResultTrace,		// exit because of a "setTrace" opcode
+	kResultYield,		// exit because of a stopThread/yield/sleepThread opcode
 } eForthResult;
 
-// Nothing uses these
-/*
-#define FLAG_DONE           1
-#define FLAG_BYE            (1 << 1)
-#define FLAG_ERROR          (1 << 2)
-#define FLAG_FATAL_ERROR    (1 << 3)
-*/
+// run state of ForthThreads
+typedef enum
+{
+	kFTRSStopped,		// initial state, or after executing stop, needs another thread to Start it
+	kFTRSReady,			// ready to continue running
+	kFTRSSleeping,		// sleeping until wakeup time is reached
+	kFTRSBlocked,		// blocked on a soft lock
+	kFTRSExited,		// done running - executed exitThread
+} eForthThreadRunState;
 
 typedef enum {
 	kForthErrorNone,

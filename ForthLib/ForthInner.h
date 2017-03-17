@@ -66,7 +66,7 @@ struct ForthCoreState
     ulong               maxOps;     // current size of table at pUserOps
 
     //ForthEngine         *pEngine;
-   void                 *pEngine;
+    void                 *pEngine;
 
     long                *IP;            // interpreter pointer
 
@@ -95,7 +95,7 @@ struct ForthCoreState
 
     ulong               RLen;           // size of return stack in longwords
 
-    void                *pThread;
+    void                *pThread;		// actually a ForthAsyncThread
 
     ForthMemorySection* pDictionary;
     ForthFileInterface* pFileFuncs;
@@ -120,6 +120,7 @@ extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, long op );
 
 void InitDispatchTables( ForthCoreState* pCore );
 void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal );
+void _doIntVarop(ForthCoreState* pCore, int* pVar);
 
 // DLLRoutine is used for any external DLL routine - it can take any number of arguments
 typedef long (*DLLRoutine)();

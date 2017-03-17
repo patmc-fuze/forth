@@ -22,7 +22,7 @@ extern "C" {
 	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
 	extern void unimplementedMethodOp( ForthCoreState *pCore );
 	extern void illegalMethodOp( ForthCoreState *pCore );
-	extern int oStringFormatSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
+	extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 };
 
 namespace OString

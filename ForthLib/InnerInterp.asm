@@ -3802,6 +3802,8 @@ entry doExitBop
 	mov	esi, [eax]
 	add	eax, 4
 	mov	[ebp].FCore.RPtr, eax
+	test	esi, esi
+	jz doneBop
 	jmp	edi
 
 doExitBop1:
@@ -3823,6 +3825,8 @@ entry doExitLBop
 	mov	esi, [eax]
 	add	eax, 4
 	mov	[ebp].FCore.RPtr, eax
+	test	esi, esi
+	jz doneBop
 	jmp	edi
 	
 ;========================================
@@ -3841,6 +3845,8 @@ entry doExitMBop
 	mov	[ebp].FCore.TMPtr, ebx
 	mov	ebx, [eax-4]
 	mov	[ebp].FCore.TDPtr, ebx
+	test	esi, esi
+	jz doneBop
 	jmp	edi
 
 ;========================================
@@ -3861,6 +3867,8 @@ entry doExitMLBop
 	mov	[ebp].FCore.TMPtr, ebx
 	mov	ebx, [eax-4]
 	mov	[ebp].FCore.TDPtr, ebx
+	test	esi, esi
+	jz doneBop
 	jmp	edi
 	
 ;========================================
@@ -3874,12 +3882,16 @@ entry callBop
 	; pop new IP
 	mov	esi, [edx]
 	add	edx, 4
+	test	esi, esi
+	jz doneBop
 	jmp	edi
 	
 ;========================================
 
 entry gotoBop
 	mov	esi, [edx]
+	test	esi, esi
+	jz doneBop
 	jmp	edi
 
 ;========================================
@@ -5798,7 +5810,7 @@ snprintfSub ENDP
 
 ;========================================
 
-; extern int oStringFormatSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
+; extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 PUBLIC	oStringFormatSub;
 oStringFormatSub PROC near C public uses ebx esi edx ecx edi ebp,
 	core:PTR,

@@ -84,16 +84,15 @@ public:
     bool            GetFastMode( void );
 
     //
-    // ExecuteOneOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
+    // FullyExecuteOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
     // execute forth ops, and is also how systems external to forth execute ops
     //
-    eForthResult        ExecuteOneOp( long opCode );
-    // ExecuteOps executes a sequence of forth ops
+	eForthResult        FullyExecuteOp(ForthCoreState* pCore, long opCode);
+	// ExecuteOp will start execution of an op, but will not finish user defs or methods
+	eForthResult        ExecuteOp(ForthCoreState* pCore, long opCode);
+	// ExecuteOps executes a sequence of forth ops
     // The sequence must be terminated with an OP_DONE
-    eForthResult        ExecuteOps( long* pOps );
-	// Use this version of ExecuteOps to execute code in a particular thread
-	// Caller must have already set the thread IP to point to a sequence of ops which ends with 'done'
-	eForthResult		ExecuteOps( ForthCoreState* pCore );
+	eForthResult        ExecuteOps(ForthCoreState* pCore, long* pOps);
 
     eForthResult        ExecuteOneMethod( ForthCoreState* pCore, ForthObject& obj, long methodNum );
 
@@ -114,8 +113,8 @@ public:
 
     // create a thread which will be managed by the engine - the engine destructor will delete all threads
     //  which were created with CreateThread 
-    ForthAsyncThread * CreateThread( long threadLoopOp = OP_DONE, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
-	void               DestroyThread(ForthAsyncThread *pThread);
+    ForthAsyncThread * CreateAsyncThread( long threadLoopOp = OP_DONE, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
+	void               DestroyAsyncThread(ForthAsyncThread *pThread);
 
     // return true IFF the last compiled opcode was an integer literal
     bool            GetLastConstant( long& constantValue );
@@ -158,8 +157,9 @@ public:
     char *          GetLastInputToken( void );
 
     const char *            GetOpTypeName( long opType );
-    void                    TraceOp( ForthCoreState* pCore );
-    void                    TraceStack( ForthCoreState* pCore );
+	void                    TraceOp(ForthCoreState* pCore, long op);
+	void                    TraceOp(ForthCoreState* pCore);
+	void                    TraceStack(ForthCoreState* pCore);
     void                    DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUserDefs=false );
     long *                  NextOp( long *pOp );
 
@@ -191,7 +191,7 @@ public:
     inline ForthShell       *GetShell( void ) { return mpShell; };
 	inline void				SetShell( ForthShell *pShell ) { mpShell = pShell; };
     inline ForthVocabulary  *GetForthVocabulary( void )   { return mpForthVocab; };
-    inline ForthThread      *GetMainThread( void )  { return mpMainThread; };
+    inline ForthThread      *GetMainThread( void )  { return mpMainThread->GetThread(0); };
 
     inline long             *GetCompileStatePtr( void ) { return &mCompileState; };
     inline void             SetCompileState( long v ) { mCompileState = v; };
