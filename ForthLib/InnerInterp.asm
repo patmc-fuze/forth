@@ -2691,6 +2691,11 @@ entry abortBop
 
 ;========================================
 
+entry noopBop
+	jmp	edi
+
+;========================================
+	
 entry plusBop
 	mov	eax, [edx]
 	add	edx, 4
@@ -4322,6 +4327,216 @@ maxBop1:
 	jmp	edi
 	
 	
+;========================================
+
+entry lcmpBop
+	xor	eax, eax
+	mov ebx, [edx+8]
+	sub	ebx, [edx]
+	mov ebx, [edx+12]
+	sbb	ebx, [edx+4]
+	jz	lcmpBop3
+	jl	lcmpBop2
+	add	eax, 2
+lcmpBop2:
+	dec	eax
+lcmpBop3:
+	add edx, 12
+	mov	[edx], eax
+	jmp	edi
+
+;========================================
+
+entry ulcmpBop
+	xor	eax, eax
+	mov ebx, [edx+8]
+	sub	ebx, [edx]
+	mov ebx, [edx+12]
+	sbb	ebx, [edx+4]
+	jz	ulcmpBop3
+	jb	ulcmpBop2
+	add	eax, 2
+ulcmpBop2:
+	dec	eax
+ulcmpBop3:
+	add edx, 12
+	mov	[edx], eax
+	jmp	edi
+
+;========================================
+
+entry lEqualsBop
+	xor	eax, eax
+	mov ebx, [edx+8]
+	mov ecx, [edx+12]
+	sub	ebx, [edx]
+	sbb	ecx, [edx+4]
+	jnz	leqBop1
+	dec	eax
+leqBop1:
+	add edx, 12
+	mov	[edx], eax
+	jmp	edi
+	
+;========================================
+
+entry lEquals0Bop
+	xor eax, eax
+	mov ebx, [edx+4]
+	or ebx, [edx]
+	jnz	leq0Bop1
+	dec	eax
+leq0Bop1:
+	add edx, 4
+	mov	[edx], eax
+	jmp	edi
+	
+;========================================
+
+entry lNotEqualsBop
+	xor	eax, eax
+	mov ebx, [edx+8]
+	sub	ebx, [edx]
+	mov ebx, [edx+12]
+	sbb	ebx, [edx+4]
+	jz	lneqBop1
+	dec	eax
+lneqBop1:
+	add edx, 12
+	mov	[edx], eax
+	jmp	edi
+	
+;========================================
+
+entry lNotEquals0Bop
+	xor	eax, eax
+	mov ebx, [edx+4]
+	or ebx, [edx]
+	jz	lneq0Bop1
+	dec	eax
+lneq0Bop1:
+	add edx, 4
+	mov	[edx], eax
+	jmp	edi
+	
+;========================================
+
+entry lGreaterThanBop
+	xor	eax, eax
+	mov ebx, [edx+8]
+	sub	ebx, [edx]
+	mov ebx, [edx+12]
+	sbb	ebx, [edx+4]
+	jle	lgtBop
+	dec	eax
+lgtBop:
+	add edx, 12
+	mov	[edx], eax
+	jmp	edi
+
+;========================================
+
+entry lGreaterThan0Bop
+	xor	eax, eax
+	cmp eax, [edx]
+	jl lgt0Bop2		; if hiword is negative, return false
+	jg lgt0Bop1		; if hiword is positive, return true
+	; hiword was zero, need to check low word (unsigned)
+	cmp eax, [edx+4]
+	jz lgt0Bop2		; loword also 0, return false
+lgt0Bop1:
+	dec	eax
+lgt0Bop2:
+	add	edx, 4
+	mov	[edx], eax
+	jmp	edi
+
+;========================================
+
+entry lGreaterEqualsBop
+	xor	eax, eax
+	mov ebx, [edx+8]
+	sub	ebx, [edx]
+	mov ebx, [edx+12]
+	sbb	ebx, [edx+4]
+	jl	lgeBop
+	dec	eax
+lgeBop:
+	add edx, 12
+	mov	[edx], eax
+	jmp	edi
+
+;========================================
+
+entry lGreaterEquals0Bop
+	xor	eax, eax
+	cmp eax, [edx]
+	jl lge0Bop		; if hiword is negative, return false
+	dec	eax
+lge0Bop:
+	add	edx, 4
+	mov	[edx], eax
+	jmp	edi
+
+;========================================
+
+entry lLessThanBop
+	xor	eax, eax
+	mov ebx, [edx+8]
+	sub	ebx, [edx]
+	mov ebx, [edx+12]
+	sbb	ebx, [edx+4]
+	jge	lltBop
+	dec	eax
+lltBop:
+	add edx, 12
+	mov	[edx], eax
+	jmp	edi
+
+;========================================
+
+entry lLessThan0Bop
+	xor	eax, eax
+	cmp eax, [edx]
+	jge lt0Bop		; if hiword is negative, return true
+	dec	eax
+lt0Bop:
+	add	edx, 4
+	mov	[edx], eax
+	jmp	edi
+
+;========================================
+
+entry lLessEqualsBop
+	xor	eax, eax
+	mov ebx, [edx+8]
+	sub	ebx, [edx]
+	mov ebx, [edx+12]
+	sbb	ebx, [edx+4]
+	jg	lleBop
+	dec	eax
+lleBop:
+	add edx, 12
+	mov	[edx], eax
+	jmp	edi
+
+;========================================
+
+entry lLessEquals0Bop
+	xor	eax, eax
+	cmp eax, [edx]
+	jg lle1Bop		; if hiword is positive, return false
+	jl lle0Bop		; if hiword is negative, return true
+	; hiword was 0, need to test loword
+	cmp eax, [edx+4]
+	jnz lle1Bop		; if loword is positive, return false
+lle0Bop:
+	dec	eax
+lle1Bop:
+	add	edx, 4
+	mov	[edx], eax
+	jmp	edi
+
 ;========================================
 
 entry icmpBop

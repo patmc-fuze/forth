@@ -101,11 +101,11 @@ extern long gStatReleases;
 
 #define MALLOCATE( _type, _ptr ) _type* _ptr = (_type *) __MALLOC( sizeof(_type) );
 
-#define MALLOCATE_OBJECT( _type, _ptr )  MALLOCATE( _type, _ptr );  TRACK_NEW
+#define MALLOCATE_OBJECT( _type, _ptr, _vocab )   _type* _ptr = (_type *) __MALLOC( _vocab->GetSize() );  TRACK_NEW
 #define FREE_OBJECT( _obj )  __FREE( _obj );  TRACK_DELETE
 #define MALLOCATE_LINK( _type, _ptr )  MALLOCATE( _type, _ptr );  TRACK_LINK_NEW
 #define FREE_LINK( _link )  __FREE( _link );  TRACK_LINK_DELETE
-#define MALLOCATE_ITER( _type, _ptr )  MALLOCATE_OBJECT( _type, _ptr );  TRACK_ITER_NEW
+#define MALLOCATE_ITER( _type, _ptr, _vocab )  MALLOCATE_OBJECT( _type, _ptr, _vocab );  TRACK_ITER_NEW
 #define FREE_ITER( _link )  FREE_OBJECT( _link );  TRACK_ITER_DELETE
 
 

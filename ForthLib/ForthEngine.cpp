@@ -330,7 +330,9 @@ ForthEngine::~ForthEngine()
 		delete pThread;
 		pThread = pNextThread;
     }
-	mpThreads = nullptr;
+
+	delete mpMainThread;
+
     delete mpEngineScratch;
 
     delete mpVocabStack;
@@ -2085,6 +2087,28 @@ ForthEngine::ExecuteOneMethod( ForthCoreState* pCore, ForthObject& obj, long met
 	}
 #endif
 
+	return exitStatus;
+}
+
+eForthResult
+ForthEngine::FullyExecuteMethod(ForthCoreState* pCore, ForthObject& obj, long methodNum)
+{
+	long opScratch[2];
+	long opCode = obj.pMethodOps[methodNum];
+
+	RPUSH(((long)GET_TPD));
+	RPUSH(((long)GET_TPM));
+	SET_TPM(obj.pMethodOps);
+	SET_TPD(obj.pData);
+
+	opScratch[0] = opCode;
+	opScratch[1] = gCompiledOps[OP_DONE];
+	eForthResult exitStatus = ExecuteOps(pCore, &(opScratch[0]));
+
+	if (exitStatus == kResultYield)
+	{
+		SetError(kForthErrorException, " yield not allowed in FullyExecuteMethod");
+	}
 	return exitStatus;
 }
 

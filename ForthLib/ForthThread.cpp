@@ -22,6 +22,20 @@
 #define GAURD_AREA 4
 #endif
 
+struct oAsyncThreadStruct
+{
+	ulong				refCount;
+	int					id;
+	ForthAsyncThread	*pThread;
+};
+
+struct oThreadStruct
+{
+	ulong				refCount;
+	int					id;
+	ForthThread			*pThread;
+};
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -90,6 +104,11 @@ ForthThread::~ForthThread()
 	if (mpShowContext != NULL)
 	{
 		delete mpShowContext;
+	}
+	oThreadStruct* pThreadStruct = (oThreadStruct *)mObject.pData;
+	if (pThreadStruct->pThread != NULL)
+	{
+		FREE_OBJECT(pThreadStruct);
 	}
 }
 
@@ -276,6 +295,11 @@ ForthAsyncThread::~ForthAsyncThread()
 		{
 			delete pThread;
 		}
+	}
+	oAsyncThreadStruct* pThreadStruct = (oAsyncThreadStruct *)mObject.pData;
+	if (pThreadStruct->pThread != NULL)
+	{
+		FREE_OBJECT(pThreadStruct);
 	}
 }
 
@@ -542,13 +566,6 @@ namespace OThread
 	//                 oAsyncThread
 	//
 
-	struct oAsyncThreadStruct
-	{
-		ulong				refCount;
-		int					id;
-		ForthAsyncThread	*pThread;
-	};
-
 	static ForthClassVocabulary* gpAsyncThreadVocabulary;
 	static ForthClassVocabulary* gpThreadVocabulary;
 
@@ -556,7 +573,7 @@ namespace OThread
 	{
 		ForthInterface* pPrimaryInterface = gpAsyncThreadVocabulary->GetInterface(0);
 
-		MALLOCATE_OBJECT(oAsyncThreadStruct, pThreadStruct);
+		MALLOCATE_OBJECT(oAsyncThreadStruct, pThreadStruct, gpAsyncThreadVocabulary);
 		pThreadStruct->refCount = 0;
 		pThreadStruct->pThread = pEngine->CreateAsyncThread(threadOp, paramStackLongs, returnStackLongs);
 		pThreadStruct->pThread->Reset();
@@ -672,18 +689,11 @@ namespace OThread
 	//                 oThread
 	//
 
-	struct oThreadStruct
-	{
-		ulong				refCount;
-		int					id;
-		ForthThread			*pThread;
-	};
-
 	void CreateThreadObject(ForthObject& outThread, ForthAsyncThread *pParentAsyncThread, ForthEngine *pEngine, long threadOp, int paramStackLongs, int returnStackLongs)
 	{
 		ForthInterface* pPrimaryInterface = gpThreadVocabulary->GetInterface(0);
 
-		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct);
+		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct, gpThreadVocabulary);
 		pThreadStruct->refCount = 0;
 		pThreadStruct->pThread = pParentAsyncThread->CreateThread(pEngine, threadOp, paramStackLongs, returnStackLongs);
 		pThreadStruct->pThread->Reset();
@@ -697,14 +707,14 @@ namespace OThread
 	{
 		ForthInterface* pPrimaryInterface = gpAsyncThreadVocabulary->GetInterface(0);
 
-		MALLOCATE_OBJECT(oAsyncThreadStruct, pAsyncThreadStruct);
+		MALLOCATE_OBJECT(oAsyncThreadStruct, pAsyncThreadStruct, gpAsyncThreadVocabulary);
 		pAsyncThreadStruct->refCount = 0;
 		pAsyncThreadStruct->pThread = pPrimaryAsyncThread;
 		ForthObject& primaryAsyncThread = pPrimaryAsyncThread->GetAsyncThreadObject();
 		primaryAsyncThread.pMethodOps = pPrimaryInterface->GetMethods();
 		primaryAsyncThread.pData = (long *)pAsyncThreadStruct;
 
-		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct);
+		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct, gpThreadVocabulary);
 		ForthThread* pPrimaryThread = pPrimaryAsyncThread->GetThread(0);
 		ForthObject& primaryThread = pPrimaryThread->GetThreadObject();
 		pThreadStruct->refCount = 0;
@@ -902,7 +912,7 @@ namespace OLock
 	{
 		ForthInterface* pPrimaryInterface = gpAsyncLockVocabulary->GetInterface(0);
 
-		MALLOCATE_OBJECT(oAsyncLockStruct, pLockStruct);
+		MALLOCATE_OBJECT(oAsyncLockStruct, pLockStruct, gpAsyncLockVocabulary);
 		pLockStruct->refCount = 0;
 		pLockStruct->pLock = new CRITICAL_SECTION();
 		InitializeCriticalSection(pLockStruct->pLock);
@@ -987,7 +997,7 @@ namespace OLock
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oLockStruct, pLockStruct);
+		MALLOCATE_OBJECT(oLockStruct, pLockStruct, pClassVocab);
 
 		pLockStruct->refCount = 0;
 		pLockStruct->pLock = new CRITICAL_SECTION();

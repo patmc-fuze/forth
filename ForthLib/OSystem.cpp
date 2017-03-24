@@ -39,7 +39,7 @@ namespace OSystem
 		if (gSystemSingleton.pMethodOps == nullptr)
 		{
 			ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-			MALLOCATE_OBJECT(oSystemStruct, pSystem);
+			MALLOCATE_OBJECT(oSystemStruct, pSystem, pClassVocab);
 			pSystem->refCount = 1000000;
 			gSystemSingleton.pMethodOps = pPrimaryInterface->GetMethods();
 			gSystemSingleton.pData = reinterpret_cast<long *>(pSystem);
@@ -61,7 +61,7 @@ namespace OSystem
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("OSystem");
+		SHOW_OBJ_HEADER;
 		METHOD_RETURN;
 	}
 

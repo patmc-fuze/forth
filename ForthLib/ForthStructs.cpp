@@ -1515,7 +1515,9 @@ ForthClassVocabulary::Extends( ForthClassVocabulary *pParentClass )
 				mInterfaces[i] = new ForthInterface;
 			}
 			mInterfaces[i]->Copy( mpParentClass->GetInterface( i ), isPrimaryInterface );
+			isPrimaryInterface = false;
 		}
+		mpClassObject->newOp = pParentClass->mpClassObject->newOp;
 	}
 
 	ForthStructVocabulary::Extends( pParentClass );

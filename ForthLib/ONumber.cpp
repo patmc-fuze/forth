@@ -36,7 +36,7 @@ namespace ONumber
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oIntStruct, pInt);
+		MALLOCATE_OBJECT(oIntStruct, pInt, pClassVocab);
 		pInt->refCount = 0;
 		pInt->val = 0;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pInt);
@@ -62,7 +62,7 @@ namespace ONumber
 		GET_THIS(oIntStruct, pInt);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER("OInt");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'value' : ");
 		sprintf(buff, "%d", pInt->val);
 		pShowContext->EndElement(buff);
@@ -117,7 +117,7 @@ namespace ONumber
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oLongStruct, pLong);
+		MALLOCATE_OBJECT(oLongStruct, pLong, pClassVocab);
 		pLong->refCount = 0;
 		pLong->val = 0;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pLong);
@@ -147,7 +147,7 @@ namespace ONumber
 		GET_THIS(oLongStruct, pLong);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER("OLong");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'value' : ");
 		sprintf(buff, "%lld", pLong->val);
 		pShowContext->EndElement(buff);
@@ -202,7 +202,7 @@ namespace ONumber
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oFloatStruct, pFloat);
+		MALLOCATE_OBJECT(oFloatStruct, pFloat, pClassVocab);
 		pFloat->refCount = 0;
 		pFloat->val = 0.0f;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pFloat);
@@ -228,7 +228,7 @@ namespace ONumber
 		GET_THIS(oFloatStruct, pFloat);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER("OFloat");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'value' : ");
 		sprintf(buff, "%f", pFloat->val);
 		pShowContext->EndElement(buff);
@@ -283,7 +283,7 @@ namespace ONumber
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oDoubleStruct, pDouble);
+		MALLOCATE_OBJECT(oDoubleStruct, pDouble, pClassVocab);
 		pDouble->refCount = 0;
 		pDouble->val = 0.0;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pDouble);
@@ -309,7 +309,7 @@ namespace ONumber
 		GET_THIS(oDoubleStruct, pDouble);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER("ODouble");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'value' : ");
 		sprintf(buff, "%f", pDouble->val);
 		pShowContext->EndElement(buff);

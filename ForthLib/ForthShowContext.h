@@ -23,6 +23,8 @@ public:
 	void BeginIndent();
 	void EndIndent();
 	void ShowIndent(const char* pText = NULL);
+	void BeginFirstElement(const char* pText);
+	void BeginNextElement(const char* pText);
 	void EndElement(const char* pEndText = NULL);
 	void ShowHeader(ForthCoreState* pCore, const char* pTypeName, const void* pData);
 	void ShowID(const char* pTypeName, const void* pData);

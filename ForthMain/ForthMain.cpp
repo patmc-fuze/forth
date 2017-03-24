@@ -157,9 +157,11 @@ int main( int argc, char* argv[], char* envp[] )
         delete pShell;
     }
 
+	// NOTE: this will always report a 64 byte memory leak (a CDynLinkLibrary object) that it causes itself
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
 	_CrtSetReportFile(_CRT_WARN, hLoggingPipe);    // or _CRTDBG_FILE_STDERR?
 	_CrtDumpMemoryLeaks();
+
 	return nRetCode;
 }
 

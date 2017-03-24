@@ -1,4 +1,8 @@
 
+"SDL is deprecated, use SDL2\n" %s
+lf sdl.txt
+loaddone
+
 autoforget sdl
 
 #ifdef WINDOWS

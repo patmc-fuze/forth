@@ -61,6 +61,7 @@ typedef enum
 	kBCIDoubleArrayIter,
 	kBCILongArray,
 	kBCILongArrayIter,
+	kBCIStringArray,
 	kBCIInt,
 	kBCILong,
 	kBCIFloat,
@@ -92,7 +93,7 @@ typedef enum
 } eObjectMethod;
 #define kObjectShowMethodIndex 1
 
-#define SHOW_OBJ_HEADER(_TYPENAME)  pShowContext->ShowHeader(pCore, _TYPENAME, GET_TPD)
+#define SHOW_OBJ_HEADER  pShowContext->ShowHeader(pCore, ((ForthClassObject *)(*((GET_TPM)-1)))->pVocab->GetName(), GET_TPD)
 // ForthShowAlreadyShownObject returns true if object was already shown (or null), does display for those cases
 bool ForthShowAlreadyShownObject(ForthObject* obj, ForthCoreState* pCore, bool addIfUnshown);
 void ForthShowObject(ForthObject& obj, ForthCoreState* pCore);
@@ -165,6 +166,22 @@ struct oArrayIterStruct
 	ulong			refCount;
 	ForthObject		parent;
 	ulong			cursor;
+};
+
+#define DEFAULT_STRING_DATA_BYTES 128
+
+struct oString
+{
+	long		maxLen;
+	long		curLen;
+	char		data[DEFAULT_STRING_DATA_BYTES];
+};
+
+struct oStringStruct
+{
+	ulong		refCount;
+	ulong		hash;
+	oString*	str;
 };
 
 class ForthForgettableGlobalObject : public ForthForgettable

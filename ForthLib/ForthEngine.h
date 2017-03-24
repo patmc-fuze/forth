@@ -95,6 +95,7 @@ public:
 	eForthResult        ExecuteOps(ForthCoreState* pCore, long* pOps);
 
     eForthResult        ExecuteOneMethod( ForthCoreState* pCore, ForthObject& obj, long methodNum );
+	eForthResult		FullyExecuteMethod(ForthCoreState* pCore, ForthObject& obj, long methodNum);
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
     long            AddOp( const long *pOp );

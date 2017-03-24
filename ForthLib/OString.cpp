@@ -98,7 +98,7 @@ namespace OString
     {
         ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
         ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
-        MALLOCATE_OBJECT( oStringStruct, pString );
+        MALLOCATE_OBJECT( oStringStruct, pString, pClassVocab );
         pString->refCount = 0;
         pString->hash = 0;
 		pString->str = createOString( gDefaultOStringSize );
@@ -120,7 +120,7 @@ namespace OString
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("OString");
+		SHOW_OBJ_HEADER;
 
 		pShowContext->ShowIndent();
 		pEngine->ConsoleOut("'value' : '");
@@ -499,7 +499,7 @@ namespace OString
         METHOD_RETURN;
     }
 
-    FORTHOP(oStringStartsWithMethod)
+	FORTHOP(oStringEqualsMethod)
     {
         GET_THIS( oStringStruct, pString );
 		const char* srcStr = (const char *) SPOP;
@@ -507,7 +507,7 @@ namespace OString
 		if ( srcStr != NULL )
 		{
 			long len = (long) strlen( srcStr );
-			if ( (len <= pString->str->curLen)
+			if ( (len == pString->str->curLen)
 				&& (strncmp( pString->str->data, srcStr, len ) == 0 ) )
 			{
 				result = ~0;
@@ -517,7 +517,25 @@ namespace OString
         METHOD_RETURN;
     }
 
-    FORTHOP( oStringEndsWithMethod )
+	FORTHOP(oStringStartsWithMethod)
+	{
+		GET_THIS(oStringStruct, pString);
+		const char* srcStr = (const char *)SPOP;
+		long result = 0;
+		if (srcStr != NULL)
+		{
+			long len = (long)strlen(srcStr);
+			if ((len <= pString->str->curLen)
+				&& (strncmp(pString->str->data, srcStr, len) == 0))
+			{
+				result = ~0;
+			}
+		}
+		SPUSH(result);
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oStringEndsWithMethod)
     {
         GET_THIS( oStringStruct, pString );
 		const char* srcStr = (const char *) SPOP;
@@ -620,6 +638,7 @@ namespace OString
 			int substringSize;
 			bool notDone = true;
 
+			ForthClassVocabulary *pStringVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIString);
 			while (notDone)
 			{
 				substringSize = 0;
@@ -634,8 +653,8 @@ namespace OString
 					notDone = false;
 				}
 				oString* str = createOString(substringSize);
-				MALLOCATE_OBJECT(oStringStruct, pSubString);
-				pSubString->refCount = 0;
+				MALLOCATE_OBJECT(oStringStruct, pSubString, pStringVocab);
+				pSubString->refCount = 1;
 				pSubString->hash = 0;
 				pSubString->str = str;
 				memcpy(str->data, pSrc, substringSize);
@@ -731,6 +750,43 @@ namespace OString
 		oStringAppendFormattedMethod(pCore);
 	}
 
+	FORTHOP(oStringFixupMethod)
+	{
+		GET_THIS(oStringStruct, pString);
+		pString->hash = 0;
+		oString* dst = pString->str;
+		dst->curLen = strlen(&(dst->data[0]));
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oStringToUpperMethod)
+	{
+		GET_THIS(oStringStruct, pString);
+		pString->hash = 0;
+		oString* dst = pString->str;
+		char* pDst = &(dst->data[0]);
+		for (int i = dst->curLen; i >0; --i)
+		{
+			*pDst = toupper(*pDst);
+			pDst++;
+		}
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oStringToLowerMethod)
+	{
+		GET_THIS(oStringStruct, pString);
+		pString->hash = 0;
+		oString* dst = pString->str;
+		char* pDst = &(dst->data[0]);
+		for (int i = dst->curLen; i >0; --i)
+		{
+			*pDst = toupper(*pDst);
+			pDst++;
+		}
+		METHOD_RETURN;
+	}
+
 
     baseMethodEntry oStringMembers[] =
     {
@@ -756,6 +812,7 @@ namespace OString
         METHOD(     "leftBytes",            oStringLeftBytesMethod ),
         METHOD(     "rightBytes",           oStringRightBytesMethod ),
         METHOD(     "middleBytes",          oStringMiddleBytesMethod ),
+        METHOD(     "equals",				oStringEqualsMethod ),
         METHOD(     "startsWith",           oStringStartsWithMethod ),
         METHOD(     "endsWith",             oStringEndsWithMethod ),
         METHOD(     "contains",             oStringContainsMethod ),
@@ -763,11 +820,15 @@ namespace OString
         METHOD(     "hash",                 oStringHashMethod ),
         METHOD(     "appendChar",           oStringAppendByteMethod ),
         METHOD(     "load",                 oStringLoadMethod ),
-        METHOD_RET( "split",                oStringSplitMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArray) ),
+        METHOD(		"split",                oStringSplitMethod ),
         METHOD(		"join",					oStringJoinMethod ),
         METHOD(		"format",				oStringFormatMethod ),
         METHOD(     "appendFormatted",      oStringAppendFormattedMethod ),
+        METHOD(		"fixup",				oStringFixupMethod ),
+        METHOD(		"toLower",				oStringToLowerMethod ),
+        METHOD(		"toUpper",				oStringToUpperMethod ),
 		
+        MEMBER_VAR( "__hash",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
         MEMBER_VAR( "__str",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
 
         // following must be last in table
@@ -799,7 +860,7 @@ namespace OString
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oStringMapStruct, pMap);
+		MALLOCATE_OBJECT(oStringMapStruct, pMap, pClassVocab);
 		pMap->refCount = 0;
 		pMap->elements = new oStringMap;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pMap);
@@ -831,7 +892,7 @@ namespace OString
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("OStringMap");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'map' : {");
 		if (a.size() > 0)
 		{

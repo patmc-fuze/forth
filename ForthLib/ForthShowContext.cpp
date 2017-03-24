@@ -65,6 +65,21 @@ void ForthShowContext::ShowIndent(const char* pText)
 	}
 }
 
+void ForthShowContext::BeginFirstElement(const char* pText)
+{
+	ShowIndent("'");
+	mpEngine->ConsoleOut(pText);
+	mpEngine->ConsoleOut("' : ");
+}
+
+void ForthShowContext::BeginNextElement(const char* pText)
+{
+	EndElement(",");
+	ShowIndent("'");
+	mpEngine->ConsoleOut(pText);
+	mpEngine->ConsoleOut("' : ");
+}
+
 void ForthShowContext::EndElement(const char* pEndText)
 {
 	if (pEndText != NULL)

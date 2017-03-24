@@ -170,6 +170,7 @@ o there need to be both sync and async lock mechanisms
 
 o deal with object lifetime issues - each async thread has its own heap, so an object must be
 destroyed in the same thread it was created in - delete due to reference count changes could make this easier to screw up
+-> this might not be true, it depends on the heap implementation
 
 New tentative plan:
 

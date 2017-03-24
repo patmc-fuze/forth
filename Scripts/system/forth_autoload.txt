@@ -280,6 +280,10 @@ int dumpWidth
   -> int newSymbol
   system.getDefinitionsVocab -> OVocabulary vocab
   vocab.findEntryByName(oldSymbol) -> int oldEntry
+  // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
+  makeObject OByteArray valueBuffer
+  valueBuffer.setFromBytes(oldEntry vocab.getValueLength 0)
+  valueBuffer.base -> oldEntry
   //newSymbol %s %nl dump(oldEntry 32)
   if(oldEntry)
     vocab.addSymbol(newSymbol 0 0 0)
@@ -289,15 +293,17 @@ int dumpWidth
     "Symbol " %s oldSymbol %s " not found!\n" %s
   endif
   oclear vocab
+  oclear valueBuffer
 ;
 
 : alias blword -> 250 string aa  aa blword $alias ;
-
 alias ->o ->+    // ->o stores to an object variable without changing refcounts
 alias mko makeObject
 alias m: method:
 alias ;m ;method
 alias bool int
+alias objIsNull l0=
+alias objNotNull l0<>
 
 addHelp addHelp	addHelp SYMBOL REST_OF_LINE		add help entry
 addHelp $,	STRING_ADDR $,		compiles string (can leave DP unaligned)

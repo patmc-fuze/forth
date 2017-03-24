@@ -173,6 +173,24 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 23 2017
+
+I spent the last several days porting a C++ version of Collosal Cave Adventure
+to Forth.  I found several bugs in the process.
+Some things that made the port harder:
+
+o && and || in conditionals
+o continue to break out of loops
+o needing to cast to an object type after doing an OArray.get
+o multiple return points
+o returning string temps
+o big chains of elseifs (case using ofif works pretty well)
+
+I also found out that the object show method system isn't extensible at all,
+you either accept the default output or get nothing.  I've added a set of ops
+for manipulating the show context which allow you to correctly implement custom
+show methods.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 17 2017
 
 I finished debugging and testing the soft and async threads today.  I'm not

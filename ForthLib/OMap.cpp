@@ -49,7 +49,7 @@ namespace OMap
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oMapStruct, pMap);
+		MALLOCATE_OBJECT(oMapStruct, pMap, pClassVocab);
 		pMap->refCount = 0;
 		pMap->elements = new oMap;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pMap);
@@ -84,7 +84,7 @@ namespace OMap
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("OMap");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'map' : {");
 		if (a.size() > 0)
 		{
@@ -624,7 +624,7 @@ namespace OMap
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oIntMapStruct, pMap);
+		MALLOCATE_OBJECT(oIntMapStruct, pMap, pClassVocab);
 		pMap->refCount = 0;
 		pMap->elements = new oIntMap;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pMap);
@@ -657,7 +657,7 @@ namespace OMap
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("OIntMap");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'map' : {");
 		if (a.size() > 0)
 		{
@@ -1161,7 +1161,7 @@ namespace OMap
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oFloatMapStruct, pMap);
+		MALLOCATE_OBJECT(oFloatMapStruct, pMap, pClassVocab);
 		pMap->refCount = 0;
 		pMap->elements = new oFloatMap;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pMap);
@@ -1177,7 +1177,7 @@ namespace OMap
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("OFloatMap");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'map' : {");
 		if (a.size() > 0)
 		{
@@ -1472,7 +1472,7 @@ namespace OMap
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oLongMapStruct, pMap);
+		MALLOCATE_OBJECT(oLongMapStruct, pMap, pClassVocab);
 		pMap->refCount = 0;
 		pMap->elements = new oLongMap;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pMap);
@@ -1505,7 +1505,7 @@ namespace OMap
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("OLongMap");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'map' : {");
 		if (a.size() > 0)
 		{
@@ -2018,7 +2018,7 @@ namespace OMap
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oDoubleMapStruct, pMap);
+		MALLOCATE_OBJECT(oDoubleMapStruct, pMap, pClassVocab);
 		pMap->refCount = 0;
 		pMap->elements = new oDoubleMap;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pMap);
@@ -2051,7 +2051,7 @@ namespace OMap
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("ODoubleMap");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'map' : {");
 		if (a.size() > 0)
 		{
@@ -2558,7 +2558,7 @@ namespace OMap
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oStringIntMapStruct, pMap);
+		MALLOCATE_OBJECT(oStringIntMapStruct, pMap, pClassVocab);
 		pMap->refCount = 0;
 		pMap->elements = new oStringIntMap;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pMap);
@@ -2583,7 +2583,7 @@ namespace OMap
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("OStringIntMap");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'map' : {");
 		if (a.size() > 0)
 		{
@@ -3018,7 +3018,7 @@ namespace OMap
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("OStringFloatMap");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'map' : {");
 		if (a.size() > 0)
 		{
@@ -3085,7 +3085,7 @@ namespace OMap
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oStringLongMapStruct, pMap);
+		MALLOCATE_OBJECT(oStringLongMapStruct, pMap, pClassVocab);
 		pMap->refCount = 0;
 		pMap->elements = new oStringLongMap;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pMap);
@@ -3110,7 +3110,7 @@ namespace OMap
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("OStringLongMap");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'map' : {");
 		if (a.size() > 0)
 		{
@@ -3557,7 +3557,7 @@ namespace OMap
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("OStringDoubleMap");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'map' : {");
 		if (a.size() > 0)
 		{

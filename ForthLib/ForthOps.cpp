@@ -29,6 +29,7 @@
 #include "ForthPortability.h"
 #include "ForthObject.h"
 #include "ForthBlockFileManager.h"
+#include "ForthShowContext.h"
 
 #ifdef LINUX
 #include <strings.h>
@@ -191,7 +192,8 @@ FORTHOP( udivmodOp )
 // 64-bit integer comparison ops
 //
 
-FORTHOP(lEqualsOp)
+#ifndef ASM_INNER_INTERPRETER
+FORTHOP(lEqualsBop)
 {
     NEEDS(4);
     stackInt64 a;
@@ -201,7 +203,7 @@ FORTHOP(lEqualsOp)
     SPUSH( ( a.s64 == b.s64 ) ? -1L : 0 );
 }
 
-FORTHOP(lNotEqualsOp)
+FORTHOP(lNotEqualsBop)
 {
     NEEDS(4);
     stackInt64 a;
@@ -211,7 +213,7 @@ FORTHOP(lNotEqualsOp)
     SPUSH( ( a.s64 != b.s64 ) ? -1L : 0 );
 }
 
-FORTHOP(lGreaterThanOp)
+FORTHOP(lGreaterThanBop)
 {
     NEEDS(4);
     stackInt64 a;
@@ -221,7 +223,7 @@ FORTHOP(lGreaterThanOp)
     SPUSH( ( a.s64 > b.s64 ) ? -1L : 0 );
 }
 
-FORTHOP(lGreaterEqualsOp)
+FORTHOP(lGreaterEqualsBop)
 {
     NEEDS(4);
     stackInt64 a;
@@ -231,7 +233,7 @@ FORTHOP(lGreaterEqualsOp)
     SPUSH( ( a.s64 >= b.s64 ) ? -1L : 0 );
 }
 
-FORTHOP(lLessThanOp)
+FORTHOP(lLessThanBop)
 {
     NEEDS(4);
     stackInt64 a;
@@ -241,7 +243,7 @@ FORTHOP(lLessThanOp)
     SPUSH( ( a.s64 < b.s64 ) ? -1L : 0 );
 }
 
-FORTHOP(lLessEqualsOp)
+FORTHOP(lLessEqualsBop)
 {
     NEEDS(4);
     stackInt64 a;
@@ -251,7 +253,7 @@ FORTHOP(lLessEqualsOp)
     SPUSH( ( a.s64 <= b.s64 ) ? -1L : 0 );
 }
 
-FORTHOP(lEquals0Op)
+FORTHOP(lEquals0Bop)
 {
     NEEDS(2);
     stackInt64 a;
@@ -259,7 +261,7 @@ FORTHOP(lEquals0Op)
     SPUSH( ( a.s64 == 0L ) ? -1L : 0 );
 }
 
-FORTHOP(lNotEquals0Op)
+FORTHOP(lNotEquals0Bop)
 {
     NEEDS(2);
     stackInt64 a;
@@ -267,7 +269,7 @@ FORTHOP(lNotEquals0Op)
     SPUSH( ( a.s64 != 0L ) ? -1L : 0 );
 }
 
-FORTHOP(lGreaterThan0Op)
+FORTHOP(lGreaterThan0Bop)
 {
     NEEDS(2);
     stackInt64 a;
@@ -275,7 +277,7 @@ FORTHOP(lGreaterThan0Op)
     SPUSH( ( a.s64 > 0L ) ? -1L : 0 );
 }
 
-FORTHOP(lGreaterEquals0Op)
+FORTHOP(lGreaterEquals0Bop)
 {
     NEEDS(2);
     stackInt64 a;
@@ -283,7 +285,7 @@ FORTHOP(lGreaterEquals0Op)
     SPUSH( ( a.s64 >= 0L ) ? -1L : 0 );
 }
 
-FORTHOP(lLessThan0Op)
+FORTHOP(lLessThan0Bop)
 {
     NEEDS(2);
     stackInt64 a;
@@ -291,13 +293,14 @@ FORTHOP(lLessThan0Op)
     SPUSH( ( a.s64 < 0L ) ? -1L : 0 );
 }
 
-FORTHOP(lLessEquals0Op)
+FORTHOP(lLessEquals0Bop)
 {
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 <= 0L ) ? -1L : 0 );
 }
+#endif
 
 FORTHOP(lWithinOp)
 {
@@ -958,19 +961,24 @@ FORTHOP( semiOp )
 	pEngine->GetShell()->CheckDefinitionEnd(":", "coln");
 }
 
+static void startColonDefinition(ForthCoreState* pCore, const char* pName)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	long* pEntry = pEngine->StartOpDefinition(pName, true);
+	pEntry[1] = BASE_TYPE_TO_CODE(kBaseTypeUserDefinition);
+	// switch to compile mode
+	pEngine->SetCompileState(1);
+	pEngine->ClearFlag(kEngineFlagNoNameDefinition);
+
+	pEngine->GetShell()->StartDefinition(pName, "coln");
+}
+
 FORTHOP( colonOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
 	const char* pName = pEngine->GetNextSimpleToken();
-
-	long* pEntry = pEngine->StartOpDefinition(pName, true);
-    pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
-    // switch to compile mode
-    pEngine->SetCompileState( 1 );
-    pEngine->ClearFlag( kEngineFlagNoNameDefinition);
-
-	pEngine->GetShell()->StartDefinition(pName, "coln");
+	startColonDefinition(pCore, pName);
 }
 
 
@@ -1440,6 +1448,29 @@ FORTHOP( endclassOp )
 	pEngine->GetShell()->CheckDefinitionEnd("class", "clas");
 }
 
+FORTHOP(defineNewOp)
+{
+	startColonDefinition(pCore, "__newOp");
+	ForthEngine *pEngine = GET_ENGINE;
+	ForthClassVocabulary* pVocab = ForthTypesManager::GetInstance()->GetNewestClass();
+	if (pVocab)
+	{
+		long* pEntry = pVocab->GetNewestEntry();
+		if (pEntry)
+		{
+			pVocab->GetClassObject()->newOp = pEntry[0];
+		}
+		else
+		{
+			pEngine->SetError(kForthErrorBadSyntax, "__newOp being defined not found in 'new:'");
+		}
+	}
+	else
+	{
+		pEngine->SetError(kForthErrorBadSyntax, "Defining class not found in 'new:'");
+	}
+}
+
 FORTHOP( methodOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
@@ -1462,15 +1493,15 @@ FORTHOP( methodOp )
             pEntry[0] = methodIndex;
             pEntry[1] |= kDTIsMethod;
         }
-        else
-        {
-            // TODO: error
-        }
+		else
+		{
+			pEngine->SetError(kForthErrorBadSyntax, "method op being defined not found in 'method:'");
+		}
     }
     else
     {
-        // TODO: report adding a method outside a class definition
-    }
+		pEngine->SetError(kForthErrorBadSyntax, "Defining class not found in 'method:'");
+	}
 
 	pEngine->GetShell()->StartDefinition(pMethodName, "meth");
 }
@@ -2947,7 +2978,21 @@ FORTHOP( sscanfOp )
     sscanfSub( pCore );
 }
 
-FORTHOP( printStrOp )
+FORTHOP(atoiOp)
+{
+	char *buff = (char *)SPOP;
+	int result = atoi(buff);
+	SPUSH(result);
+}
+
+FORTHOP(atofOp)
+{
+	char *buff = (char *)SPOP;
+	double result = atof(buff);
+	DPUSH(result);
+}
+
+FORTHOP(printStrOp)
 {
     NEEDS(1);
     char *buff = (char *) SPOP;
@@ -3077,6 +3122,30 @@ FORTHOP( resetConsoleOutOp )
     ForthEngine *pEngine = GET_ENGINE;
 
 	pEngine->ResetConsoleOut( pCore );
+}
+
+FORTHOP(toupperOp)
+{
+	int c = SPOP;
+	SPUSH(toupper(c));
+}
+
+FORTHOP(isupperOp)
+{
+	int c = SPOP;
+	SPUSH(isupper(c));
+}
+
+FORTHOP(tolowerOp)
+{
+	int c = SPOP;
+	SPUSH(tolower(c));
+}
+
+FORTHOP(islowerOp)
+{
+	int c = SPOP;
+	SPUSH(islower(c));
 }
 
 
@@ -6807,6 +6876,10 @@ FORTHOP(npickBop)
 }
 #endif
 
+FORTHOP( noopBop )
+{
+}
+
 //##############################
 //
 // loads & stores
@@ -7510,6 +7583,68 @@ FORTHOP( oclearBop )
 
 #endif
 
+//##############################
+//
+// ops used to implement object show methods
+//
+
+FORTHOP(scHandleAlreadyShownOp)
+{
+	int result = -1;
+	if (ForthShowAlreadyShownObject(GET_THIS_PTR, pCore, true))
+	{
+		result = 0;
+	}
+	SPUSH(result);
+}
+
+FORTHOP(scBeginIndentOp)
+{
+	((ForthThread *)(pCore->pThread))->GetShowContext()->BeginIndent();
+}
+
+FORTHOP(scEndIndentOp)
+{
+	((ForthThread *)(pCore->pThread))->GetShowContext()->EndIndent();
+}
+
+FORTHOP(scShowHeaderOp)
+{
+	ForthShowContext* pShowContext = ((ForthThread *)(pCore->pThread))->GetShowContext();
+	SHOW_OBJ_HEADER;
+}
+
+FORTHOP(scShowIndentOp)
+{
+	const char* pStr = (const char *)(SPOP);
+	((ForthThread *)(pCore->pThread))->GetShowContext()->ShowIndent(pStr);
+}
+
+FORTHOP(scBeginFirstElementOp)
+{
+	const char* pStr = (const char *)(SPOP);
+	((ForthThread *)(pCore->pThread))->GetShowContext()->BeginFirstElement(pStr);
+}
+
+FORTHOP(scBeginNextElementOp)
+{
+	const char* pStr = (const char *)(SPOP);
+	((ForthThread *)(pCore->pThread))->GetShowContext()->BeginNextElement(pStr);
+}
+
+FORTHOP(scEndElementOp)
+{
+	const char* pStr = (const char *)(SPOP);
+	((ForthThread *)(pCore->pThread))->GetShowContext()->EndElement(pStr);
+}
+
+FORTHOP(scShowObjectOp)
+{
+	ForthObject obj;
+	POP_OBJECT(obj);
+	ForthShowObject(obj, pCore);
+}
+
 
 // NOTE: the order of the first few entries in this table must agree
 // with the list near the top of the file!  (look for COMPILED_OP)
@@ -7575,7 +7710,7 @@ OPREF( doUShortArrayBop );  OPREF( doIntArrayBop );     OPREF( doIntArrayBop );
 OPREF( doLongArrayBop );    OPREF( doLongArrayBop );    OPREF( doFloatArrayBop );
 OPREF( doDoubleArrayBop );  OPREF( doStringArrayBop );  OPREF( doOpArrayBop );
 OPREF( doObjectArrayBop );  OPREF( initStringBop );     OPREF( plusBop );
-OPREF( strFixupBop );       OPREF( fetchBop );
+OPREF( strFixupBop );       OPREF( fetchBop );			OPREF( noopBop );
 
 OPREF( ifetchBop );          OPREF( doStructBop );       OPREF( doStructArrayBop );
 OPREF( doDoBop );           OPREF( doLoopBop );         OPREF( doLoopNBop );
@@ -7624,7 +7759,14 @@ OPREF( greaterEquals0Bop ); OPREF( lessThan0Bop );      OPREF( lessEquals0Bop );
 OPREF( unsignedGreaterThanBop );                        OPREF( unsignedLessThanBop );
 OPREF( withinBop );         OPREF( minBop );            OPREF( maxBop );
 OPREF( icmpBop );           OPREF( uicmpBop );          OPREF( fcmpBop );
-OPREF( dcmpBop );
+OPREF( dcmpBop );			OPREF( lcmpBop );			OPREF( ulcmpBop );
+
+OPREF( lEqualsBop );        OPREF( lNotEqualsBop );     OPREF( lEquals0Bop );
+OPREF( lNotEquals0Bop );    OPREF( lGreaterThanBop );   OPREF( lGreaterThan0Bop );
+OPREF( lLessThanBop );      OPREF( lLessThan0Bop );     OPREF( fcmpBop );
+OPREF( lGreaterEqualsBop ); OPREF( lGreaterEquals0Bop ); OPREF( lLessEqualsBop );
+OPREF( lLessEquals0Bop );
+
 OPREF( rpushBop );          OPREF( rpopBop );           OPREF( rpeekBop );
 OPREF( rdropBop );          OPREF( rpBop );             OPREF( r0Bop );
 OPREF( dupBop );            OPREF( checkDupBop );       OPREF( swapBop );
@@ -7771,6 +7913,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    leaveBop,                "leave" ),
     NATIVE_DEF(    hereBop,                 "here" ),
     NATIVE_DEF(    fetchBop,                "fetch" ),
+    NATIVE_DEF(    noopBop,                 "noop" ),
 
 	// object varActions
     NATIVE_DEF(    subtractFromBop,         "unref" ),
@@ -8122,21 +8265,23 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  64-bit integer comparisons
     ///////////////////////////////////////////
-    OP_DEF(    lEqualsOp,               "l=" ),
-    OP_DEF(    lNotEqualsOp,            "l<>" ),
-    OP_DEF(    lGreaterThanOp,          "l>" ),
-    OP_DEF(    lGreaterEqualsOp,        "l>=" ),
-    OP_DEF(    lLessThanOp,             "l<" ),
-    OP_DEF(    lLessEqualsOp,           "l<=" ),
-    OP_DEF(    lEquals0Op,              "l0=" ),
-    OP_DEF(    lNotEquals0Op,           "l0<>" ),
-    OP_DEF(    lGreaterThan0Op,         "l0>" ),
-    OP_DEF(    lGreaterEquals0Op,       "l0>=" ),
-    OP_DEF(    lLessThan0Op,            "l0<" ),
-    OP_DEF(    lLessEquals0Op,          "l0<=" ),
+	NATIVE_DEF(lEqualsBop,				"l="),
+	NATIVE_DEF(lNotEqualsBop,			"l<>"),
+	NATIVE_DEF(lGreaterThanBop,			"l>"),
+	NATIVE_DEF(lGreaterEqualsBop,		"l>="),
+	NATIVE_DEF(lLessThanBop,			"l<"),
+	NATIVE_DEF(lLessEqualsBop,			"l<="),
+	NATIVE_DEF(lEquals0Bop,				"l0="),
+	NATIVE_DEF(lNotEquals0Bop,			"l0<>"),
+	NATIVE_DEF(lGreaterThan0Bop,		"l0>"),
+	NATIVE_DEF(lGreaterEquals0Bop,		"l0>="),
+	NATIVE_DEF(lLessThan0Bop,			"l0<"),
+	NATIVE_DEF(lLessEquals0Bop,			"l0<="),
     OP_DEF(    lWithinOp,               "lwithin" ),
     OP_DEF(    lMinOp,                  "lmin" ),
     OP_DEF(    lMaxOp,                  "lmax" ),
+	NATIVE_DEF(lcmpBop, "lcmp"),
+	NATIVE_DEF(ulcmpBop, "ulcmp"),
 
     ///////////////////////////////////////////
     //  control flow
@@ -8197,6 +8342,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    endstructOp,            ";struct" ),
     OP_DEF(    classOp,                "class:" ),
     OP_DEF(    endclassOp,             ";class" ),
+    OP_DEF(    defineNewOp,            "new:" ),
     OP_DEF(    methodOp,               "method:" ),
     PRECOP_DEF(endmethodOp,            ";method" ),
     PRECOP_DEF(returnsOp,              "returns" ),
@@ -8284,6 +8430,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    snprintfOp,             "snprintf" ),
     OP_DEF(    fscanfOp,               "fscanf" ),
     OP_DEF(    sscanfOp,               "sscanf" ),
+    OP_DEF(    atoiOp,                 "atoi" ),
+    OP_DEF(    atofOp,                 "atof" ),
     OP_DEF(    baseOp,                 "base" ),
     OP_DEF(    octalOp,                "octal" ),
     OP_DEF(    decimalOp,              "decimal" ),
@@ -8296,6 +8444,23 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF(    getDefaultConsoleOutOp, "getDefaultConsoleOut" ),
 	OP_DEF(    setConsoleOutOp,        "setConsoleOut" ),
 	OP_DEF(    resetConsoleOutOp,      "resetConsoleOut" ),
+    OP_DEF(    toupperOp,              "toupper" ),
+    OP_DEF(    isupperOp,              "isupper" ),
+    OP_DEF(    tolowerOp,              "tolower" ),
+    OP_DEF(    islowerOp,              "islower" ),
+	
+	///////////////////////////////////////////
+	//  object show
+	///////////////////////////////////////////
+	OP_DEF(    scHandleAlreadyShownOp,  "scHandleAlreadyShown"),
+    OP_DEF(    scBeginIndentOp,         "scBeginIndent" ),
+    OP_DEF(    scEndIndentOp,           "scEndIndent" ),
+    OP_DEF(    scShowHeaderOp,          "scShowHeader" ),
+    OP_DEF(    scShowIndentOp,          "scShowIndent" ),
+    OP_DEF(    scBeginFirstElementOp,   "scBeginFirstElement" ),
+    OP_DEF(    scBeginNextElementOp,    "scBeginNextElement" ),
+    OP_DEF(    scEndElementOp,          "scEndElement" ),
+    OP_DEF(    scShowObjectOp,          "scShowObject" ),
 
     ///////////////////////////////////////////
     //  input buffer
