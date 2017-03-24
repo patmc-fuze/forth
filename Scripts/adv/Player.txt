@@ -1,0 +1,70 @@
+
+requires Location
+requires Noun
+
+class: Player
+
+  int score
+  Location currentLocation
+  OArray objects
+
+  m: init
+    -> currentLocation
+    new OArray -> objects
+    0 -> score
+  ;m
+
+  m: delete
+    oclear currentLocation
+    oclear objects
+  ;m
+
+  m: addScore
+    ->+ score
+  ;m
+  
+  m: setCurrentLocation    // takes Location
+    -> currentLocation
+  ;m
+  
+  m: pickUpObject     // takes Noun
+    objects.push
+  ;m
+  
+  m: dropObject    // takes Noun
+    ->o Noun objToDrop
+    
+    objects.headIter -> OArrayIter iter
+    if(iter.findNext(objToDrop))
+      iter.remove
+    else
+      "Player:dropObject - object " %s objToDrop.number %d " not found\n" %s
+    endif
+    oclear iter
+  ;m
+  
+  m: hasObject     // takes Noun, returns bool
+    ->o Noun obj
+    
+    objects.headIter -> OArrayIter iter
+    iter.findNext(obj)
+    oclear iter
+  ;m
+  
+  m: removeObject     // takes Noun
+    ->o Noun objToRemove
+    
+    objects.headIter -> OArrayIter iter
+    if(iter.findNext(objToRemove))
+      iter.remove
+    else
+      "Player:removeObject - object " %s objToRemove.number %d " not found\n" %s
+    endif
+    oclear iter
+  ;m
+  
+;class
+   
+
+loaddone
+

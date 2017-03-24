@@ -1,0 +1,60 @@
+autoforget adv
+: adv ;
+
+int cdepth
+: sdepth s0 sp - 4 / ;
+: checkDepth
+  -> ptrTo byte where
+  if(sdepth cdepth <>)
+    ds
+    "stack mismatch at " %s where %s %bl sdepth cdepth - %d %nl
+  endif
+;
+: initDepth
+  sdepth -> cdepth
+;
+
+lf CCInterfaces.txt
+requires Game
+
+: adventure
+  mko OString input
+  mko OString result
+  mko OConsoleInStream conIn
+  mko Game game
+  200 string inBuffer
+  true -> bool notDone
+  
+  "Collosal Cave Adventure originally by Will Crowther and Don Woods.\n" %s
+  "  This forth version is a port of the 2012 C++ port by Sebastian Norling and Niclas Bjorner (2012).\n" %s
+  "\nExit game by typing 'quit'.\n\n" %s
+
+  game.init
+  game.player.currentLocation.longDescription.get %s %nl
+
+  begin
+  while(notDone)
+    "adv> " %s conIn.getLine(inBuffer 200)
+    input.set(inBuffer)
+    input.toUpper
+
+    if(strcmp(input.get "QUIT"))
+      game.parseInput(input) -> result
+      if(objNotNull(result))
+        result.get %s %nl
+      endif
+    else
+      false -> notDone
+    endif
+    oclear result
+  repeat
+  
+  oclear game
+  oclear conIn
+  oclear result
+  oclear input
+;
+
+: go adventure ;
+
+loaddone
