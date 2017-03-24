@@ -589,6 +589,32 @@ entry pushBranchType
 
 ;-----------------------------------------------
 ;
+; relative def branch ops
+;
+kOpRelativeDefMask EQU kOpRelativeDef * 256 * 65536
+
+entry relativeDefBranchType
+	; push relativeDef opcode for immediately following anonymous definition (IP in esi points to it)
+	; compute offset from dictionary base to anonymous def
+	mov	eax, [ebp].FCore.DictionaryPtr
+	mov	ecx, [eax].ForthMemorySection.pBase
+	mov	eax, esi
+	sub	eax, ecx
+	sar	eax, 2
+	; stick the optype in top 8 bits
+	mov	ecx, kOpRelativeDefMask
+	or	eax, ecx
+	sub	edx, 4
+	mov	[edx], eax
+	; advance IP past anonymous definition
+	and	ebx, 00FFFFFFh	; branch around block
+	sal	ebx, 2
+	add	esi, ebx
+	jmp	edi
+
+
+;-----------------------------------------------
+;
 ; 24-bit constant ops
 ;
 entry constantType
@@ -6510,7 +6536,7 @@ entry opTypesTable
 	DD	FLAT:branchZType			; kOpBranchZ,
 	DD	FLAT:caseBranchType			; kOpCaseBranch,
 	DD	FLAT:pushBranchType			; kOpPushBranch,	
-	DD	FLAT:extOpType	
+	DD	FLAT:relativeDefBranchType	; kOpRelativeDefBranch
 	DD	FLAT:extOpType	
 	DD	FLAT:extOpType	
 	DD	FLAT:extOpType	

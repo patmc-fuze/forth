@@ -1790,11 +1790,20 @@ OPTYPE_ACTION( CaseBranchAction )
 
 OPTYPE_ACTION( PushBranchAction )
 {
-	SPUSH( (long)(GET_IP) );
-    SET_IP( GET_IP + opVal );
+	SPUSH((long)(GET_IP));
+	SET_IP(GET_IP + opVal);
 }
 
-OPTYPE_ACTION( ConstantAction )
+OPTYPE_ACTION(RelativeDefBranchAction)
+{
+	// push the opcode for the immediately following anonymous def
+	long opcode = (GET_IP - pCore->pDictionary->pBase) | (kOpRelativeDef << 24);
+	SPUSH(opcode);
+	// and branch around the anonymous def
+	SET_IP(GET_IP + opVal);
+}
+
+OPTYPE_ACTION(ConstantAction)
 {
     // push constant in opVal
     if ( (opVal & 0x00800000) != 0 )
@@ -2235,7 +2244,7 @@ optypeActionRoutine builtinOptypeAction[] =
     BranchZAction,
     CaseBranchAction,
     PushBranchAction,
-    ReservedOptypeAction,
+    RelativeDefBranchAction,
     ReservedOptypeAction,		// 0x10
     ReservedOptypeAction,
     ReservedOptypeAction,

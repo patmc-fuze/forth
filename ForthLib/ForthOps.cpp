@@ -1014,14 +1014,30 @@ FORTHOP(popTokenOp)
 FORTHOP( funcOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
+	ForthShell *pShell = pEngine->GetShell();
+	ForthShellStack *pShellStack = pShell->GetShellStack();
 
 	// if compiling, push DP and compile kOpPushBranch
 	// if interpreting, push DP and enter compile mode
 
-	pEngine->GetLocalVocabulary()->Push();
-
-    // switch to compile mode
-    pEngine->SetCompileState( 1 );
+	//pShellStack->Push(pEngine->GetFlags() & kEngineFlagNoNameDefinition);
+	// save address for ;func
+	pShellStack->Push((long)GET_DP);
+	if (pEngine->IsCompiling())
+	{
+		pEngine->GetLocalVocabulary()->Push();
+		// this op will be replaced by ;func
+		pEngine->CompileBuiltinOpcode(OP_ABORT);
+		// flag that previous state was compiling
+		pShellStack->Push(1);
+	}
+	else
+	{
+		// switch to compile mode
+		pEngine->SetCompileState(1);
+		// flag that previous state was interpreting
+		pShellStack->Push(0);
+	}
 	// TODO: push hasLocalVars flag?
     //pEngine->ClearFlag( kEngineFlagNoNameDefinition);
 
@@ -1032,16 +1048,32 @@ FORTHOP( funcOp )
 FORTHOP( endfuncOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
+	ForthShell *pShell = pEngine->GetShell();
+	ForthShellStack *pShellStack = pShell->GetShellStack();
 
+	// compile appropriate __exit opcode
     exitOp( pCore );
-    // switch back from compile mode to execute mode
-    pEngine->SetCompileState( 0 );
-    // finish current symbol definition
     // compile local vars allocation op (if needed)
-	pEngine->EndOpDefinition( !pEngine->CheckFlag( kEngineFlagNoNameDefinition ) );
-    pEngine->ClearFlag( kEngineFlagNoNameDefinition );
+	pEngine->EndOpDefinition( false );
 
-	pEngine->GetShell()->CheckDefinitionEnd("func", "func");
+	pEngine->GetLocalVocabulary()->Pop();
+	if (pShell->CheckDefinitionEnd("func", "func"))
+	{
+		bool wasCompiling = (pShellStack->Pop() != 0);
+		long* pOldDP = (long *)(pShellStack->Pop());
+		if (wasCompiling)
+		{
+			long branchOffset = GET_DP - (pOldDP + 1);
+			*pOldDP = branchOffset | (kOpRelativeDefBranch << 24);
+		}
+		else
+		{
+			long opcode = (pOldDP - pCore->pDictionary->pBase) | (kOpRelativeDef << 24);
+			SPUSH(opcode);
+			// switch back from compile mode to execute mode
+			pEngine->SetCompileState(0);
+		}
+	}
 }
 
 FORTHOP( codeOp )

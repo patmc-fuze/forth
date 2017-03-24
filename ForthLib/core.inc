@@ -85,6 +85,8 @@ kPrintAllUnsigned		EQU		2t
 ;kOpMaxLocalUserDefined		EQU		127t
 ;kOpUserMethods		EQU		128t
 
+kOpRelativeDef			EQU 6t
+
 ForthMemorySection	STRUCT 2t
 pCurrent			DWORD	?
 pBase				DWORD	?

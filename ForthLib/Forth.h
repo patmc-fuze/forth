@@ -35,14 +35,15 @@ typedef enum
     kOpRelativeDef,         // low 24 bits is offset from dictionary base
     kOpRelativeDefImmediate,
     kOpDLLEntryPoint,   // bits 0:18 are index into ForthCoreState userOps table, 19:23 are arg count
-    // 7 - 9 are unused
+    // 9 is unused
 
     kOpBranch = 10,          // low 24 bits is signed branch offset
     kOpBranchNZ,
     kOpBranchZ,
     kOpCaseBranch,
 	kOpPushBranch,
-    // 15 - 19 are unused
+	kOpRelativeDefBranch,
+    // 16 - 19 are unused
 
     kOpConstant = 20,   // low 24 bits is signed symbol value
     kOpConstantString,  // low 24 bits is number of longwords to skip over
