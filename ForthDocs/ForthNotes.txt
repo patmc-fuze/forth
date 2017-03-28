@@ -173,6 +173,83 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 27 2017
+
+I added 'orif' and 'andif' ops which are inspired by C's || and && operators for
+early outing of if-conditionals.  They are only designed to work with 'if', not
+'while' or 'until'.  The overall idea is:
+o existing if/else/endif evaluate a single conditional then follow either the true flow or the false flow
+o andif/orif allow modification of the true/false flows to either early out or add more conditionals
+o andif/orif push the branch address and an andif/orif tag on the shellstack
+o either 'else' or 'endif' will iterate through all the andif/orif tags until they reach an 'if' (branchz)
+o andif and orif tags redefine one of two IPs that else maintains: the trueIP which
+initially points to the 'true' body of the if statement, and the falseIP which initially
+points to the 'false' body (after the else),
+o orif statements redirect the false flow to point to their conditonal code, since an
+  orif gives you another chance to succeed after a previous test returned false
+o andif statements redirect the true flow to point to their conditional code,
+  since an andif adds another conditional you must pass to continue on the true flow
+
+Here is pseudocode for the modified 'else' and 'endif' ops:
+
+elseOp:
+  compile abort (will become branch)
+  DP -> falseIP
+  peekShellStack(1) 1+ -> trueIP
+  true -> notDone
+  false -> followedByOr
+  while(notDone)
+    popShellStack -> branchTag
+    popShellStack -> branchIP
+    if(followedByOr)
+      compile branchT:trueIP at branchIP
+    else
+      compile branchZ:falseBodyIP at branchIP
+    switch(branchTag)
+      case ifTab:
+        false -> notDone
+        break
+      case andifTag:
+        branchIP -> trueIP
+        false -> followedByOr
+        break
+      case orifTag:
+        true -> followedByOr
+        branchIP -> falseIP
+        break;
+  pushShellStack(DP)
+  pushShellStack(elseTag)
+
+endifOp:
+  DP -> falseIP
+  if(peekShellStach(0) == elseTag)
+    popShellStack
+    popShellStack -> branchIP
+    compile branch:DP at branchIP
+  else
+    peekShellStack(1) 1+ -> trueIP
+    true -> notDone
+    false -> followedByOr
+    while(notDone)
+      popShellStack -> branchTag
+      popShellStack -> branchIP
+      if(followedByOr)
+        compile branchT:trueIP at branchIP
+      else
+        compile branchZ:falseBodyIP at branchIP
+      switch(branchTag)
+        case ifTab:
+          false -> notDone
+          break
+        case andifTag:
+          branchIP -> trueIP
+          false -> followedByOr
+          break
+        case orifTag:
+          true -> followedByOr
+          branchIP -> falseIP
+          break;
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 23 2017
 
 I spent the last several days porting a C++ version of Collosal Cave Adventure

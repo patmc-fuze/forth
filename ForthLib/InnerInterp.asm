@@ -591,8 +591,6 @@ entry pushBranchType
 ;
 ; relative def branch ops
 ;
-kOpRelativeDefMask EQU kOpRelativeDef * 256 * 65536
-
 entry relativeDefBranchType
 	; push relativeDef opcode for immediately following anonymous definition (IP in esi points to it)
 	; compute offset from dictionary base to anonymous def
@@ -602,7 +600,7 @@ entry relativeDefBranchType
 	sub	eax, ecx
 	sar	eax, 2
 	; stick the optype in top 8 bits
-	mov	ecx, kOpRelativeDefMask
+	mov	ecx, kOpRelativeDef SHL 24
 	or	eax, ecx
 	sub	edx, 4
 	mov	[edx], eax

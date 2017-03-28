@@ -48,6 +48,8 @@ typedef enum
    kShellTagPoundIf  = 10,
    kShellTagOf       = 11,
    kShellTagOfIf     = 12,
+   kShellTagAndIf    = 13,
+   kShellTagOrIf     = 14,
    // if you add tags, remember to update TagStrings in ForthShell.cpp
    kNumShellTags
 } eShellTag;
@@ -68,7 +70,7 @@ public:
    // push tag telling what control structure we are compiling (if/else/for/...)
    void         Push(long tag);
    long         Pop(void);
-   long         Peek(void);
+   long         Peek(int index = 0);
 
    // push a string, this should be followed by a PushTag of a tag which uses this string (such as paren)
    void                PushString(const char *pString);

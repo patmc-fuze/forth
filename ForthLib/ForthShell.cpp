@@ -47,6 +47,8 @@ namespace
         "poundDirective",
 		"of",
 		"ofif",
+		"andif",
+		"orif"
     };
 
     const char * GetTagString( long tag )
@@ -1732,13 +1734,13 @@ ForthShellStack::Pop( void )
 }
 
 long
-ForthShellStack::Peek( void )
+ForthShellStack::Peek( int index )
 {
-    if ( mSSP == mSST )
+    if ( (mSSP + index) >= mSST )
     {
         return kShellTagNothing;
     }
-    return *mSSP;
+    return mSSP[index];
 }
 
 void

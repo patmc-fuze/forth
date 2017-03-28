@@ -471,6 +471,35 @@ FORTHOP( ifOp )
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
 
+// orif - has precedence
+FORTHOP(orifOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	ForthShell *pShell = pEngine->GetShell();
+	ForthShellStack *pShellStack = pShell->GetShellStack();
+	// save address for else/endif
+	pShellStack->Push((long)GET_DP);
+	// flag that this is an "orif" clause
+	pShellStack->Push(kShellTagOrIf);
+	// this will be fixed by else/endif
+	pEngine->CompileBuiltinOpcode(OP_ABORT);
+}
+
+// andif - has precedence
+FORTHOP(andifOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	ForthShell *pShell = pEngine->GetShell();
+	ForthShellStack *pShellStack = pShell->GetShellStack();
+	// save address for else/endif
+	pShellStack->Push((long)GET_DP);
+	// flag that this is an "andif" clause
+	pShellStack->Push(kShellTagAndIf);
+	// this will be fixed by else/endif
+	pEngine->CompileBuiltinOpcode(OP_ABORT);
+}
+
+
 
 // else - has precedence
 FORTHOP( elseOp )
@@ -479,19 +508,52 @@ FORTHOP( elseOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "else", pShellStack->Pop(), kShellTagBranchZ ) )
+	long branchTag = pShellStack->Peek();
+	if ((branchTag != kShellTagBranchZ) && (branchTag != kShellTagOrIf) && (branchTag != kShellTagAndIf))
     {
+		pShell->CheckSyntaxError("else", branchTag, kShellTagBranchZ);
         return;
     }
-    long *pBranch = (long *) pShellStack->Pop();
+	long* falseIP = GET_DP + 1;
+	long* trueIP = ((long *)pShellStack->Peek(1)) + 1;
+	bool notDone = true;
+	bool followedByOr = false;
+	while (notDone)
+	{
+		branchTag = pShellStack->Pop();
+		long *pBranch = (long *)pShellStack->Pop();
+		if (followedByOr)
+		{
+			*pBranch = COMPILED_OP(kOpBranchNZ, (trueIP - pBranch) - 1);
+		}
+		else
+		{
+			*pBranch = COMPILED_OP(kOpBranchZ, (falseIP - pBranch) - 1);
+		}
+		switch (branchTag)
+		{
+		case kShellTagBranchZ:
+			notDone = false;
+			break;
+		case kShellTagOrIf:
+			followedByOr = true;
+			falseIP = ((long *)pShellStack->Peek(1)) + 1;
+			break;
+		case kShellTagAndIf:
+			followedByOr = false;
+			trueIP = ((long *)pShellStack->Peek(1)) + 1;
+			break;
+		default:
+			pShell->CheckSyntaxError("else", branchTag, kShellTagBranchZ);
+			return;
+		}
+	}
     // save address for endif
     pShellStack->Push( (long) GET_DP );
     // flag that this is the "else" branch
     pShellStack->Push( kShellTagBranch );
     // this will be fixed by endif
     pEngine->CompileBuiltinOpcode( OP_ABORT );
-    // fill in the branch taken when "if" arg is false
-    *pBranch = COMPILED_OP( kOpBranchZ, (GET_DP - pBranch) - 1 );
 }
 
 
@@ -502,14 +564,54 @@ FORTHOP( endifOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    long branchTag = pShellStack->Pop();
-    if ( pShell->CheckSyntaxError( "endif", branchTag, kShellTagBranchZ ) )
-    {
-        // if branch
-        // fill in the branch taken when "if" arg is false
-        long *pBranch = (long *) pShellStack->Pop();
-        *pBranch = COMPILED_OP( (branchTag == kShellTagBranchZ) ? kOpBranchZ : kOpBranch, (GET_DP - pBranch) - 1 );
-    }
+	long branchTag = pShellStack->Peek();
+	if ((branchTag != kShellTagBranch) && (branchTag != kShellTagBranchZ) && (branchTag != kShellTagOrIf) && (branchTag != kShellTagAndIf))
+	{
+		pShell->CheckSyntaxError("endif", branchTag, kShellTagBranchZ);
+		return;
+	}
+	if (branchTag == kShellTagBranch)
+	{
+		// "else" has already handled if/andif/orif, just do branch at end of true body around false body
+		pShellStack->Pop();
+		long *pBranch = (long *)pShellStack->Pop();
+		*pBranch = COMPILED_OP(kOpBranch, (GET_DP - pBranch) - 1);
+		return;
+	}
+
+	// there was no "else", so process if/andif/orif
+	long* falseIP = GET_DP;
+	long* trueIP = ((long *)pShellStack->Peek(1)) + 1;
+	bool notDone = true;
+	bool followedByOr = false;
+	while (notDone)
+	{
+		branchTag = pShellStack->Pop();
+		long *pBranch = (long *)pShellStack->Pop();
+		if (followedByOr)
+		{
+			*pBranch = COMPILED_OP(kOpBranchNZ, (trueIP - pBranch) - 1);
+		}
+		else
+		{
+			*pBranch = COMPILED_OP(kOpBranchZ, (falseIP - pBranch) - 1);
+		}
+		switch (branchTag)
+		{
+		case kShellTagBranchZ:
+			notDone = false;
+			break;
+		case kShellTagOrIf:
+			followedByOr = true;
+			break;
+		case kShellTagAndIf:
+			followedByOr = false;
+			break;
+		default:
+			pShell->CheckSyntaxError("else", branchTag, kShellTagBranchZ);
+			return;
+		}
+	}
 }
 
 
@@ -8323,6 +8425,8 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(loopOp,                 "loop" ),
     PRECOP_DEF(loopNOp,                "+loop" ),
     PRECOP_DEF(ifOp,                   "if" ),
+    PRECOP_DEF(orifOp,                 "orif" ),
+    PRECOP_DEF(andifOp,                "andif" ),
     PRECOP_DEF(elseOp,                 "else" ),
     PRECOP_DEF(endifOp,                "endif" ),
     PRECOP_DEF(beginOp,                "begin" ),
