@@ -66,6 +66,69 @@ private:
 	ulong               mNumBytes;
 };
 
+struct ForthLabelReference
+{
+	ForthLabelReference(long *inBranchIP, int inBranchType)
+		: branchIP(inBranchIP)
+		, branchType(inBranchType)
+	{
+	}
+
+	long *branchIP;
+	int branchType;		//  kOpBranch, kOpBranchNZ or kOpBranchZ
+};
+
+class ForthLabel
+{
+public:
+	ForthLabel(const char* pName)
+		: name(pName)
+		, labelIP(nullptr)
+	{
+	}
+
+	ForthLabel(const char* pName, long* inLabelIP)
+		: name(pName)
+		, labelIP(inLabelIP)
+	{
+	}
+
+	void CompileBranch(long *inBranchIP, int inBranchType)
+	{
+		int offset = (labelIP - inBranchIP) - 1;
+		*inBranchIP = COMPILED_OP(inBranchType, offset);
+	}
+
+	void AddReference(long *inBranchIP, int inBranchType)
+	{
+		if (labelIP == nullptr)
+		{
+			references.emplace_back(ForthLabelReference(inBranchIP, inBranchType));
+		}
+		else
+		{
+			CompileBranch(inBranchIP, inBranchType);
+		}
+	}
+
+	void DefineLabelIP(long *inLabelIP)
+	{
+		labelIP = inLabelIP;
+		if (references.size() > 0)
+		{
+			for (ForthLabelReference& labelReference : references)
+			{
+				CompileBranch(labelReference.branchIP, labelReference.branchType);
+			}
+		}
+		references.clear();
+	}
+
+	std::string name;
+	std::vector<ForthLabelReference> references;
+	long *labelIP;
+};
+
 class ForthEngine
 {
 public:
@@ -267,6 +330,9 @@ public:
 	bool					IsServer() const;
 	void					SetIsServer(bool isServer);
 
+	void					DefineLabel(const char* inLabelName, long* inLabelIP);
+	void					AddGoto(const char* inName, int inBranchType, long* inBranchIP);
+
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char* pToken, long& value, long long& lvalue, int base, bool& isOffset, bool& isSingle );
@@ -327,6 +393,8 @@ protected:
     long            mBlockNumber;       // number returned by 'blk'
 
 	ForthObject		mDefaultConsoleOutStream;
+
+	std::vector<ForthLabel> mLabels;
 
 #ifdef WIN32
 #ifdef MSDEV

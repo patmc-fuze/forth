@@ -824,6 +824,44 @@ FORTHOP( endcaseOp )
     SET_SP( pSP );
 }
 
+FORTHOP(labelOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	long *pHere = GET_DP;
+	char* labelName = pEngine->GetNextSimpleToken();
+	pEngine->DefineLabel(labelName, pHere);
+}
+
+FORTHOP(gotoOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	long *pHere = GET_DP;
+	char* labelName = pEngine->GetNextSimpleToken();
+	// this will be fixed when label is defined
+	pEngine->CompileBuiltinOpcode(OP_ABORT);
+	pEngine->AddGoto(labelName, kOpBranch, pHere);
+}
+
+FORTHOP(gotoIfOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	long *pHere = GET_DP;
+	char* labelName = pEngine->GetNextSimpleToken();
+	// this will be fixed when label is defined
+	pEngine->CompileBuiltinOpcode(OP_ABORT);
+	pEngine->AddGoto(labelName, kOpBranchNZ, pHere);
+}
+
+FORTHOP(gotoIfNotOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	long *pHere = GET_DP;
+	char* labelName = pEngine->GetNextSimpleToken();
+	// this will be fixed when label is defined
+	pEngine->CompileBuiltinOpcode(OP_ABORT);
+	pEngine->AddGoto(labelName, kOpBranchZ, pHere);
+}
+
 // align (upwards) DP to longword boundary
 FORTHOP( alignOp )
 {
@@ -8040,7 +8078,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    thisMethodsBop,          "thisMethods" ),
     NATIVE_DEF(    executeBop,              "execute" ),
     NATIVE_DEF(    callBop,                 "call" ),
-    NATIVE_DEF(    gotoBop,                 "goto" ),
+    NATIVE_DEF(    gotoBop,                 "setIP" ),
     NATIVE_DEF(    iBop,                    "i" ),
     NATIVE_DEF(    jBop,                    "j" ),
     NATIVE_DEF(    unloopBop,               "unloop" ),
@@ -8439,6 +8477,10 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(ofifOp,                 "ofif" ),
     PRECOP_DEF(endofOp,                "endof" ),
     PRECOP_DEF(endcaseOp,              "endcase" ),
+    PRECOP_DEF(labelOp,                "label" ),
+    PRECOP_DEF(gotoOp,                 "goto" ),
+    PRECOP_DEF(gotoIfOp,               "gotoIf" ),
+    PRECOP_DEF(gotoIfNotOp,            "gotoIfNot" ),
 
     ///////////////////////////////////////////
     //  op definition

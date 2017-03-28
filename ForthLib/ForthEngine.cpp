@@ -889,6 +889,7 @@ ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt, forthOpType op
     {
         mpDefinitionVocab->SmudgeNewestSymbol();
     }
+	mLabels.clear();
 
     return pEntry;
 }
@@ -2481,6 +2482,36 @@ ForthEngine::SetIsServer(bool isServer)
 {
 	mIsServer = isServer;
 }
+
+void ForthEngine::DefineLabel(const char* inLabelName, long* inLabelIP)
+{
+	for (ForthLabel& label : mLabels)
+	{
+		if (label.name == inLabelName)
+		{
+			label.DefineLabelIP(inLabelIP);
+			return;
+		}
+	}
+	mLabels.emplace_back(ForthLabel(inLabelName, inLabelIP));
+}
+
+void ForthEngine::AddGoto(const char* inLabelName, int inBranchType, long* inBranchIP)
+{
+	for (ForthLabel& label : mLabels)
+	{
+		if (label.name == inLabelName)
+		{
+			label.AddReference(inBranchIP, inBranchType);
+			return;
+		}
+	}
+	ForthLabel newLabel(inLabelName);
+	newLabel.AddReference(inBranchIP, inBranchType);
+	mLabels.push_back(newLabel);
+}
+
+
 //############################################################################
 //
 //          O U T E R    I N T E R P R E T E R  (sort of)
