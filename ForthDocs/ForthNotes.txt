@@ -173,6 +173,45 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 30 2017
+
+I split the assembly routines NativeAction and CallDLLRoutine out into AsmCore.asm,
+they are still needed even when you don't have ASM_INNER_INTERPRETER defined.
+I couldn't get MSDEV to build AsmCore.asm, I eventually resorted to editing
+ForthLib.vcxproj by hand, cloning the InnerInterp.asm section to build it.
+I also found out why you need to change ASM_INNER_INTERPRETER inside InnerInterp.asm
+to actually exclude the inner interpreter - there is a /DASM_INNER_INTERPRETER in
+the custom build rule, it doesn't get it from the preprocessor settings.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 29 2017
+
+Because there isn't enough pain in my life, I decided to port Forth to OSX.
+Most of the initial work was replacing LINUX ifdefs with LINUX or MACOSX.
+
+I thought I would initially just get the no-assembler version to run, but I forgot
+that the no-assembler version actually requires a few assembler routines for things
+like printing that need to manipulate variable numbers of arguments on the system
+stack.  I started with the Linux version InnerInterp.S, but that hadn't been updated
+since August 21 2015, so I had to port all the newer changes from InnerInterp.asm.
+After that it still didn't work, because the Xcode assembler is 'as', and it
+is not compatible with gas.  GAH!  I think this leaves me with these options:
+
+1) write yet another x86 inner interpreter, this one compatable with xcode assembler
+2) get xcode to use gas for this file
+3) get xcode to use nasm for this file and replace the Linux code
+4) give up on porting forth to macosx, or find a way to do it without any assembler
+
+Potentially switching over to a single nasm inner interpreter for all x86 might
+be the best option.
+If I do decide to continue with a Mac version, there is also the problem that
+Mac requires all system calls to have the stack aligned on 16 byte boundaries.
+
+There is also windows-only code that needs to be done for Linux for the new
+thread and lock objects.
+
+The git command to clone Forth onto the mac that worked was:
+   git clone git://192.168.1.250/Forth
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 28 2017
 
 I added goto and labels.  The engine maintains a table with an entry for each label.
@@ -215,11 +254,12 @@ elseOp:
         break
       case andifTag:
         branchIP -> trueIP
+        peekShellStack(1) 1+ -> trueIP
         false -> followedByOr
         break
       case orifTag:
         true -> followedByOr
-        branchIP -> falseIP
+        peekShellStack(1) 1+ -> falseIP
         break;
   pushShellStack(DP)
   pushShellStack(elseTag)

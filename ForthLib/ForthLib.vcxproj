@@ -398,30 +398,44 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="core.inc" />
-    <CustomBuild Include="InnerInterp.asm">
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">ml /c /Cx /coff "%(FullPath)"
-move "%(Filename)".obj "$(OutDir)"
-</Command>
+    <CustomBuild Include="AsmCore.asm">
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">E:\Apps\NASM\nasm -f win32 "%(FullPath)" -o $(OutDir)%(Filename).obj $(USE_ASM_INTERP)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">$(OutDir)%(Filename).obj;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug Midi|Win32'">ml /c /Cx /coff /DASM_INNER_INTERPRETER "%(FullPath)"
-move "%(Filename)".obj "$(OutDir)"
-</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug Midi|Win32'">E:\Apps\NASM\nasm -f win32 "%(FullPath)" -o $(OutDir)%(Filename).obj $(USE_ASM_INTERP)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug Midi|Win32'">$(OutDir)%(Filename).obj;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">ml /c /Cx /coff /DASM_INNER_INTERPRETER "%(FullPath)"
-move "%(Filename)".obj "$(OutDir)"
-</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">E:\Apps\NASM\nasm -f win32 "%(FullPath)" -o $(OutDir)%(Filename).obj $(USE_ASM_INTERP)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)%(Filename).obj;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release Midi|Win32'">ml /c /Cx /coff /DASM_INNER_INTERPRETER "%(FullPath)"
-move "%(Filename)".obj "$(OutDir)"
-</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release Midi|Win32'">E:\Apps\NASM\nasm -f win32 "%(FullPath)" -o $(OutDir)%(Filename).obj $(USE_ASM_INTERP)</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release Midi|Win32'">core.inc;%(AdditionalInputs)</AdditionalInputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release Midi|Win32'">$(OutDir)%(Filename).obj;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">ml /c /Cx /coff /DASM_INNER_INTERPRETER "%(FullPath)"
-move "%(Filename)".obj "$(OutDir)"
-</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">E:\Apps\NASM\nasm -f win32 "%(FullPath)" -o $(OutDir)%(Filename).obj $(USE_ASM_INTERP)</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">core.inc;%(AdditionalInputs)</AdditionalInputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)%(Filename).obj;%(Outputs)</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug Midi|Win32'">core.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">core.inc;%(AdditionalInputs)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug Midi|Win32'">Performing Custom Build Tools AsmCore</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">Performing Custom Build Tools AsmCore</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release Midi|Win32'">Performing Custom Build Tools AsmCore</Message>
+    </CustomBuild>
+    <None Include="core.inc" />
+    <CustomBuild Include="InnerInterp.asm">
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">E:\Apps\NASM\nasm -f win32 "%(FullPath)" -o $(OutDir)%(Filename).obj $(USE_ASM_INTERP)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">$(OutDir)%(Filename).obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug Midi|Win32'">E:\Apps\NASM\nasm -f win32 "%(FullPath)" -o $(OutDir)%(Filename).obj $(USE_ASM_INTERP)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug Midi|Win32'">$(OutDir)%(Filename).obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">E:\Apps\NASM\nasm -f win32 "%(FullPath)" -o $(OutDir)%(Filename).obj $(USE_ASM_INTERP)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)%(Filename).obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release Midi|Win32'">E:\Apps\NASM\nasm -f win32 "%(FullPath)" -o $(OutDir)%(Filename).obj $(USE_ASM_INTERP)</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release Midi|Win32'">core.inc;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release Midi|Win32'">$(OutDir)%(Filename).obj;%(Outputs)</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">E:\Apps\NASM\nasm -f win32 "%(FullPath)" -o $(OutDir)%(Filename).obj $(USE_ASM_INTERP)</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">core.inc;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)%(Filename).obj;%(Outputs)</Outputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug Midi|Win32'">core.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">core.inc;%(AdditionalInputs)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug Midi|Win32'">Performing Custom Build Tools InnerInterp</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">Performing Custom Build Tools InnerInterp</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release Midi|Win32'">Performing Custom Build Tools InnerInterp</Message>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

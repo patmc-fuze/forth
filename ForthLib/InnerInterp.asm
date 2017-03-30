@@ -1,36 +1,20 @@
-	TITLE	InnerInterp.asm
-	.486
-include listing.inc
-include core.inc
+BITS 32
 
-.model FLAT, C
+%include "core_nasm.inc"
 
-PUBLIC	HelloString		; `string'
+cextern	_filbuf
+cextern	_chkesp
 
-;EXTRN	_iob:BYTE
-EXTRN	_filbuf:NEAR
-EXTRN	printf:NEAR
-EXTRN	_chkesp:NEAR
-EXTRN	fprintf:NEAR, sprintf:NEAR, _snprintf:NEAR, fscanf:NEAR, sscanf:NEAR
+EXTERN _CallDLLRoutine
 
-EXTRN	atan2:NEAR, pow:NEAR, ldexp:NEAR, frexp:NEAR, modf:NEAR, fmod:NEAR, _ftol:NEAR
-EXTRN	atan2f:NEAR, powf:NEAR, ldexpf:NEAR, frexpf:NEAR, modff:NEAR, fmodf:NEAR
-EXTRN	strcpy:NEAR, strncpy:NEAR, strstr:NEAR, strcmp:NEAR, stricmp:NEAR, strchr:NEAR, strrchr:NEAR, strcat:NEAR, strncat:NEAR, strtok:NEAR
-EXTRN	memcpy:NEAR, memmove:NEAR, memset:NEAR, strlen:NEAR
-EXTRN	fopen:NEAR, fclose:NEAR, fseek:NEAR, fread:NEAR, fwrite:NEAR, fgetc:NEAR, fputc:NEAR, ftell:NEAR, feof:NEAR
-
-FCore		TYPEDEF		ForthCoreState
-FileFunc	TYPEDEF		ForthFileInterface
-
-CONST	SEGMENT
-HelloString DB 'Hello Cruelish World!', 0aH, 00H ; `string'
-CONST	ENDS
+;%define FCore ForthCoreState
+;%define FileFunc ForthFileInterface
 
 ;	COMDAT _main
-_TEXT	SEGMENT
-_c$ = -4
+SECTION .text
+;_c$ = -4
 
-_TEXT	SEGMENT
+;_TEXT	SEGMENT
 
 ; register usage in a forthOp:
 ;
@@ -51,60 +35,51 @@ _TEXT	SEGMENT
 ; 2) they are free to modify their input params on stack
 
 ; if you need more than EAX and EBX in a routine, save ECX/IP & EDX/SP in FCore at start with these instructions:
-;	mov	[ebp].FCore.IPtr, esi
-;	mov	[ebp].FCore.SPtr, edx
+;	mov	[ebp + FCore.IPtr], esi
+;	mov	[ebp + FCore.SPtr], edx
 ; jump to interpFunc at end - interpFunc will restore ECX, EDX, and EDI and go back to inner loop
 
 ;-----------------------------------------------
 ;
-; the entry macro declares a label and makes it public
-;
-entry	MACRO	opLabel
-PUBLIC opLabel;
-opLabel:
-	ENDM
-	
-;-----------------------------------------------
-;
 ; unaryDoubleFunc is used for dsin, dsqrt, dceil, ...
 ;
-unaryDoubleFunc	MACRO	opLabel, func
-PUBLIC opLabel;
-EXTRN func:NEAR
-opLabel:
+%macro unaryDoubleFunc 2
+GLOBAL _%1
+EXTERN _%2
+_%1:
 	push	edx
 	push	esi
 	mov	eax, [edx+4]
 	push	eax
 	mov	eax, [edx]
 	push	eax
-	call	func
+	call	_%2
 	add	esp, 8
 	pop	esi
 	pop	edx
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi
-	ENDM
+%endmacro
 	
 ;-----------------------------------------------
 ;
 ; unaryFloatFunc is used for fsin, fsqrt, fceil, ...
 ;
-unaryFloatFunc	MACRO	opLabel, func
-PUBLIC opLabel;
-EXTRN func:NEAR
-opLabel:
+%macro unaryFloatFunc 2
+GLOBAL _%1
+EXTERN _%2
+_%1:
 	push	edx
 	push	esi
 	mov	eax, [edx]
 	push	eax
-	call	func
+	call	_%2
 	add	esp, 4
 	pop	esi
 	pop	edx
-	fstp	DWORD PTR [edx]
+	fstp	DWORD[edx]
 	jmp	edi
-	ENDM
+%endmacro
 	
 ;========================================
 ;  safe exception handler
@@ -115,97 +90,9 @@ opLabel:
 
 ;SEH_handler   ENDP
 
-;========================================
-
-; extern void CallDLLRoutine( DLLRoutine function, long argCount, ulong flags, void *core );
-
-CallDLLRoutine PROC near C public uses ebx esi edx ecx edi ebp,
-	funcAddr:PTR,
-	argCount:DWORD,
-	flags:DWORD,
-	core:PTR
-	mov	eax, DWORD PTR funcAddr
-	mov	edi, argCount
-	mov esi, flags
-	mov	ebp, DWORD PTR core
-	mov	edx, [ebp].FCore.SPtr
-	mov	ecx, edi
-CallDLL1:
-	sub	ecx, 1
-	jl	CallDLL2
-	mov	ebx, [edx]
-	add	edx, 4
-	push	ebx
-	jmp CallDLL1
-CallDLL2:
-	; all args have been moved from parameter stack to PC stack
-	mov	[ebp].FCore.SPtr, edx
-	
-	call	eax
-	
-	; handle void return flag
-	mov	ecx, esi
-	and	esi, 0001h
-	jnz CallDLL4
-			
-	mov	ebx, [ebp].FCore.SPtr
-	sub	ebx, 4
-	
-	; push high part of result if 64-bit return flag set
-	mov	esi, ecx
-	and	esi, 0002h
-	jz CallDLL3
-	mov	[ebx], edx		; return high part of result on parameter stack
-	sub	ebx, 4
-	
-CallDLL3:
-	; push low part of result
-	mov	[ebx], eax
-	mov	[ebp].FCore.SPtr, ebx
-	
-CallDLL4:
-	; cleanup PC stack
-	mov	esi, ecx
-	and	esi, 0004h	; stdcall calling convention flag
-	jnz CallDLL5
-	mov	ebx, edi
-	sal	ebx, 2
-	add	esp, ebx
-CallDLL5:
-	ret
-CallDLLRoutine ENDP
-
-
-; extern void NativeAction( ForthCoreState *pCore, ulong opVal );
-;-----------------------------------------------
-;
-; inner interpreter entry point for ops defined in assembler
-;
-PUBLIC	NativeAction
-NativeAction PROC near C public uses ebx esi edx ecx edi ebp,
-	core:PTR,
-	opVal:DWORD
-	mov	eax, opVal
-	mov	ebp, DWORD PTR core
-	call	native1
-	ret
-NativeAction ENDP
-
-entry native1
-	mov	esi, [ebp].FCore.IPtr
-	mov	edx, [ebp].FCore.SPtr
-	mov	ecx, [ebp].FCore.ops
-	mov	edi, nativeActionExit
-	mov	eax, [ecx+eax*4]
-	jmp	eax
-nativeActionExit:
-	mov	[ebp].FCore.IPtr, esi
-	mov	[ebp].FCore.SPtr, edx
-	ret
-	
 ; for some reason, this is always true, you need to change the name,
 ; changing the build rule to not define it isn't enough	
-ifdef	ASM_INNER_INTERPRETER
+%ifdef	ASM_INNER_INTERPRETER
 ;-----------------------------------------------
 ;
 ; extOp is used by "builtin" ops which are only defined in C++
@@ -216,11 +103,11 @@ entry extOp
 	; ebx holds the opcode which was just dispatched, use its low 24-bits as index into builtinOps table of ops defined in C/C++
 	mov	eax, ebx
 	and	eax, 00FFFFFFh
-	mov	ebx, [ebp].FCore.ops
-	mov	eax, [ebx+eax*4]				; eax is C routine to dispatch to
+	mov	ebx, [ebp + FCore.ops]
+	mov	eax, [ebx + eax*4]				; eax is C routine to dispatch to
 	; save current IP and SP	
-	mov	[ebp].FCore.IPtr, esi
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.IPtr], esi
+	mov	[ebp + FCore.SPtr], edx
 	; we need to push ebp twice - the C compiler feels free to overwrite its input parameters,
 	; so the top copy of EBP may be trashed on return from C land
 	push	ebp		; push core ptr (our save)
@@ -230,17 +117,17 @@ entry extOp
 	pop	ebp
 	; load IP and SP from core, in case C routine modified them
 	; NOTE: we can't just jump to interpFunc, since that will replace edi & break single stepping
-	mov	esi, [ebp].FCore.IPtr
-	mov	edx, [ebp].FCore.SPtr
-	mov	eax, [ebp].FCore.state
+	mov	esi, [ebp + FCore.IPtr]
+	mov	edx, [ebp + FCore.SPtr]
+	mov	eax, [ebp + FCore.state]
 	or	eax, eax
 	jnz	extOp1		; if something went wrong
 	jmp	edi			; if everything is ok
 	
 ; NOTE: Feb. 14 '07 - doing the right thing here - restoring IP & SP and jumping to
 ; the interpreter loop exit point - causes an access violation exception ?why?
-	;mov	esi, [ebp].FCore.IPtr
-	;mov	edx, [ebp].FCore.SPtr
+	;mov	esi, [ebp + FCore.IPtr]
+	;mov	edx, [ebp + FCore.SPtr]
 	;jmp	interpLoopExit	; if something went wrong
 	
 extOp1:
@@ -256,11 +143,11 @@ entry extOpType
 	; get the C routine to handle this optype from optypeAction table in FCore
 	mov	eax, ebx
 	shr	eax, 24							; eax is 8-bit optype
-	mov	ecx, [ebp].FCore.optypeAction
-	mov	eax, [ecx+eax*4]				; eax is C routine to dispatch to
+	mov	ecx, [ebp + FCore.optypeAction]
+	mov	eax, [ecx + eax*4]				; eax is C routine to dispatch to
 	; save current IP and SP	
-	mov	[ebp].FCore.IPtr, esi
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.IPtr], esi
+	mov	[ebp + FCore.SPtr], edx
 	; we need to push ebp twice - the C compiler feels free to overwrite its input parameters,
 	; so the top copy of EBP may be trashed on return from C land
 	push	ebp		; push core ptr (our save)
@@ -273,17 +160,17 @@ entry extOpType
 	
 	; load IP and SP from core, in case C routine modified them
 	; NOTE: we can't just jump to interpFunc, since that will replace edi & break single stepping
-	mov	esi, [ebp].FCore.IPtr
-	mov	edx, [ebp].FCore.SPtr
-	mov	eax, [ebp].FCore.state
+	mov	esi, [ebp + FCore.IPtr]
+	mov	edx, [ebp + FCore.SPtr]
+	mov	eax, [ebp + FCore.state]
 	or	eax, eax
 	jnz	extOpType1	; if something went wrong
 	jmp	edi			; if everything is ok
 	
 ; NOTE: Feb. 14 '07 - doing the right thing here - restoring IP & SP and jumping to
 ; the interpreter loop exit point - causes an access violation exception ?why?
-	;mov	esi, [ebp].FCore.IPtr
-	;mov	edx, [ebp].FCore.SPtr
+	;mov	esi, [ebp + FCore.IPtr]
+	;mov	edx, [ebp + FCore.SPtr]
 	;jmp	interpLoopExit	; if something went wrong
 	
 extOpType1:
@@ -293,36 +180,58 @@ extOpType1:
 ;
 ; InitAsmTables - initializes first part of optable, where op positions are referenced by constants
 ;
-PUBLIC InitAsmTables
-InitAsmTables PROC near C public uses ebx esi edx edi ebp ecx,
-	core:PTR
-	mov	ebp, DWORD PTR core
+entry InitAsmTables
+;InitAsmTables PROC near C public uses ebx esi edx edi ebp ecx,
+;	core:PTR
+;	mov	ebp, DWORD PTR core
+	push ebp
+	mov	ebp, esp	; 0(ebp) = old_ebp 4(ebp)=return_addr  8(ebp)=ForthCore_ptr
+	push ebx
+	push ecx
+	push edx
+	push edi
+	push ebp
 
-	; setup normal (non-debug) inner interpreter re-entry point
-	;mov	ebx, interpLoop
-	mov	ebx, interpLoopDebug
-	mov	[ebp].FCore.innerLoop, ebx
+	mov	ebp,[ebp + 8]		; ebp -> ForthCore struct
 	
+	; setup normal (non-debug) inner interpreter re-entry point
+	mov	ebx, interpLoopDebug
+	mov	[ebp + FCore.innerLoop], ebx
+
+	pop ebp
+	pop	edi
+	pop edx
+	pop ecx
+	pop ebx
+	leave
 	ret
-InitAsmTables ENDP
 
 ;-----------------------------------------------
 ;
 ; single step a thread
 ;
 ; extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, long op );
-PUBLIC InterpretOneOpFast
-InterpretOneOpFast PROC near C public uses ebx esi edx ecx edi ebp,
-	core:PTR,
-	op:DWORD
-	mov	ebx, op
-	mov	ebp, DWORD PTR core
-	mov	esi, [ebp].FCore.IPtr
-	mov	edx, [ebp].FCore.SPtr
+entry InterpretOneOpFast
+;InterpretOneOpFast PROC near C public uses ebx esi edx ecx edi ebp,
+;	core:PTR,
+;	op:DWORD
+	push ebp
+	mov	ebp, esp
+	push ebx
+	push ecx
+	push edx
+	push esi
+	push edi
+	push ebp
+	
+	mov	ebx, [ebp + 12]
+	mov	ebp, [ebp + 8]      ; ebp -> ForthCore
+	mov	esi, [ebp + FCore.IPtr]
+	mov	edx, [ebp + FCore.SPtr]
 	mov	edi, InterpretOneOpFastExit
 	; TODO: should we reset state to OK before every step?
 	mov	eax, kResultOk
-	mov	[ebp].FCore.state, eax
+	mov	[ebp + FCore.state], eax
 	; instead of jumping directly to the inner loop, do a call so that
 	; error exits which do a return instead of branching to inner loop will work
 	call	interpLoopExecuteEntry
@@ -331,140 +240,182 @@ InterpretOneOpFast PROC near C public uses ebx esi edx ecx edi ebp,
 InterpretOneOpFastExit:		; this is exit for state == OK - discard the unused return address from call above
 	add	esp, 4
 InterpretOneOpFastExit2:	; this is exit for state != OK
-	mov	[ebp].FCore.IPtr, esi
-	mov	[ebp].FCore.SPtr, edx
-	mov	eax, [ebp].FCore.state
+	mov	[ebp + FCore.IPtr], esi
+	mov	[ebp + FCore.SPtr], edx
+	mov	eax, [ebp + FCore.state]
+
+	pop ebp
+	pop	edi
+	pop	esi
+	pop edx
+	pop ecx
+	pop ebx
+	leave
 	ret
-InterpretOneOpFast ENDP
 
 ;-----------------------------------------------
 ;
 ; inner interpreter C entry point
 ;
 ; extern eForthResult InnerInterpreterFast( ForthCoreState *pCore );
-PUBLIC InnerInterpreterFast
-InnerInterpreterFast PROC near C public uses ebx esi edx ecx edi ebp,
-	core:PTR
-	mov	ebp, DWORD PTR core
+entry InnerInterpreterFast
+;InnerInterpreterFast PROC near C public uses ebx esi edx ecx edi ebp,
+;	core:PTR
+
+	push ebp
+	mov	ebp, esp
+	push ebx
+	push ecx
+	push edx
+	push esi
+	push edi
+	push ebp
+	
+	mov	ebp, [ebp + 8]      ; ebp -> ForthCore
 	mov	eax, kResultOk
-	mov	[ebp].FCore.state, eax
+	mov	[ebp + FCore.state], eax
+
 	call	interpFunc
+
+	pop ebp
+	pop	edi
+	pop	esi
+	pop edx
+	pop ecx
+	pop ebx
+	leave
 	ret
-InnerInterpreterFast ENDP
 
 ;-----------------------------------------------
 ;
 ; inner interpreter C entry point
 ;
 ; extern eForthResult InnerInterpreterSingleStep( ForthCoreState *pCore );
-PUBLIC InnerInterpreterSingleStep
-InnerInterpreterSingleStep PROC near C public uses ebx esi edx ecx edi ebp,
-	core:PTR
-	mov	ebp, DWORD PTR core
-	mov	eax, [ebp].FCore.state
+entry InnerInterpreterSingleStep
+;InnerInterpreterSingleStep PROC near C public uses ebx esi edx ecx edi ebp,
+;	core:PTR
+	push ebp
+	mov	ebp, esp
+	push ebx
+	push ecx
+	push edx
+	push esi
+	push edi
+	push ebp
+	
+	mov	ebp, [ebp + 8]      ; ebp -> ForthCore
+	mov	eax, [ebp + FCore.state]
+    
 	call	interpFuncSingleStep
+
+	pop ebp
+	pop	edi
+	pop	esi
+	pop edx
+	pop ecx
+	pop ebx
+	leave
 	ret
-InnerInterpreterSingleStep ENDP
 
 ;-----------------------------------------------
 ;
 ; inner interpreter
 ;	jump to interpFunc if you need to reload IP, SP, interpLoop
 entry interpFunc
-	mov	esi, [ebp].FCore.IPtr
-	mov	edx, [ebp].FCore.SPtr
+	mov	esi, [ebp + FCore.IPtr]
+	mov	edx, [ebp + FCore.SPtr]
 	;mov	edi, interpLoopDebug
-	mov	edi, [ebp].FCore.innerLoop
+	mov	edi, [ebp + FCore.innerLoop]
 	jmp	edi
 
 entry interpFuncSingleStep
-	mov	esi, [ebp].FCore.IPtr
-	mov	edx, [ebp].FCore.SPtr
+	mov	esi, [ebp + FCore.IPtr]
+	mov	edx, [ebp + FCore.SPtr]
 	mov	edi, interpLoopExit
 	jmp	edi
 
 entry interpLoopDebug
 	; while debugging, store IP,SP in corestate shadow copies after every instruction
 	;   so crash stacktrace will be more accurate (off by only one instruction)
-	mov	[ebp].FCore.IPtr, esi
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.IPtr], esi
+	mov	[ebp + FCore.SPtr], edx
 entry interpLoop
 	mov	ebx, [esi]		; ebx is opcode
 	add	esi, 4			; advance IP
 	; interpLoopExecuteEntry is entry for executeBop - expects opcode in ebx
-PUBLIC	interpLoopExecuteEntry
+;GLOBAL	interpLoopExecuteEntry
 interpLoopExecuteEntry:
-	cmp	ebx, [ebp].FCore.numOps
+	cmp	ebx, [ebp + FCore.numOps]
 	jae	notNative
-	mov eax, [ebp].FCore.ops
+	mov eax, [ebp + FCore.ops]
 	mov	ecx, [eax+ebx*4]
 	jmp	ecx
 
-PUBLIC	interpLoopExit
+;GLOBAL	interpLoopExit
 interpLoopExit:
-	mov	[ebp].FCore.state, eax
-	mov	[ebp].FCore.IPtr, esi
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.state], eax
+	mov	[ebp + FCore.IPtr], esi
+	mov	[ebp + FCore.SPtr], edx
 	ret
 
-PUBLIC	badOptype
+;GLOBAL	badOptype
 badOptype:
 	mov	eax, kForthErrorBadOpcodeType
 	jmp	interpLoopErrorExit
 
-PUBLIC	badVarOperation
+;GLOBAL	badVarOperation
 badVarOperation:
 	mov	eax, kForthErrorBadVarOperation
 	jmp	interpLoopErrorExit
 	
-PUBLIC	badOpcode
+;GLOBAL	badOpcode
 badOpcode:
 	mov	eax, kForthErrorBadOpcode
 
 	
-PUBLIC	interpLoopErrorExit
+;GLOBAL	interpLoopErrorExit
 interpLoopErrorExit:
 	; error exit point
 	; eax is error code
-	mov	[ebp].FCore.error, eax
+	mov	[ebp + FCore.error], eax
 	mov	eax, kResultError
 	jmp	interpLoopExit
 	
 interpLoopFatalErrorExit:
 	; fatal error exit point
 	; eax is error code
-	mov	[ebp].FCore.error, eax
+	mov	[ebp + FCore.error], eax
 	mov	eax, kResultFatalError
 	jmp	interpLoopExit
 	
 ; op (in ebx) is not defined in assembler, dispatch through optype table
-PUBLIC notNative
+;GLOBAL notNative
 notNative:
 	mov	eax, ebx			; leave full opcode in ebx
 	shr	eax, 24			; eax is 8-bit optype
-	mov	eax, opTypesTable[eax*4]
+	mov	eax, [opTypesTable + eax*4]
 	jmp	eax
 
-PUBLIC nativeImmediate
+;GLOBAL nativeImmediate
 nativeImmediate:
 	and	ebx, 00FFFFFFh
-	cmp	ebx, [ebp].FCore.numOps
+	cmp	ebx, [ebp + FCore.numOps]
 	jae	badOpcode
-	mov eax, [ebp].FCore.ops
+	mov eax, [ebp + FCore.ops]
 	mov	ecx, [eax+ebx*4]
 	jmp	ecx
 
 ; externalBuiltin is invoked when a builtin op which is outside of range of table is invoked
-PUBLIC externalBuiltin
+;GLOBAL externalBuiltin
 externalBuiltin:
 	; it should be impossible to get here now
 	jmp	badOpcode
 	
-PUBLIC cCodeType
+;GLOBAL cCodeType
 cCodeType:
 	and	ebx, 00FFFFFFh
 	; dispatch to C version if valid
-	cmp	ebx, [ebp].FCore.numOps
+	cmp	ebx, [ebp + FCore.numOps]
 	jae	badOpcode
 	jmp	extOp
 
@@ -475,15 +426,15 @@ cCodeType:
 entry userDefType
 	; get low-24 bits of opcode & check validity
 	and	ebx, 00FFFFFFh
-	cmp	ebx, [ebp].FCore.numOps
+	cmp	ebx, [ebp + FCore.numOps]
 	jge	badUserDef
 	; push IP on rstack
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	sub	eax, 4
 	mov	[eax], esi
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	; get new IP
-	mov	eax, [ebp].FCore.ops
+	mov	eax, [ebp + FCore.ops]
 	mov	esi, [eax+ebx*4]
 	jmp	edi
 
@@ -499,15 +450,15 @@ entry relativeDefType
 	; ebx is offset from dictionary base of user definition
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
-	mov	eax, [ebp].FCore.DictionaryPtr
-	add	ebx, [eax].ForthMemorySection.pBase
-	cmp	ebx, [eax].ForthMemorySection.pCurrent
+	mov	eax, [ebp + FCore.DictionaryPtr]
+	add	ebx, [eax + ForthMemorySection.pBase]
+	cmp	ebx, [eax + ForthMemorySection.pCurrent]
 	jge	badUserDef
 	; push IP on rstack
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	sub	eax, 4
 	mov	[eax], esi
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	mov	esi, ebx
 	jmp	edi
 
@@ -594,13 +545,13 @@ entry pushBranchType
 entry relativeDefBranchType
 	; push relativeDef opcode for immediately following anonymous definition (IP in esi points to it)
 	; compute offset from dictionary base to anonymous def
-	mov	eax, [ebp].FCore.DictionaryPtr
-	mov	ecx, [eax].ForthMemorySection.pBase
+	mov	eax, [ebp + FCore.DictionaryPtr]
+	mov	ecx, [eax + ForthMemorySection.pBase]
 	mov	eax, esi
 	sub	eax, ecx
 	sar	eax, 2
 	; stick the optype in top 8 bits
-	mov	ecx, kOpRelativeDef SHL 24
+	mov	ecx, kOpRelativeDef << 24
 	or	eax, ecx
 	sub	edx, 4
 	mov	[edx], eax
@@ -697,7 +648,7 @@ entry localStructArrayType
 	mov	eax, 00000FFFh
 	and	eax, ebx                ; eax is padded struct length in bytes
 	imul	eax, [edx]              ; multiply index * length
-	add	eax, [ebp].FCore.FPtr
+	add	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFF000h
 	sar	ebx, 10							; ebx = frame offset in bytes of struct[0]
 	sub	eax, ebx						; eax -> struct[N]
@@ -726,17 +677,17 @@ entry constantStringType
 ;
 entry allocLocalsType
 	; rpush old FP
-	mov	ecx, [ebp].FCore.FPtr
-	mov	eax, [ebp].FCore.RPtr
+	mov	ecx, [ebp + FCore.FPtr]
+	mov	eax, [ebp + FCore.RPtr]
 	sub	eax, 4
 	mov	[eax], ecx
 	; set FP = RP, points at old FP
-	mov	[ebp].FCore.FPtr, eax
+	mov	[ebp + FCore.FPtr], eax
 	; allocate amount of storage specified by low 24-bits of op on rstack
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	; clear out allocated storage
 	mov ecx, eax
 	xor eax, eax
@@ -757,7 +708,7 @@ entry initLocalStringType
 	mov	eax, 00FFF000h
 	and	eax, ebx
 	sar	eax, 10							; eax = frame offset in bytes
-	mov	ecx, [ebp].FCore.FPtr
+	mov	ecx, [ebp + FCore.FPtr]
 	sub	ecx, eax						; ecx -> max length field
 	and	ebx, 00000FFFh					; ebx = max length
 	mov	[ecx], ebx						; set max length
@@ -772,7 +723,7 @@ entry initLocalStringType
 ;
 entry localRefType
 	; push local reference - ebx is frame offset in longs
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
@@ -786,7 +737,7 @@ entry localRefType
 ;
 entry memberRefType
 	; push member reference - ebx is member offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	sub	edx, 4
@@ -799,31 +750,31 @@ entry memberRefType
 ;
 entry localByteType
 	; get ptr to byte var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
 byteEntry:
-	mov	ebx, [ebp].FCore.varMode
+	mov	ebx, [ebp + FCore.varMode]
 	or	ebx, ebx
 	jnz	localByte1
 	; fetch local byte
 localByteFetch:
 	sub	edx, 4
-	movsx	ebx, BYTE PTR [eax]
+	movsx	ebx, BYTE[eax]
 	mov	[edx], ebx
 	jmp	edi
 
 entry localUByteType
 	; get ptr to byte var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
 ubyteEntry:
-	mov	ebx, [ebp].FCore.varMode
+	mov	ebx, [ebp + FCore.varMode]
 	or	ebx, ebx
 	jnz	localByte1
 	; fetch local unsigned byte
@@ -839,7 +790,7 @@ localByteRef:
 	mov	[edx], eax
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 localByteStore:
@@ -848,7 +799,7 @@ localByteStore:
 	add	edx, 4
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 localBytePlusStore:
@@ -859,7 +810,7 @@ localBytePlusStore:
 	add	edx, 4
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 localByteMinusStore:
@@ -870,30 +821,30 @@ localByteMinusStore:
 	add	edx, 4
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 localByteActionTable:
-	DD	FLAT:localByteFetch
-	DD	FLAT:localByteFetch
-	DD	FLAT:localByteRef
-	DD	FLAT:localByteStore
-	DD	FLAT:localBytePlusStore
-	DD	FLAT:localByteMinusStore
+	DD	localByteFetch
+	DD	localByteFetch
+	DD	localByteRef
+	DD	localByteStore
+	DD	localBytePlusStore
+	DD	localByteMinusStore
 
 localUByteActionTable:
-	DD	FLAT:localUByteFetch
-	DD	FLAT:localUByteFetch
-	DD	FLAT:localByteRef
-	DD	FLAT:localByteStore
-	DD	FLAT:localBytePlusStore
-	DD	FLAT:localByteMinusStore
+	DD	localUByteFetch
+	DD	localUByteFetch
+	DD	localByteRef
+	DD	localByteStore
+	DD	localBytePlusStore
+	DD	localByteMinusStore
 
 localByte1:
 	cmp	ebx, kVarMinusStore
 	jg	badVarOperation
 	; dispatch based on value in ebx
-	mov	ebx, DWORD PTR localByteActionTable[ebx*4]
+	mov	ebx, [localByteActionTable + ebx*4]
 	jmp	ebx
 
 entry fieldByteType
@@ -917,7 +868,7 @@ entry fieldUByteType
 entry memberByteType
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	byteEntry
@@ -925,14 +876,14 @@ entry memberByteType
 entry memberUByteType
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	ubyteEntry
 
 entry localByteArrayType
 	; get ptr to byte var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
@@ -942,7 +893,7 @@ entry localByteArrayType
 
 entry localUByteArrayType
 	; get ptr to byte var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
@@ -976,7 +927,7 @@ entry memberByteArrayType
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, TOS is index
 	; ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	add	eax, [edx]
 	add	edx, 4
 	and	ebx, 00FFFFFFh
@@ -987,7 +938,7 @@ entry memberUByteArrayType
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, TOS is index
 	; ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	add	eax, [edx]
 	add	edx, 4
 	and	ebx, 00FFFFFFh
@@ -1000,37 +951,37 @@ entry memberUByteArrayType
 ;
 entry localShortType
 	; get ptr to short var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
 shortEntry:
-	mov	ebx, [ebp].FCore.varMode
+	mov	ebx, [ebp + FCore.varMode]
 	or	ebx, ebx
 	jnz	localShort1
 	; fetch local short
 localShortFetch:
 	sub	edx, 4
-	movsx	ebx, WORD PTR [eax]
+	movsx	ebx, WORD[eax]
 	mov	[edx], ebx
 	jmp	edi
 
 entry localUShortType
 	; get ptr to short var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
 ushortEntry:
-	mov	ebx, [ebp].FCore.varMode
+	mov	ebx, [ebp + FCore.varMode]
 	or	ebx, ebx
 	jnz	localShort1
 	; fetch local unsigned short
 localUShortFetch:
 	sub	edx, 4
-	movsx	ebx, WORD PTR [eax]
+	movsx	ebx, WORD[eax]
 	xor	ebx, ebx
 	mov	bx, [eax]
 	mov	[edx], ebx
@@ -1041,7 +992,7 @@ localShortRef:
 	mov	[edx], eax
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 localShortStore:
@@ -1050,50 +1001,50 @@ localShortStore:
 	add	edx, 4
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 localShortPlusStore:
-	movsx	ebx, WORD PTR [eax]
+	movsx	ebx, WORD[eax]
 	add	ebx, [edx]
 	mov	[eax], bx
 	add	edx, 4
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 localShortMinusStore:
-	movsx	ebx, WORD PTR [eax]
+	movsx	ebx, WORD[eax]
 	sub	ebx, [edx]
 	mov	[eax], bx
 	add	edx, 4
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 localShortActionTable:
-	DD	FLAT:localShortFetch
-	DD	FLAT:localShortFetch
-	DD	FLAT:localShortRef
-	DD	FLAT:localShortStore
-	DD	FLAT:localShortPlusStore
-	DD	FLAT:localShortMinusStore
+	DD	localShortFetch
+	DD	localShortFetch
+	DD	localShortRef
+	DD	localShortStore
+	DD	localShortPlusStore
+	DD	localShortMinusStore
 
 localUShortActionTable:
-	DD	FLAT:localUShortFetch
-	DD	FLAT:localUShortFetch
-	DD	FLAT:localShortRef
-	DD	FLAT:localShortStore
-	DD	FLAT:localShortPlusStore
-	DD	FLAT:localShortMinusStore
+	DD	localUShortFetch
+	DD	localUShortFetch
+	DD	localShortRef
+	DD	localShortStore
+	DD	localShortPlusStore
+	DD	localShortMinusStore
 
 localShort1:
 	cmp	ebx, kVarMinusStore
 	jg	badVarOperation
 	; dispatch based on value in ebx
-	mov	ebx, DWORD PTR localShortActionTable[ebx*4]
+	mov	ebx, [localShortActionTable + ebx*4]
 	jmp	ebx
 
 entry fieldShortType
@@ -1117,7 +1068,7 @@ entry fieldUShortType
 entry memberShortType
 	; get ptr to short var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	shortEntry
@@ -1125,14 +1076,14 @@ entry memberShortType
 entry memberUShortType
 	; get ptr to unsigned short var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	ushortEntry
 
 entry localShortArrayType
 	; get ptr to int var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh	; ebx is frame offset in longs
 	sal	ebx, 2
 	sub	eax, ebx
@@ -1144,7 +1095,7 @@ entry localShortArrayType
 
 entry localUShortArrayType
 	; get ptr to int var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh	; ebx is frame offset in longs
 	sal	ebx, 2
 	sub	eax, ebx
@@ -1184,7 +1135,7 @@ entry memberShortArrayType
 	; ebx is field offset in bytes
 	mov	eax, [edx]	; eax = index
 	sal	eax, 1
-	add	eax, [ebp].FCore.TDPtr
+	add	eax, [ebp + FCore.TDPtr]
 	add	edx, 4
 	and	ebx, 00FFFFFFh
 	add	eax, ebx		; add in field offset
@@ -1196,7 +1147,7 @@ entry memberUShortArrayType
 	; ebx is field offset in bytes
 	mov	eax, [edx]	; eax = index
 	sal	eax, 1
-	add	eax, [ebp].FCore.TDPtr
+	add	eax, [ebp + FCore.TDPtr]
 	add	edx, 4
 	and	ebx, 00FFFFFFh
 	add	eax, ebx		; add in field offset
@@ -1209,13 +1160,13 @@ entry memberUShortArrayType
 ;
 entry localIntType
 	; get ptr to int var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
 intEntry:
-	mov	ebx, [ebp].FCore.varMode
+	mov	ebx, [ebp + FCore.varMode]
 	or	ebx, ebx
 	jnz	localInt1
 	; fetch local int
@@ -1230,7 +1181,7 @@ localIntRef:
 	mov	[edx], eax
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 localIntStore:
@@ -1239,7 +1190,7 @@ localIntStore:
 	add	edx, 4
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 localIntPlusStore:
@@ -1249,7 +1200,7 @@ localIntPlusStore:
 	add	edx, 4
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 localIntMinusStore:
@@ -1259,22 +1210,22 @@ localIntMinusStore:
 	add	edx, 4
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 localIntActionTable:
-	DD	FLAT:localIntFetch
-	DD	FLAT:localIntFetch
-	DD	FLAT:localIntRef
-	DD	FLAT:localIntStore
-	DD	FLAT:localIntPlusStore
-	DD	FLAT:localIntMinusStore
+	DD	localIntFetch
+	DD	localIntFetch
+	DD	localIntRef
+	DD	localIntStore
+	DD	localIntPlusStore
+	DD	localIntMinusStore
 
 localInt1:
 	cmp	ebx, kVarMinusStore
 	jg	badVarOperation
 	; dispatch based on value in ebx
-	mov	ebx, DWORD PTR localIntActionTable[ebx*4]
+	mov	ebx, [localIntActionTable + ebx*4]
 	jmp	ebx
 
 entry fieldIntType
@@ -1289,14 +1240,14 @@ entry fieldIntType
 entry memberIntType
 	; get ptr to int var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	intEntry
 
 entry localIntArrayType
 	; get ptr to int var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sub	ebx, [edx]		; add in array index on TOS
 	add	edx, 4
@@ -1322,7 +1273,7 @@ entry memberIntArrayType
 	; ebx is field offset in bytes
 	mov	eax, [edx]	; eax = index
 	sal	eax, 2
-	add	eax, [ebp].FCore.TDPtr
+	add	eax, [ebp + FCore.TDPtr]
 	add	edx, 4
 	and	ebx, 00FFFFFFh
 	add	eax, ebx		; add in field offset
@@ -1334,13 +1285,13 @@ entry memberIntArrayType
 ;
 entry localFloatType
 	; get ptr to float var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
 floatEntry:
-	mov	ebx, [ebp].FCore.varMode
+	mov	ebx, [ebp + FCore.varMode]
 	or	ebx, ebx
 	jnz	localFloat1
 	; fetch local float
@@ -1355,7 +1306,7 @@ localFloatRef:
 	mov	[edx], eax
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 localFloatStore:
@@ -1364,42 +1315,42 @@ localFloatStore:
 	add	edx, 4
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 localFloatPlusStore:
-	fld	DWORD PTR [eax]
+	fld	DWORD[eax]
 	; set var operation back to fetch
 	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
-	fadd	DWORD PTR [edx]
+	mov	[ebp + FCore.varMode], ebx
+	fadd	DWORD[edx]
 	add	edx, 4
-	fstp	DWORD PTR [eax]
+	fstp	DWORD[eax]
 	jmp	edi
 
 localFloatMinusStore:
-	fld	DWORD PTR [eax]
+	fld	DWORD[eax]
 	; set var operation back to fetch
 	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
-	fsub	DWORD PTR [edx]
+	mov	[ebp + FCore.varMode], ebx
+	fsub	DWORD[edx]
 	add	edx, 4
-	fstp	DWORD PTR [eax]
+	fstp	DWORD[eax]
 	jmp	edi
 
 localFloatActionTable:
-	DD	FLAT:localFloatFetch
-	DD	FLAT:localFloatFetch
-	DD	FLAT:localFloatRef
-	DD	FLAT:localFloatStore
-	DD	FLAT:localFloatPlusStore
-	DD	FLAT:localFloatMinusStore
+	DD	localFloatFetch
+	DD	localFloatFetch
+	DD	localFloatRef
+	DD	localFloatStore
+	DD	localFloatPlusStore
+	DD	localFloatMinusStore
 
 localFloat1:
 	cmp	ebx, kVarMinusStore
 	jg	badVarOperation
 	; dispatch based on value in ebx
-	mov	ebx, DWORD PTR localFloatActionTable[ebx*4]
+	mov	ebx, [localFloatActionTable + ebx*4]
 	jmp	ebx
 
 entry fieldFloatType
@@ -1414,14 +1365,14 @@ entry fieldFloatType
 entry memberFloatType
 	; get ptr to float var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	floatEntry
 
 entry localFloatArrayType
 	; get ptr to float var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sub	ebx, [edx]		; add in array index on TOS
 	add	edx, 4
@@ -1447,7 +1398,7 @@ entry memberFloatArrayType
 	; ebx is field offset in bytes
 	mov	eax, [edx]	; eax = index
 	sal	eax, 2
-	add	eax, [ebp].FCore.TDPtr
+	add	eax, [ebp + FCore.TDPtr]
 	add	edx, 4
 	and	ebx, 00FFFFFFh
 	add	eax, ebx		; add in field offset
@@ -1459,13 +1410,13 @@ entry memberFloatArrayType
 ;
 entry localDoubleType
 	; get ptr to double var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
 doubleEntry:
-	mov	ebx, [ebp].FCore.varMode
+	mov	ebx, [ebp + FCore.varMode]
 	or	ebx, ebx
 	jnz	localDouble1
 	; fetch local double
@@ -1482,7 +1433,7 @@ localDoubleRef:
 	mov	[edx], eax
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 localDoubleStore:
@@ -1493,42 +1444,42 @@ localDoubleStore:
 	add	edx, 8
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 localDoublePlusStore:
-	fld	QWORD PTR [eax]
+	fld	QWORD[eax]
 	; set var operation back to fetch
 	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
-	fadd	QWORD PTR [edx]
+	mov	[ebp + FCore.varMode], ebx
+	fadd	QWORD[edx]
 	add	edx, 8
-	fstp	QWORD PTR [eax]
+	fstp	QWORD[eax]
 	jmp	edi
 
 localDoubleMinusStore:
-	fld	QWORD PTR [eax]
+	fld	QWORD[eax]
 	; set var operation back to fetch
 	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
-	fsub	QWORD PTR [edx]
+	mov	[ebp + FCore.varMode], ebx
+	fsub	QWORD[edx]
 	add	edx, 8
-	fstp	QWORD PTR [eax]
+	fstp	QWORD[eax]
 	jmp	edi
 
 localDoubleActionTable:
-	DD	FLAT:localDoubleFetch
-	DD	FLAT:localDoubleFetch
-	DD	FLAT:localDoubleRef
-	DD	FLAT:localDoubleStore
-	DD	FLAT:localDoublePlusStore
-	DD	FLAT:localDoubleMinusStore
+	DD	localDoubleFetch
+	DD	localDoubleFetch
+	DD	localDoubleRef
+	DD	localDoubleStore
+	DD	localDoublePlusStore
+	DD	localDoubleMinusStore
 
 localDouble1:
 	cmp	ebx, kVarMinusStore
 	jg	badVarOperation
 	; dispatch based on value in ebx
-	mov	ebx, DWORD PTR localDoubleActionTable[ebx*4]
+	mov	ebx, [localDoubleActionTable + ebx*4]
 	jmp	ebx
 
 entry fieldDoubleType
@@ -1543,14 +1494,14 @@ entry fieldDoubleType
 entry memberDoubleType
 	; get ptr to double var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	doubleEntry
 
 entry localDoubleArrayType
 	; get ptr to double var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
@@ -1578,7 +1529,7 @@ entry memberDoubleArrayType
 	; ebx is field offset in bytes
 	mov	eax, [edx]	; eax = index
 	sal	eax, 3
-	add	eax, [ebp].FCore.TDPtr
+	add	eax, [ebp + FCore.TDPtr]
 	add	edx, 4
 	and	ebx, 00FFFFFFh
 	add	eax, ebx		; add in field offset
@@ -1588,16 +1539,16 @@ entry memberDoubleArrayType
 ;
 ; local string ops
 ;
-PUBLIC localStringType, stringEntry, localStringFetch, localStringStore, localStringAppend
+GLOBAL localStringType, stringEntry, localStringFetch, localStringStore, localStringAppend
 entry localStringType
 	; get ptr to string var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
 stringEntry:
-	mov	ebx, [ebp].FCore.varMode
+	mov	ebx, [ebp + FCore.varMode]
 	or	ebx, ebx
 	jnz	localString1
 	; fetch local string
@@ -1607,7 +1558,7 @@ localStringFetch:
 	mov	[edx], eax
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 ; ref on a string returns the address of maxLen field, not the string chars
@@ -1616,19 +1567,19 @@ localStringRef:
 	mov	[edx], eax
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 localStringStore:
 	; eax -> dest string maxLen field
 	; TOS is src string addr
-	mov	[ebp].FCore.IPtr, esi	; IP will get stomped
+	mov	[ebp + FCore.IPtr], esi	; IP will get stomped
 	mov	ecx, [edx]			; ecx -> chars of src string
 	add	edx, 4
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.SPtr], edx
 	lea	edi, [eax + 8]		; edi -> chars of dst string
 	push	ecx
-	call	strlen
+	xcall	strlen
 	add	esp, 4
 	; eax is src string length
 
@@ -1646,7 +1597,7 @@ lsStore1:
 	push	eax		; and save a copy in case strncpy modifies its stack inputs
 	push	ecx		; srcPtr
 	push	edi		; dstPtr
-	call	strncpy
+	xcall	strncpy
 	add	esp, 12
 	pop	esi			; esi = numBytes
 
@@ -1655,19 +1606,19 @@ lsStore1:
 	mov	[edi + esi], al
 		
 	; set var operation back to fetch
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	interpFunc
 
 localStringAppend:
 	; eax -> dest string maxLen field
 	; TOS is src string addr
-	mov	[ebp].FCore.IPtr, esi	; IP will get stomped
+	mov	[ebp + FCore.IPtr], esi	; IP will get stomped
 	mov	ecx, [edx]			; ecx -> chars of src string
 	add	edx, 4
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.SPtr], edx
 	lea	edi, [eax + 8]		; edi -> chars of dst string
 	push	ecx
-	call	strlen
+	xcall	strlen
 	add	esp, 4
 	; eax is src string length
 
@@ -1689,7 +1640,7 @@ lsAppend1:
 	push	ecx		; srcPtr
 	push	edi		; dstPtr
 	; don't need to worry about stncat stomping registers since we jump to interpFunc
-	call	strncat
+	xcall	strncat
 	add	esp, 12
 
 	; add the terminating null
@@ -1698,21 +1649,21 @@ lsAppend1:
 	mov	[edi + esi], al
 		
 	; set var operation back to fetch
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	interpFunc
 
 localStringActionTable:
-	DD	FLAT:localStringFetch
-	DD	FLAT:localStringFetch
-	DD	FLAT:localStringRef
-	DD	FLAT:localStringStore
-	DD	FLAT:localStringAppend
+	DD	localStringFetch
+	DD	localStringFetch
+	DD	localStringRef
+	DD	localStringStore
+	DD	localStringAppend
 
 localString1:
 	cmp	ebx, kVarPlusStore
 	jg	badVarOperation
 	; dispatch based on value in ebx
-	mov	ebx, DWORD PTR localStringActionTable[ebx*4]
+	mov	ebx, [localStringActionTable + ebx*4]
 	jmp	ebx
 
 entry fieldStringType
@@ -1727,14 +1678,14 @@ entry fieldStringType
 entry memberStringType
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	stringEntry
 
 entry localStringArrayType
 	; get ptr to int var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx		; eax -> maxLen field of string[0]
@@ -1767,7 +1718,7 @@ entry memberStringArrayType
 	; this data ptr is base ptr, TOS is index
 	; ebx is field offset in bytes
 	and	ebx, 00FFFFFFh
-	add	ebx, [ebp].FCore.TDPtr	; ebx -> maxLen field of string[0]
+	add	ebx, [ebp + FCore.TDPtr]	; ebx -> maxLen field of string[0]
 	mov	eax, [ebx]		; eax = maxLen
 	sar	eax, 2
 	add	eax, 3			; eax is element length in longs
@@ -1783,13 +1734,13 @@ entry memberStringArrayType
 ;
 entry localOpType
 	; get ptr to op var into ebx
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch (execute for ops)
 opEntry:
-	mov	ebx, [ebp].FCore.varMode
+	mov	ebx, [ebp + FCore.varMode]
 	or	ebx, ebx
 	jnz	localOp1
 	; execute local op
@@ -1799,16 +1750,16 @@ localOpExecute:
 
 
 localOpActionTable:
-	DD	FLAT:localOpExecute
-	DD	FLAT:localIntFetch
-	DD	FLAT:localIntRef
-	DD	FLAT:localIntStore
+	DD	localOpExecute
+	DD	localIntFetch
+	DD	localIntRef
+	DD	localIntStore
 
 localOp1:
 	cmp	ebx, kVarStore
 	jg	badVarOperation
 	; dispatch based on value in ebx
-	mov	ebx, DWORD PTR localOpActionTable[ebx*4]
+	mov	ebx, [localOpActionTable + ebx*4]
 	jmp	ebx
 
 entry fieldOpType
@@ -1823,14 +1774,14 @@ entry fieldOpType
 entry memberOpType
 	; get ptr to op var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	opEntry
 
 entry localOpArrayType
 	; get ptr to op var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sub	ebx, [edx]		; add in array index on TOS
 	add	edx, 4
@@ -1856,7 +1807,7 @@ entry memberOpArrayType
 	; ebx is field offset in bytes
 	mov	eax, [edx]	; eax = index
 	sal	eax, 2
-	add	eax, [ebp].FCore.TDPtr
+	add	eax, [ebp + FCore.TDPtr]
 	add	edx, 4
 	and	ebx, 00FFFFFFh
 	add	eax, ebx		; add in field offset
@@ -1868,13 +1819,13 @@ entry memberOpArrayType
 ;
 entry localLongType
 	; get ptr to long var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
 longEntry:
-	mov	ebx, [ebp].FCore.varMode
+	mov	ebx, [ebp + FCore.varMode]
 	or	ebx, ebx
 	jnz	localLong1
 	; fetch local double
@@ -1891,7 +1842,7 @@ localLongRef:
 	mov	[edx], eax
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 localLongStore:
@@ -1902,7 +1853,7 @@ localLongStore:
 	add	edx, 8
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 localLongPlusStore:
@@ -1914,7 +1865,7 @@ localLongPlusStore:
 	mov	[eax+4], ebx
 	; set var operation back to fetch
 	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
+	mov	[ebp + FCore.varMode], ebx
 	add	edx, 8
 	jmp	edi
 
@@ -1927,23 +1878,23 @@ localLongMinusStore:
 	mov	[eax+4], ebx
 	; set var operation back to fetch
 	xor	ebx, ebx
-	mov	[ebp].FCore.varMode, ebx
+	mov	[ebp + FCore.varMode], ebx
 	add	edx, 8
 	jmp	edi
 
 localLongActionTable:
-	DD	FLAT:localLongFetch
-	DD	FLAT:localLongFetch
-	DD	FLAT:localLongRef
-	DD	FLAT:localLongStore
-	DD	FLAT:localLongPlusStore
-	DD	FLAT:localLongMinusStore
+	DD	localLongFetch
+	DD	localLongFetch
+	DD	localLongRef
+	DD	localLongStore
+	DD	localLongPlusStore
+	DD	localLongMinusStore
 
 localLong1:
 	cmp	ebx, kVarMinusStore
 	jg	badVarOperation
 	; dispatch based on value in ebx
-	mov	ebx, DWORD PTR localLongActionTable[ebx*4]
+	mov	ebx, [localLongActionTable + ebx*4]
 	jmp	ebx
 
 entry fieldLongType
@@ -1958,14 +1909,14 @@ entry fieldLongType
 entry memberLongType
 	; get ptr to double var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	longEntry
 
 entry localLongArrayType
 	; get ptr to double var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
@@ -1993,7 +1944,7 @@ entry memberLongArrayType
 	; ebx is field offset in bytes
 	mov	eax, [edx]	; eax = index
 	sal	eax, 3
-	add	eax, [ebp].FCore.TDPtr
+	add	eax, [ebp + FCore.TDPtr]
 	add	edx, 4
 	and	ebx, 00FFFFFFh
 	add	eax, ebx		; add in field offset
@@ -2005,13 +1956,13 @@ entry memberLongArrayType
 ;
 entry localObjectType
 	; get ptr to Object var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
 objectEntry:
-	mov	ebx, [ebp].FCore.varMode
+	mov	ebx, [ebp + FCore.varMode]
 	or	ebx, ebx
 	jnz	localObject1
 	; fetch local Object
@@ -2028,13 +1979,13 @@ localObjectRef:
 	mov	[edx], eax
 	; set var operation back to fetch
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 localObjectStore:
 	; TOS is new object, eax points to destination/old object
 	xor	ebx, ebx			; set var operation back to default/fetch
-	mov	[ebp].FCore.varMode, ebx
+	mov	[ebp + FCore.varMode], ebx
 los0:
 	mov ecx, eax		; ecx -> destination
 	mov eax, [edx+4]	; eax = newObj data
@@ -2044,12 +1995,12 @@ los0:
 	; handle newObj refcount
 	or eax,eax
 	jz los1				; if newObj data ptr is null, don't try to increment refcount
-	inc dword ptr[eax]	; increment newObj refcount
+	inc dword[eax]	; increment newObj refcount
 	; handle oldObj refcount
 los1:
 	or ebx,ebx
 	jz los2				; if oldObj data ptr is null, don't try to decrement refcount
-	dec dword ptr[ebx]
+	dec dword[ebx]
 	jz los3
 los2:
 	mov	[ecx+4], eax	; oldObj.data = newObj.data
@@ -2070,17 +2021,17 @@ los3:
 	; ebx is method number
 
 	; push this ptr pair on return stack
-	mov	edi, [ebp].FCore.RPtr
+	mov	edi, [ebp + FCore.RPtr]
 	sub	edi, 8
-	mov	[ebp].FCore.RPtr, edi
-	mov	eax, [ebp].FCore.TDPtr
+	mov	[ebp + FCore.RPtr], edi
+	mov	eax, [ebp + FCore.TDPtr]
 	mov	[edi+4], eax
-	mov	eax, [ebp].FCore.TMPtr
+	mov	eax, [ebp + FCore.TMPtr]
 	mov	[edi], eax
 	
-	mov	[ebp].FCore.TDPtr, ebx
+	mov	[ebp + FCore.TDPtr], ebx
 	mov	ebx, [ecx]
-	mov	[ebp].FCore.TMPtr, ebx
+	mov	[ebp + FCore.TMPtr], ebx
 	
 	mov	ebx, [ebx]	; ebx = method 0 (delete) opcode
 
@@ -2098,7 +2049,7 @@ los3:
 localObjectClear:
 	; TOS is new object, eax points to destination/old object
 	xor	ebx, ebx			; set var operation back to default/fetch
-	mov	[ebp].FCore.varMode, ebx
+	mov	[ebp + FCore.varMode], ebx
 	sub	edx, 8
 	mov [edx], ebx
 	mov [edx+4], ebx
@@ -2111,7 +2062,7 @@ localObjectClear:
 localObjectStoreNoRef:
 	; TOS is new object, eax points to destination/old object
 	xor	ebx, ebx			; set var operation back to default/fetch
-	mov	[ebp].FCore.varMode, ebx
+	mov	[ebp + FCore.varMode], ebx
 	mov	ebx, [edx]
 	mov	[eax], ebx
 	mov	ebx, [edx+4]
@@ -2136,7 +2087,7 @@ localObjectUnref:
 	mov	[ecx], eax
 	mov	[ecx+4], eax
 	; set var operation back to fetch
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	; get object refcount, see if it is already 0
 	mov	eax, [ebx]
 	or	eax, eax
@@ -2153,19 +2104,19 @@ lou2:
 
 	
 localObjectActionTable:
-	DD	FLAT:localObjectFetch
-	DD	FLAT:localObjectFetch
-	DD	FLAT:localObjectRef
-	DD	FLAT:localObjectStore
-	DD	FLAT:localObjectStoreNoRef
-	DD	FLAT:localObjectUnref
-	DD	FLAT:localObjectClear
+	DD	localObjectFetch
+	DD	localObjectFetch
+	DD	localObjectRef
+	DD	localObjectStore
+	DD	localObjectStoreNoRef
+	DD	localObjectUnref
+	DD	localObjectClear
 
 localObject1:
 	cmp	ebx, kVarObjectClear
 	jg	badVarOperation
 	; dispatch based on value in ebx
-	mov	ebx, DWORD PTR localObjectActionTable[ebx*4]
+	mov	ebx, [localObjectActionTable + ebx*4]
 	jmp	ebx
 
 entry fieldObjectType
@@ -2180,14 +2131,14 @@ entry fieldObjectType
 entry memberObjectType
 	; get ptr to Object var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	and	ebx, 00FFFFFFh
 	add	eax, ebx
 	jmp	objectEntry
 
 entry localObjectArrayType
 	; get ptr to Object var into eax
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
@@ -2215,7 +2166,7 @@ entry memberObjectArrayType
 	; ebx is field offset in bytes
 	mov	eax, [edx]	; eax = index
 	sal	eax, 3
-	add	eax, [ebp].FCore.TDPtr
+	add	eax, [ebp + FCore.TDPtr]
 	add	edx, 4
 	and	ebx, 00FFFFFFh
 	add	eax, ebx		; add in field offset
@@ -2230,12 +2181,12 @@ entry memberObjectArrayType
 entry methodWithThisType
 	; ebx is method number
 	; push this ptr pair on return stack
-	mov	ecx, [ebp].FCore.RPtr
+	mov	ecx, [ebp + FCore.RPtr]
 	sub	ecx, 8
-	mov	[ebp].FCore.RPtr, ecx
-	mov	eax, [ebp].FCore.TDPtr
+	mov	[ebp + FCore.RPtr], ecx
+	mov	eax, [ebp + FCore.TDPtr]
 	mov	[ecx+4], eax
-	mov	eax, [ebp].FCore.TMPtr
+	mov	eax, [ebp + FCore.TMPtr]
 	mov	[ecx], eax
 	
 	and	ebx, 00FFFFFFh
@@ -2249,20 +2200,20 @@ entry methodWithTOSType
 	; TOS is object vtable, NOS is object data ptr
 	; ebx is method number
 	; push this ptr pair on return stack
-	mov	ecx, [ebp].FCore.RPtr
+	mov	ecx, [ebp + FCore.RPtr]
 	sub	ecx, 8
-	mov	[ebp].FCore.RPtr, ecx
-	mov	eax, [ebp].FCore.TDPtr
+	mov	[ebp + FCore.RPtr], ecx
+	mov	eax, [ebp + FCore.TDPtr]
 	mov	[ecx+4], eax
-	mov	eax, [ebp].FCore.TMPtr
+	mov	eax, [ebp + FCore.TMPtr]
 	mov	[ecx], eax
 
 	; set data ptr from TOS	
 	mov	eax, [edx+4]
-	mov	[ebp].FCore.TDPtr, eax
+	mov	[ebp + FCore.TDPtr], eax
 	; set vtable ptr from TOS
 	mov	eax, [edx]
-	mov	[ebp].FCore.TMPtr, eax
+	mov	[ebp + FCore.TMPtr], eax
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	add	ebx, eax
@@ -2280,7 +2231,7 @@ entry memberStringInitType
 	mov	eax, 00FFF000h
 	and	eax, ebx
 	sar	eax, 10							; eax = member offset in bytes
-	mov	ecx, [ebp].FCore.TDPtr
+	mov	ecx, [ebp + FCore.TDPtr]
 	add	ecx, eax						; ecx -> max length field
 	and	ebx, 00000FFFh					; ebx = max length
 	mov	[ecx], ebx						; set max length
@@ -2303,10 +2254,10 @@ entry doByteBop
 	; get ptr to byte var into eax
 	mov	eax, esi
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	byteEntry
 
 ;-----------------------------------------------
@@ -2318,10 +2269,10 @@ entry doUByteBop
 	; get ptr to byte var into eax
 	mov	eax, esi
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	ubyteEntry
 
 ;-----------------------------------------------
@@ -2335,10 +2286,10 @@ entry doByteArrayBop
 	add	eax, [edx]
 	add	edx, 4
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	byteEntry
 
 entry doUByteArrayBop
@@ -2347,10 +2298,10 @@ entry doUByteArrayBop
 	add	eax, [edx]
 	add	edx, 4
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	ubyteEntry
 
 ;-----------------------------------------------
@@ -2362,10 +2313,10 @@ entry doShortBop
 	; get ptr to short var into eax
 	mov	eax, esi
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	shortEntry
 
 ;-----------------------------------------------
@@ -2377,10 +2328,10 @@ entry doUShortBop
 	; get ptr to short var into eax
 	mov	eax, esi
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	ushortEntry
 
 ;-----------------------------------------------
@@ -2396,10 +2347,10 @@ entry doShortArrayBop
 	sal	ebx, 1
 	add	eax, ebx	
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	shortEntry
 
 entry doUShortArrayBop
@@ -2410,10 +2361,10 @@ entry doUShortArrayBop
 	sal	ebx, 1
 	add	eax, ebx	
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	ushortEntry
 
 ;-----------------------------------------------
@@ -2425,10 +2376,10 @@ entry doIntBop
 	; get ptr to int var into eax
 	mov	eax, esi
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	intEntry
 
 ;-----------------------------------------------
@@ -2444,10 +2395,10 @@ entry doIntArrayBop
 	sal	ebx, 2
 	add	eax, ebx	
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	intEntry
 
 ;-----------------------------------------------
@@ -2459,10 +2410,10 @@ entry doFloatBop
 	; get ptr to float var into eax
 	mov	eax, esi
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	floatEntry
 
 ;-----------------------------------------------
@@ -2478,10 +2429,10 @@ entry doFloatArrayBop
 	sal	ebx, 2
 	add	eax, ebx	
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	floatEntry
 
 ;-----------------------------------------------
@@ -2493,10 +2444,10 @@ entry doDoubleBop
 	; get ptr to double var into eax
 	mov	eax, esi
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	doubleEntry
 
 ;-----------------------------------------------
@@ -2512,10 +2463,10 @@ entry doDoubleArrayBop
 	sal	ebx, 3
 	add	eax, ebx	
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	doubleEntry
 
 ;-----------------------------------------------
@@ -2527,10 +2478,10 @@ entry doStringBop
 	; get ptr to string var into eax
 	mov	eax, esi
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	stringEntry
 
 ;-----------------------------------------------
@@ -2549,10 +2500,10 @@ entry doStringArrayBop
 	sal	ebx, 2			; ebx is offset in bytes
 	add	eax, ebx
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp stringEntry
 
 ;-----------------------------------------------
@@ -2564,10 +2515,10 @@ entry doOpBop
 	; get ptr to int var into eax
 	mov	eax, esi
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	opEntry
 
 ;-----------------------------------------------
@@ -2583,10 +2534,10 @@ entry doOpArrayBop
 	sal	ebx, 2
 	add	eax, ebx	
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	opEntry
 
 ;-----------------------------------------------
@@ -2598,10 +2549,10 @@ entry doLongBop
 	; get ptr to double var into eax
 	mov	eax, esi
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	longEntry
 
 ;-----------------------------------------------
@@ -2617,10 +2568,10 @@ entry doLongArrayBop
 	sal	ebx, 3
 	add	eax, ebx	
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	longEntry
 
 ;-----------------------------------------------
@@ -2632,10 +2583,10 @@ entry doObjectBop
 	; get ptr to Object var into eax
 	mov	eax, esi
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	objectEntry
 
 ;-----------------------------------------------
@@ -2651,10 +2602,10 @@ entry doObjectArrayBop
 	sal	ebx, 3
 	add	eax, ebx	
 	; pop rstack
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	objectEntry
 
 ;========================================
@@ -2777,7 +2728,7 @@ entry divideBop
 	mov	ebx, edx
 	mov	eax, [edx+4]	; get numerator
 	cdq					; convert into 64-bit in edx:eax
-	idiv	DWORD PTR [ebx]		; eax is quotient, edx is remainder
+	idiv	DWORD[ebx]		; eax is quotient, edx is remainder
 	add	ebx, 4
 	mov	[ebx], eax
 	mov	edx, ebx
@@ -2814,7 +2765,7 @@ entry divmodBop
 	mov	ebx, edx
 	mov	eax, [edx+4]	; get numerator
 	cdq					; convert into 64-bit in edx:eax
-	idiv	DWORD PTR [ebx]		; eax is quotient, edx is remainder
+	idiv	DWORD[ebx]		; eax is quotient, edx is remainder
 	mov	[ebx+4], edx
 	mov	[ebx], eax
 	mov	edx, ebx
@@ -2827,7 +2778,7 @@ entry modBop
 	mov	ebx, edx
 	mov	eax, [edx+4]	; get numerator
 	cdq					; convert into 64-bit in edx:eax
-	idiv	DWORD PTR [ebx]		; eax is quotient, edx is remainder
+	idiv	DWORD[ebx]		; eax is quotient, edx is remainder
 	add	ebx, 4
 	mov	[ebx], edx
 	mov	edx, ebx
@@ -2844,37 +2795,37 @@ entry negateBop
 ;========================================
 	
 entry fplusBop
-	fld	DWORD PTR [edx+4]
-	fadd	DWORD PTR [edx]
+	fld	DWORD[edx+4]
+	fadd	DWORD[edx]
 	add	edx,4
-	fstp	DWORD PTR [edx]
+	fstp	DWORD[edx]
 	jmp	edi
 	
 ;========================================
 	
 entry fminusBop
-	fld	DWORD PTR [edx+4]
-	fsub	DWORD PTR [edx]
+	fld	DWORD[edx+4]
+	fsub	DWORD[edx]
 	add	edx,4
-	fstp	DWORD PTR [edx]
+	fstp	DWORD[edx]
 	jmp	edi
 	
 ;========================================
 	
 entry ftimesBop
-	fld	DWORD PTR [edx+4]
-	fmul	DWORD PTR [edx]
+	fld	DWORD[edx+4]
+	fmul	DWORD[edx]
 	add	edx,4
-	fstp	DWORD PTR [edx]
+	fstp	DWORD[edx]
 	jmp	edi
 	
 ;========================================
 	
 entry fdivideBop
-	fld	DWORD PTR [edx+4]
-	fdiv	DWORD PTR [edx]
+	fld	DWORD[edx+4]
+	fdiv	DWORD[edx]
 	add	edx,4
-	fstp	DWORD PTR [edx]
+	fstp	DWORD[edx]
 	jmp	edi
 	
 ;========================================
@@ -2884,10 +2835,10 @@ entry fEquals0Bop
 	jmp	fEqualsBop1
 	
 entry fEqualsBop
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	add	edx, 4
 fEqualsBop1:
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	xor	ebx, ebx
 	fucompp
 	fnstsw	ax
@@ -2905,10 +2856,10 @@ entry fNotEquals0Bop
 	jmp	fNotEqualsBop1
 	
 entry fNotEqualsBop
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	add	edx, 4
 fNotEqualsBop1:
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	xor	ebx, ebx
 	fucompp
 	fnstsw	ax
@@ -2926,14 +2877,14 @@ entry fGreaterThan0Bop
 	jmp	fGreaterThanBop1
 	
 entry fGreaterThanBop
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	add	edx, 4
 fGreaterThanBop1:
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	xor	ebx, ebx
-	fcomp	ST(1)
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 41h
 	jne	fGreaterThanBop2
 	dec	ebx
@@ -2948,14 +2899,14 @@ entry fGreaterEquals0Bop
 	jmp	fGreaterEqualsBop1
 	
 entry fGreaterEqualsBop
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	add	edx, 4
 fGreaterEqualsBop1:
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	xor	ebx, ebx
-	fcomp	ST(1)
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 1
 	jne	fGreaterEqualsBop2
 	dec	ebx
@@ -2970,14 +2921,14 @@ entry fLessThan0Bop
 	jmp	fLessThanBop1
 	
 entry fLessThanBop
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	add	edx, 4
 fLessThanBop1:
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	xor	ebx, ebx
-	fcomp	ST(1)
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 5
 	jp	fLessThanBop2
 	dec	ebx
@@ -2992,14 +2943,14 @@ entry fLessEquals0Bop
 	jmp	fLessEqualsBop1
 	
 entry fLessEqualsBop
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	add	edx, 4
 fLessEqualsBop1:
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	xor	ebx, ebx
-	fcomp	ST(1)
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 41h
 	jp	fLessEqualsBop2
 	dec	ebx
@@ -3010,19 +2961,19 @@ fLessEqualsBop2:
 ;========================================
 	
 entry fWithinBop
-	fld	DWORD PTR [edx+4]
-	fld	DWORD PTR [edx+8]
+	fld	DWORD[edx+4]
+	fld	DWORD[edx+8]
 	xor	ebx, ebx
-	fcomp	ST(1)
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 41h
 	jne	fWithinBop2
-	fld	DWORD PTR [edx]
-	fld	DWORD PTR [edx+8]
-	fcomp	ST(1)
+	fld	DWORD[edx]
+	fld	DWORD[edx+8]
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 5
 	jp	fWithinBop2
 	dec	ebx
@@ -3034,11 +2985,11 @@ fWithinBop2:
 ;========================================
 	
 entry fMinBop
-	fld	DWORD PTR [edx]
-	fld	DWORD PTR [edx+4]
-	fcomp	ST(1)
+	fld	DWORD[edx]
+	fld	DWORD[edx+4]
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 41h
 	jne	fMinBop2
 	mov	eax, [edx]
@@ -3050,11 +3001,11 @@ fMinBop2:
 ;========================================
 	
 entry fMaxBop
-	fld	DWORD PTR [edx]
-	fld	DWORD PTR [edx+4]
-	fcomp	ST(1)
+	fld	DWORD[edx]
+	fld	DWORD[edx+4]
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 5
 	jp	fMaxBop2
 	mov	eax, [edx]
@@ -3066,14 +3017,14 @@ fMaxBop2:
 ;========================================
 	
 entry dcmpBop
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 8
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 4
 	xor	ebx, ebx
-	fcomp	ST(1)
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	sahf
 	jz	dcmpBop3
 	jb	dcmpBop2
@@ -3087,13 +3038,13 @@ dcmpBop3:
 ;========================================
 	
 entry fcmpBop
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	add	edx, 4
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	xor	ebx, ebx
-	fcomp	ST(1)
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	sahf
 	jz	fcmpBop3
 	jb	fcmpBop2
@@ -3107,37 +3058,37 @@ fcmpBop3:
 ;========================================
 	
 entry dplusBop
-	fld	QWORD PTR [edx+8]
-	fadd	QWORD PTR [edx]
+	fld	QWORD[edx+8]
+	fadd	QWORD[edx]
 	add	edx,8
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi
 	
 ;========================================
 	
 entry dminusBop
-	fld	QWORD PTR [edx+8]
-	fsub	QWORD PTR [edx]
+	fld	QWORD[edx+8]
+	fsub	QWORD[edx]
 	add	edx,8
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi
 	
 ;========================================
 	
 entry dtimesBop
-	fld	QWORD PTR [edx+8]
-	fmul	QWORD PTR [edx]
+	fld	QWORD[edx+8]
+	fmul	QWORD[edx]
 	add	edx,8
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi
 	
 ;========================================
 	
 entry ddivideBop
-	fld	QWORD PTR [edx+8]
-	fdiv	QWORD PTR [edx]
+	fld	QWORD[edx+8]
+	fdiv	QWORD[edx]
 	add	edx,8
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi
 	
 ;========================================
@@ -3147,10 +3098,10 @@ entry dEquals0Bop
 	jmp	dEqualsBop1
 	
 entry dEqualsBop
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 8
 dEqualsBop1:
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 4
 	xor	ebx, ebx
 	fucompp
@@ -3169,10 +3120,10 @@ entry dNotEquals0Bop
 	jmp	dNotEqualsBop1
 	
 entry dNotEqualsBop
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 8
 dNotEqualsBop1:
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 4
 	xor	ebx, ebx
 	fucompp
@@ -3191,15 +3142,15 @@ entry dGreaterThan0Bop
 	jmp	dGreaterThanBop1
 	
 entry dGreaterThanBop
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 8
 dGreaterThanBop1:
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 4
 	xor	ebx, ebx
-	fcomp	ST(1)
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 41h
 	jne	dGreaterThanBop2
 	dec	ebx
@@ -3214,15 +3165,15 @@ entry dGreaterEquals0Bop
 	jmp	dGreaterEqualsBop1
 	
 entry dGreaterEqualsBop
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 8
 dGreaterEqualsBop1:
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 4
 	xor	ebx, ebx
-	fcomp	ST(1)
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 1
 	jne	dGreaterEqualsBop2
 	dec	ebx
@@ -3237,15 +3188,15 @@ entry dLessThan0Bop
 	jmp	dLessThanBop1
 	
 entry dLessThanBop
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 8
 dLessThanBop1:
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 4
 	xor	ebx, ebx
-	fcomp	ST(1)
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 5
 	jp	dLessThanBop2
 	dec	ebx
@@ -3260,15 +3211,15 @@ entry dLessEquals0Bop
 	jmp	dLessEqualsBop1
 	
 entry dLessEqualsBop
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 8
 dLessEqualsBop1:
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 4
 	xor	ebx, ebx
-	fcomp	ST(1)
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 41h
 	jp	dLessEqualsBop2
 	dec	ebx
@@ -3279,19 +3230,19 @@ dLessEqualsBop2:
 ;========================================
 	
 entry dWithinBop
-	fld	QWORD PTR [edx+8]
-	fld	QWORD PTR [edx+16]
+	fld	QWORD[edx+8]
+	fld	QWORD[edx+16]
 	xor	ebx, ebx
-	fcomp	ST(1)
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 41h
 	jne	dWithinBop2
-	fld	QWORD PTR [edx]
-	fld	QWORD PTR [edx+16]
-	fcomp	ST(1)
+	fld	QWORD[edx]
+	fld	QWORD[edx+16]
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 5
 	jp	dWithinBop2
 	dec	ebx
@@ -3303,11 +3254,11 @@ dWithinBop2:
 ;========================================
 	
 entry dMinBop
-	fld	QWORD PTR [edx]
-	fld	QWORD PTR [edx+8]
-	fcomp	ST(1)
+	fld	QWORD[edx]
+	fld	QWORD[edx+8]
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 41h
 	jne	dMinBop2
 	mov	eax, [edx]
@@ -3321,11 +3272,11 @@ dMinBop2:
 ;========================================
 	
 entry dMaxBop
-	fld	QWORD PTR [edx]
-	fld	QWORD PTR [edx+8]
-	fcomp	ST(1)
+	fld	QWORD[edx]
+	fld	QWORD[edx+8]
+	fcomp	st1
 	fnstsw	ax
-	fstp	ST(0)
+	fstp	st0
 	test	ah, 5
 	jp	dMaxBop2
 	mov	eax, [edx]
@@ -3380,12 +3331,12 @@ entry datan2Bop
 	push	eax
 	mov	eax, [edx+8]
 	push	eax
-	call	atan2
+	xcall	atan2
 	add	esp, 16
 	pop	esi
 	pop	edx
 	add	edx,8
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi
 	
 ;========================================
@@ -3397,12 +3348,12 @@ entry fatan2Bop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	atan2f
+	xcall	atan2f
 	add	esp, 8
 	pop	esi
 	pop	edx
 	add	edx, 4
-	fstp	DWORD PTR [edx]
+	fstp	DWORD[edx]
 	jmp	edi
 	
 ;========================================
@@ -3421,12 +3372,12 @@ entry dpowBop
 	push	eax
 	mov	eax, [edx+8]
 	push	eax
-	call	pow
+	xcall	pow
 	add	esp, 16
 	pop	esi
 	pop	edx
 	add	edx, 8
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi
 	
 ;========================================
@@ -3441,28 +3392,28 @@ entry fpowBop
 	; push a
 	mov	eax, [edx+4]
 	push	eax
-	call	powf
+	xcall	powf
 	add	esp, 8
 	pop	esi
 	pop	edx
 	add	edx, 4
-	fstp	DWORD PTR [edx]
+	fstp	DWORD[edx]
 	jmp	edi
 	
 ;========================================
 
 entry dabsBop
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	fabs
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi
 	
 ;========================================
 
 entry fabsBop
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	fabs
-	fstp	DWORD PTR [edx]
+	fstp	DWORD[edx]
 	jmp	edi
 	
 ;========================================
@@ -3480,12 +3431,12 @@ entry dldexpBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	ldexp
+	xcall	ldexp
 	add	esp, 12
 	pop	esi
 	pop	edx
 	add	edx, 4
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi
 	
 ;========================================
@@ -3501,12 +3452,12 @@ entry fldexpBop
 	; get arg a
 	mov	eax, [edx+4]
 	push	eax
-	call	ldexpf
+	xcall	ldexpf
 	add	esp, 8
 	pop	esi
 	pop	edx
 	add	edx, 4
-	fstp	DWORD PTR [edx]
+	fstp	DWORD[edx]
 	jmp	edi
 	
 ;========================================
@@ -3525,11 +3476,11 @@ entry dfrexpBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	frexp
+	xcall	frexp
 	add	esp, 12
 	pop	esi
 	pop	edx
-	fstp	QWORD PTR [edx+4]
+	fstp	QWORD[edx+4]
 	jmp	edi
 	
 ;========================================
@@ -3546,11 +3497,11 @@ entry ffrexpBop
 	; alloc nInt
 	push	edx
 	push	eax
-	call	frexpf
+	xcall	frexpf
 	add	esp, 8
 	pop	esi
 	pop	edx
-	fstp	DWORD PTR [edx+4]
+	fstp	DWORD[edx+4]
 	jmp	edi
 	
 ;========================================
@@ -3570,11 +3521,11 @@ entry dmodfBop
 	push	eax
 	mov	eax, [edx+8]
 	push	eax
-	call	modf
+	xcall	modf
 	add	esp, 12
 	pop	esi
 	pop	edx
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi
 	
 ;========================================
@@ -3592,11 +3543,11 @@ entry fmodfBop
 	; get arg a
 	mov	eax, [edx+4]
 	push	eax
-	call	modff
+	xcall	modff
 	add	esp, 8
 	pop	esi
 	pop	edx
-	fstp	DWORD PTR [edx]
+	fstp	DWORD[edx]
 	jmp	edi
 	
 ;========================================
@@ -3612,12 +3563,12 @@ entry dfmodBop
 	push	eax
 	mov	eax, [edx+8]
 	push	eax
-	call	fmod
+	xcall	fmod
 	add	esp, 16
 	pop	esi
 	pop	edx
 	add	edx, 8
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi
 	
 ;========================================
@@ -3629,12 +3580,12 @@ entry ffmodBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	fmodf
+	xcall	fmodf
 	add	esp, 8
 	pop	esi
 	pop	edx
 	add	edx, 4
-	fstp	DWORD PTR [edx]
+	fstp	DWORD[edx]
 	jmp	edi
 	
 ;========================================
@@ -3768,16 +3719,16 @@ entry mtimesBop
 ;========================================
 
 entry i2fBop
-	fild	DWORD PTR [edx]
-	fstp	DWORD PTR [edx]
+	fild	DWORD[edx]
+	fstp	DWORD[edx]
 	jmp	edi	
 
 ;========================================
 
 entry i2dBop
-	fild	DWORD PTR [edx]
+	fild	DWORD[edx]
 	sub	edx, 4
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi	
 
 ;========================================
@@ -3785,8 +3736,8 @@ entry i2dBop
 entry f2iBop
 	push	edx
 	push	esi
-	fld	DWORD PTR [edx]
-	call	_ftol
+	fld	DWORD[edx]
+	xcall	_ftol
 	pop	esi
 	pop	edx
 	mov	[edx], eax
@@ -3795,9 +3746,9 @@ entry f2iBop
 ;========================================
 
 entry f2dBop
-	fld	DWORD PTR [edx]
+	fld	DWORD[edx]
 	sub	edx, 4
-	fstp	QWORD PTR [edx]
+	fstp	QWORD[edx]
 	jmp	edi
 		
 ;========================================
@@ -3805,8 +3756,8 @@ entry f2dBop
 entry d2iBop
 	push	edx
 	push	esi
-	fld	QWORD PTR [edx]
-	call	_ftol
+	fld	QWORD[edx]
+	xcall	_ftol
 	pop	esi
 	pop	edx
 	add	edx,4
@@ -3816,21 +3767,21 @@ entry d2iBop
 ;========================================
 
 entry d2fBop
-	fld	QWORD PTR [edx]
+	fld	QWORD[edx]
 	add	edx, 4
-	fstp	DWORD PTR [edx]
+	fstp	DWORD[edx]
 	jmp	edi
 
 ;========================================
 
 entry doExitBop
-	mov	eax, [ebp].FCore.RPtr
-	mov	ebx, [ebp].FCore.RTPtr
+	mov	eax, [ebp + FCore.RPtr]
+	mov	ebx, [ebp + FCore.RTPtr]
 	cmp	ebx, eax
 	jle	doExitBop1
 	mov	esi, [eax]
 	add	eax, 4
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	test	esi, esi
 	jz doneBop
 	jmp	edi
@@ -3844,16 +3795,16 @@ doExitBop1:
 entry doExitLBop
     ; rstack: local_var_storage oldFP oldIP
     ; FP points to oldFP
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	mov	esi, [eax]
-	mov	[ebp].FCore.FPtr, esi
+	mov	[ebp + FCore.FPtr], esi
 	add	eax, 4
-	mov	ebx, [ebp].FCore.RTPtr
+	mov	ebx, [ebp + FCore.RTPtr]
 	cmp	ebx, eax
 	jle	doExitBop1
 	mov	esi, [eax]
 	add	eax, 4
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	test	esi, esi
 	jz doneBop
 	jmp	edi
@@ -3863,17 +3814,17 @@ entry doExitLBop
 
 entry doExitMBop
     ; rstack: oldIP oldTPV oldTPD
-	mov	eax, [ebp].FCore.RPtr
-	mov	ebx, [ebp].FCore.RTPtr
+	mov	eax, [ebp + FCore.RPtr]
+	mov	ebx, [ebp + FCore.RTPtr]
 	add	eax, 12
 	cmp	ebx, eax
 	jl	doExitBop1
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	mov	esi, [eax-12]	; IP = oldIP
 	mov	ebx, [eax-8]
-	mov	[ebp].FCore.TMPtr, ebx
+	mov	[ebp + FCore.TMPtr], ebx
 	mov	ebx, [eax-4]
-	mov	[ebp].FCore.TDPtr, ebx
+	mov	[ebp + FCore.TDPtr], ebx
 	test	esi, esi
 	jz doneBop
 	jmp	edi
@@ -3883,19 +3834,19 @@ entry doExitMBop
 entry doExitMLBop
     ; rstack: local_var_storage oldFP oldIP oldTPV oldTPD
     ; FP points to oldFP
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	mov	esi, [eax]
-	mov	[ebp].FCore.FPtr, esi
+	mov	[ebp + FCore.FPtr], esi
 	add	eax, 16
-	mov	ebx, [ebp].FCore.RTPtr
+	mov	ebx, [ebp + FCore.RTPtr]
 	cmp	ebx, eax
 	jl	doExitBop1
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	mov	esi, [eax-12]	; IP = oldIP
 	mov	ebx, [eax-8]
-	mov	[ebp].FCore.TMPtr, ebx
+	mov	[ebp + FCore.TMPtr], ebx
 	mov	ebx, [eax-4]
-	mov	[ebp].FCore.TDPtr, ebx
+	mov	[ebp + FCore.TDPtr], ebx
 	test	esi, esi
 	jz doneBop
 	jmp	edi
@@ -3904,10 +3855,10 @@ entry doExitMLBop
 
 entry callBop
 	; rpush current IP
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	sub	eax, 4
 	mov	[eax], esi
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	; pop new IP
 	mov	esi, [edx]
 	add	edx, 4
@@ -3930,9 +3881,9 @@ entry gotoBop
 ; the op right after this one should be a branch just past end of loop (used by leave)
 ; 
 entry doDoBop
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	sub	ebx, 12
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	; @RP-2 holds top-of-loop-IP
 	add	esi, 4    ; skip over loop exit branch right after this op
 	mov	[ebx+8], esi
@@ -3958,9 +3909,9 @@ entry doCheckDoBop
 	cmp	eax,ecx
 	jge	doCheckDoBop1
 	
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	sub	ebx, 12
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	; @RP-2 holds top-of-loop-IP
 	add	esi, 4    ; skip over loop exit branch right after this op
 	mov	[ebx+8], esi
@@ -3974,7 +3925,7 @@ doCheckDoBop1:
 ;========================================
 
 entry doLoopBop
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	eax, [ebx]
 	inc	eax
 	cmp	eax, [ebx+4]
@@ -3985,13 +3936,13 @@ entry doLoopBop
 
 doLoopBop1:
 	add	ebx,12
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	edi
 	
 ;========================================
 
 entry doLoopNBop
-	mov	ebx, [ebp].FCore.RPtr	; ebp is RP
+	mov	ebx, [ebp + FCore.RPtr]	; ebp is RP
 	mov	eax, [edx]		; pop N into eax
 	add	edx, 4
 	or	eax, eax
@@ -4014,7 +3965,7 @@ doLoopNBop1:
 ;========================================
 
 entry iBop
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	mov	ebx, [eax]
 	sub	edx,4
 	mov	[edx], ebx
@@ -4023,7 +3974,7 @@ entry iBop
 ;========================================
 
 entry jBop
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	mov	ebx, [eax+12]
 	sub	edx,4
 	mov	[edx], ebx
@@ -4032,21 +3983,21 @@ entry jBop
 ;========================================
 
 entry unloopBop
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	add	eax, 12
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	jmp	edi
 	
 ;========================================
 
 entry leaveBop
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	; point IP at the branch instruction which is just before top of loop
 	mov	esi, [eax+8]
 	sub	esi, 4
 	; drop current index, end index, top-of-loop-IP
 	add	eax, 12
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	jmp	edi
 	
 ;========================================
@@ -4598,19 +4549,19 @@ uicmpBop3:
 entry rpushBop
 	mov	ebx, [edx]
 	add	edx, 4
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	sub	eax, 4
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	mov	[eax], ebx
 	jmp	edi
 	
 ;========================================
 
 entry rpopBop
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	mov	ebx, [eax]
 	add	eax, 4
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	sub	edx, 4
 	mov	[edx], ebx
 	jmp	edi
@@ -4618,7 +4569,7 @@ entry rpopBop
 ;========================================
 
 entry rpeekBop
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	mov	ebx, [eax]
 	sub	edx, 4
 	mov	[edx], ebx
@@ -4627,21 +4578,21 @@ entry rpeekBop
 ;========================================
 
 entry rdropBop
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	add	eax, 4
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	jmp	edi
 	
 ;========================================
 
 entry rpBop
-	lea	eax, [ebp].FCore.RPtr
+	lea	eax, [ebp + FCore.RPtr]
 	jmp	intEntry
 	
 ;========================================
 
 entry r0Bop
-	mov	eax, [ebp].FCore.RTPtr
+	mov	eax, [ebp + FCore.RTPtr]
 	sub	edx, 4
 	mov	[edx], eax
 	jmp	edi
@@ -4742,13 +4693,13 @@ entry pickBop
 
 entry spBop
 	; this is overkill to make sp look like other vars
-	mov	ebx, [ebp].FCore.varMode
+	mov	ebx, [ebp + FCore.varMode]
 	xor	eax, eax
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	cmp	ebx, kVarMinusStore
 	jg	badVarOperation
 	; dispatch based on value in ebx
-	mov	ebx, DWORD PTR spActionTable[ebx*4]
+	mov	ebx, [spActionTable + ebx*4]
 	jmp	ebx
 	
 spFetch:
@@ -4759,7 +4710,7 @@ spFetch:
 
 spRef:
 	; returns address of SP shadow copy
-	lea	eax, [ebp].FCore.SPtr
+	lea	eax, [ebp + FCore.SPtr]
 	sub	edx, 4
 	mov	[edx], eax
 	jmp	edi
@@ -4782,18 +4733,18 @@ spMinusStore:
 	jmp	edi
 
 spActionTable:
-	DD	FLAT:spFetch
-	DD	FLAT:spFetch
-	DD	FLAT:spRef
-	DD	FLAT:spStore
-	DD	FLAT:spPlusStore
-	DD	FLAT:spMinusStore
+	DD	spFetch
+	DD	spFetch
+	DD	spRef
+	DD	spStore
+	DD	spPlusStore
+	DD	spMinusStore
 
 	
 ;========================================
 
 entry s0Bop
-	mov	eax, [ebp].FCore.STPtr
+	mov	eax, [ebp + FCore.STPtr]
 	sub	edx, 4
 	mov	[edx], eax
 	jmp	edi
@@ -4801,7 +4752,7 @@ entry s0Bop
 ;========================================
 
 entry fpBop
-	lea	eax, [ebp].FCore.FPtr
+	lea	eax, [ebp + FCore.FPtr]
 	jmp	intEntry
 	
 ;========================================
@@ -4810,13 +4761,13 @@ entry ipBop
 	; let the common intVarAction code change the shadow copy of IP,
 	; then jump back to ipFixup to copy the shadow copy of IP into IP register (esi)
 	push	edi
-	mov	[ebp].FCore.IPtr, esi
-	lea	eax, [ebp].FCore.IPtr
+	mov	[ebp + FCore.IPtr], esi
+	lea	eax, [ebp + FCore.IPtr]
 	mov	edi, ipFixup
 	jmp	intEntry
 	
 entry	ipFixup	
-	mov	esi, [ebp].FCore.IPtr
+	mov	esi, [ebp + FCore.IPtr]
 	pop	edi
 	jmp	edi
 	
@@ -4879,19 +4830,19 @@ entry drotBop
 ;========================================
 
 entry startTupleBop
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	sub	eax, 4
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	mov	[eax], edx
 	jmp	edi
 	
 ;========================================
 
 entry endTupleBop
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	mov	ebx, [eax]
 	add	eax, 4
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	sub	ebx, edx
 	sub	edx, 4
 	sar	ebx, 2
@@ -4901,8 +4852,8 @@ entry endTupleBop
 ;========================================
 
 entry hereBop
-	mov	eax, [ebp].FCore.DictionaryPtr
-	lea	eax, [eax].ForthMemorySection.pCurrent
+	mov	eax, [ebp + FCore.DictionaryPtr]
+	lea	eax, [eax + ForthMemorySection.pCurrent]
 	jmp	intEntry
 	
 ;========================================
@@ -4991,7 +4942,7 @@ entry cfetchNextBop
 
 entry scfetchBop
 	mov	eax, [edx]
-	movsx	ebx, BYTE PTR [eax]
+	movsx	ebx, BYTE[eax]
 	mov	[edx], ebx
 	jmp	edi
 	
@@ -5049,7 +5000,7 @@ entry wfetchNextBop
 
 entry swfetchBop
 	mov	eax, [edx]
-	movsx	ebx, WORD PTR [eax]
+	movsx	ebx, WORD[eax]
 	mov	[edx], ebx
 	jmp	edi
 	
@@ -5173,7 +5124,7 @@ entry moveBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	memmove
+	xcall	memmove
 	add	esp, 12
 	pop	esi
 	pop	edx
@@ -5193,7 +5144,7 @@ entry fillBop
 	push	eax
 	mov	eax, [edx+8]
 	push	eax
-	call	memset
+	xcall	memset
 	add	esp, 12
 	pop	esi
 	pop	edx
@@ -5204,42 +5155,42 @@ entry fillBop
 
 entry fetchBop
 	mov	eax, kVarFetch
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 ;========================================
 
 entry intoBop
 	mov	eax, kVarStore
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 ;========================================
 
 entry addToBop
 	mov	eax, kVarPlusStore
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 ;========================================
 
 entry subtractFromBop
 	mov	eax, kVarMinusStore
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 	
 ;========================================
 
 entry oclearBop
 	mov	eax, kVarObjectClear
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 		
 ;========================================
 
 entry refBop
 	mov	eax, kVarRef
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 ;========================================
@@ -5247,13 +5198,13 @@ entry refBop
 entry setVarActionBop
 	mov   eax, [edx]
 	add   edx, 4
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	jmp	edi
 
 ;========================================
 
 entry getVarActionBop
-	mov	eax, [ebp].FCore.varMode
+	mov	eax, [ebp + FCore.varMode]
 	sub   edx, 4
 	mov   [edx], eax
 	jmp	edi
@@ -5345,7 +5296,7 @@ entry strcpyBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	strcpy
+	xcall	strcpy
 	add	esp, 8
 	pop	esi
 	pop	edx
@@ -5364,7 +5315,7 @@ entry strncpyBop
 	push	eax
 	mov	eax, [edx+8]
 	push	eax
-	call	strncpy
+	xcall	strncpy
 	add	esp, 12
 	pop	esi
 	pop	edx
@@ -5399,7 +5350,7 @@ entry strcatBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	strcat
+	xcall	strcat
 	add	esp, 8
 	pop	esi
 	pop	edx
@@ -5418,7 +5369,7 @@ entry strncatBop
 	push	eax
 	mov	eax, [edx+8]
 	push	eax
-	call	strncat
+	xcall	strncat
 	add	esp, 12
 	pop	esi
 	pop	edx
@@ -5435,7 +5386,7 @@ entry strchrBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	strchr
+	xcall	strchr
 	add	esp, 8
 	pop	esi
 	pop	edx
@@ -5453,7 +5404,7 @@ entry strrchrBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	strrchr
+	xcall	strrchr
 	add	esp, 8
 	pop	esi
 	pop	edx
@@ -5471,7 +5422,7 @@ entry strcmpBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	strcmp
+	xcall	strcmp
 strcmp1:
 	xor	ebx, ebx
 	cmp	eax, ebx
@@ -5498,7 +5449,7 @@ entry stricmpBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	stricmp
+	xcall	stricmp
 	jmp	strcmp1
 	
 ;========================================
@@ -5511,7 +5462,7 @@ entry strstrBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	strstr
+	xcall	strstr
 	add	esp, 8
 	pop	esi
 	pop	edx
@@ -5529,7 +5480,7 @@ entry strtokBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	call	strtok
+	xcall	strtok
 	add	esp, 8
 	pop	esi
 	pop	edx
@@ -5607,12 +5558,12 @@ entry dlitBop
 ;	76		op(%d)			(12)	()
 ;
 entry doDoesBop
-	mov	eax, [ebp].FCore.RPtr
+	mov	eax, [ebp + FCore.RPtr]
 	sub	edx, 4
 	mov	ebx, [eax]	; ebx points at param field
 	mov	[edx], ebx
 	add	eax, 4
-	mov	[ebp].FCore.RPtr, eax
+	mov	[ebp + FCore.RPtr], eax
 	jmp	edi
 	
 ;========================================
@@ -5622,10 +5573,10 @@ entry doVariableBop
 	sub	edx, 4
 	mov	[edx], esi
 	; rpop new ip
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	edi
 	
 ;========================================
@@ -5636,10 +5587,10 @@ entry doConstantBop
 	sub	edx, 4
 	mov	[edx], eax
 	; rpop new ip
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	edi
 	
 ;========================================
@@ -5652,10 +5603,10 @@ entry doDConstantBop
 	mov	eax, [esi+4]
 	mov	[edx+4], eax
 	; rpop new ip
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	edi
 	
 ;========================================
@@ -5665,10 +5616,10 @@ entry doStructBop
 	sub	edx, 4
 	mov	[edx], esi
 	; rpop new ip
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	edi
 
 ;========================================
@@ -5682,26 +5633,26 @@ entry doStructArrayBop
 	add	eax, esi		; add in array base addr
 	mov	[edx], eax
 	; rpop new ip
-	mov	ebx, [ebp].FCore.RPtr
+	mov	ebx, [ebp + FCore.RPtr]
 	mov	esi, [ebx]
 	add	ebx, 4
-	mov	[ebp].FCore.RPtr, ebx
+	mov	[ebp + FCore.RPtr], ebx
 	jmp	edi
 
 ;========================================
 
 entry thisBop
-	mov	eax, [ebp].FCore.TMPtr
+	mov	eax, [ebp + FCore.TMPtr]
 	sub	edx, 8
 	mov	[edx], eax
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	mov	[edx+4], eax
 	jmp	edi
 	
 ;========================================
 
 entry thisDataBop
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	sub	edx, 4
 	mov	[edx], eax
 	jmp	edi
@@ -5709,7 +5660,7 @@ entry thisDataBop
 ;========================================
 
 entry thisMethodsBop
-	mov	eax, [ebp].FCore.TMPtr
+	mov	eax, [ebp + FCore.TMPtr]
 	sub	edx, 4
 	mov	[edx], eax
 	jmp	edi
@@ -5731,8 +5682,8 @@ entry	fopenBop
 	push	eax
 	mov	eax, [edx]	; pop pathname string
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.fileOpen
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.fileOpen]
 	call	eax
 	add		sp, 8
 	pop	edx
@@ -5747,8 +5698,8 @@ entry	fcloseBop
 	mov	eax, [edx]	; pop file pointer
 	push	edx
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.fileClose
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.fileClose]
 	call	eax
 	add	sp,4
 	pop	edx
@@ -5767,8 +5718,8 @@ entry	fseekBop
 	push	eax
 	mov	eax, [edx+8]	; pop file pointer
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.fileSeek
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.fileSeek]
 	call	eax
 	add		sp, 12
 	pop	edx
@@ -5790,8 +5741,8 @@ entry	freadBop
 	push	eax
 	mov	eax, [edx+12]	; pop dest pointer
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.fileRead
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.fileRead]
 	call	eax
 	add		sp, 16
 	pop	edx
@@ -5813,8 +5764,8 @@ entry	fwriteBop
 	push	eax
 	mov	eax, [edx+12]	; pop dest pointer
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.fileWrite
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.fileWrite]
 	call	eax
 	add		sp, 16
 	pop	edx
@@ -5830,8 +5781,8 @@ entry	fgetcBop
 	mov	eax, [edx]	; pop file pointer
 	push	edx
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.fileGetChar
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.fileGetChar]
 	call	eax
 	add	sp, 4
 	pop	edx
@@ -5849,8 +5800,8 @@ entry	fputcBop
 	push	eax
 	mov	eax, [edx]	; pop file pointer
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.filePutChar
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.filePutChar]
 	call	eax
 	add		sp, 8
 	pop	edx
@@ -5865,8 +5816,8 @@ entry	feofBop
 	mov	eax, [edx]	; pop file pointer
 	push	edx
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.fileAtEnd
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.fileAtEnd]
 	call	eax
 	add	sp, 4
 	pop	edx
@@ -5881,8 +5832,8 @@ entry	fexistsBop
 	mov	eax, [edx]	; pop filename pointer
 	push	edx
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.fileExists
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.fileExists]
 	call	eax
 	add	sp, 4
 	pop	edx
@@ -5897,8 +5848,8 @@ entry	ftellBop
 	mov	eax, [edx]	; pop file pointer
 	push	edx
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.fileTell
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.fileTell]
 	call	eax
 	add	sp, 4
 	pop	edx
@@ -5913,8 +5864,8 @@ entry	flenBop
 	mov	eax, [edx]	; pop file pointer
 	push	edx
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.fileGetLength
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.fileGetLength]
 	call	eax
 	add	sp, 4
 	pop	edx
@@ -5933,8 +5884,8 @@ entry	fgetsBop
 	push	eax
 	mov	eax, [edx+8]	; pop buffer
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.fileGetString
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.fileGetString]
 	call	eax
 	add		sp, 12
 	pop	edx
@@ -5952,8 +5903,8 @@ entry	fputsBop
 	push	eax
 	mov	eax, [edx+4]	; pop buffer
 	push	eax
-	mov	eax, [ebp].FCore.FileFuncs
-	mov	eax, [eax].FileFunc.filePutString
+	mov	eax, [ebp + FCore.FileFuncs]
+	mov	eax, [eax + FileFunc.filePutString]
 	call	eax
 	add		sp, 8
 	pop	edx
@@ -5986,12 +5937,12 @@ fprintfSub1:
 	jmp fprintfSub1
 fprintfSub2:
 	; all args have been moved from parameter stack to PC stack
-	mov	[ebp].FCore.SPtr, edx
-	call	fprintf
-	mov	edx, [ebp].FCore.SPtr
+	mov	[ebp + FCore.SPtr], edx
+	xcall	fprintf
+	mov	edx, [ebp + FCore.SPtr]
 	sub	edx, 4
 	mov	[edx], eax		; return result on parameter stack
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.SPtr], edx
 	; cleanup PC stack
 	mov	ebx, edi
 	sal	ebx, 2
@@ -6000,13 +5951,30 @@ fprintfSub2:
 	
 ; extern void fprintfSub( ForthCoreState* pCore );
 
-fprintfSub PROC near C public uses ebx esi edx ecx edi ebp,
-	core:PTR
-	mov	ebp, DWORD PTR core
-	mov	edx, [ebp].FCore.SPtr
+entry fprintfSub
+;fprintfSub PROC near C public uses ebx esi edx ecx edi ebp,
+;	core:PTR
+	push ebp
+	mov	ebp,esp
+	push ebx
+	push ecx
+	push edx
+	push esi
+	push edi
+	push ebp
+	
+	mov	ebp, [ebp + 8]
+	mov	edx, [ebp + FCore.SPtr]
 	call	fprintfSubCore
+	
+	pop ebp
+	pop	edi
+	pop	esi
+	pop edx
+	pop ecx
+	pop ebx
+	leave
 	ret
-fprintfSub ENDP
 
 ;========================================
 
@@ -6025,12 +5993,12 @@ snprintfSub1:
 	jmp snprintfSub1
 snprintfSub2:
 	; all args have been moved from parameter stack to PC stack
-	mov	[ebp].FCore.SPtr, edx
-	call	_snprintf
-	mov	edx, [ebp].FCore.SPtr
+	mov	[ebp + FCore.SPtr], edx
+	xcall	_snprintf
+	mov	edx, [ebp + FCore.SPtr]
 	sub	edx, 4
 	mov	[edx], eax		; return result on parameter stack
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.SPtr], edx
 	; cleanup PC stack
 	mov	ebx, edi
 	sal	ebx, 2
@@ -6039,34 +6007,60 @@ snprintfSub2:
 	
 ; extern long snprintfSub( ForthCoreState* pCore );
 
-snprintfSub PROC near C public uses ebx esi edx ecx edi ebp,
-	core:PTR
-	mov	ebp, DWORD PTR core
-	mov	edx, [ebp].FCore.SPtr
+entry snprintfSub
+;snprintfSub PROC near C GLOBAL uses ebx esi edx ecx edi ebp,
+;	core:PTR
+	push ebp
+	mov	ebp,esp
+	push ebx
+	push ecx
+	push edx
+	push esi
+	push edi
+	push ebp
+	
+	mov	ebp, [ebp + 8]
+	mov	edx, [ebp + FCore.SPtr]
 	call	snprintfSubCore
+	
+	pop ebp
+	pop	edi
+	pop	esi
+	pop edx
+	pop ecx
+	pop ebx
+	leave
 	ret
-snprintfSub ENDP
 
 ;========================================
 
 ; extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
-PUBLIC	oStringFormatSub;
-oStringFormatSub PROC near C public uses ebx esi edx ecx edi ebp,
-	core:PTR,
-	pBuffer:PTR,
-	bufferSize:DWORD
+entry oStringFormatSub;
+;oStringFormatSub PROC near C public uses ebx esi edx ecx edi ebp,
+;	core:PTR,
+;	pBuffer:PTR,
+;	bufferSize:DWORD
     ; TOS: numArgs argN ... arg1 formatStr (arg1 to argN are optional)
 
-	mov	ebx, DWORD PTR core
+	push ebp
+	mov	ebp,esp
+	push ebx
+	push esi
+	push edx
+	push ecx
+	push edi
+	push ebp
+	
+	mov	ebx, [ebp + 8]      ; ebx -> core
 
 	; store old SP on rstack
-	mov	edx, [ebx].FCore.RPtr
+	mov	edx, [ebx + FCore.RPtr]
 	sub	edx, 4
 	mov	[edx], esp
-	mov	[ebx].FCore.RPtr, edx
+	mov	[ebx + FCore.RPtr], edx
 
 	; copy arg1 ... argN from param stack to PC stack
-	mov	edx, [ebx].FCore.SPtr
+	mov	edx, [ebx + FCore.SPtr]
 	mov	edi, [edx]	; get numArgs
 	add	edi, 1		; add one for the format string
 	add	edx, 4
@@ -6080,21 +6074,27 @@ oSFormatSub1:
 oSFormatSub2:
 	; all args have been copied from parameter stack to PC stack
 	; we don't remove args from parameter stack in case printf fails and we need to retry with a bigger buffer
-	mov	eax, bufferSize
+	mov	eax, [ebp + 16]         ; bufferSize
 	push eax
-	mov	eax, DWORD PTR pBuffer
+	mov	eax, [ebp + 12]         ; pBuffer
 	push eax
 
-	call	_snprintf
+	xcall	_snprintf
 
 	; cleanup PC stack
-	mov	edx, [ebx].FCore.RPtr
+	mov	edx, [ebx + FCore.RPtr]
 	mov	esp, [edx]
 	add	edx, 4
-	mov	[ebx].FCore.RPtr, edx
+	mov	[ebx + FCore.RPtr], edx
 
+	pop ebp
+	pop	edi
+	pop ecx
+	pop edx
+	pop	esi
+	pop ebx
+	leave
 	ret
-oStringFormatSub ENDP
 
 ;========================================
 
@@ -6112,12 +6112,12 @@ fscanfSub1:
 	jmp fscanfSub1
 fscanfSub2:
 	; all args have been moved from parameter stack to PC stack
-	mov	[ebp].FCore.SPtr, edx
-	call	fscanf
-	mov	edx, [ebp].FCore.SPtr
+	mov	[ebp + FCore.SPtr], edx
+	xcall	fscanf
+	mov	edx, [ebp + FCore.SPtr]
 	sub	edx, 4
 	mov	[edx], eax		; return result on parameter stack
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.SPtr], edx
 	; cleanup PC stack
 	mov	ebx, edi
 	sal	ebx, 2
@@ -6126,13 +6126,30 @@ fscanfSub2:
 	
 ; extern long fscanfSub( ForthCoreState* pCore );
 
-fscanfSub PROC near C public uses ebx esi edx ecx edi ebp,
-	core:PTR
-	mov	ebp, DWORD PTR core
-	mov	edx, [ebp].FCore.SPtr
-	call fscanfSubCore
+entry fscanfSub
+;fscanfSub PROC near C public uses ebx esi edx ecx edi ebp,
+;	core:PTR
+	push ebp
+	mov	ebp,esp
+	push ebx
+	push ecx
+	push edx
+	push esi
+	push edi
+	push ebp
+	
+	mov	ebp, [ebp + 8]
+	mov	edx, [ebp + FCore.SPtr]
+	call	fscanfSubCore
+	
+	pop ebp
+	pop	edi
+	pop	esi
+	pop edx
+	pop ecx
+	pop ebx
+	leave
 	ret
-fscanfSub ENDP
 
 ;========================================
 
@@ -6150,12 +6167,12 @@ sscanfSub1:
 	jmp sscanfSub1
 sscanfSub2:
 	; all args have been moved from parameter stack to PC stack
-	mov	[ebp].FCore.SPtr, edx
-	call	sscanf
-	mov	edx, [ebp].FCore.SPtr
+	mov	[ebp + FCore.SPtr], edx
+	xcall	sscanf
+	mov	edx, [ebp + FCore.SPtr]
 	sub	edx, 4
 	mov	[edx], eax		; return result on parameter stack
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.SPtr], edx
 	; cleanup PC stack
 	mov	ebx, edi
 	sal	ebx, 2
@@ -6164,21 +6181,38 @@ sscanfSub2:
 
 ; extern long sscanfSub( ForthCoreState* pCore );
 
-sscanfSub PROC near C public uses ebx esi edx ecx edi ebp,
-	core:PTR
-	mov	ebp, DWORD PTR core
-	mov	edx, [ebp].FCore.SPtr
-	call sscanfSubCore
+entry sscanfSub
+;sscanfSub PROC near C public uses ebx esi edx ecx edi ebp,
+;	core:PTR
+	push ebp
+	mov	ebp,esp
+	push ebx
+	push ecx
+	push edx
+	push esi
+	push edi
+	push ebp
+	
+	mov	ebp, [ebp + 8]
+	mov	edx, [ebp + FCore.SPtr]
+	call	sscanfSubCore
+	
+	pop ebp
+	pop	edi
+	pop	esi
+	pop edx
+	pop ecx
+	pop ebx
+	leave
 	ret
-sscanfSub ENDP
 
 ;========================================
 entry dllEntryPointType
-	mov	[ebp].FCore.IPtr, esi
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.IPtr], esi
+	mov	[ebp + FCore.SPtr], edx
 	mov	eax, ebx
 	and	eax, 0000FFFFh
-	cmp	eax, [ebp].FCore.numOps
+	cmp	eax, [ebp + FCore.numOps]
 	jge	badUserDef
 	; push core ptr
 	push	ebp
@@ -6193,10 +6227,10 @@ entry dllEntryPointType
 	and	esi, 1Fh
 	push	esi
 	; push entry point address
-	mov	esi, [ebp].FCore.ops
+	mov	esi, [ebp + FCore.ops]
 	mov	edx, [esi+eax*4]
 	push	edx
-	call	CallDLLRoutine
+	call	_CallDLLRoutine
 	add	esp, 12
 	pop	ebp
 	jmp	interpFunc
@@ -6228,7 +6262,7 @@ nvoCombo1:
 	
 	and	eax, 3							; eax = varop - 2
 	add	eax, 2
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	
 	; extract the opcode
 	shr	ebx, 2
@@ -6260,7 +6294,7 @@ nvCombo1:
 	shr	ebx, 22							; ebx = varop - 2
 	and	ebx, 3
 	add	ebx, 2
-	mov	[ebp].FCore.varMode, ebx
+	mov	[ebp + FCore.varMode], ebx
 
 	jmp edi
 
@@ -6300,7 +6334,7 @@ entry voComboType
 	mov	eax, 000000003h
 	and	eax, ebx
 	add	eax, 2
-	mov	[ebp].FCore.varMode, eax
+	mov	[ebp + FCore.varMode], eax
 	
 	; extract the opcode
 	shr	ebx, 2
@@ -6478,7 +6512,7 @@ entry lroComboType
 	push	ebx
 	and	ebx, 0FFFH
 	sal	ebx, 2
-	mov	eax, [ebp].FCore.FPtr
+	mov	eax, [ebp + FCore.FPtr]
 	sub	eax, ebx
 	sub	edx, 4
 	mov	[edx], eax
@@ -6497,7 +6531,7 @@ entry mroComboType
 	; ebx: bits 0..11 are member offset in bytes, bits 12-23 are op
 	push	ebx
 	and	ebx, 0FFFH
-	mov	eax, [ebp].FCore.TDPtr
+	mov	eax, [ebp + FCore.TDPtr]
 	add	eax, ebx
 	sub	edx, 4
 	mov	[edx], eax
@@ -6518,175 +6552,173 @@ entry opTypesTable
 ; TBD: check the order of these
 ; TBD: copy these into base of ForthCoreState, fill unused slots with badOptype
 ;	00 - 09
-	DD	FLAT:externalBuiltin		; kOpNative = 0,
-	DD	FLAT:nativeImmediate		; kOpNativeImmediate,
-	DD	FLAT:userDefType			; kOpUserDef,
-	DD	FLAT:userDefType			; kOpUserDefImmediate,
-	DD	FLAT:cCodeType				; kOpCCode,         
-	DD	FLAT:cCodeType				; kOpCCodeImmediate,
-	DD	FLAT:relativeDefType		; kOpRelativeDef,
-	DD	FLAT:relativeDefType		; kOpRelativeDefImmediate,
-	DD	FLAT:dllEntryPointType		; kOpDLLEntryPoint,
-	DD	FLAT:extOpType	
+	DD	externalBuiltin		; kOpNative = 0,
+	DD	nativeImmediate		; kOpNativeImmediate,
+	DD	userDefType			; kOpUserDef,
+	DD	userDefType			; kOpUserDefImmediate,
+	DD	cCodeType				; kOpCCode,         
+	DD	cCodeType				; kOpCCodeImmediate,
+	DD	relativeDefType		; kOpRelativeDef,
+	DD	relativeDefType		; kOpRelativeDefImmediate,
+	DD	dllEntryPointType		; kOpDLLEntryPoint,
+	DD	extOpType	
 ;	10 - 19
-	DD	FLAT:branchType				; kOpBranch = 10,
-	DD	FLAT:branchNZType			; kOpBranchNZ,
-	DD	FLAT:branchZType			; kOpBranchZ,
-	DD	FLAT:caseBranchType			; kOpCaseBranch,
-	DD	FLAT:pushBranchType			; kOpPushBranch,	
-	DD	FLAT:relativeDefBranchType	; kOpRelativeDefBranch
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
-	DD	FLAT:extOpType	
+	DD	branchType				; kOpBranch = 10,
+	DD	branchNZType			; kOpBranchNZ,
+	DD	branchZType			; kOpBranchZ,
+	DD	caseBranchType			; kOpCaseBranch,
+	DD	pushBranchType			; kOpPushBranch,	
+	DD	relativeDefBranchType	; kOpRelativeDefBranch
+	DD	extOpType	
+	DD	extOpType	
+	DD	extOpType	
+	DD	extOpType	
 ;	20 - 29
-	DD	FLAT:constantType			; kOpConstant = 20,   
-	DD	FLAT:constantStringType		; kOpConstantString,	
-	DD	FLAT:offsetType				; kOpOffset,          
-	DD	FLAT:arrayOffsetType		; kOpArrayOffset,     
-	DD	FLAT:allocLocalsType		; kOpAllocLocals,     
-	DD	FLAT:localRefType			; kOpLocalRef,
-	DD	FLAT:initLocalStringType	; kOpLocalStringInit, 
-	DD	FLAT:localStructArrayType	; kOpLocalStructArray,
-	DD	FLAT:offsetFetchType		; kOpOffsetFetch,          
-	DD	FLAT:memberRefType			; kOpMemberRef,	
+	DD	constantType			; kOpConstant = 20,   
+	DD	constantStringType		; kOpConstantString,	
+	DD	offsetType				; kOpOffset,          
+	DD	arrayOffsetType		; kOpArrayOffset,     
+	DD	allocLocalsType		; kOpAllocLocals,     
+	DD	localRefType			; kOpLocalRef,
+	DD	initLocalStringType	; kOpLocalStringInit, 
+	DD	localStructArrayType	; kOpLocalStructArray,
+	DD	offsetFetchType		; kOpOffsetFetch,          
+	DD	memberRefType			; kOpMemberRef,	
 
 ;	30 - 39
-	DD	FLAT:localByteType			; 30 - 42 : local variables
-	DD	FLAT:localUByteType
-	DD	FLAT:localShortType
-	DD	FLAT:localUShortType
-	DD	FLAT:localIntType
-	DD	FLAT:localIntType
-	DD	FLAT:localLongType
-	DD	FLAT:localLongType
-	DD	FLAT:localFloatType
-	DD	FLAT:localDoubleType
+	DD	localByteType			; 30 - 42 : local variables
+	DD	localUByteType
+	DD	localShortType
+	DD	localUShortType
+	DD	localIntType
+	DD	localIntType
+	DD	localLongType
+	DD	localLongType
+	DD	localFloatType
+	DD	localDoubleType
 	
 ;	40 - 49
-	DD	FLAT:localStringType
-	DD	FLAT:localOpType
-	DD	FLAT:localObjectType
-	DD	FLAT:localByteArrayType		; 43 - 55 : local arrays
-	DD	FLAT:localUByteArrayType
-	DD	FLAT:localShortArrayType
-	DD	FLAT:localUShortArrayType
-	DD	FLAT:localIntArrayType
-	DD	FLAT:localIntArrayType
-	DD	FLAT:localLongArrayType
+	DD	localStringType
+	DD	localOpType
+	DD	localObjectType
+	DD	localByteArrayType		; 43 - 55 : local arrays
+	DD	localUByteArrayType
+	DD	localShortArrayType
+	DD	localUShortArrayType
+	DD	localIntArrayType
+	DD	localIntArrayType
+	DD	localLongArrayType
 	
 ;	50 - 59
-	DD	FLAT:localLongArrayType
-	DD	FLAT:localFloatArrayType
-	DD	FLAT:localDoubleArrayType
-	DD	FLAT:localStringArrayType
-	DD	FLAT:localOpArrayType
-	DD	FLAT:localObjectArrayType
-	DD	FLAT:fieldByteType			; 56 - 68 : field variables
-	DD	FLAT:fieldUByteType
-	DD	FLAT:fieldShortType
-	DD	FLAT:fieldUShortType
+	DD	localLongArrayType
+	DD	localFloatArrayType
+	DD	localDoubleArrayType
+	DD	localStringArrayType
+	DD	localOpArrayType
+	DD	localObjectArrayType
+	DD	fieldByteType			; 56 - 68 : field variables
+	DD	fieldUByteType
+	DD	fieldShortType
+	DD	fieldUShortType
 	
 ;	60 - 69
-	DD	FLAT:fieldIntType
-	DD	FLAT:fieldIntType
-	DD	FLAT:fieldLongType
-	DD	FLAT:fieldLongType
-	DD	FLAT:fieldFloatType
-	DD	FLAT:fieldDoubleType
-	DD	FLAT:fieldStringType
-	DD	FLAT:fieldOpType
-	DD	FLAT:fieldObjectType
-	DD	FLAT:fieldByteArrayType		; 69 - 81 : field arrays
+	DD	fieldIntType
+	DD	fieldIntType
+	DD	fieldLongType
+	DD	fieldLongType
+	DD	fieldFloatType
+	DD	fieldDoubleType
+	DD	fieldStringType
+	DD	fieldOpType
+	DD	fieldObjectType
+	DD	fieldByteArrayType		; 69 - 81 : field arrays
 	
 ;	70 - 79
-	DD	FLAT:fieldUByteArrayType
-	DD	FLAT:fieldShortArrayType
-	DD	FLAT:fieldUShortArrayType
-	DD	FLAT:fieldIntArrayType
-	DD	FLAT:fieldIntArrayType
-	DD	FLAT:fieldLongArrayType
-	DD	FLAT:fieldLongArrayType
-	DD	FLAT:fieldFloatArrayType
-	DD	FLAT:fieldDoubleArrayType
-	DD	FLAT:fieldStringArrayType
+	DD	fieldUByteArrayType
+	DD	fieldShortArrayType
+	DD	fieldUShortArrayType
+	DD	fieldIntArrayType
+	DD	fieldIntArrayType
+	DD	fieldLongArrayType
+	DD	fieldLongArrayType
+	DD	fieldFloatArrayType
+	DD	fieldDoubleArrayType
+	DD	fieldStringArrayType
 	
 ;	80 - 89
-	DD	FLAT:fieldOpArrayType
-	DD	FLAT:fieldObjectArrayType
-	DD	FLAT:memberByteType			; 82 - 94 : member variables
-	DD	FLAT:memberUByteType
-	DD	FLAT:memberShortType
-	DD	FLAT:memberUShortType
-	DD	FLAT:memberIntType
-	DD	FLAT:memberIntType
-	DD	FLAT:memberLongType
-	DD	FLAT:memberLongType
+	DD	fieldOpArrayType
+	DD	fieldObjectArrayType
+	DD	memberByteType			; 82 - 94 : member variables
+	DD	memberUByteType
+	DD	memberShortType
+	DD	memberUShortType
+	DD	memberIntType
+	DD	memberIntType
+	DD	memberLongType
+	DD	memberLongType
 	
 ;	90 - 99
-	DD	FLAT:memberFloatType
-	DD	FLAT:memberDoubleType
-	DD	FLAT:memberStringType
-	DD	FLAT:memberOpType
-	DD	FLAT:memberObjectType
-	DD	FLAT:memberByteArrayType	; 95 - 107 : member arrays
-	DD	FLAT:memberUByteArrayType
-	DD	FLAT:memberShortArrayType
-	DD	FLAT:memberUShortArrayType
-	DD	FLAT:memberIntArrayType
+	DD	memberFloatType
+	DD	memberDoubleType
+	DD	memberStringType
+	DD	memberOpType
+	DD	memberObjectType
+	DD	memberByteArrayType	; 95 - 107 : member arrays
+	DD	memberUByteArrayType
+	DD	memberShortArrayType
+	DD	memberUShortArrayType
+	DD	memberIntArrayType
 	
 ;	100 - 109
-	DD	FLAT:memberIntArrayType
-	DD	FLAT:memberLongArrayType
-	DD	FLAT:memberLongArrayType
-	DD	FLAT:memberFloatArrayType
-	DD	FLAT:memberDoubleArrayType
-	DD	FLAT:memberStringArrayType
-	DD	FLAT:memberOpArrayType
-	DD	FLAT:memberObjectArrayType
-	DD	FLAT:methodWithThisType
-	DD	FLAT:methodWithTOSType
+	DD	memberIntArrayType
+	DD	memberLongArrayType
+	DD	memberLongArrayType
+	DD	memberFloatArrayType
+	DD	memberDoubleArrayType
+	DD	memberStringArrayType
+	DD	memberOpArrayType
+	DD	memberObjectArrayType
+	DD	methodWithThisType
+	DD	methodWithTOSType
 	
 ;	110 - 119
-	DD	FLAT:memberStringInitType
-	DD	FLAT:nvoComboType
-	DD	FLAT:nvComboType
-	DD	FLAT:noComboType
-	DD	FLAT:voComboType
-	DD	FLAT:ozbComboType
-	DD	FLAT:obComboType
+	DD	memberStringInitType
+	DD	nvoComboType
+	DD	nvComboType
+	DD	noComboType
+	DD	voComboType
+	DD	ozbComboType
+	DD	obComboType
 	
-	DD	FLAT:squishedFloatType
-	DD	FLAT:squishedDoubleType
-	DD	FLAT:squishedLongType
+	DD	squishedFloatType
+	DD	squishedDoubleType
+	DD	squishedLongType
 	
 ;	120 - 121
-	DD	FLAT:lroComboType
-	DD	FLAT:mroComboType
+	DD	lroComboType
+	DD	mroComboType
 	
 ;	122 - 149
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 ;	150 - 199
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 ;	200 - 249
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 ;	250 - 255
-	DD	FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType,FLAT:extOpType
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 	
 endOpTypesTable:
 	DD	0
 	
-endif
+%endif
 
-_TEXT	ENDS
-END
