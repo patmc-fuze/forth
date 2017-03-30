@@ -1,144 +1,161 @@
 
-option expr32
-option casemap:none
+;-----------------------------------------------
+;
+; the entry macro declares a label and makes it public
+;
+%macro entry 1
+GLOBAL _%1
+_%1:
+%1:
+%endmacro
+	
+%macro cextern 1
+EXTERN _%1
+%endmacro
 
-; Begin of file core.h
-kVarDefaultOp		EQU		0t
-kVarFetch			EQU		1t
-kVarRef				EQU		2t
-kVarStore			EQU		3t
-kVarPlusStore		EQU		4t
-kVarMinusStore		EQU		5t
-kVarObjectClear		EQU		6t
+%macro xcall 1
+EXTERN _%1
+    call _%1
+%endmacro
 
-kResultOk				EQU		0t
-kResultDone				EQU		1t
-kResultExitShell		EQU		2t
-kResultError			EQU		3t
-kResultFatalError		EQU		4t
-kResultException		EQU		5t
-kResultShutdown			EQU		6t
-kResultTrace			EQU		7t
+kVarDefaultOp		EQU		0
+kVarFetch			EQU		1
+kVarRef				EQU		2
+kVarStore			EQU		3
+kVarPlusStore		EQU		4
+kVarMinusStore		EQU		5
+kVarObjectClear		EQU		6
+
+kResultOk				EQU		0
+kResultDone				EQU		1
+kResultExitShell		EQU		2
+kResultError			EQU		3
+kResultFatalError		EQU		4
+kResultException		EQU		5
+kResultShutdown			EQU		6
+kResultTrace			EQU		7
 
 
-kForthErrorNone						EQU		0t
-kForthErrorBadOpcode				EQU		1t
-kForthErrorBadOpcodeType			EQU		2t
-kForthErrorBadParameter				EQU		3t
-kForthErrorBadVarOperation			EQU		4t
-kForthErrorParamStackUnderflow		EQU		5t
-kForthErrorParamStackOverflow		EQU		6t
-kForthErrorReturnStackUnderflow		EQU		7t
-kForthErrorReturnStackOverflow		EQU		8t
-kForthErrorUnknownSymbol			EQU		9t
-kForthErrorFileOpen					EQU		10t
-kForthErrorAbort					EQU		11t
-kForthErrorForgetBuiltin			EQU		12t
-kForthErrorBadMethod				EQU		13t
-kForthErrorException				EQU		14t
-kForthErrorMissingSize				EQU		15t
-kForthErrorStruct					EQU		16t
-kForthErrorUserDefined				EQU		17t
-kForthErrorBadSyntax				EQU		18t
-kForthErrorBadPreprocessorDirective	EQU		19t
-kForthErrorUnimplementedMethod		EQU		20t
-kForthErrorIllegalMethod			EQU		21t
-kForthErrorShellStackUnderflow		EQU		22t
-kForthErrorShellStackOverflow		EQU		23t
-kForthErrorBadReferenceCount		EQU		24t
-kForthErrorIO						EQU		25t
-kForthErrorBadObject				EQU		26t
-kForthErrorStringOverflow			EQU		27t
-kForthNumErrors						EQU		28t
+kForthErrorNone						EQU		0
+kForthErrorBadOpcode				EQU		1
+kForthErrorBadOpcodeType			EQU		2
+kForthErrorBadParameter				EQU		3
+kForthErrorBadVarOperation			EQU		4
+kForthErrorParamStackUnderflow		EQU		5
+kForthErrorParamStackOverflow		EQU		6
+kForthErrorReturnStackUnderflow		EQU		7
+kForthErrorReturnStackOverflow		EQU		8
+kForthErrorUnknownSymbol			EQU		9
+kForthErrorFileOpen					EQU		10
+kForthErrorAbort					EQU		11
+kForthErrorForgetBuiltin			EQU		12
+kForthErrorBadMethod				EQU		13
+kForthErrorException				EQU		14
+kForthErrorMissingSize				EQU		15
+kForthErrorStruct					EQU		16
+kForthErrorUserDefined				EQU		17
+kForthErrorBadSyntax				EQU		18
+kForthErrorBadPreprocessorDirective	EQU		19
+kForthErrorUnimplementedMethod		EQU		20
+kForthErrorIllegalMethod			EQU		21
+kForthErrorShellStackUnderflow		EQU		22
+kForthErrorShellStackOverflow		EQU		23
+kForthErrorBadReferenceCount		EQU		24
+kForthErrorIO						EQU		25
+kForthErrorBadObject				EQU		26
+kForthErrorStringOverflow			EQU		27
+kForthNumErrors						EQU		28
 
-kPrintSignedDecimal		EQU		0t
-kPrintAllSigned		EQU		1t
-kPrintAllUnsigned		EQU		2t
+kPrintSignedDecimal		EQU		0
+kPrintAllSigned		EQU		1
+kPrintAllUnsigned		EQU		2
 
 ; the kOp definitions are all out of date, bogus and luckily unused
-;kOpNative		EQU		0t
-;kOpUserDef		EQU		1t
-;kOpBranch		EQU		2t
-;kOpBranchNZ		EQU		3t
-;kOpBranchZ		EQU		4t
-;kOpCaseBranch		EQU		5t
-;kOpConstant		EQU		6t
-;kOpOffset		EQU		7t
-;kOpArrayOffset		EQU		8t
-;kOpConstantString		EQU		9t
-;kOpAllocLocals		EQU		10t
-;kOpLocalStringInit		EQU		11t
-;kOpLocalInt		EQU		12t
-;kOpLocalFloat		EQU		13t
-;kOpLocalDouble		EQU		14t
-;kOpLocalString		EQU		15t
-;kOpFieldInt		EQU		16t
-;kOpFieldFloat		EQU		17t
-;kOpFieldDouble		EQU		18t
-;kOpFieldString		EQU		19t
-;kOpMethodWithThis		EQU		20t
-;kOpMemberInt		EQU		21t
-;kOpMemberFloat		EQU		22t
-;kOpMemberDouble		EQU		23t
-;kOpMemberString		EQU		24t
-;kOpLocalUserDefined		EQU		25t
-;kOpMaxLocalUserDefined		EQU		127t
-;kOpUserMethods		EQU		128t
+;kOpNative		EQU		0
+;kOpUserDef		EQU		1
+;kOpBranch		EQU		2
+;kOpBranchNZ		EQU		3
+;kOpBranchZ		EQU		4
+;kOpCaseBranch		EQU		5
+;kOpConstant		EQU		6
+;kOpOffset		EQU		7
+;kOpArrayOffset		EQU		8
+;kOpConstantString		EQU		9
+;kOpAllocLocals		EQU		10
+;kOpLocalStringInit		EQU		11
+;kOpLocalInt		EQU		12
+;kOpLocalFloat		EQU		13
+;kOpLocalDouble		EQU		14
+;kOpLocalString		EQU		15
+;kOpFieldInt		EQU		16
+;kOpFieldFloat		EQU		17
+;kOpFieldDouble		EQU		18
+;kOpFieldString		EQU		19
+;kOpMethodWithThis		EQU		20
+;kOpMemberInt		EQU		21
+;kOpMemberFloat		EQU		22
+;kOpMemberDouble		EQU		23
+;kOpMemberString		EQU		24
+;kOpLocalUserDefined		EQU		25
+;kOpMaxLocalUserDefined		EQU		127
+;kOpUserMethods		EQU		128
 
-kOpRelativeDef			EQU 6t
+kOpRelativeDef			EQU 6
 
-ForthMemorySection	STRUCT 2t
-pCurrent			DWORD	?
-pBase				DWORD	?
-len					DWORD	?
-ForthMemorySection	ENDS
+STRUC ForthMemorySection
+    .pCurrent: RESD 1
+    .pBase				RESD 1
+    .len					RESD 1
+ENDSTRUC 
 
-ForthCoreState		STRUCT 2t
-optypeAction		DWORD		?
-numBuiltinOps		DWORD		?
-ops					DWORD		?
-numOps				DWORD		?
-maxOps				DWORD		?
-pEngine				DWORD		?
-IPtr				DWORD		?
-SPtr				DWORD		?
-RPtr				DWORD		?
-FPtr				DWORD		?
-TMPtr				DWORD		?
-TDPtr				DWORD		?
-varMode				DWORD		?
-state				DWORD		?
-error				DWORD		?
-SBPtr				DWORD		?
-STPtr				DWORD		?
-SLen				DWORD		?
-RBPtr				DWORD		?
-RTPtr				DWORD		?
-RLen				DWORD		?
-ThreadPtr			DWORD		?
-DictionaryPtr		DWORD		?
-FileFuncs			DWORD		?
-innerLoop			DWORD		?
-consoleOutStream	QWORD		?
-base				DWORD		?
-signedPrintMode		DWORD		?
-ForthCoreState		ENDS
+; STRUC ForthCoreState
+STRUC FCore
+    .optypeAction		RESD 1
+    .numBuiltinOps		RESD 1
+    .ops					RESD 1
+    .numOps				RESD 1
+    .maxOps				RESD 1
+    .pEngine				RESD 1
+    .IPtr				RESD 1
+    .SPtr				RESD 1
+    .RPtr				RESD 1
+    .FPtr				RESD 1
+    .TMPtr				RESD 1
+    .TDPtr				RESD 1
+    .varMode				RESD 1
+    .state				RESD 1
+    .error				RESD 1
+    .SBPtr				RESD 1
+    .STPtr				RESD 1
+    .SLen				RESD 1
+    .RBPtr				RESD 1
+    .RTPtr				RESD 1
+    .RLen				RESD 1
+    .ThreadPtr			RESD 1
+    .DictionaryPtr		RESD 1
+    .FileFuncs			RESD 1
+    .innerLoop			RESD 1
+    .consoleOutStream	RESD 2
+    .base				RESD 1
+    .signedPrintMode		RESD 1
+ENDSTRUC 
 
-ForthFileInterface	STRUCT	2t
-fileOpen		DWORD		?
-fileClose		DWORD		?
-fileRead		DWORD		?
-fileWrite		DWORD		?
-fileGetChar		DWORD		?
-filePutChar		DWORD		?
-fileAtEnd		DWORD		?
-fileExists		DWORD		?
-fileSeek		DWORD		?
-fileTell		DWORD		?
-fileGetLength	DWORD		?
-fileGetString	DWORD		?
-filePutString	DWORD		?
-ForthFileInterface		ENDS
+;STRUC ForthFileInterface
+STRUC FileFunc
+    .fileOpen		RESD 1
+    .fileClose		RESD 1
+    .fileRead		RESD 1
+    .fileWrite		RESD 1
+    .fileGetChar		RESD 1
+    .filePutChar		RESD 1
+    .fileAtEnd		RESD 1
+    .fileExists		RESD 1
+    .fileSeek		RESD 1
+    .fileTell		RESD 1
+    .fileGetLength	RESD 1
+    .fileGetString	RESD 1
+    .filePutString	RESD 1
+ENDSTRUC 
 
 
 ; End of file core.h

@@ -1,35 +1,33 @@
-	TITLE	AsmCore.asm
-	.486
-include listing.inc
-include core.inc
+BITS 32
+%include "core.inc"
 
-.model FLAT, C
+SECTION .text
 
-
-FCore		TYPEDEF		ForthCoreState
-FileFunc	TYPEDEF		ForthFileInterface
-
-;	COMDAT _main
-_TEXT	SEGMENT
-_c$ = -4
-
-_TEXT	SEGMENT
 
 ;========================================
 
 ; extern void CallDLLRoutine( DLLRoutine function, long argCount, ulong flags, void *core );
 
-PUBLIC CallDLLRoutine
-CallDLLRoutine PROC near C public uses ebx esi edx ecx edi ebp,
-	funcAddr:PTR,
-	argCount:DWORD,
-	flags:DWORD,
-	core:PTR
-	mov	eax, DWORD PTR funcAddr
-	mov	edi, argCount
-	mov esi, flags
-	mov	ebp, DWORD PTR core
-	mov	edx, [ebp].FCore.SPtr
+    entry CallDLLRoutine
+;_CallDLLRoutine:             ; PROC near C public uses ebx esi edx ecx edi ebp,
+;	funcAddr:PTR,
+;	argCount:DWORD,
+;	flags:DWORD,
+;	core:PTR
+	push ebp
+	mov	ebp,esp
+	push ebx
+	push ecx
+	push edx
+	push esi
+	push edi
+	push ebp
+	
+	mov	eax, [ebp + 20]    	; eax = funcAddr
+	mov	edi, [ebp + 16]		; eax = argCount
+	mov	esi, [ebp + 12]		; esi = flags
+	mov	ebp, [ebp + 8]		; ebp -> ForthCore
+	mov	edx, [ebp + FCore.SPtr]
 	mov	ecx, edi
 CallDLL1:
 	sub	ecx, 1
@@ -40,7 +38,7 @@ CallDLL1:
 	jmp CallDLL1
 CallDLL2:
 	; all args have been moved from parameter stack to PC stack
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.SPtr], edx
 	
 	call	eax
 	
@@ -49,7 +47,7 @@ CallDLL2:
 	and	esi, 0001h
 	jnz CallDLL4
 			
-	mov	ebx, [ebp].FCore.SPtr
+	mov	ebx, [ebp + FCore.SPtr]
 	sub	ebx, 4
 	
 	; push high part of result if 64-bit return flag set
@@ -62,7 +60,7 @@ CallDLL2:
 CallDLL3:
 	; push low part of result
 	mov	[ebx], eax
-	mov	[ebp].FCore.SPtr, ebx
+	mov	[ebp + FCore.SPtr], ebx
 	
 CallDLL4:
 	; cleanup PC stack
@@ -73,8 +71,14 @@ CallDLL4:
 	sal	ebx, 2
 	add	esp, ebx
 CallDLL5:
+	pop ebp
+	pop	edi
+	pop	esi
+	pop edx
+	pop ecx
+	pop ebx
+	leave
 	ret
-CallDLLRoutine ENDP
 
 
 ; extern void NativeAction( ForthCoreState *pCore, ulong opVal );
@@ -82,28 +86,44 @@ CallDLLRoutine ENDP
 ;
 ; inner interpreter entry point for ops defined in assembler
 ;
-PUBLIC	NativeAction
-NativeAction PROC near C public uses ebx esi edx ecx edi ebp,
-	core:PTR,
-	opVal:DWORD
-	mov	eax, opVal
-	mov	ebp, DWORD PTR core
-	call	native1
-	ret
-NativeAction ENDP
+        entry NativeAction
+;_NativeAction:        ; PROC near C public uses ebx esi edx ecx edi ebp,
+;	core:PTR,
+;	opVal:DWORD
+    
+	push ebp
+	mov	ebp,esp
+	push ebx
+	push ecx
+	push edx
+	push esi
+	push edi
+	push ebp
+	mov	eax,[ebp + 8]		; eax = opVal
+	mov	ebp,[ebp + 12]		; ebp -> ForthCore
 
-PUBLIC native1
+	call	native1
+
+	pop ebp
+	pop	edi
+	pop	esi
+	pop edx
+	pop ecx
+	pop ebx
+	leave
+	ret
+
 native1:
-	mov	esi, [ebp].FCore.IPtr
-	mov	edx, [ebp].FCore.SPtr
-	mov	ecx, [ebp].FCore.ops
+	mov	esi, [ebp + FCore.IPtr]
+	mov	edx, [ebp + FCore.SPtr]
+	mov	ecx, [ebp + FCore.ops]
 	mov	edi, nativeActionExit
-	mov	eax, [ecx+eax*4]
+	mov	eax, [ecx + eax*4]
 	jmp	eax
 nativeActionExit:
-	mov	[ebp].FCore.IPtr, esi
-	mov	[ebp].FCore.SPtr, edx
+	mov	[ebp + FCore.IPtr], esi
+	mov	[ebp + FCore.SPtr], edx
 	ret
 	
-_TEXT	ENDS
-END
+;_TEXT	ENDS
+;END
