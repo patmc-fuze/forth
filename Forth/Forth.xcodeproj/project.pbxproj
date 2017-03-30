@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6E49A8C41E8B3C6D003BE440 /* InnerInterp.S in Sources */ = {isa = PBXBuildFile; fileRef = 6E49A8C31E8B3C6D003BE440 /* InnerInterp.S */; };
 		6E7980571E8B0EA400FB03ED /* ForthMainOSX.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980561E8B0EA400FB03ED /* ForthMainOSX.cpp */; };
 		6E7980951E8B0F5400FB03ED /* ForthBlockFileManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E79805E1E8B0F5400FB03ED /* ForthBlockFileManager.cpp */; };
 		6E7980961E8B0F5400FB03ED /* ForthBuiltinClasses.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980601E8B0F5400FB03ED /* ForthBuiltinClasses.cpp */; };
@@ -63,7 +62,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		6E49A8C31E8B3C6D003BE440 /* InnerInterp.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = InnerInterp.S; path = ../ForthLib/InnerInterp.S; sourceTree = "<group>"; };
 		6E49A8C51E8B3C8C003BE440 /* InnerInterp.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; name = InnerInterp.asm; path = ../ForthLib/InnerInterp.asm; sourceTree = "<group>"; };
 		6E49A8C71E8C074E003BE440 /* core_gas.inc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.pascal; name = core_gas.inc; path = ../ForthLib/core_gas.inc; sourceTree = "<group>"; };
 		6E7980531E8B0EA400FB03ED /* Forth */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Forth; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -167,7 +165,6 @@
 			children = (
 				6E49A8C71E8C074E003BE440 /* core_gas.inc */,
 				6E49A8C51E8B3C8C003BE440 /* InnerInterp.asm */,
-				6E49A8C31E8B3C6D003BE440 /* InnerInterp.S */,
 				6E79805D1E8B0F5400FB03ED /* Forth.h */,
 				6E79805E1E8B0F5400FB03ED /* ForthBlockFileManager.cpp */,
 				6E79805F1E8B0F5400FB03ED /* ForthBlockFileManager.h */,
@@ -311,7 +308,6 @@
 				6E7980A71E8B0F5400FB03ED /* ForthVocabulary.cpp in Sources */,
 				6E79809B1E8B0F5400FB03ED /* ForthInner.cpp in Sources */,
 				6E7980AB1E8B0F5400FB03ED /* ONumber.cpp in Sources */,
-				6E49A8C41E8B3C6D003BE440 /* InnerInterp.S in Sources */,
 				6E7980A31E8B0F5400FB03ED /* ForthShowContext.cpp in Sources */,
 				6E7980A61E8B0F5400FB03ED /* ForthThread.cpp in Sources */,
 				6E7980951E8B0F5400FB03ED /* ForthBlockFileManager.cpp in Sources */,
