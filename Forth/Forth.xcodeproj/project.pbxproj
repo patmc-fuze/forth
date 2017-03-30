@@ -1,0 +1,466 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		6E49A8C41E8B3C6D003BE440 /* InnerInterp.S in Sources */ = {isa = PBXBuildFile; fileRef = 6E49A8C31E8B3C6D003BE440 /* InnerInterp.S */; };
+		6E7980571E8B0EA400FB03ED /* ForthMainOSX.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980561E8B0EA400FB03ED /* ForthMainOSX.cpp */; };
+		6E7980951E8B0F5400FB03ED /* ForthBlockFileManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E79805E1E8B0F5400FB03ED /* ForthBlockFileManager.cpp */; };
+		6E7980961E8B0F5400FB03ED /* ForthBuiltinClasses.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980601E8B0F5400FB03ED /* ForthBuiltinClasses.cpp */; };
+		6E7980971E8B0F5400FB03ED /* ForthClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980621E8B0F5400FB03ED /* ForthClient.cpp */; };
+		6E7980981E8B0F5400FB03ED /* ForthEngine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980651E8B0F5400FB03ED /* ForthEngine.cpp */; };
+		6E7980991E8B0F5400FB03ED /* ForthExtension.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980671E8B0F5400FB03ED /* ForthExtension.cpp */; };
+		6E79809A1E8B0F5400FB03ED /* ForthForgettable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980691E8B0F5400FB03ED /* ForthForgettable.cpp */; };
+		6E79809B1E8B0F5400FB03ED /* ForthInner.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E79806B1E8B0F5400FB03ED /* ForthInner.cpp */; };
+		6E79809C1E8B0F5400FB03ED /* ForthInput.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E79806D1E8B0F5400FB03ED /* ForthInput.cpp */; };
+		6E79809D1E8B0F5400FB03ED /* ForthOpcodeCompiler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980711E8B0F5400FB03ED /* ForthOpcodeCompiler.cpp */; };
+		6E79809E1E8B0F5400FB03ED /* ForthOps.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980731E8B0F5400FB03ED /* ForthOps.cpp */; };
+		6E79809F1E8B0F5400FB03ED /* ForthParseInfo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980741E8B0F5400FB03ED /* ForthParseInfo.cpp */; };
+		6E7980A01E8B0F5400FB03ED /* ForthPipe.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980761E8B0F5400FB03ED /* ForthPipe.cpp */; };
+		6E7980A11E8B0F5400FB03ED /* ForthServer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980791E8B0F5400FB03ED /* ForthServer.cpp */; };
+		6E7980A21E8B0F5400FB03ED /* ForthShell.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E79807B1E8B0F5400FB03ED /* ForthShell.cpp */; };
+		6E7980A31E8B0F5400FB03ED /* ForthShowContext.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E79807D1E8B0F5400FB03ED /* ForthShowContext.cpp */; };
+		6E7980A41E8B0F5400FB03ED /* ForthStructCodeGenerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E79807F1E8B0F5400FB03ED /* ForthStructCodeGenerator.cpp */; };
+		6E7980A51E8B0F5400FB03ED /* ForthStructs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980811E8B0F5400FB03ED /* ForthStructs.cpp */; };
+		6E7980A61E8B0F5400FB03ED /* ForthThread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980831E8B0F5400FB03ED /* ForthThread.cpp */; };
+		6E7980A71E8B0F5400FB03ED /* ForthVocabulary.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980851E8B0F5400FB03ED /* ForthVocabulary.cpp */; };
+		6E7980A81E8B0F5400FB03ED /* OArray.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980871E8B0F5400FB03ED /* OArray.cpp */; };
+		6E7980A91E8B0F5400FB03ED /* OList.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980891E8B0F5400FB03ED /* OList.cpp */; };
+		6E7980AA1E8B0F5400FB03ED /* OMap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E79808B1E8B0F5400FB03ED /* OMap.cpp */; };
+		6E7980AB1E8B0F5400FB03ED /* ONumber.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E79808D1E8B0F5400FB03ED /* ONumber.cpp */; };
+		6E7980AC1E8B0F5400FB03ED /* OStream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E79808F1E8B0F5400FB03ED /* OStream.cpp */; };
+		6E7980AD1E8B0F5400FB03ED /* OString.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980911E8B0F5400FB03ED /* OString.cpp */; };
+		6E7980AE1E8B0F5400FB03ED /* OSystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980931E8B0F5400FB03ED /* OSystem.cpp */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXBuildRule section */
+		6E49A8C91E8C56BD003BE440 /* PBXBuildRule */ = {
+			isa = PBXBuildRule;
+			compilerSpec = com.apple.compilers.proxy.script;
+			filePatterns = InnerInterp.S;
+			fileType = pattern.proxy;
+			isEditable = 1;
+			outputFiles = (
+			);
+			script = "gcc -S InnerInterp.s -o InnerInterp.o";
+		};
+/* End PBXBuildRule section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		6E7980511E8B0EA400FB03ED /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		6E49A8C31E8B3C6D003BE440 /* InnerInterp.S */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; name = InnerInterp.S; path = ../ForthLib/InnerInterp.S; sourceTree = "<group>"; };
+		6E49A8C51E8B3C8C003BE440 /* InnerInterp.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; name = InnerInterp.asm; path = ../ForthLib/InnerInterp.asm; sourceTree = "<group>"; };
+		6E49A8C71E8C074E003BE440 /* core_gas.inc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.pascal; name = core_gas.inc; path = ../ForthLib/core_gas.inc; sourceTree = "<group>"; };
+		6E7980531E8B0EA400FB03ED /* Forth */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Forth; sourceTree = BUILT_PRODUCTS_DIR; };
+		6E7980561E8B0EA400FB03ED /* ForthMainOSX.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ForthMainOSX.cpp; sourceTree = "<group>"; };
+		6E79805D1E8B0F5400FB03ED /* Forth.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Forth.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/Forth.h; sourceTree = "<absolute>"; };
+		6E79805E1E8B0F5400FB03ED /* ForthBlockFileManager.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthBlockFileManager.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthBlockFileManager.cpp; sourceTree = "<absolute>"; };
+		6E79805F1E8B0F5400FB03ED /* ForthBlockFileManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthBlockFileManager.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthBlockFileManager.h; sourceTree = "<absolute>"; };
+		6E7980601E8B0F5400FB03ED /* ForthBuiltinClasses.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthBuiltinClasses.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthBuiltinClasses.cpp; sourceTree = "<absolute>"; };
+		6E7980611E8B0F5400FB03ED /* ForthBuiltinClasses.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthBuiltinClasses.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthBuiltinClasses.h; sourceTree = "<absolute>"; };
+		6E7980621E8B0F5400FB03ED /* ForthClient.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthClient.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthClient.cpp; sourceTree = "<absolute>"; };
+		6E7980631E8B0F5400FB03ED /* ForthClient.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthClient.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthClient.h; sourceTree = "<absolute>"; };
+		6E7980641E8B0F5400FB03ED /* ForthCore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthCore.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthCore.h; sourceTree = "<absolute>"; };
+		6E7980651E8B0F5400FB03ED /* ForthEngine.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthEngine.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthEngine.cpp; sourceTree = "<absolute>"; };
+		6E7980661E8B0F5400FB03ED /* ForthEngine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthEngine.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthEngine.h; sourceTree = "<absolute>"; };
+		6E7980671E8B0F5400FB03ED /* ForthExtension.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthExtension.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthExtension.cpp; sourceTree = "<absolute>"; };
+		6E7980681E8B0F5400FB03ED /* ForthExtension.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthExtension.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthExtension.h; sourceTree = "<absolute>"; };
+		6E7980691E8B0F5400FB03ED /* ForthForgettable.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthForgettable.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthForgettable.cpp; sourceTree = "<absolute>"; };
+		6E79806A1E8B0F5400FB03ED /* ForthForgettable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthForgettable.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthForgettable.h; sourceTree = "<absolute>"; };
+		6E79806B1E8B0F5400FB03ED /* ForthInner.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthInner.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthInner.cpp; sourceTree = "<absolute>"; };
+		6E79806C1E8B0F5400FB03ED /* ForthInner.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthInner.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthInner.h; sourceTree = "<absolute>"; };
+		6E79806D1E8B0F5400FB03ED /* ForthInput.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthInput.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthInput.cpp; sourceTree = "<absolute>"; };
+		6E79806E1E8B0F5400FB03ED /* ForthInput.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthInput.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthInput.h; sourceTree = "<absolute>"; };
+		6E79806F1E8B0F5400FB03ED /* ForthMessages.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthMessages.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthMessages.h; sourceTree = "<absolute>"; };
+		6E7980701E8B0F5400FB03ED /* ForthObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthObject.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthObject.h; sourceTree = "<absolute>"; };
+		6E7980711E8B0F5400FB03ED /* ForthOpcodeCompiler.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthOpcodeCompiler.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthOpcodeCompiler.cpp; sourceTree = "<absolute>"; };
+		6E7980721E8B0F5400FB03ED /* ForthOpcodeCompiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthOpcodeCompiler.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthOpcodeCompiler.h; sourceTree = "<absolute>"; };
+		6E7980731E8B0F5400FB03ED /* ForthOps.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthOps.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthOps.cpp; sourceTree = "<absolute>"; };
+		6E7980741E8B0F5400FB03ED /* ForthParseInfo.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthParseInfo.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthParseInfo.cpp; sourceTree = "<absolute>"; };
+		6E7980751E8B0F5400FB03ED /* ForthParseInfo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthParseInfo.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthParseInfo.h; sourceTree = "<absolute>"; };
+		6E7980761E8B0F5400FB03ED /* ForthPipe.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthPipe.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthPipe.cpp; sourceTree = "<absolute>"; };
+		6E7980771E8B0F5400FB03ED /* ForthPipe.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthPipe.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthPipe.h; sourceTree = "<absolute>"; };
+		6E7980781E8B0F5400FB03ED /* ForthPortability.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthPortability.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthPortability.h; sourceTree = "<absolute>"; };
+		6E7980791E8B0F5400FB03ED /* ForthServer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthServer.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthServer.cpp; sourceTree = "<absolute>"; };
+		6E79807A1E8B0F5400FB03ED /* ForthServer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthServer.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthServer.h; sourceTree = "<absolute>"; };
+		6E79807B1E8B0F5400FB03ED /* ForthShell.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthShell.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthShell.cpp; sourceTree = "<absolute>"; };
+		6E79807C1E8B0F5400FB03ED /* ForthShell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthShell.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthShell.h; sourceTree = "<absolute>"; };
+		6E79807D1E8B0F5400FB03ED /* ForthShowContext.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthShowContext.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthShowContext.cpp; sourceTree = "<absolute>"; };
+		6E79807E1E8B0F5400FB03ED /* ForthShowContext.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthShowContext.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthShowContext.h; sourceTree = "<absolute>"; };
+		6E79807F1E8B0F5400FB03ED /* ForthStructCodeGenerator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthStructCodeGenerator.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthStructCodeGenerator.cpp; sourceTree = "<absolute>"; };
+		6E7980801E8B0F5400FB03ED /* ForthStructCodeGenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthStructCodeGenerator.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthStructCodeGenerator.h; sourceTree = "<absolute>"; };
+		6E7980811E8B0F5400FB03ED /* ForthStructs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthStructs.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthStructs.cpp; sourceTree = "<absolute>"; };
+		6E7980821E8B0F5400FB03ED /* ForthStructs.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthStructs.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthStructs.h; sourceTree = "<absolute>"; };
+		6E7980831E8B0F5400FB03ED /* ForthThread.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthThread.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthThread.cpp; sourceTree = "<absolute>"; };
+		6E7980841E8B0F5400FB03ED /* ForthThread.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthThread.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthThread.h; sourceTree = "<absolute>"; };
+		6E7980851E8B0F5400FB03ED /* ForthVocabulary.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthVocabulary.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthVocabulary.cpp; sourceTree = "<absolute>"; };
+		6E7980861E8B0F5400FB03ED /* ForthVocabulary.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthVocabulary.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ForthVocabulary.h; sourceTree = "<absolute>"; };
+		6E7980871E8B0F5400FB03ED /* OArray.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OArray.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/OArray.cpp; sourceTree = "<absolute>"; };
+		6E7980881E8B0F5400FB03ED /* OArray.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OArray.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/OArray.h; sourceTree = "<absolute>"; };
+		6E7980891E8B0F5400FB03ED /* OList.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OList.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/OList.cpp; sourceTree = "<absolute>"; };
+		6E79808A1E8B0F5400FB03ED /* OList.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OList.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/OList.h; sourceTree = "<absolute>"; };
+		6E79808B1E8B0F5400FB03ED /* OMap.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OMap.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/OMap.cpp; sourceTree = "<absolute>"; };
+		6E79808C1E8B0F5400FB03ED /* OMap.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OMap.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/OMap.h; sourceTree = "<absolute>"; };
+		6E79808D1E8B0F5400FB03ED /* ONumber.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ONumber.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/ONumber.cpp; sourceTree = "<absolute>"; };
+		6E79808E1E8B0F5400FB03ED /* ONumber.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ONumber.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/ONumber.h; sourceTree = "<absolute>"; };
+		6E79808F1E8B0F5400FB03ED /* OStream.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OStream.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/OStream.cpp; sourceTree = "<absolute>"; };
+		6E7980901E8B0F5400FB03ED /* OStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OStream.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/OStream.h; sourceTree = "<absolute>"; };
+		6E7980911E8B0F5400FB03ED /* OString.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OString.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/OString.cpp; sourceTree = "<absolute>"; };
+		6E7980921E8B0F5400FB03ED /* OString.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OString.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/OString.h; sourceTree = "<absolute>"; };
+		6E7980931E8B0F5400FB03ED /* OSystem.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OSystem.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/OSystem.cpp; sourceTree = "<absolute>"; };
+		6E7980941E8B0F5400FB03ED /* OSystem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OSystem.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/OSystem.h; sourceTree = "<absolute>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6E7980501E8B0EA400FB03ED /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		6E79804A1E8B0EA400FB03ED = {
+			isa = PBXGroup;
+			children = (
+				6E7980AF1E8B0F9000FB03ED /* ForthLib */,
+				6E7980551E8B0EA400FB03ED /* Forth */,
+				6E7980541E8B0EA400FB03ED /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6E7980541E8B0EA400FB03ED /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6E7980531E8B0EA400FB03ED /* Forth */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		6E7980551E8B0EA400FB03ED /* Forth */ = {
+			isa = PBXGroup;
+			children = (
+				6E7980561E8B0EA400FB03ED /* ForthMainOSX.cpp */,
+			);
+			path = Forth;
+			sourceTree = "<group>";
+		};
+		6E7980AF1E8B0F9000FB03ED /* ForthLib */ = {
+			isa = PBXGroup;
+			children = (
+				6E49A8C71E8C074E003BE440 /* core_gas.inc */,
+				6E49A8C51E8B3C8C003BE440 /* InnerInterp.asm */,
+				6E49A8C31E8B3C6D003BE440 /* InnerInterp.S */,
+				6E79805D1E8B0F5400FB03ED /* Forth.h */,
+				6E79805E1E8B0F5400FB03ED /* ForthBlockFileManager.cpp */,
+				6E79805F1E8B0F5400FB03ED /* ForthBlockFileManager.h */,
+				6E7980601E8B0F5400FB03ED /* ForthBuiltinClasses.cpp */,
+				6E7980611E8B0F5400FB03ED /* ForthBuiltinClasses.h */,
+				6E7980621E8B0F5400FB03ED /* ForthClient.cpp */,
+				6E7980631E8B0F5400FB03ED /* ForthClient.h */,
+				6E7980641E8B0F5400FB03ED /* ForthCore.h */,
+				6E7980651E8B0F5400FB03ED /* ForthEngine.cpp */,
+				6E7980661E8B0F5400FB03ED /* ForthEngine.h */,
+				6E7980671E8B0F5400FB03ED /* ForthExtension.cpp */,
+				6E7980681E8B0F5400FB03ED /* ForthExtension.h */,
+				6E7980691E8B0F5400FB03ED /* ForthForgettable.cpp */,
+				6E79806A1E8B0F5400FB03ED /* ForthForgettable.h */,
+				6E79806B1E8B0F5400FB03ED /* ForthInner.cpp */,
+				6E79806C1E8B0F5400FB03ED /* ForthInner.h */,
+				6E79806D1E8B0F5400FB03ED /* ForthInput.cpp */,
+				6E79806E1E8B0F5400FB03ED /* ForthInput.h */,
+				6E79806F1E8B0F5400FB03ED /* ForthMessages.h */,
+				6E7980701E8B0F5400FB03ED /* ForthObject.h */,
+				6E7980711E8B0F5400FB03ED /* ForthOpcodeCompiler.cpp */,
+				6E7980721E8B0F5400FB03ED /* ForthOpcodeCompiler.h */,
+				6E7980731E8B0F5400FB03ED /* ForthOps.cpp */,
+				6E7980741E8B0F5400FB03ED /* ForthParseInfo.cpp */,
+				6E7980751E8B0F5400FB03ED /* ForthParseInfo.h */,
+				6E7980761E8B0F5400FB03ED /* ForthPipe.cpp */,
+				6E7980771E8B0F5400FB03ED /* ForthPipe.h */,
+				6E7980781E8B0F5400FB03ED /* ForthPortability.h */,
+				6E7980791E8B0F5400FB03ED /* ForthServer.cpp */,
+				6E79807A1E8B0F5400FB03ED /* ForthServer.h */,
+				6E79807B1E8B0F5400FB03ED /* ForthShell.cpp */,
+				6E79807C1E8B0F5400FB03ED /* ForthShell.h */,
+				6E79807D1E8B0F5400FB03ED /* ForthShowContext.cpp */,
+				6E79807E1E8B0F5400FB03ED /* ForthShowContext.h */,
+				6E79807F1E8B0F5400FB03ED /* ForthStructCodeGenerator.cpp */,
+				6E7980801E8B0F5400FB03ED /* ForthStructCodeGenerator.h */,
+				6E7980811E8B0F5400FB03ED /* ForthStructs.cpp */,
+				6E7980821E8B0F5400FB03ED /* ForthStructs.h */,
+				6E7980831E8B0F5400FB03ED /* ForthThread.cpp */,
+				6E7980841E8B0F5400FB03ED /* ForthThread.h */,
+				6E7980851E8B0F5400FB03ED /* ForthVocabulary.cpp */,
+				6E7980861E8B0F5400FB03ED /* ForthVocabulary.h */,
+				6E7980871E8B0F5400FB03ED /* OArray.cpp */,
+				6E7980881E8B0F5400FB03ED /* OArray.h */,
+				6E7980891E8B0F5400FB03ED /* OList.cpp */,
+				6E79808A1E8B0F5400FB03ED /* OList.h */,
+				6E79808B1E8B0F5400FB03ED /* OMap.cpp */,
+				6E79808C1E8B0F5400FB03ED /* OMap.h */,
+				6E79808D1E8B0F5400FB03ED /* ONumber.cpp */,
+				6E79808E1E8B0F5400FB03ED /* ONumber.h */,
+				6E79808F1E8B0F5400FB03ED /* OStream.cpp */,
+				6E7980901E8B0F5400FB03ED /* OStream.h */,
+				6E7980911E8B0F5400FB03ED /* OString.cpp */,
+				6E7980921E8B0F5400FB03ED /* OString.h */,
+				6E7980931E8B0F5400FB03ED /* OSystem.cpp */,
+				6E7980941E8B0F5400FB03ED /* OSystem.h */,
+			);
+			name = ForthLib;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		6E7980521E8B0EA400FB03ED /* Forth */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6E79805A1E8B0EA400FB03ED /* Build configuration list for PBXNativeTarget "Forth" */;
+			buildPhases = (
+				6E79804F1E8B0EA400FB03ED /* Sources */,
+				6E7980501E8B0EA400FB03ED /* Frameworks */,
+				6E7980511E8B0EA400FB03ED /* CopyFiles */,
+			);
+			buildRules = (
+				6E49A8C91E8C56BD003BE440 /* PBXBuildRule */,
+			);
+			dependencies = (
+			);
+			name = Forth;
+			productName = Forth;
+			productReference = 6E7980531E8B0EA400FB03ED /* Forth */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		6E79804B1E8B0EA400FB03ED /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0820;
+				ORGANIZATIONNAME = "Pat McElhatton";
+				TargetAttributes = {
+					6E7980521E8B0EA400FB03ED = {
+						CreatedOnToolsVersion = 8.2.1;
+						DevelopmentTeam = VYR548T6FJ;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 6E79804E1E8B0EA400FB03ED /* Build configuration list for PBXProject "Forth" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 6E79804A1E8B0EA400FB03ED;
+			productRefGroup = 6E7980541E8B0EA400FB03ED /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				6E7980521E8B0EA400FB03ED /* Forth */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		6E79804F1E8B0EA400FB03ED /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6E7980AC1E8B0F5400FB03ED /* OStream.cpp in Sources */,
+				6E79809A1E8B0F5400FB03ED /* ForthForgettable.cpp in Sources */,
+				6E7980A91E8B0F5400FB03ED /* OList.cpp in Sources */,
+				6E79809F1E8B0F5400FB03ED /* ForthParseInfo.cpp in Sources */,
+				6E7980A11E8B0F5400FB03ED /* ForthServer.cpp in Sources */,
+				6E7980571E8B0EA400FB03ED /* ForthMainOSX.cpp in Sources */,
+				6E79809C1E8B0F5400FB03ED /* ForthInput.cpp in Sources */,
+				6E7980991E8B0F5400FB03ED /* ForthExtension.cpp in Sources */,
+				6E7980A51E8B0F5400FB03ED /* ForthStructs.cpp in Sources */,
+				6E7980961E8B0F5400FB03ED /* ForthBuiltinClasses.cpp in Sources */,
+				6E7980971E8B0F5400FB03ED /* ForthClient.cpp in Sources */,
+				6E7980A41E8B0F5400FB03ED /* ForthStructCodeGenerator.cpp in Sources */,
+				6E7980A01E8B0F5400FB03ED /* ForthPipe.cpp in Sources */,
+				6E79809D1E8B0F5400FB03ED /* ForthOpcodeCompiler.cpp in Sources */,
+				6E7980AE1E8B0F5400FB03ED /* OSystem.cpp in Sources */,
+				6E7980AD1E8B0F5400FB03ED /* OString.cpp in Sources */,
+				6E7980A21E8B0F5400FB03ED /* ForthShell.cpp in Sources */,
+				6E7980AA1E8B0F5400FB03ED /* OMap.cpp in Sources */,
+				6E79809E1E8B0F5400FB03ED /* ForthOps.cpp in Sources */,
+				6E7980981E8B0F5400FB03ED /* ForthEngine.cpp in Sources */,
+				6E7980A81E8B0F5400FB03ED /* OArray.cpp in Sources */,
+				6E7980A71E8B0F5400FB03ED /* ForthVocabulary.cpp in Sources */,
+				6E79809B1E8B0F5400FB03ED /* ForthInner.cpp in Sources */,
+				6E7980AB1E8B0F5400FB03ED /* ONumber.cpp in Sources */,
+				6E49A8C41E8B3C6D003BE440 /* InnerInterp.S in Sources */,
+				6E7980A31E8B0F5400FB03ED /* ForthShowContext.cpp in Sources */,
+				6E7980A61E8B0F5400FB03ED /* ForthThread.cpp in Sources */,
+				6E7980951E8B0F5400FB03ED /* ForthBlockFileManager.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		6E7980581E8B0EA400FB03ED /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		6E7980591E8B0EA400FB03ED /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		6E79805B1E8B0EA400FB03ED /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
+				DEVELOPMENT_TEAM = VYR548T6FJ;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					MACOSX,
+					ASM_UNDERSCORE_PREFIX,
+				);
+				"HEADER_SEARCH_PATHS[arch=*]" = ForthLib;
+				"OTHER_CPLUSPLUSFLAGS[arch=*]" = "$(OTHER_CFLAGS)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		6E79805C1E8B0EA400FB03ED /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
+				DEVELOPMENT_TEAM = VYR548T6FJ;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					MACOSX,
+					ASM_UNDERSCORE_PREFIX,
+				);
+				"HEADER_SEARCH_PATHS[arch=*]" = ForthLib;
+				"OTHER_CPLUSPLUSFLAGS[arch=*]" = "$(OTHER_CFLAGS)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6E79804E1E8B0EA400FB03ED /* Build configuration list for PBXProject "Forth" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6E7980581E8B0EA400FB03ED /* Debug */,
+				6E7980591E8B0EA400FB03ED /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6E79805A1E8B0EA400FB03ED /* Build configuration list for PBXNativeTarget "Forth" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6E79805B1E8B0EA400FB03ED /* Debug */,
+				6E79805C1E8B0EA400FB03ED /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 6E79804B1E8B0EA400FB03ED /* Project object */;
+}

@@ -6,7 +6,7 @@
 
 #include "StdAfx.h"
 
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #include <ctype.h>
 #endif
 #include "ForthEngine.h"

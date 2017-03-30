@@ -604,7 +604,6 @@ namespace OString
 
 	FORTHOP(oStringLoadMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oStringStruct, pString);
 		int numStrings = SPOP;
 		const char** pStrings = (const char**)(GET_SP);
@@ -619,7 +618,6 @@ namespace OString
 
 	FORTHOP(oStringSplitMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oStringStruct, pString);
 		
 		ForthObject dstArrayObj;
@@ -671,7 +669,6 @@ namespace OString
 
 	FORTHOP(oStringJoinMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oStringStruct, pString);
 		const char* delimStr = (const char*)(SPOP);
 		int delimLen = (delimStr == nullptr) ? 0 : strlen(delimStr);
@@ -872,7 +869,6 @@ namespace OString
 		GET_THIS(oStringMapStruct, pMap);
 		oStringMap::iterator iter;
 		oStringMap& a = *(pMap->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		for (iter = a.begin(); iter != a.end(); ++iter)
 		{
 			ForthObject& o = iter->second;
@@ -926,7 +922,6 @@ namespace OString
 		GET_THIS(oStringMapStruct, pMap);
 		oStringMap::iterator iter;
 		oStringMap& a = *(pMap->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		for (iter = a.begin(); iter != a.end(); ++iter)
 		{
 			ForthObject& o = iter->second;
@@ -942,7 +937,6 @@ namespace OString
 		GET_THIS(oStringMapStruct, pMap);
 		oStringMap::iterator iter;
 		oStringMap& a = *(pMap->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		for (iter = a.begin(); iter != a.end(); ++iter)
 		{
 			ForthObject& o = iter->second;
@@ -1072,7 +1066,6 @@ namespace OString
 
 	FORTHOP(oStringMapUnrefMethod)
 	{
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		GET_THIS(oStringMapStruct, pMap);
 		oStringMap& a = *(pMap->elements);
 		std::string key;

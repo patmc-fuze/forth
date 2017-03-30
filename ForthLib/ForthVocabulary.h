@@ -283,7 +283,7 @@ protected:
 #ifdef WIN32
     HINSTANCE           mhDLL;
 #endif
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
     void*				mLibHandle;
 #endif
 };

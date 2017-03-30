@@ -63,7 +63,7 @@ float boohoo(int aa, int bb, int cc)
 }
 #endif
 
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #define SNPRINTF snprintf
 #else
 #define SNPRINTF _snprintf

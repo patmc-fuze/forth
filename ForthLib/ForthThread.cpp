@@ -6,6 +6,7 @@
 #ifdef WIN32
 #include <process.h>
 #else
+#include <unistd.h>
 #include <pthread.h>
 #endif
 #include <deque>
@@ -265,7 +266,9 @@ void ForthThread::Exit()
 
 ForthAsyncThread::ForthAsyncThread(ForthEngine *pEngine, int paramStackLongs, int returnStackLongs)
 	: mHandle(0)
+#ifdef WIN32
 	, mThreadId(0)
+#endif
 	, mpNext(NULL)
 	, mActiveThreadIndex(0)
 	, mRunState(kFTRSStopped)
@@ -507,7 +510,7 @@ long ForthAsyncThread::Start()
 		// TODO
 		//::CloseHandle( mHandle );
 	}
-	mHandle = pthread_create(&mThread, NULL, ForthThread::RunLoop, this);
+	mHandle = pthread_create(&mThread, NULL, ForthAsyncThread::RunLoop, this);
 
 #endif
 	return (long)mHandle;
@@ -822,8 +825,8 @@ namespace OThread
 		ForthCoreState* pThreadCore = pThread->GetCore();
 		long op = *(pThreadCore->IP)++;
 		long result;
-		ForthEngine *pEngine = GET_ENGINE;
 #ifdef ASM_INNER_INTERPRETER
+        ForthEngine *pEngine = GET_ENGINE;
 		if (pEngine->GetFastMode())
 		{
 			result = (long)InterpretOneOpFast(pThreadCore, op);
@@ -903,6 +906,7 @@ namespace OLock
 #ifdef WIN32
 		CRITICAL_SECTION* pLock;
 #else
+        pthread_mutex_t* pLock;
 #endif
 	};
 
@@ -914,8 +918,12 @@ namespace OLock
 
 		MALLOCATE_OBJECT(oAsyncLockStruct, pLockStruct, gpAsyncLockVocabulary);
 		pLockStruct->refCount = 0;
-		pLockStruct->pLock = new CRITICAL_SECTION();
-		InitializeCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+        pLockStruct->pLock = new CRITICAL_SECTION();
+        InitializeCriticalSection(pLockStruct->pLock);
+#else
+        pthread_mutex_t* pLock;
+#endif
 
 		outAsyncLock.pMethodOps = pPrimaryInterface->GetMethods();
 		outAsyncLock.pData = (long *)pLockStruct;
@@ -931,7 +939,10 @@ namespace OLock
 		GET_THIS(oAsyncLockStruct, pLockStruct);
 		if (pLockStruct->pLock != NULL)
 		{
-			DeleteCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+            DeleteCriticalSection(pLockStruct->pLock);
+#else
+#endif
 			pLockStruct->pLock = NULL;
 		}
 		FREE_OBJECT(pLockStruct);
@@ -941,14 +952,21 @@ namespace OLock
 	FORTHOP(oAsyncLockGrabMethod)
 	{
 		GET_THIS(oAsyncLockStruct, pLockStruct);
-		EnterCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+        EnterCriticalSection(pLockStruct->pLock);
+#else
+#endif
 		METHOD_RETURN;
 	}
 
 	FORTHOP(oAsyncLockTryGrabMethod)
 	{
 		GET_THIS(oAsyncLockStruct, pLockStruct);
-		BOOL result = TryEnterCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+        BOOL result = TryEnterCriticalSection(pLockStruct->pLock);
+#else
+        bool result = false;  // TODO
+#endif
 		SPUSH((int)result);
 		METHOD_RETURN;
 	}
@@ -956,7 +974,10 @@ namespace OLock
 	FORTHOP(oAsyncLockUngrabMethod)
 	{
 		GET_THIS(oAsyncLockStruct, pLockStruct);
-		LeaveCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+        LeaveCriticalSection(pLockStruct->pLock);
+#else
+#endif
 		METHOD_RETURN;
 	}
 
@@ -1000,8 +1021,11 @@ namespace OLock
 		MALLOCATE_OBJECT(oLockStruct, pLockStruct, pClassVocab);
 
 		pLockStruct->refCount = 0;
-		pLockStruct->pLock = new CRITICAL_SECTION();
-		InitializeCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+        pLockStruct->pLock = new CRITICAL_SECTION();
+        InitializeCriticalSection(pLockStruct->pLock);
+#else
+#endif
 		pLockStruct->pLockHolder = nullptr;
 		pLockStruct->pBlockedThreads = new std::deque<ForthThread*>;
 		pLockStruct->lockDepth = 0;
@@ -1014,7 +1038,10 @@ namespace OLock
 		GET_THIS(oLockStruct, pLockStruct);
 		GET_ENGINE->SetError(kForthErrorException, " OLock.delete called with threads blocked on lock");
 
-		DeleteCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+        DeleteCriticalSection(pLockStruct->pLock);
+#else
+#endif
 		delete pLockStruct->pBlockedThreads;
 		FREE_OBJECT(pLockStruct);
 		METHOD_RETURN;
@@ -1023,7 +1050,10 @@ namespace OLock
 	FORTHOP(oLockGrabMethod)
 	{
 		GET_THIS(oLockStruct, pLockStruct);
-		EnterCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+        EnterCriticalSection(pLockStruct->pLock);
+#else
+#endif
 
 		ForthThread* pThread = (ForthThread*)(pCore->pThread);
 		if (pLockStruct->pLockHolder == nullptr)
@@ -1052,14 +1082,20 @@ namespace OLock
 			}
 		}
 
-		LeaveCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+        LeaveCriticalSection(pLockStruct->pLock);
+#else
+#endif
 		METHOD_RETURN;
 	}
 
 	FORTHOP(oLockTryGrabMethod)
 	{
 		GET_THIS(oLockStruct, pLockStruct);
-		EnterCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+        EnterCriticalSection(pLockStruct->pLock);
+#else
+#endif
 
 		int result = (int)false;
 		ForthThread* pThread = (ForthThread*)(pCore->pThread);
@@ -1086,14 +1122,20 @@ namespace OLock
 		}
 		SPUSH(result);
 
-		LeaveCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+        LeaveCriticalSection(pLockStruct->pLock);
+#else
+#endif
 		METHOD_RETURN;
 	}
 
 	FORTHOP(oLockUngrabMethod)
 	{
 		GET_THIS(oLockStruct, pLockStruct);
-		EnterCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+        EnterCriticalSection(pLockStruct->pLock);
+#else
+#endif
 
 		if (pLockStruct->pLockHolder == nullptr)
 		{
@@ -1134,7 +1176,10 @@ namespace OLock
 			}
 		}
 
-		LeaveCriticalSection(pLockStruct->pLock);
+#ifdef WIN32
+        LeaveCriticalSection(pLockStruct->pLock);
+#else
+#endif
 		METHOD_RETURN;
 	}
 

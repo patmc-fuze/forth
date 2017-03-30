@@ -9,7 +9,7 @@
 
 #include "Forth.h"
 #include "ForthInner.h"
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #include <pthread.h>
 #endif
 
@@ -112,7 +112,7 @@ public:
 	inline ForthObject& GetAsyncThreadObject() { return mObject; }
 	inline void SetAsyncThreadObject(ForthObject& inObject) { mObject = inObject; }
 
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 	static void* RunLoop(void *pThis);
 #else
 	static unsigned __stdcall RunLoop(void *pThis);
@@ -126,7 +126,7 @@ protected:
 	ForthAsyncThread*   mpNext;
 	int					mActiveThreadIndex;
 	eForthThreadRunState mRunState;
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 	int                 mHandle;
 	pthread_t           mThread;
 	int					mExitStatus;

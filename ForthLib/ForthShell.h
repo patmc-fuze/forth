@@ -7,8 +7,8 @@
 
 #include "ForthEngine.h"
 #include "ForthInput.h"
-#ifdef LINUX
-#include <linux/limits.h>
+#if defined(LINUX) || defined(MACOSX)
+#include <limits.h>
 #define MAX_PATH PATH_MAX
 #endif
 
@@ -208,7 +208,7 @@ protected:
     char*                   mSystemDir;
     int                     mPoundIfDepth;
 
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #else
     DWORD                   mMainThreadId;
     DWORD                   mConsoleInputThreadId;

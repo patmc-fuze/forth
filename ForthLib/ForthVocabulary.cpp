@@ -11,7 +11,7 @@
 #include "ForthForgettable.h"
 #include "ForthParseInfo.h"
 #include "ForthBuiltinClasses.h"
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #include <dlfcn.h>
 #endif
 
@@ -917,7 +917,7 @@ ForthDLLVocabulary::ForthDLLVocabulary( const char      *pName,
 
 #if defined(WIN32)
     mhDLL = LoadLibrary( mpDLLName );
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
     mLibHandle = dlopen( mpDLLName, RTLD_LAZY );
 #endif
 }
@@ -934,7 +934,7 @@ long ForthDLLVocabulary::LoadDLL( void )
 #if defined(WIN32)
     mhDLL = LoadLibrary( mpDLLName );
     return (long) mhDLL;
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
     mLibHandle = dlopen( mpDLLName, RTLD_LAZY );
     return (long) mLibHandle;
 #endif
@@ -948,7 +948,7 @@ void ForthDLLVocabulary::UnloadDLL( void )
     	FreeLibrary( mhDLL );
     	mhDLL = 0;
     }
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
     if ( mLibHandle != NULL )
     {
         dlclose( mLibHandle  );
@@ -962,7 +962,7 @@ long * ForthDLLVocabulary::AddEntry( const char *pFuncName, const char* pEntryNa
     long *pEntry = NULL;
 #if defined(WIN32)
     long pFunc = (long) GetProcAddress( mhDLL, pFuncName );
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
     long pFunc = (long) dlsym( mLibHandle, pFuncName );
 #endif
     if ( pFunc )

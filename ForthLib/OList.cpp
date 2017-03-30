@@ -63,7 +63,6 @@ namespace OList
 		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oListStruct, pList);
 		oListElement* pCur = pList->head;
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
 		SHOW_OBJ_HEADER;
@@ -829,7 +828,6 @@ namespace OList
 	FORTHOP(oListIterFindNextMethod)
 	{
 		GET_THIS(oListIterStruct, pIter);
-		oListStruct* pList = reinterpret_cast<oListStruct *>(pIter->parent.pData);
 		oListElement* pCur = pIter->cursor;
 		ForthObject soughtObj;
 		POP_OBJECT(soughtObj);

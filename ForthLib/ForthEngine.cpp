@@ -6,7 +6,7 @@
 
 #include "StdAfx.h"
 
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #include <ctype.h>
 #include <stdarg.h>
 #endif
@@ -40,7 +40,7 @@ extern void OutputToLogger(const char* pBuffer);
 void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 {
 	(void)pData;
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 	char buffer[1000];
 #else
 	TCHAR buffer[1000];
@@ -49,7 +49,7 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 	ForthEngine* pEngine = ForthEngine::GetInstance();
 	if ((pEngine->GetTraceFlags() & kLogToConsole) != 0)
 	{
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 		vsnprintf(buffer, sizeof(buffer), pFormat, argList);
 #else
 		wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
@@ -59,7 +59,7 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 	}
 	else
 	{
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 		vsnprintf(buffer, sizeof(buffer), pFormat, argList);
 #else
 		wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
@@ -2017,7 +2017,9 @@ ForthEngine::ExecuteOps(ForthCoreState* pCore, long *pOps)
 
     savedIP = pCore->IP;
     pCore->IP = pOps;
-	bool bFast = mFastMode && ((mTraceFlags & kLogInnerInterpreter) == 0);
+#ifdef ASM_INNER_INTERPRETER
+    bool bFast = mFastMode && ((mTraceFlags & kLogInnerInterpreter) == 0);
+#endif
 	do
 	{
 		exitStatus = kResultOk;
@@ -2074,7 +2076,9 @@ ForthEngine::ExecuteOneMethod( ForthCoreState* pCore, ForthObject& obj, long met
 	SET_TPM(obj.pMethodOps);
 	SET_TPD(obj.pData);
 
-	bool bFast = mFastMode && ((mTraceFlags & kLogInnerInterpreter) == 0);
+#ifdef ASM_INNER_INTERPRETER
+    bool bFast = mFastMode && ((mTraceFlags & kLogInnerInterpreter) == 0);
+#endif
 	eForthResult exitStatus = kResultOk;
 #ifdef ASM_INNER_INTERPRETER
 	if (bFast)

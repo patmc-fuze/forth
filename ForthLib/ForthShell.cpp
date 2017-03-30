@@ -5,11 +5,15 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#if defined(MACOSX)
+#include <sys/uio.h>
+#else
 #include <sys/io.h>
+#endif
 #include <dirent.h>
 #else
 #include <io.h>
@@ -133,7 +137,7 @@ void rewindDir( void* pDir )
 
 #if defined(WIN32)
 DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData );
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
 unsigned long ConsoleInputThreadRoutine( void* pThreadData );
 #endif
 
@@ -222,7 +226,7 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 	{
 		mWorkingDirPath[0] = '\0';
 	}
-#elif defined( LINUX )
+#elif defined(LINUX) || defined(MACOSX)
 	if ( getcwd( mWorkingDirPath, MAX_PATH ) == NULL )
 	{
 		// failed to get current directory
@@ -1652,7 +1656,7 @@ FILE* ForthShell::OpenForthFile( const char* pPath )
 	{
 		pathIsRelative = false;
 	}
-#elif defined( LINUX )
+#elif defined(LINUX) || defined(MACOSX)
 	if ( *pPath == '/' )
 	{
 		pathIsRelative = false;
@@ -1664,12 +1668,12 @@ FILE* ForthShell::OpenForthFile( const char* pPath )
 		strcpy( pSysPath, mWorkingDirPath );
 #if defined( WIN32 )
 		strcat( pSysPath, "\\system\\" );
-#elif defined( LINUX )
+#elif defined(LINUX) || defined(MACOSX)
 		strcat( pSysPath, "/system/" );
 #endif
 		strcat( pSysPath, pPath );
 		pFile = fopen( pSysPath, "r" );
-		delete pSysPath;
+		delete [] pSysPath;
     }
 	return pFile;
 }
@@ -1829,7 +1833,7 @@ ForthShellStack::ShowStack()
 
 #if defined(WIN32)
 DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData )
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
 unsigned long ConsoleInputThreadRoutine( void* pThreadData )
 #endif
 {

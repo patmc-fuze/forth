@@ -134,7 +134,7 @@ void ForthStructCodeGenerator::HandlePreceedingVarop()
     }
 }
 
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #define COMPILE_OP( _caption, _opType, _opData ) *mpDst++ = COMPILED_OP(_opType, _opData)
 #define COMPILE_SIMPLE_OP( _caption, _op ) *mpDst++ = _op
 #else
@@ -287,7 +287,7 @@ bool ForthStructCodeGenerator::HandleFirst()
     long baseType = CODE_TO_BASE_TYPE( mTypeCode );
     bool isObject = (baseType == kBaseTypeObject);
     bool isMethod = CODE_IS_METHOD( mTypeCode );
-    long compileVarop = 0;
+    //long compileVarop = 0;
 
     // TODO: there is some wasteful fetching of full object when we just end up dropping method ptr
 
@@ -593,7 +593,6 @@ bool ForthStructCodeGenerator::HandleLast()
 		return false;
 	}
 	bool success = true;
-    ForthEngine *pEngine = ForthEngine::GetInstance();
     
     long* pEntry = mpStructVocab->FindSymbol( mpToken );
 		

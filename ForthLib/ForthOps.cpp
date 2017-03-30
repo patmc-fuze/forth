@@ -16,6 +16,11 @@
 #if defined(WIN32)
 #include <sys/timeb.h>
 #endif
+
+#if defined(MACOSX)
+#include <unistd.h>
+#endif
+
 #include "Forth.h"
 #include "ForthEngine.h"
 #include "ForthThread.h"
@@ -31,7 +36,7 @@
 #include "ForthBlockFileManager.h"
 #include "ForthShowContext.h"
 
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #include <strings.h>
 #include <errno.h>
 
@@ -300,6 +305,25 @@ FORTHOP(lLessEquals0Bop)
     LPOP( a );
     SPUSH( ( a.s64 <= 0L ) ? -1L : 0 );
 }
+
+FORTHOP(lcmpBop)
+{
+    stackInt64 a;
+    stackInt64 b;
+    LPOP( b );
+    LPOP( a );
+    SPUSH( ( a.s64 == b.s64 ) ? 0 : ((a.s64 > b.s64) ? 1 : -1L) );
+}
+    
+FORTHOP(ulcmpBop)
+{
+    stackInt64 a;
+    stackInt64 b;
+    LPOP( b );
+    LPOP( a );
+    SPUSH( ( a.u64 == b.u64 ) ? 0 : ((a.u64 > b.u64) ? 1 : -1L) );
+}
+    
 #endif
 
 FORTHOP(lWithinOp)
@@ -2727,7 +2751,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
 #else
                 v = ldiv( val, base );
 #endif
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
                 v = ldiv( val, base );
 #endif
                 *--pNext = (char) ( (v.rem < 10) ? (v.rem + '0') : ((v.rem - 10) + 'a') );
@@ -3515,7 +3539,7 @@ FORTHOP(getCwdOp)
 	{
 		pDst[0] = '\0';
 	}
-#elif defined( LINUX )
+#elif defined(LINUX) || defined(MACOSX)
 	if (getcwd(pDst, maxChars) == NULL)
 	{
 		// failed to get current directory
@@ -4148,7 +4172,10 @@ FORTHOP( millisleepOp )
     ::Sleep( dwMilliseconds );
 #else
     int milliseconds = SPOP;
+#if defined(LINUX)
     usleep( milliseconds * 1000 );
+#elif defined(MACOSX)
+#endif
 #endif
 }
 
@@ -4717,7 +4744,7 @@ bool checkBracketToken( const char*& pStart, const char* pToken )
     int len = strlen( pToken );
 #if defined(WIN32)
     if ( !_strnicmp( pStart, pToken, len ) )
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
     if ( !strncasecmp( pStart, pToken, len ) )
 #endif
     {
@@ -5473,7 +5500,7 @@ FORTHOP( divmodBop )
 #else
     v = ldiv( a, b );
 #endif
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
     v = ldiv( a, b );
 #endif
     SPUSH( v.rem );
@@ -7444,7 +7471,7 @@ FORTHOP( stricmpBop )
     char *pStr1 = (char *) SPOP;
 #if defined(WIN32)
 	int result = stricmp( pStr1, pStr2 );
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
 	int result = strcasecmp( pStr1, pStr2 );
 #endif
 	// only return 1, 0 or -1
@@ -8799,8 +8826,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( windowsConstantsOp,         "windowsConstants" ),
 
 	NATIVE_DEF( trueBop,				"WINDOWS" ),
-#elif defined(LINUX)
-	NATIVE_DEF( trueBop,				"LINUX" ),
+#elif defined(LINUX) || defined(MACOSX)
+	NATIVE_DEF( trueBop,				"#if defined(LINUX) || defined(MACOSX)" ),
 #endif
     OP_DEF( setConsoleCursorOp,         "setConsoleCursor" ),
     OP_DEF( getConsoleCursorOp,         "getConsoleCursor" ),

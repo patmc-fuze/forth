@@ -26,7 +26,11 @@ extern "C" {
 static void ReportBadArrayIndex(const char* pWhere, int ix, int arraySize)
 {
 	char buff[64];
-	sprintf_s(buff, sizeof(buff), " in %s index:%d size:%d", pWhere, ix, arraySize);
+#if defined(WIN32)
+    sprintf_s(buff, sizeof(buff), " in %s index:%d size:%d", pWhere, ix, arraySize);
+#elif defined(LINUX) || defined(MACOSX)
+    snprintf(buff, sizeof(buff), " in %s index:%d size:%d", pWhere, ix, arraySize);
+#endif
 	ForthEngine::GetInstance()->SetError(kForthErrorBadArrayIndex, buff);
 }
 

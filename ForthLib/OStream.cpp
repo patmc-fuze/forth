@@ -79,11 +79,6 @@ namespace OStream
 
 	FORTHOP(oInStreamIterBytesMethod)
 	{
-		int numBytes = SPOP;
-		int outBytes = 0;
-		char* pBuffer = reinterpret_cast<char *>(SPOP);
-		char* pDst = pBuffer;
-
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthObject obj;
 		obj.pData = pCore->TPD;
@@ -1032,7 +1027,7 @@ void CreateForthStringOutStream(ForthCoreState* pCore, ForthObject& outObject)
 	pString->str = OString::createOString(OString::gDefaultOStringSize);
 	ForthInterface* pStringInterface = GET_BUILTIN_INTERFACE(kBCIString, 0);
 	pStringOutStream->outString.pData = reinterpret_cast<long *>(pString);
-	pStringOutStream->outString.pMethodOps = pPrimaryInterface->GetMethods();
+	pStringOutStream->outString.pMethodOps = pStringInterface->GetMethods();
 }
 
 const char* GetForthStringOutStreamData(ForthCoreState* pCore, ForthObject& streamObject)
@@ -1086,7 +1081,6 @@ void ForthConsoleCharOut(ForthCoreState* pCore, char ch)
 	}
 	else
 	{
-		long* pMethods = pCore->consoleOutStream.pMethodOps;
 		SPUSH(((long)ch));
 		pEngine->ExecuteOneMethod(pCore, pCore->consoleOutStream, kOutStreamPutCharMethod);
 	}
