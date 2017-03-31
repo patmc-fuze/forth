@@ -1,7 +1,7 @@
 
 autoforget sdl2
 
-#ifdef WINDOWS
+#if WINDOWS
 DLLVocabulary sdl2 SDL2.dll
 #else
 DLLVocabulary sdl2 libSDL2.so

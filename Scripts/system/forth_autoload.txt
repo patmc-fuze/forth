@@ -484,7 +484,7 @@ addHelp cd	cd BLAH			change working directory to BLAH
 
 addHelp pwd	pwd			display working directory
 : pwd
-#ifdef WINDOWS
+#if WINDOWS
   "chdir"
 #else
   "pwd"
@@ -495,7 +495,7 @@ addHelp pwd	pwd			display working directory
 addHelp ls	ls BLAH		display directory (BLAH is optional filespec)
 : ls
   '\n' $word -> _TempStringA
-#ifdef WINDOWS
+#if WINDOWS
   "dir" -> _TempStringB
 #else
   "ls" -> _TempStringB
@@ -647,7 +647,7 @@ enum: threadRunStates
   kFTRSExited		// done running - executed exitThread
 ;enum
 
-#ifdef WINDOWS
+#if WINDOWS
 
 enum:	WIN32_FILE_ATTRIB
   0x00001	FATTRIB_READONLY

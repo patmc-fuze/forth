@@ -23,10 +23,10 @@ SECTION .text
 	push edi
 	push ebp
 	
-	mov	eax, [ebp + 20]    	; eax = funcAddr
-	mov	edi, [ebp + 16]		; eax = argCount
-	mov	esi, [ebp + 12]		; esi = flags
-	mov	ebp, [ebp + 8]		; ebp -> ForthCore
+	mov	eax, [ebp + 8]    	; eax = funcAddr
+	mov	edi, [ebp + 12]		; edi = argCount
+	mov	esi, [ebp + 16]		; esi = flags
+	mov	ebp, [ebp + 20]		; ebp -> ForthCore
 	mov	edx, [ebp + FCore.SPtr]
 	mov	ecx, edi
 CallDLL1:

@@ -5,7 +5,7 @@ loaddone
 
 autoforget sdl
 
-#ifdef WINDOWS
+#if WINDOWS
 DLLVocabulary sdl SDL.dll
 #else
 DLLVocabulary sdl libSDL.so
