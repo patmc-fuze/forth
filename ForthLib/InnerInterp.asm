@@ -1,6 +1,6 @@
 BITS 32
 
-%include "core_nasm.inc"
+%include "core.inc"
 
 cextern	_filbuf
 cextern	_chkesp

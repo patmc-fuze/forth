@@ -10,6 +10,11 @@
 #include "Forth.h"
 #include "ForthShell.h"
 
+void OutputToLogger(const char* pBuffer)
+{
+    printf("%s", pBuffer);
+}
+
 int main(int argc, const char * argv[])
 {
     int nRetCode = 0;

@@ -34,18 +34,24 @@
 		6E7980AC1E8B0F5400FB03ED /* OStream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E79808F1E8B0F5400FB03ED /* OStream.cpp */; };
 		6E7980AD1E8B0F5400FB03ED /* OString.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980911E8B0F5400FB03ED /* OString.cpp */; };
 		6E7980AE1E8B0F5400FB03ED /* OSystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980931E8B0F5400FB03ED /* OSystem.cpp */; };
+		6EE5F0AC1E8DEDAE00489D87 /* InnerInterp.asm in Sources */ = {isa = PBXBuildFile; fileRef = 6E49A8C51E8B3C8C003BE440 /* InnerInterp.asm */; };
+		6EE5F0AE1E8DEDC300489D87 /* AsmCore.asm in Sources */ = {isa = PBXBuildFile; fileRef = 6EE5F0AD1E8DEDC300489D87 /* AsmCore.asm */; };
+		6EE5F0B21E8DF24000489D87 /* kbhit.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6EE5F0B11E8DF24000489D87 /* kbhit.cpp */; };
+		6EE5F0B51E8DF31E00489D87 /* libreadline.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 6EE5F0B41E8DF31E00489D87 /* libreadline.tbd */; };
+		6EE5F0B71E8DFD1F00489D87 /* Forth in CopyFiles */ = {isa = PBXBuildFile; fileRef = 6E7980531E8B0EA400FB03ED /* Forth */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
 		6E49A8C91E8C56BD003BE440 /* PBXBuildRule */ = {
 			isa = PBXBuildRule;
 			compilerSpec = com.apple.compilers.proxy.script;
-			filePatterns = InnerInterp.S;
+			filePatterns = "*.asm";
 			fileType = pattern.proxy;
 			isEditable = 1;
 			outputFiles = (
+				"$(DERIVED_FILE_DIR)/${INPUT_FILE_BASE}.o",
 			);
-			script = "gcc -S InnerInterp.s -o InnerInterp.o";
+			script = "/opt/local/bin/nasm -f macho32 ${INPUT_FILE_PATH} -i ${INPUT_FILE_DIR}/ -o ${SCRIPT_OUTPUT_FILE_0}";
 		};
 /* End PBXBuildRule section */
 
@@ -59,11 +65,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
+		6EE5F0B61E8DFC5000489D87 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /Users/patmcelhatton/prj/Forth/Sandbox;
+			dstSubfolderSpec = 0;
+			files = (
+				6EE5F0B71E8DFD1F00489D87 /* Forth in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		6E49A8C51E8B3C8C003BE440 /* InnerInterp.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; name = InnerInterp.asm; path = ../ForthLib/InnerInterp.asm; sourceTree = "<group>"; };
-		6E49A8C71E8C074E003BE440 /* core_gas.inc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.pascal; name = core_gas.inc; path = ../ForthLib/core_gas.inc; sourceTree = "<group>"; };
 		6E7980531E8B0EA400FB03ED /* Forth */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Forth; sourceTree = BUILT_PRODUCTS_DIR; };
 		6E7980561E8B0EA400FB03ED /* ForthMainOSX.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ForthMainOSX.cpp; sourceTree = "<group>"; };
 		6E79805D1E8B0F5400FB03ED /* Forth.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Forth.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/Forth.h; sourceTree = "<absolute>"; };
@@ -122,6 +137,10 @@
 		6E7980921E8B0F5400FB03ED /* OString.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OString.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/OString.h; sourceTree = "<absolute>"; };
 		6E7980931E8B0F5400FB03ED /* OSystem.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OSystem.cpp; path = /Users/patmcelhatton/prj/Forth/ForthLib/OSystem.cpp; sourceTree = "<absolute>"; };
 		6E7980941E8B0F5400FB03ED /* OSystem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OSystem.h; path = /Users/patmcelhatton/prj/Forth/ForthLib/OSystem.h; sourceTree = "<absolute>"; };
+		6EE5F0AD1E8DEDC300489D87 /* AsmCore.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; name = AsmCore.asm; path = ../ForthLib/AsmCore.asm; sourceTree = "<group>"; };
+		6EE5F0AF1E8DEDCF00489D87 /* core.inc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.pascal; name = core.inc; path = ../ForthLib/core.inc; sourceTree = "<group>"; };
+		6EE5F0B11E8DF24000489D87 /* kbhit.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = kbhit.cpp; path = ../ForthLib/kbhit.cpp; sourceTree = "<group>"; };
+		6EE5F0B41E8DF31E00489D87 /* libreadline.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libreadline.tbd; path = usr/lib/libreadline.tbd; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -129,6 +148,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6EE5F0B51E8DF31E00489D87 /* libreadline.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -141,6 +161,7 @@
 				6E7980AF1E8B0F9000FB03ED /* ForthLib */,
 				6E7980551E8B0EA400FB03ED /* Forth */,
 				6E7980541E8B0EA400FB03ED /* Products */,
+				6EE5F0B31E8DF31E00489D87 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -163,7 +184,9 @@
 		6E7980AF1E8B0F9000FB03ED /* ForthLib */ = {
 			isa = PBXGroup;
 			children = (
-				6E49A8C71E8C074E003BE440 /* core_gas.inc */,
+				6EE5F0B11E8DF24000489D87 /* kbhit.cpp */,
+				6EE5F0AF1E8DEDCF00489D87 /* core.inc */,
+				6EE5F0AD1E8DEDC300489D87 /* AsmCore.asm */,
 				6E49A8C51E8B3C8C003BE440 /* InnerInterp.asm */,
 				6E79805D1E8B0F5400FB03ED /* Forth.h */,
 				6E79805E1E8B0F5400FB03ED /* ForthBlockFileManager.cpp */,
@@ -225,6 +248,14 @@
 			name = ForthLib;
 			sourceTree = "<group>";
 		};
+		6EE5F0B31E8DF31E00489D87 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				6EE5F0B41E8DF31E00489D87 /* libreadline.tbd */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -235,6 +266,7 @@
 				6E79804F1E8B0EA400FB03ED /* Sources */,
 				6E7980501E8B0EA400FB03ED /* Frameworks */,
 				6E7980511E8B0EA400FB03ED /* CopyFiles */,
+				6EE5F0B61E8DFC5000489D87 /* CopyFiles */,
 			);
 			buildRules = (
 				6E49A8C91E8C56BD003BE440 /* PBXBuildRule */,
@@ -286,6 +318,7 @@
 			files = (
 				6E7980AC1E8B0F5400FB03ED /* OStream.cpp in Sources */,
 				6E79809A1E8B0F5400FB03ED /* ForthForgettable.cpp in Sources */,
+				6EE5F0AE1E8DEDC300489D87 /* AsmCore.asm in Sources */,
 				6E7980A91E8B0F5400FB03ED /* OList.cpp in Sources */,
 				6E79809F1E8B0F5400FB03ED /* ForthParseInfo.cpp in Sources */,
 				6E7980A11E8B0F5400FB03ED /* ForthServer.cpp in Sources */,
@@ -296,8 +329,10 @@
 				6E7980961E8B0F5400FB03ED /* ForthBuiltinClasses.cpp in Sources */,
 				6E7980971E8B0F5400FB03ED /* ForthClient.cpp in Sources */,
 				6E7980A41E8B0F5400FB03ED /* ForthStructCodeGenerator.cpp in Sources */,
+				6EE5F0AC1E8DEDAE00489D87 /* InnerInterp.asm in Sources */,
 				6E7980A01E8B0F5400FB03ED /* ForthPipe.cpp in Sources */,
 				6E79809D1E8B0F5400FB03ED /* ForthOpcodeCompiler.cpp in Sources */,
+				6EE5F0B21E8DF24000489D87 /* kbhit.cpp in Sources */,
 				6E7980AE1E8B0F5400FB03ED /* OSystem.cpp in Sources */,
 				6E7980AD1E8B0F5400FB03ED /* OString.cpp in Sources */,
 				6E7980A21E8B0F5400FB03ED /* ForthShell.cpp in Sources */,
