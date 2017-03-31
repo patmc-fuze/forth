@@ -33,11 +33,14 @@
 *.zip
 *.sdf
 *.opensdf
+*.xcuserstate
+.DS_Store
 build
 Backup
 ColossalCaveAdventure
 CVS
 Debug
+Forth/Forth.xcodeProj/xcuserdata
 ForthCalc
 ForthDLL
 ForthGenericDialogApp
