@@ -906,7 +906,7 @@ namespace OLock
 #ifdef WIN32
 		CRITICAL_SECTION* pLock;
 #else
-        pthread_mutex_t* pLock;
+        pthread_mutex_t lock;
 #endif
 	};
 
@@ -922,7 +922,13 @@ namespace OLock
         pLockStruct->pLock = new CRITICAL_SECTION();
         InitializeCriticalSection(pLockStruct->pLock);
 #else
-        pthread_mutex_t* pLock;
+		pthread_mutexattr_t mutexAttr;
+		pthread_mutexattr_init(&mutexAttr);
+		pthread_mutexattr_settype(&mutexAttr, PTHREAD_MUTEX_RECURSIVE);
+
+		pthread_mutex_init(&(pLockStruct->lock), &mutexAttr);
+
+		pthread_mutexattr_destroy(&mutexAttr);
 #endif
 
 		outAsyncLock.pMethodOps = pPrimaryInterface->GetMethods();
@@ -942,6 +948,7 @@ namespace OLock
 #ifdef WIN32
             DeleteCriticalSection(pLockStruct->pLock);
 #else
+			pthread_mutex_destroy(&(pLockStruct->lock));
 #endif
 			pLockStruct->pLock = NULL;
 		}
@@ -955,6 +962,7 @@ namespace OLock
 #ifdef WIN32
         EnterCriticalSection(pLockStruct->pLock);
 #else
+		pthread_mutex_lock(&(pLockStruct->lock));
 #endif
 		METHOD_RETURN;
 	}
@@ -965,7 +973,8 @@ namespace OLock
 #ifdef WIN32
         BOOL result = TryEnterCriticalSection(pLockStruct->pLock);
 #else
-        bool result = false;  // TODO
+		int lockResult = pthread_mutex_trylock(&(pLockStruct->lock));
+		bool result = (lockResult == 0);
 #endif
 		SPUSH((int)result);
 		METHOD_RETURN;
@@ -977,6 +986,7 @@ namespace OLock
 #ifdef WIN32
         LeaveCriticalSection(pLockStruct->pLock);
 #else
+		pthread_mutex_unlock(&(pLockStruct->lock));
 #endif
 		METHOD_RETURN;
 	}
@@ -1009,6 +1019,7 @@ namespace OLock
 #ifdef WIN32
 		CRITICAL_SECTION* pLock;
 #else
+		pthread_mutex_t lock;
 #endif
 		ForthThread* pLockHolder;
 		std::deque<ForthThread*> *pBlockedThreads;
@@ -1025,6 +1036,13 @@ namespace OLock
         pLockStruct->pLock = new CRITICAL_SECTION();
         InitializeCriticalSection(pLockStruct->pLock);
 #else
+		pthread_mutexattr_t mutexAttr;
+		pthread_mutexattr_init(&mutexAttr);
+		pthread_mutexattr_settype(&mutexAttr, PTHREAD_MUTEX_RECURSIVE);
+
+		pthread_mutex_init(&(pLockStruct->lock), &mutexAttr);
+
+		pthread_mutexattr_destroy(&mutexAttr);
 #endif
 		pLockStruct->pLockHolder = nullptr;
 		pLockStruct->pBlockedThreads = new std::deque<ForthThread*>;
@@ -1041,6 +1059,7 @@ namespace OLock
 #ifdef WIN32
         DeleteCriticalSection(pLockStruct->pLock);
 #else
+		pthread_mutex_destroy(&(pLockStruct->lock));
 #endif
 		delete pLockStruct->pBlockedThreads;
 		FREE_OBJECT(pLockStruct);
@@ -1053,6 +1072,7 @@ namespace OLock
 #ifdef WIN32
         EnterCriticalSection(pLockStruct->pLock);
 #else
+		pthread_mutex_lock(&(pLockStruct->lock));
 #endif
 
 		ForthThread* pThread = (ForthThread*)(pCore->pThread);
@@ -1085,6 +1105,7 @@ namespace OLock
 #ifdef WIN32
         LeaveCriticalSection(pLockStruct->pLock);
 #else
+		pthread_mutex_unlock(&(pLockStruct->lock));
 #endif
 		METHOD_RETURN;
 	}
@@ -1095,6 +1116,7 @@ namespace OLock
 #ifdef WIN32
         EnterCriticalSection(pLockStruct->pLock);
 #else
+		pthread_mutex_lock(&(pLockStruct->lock));
 #endif
 
 		int result = (int)false;
@@ -1125,6 +1147,7 @@ namespace OLock
 #ifdef WIN32
         LeaveCriticalSection(pLockStruct->pLock);
 #else
+		pthread_mutex_unlock(&(pLockStruct->lock));
 #endif
 		METHOD_RETURN;
 	}
@@ -1135,6 +1158,7 @@ namespace OLock
 #ifdef WIN32
         EnterCriticalSection(pLockStruct->pLock);
 #else
+		pthread_mutex_lock(&(pLockStruct->lock));
 #endif
 
 		if (pLockStruct->pLockHolder == nullptr)
@@ -1179,6 +1203,7 @@ namespace OLock
 #ifdef WIN32
         LeaveCriticalSection(pLockStruct->pLock);
 #else
+		pthread_mutex_unlock(&(pLockStruct->lock));
 #endif
 		METHOD_RETURN;
 	}

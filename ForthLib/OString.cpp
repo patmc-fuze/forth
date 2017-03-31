@@ -713,6 +713,7 @@ namespace OString
 			if ((numChars >= 0) && (numChars <= roomLeft))
             {
                 tryAgain = false;
+				curLen += numChars;
             }
             else
             {
@@ -735,7 +736,9 @@ namespace OString
         int numArgs = SPOP;
         pCore->SP += (numArgs + 1);
 
-        pString->str = pOStr;
+		pOStr->curLen = curLen;
+		pString->hash = 0;
+		pString->str = pOStr;
         METHOD_RETURN;
     }
     

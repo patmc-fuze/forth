@@ -173,6 +173,20 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 31 2017
+
+My nasm port broke DLL ops, I fixed it.
+The OSX problem with ls and pwd was because my tmpnam op was prepending a period
+before the random filename, on OSX that filename is an absolute path to /var/tmp/blah,
+so adding the dot broke things.  I added that when a new version of the windows
+libraries made tmpname return a filename that began with a slash, so without
+the prepended dot temp files would be created in the root directory.
+
+I thought floating-point formatting was broken, but I forgot that fprintf/snprintf
+always expect doubles, and that they need to be word swapped.
+
+I added preliminary versions of the new lock objects for OSX.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 30 2017
 
 At the end of the day, the OSX port is working, it passes forthtest and biclasstest
