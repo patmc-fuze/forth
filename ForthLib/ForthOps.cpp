@@ -3414,17 +3414,22 @@ FORTHOP( _filenoOp )
 
 FORTHOP( tmpnamOp )
 {
-	char* pOutname = (char *)__MALLOC(L_tmpnam + 1);
-	pOutname[0] = '.';
-    ForthEngine *pEngine = GET_ENGINE;
-	if ( pCore->pFileFuncs->getTmpnam( pOutname + 1 ) == NULL )
+	char* pOutName = (char *)__MALLOC(L_tmpnam + 1);
+	char* pDstName = pOutName;
+#if !defined(MACOSX)
+	// on OSX, the tmp filename is an absolute path, on windows and linux it is in current directory
+	// I prepend a dot in windows/linux to make the file hidden (I think)
+	*pDstName++ = '.';
+#endif
+	if (pCore->pFileFuncs->getTmpnam(pDstName) == NULL)
 	{
-        SET_ERROR( kForthErrorFileOpen );
+		ForthEngine *pEngine = GET_ENGINE;
+		SET_ERROR(kForthErrorFileOpen);
         pEngine->AddErrorText( "system: failure creating standard out tempfile name" );
-		__FREE(pOutname);
-		pOutname = NULL;
+		__FREE(pOutName);
+		pOutName = NULL;
 	}
-    SPUSH( (long) pOutname );
+	SPUSH((long) pOutName);
 }
 
 FORTHOP( fflushOp )
