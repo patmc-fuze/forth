@@ -943,15 +943,15 @@ namespace OLock
 	FORTHOP(oAsyncLockDeleteMethod)
 	{
 		GET_THIS(oAsyncLockStruct, pLockStruct);
+#ifdef WIN32
 		if (pLockStruct->pLock != NULL)
 		{
-#ifdef WIN32
             DeleteCriticalSection(pLockStruct->pLock);
+            pLockStruct->pLock = NULL;
+        }
 #else
-			pthread_mutex_destroy(&(pLockStruct->lock));
+		pthread_mutex_destroy(&(pLockStruct->lock));
 #endif
-			pLockStruct->pLock = NULL;
-		}
 		FREE_OBJECT(pLockStruct);
 		METHOD_RETURN;
 	}
