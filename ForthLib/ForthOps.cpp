@@ -5244,6 +5244,33 @@ FORTHOP( windowsConstantsOp )
 
 #endif
 
+FORTHOP(windowsOp)
+{
+#ifdef WIN32
+	SPUSH(~0);
+#else
+	SPUSH(0);
+#endif
+}
+
+FORTHOP(linuxOp)
+{
+#ifdef LINUX
+	SPUSH(~0);
+#else
+	SPUSH(0);
+#endif
+}
+
+FORTHOP(macosxOp)
+{
+#ifdef MACOSX
+	SPUSH(~0);
+#else
+	SPUSH(0);
+#endif
+}
+
 FORTHOP( setConsoleCursorOp )
 {
 	NEEDS( 2 );
@@ -8824,10 +8851,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( showConsoleOp,              "showConsole" ),
 
     OP_DEF( windowsConstantsOp,         "windowsConstants" ),
-
-	NATIVE_DEF( trueBop,				"WINDOWS" ),
-#elif defined(LINUX) || defined(MACOSX)
-	NATIVE_DEF( trueBop,				"#if defined(LINUX) || defined(MACOSX)" ),
 #endif
     OP_DEF( setConsoleCursorOp,         "setConsoleCursor" ),
     OP_DEF( getConsoleCursorOp,         "getConsoleCursor" ),
@@ -8837,6 +8860,9 @@ baseDictionaryEntry baseDictionary[] =
 
 	NATIVE_DEF( archARMBop,				"ARCH_ARM" ),
 	NATIVE_DEF( archX86Bop,				"ARCH_X86" ),
+    OP_DEF( windowsOp,					"WINDOWS" ),
+    OP_DEF( linuxOp,					"LINUX" ),
+    OP_DEF( macosxOp,					"MACOSX" ),
 
     // following must be last in table
     OP_DEF(    NULL,                   NULL )
