@@ -175,6 +175,11 @@ Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 30 2017
 
+At the end of the day, the OSX port is working, it passes forthtest and biclasstest
+and I was able to play adventure without problems.
+There are some system related problems, ls & pwd fail, probably anything using $shellRun
+will fail.
+---
 I split the assembly routines NativeAction and CallDLLRoutine out into AsmCore.asm,
 they are still needed even when you don't have ASM_INNER_INTERPRETER defined.
 I couldn't get MSDEV to build AsmCore.asm, I eventually resorted to editing
