@@ -7,12 +7,35 @@
 //
 
 #include <iostream>
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "Forth.h"
 #include "ForthShell.h"
 
+static int loggerFD = -1;
+
 void OutputToLogger(const char* pBuffer)
 {
-    printf("%s", pBuffer);
+    if (loggerFD < 0)
+    {
+        char* myfifo = "/tmp/forthLoggerFIFO";
+        
+        /* create the FIFO (named pipe) */
+        unlink(myfifo);
+        if (mkfifo(myfifo, 0666) < 0)
+        {
+            perror("error making fifo");
+        }
+        loggerFD = open(myfifo, O_WRONLY);
+    }
+    write(loggerFD, pBuffer, strlen(pBuffer) + 1);
+    //close(loggerFD);
+    
+    /* remove the FIFO */
+    //unlink(myfifo);
 }
 
 int main(int argc, const char * argv[])
