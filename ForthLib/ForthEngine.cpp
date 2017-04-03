@@ -1179,20 +1179,25 @@ ForthEngine::TraceOp(ForthCoreState* pCore)
 #ifdef TRACE_INNER_INTERPRETER
     long *pOp = pCore->IP;
     char buff[ 256 ];
+#if 0
     int rDepth = pCore->RT - pCore->RP;
     char* sixteenSpaces = "                ";     // 16 spaces
 	//if ( *pOp != gCompiledOps[OP_DONE] )
 	{
 		DescribeOp(pOp, buff, sizeof(buff), lookupUserTraces);
 		TraceOut("# 0x%08x #", pOp);
-		while (rDepth > 8)
+		while (rDepth > 16)
 		{
 			TraceOut(sixteenSpaces);
-			rDepth -= 8;
+			rDepth -= 16;
 		}
-		char* pIndent = sixteenSpaces + (16 - (rDepth << 1));
+		char* pIndent = sixteenSpaces + (16 - rDepth);
 		TraceOut("%s%s # ", pIndent, buff);
 	}
+#else
+    DescribeOp(pOp, buff, sizeof(buff), lookupUserTraces);
+    TraceOut("# 0x%08x # %s # ", pOp, buff);
+#endif
 #endif
 }
 
@@ -1208,6 +1213,8 @@ ForthEngine::TraceStack( ForthCoreState* pCore )
 	{
 		TraceOut( " %x", *pSP++ );
 	}
+    int rDepth = pCore->RT - pCore->RP;
+    TraceOut( "  rstack[%d]", rDepth );
 }
 
 void

@@ -110,11 +110,17 @@ entry extOp
 	mov	[ebp + FCore.SPtr], edx
 	; we need to push ebp twice - the C compiler feels free to overwrite its input parameters,
 	; so the top copy of EBP may be trashed on return from C land
+%ifdef MACOSX
+    sub esp, 4      ; 16-byte align for OSX
+%endif
 	push	ebp		; push core ptr (our save)
 	push	ebp		; push core ptr (input to C routine)
 	call	eax
 	add	esp, 4		; discard inputs to C routine
 	pop	ebp
+%ifdef MACOSX
+    add esp, 4
+%endif
 	; load IP and SP from core, in case C routine modified them
 	; NOTE: we can't just jump to interpFunc, since that will replace edi & break single stepping
 	mov	esi, [ebp + FCore.IPtr]
@@ -3734,6 +3740,7 @@ entry i2dBop
 ;========================================
 
 entry f2iBop
+%ifdef WINDOWS
 	push	edx
 	push	esi
 	fld	DWORD[edx]
@@ -3741,6 +3748,10 @@ entry f2iBop
 	pop	esi
 	pop	edx
 	mov	[edx], eax
+%else
+    fld     DWORD[edx]
+    fistp   DWORD[edx]
+%endif
 	jmp	edi
 
 ;========================================
@@ -3754,6 +3765,7 @@ entry f2dBop
 ;========================================
 
 entry d2iBop
+%ifdef WINDOWS
 	push	edx
 	push	esi
 	fld	QWORD[edx]
@@ -3762,6 +3774,11 @@ entry d2iBop
 	pop	edx
 	add	edx,4
 	mov	[edx], eax
+%else
+    fld     QWORD[edx]
+    add edx, 4
+    fistp   DWORD[edx]
+%endif
 	jmp	edi
 
 ;========================================
@@ -5449,7 +5466,11 @@ entry stricmpBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-	xcall	stricmp
+%ifdef WINDOWS
+    xcall	stricmp
+%else
+	xcall	strcasecmp
+%endif
 	jmp	strcmp1
 	
 ;========================================
@@ -5994,7 +6015,11 @@ snprintfSub1:
 snprintfSub2:
 	; all args have been moved from parameter stack to PC stack
 	mov	[ebp + FCore.SPtr], edx
+%ifdef WINDOWS
 	xcall	_snprintf
+%else
+    xcall	snprintf
+%endif
 	mov	edx, [ebp + FCore.SPtr]
 	sub	edx, 4
 	mov	[edx], eax		; return result on parameter stack
@@ -6079,7 +6104,11 @@ oSFormatSub2:
 	mov	eax, [ebp + 12]         ; pBuffer
 	push eax
 
-	xcall	_snprintf
+%ifdef WINDOWS
+    xcall	_snprintf
+%else
+    xcall	snprintf
+%endif
 
 	; cleanup PC stack
 	mov	edx, [ebx + FCore.RPtr]

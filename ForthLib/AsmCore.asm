@@ -99,8 +99,8 @@ CallDLL5:
 	push esi
 	push edi
 	push ebp
-	mov	eax,[ebp + 8]		; eax = opVal
-	mov	ebp,[ebp + 12]		; ebp -> ForthCore
+	mov	eax,[ebp + 12]		; eax = opVal
+	mov	ebp,[ebp + 8]		; ebp -> ForthCore
 
 	call	native1
 
