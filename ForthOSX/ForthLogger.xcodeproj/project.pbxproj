@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		6E0B9AE71E8F65B00070976F /* ForthLoggerOSX.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E0B9AE61E8F65B00070976F /* ForthLoggerOSX.cpp */; };
+		6E1727D41E907B0E00174501 /* ForthLogger in CopyFiles */ = {isa = PBXBuildFile; fileRef = 6E0B9ADC1E8F651C0070976F /* ForthLogger */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -19,6 +20,16 @@
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 1;
+		};
+		6E1727D31E907B0000174501 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /Users/patmcelhatton/prj/Forth/Sandbox;
+			dstSubfolderSpec = 0;
+			files = (
+				6E1727D41E907B0E00174501 /* ForthLogger in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -64,6 +75,7 @@
 				6E0B9AD81E8F651C0070976F /* Sources */,
 				6E0B9AD91E8F651C0070976F /* Frameworks */,
 				6E0B9ADA1E8F651C0070976F /* CopyFiles */,
+				6E1727D31E907B0000174501 /* CopyFiles */,
 			);
 			buildRules = (
 			);

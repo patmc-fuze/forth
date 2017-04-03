@@ -25,18 +25,18 @@ void runLogger()
 	    fd = open(myfifo, O_RDONLY);
 	}
 
-    int numRead = read(fd, buf, MAX_BUF);
+    int numRead = (int)read(fd, buf, MAX_BUF);
     while (numRead > 0)
     {
 		char* pLine = &buf[0];
 		char* pBuffEnd = pLine + numRead;
 		while (pLine < pBuffEnd)
 		{
-			int lineLen = strlen(pLine);
+			int lineLen = (int)strlen(pLine);
 	        printf("%s", pLine);
 			pLine += (lineLen + 1);
 		}
-        numRead = read(fd, buf, MAX_BUF);
+        numRead = (int)read(fd, buf, MAX_BUF);
     }
     close(fd);
 }
