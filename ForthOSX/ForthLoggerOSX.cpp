@@ -12,11 +12,12 @@
 void runLogger()
 {
     int fd = -1;
-    char* myfifo = "/tmp/forthLoggerFIFO";
+    const char* myfifo = "/tmp/forthLoggerFIFO";
     char buf[MAX_BUF];
 
 	unlink(myfifo);
     /* open, read, and display the message from the FIFO */
+    printf("##################################################################################\n");
     printf("\nWaiting for named fifo connect on %s.  Hit CONTROL-C to exit.\n", myfifo);
     fd = open(myfifo, O_RDONLY);
 	while (fd < 0)
