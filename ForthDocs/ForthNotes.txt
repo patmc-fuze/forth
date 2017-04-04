@@ -173,6 +173,25 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 3 2017
+
+I spent the last few days trying to get the assembler inner interpreter working
+on OSX.  One problem is that OSX requires any calls to system library routines
+to be made on 16 byte boundaries.  The extOp routine was misaligned, so all calls
+to ops defined in C++ were failing.  After I fixed that I ran into other wierd
+problems, for example I get a segfault in this line in CCodeAction:
+        opRoutine = (ForthOp)(pCore->ops[opVal]);
+The segfault happens because the value gotten by pCore-ops is wrong, but I have
+stepped through the disassembly multiple times, and the pCore value is correct,
+but when it fetches the ops field from it at offset 8, it get 0 or 2, even though
+the value shown in the debugger for pCore->ops is a valid pointer, and the value
+in a memory window shows the same valid value.
+I have also run into wierd behavior multiple times when I was trying to align
+the stack - subtracting 12 from esp actually caused 52 to be added to it.
+
+I would just assume the debugger was showing me incorrect data, but the segfaults
+caused by that incorrect data are real.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 31 2017
 
 My nasm port broke DLL ops, I fixed it.
