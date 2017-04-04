@@ -323,15 +323,13 @@ ForthEngine::~ForthEngine()
     }
 
     // delete all threads;
-	ForthAsyncThread *pThread = mpThreads->mpNext;
+	ForthAsyncThread *pThread = mpThreads;
 	while (pThread != NULL)
     {
 		ForthAsyncThread *pNextThread = pThread->mpNext;
 		delete pThread;
 		pThread = pNextThread;
     }
-
-	delete mpMainThread;
 
     delete mpEngineScratch;
 
@@ -390,7 +388,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
     mpStringBufferB = new char[MAX_STRING_SIZE];
 
     mpMainThread = CreateAsyncThread( 0, MAIN_THREAD_PSTACK_LONGS, MAIN_THREAD_RSTACK_LONGS );
-    mpCore = mpMainThread->GetThread(0)->GetCore();
+	mpCore = mpMainThread->GetThread(0)->GetCore();
 	mpCore->optypeAction = (optypeActionRoutine *) __MALLOC(sizeof(optypeActionRoutine) * 256);
     mpCore->numBuiltinOps = 0;
     mpCore->numOps = 0;
