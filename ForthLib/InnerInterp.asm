@@ -3740,7 +3740,7 @@ entry i2dBop
 ;========================================
 
 entry f2iBop
-%ifdef WINDOWS
+%ifdef WIN32
 	push	edx
 	push	esi
 	fld	DWORD[edx]
@@ -3765,7 +3765,7 @@ entry f2dBop
 ;========================================
 
 entry d2iBop
-%ifdef WINDOWS
+%ifdef WIN32
 	push	edx
 	push	esi
 	fld	QWORD[edx]
@@ -5466,7 +5466,7 @@ entry stricmpBop
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
-%ifdef WINDOWS
+%ifdef WIN32
     xcall	stricmp
 %else
 	xcall	strcasecmp
@@ -6015,7 +6015,7 @@ snprintfSub1:
 snprintfSub2:
 	; all args have been moved from parameter stack to PC stack
 	mov	[ebp + FCore.SPtr], edx
-%ifdef WINDOWS
+%ifdef WIN32
 	xcall	_snprintf
 %else
     xcall	snprintf
@@ -6104,7 +6104,7 @@ oSFormatSub2:
 	mov	eax, [ebp + 12]         ; pBuffer
 	push eax
 
-%ifdef WINDOWS
+%ifdef WIN32
     xcall	_snprintf
 %else
     xcall	snprintf

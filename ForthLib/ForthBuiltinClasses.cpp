@@ -46,7 +46,7 @@ extern "C" {
 	extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 };
 
-#ifdef _WINDOWS
+#ifdef WIN32
 float __cdecl cdecl_boohoo(int aa, int bb, int cc)
 {
 	return (float)((aa + bb) * cc);
