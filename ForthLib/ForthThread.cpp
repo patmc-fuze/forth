@@ -578,11 +578,13 @@ namespace OThread
 
 		MALLOCATE_OBJECT(oAsyncThreadStruct, pThreadStruct, gpAsyncThreadVocabulary);
 		pThreadStruct->refCount = 0;
-		pThreadStruct->pThread = pEngine->CreateAsyncThread(threadOp, paramStackLongs, returnStackLongs);
-		pThreadStruct->pThread->Reset();
+		ForthAsyncThread* pAsyncThread = pEngine->CreateAsyncThread(threadOp, paramStackLongs, returnStackLongs);
+		pThreadStruct->pThread = pAsyncThread;
+		pAsyncThread->Reset();
 		outAsyncThread.pMethodOps = pPrimaryInterface->GetMethods();
 		outAsyncThread.pData = (long *) pThreadStruct;
-		pThreadStruct->pThread->SetAsyncThreadObject(outAsyncThread);
+		pAsyncThread->SetAsyncThreadObject(outAsyncThread);
+		FixupThread(pAsyncThread->GetThread(0));
 	}
 
 	FORTHOP(oAsyncThreadNew)
@@ -596,9 +598,7 @@ namespace OThread
 		if (pThreadStruct->pThread != NULL)
 		{
 			GET_ENGINE->DestroyAsyncThread(pThreadStruct->pThread);
-			pThreadStruct->pThread = NULL;
 		}
-		FREE_OBJECT(pThreadStruct);
 		METHOD_RETURN;
 	}
 
@@ -706,24 +706,30 @@ namespace OThread
 		pThreadStruct->pThread->SetThreadObject(outThread);
 	}
 
-	void FixupPrimaryThread(ForthAsyncThread* pPrimaryAsyncThread)
+	void FixupThread(ForthThread* pThread)
+	{
+		ForthInterface* pPrimaryInterface = gpThreadVocabulary->GetInterface(0);
+
+		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct, gpThreadVocabulary);
+		ForthObject& primaryThread = pThread->GetThreadObject();
+		pThreadStruct->refCount = 0;
+		pThreadStruct->pThread = pThread;
+		primaryThread.pMethodOps = pPrimaryInterface->GetMethods();
+		primaryThread.pData = (long *)pThreadStruct;
+	}
+
+	void FixupAsyncThread(ForthAsyncThread* pAsyncThread)
 	{
 		ForthInterface* pPrimaryInterface = gpAsyncThreadVocabulary->GetInterface(0);
 
 		MALLOCATE_OBJECT(oAsyncThreadStruct, pAsyncThreadStruct, gpAsyncThreadVocabulary);
 		pAsyncThreadStruct->refCount = 0;
-		pAsyncThreadStruct->pThread = pPrimaryAsyncThread;
-		ForthObject& primaryAsyncThread = pPrimaryAsyncThread->GetAsyncThreadObject();
+		pAsyncThreadStruct->pThread = pAsyncThread;
+		ForthObject& primaryAsyncThread = pAsyncThread->GetAsyncThreadObject();
 		primaryAsyncThread.pMethodOps = pPrimaryInterface->GetMethods();
 		primaryAsyncThread.pData = (long *)pAsyncThreadStruct;
 
-		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct, gpThreadVocabulary);
-		ForthThread* pPrimaryThread = pPrimaryAsyncThread->GetThread(0);
-		ForthObject& primaryThread = pPrimaryThread->GetThreadObject();
-		pThreadStruct->refCount = 0;
-		pThreadStruct->pThread = pPrimaryThread;
-		primaryThread.pMethodOps = pPrimaryInterface->GetMethods();
-		primaryThread.pData = (long *)pThreadStruct;
+		FixupThread(pAsyncThread->GetThread(0));
 	}
 
 	FORTHOP(oThreadNew)
@@ -737,9 +743,7 @@ namespace OThread
 		if (pThreadStruct->pThread != NULL)
 		{
 			delete pThreadStruct->pThread;
-			pThreadStruct->pThread = NULL;
 		}
-		FREE_OBJECT(pThreadStruct);
 		METHOD_RETURN;
 	}
 

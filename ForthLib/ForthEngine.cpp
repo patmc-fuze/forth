@@ -418,7 +418,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
     }
 
 	// the primary thread objects can't be inited until builtin classes are initialized
-	OThread::FixupPrimaryThread(mpMainThread);
+	OThread::FixupAsyncThread(mpMainThread);
 
     if ( pExtension != NULL )
     {

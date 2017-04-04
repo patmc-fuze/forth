@@ -141,8 +141,9 @@ namespace OThread
 	void AddClasses(ForthEngine* pEngine);
 
 	void CreateAsyncThreadObject(ForthObject& outAsyncThread, ForthEngine *pEngine, long threadOp, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_RSTACK_SIZE);
-	void FixupPrimaryThread(ForthAsyncThread* pPrimaryAsyncThread);
+	void FixupAsyncThread(ForthAsyncThread* pAsyncThread);
 	void CreateThreadObject(ForthObject& outThread, ForthAsyncThread *pParentAsyncThread, ForthEngine *pEngine, long threadOp, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_RSTACK_SIZE);
+	void FixupThread(ForthThread* pThread);
 }
 
 namespace OLock
