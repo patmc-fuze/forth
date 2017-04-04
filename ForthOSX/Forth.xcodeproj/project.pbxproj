@@ -51,7 +51,7 @@
 			outputFiles = (
 				"$(DERIVED_FILE_DIR)/${INPUT_FILE_BASE}.o",
 			);
-			script = "/opt/local/bin/nasm -f macho32 ${INPUT_FILE_PATH} -i ${INPUT_FILE_DIR}/ -o ${SCRIPT_OUTPUT_FILE_0} -d ASM_INNER_INTERPRETER -d MACOSX";
+			script = "/opt/local/bin/nasm -f macho32 ${INPUT_FILE_PATH} -i ${INPUT_FILE_DIR}/ -o ${SCRIPT_OUTPUT_FILE_0} -d NO_ASM_INNER_INTERPRETER -d MACOSX";
 		};
 /* End PBXBuildRule section */
 
@@ -441,7 +441,7 @@
 					MACOSX,
 					ASM_UNDERSCORE_PREFIX,
 					INCLUDE_TRACE,
-					ASM_INNER_INTERPRETER,
+					NO_ASM_INNER_INTERPRETER,
 				);
 				"HEADER_SEARCH_PATHS[arch=*]" = ForthLib;
 				"OTHER_CPLUSPLUSFLAGS[arch=*]" = "$(OTHER_CFLAGS)";
@@ -457,6 +457,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					MACOSX,
 					ASM_UNDERSCORE_PREFIX,
+					NO_ASM_INNER_INTERPRETER,
 				);
 				"HEADER_SEARCH_PATHS[arch=*]" = ForthLib;
 				"OTHER_CPLUSPLUSFLAGS[arch=*]" = "$(OTHER_CFLAGS)";
