@@ -3191,7 +3191,7 @@ FORTHOP(atofOp)
 FORTHOP(printStrOp)
 {
     NEEDS(1);
-    char *buff = (char *) SPOP;
+    const char *buff = (const char *) SPOP;
 	if ( buff == NULL )
 	{
 		buff = "<<<NULL>>>";

@@ -1,4 +1,5 @@
 *.7z
+*.a
 *.aps
 *.bmp
 *.bsc
@@ -35,6 +36,8 @@
 *.opensdf
 *.xcuserstate
 *.DS_Store
+*.project
+*.cproject
 build
 Backup
 ColossalCaveAdventure
@@ -53,6 +56,11 @@ ForthGuiApp
 ForthLib/ForthNDRelease
 ForthLib/MakefileProject
 ForthLib/NewFolder
+ForthLib/dep
+ForthLib/obj
+ForthLinux/forth
+ForthLinux/dep
+ForthLinux/obj
 ForthRelease
 ForthND
 ipch

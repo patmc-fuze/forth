@@ -44,16 +44,26 @@ SECTION .text
 ; unaryDoubleFunc is used for dsin, dsqrt, dceil, ...
 ;
 %macro unaryDoubleFunc 2
+%ifdef LINUX
+GLOBAL %1
+EXTERN %2
+%1:
+%else
 GLOBAL _%1
 EXTERN _%2
 _%1:
+%endif
 	push	edx
 	push	esi
 	mov	eax, [edx+4]
 	push	eax
 	mov	eax, [edx]
 	push	eax
+%ifdef LINUX
+	call	%2
+%else
 	call	_%2
+%endif
 	add	esp, 8
 	pop	esi
 	pop	edx
@@ -66,14 +76,24 @@ _%1:
 ; unaryFloatFunc is used for fsin, fsqrt, fceil, ...
 ;
 %macro unaryFloatFunc 2
+%ifdef LINUX
+GLOBAL %1
+EXTERN %2
+%1:
+%else
 GLOBAL _%1
 EXTERN _%2
 _%1:
+%endif
 	push	edx
 	push	esi
 	mov	eax, [edx]
 	push	eax
+%ifdef LINUX
+	call	%2
+%else
 	call	_%2
+%endif
 	add	esp, 4
 	pop	esi
 	pop	edx
@@ -1584,9 +1604,11 @@ localStringStore:
 	add	edx, 4
 	mov	[ebp + FCore.SPtr], edx
 	lea	edi, [eax + 8]		; edi -> chars of dst string
+	push	ecx				; strlen will stomp on ecx
 	push	ecx
 	xcall	strlen
 	add	esp, 4
+	pop	ecx
 	; eax is src string length
 
 	; figure how many chars to copy
@@ -6259,7 +6281,7 @@ entry dllEntryPointType
 	mov	esi, [ebp + FCore.ops]
 	mov	edx, [esi+eax*4]
 	push	edx
-	call	_CallDLLRoutine
+	xcall	CallDLLRoutine
 	add	esp, 12
 	pop	ebp
 	jmp	interpFunc

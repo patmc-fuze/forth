@@ -4,18 +4,31 @@
 ; the entry macro declares a label and makes it public
 ;
 %macro entry 1
+%ifdef LINUX
+GLOBAL %1
+%else
 GLOBAL _%1
+%endif
 _%1:
 %1:
 %endmacro
 	
 %macro cextern 1
+%ifdef LINUX
+EXTERN %1
+%else
 EXTERN _%1
+%endif
 %endmacro
 
 %macro xcall 1
+%ifdef LINUX
+EXTERN %1
+    call %1
+%else
 EXTERN _%1
     call _%1
+%endif
 %endmacro
 
 kVarDefaultOp		EQU		0

@@ -1,17 +1,22 @@
+# you will need to install nasm (the netwide assembler) if you don't already have it with:
+# sudo apt-get install nasm
+
+# you may need to install readline with this command:
+# sudo apt-get install libreadline6-dev libreadline6
+
 #.PHONY:	all clean depends
 
 CC = g++
-GAS = as
+ASM = /usr/bin/nasm
 CDEBUG = -g
 # DEFINES = -DRASPI -DLINUX -DASM_INNER_INTERPRETER
-DEFINES = -DLINUX -DASM_INNER_INTERPRETER
+DEFINES = -DLINUX -DASM_INNER_INTERPRETER -DASM_UNDERSCORE_PREFIX
 #CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -save-temps=obj -fno-leading-underscore
-CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -save-temps=obj
+CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -std=c++11 -m32
 WARNING_FLAGS = -Wall -Wno-format -Wno-reorder -Wno-unused-variable -Wno-sign-compare -Wno-conversion-null -Wno-pointer-arith
 CPPFLAGS = $(CFLAGS)
 
-GASFLAGS = --defsym ASM_INNER_INTERPRETER=1 --defsym LINUX=1
-#GASFLAGS =
+ASMFLAGS = -d ASM_INNER_INTERPRETER -d LINUX -felf32
 
 LDFLAGS = $(CDEBUG)
 
@@ -23,38 +28,41 @@ SRCS = \
 	ForthVocabulary.cpp \
 	ForthBuiltinClasses.cpp \
 	ForthExtension.cpp \
+	ForthShowContext.cpp \
 	ForthStructs.cpp \
 	ForthStructCodeGenerator.cpp \
 	ForthOps.cpp \
 	ForthServer.cpp \
 	ForthClient.cpp \
+	ForthOpcodeCompiler.cpp \
+	ForthBlockFileManager.cpp \
+	ForthParseInfo.cpp \
 	ForthPipe.cpp \
 	ForthForgettable.cpp \
 	ForthThread.cpp \
-	kbhit.cpp
+	kbhit.cpp \
+	OArray.cpp \
+	OList.cpp \
+	OMap.cpp \
+	ONumber.cpp \
+	OStream.cpp \
+	OString.cpp \
+	OSystem.cpp
 	
-ASMSRCS = InnerInterp.S
+	
+ASMSRCS = InnerInterp.asm \
+	AsmCore.asm
 
 OBJDIR = obj
-#ASMOBJS := $(patsubst %.s,$(OBJDIR)/%.o,$(ASMSRCS))
-ASMOBJS := $(patsubst %.S,$(OBJDIR)/%.o,$(ASMSRCS))
+ASMOBJS := $(patsubst %.asm,$(OBJDIR)/%.o,$(ASMSRCS))
 OBJS := $(patsubst %.cpp,$(OBJDIR)/%.o,$(SRCS)) $(ASMOBJS)
 DEPDIR = dep
 DEPS := $(patsubst %.cpp,$(DEPDIR)/%.d,$(SRCS))
 # XDEFS is used to pass in defines from the make command line
-#LIBS := -lm -lstdc++ -ldl -lpthread -lws2_32 -lcomdlg32 -lgdi32 -luser32 -lkernel32 -lcomctl32 -lmingw32
 LIBS := -lm -lstdc++ -ldl -lpthread
-
-forth:	$(OBJS) ForthMain.o
-	g++ $(DEFINES) $(XDEFS) -o forth $(OBJS) ForthMain.o $(LIBS)
-	
-#	gcc $(DEFINES) $(XDEFS) -o forth.exe $(OBJS) ForthMain.o -mconsole $(LIBS)
 
 libforth.a:	$(OBJS)
 	ar rcs libforth.a $(OBJS)
-	
-#forth:	ForthMain.cpp libforth.a
-#	gcc ForthMain.cpp $(DEFINES) $(XDEFS) -o forth $(OBJS) -lm -lstdc++ -ldl -lpthread
 	
 -include $(DEPS)
 
@@ -74,23 +82,16 @@ $(DEPDIR)/%.d: %.cpp
 	
 #	echo "DEP at=" $@ "   less=" $< "   star=" $*
 
-#%.o: ../%.cpp ../$(DEPDIR)/%.d
-#%.o: ../%.cpp
-#	$(CC) $(CFLAGS) -o $@ $<
-#smb://demense/H%24/prj/Forth/Junk/Makefile
-	
 $(OBJDIR)/%.o: %.cpp
 	$(CC) $(CFLAGS) -o $(OBJDIR)/$*.o $<
     
-#$(OBJDIR)/%.o: %.S
-#	$(CC) $(CFLAGS) -o $(OBJDIR)/$*.o -c $<
+$(OBJDIR)/%.o: %.asm
+	$(ASM) $(ASMFLAGS) -o $(OBJDIR)/$*.o $<
     
-$(OBJDIR)/%.o: %.S
-	$(GAS) $(GASFLAGS) -o $(OBJDIR)/$*.o $<
-    
-all:	libforth.a forth
+all:	libforth.a
 
 clean:
 	-rm $(OBJDIR)/*.o
 	-rm $(DEPDIR)/*.d
-	-rm forth.exe
+	-rm libforth.a
+
