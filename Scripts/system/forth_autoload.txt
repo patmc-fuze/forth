@@ -701,6 +701,16 @@ struct: dirent
   MAX_PATH arrayOf byte d_name
 ;struct
 
+#else
+
+struct: dirent
+  int	d_ino
+  short	d_reclen
+  int	d_namlen
+  int	d_type
+  256 arrayOf byte d_name
+;struct
+
 #endif
 
 //######################################################################
