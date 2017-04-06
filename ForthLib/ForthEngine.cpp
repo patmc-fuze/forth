@@ -265,6 +265,8 @@ ForthEngine::ForthEngine()
 #else
     _ftime( &mStartTime );
 #endif
+#else
+    ftime( &mStartTime );
 #endif
 
 	mDefaultConsoleOutStream.pMethodOps = NULL;
@@ -2295,7 +2297,8 @@ unsigned long
 ForthEngine::GetElapsedTime( void )
 {
 	unsigned long millisecondsElapsed = 0;
-#if defined(WIN32) && defined(MSDEV)
+#if defined(WIN32)
+#if defined(MSDEV)
 	struct __timeb32 now;
 
 	_ftime32_s( &now );
@@ -2305,6 +2308,14 @@ ForthEngine::GetElapsedTime( void )
 #else
 	struct _timeb now;
     _ftime( &now );
+
+    long seconds = now.time - mStartTime.time;
+    long milliseconds = now.millitm - mStartTime.millitm;
+	millisecondsElapsed = (unsigned long) ((seconds * 1000) + milliseconds);
+#endif
+#else
+	struct timeb now;
+    ftime( &now );
 
     long seconds = now.time - mStartTime.time;
     long milliseconds = now.millitm - mStartTime.millitm;
