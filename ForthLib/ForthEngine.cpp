@@ -2294,25 +2294,23 @@ ForthEngine::EndEnumDefinition( void )
 unsigned long
 ForthEngine::GetElapsedTime( void )
 {
-#ifdef WIN32
-#ifdef MSDEV
+	unsigned long millisecondsElapsed = 0;
+#if defined(WIN32) && defined(MSDEV)
 	struct __timeb32 now;
 
 	_ftime32_s( &now );
 	__time32_t seconds = now.time - mStartTime.time;
     __time32_t milliseconds = now.millitm - mStartTime.millitm;
-    return (unsigned long) ((seconds * 1000) + milliseconds);
+	millisecondsElapsed =  (unsigned long) ((seconds * 1000) + milliseconds);
 #else
 	struct _timeb now;
     _ftime( &now );
 
     long seconds = now.time - mStartTime.time;
     long milliseconds = now.millitm - mStartTime.millitm;
-    return (unsigned long) ((seconds * 1000) + milliseconds);
+	millisecondsElapsed = (unsigned long) ((seconds * 1000) + milliseconds);
 #endif
-#else
-    return 0;
-#endif
+	return millisecondsElapsed;
 }
 
 
