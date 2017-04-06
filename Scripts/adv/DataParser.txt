@@ -65,7 +65,7 @@ class: DataParser
     //  LONG FORM DESCRIPTIONS. EACH LINE CONTAINS A LOCATION NUMBER,
     //  A TAB, AND A LINE OF TEXT. THE SET OF (NECESSARILY ADJACENT) LINES
     //  WHOSE NUMBERS ARE X FORM THE LONG DESCRIPTION OF LOCATION X.
-    if(locationHasChanged(currentLocation idNumber))
+    if(objIsNull(currentLocation))   orif(idNumber currentLocation.number <>)
       new Location -> currentLocation
       currentLocation.init(idNumber)
       data.locations.push(currentLocation)
@@ -77,7 +77,7 @@ class: DataParser
     // SECTION 2:
     //   SHORT FORM DESCRIPTIONS.  SAME FORMAT AS LONG FORM. NOT ALL
     //   PLACES HAVE SHORT DESCRIPTIONS.
-    if(locationHasChanged(currentLocation idNumber))
+    if(objIsNull(currentLocation))   orif(idNumber currentLocation.number <>)
       data.getLocationByNumber(idNumber) -> currentLocation
     endif
     currentLocation.appendToShortDescription(lineVector.get(1))
@@ -120,7 +120,7 @@ class: DataParser
     atoi(lineVector.getRaw(1)) -> int Y
     mod(Y 1000) ->  int N
           
-    if(locationHasChanged(currentLocation idNumber))
+    if(objIsNull(currentLocation))   orif(idNumber currentLocation.number <>)
       true -> newLoc
       data.getLocationByNumber(idNumber) -> currentLocation
       if(objIsNull(currentLocation))
@@ -132,7 +132,7 @@ class: DataParser
     // IF N<=300	IT IS THE LOCATION TO GO TO.
     if(within(N 1 300))
     
-      if(or(locationHasChanged(accessibleLocation N) newLoc))
+      if(objIsNull(accessibleLocation))   orif(N accessibleLocation.number <>)   orif(newLoc)
         data.getLocationByNumber(N) -> accessibleLocation
                   
         // For debugging
@@ -166,17 +166,7 @@ class: DataParser
     else
       // IF N>500	MESSAGE N-500 FROM SECTION 6 IS PRINTED, AND HE STAYS WHEREVER HE IS.
       if(N 500 >)
-        false -> bool doIt
-        if(objIsNull(currentMessage))
-          true -> doIt
-        else
-          if(currentMessage.number N <>)
-            true -> doIt
-          else
-            newLoc -> doIt
-          endif
-        endif
-        if(doIt)
+        if(objIsNull(currentMessage))   orif(N currentMessage.number <>)   orif(newLoc)
           data.getMessageByNumber(N 500 -) -> currentMessage
           if(objIsNull(currentMessage))
             new Message -> currentMessage
@@ -213,16 +203,8 @@ class: DataParser
     //  	"DIG") AND N MOD 1000 IS AN INDEX INTO SECTION 6.  OBJECTS FROM 50 TO
     //  	(CURRENTLY, ANYWAY) 79 ARE CONSIDERED TREASURES (FOR PIRATE, CLOSEOUT).
     idNumber 1000 / -> int M
-    false -> bool addNewWord
-    if(objIsNull(currentWord))
-      true -> addNewWord
-    else
-      if(idNumber currentWord.number <>)
-        true -> addNewWord
-      endif
-    endif
     
-    if(addNewWord)
+    if(objIsNull(currentWord))   orif(idNumber currentWord.number <>)
       true -> bool push
       // Check what type of word it is and create an appropriate object
       case(M)
@@ -290,15 +272,7 @@ class: DataParser
     //  	MESSAGES FROM MULTI-LINE MESSAGES; THE PROP INFO ACTUALLY REQUIRES ALL
     //  	MESSAGES FOR AN OBJECT TO BE PRESENT AND CONSECUTIVE.  PROPERTIES WHICH
     //  	PRODUCE NO MESSAGE SHOULD BE GIVEN THE MESSAGE ">$<".
-    false -> bool doIt
-    if(objIsNull(currentNoun))
-      true -> doIt
-    else
-      if(within(idNumber 1 100))
-        true -> doIt
-      endif
-    endif
-    if(doIt)
+    if(objIsNull(currentNoun))   orif(within(idNumber 1 100))
       data.getObjectByNumber(idNumber) -> currentNoun
       //'a' %c currentNoun.show currentNoun.inventoryMessage %2x 'b' %c
       // For debugging
@@ -323,16 +297,7 @@ class: DataParser
     // SECTION 6:
     //    ARBITRARY MESSAGES.  SAME FORMAT AS SECTIONS 1, 2, AND 5, EXCEPT
     //  	THE NUMBERS BEAR NO RELATION TO ANYTHING (EXCEPT FOR SPECIAL VERBS)
-    false -> bool doIt
-    if(objIsNull(currentMessage))
-      true -> doIt
-    else
-      if(idNumber currentMessage.number <>)
-        true -> doIt
-      endif
-    endif
-
-    if(doIt)
+    if(objIsNull(currentMessage))   orif(idNumber currentMessage.number <>)
       data.getMessageByNumber(idNumber) -> currentMessage
               
       if(objIsNull(currentMessage))
@@ -385,15 +350,7 @@ class: DataParser
     // SECTION 8:
     //   ACTION DEFAULTS.  EACH LINE CONTAINS AN "ACTION-VERB" NUMBER AND
     //  	THE INDEX (IN SECTION 6) OF THE DEFAULT MESSAGE FOR THE VERB.
-    false -> bool doIt
-    if(objIsNull(currentActionVerb))
-      true -> doIt
-    else
-      if(idNumber currentActionVerb.number <>)
-        true -> doIt
-      endif
-    endif
-    if(doIt)
+    if(objIsNull(currentActionVerb))   orif(idNumber currentActionVerb.number <>)
       data.getActionVerbByNumber(idNumber) -> currentActionVerb
       // For debugging
       if(objIsNull(currentActionVerb))
@@ -496,15 +453,7 @@ class: DataParser
     //   MAGIC MESSAGES. IDENTICAL TO SECTION 6 EXCEPT PUT IN A SEPARATE
     //  	SECTION FOR EASIER REFERENCE.  MAGIC MESSAGES ARE USED BY THE STARTUP,
     //  	MAINTENANCE MODE, AND RELATED ROUTINES.
-    false -> bool doIt
-    if(objIsNull(currentMessage))
-      true -> doIt
-    else
-      if(idNumber currentMessage.number <>)
-        true -> doIt
-      endif
-    endif
-    if(doIt)
+    if(objIsNull(currentMessage))   orif(idNumber currentMessage.number <>)
       new MagicMessage -> currentMessage
       currentMessage.init(idNumber)
       data.magicMessages.push(currentMessage)
@@ -534,11 +483,9 @@ class: DataParser
 
       // If this line is the end of the section, proceed to next section
       false -> bool isEndOfSection
-      if(lineVector.count 0>)
-        if(strcmp(lineVector.getRaw(0) "-1") 0=)
-          true -> isEndOfSection
-          //"======================================================================================= End of section " %s currentSection %d %nl ds
-        endif
+      if(lineVector.count 0>)   andif(strcmp(lineVector.getRaw(0) "-1") 0=)
+        true -> isEndOfSection
+        //"=============================================================================== End of section " %s currentSection %d %nl ds
       endif
       
       true -> bool processLine
