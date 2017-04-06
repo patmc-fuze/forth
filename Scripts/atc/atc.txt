@@ -2,17 +2,14 @@
 autoforget atc
 : atc ;
 
--1 -> int traceFile
 OFileOutStream traceFileStream
 : openTrace
   new OFileOutStream -> traceFileStream
-  fopen( "traceOut.txt" "w") -> traceFile
-  traceFileStream.setData( traceFile )
+  traceFileStream.open( "traceOut.txt" "w")
 ;
 
 : closeTrace
-  fclose( traceFile ) drop
-  -1 -> traceFile
+  traceFileStream.close
   oclear traceFileStream
 ;
 
