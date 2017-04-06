@@ -970,6 +970,72 @@ namespace OStream
 	};
 
 
+	//////////////////////////////////////////////////////////////////////
+	///
+	//                 oTraceOutStream
+	//
+
+	struct oTraceOutStreamStruct
+	{
+		oOutStreamStruct		ostream;
+	};
+
+	void traceCharOut(ForthCoreState* pCore, void *pData, char ch)
+	{
+		ForthEngine* pEngine = GET_ENGINE;
+		pEngine->TraceOut("%c", ch);
+	}
+
+	void traceBytesOut(ForthCoreState* pCore, void *pData, const char *pBuffer, int numChars)
+	{
+		ForthEngine* pEngine = GET_ENGINE;
+		for (int i = 0; i < numChars; ++i)
+		{
+			pEngine->TraceOut("%c", pBuffer[i]);
+		}
+	}
+
+	void traceStringOut(ForthCoreState* pCore, void *pData, const char *pBuffer)
+	{
+		ForthEngine* pEngine = GET_ENGINE;
+		pEngine->TraceOut("%s", pBuffer);
+	}
+
+	OutStreamFuncs traceOutFuncs =
+	{
+		traceCharOut,
+		traceBytesOut,
+		traceStringOut
+	};
+
+	FORTHOP(oTraceOutStreamNew)
+	{
+		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
+		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
+		MALLOCATE_OBJECT(oOutStreamStruct, pTraceOutStream, pClassVocab);
+		pTraceOutStream->refCount = 0;
+		pTraceOutStream->pOutFuncs = &traceOutFuncs;
+		pTraceOutStream->pUserData = NULL;
+		PUSH_PAIR(pPrimaryInterface->GetMethods(), pTraceOutStream);
+	}
+
+	FORTHOP(oTraceOutStreamDeleteMethod)
+	{
+		GET_THIS(oOutStreamStruct, pTraceOutStream);
+		FREE_OBJECT(pTraceOutStream);
+		METHOD_RETURN;
+	}
+
+	baseMethodEntry oTraceOutStreamMembers[] =
+	{
+		METHOD("__newOp", oTraceOutStreamNew),
+		METHOD("delete", oTraceOutStreamDeleteMethod),
+
+		// following must be last in table
+		END_MEMBERS
+	};
+
+
 	void AddClasses(ForthEngine* pEngine)
 	{
 		pEngine->AddBuiltinClass("OInStream", kBCIInStream, kBCIObject, oInStreamMembers);
@@ -981,7 +1047,7 @@ namespace OStream
 		pEngine->AddBuiltinClass("OStringOutStream", kBCIStringOutStream, kBCIOutStream, oStringOutStreamMembers);
 		pEngine->AddBuiltinClass("OConsoleOutStream", kBCIConsoleOutStream, kBCIFileOutStream, oConsoleOutStreamMembers);
 		pEngine->AddBuiltinClass("OFunctionOutStream", kBCIFunctionOutStream, kBCIOutStream, oFunctionOutStreamMembers);
-
+		pEngine->AddBuiltinClass("OTraceOutStream", kBCITraceOutStream, kBCIOutStream, oTraceOutStreamMembers);
 	}
 } // namespace OStream
 

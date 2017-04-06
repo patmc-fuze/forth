@@ -3,14 +3,14 @@
 class: atcAirport extends iAtcAirport
 
   // X Y ENTRY_DIRECTION ID
-  method: init
+  m: init
     'airp' -> tag
     0 -> altitude
     -> id
     -> entryDirection
     -> y
     -> x
-  ;method
+  ;m
   
 ;class
 

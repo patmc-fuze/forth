@@ -87,25 +87,25 @@ class: atcAirplane extends iAtcAirplane
     endcase
   ;
   
-  method: init   // REGION ID
+  m: init   // REGION ID
     'plan' -> tag
     -> id
-    -> region
-  ;method
+    ->o region  // break circular reference  region->tile->airplane->region
+  ;m
 
-  method: setPosition     // X Y ALTITUDE HEADING
+  m: setPosition     // X Y ALTITUDE HEADING
     dup -> heading    -> commandedHeading
     dup -> altitude   -> commandedAltitude
     -> y
     -> x
-  ;method
+  ;m
   
-  method: setDestination    // DESTINATION DESTINATION_TYPE ...
+  m: setDestination    // DESTINATION DESTINATION_TYPE ...
     -> destinationType
     -> destination
-  ;method
+  ;m
   
-  method: activate    // UPDATE_TIME IS_JET IS_MOVING ...
+  m: activate    // UPDATE_TIME IS_JET IS_MOVING ...
     if kAASMovingMarked else kAASHolding endif -> status
 
     name.clear
@@ -122,16 +122,15 @@ class: atcAirplane extends iAtcAirplane
     -1 -> beaconNum
     0 -> circle
     region.startingFuel -> fuel
-  ;method
+  ;m
   
-  method: delete
-    //t{ "deleting plane " %s name.get %s %nl }t
+  m: delete
+    //t{ "deleting plane " %s thisData %x %bl name.get %s %nl }t
     oclear name
-    oclear region
     super.delete
-  ;method
+  ;m
   
-  method: update  // now ...
+  m: update  // now ...
     -> int now
     
     if( now nextUpdateTime > )
@@ -156,10 +155,10 @@ class: atcAirplane extends iAtcAirplane
       endif
     
     endif
-  ;method
+  ;m
   
   
-  method: executeCommand // COMMAND_INFO_PTR DISPLAY_OBJECT ...
+  m: executeCommand // COMMAND_INFO_PTR DISPLAY_OBJECT ...
     ->o iAtcDisplay display
     -> ptrTo atcCommandInfo commandInfo
     if( status kAASMovingMarked >= )
@@ -236,7 +235,7 @@ class: atcAirplane extends iAtcAirplane
       endif
     endif
   
-  ;method
+  ;m
   
 ;class
 

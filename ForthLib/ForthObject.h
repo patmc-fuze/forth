@@ -21,14 +21,7 @@
 #define END_MEMBERS { NULL, 0, 0 }
 
 #define INVOKE_METHOD( _pCore, _obj, _methodNum ) ForthEngine::GetInstance()->ExecuteOneMethod( _pCore, _obj, _methodNum )
-/*
-#define INVOKE_METHOD( _obj, _methodNum ) \
-    RPUSH( ((long) GET_TPD) ); \
-    RPUSH( ((long) GET_TPM) ); \
-    SET_TPM( (_obj).pMethodOps ); \
-    SET_TPD( (_obj).pData ); \
-    ForthEngine::GetInstance()->ExecuteOneOp( (_obj).pMethodOps[ (_methodNum) ] )
-*/
+#define FULLY_EXECUTE_METHOD( _pCore, _obj, _methodNum ) ForthEngine::GetInstance()->FullyExecuteMethod( _pCore, _obj, _methodNum )
 
 #define PUSH_PAIR( _methods, _data )    SPUSH( (long) (_data) ); SPUSH( (long) (_methods) )
 #define POP_PAIR( _methods, _data )     (_methods) = (long *) SPOP; (_data) = (long *) SPOP
@@ -40,7 +33,7 @@
 #define SAFE_RELEASE( _pCore, _obj ) \
 	if ( (_obj).pMethodOps != NULL ) { \
 		*(_obj).pData -= 1; \
-		if ( *(_obj).pData == 0 ) {		INVOKE_METHOD( (_pCore), (_obj), kMethodDelete );  } \
+		if ( *(_obj).pData == 0 ) {		FULLY_EXECUTE_METHOD( (_pCore), (_obj), kMethodDelete );  } \
 	} TRACK_RELEASE
 
 #define SAFE_KEEP( _obj )       if ( (_obj).pMethodOps != NULL ) { *(_obj).pData += 1; } TRACK_KEEP

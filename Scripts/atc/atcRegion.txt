@@ -2,7 +2,7 @@
 
 class: atcRegion extends iAtcRegion
 
-  method: init
+  m: init
     'regn' -> tag
     2dup
     -> rows
@@ -19,21 +19,21 @@ class: atcRegion extends iAtcRegion
     new OArray -> portals
     new OArray -> beacons
     new OArray -> lines
-  ;method
+  ;m
   
   // x y ... atcTile@x,y
   : tile@
     columns * + tiles.get
   ;
 
-  method: getTile returns atcTile
+  m: getTile returns atcTile
     columns * + tiles.get
-  ;method
+  ;m
 
   // atcTile x y ...  
-  method: setTile
+  m: setTile
     columns * + tiles.set
-  ;method
+  ;m
 
   : resetTiles
     tiles.headIter -> OIter iter
@@ -45,8 +45,8 @@ class: atcRegion extends iAtcRegion
     oclear iter
   ;
   
-  method: reset
-    if(or(tiles))
+  m: reset
+    if(objNotNull(tiles))
       resetTiles
       oclear tiles
       t{ airports.show }t
@@ -55,30 +55,30 @@ class: atcRegion extends iAtcRegion
       oclear beacons
       oclear lines
     endif
-  ;method
+  ;m
     
-  method: delete
+  m: delete
     //t{ "deleting region\n" %s }t
     reset
     super.delete
-  ;method
+  ;m
 
-  method: update
-  ;method
+  m: update
+  ;m
 
-  method: getBeacon returns iAtcBeacon
+  m: getBeacon returns iAtcBeacon
     beacons.get
-  ;method
+  ;m
   
-  method: getAirport returns iAtcAirport
+  m: getAirport returns iAtcAirport
     airports.get
-  ;method // AIRPORT_NUM ... AIRPORT_OBJ
+  ;m // AIRPORT_NUM ... AIRPORT_OBJ
   
-  method: getPortal returns iAtcPortal
+  m: getPortal returns iAtcPortal
     portals.get
-  ;method // PORTAL_NUM ... PORTAL_OBJ
+  ;m // PORTAL_NUM ... PORTAL_OBJ
   
-  method: getAirport@ returns iAtcAirport  // X Y ... AIRPORT_OBJ
+  m: getAirport@ returns iAtcAirport  // X Y ... AIRPORT_OBJ
     -> int y
     -> int x
 
@@ -95,9 +95,9 @@ class: atcRegion extends iAtcRegion
     oclear iter
     dnull
 
-  ;method
+  ;m
   
-  method: getPortal@ returns iAtcPortal  // X Y ... PORTAL_OBJ
+  m: getPortal@ returns iAtcPortal  // X Y ... PORTAL_OBJ
     -> int y
     -> int x
 
@@ -114,9 +114,9 @@ class: atcRegion extends iAtcRegion
     oclear iter
     dnull
 
-  ;method
+  ;m
   
-  method: getBeacon@ returns iAtcBeacon  // X Y ... BEACON_OBJ
+  m: getBeacon@ returns iAtcBeacon  // X Y ... BEACON_OBJ
     -> int y
     -> int x
 
@@ -133,14 +133,14 @@ class: atcRegion extends iAtcRegion
     oclear iter
     dnull
   
-  ;method
+  ;m
   
   : setTileType
     getTile ->o atcTile tile
     -> tile.tileType
   ;
   
-  method: checkCollisions    // PLANE ... COLLIDED_PLANE_INDEX  returns -1 if no collision
+  m: checkCollisions    // PLANE ... COLLIDED_PLANE_INDEX  returns -1 if no collision
     ->o iAtcAirplane plane
     -1 -> int collidedPlaneIndex
     int minRow int maxRow int minColumn int maxColumn
@@ -181,10 +181,10 @@ class: atcRegion extends iAtcRegion
     repeat
 
     collidedPlaneIndex
-  ;method
+  ;m
   
   // x y direction id ...
-  method: addPortal
+  m: addPortal
     -> int id
     -> int dir
     -> int y
@@ -198,10 +198,10 @@ class: atcRegion extends iAtcRegion
     getTile(x y) ->o atcTile tile
     kATTPortal -> tile.tileType
     id -> tile.index
-  ;method
+  ;m
 
   // x y direction id ...
-  method: addAirport
+  m: addAirport
     -> int id
     -> int dir
     -> int y
@@ -215,10 +215,10 @@ class: atcRegion extends iAtcRegion
     getTile(x y) ->o atcTile tile
     kATTAirport -> tile.tileType
     id -> tile.index
-  ;method
+  ;m
   
   // x y id ...
-  method: addBeacon
+  m: addBeacon
     -> int id
     -> int y
     -> int x
@@ -231,10 +231,10 @@ class: atcRegion extends iAtcRegion
     getTile(x y) ->o atcTile tile
     kATTBeacon -> tile.tileType
     id -> tile.index
-  ;method
+  ;m
   
   // x0 y0 x1 y1 ...
-  method: addLine
+  m: addLine
     -> int y1
     -> int x1
     -> int y0
@@ -245,6 +245,6 @@ class: atcRegion extends iAtcRegion
     lines.insert(line 0)
     //lines.push(line)
     oclear line
-  ;method
+  ;m
   
 ;class

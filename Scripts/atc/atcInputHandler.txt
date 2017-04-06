@@ -6,7 +6,6 @@ class: atcInputHandler extends iAtcInputHandler
 
   int cmdChar    // converted to lowercase
   int oCmdChar    // original keyboard char
-  iAtcRegion region
   
   : c2dir
     strchr(directionChars swap)
@@ -492,27 +491,26 @@ class: atcInputHandler extends iAtcInputHandler
     oclear tmpCommandString
   ;
   
-  method: init     // REGION DISPLAY_OBJ  ...
+  m: init     // REGION DISPLAY_OBJ  ...
     'inph' -> tag
     -> display
-    -> region
+    ->o region
     new OString -> displayString
     new OString -> commandString
     kACSIdle -> commandState
     0 -> cmdChar
     false -> isGameOver
-  ;method
+  ;m
   
-  method: delete
+  m: delete
     //t{ "deleting inputHandler " %s %nl }t
-    oclear region
     oclear display
     oclear displayString
     oclear commandString
     super.delete
-  ;method
+  ;m
   
-  method: update
+  m: update
     if( key? )
       
       setCommandCharacter(key)
@@ -538,7 +536,7 @@ class: atcInputHandler extends iAtcInputHandler
       display.showCommand( displayString.get )
    
     endif
-  ;method
+  ;m
   
 ;class
 

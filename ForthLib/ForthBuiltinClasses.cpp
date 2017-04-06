@@ -401,7 +401,6 @@ void ForthShowObject(ForthObject& obj, ForthCoreState* pCore)
 	{
 		ForthEngine* pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		ForthClassObject* pClassObject = (ForthClassObject *)(*((obj.pMethodOps) - 1));
 		pEngine->FullyExecuteMethod(pCore, obj, kOMShow);
 		pShowContext->AddObject(obj);
 	}
