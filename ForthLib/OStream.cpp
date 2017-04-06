@@ -746,6 +746,7 @@ namespace OStream
 		pFileOutStream->ostream.refCount = 0;
 		pFileOutStream->ostream.pOutFuncs = &fileOutFuncs;
 		pFileOutStream->ostream.pUserData = NULL;
+		pFileOutStream->pOutFile = nullptr;
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pFileOutStream);
 	}
 
