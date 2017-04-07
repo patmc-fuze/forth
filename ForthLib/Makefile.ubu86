@@ -10,7 +10,7 @@ CC = g++
 ASM = /usr/bin/nasm
 CDEBUG = -g
 # DEFINES = -DRASPI -DLINUX -DASM_INNER_INTERPRETER
-DEFINES = -DLINUX -DASM_INNER_INTERPRETER -DASM_UNDERSCORE_PREFIX
+DEFINES = -DLINUX -DASM_INNER_INTERPRETER -DASM_UNDERSCORE_PREFIX -DINCLUDE_TRACE
 #CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -save-temps=obj -fno-leading-underscore
 CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -std=c++11 -m32
 WARNING_FLAGS = -Wall -Wno-format -Wno-reorder -Wno-unused-variable -Wno-sign-compare -Wno-conversion-null -Wno-pointer-arith

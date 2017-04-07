@@ -3762,18 +3762,19 @@ entry i2dBop
 ;========================================
 
 entry f2iBop
-%ifdef WIN32
-	push	edx
-	push	esi
-	fld	DWORD[edx]
-	xcall	_ftol
-	pop	esi
-	pop	edx
-	mov	[edx], eax
-%else
+	sub	esp, 4
+	fwait
+	fnstcw	WORD[esp]
+	fwait
+	mov	ax, WORD[esp]
+	mov	WORD[esp + 2], ax	; save copy for restoring when done
+	or	ax, 0C00h		; set both rounding control bits
+	mov	WORD[esp], ax
+	fldcw	WORD[esp]
     fld     DWORD[edx]
     fistp   DWORD[edx]
-%endif
+	fldcw	WORD[esp + 2]
+	add	esp, 4
 	jmp	edi
 
 ;========================================
@@ -3787,20 +3788,20 @@ entry f2dBop
 ;========================================
 
 entry d2iBop
-%ifdef WIN32
-	push	edx
-	push	esi
-	fld	QWORD[edx]
-	xcall	_ftol
-	pop	esi
-	pop	edx
-	add	edx,4
-	mov	[edx], eax
-%else
+	sub	esp, 4
+	fwait
+	fnstcw	WORD[esp]
+	fwait
+	mov	ax, WORD[esp]
+	mov	WORD[esp + 2], ax	; save copy for restoring when done
+	or	ax, 0C00h		; set both rounding control bits
+	mov	WORD[esp], ax
+	fldcw	WORD[esp]
     fld     QWORD[edx]
     add edx, 4
     fistp   DWORD[edx]
-%endif
+	fldcw	WORD[esp + 2]
+	add	esp, 4
 	jmp	edi
 
 ;========================================

@@ -59,6 +59,7 @@ ForthLib/NewFolder
 ForthLib/dep
 ForthLib/obj
 ForthLinux/forth
+ForthLinux/logger
 ForthLinux/dep
 ForthLinux/obj
 ForthRelease
