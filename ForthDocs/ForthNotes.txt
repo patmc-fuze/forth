@@ -173,6 +173,30 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 7 2017
+
+I realized I was spending a lot of time testing forth on different platforms when
+I made changes, so I made a global test.txt script and added a bunch of random
+small test scripts to a new misctest.txt.
+
+test.txt is a smoke test which runs most of the existing test scripts.
+
+misctest.txt holds 'tests' which don't check their results, they are mainly there
+to verify that features compile and don't throw exceptions when run.
+
+I also fixed several bugs which my changes for threading caused - I changed
+code which was calling ForthEngine::ExecuteOneMethod to use FullyExecuteMethod
+instead.  These included:
+o OArray.sort
+o SAFE_RELEASE delete
+o input and output stream IO methods
+This was necessary where C++ code could execute more than a single method inside
+a single forthop or method.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 5 2017
+
+I brought the linux forth version up to date.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 3 2017
 
 I spent the last few days trying to get the assembler inner interpreter working
