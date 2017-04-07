@@ -38,7 +38,7 @@ namespace OStream
 		ForthObject obj;
 		obj.pData = pCore->TPD;
 		obj.pMethodOps = pCore->TPM;
-		pEngine->ExecuteOneMethod(pCore, obj, kInStreamGetCharMethod);
+		pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetCharMethod);
 		if (*(pCore->SP) == -1)
 		{
 			*(pCore->SP) = 0;
@@ -63,7 +63,7 @@ namespace OStream
 		obj.pMethodOps = pCore->TPM;
 		for (int i = 0; i < numBytes; i++)
 		{
-			pEngine->ExecuteOneMethod(pCore, obj, kInStreamGetCharMethod);
+			pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetCharMethod);
 			int ch = SPOP;
 			if (ch == -1)
 			{
@@ -83,7 +83,7 @@ namespace OStream
 		ForthObject obj;
 		obj.pData = pCore->TPD;
 		obj.pMethodOps = pCore->TPM;
-		pEngine->ExecuteOneMethod(pCore, obj, kInStreamGetBytesMethod);
+		pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetBytesMethod);
 		if (*(pCore->SP) == 0)
 		{
 			SPOP;
@@ -114,7 +114,7 @@ namespace OStream
 		int previousChar = 0;
 		for (int i = 0; i < (maxBytes - 1); i++)
 		{
-			pEngine->ExecuteOneMethod(pCore, obj, kInStreamGetCharMethod);
+			pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetCharMethod);
 			int ch = SPOP;
 			switch (ch)
 			{
@@ -157,11 +157,11 @@ namespace OStream
 		ForthObject obj;
 		obj.pData = pCore->TPD;
 		obj.pMethodOps = pCore->TPM;
-		pEngine->ExecuteOneMethod(pCore, obj, kInStreamGetLineMethod);
+		pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetLineMethod);
 		if (*(pCore->SP) == 0)
 		{
 			// getLine returned 0 chars - is it an empty line or end of file?
-			pEngine->ExecuteOneMethod(pCore, obj, kInStreamAtEOFMethod);
+			pEngine->FullyExecuteMethod(pCore, obj, kInStreamAtEOFMethod);
 			int atEOF = SPOP;
 			if (!atEOF)
 			{
@@ -504,13 +504,6 @@ namespace OStream
 	//                 oOutStream
 	//
 
-	FORTHOP(oOutStreamNew)
-	{
-		ForthEngine::GetInstance()->SetError(kForthErrorBadObject, " can't create abstract oOutStream");
-
-		PUSH_PAIR(NULL, NULL);
-	}
-
 	void streamCharOut(ForthCoreState* pCore, oOutStreamStruct* pOutStream, char ch)
 	{
 		if (pOutStream->pOutFuncs->outChar != NULL)
@@ -595,7 +588,7 @@ namespace OStream
 			{
 				char ch = *pBuffer++;
 				SPUSH(((long)ch));
-				pEngine->ExecuteOneMethod(pCore, obj, kOutStreamPutCharMethod);
+				pEngine->FullyExecuteMethod(pCore, obj, kOutStreamPutCharMethod);
 			}
 		}
 		else
@@ -648,7 +641,7 @@ namespace OStream
 			{
 				char ch = *pBuffer++;
 				SPUSH(((long)ch));
-				pEngine->ExecuteOneMethod(pCore, obj, kOutStreamPutCharMethod);
+				pEngine->FullyExecuteMethod(pCore, obj, kOutStreamPutCharMethod);
 			}
 		}
 		else
@@ -675,10 +668,10 @@ namespace OStream
 			{
 				char ch = *pBuffer++;
 				SPUSH(((long)ch));
-				pEngine->ExecuteOneMethod(pCore, obj, kOutStreamPutCharMethod);
+				pEngine->FullyExecuteMethod(pCore, obj, kOutStreamPutCharMethod);
 			}
 			SPUSH((long)'\n');
-			pEngine->ExecuteOneMethod(pCore, obj, kOutStreamPutCharMethod);
+			pEngine->FullyExecuteMethod(pCore, obj, kOutStreamPutCharMethod);
 		}
 		else
 		{
@@ -690,7 +683,6 @@ namespace OStream
 
 	baseMethodEntry oOutStreamMembers[] =
 	{
-		METHOD("__newOp", oOutStreamNew),
 		// putChar, putBytes and putString must be first 3 methods and in this order
 		METHOD("putChar", oOutStreamPutCharMethod),
 		METHOD("putBytes", oOutStreamPutBytesMethod),
@@ -1149,7 +1141,7 @@ void ForthConsoleCharOut(ForthCoreState* pCore, char ch)
 	else
 	{
 		SPUSH(((long)ch));
-		pEngine->ExecuteOneMethod(pCore, pCore->consoleOutStream, kOutStreamPutCharMethod);
+		pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutCharMethod);
 	}
 }
 
@@ -1165,7 +1157,7 @@ void ForthConsoleBytesOut(ForthCoreState* pCore, const char* pBuffer, int numCha
 	{
 		SPUSH(((long)pBuffer));
 		SPUSH(numChars);
-		pEngine->ExecuteOneMethod(pCore, pCore->consoleOutStream, kOutStreamPutBytesMethod);
+		pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutBytesMethod);
 	}
 }
 
@@ -1180,7 +1172,7 @@ void ForthConsoleStringOut(ForthCoreState* pCore, const char* pBuffer)
 	else
 	{
 		SPUSH(((long)pBuffer));
-		pEngine->ExecuteOneMethod(pCore, pCore->consoleOutStream, kOutStreamPutStringMethod);
+		pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutStringMethod);
 	}
 }
 

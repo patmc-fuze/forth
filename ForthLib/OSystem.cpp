@@ -15,6 +15,7 @@
 #include "ForthBuiltinClasses.h"
 #include "ForthShowContext.h"
 #include "ForthThread.h"
+#include "ForthPortability.h"
 
 #include "OSystem.h"
 
@@ -55,15 +56,22 @@ namespace OSystem
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oSystemShowMethod)
+	FORTHOP(oSystemStatsMethod)
 	{
-		GET_THIS(oSystemStruct, pSystem);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
+		char buff[512];
+
+		SNPRINTF(buff, sizeof(buff), "pCore %p pEngine %p     DP %p DBase %p    IP %p\n",
+			pCore, pCore->pEngine, pCore->pDictionary, pCore->pDictionary->pBase, pCore->IP);
+		CONSOLE_STRING_OUT(buff);
+		SNPRINTF(buff, sizeof(buff), "SP %p ST %p SLen %d    RP %p RT %p RLen %d\n",
+			pCore->SP, pCore->ST, pCore->SLen,
+			pCore->RP, pCore->RT, pCore->RLen);
+		CONSOLE_STRING_OUT(buff);
+		SNPRINTF(buff, sizeof(buff), "%d builtins    %d userops @ %p\n", pCore->numBuiltinOps, pCore->numOps, pCore->ops);
+		CONSOLE_STRING_OUT(buff);
 		METHOD_RETURN;
 	}
+
 
 	FORTHOP(oSystemGetDefinitionsVocabMethod)
 	{
@@ -205,6 +213,13 @@ namespace OSystem
 		}
 		METHOD_RETURN;
 	}
+	
+
+	FORTHOP(oSystemGetOpsTableMethod)
+	{
+		SPUSH((long)(pCore->ops));
+		METHOD_RETURN;
+	}
 
 	FORTHOP(oSystemCreateAsyncThreadMethod)
 	{
@@ -233,16 +248,17 @@ namespace OSystem
 	{
 		METHOD("__newOp", oSystemNew),
 		METHOD("delete", oSystemDeleteMethod),
-		METHOD("show", oSystemShowMethod),
-		METHOD("getDefinitionsVocab", oSystemGetDefinitionsVocabMethod),
+		METHOD("stats", oSystemStatsMethod),
+		METHOD_RET("getDefinitionsVocab", oSystemGetDefinitionsVocabMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIVocabulary)),
 		METHOD("setDefinitionsVocab", oSystemSetDefinitionsVocabMethod),
 		METHOD("clearSearchVocab", oSystemClearSearchVocabMethod),
 		METHOD("getSearchVocabDepth", oSystemGetSearchVocabDepthMethod),
-		METHOD("getSearchVocabAt", oSystemGetSearchVocabAtMethod),
-		METHOD("getSearchVocabTop", oSystemGetSearchVocabTopMethod),
+		METHOD_RET("getSearchVocabAt", oSystemGetSearchVocabAtMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIVocabulary)),
+		METHOD_RET("getSearchVocabTop", oSystemGetSearchVocabTopMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIVocabulary)),
 		METHOD("setSearchVocabTop", oSystemSetSearchVocabTopMethod),
 		METHOD("pushSearchVocab", oSystemPushSearchVocabMethod),
-		METHOD("getVocabByName", oSystemGetVocabByNameMethod),
+		METHOD_RET("getVocabByName", oSystemGetVocabByNameMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIVocabulary)),
+		METHOD_RET("getOpsTable", oSystemGetOpsTableMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("createAsyncThread", oSystemCreateAsyncThreadMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncThread)),
 		METHOD_RET("createAsyncLock", oSystemCreateAsyncLockMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncLock)),
 

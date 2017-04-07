@@ -3,10 +3,14 @@
 
 // insertion, selection, bubble, shell, comb, quick, heap, merge sorts
 
-autoforget beNoisy
+autoforget sort_examples
+
+: sort_examples ;
 
 false -> int beNoisy   // set beNoisyto true to display sort array before and after sort
+#ifndef numElems
 3000 -> int numElems
+#endif
 mko OIntArray v
 
 
@@ -579,7 +583,7 @@ int _time
   checkResult(v)
 ;
 
-: testSorts
+: go
   "for " %s numElems . "elements:\n" %s
   "bubbleSort " %s bubbleSort
   //"bubble2Sort " %s bubble2Sort   // boring variation on bubble

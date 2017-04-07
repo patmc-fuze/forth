@@ -1885,7 +1885,7 @@ FORTHOP( strSizeOfOp )
     {
         ForthTypesManager* pManager = ForthTypesManager::GetInstance();
         ForthStructVocabulary* pStructVocab = pManager->GetStructVocabulary( pEntry[0] );
-        if ( pStructVocab == NULL)
+        if ( pStructVocab != nullptr)
         {
 			size = pStructVocab->GetSize();
         }
@@ -2312,14 +2312,7 @@ FORTHOP( doStructTypeOp )
 			return;
 		}
 	}
-	if (GET_VAR_OPERATION == kVarDefaultOp)
-	{
-		pVocab->DefineInstance();
-	}
-	else
-	{
-		pVocab->DoOp(pCore);
-	}
+	pVocab->DefineInstance();
 	SET_IP((long *)(RPOP));
 }
 
@@ -3611,21 +3604,6 @@ FORTHOP( drstackOp )
     CONSOLE_CHAR_OUT( '\n' );
 }
 
-
-FORTHOP( statsOp )
-{
-    char buff[512];
-
-    SNPRINTF( buff, sizeof(buff), "pCore %p pEngine %p     DP %p DBase %p    IP %p\n",
-             pCore, pCore->pEngine, pCore->pDictionary, pCore->pDictionary->pBase, pCore->IP );
-    CONSOLE_STRING_OUT( buff );
-    SNPRINTF( buff, sizeof(buff), "SP %p ST %p SLen %d    RP %p RT %p RLen %d\n",
-             pCore->SP, pCore->ST, pCore->SLen,
-             pCore->RP, pCore->RT, pCore->RLen );
-    CONSOLE_STRING_OUT( buff );
-    SNPRINTF( buff, sizeof(buff), "%d builtins    %d userops\n", pCore->numBuiltinOps, pCore->numOps );
-    CONSOLE_STRING_OUT( buff );
-}
 
 FORTHOP( describeOp )
 {
@@ -6306,6 +6284,16 @@ FORTHOP( arshiftBop )
 }
 
 
+FORTHOP( rotateBop )
+{
+	NEEDS(2);
+	unsigned long b = (SPOP) & 31;
+	unsigned long a = SPOP;
+	unsigned long result = (a << b) | (a >> (32 - b));
+	SPUSH( result );
+}
+
+
 ///////////////////////////////////////////
 //  boolean ops
 ///////////////////////////////////////////
@@ -7981,7 +7969,7 @@ OPREF( i2fBop );            OPREF( i2dBop );            OPREF( f2iBop );
 OPREF( f2dBop );            OPREF( d2iBop );            OPREF( d2fBop );
 OPREF( orBop );             OPREF( andBop );            OPREF( xorBop );
 OPREF( invertBop );         OPREF( lshiftBop );         OPREF( rshiftBop );
-OPREF( arshiftBop );        OPREF( trueBop );
+OPREF( arshiftBop );        OPREF( rotateBop );         OPREF( trueBop );
 OPREF( falseBop );          OPREF( nullBop );           OPREF( dnullBop );
 OPREF( equalsBop );         OPREF( notEqualsBop );      OPREF( greaterThanBop );
 OPREF( greaterEqualsBop );  OPREF( lessThanBop );       OPREF( lessEqualsBop );
@@ -8293,6 +8281,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    lshiftBop,               "lshift" ),
     NATIVE_DEF(    rshiftBop,               "rshift" ),
     NATIVE_DEF(    arshiftBop,              "arshift" ),
+    NATIVE_DEF(    rotateBop,               "rotate" ),
 
     ///////////////////////////////////////////
     //  boolean logic
@@ -8777,7 +8766,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    argvOp,                 "argv" ),
     OP_DEF(    argcOp,                 "argc" ),
     OP_DEF(    turboOp,                "turbo" ),
-    OP_DEF(    statsOp,                "stats" ),
     OP_DEF(    describeOp,             "describe" ),
     OP_DEF(    describeAtOp,           "describe@" ),
     OP_DEF(    errorOp,                "error" ),

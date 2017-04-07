@@ -4102,6 +4102,17 @@ entry rshiftBop
 	
 ;========================================
 
+entry rotateBop
+	mov	ecx, [edx]
+	add	edx, 4
+	mov	ebx, [edx]
+	and	cl, 01Fh
+	rol	ebx, cl
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+
 entry archX86Bop
 entry trueBop
 	mov	eax,0FFFFFFFFh

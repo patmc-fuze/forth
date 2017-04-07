@@ -786,7 +786,7 @@ ForthStructVocabulary::DefineInstance( void )
 				SPUSH((long)pHere);
 				SPUSH(numElements);
 				SPUSH(mTypeIndex);
-				mpEngine->ExecuteOp(pCore, gCompiledOps[OP_INIT_STRUCT_ARRAY]);
+				mpEngine->FullyExecuteOp(pCore, gCompiledOps[OP_INIT_STRUCT_ARRAY]);
 			}
         }
         else
@@ -798,7 +798,7 @@ ForthStructVocabulary::DefineInstance( void )
             if ( isPtr && (GET_VAR_OPERATION == kVarStore) )
             {
                 // var definition was preceeded by "->", so initialize var
-                mpEngine->ExecuteOp(pCore,  pEntry[0] );
+				mpEngine->FullyExecuteOp(pCore, pEntry[0]);
             }
 			if (!isPtr && (mInitOpcode != 0))
 			{

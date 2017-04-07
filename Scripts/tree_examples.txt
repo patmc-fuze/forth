@@ -1,7 +1,8 @@
 requires numberio
 requires randoms
 
-autoforget beNoisy
+autoforget tree_examples
+: tree_examples ;
 
 false -> bool beNoisy   // set beNoisyto true to display sort array before and after sort
 
@@ -805,14 +806,13 @@ mko Tree t
     new Node -> n
     smallRandom -> n.val
     t.insertInMinHeap(n)
-    t.display
-    %nl %nl
     oclear n
   loop
+  t.display
 ;
 
 : tt2
-  6 -> int numElems
+  -> int numElems
   mko OArray a
   
   do(numElems 0)
@@ -886,6 +886,11 @@ mko Tree t
   repeat
   oclear qA
   oclear qB
+;
+
+: go
+  20 tt1 20 tt3
+  20 tt2
 ;
 
 loaddone

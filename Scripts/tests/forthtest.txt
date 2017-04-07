@@ -249,15 +249,17 @@ test[ 5.1d d0>= ] test[ 9.4d d0< not ] test[ 0.0d d0<= ] test[  -2.3d d0<= ] tes
 test[ 0.5d -1.0d 1.0d dwithin ] test[ 7.0d -1.0d 1.0d dwithin not ] test[ 5.0d 2.3d dmin 2.3d d= ]
 test[ -10.0d 4.3d dmax 4.3d d= ]
    
-// lshift arshift rshift
+// lshift arshift rshift rotate
 test[ 1 8 lshift 256 = ] test[ 17 2 lshift 68 = ] test[ -80 3 arshift -10 = ] test[ 19 2 arshift 4 = ]
 test[ 0xF1234567 4 arshift 0xFF123456 = ] test[ 0xF1234567 4 rshift 0xF123456 = ]
+test[ 0x12345678 8 rotate 0x34567812 = ]
 
 // dup ?dup swap over rot pick
 test[ 17 5 dup 2 pick tuck 17 = swap 5 = and rot 5 = rot 17 = 0 drop and rot 17 = ]
 test[ 87 5 ?dup 0 ?dup 0= rot 5 = rot 5 = and and over 87 = rot 87 = ]
 
-// -rot nip tuck roll
+// -rot nip tuck 
+test[ 43 27 88 -rot 27 = 43 = and 88 = and 1 4 5 nip 5 = 1 = and 11 22 tuck 22 = 11 = and 22 = and ]
 // 2dup 2swap 2drop 2over 2rot r[ ]r
 // c! c@ sc@ w! w@ sw@ ! @ 2! 2@ 
 // move fill varAction! varAction@

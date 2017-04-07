@@ -301,7 +301,7 @@ public:
     void                Clear();
     // GetElement(0) is the same as GetTop
     ForthVocabulary*    GetElement( int depth );
-	inline int			GetDepth() { return mTop; }
+	inline int			GetDepth() { return mTop + 1; }
 
     // return pointer to symbol entry, NULL if not found
     // ppFoundVocab will be set to the vocabulary the symbol was actually found in

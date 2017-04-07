@@ -1,0 +1,40 @@
+
+lf evil.txt
+forget evilVM
+
+lf async_philosophers.txt
+go
+forget asyncPhilosophers
+
+lf philosophers.txt
+go
+forget philosophers
+
+200 -> int numElems
+lf sort_examples.txt
+go
+forget sort_examples
+
+lf tree_examples.txt
+go
+forget tree_examples
+
+cd tests
+
+lf forthtest.txt
+
+lf biclasstest.txt
+cleanup
+
+lf rctest.txt
+test
+cleanup
+
+lf structtest.txt
+
+lf misctest.txt
+
+lf ansitest.txt
+
+cd ..
+

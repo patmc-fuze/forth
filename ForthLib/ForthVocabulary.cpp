@@ -1298,7 +1298,6 @@ namespace OVocabulary
 	FORTHOP(oVocabularyFindEntryByNameMethod)
 	{
 		GET_THIS(oVocabularyStruct, pVocabulary);
-		GET_THIS(oVocabularyIterStruct, pIter);
 		ForthVocabulary* pVocab = pVocabulary->vocabulary;
 		long* pEntry = NULL;
 		const char* pName = (const char *)(SPOP);

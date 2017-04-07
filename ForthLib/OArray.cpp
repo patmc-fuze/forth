@@ -534,7 +534,7 @@ namespace OArray
 				left++;
 				pLeft++;
 				PUSH_OBJECT(pivot);
-				pEngine->ExecuteOneMethod(pCore, *pLeft, kOMCompare);
+				pEngine->FullyExecuteMethod(pCore, *pLeft, kOMCompare);
 				compareResult = SPOP;
 			} while (compareResult < 0);
 
@@ -543,7 +543,7 @@ namespace OArray
 				right--;
 				pRight--;
 				PUSH_OBJECT(pivot);
-				pEngine->ExecuteOneMethod(pCore, *pRight, kOMCompare);
+				pEngine->FullyExecuteMethod(pCore, *pRight, kOMCompare);
 				compareResult = SPOP;
 			} while (compareResult > 0);
 
