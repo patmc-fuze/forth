@@ -26,6 +26,7 @@ public:
 	inline long *   GetTokenAsLong(void) { return mpToken; };
 	inline int      GetTokenLength(void) { return (int)(*((char *)mpToken)); };
 	inline int      GetNumLongs(void) { return mNumLongs; };
+	inline int		GetMaxChars(void) const { return mMaxChars; };
 
 	const char*		ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, ForthEngine *pEngine, bool keepBackslashes = false);
 	const char *	ParseDoubleQuote(const char *pSrc, const char *pSrcLimit, bool keepBackslashes = false);

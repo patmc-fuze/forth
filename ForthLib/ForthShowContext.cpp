@@ -65,6 +65,21 @@ void ForthShowContext::ShowIndent(const char* pText)
 	}
 }
 
+void ForthShowContext::BeginFirstElement(const char* pText)
+{
+	ShowIndent("'");
+	mpEngine->ConsoleOut(pText);
+	mpEngine->ConsoleOut("' : ");
+}
+
+void ForthShowContext::BeginNextElement(const char* pText)
+{
+	EndElement(",");
+	ShowIndent("'");
+	mpEngine->ConsoleOut(pText);
+	mpEngine->ConsoleOut("' : ");
+}
+
 void ForthShowContext::EndElement(const char* pEndText)
 {
 	if (pEndText != NULL)
@@ -75,15 +90,17 @@ void ForthShowContext::EndElement(const char* pEndText)
 	mpEngine->ConsoleOut("\n");
 }
 
-bool ForthShowContext::AddObject(ForthObject& obj)
+void ForthShowContext::AddObject(ForthObject& obj)
 {
-	if (mShownObjects.find(obj.pData) == mShownObjects.end())
+	if (mShownObjects.insert(obj.pData).second)
 	{
-		mShownObjects.insert(obj.pData);
 		mObjects.push_back(obj);
-		return false;
 	}
-	return true;
+}
+
+bool ForthShowContext::ObjectAlreadyShown(ForthObject& obj)
+{
+	return mShownObjects.find(obj.pData) != mShownObjects.end();
 }
 
 std::vector<ForthObject>& ForthShowContext::GetObjects()

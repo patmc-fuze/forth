@@ -5,11 +5,15 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#if defined(MACOSX)
+#include <sys/uio.h>
+#else
 #include <sys/io.h>
+#endif
 #include <dirent.h>
 #else
 #include <io.h>
@@ -25,7 +29,7 @@
 
 #define CATCH_EXCEPTIONS
 
-#define STORAGE_LONGS 65536
+#define STORAGE_LONGS (64 * 1024 * 1024)
 
 #define PSTACK_LONGS 8192
 #define RSTACK_LONGS 8192
@@ -47,6 +51,8 @@ namespace
         "poundDirective",
 		"of",
 		"ofif",
+		"andif",
+		"orif"
     };
 
     const char * GetTagString( long tag )
@@ -131,7 +137,7 @@ void rewindDir( void* pDir )
 
 #if defined(WIN32)
 DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData );
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
 unsigned long ConsoleInputThreadRoutine( void* pThreadData );
 #endif
 
@@ -205,7 +211,7 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 #if 0
     if ( mpThread == NULL )
     {
-        mpThread = mpEngine->CreateThread( 0, PSTACK_LONGS, RSTACK_LONGS );
+        mpThread = mpEngine->CreateAsyncThread( 0, PSTACK_LONGS, RSTACK_LONGS );
     }
     mpEngine->SetCurrentThread( mpThread );
 #endif
@@ -220,7 +226,7 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 	{
 		mWorkingDirPath[0] = '\0';
 	}
-#elif defined( LINUX )
+#elif defined(LINUX) || defined(MACOSX)
 	if ( getcwd( mWorkingDirPath, MAX_PATH ) == NULL )
 	{
 		// failed to get current directory
@@ -835,7 +841,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
         if ( CheckSyntaxError( ")", mpStack->Pop(), kShellTagParen ) )
         {
             long tag = mpStack->Peek();
-            if ( mpStack->PopString( pInfo->GetToken() ) )
+            if ( mpStack->PopString( pInfo->GetToken(), pInfo->GetMaxChars() ) )
             {
                  pInfo->SetToken();
 				 pSrc = pInfo->GetToken();
@@ -1392,8 +1398,9 @@ ForthShell::CheckSyntaxError(const char *pString, long tag, long desiredTag)
 
 
 void
-ForthShell::StartDefinition(const char* pFourCharCode)
+ForthShell::StartDefinition(const char* pSymbol, const char* pFourCharCode)
 {
+	mpStack->PushString(pSymbol);
 	mpStack->Push(FourCharToLong(pFourCharCode));
 	mpStack->Push(kShellTagDefine);
 }
@@ -1407,18 +1414,23 @@ ForthShell::CheckDefinitionEnd(const char* pDisplayName, const char* pFourCharCo
 	if (CheckSyntaxError(pDisplayName, defineTag, kShellTagDefine))
 	{
 		long defineType = mpStack->Pop();
-		
 		long expectedDefineType = FourCharToLong(pFourCharCode);
-		char actualType[8];
-		memcpy(actualType, &defineType, sizeof(defineType));
-		actualType[4] = '\0';
+		char* definedSymbol = mpEngine->GetTmpStringBuffer();
+		definedSymbol[0] = '\0';
+		bool gotString = mpStack->PopString(definedSymbol, mpEngine->GetTmpStringBufferSize());
 
-		if (defineType == expectedDefineType)
+		if (gotString && (defineType == expectedDefineType))
 		{
 			return true;
 		}
-		sprintf(mErrorString, "at end of <%s> definition, got <%s>, was expecting <%s>",
-			pDisplayName, actualType, pFourCharCode);
+
+		char actualType[8];
+		memcpy(actualType, &defineType, sizeof(defineType));
+		actualType[4] = '\0';
+		sprintf(mErrorString, "at end of <%s> definition of {%s}, got <%s>, was expecting <%s>",
+			pDisplayName, definedSymbol, actualType, pFourCharCode);
+
+		mpStack->PushString(definedSymbol);
 		mpStack->Push(defineType);
 		mpStack->Push(defineTag);
 		mpEngine->SetError(kForthErrorBadSyntax, mErrorString);
@@ -1644,7 +1656,7 @@ FILE* ForthShell::OpenForthFile( const char* pPath )
 	{
 		pathIsRelative = false;
 	}
-#elif defined( LINUX )
+#elif defined(LINUX) || defined(MACOSX)
 	if ( *pPath == '/' )
 	{
 		pathIsRelative = false;
@@ -1656,12 +1668,12 @@ FILE* ForthShell::OpenForthFile( const char* pPath )
 		strcpy( pSysPath, mWorkingDirPath );
 #if defined( WIN32 )
 		strcat( pSysPath, "\\system\\" );
-#elif defined( LINUX )
+#elif defined(LINUX) || defined(MACOSX)
 		strcat( pSysPath, "/system/" );
 #endif
 		strcat( pSysPath, pPath );
 		pFile = fopen( pSysPath, "r" );
-		delete pSysPath;
+		delete [] pSysPath;
     }
 	return pFile;
 }
@@ -1726,13 +1738,13 @@ ForthShellStack::Pop( void )
 }
 
 long
-ForthShellStack::Peek( void )
+ForthShellStack::Peek( int index )
 {
-    if ( mSSP == mSST )
+    if ( (mSSP + index) >= mSST )
     {
         return kShellTagNothing;
     }
-    return *mSSP;
+    return mSSP[index];
 }
 
 void
@@ -1753,7 +1765,7 @@ ForthShellStack::PushString( const char *pString )
 }
 
 bool
-ForthShellStack::PopString( char *pString )
+ForthShellStack::PopString(char *pString, int maxLen)
 {
     if ( *mSSP != kShellTagString )
     {
@@ -1764,7 +1776,13 @@ ForthShellStack::PopString( char *pString )
     }
     mSSP++;
     int len = strlen( (char *) mSSP );
-    strcpy( pString, (char *) mSSP );
+	if (len > (maxLen - 1))
+	{
+		// TODO: warn about truncating symbol
+		len = maxLen - 1;
+	}
+    memcpy( pString, (char *) mSSP, len );
+	pString[len] = '\0';
     mSSP += (len >> 2) + 1;
     SPEW_SHELL( "Popped Tag string\n" );
     SPEW_SHELL( "Popped String \"%s\"\n", pString );
@@ -1815,7 +1833,7 @@ ForthShellStack::ShowStack()
 
 #if defined(WIN32)
 DWORD WINAPI ConsoleInputThreadRoutine( void* pThreadData )
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
 unsigned long ConsoleInputThreadRoutine( void* pThreadData )
 #endif
 {

@@ -48,15 +48,13 @@ class: tobj    extends Object
     -> objId
   ;method
     
-  : newTobj
+  new:
     _allocObject
     2dup nextObjId -rot -> <tobj>.objId
     "|+" %s nextObjId %d
     1 ->+ nextObjId
   ;
 
-  ' newTobj tobj.setNew
-  
   // method: show    objId %d %bl  ;method
   
   method: delete

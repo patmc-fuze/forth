@@ -1,6 +1,6 @@
 autoforget sdl2_image
 
-#ifdef WINDOWS
+#if WINDOWS
 DLLVocabulary sdl2_image SDL2_image.dll
 #else
 DLLVocabulary sdl2_image libSDL2_image.so

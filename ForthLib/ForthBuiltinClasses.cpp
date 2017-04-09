@@ -21,6 +21,7 @@
 #include "OMap.h"
 #include "OStream.h"
 #include "ONumber.h"
+#include "OSystem.h"
 
 #ifdef TRACK_OBJECT_ALLOCATIONS
 long gStatNews = 0;
@@ -42,10 +43,10 @@ extern "C" {
 	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
 	extern void unimplementedMethodOp( ForthCoreState *pCore );
 	extern void illegalMethodOp( ForthCoreState *pCore );
-	extern int oStringFormatSub( ForthCoreState* pCore, const char* pBuffer, int bufferSize );
+	extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 };
 
-#ifdef _WINDOWS
+#ifdef WIN32
 float __cdecl cdecl_boohoo(int aa, int bb, int cc)
 {
 	return (float)((aa + bb) * cc);
@@ -62,7 +63,7 @@ float boohoo(int aa, int bb, int cc)
 }
 #endif
 
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #define SNPRINTF snprintf
 #else
 #define SNPRINTF _snprintf
@@ -105,11 +106,6 @@ void unrefObject(ForthObject& fobj)
 	}
 }
 
-ForthClassVocabulary* gpObjectClassVocab;
-ForthClassVocabulary* gpClassClassVocab;
-ForthClassVocabulary* gpOIterClassVocab;
-ForthClassVocabulary* gpOIterableClassVocab;
-
 namespace
 {
 
@@ -131,6 +127,7 @@ namespace
 
 	FORTHOP(objectDeleteMethod)
 	{
+		// TODO: warn if refcount isn't zero
 		FREE_OBJECT(GET_TPD);
 		METHOD_RETURN;
 	}
@@ -144,7 +141,7 @@ namespace
 		ForthClassObject* pClassObject = (ForthClassObject *)(*((GET_TPM)-1));
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 
-		if (pShowContext->AddObject(obj))
+		if (pShowContext->ObjectAlreadyShown(obj))
 		{
 			pEngine->ConsoleOut("'@");
 			pShowContext->ShowID(pClassObject->pVocab->GetName(), obj.pData);
@@ -152,6 +149,7 @@ namespace
 		}
 		else
 		{
+			pShowContext->AddObject(obj);
 			pClassObject->pVocab->ShowData(GET_TPD, pCore);
 			if (pShowContext->GetDepth() == 0)
 			{
@@ -173,8 +171,10 @@ namespace
 
 	FORTHOP(objectCompareMethod)
 	{
+		ForthObject obj;
 		long thisVal = (long)(GET_TPD);
-		long thatVal = SPOP;
+		POP_OBJECT(obj);
+		long thatVal = (long)(obj.pData);
 		long result = 0;
 		if (thisVal != thatVal)
 		{
@@ -205,7 +205,7 @@ namespace
 		{
 			ForthEngine *pEngine = ForthEngine::GetInstance();
 			ulong deleteOp = GET_TPM[kMethodDelete];
-			pEngine->ExecuteOneOp(deleteOp);
+			pEngine->ExecuteOp(pCore, deleteOp);
 			// we are effectively chaining to the delete op, its method return will pop TPM & TPD for us
 		}
 	}
@@ -234,8 +234,8 @@ namespace
 		ForthClassObject* pClassObject = (ForthClassObject *)(GET_TPD);
 		SPUSH((long)pClassObject->pVocab);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->ExecuteOneOp(pClassObject->newOp);
 		METHOD_RETURN;
+		pEngine->ExecuteOp(pCore, pClassObject->newOp);
 	}
 
 	FORTHOP(classSuperMethod)
@@ -303,8 +303,8 @@ namespace
 		METHOD("delete", classDeleteMethod),
 		METHOD_RET("create", classCreateMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 		METHOD_RET("getParent", classSuperMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIClass)),
-		METHOD_RET("getName", classNameMethod, NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeByte)),
-		METHOD_RET("getVocabulary", classVocabularyMethod, NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt)),
+		METHOD_RET("getName", classNameMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kDTIsPtr|kBaseTypeByte)),
+		METHOD_RET("getVocabulary", classVocabularyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kDTIsPtr|kBaseTypeInt)),
 		METHOD_RET("getInterface", classGetInterfaceMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 		METHOD("setNew", classSetNewMethod),
 
@@ -333,7 +333,7 @@ namespace
 		METHOD_RET("prev", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("current", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", unimplementedMethodOp),
-		METHOD_RET("unref", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject)),
+		METHOD_RET("unref", unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 		METHOD_RET("findNext", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("clone", unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIter)),
 		// following must be last in table
@@ -363,19 +363,46 @@ namespace
 
 } // namespace
 
-void ForthShowObject(ForthObject& obj, ForthCoreState* pCore)
+// return true IFF object was already shown
+bool ForthShowAlreadyShownObject(ForthObject* obj, ForthCoreState* pCore, bool addIfUnshown)
 {
 	ForthEngine* pEngine = ForthEngine::GetInstance();
-	if (obj.pData != NULL)
+	ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+	if (obj->pData != NULL)
 	{
-		pEngine->ExecuteOneMethod(pCore, obj, kOMShow);
+		ForthClassObject* pClassObject = (ForthClassObject *)(*((obj->pMethodOps) - 1));
+		if (pShowContext->ObjectAlreadyShown(*obj))
+		{
+			pEngine->ConsoleOut("'@");
+			pShowContext->ShowID(pClassObject->pVocab->GetName(), obj->pData);
+			pEngine->ConsoleOut("'");
+		}
+		else
+		{
+			if (addIfUnshown)
+			{
+				pShowContext->AddObject(*obj);
+			}
+			return false;
+		}
 	}
 	else
 	{
 		pEngine->ConsoleOut("'@");
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->ShowID("nullObject", NULL);
 		pEngine->ConsoleOut("'");
+	}
+	return true;
+}
+
+void ForthShowObject(ForthObject& obj, ForthCoreState* pCore)
+{
+	if (!ForthShowAlreadyShownObject(&obj, pCore, false))
+	{
+		ForthEngine* pEngine = ForthEngine::GetInstance();
+		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+		pEngine->FullyExecuteMethod(pCore, obj, kOMShow);
+		pShowContext->AddObject(obj);
 	}
 }
 
@@ -444,12 +471,13 @@ ForthTypesManager::GetTypeName( void )
 void
 ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 {
-	gpObjectClassVocab = pEngine->AddBuiltinClass("Object", NULL, objectMembers);
-	gpClassClassVocab = pEngine->AddBuiltinClass("Class", gpObjectClassVocab, classMembers);
+	pEngine->AddBuiltinClass("Object", kBCIObject, kBCIInvalid, objectMembers);
+	ForthClassVocabulary* pClassClassVocab = pEngine->AddBuiltinClass("Class", kBCIClass, kBCIObject, classMembers);
 
-	gpOIterClassVocab = pEngine->AddBuiltinClass("OIter", gpObjectClassVocab, oIterMembers);
-	gpOIterableClassVocab = pEngine->AddBuiltinClass("OIterable", gpObjectClassVocab, oIterableMembers);
+	pEngine->AddBuiltinClass("OIter", kBCIIter, kBCIObject, oIterMembers);
+	pEngine->AddBuiltinClass("OIterable", kBCIIterable, kBCIObject, oIterableMembers);
 
+	OSystem::AddClasses(pEngine);
 	OArray::AddClasses(pEngine);
 	OList::AddClasses(pEngine);
 	OMap::AddClasses(pEngine);
@@ -458,7 +486,8 @@ ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 	ONumber::AddClasses(pEngine);
 	OVocabulary::AddClasses(pEngine);
 	OThread::AddClasses(pEngine);
+	OLock::AddClasses(pEngine);
 
-	mpClassMethods = gpClassClassVocab->GetInterface(0)->GetMethods();
+	mpClassMethods = pClassClassVocab->GetInterface(0)->GetMethods();
 }
 

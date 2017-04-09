@@ -31,15 +31,11 @@ namespace OList
 	//                 oList
 	//
 
-	ForthClassVocabulary* gpOListClassVocab;
-	ForthClassVocabulary* gpOListIterClassVocab;
-
-
 	FORTHOP(oListNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
 		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oListStruct, pList);
+		MALLOCATE_OBJECT(oListStruct, pList, pClassVocab);
 		pList->refCount = 0;
 		pList->head = NULL;
 		pList->tail = NULL;
@@ -64,12 +60,12 @@ namespace OList
 
 	FORTHOP(oListShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oListStruct, pList);
 		oListElement* pCur = pList->head;
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("oList");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'elements' : [");
 		if (pCur != NULL)
 		{
@@ -93,6 +89,19 @@ namespace OList
 		pShowContext->EndElement("]");
 		pShowContext->EndIndent();
 		pShowContext->ShowIndent("}");
+		METHOD_RETURN;
+	}
+
+	FORTHOP(oListIsEmptyMethod)
+	{
+		GET_THIS(oListStruct, pList);
+		int result = 0;
+		if (pList->head == NULL)
+		{
+			ASSERT(pList->tail == NULL);
+			result = ~0;
+		}
+		SPUSH(result);
 		METHOD_RETURN;
 	}
 
@@ -176,12 +185,7 @@ namespace OList
 	{
 		GET_THIS(oListStruct, pList);
 		oListElement* oldHead = pList->head;
-		if (oldHead == NULL)
-		{
-			ASSERT(pList->tail == NULL);
-			PUSH_PAIR(NULL, NULL);
-		}
-		else
+		if (oldHead != NULL)
 		{
 			ForthObject& obj = oldHead->obj;
 			if (oldHead == pList->tail)
@@ -208,12 +212,7 @@ namespace OList
 	{
 		GET_THIS(oListStruct, pList);
 		oListElement* oldTail = pList->tail;
-		if (oldTail == NULL)
-		{
-			ASSERT(pList->head == NULL);
-			PUSH_PAIR(NULL, NULL);
-		}
-		else
+		if (oldTail != NULL)
 		{
 			ForthObject& obj = oldTail->obj;
 			if (pList->head == oldTail)
@@ -307,12 +306,13 @@ namespace OList
 		GET_THIS(oListStruct, pList);
 		pList->refCount++;
 		TRACK_KEEP;
-		MALLOCATE_ITER(oListIterStruct, pIter);
+		ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIListIter);
+		MALLOCATE_ITER(oListIterStruct, pIter, pIterVocab);
 		pIter->refCount = 0;
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pList);
 		pIter->cursor = pList->head;
-		ForthInterface* pPrimaryInterface = gpOListIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIListIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -322,12 +322,13 @@ namespace OList
 		GET_THIS(oListStruct, pList);
 		pList->refCount++;
 		TRACK_KEEP;
-		MALLOCATE_ITER(oListIterStruct, pIter);
+		ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIListIter);
+		MALLOCATE_ITER(oListIterStruct, pIter, pIterVocab);
 		pIter->refCount = 0;
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pList);
 		pIter->cursor = NULL;
-		ForthInterface* pPrimaryInterface = gpOListIterClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIListIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
 	}
@@ -355,12 +356,13 @@ namespace OList
 		{
 			pList->refCount++;
 			TRACK_KEEP;
-			MALLOCATE_ITER(oListIterStruct, pIter);
+			ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIListIter);
+			MALLOCATE_ITER(oListIterStruct, pIter, pIterVocab);
 			pIter->refCount = 0;
 			pIter->parent.pMethodOps = GET_TPM;
 			pIter->parent.pData = reinterpret_cast<long *>(pList);
 			pIter->cursor = pCur;
-			ForthInterface* pPrimaryInterface = gpOListIterClassVocab->GetInterface(0);
+			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIListIter, 0);
 			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 			SPUSH(~0);
 		}
@@ -441,7 +443,8 @@ namespace OList
 	{
 		GET_THIS(oListStruct, pList);
 		oListElement* pCur = pList->head;
-		MALLOCATE_OBJECT(oArrayStruct, pArray);
+		ForthClassVocabulary *pArrayVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIArray);
+		MALLOCATE_OBJECT(oArrayStruct, pArray, pArrayVocab);
 		pArray->refCount = 0;
 		pArray->elements = new oArray;
 
@@ -454,7 +457,7 @@ namespace OList
 		}
 
 		// push array on TOS
-		ForthInterface* pPrimaryInterface = OArray::gpOArrayClassVocab->GetInterface(0);
+		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIArray, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pArray);
 		METHOD_RETURN;
 	}
@@ -477,7 +480,8 @@ namespace OList
 	FORTHOP(oListCloneMethod)
 	{
 		// create an empty list
-		MALLOCATE_OBJECT(oListStruct, pCloneList);
+		ForthClassVocabulary *pListVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIList);
+		MALLOCATE_OBJECT(oListStruct, pCloneList, pListVocab);
 		pCloneList->refCount = 0;
 		pCloneList->head = NULL;
 		pCloneList->tail = NULL;
@@ -567,8 +571,9 @@ namespace OList
 		METHOD("load", oListLoadMethod),
 		METHOD_RET("toArray", oListToArrayMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArray)),
 
-		METHOD_RET("head", oListHeadMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject)),
-		METHOD_RET("tail", oListTailMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject)),
+		METHOD_RET("isEmpty", oListIsEmptyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("head", oListHeadMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+		METHOD_RET("tail", oListTailMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
 		METHOD("addHead", oListAddHeadMethod),
 		METHOD("addTail", oListAddTailMethod),
 		METHOD("removeHead", oListRemoveHeadMethod),
@@ -606,11 +611,12 @@ namespace OList
 
 	FORTHOP(oListIterShowMethod)
 	{
+		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oListIterStruct, pIter);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER("oListIter");
+		SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'cursor : ");
 		ForthShowObject(pIter->cursor->obj, pCore);
 		pShowContext->EndElement(",");
@@ -822,7 +828,6 @@ namespace OList
 	FORTHOP(oListIterFindNextMethod)
 	{
 		GET_THIS(oListIterStruct, pIter);
-		oListStruct* pList = reinterpret_cast<oListStruct *>(pIter->parent.pData);
 		oListElement* pCur = pIter->cursor;
 		ForthObject soughtObj;
 		POP_OBJECT(soughtObj);
@@ -856,7 +861,8 @@ namespace OList
 		GET_THIS(oListIterStruct, pIter);
 
 		// create an empty list
-		MALLOCATE_OBJECT(oListStruct, pNewList);
+		ForthClassVocabulary *pListVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIList);
+		MALLOCATE_OBJECT(oListStruct, pNewList, pListVocab);
 		pNewList->refCount = 0;
 		pNewList->head = NULL;
 		pNewList->tail = NULL;
@@ -905,7 +911,7 @@ namespace OList
 		METHOD_RET("prev", oListIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("current", oListIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oListIterRemoveMethod),
-		METHOD_RET("unref", oListIterUnrefMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeObject)),
+		METHOD("unref", oListIterUnrefMethod),
 		METHOD_RET("findNext", oListIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		//METHOD_RET( "clone",                oListIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIListIter) ),
 
@@ -914,7 +920,7 @@ namespace OList
 		METHOD("split", oListIterSplitMethod),
 
 
-		MEMBER_VAR("parent", NATIVE_TYPE_TO_CODE(0, kBaseTypeObject)),
+		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIList)),
 		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
 		// following must be last in table
@@ -924,8 +930,8 @@ namespace OList
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		gpOListClassVocab = pEngine->AddBuiltinClass("OList", gpOIterableClassVocab, oListMembers);
-		gpOListIterClassVocab = pEngine->AddBuiltinClass("OListIter", gpOIterClassVocab, oListIterMembers);
+		pEngine->AddBuiltinClass("OList", kBCIList, kBCIIterable, oListMembers);
+		pEngine->AddBuiltinClass("OListIter", kBCIListIter, kBCIIter, oListIterMembers);
 	}
 
 } // namespace OList

@@ -280,26 +280,6 @@ code dd
   endif,
   next,
   
-code l+
-  4 edx d] ebx mov,		// ebx = lopart
-  edx ] eax mov,		// eax = hipart
-  8 # edx add,
-  4 edx d] ebx add,
-  edx ] eax adc,
-  eax edx ] mov,
-  ebx 4 edx d] mov,
-  next,
-  
-code l-
-  4 edx d] ebx mov,
-  edx ] eax mov,
-  8 # edx add,
-  4 edx d] ebx sub,
-  edx ] eax sbb,
-  eax edx ] mov,
-  ebx 4 edx d] mov,
-  next,
-  
 code lnegate
   4 edx d] eax mov,
   edx ] ebx mov,
@@ -325,85 +305,6 @@ code labs
   endif,
   next,
   
-// http://stackoverflow.com/questions/1131833/how-do-you-multiply-two-64-bit-numbers-in-x86-assembler
-// http://www.plantation-productions.com/Webster/www.artofasm.com/Windows/HTML/AdvancedArithmetica2.html#1007619
-
-code l*
-  edi push,
-  esi push,
-  // edx always holds hi 32 bits of mul result
-  edx ebx mov,			// so we will use ebx for the forth stack ptr
-  
-  // TOS: bhi ebx   blo ebx+4   ahi ebx+8   alo ebx+12
-  
-  ecx ecx xor,			// ecx holds sign flag
-  
-  ebx ] eax mov,
-  eax eax or,
-  0<, if,
-  	// b is negative
-    ecx not,
-    4 ebx d] esi mov,
-    esi not,
-    eax not,
-    1 # esi add,
-    0 # eax adc,
-    esi 4 ebx d] mov,
-    eax ebx ] mov,
-  endif,
-  
-  8 ebx d] eax mov,
-  12 ebx d] esi mov,
-  eax eax or,
-  0<, if,
-  	// a is negative
-    ecx not,
-    esi not,
-    eax not,
-    1 # esi add,
-    0 # eax adc,
-    esi 12 ebx d] mov,
-    eax 8 ebx d] mov,
-  endif,
-  
-  // alo(esi) * blo
-  4 ebx d] eax mov,
-  esi mul,				// edx is hipart, eax is final lopart
-  edx edi mov,			// edi is hipart accumulator
-  
-  12 ebx d] esi mov,		// esi = alo
-  eax 12 ebx d] mov,		// ebx+12 = final lopart
-
-  // alo * bhi
-  ebx ] eax mov,		// eax = bhi
-  esi mul,
-  eax edi add,
-  
-  // ahi * blo
-  8 ebx d] esi mov,		// esi = ahi
-  4 ebx d] eax mov,		// eax = blo
-  esi mul,
-  eax edi add,			// edi = hiResult
-  
-  // invert result if needed
-  ecx ecx or,
-  0<, if,
-    12 ebx d] eax mov,		// eax = loResult
-    eax not,
-    edi not,
-    1 # eax add,
-    0 # edi adc,
-    eax 12 ebx d] mov,
-  endif,
-  
-  edi 8 ebx d] mov,
-  
-  8 # ebx add,
-  ebx edx mov,
-  esi pop,
-  edi pop,
-  next,
-
 // .fl for 64-bit, .fs for 32-bit
 
 code dpi
@@ -460,28 +361,6 @@ code 2r@
   ebx 4 edx d] mov,
   next,
   
-code um*
-  edx ] eax mov,
-  4 edx d] ebx mov,
-  edx push,
-  ebx mul,      // result hiword in edx, loword in eax
-  edx ebx mov,
-  edx pop,
-  eax 4 edx d] mov,
-  ebx edx ] mov,
-  next,
-
-code m*
-  edx ] eax mov,
-  4 edx d] ebx mov,
-  edx push,
-  ebx eax imul,      // result hiword in edx, loword in eax
-  edx ebx mov,
-  edx pop,
-  eax 4 edx d] mov,
-  ebx edx ] mov,
-  next,
-
 code */
   edx ebx mov,
   4 ebx d] eax mov,

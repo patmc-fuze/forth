@@ -6,9 +6,6 @@
 //////////////////////////////////////////////////////////////////////
 
 
-
-#define DEFAULT_STRING_DATA_BYTES 128
-
 // first time OString:printf fails due to overflow, it buffer is increased to this size
 #define OSTRING_PRINTF_FIRST_OVERFLOW_SIZE 256
 // this is size limit of buffer expansion upon OString:printf overflow
@@ -17,21 +14,6 @@
 
 namespace OString
 {
-
-	struct oString
-	{
-		long		maxLen;
-		long		curLen;
-		char		data[DEFAULT_STRING_DATA_BYTES];
-	};
-
-	struct oStringStruct
-    {
-        ulong		refCount;
-		ulong		hash;
-        oString*	str;
-    };
-
 	extern int gDefaultOStringSize;
 
 	extern oString* createOString(int maxChars);
@@ -45,8 +27,5 @@ namespace OString
 	extern void stringBlockOut( ForthCoreState* pCore, void *pData, const char *pBuffer, int numChars );
 	extern void stringStringOut( ForthCoreState* pCore, void *pData, const char *pBuffer );
     
-	extern ForthClassVocabulary* gpOStringClass;
-	extern ForthClassVocabulary* gpOStringMapIterClassVocab;
-
 	void AddClasses(ForthEngine* pEngine);
 } // namespace oString

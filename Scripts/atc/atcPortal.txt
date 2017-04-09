@@ -3,7 +3,7 @@
 class: atcPortal extends iAtcPortal
 
   // X Y ENTRY_DIRECTION ID
-  method: init
+  m: init
     'prtl' -> tag
     9000 -> exitAltitude
     7000 -> entryAltitude
@@ -11,7 +11,7 @@ class: atcPortal extends iAtcPortal
     -> entryDirection
     -> y
     -> x
-  ;method
+  ;m
   
   
 ;class

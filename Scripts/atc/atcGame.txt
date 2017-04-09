@@ -12,7 +12,7 @@ class: atcGame extends iAtcGame
  
   int commandKey
   
-  method: init
+  m: init
     'game' -> tag
     new OString -> name
     name.set("games/")
@@ -29,7 +29,7 @@ class: atcGame extends iAtcGame
     new atcInputHandler -> inputHandler
     new OString -> message
     inputHandler.init( region display )
-  ;method
+  ;m
   
   : reset
     oclear name
@@ -43,11 +43,11 @@ class: atcGame extends iAtcGame
     oclear message
   ;
   
-  method: delete
+  m: delete
     //t{ "deleting game\n" %s }t
     reset
     super.delete
-  ;method
+  ;m
   
   : startGame
     atcAirplane plane
@@ -78,7 +78,7 @@ class: atcGame extends iAtcGame
   ;
   
   // newPlaneX newPlaneY plane ...
-  method: moveAirplane
+  m: moveAirplane
     -> iAtcAirplane plane
     -> int newY
     -> int newX
@@ -167,19 +167,19 @@ class: atcGame extends iAtcGame
       endif
     endif
     oclear plane  
-  ;method
+  ;m
 
-  method: activateAirplane  // PLANE_OBJ ...
+  m: activateAirplane  // PLANE_OBJ ...
     ->o atcAirplane plane
     activeAirplanes.addTail( plane )
     inactiveAirplanes.remove( plane )
-  ;method
+  ;m
   
-  method: deactivateAirplane  // PLANE_OBJ ...
+  m: deactivateAirplane  // PLANE_OBJ ...
     ->o atcAirplane plane
     inactiveAirplanes.addTail( plane )
     activeAirplanes.remove( plane )
-  ;method
+  ;m
   
   : getGameTime
     ms@ status.gameStartTime -
@@ -210,7 +210,7 @@ class: atcGame extends iAtcGame
       newplaneRate ->+ status.nextPlaneMove
       // TODO: create a plane at a portal or airport
       inactiveAirplanes.unrefHead -> plane
-      if(or(plane))
+      if(objNotNull(plane))
         region.airports.count -> int numAirports
         region.portals.count -> int numPortals
         numAirports numPortals + -> int numDestinations
@@ -329,7 +329,7 @@ class: atcGame extends iAtcGame
   ;
 
   // COMMAND_INFO_PTR ...
-  method: executeCommand
+  m: executeCommand
     -> ptrTo atcCommandInfo commandInfo
     if( commandInfo.airplaneNum airplanes.count < )
       airplanes.get(commandInfo.airplaneNum) -> iAtcAirplane plane
@@ -342,7 +342,7 @@ class: atcGame extends iAtcGame
       endif
       oclear plane
     endif
-  ;method
+  ;m
 
   : updateInputs
     inputHandler.update
@@ -352,7 +352,7 @@ class: atcGame extends iAtcGame
     endif
   ;
  
-  method: play
+  m: play
     startGame
     begin
     while( status.keepPlaying )
@@ -363,6 +363,6 @@ class: atcGame extends iAtcGame
     
     reportGameResults
     cleanupGame
-  ;method
+  ;m
   
 ;class

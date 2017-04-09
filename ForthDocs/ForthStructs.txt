@@ -175,7 +175,7 @@ typedef struct
 //   7          unused
 // 31...8       depends on base type:
 //      string      length
-//      struct      structIndex
+//      struct      typeIndex
 //      object      classId
 
 // user-defined ops vocab entries have the following value fields:

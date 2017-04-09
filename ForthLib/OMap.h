@@ -10,7 +10,5 @@ class ForthClassVocabulary;
 
 namespace OMap
 {
-	extern ForthClassVocabulary* gpMapClassVocab;
-
 	void AddClasses(ForthEngine* pEngine);
 }

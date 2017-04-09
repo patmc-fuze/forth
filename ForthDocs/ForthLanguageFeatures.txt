@@ -21,7 +21,7 @@ o builtin symbol types
     a symbol which has extra bogus characters may be treated as valid.
     
   o integers
-    o hex numbers
+    o hex numbers:   0xBadFood
     o increments:  11+   47-   0x100+
     
   o strings: "A spotted elephant"  "In my pajamas!\n"
@@ -105,3 +105,5 @@ o uncompiling
   ? I thought that varAction setting ops were uncompiled when they occured
     right before symbols that were reordered due to parentheses, but I can't
     find any sign of this in the code
+    
+    

@@ -58,6 +58,17 @@ void OutputToLogger(const char* pBuffer)
     return;
 }
 
+void myInvalidParameterHandler(const wchar_t* expression,
+	const wchar_t* function,
+	const wchar_t* file,
+	unsigned int line,
+	uintptr_t pReserved)
+{
+	wprintf(L"Invalid parameter detected in function %s.", function);
+	//wprintf(L"Expression: %s\n", expression);
+	//abort();
+}
+
 static bool InitSystem()
 {
 #if AFX_BUILD
@@ -69,6 +80,30 @@ static bool InitSystem()
         cerr << _T("Fatal Error: MFC initialization failed") << endl;
 		return false;
 	}
+
+	_set_invalid_parameter_handler(myInvalidParameterHandler);
+	_CrtSetReportMode(_CRT_ASSERT, 0);
+#if 0
+	// Set output mode to handle virtual terminal sequences
+	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (hOut != INVALID_HANDLE_VALUE)
+	{
+		DWORD dwMode = 0;
+		GetConsoleMode(hOut, &dwMode);
+		dwMode |= 4;// ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+		SetConsoleMode(hOut, dwMode);
+	}
+
+	HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+	if (hIn != INVALID_HANDLE_VALUE)
+	{
+		DWORD dwMode = 0;
+		GetConsoleMode(hIn, &dwMode);
+		dwMode |= 0x200;// ENABLE_VIRTUAL_TERMINAL_INPUT;
+		SetConsoleMode(hIn, dwMode);
+	}
+#endif
+
 #endif
 	return true;
 }
@@ -122,13 +157,11 @@ int main( int argc, char* argv[], char* envp[] )
         delete pShell;
     }
 
+	// NOTE: this will always report a 64 byte memory leak (a CDynLinkLibrary object) that it causes itself
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
-	_CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);    // or _CRTDBG_FILE_STDERR?
-	if (_CrtDumpMemoryLeaks())        // returns TRUE if a memory leak was found
-	{
-		printf("\nHit RETURN to exit\n");
-		getchar();
-	}
+	_CrtSetReportFile(_CRT_WARN, hLoggingPipe);    // or _CRTDBG_FILE_STDERR?
+	_CrtDumpMemoryLeaks();
+
 	return nRetCode;
 }
 

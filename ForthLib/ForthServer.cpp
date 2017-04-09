@@ -242,7 +242,7 @@ namespace
 		{
 			vprintf(pFormat, argList);
 		}
-#ifndef LINUX
+#if !defined(LINUX) && !defined(MACOSX)
 		else
 		{
 			TCHAR buffer[1000];
@@ -330,7 +330,7 @@ int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short p
 
 				case AF_INET:
 					{
-						struct sockaddr_in* sockaddr_ipv4 = (struct sockaddr_in *) resultAddr->ai_addr;
+						//struct sockaddr_in* sockaddr_ipv4 = (struct sockaddr_in *) resultAddr->ai_addr;
 						unsigned char* pAddrBytes = (unsigned char*) (&resultAddr->ai_addr->sa_data[2]);
 						printf( "IPv4 %d.%d.%d.%d   use %d for forth client address\n",
 							pAddrBytes[0], pAddrBytes[1], pAddrBytes[2], pAddrBytes[3],
@@ -367,7 +367,7 @@ int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short p
         ServerInfo.sin_family = AF_INET;
         ServerInfo.sin_addr.s_addr = INADDR_ANY;
         ServerInfo.sin_port = htons( portNum );
-        iRetVal = bind(ServerSocket, (struct sockaddr*) &ServerInfo, sizeof(struct sockaddr));
+        iRetVal = ::bind(ServerSocket, (struct sockaddr*) &ServerInfo, sizeof(struct sockaddr));
 #ifdef WIN32
         if (iRetVal == SOCKET_ERROR)
 #else

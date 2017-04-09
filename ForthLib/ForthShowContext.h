@@ -23,13 +23,16 @@ public:
 	void BeginIndent();
 	void EndIndent();
 	void ShowIndent(const char* pText = NULL);
+	void BeginFirstElement(const char* pText);
+	void BeginNextElement(const char* pText);
 	void EndElement(const char* pEndText = NULL);
 	void ShowHeader(ForthCoreState* pCore, const char* pTypeName, const void* pData);
 	void ShowID(const char* pTypeName, const void* pData);
 	void ShowIDElement (const char* pTypeName, const void* pData);
 
+	void AddObject(ForthObject& obj);
 	// returns true IFF object has already been shown
-	bool AddObject(ForthObject& obj);
+	bool ObjectAlreadyShown(ForthObject& obj);
 
 	std::vector<ForthObject>& GetObjects();
 

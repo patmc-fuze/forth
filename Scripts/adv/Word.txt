@@ -1,0 +1,82 @@
+
+class: Word
+
+  int number
+  OStringArray words     // array of OString
+  OString comment
+  eAdventureWordType wordType
+  
+  new:
+    _allocObject ->o Word newObj
+    kAWTWord -> newObj.wordType
+    newObj
+  ;
+    
+  m: init  // int number
+    -> number
+    new OStringArray -> words
+    new OString -> comment
+    //"init Word " %s number %d %bl wordType %d %nl
+  ;m
+  
+  m: initWith    // int number, string word
+    new OStringArray -> words
+    new OString -> comment
+    words.push
+    -> number
+    //"initWith Word " %s words.get(0).show %bl number %d %bl wordType %d %nl
+  ;m
+  
+  m: showIt
+    "Word " %s number %d " words:" %s
+    do(words.count 0)
+      words.getRaw(i) %s %bl
+    loop
+    %nl
+    if(comment.length 0>)
+      "comment:{" %s comment.get %s "}\n" %s
+    endif
+  ;m
+  
+  m: delete
+    //"Word.delete " %s number %d %nl
+    oclear words
+    oclear comment
+    
+    super.delete
+  ;m
+
+  m: addWord
+    words.push
+    //"Word.addWord " %s number %d %bl this drop %x %bl <OString>.show
+  ;m
+    
+  m: hasWord    // returns bool
+    ->o OString soughtWord
+    soughtWord.get -> ptrTo byte soughtStr
+    false -> int foundIt
+    //words.show
+    ?do(words.count 0)
+      words.get(i) ->o OString checkWord
+      if(checkWord.equals(soughtStr))
+        true -> foundIt
+        leave
+      endif
+    loop
+    foundIt
+  ;m
+
+
+  m: getWords returns OString
+    mko OString s
+    s.join(words " ")
+    unref s
+  ;m
+  
+  m: showSpec      returns OString
+  ;m
+    
+;class  // Word, dawg
+
+
+loaddone

@@ -161,6 +161,381 @@ Gotchas with structure and object support:
 2) varAction ops must be the symbol just before a field selector symbol, which
    means that index calculation ops must appear before the varAction op
 
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+Double and long memory and stack layouts:
+
+           memory                       param stack
+0.5d    00 00 00 00  00 00 e0 3f     00 00 00 00  00 00 e0 3f
+ll      10 32 54 76  98 ba dc fe     98 ba dc fe  10 32 54 76  
+
+ll == 0xfedcba9876543210L
+
+Double has consistent layout, long is reversed on param stack.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 7 2017
+
+I realized I was spending a lot of time testing forth on different platforms when
+I made changes, so I made a global test.txt script and added a bunch of random
+small test scripts to a new misctest.txt.
+
+test.txt is a smoke test which runs most of the existing test scripts.
+
+misctest.txt holds 'tests' which don't check their results, they are mainly there
+to verify that features compile and don't throw exceptions when run.
+
+I also fixed several bugs which my changes for threading caused - I changed
+code which was calling ForthEngine::ExecuteOneMethod to use FullyExecuteMethod
+instead.  These included:
+o OArray.sort
+o SAFE_RELEASE delete
+o input and output stream IO methods
+This was necessary where C++ code could execute more than a single method inside
+a single forthop or method.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 5 2017
+
+I brought the linux forth version up to date.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 3 2017
+
+I spent the last few days trying to get the assembler inner interpreter working
+on OSX.  One problem is that OSX requires any calls to system library routines
+to be made on 16 byte boundaries.  The extOp routine was misaligned, so all calls
+to ops defined in C++ were failing.  After I fixed that I ran into other wierd
+problems, for example I get a segfault in this line in CCodeAction:
+        opRoutine = (ForthOp)(pCore->ops[opVal]);
+The segfault happens because the value gotten by pCore-ops is wrong, but I have
+stepped through the disassembly multiple times, and the pCore value is correct,
+but when it fetches the ops field from it at offset 8, it get 0 or 2, even though
+the value shown in the debugger for pCore->ops is a valid pointer, and the value
+in a memory window shows the same valid value.
+I have also run into wierd behavior multiple times when I was trying to align
+the stack - subtracting 12 from esp actually caused 52 to be added to it.
+
+I would just assume the debugger was showing me incorrect data, but the segfaults
+caused by that incorrect data are real.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 31 2017
+
+My nasm port broke DLL ops, I fixed it.
+The OSX problem with ls and pwd was because my tmpnam op was prepending a period
+before the random filename, on OSX that filename is an absolute path to /var/tmp/blah,
+so adding the dot broke things.  I added that when a new version of the windows
+libraries made tmpname return a filename that began with a slash, so without
+the prepended dot temp files would be created in the root directory.
+
+I thought floating-point formatting was broken, but I forgot that fprintf/snprintf
+always expect doubles, and that they need to be word swapped.
+
+I added preliminary versions of the new lock objects for OSX.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 30 2017
+
+At the end of the day, the OSX port is working, it passes forthtest and biclasstest
+and I was able to play adventure without problems.
+There are some system related problems, ls & pwd fail, probably anything using $shellRun
+will fail.
+---
+I split the assembly routines NativeAction and CallDLLRoutine out into AsmCore.asm,
+they are still needed even when you don't have ASM_INNER_INTERPRETER defined.
+I couldn't get MSDEV to build AsmCore.asm, I eventually resorted to editing
+ForthLib.vcxproj by hand, cloning the InnerInterp.asm section to build it.
+I also found out why you need to change ASM_INNER_INTERPRETER inside InnerInterp.asm
+to actually exclude the inner interpreter - there is a /DASM_INNER_INTERPRETER in
+the custom build rule, it doesn't get it from the preprocessor settings.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 29 2017
+
+Because there isn't enough pain in my life, I decided to port Forth to OSX.
+Most of the initial work was replacing LINUX ifdefs with LINUX or MACOSX.
+
+I thought I would initially just get the no-assembler version to run, but I forgot
+that the no-assembler version actually requires a few assembler routines for things
+like printing that need to manipulate variable numbers of arguments on the system
+stack.  I started with the Linux version InnerInterp.S, but that hadn't been updated
+since August 21 2015, so I had to port all the newer changes from InnerInterp.asm.
+After that it still didn't work, because the Xcode assembler is 'as', and it
+is not compatible with gas.  GAH!  I think this leaves me with these options:
+
+1) write yet another x86 inner interpreter, this one compatable with xcode assembler
+2) get xcode to use gas for this file
+3) get xcode to use nasm for this file and replace the Linux code
+4) give up on porting forth to macosx, or find a way to do it without any assembler
+
+Potentially switching over to a single nasm inner interpreter for all x86 might
+be the best option.
+If I do decide to continue with a Mac version, there is also the problem that
+Mac requires all system calls to have the stack aligned on 16 byte boundaries.
+
+There is also windows-only code that needs to be done for Linux for the new
+thread and lock objects.
+
+The git command to clone Forth onto the mac that worked was:
+   git clone git://192.168.1.250/Forth
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 28 2017
+
+I added goto and labels.  The engine maintains a table with an entry for each label.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 27 2017
+
+I added 'orif' and 'andif' ops which are inspired by C's || and && operators for
+early outing of if-conditionals.  They are only designed to work with 'if', not
+'while' or 'until'.  The overall idea is:
+o existing if/else/endif evaluate a single conditional then follow either the true flow or the false flow
+o andif/orif allow modification of the true/false flows to either early out or add more conditionals
+o andif/orif push the branch address and an andif/orif tag on the shellstack
+o either 'else' or 'endif' will iterate through all the andif/orif tags until they reach an 'if' (branchz)
+o andif and orif tags redefine one of two IPs that else maintains: the trueIP which
+initially points to the 'true' body of the if statement, and the falseIP which initially
+points to the 'false' body (after the else),
+o orif statements redirect the false flow to point to their conditonal code, since an
+  orif gives you another chance to succeed after a previous test returned false
+o andif statements redirect the true flow to point to their conditional code,
+  since an andif adds another conditional you must pass to continue on the true flow
+
+Here is pseudocode for the modified 'else' and 'endif' ops:
+
+elseOp:
+  compile abort (will become branch)
+  DP -> falseIP
+  peekShellStack(1) 1+ -> trueIP
+  true -> notDone
+  false -> followedByOr
+  while(notDone)
+    popShellStack -> branchTag
+    popShellStack -> branchIP
+    if(followedByOr)
+      compile branchT:trueIP at branchIP
+    else
+      compile branchZ:falseBodyIP at branchIP
+    switch(branchTag)
+      case ifTab:
+        false -> notDone
+        break
+      case andifTag:
+        branchIP -> trueIP
+        peekShellStack(1) 1+ -> trueIP
+        false -> followedByOr
+        break
+      case orifTag:
+        true -> followedByOr
+        peekShellStack(1) 1+ -> falseIP
+        break;
+  pushShellStack(DP)
+  pushShellStack(elseTag)
+
+endifOp:
+  DP -> falseIP
+  if(peekShellStach(0) == elseTag)
+    popShellStack
+    popShellStack -> branchIP
+    compile branch:DP at branchIP
+  else
+    peekShellStack(1) 1+ -> trueIP
+    true -> notDone
+    false -> followedByOr
+    while(notDone)
+      popShellStack -> branchTag
+      popShellStack -> branchIP
+      if(followedByOr)
+        compile branchT:trueIP at branchIP
+      else
+        compile branchZ:falseBodyIP at branchIP
+      switch(branchTag)
+        case ifTab:
+          false -> notDone
+          break
+        case andifTag:
+          branchIP -> trueIP
+          false -> followedByOr
+          break
+        case orifTag:
+          true -> followedByOr
+          branchIP -> falseIP
+          break;
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 23 2017
+
+I spent the last several days porting a C++ version of Collosal Cave Adventure
+to Forth.  I found several bugs in the process.
+Some things that made the port harder:
+
+o && and || in conditionals
+o continue to break out of loops
+o needing to cast to an object type after doing an OArray.get
+o multiple return points
+o returning string temps
+o big chains of elseifs (case using ofif works pretty well)
+
+I also found out that the object show method system isn't extensible at all,
+you either accept the default output or get nothing.  I've added a set of ops
+for manipulating the show context which allow you to correctly implement custom
+show methods.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 17 2017
+
+I finished debugging and testing the soft and async threads today.  I'm not
+positive there aren't still problems, but they are good enough to checkin.
+I don't know if setTrace inside a user defined op will still work for instance.
+
+Something that would probably be good to do would be to move more stuff from
+the C++ thread classes into the forth objects, for example the queue of soft
+threads blocked on an OLock, or the array of child threads of an async thread.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 14 2017
+
+Yesterday I decided to stop analyzing how to implement soft threads and just
+get started with my rough thoughts.  Things went pretty well, but what I am
+currently stumbling on is how to execute an opcode which isn't associated with
+a particular IP - the current code relies on copying the opcode into the first
+element of a 2 element int array which is a declared inside ExecuteOneOp or ExecuteOneMethod
+and sticking a 'done' opcode in the second element.  The inner interpreter runs
+until it executes 'done' then exits because that op changes the status to done.
+
+Cases to think about:
+
+o executing a user-defined op in outer interpreter
+o 'execute' opcode
+o executing an object method
+
+I stuck code into the ops which set the IP (mainly exit and its local/method variants)
+to set result to kResultDone if the new IP is null.
+
+ForthEngine::TraceOp(pCore) crashes if the IP is null, since it is trying to
+fetch the op it is going to display from there.
+
+Lots of things call ForthEngine::ExecuteOneOp, some of them need the op and anything
+it calls to completely finish, other things just need that single op to execute.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 1 2017
+
+I added a bunch of methods to the array classes.
+I've started thinking about threads again.  My new leaning is to change the
+name of ForthThread to ForthAsyncThread, but leave it comparatively unchanged.
+I'll add a new ForthThread, which is a soft thread that does cooperative
+thread switching.  ForthThreads are created under a ForthAsyncThread, and are
+only run when that asyncThread runs its soft thread manager.
+
+The existing main thread will be unmodified, there may be a background async
+thread, and there will be a way to create soft threads that will run under the
+background thread.
+
+The existing untested OLock class will be changed to OAsyncLock and a soft OLock
+class will be added.
+
+The soft thread manager has
+  a ready thread list
+  a sleeping thread list
+  a runThreads method which will
+    move any sleeping threads which are past their wakeup time to the ready list
+	run the next thread in the ready thread list
+
+When code in a soft thread tries to get a soft lock and fails, it is removed from the ready thread list
+and is put on a queue waiting for that lock.
+? what if an async thread fails to get a soft lock
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 31 2017
+
+For some reason, the ;m alias wasn't working - its dictionary entry had 0xFEEEFEEE
+in it.  I rearranged forth_autoload.txt so that dump was defined before alias so
+that I could dump the dictionary info while creating the alias, but that made
+the problem disappear.  Ugh.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 24 2016
+
+I added an invalid parameter handler to the window forth main program to catch
+a crash which wasn't caught by the existing exception handling code, which happens
+if you pass an invalid format parameter to strftime.  The docs for the function
+say its behavior is undefined for invalid formats, but crashing still seems a
+bit extreme.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 13 2016
+
+DOH! When I created the system object, I forgot that 'system' was already used
+as the way to execute a string in the system shell.  I changed it to be _shellRun
+for the builtin op and $shellRun for the op which does output redirection, and
+it works now in command line forth and in ForthGUI.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 3 2016
+
+I fixed a bunch of bugs in object show methods, showing an object that had
+circular references would loop indefinitely.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 25 2016
+
+ForthGUI didn't work immediately, I needed to make some changes because of the
+stream object changes, it mostly works now, problems:
+
++ forth_autoload.txt isn't autoloaded
+- ops like pwd and ls don't show any output
++ input box doesn't automatically get focus
+
+I also had to turn off safe structured exception handlers (/SAFESEH:NO) in the
+link of ForthGUI.  I could have added an SEH handler to the assembly file:
+
+.safeseh SEH_handler
+
+SEH_handler   proc
+;handler
+ret
+
+SEH_handler   endp
+
+I replaced structIndex with typeIndex everywhere.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 24 2016
+
+The hang in biclasstest was in SpewMethodName, which was trying to find the name
+of method 0 (delete), it had a bug where if it found a vocab entry with the correct value,
+but the value wasn't a method, it never advanced the vocab search point, so it found
+__refCount, which has a value of 0 but is an int member, and kept looping and rejecting
+that entry in an infinite loop.  I don't see how this could be a new bug, maybe I just
+haven't run biclasstest with inner interpreter spew turned on since the bug was added,
+which is probably when I made the reference count have a member variable.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 23 2016
+
+I created the simplest case of a class and a derived class and the derived class
+delete method doing super.delete, and it doesn't have the hang.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 19 2016
+
+I made a lot of progress with the OSystem and OVocabulary changes.  There is
+still a hang in biclasstest when it tries to delete a class object whose destructor
+calls parent.delete, I'm not sure if this is a problem with using super, or if
+it is because 'delete' is method 0.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 16 2016
+
+Things that need to be fixed with removing vocabulary varop stuff:
+- definitions (ref)
+- _doStructType
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 14 2016
+
+Crunch has been keeping me busy.
+
+I foolishly started two relatively big things at almost the same time:
+1) Add an OSystem class and system singleton, which will be used to access things
+   like streams, threads, files and vocabularies.  The idea was to remove a bunch
+   of native ops with methods on native classes.
+2) I decided to replace the manual management of the structure info definitions in
+   the type manager with a standard vector.
+
+While debugging the type manager change I ran into some bugs which are because
+some things were previously working by accident, and only because the struct index
+for Object was defined to be 0.  I need to go through all the method and field
+definitions in the builtin classes and see if there are more with this bug.
+
+Should unref really have a return type, since it isn't intended to be chained
+to a following method - you could do obj.unref.show but it isn't really the
+intended use of unref, and would allow you to invoke a method on an object which
+has a zero refcount.
+
+Currently forth compiles, but gets an exception 300 lines into autoload.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 24 2016
 
@@ -345,7 +720,7 @@ o object member
   + struct array
 + invoke init op at end of 'new'
 
-? add an op for getting the structIndex given a struct/class name
+? add an op for getting the typeIndex given a struct/class name
   - have definition of "_init" in struct or class definitions
 
 For some reason, when you start a struct definition, it doesn't change the
@@ -3842,7 +4217,7 @@ o bottom 4 bits are baseType
   o baseType are the old native types, plus struct
     o object is a baseType, but it is no longer a native
 o isArray is a separate bit, there is no idea of single/none/illegal
-o the top 24 bits is the stringLen/structIndex/classIndex
+o the top 24 bits is the stringLen/typeIndex/classIndex
 ? Are there any changes needed in the assembler code, or is all the typeCode
   stuff always handled by the outer interpreter or C++ only code?
 

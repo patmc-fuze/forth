@@ -47,6 +47,88 @@ typedef enum {
     //long                *DBase;         // base of dictionary
     //ulong               DLen;           // max size of dictionary memory segment
 
+class ForthEngineTokenStack
+{
+public:
+	ForthEngineTokenStack();
+	~ForthEngineTokenStack();
+	void Initialize(ulong numBytes);
+	inline bool IsEmpty() const { return mpCurrent == mpLimit; };
+	void Push(const char* pToken);
+	char* Pop();
+	char* Peek();
+	void Clear();
+
+private:
+	char*               mpCurrent;
+	char*               mpBase;
+	char*				mpLimit;
+	ulong               mNumBytes;
+};
+
+struct ForthLabelReference
+{
+	ForthLabelReference(long *inBranchIP, int inBranchType)
+		: branchIP(inBranchIP)
+		, branchType(inBranchType)
+	{
+	}
+
+	long *branchIP;
+	int branchType;		//  kOpBranch, kOpBranchNZ or kOpBranchZ
+};
+
+class ForthLabel
+{
+public:
+	ForthLabel(const char* pName)
+		: name(pName)
+		, labelIP(nullptr)
+	{
+	}
+
+	ForthLabel(const char* pName, long* inLabelIP)
+		: name(pName)
+		, labelIP(inLabelIP)
+	{
+	}
+
+	void CompileBranch(long *inBranchIP, int inBranchType)
+	{
+		int offset = (labelIP - inBranchIP) - 1;
+		*inBranchIP = COMPILED_OP(inBranchType, offset);
+	}
+
+	void AddReference(long *inBranchIP, int inBranchType)
+	{
+		if (labelIP == nullptr)
+		{
+			references.emplace_back(ForthLabelReference(inBranchIP, inBranchType));
+		}
+		else
+		{
+			CompileBranch(inBranchIP, inBranchType);
+		}
+	}
+
+	void DefineLabelIP(long *inLabelIP)
+	{
+		labelIP = inLabelIP;
+		if (references.size() > 0)
+		{
+			for (ForthLabelReference& labelReference : references)
+			{
+				CompileBranch(labelReference.branchIP, labelReference.branchType);
+			}
+		}
+		references.clear();
+	}
+
+	std::string name;
+	std::vector<ForthLabelReference> references;
+	long *labelIP;
+};
+
 class ForthEngine
 {
 public:
@@ -65,18 +147,18 @@ public:
     bool            GetFastMode( void );
 
     //
-    // ExecuteOneOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
+    // FullyExecuteOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
     // execute forth ops, and is also how systems external to forth execute ops
     //
-    eForthResult        ExecuteOneOp( long opCode );
-    // ExecuteOps executes a sequence of forth ops
+	eForthResult        FullyExecuteOp(ForthCoreState* pCore, long opCode);
+	// ExecuteOp will start execution of an op, but will not finish user defs or methods
+	eForthResult        ExecuteOp(ForthCoreState* pCore, long opCode);
+	// ExecuteOps executes a sequence of forth ops
     // The sequence must be terminated with an OP_DONE
-    eForthResult        ExecuteOps( long* pOps );
-	// Use this version of ExecuteOps to execute code in a particular thread
-	// Caller must have already set the thread IP to point to a sequence of ops which ends with 'done'
-	eForthResult		ExecuteOps( ForthCoreState* pCore );
+	eForthResult        ExecuteOps(ForthCoreState* pCore, long* pOps);
 
     eForthResult        ExecuteOneMethod( ForthCoreState* pCore, ForthObject& obj, long methodNum );
+	eForthResult		FullyExecuteMethod(ForthCoreState* pCore, ForthObject& obj, long methodNum);
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
     long            AddOp( const long *pOp );
@@ -84,9 +166,9 @@ public:
     long*           AddBuiltinOp( const char* name, ulong flags, ulong value );
     void            AddBuiltinOps( baseDictionaryEntry *pEntries );
 
-    ForthClassVocabulary*   StartClassDefinition( const char* pClassName );
+	ForthClassVocabulary*   StartClassDefinition(const char* pClassName, eBuiltinClassIndex classIndex = kNumBuiltinClasses);
 	void					EndClassDefinition();
-    ForthClassVocabulary*   AddBuiltinClass( const char* pClassName, ForthClassVocabulary* pParentClass, baseMethodEntry *pEntries );
+	ForthClassVocabulary*   AddBuiltinClass(const char* pClassName, eBuiltinClassIndex classIndex, eBuiltinClassIndex parentClassIndex, baseMethodEntry *pEntries);
 
     // forget the specified op and all higher numbered ops, and free the memory where those ops were stored
     void            ForgetOp( ulong opNumber, bool quietMode=true );
@@ -95,8 +177,8 @@ public:
 
     // create a thread which will be managed by the engine - the engine destructor will delete all threads
     //  which were created with CreateThread 
-    ForthThread *   CreateThread( long threadLoopOp = OP_DONE, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
-    void            DestroyThread( ForthThread *pThread );
+    ForthAsyncThread * CreateAsyncThread( long threadLoopOp = OP_DONE, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
+	void               DestroyAsyncThread(ForthAsyncThread *pThread);
 
     // return true IFF the last compiled opcode was an integer literal
     bool            GetLastConstant( long& constantValue );
@@ -139,8 +221,9 @@ public:
     char *          GetLastInputToken( void );
 
     const char *            GetOpTypeName( long opType );
-    void                    TraceOp( ForthCoreState* pCore );
-    void                    TraceStack( ForthCoreState* pCore );
+	void                    TraceOp(ForthCoreState* pCore, long op);
+	void                    TraceOp(ForthCoreState* pCore);
+	void                    TraceStack(ForthCoreState* pCore);
     void                    DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUserDefs=false );
     long *                  NextOp( long *pOp );
 
@@ -160,6 +243,9 @@ public:
 	inline void             AllotBytes( int n )	{ mDictionary.pCurrent = reinterpret_cast<long *>(reinterpret_cast<int>(mDictionary.pCurrent) + n); };
     inline void             AlignDP( void ) { mDictionary.pCurrent = (long *)(( ((int)mDictionary.pCurrent) + 3 ) & ~3); };
     inline ForthMemorySection* GetDictionaryMemorySection() { return &mDictionary; };
+
+	inline ForthEngineTokenStack* GetTokenStack() { return &mTokenStack; };
+
     inline ForthVocabulary  *GetSearchVocabulary( void )   { return mpVocabStack->GetTop(); };
     inline void             SetSearchVocabulary( ForthVocabulary* pVocab )  { mpVocabStack->SetTop( pVocab ); };
     inline ForthVocabulary  *GetDefinitionVocabulary( void )   { return mpDefinitionVocab; };
@@ -169,7 +255,7 @@ public:
     inline ForthShell       *GetShell( void ) { return mpShell; };
 	inline void				SetShell( ForthShell *pShell ) { mpShell = pShell; };
     inline ForthVocabulary  *GetForthVocabulary( void )   { return mpForthVocab; };
-    inline ForthThread      *GetMainThread( void )  { return mpMainThread; };
+    inline ForthThread      *GetMainThread( void )  { return mpMainThread->GetThread(0); };
 
     inline long             *GetCompileStatePtr( void ) { return &mCompileState; };
     inline void             SetCompileState( long v ) { mCompileState = v; };
@@ -244,6 +330,9 @@ public:
 	bool					IsServer() const;
 	void					SetIsServer(bool isServer);
 
+	void					DefineLabel(const char* inLabelName, long* inLabelIP);
+	void					AddGoto(const char* inName, int inBranchType, long* inBranchIP);
+
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char* pToken, long& value, long long& lvalue, int base, bool& isOffset, bool& isSingle );
@@ -259,7 +348,9 @@ protected:
 
     ForthMemorySection mDictionary;
 
-    ForthVocabulary * mpForthVocab;              // main forth vocabulary
+	ForthEngineTokenStack mTokenStack;		// contains tokens which will be gotten by GetNextSimpleToken instead of from input stream
+
+	ForthVocabulary * mpForthVocab;              // main forth vocabulary
     ForthLocalVocabulary * mpLocalVocab;         // local variable vocabulary
 
     ForthVocabulary * mpDefinitionVocab;    // vocabulary which new definitions are added to
@@ -275,8 +366,8 @@ protected:
 
     long        mCompileState;          // true iff compiling
 
-    ForthThread *   mpThreads;
-    ForthThread *   mpMainThread;
+	ForthAsyncThread * mpThreads;
+	ForthAsyncThread * mpMainThread;
     ForthShell  *   mpShell;
     long *          mpEngineScratch;
     char *          mpLastToken;
@@ -302,6 +393,8 @@ protected:
     long            mBlockNumber;       // number returned by 'blk'
 
 	ForthObject		mDefaultConsoleOutStream;
+
+	std::vector<ForthLabel> mLabels;
 
 #ifdef WIN32
 #ifdef MSDEV

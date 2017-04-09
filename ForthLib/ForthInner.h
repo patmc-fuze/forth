@@ -66,7 +66,7 @@ struct ForthCoreState
     ulong               maxOps;     // current size of table at pUserOps
 
     //ForthEngine         *pEngine;
-   void                 *pEngine;
+    void                 *pEngine;
 
     long                *IP;            // interpreter pointer
 
@@ -95,7 +95,7 @@ struct ForthCoreState
 
     ulong               RLen;           // size of return stack in longwords
 
-    void                *pThread;
+    void                *pThread;		// actually a ForthAsyncThread
 
     ForthMemorySection* pDictionary;
     ForthFileInterface* pFileFuncs;
@@ -106,6 +106,7 @@ struct ForthCoreState
 
     long                base;               // output base
     ulong               signedPrintMode;   // if numers are printed as signed/unsigned
+    ulong               scratch[4];
 };
 
 
@@ -120,6 +121,7 @@ extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, long op );
 
 void InitDispatchTables( ForthCoreState* pCore );
 void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal );
+void _doIntVarop(ForthCoreState* pCore, int* pVar);
 
 // DLLRoutine is used for any external DLL routine - it can take any number of arguments
 typedef long (*DLLRoutine)();
@@ -152,6 +154,7 @@ inline long GetCurrentOp( ForthCoreState *pCore )
 #define GET_TPD                         (pCore->TPD)
 #define SET_TPM( A )                    (pCore->TPM = (A))
 #define SET_TPD( A )                    (pCore->TPD = (A))
+#define GET_THIS_PTR                    ((ForthObject *)&(pCore->TPM))
 
 #define GET_DP                          (pCore->pDictionary->pCurrent)
 #define SET_DP( A )                     (pCore->pDictionary->pCurrent = (A))

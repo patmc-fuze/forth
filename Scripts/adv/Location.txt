@@ -1,0 +1,257 @@
+
+requires CCInterfaces
+requires Messages
+requires Verbs
+requires Hint
+requires Noun
+
+class: Location extends ILocation
+    
+  m: init    // takes int number
+    -> number
+    //"creating Location " %s number %d %nl
+    0 -> numberOfVisits
+    new OArray -> objects
+    new OByteArray -> assets
+    do(10 0)
+      assets.push(0)
+    loop
+    new OArray -> hints
+    new OArray -> motionVerbs
+    new OArray -> accessibleLocations
+    new OArray -> motionVerbsForPrintingMessage
+    new OArray -> printMessages
+    new OArray -> locationConditions
+    new OString -> longDescription
+    new OString -> shortDescription
+    
+  ;m
+  
+  m: delete
+    oclear objects
+    oclear assets
+    oclear hints
+    oclear motionVerbs
+    oclear accessibleLocations
+    oclear motionVerbsForPrintingMessage
+    oclear printMessages
+    oclear locationConditions
+  ;m
+  
+  m: showIt
+    "Location " %s number %d %nl
+    "LD:{" %s longDescription.get %s "}\n" %s
+    "SD:{" %s shortDescription.get %s "}\n" %s
+    Hint hint
+    
+    if(hints.count)
+      "  Hints:\n" %s
+      do(hints.count 0)
+        hints.get(i) <Hint>.show
+      loop
+      %nl
+    endif
+    if(accessibleLocations.count)
+      "  accessibleLocations:" %s
+      do(accessibleLocations.count 0)
+        accessibleLocations.get(i) <Location>.number %d %bl
+      loop
+      %nl
+    endif
+  ;m
+ 
+  m: getAccessibleLocationIndex // takes Location, returns int
+    ->o ILocation loc
+    -1 -> int result
+    ?do(accessibleLocations.count 0)
+      if(accessibleLocations.get(i) <Location>.number loc.number =)
+        i -> result
+        leave
+      endif
+    loop
+    result
+  ;m
+  
+  m: getPrintMessageIndex // takes Message, returns int
+    ->o Message msg
+    -1 -> int result
+    ?do(printMessages.count 0)
+      if(printMessages.get(i) <Message>.number msg.number =)
+        i -> result
+        leave
+      endif
+    loop
+    result
+  ;m
+  
+  m: listObjects returns OString
+  ;m
+  
+  m: getAccessibleLocationsAndMotionVerbsAsString returns OString
+  ;m
+  
+  m: getPrintMessagesAndMotionVerbsAsString returns OString
+  ;m
+  
+  m: getAssetsAsString returns OString
+  ;m
+  
+  m: getHintsAsString returns OString
+  ;m
+  
+  m: addAccessibleLocation // (Location* loc)
+    // Only add if not already added
+    ->o Location loc
+    if(getAccessibleLocationIndex(loc) -1 =)
+      accessibleLocations.push(loc)
+      motionVerbs.push(new OArray)
+    endif
+  ;m
+  
+  m: addMotionVerb  // (Location* loc, MotionVerb* verb)
+    ->o MotionVerb verb
+    ->o Location loc
+    getAccessibleLocationIndex(loc) -> int index
+    motionVerbs.get(index) ->o OArray aa
+    aa.push(verb)
+  ;m
+  
+  m: appendToShortDescription   // (const string desc)
+    ->o OString s
+    shortDescription.append(s.get)
+    shortDescription.append(" ")
+    //"appendToShortDescription node:" %s number %d %bl s.get %s %nl
+  ;m
+  
+  m: appendToLongDescription   // (const string desc)
+    ->o OString s
+    longDescription.append(s.get)
+    longDescription.append(" ")
+  ;m
+  
+  m: addLocationCondition  // LocationCondition *locC
+    locationConditions.push
+  ;m
+
+  m: addObject  // Object *obj
+    objects.push
+  ;m
+
+  m: addHint // IHint hint
+    hints.push
+  ;m
+
+  m:  addPrintMessage  //(Message* msg)
+    ->o Message msg
+    // Only add if not alread added
+    if(getPrintMessageIndex(msg) -1 =)
+      printMessages.push(msg)
+      motionVerbsForPrintingMessage.push(new OArray)
+    endif
+  ;m
+  
+  m: addMotionVerbForPrintMessage  //(Message* msg, MotionVerb* verb)
+    ->o MotionVerb verb
+    ->o Message msg
+    getPrintMessageIndex(msg) -> int index
+    // TODO: find out why this crashes
+    //motionVerbsForPrintingMessage.get(index) <OArray>.push(verb)
+    motionVerbsForPrintingMessage.get(index) ->o OArray aa
+    aa.push(verb)
+  ;m
+
+  m: shouldPrintMessage returns Message  // takes MotionVerb
+    ->o MotionVerb verb
+    Message result
+    ?do(motionVerbsForPrintingMessage.count 0)
+      motionVerbsForPrintingMessage.get(i) -> OArray verbs
+      ?do(verbs.count 0)
+        // OK to compare pointers
+        if(verbs.get(i) verb l=)
+          printMessages.get(j) ->o result
+          leave
+        endif
+      loop
+      if(objNotNull(result))
+        leave
+      endif
+    loop
+    result
+  ;m
+  
+  m: shouldGoToLocation returns Location  // takes MotionVerb
+    ->o MotionVerb verb
+    Location result
+    ?do(motionVerbs.count 0)
+      motionVerbs.get(i) -> OArray verbs
+      ?do(verbs.count 0)
+        // OK to compare pointers
+        if(verbs.get(i) verb l=)
+          accessibleLocations.get(j) ->o result
+          leave
+        endif
+      loop
+      if(objNotNull(result))
+        leave
+      endif
+    loop
+    result
+  ;m
+
+  m: getLocationConditionForLocation returns ILocationCondition  // takes Location
+    ->o Location loc
+    ILocationCondition result
+    ?do(locationConditions.count 0)
+      locationConditions.get(i) -> ILocationCondition cond
+      // OK to compare pointers
+      if(cond.to loc l=)
+        cond -> result
+        leave
+      endif
+    loop
+    result
+  ;m
+
+  m: getLocationConditionAfterLocationCondition returns ILocationCondition  // takes LocationCondition
+    ->o ILocationCondition locC
+    ILocationCondition result
+    ?do(locationConditions.count 0)
+      // OK to compare pointers
+      if(locC locationConditions.get(i) l=)
+        if(i locationConditions.count 1- <>)
+          locationConditions.get(i 1+) -> result
+          leave
+        endif
+      endif
+    loop
+    result
+  ;m
+
+  m: hasObject returns int  // takes Noun
+    ->o Noun obj
+    false -> bool result
+    ?do(objects.count 0)
+      // OK to compare pointers
+      if(obj objects.get(i) l=)
+        true -> result
+        leave
+      endif
+    loop
+    result
+  ;m
+
+  m: removeObject     // takes Noun
+    ->o Noun objToRemove
+    
+    objects.headIter -> OArrayIter iter
+    if(iter.findNext(objToRemove))
+      iter.remove
+    else
+      "Location:removeObject - object " %s objToRemove.number %d " not found\n" %s
+    endif
+    oclear iter
+  ;m
+  
+;class
+    
+loaddone

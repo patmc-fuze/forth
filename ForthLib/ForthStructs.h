@@ -6,6 +6,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "Forth.h"
+#include "ForthBuiltinClasses.h"
 #include "ForthForgettable.h"
 #include "ForthVocabulary.h"
 #include "ForthStructCodeGenerator.h"
@@ -24,11 +25,24 @@ class ForthStructCodeGenerator;
 // - recorded in the type info field of struct vocabulary entries for members of this type
 // - used to get from a struct field to the struct vocabulary which defines its subfields
 
-typedef struct
+struct ForthTypeInfo
 {
+	ForthTypeInfo()
+		: pVocab(NULL)
+		, op(OP_ABORT)
+		, typeIndex(static_cast<int>(kBCIInvalid))
+	{}
+
+	ForthTypeInfo(ForthStructVocabulary* inVocab, long inOp, int inTypeIndex)
+		: pVocab(inVocab)
+		, op(inOp)
+		, typeIndex(inTypeIndex)
+	{}
+
     ForthStructVocabulary*      pVocab;
     long                        op;
-} ForthTypeInfo;
+	int						typeIndex;
+};
 
 typedef struct
 {
@@ -54,7 +68,7 @@ typedef struct
 	eForthStructInitType fieldType;
 	long offset;
 	long len;
-	long structIndex;
+	long typeIndex;
 	long numElements;
 } ForthFieldInitInfo;
 
@@ -102,12 +116,15 @@ public:
     // add a new structure type
     ForthStructVocabulary*          StartStructDefinition( const char *pName );
     void                            EndStructDefinition( void );
-    ForthClassVocabulary*           StartClassDefinition( const char *pName );
+	// default classIndex value means assign next available classIndex
+	ForthClassVocabulary*           StartClassDefinition(const char *pName, int classIndex = kNumBuiltinClasses);
     void                            EndClassDefinition( void );
     static ForthTypesManager*       GetInstance( void );
 
-    // return info structure for struct type specified by structIndex
-    ForthTypeInfo*        GetStructInfo( int structIndex );
+    // return info structure for struct type specified by typeIndex
+    ForthTypeInfo*        GetTypeInfo( int typeIndex );
+	ForthClassVocabulary* GetClassVocabulary(int typeIndex) const;
+	ForthInterface* GetClassInterface(int typeIndex, int interfaceIndex) const;
 
     // return vocabulary for a struct type given its opcode or name
     ForthStructVocabulary*  GetStructVocabulary( long op );
@@ -130,10 +147,8 @@ public:
 	void					DefineInitOpcode();
 
 protected:
-    // mpStructInfo points to an array with an entry for each defined structure type
-    ForthTypeInfo                   *mpStructInfo;
-    int                             mNumStructs;
-    int                             mMaxStructs;
+    // mStructInfo is an array with an entry for each defined structure type
+	std::vector<ForthTypeInfo>      mStructInfo;
     static ForthTypesManager*       mpInstance;
     ForthVocabulary*                mpSavedDefinitionVocab;
     char                            mToken[ DEFAULT_INPUT_BUFFER_LEN ];
@@ -141,6 +156,7 @@ protected:
     long*                           mpClassMethods;
 	ForthStructCodeGenerator*		mpCodeGenerator;
 	std::vector<ForthFieldInitInfo>	mFieldInitInfos;
+	int								mNewestTypeIndex;
 };
 
 class ForthStructVocabulary : public ForthVocabulary
@@ -179,7 +195,7 @@ public:
 
     inline ForthStructVocabulary* BaseVocabulary( void ) { return mpSearchNext; }
 
-    inline long         GetTypeIndex( void ) { return mStructIndex; };
+    inline long         GetTypeIndex( void ) { return mTypeIndex; };
 
     virtual void        EndDefinition();
 
@@ -191,7 +207,7 @@ public:
 protected:
     long                    mNumBytes;
     long                    mMaxNumBytes;
-    long                    mStructIndex;
+    long                    mTypeIndex;
     long                    mAlignment;
     ForthStructVocabulary   *mpSearchNext;
 	long					mInitOpcode;
@@ -207,15 +223,13 @@ public:
     virtual void	    DefineInstance(void);
     virtual void	    DefineInstance(const char* pSym);
 
-    virtual void        DoOp( ForthCoreState *pCore );
-
     virtual const char* GetTypeName();
 
 	long				AddMethod( const char* pName, long methodIndex, long op );
 	long				FindMethod( const char* pName );
 	void				Implements( const char* pName );
 	void				EndImplements( void );
-	long				GetClassId( void )		{ return mStructIndex; }
+	long				GetClassId( void )		{ return mTypeIndex; }
 
 	ForthInterface*		GetInterface( long index );
     long                FindInterfaceIndex( long classId );

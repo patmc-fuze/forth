@@ -10,7 +10,7 @@
 #include "ForthBlockFileManager.h"
 #include "ForthParseInfo.h"
 
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #include <readline/readline.h>
 #include <readline/history.h>
 #endif
@@ -99,7 +99,7 @@ ForthInputStack::GetLine( const char *pPrompt )
         {
             *pEndLine = '\0';
         }
-#if defined(LINUX)
+#if defined(LINUX) || defined(MACOSX)
         pEndLine = strchr( pBuffer, '\r' );
         if ( pEndLine )
         {
@@ -564,10 +564,13 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
     char *pBuffer;
 
 	printf("\n%s ", pPrompt);
-#ifdef LINUX
-	pBuffer = readline("");
+#if defined(LINUX) || defined(MACOSX)
+    do
+    {
+        pBuffer = readline("");
+    } while (pBuffer == nullptr);
 	add_history(pBuffer);
-	strncpy(mpBufferBase, pBuffer, mBufferLen - 1);
+    strncpy(mpBufferBase, pBuffer, mBufferLen);
 #else
 	pBuffer = gets(mpBufferBase);
 #endif

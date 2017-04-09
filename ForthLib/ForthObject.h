@@ -21,14 +21,7 @@
 #define END_MEMBERS { NULL, 0, 0 }
 
 #define INVOKE_METHOD( _pCore, _obj, _methodNum ) ForthEngine::GetInstance()->ExecuteOneMethod( _pCore, _obj, _methodNum )
-/*
-#define INVOKE_METHOD( _obj, _methodNum ) \
-    RPUSH( ((long) GET_TPD) ); \
-    RPUSH( ((long) GET_TPM) ); \
-    SET_TPM( (_obj).pMethodOps ); \
-    SET_TPD( (_obj).pData ); \
-    ForthEngine::GetInstance()->ExecuteOneOp( (_obj).pMethodOps[ (_methodNum) ] )
-*/
+#define FULLY_EXECUTE_METHOD( _pCore, _obj, _methodNum ) ForthEngine::GetInstance()->FullyExecuteMethod( _pCore, _obj, _methodNum )
 
 #define PUSH_PAIR( _methods, _data )    SPUSH( (long) (_data) ); SPUSH( (long) (_methods) )
 #define POP_PAIR( _methods, _data )     (_methods) = (long *) SPOP; (_data) = (long *) SPOP
@@ -40,7 +33,7 @@
 #define SAFE_RELEASE( _pCore, _obj ) \
 	if ( (_obj).pMethodOps != NULL ) { \
 		*(_obj).pData -= 1; \
-		if ( *(_obj).pData == 0 ) {		INVOKE_METHOD( (_pCore), (_obj), kMethodDelete );  } \
+		if ( *(_obj).pData == 0 ) {		FULLY_EXECUTE_METHOD( (_pCore), (_obj), kMethodDelete );  } \
 	} TRACK_RELEASE
 
 #define SAFE_KEEP( _obj )       if ( (_obj).pMethodOps != NULL ) { *(_obj).pData += 1; } TRACK_KEEP
@@ -101,11 +94,11 @@ extern long gStatReleases;
 
 #define MALLOCATE( _type, _ptr ) _type* _ptr = (_type *) __MALLOC( sizeof(_type) );
 
-#define MALLOCATE_OBJECT( _type, _ptr )  MALLOCATE( _type, _ptr );  TRACK_NEW
+#define MALLOCATE_OBJECT( _type, _ptr, _vocab )   _type* _ptr = (_type *) __MALLOC( _vocab->GetSize() );  TRACK_NEW
 #define FREE_OBJECT( _obj )  __FREE( _obj );  TRACK_DELETE
 #define MALLOCATE_LINK( _type, _ptr )  MALLOCATE( _type, _ptr );  TRACK_LINK_NEW
 #define FREE_LINK( _link )  __FREE( _link );  TRACK_LINK_DELETE
-#define MALLOCATE_ITER( _type, _ptr )  MALLOCATE_OBJECT( _type, _ptr );  TRACK_ITER_NEW
+#define MALLOCATE_ITER( _type, _ptr, _vocab )  MALLOCATE_OBJECT( _type, _ptr, _vocab );  TRACK_ITER_NEW
 #define FREE_ITER( _link )  FREE_OBJECT( _link );  TRACK_ITER_DELETE
 
 

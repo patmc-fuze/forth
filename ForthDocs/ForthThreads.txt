@@ -158,6 +158,262 @@ o threads yielding the CPU until a specified event occurs
 o some notion of thread priority, so threads can specify that they should
   only run when the system is idle
 
+------------------------------------------------------------------------------
+February 2017
+
+Things to keep in mind:
+
+o support both asynchronous threads (1 system thread for each asynch thread) and synchronous threads (cooperative)
+
+o there need to be both sync and async lock mechanisms
+? are there any restrictions about type of thread using type of lock
+
+o deal with object lifetime issues - each async thread has its own heap, so an object must be
+destroyed in the same thread it was created in - delete due to reference count changes could make this easier to screw up
+-> this might not be true, it depends on the heap implementation
+
+New tentative plan:
+
+When forth starts up it creates:
+  a primary async thread like it currently does.
+  an async thread which does a blocking fgets on stdin
+  a sync thread which will process lines of text gotten by the async thread
+
+or maybe:
+  main program loop does the blocking fgets(stdin)
+  a primary async thread which runs all sync threads
+  a sync thread which processes lines of user input
+---
+The current thread design (Feb 2017):
+
+There is a single primary thread created in ForthEngine::Initialize and assigned to mpMainThread.
+
+ForthShell constructor
+ ForthEngine::Initialize
+  ForthEngine::CreateThread
+   ForthThread constructor
+
+There are currently builtin ops for manipulating ForthThreads:
+  createThread destroyThread getThreadState stepThread startThread exitThread
+  startThread actually creates a system thread and runs a ForthThread in it
+  exitThread exits a system thread
+
+I started to put in a new threading system, but didn't get very far:
+o defines a ForthThreadQueue
+o ForthShell has 2 thread queues, mpReadyThreads and mpSleepingThreads, but both are unused
+  o also has commented-out code for splitting a console input system thread
+o ForthServer has 2 thread queues, mClientWaitingThreads and mReadyThreads, but both are completely unreferenced
+  o forth server does absolutely nothing with threads
+
+The startThread op effectively takes whatever thread is 
 
 
+------------------------------------------------------------------------------
+Feb 2017:  I found this in my Dropbox notes folder with date 12/16/2010 
 
+Threads for Forth -
+
+threads
+* try to make threading work the same way on client/server and standalone versions
+  ? get rid of standalone version, always use client/server?
+  ? or maybe only support threading on client/server version
+  o one difference between the two versions is that the server has a thread that is always
+    waiting for input on its pipe, the standalone version only waits on console input when commanded
+    to.
+o most thread support is synchronous switching between threads on forthop boundaries
+o when forth is started, a single forth thread is created which runs the outer interpreter (oithread)
+  o if the outer interpreter is a thread, it will be different in some ways from user threads,
+    it won't have a mainloop forthop
+  o the oithread will lock the console input when its input buffer is empty
+    o other threads will keep running while oithread is waiting for user input
+      o threads which lock the console input while oithread is waiting for input
+        will be blocked until oithread gets its line of input from console
+  ? how does this relate to "load"
+  ? which lockables will be builtin
+    o consoleIn
+    o consoleOut
+    ? some lock that prevents any other threads from running
+O threads will need some kind of exception handling - a thread should be able to set a handler
+  (or handlers) that will be run when an exception occurs
+o windows threads needed:
+  o main thread
+  o timer thread
+  o console input thread
+    this thread waits to be signaled by the main thread
+    when awakened, it does a "gets"
+    when gets returns, this thread wakes up the main thread
+    o the main thread may not be asleep
+  o we need a thread safe way for helper threads to let the main thread know that
+    certain forth threads are now ready to execute
+    o we need to avoid the race condition where the main thread checks if no
+      forth threads are ready and decides to sleeps itself, then a helper thread
+      activates and makes a forth thread active, then the main thread sleeps itself
+? should threading occur during "load"?      
+=====================================================================================================
+I had thought about having ForthEngine::ExecuteOps cycle through the ready queue after executing the
+specfied ops.
+-> it would probably be better to have ForthShell::InterpretLine handle this, since it needs to
+   be aware if the op it just tried to execute finished execution or yielded.
+   
+ForthShell::InterpretLine:
+  while input buffer not empty
+    get a token
+    analyze token
+    process token
+    
+ForthShell::InterpretLine:
+  while input buffer not empty
+    get a token
+    analyze token
+    process token in oithread
+    while oithread is busy (_done not executed)
+      runThreads
+      
+It is kind of sucky that runThreads will be invoked from both Run and InterpretLine methods, but to
+have runThreads just invoked from one place would require absorbing InterpretLine into Run
+
+: key
+  consoleInput lock
+  _waitForKey
+  _getKey
+  consoleInput unlock
+;
+? do we need a timeout for shell-waiting-for-console-input-lock
+-> there are legitimate cases where a forthop may intentionally call "key" to stall outer interpreter
+   processing in the middle of a command line
+   -> maybe the timeout should be for having the console input lock and not waiting on the console
+
+=====================================================================================================
+The kernel needs to have "forget" work well with threads
+o need to kill any threads which are in forgotten region
+o need to handle any thread support objects in forgotten regions
+  - things that are being waited on
+It might be safest to kill all threads other than main thread whenever forget happens
+
+=====================================================================================================
+What if we had each forth thread have a dedicated windows thread - this might be the easiest way to
+implement thread support in terms of kernel changes.
+
++ kernel would require minimal changes
+  + it would be okay for shell to just stall waiting for the user to type an input line
+  + any forthop could stall in the middle of an op, so "key" wouldn't need to be broken up into atoms
+- atomicity of forthops would be lost
+- forth code would need to be more aware that threads could startup at unpredictable times, not
+  when a forthop explicitly does a "yield" or "lock"
+- the kernel would need to include more forthops to do windows thread operations
+- "forget" would need to be sure that windows threads are stopped before deleting code
+=====================================================================================================
+forth thread ops:
+  PSTACK_SIZE RSTACK_SIZE THREAD_OPCODE createThread ... THREAD_ADDR
+  THREAD_ADDR deleteThread
+  THREAD_ADDR activateThread
+  THREAD_ADDR deactivateThread
+  yield
+    may deactivate current thread (same as "0 sleep" ?)
+  lockable NAME
+    create a lockable resource
+  LOCKABLE lock
+    tries to lock LOCKABLE for current thread
+    will deactivate current thread if lockable is already locked
+  LOCKABLE unlock
+    unlock LOCKABLE
+    may deactivate current thread if another thread was waiting for LOCKABLE
+  MILLISECONDS sleep
+    deactivates current thread for specified time
+    
+=====================================================================================================
+o scenario:
+  main thread interprets and executes line of text
+  main thread runs all threads in the ready queue
+  main thread 
+  
+=====================================================================================================
+
+non-server forth:
+
+while "bye" not executed
+  print "ok>"
+  get a line of input
+  process input line
+
+---
+
+server forth:
+
+wait for a client connection
+while client connection open
+  send client getInputLine message
+  wait for result
+  process input line
+
+---
+
+thread forth:
+
+create winThread consoleInputThread
+create winThread shellThread
+create winThread timerThread
+create forthThread oiThread
+
+shellThread:
+  while "bye" not executed
+    while readyThread not empty
+      run highest priority forthThread
+    
+  
+shellThread: windows thread
+o responsible for running all forth threads
+
+timerThread: windows thread
+o moves forthThreads from the timer queue to the ready queue
+
+consoleInputThread: windows thread
+o locks the input console resource
+o takes oiThread off ready queue
+o does a "gets" to get a line of input
+o puts oiThread back on ready queue
+
+* putting anything on the ready queue should wake up the shell thread
+  - make sure this doesn't have a race condition
+
+=====================================================================================================
+The "key" forthop could be a problem - if forththreads other than oithread are all the same, how do
+we handle the case where a forththread executes "key" while the oithread has the inputConsole locked?
+-> maybe "key" is a high level forthop, like so:
+   : key  inputConsole lock   _key   inputConsole unlock ;
+   
+=====================================================================================================
+There should be at least 2 different ForthThread classes:
+1) the class used for running most forth threads
+2) the class used for running the outer interpreter threads
+
+The big difference is that when you start most forth threads, you just set the ForthCore state and
+run the inner interpreter, with the outer interpreter thread you run a routine which will either
+continue interpretation of its input buffer or trigger the consoleInput winThread and go back to sleep.
+
+=====================================================================================================
+Things a thread waits for:
+o a message/signal
+o a resource
+  o cpu - this is a fairly special case
+  o file
+  o device
+=====================================================================================================
+
+http://www.computersciencelab.com/MultithreadingTut1.htm
+http://msdn.microsoft.com/en-us/library/kdzttdcb%28VS.80%29.aspx
+
+
+DWORD threadId = 0;
+HANDLE threadHandle;
+
+threadHandle = _beginthreadex(
+	NULL,		// thread security attribs
+	0,			// stack size (default)
+	threadFunc,
+	threadDataPtr,
+	CREATE_SUSPENDED,
+	&threadId );
+	
+
+=====================================================================================================

@@ -228,20 +228,6 @@ code 2roll
   { rip rfp } ppop,
   next,
   
-code l+
-  { r0 r1 r2 r3 } ppop,
-  r2 r0 r2 adds,
-  r3 r1 r3 adc,
-  { r2 r3 } ppush,
-  next,
-  
-code l-
-  { r0 r1 r2 r3 } ppop,
-  r2 r0 r2 subs,
-  r3 r1 r3 sbc,
-  { r2 r3 } ppush,
-  next,
-  
 code lnegate
   rsp ia { r0 r1 } ldm,
   r2 r2 r2 eor,
@@ -262,85 +248,6 @@ code labs
 
 loaddone
   
-// http://stackoverflow.com/questions/1131833/how-do-you-multiply-two-64-bit-numbers-in-x86-assembler
-// http://www.plantation-productions.com/Webster/www.artofasm.com/Windows/HTML/AdvancedArithmetica2.html#1007619
-
-code l*
-  edi push,
-  ecx push,
-  // edx always holds hi 32 bits of mul result
-  edx ebx mov,			// so we will use ebx for the forth stack ptr
-  
-  // TOS: blo ebx   bhi ebx+4   alo ebx+8   ahi ebx+12
-  
-  ecx ecx xor,			// ecx holds sign flag
-  
-  4 ebx d] eax mov,
-  eax eax or,
-  0<, if,
-  	// b is negative
-    ecx not,
-    ebx ] esi mov,
-    esi not,
-    eax not,
-    1 # esi add,
-    0 # eax adc,
-    esi ebx ] mov,
-    eax 4 ebx d] mov,
-  endif,
-  
-  12 ebx d] eax mov,
-  8 ebx d] esi mov,
-  eax eax or,
-  0<, if,
-  	// a is negative
-    ecx not,
-    esi not,
-    eax not,
-    1 # esi add,
-    0 # eax adc,
-    esi 8 ebx d] mov,
-    eax 12 ebx d] mov,
-  endif,
-  
-  // alo(esi) * blo
-  ebx ] eax mov,
-  esi mul,				// edx is hipart, eax is final lopart
-  edx edi mov,			// edi is hipart accumulator
-  
-  8 ebx d] esi mov,		// esi = alo
-  eax 8 ebx d] mov,
-
-  // alo * bhi
-  4 ebx d] eax mov,		// eax = bhi
-  esi mul,
-  eax edi add,
-  
-  // ahi * blo
-  12 ebx d] esi mov,
-  ebx ] eax mov,
-  esi mul,
-  eax edi add,			// edi = hiResult
-  
-  // invert result if needed
-  ecx ecx or,
-  0<, if,
-    8 ebx d] eax mov,		// eax = loResult
-    eax not,
-    edi not,
-    1 # eax add,
-    0 # edi adc,
-    eax 8 ebx d] mov,
-  endif,
-  
-  edi 12 ebx d] mov,
-  
-  8 # ebx add,
-  ebx edx mov,
-  ecx pop,
-  edi pop,
-  next,
-
   
 // .fl for 64-bit, .fs for 32-bit
 

@@ -5,7 +5,7 @@ also sdl2
 
 : sdlscreen ;
 
-640 ->  int defaultWindowWidth
+512 ->  int defaultWindowWidth
 512 ->  int defaultWindowHeight
 4 ->    int defaultWindowBytesPerPixel
 
@@ -45,13 +45,15 @@ class: SDLScreen
     dup -> width 2/ dup -> rightLimit dup -> centerX negate -> leftLimit
   ;method
   
-  method: init
+  method: initWithSize
+    -> int windowHeight
+    -> int windowWidth
     null -> surface
     null -> window
     null -> renderer
     null -> windowTexture
     
-    initLimits( defaultWindowWidth defaultWindowHeight )
+    initLimits( windowWidth windowHeight )
     
     ['] dummyFetchOp -> pixel@
     ['] 2drop -> pixel!
@@ -68,6 +70,10 @@ class: SDLScreen
     0 -> curY
     
   ;method
+  
+  method: init
+    initWithSize(defaultWindowWidth defaultWindowHeight)
+  ;method
 
   method: end
     if( sdlStarted )
@@ -79,13 +85,12 @@ class: SDLScreen
 
   
   method: start
-    init
     if( sdlStarted )
       end
     endif
     true -> sdlStarted
   
-    SDL_Init( SDL_INIT_VIDEO ) "SDL_Init returns " %s %d %nl
+    SDL_Init( SDL_INIT_VIDEO ) if "SDL_Init returned error! " %s SDL_GetError %s %nl endif
     
     //SDL_GetVideoInfo -> ptrTo SDL_VideoInfo videoInfo
     //"SDL_GetVideoInfo returns " %s videoInfo.current_w %d "x" %s videoInfo.current_h %d %bl
@@ -99,7 +104,7 @@ class: SDLScreen
     SDL_CreateWindowAndRenderer(width height 0 ref window ref renderer)
 
     if( window 0= )
-      "SDL_CreateWindow failed!\n" %s abort
+      "SDL_CreateWindow failed!\n" %s SDL_GetError %s %nl
     else
 
       SDL_CreateRGBSurface(SDL_SWSURFACE width height bytesPerPixel 8 * 0 0 0 0) -> surface
@@ -109,7 +114,7 @@ class: SDLScreen
       //SDL_CreateRenderer(window -1 0) -> renderer
       SDL_CreateTexture(renderer SDL_PIXELFORMAT_ARGB8888 SDL_TEXTUREACCESS_STREAMING width height) -> windowTexture
 
-      surface %x %bl renderer %x %bl windowTexture %x %nl
+      //surface %x %bl renderer %x %bl windowTexture %x %nl
       //surface.format.BitsPerPixel
       //"bits per pixel: " %s dup %d %nl
       bytesPerPixel
@@ -183,6 +188,10 @@ class: SDLScreen
     -> curY -> curX
   ;method
 
+  method: positionWindow
+    SDL_SetWindowPosition(window rot rot)
+  ;method
+  
   // X Y screenAddress -> address of pixel on screen
   : screenAddress
     surface.pitch * negate
@@ -464,18 +473,20 @@ class: SDLScreen
   ;method
 
   method: drawSquare
+    beginDraw
     -> int size
     curX curY
   
-    moveTo( curX size - curY size + )
-    drawLine( curX curY size 2* - )
-    drawLine( curX size 2* + curY )
-    drawLine( curX curY size 2* + )
-    drawLine( curX size 2* - curY )
+    drawLine( curX curY size + )
+    drawLine( curX size + curY )
+    drawLine( curX curY size - )
+    drawLine( curX size - curY )
     moveTo
+    endDraw
   ;method
 
   method: drawRectangle
+    beginDraw
     -> int h
     -> int w
     curX curY
@@ -485,6 +496,7 @@ class: SDLScreen
     drawLine( curX curY h - )
     drawLine( curX w - curY )
     moveTo
+    endDraw
   ;method
 
   method: fillRectangle
@@ -492,9 +504,8 @@ class: SDLScreen
     SDL_Rect rect
     -> rect.h
     -> rect.w
-    curX -> rect.x
-    curY -> rect.y
-    
+    curX centerX + -> rect.x
+    centerY curY - rect.h - -> rect.y
     SDL_FillRect( surface rect pixelColor ) drop
     endDraw
   ;method
@@ -510,20 +521,26 @@ class: SDLScreen
   ;method
 
   method: drawBitmap
+    SDL_LoadBMP() -> ptrTo SDL_Surface bmSurface
     SDL_Rect dstPos
-    curX -> dstPos.x
-    curY -> dstPos.y
-    SDL_LoadBMP() -> int bmSurface
-    
+    curX centerX + -> dstPos.x
+    centerY curY - bmSurface.h - -> dstPos.y
+     
     beginDraw
     SDL_BlitSurface(bmSurface null surface dstPos)
-    SDL_FreeSurface( bmSurface )
+    SDL_FreeSurface(bmSurface)
     endDraw
   ;method
   
 ;class
 
 SDLScreen screenInstance
+
+: startSDLWithSize
+  new SDLScreen -> screenInstance
+  screenInstance.initWithSize
+  screenInstance.start
+;
 
 : startSDL
   new SDLScreen -> screenInstance
@@ -552,6 +569,10 @@ SDLScreen screenInstance
 : fs screenInstance.flip ;
 : cl screenInstance.clear( 0 ) fs ;
 : dbmap screenInstance.drawBitmap ;
+: fr screenInstance.fillRectangle ;
+: fsq dup screenInstance.fillRectangle ;
+: beginFrame screenInstance.beginFrame ;
+: endFrame screenInstance.endFrame ;
 
 : test
   sc( 0xFFFF00 )
@@ -570,7 +591,7 @@ SDLScreen screenInstance
   loop
 ;
 
-3.14159g -> double pi
+3.14159d -> double pi
 
 : test2
   pi -1.0g d* -> double angle

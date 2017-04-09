@@ -7,6 +7,7 @@
 
 #include "Forth.h"
 #include "ForthForgettable.h"
+#include "ForthObject.h"
 
 class ForthParseInfo;
 class ForthEngine;
@@ -20,6 +21,23 @@ class ForthEngine;
 
 // maximum length of a symbol in longwords
 #define SYM_MAX_LONGS 64
+
+class ForthVocabulary;
+
+// vocabulary object defs
+struct oVocabularyStruct
+{
+	ulong				refCount;
+	ForthVocabulary*	vocabulary;
+};
+
+struct oVocabularyIterStruct
+{
+	ulong				refCount;
+	ForthObject			parent;
+	long*				cursor;
+	ForthVocabulary*	vocabulary;
+};
 
 class ForthVocabulary : public ForthForgettable
 {
@@ -97,7 +115,9 @@ public:
     // unsmudge a symbol when its definition is complete
     void                UnSmudgeNewestSymbol( void );
 
-    inline long *       GetFirstEntry( void ) {
+	ForthObject& GetVocabularyObject(void);
+
+	inline long *       GetFirstEntry(void) {
         return mpStorageBottom;
     };
 
@@ -205,6 +225,8 @@ protected:
     // they are used when saving/restoring vocabularies
     int                 mStartNumSymbols;
     int                 mStartStorageLongs;
+	oVocabularyStruct	mVocabStruct;
+	ForthObject			mVocabObject;
 #ifdef MAP_LOOKUP
     CMapStringToPtr     mLookupMap;
 #endif
@@ -253,7 +275,7 @@ public:
 
     long                LoadDLL( void );
     void                UnloadDLL( void );
-    long *              AddEntry( const char* pFuncName, long numArgs );
+	long *              AddEntry(const char* pFuncName, const char* pEntryName, long numArgs);
 	void				SetFlag( unsigned long flag );
 protected:
     char *              mpDLLName;
@@ -261,7 +283,7 @@ protected:
 #ifdef WIN32
     HINSTANCE           mhDLL;
 #endif
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
     void*				mLibHandle;
 #endif
 };
@@ -279,6 +301,7 @@ public:
     void                Clear();
     // GetElement(0) is the same as GetTop
     ForthVocabulary*    GetElement( int depth );
+	inline int			GetDepth() { return mTop + 1; }
 
     // return pointer to symbol entry, NULL if not found
     // ppFoundVocab will be set to the vocabulary the symbol was actually found in

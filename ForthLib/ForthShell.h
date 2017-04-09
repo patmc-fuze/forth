@@ -7,8 +7,8 @@
 
 #include "ForthEngine.h"
 #include "ForthInput.h"
-#ifdef LINUX
-#include <linux/limits.h>
+#if defined(LINUX) || defined(MACOSX)
+#include <limits.h>
 #define MAX_PATH PATH_MAX
 #endif
 
@@ -48,6 +48,8 @@ typedef enum
    kShellTagPoundIf  = 10,
    kShellTagOf       = 11,
    kShellTagOfIf     = 12,
+   kShellTagAndIf    = 13,
+   kShellTagOrIf     = 14,
    // if you add tags, remember to update TagStrings in ForthShell.cpp
    kNumShellTags
 } eShellTag;
@@ -60,30 +62,29 @@ public:
    virtual ~ForthShellStack();
 
 
-   inline long *       GetSP( void )           { return mSSP; };
-   inline void         SetSP( long *pNewSP )   { mSSP = pNewSP; };
-   inline long         GetSize( void )         { return mSSLen; };
-   inline long         GetDepth( void )        { return mSST - mSSP; };
-   inline void         EmptyStack( void )      { mSSP = mSST; };
+   inline long *       GetSP(void)           { return mSSP; };
+   inline void         SetSP(long *pNewSP)   { mSSP = pNewSP; };
+   inline long         GetSize(void)         { return mSSLen; };
+   inline long         GetDepth(void)        { return mSST - mSSP; };
+   inline void         EmptyStack(void)      { mSSP = mSST; };
    // push tag telling what control structure we are compiling (if/else/for/...)
-   void         Push( long tag );
-   long         Pop( void );
-   long         Peek( void );
+   void         Push(long tag);
+   long         Pop(void);
+   long         Peek(int index = 0);
 
    // push a string, this should be followed by a PushTag of a tag which uses this string (such as paren)
-   void                PushString( const char *pString );
+   void                PushString(const char *pString);
    // return true IFF item on top of shell stack is a string
-   bool                PopString( char *pString );
+   bool                PopString(char *pString, int maxLen);
 
    void					ShowStack();
 
 protected:
-   long                *mSSP;       // shell stack pointer
-   long                *mSSB;       // shell stack base
-   long                *mSST;       // empty shell stack pointer
-   ulong               mSSLen;      // size of shell stack in longwords
-   ForthEngine         *mpEngine;
-
+	long                *mSSP;       // shell stack pointer
+	long                *mSSB;       // shell stack base
+	long                *mSST;       // empty shell stack pointer
+	ulong               mSSLen;      // size of shell stack in longwords
+	ForthEngine         *mpEngine;
 };
 
 #define SHELL_FLAG_CREATED_ENGINE   1
@@ -135,7 +136,7 @@ public:
     inline const char*      GetSystemDir() const { return mSystemDir; }
 
     bool                    CheckSyntaxError( const char *pString, long tag, long desiredTag );
-	void					StartDefinition( const char* pFourCharCode );
+	void					StartDefinition(const char*pDefinedSymbol, const char* pFourCharCode);
 	bool					CheckDefinitionEnd( const char* pDisplayName, const char* pFourCharCode );
 
     virtual eForthResult    InterpretLine( const char *pSrcLine = NULL );
@@ -207,7 +208,7 @@ protected:
     char*                   mSystemDir;
     int                     mPoundIfDepth;
 
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #else
     DWORD                   mMainThreadId;
     DWORD                   mConsoleInputThreadId;
@@ -215,8 +216,10 @@ protected:
     HANDLE                  mConsoleInputEvent;
 #endif
 	char					mWorkingDirPath[MAX_PATH + 1];
-    ForthThreadQueue*       mpReadyThreads;
+#if 0
+	ForthThreadQueue*       mpReadyThreads;
     ForthThreadQueue*       mpSleepingThreads;
+#endif
 
     struct sInternalFile
     {

@@ -104,7 +104,7 @@ bool ForthStructCodeGenerator::Generate( ForthParseInfo *pInfo, long*& pDst, int
 
 void ForthStructCodeGenerator::HandlePreceedingVarop()
 {
-    // handle case where previous opcode was varAction setting op (one of [ref -> ->+ ->-])
+    // handle case where previous opcode was varAction setting op (one of [ref -> ->+ ->- oclear])
     // we need to execute the varAction setting op after the first op, since if the first op is
     // a pointer type, it will use the varAction and clear it, when the varAction is meant to be
     // used by the final field op
@@ -116,7 +116,7 @@ void ForthStructCodeGenerator::HandlePreceedingVarop()
     {
         long *pLastOp = pEngine->GetLastCompiledOpcodePtr();
         if ( pLastOp && ((pLastOp + 1) == GET_DP)
-            && (*pLastOp >= gCompiledOps[OP_REF]) && (*pLastOp <= gCompiledOps[OP_INTO_MINUS]) )
+            && (*pLastOp >= gCompiledOps[OP_REF]) && (*pLastOp <= gCompiledOps[OP_OCLEAR]) )
         {
             // overwrite the varAction setting op with first accessor op
             mCompileVarop = *pLastOp;
@@ -133,6 +133,14 @@ void ForthStructCodeGenerator::HandlePreceedingVarop()
         }
     }
 }
+
+#if defined(LINUX) || defined(MACOSX)
+#define COMPILE_OP( _caption, _opType, _opData ) *mpDst++ = COMPILED_OP(_opType, _opData)
+#define COMPILE_SIMPLE_OP( _caption, _op ) *mpDst++ = _op
+#else
+#define COMPILE_OP( _caption, _opType, _opData ) SPEW_STRUCTS( " " _caption " 0x%x", COMPILED_OP(_opType, _opData) ); *mpDst++ = COMPILED_OP(_opType, _opData)
+#define COMPILE_SIMPLE_OP( _caption, _op ) SPEW_STRUCTS( " " _caption " 0x%x", _op ); *mpDst++ = _op
+#endif
 
 bool ForthStructCodeGenerator::HandleFirst()
 {
@@ -236,13 +244,19 @@ bool ForthStructCodeGenerator::HandleFirst()
                 ForthStructVocabulary* pClassVocab = mpTypeManager->GetStructVocabulary( mpToken );
                 if ( (pClassVocab != NULL) && pClassVocab->IsClass() )
                 {
+					////////////////////////////////////
+					//
+					// symbol is of the form CLASSNAME.STUFF
+					//
+					////////////////////////////////////
 					// TODO! this doesn't work currently, need to compile the vocabulary op, at least
-                    // this is invoking a class method on a class object (IE object.new)
-                    // the first compiled opcode is the varop 'vocabToClass', which will be
-                    // followed by the opcode for the class vocabulary, ForthVocabulary::DoOp
-                    // will do the pushing of the class object
+                    // this is invoking a class method on a class object (IE CLASSNAME.setNew)
+                    // the first compiled opcode is a constantOp whose value is the class type index,
+                    // followed by the getClassByIndex opcode
                     isClassReference = true;
-                    *mpDst++ = gCompiledOps[OP_VOCAB_TO_CLASS];
+					COMPILE_OP("class type index", kOpConstant, pClassVocab->GetTypeIndex());
+
+                    *mpDst++ = gCompiledOps[OP_GET_CLASS_BY_INDEX];
                     mTypeCode = OBJECT_TYPE_TO_CODE( 0, kBCIClass );
                 }
 				if ( pFoundVocab != NULL )
@@ -273,9 +287,9 @@ bool ForthStructCodeGenerator::HandleFirst()
     long baseType = CODE_TO_BASE_TYPE( mTypeCode );
     bool isObject = (baseType == kBaseTypeObject);
     bool isMethod = CODE_IS_METHOD( mTypeCode );
-    long compileVarop = 0;
+    //long compileVarop = 0;
 
-    // TBD: there is some wasteful fetching of full object when we just end up dropping method ptr
+    // TODO: there is some wasteful fetching of full object when we just end up dropping method ptr
 
     if ( !explicitTOSCast )
     {
@@ -303,15 +317,8 @@ bool ForthStructCodeGenerator::HandleFirst()
 			if ( isMethod )
 			{
 				// this method must return either a struct or an object
-#ifdef LINUX
-#define COMPILE_OP( _caption, _opType, _opData ) *mpDst++ = COMPILED_OP(_opType, _opData)
-#define COMPILE_SIMPLE_OP( _caption, _op ) *mpDst++ = _op
-#else
-#define COMPILE_OP( _caption, _opType, _opData ) SPEW_STRUCTS( " " _caption " 0x%x", COMPILED_OP(_opType, _opData) ); *mpDst++ = COMPILED_OP(_opType, _opData)
-#define COMPILE_SIMPLE_OP( _caption, _op ) SPEW_STRUCTS( " " _caption " 0x%x", _op ); *mpDst++ = _op
-#endif
 				COMPILE_OP( "method with this", kOpMethodWithThis, pEntry[0] );
-				ForthTypeInfo* pStruct = mpTypeManager->GetStructInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
+				ForthTypeInfo* pStruct = mpTypeManager->GetTypeInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
 				if ( pStruct == NULL )
 				{
 					pEngine->SetError( kForthErrorStruct, "Method return type not found by type manager" );
@@ -349,7 +356,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 						if ( isPtr )
 						{
 							COMPILE_OP( "member struct ptr array", kOpMemberIntArray, pEntry[0] );
-							COMPILE_SIMPLE_OP( "fetch", gCompiledOps[OP_FETCH] );
+							COMPILE_SIMPLE_OP( "fetch", gCompiledOps[OP_IFETCH] );
 						}
 						else
 						{
@@ -378,7 +385,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 						{
 							// just a struct
 							COMPILE_OP( "member struct ptr", kOpMemberRef, pEntry[0] );
-							COMPILE_SIMPLE_OP( "fetch", gCompiledOps[OP_FETCH] );
+							COMPILE_SIMPLE_OP( "fetch", gCompiledOps[OP_IFETCH] );
 						}
 						else
 						{
@@ -391,8 +398,11 @@ bool ForthStructCodeGenerator::HandleFirst()
 		}
 		else
 		{
-			// first symbol is a global or local variable
-			*mpDst++ = pEntry[0];
+			if (!isClassReference)
+			{
+				// first symbol is a global or local variable
+				*mpDst++ = pEntry[0];
+			}
 		}
         if ( isObject && isPtr )
         {
@@ -400,7 +410,7 @@ bool ForthStructCodeGenerator::HandleFirst()
         }
     }
 
-    ForthTypeInfo* pStructInfo = mpTypeManager->GetStructInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
+    ForthTypeInfo* pStructInfo = mpTypeManager->GetTypeInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
     if ( pStructInfo == NULL )
     {
         SPEW_STRUCTS( "First field not found by types manager\n" );
@@ -493,7 +503,7 @@ bool ForthStructCodeGenerator::HandleMiddle()
                 }
         }
 
-	    ForthTypeInfo* pStructInfo = mpTypeManager->GetStructInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
+	    ForthTypeInfo* pStructInfo = mpTypeManager->GetTypeInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
 	    if ( pStructInfo == NULL )
 	    {
             pEngine->SetError( kForthErrorStruct, "Method return type not found by type manager" );
@@ -541,8 +551,8 @@ bool ForthStructCodeGenerator::HandleMiddle()
             }
             if ( isPtr )
             {
-                SPEW_STRUCTS( " fetchOp 0x%x", gCompiledOps[OP_FETCH] );
-                *mpDst++ = gCompiledOps[OP_FETCH];
+                SPEW_STRUCTS( " ifetchOp 0x%x", gCompiledOps[OP_IFETCH] );
+                *mpDst++ = gCompiledOps[OP_IFETCH];
             }
             if ( isObject )
             {
@@ -561,7 +571,7 @@ bool ForthStructCodeGenerator::HandleMiddle()
             SPEW_STRUCTS( " ofetchOp 0x%x", gCompiledOps[OP_OFETCH] );
             *mpDst++ = gCompiledOps[OP_OFETCH];
         }
-	    ForthTypeInfo* pStructInfo = mpTypeManager->GetStructInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
+	    ForthTypeInfo* pStructInfo = mpTypeManager->GetTypeInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
 	    if ( pStructInfo == NULL )
 	    {
             pEngine->SetError( kForthErrorStruct, "Struct field not found by type manager" );
@@ -583,7 +593,6 @@ bool ForthStructCodeGenerator::HandleLast()
 		return false;
 	}
 	bool success = true;
-    ForthEngine *pEngine = ForthEngine::GetInstance();
     
     long* pEntry = mpStructVocab->FindSymbol( mpToken );
 		

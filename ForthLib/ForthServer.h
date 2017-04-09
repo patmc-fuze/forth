@@ -108,11 +108,13 @@ protected:
     bool                    mRequestPending;
     int                     mPendingCommand;
 
-    // threads which are waiting to send a message to client
+#if 0
+	// threads which are waiting to send a message to client
     ForthThreadQueue*       mClientWaitingThreads;
 
     // threads which are ready to run
     ForthThreadQueue*       mReadyThreads;
+#endif
 
 	ForthObject				mConsoleOutObject;
 

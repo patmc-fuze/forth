@@ -1005,4 +1005,40 @@ is in esi and the TOS is in ebx):
 	[ebp] eax mov,
 	[ebx] eax mov,
 
+jump instructions from http://unixwiz.net/techtips/x86-jumps.html
+
+Instruction  Jump if ...           Signed?   Flags
+-----------  -----------           --------  -----
+JO           overflow                        OF=1
+JNO          not overflow                    OF=0
+JS           sign                            SF=1
+JNS          not sign                        SF=0
+JE/JZ        equal
+             zero                            ZF=1
+JNE/JNZ      not-equal
+             not-zero                        ZF=0
+JB/JNAE/JC   below
+             not-above-or-equal
+             carry                 unsigned  CF=1
+JNB/JAE/JNC  not-below
+             above-or-equal
+             no-carry              unsigned  CF=0
+JBE/JNA      below-or-equal
+             not-above             unsigned  CF=1 or ZF=1
+JA/JNBE      above
+             not-below-or-equal    unsigned  CF=0 and ZF=0
+JL/JNGE      less
+             not-greater-or-equal  signed    SF<>OF
+JGE/JNL      greater-or-equal
+             not-less              signed    SF=OF
+JLE/JNG      less-or-equal
+             not-greater           signed    ZF=1 or SF<>OF
+JG/JNLE      greater
+             not-less-or-equal     signed    ZF=0 and SF=OF
+JP/JPE       parity
+             parity-even                     PF=1
+JNP/JPO      not-parity
+             parity-odd                      PF=0
+JCXZ/JECXZ   CX register is zero
+             ECX register is zero
 	

@@ -1,0 +1,73 @@
+
+: CCInterfaces ;
+
+enum: eAdventureWordType
+  kAWTWord
+  kAWTNoun
+  kAWTActionVerb
+  kAWTMotionVerb
+  kAWTSpecialCaseVerb
+;enum
+
+mko OString advEmptyString
+
+// ILocation and ILocationCondition are abstract interfaces used to get around
+//  a circular dependancy between Location and LocationCondition
+
+//=======================================================
+class: ILocation
+    
+  m: init ;m    // takes int number = -1, string longDescription = "", string shortDescription = ""
+  m: showIt ;m
+    
+  m: getAccessibleLocationIndex ;m // takes Location, returns int
+  m: getPrintMessageIndex ;m // takes Message, returns int
+    
+  m: listObjects returns OString ;m
+  m: getAccessibleLocationsAndMotionVerbsAsString returns OString ;m
+  m: getPrintMessagesAndMotionVerbsAsString returns OString ;m
+  m: getAssetsAsString returns OString ;m
+  m: getHintsAsString returns OString ;m
+  m: addAccessibleLocation ;m  // (Location* loc)
+  m: addMotionVerb ;m   // (Location* loc, MotionVerb* verb)
+  m: appendToShortDescription ;m  // takes string
+  m: appendToLongDescription ;m  // takes string
+  m: addLocationCondition ;m    // LocationCondition *locC
+  m: addPrintMessage ;m  //(Message* msg)
+  m: addMotionVerbForPrintMessage ;m  //(Message* msg, MotionVerb* verb)
+  m: addObject ;m   // Object *obj
+  m: addHint ;m   // IHint hint
+
+  int number
+  int numberOfVisits
+  OString shortDescription
+  OString longDescription
+    
+  OArray objects
+  OByteArray assets     // elements are bools
+    
+  OArray hints        // elements are IHint
+ 
+  OArray accessibleLocations    // elements are ILocation
+  OArray motionVerbs            // elements are OArray<IMotionVerb>
+  OArray printMessages          // elements are Message
+  OArray motionVerbsForPrintingMessage    // elements are OArray<IMotionVerb>
+    
+  OArray locationConditions     // elements are LocationCondition
+  
+;class
+
+
+//=======================================================
+class: ILocationCondition
+    
+  m: init ;m    // takes int cond, Location* from, Location* to
+  m: delete ;m
+  m: showIt ;m
+  
+  int condition
+  ILocation from
+  ILocation to
+;class
+
+loaddone

@@ -16,6 +16,11 @@
 #if defined(WIN32)
 #include <sys/timeb.h>
 #endif
+
+#if defined(MACOSX)
+#include <unistd.h>
+#endif
+
 #include "Forth.h"
 #include "ForthEngine.h"
 #include "ForthThread.h"
@@ -29,8 +34,9 @@
 #include "ForthPortability.h"
 #include "ForthObject.h"
 #include "ForthBlockFileManager.h"
+#include "ForthShowContext.h"
 
-#ifdef LINUX
+#if defined(LINUX) || defined(MACOSX)
 #include <strings.h>
 #include <errno.h>
 
@@ -191,7 +197,8 @@ FORTHOP( udivmodOp )
 // 64-bit integer comparison ops
 //
 
-FORTHOP(lEqualsOp)
+#ifndef ASM_INNER_INTERPRETER
+FORTHOP(lEqualsBop)
 {
     NEEDS(4);
     stackInt64 a;
@@ -201,7 +208,7 @@ FORTHOP(lEqualsOp)
     SPUSH( ( a.s64 == b.s64 ) ? -1L : 0 );
 }
 
-FORTHOP(lNotEqualsOp)
+FORTHOP(lNotEqualsBop)
 {
     NEEDS(4);
     stackInt64 a;
@@ -211,7 +218,7 @@ FORTHOP(lNotEqualsOp)
     SPUSH( ( a.s64 != b.s64 ) ? -1L : 0 );
 }
 
-FORTHOP(lGreaterThanOp)
+FORTHOP(lGreaterThanBop)
 {
     NEEDS(4);
     stackInt64 a;
@@ -221,7 +228,7 @@ FORTHOP(lGreaterThanOp)
     SPUSH( ( a.s64 > b.s64 ) ? -1L : 0 );
 }
 
-FORTHOP(lGreaterEqualsOp)
+FORTHOP(lGreaterEqualsBop)
 {
     NEEDS(4);
     stackInt64 a;
@@ -231,7 +238,7 @@ FORTHOP(lGreaterEqualsOp)
     SPUSH( ( a.s64 >= b.s64 ) ? -1L : 0 );
 }
 
-FORTHOP(lLessThanOp)
+FORTHOP(lLessThanBop)
 {
     NEEDS(4);
     stackInt64 a;
@@ -241,7 +248,7 @@ FORTHOP(lLessThanOp)
     SPUSH( ( a.s64 < b.s64 ) ? -1L : 0 );
 }
 
-FORTHOP(lLessEqualsOp)
+FORTHOP(lLessEqualsBop)
 {
     NEEDS(4);
     stackInt64 a;
@@ -251,7 +258,7 @@ FORTHOP(lLessEqualsOp)
     SPUSH( ( a.s64 <= b.s64 ) ? -1L : 0 );
 }
 
-FORTHOP(lEquals0Op)
+FORTHOP(lEquals0Bop)
 {
     NEEDS(2);
     stackInt64 a;
@@ -259,7 +266,7 @@ FORTHOP(lEquals0Op)
     SPUSH( ( a.s64 == 0L ) ? -1L : 0 );
 }
 
-FORTHOP(lNotEquals0Op)
+FORTHOP(lNotEquals0Bop)
 {
     NEEDS(2);
     stackInt64 a;
@@ -267,7 +274,7 @@ FORTHOP(lNotEquals0Op)
     SPUSH( ( a.s64 != 0L ) ? -1L : 0 );
 }
 
-FORTHOP(lGreaterThan0Op)
+FORTHOP(lGreaterThan0Bop)
 {
     NEEDS(2);
     stackInt64 a;
@@ -275,7 +282,7 @@ FORTHOP(lGreaterThan0Op)
     SPUSH( ( a.s64 > 0L ) ? -1L : 0 );
 }
 
-FORTHOP(lGreaterEquals0Op)
+FORTHOP(lGreaterEquals0Bop)
 {
     NEEDS(2);
     stackInt64 a;
@@ -283,7 +290,7 @@ FORTHOP(lGreaterEquals0Op)
     SPUSH( ( a.s64 >= 0L ) ? -1L : 0 );
 }
 
-FORTHOP(lLessThan0Op)
+FORTHOP(lLessThan0Bop)
 {
     NEEDS(2);
     stackInt64 a;
@@ -291,13 +298,33 @@ FORTHOP(lLessThan0Op)
     SPUSH( ( a.s64 < 0L ) ? -1L : 0 );
 }
 
-FORTHOP(lLessEquals0Op)
+FORTHOP(lLessEquals0Bop)
 {
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 <= 0L ) ? -1L : 0 );
 }
+
+FORTHOP(lcmpBop)
+{
+    stackInt64 a;
+    stackInt64 b;
+    LPOP( b );
+    LPOP( a );
+    SPUSH( ( a.s64 == b.s64 ) ? 0 : ((a.s64 > b.s64) ? 1 : -1L) );
+}
+    
+FORTHOP(ulcmpBop)
+{
+    stackInt64 a;
+    stackInt64 b;
+    LPOP( b );
+    LPOP( a );
+    SPUSH( ( a.u64 == b.u64 ) ? 0 : ((a.u64 > b.u64) ? 1 : -1L) );
+}
+    
+#endif
 
 FORTHOP(lWithinOp)
 {
@@ -468,6 +495,35 @@ FORTHOP( ifOp )
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
 
+// orif - has precedence
+FORTHOP(orifOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	ForthShell *pShell = pEngine->GetShell();
+	ForthShellStack *pShellStack = pShell->GetShellStack();
+	// save address for else/endif
+	pShellStack->Push((long)GET_DP);
+	// flag that this is an "orif" clause
+	pShellStack->Push(kShellTagOrIf);
+	// this will be fixed by else/endif
+	pEngine->CompileBuiltinOpcode(OP_ABORT);
+}
+
+// andif - has precedence
+FORTHOP(andifOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	ForthShell *pShell = pEngine->GetShell();
+	ForthShellStack *pShellStack = pShell->GetShellStack();
+	// save address for else/endif
+	pShellStack->Push((long)GET_DP);
+	// flag that this is an "andif" clause
+	pShellStack->Push(kShellTagAndIf);
+	// this will be fixed by else/endif
+	pEngine->CompileBuiltinOpcode(OP_ABORT);
+}
+
+
 
 // else - has precedence
 FORTHOP( elseOp )
@@ -476,19 +532,52 @@ FORTHOP( elseOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "else", pShellStack->Pop(), kShellTagBranchZ ) )
+	long branchTag = pShellStack->Peek();
+	if ((branchTag != kShellTagBranchZ) && (branchTag != kShellTagOrIf) && (branchTag != kShellTagAndIf))
     {
+		pShell->CheckSyntaxError("else", branchTag, kShellTagBranchZ);
         return;
     }
-    long *pBranch = (long *) pShellStack->Pop();
+	long* falseIP = GET_DP + 1;
+	long* trueIP = ((long *)pShellStack->Peek(1)) + 1;
+	bool notDone = true;
+	bool followedByOr = false;
+	while (notDone)
+	{
+		branchTag = pShellStack->Pop();
+		long *pBranch = (long *)pShellStack->Pop();
+		if (followedByOr)
+		{
+			*pBranch = COMPILED_OP(kOpBranchNZ, (trueIP - pBranch) - 1);
+		}
+		else
+		{
+			*pBranch = COMPILED_OP(kOpBranchZ, (falseIP - pBranch) - 1);
+		}
+		switch (branchTag)
+		{
+		case kShellTagBranchZ:
+			notDone = false;
+			break;
+		case kShellTagOrIf:
+			followedByOr = true;
+			falseIP = ((long *)pShellStack->Peek(1)) + 1;
+			break;
+		case kShellTagAndIf:
+			followedByOr = false;
+			trueIP = ((long *)pShellStack->Peek(1)) + 1;
+			break;
+		default:
+			pShell->CheckSyntaxError("else", branchTag, kShellTagBranchZ);
+			return;
+		}
+	}
     // save address for endif
     pShellStack->Push( (long) GET_DP );
     // flag that this is the "else" branch
     pShellStack->Push( kShellTagBranch );
     // this will be fixed by endif
     pEngine->CompileBuiltinOpcode( OP_ABORT );
-    // fill in the branch taken when "if" arg is false
-    *pBranch = COMPILED_OP( kOpBranchZ, (GET_DP - pBranch) - 1 );
 }
 
 
@@ -499,14 +588,54 @@ FORTHOP( endifOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    long branchTag = pShellStack->Pop();
-    if ( pShell->CheckSyntaxError( "endif", branchTag, kShellTagBranchZ ) )
-    {
-        // if branch
-        // fill in the branch taken when "if" arg is false
-        long *pBranch = (long *) pShellStack->Pop();
-        *pBranch = COMPILED_OP( (branchTag == kShellTagBranchZ) ? kOpBranchZ : kOpBranch, (GET_DP - pBranch) - 1 );
-    }
+	long branchTag = pShellStack->Peek();
+	if ((branchTag != kShellTagBranch) && (branchTag != kShellTagBranchZ) && (branchTag != kShellTagOrIf) && (branchTag != kShellTagAndIf))
+	{
+		pShell->CheckSyntaxError("endif", branchTag, kShellTagBranchZ);
+		return;
+	}
+	if (branchTag == kShellTagBranch)
+	{
+		// "else" has already handled if/andif/orif, just do branch at end of true body around false body
+		pShellStack->Pop();
+		long *pBranch = (long *)pShellStack->Pop();
+		*pBranch = COMPILED_OP(kOpBranch, (GET_DP - pBranch) - 1);
+		return;
+	}
+
+	// there was no "else", so process if/andif/orif
+	long* falseIP = GET_DP;
+	long* trueIP = ((long *)pShellStack->Peek(1)) + 1;
+	bool notDone = true;
+	bool followedByOr = false;
+	while (notDone)
+	{
+		branchTag = pShellStack->Pop();
+		long *pBranch = (long *)pShellStack->Pop();
+		if (followedByOr)
+		{
+			*pBranch = COMPILED_OP(kOpBranchNZ, (trueIP - pBranch) - 1);
+		}
+		else
+		{
+			*pBranch = COMPILED_OP(kOpBranchZ, (falseIP - pBranch) - 1);
+		}
+		switch (branchTag)
+		{
+		case kShellTagBranchZ:
+			notDone = false;
+			break;
+		case kShellTagOrIf:
+			followedByOr = true;
+			break;
+		case kShellTagAndIf:
+			followedByOr = false;
+			break;
+		default:
+			pShell->CheckSyntaxError("else", branchTag, kShellTagBranchZ);
+			return;
+		}
+	}
 }
 
 
@@ -719,6 +848,44 @@ FORTHOP( endcaseOp )
     SET_SP( pSP );
 }
 
+FORTHOP(labelOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	long *pHere = GET_DP;
+	char* labelName = pEngine->GetNextSimpleToken();
+	pEngine->DefineLabel(labelName, pHere);
+}
+
+FORTHOP(gotoOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	long *pHere = GET_DP;
+	char* labelName = pEngine->GetNextSimpleToken();
+	// this will be fixed when label is defined
+	pEngine->CompileBuiltinOpcode(OP_ABORT);
+	pEngine->AddGoto(labelName, kOpBranch, pHere);
+}
+
+FORTHOP(gotoIfOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	long *pHere = GET_DP;
+	char* labelName = pEngine->GetNextSimpleToken();
+	// this will be fixed when label is defined
+	pEngine->CompileBuiltinOpcode(OP_ABORT);
+	pEngine->AddGoto(labelName, kOpBranchNZ, pHere);
+}
+
+FORTHOP(gotoIfNotOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	long *pHere = GET_DP;
+	char* labelName = pEngine->GetNextSimpleToken();
+	// this will be fixed when label is defined
+	pEngine->CompileBuiltinOpcode(OP_ABORT);
+	pEngine->AddGoto(labelName, kOpBranchZ, pHere);
+}
+
 // align (upwards) DP to longword boundary
 FORTHOP( alignOp )
 {
@@ -803,21 +970,43 @@ FORTHOP(initStructArrayOp)
 	ForthEngine *pEngine = GET_ENGINE;
 	ForthTypesManager* pManager = ForthTypesManager::GetInstance();
 
-	long structIndex = SPOP;
+	long typeIndex = SPOP;
 	long numElements = SPOP;
 	char* pStruct = (char *)(SPOP);
-	ForthStructVocabulary* pVocab = pManager->GetStructInfo(structIndex)->pVocab;
-	long initStructOp = pVocab->GetInitOpcode();
-	if (initStructOp != 0)
+	ForthTypeInfo* typeInfo = pManager->GetTypeInfo(typeIndex);
+	if (typeInfo != nullptr)
 	{
-		long len = pVocab->GetSize();
-
-		for (int i = 0; i < numElements; i++)
+		ForthStructVocabulary* pVocab = typeInfo->pVocab;
+		if (pVocab != nullptr)
 		{
-			SPUSH((long)pStruct);
-			pEngine->ExecuteOneOp(initStructOp);
-			pStruct += len;
+			if (pVocab->IsStruct())
+			{
+				long initStructOp = pVocab->GetInitOpcode();
+				if (initStructOp != 0)
+				{
+					long len = pVocab->GetSize();
+
+					for (int i = 0; i < numElements; i++)
+					{
+						SPUSH((long)pStruct);
+						pEngine->FullyExecuteOp(pCore, initStructOp);
+						pStruct += len;
+					}
+				}
+			}
+			else
+			{
+				// TODO report that vocab isn't a struct
+			}
 		}
+		else
+		{
+			// TODO report struct has no vocabulary
+		}
+	}
+	else
+	{
+		// TODO report unknown type for typeIndex
 	}
 }
 
@@ -936,32 +1125,24 @@ FORTHOP( semiOp )
 	pEngine->GetShell()->CheckDefinitionEnd(":", "coln");
 }
 
+static void startColonDefinition(ForthCoreState* pCore, const char* pName)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	long* pEntry = pEngine->StartOpDefinition(pName, true);
+	pEntry[1] = BASE_TYPE_TO_CODE(kBaseTypeUserDefinition);
+	// switch to compile mode
+	pEngine->SetCompileState(1);
+	pEngine->ClearFlag(kEngineFlagNoNameDefinition);
+
+	pEngine->GetShell()->StartDefinition(pName, "coln");
+}
+
 FORTHOP( colonOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
-    long* pEntry = pEngine->StartOpDefinition( NULL, true );
-    pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
-    // switch to compile mode
-    pEngine->SetCompileState( 1 );
-    pEngine->ClearFlag( kEngineFlagNoNameDefinition);
-
-	pEngine->GetShell()->StartDefinition("coln");
-}
-
-
-FORTHOP( strColonOp )
-{
-    ForthEngine *pEngine = GET_ENGINE;
-    // get next symbol, add it to vocabulary with type "user op"
-    const char* pName = (const char*)(SPOP);
-    long* pEntry = pEngine->StartOpDefinition( pName, true );
-    pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
-    // switch to compile mode
-    pEngine->SetCompileState( 1 );
-    pEngine->ClearFlag( kEngineFlagNoNameDefinition);
-
-	pEngine->GetShell()->StartDefinition("coln");
+	const char* pName = pEngine->GetNextSimpleToken();
+	startColonDefinition(pCore, pName);
 }
 
 
@@ -969,48 +1150,94 @@ FORTHOP( colonNoNameOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
-	long newOp = pEngine->AddOp( GET_DP );
-	newOp = COMPILED_OP( kOpUserDef, newOp );
-	SPUSH( newOp );
+	long newDef = pEngine->AddOp( GET_DP );
+	newDef = COMPILED_OP(kOpUserDef, newDef);
+	SPUSH(newDef);
     // switch to compile mode
     pEngine->SetCompileState( 1 );	
     pEngine->SetFlag( kEngineFlagNoNameDefinition );
 
-	pEngine->GetShell()->StartDefinition("coln");
+	pEngine->GetShell()->StartDefinition("", "coln");
 }
+
+
+FORTHOP(pushTokenOp)
+{
+	char* pName = (char*)(SPOP);
+	GET_ENGINE->GetTokenStack()->Push(pName);
+}
+
+
+FORTHOP(popTokenOp)
+{
+	SPUSH((long)(GET_ENGINE->GetTokenStack()->Pop()));
+}
+
 
 // func: has precedence
 FORTHOP( funcOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
+	ForthShell *pShell = pEngine->GetShell();
+	ForthShellStack *pShellStack = pShell->GetShellStack();
 
 	// if compiling, push DP and compile kOpPushBranch
 	// if interpreting, push DP and enter compile mode
 
-	pEngine->GetLocalVocabulary()->Push();
-
-    // switch to compile mode
-    pEngine->SetCompileState( 1 );
+	//pShellStack->Push(pEngine->GetFlags() & kEngineFlagNoNameDefinition);
+	// save address for ;func
+	pShellStack->Push((long)GET_DP);
+	if (pEngine->IsCompiling())
+	{
+		pEngine->GetLocalVocabulary()->Push();
+		// this op will be replaced by ;func
+		pEngine->CompileBuiltinOpcode(OP_ABORT);
+		// flag that previous state was compiling
+		pShellStack->Push(1);
+	}
+	else
+	{
+		// switch to compile mode
+		pEngine->SetCompileState(1);
+		// flag that previous state was interpreting
+		pShellStack->Push(0);
+	}
 	// TODO: push hasLocalVars flag?
     //pEngine->ClearFlag( kEngineFlagNoNameDefinition);
 
-	pEngine->GetShell()->StartDefinition("func");
+	pEngine->GetShell()->StartDefinition("", "func");
 }
 
 // ;func has precedence
 FORTHOP( endfuncOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
+	ForthShell *pShell = pEngine->GetShell();
+	ForthShellStack *pShellStack = pShell->GetShellStack();
 
+	// compile appropriate __exit opcode
     exitOp( pCore );
-    // switch back from compile mode to execute mode
-    pEngine->SetCompileState( 0 );
-    // finish current symbol definition
     // compile local vars allocation op (if needed)
-	pEngine->EndOpDefinition( !pEngine->CheckFlag( kEngineFlagNoNameDefinition ) );
-    pEngine->ClearFlag( kEngineFlagNoNameDefinition );
+	pEngine->EndOpDefinition( false );
 
-	pEngine->GetShell()->CheckDefinitionEnd("func", "func");
+	pEngine->GetLocalVocabulary()->Pop();
+	if (pShell->CheckDefinitionEnd("func", "func"))
+	{
+		bool wasCompiling = (pShellStack->Pop() != 0);
+		long* pOldDP = (long *)(pShellStack->Pop());
+		if (wasCompiling)
+		{
+			long branchOffset = GET_DP - (pOldDP + 1);
+			*pOldDP = branchOffset | (kOpRelativeDefBranch << 24);
+		}
+		else
+		{
+			long opcode = (pOldDP - pCore->pDictionary->pBase) | (kOpRelativeDef << 24);
+			SPUSH(opcode);
+			// switch back from compile mode to execute mode
+			pEngine->SetCompileState(0);
+		}
+	}
 }
 
 FORTHOP( codeOp )
@@ -1384,11 +1611,12 @@ FORTHOP( structOp )
     ForthEngine* pEngine = GET_ENGINE;
     pEngine->SetFlag( kEngineFlagInStructDefinition );
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
-    ForthStructVocabulary* pVocab = pManager->StartStructDefinition( pEngine->GetNextSimpleToken() );
+	const char* pName = pEngine->GetNextSimpleToken();
+    ForthStructVocabulary* pVocab = pManager->StartStructDefinition(pName);
     pEngine->CompileBuiltinOpcode( OP_DO_STRUCT_TYPE );
     pEngine->CompileLong( (long) pVocab );
 
-	pEngine->GetShell()->StartDefinition("stru");
+	pEngine->GetShell()->StartDefinition(pName, "stru");
 }
 
 FORTHOP( endstructOp )
@@ -1403,9 +1631,10 @@ FORTHOP( endstructOp )
 FORTHOP( classOp )
 {
     ForthEngine* pEngine = GET_ENGINE;
-    pEngine->StartClassDefinition( pEngine->GetNextSimpleToken() );
+	const char* pName = pEngine->GetNextSimpleToken();
+	pEngine->StartClassDefinition(pName);
 
-	pEngine->GetShell()->StartDefinition("clas");
+	pEngine->GetShell()->StartDefinition(pName, "clas");
 }
 
 FORTHOP( endclassOp )
@@ -1413,6 +1642,29 @@ FORTHOP( endclassOp )
     ForthEngine *pEngine = GET_ENGINE;
     pEngine->EndClassDefinition();
 	pEngine->GetShell()->CheckDefinitionEnd("class", "clas");
+}
+
+FORTHOP(defineNewOp)
+{
+	startColonDefinition(pCore, "__newOp");
+	ForthEngine *pEngine = GET_ENGINE;
+	ForthClassVocabulary* pVocab = ForthTypesManager::GetInstance()->GetNewestClass();
+	if (pVocab)
+	{
+		long* pEntry = pVocab->GetNewestEntry();
+		if (pEntry)
+		{
+			pVocab->GetClassObject()->newOp = pEntry[0];
+		}
+		else
+		{
+			pEngine->SetError(kForthErrorBadSyntax, "__newOp being defined not found in 'new:'");
+		}
+	}
+	else
+	{
+		pEngine->SetError(kForthErrorBadSyntax, "Defining class not found in 'new:'");
+	}
 }
 
 FORTHOP( methodOp )
@@ -1437,17 +1689,17 @@ FORTHOP( methodOp )
             pEntry[0] = methodIndex;
             pEntry[1] |= kDTIsMethod;
         }
-        else
-        {
-            // TODO: error
-        }
+		else
+		{
+			pEngine->SetError(kForthErrorBadSyntax, "method op being defined not found in 'method:'");
+		}
     }
     else
     {
-        // TODO: report adding a method outside a class definition
-    }
+		pEngine->SetError(kForthErrorBadSyntax, "Defining class not found in 'method:'");
+	}
 
-	pEngine->GetShell()->StartDefinition("meth");
+	pEngine->GetShell()->StartDefinition(pMethodName, "meth");
 }
 
 FORTHOP( endmethodOp )
@@ -1523,7 +1775,7 @@ FORTHOP( doMethodOp )
     long* pMethods = ((long *) (SPOP));
     SET_TPM( pMethods );
     SET_TPD( ((long *) (SPOP)) );
-    pEngine->ExecuteOneOp( pMethods[ methodIndex ] );
+    pEngine->ExecuteOp(pCore,  pMethods[ methodIndex ] );
 }
 
 FORTHOP( implementsOp )
@@ -1542,7 +1794,7 @@ FORTHOP( implementsOp )
     }
 }
 
-FORTHOP( endimplementsOp )
+FORTHOP( endImplementsOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
 
@@ -1619,31 +1871,28 @@ FORTHOP( extendsOp )
     }
 }
 
-FORTHOP( sizeOfOp )
+FORTHOP( strSizeOfOp )
 {
     // TODO: allow sizeOf to be applied to variables
     // TODO: allow sizeOf to apply to native types, including strings
     ForthEngine *pEngine = GET_ENGINE;
-    char *pSym = pEngine->GetNextSimpleToken();
+	char *pSym = (char *)(SPOP);
     ForthVocabulary* pFoundVocab;
     long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSym, &pFoundVocab );
+	long size = 0;
 
     if ( pEntry )
     {
         ForthTypesManager* pManager = ForthTypesManager::GetInstance();
         ForthStructVocabulary* pStructVocab = pManager->GetStructVocabulary( pEntry[0] );
-        if ( pStructVocab )
+        if ( pStructVocab != nullptr)
         {
-            pEngine->ProcessConstant( pStructVocab->GetSize() );
+			size = pStructVocab->GetSize();
         }
         else
         {
-            long size = pManager->GetBaseTypeSizeFromName( pSym );
-            if ( size > 0 )
-            {
-                pEngine->ProcessConstant( size );
-            }
-            else
+            size = pManager->GetBaseTypeSizeFromName( pSym );
+            if ( size <= 0 )
             {
                 pEngine->AddErrorText( pSym );
                 pEngine->SetError( kForthErrorUnknownSymbol, " is not a structure or base type" );
@@ -1654,51 +1903,85 @@ FORTHOP( sizeOfOp )
     {
         pEngine->SetError( kForthErrorUnknownSymbol, pSym );
     }
+	SPUSH(size);
 }
 
-FORTHOP( offsetOfOp )
+FORTHOP( strOffsetOfOp )
 {
-    // TODO: allow offsetOf to be take variable.field instead of just type.field
+    // TODO: allow offsetOf to be variable.field instead of just type.field
     ForthEngine *pEngine = GET_ENGINE;
-    char *pType = pEngine->GetNextSimpleToken();
+	long size = 0;
+
+	char *pType = (char *)(SPOP);
     char *pField = strchr( pType, '.' );
     if ( pField == NULL )
     {
         pEngine->SetError( kForthErrorBadSyntax, "argument must contain a period" );
-        return;
     }
-    *pField++ = '\0';
+	else
+	{
+		char oldChar = *pField;
+		*pField++ = '\0';
 
-    ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pType, &pFoundVocab );
-    if ( pEntry )
-    {
-        ForthTypesManager* pManager = ForthTypesManager::GetInstance();
-        ForthStructVocabulary* pStructVocab = pManager->GetStructVocabulary( pEntry[0] );
-        if ( pStructVocab )
-        {
-            pEntry = pStructVocab->FindSymbol( pField );
-            if ( pEntry )
-            {
-                pEngine->ProcessConstant( pEntry[0] );
-            }
-            else
-            {
-                pEngine->AddErrorText( pField );
-                pEngine->AddErrorText( " is not a field in " );
-                pEngine->SetError( kForthErrorUnknownSymbol, pType );
-            }
-        }
-        else
-        {
-            pEngine->AddErrorText( pType );
-            pEngine->SetError( kForthErrorUnknownSymbol, " is not a structure" );
-        }
-    }
-    else
-    {
-        pEngine->SetError( kForthErrorUnknownSymbol, pType );
-    }
+		ForthVocabulary* pFoundVocab;
+		long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pType, &pFoundVocab);
+		if (pEntry)
+		{
+			ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+			ForthStructVocabulary* pStructVocab = pManager->GetStructVocabulary(pEntry[0]);
+			if (pStructVocab)
+			{
+				pEntry = pStructVocab->FindSymbol(pField);
+				if (pEntry)
+				{
+					size = pEntry[0];
+				}
+				else
+				{
+					pEngine->AddErrorText(pField);
+					pEngine->AddErrorText(" is not a field in ");
+					pEngine->SetError(kForthErrorUnknownSymbol, pType);
+				}
+			}
+			else
+			{
+				pEngine->AddErrorText(pType);
+				pEngine->SetError(kForthErrorUnknownSymbol, " is not a structure");
+			}
+		}
+		else
+		{
+			pEngine->SetError(kForthErrorUnknownSymbol, pType);
+		}
+		pField[-1] = oldChar;
+	}
+
+	SPUSH(size);
+}
+
+FORTHOP( processConstantOp )
+{
+	// if interpreting, do nothing
+	// if compiling, get value from TOS and compile what is needed to push that value at runtime
+    ForthEngine *pEngine = GET_ENGINE;
+	if (pEngine->IsCompiling())
+	{
+		int constantValue = (SPOP);
+		pEngine->ProcessConstant(constantValue);
+	}
+}
+
+FORTHOP( processLongConstantOp )
+{
+	// if interpreting, do nothing
+	// if compiling, get value from TOS and compile what is needed to push that value at runtime
+    ForthEngine *pEngine = GET_ENGINE;
+	if (pEngine->IsCompiling())
+	{
+		stackInt64 val;
+		LPOP(val);
+		pEngine->ProcessLongConstant(val.s64);
+	}
 }
 
 FORTHOP(showStructOp)
@@ -1739,8 +2022,8 @@ void __newOp(ForthCoreState* pCore, const char* pSym)
 			long initOpcode = pClassVocab->GetInitOpcode();
 			if (pEngine->IsCompiling())
             {
+				pEngine->ProcessConstant(pClassVocab->GetTypeIndex(), false);
                 pEngine->CompileBuiltinOpcode( OP_DO_NEW );
-                pEngine->CompileLong( (long) pClassVocab );
 				if (initOpcode != 0)
 				{
 					pEngine->CompileBuiltinOpcode(OP_OVER);
@@ -1750,13 +2033,13 @@ void __newOp(ForthCoreState* pCore, const char* pSym)
             else
             {
                 SPUSH( (long) pClassVocab );
-                pEngine->ExecuteOneOp( pClassVocab->GetClassObject()->newOp );
+				pEngine->FullyExecuteOp(pCore, pClassVocab->GetClassObject()->newOp);
 				if (initOpcode != 0)
 				{
 					// copy object data pointer to TOS to be used by init 
 					long a = (GET_SP)[1];
 					SPUSH(a);
-					pEngine->ExecuteOneOp(initOpcode);
+					pEngine->ExecuteOp(pCore, initOpcode);
 				}
 			}
         }
@@ -1774,15 +2057,55 @@ void __newOp(ForthCoreState* pCore, const char* pSym)
 
 FORTHOP(newOp)
 {
-    ForthEngine *pEngine = GET_ENGINE;
-    char *pSym = pEngine->GetNextSimpleToken();
-    __newOp(pCore, pSym);
+	ForthEngine *pEngine = GET_ENGINE;
+
+	char *pSym = pEngine->GetNextSimpleToken();
+	__newOp(pCore, pSym);
+}
+
+FORTHOP(strNewOp)
+{
+	ForthEngine *pEngine = GET_ENGINE;
+	ForthVocabulary* pFoundVocab;
+
+	char *pSym = (char*)(SPOP);
+	long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pSym, &pFoundVocab);
+
+	if (pEntry)
+	{
+		ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+		ForthClassVocabulary* pClassVocab = (ForthClassVocabulary *)(pManager->GetStructVocabulary(pEntry[0]));
+
+		if (pClassVocab && pClassVocab->IsClass())
+		{
+			long initOpcode = pClassVocab->GetInitOpcode();
+			SPUSH((long)pClassVocab);
+			pEngine->FullyExecuteOp(pCore, pClassVocab->GetClassObject()->newOp);
+			if (initOpcode != 0)
+			{
+				// copy object data pointer to TOS to be used by init 
+				long a = (GET_SP)[1];
+				SPUSH(a);
+				pEngine->FullyExecuteOp(pCore, initOpcode);
+			}
+		}
+		else
+		{
+			pEngine->AddErrorText(pSym);
+			pEngine->SetError(kForthErrorUnknownSymbol, " is not a class");
+		}
+	}
+	else
+	{
+		pEngine->SetError(kForthErrorUnknownSymbol, pSym);
+	}
 }
 
 FORTHOP(makeObjectOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
-    char *pClassName = pEngine->GetNextSimpleToken();
+	const char *pClassName = pEngine->GetNextSimpleToken();
+
     __newOp(pCore, pClassName);
 
     ForthVocabulary* pFoundVocab;
@@ -1795,7 +2118,6 @@ FORTHOP(makeObjectOp)
 
         if (pClassVocab && pClassVocab->IsClass())
         {
-            long initOpcode = pClassVocab->GetInitOpcode();
             if (pEngine->IsCompiling())
             {
                 pEngine->CompileBuiltinOpcode(OP_INTO);
@@ -1804,7 +2126,8 @@ FORTHOP(makeObjectOp)
             {
                 SET_VAR_OPERATION(kVarStore);
             }
-            pClassVocab->DefineInstance();
+			const char *pInstanceName = pEngine->GetNextSimpleToken();
+			pClassVocab->DefineInstance(pInstanceName);
         }
         else
         {
@@ -1821,11 +2144,29 @@ FORTHOP(makeObjectOp)
 
 FORTHOP(doNewOp)
 {
-	// this op is compiled for 'new foo', the class vocabulary ptr is compiled immediately after it
-    ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (*pCore->IP++);
-    SPUSH( (long) pClassVocab );
-    ForthEngine *pEngine = GET_ENGINE;
-    pEngine->ExecuteOneOp( pClassVocab->GetClassObject()->newOp );
+	// this op is compiled for 'new foo', the class typeIndex is on TOS
+	ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+	ForthEngine *pEngine = GET_ENGINE;
+
+	int typeIndex = SPOP;
+	ForthTypeInfo* pTypeInfo = pManager->GetTypeInfo(typeIndex);
+	if (pTypeInfo != nullptr)
+	{
+		if (pTypeInfo->pVocab->IsClass())
+		{
+			ForthClassVocabulary *pClassVocab = static_cast<ForthClassVocabulary *>(pTypeInfo->pVocab);
+			SPUSH((long)pClassVocab);
+			pEngine->FullyExecuteOp(pCore, pClassVocab->GetClassObject()->newOp);
+		}
+		else
+		{
+			// TODO: report that vocab is not a class vocab
+		}
+	}
+	else
+	{
+		// TODO report unknown class with index N
+	}
 }
 
 FORTHOP( allocObjectOp )
@@ -1905,12 +2246,13 @@ FORTHOP( enumOp )
     //    return;
     //}
     pEngine->StartEnumDefinition();
-    long* pEntry = pEngine->StartOpDefinition();
+	const char* pName = pEngine->GetNextSimpleToken();
+	long* pEntry = pEngine->StartOpDefinition(pName);
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_ENUM );
 	pEngine->CompileLong(4);	// default enum size is 4 bytes
 
-	pEngine->GetShell()->StartDefinition("enum");
+	pEngine->GetShell()->StartDefinition(pName, "enum");
 }
 
 FORTHOP( endenumOp )
@@ -1928,6 +2270,28 @@ FORTHOP( doVocabOp )
     SET_IP( (long *) (RPOP) );
 }
 
+FORTHOP(getClassByIndexOp)
+{
+	// IP points to data field
+	int typeIndex = SPOP;
+	ForthObject classObject;
+	classObject.pMethodOps = nullptr;
+	classObject.pData = nullptr;
+	ForthTypesManager* pManager = ForthTypesManager::GetInstance();
+	ForthClassVocabulary* pClassVocabulary = pManager->GetClassVocabulary(typeIndex);
+	if (pClassVocabulary != nullptr)
+	{
+		ForthClassObject* pClassObject = pClassVocabulary->GetClassObject();
+		if (pClassObject != nullptr)
+		{
+			classObject.pMethodOps = pManager->GetClassVocabulary(kBCIClass)->GetInterface(0)->GetMethods();
+			classObject.pData = reinterpret_cast<long *>(pClassObject);
+		}
+	}
+	PUSH_OBJECT(classObject);
+}
+
+
 // doStructTypeOp is compiled at the start of each user-defined structure defining word 
 FORTHOP( doStructTypeOp )
 {
@@ -1943,19 +2307,12 @@ FORTHOP( doStructTypeOp )
 		{
 			// compile this opcode so at runtime (ref STRUCT_OP) will push struct vocab address
 			ForthTypesManager* pManager = ForthTypesManager::GetInstance();
-			pEngine->CompileOpcode(pManager->GetStructInfo(pVocab->GetTypeIndex())->op);
+			pEngine->CompileOpcode(pManager->GetTypeInfo(pVocab->GetTypeIndex())->op);
 			SET_IP((long *)(RPOP));
 			return;
 		}
 	}
-	if (GET_VAR_OPERATION == kVarDefaultOp)
-	{
-		pVocab->DefineInstance();
-	}
-	else
-	{
-		pVocab->DoOp(pCore);
-	}
+	pVocab->DefineInstance();
 	SET_IP((long *)(RPOP));
 }
 
@@ -1963,23 +2320,9 @@ FORTHOP( doStructTypeOp )
 FORTHOP( doClassTypeOp )
 {
     // IP points to data field
+	// TODO: change this to take class typeIndex on TOS like doNewOp
     ForthClassVocabulary *pVocab = (ForthClassVocabulary *) (*GET_IP);
-	switch (GET_VAR_OPERATION)
-	{
-	case kVocabGetClass:
-		// this is invoked at runtime when code explicitly invokes methods on class objects (IE CLASSNAME.new)
-		pVocab->DoOp(pCore);
-		break;
-
-	case kVarDefaultOp:
-	case kVarStore:
-		pVocab->DefineInstance();
-		break;
-
-	default:
-		pVocab->DoOp(pCore);
-		break;
-	}
+	pVocab->DefineInstance();
     SET_IP( (long *) (RPOP) );
 }
 
@@ -2033,10 +2376,10 @@ FORTHOP( recursiveOp )
     GET_ENGINE->GetDefinitionVocabulary()->UnSmudgeNewestSymbol();
 }
 
-FORTHOP( strPrecedenceOp )
+FORTHOP( precedenceOp )
 {
-    char *pSym = (char *)(SPOP);
 	ForthEngine *pEngine = GET_ENGINE;
+	char *pSym = pEngine->GetNextSimpleToken();
 	long *pEntry = pEngine->GetDefinitionVocabulary()->FindSymbol(pSym);
     
     if ( pEntry )
@@ -2333,7 +2676,7 @@ consoleOutToOp( ForthCoreState   *pCore,
     SPUSH( (long) pMessage );
     long op = GET_CON_OUT_OP;
     ForthEngine* pEngine = GET_ENGINE;
-    pEngine->ExecuteOneOp( op );
+    pEngine->ExecuteOneOp(pCore,  op );
 }
 */
 static void
@@ -2401,7 +2744,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
 #else
                 v = ldiv( val, base );
 #endif
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
                 v = ldiv( val, base );
 #endif
                 *--pNext = (char) ( (v.rem < 10) ? (v.rem + '0') : ((v.rem - 10) + 'a') );
@@ -2609,7 +2952,35 @@ FORTHOP( printDoubleOp )
     CONSOLE_STRING_OUT( buff );
 }
 
-FORTHOP( format32Op )
+FORTHOP(printFloatGOp)
+{
+	NEEDS(1);
+	char buff[36];
+
+	float fval = FPOP;
+	SNPRINTF(buff, sizeof(buff), "%g", fval);
+#ifdef TRACE_PRINTS
+	SPEW_PRINTS("printed %s\n", buff);
+#endif
+
+	CONSOLE_STRING_OUT(buff);
+}
+
+FORTHOP(printDoubleGOp)
+{
+	NEEDS(2);
+	char buff[36];
+	double dval = DPOP;
+
+	SNPRINTF(buff, sizeof(buff), "%g", dval);
+#ifdef TRACE_PRINTS
+	SPEW_PRINTS("printed %s\n", buff);
+#endif
+
+	CONSOLE_STRING_OUT(buff);
+}
+
+FORTHOP(format32Op)
 {
     NEEDS(2);
 
@@ -2726,7 +3097,7 @@ long snprintfSub( ForthCoreState* pCore )
     const char* fmt = (const char *) SPOP;
     size_t maxLen = (size_t) SPOP;
     char* outbuff = (char *) SPOP;
-    return snprintf( outbuff, maxLen, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
+	return SNPRINTF(outbuff, maxLen, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]);
 }
 
 long fscanfSub( ForthCoreState* pCore )
@@ -2757,6 +3128,19 @@ long sscanfSub( ForthCoreState* pCore )
     return sscanf( inbuff, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
 }
 
+int oStringFormatSub(ForthCoreState* pCore, char* pBuffer, int bufferSize)
+{
+	int a[8];
+	// TODO: assert if numArgs > 8
+	long numArgs = SPOP;
+	for (int i = numArgs - 1; i >= 0; --i)
+	{
+		a[i] = SPOP;
+	}
+	const char* fmt = (const char *)SPOP;
+	return (int)(SNPRINTF(pBuffer, bufferSize, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]));
+}
+
 #endif
 
 FORTHOP( fprintfOp )
@@ -2783,10 +3167,24 @@ FORTHOP( sscanfOp )
     sscanfSub( pCore );
 }
 
-FORTHOP( printStrOp )
+FORTHOP(atoiOp)
+{
+	char *buff = (char *)SPOP;
+	int result = atoi(buff);
+	SPUSH(result);
+}
+
+FORTHOP(atofOp)
+{
+	char *buff = (char *)SPOP;
+	double result = atof(buff);
+	DPUSH(result);
+}
+
+FORTHOP(printStrOp)
 {
     NEEDS(1);
-    char *buff = (char *) SPOP;
+    const char *buff = (const char *) SPOP;
 	if ( buff == NULL )
 	{
 		buff = "<<<NULL>>>";
@@ -2915,6 +3313,30 @@ FORTHOP( resetConsoleOutOp )
 	pEngine->ResetConsoleOut( pCore );
 }
 
+FORTHOP(toupperOp)
+{
+	int c = SPOP;
+	SPUSH(toupper(c));
+}
+
+FORTHOP(isupperOp)
+{
+	int c = SPOP;
+	SPUSH(isupper(c));
+}
+
+FORTHOP(tolowerOp)
+{
+	int c = SPOP;
+	SPUSH(tolower(c));
+}
+
+FORTHOP(islowerOp)
+{
+	int c = SPOP;
+	SPUSH(islower(c));
+}
+
 
 //##############################
 //
@@ -2985,17 +3407,22 @@ FORTHOP( _filenoOp )
 
 FORTHOP( tmpnamOp )
 {
-	char* pOutname = (char *)__MALLOC(L_tmpnam + 1);
-	pOutname[0] = '.';
-    ForthEngine *pEngine = GET_ENGINE;
-	if ( pCore->pFileFuncs->getTmpnam( pOutname + 1 ) == NULL )
+	char* pOutName = (char *)__MALLOC(L_tmpnam + 1);
+	char* pDstName = pOutName;
+#if !defined(MACOSX)
+	// on OSX, the tmp filename is an absolute path, on windows and linux it is in current directory
+	// I prepend a dot in windows/linux to make the file hidden (I think)
+	*pDstName++ = '.';
+#endif
+	if (pCore->pFileFuncs->getTmpnam(pDstName) == NULL)
 	{
-        SET_ERROR( kForthErrorFileOpen );
+		ForthEngine *pEngine = GET_ENGINE;
+		SET_ERROR(kForthErrorFileOpen);
         pEngine->AddErrorText( "system: failure creating standard out tempfile name" );
-		__FREE(pOutname);
-		pOutname = NULL;
+		__FREE(pOutName);
+		pOutName = NULL;
 	}
-    SPUSH( (long) pOutname );
+	SPUSH((long) pOutName);
 }
 
 FORTHOP( fflushOp )
@@ -3016,7 +3443,7 @@ FORTHOP( strerrorOp)
     SPUSH( reinterpret_cast<long>(strerror(errVal)) );
 }
 
-FORTHOP( systemOp )
+FORTHOP( shellRunOp )
 {
     NEEDS(1);
     int result = pCore->pFileFuncs->runSystem( (char *) SPOP );
@@ -3099,6 +3526,26 @@ FORTHOP(getEnvironmentOp)
     SPUSH(pShell->GetEnvironmentVarCount());
 }
 
+FORTHOP(getCwdOp)
+{
+	int maxChars = (SPOP) - 1;
+	char* pDst = (char *)(SPOP);
+	pDst[maxChars] = '\0';
+#if defined( WIN32 )
+	DWORD result = GetCurrentDirectory(maxChars, pDst);
+	if (result == 0)
+	{
+		pDst[0] = '\0';
+	}
+#elif defined(LINUX) || defined(MACOSX)
+	if (getcwd(pDst, maxChars) == NULL)
+	{
+		// failed to get current directory
+		strcpy(pDst, ".");
+	}
+#endif
+}
+
 //##############################
 //
 // Default input/output file ops
@@ -3157,21 +3604,6 @@ FORTHOP( drstackOp )
     CONSOLE_CHAR_OUT( '\n' );
 }
 
-
-FORTHOP( statsOp )
-{
-    char buff[512];
-
-    SNPRINTF( buff, sizeof(buff), "pCore %p pEngine %p     DP %p DBase %p    IP %p\n",
-             pCore, pCore->pEngine, pCore->pDictionary, pCore->pDictionary->pBase, pCore->IP );
-    CONSOLE_STRING_OUT( buff );
-    SNPRINTF( buff, sizeof(buff), "SP %p ST %p SLen %d    RP %p RT %p RLen %d\n",
-             pCore->SP, pCore->ST, pCore->SLen,
-             pCore->RP, pCore->RT, pCore->RLen );
-    CONSOLE_STRING_OUT( buff );
-    SNPRINTF( buff, sizeof(buff), "%d builtins    %d userops\n", pCore->numBuiltinOps, pCore->numOps );
-    CONSOLE_STRING_OUT( buff );
-}
 
 FORTHOP( describeOp )
 {
@@ -3328,10 +3760,27 @@ FORTHOP( addDLLEntryOp )
         pEngine->SetError( kForthErrorBadParameter, " is not a DLL vocabulary - addDllEntry" );
     }
     ulong numArgs = SPOP;
-    pVocab->AddEntry( pProcName, numArgs );
+	pVocab->AddEntry(pProcName, pProcName, numArgs);
 }
 
-FORTHOP( DLLVoidOp )
+FORTHOP(addDLLEntryExOp)
+{
+	NEEDS(2);
+
+	ForthEngine *pEngine = GET_ENGINE;
+	char* pProcName = (char *)SPOP;
+	char* pEntryName = (char *)SPOP;
+	ForthDLLVocabulary* pVocab = (ForthDLLVocabulary *)(pEngine->GetDefinitionVocabulary());
+	if (strcmp(pVocab->GetType(), "dllOp"))
+	{
+		pEngine->AddErrorText(pVocab->GetName());
+		pEngine->SetError(kForthErrorBadParameter, " is not a DLL vocabulary - addDllEntry");
+	}
+	ulong numArgs = SPOP;
+	pVocab->AddEntry(pProcName, pEntryName, numArgs);
+}
+
+FORTHOP(DLLVoidOp)
 {
 	NEEDS( 0 );
 
@@ -3672,7 +4121,12 @@ FORTHOP( strftimeOp )
 
     timeinfo = localtime ( &rawtime );
     // Www Mmm dd yyyy (weekday, month, day, year)
-    strftime( buffer, bufferSize, fmt, timeinfo);
+	errno = 0;
+	strftime(buffer, bufferSize, fmt, timeinfo);
+	if (errno)
+	{
+		GET_ENGINE->SetError(kForthErrorBadVarOperation);
+	}
 }
 
 FORTHOP( timeAndDateOp )
@@ -3701,7 +4155,10 @@ FORTHOP( millisleepOp )
     ::Sleep( dwMilliseconds );
 #else
     int milliseconds = SPOP;
+#if defined(LINUX)
     usleep( milliseconds * 1000 );
+#elif defined(MACOSX)
+#endif
 #endif
 }
 
@@ -3721,6 +4178,7 @@ FORTHOP( srandOp )
     srand( (unsigned int) (SPOP) );
 }
 
+// Paul Hsieh's fast hash    http://www.azillionmonkeys.com/qed/hash.html
 #define get16bits(d) ((((unsigned long)(((const unsigned char *)(d))[1])) << 8)\
 						+(unsigned long)(((const unsigned char *)(d))[0]) )
 
@@ -3771,13 +4229,74 @@ SuperFastHash (const char * data, int len, unsigned long hash)
 }
 
 // data len hashIn ... hashOut
-FORTHOP( hashOp )
+FORTHOP( phHashContinueOp )
 {
     unsigned int hashVal = SPOP;
     int len = SPOP;
     const char* pData = (const char*) (SPOP);
     hashVal = SuperFastHash( pData, len, hashVal );
     SPUSH( hashVal );
+}
+
+// data len ... hashOut
+FORTHOP(phHashOp)
+{
+	unsigned int hashVal = 0;
+	int len = SPOP;
+	const char* pData = (const char*)(SPOP);
+	hashVal = SuperFastHash(pData, len, hashVal);
+	SPUSH(hashVal);
+}
+
+// Fowler/Noll/Vo hash from http://www.isthe.com/chongo/src/fnv/hash_32.c and http://www.isthe.com/chongo/src/fnv/fnv.h
+#define FNV_32_PRIME ((Fnv32_t)0x01000193)
+#define FNV1_32_INIT ((Fnv32_t)0x811c9dc5)
+typedef unsigned long Fnv32_t;
+
+Fnv32_t
+fnv_32_buf(const void *buf, size_t len, Fnv32_t hval)
+{
+	unsigned char *bp = (unsigned char *)buf;	/* start of buffer */
+	unsigned char *be = bp + len;		/* beyond end of buffer */
+
+	/*
+	* FNV-1 hash each octet in the buffer
+	*/
+	while (bp < be) {
+
+		/* multiply by the 32 bit FNV magic prime mod 2^32 */
+#if defined(NO_FNV_GCC_OPTIMIZATION)
+		hval *= FNV_32_PRIME;
+#else
+		hval += (hval << 1) + (hval << 4) + (hval << 7) + (hval << 8) + (hval << 24);
+#endif
+
+		/* xor the bottom with the current octet */
+		hval ^= (Fnv32_t)*bp++;
+	}
+
+	/* return our new hash value */
+	return hval;
+}
+
+// data len ... hashOut
+FORTHOP(fnvHashOp)
+{
+	unsigned int hashVal = FNV1_32_INIT;
+	int len = SPOP;
+	const char* pData = (const char*)(SPOP);
+	hashVal = fnv_32_buf(pData, len, hashVal);
+	SPUSH(hashVal);
+}
+
+// data len hashIn ... hashOut
+FORTHOP(fnvHashContinueOp)
+{
+	unsigned int hashVal = SPOP;
+	int len = SPOP;
+	const char* pData = (const char*)(SPOP);
+	hashVal = fnv_32_buf(pData, len, hashVal);
+	SPUSH(hashVal);
 }
 
 namespace
@@ -3895,16 +4414,52 @@ namespace
     int qsPartition( char* pData, qsInfo* pQS, int left, int right )
     {
         int elementSize = pQS->elementSize;
-        char* pLeft = pData + (pQS->elementSize * left) + pQS->offset;
-        char* pRight = pData + (pQS->elementSize * right) + pQS->offset;
+		int elementOffset = pQS->offset;
+        char* pLeft = pData + (pQS->elementSize * left) + elementOffset;
+		char* pRight = pData + (pQS->elementSize * right) + elementOffset;
+
         // pivot = pData[left]
         char* pivot = (char *)(pQS->temp);
         int compareSize = pQS->compareSize;
         memcpy( pivot, pLeft, compareSize );
 
-	    while ( true )
-	    {
-		    // while (a[left] < pivot) left++;
+#if 1
+		long long tmp;
+		left--;
+		pLeft -= elementSize;
+		right++;
+		pRight += elementSize;
+		while (true)
+		{
+			do
+			{
+				left++;
+				pLeft += elementSize;
+			} while (pQS->compare(pLeft, pivot, compareSize) < 0);
+
+			do
+			{
+				right--;
+				pRight -= elementSize;
+			} while (pQS->compare(pRight, pivot, compareSize) > 0);
+
+			if (left >= right)
+			{
+				return right;
+			}
+
+			// swap(a[left], a[right]);
+			char* pLeftBase = pLeft - elementOffset;
+			char* pRightBase = pRight - elementOffset;
+			memcpy(&tmp, pLeftBase, pQS->elementSize);
+			memcpy(pLeftBase, pRightBase, pQS->elementSize);
+			memcpy(pRightBase, &tmp, pQS->elementSize);
+		}
+#else
+		// this should be more efficient, but it doesn't actually work
+		while (true)
+		{
+			// while (a[left] < pivot) left++;
             while ( pQS->compare( pLeft, pivot, compareSize ) < 0 )
             {
                 left++;
@@ -3917,7 +4472,6 @@ namespace
                 right--;
                 pRight -= elementSize;
             }
-
             if ( pQS->compare( pLeft, pRight, compareSize ) == 0 )
             {
                 left++;
@@ -3935,15 +4489,17 @@ namespace
 			    return right;
 		    }
 	    }
-    }
+#endif
+	}
 
     void qsStep( void* pData, qsInfo* pQS, int left, int right )
     {
 	    if ( left < right )
 	    {
 		    int pivot = qsPartition( (char *) pData, pQS, left, right );
-		    qsStep( pData, pQS, left, (pivot-1) );
-		    qsStep( pData, pQS, (pivot+1), right );
+			//qsStep(pData, pQS, left, (pivot - 1));
+			qsStep(pData, pQS, left, (pivot));
+			qsStep(pData, pQS, (pivot + 1), right);
 	    }
     }
 
@@ -3960,7 +4516,6 @@ FORTHOP( qsortOp )
     qs.elementSize = SPOP;
     long numElements = SPOP;
     void* pArrayBase = (void *)(SPOP);
-
 	qs.temp = __MALLOC(qs.elementSize);
 
     switch ( CODE_TO_BASE_TYPE(compareType) )
@@ -4021,7 +4576,10 @@ FORTHOP( qsortOp )
         break;
 
     default:
-        break;
+		GET_ENGINE->SetError(kForthErrorBadParameter, " failure in qsort - unknown sort element type");
+		__FREE(qs.temp);
+		return;
+		break;
     }
 
     qsStep( pArrayBase, &qs, 0, (numElements - 1) );
@@ -4169,7 +4727,7 @@ bool checkBracketToken( const char*& pStart, const char* pToken )
     int len = strlen( pToken );
 #if defined(WIN32)
     if ( !_strnicmp( pStart, pToken, len ) )
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
     if ( !strncasecmp( pStart, pToken, len ) )
 #endif
     {
@@ -4423,21 +4981,34 @@ FORTHOP( thruOp )
 //  threads
 ///////////////////////////////////////////
 
-FORTHOP( createThreadOp )
+FORTHOP( createAsyncThreadOp )
 {
-    long threadOp  = SPOP;
-    int returnStackSize = (int)(SPOP);
-    int paramStackSize = (int)(SPOP);
-    ForthThread* pThread = GET_ENGINE->CreateThread( threadOp, paramStackSize, returnStackSize );
-    SPUSH( (long) pThread );
+	ForthObject asyncThread;
+	int returnStackLongs = (int)(SPOP);
+	int paramStackLongs = (int)(SPOP);
+	long threadOp = SPOP;
+	ForthEngine* pEngine = GET_ENGINE;
+	OThread::CreateAsyncThreadObject(asyncThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
+
+	PUSH_OBJECT(asyncThread);
 }
 
-FORTHOP( destroyThreadOp )
+FORTHOP(createThreadOp)
 {
-    ForthThread* pThread = (ForthThread*)(SPOP);
-    GET_ENGINE->DestroyThread( pThread );
+	ForthEngine* pEngine = GET_ENGINE;
+	ForthObject thread;
+
+	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	ForthAsyncThread* pAsyncThread = pThread->GetParent();
+	int returnStackLongs = (int)(SPOP);
+	int paramStackLongs = (int)(SPOP);
+	long threadOp = SPOP;
+	OThread::CreateThreadObject(thread, pAsyncThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
+
+	PUSH_OBJECT(thread);
 }
 
+#if 0
 FORTHOP( threadGetStateOp )
 {
     ForthThread* pThread = (ForthThread*)(SPOP);
@@ -4466,15 +5037,56 @@ FORTHOP( stepThreadOp )
 
 FORTHOP( startThreadOp )
 {
-    ForthThread* pThread = (ForthThread*)(SPOP);
+	ForthAsyncThread* pThread = (ForthAsyncThread*)(SPOP);
     long result = pThread->Start();
     SPUSH( result );
 }
+#endif
 
-FORTHOP( exitThreadOp )
+FORTHOP( exitAsyncThreadOp )
 {
-    ForthThread* pThread = (ForthThread*)(pCore->pThread);
-    pThread->Exit();
+	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	ForthAsyncThread* pAsyncThread = pThread->GetParent();
+	pAsyncThread->Exit();
+}
+
+FORTHOP(yieldOp)
+{
+	SET_STATE(kResultYield);
+}
+
+FORTHOP(stopThreadOp)
+{
+	SET_STATE(kResultYield);
+	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	pThread->Wake();
+}
+
+FORTHOP(sleepThreadOp)
+{
+	SET_STATE(kResultYield);
+	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	ulong sleepMilliseconds = (ulong)(SPOP);
+	pThread->Sleep(sleepMilliseconds);
+}
+
+FORTHOP(exitThreadOp)
+{
+	SET_STATE(kResultYield);
+	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	pThread->Exit();
+}
+
+FORTHOP(getCurrentThreadOp)
+{
+	PUSH_OBJECT(((ForthThread *)(pCore->pThread))->GetThreadObject());
+}
+
+FORTHOP(getCurrentAsyncThreadOp)
+{
+	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	ForthAsyncThread* pAsyncThread = pThread->GetParent();
+	PUSH_OBJECT(pAsyncThread->GetAsyncThreadObject());
 }
 
 #ifdef WIN32
@@ -4614,6 +5226,33 @@ FORTHOP( windowsConstantsOp )
 }
 
 #endif
+
+FORTHOP(windowsOp)
+{
+#ifdef WIN32
+	SPUSH(~0);
+#else
+	SPUSH(0);
+#endif
+}
+
+FORTHOP(linuxOp)
+{
+#ifdef LINUX
+	SPUSH(~0);
+#else
+	SPUSH(0);
+#endif
+}
+
+FORTHOP(macosxOp)
+{
+#ifdef MACOSX
+	SPUSH(~0);
+#else
+	SPUSH(0);
+#endif
+}
 
 FORTHOP( setConsoleCursorOp )
 {
@@ -4871,7 +5510,7 @@ FORTHOP( divmodBop )
 #else
     v = ldiv( a, b );
 #endif
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
     v = ldiv( a, b );
 #endif
     SPUSH( v.rem );
@@ -5385,7 +6024,12 @@ FORTHOP(doExitBop)
     }
     else
     {
-        SET_IP( (long *) RPOP );
+		long* newIP = (long *)RPOP;
+        SET_IP( newIP );
+		if (newIP == nullptr)
+		{
+			SET_STATE(kResultDone);
+		}
     }
 }
 
@@ -5402,8 +6046,13 @@ FORTHOP(doExitLBop)
     }
     else
     {
-        SET_IP( (long *) RPOP );
-    }
+		long* newIP = (long *)RPOP;
+		SET_IP(newIP);
+		if (newIP == nullptr)
+		{
+			SET_STATE(kResultDone);
+		}
+	}
 }
 
 // exit method op with no local vars
@@ -5416,10 +6065,16 @@ FORTHOP(doExitMBop)
     }
     else
     {
-        SET_IP( (long *) RPOP );
-        SET_TPM( (long *) RPOP );
+		long* newIP = (long *)RPOP;
+		SET_IP(newIP);
+		SET_TPM((long *)RPOP);
         SET_TPD( (long *) RPOP );
-    }
+
+		if (newIP == nullptr)
+		{
+			SET_STATE(kResultDone);
+		}
+	}
 }
 
 // exit method op with local vars
@@ -5435,10 +6090,16 @@ FORTHOP(doExitMLBop)
     }
     else
     {
-        SET_IP( (long *) RPOP );
-        SET_TPM( (long *) RPOP );
+		long* newIP = (long *)RPOP;
+		SET_IP(newIP);
+		SET_TPM((long *)RPOP);
         SET_TPD( (long *) RPOP );
-    }
+
+		if (newIP == nullptr)
+		{
+			SET_STATE(kResultDone);
+		}
+	}
 }
 
 FORTHOP(callBop)
@@ -5620,6 +6281,16 @@ FORTHOP( arshiftBop )
     unsigned long b = SPOP;
     long a = SPOP;
     SPUSH( a >> b );
+}
+
+
+FORTHOP( rotateBop )
+{
+	NEEDS(2);
+	unsigned long b = (SPOP) & 31;
+	unsigned long a = SPOP;
+	unsigned long result = (a << b) | (a >> (32 - b));
+	SPUSH( result );
 }
 
 
@@ -6424,6 +7095,10 @@ FORTHOP(npickBop)
 }
 #endif
 
+FORTHOP( noopBop )
+{
+}
+
 //##############################
 //
 // loads & stores
@@ -6437,7 +7112,7 @@ FORTHOP(storeBop)
     *pB = a;
 }
 
-FORTHOP(fetchBop)
+FORTHOP(ifetchBop)
 {
     NEEDS(1);
     long *pA = (long *)(SPOP); 
@@ -6706,6 +7381,11 @@ FORTHOP(fillBop)
     memset( pDst, byteVal, nBytes );
 }
 
+FORTHOP(fetchBop)
+{
+	SET_VAR_OPERATION( kVarFetch );
+}
+
 FORTHOP(intoBop)
 {
     SET_VAR_OPERATION( kVarStore );
@@ -6721,7 +7401,7 @@ FORTHOP(subtractFromBop)
     SET_VAR_OPERATION( kVarMinusStore );
 }
 
-FORTHOP(addressOfBop)
+FORTHOP(refBop)
 {
     SET_VAR_OPERATION( kVarRef );
 }
@@ -6811,7 +7491,7 @@ FORTHOP( stricmpBop )
     char *pStr1 = (char *) SPOP;
 #if defined(WIN32)
 	int result = stricmp( pStr1, pStr2 );
-#elif defined(LINUX)
+#elif defined(LINUX) || defined(MACOSX)
 	int result = strcasecmp( pStr1, pStr2 );
 #endif
 	// only return 1, 0 or -1
@@ -6949,7 +7629,7 @@ FORTHOP( executeBop )
 {
 	long op = SPOP;
     ForthEngine *pEngine = GET_ENGINE;
-	pEngine->ExecuteOneOp( op );
+	pEngine->ExecuteOp(pCore,  op );
 #if 0
     long prog[2];
     long *oldIP = GET_IP;
@@ -7090,32 +7770,17 @@ FORTHOP( fputsBop )
     SPUSH( result );
 }
 
-FORTHOP( removeEntryBop )
-{
-    SET_VAR_OPERATION( kVocabRemoveEntry );
-}
-
-FORTHOP( entryLengthBop )
-{
-    SET_VAR_OPERATION( kVocabEntryLength );
-}
-
-FORTHOP( numEntriesBop )
-{
-    SET_VAR_OPERATION( kVocabNumEntries );
-}
-
-FORTHOP( vocabToClassBop )
-{
-    SET_VAR_OPERATION( kVocabGetClass );
-}
-
 FORTHOP( hereBop )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    char *pChar = (char *)GET_DP;
-    SPUSH( (long) pChar );
-	CLEAR_VAR_OPERATION;
+	SPUSH((int)(pCore->pDictionary->pCurrent));
+}
+
+FORTHOP( dpBop )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    int *pDP = (int *)&(pCore->pDictionary->pCurrent);
+    SPUSH((int)pDP);
 }
 
 FORTHOP( archARMBop )
@@ -7138,11 +7803,72 @@ FORTHOP( archX86Bop )
 
 FORTHOP( oclearBop )
 {
-    SET_VAR_OPERATION( kVarStore );
-	DPUSH( 0L );
+	SET_VAR_OPERATION( kVarObjectClear );
 }
 
 #endif
+
+//##############################
+//
+// ops used to implement object show methods
+//
+
+FORTHOP(scHandleAlreadyShownOp)
+{
+	int result = -1;
+	if (ForthShowAlreadyShownObject(GET_THIS_PTR, pCore, true))
+	{
+		result = 0;
+	}
+	SPUSH(result);
+}
+
+FORTHOP(scBeginIndentOp)
+{
+	((ForthThread *)(pCore->pThread))->GetShowContext()->BeginIndent();
+}
+
+FORTHOP(scEndIndentOp)
+{
+	((ForthThread *)(pCore->pThread))->GetShowContext()->EndIndent();
+}
+
+FORTHOP(scShowHeaderOp)
+{
+	ForthShowContext* pShowContext = ((ForthThread *)(pCore->pThread))->GetShowContext();
+	SHOW_OBJ_HEADER;
+}
+
+FORTHOP(scShowIndentOp)
+{
+	const char* pStr = (const char *)(SPOP);
+	((ForthThread *)(pCore->pThread))->GetShowContext()->ShowIndent(pStr);
+}
+
+FORTHOP(scBeginFirstElementOp)
+{
+	const char* pStr = (const char *)(SPOP);
+	((ForthThread *)(pCore->pThread))->GetShowContext()->BeginFirstElement(pStr);
+}
+
+FORTHOP(scBeginNextElementOp)
+{
+	const char* pStr = (const char *)(SPOP);
+	((ForthThread *)(pCore->pThread))->GetShowContext()->BeginNextElement(pStr);
+}
+
+FORTHOP(scEndElementOp)
+{
+	const char* pStr = (const char *)(SPOP);
+	((ForthThread *)(pCore->pThread))->GetShowContext()->EndElement(pStr);
+}
+
+FORTHOP(scShowObjectOp)
+{
+	ForthObject obj;
+	POP_OBJECT(obj);
+	ForthShowObject(obj, pCore);
+}
 
 
 // NOTE: the order of the first few entries in this table must agree
@@ -7209,18 +7935,17 @@ OPREF( doUShortArrayBop );  OPREF( doIntArrayBop );     OPREF( doIntArrayBop );
 OPREF( doLongArrayBop );    OPREF( doLongArrayBop );    OPREF( doFloatArrayBop );
 OPREF( doDoubleArrayBop );  OPREF( doStringArrayBop );  OPREF( doOpArrayBop );
 OPREF( doObjectArrayBop );  OPREF( initStringBop );     OPREF( plusBop );
-OPREF( strFixupBop );
+OPREF( strFixupBop );       OPREF( fetchBop );			OPREF( noopBop );
 
-OPREF( fetchBop );          OPREF( doStructBop );       OPREF( doStructArrayBop );
+OPREF( ifetchBop );          OPREF( doStructBop );       OPREF( doStructArrayBop );
 OPREF( doDoBop );           OPREF( doLoopBop );         OPREF( doLoopNBop );
-//OPREF( ofetchBop );         OPREF( vocabToClassBop );   OPREF( doCheckDoBop );
-OPREF( dfetchBop );         OPREF( vocabToClassBop );   OPREF( doCheckDoBop );
+//OPREF( ofetchBop );          OPREF( doCheckDoBop );
+OPREF( dfetchBop );         OPREF( doCheckDoBop );
 OPREF( thisBop );           OPREF( thisDataBop );       OPREF( thisMethodsBop );
 OPREF( executeBop );        OPREF( callBop );           OPREF( gotoBop );
 OPREF( iBop );              OPREF( jBop );              OPREF( unloopBop );
-OPREF( leaveBop );          OPREF( hereBop );           OPREF( addressOfBop );
+OPREF( leaveBop );          OPREF( hereBop );           OPREF( refBop );
 OPREF( intoBop );           OPREF( addToBop );          OPREF( subtractFromBop );
-OPREF( removeEntryBop );    OPREF( entryLengthBop );    OPREF( numEntriesBop );
 OPREF( minusBop );          OPREF( timesBop );          OPREF( times2Bop );
 OPREF( times4Bop );         OPREF( times8Bop );         OPREF( divideBop );
 OPREF( divide2Bop );        OPREF( divide4Bop );        OPREF( divide8Bop );
@@ -7250,7 +7975,7 @@ OPREF( i2fBop );            OPREF( i2dBop );            OPREF( f2iBop );
 OPREF( f2dBop );            OPREF( d2iBop );            OPREF( d2fBop );
 OPREF( orBop );             OPREF( andBop );            OPREF( xorBop );
 OPREF( invertBop );         OPREF( lshiftBop );         OPREF( rshiftBop );
-OPREF( arshiftBop );        OPREF( trueBop );
+OPREF( arshiftBop );        OPREF( rotateBop );         OPREF( trueBop );
 OPREF( falseBop );          OPREF( nullBop );           OPREF( dnullBop );
 OPREF( equalsBop );         OPREF( notEqualsBop );      OPREF( greaterThanBop );
 OPREF( greaterEqualsBop );  OPREF( lessThanBop );       OPREF( lessEqualsBop );
@@ -7259,7 +7984,14 @@ OPREF( greaterEquals0Bop ); OPREF( lessThan0Bop );      OPREF( lessEquals0Bop );
 OPREF( unsignedGreaterThanBop );                        OPREF( unsignedLessThanBop );
 OPREF( withinBop );         OPREF( minBop );            OPREF( maxBop );
 OPREF( icmpBop );           OPREF( uicmpBop );          OPREF( fcmpBop );
-OPREF( dcmpBop );
+OPREF( dcmpBop );			OPREF( lcmpBop );			OPREF( ulcmpBop );
+
+OPREF( lEqualsBop );        OPREF( lNotEqualsBop );     OPREF( lEquals0Bop );
+OPREF( lNotEquals0Bop );    OPREF( lGreaterThanBop );   OPREF( lGreaterThan0Bop );
+OPREF( lLessThanBop );      OPREF( lLessThan0Bop );     OPREF( fcmpBop );
+OPREF( lGreaterEqualsBop ); OPREF( lGreaterEquals0Bop ); OPREF( lLessEqualsBop );
+OPREF( lLessEquals0Bop );   OPREF( dpBop );
+
 OPREF( rpushBop );          OPREF( rpopBop );           OPREF( rpeekBop );
 OPREF( rdropBop );          OPREF( rpBop );             OPREF( r0Bop );
 OPREF( dupBop );            OPREF( checkDupBop );       OPREF( swapBop );
@@ -7354,7 +8086,7 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     NATIVE_COMPILED_DEF(    doObjectArrayBop,        "_doObjectArray",	OP_DO_OBJECT_ARRAY ),
 	NATIVE_COMPILED_DEF(    initStringBop,           "initString",		OP_INIT_STRING ),
     NATIVE_COMPILED_DEF(    plusBop,                 "+",				OP_PLUS ),				// 44
-    NATIVE_COMPILED_DEF(    fetchBop,                "@",				OP_FETCH ),
+    NATIVE_COMPILED_DEF(    ifetchBop,               "@",				OP_IFETCH ),
     NATIVE_COMPILED_DEF(    doStructBop,             "_doStruct",		OP_DO_STRUCT ),
     NATIVE_COMPILED_DEF(    doStructArrayBop,        "_doStructArray",	OP_DO_STRUCT_ARRAY ),	// 48
     NATIVE_COMPILED_DEF(    doDoBop,                 "_do",				OP_DO_DO ),				// 52
@@ -7362,15 +8094,16 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     NATIVE_COMPILED_DEF(    doLoopNBop,              "_+loop",			OP_DO_LOOPN ),
     //NATIVE_COMPILED_DEF(    ofetchBop,               "o@",				OP_OFETCH ),				// 56
     NATIVE_COMPILED_DEF(    dfetchBop,               "2@",				OP_OFETCH ),				// 56
-    NATIVE_COMPILED_DEF(    vocabToClassBop,         "vocabToClass",	OP_VOCAB_TO_CLASS ),
     // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
-    NATIVE_COMPILED_DEF(    addressOfBop,            "ref",				OP_REF ),
-	NATIVE_COMPILED_DEF(    intoBop,                 "->",				OP_INTO ),				// 60
+    NATIVE_COMPILED_DEF(    refBop,                  "ref",				OP_REF ),
+	NATIVE_COMPILED_DEF(    intoBop,                 "->",				OP_INTO ),				// 59
     NATIVE_COMPILED_DEF(    addToBop,                "->+",				OP_INTO_PLUS ),
     NATIVE_COMPILED_DEF(    subtractFromBop,         "->-",				OP_INTO_MINUS ),
+    NATIVE_COMPILED_DEF(    oclearBop,               "oclear",          OP_OCLEAR ),
 	NATIVE_COMPILED_DEF(    doCheckDoBop,            "_?do",			OP_DO_CHECKDO ),
 
 	OP_COMPILED_DEF(		doVocabOp,              "_doVocab",			OP_DO_VOCAB ),
+	OP_COMPILED_DEF(		getClassByIndexOp,      "getClassByIndex",	OP_GET_CLASS_BY_INDEX ),
 	OP_COMPILED_DEF(		initStringArrayOp,      "initStringArray",	OP_INIT_STRING_ARRAY ),
     OP_COMPILED_DEF(		badOpOp,                "badOp",			OP_BAD_OP ),
 	OP_COMPILED_DEF(		doStructTypeOp,         "_doStructType",	OP_DO_STRUCT_TYPE ),
@@ -7398,20 +8131,16 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    thisMethodsBop,          "thisMethods" ),
     NATIVE_DEF(    executeBop,              "execute" ),
     NATIVE_DEF(    callBop,                 "call" ),
-    NATIVE_DEF(    gotoBop,                 "goto" ),
+    NATIVE_DEF(    gotoBop,                 "setIP" ),
     NATIVE_DEF(    iBop,                    "i" ),
     NATIVE_DEF(    jBop,                    "j" ),
     NATIVE_DEF(    unloopBop,               "unloop" ),
     NATIVE_DEF(    leaveBop,                "leave" ),
     NATIVE_DEF(    hereBop,                 "here" ),
-    // vocabulary varActions
-    NATIVE_DEF(    addressOfBop,            "getNewest" ),
-    NATIVE_DEF(    intoBop,                 "findEntry" ),
-    NATIVE_DEF(    addToBop,                "findEntryValue" ),
-    NATIVE_DEF(    subtractFromBop,         "addEntry" ),
-    NATIVE_DEF(    removeEntryBop,          "removeEntry" ),
-    NATIVE_DEF(    entryLengthBop,          "entryLength" ),
-    NATIVE_DEF(    numEntriesBop,           "numEntries" ),
+    NATIVE_DEF(    dpBop,                   "dp" ),
+    NATIVE_DEF(    fetchBop,                "fetch" ),
+    NATIVE_DEF(    noopBop,                 "noop" ),
+
 	// object varActions
     NATIVE_DEF(    subtractFromBop,         "unref" ),
     
@@ -7459,6 +8188,29 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    fMaxBop,                 "fmax" ),
     NATIVE_DEF(    fcmpBop,                 "fcmp" ),
 
+    ///////////////////////////////////////////
+    //  single-precision fp functions
+    ///////////////////////////////////////////
+    NATIVE_DEF(    fsinBop,                 "fsin" ),
+    NATIVE_DEF(    fasinBop,                "fasin" ),
+    NATIVE_DEF(    fcosBop,                 "fcos" ),
+    NATIVE_DEF(    facosBop,                "facos" ),
+    NATIVE_DEF(    ftanBop,                 "ftan" ),
+    NATIVE_DEF(    fatanBop,                "fatan" ),
+    NATIVE_DEF(    fatan2Bop,               "fatan2" ),
+    NATIVE_DEF(    fexpBop,                 "fexp" ),
+    NATIVE_DEF(    flnBop,                  "fln" ),
+    NATIVE_DEF(    flog10Bop,               "flog10" ),
+    NATIVE_DEF(    fpowBop,                 "fpow" ),
+    NATIVE_DEF(    fsqrtBop,                "fsqrt" ),
+    NATIVE_DEF(    fceilBop,                "fceil" ),
+    NATIVE_DEF(    ffloorBop,               "floor" ),
+    NATIVE_DEF(    fabsBop,                 "fabs" ),
+    NATIVE_DEF(    fldexpBop,               "fldexp" ),
+    NATIVE_DEF(    ffrexpBop,               "ffrexp" ),
+    NATIVE_DEF(    fmodfBop,                "fmodf" ),
+    NATIVE_DEF(    ffmodBop,                "ffmod" ),
+    
     ///////////////////////////////////////////
     //  double-precision fp math
     ///////////////////////////////////////////
@@ -7512,29 +8264,6 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dfmodBop,                "dfmod" ),
     
     ///////////////////////////////////////////
-    //  single-precision fp functions
-    ///////////////////////////////////////////
-    NATIVE_DEF(    fsinBop,                 "fsin" ),
-    NATIVE_DEF(    fasinBop,                "fasin" ),
-    NATIVE_DEF(    fcosBop,                 "fcos" ),
-    NATIVE_DEF(    facosBop,                "facos" ),
-    NATIVE_DEF(    ftanBop,                 "ftan" ),
-    NATIVE_DEF(    fatanBop,                "fatan" ),
-    NATIVE_DEF(    fatan2Bop,               "fatan2" ),
-    NATIVE_DEF(    fexpBop,                 "fexp" ),
-    NATIVE_DEF(    flnBop,                  "fln" ),
-    NATIVE_DEF(    flog10Bop,               "flog10" ),
-    NATIVE_DEF(    fpowBop,                 "fpow" ),
-    NATIVE_DEF(    fsqrtBop,                "fsqrt" ),
-    NATIVE_DEF(    fceilBop,                "fceil" ),
-    NATIVE_DEF(    ffloorBop,               "floor" ),
-    NATIVE_DEF(    fabsBop,                 "fabs" ),
-    NATIVE_DEF(    fldexpBop,               "fldexp" ),
-    NATIVE_DEF(    ffrexpBop,               "ffrexp" ),
-    NATIVE_DEF(    fmodfBop,                "fmodf" ),
-    NATIVE_DEF(    ffmodBop,                "ffmod" ),
-    
-    ///////////////////////////////////////////
     //  integer/long/float/double conversion
     ///////////////////////////////////////////
     NATIVE_DEF(    i2fBop,                  "i2f" ), 
@@ -7543,6 +8272,11 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    f2dBop,                  "f2d" ),
     NATIVE_DEF(    d2iBop,                  "d2i" ),
     NATIVE_DEF(    d2fBop,                  "d2f" ),
+    OP_DEF(    i2lOp,                  "i2l" ), 
+    OP_DEF(    l2fOp,                  "l2f" ), 
+    OP_DEF(    l2dOp,                  "l2d" ), 
+    OP_DEF(    f2lOp,                  "f2l" ),
+    OP_DEF(    d2lOp,                  "d2l" ),
     
     ///////////////////////////////////////////
     //  bit-vector logic
@@ -7554,6 +8288,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    lshiftBop,               "lshift" ),
     NATIVE_DEF(    rshiftBop,               "rshift" ),
     NATIVE_DEF(    arshiftBop,              "arshift" ),
+    NATIVE_DEF(    rotateBop,               "rotate" ),
 
     ///////////////////////////////////////////
     //  boolean logic
@@ -7673,7 +8408,6 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    stringVarActionBop,      "stringVarAction" ),
     NATIVE_DEF(    opVarActionBop,          "opVarAction" ),
     NATIVE_DEF(    objectVarActionBop,      "objectVarAction" ),
-    NATIVE_DEF(    oclearBop,               "oclear" ),
 
     ///////////////////////////////////////////
     //  string manipulation
@@ -7714,8 +8448,6 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    mtimesBop,               "m*" ),
     NATIVE_DEF(    umtimesBop,              "um*" ),
 
-    // everything below this line does not have an assembler version
-
     OP_DEF(    stdinOp,                "stdin" ),
     OP_DEF(    stdoutOp,               "stdout" ),
     OP_DEF(    stderrOp,               "stderr" ),
@@ -7735,7 +8467,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    strerrorOp,             "strerror" ),
     OP_DEF(    getEnvironmentOp,       "getEnvironment" ),
     OP_DEF(    getEnvironmentVarOp,    "getEnvironmentVar" ),
- 
+	OP_DEF(    getCwdOp,               "getCurrentDirectory"),
+
     ///////////////////////////////////////////
     //  block i/o
     ///////////////////////////////////////////
@@ -7749,36 +8482,33 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    thruOp,                 "thru" ),
 
     ///////////////////////////////////////////
-    //  64-bit integer math & conversions
+    //  64-bit integer math
     ///////////////////////////////////////////
     OP_DEF(    ldivideOp,              "l/" ),
     OP_DEF(    lmodOp,                 "lmod" ),
     OP_DEF(    ldivmodOp,              "l/mod" ),
     OP_DEF(    udivmodOp,              "ud/mod" ),
-    OP_DEF(    i2lOp,                  "i2l" ), 
-    OP_DEF(    l2fOp,                  "l2f" ), 
-    OP_DEF(    l2dOp,                  "l2d" ), 
-    OP_DEF(    f2lOp,                  "f2l" ),
-    OP_DEF(    d2lOp,                  "d2l" ),
     
     ///////////////////////////////////////////
     //  64-bit integer comparisons
     ///////////////////////////////////////////
-    OP_DEF(    lEqualsOp,               "l=" ),
-    OP_DEF(    lNotEqualsOp,            "l<>" ),
-    OP_DEF(    lGreaterThanOp,          "l>" ),
-    OP_DEF(    lGreaterEqualsOp,        "l>=" ),
-    OP_DEF(    lLessThanOp,             "l<" ),
-    OP_DEF(    lLessEqualsOp,           "l<=" ),
-    OP_DEF(    lEquals0Op,              "l0=" ),
-    OP_DEF(    lNotEquals0Op,           "l0<>" ),
-    OP_DEF(    lGreaterThan0Op,         "l0>" ),
-    OP_DEF(    lGreaterEquals0Op,       "l0>=" ),
-    OP_DEF(    lLessThan0Op,            "l0<" ),
-    OP_DEF(    lLessEquals0Op,          "l0<=" ),
+	NATIVE_DEF(lEqualsBop,				"l="),
+	NATIVE_DEF(lNotEqualsBop,			"l<>"),
+	NATIVE_DEF(lGreaterThanBop,			"l>"),
+	NATIVE_DEF(lGreaterEqualsBop,		"l>="),
+	NATIVE_DEF(lLessThanBop,			"l<"),
+	NATIVE_DEF(lLessEqualsBop,			"l<="),
+	NATIVE_DEF(lEquals0Bop,				"l0="),
+	NATIVE_DEF(lNotEquals0Bop,			"l0<>"),
+	NATIVE_DEF(lGreaterThan0Bop,		"l0>"),
+	NATIVE_DEF(lGreaterEquals0Bop,		"l0>="),
+	NATIVE_DEF(lLessThan0Bop,			"l0<"),
+	NATIVE_DEF(lLessEquals0Bop,			"l0<="),
     OP_DEF(    lWithinOp,               "lwithin" ),
     OP_DEF(    lMinOp,                  "lmin" ),
     OP_DEF(    lMaxOp,                  "lmax" ),
+	NATIVE_DEF(lcmpBop, "lcmp"),
+	NATIVE_DEF(ulcmpBop, "ulcmp"),
 
     ///////////////////////////////////////////
     //  control flow
@@ -7788,6 +8518,8 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(loopOp,                 "loop" ),
     PRECOP_DEF(loopNOp,                "+loop" ),
     PRECOP_DEF(ifOp,                   "if" ),
+    PRECOP_DEF(orifOp,                 "orif" ),
+    PRECOP_DEF(andifOp,                "andif" ),
     PRECOP_DEF(elseOp,                 "else" ),
     PRECOP_DEF(endifOp,                "endif" ),
     PRECOP_DEF(beginOp,                "begin" ),
@@ -7800,6 +8532,10 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(ofifOp,                 "ofif" ),
     PRECOP_DEF(endofOp,                "endof" ),
     PRECOP_DEF(endcaseOp,              "endcase" ),
+    PRECOP_DEF(labelOp,                "label" ),
+    PRECOP_DEF(gotoOp,                 "goto" ),
+    PRECOP_DEF(gotoIfOp,               "gotoIf" ),
+    PRECOP_DEF(gotoIfNotOp,            "gotoIfNot" ),
 
     ///////////////////////////////////////////
     //  op definition
@@ -7809,8 +8545,9 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(exitOp,                 "exit" ),
     PRECOP_DEF(semiOp,                 ";" ),
     OP_DEF(    colonOp,                ":" ),
-    OP_DEF(    strColonOp,             "$:" ),
     OP_DEF(    colonNoNameOp,          ":noname" ),
+	OP_DEF(    pushTokenOp,            "pushToken"),
+	OP_DEF(    popTokenOp,             "popToken"),
 	PRECOP_DEF(funcOp,                 "func:" ),
 	PRECOP_DEF(endfuncOp,               ";func" ),
     OP_DEF(    codeOp,                 "code" ),
@@ -7838,24 +8575,28 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    endstructOp,            ";struct" ),
     OP_DEF(    classOp,                "class:" ),
     OP_DEF(    endclassOp,             ";class" ),
+    OP_DEF(    defineNewOp,            "new:" ),
     OP_DEF(    methodOp,               "method:" ),
     PRECOP_DEF(endmethodOp,            ";method" ),
     PRECOP_DEF(returnsOp,              "returns" ),
     OP_DEF(    doMethodOp,             "doMethod" ),
     OP_DEF(    implementsOp,           "implements:" ),
-    OP_DEF(    endimplementsOp,        ";implements" ),
+    OP_DEF(    endImplementsOp,        ";implements" ),
     OP_DEF(    unionOp,                "union" ),
     OP_DEF(    extendsOp,              "extends" ),
-    PRECOP_DEF(sizeOfOp,               "sizeOf" ),
-    PRECOP_DEF(offsetOfOp,             "offsetOf" ),
+    OP_DEF(    strSizeOfOp,            "$sizeOf" ),
+    OP_DEF(    strOffsetOfOp,          "$offsetOf" ),
+    OP_DEF(    processConstantOp,      "processConstant" ),
+    OP_DEF(    processLongConstantOp,  "processLongConstant" ),
     OP_DEF(    showStructOp,           "showStruct" ),
     PRECOP_DEF(newOp,                  "new" ),
-    PRECOP_DEF(makeObjectOp,           "makeObject"),
+    OP_DEF(    strNewOp,               "$new" ),
+    PRECOP_DEF(makeObjectOp,           "makeObject" ),
     PRECOP_DEF(initMemberStringOp,     "initMemberString"),
     OP_DEF(    enumOp,                 "enum:" ),
     OP_DEF(    endenumOp,              ";enum" ),
     PRECOP_DEF(recursiveOp,            "recursive" ),
-    OP_DEF(    strPrecedenceOp,        "$precedence" ),
+    OP_DEF(    precedenceOp,           "precedence" ),
     OP_DEF(    strRunFileOp,           "$runFile" ),
     OP_DEF(    strLoadOp,              "$load" ),
     OP_DEF(    loadDoneOp,             "loaddone" ),
@@ -7900,7 +8641,7 @@ baseDictionaryEntry baseDictionary[] =
     //  text display
     ///////////////////////////////////////////
     OP_DEF(    printNumOp,             "." ),
-    OP_DEF(    printLongNumOp,         "2." ),
+    OP_DEF(    printLongNumOp,         "l." ),
     OP_DEF(    printNumDecimalOp,      "%d" ),
     OP_DEF(    printNumHexOp,          "%x" ),
     OP_DEF(    printLongDecimalOp,     "%2d" ),
@@ -7914,12 +8655,16 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    printNewlineOp,         "%nl" ),
     OP_DEF(    printFloatOp,           "%f" ),
     OP_DEF(    printDoubleOp,          "%2f" ),
+    OP_DEF(    printFloatGOp,          "%g" ),
+    OP_DEF(    printDoubleGOp,         "%2g" ),
     OP_DEF(    format32Op,             "format" ),
     OP_DEF(    format64Op,             "2format" ),
     OP_DEF(    fprintfOp,              "fprintf" ),
     OP_DEF(    snprintfOp,             "snprintf" ),
     OP_DEF(    fscanfOp,               "fscanf" ),
     OP_DEF(    sscanfOp,               "sscanf" ),
+    OP_DEF(    atoiOp,                 "atoi" ),
+    OP_DEF(    atofOp,                 "atof" ),
     OP_DEF(    baseOp,                 "base" ),
     OP_DEF(    octalOp,                "octal" ),
     OP_DEF(    decimalOp,              "decimal" ),
@@ -7932,6 +8677,23 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF(    getDefaultConsoleOutOp, "getDefaultConsoleOut" ),
 	OP_DEF(    setConsoleOutOp,        "setConsoleOut" ),
 	OP_DEF(    resetConsoleOutOp,      "resetConsoleOut" ),
+    OP_DEF(    toupperOp,              "toupper" ),
+    OP_DEF(    isupperOp,              "isupper" ),
+    OP_DEF(    tolowerOp,              "tolower" ),
+    OP_DEF(    islowerOp,              "islower" ),
+	
+	///////////////////////////////////////////
+	//  object show
+	///////////////////////////////////////////
+	OP_DEF(    scHandleAlreadyShownOp,  "scHandleAlreadyShown"),
+    OP_DEF(    scBeginIndentOp,         "scBeginIndent" ),
+    OP_DEF(    scEndIndentOp,           "scEndIndent" ),
+    OP_DEF(    scShowHeaderOp,          "scShowHeader" ),
+    OP_DEF(    scShowIndentOp,          "scShowIndent" ),
+    OP_DEF(    scBeginFirstElementOp,   "scBeginFirstElement" ),
+    OP_DEF(    scBeginNextElementOp,    "scBeginNextElement" ),
+    OP_DEF(    scEndElementOp,          "scEndElement" ),
+    OP_DEF(    scShowObjectOp,          "scShowObject" ),
 
     ///////////////////////////////////////////
     //  input buffer
@@ -7989,7 +8751,10 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     OP_DEF(    randOp,                 "rand" ),
     OP_DEF(    srandOp,                "srand" ),
-    OP_DEF(    hashOp,                 "hash" ),
+    OP_DEF(    phHashOp,               "phHash" ),
+    OP_DEF(    phHashContinueOp,       "phHashContinue" ),
+    OP_DEF(    fnvHashOp,              "fnvHash" ),
+    OP_DEF(    fnvHashContinueOp,      "fnvHashContinue" ),
     OP_DEF(    qsortOp,                "qsort" ),
     OP_DEF(    bsearchOp,              "bsearch" ),
 
@@ -8003,12 +8768,11 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    _dup2Op,                "_dup2" ),
     OP_DEF(    _filenoOp,              "_fileno" ),
     OP_DEF(    tmpnamOp,               "tmpnam" ),
-    OP_DEF(    systemOp,               "system" ),
+    OP_DEF(    shellRunOp,             "_shellRun" ),
     OP_DEF(    byeOp,                  "bye" ),
     OP_DEF(    argvOp,                 "argv" ),
     OP_DEF(    argcOp,                 "argc" ),
     OP_DEF(    turboOp,                "turbo" ),
-    OP_DEF(    statsOp,                "stats" ),
     OP_DEF(    describeOp,             "describe" ),
     OP_DEF(    describeAtOp,           "describe@" ),
     OP_DEF(    errorOp,                "error" ),
@@ -8050,13 +8814,21 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  threads
     ///////////////////////////////////////////
+	OP_DEF( createAsyncThreadOp,        "createAsyncThread" ),
     OP_DEF( createThreadOp,             "createThread" ),
-    OP_DEF( destroyThreadOp,            "destroyThread" ),
+	/*
     OP_DEF( threadGetStateOp,           "threadGetState" ),
     OP_DEF( stepThreadOp,               "stepThread" ),
     OP_DEF( startThreadOp,              "startThread" ),
-    OP_DEF( exitThreadOp,               "exitThread" ),
-
+	*/
+    OP_DEF( exitAsyncThreadOp,          "exitAsyncThread" ),
+    OP_DEF( yieldOp,					"yield" ),
+    OP_DEF( stopThreadOp,				"stopThread" ),
+    OP_DEF( sleepThreadOp,				"sleepThread" ),
+    OP_DEF( exitThreadOp,				"exitThread" ),
+	OP_DEF( getCurrentThreadOp,         "getCurrentThread"),
+	OP_DEF( getCurrentAsyncThreadOp,    "getCurrentAsyncThread"),
+	
 #ifdef WIN32
     ///////////////////////////////////////////
     //  Windows support
@@ -8079,10 +8851,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( showConsoleOp,              "showConsole" ),
 
     OP_DEF( windowsConstantsOp,         "windowsConstants" ),
-
-	NATIVE_DEF( trueBop,				"WINDOWS" ),
-#elif defined(LINUX)
-	NATIVE_DEF( trueBop,				"LINUX" ),
 #endif
     OP_DEF( setConsoleCursorOp,         "setConsoleCursor" ),
     OP_DEF( getConsoleCursorOp,         "getConsoleCursor" ),
@@ -8092,6 +8860,9 @@ baseDictionaryEntry baseDictionary[] =
 
 	NATIVE_DEF( archARMBop,				"ARCH_ARM" ),
 	NATIVE_DEF( archX86Bop,				"ARCH_X86" ),
+    OP_DEF( windowsOp,					"WINDOWS" ),
+    OP_DEF( linuxOp,					"LINUX" ),
+    OP_DEF( macosxOp,					"MACOSX" ),
 
     // following must be last in table
     OP_DEF(    NULL,                   NULL )

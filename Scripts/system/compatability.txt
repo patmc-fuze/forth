@@ -88,7 +88,7 @@ precedence literal   precedence fliteral   precedence dliteral
   endif
 ;
 
-: cmove %nl 0 do over i + c@ over i + c! loop 2drop ;
+: cmove 0 do over i + c@ over i + c! loop 2drop ;
 : cmove> 0 swap 1- do over i + c@ over i + c! -1 +loop 2drop ;
 : ."
   '"' $word state @
@@ -259,9 +259,8 @@ int _handler
 ;
 
 : recurse
-  new OVocabulary -> OVocabulary vocab
-  ref definitions vocab.open
-  vocab.seekNewestEntry @ ,
+  system.getDefinitionsVocab -> OVocabulary vocab
+  vocab.getNewestEntry @ ,
   oclear vocab
 ; precedence recurse
 

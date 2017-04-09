@@ -78,44 +78,56 @@ ForthTypesManager *ForthTypesManager::mpInstance = NULL;
 
 
 ForthTypesManager::ForthTypesManager()
-: ForthForgettable( NULL, 0 )
-, mNumStructs( 0 )
-, mMaxStructs( 0 )
-, mpStructInfo( NULL )
-, mpSavedDefinitionVocab( NULL )
-, mpClassMethods( NULL )
+	: ForthForgettable(NULL, 0)
+	, mpSavedDefinitionVocab(NULL)
+	, mpClassMethods(NULL)
+	, mNewestTypeIndex(0)
 {
-    ASSERT( mpInstance == NULL );
-    mpInstance = this;
-	mpCodeGenerator = new ForthStructCodeGenerator( this );
+	ASSERT(mpInstance == NULL);
+	mpInstance = this;
+	mpCodeGenerator = new ForthStructCodeGenerator(this);
+
+	ForthTypeInfo structInfo;
+	structInfo.pVocab = NULL;
+	structInfo.op = OP_ABORT;
+	structInfo.typeIndex = static_cast<long>(kBCIInvalid);
+	for (int i = 0; i < kNumBuiltinClasses; ++i)
+	{
+		mStructInfo.emplace_back(ForthTypeInfo(NULL, OP_ABORT, static_cast<long>(kBCIInvalid)));
+	}
 }
 
 ForthTypesManager::~ForthTypesManager()
 {
 	delete mpCodeGenerator;
     mpInstance = NULL;
-    delete mpStructInfo;
+    mStructInfo.clear();
 }
 
 void
 ForthTypesManager::ForgetCleanup( void *pForgetLimit, long op )
 {
     // remove struct info for forgotten struct types
-    int i;
+	int numStructs;
 
-    for ( i = mNumStructs - 1; i >= 0; i-- )
+	int oldNumStructs = static_cast<int>(mStructInfo.size());
+	for (numStructs = oldNumStructs; numStructs > 0; numStructs--)
     {
-        if ( FORTH_OP_VALUE( mpStructInfo[i].op ) >= op )
+        if ( FORTH_OP_VALUE( mStructInfo[numStructs - 1].op ) >= op )
         {
             // this struct is among forgotten ops
-            SPEW_STRUCTS( "Forgetting struct vocab %s\n", mpStructInfo[i].pVocab->GetName() );
-            mNumStructs--;
+			SPEW_STRUCTS("Forgetting struct vocab %s\n", mStructInfo[numStructs - 1].pVocab->GetName());
         }
         else
         {
             break;
         }
     }
+
+	if (numStructs != oldNumStructs)
+	{
+		mStructInfo.resize(numStructs);
+	}
 }
 
 
@@ -125,20 +137,12 @@ ForthTypesManager::StartStructDefinition( const char *pName )
     ForthEngine *pEngine = ForthEngine::GetInstance();
     ForthVocabulary* pDefinitionsVocab = pEngine->GetDefinitionVocabulary();
 
-    if ( mNumStructs == mMaxStructs )
-    {
-        mMaxStructs += STRUCTS_EXPANSION_INCREMENT;
-        SPEW_STRUCTS( "StartStructDefinition expanding structs table to %d entries\n", mMaxStructs );
-		mpStructInfo = (ForthTypeInfo *)__REALLOC(mpStructInfo, sizeof(ForthTypeInfo) * mMaxStructs);
-    }
-    ForthTypeInfo *pInfo = &(mpStructInfo[mNumStructs]);
-
     long *pEntry = pEngine->StartOpDefinition( pName, true, kOpUserDefImmediate );
-    pInfo->pVocab = new ForthStructVocabulary( pName, mNumStructs );
-    pInfo->op = *pEntry;
-    SPEW_STRUCTS( "StartStructDefinition %s struct index %d\n", pName, mNumStructs );
-    mNumStructs++;
-    return pInfo->pVocab;
+	mNewestTypeIndex = static_cast<int>(mStructInfo.size());
+	ForthStructVocabulary* pVocab = new ForthStructVocabulary(pName, mNewestTypeIndex);
+	mStructInfo.emplace_back(ForthTypeInfo(pVocab, *pEntry, mNewestTypeIndex));
+	SPEW_STRUCTS("StartStructDefinition %s struct index %d\n", pName, mNewestTypeIndex);
+    return pVocab;
 }
 
 void
@@ -154,7 +158,7 @@ ForthTypesManager::EndStructDefinition()
 void
 ForthTypesManager::DefineInitOpcode()
 {
-	ForthTypeInfo *pInfo = &(mpStructInfo[mNumStructs - 1]);
+	ForthTypeInfo *pInfo = &(mStructInfo[mNewestTypeIndex]);
 	ForthStructVocabulary *pVocab = pInfo->pVocab;
 
 	// TODO: define new init opcode
@@ -202,7 +206,7 @@ ForthTypesManager::DefineInitOpcode()
 
 			case kFSITStruct:
 			{
-				ForthStructVocabulary *pStructVocab = mpStructInfo[initInfo.structIndex].pVocab;
+				ForthStructVocabulary *pStructVocab = mStructInfo[initInfo.typeIndex].pVocab;
 				ASSERT(pStructVocab != NULL);
 				long structFieldInitOpcode = pStructVocab->GetInitOpcode();
 				ASSERT(structFieldInitOpcode != 0);
@@ -232,7 +236,7 @@ ForthTypesManager::DefineInitOpcode()
 					pEngine->CompileOpcode(kOpOffset, initInfo.offset);
 				}
 				pEngine->CompileOpcode(kOpConstant, initInfo.numElements);
-				pEngine->CompileOpcode(kOpConstant, initInfo.structIndex);
+				pEngine->CompileOpcode(kOpConstant, initInfo.typeIndex);
 				pEngine->CompileBuiltinOpcode(OP_INIT_STRUCT_ARRAY);
 				break;
 			}
@@ -266,27 +270,28 @@ ForthTypesManager::DefineInitOpcode()
 }
 
 ForthClassVocabulary*
-ForthTypesManager::StartClassDefinition( const char *pName )
+ForthTypesManager::StartClassDefinition(const char *pName, int classIndex)
 {
     ForthEngine *pEngine = ForthEngine::GetInstance();
     ForthVocabulary* pDefinitionsVocab = pEngine->GetDefinitionVocabulary();
+	ForthTypeInfo *pInfo = NULL;
 
-    if ( mNumStructs == mMaxStructs )
-    {
-        mMaxStructs += STRUCTS_EXPANSION_INCREMENT;
-        SPEW_STRUCTS( "StartClassDefinition expanding structs table to %d entries\n", mMaxStructs );
-		mpStructInfo = (ForthTypeInfo *)__REALLOC(mpStructInfo, sizeof(ForthTypeInfo) * mMaxStructs);
-    }
-    ForthTypeInfo *pInfo = &(mpStructInfo[mNumStructs]);
+	if (classIndex >= kNumBuiltinClasses)
+	{
+		classIndex = static_cast<eBuiltinClassIndex>(mStructInfo.size());
+		mStructInfo.emplace_back(ForthTypeInfo(NULL, OP_ABORT, classIndex));
+	}
+	mNewestTypeIndex = classIndex;
+	pInfo = &(mStructInfo[classIndex]);
 
     // can't smudge class definition, since method definitions will be nested inside it
     long *pEntry = pEngine->StartOpDefinition( pName, false, kOpUserDefImmediate );
-    pInfo->pVocab = new ForthClassVocabulary( pName, mNumStructs );
+	pInfo->pVocab = new ForthClassVocabulary(pName, classIndex);
     pInfo->op = *pEntry;
-    SPEW_STRUCTS( "StartClassDefinition %s struct index %d\n", pName, mNumStructs );
-    mpSavedDefinitionVocab = pEngine->GetDefinitionVocabulary();
+	SPEW_STRUCTS("StartClassDefinition %s struct index %d\n", pName, classIndex);
+	pInfo->typeIndex = classIndex;
+	mpSavedDefinitionVocab = pEngine->GetDefinitionVocabulary();
     pEngine->SetDefinitionVocabulary( pInfo->pVocab );
-    mNumStructs++;
     return (ForthClassVocabulary*) (pInfo->pVocab);
 }
 
@@ -304,49 +309,81 @@ ForthTypesManager::EndClassDefinition()
 ForthStructVocabulary*
 ForthTypesManager::GetStructVocabulary( long op )
 {
-    int i;
-    ForthTypeInfo *pInfo;
-
     //TBD: replace this with a map
-    for ( i = 0; i < mNumStructs; i++ )
+	for (const ForthTypeInfo& info : mStructInfo)
     {
-        pInfo = &(mpStructInfo[i]);
-        if ( pInfo->op == op )
+        if ( info.op == op )
         {
-            return pInfo->pVocab;
+            return info.pVocab;
         }
     }
-    return NULL;
+	return nullptr;
 }
 
 ForthStructVocabulary*
 ForthTypesManager::GetStructVocabulary( const char* pName )
 {
-    int i;
-    ForthTypeInfo *pInfo;
-
     //TBD: replace this with a map
-    for ( i = 0; i < mNumStructs; i++ )
-    {
-        pInfo = &(mpStructInfo[i]);
-        if ( strcmp( pInfo->pVocab->GetName(), pName ) == 0 )
+	for (const ForthTypeInfo& info : mStructInfo)
+	{
+		ForthStructVocabulary* pVocab = info.pVocab;
+        if ((pVocab != nullptr) && (strcmp( info.pVocab->GetName(), pName ) == 0))
         {
-            return pInfo->pVocab;
+            return pVocab;
         }
     }
-    return NULL;
+	return nullptr;
 }
 
 ForthTypeInfo*
-ForthTypesManager::GetStructInfo( int structIndex )
+ForthTypesManager::GetTypeInfo( int typeIndex )
 {
-    if ( structIndex >= mNumStructs )
+	int numStructs = static_cast<int>(mStructInfo.size());
+	if (typeIndex >= numStructs)
     {
-        SPEW_STRUCTS( "GetStructInfo error: structIndex is %d, only %d structs exist\n",
-                        structIndex, mNumStructs );
+        SPEW_STRUCTS( "GetTypeInfo error: typeIndex is %d, only %d structs exist\n",
+			typeIndex, numStructs);
         return NULL;
     }
-    return &(mpStructInfo[ structIndex ]);
+    return &(mStructInfo[ typeIndex ]);
+}
+
+ForthClassVocabulary*
+ForthTypesManager::GetClassVocabulary(int typeIndex) const
+{
+	int numStructs = static_cast<int>(mStructInfo.size());
+	if (typeIndex >= numStructs)
+	{
+		SPEW_STRUCTS("GetClassVocabulary error: typeIndex is %d, only %d types exist\n", typeIndex, numStructs);
+		return nullptr;
+	}
+	ForthStructVocabulary* pVocab = mStructInfo[typeIndex].pVocab;
+	if ((pVocab == nullptr) || !pVocab->IsClass())
+	{
+		return nullptr;
+
+	}
+	return static_cast<ForthClassVocabulary *>(pVocab);
+}
+
+ForthInterface*
+ForthTypesManager::GetClassInterface(int typeIndex, int interfaceIndex) const
+{
+	int numStructs = static_cast<int>(mStructInfo.size());
+	if (typeIndex >= numStructs)
+	{
+		SPEW_STRUCTS("GetClassInterface error: typeIndex is %d, only %d types exist\n", typeIndex, numStructs);
+		return nullptr;
+	}
+	ForthStructVocabulary* pVocab = mStructInfo[typeIndex].pVocab;
+	if (!pVocab->IsClass())
+	{
+		SPEW_STRUCTS("GetClassInterface error: vocabulary %s is not a class\n", pVocab->GetName());
+		return nullptr;
+
+	}
+	ForthClassVocabulary* pClassVocab = static_cast<ForthClassVocabulary *>(pVocab);
+	return pClassVocab->GetInterface(interfaceIndex);
 }
 
 ForthTypesManager*
@@ -381,7 +418,7 @@ ForthTypesManager::GetFieldInfo( long fieldType, long& fieldBytes, long& alignme
     }
     else
     {
-        ForthTypeInfo* pInfo = GetStructInfo( CODE_TO_STRUCT_INDEX( fieldType ) );
+        ForthTypeInfo* pInfo = GetTypeInfo( CODE_TO_STRUCT_INDEX( fieldType ) );
         if ( pInfo )
         {
             alignment = pInfo->pVocab->GetAlignment();
@@ -394,15 +431,15 @@ ForthStructVocabulary *
 ForthTypesManager::GetNewestStruct( void )
 {
     ForthTypesManager* pThis = GetInstance();
-    return pThis->mpStructInfo[ pThis->mNumStructs - 1 ].pVocab;
+	return pThis->mStructInfo[mNewestTypeIndex].pVocab;
 }
 
 ForthClassVocabulary *
 ForthTypesManager::GetNewestClass( void )
 {
     ForthTypesManager* pThis = GetInstance();
-    ForthStructVocabulary* pVocab = pThis->mpStructInfo[ pThis->mNumStructs - 1 ].pVocab;
-    if ( pVocab && !pVocab->IsClass() )
+	ForthStructVocabulary* pVocab = pThis->mStructInfo[mNewestTypeIndex].pVocab;
+	if (pVocab && !pVocab->IsClass())
     {
         pVocab = NULL;
     }
@@ -439,7 +476,7 @@ ForthTypesManager::ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatu
 		else
 		{
 			*pDst++ = gCompiledOps[ OP_DONE ];
-			exitStatus = pEngine->ExecuteOps( &(mCode[0]) );
+			exitStatus = pEngine->ExecuteOps(pCore, &(mCode[0]));
 		}
 	}
     return result;
@@ -602,9 +639,9 @@ void ForthTypesManager::AddFieldInitInfo(const ForthFieldInitInfo& fieldInitInfo
 //
 
 ForthStructVocabulary::ForthStructVocabulary( const char    *pName,
-                                              int           structIndex )
+                                              int           typeIndex )
 : ForthVocabulary( pName, NUM_STRUCT_VOCAB_VALUE_LONGS, DEFAULT_VOCAB_STORAGE )
-, mStructIndex( structIndex )
+, mTypeIndex( typeIndex )
 , mAlignment( 1 )
 , mNumBytes( 0 )
 , mMaxNumBytes( 0 )
@@ -655,7 +692,7 @@ ForthStructVocabulary::DefineInstance( void )
     bool isArray = (numElements != 0);
     long arrayFlag = (isArray) ? kDTIsArray : 0;
     mpEngine->SetArraySize( 0 );
-    typeCode = STRUCT_TYPE_TO_CODE( arrayFlag, mStructIndex );
+    typeCode = STRUCT_TYPE_TO_CODE( arrayFlag, mTypeIndex );
 
     if ( mpEngine->CheckFlag( kEngineFlagIsPointer ) )
     {
@@ -681,7 +718,7 @@ ForthStructVocabulary::DefineInstance( void )
 				int offsetLongs = mpEngine->GetLocalVocabulary()->GetFrameLongs();
 				mpEngine->CompileOpcode(kOpLocalRef, offsetLongs);
 				mpEngine->CompileOpcode(kOpConstant, numElements);
-				mpEngine->CompileOpcode(kOpConstant, mStructIndex);
+				mpEngine->CompileOpcode(kOpConstant, mTypeIndex);
 				mpEngine->CompileBuiltinOpcode(OP_INIT_STRUCT_ARRAY);
 			}
         }
@@ -748,8 +785,8 @@ ForthStructVocabulary::DefineInstance( void )
 			{
 				SPUSH((long)pHere);
 				SPUSH(numElements);
-				SPUSH(mStructIndex);
-				mpEngine->ExecuteOneOp(gCompiledOps[OP_INIT_STRUCT_ARRAY]);
+				SPUSH(mTypeIndex);
+				mpEngine->FullyExecuteOp(pCore, gCompiledOps[OP_INIT_STRUCT_ARRAY]);
 			}
         }
         else
@@ -761,12 +798,12 @@ ForthStructVocabulary::DefineInstance( void )
             if ( isPtr && (GET_VAR_OPERATION == kVarStore) )
             {
                 // var definition was preceeded by "->", so initialize var
-                mpEngine->ExecuteOneOp( pEntry[0] );
+				mpEngine->FullyExecuteOp(pCore, pEntry[0]);
             }
 			if (!isPtr && (mInitOpcode != 0))
 			{
 				SPUSH((long)pHere);
-				mpEngine->ExecuteOneOp(mInitOpcode);
+				mpEngine->FullyExecuteOp(pCore, mInitOpcode);
 			}
 		}
         pEntry[1] = typeCode;
@@ -836,7 +873,7 @@ ForthStructVocabulary::AddField( const char* pName, long fieldType, int numEleme
 		forthBaseType baseType = (forthBaseType) CODE_TO_BASE_TYPE(fieldType);
 		initInfo.numElements = numElements;
 		initInfo.offset = mNumBytes;
-		initInfo.structIndex = 0;
+		initInfo.typeIndex = 0;
 		initInfo.len = 0;
 
 		if (baseType == kBaseTypeString)
@@ -847,11 +884,11 @@ ForthStructVocabulary::AddField( const char* pName, long fieldType, int numEleme
 		}
 		else if (baseType == kBaseTypeStruct)
 		{
-			int structIndex = CODE_TO_STRUCT_INDEX(fieldType);
-			ForthTypeInfo* structInfo = pManager->GetStructInfo(structIndex);
+			int typeIndex = CODE_TO_STRUCT_INDEX(fieldType);
+			ForthTypeInfo* structInfo = pManager->GetTypeInfo(typeIndex);
 			if (structInfo->pVocab->GetInitOpcode() != 0)
 			{
-				initInfo.structIndex = structIndex;
+				initInfo.typeIndex = typeIndex;
 				initInfo.len = fieldBytes;
 				initInfo.fieldType = (isArray) ? kFSITStructArray : kFSITStruct;
 				pManager->AddFieldInitInfo(initInfo);
@@ -1002,15 +1039,15 @@ ForthStructVocabulary::TypecodeToString( long typeCode, char* outBuff, size_t ou
         case kBaseTypeObject:
         case kBaseTypeStruct:
             {
-                long structIndex = CODE_TO_STRUCT_INDEX( typeCode );
-                ForthTypeInfo* pInfo = ForthTypesManager::GetInstance()->GetStructInfo( structIndex );
+                long typeIndex = CODE_TO_STRUCT_INDEX( typeCode );
+                ForthTypeInfo* pInfo = ForthTypesManager::GetInstance()->GetTypeInfo( typeIndex );
                 if ( pInfo )
                 {
                     sprintf( buff2, "%s", pInfo->pVocab->GetName() );
                 }
                 else
                 {
-                    sprintf( buff2, "<UNKNOWN STRUCT INDEX %d!>", structIndex );
+                    sprintf( buff2, "<UNKNOWN STRUCT INDEX %d!>", typeIndex );
                 }
             }
             break;
@@ -1182,7 +1219,7 @@ ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore)
 
 					case kBaseTypeStruct:
 					{
-						ForthTypeInfo* pStructInfo = ForthTypesManager::GetInstance()->GetStructInfo(CODE_TO_STRUCT_INDEX(typeCode));
+						ForthTypeInfo* pStructInfo = ForthTypesManager::GetInstance()->GetTypeInfo(CODE_TO_STRUCT_INDEX(typeCode));
 						pStructInfo->pVocab->ShowData(pStruct + byteOffset, pCore);
 						//elementSize = pStructInfo->pVocab->GetSize();
 						break;
@@ -1317,7 +1354,7 @@ ForthClassVocabulary::DefineInstance( const char* pToken )
     bool isArray = (numElements != 0);
     long arrayFlag = (isArray) ? kDTIsArray : 0;
     mpEngine->SetArraySize( 0 );
-    typeCode = OBJECT_TYPE_TO_CODE( arrayFlag, mStructIndex );
+    typeCode = OBJECT_TYPE_TO_CODE( arrayFlag, mTypeIndex );
 
     if ( mpEngine->CheckFlag( kEngineFlagIsPointer ) )
     {
@@ -1417,22 +1454,6 @@ ForthClassVocabulary::DefineInstance( const char* pToken )
     }
 }
 
-void
-ForthClassVocabulary::DoOp( ForthCoreState *pCore )
-{
-    if ( GET_VAR_OPERATION == kVocabGetClass )
-    {
-        // this is invoked at runtime when code explicitly invokes methods on class objects (IE CLASSNAME.new)
-        SPUSH( (long) mpClassObject );
-        SPUSH( (long) ForthTypesManager::GetInstance()->GetClassMethods() );
-        CLEAR_VAR_OPERATION;
-    }
-    else
-    {
-        ForthVocabulary::DoOp( pCore );
-    }
-}
-
 long
 ForthClassVocabulary::AddMethod( const char*    pName,
 								 long			methodIndex,
@@ -1494,7 +1515,9 @@ ForthClassVocabulary::Extends( ForthClassVocabulary *pParentClass )
 				mInterfaces[i] = new ForthInterface;
 			}
 			mInterfaces[i]->Copy( mpParentClass->GetInterface( i ), isPrimaryInterface );
+			isPrimaryInterface = false;
 		}
+		mpClassObject->newOp = pParentClass->mpClassObject->newOp;
 	}
 
 	ForthStructVocabulary::Extends( pParentClass );
@@ -1558,7 +1581,7 @@ ForthClassVocabulary::IsClass( void )
 ForthInterface*
 ForthClassVocabulary::GetInterface( long index )
 {
-	return mInterfaces[index];
+	return (index < static_cast<long>(mInterfaces.size())) ? mInterfaces[index] : nullptr;
 }
 
 long
@@ -1657,15 +1680,15 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
         case kBaseTypeObject:
         case kBaseTypeStruct:
             {
-                long structIndex = CODE_TO_STRUCT_INDEX( typeCode );
-                ForthTypeInfo* pInfo = ForthTypesManager::GetInstance()->GetStructInfo( structIndex );
+                long typeIndex = CODE_TO_STRUCT_INDEX( typeCode );
+                ForthTypeInfo* pInfo = ForthTypesManager::GetInstance()->GetTypeInfo( typeIndex );
                 if ( pInfo )
                 {
                     sprintf( buff, "%s ", pInfo->pVocab->GetName() );
                 }
                 else
                 {
-                    sprintf( buff, "<UNKNOWN STRUCT INDEX %d!> ", structIndex );
+                    sprintf( buff, "<UNKNOWN STRUCT INDEX %d!> ", typeIndex );
                 }
             }
             break;
@@ -1999,7 +2022,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
                 if ( GET_VAR_OPERATION == kVarStore )
                 {
                     // var definition was preceeded by "->", so initialize var
-                    pEngine->ExecuteOneOp( pEntry[0] );
+                    pEngine->ExecuteOp(pCore,  pEntry[0] );
                 }
                 else
                 {
@@ -2079,7 +2102,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
                 if ( GET_VAR_OPERATION == kVarStore )
                 {
                     // var definition was preceeded by "->", so initialize var
-                    pEngine->ExecuteOneOp( pEntry[0] );
+                    pEngine->ExecuteOp(pCore,  pEntry[0] );
                 }
             }
             pEntry[1] = typeCode;

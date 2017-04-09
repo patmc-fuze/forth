@@ -35,14 +35,15 @@ typedef enum
     kOpRelativeDef,         // low 24 bits is offset from dictionary base
     kOpRelativeDefImmediate,
     kOpDLLEntryPoint,   // bits 0:18 are index into ForthCoreState userOps table, 19:23 are arg count
-    // 7 - 9 are unused
+    // 9 is unused
 
     kOpBranch = 10,          // low 24 bits is signed branch offset
     kOpBranchNZ,
     kOpBranchZ,
     kOpCaseBranch,
 	kOpPushBranch,
-    // 15 - 19 are unused
+	kOpRelativeDefBranch,
+    // 16 - 19 are unused
 
     kOpConstant = 20,   // low 24 bits is signed symbol value
     kOpConstantString,  // low 24 bits is number of longwords to skip over
@@ -187,21 +188,9 @@ typedef enum {
     kVarStore,
     kVarPlusStore,
     kVarMinusStore,
+	kVarObjectClear,
     kNumVarops
 } varOperation;
-
-typedef enum {
-    kVocabSetCurrent = 0,
-    kVocabNewestEntry,
-	kVocabRef,				// must be same index as kVarRef
-    kVocabFindEntry,
-    kVocabFindEntryValue,
-    kVocabAddEntry,
-    kVocabRemoveEntry,
-    kVocabEntryLength,
-    kVocabNumEntries,
-    kVocabGetClass,
-} vocabOperation;
 
 #define DEFAULT_INPUT_BUFFER_LEN   (16 * 1024)
 
@@ -215,15 +204,18 @@ typedef enum {
     kResultException,   // exit because of uncaught exception
     kResultShutdown,    // exit because of a "shutdown" opcode
 	kResultTrace,		// exit because of a "setTrace" opcode
+	kResultYield,		// exit because of a stopThread/yield/sleepThread opcode
 } eForthResult;
 
-// Nothing uses these
-/*
-#define FLAG_DONE           1
-#define FLAG_BYE            (1 << 1)
-#define FLAG_ERROR          (1 << 2)
-#define FLAG_FATAL_ERROR    (1 << 3)
-*/
+// run state of ForthThreads
+typedef enum
+{
+	kFTRSStopped,		// initial state, or after executing stop, needs another thread to Start it
+	kFTRSReady,			// ready to continue running
+	kFTRSSleeping,		// sleeping until wakeup time is reached
+	kFTRSBlocked,		// blocked on a soft lock
+	kFTRSExited,		// done running - executed exitThread
+} eForthThreadRunState;
 
 typedef enum {
 	kForthErrorNone,
@@ -254,7 +246,8 @@ typedef enum {
 	kForthErrorIO,
 	kForthErrorBadObject,
     kForthErrorStringOverflow,
-    // NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
+	kForthErrorBadArrayIndex,
+	// NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
 } eForthError;
 
@@ -395,7 +388,7 @@ enum {
 	OP_DO_OBJECT_ARRAY,
 	OP_INIT_STRING,
 	OP_PLUS,
-	OP_FETCH,
+	OP_IFETCH,
 	OP_DO_STRUCT,
 	OP_DO_STRUCT_ARRAY,
 	OP_DO_DO,
@@ -403,24 +396,25 @@ enum {
 
 	OP_DO_LOOPN,		// 0x30
 	OP_OFETCH,
-	OP_VOCAB_TO_CLASS,
 	OP_REF,
 	OP_INTO,
 	OP_INTO_PLUS,
 	OP_INTO_MINUS,
+	OP_OCLEAR,
 	OP_DO_CHECKDO,
 
 	OP_DO_VOCAB,
 	// below this line are ops defined in C
+	OP_GET_CLASS_BY_INDEX,
 	OP_INIT_STRING_ARRAY,
 	OP_BAD_OP,
 	OP_DO_STRUCT_TYPE,
 	OP_DO_CLASS_TYPE,
 	OP_DO_ENUM,
 	OP_DO_NEW,
-	OP_ALLOC_OBJECT,
 
-	OP_SUPER,		// 0x40
+	OP_ALLOC_OBJECT, 		// 0x40
+	OP_SUPER,
 	OP_END_BUILDS,
     OP_COMPILE,
 	OP_INIT_STRUCT_ARRAY,
@@ -462,6 +456,7 @@ typedef struct
 #define TRACE_SHELL
 #define TRACE_VOCABULARY
 #define TRACE_STRUCTS
+#define TRACE_ENGINE
 #endif
 
 enum
@@ -486,7 +481,7 @@ enum
 #endif
 
 #ifdef TRACE_OUTER_INTERPRETER
-#ifdef _WINDOWS
+#ifdef WIN32
 #define SPEW_OUTER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogOuterInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_OUTER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogOuterInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -496,7 +491,7 @@ enum
 #endif
 
 #ifdef TRACE_INNER_INTERPRETER
-#ifdef _WINDOWS
+#ifdef WIN32
 #define SPEW_INNER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogInnerInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_INNER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogInnerInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -506,7 +501,7 @@ enum
 #endif
 
 #ifdef TRACE_SHELL
-#ifdef _WINDOWS
+#ifdef WIN32
 #define SPEW_SHELL(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_SHELL(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -516,7 +511,7 @@ enum
 #endif
 
 #ifdef TRACE_VOCABULARY
-#ifdef _WINDOWS
+#ifdef WIN32
 #define SPEW_VOCABULARY(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogVocabulary) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_VOCABULARY(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogVocabulary) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -526,7 +521,7 @@ enum
 #endif
 
 #ifdef TRACE_STRUCTS
-#ifdef _WINDOWS
+#ifdef WIN32
 #define SPEW_STRUCTS(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogStructs) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_STRUCTS(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogStructs) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -536,7 +531,7 @@ enum
 #endif
 
 #ifdef TRACE_IO
-#ifdef _WINDOWS
+#ifdef WIN32
 #define SPEW_IO(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogIO) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_IO(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogIO) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -546,7 +541,7 @@ enum
 #endif
 
 #ifdef TRACE_ENGINE
-#ifdef _WINDOWS
+#ifdef WIN32
 #define SPEW_ENGINE(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogEngine) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_ENGINE(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogEngine) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -556,7 +551,7 @@ enum
 #endif
 
 #ifdef TRACE_COMPILATION
-#ifdef _WINDOWS
+#ifdef WIN32
 #define SPEW_COMPILATION(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogCompilation) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_COMPILATION(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogCompilation) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -640,7 +635,7 @@ typedef enum
 //   7          unused
 // 31...8       depends on base type:
 //      string      length
-//      struct      structIndex
+//      struct      typeIndex
 //      object      classId
 
 // when kDTArray and kDTIsPtr are both set, it means the field is an array of pointers

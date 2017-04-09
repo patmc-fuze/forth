@@ -49,7 +49,7 @@ else
 endif
 	pops kShellTagBranch/kShellTagBranchZ
 	pops OLD_DP
-	compiles kOpBranch/kOpBranchZ(DP - OLD_DP) at OLD_DP
+	compiles kOpBranch/kOpBranchZ((DP - OLD_DP) - 1) at OLD_DP
 	
 begin
 	pushes DP

@@ -1,10 +1,13 @@
 
 requires ansi
 
+\ PJM - can't save old features on TOS, breaks 'clean slate' test
+features -> int oldFeatures
+kFFAnsi -> features
+
 : ansitest ;
 
-\ PJM - can't save old features, breaks 'clean slate' test
-kFFAnsi -> features
+
 
 \ From: John Hayes S1I
 \ Subject: tester.fr
@@ -1056,3 +1059,5 @@ TESTING DICTIONARY SEARCH RULES
 { GDX -> 123 234 }
 
 
+forget ansitest
+oldFeatures -> features

@@ -8,7 +8,6 @@ setTrace( 0 )
 
 : ' blword $' ;
 : lf blword $load ;
-: precedence blword $precedence ;
 : forget
   blword dup
   if( not( $forget ) )
@@ -37,6 +36,10 @@ setTrace( 0 )
     blword drop
   endif
 ;
+
+: sizeOf blword $sizeOf processConstant ; precedence sizeOf
+: offsetOf blword $offsetOf processConstant ; precedence offsetOf
+: $: pushToken : ;
 
 //######################################################################
 // features support
@@ -80,39 +83,6 @@ enum: eFeatures
 255 string _TempStringA
 255 string _TempStringB
 
-: immediate
-  new OVocabulary -> OVocabulary vocab
-  vocab.open(ref definitions)
-  vocab.seekNewestEntry
-  vocab.getValueLength + >r // top of rstack points to length byte of counted string
-  move( r@ 1+ _TempStringA r@ c@ )
-  r> c@ dup _TempStringA 4- !
-  0 swap _TempStringA + c!
-  _TempStringA $precedence
-  oclear vocab
-;
-  
-: $alias
-  -> int oldSymbol
-  -> int newSymbol
-  new OVocabulary -> OVocabulary vocab
-  vocab.open(ref definitions)
-  vocab.findEntryByName(oldSymbol) -> int oldEntry
-  if(oldEntry)
-    vocab.addSymbol(newSymbol 0 0 0)
-    vocab.seekNewestEntry -> int newEntry
-    move(oldEntry  newEntry  vocab.getValueLength)
-  else
-    "Symbol " %s oldSymbol %s " not found!\n" %s
-  endif
-  oclear vocab
-;
-
-: alias blword -> 250 string aa  aa blword $alias ;
-
-alias ->o ->+    // ->o stores to an object variable without changing refcounts
-alias mko makeObject
-  
 : $,
   // TOS is ptr to nul terminated string at DP
   here over strlen 1+ allot
@@ -167,265 +137,24 @@ false -> int _helpfileLoaded
   endif
 ;
 
-addHelp addHelp	addHelp SYMBOL REST_OF_LINE		add help entry
-addHelp $,	STRING_ADDR $,		compiles string (can leave DP unaligned)
-addHelp help	help BLAH		show help for BLAH
-addHelp	ds	ds			dump stack
+// create the system singleton
+makeObject OSystem system
 
-addHelp $hash   STRING_ADDR $hash     return hash of string
-: $hash
-  strlen( dup ) 0 hash
+: immediate
+  system.getDefinitionsVocab -> OVocabulary vocab
+  vocab.getNewestEntry
+  vocab.getValueLength + >r // top of rstack points to length byte of counted string
+  move( r@ 1+ _TempStringA r@ c@ )
+  r> c@ dup _TempStringA 4- !
+  0 swap _TempStringA + c!
+  precedence(pushToken(_TempStringA))
+  oclear vocab
 ;
-
-addHelp cd	cd BLAH			change working directory to BLAH
-: cd
-  if( chdir( blword ) )
-    "cd failed!\n" %s
-  endif
-;
-
-
-: $system
-  -> ptrTo byte commandString
-  true -> int okay
-  null -> ptrTo byte outName
-  null -> ptrTo byte errName
-  null -> int outStream
-  null -> int errStream
-  -1   -> int oldStdOut
-  -1   -> int oldStdErr
-  0    -> int bytesRead
-  2048 -> int readSize
-  malloc( readSize 1+ ) -> ptrTo byte buffer
-  -1   -> int result
   
-  // create temp filenames for stdout and stderr streams
-  tmpnam -> outName
-  if( outName 0= )
-    error( "system: failure creating standard out tempfile name" )
-    false -> okay
-  endif
-  
-  tmpnam -> errName
-  if( errName 0= )
-    error( "system: failure creating standard error tempfile name" )
-    false -> okay
-  endif
-  
-  // open temp file which will take standard output
-  if( outName )
-    fopen( outName "w" ) -> outStream
-    if( outStream 0= )
-      addErrorText( "system: failure opening standard out file " )
-      error( outName )
-      false -> okay
-    endif
-  endif
-  
-  // open temp file which will take standard error
-  if( errName )
-    fopen( errName "w" ) -> errStream
-    if( errStream 0= )
-      addErrorText( "system: failure opening standard error file " )
-      error( errName )
-      false -> okay
-    endif
-  endif
-  
-  // dup standard output file descriptor so we can restore it on exit
-  if( okay )
-    _dup( 1 ) -> oldStdOut
-    if( oldStdOut -1 = )
-      error( "system: failure dup-ing stdout" )
-      false -> okay
-    endif
-  endif
-    
-  // dup standard error file descriptor so we can restore it on exit
-  if( okay )
-    _dup( 2 ) -> oldStdErr
-    if( oldStdErr -1 = )
-      error( "system: failure dup-ing stderr" )
-      false -> okay
-    endif
-  endif
-
-  //
-  // redirect standard out to temp output file
-  //
-  if( okay )
-    if( _dup2( _fileno( outStream ) 1 ) -1 = )
-      error( "system: failure redirecting stdout" )
-      false -> okay
-    else
-      // redirect standard error to temp error file
-      if( _dup2( _fileno( errStream ) 2 ) -1 = )
-        error( "system: failure redirecting stderr" )
-        false -> okay
-      else
-      
-        // have DOS shell execute command line string pointed to by TOS
-        system( commandString ) -> result
-        
-        fflush( stdout ) drop
-        fflush( stderr ) drop
-        // close standard error stream, then reopen it on oldStdError (console output)
-        _dup2( oldStdErr 2 ) drop
-      endif
-      // close standard output stream, then reopen it on oldStdOut (console output)
-      _dup2( oldStdOut 1 ) drop
-    endif
-    fclose( outStream ) drop
-    null -> outStream
-    fclose( errStream ) drop
-    null -> errStream
-  endif
-
-  //  
-  // dump contents of output and error files using forth console IO routines
-  //
-  if( okay )
-    fopen( outName "r" ) -> outStream
-    if( outStream )
-      begin
-        fread( buffer 1 readSize outStream ) -> bytesRead
-        0 bytesRead buffer byte[] c!
-        buffer %s
-      until( feof( outStream ) )
-      fclose( outStream ) drop
-      null -> outStream
-    else
-      addErrorText( "system: failure reopening standard output file " )
-      error( outName )
-      false -> okay
-    endif
-    
-    fopen( errName "r" ) -> errStream
-    if( errStream )
-      begin
-        fread( buffer 1 readSize errStream ) -> bytesRead
-        0 bytesRead buffer byte[] c!
-        buffer %s
-      until( feof( errStream ) )
-      fclose( errStream ) drop
-      null -> errStream
-    else
-      addErrorText( "system: failure reopening standard error file " )
-      error( errName )
-      false -> okay
-    endif
-  endif
-
-  // cleanup
-  if( outStream )
-    fclose( outStream ) drop
-  endif
-  if( errStream )
-    fclose( errStream ) drop
-  endif
-  if( outName )
-	remove( outName ) drop
-    free( outName )
-  endif
-  if( errName )
-	remove( errName ) drop
-    free( errName )
-  endif
-  free( buffer )
-  
-  result
-;	
-
-
-addHelp pwd	pwd			display working directory
-: pwd
-#ifdef WINDOWS
-  "chdir"
-#else
-  "pwd"
-#endif
-  $system drop
-;
-
-addHelp ls	ls BLAH		display directory (BLAH is optional filespec)
-: ls
-  '\n' $word -> _TempStringA
-#ifdef WINDOWS
-  "dir" -> _TempStringB
-#else
-  "ls" -> _TempStringB
-#endif
-  if( strcmp( _TempStringA "" ) )
-    // user specified a directory
-    strcat( _TempStringB " " )
-    strcat( _TempStringB _TempStringA )
-  endif
-  $system( _TempStringB ) drop
-;
-
-addHelp mv	mv OLDNAME NEWNAME		rename a file
-: mv
-  blword -> _TempStringA
-  blword -> _TempStringB
-  rename( _TempStringA _TempStringB )
-  if( 0<> )
-    addErrorText( "mv: failure renaming file " )
-    error( _TempStringA )
-  endif
-;
-
-addHelp rm	rm FILENAME		remove a file
-: rm
-  blword -> _TempStringA
-  remove( _TempStringA )
-  if( 0<> )
-    addErrorText( "rm: failure removing file " )
-    error( _TempStringA )
-  endif
-;
-
-addHelp more more FILENAME	display FILENAME on screen
-: more
-  255 string linebuff
-  fopen( blword "r" ) -> int infile
-  if( infile null = )
-    exit
-  endif
-  false -> int done
-  0 -> int lineCounter
-  begin
-    fgets( linebuff 250 infile ) -> int result
-    
-    if( result null = )
-      true -> done
-    else
-      result %s
-      // pause every 50 lines
-      1 ->+ lineCounter
-      if( lineCounter 50 > )
-        0 -> lineCounter
-        "Hit q to quit, any other key to continue\n" %s
-        fgetc( stdin ) dup
-        if( 'q' = swap 'Q' = or )
-          true -> done
-        endif
-      endif
-    endif
-    
-    if( feof( infile ) )
-      true -> done
-    endif
-  done until
-  %nl
-  infile fclose drop
-;
-
-addHelp sys	sys REST_OF_LINE	run rest of line in a DOS shell
-: sys system( 0 $word ) drop ;
-
-addHelp fileExists	"FILEPATH" fileExists ... true/false		tell if a file exists
-: fileExists "r" fopen dup if fclose drop true else drop false endif ;
-
+addHelp	dump		ADDRESS LEN dump	dump memory
+addHelp	ldump		ADDRESS LEN ldump	dump memory as longs
+addHelp fdump	FILENAME OFFSET LEN fdump	dump file contents
+addHelp fldump	FILENAME OFFSET LEN fldump	dump file contents as longs
 
 int dumpWidth
 16 -> dumpWidth
@@ -509,14 +238,10 @@ int dumpWidth
   repeat
 ;
 
-addHelp	dump		ADDRESS LEN dump	dump memory
-addHelp	ldump		ADDRESS LEN ldump	dump memory as longs
 : dump 0 _dump ;
 : ldump 0 _ldump ;
 
 
-addHelp fdump	FILENAME OFFSET LEN fdump	dump file contents
-addHelp fldump	FILENAME OFFSET LEN fldump	dump file contents as longs
 : _fdump
   -> op dumpOp
   -> int len
@@ -549,6 +274,302 @@ addHelp fldump	FILENAME OFFSET LEN fldump	dump file contents as longs
 
 : fdump ['] _dump _fdump ;
 : fldump ['] _ldump _fdump ;
+
+: $alias
+  -> int oldSymbol
+  -> int newSymbol
+  system.getDefinitionsVocab -> OVocabulary vocab
+  vocab.findEntryByName(oldSymbol) -> int oldEntry
+  // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
+  makeObject OByteArray valueBuffer
+  valueBuffer.setFromBytes(oldEntry vocab.getValueLength 0)
+  valueBuffer.base -> oldEntry
+  //newSymbol %s %nl dump(oldEntry 32)
+  if(oldEntry)
+    vocab.addSymbol(newSymbol 0 0 0)
+    vocab.getNewestEntry -> int newEntry
+    move(oldEntry  newEntry  vocab.getValueLength)
+  else
+    "Symbol " %s oldSymbol %s " not found!\n" %s
+  endif
+  oclear vocab
+  oclear valueBuffer
+;
+
+: alias blword -> 250 string aa  aa blword $alias ;
+alias ->o ->+    // ->o stores to an object variable without changing refcounts
+alias mko makeObject
+alias m: method:
+alias ;m ;method
+alias bool int
+alias objIsNull l0=
+alias objNotNull l0<>
+
+addHelp addHelp	addHelp SYMBOL REST_OF_LINE		add help entry
+addHelp $,	STRING_ADDR $,		compiles string (can leave DP unaligned)
+addHelp help	help BLAH		show help for BLAH
+addHelp	ds	ds			dump stack
+
+addHelp $hash   STRING_ADDR $hash     return hash of string
+: $hash
+  strlen( dup ) phHash
+;
+
+addHelp cd	cd BLAH			change working directory to BLAH
+: cd
+  if( chdir( blword ) )
+    "cd failed!\n" %s
+  endif
+;
+
+// TOS: permissionStr filePrefix
+: makeTempfile
+  -> ptrTo byte permissionStr
+  -> ptrTo byte filePrefix
+  malloc(strlen(filePrefix) 32+) -> ptrTo byte fileName
+  //TODOOOOO!
+;
+
+: $shellRun
+  -> ptrTo byte commandString
+  true -> int okay
+  null -> ptrTo byte outName
+  null -> ptrTo byte errName
+  null -> int outStream
+  null -> int errStream
+  -1   -> int oldStdOut
+  -1   -> int oldStdErr
+  0    -> int bytesRead
+  2048 -> int readSize
+  malloc( readSize 1+ ) -> ptrTo byte buffer
+  -1   -> int result
+  
+  // create temp filenames for stdout and stderr streams
+  tmpnam -> outName
+  if( outName 0= )
+    error( "$shellRun: failure creating standard out tempfile name" )
+    false -> okay
+  endif
+  
+  tmpnam -> errName
+  if( errName 0= )
+    error( "$shellRun: failure creating standard error tempfile name" )
+    false -> okay
+  endif
+  
+  // open temp file which will take standard output
+  if( outName )
+    fopen( outName "w" ) -> outStream
+    if( outStream 0= )
+      addErrorText( "$shellRun: failure opening standard out file " )
+      error( outName )
+      false -> okay
+    endif
+  endif
+  
+  // open temp file which will take standard error
+  if( errName )
+    fopen( errName "w" ) -> errStream
+    if( errStream 0= )
+      addErrorText( "$shellRun: failure opening standard error file " )
+      error( errName )
+      false -> okay
+    endif
+  endif
+  
+  // dup standard output file descriptor so we can restore it on exit
+  if( okay )
+    _dup( 1 ) -> oldStdOut
+    if( oldStdOut -1 = )
+      error( "$shellRun: failure dup-ing stdout" )
+      false -> okay
+    endif
+  endif
+    
+  // dup standard error file descriptor so we can restore it on exit
+  if( okay )
+    _dup( 2 ) -> oldStdErr
+    if( oldStdErr -1 = )
+      error( "$shellRun: failure dup-ing stderr" )
+      false -> okay
+    endif
+  endif
+
+  //
+  // redirect standard out to temp output file
+  //
+  if( okay )
+    if( _dup2( _fileno( outStream ) 1 ) -1 = )
+      error( "$shellRun: failure redirecting stdout" )
+      false -> okay
+    else
+      // redirect standard error to temp error file
+      if( _dup2( _fileno( errStream ) 2 ) -1 = )
+        error( "$shellRun: failure redirecting stderr" )
+        false -> okay
+      else
+      
+        // have DOS shell execute command line string pointed to by TOS
+        _shellRun( commandString ) -> result
+        
+        fflush( stdout ) drop
+        fflush( stderr ) drop
+        // close standard error stream, then reopen it on oldStdError (console output)
+        _dup2( oldStdErr 2 ) drop
+      endif
+      // close standard output stream, then reopen it on oldStdOut (console output)
+      _dup2( oldStdOut 1 ) drop
+    endif
+    fclose( outStream ) drop
+    null -> outStream
+    fclose( errStream ) drop
+    null -> errStream
+  endif
+
+  //  
+  // dump contents of output and error files using forth console IO routines
+  //
+  if( okay )
+    fopen( outName "r" ) -> outStream
+    if( outStream )
+      begin
+        fread( buffer 1 readSize outStream ) -> bytesRead
+        0 bytesRead buffer byte[] c!
+        buffer %s
+      until( feof( outStream ) )
+      fclose( outStream ) drop
+      null -> outStream
+    else
+      addErrorText( "$shellRun: failure reopening standard output file " )
+      error( outName )
+      false -> okay
+    endif
+    
+    fopen( errName "r" ) -> errStream
+    if( errStream )
+      begin
+        fread( buffer 1 readSize errStream ) -> bytesRead
+        0 bytesRead buffer byte[] c!
+        buffer %s
+      until( feof( errStream ) )
+      fclose( errStream ) drop
+      null -> errStream
+    else
+      addErrorText( "$shellRun: failure reopening standard error file " )
+      error( errName )
+      false -> okay
+    endif
+  endif
+
+  // cleanup
+  if( outStream )
+    fclose( outStream ) drop
+  endif
+  if( errStream )
+    fclose( errStream ) drop
+  endif
+  if( outName )
+	remove( outName ) drop
+    free( outName )
+  endif
+  if( errName )
+	remove( errName ) drop
+    free( errName )
+  endif
+  free( buffer )
+  
+  result
+;	
+
+
+addHelp pwd	pwd			display working directory
+: pwd
+#if WINDOWS
+  "chdir"
+#else
+  "pwd"
+#endif
+  $shellRun drop
+;
+
+addHelp ls	ls BLAH		display directory (BLAH is optional filespec)
+: ls
+  '\n' $word -> _TempStringA
+#if WINDOWS
+  "dir" -> _TempStringB
+#else
+  "ls" -> _TempStringB
+#endif
+  if( strcmp( _TempStringA "" ) )
+    // user specified a directory
+    strcat( _TempStringB " " )
+    strcat( _TempStringB _TempStringA )
+  endif
+  $shellRun( _TempStringB ) drop
+;
+
+addHelp mv	mv OLDNAME NEWNAME		rename a file
+: mv
+  blword -> _TempStringA
+  blword -> _TempStringB
+  rename( _TempStringA _TempStringB )
+  if( 0<> )
+    addErrorText( "mv: failure renaming file " )
+    error( _TempStringA )
+  endif
+;
+
+addHelp rm	rm FILENAME		remove a file
+: rm
+  blword -> _TempStringA
+  remove( _TempStringA )
+  if( 0<> )
+    addErrorText( "rm: failure removing file " )
+    error( _TempStringA )
+  endif
+;
+
+addHelp more more FILENAME	display FILENAME on screen
+: more
+  255 string linebuff
+  fopen( blword "r" ) -> int infile
+  if( infile null = )
+    exit
+  endif
+  false -> int done
+  0 -> int lineCounter
+  begin
+    fgets( linebuff 250 infile ) -> int result
+    
+    if( result null = )
+      true -> done
+    else
+      result %s
+      // pause every 50 lines
+      1 ->+ lineCounter
+      if( lineCounter 50 > )
+        0 -> lineCounter
+        "Hit q to quit, any other key to continue\n" %s
+        fgetc( stdin ) dup
+        if( 'q' = swap 'Q' = or )
+          true -> done
+        endif
+      endif
+    endif
+    
+    if( feof( infile ) )
+      true -> done
+    endif
+  done until
+  %nl
+  infile fclose drop
+;
+
+addHelp sys	sys REST_OF_LINE	run rest of line in a DOS shell
+: sys $shellRun( 0 $word ) drop ;
+
+addHelp fileExists	"FILEPATH" fileExists ... true/false		tell if a file exists
+: fileExists "r" fopen dup if fclose drop true else drop false endif ;
 
 addHelp comparefiles	FILENAME1 FILENAME2 comparefiles TRUE_IF_EQUAL
 : comparefiles
@@ -618,7 +639,15 @@ variable scr  0 scr !
 : lb dup scr ! block 16 0 do i %d '\t' %c '|' %c dup 64 type '|' %c %nl 64+ loop drop ;
 : load dup thru ;
 
-#ifdef WINDOWS
+enum: threadRunStates
+  kFTRSStopped		// initial state, or after executing stop, needs another thread to Start it
+  kFTRSReady		// ready to continue running
+  kFTRSSleeping		// sleeping until wakeup time is reached
+  kFTRSBlocked		// blocked on a soft lock
+  kFTRSExited		// done running - executed exitThread
+;enum
+
+#if WINDOWS
 
 enum:	WIN32_FILE_ATTRIB
   0x00001	FATTRIB_READONLY
@@ -674,14 +703,12 @@ struct: dirent
 
 #else
 
-256 constant MAX_PATH
-
 struct: dirent
   int	d_ino
-  int	d_off
   short	d_reclen
-  byte  d_type
-  MAX_PATH arrayOf byte d_name
+  int	d_namlen
+  int	d_type
+  256 arrayOf byte d_name
 ;struct
 
 #endif
@@ -712,7 +739,7 @@ precedence d[
     drop
   else
     // uncompile debug section
-    -> here
+    dp !
   endif
 ;
 precedence ]d
@@ -731,7 +758,7 @@ precedence t[
     drop
   else
     // uncompile trace section
-    -> here
+    dp !
   endif
 ;
 precedence ]t
@@ -767,6 +794,14 @@ addHelp oshow   OBJECT oshow ...    like OBJECT.show, but doesn't crash if OBJEC
 
 : goclient 0x6701a8c0 client ;
 : goserver server ;
+
+: vd verbose describe ;
+: f. %f %bl ;
+: g. %g %bl ;
+: x. %x %bl ;
+: 2f. %2f %bl ;
+: 2g. %2g %bl ;
+: 2x. %2x %bl ;
 
 //######################################################################
 //  DLL support

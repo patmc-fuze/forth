@@ -9,12 +9,11 @@ class: atcConsoleDisplay extends iAtcDisplay
   int helpRow
   int defaultColors
   
-  method: delete
+  m: delete
     //t{ "deleting display " %s %nl }t
-    oclear region
     oclear text
     super.delete
-  ;method
+  ;m
   
   // each tile corresponds to 2 horizontal chars
   
@@ -27,13 +26,13 @@ class: atcConsoleDisplay extends iAtcDisplay
     swap 4 lshift or setConsoleColor
   ;
 
-  method: useDefaultColors
+  m: useDefaultColors
     setTextColors( kCCBlack kCCDimWhite)
-  ;method
+  ;m
   
-  method: useHighlightColors
+  m: useHighlightColors
     setTextColors( kCCWhite kCCBlack )
-  ;method
+  ;m
   
   : xyAddr        // X Y ... BYTE_ADDR
     rowBytes * swap 2* + text.base +
@@ -45,9 +44,9 @@ class: atcConsoleDisplay extends iAtcDisplay
     loop
   ;
   
-  method: init         // REGION ...
+  m: init         // REGION ...
     'disp' -> tag
-    -> region
+    ->o region
     getConsoleColor -> defaultColors
     new OByteArray -> text
     region.columns -> int columns
@@ -154,7 +153,7 @@ class: atcConsoleDisplay extends iAtcDisplay
     // draw the airspace on the screen
     setConsoleCursor(0 0)
     drawRadar
-  ;method
+  ;m
   
   : updateStatus
     useDefaultColors
@@ -260,16 +259,16 @@ class: atcConsoleDisplay extends iAtcDisplay
     repeat
   ;
   
-  method: update      // ACTIVE_AIRPLANE_LIST ...
+  m: update      // ACTIVE_AIRPLANE_LIST ...
     getConsoleCursor -> long oldPos
 
     updatePlaneStatus
     updateStatus
     //updateRadar
 
-  ;method
+  ;m
   
-  method: showWarning      // CSTRING ...
+  m: showWarning      // CSTRING ...
     getConsoleColor swap
   
     setConsoleCursor(0 helpRow)
@@ -279,23 +278,23 @@ class: atcConsoleDisplay extends iAtcDisplay
     %s
 
     setConsoleColor  // restore original console colors
-  ;method
+  ;m
   
-  method: startWarning
+  m: startWarning
     setConsoleCursor(0 helpRow)
     region.columns 2* 0 do %bl loop
     setTextColors(kCCRed  kCCWhite)
     setConsoleCursor(0 helpRow)
-  ;method
+  ;m
   
-  method: showCommand    // CSTRING ...
+  m: showCommand    // CSTRING ...
     setConsoleCursor(0 commandRow)
     region.columns 2* 0 do %bl loop
     setConsoleCursor(0 commandRow)
     %s
-  ;method
+  ;m
   
-  method: hideAirplanes    // ACTIVE_AIRPLANE_LIST
+  m: hideAirplanes    // ACTIVE_AIRPLANE_LIST
     ->o OList activeAirplanes
     // hide flying airplanes
     activeAirplanes.headIter -> OIter iter
@@ -310,7 +309,7 @@ class: atcConsoleDisplay extends iAtcDisplay
     repeat
   
     oclear iter
-  ;method
+  ;m
   
 ;class
 
