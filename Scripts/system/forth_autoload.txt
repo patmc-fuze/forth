@@ -739,7 +739,7 @@ precedence d[
     drop
   else
     // uncompile debug section
-    -> here
+    dp !
   endif
 ;
 precedence ]d
@@ -758,7 +758,7 @@ precedence t[
     drop
   else
     // uncompile trace section
-    -> here
+    dp !
   endif
 ;
 precedence ]t

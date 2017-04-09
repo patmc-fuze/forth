@@ -259,7 +259,7 @@ test[ 17 5 dup 2 pick tuck 17 = swap 5 = and rot 5 = rot 17 = 0 drop and rot 17 
 test[ 87 5 ?dup 0 ?dup 0= rot 5 = rot 5 = and and over 87 = rot 87 = ]
 
 // -rot nip tuck 
-test[ 43 27 88 -rot 27 = 43 = and 88 = and 1 4 5 nip 5 = 1 = and 11 22 tuck 22 = 11 = and 22 = and ]
+test[ 43 27 88 -rot 27 = -rot 43 = -rot 88 = and and and 1 4 5 nip 5 = swap 1 = and 11 22 tuck 22 = swap 11 = and swap 22 = and ]
 // 2dup 2swap 2drop 2over 2rot r[ ]r
 // c! c@ sc@ w! w@ sw@ ! @ 2! 2@ 
 // move fill varAction! varAction@
