@@ -10,7 +10,7 @@ WARNING_FLAGS = -Wno-format -Wno-reorder -Wno-unused-variable
 CPPFLAGS = $(CFLAGS) -I ../ForthLib
 
 LDFLAGS = $(CDEBUG)
-LD_LIBRARIES = -L ../ForthLib -lforth -lm -lc -lstdc++ -ldl -lpthread
+LD_LIBRARIES = -L ../ForthLib -lforth -lm -lc -lstdc++ -ldl -lpthread -lreadline
 OBJDIR = obj
 
 #DEPDIR = dep
