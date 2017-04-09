@@ -173,6 +173,16 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 8 2017
+
+I went back and got the OSX assembler inner interpreter working, there are
+probably still lurking 16-byte call alignment crashes lurking, but test.txt
+runs all the way through without crashes or exceptions.
+
+I got the arm2016 branch mostly working again, it crashes in the new thread
+code, but forthtest mostly works, there are definitely failures involving
+long variables.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 7 2017
 
 I realized I was spending a lot of time testing forth on different platforms when
