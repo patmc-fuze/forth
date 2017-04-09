@@ -45,10 +45,10 @@ LIBCPPSRCS = \
 	OArray.cpp \
 	OList.cpp \
 	OMap.cpp \
+	ONumber.cpp \
 	OStream.cpp \
 	OString.cpp \
-	ONumber.cpp
-
+	OSystem.cpp
 
 
 OBJDIR = obj
