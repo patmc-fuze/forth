@@ -87,6 +87,7 @@ kVarRef					=		2
 kVarStore				=		3
 kVarPlusStore			=		4
 kVarMinusStore			=		5
+kVarObjectClear			=		6
 
 kResultOk				=		0
 kResultDone				=		1
@@ -95,6 +96,7 @@ kResultError			=		3
 kResultFatalError		=		4
 kResultException		=		5
 kResultShutdown			=		6
+kResultTrace			=		7
 
 kForthErrorNone						=		0
 kForthErrorBadOpcode				=		1
@@ -130,6 +132,8 @@ kPrintSignedDecimal		=		0
 kPrintAllSigned			=		1
 kPrintAllUnsigned		=		2
 
+kOpRelativeDefType          =       0x06000000
+
 @ ForthMemorySection
 FMSCurrent				=	0	@ current pointer into section
 FMSBase					=	4	@ base of memory section
@@ -151,14 +155,14 @@ fileGetString	=		44
 filePutString	=		48
 
 	.global	abortBop, dropBop, nipBop, doDoesBop, litBop, litBop, dlitBop, doVariableBop, doConstantBop, doDConstantBop, doneBop
-	.global	doByteBop, doShortBop, doIntBop, doFloatBop, refBop, intoBop, addToBop, subtractFromBop, doExitBop
+	.global	doByteBop, doShortBop, doIntBop, doFloatBop, refBop, fetchBop, intoBop, addToBop, subtractFromBop, doExitBop
 	.global	doExitLBop, doExitMBop, doExitMLBop, doVocabBop, doByteArrayBop, doShortArrayBop, doIntArrayBop, doFloatArrayBop
-	.global	plusBop, fetchBop, doStructBop, doStructArrayBop, doDoBop, doLoopBop, doLoopNBop, dfetchBop
+	.global	plusBop, ifetchBop, doStructBop, doStructArrayBop, doDoBop, doLoopBop, doLoopNBop, dfetchBop
 	.global	thisBop, thisDataBop, thisMethodsBop, executeBop, callBop, gotoBop, iBop, jBop, unloopBop, leaveBop, hereBop
 	.global	minusBop
 	.global	timesBop, times2Bop, times4Bop, times8Bop, divideBop, divide2Bop, divide4Bop, divide8Bop, divmodBop, modBop, negateBop
 	.global fplusBop, fminusBop, ftimesBop, fdivideBop,	dplusBop, dminusBop, dtimesBop, ddivideBop
-	.global orBop, andBop, xorBop, invertBop, lshiftBop, arshiftBop, notBop, trueBop, falseBop, nullBop, dnullBop
+	.global orBop, andBop, xorBop, invertBop, lshiftBop, arshiftBop, rotateBop, notBop, trueBop, falseBop, nullBop, dnullBop
 	.global equalsBop, notEqualsBop, greaterThanBop, greaterEqualsBop, lessThanBop, lessEqualsBop
 	.global equals0Bop, notEquals0Bop, greaterThan0Bop, greaterEquals0Bop, lessThan0Bop, lessEquals0Bop
 	.global rpushBop, rpopBop, rdropBop, rpBop, r0Bop, dupBop, checkDupBop, swapBop, overBop
@@ -179,6 +183,8 @@ filePutString	=		48
 	.global fopenBop, fcloseBop, fseekBop, freadBop, fwriteBop, fgetcBop, fputcBop, feofBop, fexistsBop, ftellBop, flenBop, fgetsBop, fputsBop
 	.global withinBop, fMinBop, fMaxBop, fWithinBop, dMinBop, dMaxBop, dWithinBop, unsignedGreaterThanBop, unsignedLessThanBop
 	.global umtimesBop, rshiftBop, reverseRotBop, doCheckDoBop, archARMBop, archX86Bop
+	.global lEqualsBop, lNotEqualsBop, lGreaterThanBop, lGreaterEqualsBop, lLessThanBop, lLessEqualsBop
+	.global lEquals0Bop, lNotEquals0Bop, lGreaterThan0Bop, lGreaterEquals0Bop, lLessThan0Bop, lLessEquals0Bop
 	@ these are just dummies:
 	.global doLongBop, doDoubleBop, doStringBop, doOpBop, doObjectBop, doLongArrayBop, doDoubleArrayBop, doObjectArrayBop, doStringArrayBop, doOpArrayBop
 	.global longVarActionBop, doubleVarActionBop, stringVarActionBop, opVarActionBop, objectVarActionBop
@@ -186,7 +192,8 @@ filePutString	=		48
 	.global fpowBop, fsqrtBop, fceilBop, ffloorBop, fabsBop
 	.global fcmpBop, dcmpBop, fldexpBop, ffrexpBop, fmodfBop, ffmodBop
 	.global icmpBop, uicmpBop, oclearBop, lplusBop, lminusBop, ltimesBop, mtimesBop, umtimesBop
-
+    .global lcmpBop, ulcmpBop
+    
 	.global fprintfSub, fscanfSub, snprintfSub, sscanfSub, oStringFormatSub
 
 	.global InterpretOneOpFast
@@ -1647,12 +1654,20 @@ localObjectStore:
 	@ r1 is varMode
 	@ r2 is 0
 	str	r2, [rcore, #varmode]		@ set varMode back to fetch
-	cmp	r1, #kVarMinusStore
+	cmp	r1, #kVarObjectClear
 	bgt	badVarOperation
 	ldr	r3, .localObject3
 	ldr	r1, [r3, r1, lsl #2]
 	bx	r1
 	
+localObjectClear:
+	@ TOS is new object, eax points to destination/old object
+    mov r3, r2
+	stmdb	rsp!, {r2, r3}
+	@ for now, do the clear operation by pushing dnull on TOS then doing a regular object store
+	@ later on optimize it since we know source is a dnull
+	b	localObjectStore
+
 @ store object on TOS in variable pointed to by r0
 @ do not adjust reference counts of old object or new object
 localObjectStoreNoRef:
@@ -1699,6 +1714,7 @@ localObjectActionTable:
 	.word	localObjectStore
 	.word	localObjectStoreNoRef
 	.word	localObjectUnref
+	.word	localObjectClear
 
 	
 fieldObjectType:
@@ -2166,6 +2182,13 @@ refBop:
 	str	r0, [rcore, #varmode]
 	bx	lr
 
+@@@@@@@@@@@@@@@@@  fetch  @@@@@@@@@@@@@@@@@
+
+fetchBop:
+	mov	r0, #kVarFetch
+	str	r0, [rcore, #varmode]
+	bx	lr
+
 @@@@@@@@@@@@@@@@@  ->  @@@@@@@@@@@@@@@@@
 
 intoBop:
@@ -2187,6 +2210,13 @@ subtractFromBop:
 	str	r0, [rcore, #varmode]
 	bx	lr
 
+@@@@@@@@@@@@@@@@@  oclear  @@@@@@@@@@@@@@@@@
+
+oclearBop:
+	mov	r0, #kVarObjectClear
+	str	r0, [rcore, #varmode]
+	bx	lr
+	
 @@@@@@@@@@@@@@@@@  _doVocab  @@@@@@@@@@@@@@@@@
 
 doVocabBop:
@@ -2204,6 +2234,8 @@ doExitBop:
 	cmp	rrp, r0
 	bge	.doExitBop1
 	ldmia	rrp!, {rip}			@ pop IP off rstack
+    orrs    rip, rip
+    beq doneBop
 	bx	lr
 	
 .doExitBop1:
@@ -2222,6 +2254,8 @@ doExitLBop:
 	mov	rrp, rfp					@ deallocate local vars
 	ldmia	rrp!, {rfp}			@ pop oldFP off rstack
 	ldmia	rrp!, {rip}			@ pop IP off rstack
+    orrs    rip, rip
+    beq doneBop
 	bx	lr
 	
 .doExitLBop1:
@@ -2240,6 +2274,8 @@ doExitMBop:
 	mov	rip, r0
 	str	r1, [rcore, #tpm]
 	str	r2, [rcore, #tpd]
+    orrs    rip, rip
+    beq doneBop
 	bx	lr
 	
 .doExitMBop1:
@@ -2261,6 +2297,8 @@ doExitMLBop:
 	mov	rip, r0
 	str	r1, [rcore, #tpm]
 	str	r2, [rcore, #tpd]
+    orrs    rip, rip
+    beq doneBop
 	bx	lr
 	
 .doExitMLBop1:
@@ -2271,6 +2309,11 @@ doExitMLBop:
 	@ TBD	doStringArrayBop
 	@ TBD	doOpArrayBop
 	@ TBD	doObjectArrayBop
+	
+@@@@@@@@@@@@@@@@@  noop  @@@@@@@@@@@@@@@@@
+
+noopBop:
+	bx	lr
 	
 @@@@@@@@@@@@@@@@@  +  @@@@@@@@@@@@@@@@@
 
@@ -2283,7 +2326,7 @@ plusBop:
 	
 @@@@@@@@@@@@@@@@@  @  @@@@@@@@@@@@@@@@@
 
-fetchBop:
+ifetchBop:
 	ldr	r0, [rsp]
 	ldr	r1, [r0]
 	str	r1, [rsp]
@@ -2458,12 +2501,16 @@ executeBop:
 callBop:
 	stmdb	rrp!, {rip}
 	ldmia	rsp!, {rip}
+    orrs    rip, rip
+    beq doneBop
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  goto  @@@@@@@@@@@@@@@@@
 
 gotoBop:
 	ldmia	rsp!, {rip}
+    orrs    rip, rip
+    beq doneBop
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  i  @@@@@@@@@@@@@@@@@
@@ -2498,9 +2545,8 @@ leaveBop:
 
 hereBop:
 	ldr	r0, [rcore, #dict_mem_sect]
-	ldr	r1, [r0, #FMSCurrent]
-	stmdb	rsp!, {r1}
-	bx	lr
+    add r0, #FMSCurrent
+    b   intEntry
 			
 
 @#############################################@
@@ -3113,6 +3159,171 @@ ltimes3:
 	str	rrp, [rsp, #4]
 	bx	lr
 
+@#############################################@
+@                                             @
+@            long comparisons                 @
+@                                             @
+@#############################################@
+	
+lcmpBop:
+	ldmia	rsp!, {r0, r1, r2, r3}
+	subs	r1, r1, r3
+	eor	r3, r3
+	sbcs	r0, r0, r2
+	sublt	r3, #1
+	addgt	r3, #1
+	stmdb	rsp!, {r3}
+	bx	lr
+
+ulcmpBop:
+	ldmia	rsp!, {r0, r1, r2, r3}
+	subs	r1, r1, r3
+	eor	r3, r3
+	sbcs	r0, r0, r2
+	subhi	r3, #1
+	addcc	r3, #1
+	stmdb	rsp!, {r3}
+	bx	lr
+    
+@@@@@@@@@@@@@@@@@  l=  @@@@@@@@@@@@@@@@@
+
+lEqualsBop:
+	ldmia	rsp!, {r0, r1, r2, r3}
+	subs	r1, r1, r3
+	eor	r3, r3
+	sbcs	r0, r0, r2
+	subeq	r3, #1
+	stmdb	rsp!, {r3}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  l<>  @@@@@@@@@@@@@@@@@
+
+lNotEqualsBop:
+	ldmia	rsp!, {r0, r1, r2, r3}
+	subs	r1, r1, r3
+	eor	r3, r3
+	sbcs	r0, r0, r2
+	subne	r3, #1
+	stmdb	rsp!, {r3}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  l>  @@@@@@@@@@@@@@@@@
+
+lGreaterThanBop:
+	ldmia	rsp!, {r0, r1, r2, r3}
+	subs	r1, r1, r3
+	eor	r3, r3
+	sbcs	r0, r0, r2
+	subgt	r3, #1
+	stmdb	rsp!, {r3}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  l>=  @@@@@@@@@@@@@@@@@
+
+lGreaterEqualsBop:
+	ldmia	rsp!, {r0, r1, r2, r3}
+	subs	r1, r1, r3
+	eor	r3, r3
+	sbcs	r0, r0, r2
+	subge	r3, #1
+	stmdb	rsp!, {r3}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  l<  @@@@@@@@@@@@@@@@@
+
+lLessThanBop:
+	ldmia	rsp!, {r0, r1, r2, r3}
+	subs	r1, r1, r3
+	eor	r3, r3
+	sbcs	r0, r0, r2
+	sublt	r3, #1
+	stmdb	rsp!, {r3}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  l<=  @@@@@@@@@@@@@@@@@
+
+lLessEqualsBop:
+	ldmia	rsp!, {r0, r1, r2, r3}
+	subs	r1, r1, r3
+	eor	r3, r3
+	sbcs	r0, r0, r2
+	suble	r3, #1
+	stmdb	rsp!, {r3}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  l0=  @@@@@@@@@@@@@@@@@
+
+lEquals0Bop:
+	ldmia	rsp!, {r0, r1}
+	eor	r2, r2
+    orr r0, r1
+	cmp	r2, r0
+	subeq	r2, #1
+	stmdb	rsp!, {r2}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  l0<>  @@@@@@@@@@@@@@@@@
+
+lNotEquals0Bop:
+	ldmia	rsp!, {r0, r1}
+	eor	r2, r2
+    orr r0, r1
+	cmp	r2, r0
+	subne	r2, #1
+	stmdb	rsp!, {r2}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  l0>  @@@@@@@@@@@@@@@@@
+
+lGreaterThan0Bop:
+	ldmia	rsp!, {r0, r1}
+	eor	r2, r2
+	cmp	r0, r2
+    blt .lpushFalse      @ hiword negative, fail
+    bne .lpushTrue      @ hiword positive, succeed
+    @ hiword is zero, check loword
+    cmp r1, r2
+    bne .lpushTrue
+    b   .lpushFalse
+    
+.lpushTrue
+	sub	r2, #1
+.lpushFalse
+	stmdb	rsp!, {r2}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  l0>=  @@@@@@@@@@@@@@@@@
+
+lGreaterEquals0Bop:
+	ldmia	rsp!, {r0, r1}
+	eor	r2, r2
+	cmp	r0, r2
+    blt .lpushFalse      @ hiword negative, fail
+    b   .lpushTrue
+
+@@@@@@@@@@@@@@@@@  l0<  @@@@@@@@@@@@@@@@@
+
+lLessThan0Bop:
+	ldmia	rsp!, {r0, r1}
+	eor	r2, r2
+	cmp	r0, r2
+    blt .lpushTrue      @ hiword negative, succeed
+    b   .lpushFalse
+
+@@@@@@@@@@@@@@@@@  l0<=  @@@@@@@@@@@@@@@@@
+
+lLessEquals0Bop:
+	ldmia	rsp!, {r0, r1}
+	eor	r2, r2
+	cmp	r0, r2
+    blt .lpushTrue      @ hiword negative, succeed
+    bgt .lpushFalse
+    cmp r1, r2
+    beq .lpushTrue
+    b   .lpushFalse
+    
+@@@@@@@@@@@@@@@@@  m* um*  @@@@@@@@@@@@@@@@@
+
 umtimesBop:
 	ldr	r0, [rsp]		@ r0 = B
 	ldr	r1, [rsp, #4]	@ r1 = A
@@ -3234,6 +3445,13 @@ rshiftBop:
 	str	r2, [rsp]
 	bx	lr
  	
+rotateBop:
+	ldmia	rsp!, {r0}		@ r0 = shift count
+	ldr	r1, [rsp]
+	rol	r1, r0
+	str	r1, [rsp]
+	bx	lr
+
 @@@@@@@@@@@@@@@@@  not  @@@@@@@@@@@@@@@@@
 
 notBop:
@@ -3267,11 +3485,6 @@ nullBop:
 	bx	lr
 	
 
-oclearBop:
-	mov	r0, #kVarStore
-	str	r0, [rcore, #varmode]
-	@ fall thru to dnull
-	
 @@@@@@@@@@@@@@@@@  dnull  @@@@@@@@@@@@@@@@@
 
 dnullBop:
@@ -4964,11 +5177,30 @@ branchZType:
 pushBranchType:
 	stmdb	rsp!, {rip}   @ push IP (pointer to block)
 	ldr	r2,=0x00FFFFFF
-  ands  r1, r2
-  lsl r1, #2  
-  add rip, r1
-  bx  lr
+	ands  r1, r2
+	lsl r1, #2  
+	add rip, r1
+	bx  lr
 
+relativeDefBranchType:
+	@ push relativeDef opcode for immediately following anonymous definition (IP points to it)
+	@ compute offset from dictionary base to anonymous def
+	ldr	r0, [rcore, #dict_mem_sect]
+	ldr	r2, [r0, #FMSCurrent]
+    mov r0, rip
+    sub r0, r2
+    lsr r0, #2
+	@ stick the optype in top 8 bits
+    ldr r2, =kOpRelativeDefType
+    orr r0, r2
+    stmdb   rsp!, {r0}
+	@ advance IP past anonymous definition
+	ldr	r2, =0x00FFFFFF
+	ands  r1, r2
+    lsl r1, #2
+    add rip, r1
+    bx  lr
+    
 caseBranchType:
 	@ TOS is current case value to match against, TOS-1 is value to check
 	@ r1 holds branch offset in longs
@@ -5413,9 +5645,9 @@ opTypesTable:
 	.word	branchType				@ kOpBranch = 10,
 	.word	branchNZType			@ kOpBranchNZ,
 	.word	branchZType				@ kOpBranchZ,
-	.word	caseBranchType		@ kOpCaseBranch,
-	.word	pushBranchType    @ kOpPushBranch,	
-	.word	extOpType	
+	.word	caseBranchType		    @ kOpCaseBranch,
+	.word	pushBranchType          @ kOpPushBranch,	
+	.word	relativeDefBranchType	@ kOpRelativeDefBranch
 	.word	extOpType	
 	.word	extOpType	
 	.word	extOpType	
