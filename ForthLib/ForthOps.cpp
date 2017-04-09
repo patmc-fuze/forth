@@ -2901,7 +2901,11 @@ FORTHOP( printLongDecimalOp )
 
     stackInt64 val;
     LPOP( val );
+#if defined(WIN32)
     SNPRINTF( buff, sizeof(buff), "%I64d", val.s64 );
+#else
+    SNPRINTF( buff, sizeof(buff), "%lld", val.s64 );
+#endif
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -2916,7 +2920,11 @@ FORTHOP( printLongHexOp )
 
     stackInt64 val;
     LPOP( val );
+#if defined(WIN32)
     SNPRINTF( buff, sizeof(buff), "%I64x", val.s64 );
+#else
+    SNPRINTF( buff, sizeof(buff), "%llx", val.s64 );
+#endif
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif

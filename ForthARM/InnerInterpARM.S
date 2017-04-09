@@ -676,7 +676,7 @@ localShortMinusStore:
 	str	r2, [rcore, #varmode]		@ set varMode back to fetch
 	cmp	r1, #kVarMinusStore
 	bgt	badVarOperation
-	ldr	r3, .localByte3
+	ldr	r3, .localShort3
 	ldr	r1, [r3, r1, lsl #2]
 	bx	r1
 
@@ -1234,7 +1234,7 @@ localLongStore:
 localLongPlusStore:
 	ldmia	rsp!, {r2,r3}			@ pop TOS long value into r2,r3
 	push	{rcore, rip}
-	ldm	r0!, {rcore, rip}
+	ldm	r0, {rcore, rip}
 	adds rip, r2, rip
 	adc	rcore, r3, rcore
 	stm	r0!, {rcore,rip}
@@ -1244,7 +1244,7 @@ localLongPlusStore:
 localLongMinusStore:
 	ldmia	rsp!, {r2,r3}			@ pop TOS long value into r2,r3
 	push	{rcore, rip}
-	ldm	r0!, {rcore, rip}
+	ldm	r0, {rcore, rip}
 	subs	rip, r2, rip
 	sbc	rcore, r3, rcore
 	stm	r0!, {rcore,rip}
