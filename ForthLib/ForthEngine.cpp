@@ -374,7 +374,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
 #elif MACOSX
     mDictionary.pBase = (long *) mmap(NULL, dictionarySize, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_PRIVATE, -1, 0);
 #else
-	 __MALLOC( dictionarySize );
+	 mDictionary.pBase = (long *) __MALLOC( dictionarySize );
 #endif
     mDictionary.pCurrent = mDictionary.pBase;
     mDictionary.len = totalLongs;

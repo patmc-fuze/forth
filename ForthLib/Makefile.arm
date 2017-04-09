@@ -7,7 +7,7 @@ DEFINES = -DRASPI -DLINUX -DASM_INNER_INTERPRETER -DINCLUDE_TRACE
 CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -save-temps=obj -marm
 #WARNING_FLAGS = -Wall -Wno-format -Wno-reorder -Wno-unused-variable -Wsign-compare -Wunused-but-set-variable
 WARNING_FLAGS = -Wno-format -Wno-reorder -Wno-unused-variable
-CPPFLAGS = $(CFLAGS)
+CPPFLAGS = $(CFLAGS) -std=c++11
 
 GASFLAGS = --defsym ASM_INNER_INTERPRETER=1
 #GASFLAGS =
@@ -66,7 +66,7 @@ LIBOBJS = $(LIBCPPOBJS) $(LIBASMOBJS)
 #	$(POSTCOMPILE)
 
 $(OBJDIR)/%.o: %.cpp $(DEPDIR)/%.d
-	$(CC) $(DEPFLAGS) $(CFLAGS) -o $(OBJDIR)/$*.o $<
+	$(CC) $(DEPFLAGS) $(CPPFLAGS) -o $(OBJDIR)/$*.o $<
 	$(POSTCOMPILE)
 
 $(OBJDIR)/InnerInterpArm.o: ../ForthARM/InnerInterpARM.S

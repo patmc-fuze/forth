@@ -19,7 +19,7 @@ void OutputToLogger(const char* pBuffer)
 {
 	if (loggerFD < 0)
 	{
-	    char* myfifo = "/tmp/forthLoggerFIFO";
+	    const char* myfifo = "/tmp/forthLoggerFIFO";
 
 	    /* create the FIFO (named pipe) */
 		unlink(myfifo);
@@ -125,7 +125,6 @@ int main(int argc, char* argv[] )
     ForthInputStream *pInStream = NULL;
 
     tcgetattr( STDIN_FILENO, &oldTermSettings);
-    
 	if ( !InitSystem() )
 	{
 		nRetCode = 1;
@@ -163,7 +162,7 @@ int main(int argc, char* argv[] )
             //
             pInStream = new ForthConsoleInputStream;
 			OutputToLogger("running shell\n");
-			pShell->GetEngine()->SetTraceFlags(255);
+			pShell->GetEngine()->SetTraceFlags(0);
             nRetCode = pShell->Run( pInStream );
 
         }

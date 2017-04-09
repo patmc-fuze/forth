@@ -7,7 +7,7 @@ DEFINES = -DRASPI -DLINUX
 CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -save-temps=obj -marm
 #WARNING_FLAGS = -Wall -Wno-format -Wno-reorder -Wno-unused-variable -Wsign-compare -Wunused-but-set-variable
 WARNING_FLAGS = -Wno-format -Wno-reorder -Wno-unused-variable
-CPPFLAGS = $(CFLAGS) -I ../ForthLib
+CPPFLAGS = $(CFLAGS) -std=c++11 -I ../ForthLib
 
 LDFLAGS = $(CDEBUG)
 LD_LIBRARIES = -L ../ForthLib -lforth -lm -lc -lstdc++ -ldl -lpthread -lreadline

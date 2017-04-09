@@ -158,8 +158,8 @@ filePutString	=		48
 	.global	doByteBop, doShortBop, doIntBop, doFloatBop, refBop, fetchBop, intoBop, addToBop, subtractFromBop, doExitBop
 	.global	doExitLBop, doExitMBop, doExitMLBop, doVocabBop, doByteArrayBop, doShortArrayBop, doIntArrayBop, doFloatArrayBop
 	.global	plusBop, ifetchBop, doStructBop, doStructArrayBop, doDoBop, doLoopBop, doLoopNBop, dfetchBop
-	.global	thisBop, thisDataBop, thisMethodsBop, executeBop, callBop, gotoBop, iBop, jBop, unloopBop, leaveBop, hereBop
-	.global	minusBop
+	.global	thisBop, thisDataBop, thisMethodsBop, executeBop, callBop, gotoBop, iBop, jBop, unloopBop, leaveBop, hereBop, dpBop
+	.global	minusBop, noopBop
 	.global	timesBop, times2Bop, times4Bop, times8Bop, divideBop, divide2Bop, divide4Bop, divide8Bop, divmodBop, modBop, negateBop
 	.global fplusBop, fminusBop, ftimesBop, fdivideBop,	dplusBop, dminusBop, dtimesBop, ddivideBop
 	.global orBop, andBop, xorBop, invertBop, lshiftBop, arshiftBop, rotateBop, notBop, trueBop, falseBop, nullBop, dnullBop
@@ -2541,12 +2541,21 @@ leaveBop:
 	add	rrp, #12
 	bx	lr
 
+@@@@@@@@@@@@@@@@@  dp  @@@@@@@@@@@@@@@@@
+
+dpBop:
+	ldr	r0, [rcore, #dict_mem_sect]
+    add r0, #FMSCurrent
+	stmdb	rsp!, {r0}
+	bx	lr
+			
 @@@@@@@@@@@@@@@@@  here  @@@@@@@@@@@@@@@@@
 
 hereBop:
 	ldr	r0, [rcore, #dict_mem_sect]
-    add r0, #FMSCurrent
-    b   intEntry
+    ldr r1, [r0, #FMSCurrent]
+	stmdb	rsp!, {r1}
+	bx	lr
 			
 
 @#############################################@
@@ -3279,16 +3288,16 @@ lGreaterThan0Bop:
 	ldmia	rsp!, {r0, r1}
 	eor	r2, r2
 	cmp	r0, r2
-    blt .lpushFalse      @ hiword negative, fail
-    bne .lpushTrue      @ hiword positive, succeed
+    blt lpushFalse      @ hiword negative, fail
+    bne lpushTrue      @ hiword positive, succeed
     @ hiword is zero, check loword
     cmp r1, r2
-    bne .lpushTrue
-    b   .lpushFalse
+    bne lpushTrue
+    b   lpushFalse
     
-.lpushTrue
+lpushTrue:
 	sub	r2, #1
-.lpushFalse
+lpushFalse:
 	stmdb	rsp!, {r2}
 	bx	lr
 
@@ -3298,8 +3307,8 @@ lGreaterEquals0Bop:
 	ldmia	rsp!, {r0, r1}
 	eor	r2, r2
 	cmp	r0, r2
-    blt .lpushFalse      @ hiword negative, fail
-    b   .lpushTrue
+    blt lpushFalse      @ hiword negative, fail
+    b   lpushTrue
 
 @@@@@@@@@@@@@@@@@  l0<  @@@@@@@@@@@@@@@@@
 
@@ -3307,8 +3316,8 @@ lLessThan0Bop:
 	ldmia	rsp!, {r0, r1}
 	eor	r2, r2
 	cmp	r0, r2
-    blt .lpushTrue      @ hiword negative, succeed
-    b   .lpushFalse
+    blt lpushTrue      @ hiword negative, succeed
+    b   lpushFalse
 
 @@@@@@@@@@@@@@@@@  l0<=  @@@@@@@@@@@@@@@@@
 
@@ -3316,11 +3325,11 @@ lLessEquals0Bop:
 	ldmia	rsp!, {r0, r1}
 	eor	r2, r2
 	cmp	r0, r2
-    blt .lpushTrue      @ hiword negative, succeed
-    bgt .lpushFalse
+    blt lpushTrue      @ hiword negative, succeed
+    bgt lpushFalse
     cmp r1, r2
-    beq .lpushTrue
-    b   .lpushFalse
+    beq lpushTrue
+    b   lpushFalse
     
 @@@@@@@@@@@@@@@@@  m* um*  @@@@@@@@@@@@@@@@@
 
@@ -3448,7 +3457,9 @@ rshiftBop:
 rotateBop:
 	ldmia	rsp!, {r0}		@ r0 = shift count
 	ldr	r1, [rsp]
-	rol	r1, r0
+	mov	r2, #32
+	sub	r2, r0
+	ror	r1, r1, r2
 	str	r1, [rsp]
 	bx	lr
 
