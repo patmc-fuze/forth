@@ -371,6 +371,25 @@ entry interpLoop
 	; interpLoopExecuteEntry is entry for executeBop - expects opcode in ebx
 ;GLOBAL	interpLoopExecuteEntry
 interpLoopExecuteEntry:
+%ifdef MACOSX
+    ; check if system stack has become unaligned
+    lea ecx, [ebp + FCore.scratch]
+    mov eax, esp
+    add eax, 4
+    and eax, 15
+    je goodStack
+    mov eax,[ecx]       ; put a breakpoint here to catch when system stack misaligns
+goodStack:
+    ; save the last 4 opcodes dispatched to help track down system stack align problems
+    mov eax, [ecx + 8]
+    mov [ecx + 12], eax
+    mov eax, [ecx + 4]
+    mov [ecx + 8], eax
+    mov eax, [ecx]
+    mov [ecx + 4], eax
+    mov [ecx], ebx
+badStack:
+%endif
 	cmp	ebx, [ebp + FCore.numOps]
 	jae	notNative
 	mov eax, [ebp + FCore.ops]
@@ -1604,11 +1623,12 @@ localStringStore:
 	add	edx, 4
 	mov	[ebp + FCore.SPtr], edx
 	lea	edi, [eax + 8]		; edi -> chars of dst string
+    sub esp, 4              ; 16-byte align for mac
 	push	ecx				; strlen will stomp on ecx
 	push	ecx
 	xcall	strlen
-	add	esp, 4
-	pop	ecx
+	mov ecx, [esp + 4]
+    add esp, 12
 	; eax is src string length
 
 	; figure how many chars to copy
@@ -1625,8 +1645,8 @@ lsStore1:
 	push	eax		; and save a copy in case strncpy modifies its stack inputs
 	push	ecx		; srcPtr
 	push	edi		; dstPtr
-	xcall	strncpy
-	add	esp, 12
+    xcall	strncpy
+    add esp, 12
 	pop	esi			; esi = numBytes
 
 	; add the terminating null
@@ -1645,9 +1665,10 @@ localStringAppend:
 	add	edx, 4
 	mov	[ebp + FCore.SPtr], edx
 	lea	edi, [eax + 8]		; edi -> chars of dst string
+    sub esp, 8              ; 16-byte align for mac
 	push	ecx
 	xcall	strlen
-	add	esp, 4
+	add	esp, 12
 	; eax is src string length
 
 	; figure how many chars to copy
@@ -3349,6 +3370,7 @@ unaryFloatFunc	ffloorBop, floorf
 ;========================================
 	
 entry datan2Bop
+    sub esp, 4      ; 16-byte align for mac
 	push	edx
 	push	esi
 	mov	eax, [edx+4]
@@ -3363,6 +3385,7 @@ entry datan2Bop
 	add	esp, 16
 	pop	esi
 	pop	edx
+    add esp, 4
 	add	edx,8
 	fstp	QWORD[edx]
 	jmp	edi
@@ -3370,6 +3393,7 @@ entry datan2Bop
 ;========================================
 	
 entry fatan2Bop
+    sub esp, 12     ; 16-byte align for mac
 	push	edx
 	push	esi
 	mov	eax, [edx]
@@ -3380,6 +3404,7 @@ entry fatan2Bop
 	add	esp, 8
 	pop	esi
 	pop	edx
+    add esp, 12
 	add	edx, 4
 	fstp	DWORD[edx]
 	jmp	edi
@@ -3388,6 +3413,7 @@ entry fatan2Bop
 	
 entry dpowBop
 	; a^x
+    sub esp, 4      ; 16-byte align for mac
 	push	edx
 	push	esi
 	; push x
@@ -3404,6 +3430,7 @@ entry dpowBop
 	add	esp, 16
 	pop	esi
 	pop	edx
+    add esp, 4
 	add	edx, 8
 	fstp	QWORD[edx]
 	jmp	edi
@@ -3412,6 +3439,7 @@ entry dpowBop
 	
 entry fpowBop
 	; a^x
+    sub esp, 12     ; 16-byte align for mac
 	push	edx
 	push	esi
 	; push x
@@ -3424,6 +3452,7 @@ entry fpowBop
 	add	esp, 8
 	pop	esi
 	pop	edx
+    add esp, 12
 	add	edx, 4
 	fstp	DWORD[edx]
 	jmp	edi
@@ -3448,6 +3477,7 @@ entry fabsBop
 
 entry dldexpBop
 	; ldexp( a, n )
+    sub esp, 8      ; 16-byte align for mac
 	push	edx
 	push	esi
 	; TOS is n (int), a (double)
@@ -3463,6 +3493,7 @@ entry dldexpBop
 	add	esp, 12
 	pop	esi
 	pop	edx
+    add esp, 8
 	add	edx, 4
 	fstp	QWORD[edx]
 	jmp	edi
@@ -3471,6 +3502,7 @@ entry dldexpBop
 
 entry fldexpBop
 	; ldexpf( a, n )
+    sub esp, 12     ; 16-byte align for mac
 	push	edx
 	push	esi
 	; TOS is n (int), a (float)
@@ -3484,6 +3516,7 @@ entry fldexpBop
 	add	esp, 8
 	pop	esi
 	pop	edx
+    add esp, 12
 	add	edx, 4
 	fstp	DWORD[edx]
 	jmp	edi
@@ -3493,6 +3526,7 @@ entry fldexpBop
 entry dfrexpBop
 	; frexp( a, ptrToIntExponentReturn )
 	sub	edx, 4
+    sub esp, 8      ; 16-byte align for mac
 	push	edx
 	push	esi
 	; TOS is a (double)
@@ -3508,6 +3542,7 @@ entry dfrexpBop
 	add	esp, 12
 	pop	esi
 	pop	edx
+    add esp, 8
 	fstp	QWORD[edx+4]
 	jmp	edi
 	
@@ -3515,6 +3550,7 @@ entry dfrexpBop
 
 entry ffrexpBop
 	; frexpf( a, ptrToIntExponentReturn )
+    sub esp, 12     ; 16-byte align for mac
 	; get arg a
 	mov	eax, [edx]
 	sub	edx, 4
@@ -3529,6 +3565,7 @@ entry ffrexpBop
 	add	esp, 8
 	pop	esi
 	pop	edx
+    add esp, 12
 	fstp	DWORD[edx+4]
 	jmp	edi
 	
@@ -3536,6 +3573,7 @@ entry ffrexpBop
 
 entry dmodfBop
 	; modf( a, ptrToDoubleWholeReturn )
+    sub esp, 8      ; 16-byte align for mac
 	mov	eax, edx
 	sub	edx, 8
 	push	edx
@@ -3553,6 +3591,7 @@ entry dmodfBop
 	add	esp, 12
 	pop	esi
 	pop	edx
+    add esp, 8
 	fstp	QWORD[edx]
 	jmp	edi
 	
@@ -3560,6 +3599,7 @@ entry dmodfBop
 
 entry fmodfBop
 	; modf( a, ptrToFloatWholeReturn )
+    sub esp, 12     ; 16-byte align for mac
 	mov	eax, edx
 	sub	edx, 4
 	push	edx
@@ -3575,12 +3615,14 @@ entry fmodfBop
 	add	esp, 8
 	pop	esi
 	pop	edx
+    add esp, 12
 	fstp	DWORD[edx]
 	jmp	edi
 	
 ;========================================
 
 entry dfmodBop
+    sub esp, 4      ; 16-byte align for mac
 	push	edx
 	push	esi
 	mov	eax, [edx+4]
@@ -3595,6 +3637,7 @@ entry dfmodBop
 	add	esp, 16
 	pop	esi
 	pop	edx
+    add esp, 4
 	add	edx, 8
 	fstp	QWORD[edx]
 	jmp	edi
@@ -3602,6 +3645,7 @@ entry dfmodBop
 ;========================================
 
 entry ffmodBop
+    sub esp, 12     ; 16-byte align for mac
 	push	edx
 	push	esi
 	mov	eax, [edx]
@@ -3612,6 +3656,7 @@ entry ffmodBop
 	add	esp, 8
 	pop	esi
 	pop	edx
+    add esp, 12
 	add	edx, 4
 	fstp	DWORD[edx]
 	jmp	edi
@@ -4904,9 +4949,20 @@ entry endTupleBop
 
 entry hereBop
 	mov	eax, [ebp + FCore.DictionaryPtr]
-	lea	eax, [eax + ForthMemorySection.pCurrent]
-	jmp	intEntry
-	
+    mov	ebx, [eax + ForthMemorySection.pCurrent]
+    sub edx, 4
+    mov [edx], ebx
+    jmp edi
+
+;========================================
+
+entry dpBop
+    mov	eax, [ebp + FCore.DictionaryPtr]
+    lea	ebx, [eax + ForthMemorySection.pCurrent]
+    sub edx, 4
+    mov [edx], ebx
+    jmp edi
+
 ;========================================
 
 entry storeBop
@@ -5169,6 +5225,7 @@ entry moveBop
 	;	TOS: nBytes dstPtr srcPtr
 	push	edx
 	push	esi
+    sub esp, 8      ; 16-byte align for mac
 	mov	eax, [edx]
 	push	eax
 	mov	eax, [edx+8]
@@ -5176,7 +5233,7 @@ entry moveBop
 	mov	eax, [edx+4]
 	push	eax
 	xcall	memmove
-	add	esp, 12
+	add	esp, 20
 	pop	esi
 	pop	edx
 	add	edx, 12
@@ -5188,6 +5245,7 @@ entry fillBop
 	;	TOS: nBytes byteVal dstPtr
 	push	edx
 	push	esi
+    sub esp, 8      ; 16-byte align for mac
 	mov	eax, [edx+4]
 	push	eax
 	mov	eax, [edx]
@@ -5196,7 +5254,7 @@ entry fillBop
 	mov	eax, [edx+8]
 	push	eax
 	xcall	memset
-	add	esp, 12
+	add	esp, 20
 	pop	esi
 	pop	edx
 	add	edx, 12
@@ -5343,12 +5401,13 @@ entry strcpyBop
 	;	TOS: srcPtr dstPtr
 	push	edx
 	push	esi
+    sub esp, 12     ; 16-byte align for mac
 	mov	eax, [edx]
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
 	xcall	strcpy
-	add	esp, 8
+	add	esp, 20
 	pop	esi
 	pop	edx
 	add	edx, 8
@@ -5360,6 +5419,7 @@ entry strncpyBop
 	;	TOS: maxBytes srcPtr dstPtr
 	push	edx
 	push	esi
+    sub esp, 8     ; 16-byte align for mac
 	mov	eax, [edx]
 	push	eax
 	mov	eax, [edx+4]
@@ -5367,7 +5427,7 @@ entry strncpyBop
 	mov	eax, [edx+8]
 	push	eax
 	xcall	strncpy
-	add	esp, 12
+	add	esp, 20
 	pop	esi
 	pop	edx
 	add	edx, 12
@@ -5397,12 +5457,13 @@ entry strcatBop
 	;	TOS: srcPtr dstPtr
 	push	edx
 	push	esi
+    sub esp, 12     ; 16-byte align for mac
 	mov	eax, [edx]
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
 	xcall	strcat
-	add	esp, 8
+	add	esp, 20
 	pop	esi
 	pop	edx
 	add	edx, 8
@@ -5414,6 +5475,7 @@ entry strncatBop
 	;	TOS: maxBytes srcPtr dstPtr
 	push	edx
 	push	esi
+    sub esp, 8     ; 16-byte align for mac
 	mov	eax, [edx]
 	push	eax
 	mov	eax, [edx+4]
@@ -5421,7 +5483,7 @@ entry strncatBop
 	mov	eax, [edx+8]
 	push	eax
 	xcall	strncat
-	add	esp, 12
+	add	esp, 20
 	pop	esi
 	pop	edx
 	add	edx, 12
@@ -5433,12 +5495,13 @@ entry strchrBop
 	;	TOS: char strPtr
 	push	edx
 	push	esi
+    sub esp, 12     ; 16-byte align for mac
 	mov	eax, [edx]
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
 	xcall	strchr
-	add	esp, 8
+	add	esp, 20
 	pop	esi
 	pop	edx
 	add	edx, 4
@@ -5451,12 +5514,13 @@ entry strrchrBop
 	;	TOS: char strPtr
 	push	edx
 	push	esi
+    sub esp, 12     ; 16-byte align for mac
 	mov	eax, [edx]
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
 	xcall	strrchr
-	add	esp, 8
+	add	esp, 20
 	pop	esi
 	pop	edx
 	add	edx, 4
@@ -5469,6 +5533,7 @@ entry strcmpBop
 	;	TOS: ptr2 ptr1
 	push	edx
 	push	esi
+    sub esp, 12     ; 16-byte align for mac
 	mov	eax, [edx]
 	push	eax
 	mov	eax, [edx+4]
@@ -5483,7 +5548,7 @@ strcmp1:
 strcmp2:
 	inc	ebx
 strcmp3:
-	add	esp, 8
+	add	esp, 20
 	pop	esi
 	pop	edx
 	add	edx, 4
@@ -5496,6 +5561,7 @@ entry stricmpBop
 	;	TOS: ptr2 ptr1
 	push	edx
 	push	esi
+    sub esp, 12     ; 16-byte align for mac
 	mov	eax, [edx]
 	push	eax
 	mov	eax, [edx+4]
@@ -5513,12 +5579,13 @@ entry strstrBop
 	;	TOS: ptr2 ptr1
 	push	edx
 	push	esi
+    sub esp, 12     ; 16-byte align for mac
 	mov	eax, [edx]
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
 	xcall	strstr
-	add	esp, 8
+	add	esp, 20
 	pop	esi
 	pop	edx
 	add	edx, 4
@@ -5531,12 +5598,13 @@ entry strtokBop
 	;	TOS: ptr2 ptr1
 	push	edx
 	push	esi
+    sub esp, 12     ; 16-byte align for mac
 	mov	eax, [edx]
 	push	eax
 	mov	eax, [edx+4]
 	push	eax
 	xcall	strtok
-	add	esp, 8
+	add	esp, 20
 	pop	esi
 	pop	edx
 	add	edx, 4

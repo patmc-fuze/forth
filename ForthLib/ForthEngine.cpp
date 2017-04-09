@@ -9,6 +9,7 @@
 #if defined(LINUX) || defined(MACOSX)
 #include <ctype.h>
 #include <stdarg.h>
+#include <sys/mman.h>
 #endif
 #include "ForthEngine.h"
 #include "ForthThread.h"
@@ -295,8 +296,10 @@ ForthEngine::~ForthEngine()
     {
 #ifdef WIN32
 		VirtualFree( mDictionary.pBase, 0, MEM_RELEASE );
+#elif MACOSX
+        munmap(mDictionary.pBase, mDictionary.len * sizeof(long));
 #else
-		__FREE( mDictionary.pBase );
+        __FREE( mDictionary.pBase );
 #endif
 		delete mpForthVocab;
         delete mpLocalVocab;
@@ -368,8 +371,10 @@ ForthEngine::Initialize( ForthShell*        pShell,
 	void* dictionaryAddress = NULL;
 	// we need to allocate memory that is immune to Data Execution Prevention
 	mDictionary.pBase = (long *) VirtualAlloc( dictionaryAddress, dictionarySize, (MEM_COMMIT | MEM_RESERVE), PAGE_EXECUTE_READWRITE );
+#elif MACOSX
+    mDictionary.pBase = (long *) mmap(NULL, dictionarySize, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_PRIVATE, -1, 0);
 #else
-	mDictionary.pBase = (long *) __MALLOC( dictionarySize );
+	 __MALLOC( dictionarySize );
 #endif
     mDictionary.pCurrent = mDictionary.pBase;
     mDictionary.len = totalLongs;

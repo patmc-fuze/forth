@@ -7773,8 +7773,14 @@ FORTHOP( fputsBop )
 FORTHOP( hereBop )
 {
     ForthEngine *pEngine = GET_ENGINE;
-	int *pDP = (int *)&(pCore->pDictionary->pCurrent);
-	_doIntVarop(pCore, pDP);
+	SPUSH((int)(pCore->pDictionary->pCurrent));
+}
+
+FORTHOP( dpBop )
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    int *pDP = (int *)&(pCore->pDictionary->pCurrent);
+    SPUSH((int)pDP);
 }
 
 FORTHOP( archARMBop )
@@ -7984,7 +7990,7 @@ OPREF( lEqualsBop );        OPREF( lNotEqualsBop );     OPREF( lEquals0Bop );
 OPREF( lNotEquals0Bop );    OPREF( lGreaterThanBop );   OPREF( lGreaterThan0Bop );
 OPREF( lLessThanBop );      OPREF( lLessThan0Bop );     OPREF( fcmpBop );
 OPREF( lGreaterEqualsBop ); OPREF( lGreaterEquals0Bop ); OPREF( lLessEqualsBop );
-OPREF( lLessEquals0Bop );
+OPREF( lLessEquals0Bop );   OPREF( dpBop );
 
 OPREF( rpushBop );          OPREF( rpopBop );           OPREF( rpeekBop );
 OPREF( rdropBop );          OPREF( rpBop );             OPREF( r0Bop );
@@ -8131,6 +8137,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    unloopBop,               "unloop" ),
     NATIVE_DEF(    leaveBop,                "leave" ),
     NATIVE_DEF(    hereBop,                 "here" ),
+    NATIVE_DEF(    dpBop,                   "dp" ),
     NATIVE_DEF(    fetchBop,                "fetch" ),
     NATIVE_DEF(    noopBop,                 "noop" ),
 

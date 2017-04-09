@@ -151,6 +151,7 @@ STRUC FCore
     .consoleOutStream	RESD 2
     .base				RESD 1
     .signedPrintMode		RESD 1
+    .scratch            RESD 4
 ENDSTRUC 
 
 ;STRUC ForthFileInterface
