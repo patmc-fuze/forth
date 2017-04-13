@@ -1550,7 +1550,11 @@ ForthEngine::ScanIntegerToken( char         *pToken,
         }
         else
         {
+#if defined(WIN32)
             if ( sscanf( pToken + 2, "%I64x", &lvalue ) == 1 )
+#else
+            if ( sscanf( pToken + 2, "%llx", &lvalue ) == 1 )
+#endif
             {
                 if ( isNegative )
                 {
