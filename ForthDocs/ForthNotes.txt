@@ -173,6 +173,12 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 14 2017
+
+I've been mainly working in the arm2016 branch, the expanded test.txt revealed
+a bunch of things that never worked on that branch.  Threads are still broken
+there, and I haven't tried the sort or tree examples recently.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 8 2017
 
 I went back and got the OSX assembler inner interpreter working, there are

@@ -2339,12 +2339,13 @@ FORTHOP(getClassByIndexOp)
 
 
 // doStructTypeOp is compiled at the start of each user-defined structure defining word 
-FORTHOP( doStructTypeOp )
+FORTHOP(doStructTypeOp)
 {
-    // IP points to data field
-    ForthStructVocabulary *pVocab = (ForthStructVocabulary *) (*GET_IP);
+	// IP points to data field
+	ForthStructVocabulary *pVocab = (ForthStructVocabulary *)(*GET_IP);
 
 	ForthEngine *pEngine = GET_ENGINE;
+	bool doDefineInstance = true;
 	if (pEngine->IsCompiling())
 	{
 		// handle the case 'ref STRUCT_TYPE'
@@ -2354,11 +2355,22 @@ FORTHOP( doStructTypeOp )
 			// compile this opcode so at runtime (ref STRUCT_OP) will push struct vocab address
 			ForthTypesManager* pManager = ForthTypesManager::GetInstance();
 			pEngine->CompileOpcode(pManager->GetTypeInfo(pVocab->GetTypeIndex())->op);
-			SET_IP((long *)(RPOP));
-			return;
+			doDefineInstance = false;
 		}
 	}
-	pVocab->DefineInstance();
+	else
+	{
+		if (GET_VAR_OPERATION == kVarRef)
+		{
+			SPUSH((long)pVocab);
+			doDefineInstance = false;
+			CLEAR_VAR_OPERATION;
+		}
+	}
+	if (doDefineInstance)
+	{
+		pVocab->DefineInstance();
+	}
 	SET_IP((long *)(RPOP));
 }
 
