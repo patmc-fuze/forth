@@ -192,6 +192,52 @@ FORTHOP( udivmodOp )
     LPUSH( quotient );
 }
 
+#ifdef RASPI
+FORTHOP( timesDivOp )
+{
+	int denom = SPOP;
+	int a = SPOP;
+	int b = SPOP;
+	long long product = (long long) a * (long long) b;
+	int result = product / denom;
+	SPUSH(result);
+}
+
+FORTHOP( timesDivModOp )
+{
+	int denom = SPOP;
+	int a = SPOP;
+	int b = SPOP;
+	long long product = (long long) a * (long long) b;
+	int quotient = product / denom;
+	int remainder = product % denom;
+	SPUSH(remainder);
+	SPUSH(quotient);
+}
+
+FORTHOP( umDivModOp )
+{
+    stackInt64 a;
+    unsigned int denom = SPOP;
+    LPOP(a);
+	unsigned int quotient = a.u64 / denom;
+	unsigned int remainder = a.u64 % denom;
+	SPUSH(remainder);
+	SPUSH(quotient);
+}
+
+FORTHOP( smRemOp )
+{
+    stackInt64 a;
+    int denom = SPOP;
+    LPOP(a);
+	int quotient = a.s64 / denom;
+	int remainder = a.s64 % denom;
+	SPUSH(remainder);
+	SPUSH(quotient);
+}
+#endif
+
 //##############################
 //
 // 64-bit integer comparison ops
@@ -8496,6 +8542,12 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    lmodOp,                 "lmod" ),
     OP_DEF(    ldivmodOp,              "l/mod" ),
     OP_DEF(    udivmodOp,              "ud/mod" ),
+#ifdef RASPI
+    OP_DEF(    timesDivOp,             "*/" ),
+    OP_DEF(    timesDivModOp,          "*/mod" ),
+    OP_DEF(    umDivModOp,             "um/mod" ),
+    OP_DEF(    smRemOp,                "sm/rem" ),
+#endif   
     
     ///////////////////////////////////////////
     //  64-bit integer comparisons
