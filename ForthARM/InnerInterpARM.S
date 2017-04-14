@@ -77,9 +77,10 @@ cur_thread		=	84			@	current ForthThread pointer
 dict_mem_sect	=	88			@	dictionary memory section pointer
 file_funcs		=	92			@
 inner_loop		=	96			@	inner interpreter asm reentry point
-conout_stream  = 100
-base          = 104
-signed_print_mode = 108
+conout_stream  	=	100
+base          	=	108
+signed_print_mode = 112
+scratch			=	116
 
 kVarDefaultOp			=		0
 kVarFetch				=		1
@@ -214,18 +215,22 @@ break_me:
 NativeAction:
 	@	r0	=	core
 	@	r1	=	opVal
-	push	{rcore, rip, rsp, rrp, rfp, lr}
+	push	{rcore-raction, r12, lr}
 	mov	rcore, r0
 	add	r2, rcore, #ipsave
 	ldmia	r2!, {rip-rfp}			@ load IP, SP, RP, FP from core
+	ldr	rops, [rcore, #ops]			@ rops = table of ops
+	ldr	rnumops, [rcore, #n_ops]	@ rnumops = number of ops implemented in assembler
+	ldr	raction, .opTypesTable		@ raction = table of opType handlers
 	
 	ldr	r2, [rcore, #ops]
 	ldr	r3, [r2, r1, lsl #2]
 	bl	.NativeAction1
 	@	user op will return here
+NativeActionExit:
 	add	r1, rcore, #ipsave			@ r1 -> IP
 	stmia	r1!, {rip-rfp}			@ save IP, SP, RP, FP in core
-	pop	{rcore, rip, rsp, rrp, rfp, pc}
+	pop	{rcore-raction, r12, pc}
 		
 .NativeAction1:
 	bx	r3
@@ -255,6 +260,19 @@ InterpretOneOpFast:
 	b	.IIExit
 
 
+checkOptypeTable:
+	push	{r0-r2}
+	ldr	r0, [rcore, #c_optypes]
+	ldr	r1, [r0]
+	ldr	r2, [r0, #4]
+	cmp r1, r2
+	bne	checkFailed
+	pop 	{r0-r2}
+	bx	lr
+checkFailed:
+	pop 	{r0-r2}
+	bx	lr
+
 @-----------------------------------------------
 @
 @ inner interpreter C entry point
@@ -270,7 +288,7 @@ InnerInterpreterFast:
 	@
 	@ re-enter here if you stomped on rip/rsp/rrp	
 	@
-InnerInterpreter:
+InnerInterpreterReentry:
 	add	r0, rcore, #ipsave
 	ldmia	r0!, {rip-rfp}			@ load IP, SP, RP, FP from core
 	ldr	rops, [rcore, #ops]			@ rops = table of ops
@@ -291,21 +309,57 @@ InnerInterpreter:
 	@
 innerInterpLoop:
 .II1:
+	push {lr}
+	bl checkOptypeTable
+	pop {lr}
 	@swi	#0xFD
 	ldrb	r0, [rcore, #istate]	@ get state from core
 	cmp	r0, #kResultOk			@ keep looping if state is still ok (zero)
 	bne	.IIExit
 .II2:
+	ldr	r0, [rcore, #ops]			@ rops = table of ops
+	cmp r0, rops
+	bne	badTuna
+	ldr	r0, [rcore, #n_ops]	@ rnumops = number of ops implemented in assembler
+	cmp r0, rnumops
+	bne	badTuna
+	ldr	r0, .opTypesTable		@ raction = table of opType handlers
+	cmp r0, raction
+	bne	badTuna
+	cmp	rops, #0
+	beq	badTuna
+.backFromBadTuna:
 	ldmia	rip!, {r0}			@ r0 = next opcode, advance IP
 @ interpLoopExecuteEntry is entry for executeBop - expects opcode in r0
 interpLoopExecuteEntry:
+	@ keep last 4 executed opcodes in core.scratch
+@	mov	r3, rcore
+@	add	r3, #scratch
+@	ldr	r2, [r3, #8]
+@	str	r2, [r3, #12]
+@	ldr	r2, [r3, #4]
+@	str	r2, [r3, #8]
+@	ldr	r2, [r3]
+@	str	r2, [r3, #4]
+@	str	r0, [r3]
+iidisp:
+	str	r0, [rcore, #scratch]
+	push {lr}
+	bl checkOptypeTable
+	pop {lr}
 	cmp	r0, rnumops					@ is opcode native op?
 	bge	.II3
 	@ handle native ops
 	ldr	r1, [rops, r0, lsl #2]
+	str	r0, [rcore, #scratch]
 	bx	r1
 
+	.global badTuna
+badTuna:
+	b	.backFromBadTuna
+		
 .II3:
+	str	r0, [rcore, #scratch]
 	@
 	@ opcode is not native
 	@
@@ -323,6 +377,10 @@ interpLoopExecuteEntry:
 	@ exit inner interpreter
 	@	
 .IIExit:
+interpLoopExit:
+	push {lr}
+	bl checkOptypeTable
+	pop {lr}
 	add	r1, rcore, #ipsave			@ r1 -> IP
 	stmia	r1!, {rip-rfp}			@ save IP, SP, RP, FP in core
 	pop	{rcore-raction, r12, pc}
@@ -369,25 +427,38 @@ InitAsmTables:
 @	r1 holds the opcode value field
 @
 cCodeType:
+	str	r1, [rcore, #scratch]
+	push {lr}
+	bl checkOptypeTable
+	pop {lr}
 	@ r1 is low 24-bits of opcode
 	ldr	r3, [rcore, #n_ops]
 	cmp	r1, r3
 	bge	badOpcode
 
-	bl	.cct2
-	
-	@ we come here when C op does its return
-	ldrb	r0, [rcore, #istate]	@ get state from core
-	cmp	r0, #kResultOk			@ exit if state is not ok
-	bne	.IIExit
-	b	InnerInterpreter
-		
-.cct2:
 	add	r0, rcore, #ipsave			@ r0 -> IP
 	stmia	r0!, {rip-rfp}		@ save IP, SP, RP, FP in core
 	mov	r0, rcore					@ C ops take pCore ptr as first param
 	ldr	r3, [rcore, #ops]			@ r3 = table of ops
 	ldr	r2, [r3, r1, lsl #2]
+	bl	.cct2
+	
+	@ we come here when C op does its return
+cCodeTypeExit:
+	push {lr}
+	bl checkOptypeTable
+	pop {lr}
+	add	r0, rcore, #ipsave
+	ldmia	r0!, {rip-rfp}			@ load IP, SP, RP, FP from core
+	ldrb	r0, [rcore, #istate]	@ get state from core
+	cmp	r0, #kResultOk			@ exit if state is not ok
+	bne	.IIExit
+	ldr	rops, [rcore, #ops]			@ rops = table of ops
+	ldr	rnumops, [rcore, #n_ops]	@ rnumops = number of ops implemented in assembler
+	ldr	raction, .opTypesTable		@ raction = table of opType handlers
+	b	InnerInterpreterReentry
+		
+.cct2:
 	bx	r2
 
 
@@ -979,7 +1050,7 @@ localFloatMinusStore:
 	flds	s14, [rsp]
 	add	rsp, #4
 	flds	s15, [r0]
-	fadds	s15, s15, s14
+	fsubs	s15, s15, s14
 	fsts	s15, [r0]
 	bx	lr
 
@@ -1245,8 +1316,8 @@ localLongMinusStore:
 	ldmia	rsp!, {r2,r3}			@ pop TOS long value into r2,r3
 	push	{rcore, rip}
 	ldm	r0, {rcore, rip}
-	subs	rip, r2, rip
-	sbc	rcore, r3, rcore
+	subs	rip, rip, r2
+	sbc	rcore, rcore, r3
 	stm	r0!, {rcore,rip}
 	pop	{rcore, rip}
 	bx	lr
@@ -1672,8 +1743,7 @@ localObjectClear:
 @ do not adjust reference counts of old object or new object
 localObjectStoreNoRef:
 	@ TOS is new object, r0 points to destination/old object
-	ldmia	rsp!, {r1}			@ r1 = hi, r2 = lo
-	mov	r3, r1
+	ldmia	rsp!, {r2, r3}			@ r2 = methods, r3 = data
 	strd	r2, [r0]
 	bx	lr
 
@@ -1854,8 +1924,7 @@ litBop:
 
 dlitBop:
 	ldmia	rip!, {r0, r1}
-	mov	r2, r0
-	stmdb	rsp!, {r1, r2}
+	stmdb	rsp!, {r0, r1}
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  _doVariable  @@@@@@@@@@@@@@@@@
@@ -3109,32 +3178,31 @@ dfmodBop:
 
 lplusBop:
 	ldmia	rsp!, {r2, r3}			@ pop TOS long value into r3(lo),r2(hi)
-	ldm	rsp!, {r0, r1}			@ pop TOS long value into r1(lo),r0(hi)
+	ldmia	rsp, {r0, r1}			@ pop TOS long value into r1(lo),r0(hi)
 	adds	r1, r3, r1
 	adc	r0, r2, r0
-	stm	rsp!, {r0, r1}
+	stmia	rsp, {r0, r1}
 	bx	lr
 
 lminusBop:
 	ldmia	rsp!, {r2, r3}			@ pop TOS long value into r3(lo),r2(hi)
-	ldm	rsp!, {r0, r1}			@ pop TOS long value into r1(lo),r0(hi)
+	ldmia	rsp, {r0, r1}			@ pop TOS long value into r1(lo),r0(hi)
 	subs	r1, r1, r3
 	sbc	r0, r0, r2
-	stm	rsp!, {r0, r1}
+	stmia	rsp, {r0, r1}
 	bx	lr
 
 ltimesBop:
 	@ based on http://stackoverflow.com/questions/1131833/how-do-you-multiply-two-64-bit-numbers-in-x86-assembler
 	@ TOS: bhi blo ahi alo
 	@ umull RdLo, RdHi, Rn, Rm
-	add	r2, rcore, #ipsave			@ r1 -> IP
-	stmia	r2!, {rip, rsp, rfp}				@ save IP, RP, FP (r5-r8) in core
+	push {rip, rrp, rfp}			@ save IP, RP, FP
 	@ rip will be the sign flag
 	eor	rip, rip
 	eor	rfp, rfp
 	@ negate a and/or b and stuff absolute values back in stack
 	ldmia	rsp!, {r0, r1}			@ r0=bhi r1=blo
-	ldm	rsp!, {r2, r3}				@ r2=ahi r3=alo
+	ldmia	rsp, {r2, r3}				@ r2=ahi r3=alo
 	@ negate b if necessary
 	orrs	r0, r0
 	bge	ltimes1
@@ -3166,6 +3234,7 @@ ltimes2:
 ltimes3:
 	str	rfp, [rsp]
 	str	rrp, [rsp, #4]
+	pop {rip, rrp, rfp}				@ restore IP, RP, FP
 	bx	lr
 
 @#############################################@
@@ -4261,9 +4330,9 @@ minBop:
 	eor	r2, r2
 	cmp	r0, r1
 	bgt	.min1
-	mov	r0, r1
+	mov	r1, r0
 .min1:
-	stmdb	rsp!, {r0}
+	stmdb	rsp!, {r1}
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  max  @@@@@@@@@@@@@@@@@
@@ -4513,18 +4582,19 @@ moveBop:
 	mov	r2, r0
 	mov	r0, r1
 	mov	r1, r3
-	bl	memcpy
+	bl	memmove
 	pop	{rcore, lr}
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  fill  @@@@@@@@@@@@@@@@@
 
 fillBop:
-	@	TOS is #bytes, TOS-1 is fillValue, TOS-2 is dst
+	@	TOS is fillValue, TOS-1 is #bytes, TOS-2 is dst
 	push	{rcore, lr}
-	ldmia	rsp!, {r0, r1, r3}		@ r0 = #bytes, r1 = fillValue r3 = dst
-	mov	r2, r0
+	ldmia	rsp!, {r0, r2, r3}		@ r0 = fillValue, r2 = #bytes r3 = dst
+	mov	r1, r0
 	mov	r0, r3
+	@ r0 = dst, r1 = fillvalue, r2 = #bytes
 	bl	memset
 	pop	{rcore, lr}
 	bx	lr
@@ -5107,14 +5177,35 @@ sscanfSub2:
 @	r2 holds the opcode type field
 @
 extOpType:
+	str	r1, [rcore, #scratch]
+	push {lr}
+	bl checkOptypeTable
+	pop {lr}
 	add	r0, rcore, #ipsave			@ r0 -> IP
 	stmia	r0!, {rip-rrp}			@ save IP, SP, RP in core
+	bl	.extOp1
+
+@ this will be executed after C++ routine returns
+	push {lr}
+	bl checkOptypeTable
+	pop {lr}
+	add	r0, rcore, #ipsave
+	ldmia	r0!, {rip-rfp}			@ load IP, SP, RP, FP from core
+	ldr	rops, [rcore, #ops]			@ rops = table of ops
+	ldr	rnumops, [rcore, #n_ops]	@ rnumops = number of ops implemented in assembler
+	bx	lr
+
+.extOp1:
 	ldr	r3, [rcore]				@ r3 = table of C optype action routines
 	ldr	r2, [r3, r2, lsl #2]	@ r2 = action routine for this optype
 	mov	r0, rcore					@ C++ optype routines take core ptr as 1st argument
 	bx	r2
 
 nativeImmediate:
+	str	r1, [rcore, #scratch]
+	push {lr}
+	bl checkOptypeTable
+	pop {lr}
 	ldr	r3, [rcore, #n_ops]
 	cmp	r1, r3
 	bge	badOpcode
@@ -5197,17 +5288,18 @@ relativeDefBranchType:
 	@ push relativeDef opcode for immediately following anonymous definition (IP points to it)
 	@ compute offset from dictionary base to anonymous def
 	ldr	r0, [rcore, #dict_mem_sect]
-	ldr	r2, [r0, #FMSCurrent]
+	ldr	r2, [r0, #FMSBase]
     mov r0, rip
     sub r0, r2
     lsr r0, #2
+	ldr	r3, =0x00FFFFFF
+	and	r0, r3
 	@ stick the optype in top 8 bits
     ldr r2, =kOpRelativeDefType
     orr r0, r2
     stmdb   rsp!, {r0}
 	@ advance IP past anonymous definition
-	ldr	r2, =0x00FFFFFF
-	ands  r1, r2
+	ands  r1, r3
     lsl r1, #2
     add rip, r1
     bx  lr
@@ -5354,8 +5446,8 @@ initLocalStringType:
 localRefType:
 	@ push local reference - r1 is frame offset in longs
 	lsl	r1, #2
-	add	r1, rfp
-	stmdb	rsp!, {r1}
+	sub	r0, rfp, r1					@ r0 points to the byte field
+	stmdb	rsp!, {r0}
 	bx	lr
 	
 @-----------------------------------------------
@@ -5534,6 +5626,7 @@ squishedFloatType:
 	lsr	r3, #18
 	ldr	r2, =0x1F
 	and	r3, r2
+	add	r3, #112
 	lsl	r3, #23			@ r3 is exponent
 	orr	r0, r3
 	
