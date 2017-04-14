@@ -15,15 +15,6 @@ code _doDoesCode
   r0 bx,
   endcode
   
-: doescode
-  postpone does
-  ['] _doDoesCode here 4- !
-  also assembler
-  0 state !
-  postpone recursive
-;
-precedence doescode
-
 #if( 0 )
 // sample usage
 : adder
@@ -246,8 +237,57 @@ code labs
   rsp ia { r0 r1 } stm,
   next,
 
+
+// this requires that caller not have extra junk on return stack
+code tailRecurse
+  // tail recurse by popping the rstack and then moving the IP back one instruction
+  { r0 } rpop,
+  r0 4 # r0 sub,
+  r0 rip mov,
+  next,
+
+code 2>r
+  { r0 r1 } ppop,
+  { r0 r1 } rpush,
+  next,
+  
+code 2r>
+  { r0 r1 } rpop,
+  { r0 r1 } ppush,
+  next,
+  
+code 2r@
+  rrp ia { r0 r1 } ldm,
+  { r0 r1 } ppush,
+  next,
+  
 loaddone
   
+  
+code */
+  next,
+  
+code */mod
+  next,
+  
+code um/mod
+  { r0 r1 r2 } ppop,
+  // r0: numeratorLo  r1: numeratorHi     r2: denominator
+  //    -> r0: quotient   r1: remainder
+  0 # r3 mvn,
+  begin,
+    r0 r0 r0 adds,
+    r1 r1 r1 adcs,
+    r2 r1 r1 cc cmp,
+    r2 r1 r1 cs sub,
+    r0 1 # r0 cs orr,
+    r3 1 #lsl r3 movs,
+  eq until,
+  { r0 r1 } ppush,
+  next,
+	
+code sm/rem
+  next,
   
 // .fl for 64-bit, .fs for 32-bit
 
@@ -263,7 +303,6 @@ code dsq
   edx ] .fl fstp,
   next,
   
-loaddone
 
 // eax ebx ecx edx edi esi ebp
 // r and d need to be 64-bit

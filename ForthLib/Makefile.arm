@@ -3,7 +3,7 @@
 CC = g++
 GAS = as
 CDEBUG = -g
-DEFINES = -DRASPI -DLINUX -DASM_INNER_INTERPRETER -DINCLUDE_TRACE
+DEFINES = -DRASPI -DLINUX -DASM_INNER_INTERPRETER -DINCLUDE_TRACE -DSTORAGE_LONGS=4000000
 CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -save-temps=obj -marm
 #WARNING_FLAGS = -Wall -Wno-format -Wno-reorder -Wno-unused-variable -Wsign-compare -Wunused-but-set-variable
 WARNING_FLAGS = -Wno-format -Wno-reorder -Wno-unused-variable

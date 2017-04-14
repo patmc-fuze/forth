@@ -29,10 +29,17 @@
 
 #define CATCH_EXCEPTIONS
 
-#define STORAGE_LONGS (64 * 1024 * 1024)
+#ifndef STORAGE_LONGS
+#define STORAGE_LONGS (16 * 1024 * 1024)
+#endif
 
+#ifndef PSTACK_LONGS
 #define PSTACK_LONGS 8192
+#endif
+
+#ifndef RSTACK_LONGS
 #define RSTACK_LONGS 8192
+#endif
 
 namespace
 {
