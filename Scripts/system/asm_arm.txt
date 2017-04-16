@@ -241,7 +241,7 @@ int had-cc
    0 begin over 77777777 <> while
 	 swap ?register   1 rot lshift or
    repeat  nip register-list ;
-: R-R  // reg1 regN -- reg1 reg2... regN
+: r-r  // reg1 regN -- reg1 reg2... regN
    ?register  swap ?register  1+ ?do  i register loop ;
 : ?register-list  // 'register-list' --
    register-list <> abort" Need a register list { .. } as operand" ;
@@ -299,7 +299,10 @@ int had-cc
 04200000 memT-op: strt,		   04300000 memT-op: ldrt, 
 04600000 memT-op: strbt,	   04700000 memT-op: ldrbt,
 000000b0 memH-op: strh,		   001000b0 memH-op: ldrh, 
-001000f0 memH-op: ldrsh,	   000000d0 memH-op: ldrsb,
+001000f0 memH-op: ldrsh,	   001000d0 memH-op: ldrsb,
+
+000000f0 memH-op: strd,		   000000d0 memH-op: ldrd, 
+
 01000090 memS-op: swp,		   01400090 memS-op: swpb,
 
 08000000 mmem-op:  stm,		   08100000 mmem-op: ldm,
