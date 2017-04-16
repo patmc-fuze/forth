@@ -613,6 +613,7 @@ namespace OString
 			int len = strlen(srcStr);
 			appendOString(pString, srcStr, len);
 		}
+        pCore->SP += numStrings;
 		METHOD_RETURN;
 	}
 
