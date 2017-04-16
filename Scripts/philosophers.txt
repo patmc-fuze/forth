@@ -115,7 +115,8 @@ class: Philosopher
   loop
   
   system.createAsyncThread(lit diningLoop 100 100) -> dinner
-  dinner.start
+
+  dinner.start drop
 
   begin
   while(dinner.getRunState kFTRSExited <>)

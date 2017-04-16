@@ -1,40 +1,43 @@
+: runtest ds "##################### run " %s blword dup %s " #####################\n" %s $load ;
 
-lf evil.txt
+runtest evil.txt
 forget evilVM
 
-lf async_philosophers.txt
+runtest async_philosophers.txt
 go
 forget asyncPhilosophers
 
-lf philosophers.txt
+runtest philosophers.txt
 go
 forget philosophers
 
 200 -> int numElems
-lf sort_examples.txt
+runtest sort_examples.txt
 go
 forget sort_examples
 
-lf tree_examples.txt
+runtest tree_examples.txt
 go
 forget tree_examples
 
+
 cd tests
 
-lf forthtest.txt
+runtest forthtest.txt
 
-lf biclasstest.txt
+runtest biclasstest.txt
 cleanup
 
-lf rctest.txt
+runtest rctest.txt
 test
 cleanup
 
-lf structtest.txt
+runtest structtest.txt
 
-lf misctest.txt
+runtest misctest.txt
 
-lf ansitest.txt
+runtest ansitest.txt
 
 cd ..
+
 

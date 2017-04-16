@@ -602,7 +602,7 @@ int _time
 "type testSorts to test multiple algorithms for " %s numElems . "elements\n" %s
 "set numElems to change number of elements\n" %s
 "set beNoisy to true to display sort array before and after sort\n" %s
-"or run individual tests with ops: insertionSort selectionSort bubbleSort shellSort combSort quickSort heapSort mergeSort\n"
+"or run individual tests with ops: insertionSort selectionSort bubbleSort shellSort combSort quickSort heapSort mergeSort\n" %s
 "rebuild with compileDebug true to get extremely verbose output\n" %s
 
 loaddone

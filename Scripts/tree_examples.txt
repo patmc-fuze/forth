@@ -611,10 +611,6 @@ class: Tree
   //  bottom level is filled left-to-right
   m: findBottomHeapSlot
     if(root or)
-      if(numNodes 1 >)
-      else
-        root
-      endif
       // a relatively simple way of determining the left-right path to the rightmost node on
       //  the bottom (incomplete) layer of the tree - take the bits below the top set bit of the (numNodes + 1)
       // here we stick them on the stack starting at the low bit to do the reversing
