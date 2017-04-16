@@ -173,6 +173,15 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 15 2017
+
+I have all the examples, including the dining philosophers, tree and sort
+examples to work on the arm build without errors.
+
+I added the ldrd and strd instructions to the arm assembler, it looks like the
+ldrsb instruction was actually generating an ldrd, I think I fixed it to
+actually generate an ldrsb instruction.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 14 2017
 
 I've been mainly working in the arm2016 branch, the expanded test.txt revealed
