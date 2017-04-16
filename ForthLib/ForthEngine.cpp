@@ -1205,7 +1205,7 @@ ForthEngine::TraceStack( ForthCoreState* pCore )
 
 	TraceOut("  stack[%d]:", nItems); 
 #define MAX_TRACE_STACK_ITEMS 12
-	int numToDisplay = min(MAX_TRACE_STACK_ITEMS, nItems);
+	int numToDisplay = std::min(MAX_TRACE_STACK_ITEMS, nItems);
 	for (i = 0; i < numToDisplay; i++)
 	{
 		TraceOut( " %x", *pSP++ );
