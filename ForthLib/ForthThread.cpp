@@ -510,9 +510,7 @@ long ForthAsyncThread::Start()
 		// TODO
 		//::CloseHandle( mHandle );
 	}
-printf("pthread_create\n");
 	mHandle = pthread_create(&mThread, NULL, ForthAsyncThread::RunLoop, this);
-printf("pthread_create done\n");
 
 #endif
 	return (long)mHandle;
@@ -527,9 +525,7 @@ void ForthAsyncThread::Exit()
 #ifdef WIN32
 		_endthreadex(0);
 #else
-printf("pthread_exit\n");
 		pthread_exit(&mExitStatus);
-printf("pthread_exit done\n");
 #endif
 	}
 }
@@ -608,7 +604,6 @@ namespace OThread
 
 	FORTHOP(oAsyncThreadStartMethod)
 	{
-printf("oAsyncThreadStartMethod\n");
 		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		ForthAsyncThread* pAsyncThread = pThreadStruct->pThread;
 		ForthThread* pThread = pAsyncThread->GetThread(0);
