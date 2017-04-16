@@ -20,7 +20,6 @@
 
 #define END_MEMBERS { NULL, 0, 0 }
 
-#define INVOKE_METHOD( _pCore, _obj, _methodNum ) ForthEngine::GetInstance()->ExecuteOneMethod( _pCore, _obj, _methodNum )
 #define FULLY_EXECUTE_METHOD( _pCore, _obj, _methodNum ) ForthEngine::GetInstance()->FullyExecuteMethod( _pCore, _obj, _methodNum )
 
 #define PUSH_PAIR( _methods, _data )    SPUSH( (long) (_data) ); SPUSH( (long) (_methods) )

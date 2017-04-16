@@ -1170,19 +1170,9 @@ ForthEngine::GetTraceOutRoutine(traceOutRoutine& traceRoutine, void*& pTraceData
 }
 
 void
-ForthEngine::TraceOp(ForthCoreState* pCore, long op)
-{
-	long* savedIP = pCore->IP;
-	pCore->IP = &op;
-	TraceOp(pCore);
-	pCore->IP = savedIP;
-}
-
-void
-ForthEngine::TraceOp(ForthCoreState* pCore)
+ForthEngine::TraceOp(long* pOp)
 {
 #ifdef TRACE_INNER_INTERPRETER
-    long *pOp = pCore->IP;
     char buff[ 256 ];
 #if 0
     int rDepth = pCore->RT - pCore->RP;
@@ -1213,12 +1203,18 @@ ForthEngine::TraceStack( ForthCoreState* pCore )
 	int nItems = GET_SDEPTH;
 	int i;
 
-	TraceOut( "  stack[%d]:", nItems );
-	for ( i = 0; i < nItems; i++ )
+	TraceOut("  stack[%d]:", nItems); 
+#define MAX_TRACE_STACK_ITEMS 12
+	int numToDisplay = min(MAX_TRACE_STACK_ITEMS, nItems);
+	for (i = 0; i < numToDisplay; i++)
 	{
 		TraceOut( " %x", *pSP++ );
 	}
-    int rDepth = pCore->RT - pCore->RP;
+	if (nItems > numToDisplay)
+	{
+		TraceOut(" <%d more>", nItems - numToDisplay);
+	}
+	int rDepth = pCore->RT - pCore->RP;
     TraceOut( "  rstack[%d]", rDepth );
 }
 
@@ -2058,57 +2054,6 @@ ForthEngine::ExecuteOps(ForthCoreState* pCore, long *pOps)
         exitStatus = kResultOk;
     }
     return exitStatus;
-}
-
-eForthResult
-ForthEngine::ExecuteOneMethod( ForthCoreState* pCore, ForthObject& obj, long methodNum )
-{
-#if 0
-    long opScratch[2];
-
-	opScratch[0] = obj.pMethodOps[ methodNum ];
-    opScratch[1] = gCompiledOps[OP_DONE];
-
-	RPUSH( ((long) GET_TPD) );
-    RPUSH( ((long) GET_TPM) );
-    SET_TPM( obj.pMethodOps );
-    SET_TPD( obj.pData );
-
-    long *savedIP= pCore->IP;
-    pCore->IP = opScratch;
-
-	eForthResult exitStatus = ExecuteOps( pCore );
-	if (exitStatus == kResultDone)
-	{
-		exitStatus = kResultOk;
-		SET_STATE(exitStatus);
-	}
-    pCore->IP = savedIP;
-#else
-	long opCode = obj.pMethodOps[methodNum];
-
-	RPUSH(((long)GET_TPD));
-	RPUSH(((long)GET_TPM));
-	SET_TPM(obj.pMethodOps);
-	SET_TPD(obj.pData);
-
-#ifdef ASM_INNER_INTERPRETER
-    bool bFast = mFastMode && ((mTraceFlags & kLogInnerInterpreter) == 0);
-#endif
-	eForthResult exitStatus = kResultOk;
-#ifdef ASM_INNER_INTERPRETER
-	if (bFast)
-	{
-		exitStatus = InterpretOneOpFast(pCore, opCode);
-	}
-	else
-#endif
-	{
-		exitStatus = InterpretOneOp(pCore, opCode);
-	}
-#endif
-
-	return exitStatus;
 }
 
 eForthResult

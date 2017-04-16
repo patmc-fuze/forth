@@ -113,51 +113,6 @@ _%1:
 ; for some reason, this is always true, you need to change the name,
 ; changing the build rule to not define it isn't enough	
 %ifdef	ASM_INNER_INTERPRETER
-;-----------------------------------------------
-;
-; extOp is used by "builtin" ops which are only defined in C++
-;
-;	ebx holds the opcode
-;
-entry extOp
-	; ebx holds the opcode which was just dispatched, use its low 24-bits as index into builtinOps table of ops defined in C/C++
-	mov	eax, ebx
-	and	eax, 00FFFFFFh
-	mov	ebx, [ebp + FCore.ops]
-	mov	eax, [ebx + eax*4]				; eax is C routine to dispatch to
-	; save current IP and SP	
-	mov	[ebp + FCore.IPtr], esi
-	mov	[ebp + FCore.SPtr], edx
-	; we need to push ebp twice - the C compiler feels free to overwrite its input parameters,
-	; so the top copy of EBP may be trashed on return from C land
-%ifdef MACOSX
-    sub esp, 4      ; 16-byte align for OSX
-%endif
-	push	ebp		; push core ptr (our save)
-	push	ebp		; push core ptr (input to C routine)
-	call	eax
-	add	esp, 4		; discard inputs to C routine
-	pop	ebp
-%ifdef MACOSX
-    add esp, 4
-%endif
-	; load IP and SP from core, in case C routine modified them
-	; NOTE: we can't just jump to interpFunc, since that will replace edi & break single stepping
-	mov	esi, [ebp + FCore.IPtr]
-	mov	edx, [ebp + FCore.SPtr]
-	mov	eax, [ebp + FCore.state]
-	or	eax, eax
-	jnz	extOp1		; if something went wrong
-	jmp	edi			; if everything is ok
-	
-; NOTE: Feb. 14 '07 - doing the right thing here - restoring IP & SP and jumping to
-; the interpreter loop exit point - causes an access violation exception ?why?
-	;mov	esi, [ebp + FCore.IPtr]
-	;mov	edx, [ebp + FCore.SPtr]
-	;jmp	interpLoopExit	; if something went wrong
-	
-extOp1:
-	ret
 
 ;-----------------------------------------------
 ;
@@ -206,10 +161,8 @@ extOpType1:
 ;
 ; InitAsmTables - initializes first part of optable, where op positions are referenced by constants
 ;
+; extern void InitAsmTables( ForthCoreState *pCore );
 entry InitAsmTables
-;InitAsmTables PROC near C public uses ebx esi edx edi ebp ecx,
-;	core:PTR
-;	mov	ebp, DWORD PTR core
 	push ebp
 	mov	ebp, esp	; 0(ebp) = old_ebp 4(ebp)=return_addr  8(ebp)=ForthCore_ptr
 	push ebx
@@ -238,9 +191,6 @@ entry InitAsmTables
 ;
 ; extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, long op );
 entry InterpretOneOpFast
-;InterpretOneOpFast PROC near C public uses ebx esi edx ecx edi ebp,
-;	core:PTR,
-;	op:DWORD
 	push ebp
 	mov	ebp, esp
 	push ebx
@@ -285,9 +235,6 @@ InterpretOneOpFastExit2:	; this is exit for state != OK
 ;
 ; extern eForthResult InnerInterpreterFast( ForthCoreState *pCore );
 entry InnerInterpreterFast
-;InnerInterpreterFast PROC near C public uses ebx esi edx ecx edi ebp,
-;	core:PTR
-
 	push ebp
 	mov	ebp, esp
 	push ebx
@@ -314,37 +261,6 @@ entry InnerInterpreterFast
 
 ;-----------------------------------------------
 ;
-; inner interpreter C entry point
-;
-; extern eForthResult InnerInterpreterSingleStep( ForthCoreState *pCore );
-entry InnerInterpreterSingleStep
-;InnerInterpreterSingleStep PROC near C public uses ebx esi edx ecx edi ebp,
-;	core:PTR
-	push ebp
-	mov	ebp, esp
-	push ebx
-	push ecx
-	push edx
-	push esi
-	push edi
-	push ebp
-	
-	mov	ebp, [ebp + 8]      ; ebp -> ForthCore
-	mov	eax, [ebp + FCore.state]
-    
-	call	interpFuncSingleStep
-
-	pop ebp
-	pop	edi
-	pop	esi
-	pop edx
-	pop ecx
-	pop ebx
-	leave
-	ret
-
-;-----------------------------------------------
-;
 ; inner interpreter
 ;	jump to interpFunc if you need to reload IP, SP, interpLoop
 entry interpFunc
@@ -352,12 +268,6 @@ entry interpFunc
 	mov	edx, [ebp + FCore.SPtr]
 	;mov	edi, interpLoopDebug
 	mov	edi, [ebp + FCore.innerLoop]
-	jmp	edi
-
-entry interpFuncSingleStep
-	mov	esi, [ebp + FCore.IPtr]
-	mov	edx, [ebp + FCore.SPtr]
-	mov	edi, interpLoopExit
 	jmp	edi
 
 entry interpLoopDebug
@@ -369,7 +279,6 @@ entry interpLoop
 	mov	ebx, [esi]		; ebx is opcode
 	add	esi, 4			; advance IP
 	; interpLoopExecuteEntry is entry for executeBop - expects opcode in ebx
-;GLOBAL	interpLoopExecuteEntry
 interpLoopExecuteEntry:
 %ifdef MACOSX
     ; check if system stack has become unaligned
@@ -396,29 +305,24 @@ badStack:
 	mov	ecx, [eax+ebx*4]
 	jmp	ecx
 
-;GLOBAL	interpLoopExit
 interpLoopExit:
 	mov	[ebp + FCore.state], eax
 	mov	[ebp + FCore.IPtr], esi
 	mov	[ebp + FCore.SPtr], edx
 	ret
 
-;GLOBAL	badOptype
 badOptype:
 	mov	eax, kForthErrorBadOpcodeType
 	jmp	interpLoopErrorExit
 
-;GLOBAL	badVarOperation
 badVarOperation:
 	mov	eax, kForthErrorBadVarOperation
 	jmp	interpLoopErrorExit
 	
-;GLOBAL	badOpcode
 badOpcode:
 	mov	eax, kForthErrorBadOpcode
 
 	
-;GLOBAL	interpLoopErrorExit
 interpLoopErrorExit:
 	; error exit point
 	; eax is error code
@@ -434,14 +338,12 @@ interpLoopFatalErrorExit:
 	jmp	interpLoopExit
 	
 ; op (in ebx) is not defined in assembler, dispatch through optype table
-;GLOBAL notNative
 notNative:
 	mov	eax, ebx			; leave full opcode in ebx
 	shr	eax, 24			; eax is 8-bit optype
 	mov	eax, [opTypesTable + eax*4]
 	jmp	eax
 
-;GLOBAL nativeImmediate
 nativeImmediate:
 	and	ebx, 00FFFFFFh
 	cmp	ebx, [ebp + FCore.numOps]
@@ -451,18 +353,56 @@ nativeImmediate:
 	jmp	ecx
 
 ; externalBuiltin is invoked when a builtin op which is outside of range of table is invoked
-;GLOBAL externalBuiltin
 externalBuiltin:
 	; it should be impossible to get here now
 	jmp	badOpcode
 	
-;GLOBAL cCodeType
+;-----------------------------------------------
+;
+; cCodeType is used by "builtin" ops which are only defined in C++
+;
+;	ebx holds the opcode
+;
 cCodeType:
 	and	ebx, 00FFFFFFh
 	; dispatch to C version if valid
 	cmp	ebx, [ebp + FCore.numOps]
 	jae	badOpcode
-	jmp	extOp
+	; ebx holds the opcode which was just dispatched, use its low 24-bits as index into builtinOps table of ops defined in C/C++
+	mov	eax, ebx
+	mov	ebx, [ebp + FCore.ops]
+	mov	eax, [ebx + eax*4]				; eax is C routine to dispatch to
+	; save current IP and SP	
+	mov	[ebp + FCore.IPtr], esi
+	mov	[ebp + FCore.SPtr], edx
+	; we need to push ebp twice - the C compiler feels free to overwrite its input parameters,
+	; so the top copy of EBP may be trashed on return from C land
+%ifdef MACOSX
+    sub esp, 4      ; 16-byte align for OSX
+%endif
+	push	ebp		; push core ptr (our save)
+	push	ebp		; push core ptr (input to C routine)
+	call	eax
+	add	esp, 4		; discard inputs to C routine
+	pop	ebp
+%ifdef MACOSX
+    add esp, 4
+%endif
+	; load IP and SP from core, in case C routine modified them
+	; NOTE: we can't just jump to interpFunc, since that will replace edi & break single stepping
+	mov	esi, [ebp + FCore.IPtr]
+	mov	edx, [ebp + FCore.SPtr]
+	mov	eax, [ebp + FCore.state]
+	or	eax, eax
+	jnz	interpLoopExit		; if something went wrong (should this be interpLoopErrorExit?)
+	jmp	edi					; if everything is ok
+	
+; NOTE: Feb. 14 '07 - doing the right thing here - restoring IP & SP and jumping to
+; the interpreter loop exit point - causes an access violation exception ?why?
+	;mov	esi, [ebp + FCore.IPtr]
+	;mov	edx, [ebp + FCore.SPtr]
+	;jmp	interpLoopExit	; if something went wrong
+	
 
 ;-----------------------------------------------
 ;
