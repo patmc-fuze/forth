@@ -3269,8 +3269,10 @@ lEqualsBop:
 	ldmia	rsp!, {r0, r1, r2, r3}
 	subs	r1, r1, r3
 	eor	r3, r3
+	bne	.leq1
 	sbcs	r0, r0, r2
 	subeq	r3, #1
+.leq1:
 	stmdb	rsp!, {r3}
 	bx	lr
 
@@ -3280,7 +3282,9 @@ lNotEqualsBop:
 	ldmia	rsp!, {r0, r1, r2, r3}
 	subs	r1, r1, r3
 	eor	r3, r3
+	bne	.lneq1
 	sbcs	r0, r0, r2
+.lneq1:
 	subne	r3, #1
 	stmdb	rsp!, {r3}
 	bx	lr
