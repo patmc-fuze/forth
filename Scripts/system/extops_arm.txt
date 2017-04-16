@@ -179,62 +179,68 @@ code 2pick
   
 code 2roll
   // TOS is number of entries to roll (1 means swap, 2 means rot)
-  { r0 } ppop,
-  r0 r0 r0 orrs,
+  { r3 } ppop,
+  r3 r3 r3 orrs,
   lr eq bx,					// early exit if #entries == 0
   { rip rfp } push,		// we will use rip,rfp as temps
   
-    gt if,
+  gt if,
     
-      // positive roll
-      rsp  r0 3 #lsl  r2 add,
-      r2 ] r3 ldr,		// r3,rfp = value to move to TOS
-      r2 4 #] rfp ldr,
-      begin,
-        r2 db! { r1 rip } ldm,
-        r2 8 #] r1 str,
-        r2 0xC #] rip str,
-        r0 1 # r0 subs,
-      eq until,
-      rsp ] r3 str,
-      lr bx,
+    // positive roll
+    // save 2 longs at sp+(n * 8)
+    // shift (2 * n) longs at sp+8 up by 2 longs
+    // stuff 2 saved longs at sp
+    rsp  r3 3 #lsl  r2 add,
+    r2 ia { rip rfp } ldm,		// rip,rfp = value to move to TOS
+    begin,
+      r2 -8 #] r0 ldr,
+      r2 -4 #] r1 ldr,
+      r2 ia { r0 r1 } stm,
+      r2 8 # r2 sub,
+      r3 1 # r3 subs,
+    eq until,
+    rsp ia { rip rfp } stm,
       
-    else,
+  else,
     
     // negative roll
-    r0 r0 neg,			// make roll count positive
+    // save 2 longs at sp
+    // shift (2 * n) longs at sp+8 down by 2 longs
+    // stuff 2 saved longs at sp+(n * 8)
+    r3 r3 neg,			// make roll count positive
     
+    rsp ia { rip rfp } ldm,		// rip,rfp = value to move to bottom
     rsp r2 mov,
-    r2 ] r3 ldr,	// r3,rfp = value to move to bottom
-    r2 4 #] rfp ldr,
     begin,
-      r2 8 #] r1 ldr,
-      r2 0xC #] rip ldr,
-      r2 ia! { r1 rip } stm,
-      r0 1 # r0 subs,
+      r2 8 #] r0 ldr,
+      r2 12 #] r1 ldr,
+      r2 ia { r0 r1 } stm,
+      r2 8 # r2 add,
+      r3 1 # r3 subs,
     eq until,
-    r2 ] r3 str,
-    r2 4 #] rfp str,
+    r2 ia { rip rfp } stm,
+
+  endif,
     
-  { rip rfp } ppop,
+  { rip rfp } pop,
   next,
   
 code lnegate
   rsp ia { r0 r1 } ldm,
   r2 r2 r2 eor,
-  r2 r0 r0 subs,
-  r2 r1 r1 sbc,
+  r2 r1 r1 subs,
+  r2 r0 r0 sbc,
   rsp ia { r0 r1 } stm,
   next,
   
 code labs
-  rsp ia { r0 r1 } ldm,
-  r1 r1 r1 orrs,
+  rsp ] r0 ldrd,  // r0 is hiword   r1 is lowword
+  r0 r0 r0 orrs,
   lr ge bx,				// bail if not negative
   r2 r2 r2 eor,
-  r2 r0 r0 subs,
-  r2 r1 r1 sbc,
-  rsp ia { r0 r1 } stm,
+  r2 r1 r1 subs,
+  r2 r0 r0 sbc,
+  rsp ] r0 strd,
   next,
 
 
