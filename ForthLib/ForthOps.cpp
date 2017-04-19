@@ -7936,6 +7936,29 @@ FORTHOP(scShowObjectOp)
 	ForthShowObject(obj, pCore);
 }
 
+FORTHOP(scSetShowIDOp)
+{
+	int show = SPOP;
+	((ForthThread *)(pCore->pThread))->GetShowContext()->SetShowIDElement(show != 0);
+}
+
+FORTHOP(scGetShowIDOp)
+{
+	bool show = ((ForthThread *)(pCore->pThread))->GetShowContext()->GetShowIDElement();
+	SPUSH(show ? -1 : 0);
+}
+
+FORTHOP(scSetShowRefCountOp)
+{
+	int show = SPOP;
+	((ForthThread *)(pCore->pThread))->GetShowContext()->SetShowRefCount(show != 0);
+}
+
+FORTHOP(scGetShowRefCountOp)
+{
+	bool show = ((ForthThread *)(pCore->pThread))->GetShowContext()->GetShowRefCount();
+	SPUSH(show ? -1 : 0);
+}
 
 // NOTE: the order of the first few entries in this table must agree
 // with the list near the top of the file!  (look for COMPILED_OP)
@@ -8766,6 +8789,10 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    scBeginNextElementOp,    "scBeginNextElement" ),
     OP_DEF(    scEndElementOp,          "scEndElement" ),
     OP_DEF(    scShowObjectOp,          "scShowObject" ),
+    OP_DEF(    scSetShowIDOp,			"scSetShowID" ),
+    OP_DEF(    scGetShowIDOp,			"scGetShowID" ),
+    OP_DEF(    scSetShowRefCountOp,		"scSetShowRefCount" ),
+    OP_DEF(    scGetShowRefCountOp,		"scGetShowRefCount" ),
 
     ///////////////////////////////////////////
     //  input buffer

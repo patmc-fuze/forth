@@ -1124,147 +1124,151 @@ ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore)
 				int sval;
 				unsigned int uval;
 
-				if (notFirstTime && foundSomething)
-				{
-					pShowContext->EndElement(",");
-				}
-
 				//mpEngine->ConsoleOut("\"");
-				pShowContext->ShowIndent("'");
 				pVocab->GetEntryName(pEntry, buffer, sizeof(buffer));
-				mpEngine->ConsoleOut(buffer);
-				//mpEngine->ConsoleOut("\" : ");
-				mpEngine->ConsoleOut("' : ");
-
-				// mark buffer as empty by default
-				buffer[0] = 0;
-
-				foundSomething = true;
-				if (isArray)
+				// skip displaying __refCount (at offset 0) if the showRefCount flag is false
+				if ((byteOffset != 0) || pShowContext->GetShowRefCount() || strcmp(buffer, "__refCount"))
 				{
-					//mpEngine->ConsoleOut("[");
-					pShowContext->EndElement("[");
-					pShowContext->BeginIndent();
-					pShowContext->ShowIndent();
-				}
-				else
-				{
-					numElements = 1;
-				}
-				if (isPtr)
-				{
-					// hack to print all pointers in hex
-					baseType = kBaseTypeOp;
-				}
-				while (numElements > 0)
-				{
-					switch (baseType)
-					{
-					case kBaseTypeByte:
-						sval = *((const char*)(pStruct + byteOffset));
-						sprintf(buffer, "%d", sval);
-						break;
-
-					case kBaseTypeUByte:
-						uval = *((const unsigned char*)(pStruct + byteOffset));
-						sprintf(buffer, "%u", uval);
-						break;
-
-					case kBaseTypeShort:
-						sval = *((const short*)(pStruct + byteOffset));
-						sprintf(buffer, "%d", sval);
-						break;
-
-					case kBaseTypeUShort:
-						uval = *((const unsigned short*)(pStruct + byteOffset));
-						sprintf(buffer, "%u", uval);
-						break;
-
-					case kBaseTypeInt:
-						sval = *((const int*)(pStruct + byteOffset));
-						sprintf(buffer, "%d", sval);
-						break;
-
-					case kBaseTypeUInt:
-						uval = *((const unsigned int*)(pStruct + byteOffset));
-						sprintf(buffer, "%u", uval);
-						break;
-
-					case kBaseTypeLong:
-						sprintf(buffer, "%lld", *((const long long*)(pStruct + byteOffset)));
-						break;
-
-					case kBaseTypeULong:
-						sprintf(buffer, "%llu", *((const unsigned long long*)(pStruct + byteOffset)));
-						break;
-
-					case kBaseTypeFloat:
-						sprintf(buffer, "%f", *((const float*)(pStruct + byteOffset)));
-						break;
-
-					case kBaseTypeDouble:
-						sprintf(buffer, "%f", *((const double*)(pStruct + byteOffset)));
-						break;
-
-					case kBaseTypeString:
-						mpEngine->ConsoleOut("'");
-						mpEngine->ConsoleOut(pStruct + byteOffset + 8);
-						mpEngine->ConsoleOut("'");
-						break;
-
-					case kBaseTypeOp:
-						uval = *((const unsigned int*)(pStruct + byteOffset));
-						sprintf(buffer, "0x%x", uval);
-						break;
-
-					case kBaseTypeStruct:
-					{
-						ForthTypeInfo* pStructInfo = ForthTypesManager::GetInstance()->GetTypeInfo(CODE_TO_STRUCT_INDEX(typeCode));
-						pStructInfo->pVocab->ShowData(pStruct + byteOffset, pCore);
-						//elementSize = pStructInfo->pVocab->GetSize();
-						break;
-					}
-
-					case kBaseTypeObject:
-					{
-						ForthObject obj = *((ForthObject*)(pStruct + byteOffset));
-						ForthShowObject(obj, pCore);
-						break;
-					}
-
-					default:
-						/*
-						kBaseTypeUserDefinition,                // 14 - user defined forthop
-						kBaseTypeVoid,							// 15 - void
-						*/
-						foundSomething = false;
-						break;
-					}
-
-					if (foundSomething)
-					{
-						notFirstTime = true;
-					}
-					// if something was put in the buffer, print it
-					if (buffer[0])
-					{
-						mpEngine->ConsoleOut(buffer);
-					}
-					byteOffset += elementSize;
-					--numElements;
-					if (numElements > 0)
+					if (notFirstTime && foundSomething)
 					{
 						pShowContext->EndElement(",");
-						pShowContext->ShowIndent();
 					}
 
-				}  // end while numElements > 0
-		
-				if (isArray)
-				{
-					pShowContext->EndIndent();
-					pShowContext->EndElement();
-					pShowContext->ShowIndent("]");
+					pShowContext->ShowIndent("'");
+					mpEngine->ConsoleOut(buffer);
+					//mpEngine->ConsoleOut("\" : ");
+					mpEngine->ConsoleOut("' : ");
+
+					// mark buffer as empty by default
+					buffer[0] = 0;
+
+					foundSomething = true;
+					if (isArray)
+					{
+						//mpEngine->ConsoleOut("[");
+						pShowContext->EndElement("[");
+						pShowContext->BeginIndent();
+						pShowContext->ShowIndent();
+					}
+					else
+					{
+						numElements = 1;
+					}
+					if (isPtr)
+					{
+						// hack to print all pointers in hex
+						baseType = kBaseTypeOp;
+					}
+					while (numElements > 0)
+					{
+						switch (baseType)
+						{
+						case kBaseTypeByte:
+							sval = *((const char*)(pStruct + byteOffset));
+							sprintf(buffer, "%d", sval);
+							break;
+
+						case kBaseTypeUByte:
+							uval = *((const unsigned char*)(pStruct + byteOffset));
+							sprintf(buffer, "%u", uval);
+							break;
+
+						case kBaseTypeShort:
+							sval = *((const short*)(pStruct + byteOffset));
+							sprintf(buffer, "%d", sval);
+							break;
+
+						case kBaseTypeUShort:
+							uval = *((const unsigned short*)(pStruct + byteOffset));
+							sprintf(buffer, "%u", uval);
+							break;
+
+						case kBaseTypeInt:
+							sval = *((const int*)(pStruct + byteOffset));
+							sprintf(buffer, "%d", sval);
+							break;
+
+						case kBaseTypeUInt:
+							uval = *((const unsigned int*)(pStruct + byteOffset));
+							sprintf(buffer, "%u", uval);
+							break;
+
+						case kBaseTypeLong:
+							sprintf(buffer, "%lld", *((const long long*)(pStruct + byteOffset)));
+							break;
+
+						case kBaseTypeULong:
+							sprintf(buffer, "%llu", *((const unsigned long long*)(pStruct + byteOffset)));
+							break;
+
+						case kBaseTypeFloat:
+							sprintf(buffer, "%f", *((const float*)(pStruct + byteOffset)));
+							break;
+
+						case kBaseTypeDouble:
+							sprintf(buffer, "%f", *((const double*)(pStruct + byteOffset)));
+							break;
+
+						case kBaseTypeString:
+							mpEngine->ConsoleOut("'");
+							mpEngine->ConsoleOut(pStruct + byteOffset + 8);
+							mpEngine->ConsoleOut("'");
+							break;
+
+						case kBaseTypeOp:
+							uval = *((const unsigned int*)(pStruct + byteOffset));
+							sprintf(buffer, "0x%x", uval);
+							break;
+
+						case kBaseTypeStruct:
+						{
+							ForthTypeInfo* pStructInfo = ForthTypesManager::GetInstance()->GetTypeInfo(CODE_TO_STRUCT_INDEX(typeCode));
+							pStructInfo->pVocab->ShowData(pStruct + byteOffset, pCore);
+							//elementSize = pStructInfo->pVocab->GetSize();
+							break;
+						}
+
+						case kBaseTypeObject:
+						{
+							ForthObject obj = *((ForthObject*)(pStruct + byteOffset));
+							ForthShowObject(obj, pCore);
+							break;
+						}
+
+						default:
+							/*
+							kBaseTypeUserDefinition,                // 14 - user defined forthop
+							kBaseTypeVoid,							// 15 - void
+							*/
+							foundSomething = false;
+							break;
+						}
+
+						if (foundSomething)
+						{
+							notFirstTime = true;
+						}
+						// if something was put in the buffer, print it
+						if (buffer[0])
+						{
+							mpEngine->ConsoleOut(buffer);
+						}
+						byteOffset += elementSize;
+						--numElements;
+						if (numElements > 0)
+						{
+							pShowContext->EndElement(",");
+							pShowContext->ShowIndent();
+						}
+
+					}  // end while numElements > 0
+
+					if (isArray)
+					{
+						pShowContext->EndIndent();
+						pShowContext->EndElement();
+						pShowContext->ShowIndent("]");
+					}
 				}
 			}
 			pEntry = NextEntry(pEntry);
