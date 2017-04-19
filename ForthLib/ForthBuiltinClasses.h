@@ -131,7 +131,8 @@ enum
 	kInStreamGetCharMethod = kNumBaseMethods,
 	kInStreamGetBytesMethod = kNumBaseMethods + 1,
 	kInStreamGetLineMethod = kNumBaseMethods + 2,
-	kInStreamAtEOFMethod = kNumBaseMethods + 3
+	kInStreamGetStringMethod = kNumBaseMethods + 3,
+	kInStreamAtEOFMethod = kNumBaseMethods + 4
 };
 
 struct oInStreamStruct
@@ -169,7 +170,7 @@ struct oArrayIterStruct
 	ulong			cursor;
 };
 
-#define DEFAULT_STRING_DATA_BYTES 128
+#define DEFAULT_STRING_DATA_BYTES 32
 
 struct oString
 {

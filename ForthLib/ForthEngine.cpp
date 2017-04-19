@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <sys/mman.h>
 #endif
+
 #include "ForthEngine.h"
 #include "ForthThread.h"
 #include "ForthShell.h"
@@ -1205,7 +1206,11 @@ ForthEngine::TraceStack( ForthCoreState* pCore )
 
 	TraceOut("  stack[%d]:", nItems); 
 #define MAX_TRACE_STACK_ITEMS 12
+#if defined(WIN32)
+	int numToDisplay = min(MAX_TRACE_STACK_ITEMS, nItems);
+#else
 	int numToDisplay = std::min(MAX_TRACE_STACK_ITEMS, nItems);
+#endif
 	for (i = 0; i < numToDisplay; i++)
 	{
 		TraceOut( " %x", *pSP++ );

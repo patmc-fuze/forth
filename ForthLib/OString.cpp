@@ -49,13 +49,15 @@ namespace OString
 		return str;
 	}
 
-    inline oString* resizeOString(oString* dstString, int newLen)
+	oString* resizeOString(oStringStruct* pString, int newLen)
     {
         int dataBytes = ((newLen + 4) & ~3);
         size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
-        dstString = (oString *)__REALLOC(dstString, nBytes);
-        dstString->maxLen = dataBytes - 1;
+		oString* dstString = (oString *)__REALLOC(pString->str, nBytes);
+		pString->str = dstString;
+		dstString->maxLen = dataBytes - 1;
         dstString->data[newLen] = '\0';
+		pString->hash = 0;
         return dstString;
     }
 
@@ -66,8 +68,7 @@ namespace OString
         if (newLen > dst->maxLen)
         {
             // enlarge string
-            dst = resizeOString(dst, newLen);
-            pString->str = dst;
+			dst = resizeOString(pString, newLen);
         }
         memmove(&(dst->data[dst->curLen]), pSrc, numNewBytes);
         dst->data[newLen] = '\0';
@@ -82,8 +83,7 @@ namespace OString
         if (newLen > dst->maxLen)
         {
             // enlarge string
-            dst = resizeOString(dst, newLen);
-            pString->str = dst;
+			dst = resizeOString(pString, newLen);
         }
         char* pDst = &(dst->data[0]);
         memmove((void *)(pDst + numNewBytes), pDst, dst->curLen);
@@ -307,14 +307,12 @@ namespace OString
     {
         GET_THIS( oStringStruct, pString );
 		long newLen = SPOP;
-		oString* dst = resizeOString(pString->str, newLen);
+		oString* dst = resizeOString(pString, newLen);
 		dst->data[newLen] = '\0';
 		if ( dst->curLen > dst->maxLen )
 		{
 			dst->curLen = dst->maxLen;
-			pString->hash = 0;
 		}
-		pString->str = dst;
         METHOD_RETURN;
     }
 
@@ -730,7 +728,7 @@ namespace OString
                         tryAgain = false;
                     }
                 }
-                pOStr = resizeOString(pOStr, maxLen);
+				pOStr = resizeOString(pString, maxLen);
             }
         }
         // remove args from parameter stack
@@ -739,7 +737,6 @@ namespace OString
 
 		pOStr->curLen = curLen;
 		pString->hash = 0;
-		pString->str = pOStr;
         METHOD_RETURN;
     }
     

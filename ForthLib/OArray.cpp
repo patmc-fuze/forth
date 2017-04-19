@@ -369,7 +369,7 @@ namespace OArray
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oArrayPopUnrefMethod)
+	FORTHOP(oArrayPopMethod)
 	{
 		GET_THIS(oArrayStruct, pArray);
 		oArray& a = *(pArray->elements);
@@ -620,7 +620,7 @@ namespace OArray
 		METHOD("swap", oArraySwapMethod),
 		METHOD_RET("findIndex", oArrayFindIndexMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("push", oArrayPushMethod),
-		METHOD("popUnref", oArrayPopUnrefMethod),
+		METHOD("pop", oArrayPopMethod),
 		METHOD("insert", oArrayInsertMethod),
 		METHOD("sort", oArraySortMethod),
 		METHOD("reverse", oArrayReverseMethod),

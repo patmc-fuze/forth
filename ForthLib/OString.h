@@ -17,6 +17,9 @@ namespace OString
 	extern int gDefaultOStringSize;
 
 	extern oString* createOString(int maxChars);
+	extern oString* resizeOString(oStringStruct* pString, int newLen);
+	extern void appendOString(oStringStruct* pString, const char* pSrc, int numNewBytes);
+	extern void prependOString(oStringStruct* pString, const char* pSrc, int numNewBytes);
 
     extern baseMethodEntry oStringMembers[];
     extern baseMethodEntry oStringMapMembers[];
