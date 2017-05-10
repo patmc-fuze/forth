@@ -247,7 +247,7 @@ after executing + and exit (leaving woof):
 
 code generated for if...else...endif
 
-: iffy if 1 else 0 endif %
+: iffy if 1 else 0 endif . ;
 
 ADDR(iffy): branchZ +2
         +1  intLit( 1 )

@@ -91,30 +91,30 @@ section test outstream redirection
 class: DoubleOutStream extends OOutStream
   OOutStream mOutStream
   
-  method: putChar
+  m: putChar
     dup mOutStream.putChar
     mOutStream.putChar
-  ;method
+  ;m
   
-  method: putBlock
+  m: putBlock
     0 ?do
       dup c@ putChar 1+
     loop
     drop
-  ;method
+  ;m
   
-  method: putString
+  m: putString
     dup strlen putBlock
-  ;method
+  ;m
   
-  method: delete
+  m: delete
     oclear mOutStream
     super.delete
-  ;method
+  ;m
   
-  method: init
+  m: init
     -> mOutStream
-  ;method
+  ;m
   
 ;class
 
@@ -230,14 +230,14 @@ section more funcs
 
 : moo
   int a int b 5 -> a 7 -> b
-  func: 3 -> int a ;func drop
+  f: 3 -> int a ;f drop
   a . b .
 ;
 moo %nl
-func: "wahooey!" %s ;func -> op wahoo
+f: "wahooey!" %s ;f -> op wahoo
 wahoo %nl
 : boo
-  func: "bsjkdfjsk" %s ;func
+  f: "bsjkdfjsk" %s ;f
   dup %x %bl -> wahoo
 ;
 boo wahoo %nl
@@ -298,7 +298,7 @@ section test file out stream
 mko OFileOutStream outFile
 mko OFileInStream inFile
 
-outFile.open("_testData.txt" "wb")
+outFile.open("_testData.txt" "wb") drop
 outFile.putChar('a')
 outFile.putChar(0xD)
 outFile.putChar('b')
@@ -308,7 +308,7 @@ outFile.putChar('c')
 outFile.putChar(0xD)
 outFile.close
 
-inFile.open("_testData.txt" "r")
+inFile.open("_testData.txt" "r") drop
 long bb
 
 '12345678' -> bb

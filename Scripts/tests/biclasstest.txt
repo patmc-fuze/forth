@@ -44,9 +44,9 @@ int nextObjId
 class: tobj    extends Object
   int objId
 
-  method: setObjId
+  m: setObjId
     -> objId
-  ;method
+  ;m
     
   new:
     _allocObject
@@ -55,12 +55,12 @@ class: tobj    extends Object
     1 ->+ nextObjId
   ;
 
-  // method: show    objId %d %bl  ;method
+  // m: show    objId %d %bl  ;m
   
-  method: delete
+  m: delete
     "|-" %s objId %d
     super.delete
-  ;method
+  ;m
   
 ;class
 

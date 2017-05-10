@@ -3901,23 +3901,22 @@ FORTHOP( DLLStdCallOp )
 FORTHOP( blwordOp )
 {
     NEEDS( 0 );
-    ForthShell *pShell = GET_ENGINE->GetShell();
+	ForthEngine *pEngine = GET_ENGINE;
+	ForthShell *pShell = pEngine->GetShell();
 	char *pSrc = pShell->GetNextSimpleToken();
-    // leave an unused byte below string so string len can be stuck there in ANSI compatability mode
-	char *pDst = GET_ENGINE->GetTmpStringBuffer() + 1;
-	strncpy( pDst, pSrc, (TMP_STRING_BUFFER_LEN - 2) );
+	char *pDst = pEngine->AddTempString(pSrc);
     SPUSH( (long) pDst );
 }
 
 FORTHOP( strWordOp )
 {
     NEEDS( 1 );
-    ForthShell *pShell = GET_ENGINE->GetShell();
+	ForthEngine *pEngine = GET_ENGINE;
+	ForthShell *pShell = pEngine->GetShell();
     char delim = (char) (SPOP);
     // leave an unused byte below string so string len can be stuck there in ANSI compatability mode
 	char *pSrc = pShell->GetToken( delim, false );
-	char *pDst = GET_ENGINE->GetTmpStringBuffer() + 1;
-	strncpy( pDst, pSrc, (TMP_STRING_BUFFER_LEN - 2) );
+	char *pDst = pEngine->AddTempString(pSrc);
     SPUSH( (long) pDst );
 }
 
@@ -8643,8 +8642,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    colonNoNameOp,          ":noname" ),
 	OP_DEF(    pushTokenOp,            "pushToken"),
 	OP_DEF(    popTokenOp,             "popToken"),
-	PRECOP_DEF(funcOp,                 "func:" ),
-	PRECOP_DEF(endfuncOp,               ";func" ),
+	PRECOP_DEF(funcOp,                 "f:" ),
+	PRECOP_DEF(endfuncOp,               ";f" ),
     OP_DEF(    codeOp,                 "code" ),
     OP_DEF(    createOp,               "create" ),
     OP_DEF(    variableOp,             "variable" ),
@@ -8671,8 +8670,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    classOp,                "class:" ),
     OP_DEF(    endclassOp,             ";class" ),
     OP_DEF(    defineNewOp,            "new:" ),
-    OP_DEF(    methodOp,               "method:" ),
-    PRECOP_DEF(endmethodOp,            ";method" ),
+    OP_DEF(    methodOp,               "m:" ),
+    PRECOP_DEF(endmethodOp,            ";m" ),
     PRECOP_DEF(returnsOp,              "returns" ),
     OP_DEF(    doMethodOp,             "doMethod" ),
     OP_DEF(    implementsOp,           "implements:" ),

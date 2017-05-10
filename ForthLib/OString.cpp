@@ -785,6 +785,25 @@ namespace OString
 		METHOD_RETURN;
 	}
 
+	FORTHOP(oStringReplaceCharMethod)
+	{
+		GET_THIS(oStringStruct, pString);
+		char newChar = (char)(SPOP);
+		char oldChar = (char)(SPOP);
+		pString->hash = 0;
+		oString* dst = pString->str;
+		char* pDst = &(dst->data[0]);
+		for (int i = dst->curLen; i >0; --i)
+		{
+			if (*pDst == oldChar)
+			{
+				*pDst = newChar;
+			}
+			pDst++;
+		}
+		METHOD_RETURN;
+	}
+
 
     baseMethodEntry oStringMembers[] =
     {
@@ -825,6 +844,7 @@ namespace OString
         METHOD(		"fixup",				oStringFixupMethod ),
         METHOD(		"toLower",				oStringToLowerMethod ),
         METHOD(		"toUpper",				oStringToUpperMethod ),
+		METHOD(     "replaceChar",          oStringReplaceCharMethod),
 		
         MEMBER_VAR( "__hash",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
         MEMBER_VAR( "__str",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),

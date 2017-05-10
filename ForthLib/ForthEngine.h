@@ -332,6 +332,11 @@ public:
 	void					DefineLabel(const char* inLabelName, long* inLabelIP);
 	void					AddGoto(const char* inName, int inBranchType, long* inBranchIP);
 
+	// if inText is null, string is not copied, an uninitialized space of size inNumChars+1 is allocated
+	// if inNumChars is null and inText is not null, strlen(inText) is used for temp string size
+	// if both inText and inNumChars are null, an uninitialized space of 255 chars is allocated
+	char*					AddTempString(const char* inText = nullptr, int inNumChars = -1);
+
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char* pToken, long& value, long long& lvalue, int base, bool& isOffset, bool& isSingle );

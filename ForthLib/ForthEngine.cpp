@@ -2488,6 +2488,39 @@ void ForthEngine::AddGoto(const char* inLabelName, int inBranchType, long* inBra
 	mLabels.push_back(newLabel);
 }
 
+// if inText is null, string is not copied, an uninitialized space of size inNumChars+1 is allocated
+// if inNumChars is null and inText is not null, length of input string is used for temp string size
+// if both inText and inNumChars are null, an uninitialized space of 255 chars is allocated
+char* ForthEngine::AddTempString(const char* inText, int inNumChars)
+{
+	// this hooha turns mpStringBufferA into multiple string buffers
+	//   so that you can use multiple interpretive string buffers
+	// it is used both for quoted strings in interpretive mode and blword/$word
+	// we leave space for a preceeding  length byte and a trailing null terminator
+	if (inNumChars < 0)
+	{
+		inNumChars = (inText == nullptr) ? 255 : strlen(inText);
+	}
+	if ((mStringBufferASize - (mpStringBufferANext - mpStringBufferA)) <= (inNumChars + 2))
+	{
+		mpStringBufferANext = mpStringBufferA;
+	}
+	char* result = mpStringBufferANext + 1;
+	if (inText != nullptr)
+	{
+		memcpy(result, inText, inNumChars);
+	}
+
+	// the preceeding length byte will be wrong for strings longer than 255 characters
+	*mpStringBufferANext = (char)inNumChars;
+	result[inNumChars] = '\0';
+
+	mpStringBufferANext += (inNumChars + 2);
+
+	return result;
+}
+
+
 
 //############################################################################
 //
@@ -2540,15 +2573,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         {
             // in interpret mode, stick the string in string buffer A
             //   and leave the address on param stack
-            // this hooha turns mpStringBufferA into NUM_INTERP_STRINGS string buffers
-            // so that you can use multiple interpretive string buffers
-            if ( (mStringBufferASize - (mpStringBufferANext - mpStringBufferA)) <= (len + 1) )
-            {
-				mpStringBufferANext = mpStringBufferA;
-			}
-			strcpy( mpStringBufferANext, pToken );
-            *--mpCore->SP = (long) mpStringBufferANext;
-			mpStringBufferANext += (len + 1);
+            *--mpCore->SP = (long) AddTempString(pToken, len);
         }
         return kResultOk;
         

@@ -253,24 +253,6 @@ code 2roll
   esi pop,
   next,
   
-code dd
-  edx ] ecx mov,
-  4 # edx add,
-  ecx ecx or,
-  nz, if,
-    17 # eax mov,
-    4 # edx sub,
-    eax edx ] mov,
-    begin,
-      ecx ecx or,
-    0>=, while,
-      4 # edx sub,
-      ecx edx ] mov,
-      1 # ecx sub,
-    repeat,
-  endif,
-  next,
-  
 code lnegate
   4 edx d] eax mov,
   edx ] ebx mov,
@@ -401,6 +383,41 @@ code sm/rem
   edx 4 ebx d] mov,
   eax ebx ] mov,
   ebx edx mov,
+  next,
+  
+code compareMemory
+  // edx: numBytes
+  // edx+4: block2
+  // edx+8: block1
+  // returns null if numBytes memory blocks at block1 and block2 are the same
+  //   else returns ptr to first non-matching byte in block1
+  edx ] ecx mov,
+  4 edx d] eax mov,   // eax: block2 base address
+  8 # edx add,
+  ecx ecx or,
+  z, if,
+    // block with size 0 always counts as a match
+    ecx edx ] mov,
+    edi jmp,    // exit
+  endif,
+  edi push,
+  edx ] edi mov,   // edi: block1 base address
+  begin,
+    edi ] bl mov,
+    eax ] bl cmp,
+    nz, if,
+      edi edx ] mov,
+      edi pop,
+      edi jmp,   // exit
+    endif,
+    1 # edi add,
+    1 # eax add,
+    1 # ecx sub,
+  jnz,
+  
+  eax eax xor,
+  eax edx ] mov,
+  edi pop,
   next,
   
 loaddone

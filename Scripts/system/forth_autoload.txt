@@ -299,8 +299,6 @@ int dumpWidth
 : alias blword -> 250 string aa  aa blword $alias ;
 alias ->o ->+    // ->o stores to an object variable without changing refcounts
 alias mko makeObject
-alias m: method:
-alias ;m ;method
 alias bool int
 alias objIsNull l0=
 alias objNotNull l0<>
@@ -571,44 +569,6 @@ addHelp sys	sys REST_OF_LINE	run rest of line in a DOS shell
 addHelp fileExists	"FILEPATH" fileExists ... true/false		tell if a file exists
 : fileExists "r" fopen dup if fclose drop true else drop false endif ;
 
-addHelp comparefiles	FILENAME1 FILENAME2 comparefiles TRUE_IF_EQUAL
-: comparefiles
-  -> ptrTo byte fname2
-  -> ptrTo byte fname1
-  
-  fname2 "rb" fopen -> int infile2
-  if( infile2 0= )
-    "failed to open " %s fname2 %s %nl
-    false exit
-  endif
-  
-  fname1 "rb" fopen -> int infile1
-  if( infile1 0= )
-    "failed to open " %s fname1 %s %nl
-    infile2 fclose drop
-    false exit
-  endif
-  
-  // opened both files successfully
-  1 -> int linenum
-  begin
-    infile1 fgetc -> int b1
-    infile2 fgetc -> int b2
-    if( b1 b2 <> )
-      infile1 fclose drop
-      infile2 fclose drop
-      "mismatch at line " %s linenum %d %nl
-      false exit
-    endif
-    if( b1 '\n' = )
-      1 ->+ linenum
-    endif
-  until( infile1 feof )
-  infile1 fclose drop
-  infile2 fclose drop
-  true
-;
-
 addHelp numLocals	returns number of longwords of local variables in current stack frame
 : numlocals fp if fp rp - 4 / 1- else 0 endif ;
 
@@ -629,9 +589,6 @@ addHelp demo	 demo is used to both display and evaluate a line of text
 : demo source drop %s %nl ;
 precedence demo
 
-
-addHelp outToScreen   restore output to the normal console
-: outToScreen getDefaultConsoleOut setConsoleOut ;
 
 addHelp list     BLOCK_NUM ...     display specified block
 variable scr  0 scr !
@@ -789,6 +746,73 @@ precedence assert[
   endif
 ;
 addHelp oshow   OBJECT oshow ...    like OBJECT.show, but doesn't crash if OBJECT is NULL
+
+//######################################################################
+// automated test support
+
+// PARAM_VALUE extParam PARAM_TYPE PARAM_NAME
+: extParam
+  blword -> ptrTo byte paramType
+  blword -> ptrTo byte paramName
+  
+  if($find(paramName))
+    // already defined, just drop value on TOS
+    drop
+  else
+    mko OString paramString
+    
+    if(strcmp(paramType "string"))
+      paramString.appendFormatted("-> %s %s" r[ paramType paramName ]r)
+    else
+      // param is string, so build: "-> STRING_LEN string PARAM_NAME"
+      -> ptrTo byte stringVal
+      stringVal
+      paramString.appendFormatted("-> %d string %s" r[ strlen(stringVal) paramName ]r)
+    endif
+    $evaluate(paramString.get)
+    
+    oclear paramString
+  endif
+;
+
+// scripts that may be used in automated testing should check 'testsRunning' and skip printing anything
+//  which could have non-predictable output - like running time, clock time or random elements
+false -> bool testsRunning
+
+mko OArray consoleOutStreamStack
+
+addHelp pushConsoleOut   OUTPUT_STREAM pushConsoleOut ...   save current console output stream and set new output stream
+: pushConsoleOut
+  consoleOutStreamStack.push(getConsoleOut)
+  setConsoleOut
+;
+
+addHelp pushOutputFile   OUTPUT_FILENAME pushOutputFile ...   redirect output stream to named file
+: pushOutputFile
+  -> ptrTo byte outFileName
+  mko OFileOutStream outFile
+  
+  if(outFile.open(outFileName "w"))
+    pushConsoleOut(outFile)
+  else
+    addErrorText(outFileName)
+    error("pushOutputFile: failed to open ")
+  endif
+  oclear outFile
+;
+
+addHelp popConsoleOut   popConsoleOut ... OLD_CONSOLE_OUTSTREAM      restore previous console output stream
+: popConsoleOut
+  if(consoleOutStreamStack.count)
+    getConsoleOut
+    setConsoleOut(consoleOutStreamStack.pop)
+  else
+    error("popConsoleOutStream - stack is empty")
+  endif
+;
+
+addHelp outToScreen   restore output to the normal console
+: outToScreen getDefaultConsoleOut setConsoleOut ;
 
 //######################################################################
 

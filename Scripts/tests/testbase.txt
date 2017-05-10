@@ -7,8 +7,13 @@ false -> int beNoisy
 new OString -> OString testBuff
 new OString -> OString testBuff2
 new OStringOutStream -> OStringOutStream testOut
+mko OArray testStreamStack
 
-: cleanupTestBase  oclear testBuff  oclear testBuff2  oclear testOut  ;
+: cleanupTestBase
+  oclear testBuff  oclear testBuff2
+  oclear testOut
+  oclear testStreamStack
+;
 
 : clearBuff testBuff.clear ;
 : addBuff testBuff.append ;
@@ -68,5 +73,41 @@ new OStringOutStream -> OStringOutStream testOut
     drop
   loop
 ;
+
+// FILENAME N_VALUES N ...
+: makeShortFile
+  mko OByteArray buffer
+  mko OFileOutStream outFile
+  buffer.load
+  -> ptrTo byte outFileName
+  
+  if( outFile.open(outFileName "wb") )
+    outFile.putBytes(buffer.base buffer.count)
+    outFile.close
+  else
+    addErrorText(outFileName)
+    error("makeShortFile: failed to open ")
+  endif
+  
+  oclear outFile
+  oclear buffer
+;
+
+// FILENAME FILE_CONTENTS ...
+: makeFileFromString
+  mko OFileOutStream outFile
+  -> ptrTo byte contents
+  -> ptrTo byte outFileName
+  
+  if(outFile.open(outFileName "wb"))
+    outFile.putBytes(contents strlen(contents))
+    outFile.close
+  else
+    addErrorText(outFileName)
+    error("makeFileFromString: failed to open ")
+  endif
+  oclear outFile
+;
+
 
 loaddone

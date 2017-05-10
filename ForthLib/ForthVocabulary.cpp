@@ -869,6 +869,8 @@ ForthLocalVocabulary::Push()
 		mStack[mDepth++] = mFrameLongs;
 		mStack[mDepth++] = (long) mpAllocOp;
 		mNumSymbols = 0;
+		mFrameLongs = 0;
+		mpAllocOp = NULL;
 	}
 	else
 	{

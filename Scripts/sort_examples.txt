@@ -7,12 +7,10 @@ autoforget sort_examples
 
 : sort_examples ;
 
-false -> int beNoisy   // set beNoisyto true to display sort array before and after sort
-#ifndef numElems
-3000 -> int numElems
-#endif
-mko OIntArray v
+false extParam bool beNoisy   // set beNoisy to true to display sort array before and after sort
+3000 extParam int numElems
 
+mko OIntArray v
 
 : fillArray
   ->o OIntArray a
@@ -29,7 +27,11 @@ int _time
   ms@ -> _time
 ;
 : endTime
-  ms@ _time - . " milliseconds elapsed\n" %s
+  if(testsRunning)
+    ms@ _time - . " milliseconds elapsed\n" %s
+  else
+    %nl
+  endif
 ;
 
 : showResult
