@@ -89,7 +89,7 @@ ForthEngine* ForthEngine::mpInstance = NULL;
 
 static const char *opTypeNames[] =
 {
-    "BuiltIn", "BuiltInImmediate", "UserDefined", "UserDefinedImmediate", "CCode", "CCodeImmediate", "RelativeDef", "RelativeDefImmediate", "DLLEntryPoint", 0,
+    "Native", "NativeImmediate", "UserDefined", "UserDefinedImmediate", "CCode", "CCodeImmediate", "RelativeDef", "RelativeDefImmediate", "DLLEntryPoint", 0,
     "Branch", "BranchTrue", "BranchFalse", "CaseBranch", "PushBranch", "RelativeDefBranch", 0, 0, 0, 0,
 	"Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "LocalStringInit", "LocalStructArray", "OffsetFetch", "MemberRef",
     "LocalByte", "LocalUByte", "LocalShort", "LocalUShort", "LocalInt", "LocalUInt", "LocalLong", "LocalULong", "LocalFloat", "LocalDouble",

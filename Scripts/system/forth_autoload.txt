@@ -200,7 +200,7 @@ int dumpWidth
   repeat
 ;
 
-// ADDR LEN OFFSET _dump
+// ADDR LEN OFFSET _ldump
 : _ldump
   -> int offset		// offset is subtracted from the actual data address before display
   and( 3+ invert( 3 ) ) -> int len
@@ -282,7 +282,7 @@ int dumpWidth
   vocab.findEntryByName(oldSymbol) -> int oldEntry
   // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
   makeObject OByteArray valueBuffer
-  valueBuffer.setFromBytes(oldEntry vocab.getValueLength 0)
+  valueBuffer.fromMemory(oldEntry vocab.getValueLength 0)
   valueBuffer.base -> oldEntry
   //newSymbol %s %nl dump(oldEntry 32)
   if(oldEntry)
