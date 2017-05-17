@@ -4,7 +4,7 @@ autoforget File
 class: File extends Object
 
   int fp
-  OByteArray buffer		// line buffer for getLine
+  ByteArray buffer		// line buffer for getLine
   byte readOnly
   byte unixEol			// end-of-line for putLine
   byte noTrimEol		// defined bass-ackwards so it will default to 'trim eol' IE remove trailing CR and/or LF in getLine
@@ -14,15 +14,15 @@ class: File extends Object
     "error in file." %s %s %nl
   ;
 
-  //method: show
+  //m: show
   //  "fp " %s fp %x
   //  "  buffer " %s buffer %x 
   //  "  unixEol " %s unixEol %d
   //  "  noTrimEol " %s noTrimEol %d
   //  "  stdHandle " %s stdHandle %d %nl
-  //;method
+  //;m
   
-  method: delete
+  m: delete
     if( fp )
       fclose( fp )
     endif
@@ -30,9 +30,9 @@ class: File extends Object
       buffer.delete
     endif
     super.delete
-  ;method
+  ;m
     
-  method: close
+  m: close
     if( fp )
       if( not( stdHandle ) )
         fclose( fp )
@@ -44,10 +44,10 @@ class: File extends Object
     else
       error( "close - not open" )
     endif
-  ;method
+  ;m
   
   // open( "path" "mode" ) ... t/f  
-  method: open
+  m: open
     -> ptrTo byte mode
     -> ptrTo byte path
     
@@ -93,34 +93,34 @@ class: File extends Object
       error( "open" )
       false
     endif
-  ;method
+  ;m
 
-  method: openRead
+  m: openRead
     "r" open
-  ;method
+  ;m
   
-  method: openWrite
+  m: openWrite
     "w" open
-  ;method
+  ;m
   
-  method: openAppend
+  m: openAppend
     "a" open
-  ;method
+  ;m
   
-  method: openReadBinary
+  m: openReadBinary
     "rb" open
-  ;method
+  ;m
   
-  method: openWriteBinary
+  m: openWriteBinary
     "wb" open
-  ;method
+  ;m
   
-  method: openAppendBinary
+  m: openAppendBinary
     "ab" open
-  ;method
+  ;m
   
   // ... BYTE_VALUE
-  method: getByte
+  m: getByte
     if( fp )
       fgetc( fp )
       if( dup -1 = )
@@ -130,10 +130,10 @@ class: File extends Object
       error( "getByte - not open" )
       0
     endif
-  ;method
+  ;m
 
   // ... SHORT_VALUE
-  method: getShort
+  m: getShort
     0 -> short val
     if( fp )
       fread( ref val 2 1 fp )
@@ -144,10 +144,10 @@ class: File extends Object
       error( "getShort - not open" )
     endif
     val
-  ;method
+  ;m
   
   // ... INT_VALUE
-  method: getInt
+  m: getInt
     0 -> int val
     if( fp )
       fread( ref val 4 1 fp )
@@ -158,10 +158,10 @@ class: File extends Object
       error( "getInt - not open" )
     endif
     val
-  ;method
+  ;m
 
   // ... LONG_VALUE
-  method: getLong
+  m: getLong
     dnull -> long val
     if( fp )
       fread( ref val 8 1 fp )
@@ -172,10 +172,10 @@ class: File extends Object
       error( "getLong - not open" )
     endif
     val
-  ;method
+  ;m
 
   // BYTE_VALUE ...
-  method: putByte
+  m: putByte
     if( fp )
       if( readOnly )
         error( "putByte - readOnly" )
@@ -189,10 +189,10 @@ class: File extends Object
       error( "putByte - not open" )
       drop
     endif
-  ;method
+  ;m
 
   // SHORT_VALUE ...
-  method: putShort
+  m: putShort
     -> short val
     if( fp )
       if( readOnly )
@@ -206,10 +206,10 @@ class: File extends Object
     else
       error( "putShort - not open" )
     endif
-  ;method
+  ;m
 
   // INT_VALUE ...
-  method: putInt
+  m: putInt
     -> int val
     if( fp )
       if( readOnly )
@@ -223,10 +223,10 @@ class: File extends Object
     else
       error( "putInt - not open" )
     endif
-  ;method
+  ;m
 
   // LONG_VALUE ...
-  method: putLong
+  m: putLong
     -> long val
     if( fp )
       if( readOnly )
@@ -240,10 +240,10 @@ class: File extends Object
     else
       error( "putLong - not open" )
     endif
-  ;method
+  ;m
 
   // CHAR_PTR ...  
-  method: putLine
+  m: putLine
     if( fp )
       if( readOnly )
         error( "putLine - readOnly" )
@@ -263,17 +263,17 @@ class: File extends Object
       error( "putLine - not open" )
       drop
     endif
-  ;method
+  ;m
 
   // ... CHAR_PTR
-  method: getLine
+  m: getLine
     null -> ptrTo byte result
     if( fp )
       ftell( fp ) -> int pos
       
       if( buffer l0= )
         d[ "file.getLine allocating buffer\n" %s ]d
-        new OByteArray -> buffer
+        new ByteArray -> buffer
         buffer.resize( 8 )
         //buffer.resize( 32000 )
       endif
@@ -323,78 +323,70 @@ class: File extends Object
     endif
     
     result
-  ;method
+  ;m
 
   // BOOL ...
-  method: setUnixEol
+  m: setUnixEol
     -> unixEol
-  ;method
+  ;m
   
   // ... BOOL
-  method: getUnixEol
+  m: getUnixEol
     unixEol
-  ;method
+  ;m
   
   // BOOL ...
-  method: setTrimEol
+  m: setTrimEol
     not -> noTrimEol
-  ;method
+  ;m
 
   // ... BOOL
-  method: getTrimEol
+  m: getTrimEol
     noTrimEol not
-  ;method
+  ;m
     
   // ... BOOL
-  method: eof
+  m: eof
     feof( fp )
-  ;method
+  ;m
 
   // ... FILE_LENGTH
-  method: len
+  m: len
     flen( fp )
-  ;method
+  ;m
 
   // ... FILE_POSITION  
-  method: tell
+  m: tell
     ftell( fp )
-  ;method
+  ;m
 
   // FILE_POSITION ...  
-  method: seekAbs
+  m: seekAbs
     if( fseek( fp swap 0 ) )
       error( "seekAbs" )
     endif
-  ;method
+  ;m
   
   // FILE_POSITION ...  
-  method: seekRel
+  m: seekRel
     if( fseek( fp swap 1 ) )
       error( "seekAbs" )
     endif
-  ;method
+  ;m
 
-  method: seekEnd
+  m: seekEnd
     if( fseek( fp swap 2 ) )
       error( "seekAbs" )
     endif
-  ;method
+  ;m
   
-  method: redirectOutput
-    if( readOnly )
-      error( "redirectOutput - readOnly" )
-    else
-      outToFile( fp )
-    endif
-  ;method
-
   // BUFFER_SIZE_BYTES ...
-  method: setBufferSize
+  m: setBufferSize
     if( buffer l0= )
-      new OByteArray -> buffer
+      new ByteArray -> buffer
     endif
     buffer.resize
-  ;method
+  ;m
     
 ;class
 

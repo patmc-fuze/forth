@@ -48,7 +48,7 @@ class: atcConsoleDisplay extends iAtcDisplay
     'disp' -> tag
     ->o region
     getConsoleColor -> defaultColors
-    new OByteArray -> text
+    new ByteArray -> text
     region.columns -> int columns
     region.rows -> int rows
     columns 2* 1+ -> rowBytes
@@ -94,7 +94,7 @@ class: atcConsoleDisplay extends iAtcDisplay
     0 pDst c@!++
 
     // draw the lines
-    region.lines.headIter -> OIter iter
+    region.lines.headIter -> Iter iter
     begin
     while( iter.next )
       -> iAtcLine line
@@ -181,11 +181,11 @@ class: atcConsoleDisplay extends iAtcDisplay
   ;
   
   : updatePlaneStatus
-    ->o OList activeAirplanes
+    ->o List activeAirplanes
     statusRow -> int planeRow
   
     // display flying airplanes
-    activeAirplanes.headIter -> OIter iter
+    activeAirplanes.headIter -> Iter iter
     begin
     while( iter.next )
       ->o iAtcAirplane plane
@@ -295,9 +295,9 @@ class: atcConsoleDisplay extends iAtcDisplay
   ;m
   
   m: hideAirplanes    // ACTIVE_AIRPLANE_LIST
-    ->o OList activeAirplanes
+    ->o List activeAirplanes
     // hide flying airplanes
-    activeAirplanes.headIter -> OIter iter
+    activeAirplanes.headIter -> Iter iter
 
     begin
     while( iter.next )

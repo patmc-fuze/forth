@@ -10,10 +10,10 @@ autoforget sort_examples
 false extParam bool beNoisy   // set beNoisy to true to display sort array before and after sort
 3000 extParam int numElems
 
-mko OIntArray v
+mko IntArray v
 
 : fillArray
-  ->o OIntArray a
+  ->o IntArray a
   if(a.count numElems <>)
     a.resize(numElems)
   endif
@@ -35,7 +35,7 @@ int _time
 ;
 
 : showResult
-  ->o OIntArray a
+  ->o IntArray a
   if(beNoisy)
     '{' %c
     if(a.count)
@@ -49,7 +49,7 @@ int _time
 
 
 : isSorted
-  ->o OIntArray a
+  ->o IntArray a
   true
   do(a.count 1)
     if(a.get(i) a.get(i 1-) <)
@@ -59,7 +59,7 @@ int _time
 ;
 
 : checkResult
-  ->o OIntArray a
+  ->o IntArray a
   do(a.count 1)
     if(a.get(i) a.get(i 1-) <)
       "out of order at " %s i %d %nl
@@ -189,7 +189,7 @@ int _time
 //========================== gnomeSort ==========================
 : gsortInner
   -> int upperBound
-  ->o OIntArray a
+  ->o IntArray a
   d[ "sort upper bound " %s upperBound . %nl ]d
   upperBound -> int pos
   begin
@@ -205,7 +205,7 @@ int _time
 ;  
 
 : optimizedGnomeSort
-  ->o OIntArray a
+  ->o IntArray a
   do(a.count 1)
     gsortInner(a i)
   loop
@@ -282,7 +282,6 @@ int _time
   fillArray(v)
   showResult(v)
   startTime
-  
 
   v.count -> int gap
   1.3 -> float shrink
@@ -328,7 +327,7 @@ int _time
 : siftDown          // (a, start, end)
   -> int end
   -> int start
-  ->o OIntArray a
+  ->o IntArray a
   start -> int root
   d[ "siftDown " %s start . end . ]d
 
@@ -358,7 +357,7 @@ int _time
 
 // Put elements of 'a' in heap order, in-place
 : heapify
-  ->o OIntArray a
+  ->o IntArray a
   // start is assigned the index in 'a' of the last parent node
   // the last element in a 0-based array is at index count-1; find the parent of that element
   iParent(a.count 1-) -> int start
@@ -375,7 +374,7 @@ int _time
     
 : hsort
   // input: an unordered array a
-  ->o OIntArray a
+  ->o IntArray a
   // Build the heap in array a so that largest value is at the root
   heapify(a)
 
@@ -407,19 +406,19 @@ int _time
 //========================== mergeSort ==========================
 : copyArray
   -> int n
-  ->o OIntArray dstArray
-  ->o OIntArray srcArray
+  ->o IntArray dstArray
+  ->o IntArray srcArray
   do(n 0)
     dstArray.set(srcArray.get(i) i)
   loop
 ;
 
 : bottomUpMerge
-  ->o OIntArray dstArray
+  ->o IntArray dstArray
   -> int iEnd
   -> int iRight
   -> int iLeft
-  ->o OIntArray srcArray
+  ->o IntArray srcArray
   iLeft -> int lIndex
   iRight -> int rIndex
   do(iEnd iLeft)
@@ -446,9 +445,9 @@ int _time
 
 : bottomUpMergeSort
   -> int n
-  ->o OIntArray srcArray
+  ->o IntArray srcArray
   
-  mko OIntArray tmpArray
+  mko IntArray tmpArray
   tmpArray.resize(n)
   
   
@@ -522,10 +521,10 @@ int _time
 
 //========================== quickSort ==========================
 
-: qsPartition  // hi lo OIntArray
+: qsPartition  // hi lo IntArray
   -> int hi
   -> int lo
-  ->o OIntArray a
+  ->o IntArray a
   d[ "partition " %s lo . hi . %nl ]d
   a.get(lo) -> int pivot
   lo 1- -> int loIndex
@@ -553,7 +552,7 @@ int _time
   recursive
   -> int hi
   -> int lo
-  ->o OIntArray a
+  ->o IntArray a
   int p
   if(lo hi <)
     qsPartition(a lo hi) -> p
@@ -612,16 +611,16 @@ loaddone
 //========================== 2stackSort ==========================
 
 : peek
-  ->o OIntArray v
+  ->o IntArray v
   v.get(v.count 1-)
 ;
   
 : 2stackSorta
   fillArray(v)
   
-  v.clone -> OIntArray a
+  v.clone -> IntArray a
   showResult(a)
-  mko OIntArray b
+  mko IntArray b
   
   startTime
   false -> int done
@@ -684,9 +683,9 @@ loaddone
 : 2stackSort
   fillArray(v)
   
-  v.clone -> OIntArray a
+  v.clone -> IntArray a
   showResult(a)
-  mko OIntArray b
+  mko IntArray b
   
   startTime
   false -> int done

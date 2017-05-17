@@ -8,7 +8,7 @@ autoforget misc_tests
 section filetest
 
 : filetest
-  mko OByteArray buffer
+  mko ByteArray buffer
   int tfile
   buffer.resize(2000)
   "testOutput" -> ptrTo byte dirName
@@ -16,7 +16,7 @@ section filetest
     mkdir(dirName 0x1ff) drop      // 0x1ff is the same as 777 octal (rwx permissions)
   endif
 
-  mko OString fname
+  mko String fname
   fname.set(dirName)
   fname.append("/_test.txt")
   
@@ -88,8 +88,8 @@ variable aa
 //===========================================================================
 section test outstream redirection
 
-class: DoubleOutStream extends OOutStream
-  OOutStream mOutStream
+class: DoubleOutStream extends OutStream
+  OutStream mOutStream
   
   m: putChar
     dup mOutStream.putChar
@@ -281,7 +281,7 @@ mko customShowTest bb
 mko customShowTest cc
 9 -> cc.id
 
-mko OArray boo
+mko Array boo
 boo.push(aa)
 boo.push(bb)
 boo.push(cc)
@@ -295,8 +295,8 @@ forget customShowTest
 //===========================================================================
 section test file out stream
 
-mko OFileOutStream outFile
-mko OFileInStream inFile
+mko FileOutStream outFile
+mko FileInStream inFile
 
 outFile.open("_testData.txt" "wb") drop
 outFile.putChar('a')

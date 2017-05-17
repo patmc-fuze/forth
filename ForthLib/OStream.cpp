@@ -1297,16 +1297,16 @@ namespace OStream
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("OInStream", kBCIInStream, kBCIObject, oInStreamMembers);
-		pEngine->AddBuiltinClass("OFileInStream", kBCIFileInStream, kBCIInStream, oFileInStreamMembers);
-		pEngine->AddBuiltinClass("OConsoleInStream", kBCIConsoleInStream, kBCIFileInStream, oConsoleInStreamMembers);
+		pEngine->AddBuiltinClass("InStream", kBCIInStream, kBCIObject, oInStreamMembers);
+		pEngine->AddBuiltinClass("FileInStream", kBCIFileInStream, kBCIInStream, oFileInStreamMembers);
+		pEngine->AddBuiltinClass("ConsoleInStream", kBCIConsoleInStream, kBCIFileInStream, oConsoleInStreamMembers);
 
-		pEngine->AddBuiltinClass("OOutStream", kBCIOutStream, kBCIObject, oOutStreamMembers);
-		pEngine->AddBuiltinClass("OFileOutStream", kBCIFileOutStream, kBCIOutStream, oFileOutStreamMembers);
-		pEngine->AddBuiltinClass("OStringOutStream", kBCIStringOutStream, kBCIOutStream, oStringOutStreamMembers);
-		pEngine->AddBuiltinClass("OConsoleOutStream", kBCIConsoleOutStream, kBCIFileOutStream, oConsoleOutStreamMembers);
-		pEngine->AddBuiltinClass("OFunctionOutStream", kBCIFunctionOutStream, kBCIOutStream, oFunctionOutStreamMembers);
-		pEngine->AddBuiltinClass("OTraceOutStream", kBCITraceOutStream, kBCIOutStream, oTraceOutStreamMembers);
+		pEngine->AddBuiltinClass("OutStream", kBCIOutStream, kBCIObject, oOutStreamMembers);
+		pEngine->AddBuiltinClass("FileOutStream", kBCIFileOutStream, kBCIOutStream, oFileOutStreamMembers);
+		pEngine->AddBuiltinClass("StringOutStream", kBCIStringOutStream, kBCIOutStream, oStringOutStreamMembers);
+		pEngine->AddBuiltinClass("ConsoleOutStream", kBCIConsoleOutStream, kBCIFileOutStream, oConsoleOutStreamMembers);
+		pEngine->AddBuiltinClass("FunctionOutStream", kBCIFunctionOutStream, kBCIOutStream, oFunctionOutStreamMembers);
+		pEngine->AddBuiltinClass("TraceOutStream", kBCITraceOutStream, kBCIOutStream, oTraceOutStreamMembers);
 	}
 } // namespace OStream
 

@@ -3607,32 +3607,32 @@ namespace OMap
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("OMap", kBCIMap, kBCIIterable, oMapMembers);
-		pEngine->AddBuiltinClass("OMapIter", kBCIMapIter, kBCIIter, oMapIterMembers);
+		pEngine->AddBuiltinClass("Map", kBCIMap, kBCIIterable, oMapMembers);
+		pEngine->AddBuiltinClass("MapIter", kBCIMapIter, kBCIIter, oMapIterMembers);
 
-		pEngine->AddBuiltinClass("OIntMap", kBCIIntMap, kBCIIterable, oIntMapMembers);
-		pEngine->AddBuiltinClass("OIntMapIter", kBCIIntMapIter, kBCIIter, oIntMapIterMembers);
+		pEngine->AddBuiltinClass("IntMap", kBCIIntMap, kBCIIterable, oIntMapMembers);
+		pEngine->AddBuiltinClass("IntMapIter", kBCIIntMapIter, kBCIIter, oIntMapIterMembers);
 
-		pEngine->AddBuiltinClass("OFloatMap", kBCIFloatMap, kBCIIntMap, oFloatMapMembers);
-		pEngine->AddBuiltinClass("OFloatMapIter", kBCIFloatMapIter, kBCIIter, oIntMapIterMembers);
+		pEngine->AddBuiltinClass("FloatMap", kBCIFloatMap, kBCIIntMap, oFloatMapMembers);
+		pEngine->AddBuiltinClass("FloatMapIter", kBCIFloatMapIter, kBCIIter, oIntMapIterMembers);
 
-		pEngine->AddBuiltinClass("OLongMap", kBCILongMap, kBCIIterable, oLongMapMembers);
-		pEngine->AddBuiltinClass("OLongMapIter", kBCILongMapIter, kBCIIter, oLongMapIterMembers);
+		pEngine->AddBuiltinClass("LongMap", kBCILongMap, kBCIIterable, oLongMapMembers);
+		pEngine->AddBuiltinClass("LongMapIter", kBCILongMapIter, kBCIIter, oLongMapIterMembers);
 
-		pEngine->AddBuiltinClass("ODoubleMap", kBCIDoubleMap, kBCILongMap, oDoubleMapMembers);
-		pEngine->AddBuiltinClass("ODoubleMapIter", kBCIDoubleMapIter, kBCIIter, oLongMapIterMembers);
+		pEngine->AddBuiltinClass("DoubleMap", kBCIDoubleMap, kBCILongMap, oDoubleMapMembers);
+		pEngine->AddBuiltinClass("DoubleMapIter", kBCIDoubleMapIter, kBCIIter, oLongMapIterMembers);
 
-		pEngine->AddBuiltinClass("OStringIntMap", kBCIStringIntMap, kBCIIterable, oStringIntMapMembers);
-		pEngine->AddBuiltinClass("OStringIntMapIter", kBCIStringIntMapIter, kBCIIter, oStringIntMapIterMembers);
+		pEngine->AddBuiltinClass("StringIntMap", kBCIStringIntMap, kBCIIterable, oStringIntMapMembers);
+		pEngine->AddBuiltinClass("StringIntMapIter", kBCIStringIntMapIter, kBCIIter, oStringIntMapIterMembers);
 
-		pEngine->AddBuiltinClass("OStringFloatMap", kBCIStringFloatMap, kBCIStringIntMap, oStringFloatMapMembers);
-		pEngine->AddBuiltinClass("OStringFloatMapIter", kBCIStringFloatMapIter, kBCIIter, oStringIntMapIterMembers);
+		pEngine->AddBuiltinClass("StringFloatMap", kBCIStringFloatMap, kBCIStringIntMap, oStringFloatMapMembers);
+		pEngine->AddBuiltinClass("StringFloatMapIter", kBCIStringFloatMapIter, kBCIIter, oStringIntMapIterMembers);
 
-		pEngine->AddBuiltinClass("OStringLongMap", kBCIStringLongMap, kBCIIterable, oStringLongMapMembers);
-		pEngine->AddBuiltinClass("OStringLongMapIter", kBCIStringLongMapIter, kBCIIter, oLongMapIterMembers);
+		pEngine->AddBuiltinClass("StringLongMap", kBCIStringLongMap, kBCIIterable, oStringLongMapMembers);
+		pEngine->AddBuiltinClass("StringLongMapIter", kBCIStringLongMapIter, kBCIIter, oLongMapIterMembers);
 
-		pEngine->AddBuiltinClass("OStringDoubleMap", kBCIStringDoubleMap, kBCIStringLongMap, oStringDoubleMapMembers);
-		pEngine->AddBuiltinClass("OStringDoubleMapIter", kBCIStringDoubleMapIter, kBCIIter, oLongMapIterMembers);
+		pEngine->AddBuiltinClass("StringDoubleMap", kBCIStringDoubleMap, kBCIStringLongMap, oStringDoubleMapMembers);
+		pEngine->AddBuiltinClass("StringDoubleMapIter", kBCIStringDoubleMapIter, kBCIIter, oLongMapIterMembers);
 	}
 
 } // namespace OMap

@@ -4646,34 +4646,34 @@ namespace OArray
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("OArray", kBCIArray, kBCIIterable, oArrayMembers);
-		pEngine->AddBuiltinClass("OArrayIter", kBCIArrayIter, kBCIIter, oArrayIterMembers);
+		pEngine->AddBuiltinClass("Array", kBCIArray, kBCIIterable, oArrayMembers);
+		pEngine->AddBuiltinClass("ArrayIter", kBCIArrayIter, kBCIIter, oArrayIterMembers);
 
-        pEngine->AddBuiltinClass("OByteArray", kBCIByteArray, kBCIIterable, oByteArrayMembers);
-		pEngine->AddBuiltinClass("OByteArrayIter", kBCIByteArrayIter, kBCIIter, oByteArrayIterMembers);
+        pEngine->AddBuiltinClass("ByteArray", kBCIByteArray, kBCIIterable, oByteArrayMembers);
+		pEngine->AddBuiltinClass("ByteArrayIter", kBCIByteArrayIter, kBCIIter, oByteArrayIterMembers);
 
-        pEngine->AddBuiltinClass("OShortArray", kBCIShortArray, kBCIByteArray, oShortArrayMembers);
-		pEngine->AddBuiltinClass("OShortArrayIter", kBCIShortArrayIter, kBCIIter, oShortArrayIterMembers);
+        pEngine->AddBuiltinClass("ShortArray", kBCIShortArray, kBCIByteArray, oShortArrayMembers);
+		pEngine->AddBuiltinClass("ShortArrayIter", kBCIShortArrayIter, kBCIIter, oShortArrayIterMembers);
 
-        pEngine->AddBuiltinClass("OIntArray", kBCIIntArray, kBCIByteArray, oIntArrayMembers);
-		pEngine->AddBuiltinClass("OIntArrayIter", kBCIIntArrayIter, kBCIIter, oIntArrayIterMembers);
+        pEngine->AddBuiltinClass("IntArray", kBCIIntArray, kBCIByteArray, oIntArrayMembers);
+		pEngine->AddBuiltinClass("IntArrayIter", kBCIIntArrayIter, kBCIIter, oIntArrayIterMembers);
 
-		pEngine->AddBuiltinClass("OFloatArray", kBCIFloatArray, kBCIIntArray, oFloatArrayMembers);
-		pEngine->AddBuiltinClass("OFloatArrayIter", kBCIFloatArrayIter, kBCIIter, oIntArrayIterMembers);
+		pEngine->AddBuiltinClass("FloatArray", kBCIFloatArray, kBCIIntArray, oFloatArrayMembers);
+		pEngine->AddBuiltinClass("FloatArrayIter", kBCIFloatArrayIter, kBCIIter, oIntArrayIterMembers);
 
-        pEngine->AddBuiltinClass("OLongArray", kBCILongArray, kBCIByteArray, oLongArrayMembers);
-		pEngine->AddBuiltinClass("OLongArrayIter", kBCILongArrayIter, kBCIIter, oLongArrayIterMembers);
+        pEngine->AddBuiltinClass("LongArray", kBCILongArray, kBCIByteArray, oLongArrayMembers);
+		pEngine->AddBuiltinClass("LongArrayIter", kBCILongArrayIter, kBCIIter, oLongArrayIterMembers);
 
-		pEngine->AddBuiltinClass("ODoubleArray", kBCIDoubleArray, kBCILongArray, oDoubleArrayMembers);
-		pEngine->AddBuiltinClass("ODoubleArrayIter", kBCIDoubleArrayIter, kBCIIter, oLongArrayIterMembers);
+		pEngine->AddBuiltinClass("DoubleArray", kBCIDoubleArray, kBCILongArray, oDoubleArrayMembers);
+		pEngine->AddBuiltinClass("DoubleArrayIter", kBCIDoubleArrayIter, kBCIIter, oLongArrayIterMembers);
 
-		pEngine->AddBuiltinClass("OStringArray", kBCIStringArray, kBCIArray, oStringArrayMembers);
+		pEngine->AddBuiltinClass("StringArray", kBCIStringArray, kBCIArray, oStringArrayMembers);
 		
-		pEngine->AddBuiltinClass("OPair", kBCIPair, kBCIIterable, oPairMembers);
-		pEngine->AddBuiltinClass("OPairIter", kBCIPairIter, kBCIIter, oPairIterMembers);
+		pEngine->AddBuiltinClass("Pair", kBCIPair, kBCIIterable, oPairMembers);
+		pEngine->AddBuiltinClass("PairIter", kBCIPairIter, kBCIIter, oPairIterMembers);
 
-		pEngine->AddBuiltinClass("OTriple", kBCITriple, kBCIIterable, oTripleMembers);
-		pEngine->AddBuiltinClass("OTripleIter", kBCITripleIter, kBCIIter, oTripleIterMembers);
+		pEngine->AddBuiltinClass("Triple", kBCITriple, kBCIIterable, oTripleMembers);
+		pEngine->AddBuiltinClass("TripleIter", kBCITripleIter, kBCIIter, oTripleIterMembers);
 	}
 
 } // namespace OArray

@@ -259,7 +259,7 @@ alias include lf
 ;
 
 : recurse
-  system.getDefinitionsVocab -> OVocabulary vocab
+  system.getDefinitionsVocab -> Vocabulary vocab
   vocab.getNewestEntry @ ,
   oclear vocab
 ; precedence recurse

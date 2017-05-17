@@ -930,8 +930,8 @@ namespace OList
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("OList", kBCIList, kBCIIterable, oListMembers);
-		pEngine->AddBuiltinClass("OListIter", kBCIListIter, kBCIIter, oListIterMembers);
+		pEngine->AddBuiltinClass("List", kBCIList, kBCIIterable, oListMembers);
+		pEngine->AddBuiltinClass("ListIter", kBCIListIter, kBCIIter, oListIterMembers);
 	}
 
 } // namespace OList

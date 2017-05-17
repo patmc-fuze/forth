@@ -475,7 +475,7 @@ class: atcInputHandler extends iAtcInputHandler
     // handle backspace/delete:
     //  set state back to idle
     //  remove last char from commandString
-    mko OString tmpCommandString
+    mko String tmpCommandString
     tmpCommandString.set( commandString.get )
     tmpCommandString.resize( tmpCommandString.length 1- )
     tmpCommandString.get -> ptrTo byte pSrc
@@ -495,8 +495,8 @@ class: atcInputHandler extends iAtcInputHandler
     'inph' -> tag
     -> display
     ->o region
-    new OString -> displayString
-    new OString -> commandString
+    new String -> displayString
+    new String -> commandString
     kACSIdle -> commandState
     0 -> cmdChar
     false -> isGameOver

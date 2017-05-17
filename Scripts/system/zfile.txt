@@ -15,14 +15,14 @@ class: ZFileInStream extends OFileInStream
     else
       "ZFileInStream:open - could not open " %s pFilename %s %nl
     endif
-  ;method
+  ;m
 
   m: close
     if(userData)
       gzclose(userData) drop
       0 -> userData
     endif
-  ;method
+  ;m
   
   m: atEOF
     if(userData)
@@ -30,7 +30,7 @@ class: ZFileInStream extends OFileInStream
     else
       -1
     endif
-  ;method
+  ;m
   
   m: delete
     close
@@ -92,14 +92,14 @@ class: ZFileOutStream extends OFileOutStream
     else
       "ZFileOutStream:open - could not open " %s pFilename %s %nl
     endif
-  ;method
+  ;m
 
   m: close
     if(userData)
       gzclose(userData) drop
       0 -> userData
     endif
-  ;method
+  ;m
   
   m: delete
     close

@@ -459,13 +459,13 @@ code goo
 class: boo
 
   int aa
-  method: getaa
+  m: getaa
     goo
-  ;method
+  ;m
   
-  method: setaa
+  m: setaa
     -> aa
-  ;method
+  ;m
   
 ;class
 

@@ -27,7 +27,7 @@ class: MotionVerb extends Word
 
 ///////////////////////////// ActionVerb //////////////////////////////////////////
 
-mko OString __defaultActionVerbMessage
+mko String __defaultActionVerbMessage
 __defaultActionVerbMessage.set("[No message object attached to this ActionVerb]")
 
 class: ActionVerb extends Word

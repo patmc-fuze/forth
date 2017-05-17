@@ -7,9 +7,9 @@ autoforget rctest
 // see if builtin classes have a 'new' method
 : ndrop 0 do drop loop ;
 
-// N_STRINGS N OString makeStr ... OString object
+// N_STRINGS N String makeStr ... String object
 : makeStr
-  -> OString str
+  -> String str
   -> int nStrings
   do( 0 nStrings 1- )
     //i %d %nl
@@ -20,7 +20,7 @@ autoforget rctest
 ;
 
 : ninterpret
-  new OString -> OString foo
+  new String -> String foo
   makeStr( foo )
   $evaluate( foo.get )
   //foo.get %s %nl
@@ -35,70 +35,70 @@ autoforget rctest
   r[ "new "  typeName " -> " typeName " " instName ]r ninterpret
 ;
 
-: str  // STRING_PTR str INSTANCE_NAME  - defines OString var and creates instance & initializes value to STRING_PTR
-  new OString -> OString instName
+: str  // STRING_PTR str INSTANCE_NAME  - defines String var and creates instance & initializes value to STRING_PTR
+  new String -> String instName
   blword instName.set
-  r[ "new OString -> OString " instName.get " " instName.get ".set" ]r ninterpret
+  r[ "new String -> String " instName.get " " instName.get ".set" ]r ninterpret
   instName.release
 ;
 
 
 : showContainer
-  <OIterable>.headIter -> OIter iter
+  <Iterable>.headIter -> Iter iter
   begin
     iter.next
   while
-    2dup <OString>.get %s %bl <Object>.show %nl
+    2dup <String>.get %s %bl <Object>.show %nl
   repeat
   dnull -> iter
 ;
 
 : showContainerR
-  <OIterable>.tailIter -> OIter iter
+  <Iterable>.tailIter -> Iter iter
   begin
     iter.prev
   while
-    2dup <OString>.get %s %bl <Object>.show %nl
+    2dup <String>.get %s %bl <Object>.show %nl
   repeat
   dnull -> iter
 ;
 
 : showArray
-  <OArray>.headIter 2dup showContainer
-  <OIter>.release
+  <Array>.headIter 2dup showContainer
+  <Iter>.release
 ;
 
 : showArrayR
-  <OArray>.tailIter 2dup showContainerR
-  <OIter>.release
+  <Array>.tailIter 2dup showContainerR
+  <Iter>.release
 ;
 
 : showList
-  <OList>.headIter 2dup showContainer
-  <OIter>.release
+  <List>.headIter 2dup showContainer
+  <Iter>.release
 ;
 
 : showListR
-  <OList>.tailIter 2dup showContainerR
-  <OIter>.release
+  <List>.tailIter 2dup showContainerR
+  <Iter>.release
 ;
 
 : showMap
-  <OIntMap>.headIter -> OIntMapIter iter
+  <IntMap>.headIter -> IntMapIter iter
   begin
     iter.nextPair
   while
-    "key=" %s %d %bl 2dup <OString>.get %s %bl <Object>.show %nl
+    "key=" %s %d %bl 2dup <String>.get %s %bl <Object>.show %nl
   repeat
   iter.release
 ;
 
 : showMapR
-  <OIntMap>.tailIter -> OIntMapIter iter
+  <IntMap>.tailIter -> IntMapIter iter
   begin
     iter.prevPair
   while
-    "key=" %s %d %bl 2dup <OString>.get %s %bl <Object>.show %nl
+    "key=" %s %d %bl 2dup <String>.get %s %bl <Object>.show %nl
   repeat
   iter.release
 ;
@@ -106,9 +106,9 @@ autoforget rctest
 "alsatian" str dogA
 "beagle" str dogB
 "corgie" str dogC
-obj OArray adogs
-obj OList ldogs
-obj OIntMap mdogs
+obj Array adogs
+obj List ldogs
+obj IntMap mdogs
 
 
 : test
@@ -160,29 +160,29 @@ class: animal extends object
 
 
 class: zoo extends object
-  OString name
-  OArray cages
+  String name
+  Array cages
   
   // ZOO_NAME ...
-  method: init
-    new OString -> name
-    new OArray -> cages
+  m: init
+    new String -> name
+    new Array -> cages
     name.set
-  ;method
+  ;m
   
-  method: delete
+  m: delete
     super.delete
-  ;method
+  ;m
   
   // CAGE_NAME ...
-  method: addCage
+  m: addCage
     new OPair -> OPair newCage
     newCage.setA
     newCage cages.push
-  ;method
+  ;m
   
-  method: show
-  ;method
+  m: show
+  ;m
   
   
 ;class

@@ -138,10 +138,10 @@ false -> int _helpfileLoaded
 ;
 
 // create the system singleton
-makeObject OSystem system
+makeObject System system
 
 : immediate
-  system.getDefinitionsVocab -> OVocabulary vocab
+  system.getDefinitionsVocab -> Vocabulary vocab
   vocab.getNewestEntry
   vocab.getValueLength + >r // top of rstack points to length byte of counted string
   move( r@ 1+ _TempStringA r@ c@ )
@@ -278,10 +278,10 @@ int dumpWidth
 : $alias
   -> int oldSymbol
   -> int newSymbol
-  system.getDefinitionsVocab -> OVocabulary vocab
+  system.getDefinitionsVocab -> Vocabulary vocab
   vocab.findEntryByName(oldSymbol) -> int oldEntry
   // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
-  makeObject OByteArray valueBuffer
+  makeObject ByteArray valueBuffer
   valueBuffer.fromMemory(oldEntry vocab.getValueLength 0)
   valueBuffer.base -> oldEntry
   //newSymbol %s %nl dump(oldEntry 32)
@@ -759,7 +759,7 @@ addHelp oshow   OBJECT oshow ...    like OBJECT.show, but doesn't crash if OBJEC
     // already defined, just drop value on TOS
     drop
   else
-    mko OString paramString
+    mko String paramString
     
     if(strcmp(paramType "string"))
       paramString.appendFormatted("-> %s %s" r[ paramType paramName ]r)
@@ -779,7 +779,7 @@ addHelp oshow   OBJECT oshow ...    like OBJECT.show, but doesn't crash if OBJEC
 //  which could have non-predictable output - like running time, clock time or random elements
 false -> bool testsRunning
 
-mko OArray consoleOutStreamStack
+mko Array consoleOutStreamStack
 
 addHelp pushConsoleOut   OUTPUT_STREAM pushConsoleOut ...   save current console output stream and set new output stream
 : pushConsoleOut
@@ -790,7 +790,7 @@ addHelp pushConsoleOut   OUTPUT_STREAM pushConsoleOut ...   save current console
 addHelp pushOutputFile   OUTPUT_FILENAME pushOutputFile ...   redirect output stream to named file
 : pushOutputFile
   -> ptrTo byte outFileName
-  mko OFileOutStream outFile
+  mko FileOutStream outFile
   
   if(outFile.open(outFileName "w"))
     pushConsoleOut(outFile)

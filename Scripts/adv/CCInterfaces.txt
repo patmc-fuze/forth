@@ -9,7 +9,7 @@ enum: eAdventureWordType
   kAWTSpecialCaseVerb
 ;enum
 
-mko OString advEmptyString
+mko String advEmptyString
 
 // ILocation and ILocationCondition are abstract interfaces used to get around
 //  a circular dependancy between Location and LocationCondition
@@ -23,11 +23,11 @@ class: ILocation
   m: getAccessibleLocationIndex ;m // takes Location, returns int
   m: getPrintMessageIndex ;m // takes Message, returns int
     
-  m: listObjects returns OString ;m
-  m: getAccessibleLocationsAndMotionVerbsAsString returns OString ;m
-  m: getPrintMessagesAndMotionVerbsAsString returns OString ;m
-  m: getAssetsAsString returns OString ;m
-  m: getHintsAsString returns OString ;m
+  m: listObjects returns String ;m
+  m: getAccessibleLocationsAndMotionVerbsAsString returns String ;m
+  m: getPrintMessagesAndMotionVerbsAsString returns String ;m
+  m: getAssetsAsString returns String ;m
+  m: getHintsAsString returns String ;m
   m: addAccessibleLocation ;m  // (Location* loc)
   m: addMotionVerb ;m   // (Location* loc, MotionVerb* verb)
   m: appendToShortDescription ;m  // takes string
@@ -40,20 +40,20 @@ class: ILocation
 
   int number
   int numberOfVisits
-  OString shortDescription
-  OString longDescription
+  String shortDescription
+  String longDescription
     
-  OArray objects
-  OByteArray assets     // elements are bools
+  Array objects
+  ByteArray assets     // elements are bools
     
-  OArray hints        // elements are IHint
+  Array hints        // elements are IHint
  
-  OArray accessibleLocations    // elements are ILocation
-  OArray motionVerbs            // elements are OArray<IMotionVerb>
-  OArray printMessages          // elements are Message
-  OArray motionVerbsForPrintingMessage    // elements are OArray<IMotionVerb>
+  Array accessibleLocations    // elements are ILocation
+  Array motionVerbs            // elements are Array<IMotionVerb>
+  Array printMessages          // elements are Message
+  Array motionVerbsForPrintingMessage    // elements are Array<IMotionVerb>
     
-  OArray locationConditions     // elements are LocationCondition
+  Array locationConditions     // elements are LocationCondition
   
 ;class
 

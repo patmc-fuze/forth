@@ -2,9 +2,9 @@ requires Message
 
         
         
-mko OString _hintEmptyQuestion
+mko String _hintEmptyQuestion
 _hintEmptyQuestion.set("[No message object attached to this question.]")
-mko OString _hintEmptyHint
+mko String _hintEmptyHint
 _hintEmptyHint.set("[No message object attached to this hint.]")
 
 class: Hint
@@ -30,7 +30,7 @@ class: Hint
     hint.show %nl
   ;m
   
-  m: getQuestion returns OString
+  m: getQuestion returns String
     -> int emptyIfNull
     if(objNotNull(question))
       question.content
@@ -43,7 +43,7 @@ class: Hint
     endif
   ;m
 
-  m: getHint returns OString
+  m: getHint returns String
     -> int emptyIfNull
     if(objNotNull(question))
       hint.content

@@ -2,8 +2,8 @@
 autoforget asyncPhilosophers
 : asyncPhilosophers ;
 
-mko OArray philosophers
-mko OArray forks
+mko Array philosophers
+mko Array forks
 
 10 -> int helpingsToEat
 20 -> int eatingTime
@@ -12,7 +12,7 @@ mko OArray forks
 true -> bool useForks
 
 true -> bool usePrintLocks
-OAsyncLock printLock
+AsyncLock printLock
 : p[
   if(usePrintLocks)
     printLock.grab
@@ -26,9 +26,9 @@ OAsyncLock printLock
 ;
 
 class: AsyncPhilosopher
-  OAsyncThread eatingThread
-  OAsyncLock firstFork
-  OAsyncLock secondFork
+  AsyncThread eatingThread
+  AsyncLock firstFork
+  AsyncLock secondFork
   int id
   int timesFed
   int timesHungry
@@ -132,7 +132,7 @@ class: AsyncPhilosopher
     philosophers.push(phil)
     oclear phil
     
-    system.createAsyncLock -> OAsyncLock fork
+    system.createAsyncLock -> AsyncLock fork
     i -> fork.id
     forks.push(fork)
     oclear fork

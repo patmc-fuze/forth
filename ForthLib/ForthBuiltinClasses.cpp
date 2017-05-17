@@ -474,8 +474,8 @@ ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 	pEngine->AddBuiltinClass("Object", kBCIObject, kBCIInvalid, objectMembers);
 	ForthClassVocabulary* pClassClassVocab = pEngine->AddBuiltinClass("Class", kBCIClass, kBCIObject, classMembers);
 
-	pEngine->AddBuiltinClass("OIter", kBCIIter, kBCIObject, oIterMembers);
-	pEngine->AddBuiltinClass("OIterable", kBCIIterable, kBCIObject, oIterableMembers);
+	pEngine->AddBuiltinClass("Iter", kBCIIter, kBCIObject, oIterMembers);
+	pEngine->AddBuiltinClass("Iterable", kBCIIterable, kBCIObject, oIterableMembers);
 
 	OSystem::AddClasses(pEngine);
 	OArray::AddClasses(pEngine);

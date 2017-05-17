@@ -40,12 +40,12 @@ class: SDLScreen
 
   : dummyFetchOp drop 0 ;
   
-  method: initLimits
+  m: initLimits
     dup -> height 2/ dup -> bottomLimit dup -> centerY negate -> topLimit
     dup -> width 2/ dup -> rightLimit dup -> centerX negate -> leftLimit
-  ;method
+  ;m
   
-  method: initWithSize
+  m: initWithSize
     -> int windowHeight
     -> int windowWidth
     null -> surface
@@ -69,22 +69,22 @@ class: SDLScreen
     0 -> curX
     0 -> curY
     
-  ;method
+  ;m
   
-  method: init
+  m: init
     initWithSize(defaultWindowWidth defaultWindowHeight)
-  ;method
+  ;m
 
-  method: end
+  m: end
     if( sdlStarted )
       SDL_Quit
       false -> sdlStarted
     endif
-  ;method
+  ;m
   
 
   
-  method: start
+  m: start
     if( sdlStarted )
       end
     endif
@@ -154,7 +154,7 @@ class: SDLScreen
       height -> dstPos.h
       0 -> drawDepth
     endif
-  ;method
+  ;m
 
   : beginDraw
     1 ->+ drawDepth
@@ -176,21 +176,21 @@ class: SDLScreen
     endif
   ;
 
-  method: beginFrame
+  m: beginFrame
     beginDraw
-  ;method
+  ;m
   
-  method: endFrame
+  m: endFrame
     endDraw
-  ;method
+  ;m
   
-  method: moveTo
+  m: moveTo
     -> curY -> curX
-  ;method
+  ;m
 
-  method: positionWindow
+  m: positionWindow
     SDL_SetWindowPosition(window rot rot)
-  ;method
+  ;m
   
   // X Y screenAddress -> address of pixel on screen
   : screenAddress
@@ -218,39 +218,39 @@ class: SDLScreen
   ;
 
   // X Y getPixel -> fetches pixel value at X,Y
-  method: getPixel
+  m: getPixel
     screenAddress pixel@
-  ;method
+  ;m
 
   // X Y isOnScreen -> true/false
-  method: isOnScreen
+  m: isOnScreen
   
     if( topLimit bottomLimit within )
       leftLimit rightLimit within
     else
       drop false
     endif
-  ;method
+  ;m
 
-  method: setColor
+  m: setColor
     -> pixelColor
-  ;method
+  ;m
   
-  method: getColor
+  m: getColor
     pixelColor
-  ;method
+  ;m
   
   // x y drawPoint
-  method: drawPoint
+  m: drawPoint
     beginDraw
   
     drawPixel
   
     endDraw
-  ;method
+  ;m
 
   // x y DrawLine
-  method: drawLine
+  m: drawLine
     curY negate -> int y0
     curX -> int x0
   
@@ -319,22 +319,22 @@ class: SDLScreen
       repeat
     endif
     endDraw
-  ;method
+  ;m
 
   // XYPAIRS NUM_PAIRS drawPolyLine
-  method: drawPolyLine
+  m: drawPolyLine
     // TBD: reverse order of points?
     0 do
       drawLine
     loop
-  ;method
+  ;m
 
   // XYPAIRS NUM_LINES drawMultiLine
-  method: drawMultiLine
+  m: drawMultiLine
     0 do
       2swap moveTo drawLine
     loop
-  ;method
+  ;m
 
   // X Y _draw4EllipsePoints ...
   : _draw4EllipsePoints
@@ -351,7 +351,7 @@ class: SDLScreen
   ;
 
   // WIDTH HEIGHT DrawEllipse ...
-  method: drawEllipse
+  m: drawEllipse
     beginDraw
   
     -> int h
@@ -414,7 +414,7 @@ class: SDLScreen
     repeat
   
     endDraw
-  ;method
+  ;m
 
 
   : _drawCirclePoints
@@ -449,7 +449,7 @@ class: SDLScreen
     endif
   ;
 
-  method: drawCircle
+  m: drawCircle
     beginDraw
   
     dup -> int r
@@ -470,9 +470,9 @@ class: SDLScreen
     repeat
   
     endDraw
-  ;method
+  ;m
 
-  method: drawSquare
+  m: drawSquare
     beginDraw
     -> int size
     curX curY
@@ -483,9 +483,9 @@ class: SDLScreen
     drawLine( curX size - curY )
     moveTo
     endDraw
-  ;method
+  ;m
 
-  method: drawRectangle
+  m: drawRectangle
     beginDraw
     -> int h
     -> int w
@@ -497,9 +497,9 @@ class: SDLScreen
     drawLine( curX w - curY )
     moveTo
     endDraw
-  ;method
+  ;m
 
-  method: fillRectangle
+  m: fillRectangle
     beginDraw
     SDL_Rect rect
     -> rect.h
@@ -508,19 +508,19 @@ class: SDLScreen
     centerY curY - rect.h - -> rect.y
     SDL_FillRect( surface rect pixelColor ) drop
     endDraw
-  ;method
+  ;m
 
-  method: clear
+  m: clear
     beginDraw
     SDL_FillRect( surface null rot ) drop
     endDraw
-  ;method
+  ;m
   
-  method: flip
+  m: flip
     //SDL_Flip( surface ) drop
-  ;method
+  ;m
 
-  method: drawBitmap
+  m: drawBitmap
     SDL_LoadBMP() -> ptrTo SDL_Surface bmSurface
     SDL_Rect dstPos
     curX centerX + -> dstPos.x
@@ -530,7 +530,7 @@ class: SDLScreen
     SDL_BlitSurface(bmSurface null surface dstPos)
     SDL_FreeSurface(bmSurface)
     endDraw
-  ;method
+  ;m
   
 ;class
 

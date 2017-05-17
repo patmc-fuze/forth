@@ -8,8 +8,8 @@ true -> compileAsserts
 0 -> int _nextNodeId
 
 class: RBNode
-  object	key
-  object	value
+  Object	key
+  Object	value
   RBNode		left
   RBNode		right
   int		red	// true == red   false == black
@@ -26,38 +26,38 @@ class: RBNode
   ' _newNode RBNode.setNew
   
   
-  method: init
+  m: init
     -> N
     -> red
     -> value
     -> key
-  ;method
+  ;m
  
-  method: delete
+  m: delete
     //"<deleted " %s _nextNodeId %d ">\n" %s
     oclear key
     oclear value
     oclear left
     oclear right
     super.delete
-  ;method
+  ;m
 
-  //method: show
+  //m: show
   //  "red:" %s red %d " N:" %s N %d
   //  " key:" %s key oshow
   //  " value:" %s value oshow
   //  "[left:" %s left oshow "][right:" %s right oshow "]" %s
-  //;method
+  //;m
 
 ;class
 
 class: RBTree
   RBNode		root
 
-  method: delete
+  m: delete
     oclear root
     super.delete
-  ;method
+  ;m
       
   : isRed
     2dup
@@ -86,22 +86,22 @@ class: RBTree
     endif
   ;
 
-  method: size
+  m: size
     _size( root )
-  ;method
+  ;m
   
-  method: isEmpty
+  m: isEmpty
     root l0=
-  ;method
+  ;m
   
   //*************************************************************************
   //  Standard BST search
   //*************************************************************************
   
   // KEY_OBJECT NODE ... NODE
-  : _get    //   returns object
+  : _get    //   returns Object
     -> RBNode x
-    -> object key
+    -> Object key
     begin
     while( x l0<> )
       key.compare( x.key ) -> int cmp
@@ -122,13 +122,13 @@ class: RBTree
     dnull  // didn't find it
   ;
   
-  method: get   returns object
+  m: get   returns Object
     _get( root )
-  ;method
+  ;m
   
-  method: contains
+  m: contains
     _get( root ) l0<>
-  ;method
+  ;m
   
 
   //*************************************************************************
@@ -237,8 +237,8 @@ class: RBTree
   : _put      // KEY_OBJECT VALUE_OBJECT NODE ... NODE
     recursive
     -> RBNode h
-    -> object val
-    -> object key
+    -> Object val
+    -> Object key
     if( h l0= )
     "empty tree\n" %s
       new RBNode -> h
@@ -278,10 +278,10 @@ class: RBTree
   ;
   
 
-  method: put   // KEY_OBJECT VALUE_OBJECT
+  m: put   // KEY_OBJECT VALUE_OBJECT
     _put( root ) -> root
     false -> root.red
-  ;method
+  ;m
 
 
   : _min      // NODE ... NODE 
@@ -296,14 +296,14 @@ class: RBTree
     oclear x
   ;
   
-  method: min     // ... NODE
-    returns object
+  m: min     // ... NODE
+    returns Object
     if( isEmpty )
       dnull
     else
       _min( root )
     endif
-  ;method
+  ;m
   
   : _max      // NODE ... NODE 
     recursive
@@ -317,18 +317,18 @@ class: RBTree
     oclear x
   ;
   
-  method: max      // ... NODE
-    returns object
+  m: max      // ... NODE
+    returns Object
     if( isEmpty )
       dnull
     else
       _max( root )
     endif
-  ;method
+  ;m
   
   : _floor      // VALUE_NODE KEY_NODE ... NODE
     recursive
-    -> object key
+    -> Object key
     -> RBNode x
     if( x l0= )
       dnull
@@ -354,8 +354,8 @@ class: RBTree
     oclear key
   ;
   
-  method: floor   returns RBNode
-    -> object key
+  m: floor   returns RBNode
+    -> Object key
     RBNode x
     _floor( root key ) -> x
     if( x l0= )
@@ -365,11 +365,11 @@ class: RBTree
     endif
     oclear x
     oclear key
-  ;method
+  ;m
   
   : _ceiling      // NODE KEY ... NODE
     recursive
-    -> object key
+    -> Object key
     -> RBNode x
     if( x l0= )
       dnull
@@ -395,8 +395,8 @@ class: RBTree
     oclear key
   ;
   
-  method: ceiling   returns RBNode
-    -> object key
+  m: ceiling   returns RBNode
+    -> Object key
     RBNode x
     _floor( root key ) -> x
     if( x l0= )
@@ -406,7 +406,7 @@ class: RBTree
     endif
     oclear x
     oclear key
-  ;method
+  ;m
 
   // the key of rank k in the subtree rooted at x
   : _select      // NODE KEY ... NODE
@@ -429,7 +429,7 @@ class: RBTree
   ;
 
   // the key of rank k  
-  method: select   returns object
+  m: select   returns Object
     -> int k
     RBNode x
     if( k 0< k size >= or )
@@ -439,13 +439,13 @@ class: RBTree
     endif
     x.key
     oclear x
-  ;method
+  ;m
    
 
   : _rank       // NODE ... RANK_OF_NODE
     recursive
     -> RBNode x
-    -> object key
+    -> Object key
     if( x l0= )
       dnull
     else
@@ -464,9 +464,9 @@ class: RBTree
     oclear key
   ;
   
-  method: rank
+  m: rank
     _rank( root )
-  ;method
+  ;m
   
   //*************************************************************************
   //  Red-black deletion
@@ -493,7 +493,7 @@ class: RBTree
   : _remove       // KEY NODE ... NODE
     recursive
     -> RBNode h
-    -> object key
+    -> Object key
     assert[ contains( key h ) ]
     
     if( key.compare( h.key ) 0< )
@@ -527,8 +527,8 @@ class: RBTree
     oclear h
   ;
   
-  method: remove
-    -> object key
+  m: remove
+    -> Object key
     if( contains( key ) not )
       // TODO: print error
     else
@@ -544,9 +544,9 @@ class: RBTree
     endif
     
     oclear key
-  ;method
+  ;m
   
-  method: removeMin
+  m: removeMin
     if( isEmpty )
       // TODO: throw new NoSuchElementException("BST underflow");
     endif
@@ -561,7 +561,7 @@ class: RBTree
       false -> root.red
     endif
     // assert[ check ]
-  ;method
+  ;m
   
   
   : _removeMax      // NODE ... NODE
@@ -585,7 +585,7 @@ class: RBTree
   ;
   
   
-  method: removeMax
+  m: removeMax
     assert[ not( isEmpty ) ]
     // if (isEmpty()) throw new NoSuchElementException("BST underflow");
     
@@ -599,7 +599,7 @@ class: RBTree
       false -> root.red
     endif
     // assert[ check ]
-  ;method
+  ;m
   
   : _height     // NODE ... NODE_HEIGHT
     "_height" %s ds
@@ -614,9 +614,9 @@ class: RBTree
     oclear x
   ;
   
-  method: height
+  m: height
     _height( root )
-  ;method
+  ;m
   
 ;class
 

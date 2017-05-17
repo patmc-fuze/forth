@@ -8,7 +8,7 @@ class: HersheyGlyph
   int mBottomDY
   
   // mCoords has 2 bytes per vertex, first byte is (y coord + 64) with move flag in hibit, second byte is (x coord + 64)
-  OByteArray mCoords
+  ByteArray mCoords
 
   // the coordinates in hershey glyphs are offsets from a position in the rough center of the character.
   // mLeftPos is the offset from the center to the left edge of the character, and should be negative.
@@ -18,17 +18,17 @@ class: HersheyGlyph
   // After you are done drawing and want to move to the next character, the new draw position is gotten by
   // adding mRightPos to the character center X.
   
-  method: init      // leftPos rightPos
+  m: init      // leftPos rightPos
     -> mRightPos
     -> mLeftPos
-    new OByteArray -> mCoords
-  ;method
+    new ByteArray -> mCoords
+  ;m
   
-  method: delete
+  m: delete
     oclear mCoords
-  ;method
+  ;m
 
-  method: addVertex  // x y isMove ...
+  m: addVertex  // x y isMove ...
     // x and y are in range -64...63
     if
       64+ 0x80 or
@@ -37,13 +37,13 @@ class: HersheyGlyph
     endif
     mCoords.push      // add y+isMove
     64+ mCoords.push  // add x
-  ;method
+  ;m
   
-  method: numVertices
+  m: numVertices
     mCoords.count 2/
-  ;method
+  ;m
   
-  method: getVertex // index ... x y isMove
+  m: getVertex // index ... x y isMove
     2* dup 1+ mCoords.get 64-   // x
 
     swap mCoords.get
@@ -52,19 +52,19 @@ class: HersheyGlyph
     else
       64- false
     endif
-  ;method
+  ;m
   
-  method: getWidth
+  m: getWidth
     mRightPos mLeftPos -
-  ;method
+  ;m
   
 ;class
 
 
 class: HersheyFont
 
-  OIntMap mGlyphs
-  OString mFilename
+  IntMap mGlyphs
+  String mFilename
   int mMaxWidth     // widest glyph
   int mMinY         // 
   int mMaxY
@@ -72,21 +72,21 @@ class: HersheyFont
   int mTopDY
   int mBottomDY
 
-  method: delete
+  m: delete
     oclear mGlyphs
     oclear mFilename
-  ;method
+  ;m
     
-  method: loadFromFile   // FILENAME ... SUCCESS
+  m: loadFromFile   // FILENAME ... SUCCESS
     0 -> mMaxWidth
     0 -> mMinY
     0 -> mMaxY
-    new OString -> mFilename
+    new String -> mFilename
     mFilename.set
     fopen(mFilename.get "r") -> int inFile
     if(inFile)
-      new OIntMap -> mGlyphs
-      new OByteArray -> OByteArray buffer
+      new IntMap -> mGlyphs
+      new ByteArray -> ByteArray buffer
       buffer.resize(2048) // biggest number of verts is 999, biggest string should be 1998
       int glyphIndex
       int numVerts
@@ -158,7 +158,7 @@ class: HersheyFont
       mFilename.get %s " not found!\n" %s
       false
     endif
-  ;method
+  ;m
   
 ;class
   

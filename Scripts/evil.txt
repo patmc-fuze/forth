@@ -5,9 +5,9 @@ autoforget evilVM
 class: evil
 	// implements the 'evil' language - see http://web.archive.org/web/20070103000858/www1.pacific.edu/~twrensch/evil/index.html
 
-	OByteArray wheel
-	OByteArray source
-	OByteArray pental
+	ByteArray wheel
+	ByteArray source
+	ByteArray pental
 	int wheelPos
 	int wheelSize
 	int sourcePos
@@ -20,10 +20,10 @@ class: evil
 	m: reset
 		0 -> areg
 		0 -> wheelPos
-		new OByteArray -> wheel
+		new ByteArray -> wheel
 		wheel.resize(100)
 		1 -> wheelSize
-		new OByteArray -> pental
+		new ByteArray -> pental
 		pental.resize(pentalSize)
 		0 -> sourcePos
 		0 -> wheelPos
@@ -38,7 +38,7 @@ class: evil
 	
 	// TOS points to c-style string
 	m: init
-		new OByteArray -> source
+		new ByteArray -> source
 		
 		5 -> pentalSize
 		reset
@@ -69,8 +69,8 @@ class: evil
     
 	m: wopen
 		if( wheelSize wheel.count >= )
-			wheel -> OByteArray temp
-			new OByteArray -> wheel
+			wheel -> ByteArray temp
+			new ByteArray -> wheel
 			wheel.resize(temp.count 100+)
 			do(wheelSize 0)
 				wheel.set(temp.get(i) i)
@@ -105,7 +105,7 @@ class: evil
 	;m
 	
 	m: swap
-		wheel -> OByteArray temp
+		wheel -> ByteArray temp
 		source -> wheel
 		temp -> source
 		wheelPos -> int t
@@ -232,7 +232,7 @@ class: evil
 ;class
 
 	
-new OString -> OString evilProgram
+mko String evilProgram
 
 // this is "Hello World!" spelled out character by character
 r[

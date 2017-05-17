@@ -1419,10 +1419,10 @@ namespace OString
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("OString", kBCIString, kBCIObject, oStringMembers);
+		pEngine->AddBuiltinClass("String", kBCIString, kBCIObject, oStringMembers);
 
-		pEngine->AddBuiltinClass("OStringMap", kBCIStringMap, kBCIIterable, oStringMapMembers);
-		pEngine->AddBuiltinClass("OStringMapIter", kBCIStringMapIter, kBCIIter, oStringMapIterMembers);
+		pEngine->AddBuiltinClass("StringMap", kBCIStringMap, kBCIIterable, oStringMapMembers);
+		pEngine->AddBuiltinClass("StringMapIter", kBCIStringMapIter, kBCIIter, oStringMapIterMembers);
 	}
 
 } // namespace oString

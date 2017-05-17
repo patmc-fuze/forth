@@ -350,10 +350,10 @@ namespace ONumber
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("OInt", kBCIInt, kBCIObject, oIntMembers);
-		pEngine->AddBuiltinClass("OLong", kBCILong, kBCIObject, oLongMembers);
-		pEngine->AddBuiltinClass("OFloat", kBCIFloat, kBCIObject, oFloatMembers);
-		pEngine->AddBuiltinClass("ODouble", kBCIDouble, kBCIObject, oDoubleMembers);
+		pEngine->AddBuiltinClass("Int", kBCIInt, kBCIObject, oIntMembers);
+		pEngine->AddBuiltinClass("Long", kBCILong, kBCIObject, oLongMembers);
+		pEngine->AddBuiltinClass("Float", kBCIFloat, kBCIObject, oFloatMembers);
+		pEngine->AddBuiltinClass("Double", kBCIDouble, kBCIObject, oDoubleMembers);
 	}
 
 } // namespace ONumber

@@ -1,12 +1,12 @@
 
-OFileOutStream testFileOut
+FileOutStream testFileOut
 
 scSetShowID(false)
 
 : runtest
   depth -> int oldDepth
-  mko OString testName
-  mko OString testScriptName
+  mko String testName
+  mko String testScriptName
   testName.set(blword)
   testScriptName.set(testName.get) testScriptName.append(".txt")
   "##################### run " %s testScriptName.get %s " #####################\n" %s
@@ -39,6 +39,19 @@ runtest tree_examples
 go
 forget tree_examples
 
+cd adv
+runtest adv
+cd ..
+
+cd atc
+runtest atc
+cd ..
+
+cd system
+runtest hersheyfont
+runtest file
+runtest rbtree
+cd ..
 
 cd tests
 

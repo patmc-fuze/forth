@@ -1,5 +1,5 @@
-mko OArray philosophers
-mko OArray forks
+mko Array philosophers
+mko Array forks
 
 100 -> int helpingsToEat
 2 -> int eatingTime
@@ -7,9 +7,9 @@ mko OArray forks
 5 -> int defaultNumPhilosophers
 
 class: Philosopher
-  OThread eatingThread
-  OLock firstFork
-  OLock secondFork
+  Thread eatingThread
+  Lock firstFork
+  Lock secondFork
   int id
   int timesFed
   int timesHungry
@@ -98,7 +98,7 @@ class: Philosopher
 
 : diningPhilosophers
   -> int numPhilosophers
-  OAsyncThread dinner
+  AsyncThread dinner
   philosophers.clear
   forks.clear
   
@@ -108,7 +108,7 @@ class: Philosopher
     philosophers.push(phil)
     oclear phil
     
-    new OLock -> OLock fork
+    new Lock -> Lock fork
     i -> fork.id
     forks.push(fork)
     oclear fork
