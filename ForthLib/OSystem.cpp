@@ -272,7 +272,7 @@ namespace OSystem
 	{
 		gSystemSingleton.pMethodOps = nullptr;
 		gSystemSingleton.pData = nullptr;
-		pEngine->AddBuiltinClass("OSystem", kBCISystem, kBCIObject, oSystemMembers);
+		pEngine->AddBuiltinClass("System", kBCISystem, kBCIObject, oSystemMembers);
 	}
 
 } // namespace OSystem

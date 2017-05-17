@@ -173,6 +173,29 @@ ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 18 2017
+
+I started working on making the test.txt script include automatic validation
+for scripts which don't do result validation.  The overall plan is:
+
+o make it easy to redirect output to a file
+o add a flag that scripts can check to skip doing output which is inherently
+  variable, like the run times for the dining philosophers
+o add a way to hide id/refCount fields in object show methods
+o add extParam, which allows files to have variables with default values which can be overridden
+
+I added file stream getSize/getPosition/seek/tell methods, all of which use
+64 bits for file offsets/positions.
+
+I added input stream GetString, which reads a line of text into an OString, which
+resizes the OString if needed to fit the line of text.
+
+I ran into an intermittent crash that was being caused by the allocLocals op
+not being compiled.  It was happening on alternating compiles of a test program.
+It stopped happening on its own, sadly.  I guess it is remotely possible that it
+was being caused by bugs in the input file stream GetString code, but that seems
+unlikely.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 15 2017
 
 I have all the examples, including the dining philosophers, tree and sort

@@ -25,7 +25,7 @@ autoforget compatability
 
 : 2, here 8 allot 2! ;
 : literal postpone lit , ;
-: fliteral literal ;
+alias fliteral literal
 : dliteral postpone dlit 2, ;
 precedence literal   precedence fliteral   precedence dliteral
 
@@ -130,9 +130,9 @@ precedence s"
 : quit r0 -> rp 0 -> fp done ;
 : erase 0 fill ;
 : blank bl fill ;
-: emit %c ;
-: does> postpone does ; precedence does>
-: then postpone endif ; precedence then
+alias emit %c
+alias does> does
+alias then endif
 
 : [char]  opType:makeOpcode( opType:litInt blword c@ ) , ; precedence [char]
 : char+ 1+ ;
@@ -144,8 +144,8 @@ precedence s"
   endif
 ;
 
-: cr %nl ;
-: space %bl ;
+alias cr %nl
+alias space %bl
 
 : _abortQuote
   swap
@@ -166,7 +166,7 @@ precedence s"
 ; precedence abort"
 
 : value -> postpone int ;
-: to -> ;
+alias to ->
 
 int __sp
 : !csp sp -> __sp ;
@@ -213,8 +213,8 @@ true constant locals-ext
   $evaluate( varExpression )
 ; precedence (local)
 
-: defer postpone op ;
-: is -> ;
+alias defer op
+alias is ->
 
 : off false swap ! ;
 : on true swap ! ;
@@ -248,7 +248,7 @@ int _handler
   -
 ;
 
-: include lf ;
+alias include lf
 
 : marker
   blword dup $:
@@ -259,12 +259,12 @@ int _handler
 ;
 
 : recurse
-  system.getDefinitionsVocab -> OVocabulary vocab
+  system.getDefinitionsVocab -> Vocabulary vocab
   vocab.getNewestEntry @ ,
   oclear vocab
 ; precedence recurse
 
-: at-xy setConsoleCursor ;
+alias at-xy setConsoleCursor
 : page clearConsole 0 0 setConsoleCursor ;
 // addr count ... addr+count addr
 : bounds over + swap ;
@@ -293,17 +293,17 @@ int _handler
   pStr numChars
 ;
 
-: d>s drop ;
+alias d>s drop
 
 : [defined] bl word find nip ;
 : [undefined] [defined] not ;
 precedence [defined]  precedence [undefined]
 
-: fconstant constant ;
-: s>f i2f ;
-: s>d i2l ;
-: f>d f2l ;
-: d>f l2f ;
+alias fconstant constant
+alias s>f i2f
+alias s>d i2l
+alias f>d f2l
+alias d>f l2f
 : fround
   dup f0>= if
     0.5 f+ floor

@@ -7,26 +7,26 @@ class: ook
 
   32 string name
 
-  method: ouch
+  m: ouch
     "ouch!" %s
-  ;method
+  ;m
 
-  method: bowwow
+  m: bowwow
     "woof!" %s
-  ;method
+  ;m
 
-  method: setstr
+  m: setstr
     -> name
-  ;method
+  ;m
 
-  method: getstr
+  m: getstr
     returns ptrTo string
     ref name
-  ;method
+  ;m
   
-  method: boohoo
+  m: boohoo
     "my name is " %s name %s
-  ;method
+  ;m
 
 ;class
 
@@ -35,15 +35,15 @@ class: ook
 class: kool
   extends ook
 
-  method: zvooba
+  m: zvooba
     boohoo
     " and my number is " %s num %d
-  ;method
+  ;m
 
-  method: init
+  m: init
     initMemberString name
     11 -> num
-  ;method
+  ;m
   
 ;class
 
@@ -75,15 +75,15 @@ class: rgba
   sRGBA s
   int num
   
-  method: set
+  m: set
 	  -> s.alpha -> s.b -> s.g -> s.r
-  ;method
+  ;m
   
-  method: show
+  m: show
 	  s.r %d %bl s.g %d %bl s.b %d %bl s.alpha %d %bl %nl
-  ;method
+  ;m
   
-  method: add
+  m: add
     // TOS is object to add
     -> rgba t
     t.s.r ->+ s.r
@@ -91,7 +91,7 @@ class: rgba
     t.s.b ->+ s.b
     t.s.alpha ->+ s.alpha
     dnull -> t
-  ;method
+  ;m
   
 ;class
 
@@ -190,10 +190,10 @@ class: urg
   
   rgba partner
   
-  method: boo
+  m: boo
     returns rgba
     partner
-  ;method
+  ;m
 
 ;class
 
@@ -220,28 +220,28 @@ class: fakeRgba
   int bbb
   int aaa
 
-  method: blah
+  m: blah
   	"blah!\n" %s
-  ;method
+  ;m
     
   implements: rgba
   
-  method: set
+  m: set
 	  -> aaa -> bbb -> ggg -> rrr
-  ;method
+  ;m
   
-  method: show
+  m: show
 	  rrr %d %bl ggg %d %bl bbb %d %bl aaa %d "!!!" %s %nl
-  ;method
+  ;m
   
-  method: add
+  m: add
     // TOS is object to add
     -> rgba t
     t.s.r ->+ rrr
     t.s.g ->+ ggg
     t.s.b ->+ bbb
     t.s.alpha ->+ aaa
-  ;method
+  ;m
 
   ;implements
 

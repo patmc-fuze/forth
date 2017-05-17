@@ -4,17 +4,17 @@
 class: Message
 
   int number
-  OString content
+  String content
   
   m: init
-    new OString -> content
+    new String -> content
     -> number
     //"Message init " %s number %d %nl
   ;m
   
   m: initWith
-    ->o OString s
-    new OString -> content
+    ->o String s
+    new String -> content
     content.set(s.get)
     -> number
     //"Message initWith " %s number %d content.get %s %nl
@@ -24,12 +24,12 @@ class: Message
     oclear content
   ;m
   
-  method: appendContent  // takes string
-    ->o OString s
+  m: appendContent  // takes string
+    ->o String s
     //"appendContent " %s number %d %bl s.get %s %nl
     content.append(" ")
     content.append(s.get)
-  ;method
+  ;m
   
 ;class
     

@@ -5,9 +5,9 @@ autoforget evilVM
 class: evil
 	// implements the 'evil' language - see http://web.archive.org/web/20070103000858/www1.pacific.edu/~twrensch/evil/index.html
 
-	OByteArray wheel
-	OByteArray source
-	OByteArray pental
+	ByteArray wheel
+	ByteArray source
+	ByteArray pental
 	int wheelPos
 	int wheelSize
 	int sourcePos
@@ -17,34 +17,34 @@ class: evil
 	int areg
 	int standardMark
 
-	method: reset
+	m: reset
 		0 -> areg
 		0 -> wheelPos
-		new OByteArray -> wheel
+		new ByteArray -> wheel
 		wheel.resize(100)
 		1 -> wheelSize
-		new OByteArray -> pental
+		new ByteArray -> pental
 		pental.resize(pentalSize)
 		0 -> sourcePos
 		0 -> wheelPos
 		0 -> pentalPos
-	;method
+	;m
 
 
-	method: setSource
+	m: setSource
 		source.setFromString
 		source.count -> sourceSize
-	;method
+	;m
 	
 	// TOS points to c-style string
-	method: init
-		new OByteArray -> source
+	m: init
+		new ByteArray -> source
 		
 		5 -> pentalSize
 		reset
-	;method
+	;m
 	
-	method: jump
+	m: jump
 		-> int forward
 
 		if( standardMark )
@@ -65,12 +65,12 @@ class: evil
                 1 ->- sourcePos
 			repeat
         endif
-	;method
+	;m
     
-	method: wopen
+	m: wopen
 		if( wheelSize wheel.count >= )
-			wheel -> OByteArray temp
-			new OByteArray -> wheel
+			wheel -> ByteArray temp
+			new ByteArray -> wheel
 			wheel.resize(temp.count 100+)
 			do(wheelSize 0)
 				wheel.set(temp.get(i) i)
@@ -83,12 +83,12 @@ class: evil
 			1 ->- ix
 		repeat
 		wheel.set(0 wheelPos)
-	;method
+	;m
     
     
     create weaveMap  4 c, 1 c, 16 c, 2 c, 64 c, 8 c, 128 c, 32 c,
 
-	method: weave
+	m: weave
 		-> byte x
 		
 		1 -> int mask
@@ -102,10 +102,10 @@ class: evil
 		loop
 		
 		answer
-	;method
+	;m
 	
-	method: swap
-		wheel -> OByteArray temp
+	m: swap
+		wheel -> ByteArray temp
 		source -> wheel
 		temp -> source
 		wheelPos -> int t
@@ -116,20 +116,20 @@ class: evil
 		t -> sourceSize
 		
 		oclear temp
-	;method
+	;m
 	
-	method: read
+	m: read
 		fgetc(stdin)
-	;method
+	;m
 	
-	method: write
+	m: write
 		%c
-	;method
+	;m
 
-	method: dCommand
-	;method
+	m: dCommand
+	;m
 
-	method: doOne
+	m: doOne
 		-> byte cmd
 		
 		'm' -> byte mark
@@ -219,20 +219,20 @@ class: evil
 		endcase
 		
 		1 ->+ sourcePos
-	;method
+	;m
     
-	method: execute
+	m: execute
 		reset
 		begin
 		while( sourcePos 0>=  sourcePos sourceSize <  and )
 			doOne( source.get(sourcePos) )
 		repeat
-	;method
+	;m
 	
 ;class
 
 	
-new OString -> OString evilProgram
+mko String evilProgram
 
 // this is "Hello World!" spelled out character by character
 r[

@@ -49,13 +49,15 @@ namespace OString
 		return str;
 	}
 
-    inline oString* resizeOString(oString* dstString, int newLen)
+	oString* resizeOString(oStringStruct* pString, int newLen)
     {
         int dataBytes = ((newLen + 4) & ~3);
         size_t nBytes = sizeof(oString) + (dataBytes - DEFAULT_STRING_DATA_BYTES);
-        dstString = (oString *)__REALLOC(dstString, nBytes);
-        dstString->maxLen = dataBytes - 1;
+		oString* dstString = (oString *)__REALLOC(pString->str, nBytes);
+		pString->str = dstString;
+		dstString->maxLen = dataBytes - 1;
         dstString->data[newLen] = '\0';
+		pString->hash = 0;
         return dstString;
     }
 
@@ -66,8 +68,7 @@ namespace OString
         if (newLen > dst->maxLen)
         {
             // enlarge string
-            dst = resizeOString(dst, newLen);
-            pString->str = dst;
+			dst = resizeOString(pString, newLen);
         }
         memmove(&(dst->data[dst->curLen]), pSrc, numNewBytes);
         dst->data[newLen] = '\0';
@@ -82,8 +83,7 @@ namespace OString
         if (newLen > dst->maxLen)
         {
             // enlarge string
-            dst = resizeOString(dst, newLen);
-            pString->str = dst;
+			dst = resizeOString(pString, newLen);
         }
         char* pDst = &(dst->data[0]);
         memmove((void *)(pDst + numNewBytes), pDst, dst->curLen);
@@ -307,14 +307,12 @@ namespace OString
     {
         GET_THIS( oStringStruct, pString );
 		long newLen = SPOP;
-		oString* dst = resizeOString(pString->str, newLen);
+		oString* dst = resizeOString(pString, newLen);
 		dst->data[newLen] = '\0';
 		if ( dst->curLen > dst->maxLen )
 		{
 			dst->curLen = dst->maxLen;
-			pString->hash = 0;
 		}
-		pString->str = dst;
         METHOD_RETURN;
     }
 
@@ -730,7 +728,7 @@ namespace OString
                         tryAgain = false;
                     }
                 }
-                pOStr = resizeOString(pOStr, maxLen);
+				pOStr = resizeOString(pString, maxLen);
             }
         }
         // remove args from parameter stack
@@ -739,7 +737,6 @@ namespace OString
 
 		pOStr->curLen = curLen;
 		pString->hash = 0;
-		pString->str = pOStr;
         METHOD_RETURN;
     }
     
@@ -788,6 +785,25 @@ namespace OString
 		METHOD_RETURN;
 	}
 
+	FORTHOP(oStringReplaceCharMethod)
+	{
+		GET_THIS(oStringStruct, pString);
+		char newChar = (char)(SPOP);
+		char oldChar = (char)(SPOP);
+		pString->hash = 0;
+		oString* dst = pString->str;
+		char* pDst = &(dst->data[0]);
+		for (int i = dst->curLen; i >0; --i)
+		{
+			if (*pDst == oldChar)
+			{
+				*pDst = newChar;
+			}
+			pDst++;
+		}
+		METHOD_RETURN;
+	}
+
 
     baseMethodEntry oStringMembers[] =
     {
@@ -828,6 +844,7 @@ namespace OString
         METHOD(		"fixup",				oStringFixupMethod ),
         METHOD(		"toLower",				oStringToLowerMethod ),
         METHOD(		"toUpper",				oStringToUpperMethod ),
+		METHOD(     "replaceChar",          oStringReplaceCharMethod),
 		
         MEMBER_VAR( "__hash",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
         MEMBER_VAR( "__str",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
@@ -1402,10 +1419,10 @@ namespace OString
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("OString", kBCIString, kBCIObject, oStringMembers);
+		pEngine->AddBuiltinClass("String", kBCIString, kBCIObject, oStringMembers);
 
-		pEngine->AddBuiltinClass("OStringMap", kBCIStringMap, kBCIIterable, oStringMapMembers);
-		pEngine->AddBuiltinClass("OStringMapIter", kBCIStringMapIter, kBCIIter, oStringMapIterMembers);
+		pEngine->AddBuiltinClass("StringMap", kBCIStringMap, kBCIIterable, oStringMapMembers);
+		pEngine->AddBuiltinClass("StringMapIter", kBCIStringMapIter, kBCIIter, oStringMapIterMembers);
 	}
 
 } // namespace oString

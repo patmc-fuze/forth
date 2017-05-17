@@ -12,7 +12,7 @@ class: IData
   m: showIt ;m
   
   // Could return any of the subclasses of Word as well
-  m: findWord returns Word ;m    // takes OString word
+  m: findWord returns Word ;m    // takes String word
     
   m: getObjectByNumber returns Noun ;m  // takes int n
   m: getLocationByNumber returns Location ;m  // takes int n
@@ -33,11 +33,11 @@ class: IData
 
   m: loadData ;m // takes ptrTo byte filename
 
-  OArray locations
-  OArray locationConditions
-  OArray words
-  OArray messages
-  OArray magicMessages
-  OArray classMessages
-  OArray hints
+  Array locations
+  Array locationConditions
+  Array words
+  Array messages
+  Array magicMessages
+  Array classMessages
+  Array hints
 ;class

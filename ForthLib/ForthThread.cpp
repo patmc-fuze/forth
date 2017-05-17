@@ -890,8 +890,8 @@ namespace OThread
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		gpThreadVocabulary = pEngine->AddBuiltinClass("OThread", kBCIThread, kBCIObject, oThreadMembers);
-		gpAsyncThreadVocabulary = pEngine->AddBuiltinClass("OAsyncThread", kBCIAsyncThread, kBCIObject, oAsyncThreadMembers);
+		gpThreadVocabulary = pEngine->AddBuiltinClass("Thread", kBCIThread, kBCIObject, oThreadMembers);
+		gpAsyncThreadVocabulary = pEngine->AddBuiltinClass("AsyncThread", kBCIAsyncThread, kBCIObject, oAsyncThreadMembers);
 	}
 
 } // namespace OThread
@@ -1237,8 +1237,8 @@ namespace OLock
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		gpAsyncLockVocabulary = pEngine->AddBuiltinClass("OAsyncLock", kBCIAsyncLock, kBCIObject, oAsyncLockMembers);
-		pEngine->AddBuiltinClass("OLock", kBCILock, kBCIObject, oLockMembers);
+		gpAsyncLockVocabulary = pEngine->AddBuiltinClass("AsyncLock", kBCIAsyncLock, kBCIObject, oAsyncLockMembers);
+		pEngine->AddBuiltinClass("Lock", kBCILock, kBCIObject, oLockMembers);
 	}
 
 } // namespace OLock

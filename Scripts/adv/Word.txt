@@ -2,8 +2,8 @@
 class: Word
 
   int number
-  OStringArray words     // array of OString
-  OString comment
+  StringArray words     // array of String
+  String comment
   eAdventureWordType wordType
   
   new:
@@ -14,14 +14,14 @@ class: Word
     
   m: init  // int number
     -> number
-    new OStringArray -> words
-    new OString -> comment
+    new StringArray -> words
+    new String -> comment
     //"init Word " %s number %d %bl wordType %d %nl
   ;m
   
   m: initWith    // int number, string word
-    new OStringArray -> words
-    new OString -> comment
+    new StringArray -> words
+    new String -> comment
     words.push
     -> number
     //"initWith Word " %s words.get(0).show %bl number %d %bl wordType %d %nl
@@ -48,16 +48,16 @@ class: Word
 
   m: addWord
     words.push
-    //"Word.addWord " %s number %d %bl this drop %x %bl <OString>.show
+    //"Word.addWord " %s number %d %bl this drop %x %bl <String>.show
   ;m
     
   m: hasWord    // returns bool
-    ->o OString soughtWord
+    ->o String soughtWord
     soughtWord.get -> ptrTo byte soughtStr
     false -> int foundIt
     //words.show
     ?do(words.count 0)
-      words.get(i) ->o OString checkWord
+      words.get(i) ->o String checkWord
       if(checkWord.equals(soughtStr))
         true -> foundIt
         leave
@@ -67,13 +67,13 @@ class: Word
   ;m
 
 
-  m: getWords returns OString
-    mko OString s
+  m: getWords returns String
+    mko String s
     s.join(words " ")
     unref s
   ;m
   
-  m: showSpec      returns OString
+  m: showSpec      returns String
   ;m
     
 ;class  // Word, dawg

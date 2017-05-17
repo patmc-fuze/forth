@@ -2,8 +2,8 @@
 requires IData
 
 class: DataParser
-  OString line
-  OStringArray lineVector
+  String line
+  StringArray lineVector
   int verbNr
   int lineNumber
   // The data file is divided into different sections, this
@@ -24,14 +24,14 @@ class: DataParser
   int idNumber
 
   IData data
-  OFileInStream dataFile
+  FileInStream dataFile
   
   m: init
     -> data
     -> dataFile
-    new OString -> line
+    new String -> line
     line.resize(512)
-    new OStringArray -> lineVector
+    new StringArray -> lineVector
     1 -> lineNumber
     -1 -> currentSection
     -1 -> idNumber

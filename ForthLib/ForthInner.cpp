@@ -2429,8 +2429,8 @@ InnerInterpreter( ForthCoreState *pCore )
 			while (result == kResultOk)
 			{
 				// fetch op at IP, advance IP
-				pEngine->TraceOp(pCore);
 				long* pIP = GET_IP;
+				pEngine->TraceOp(pIP);
 				long op = *pIP++;
 				SET_IP(pIP);
 				DISPATCH_FORTH_OP(pCore, op);
@@ -2480,7 +2480,8 @@ InterpretOneOp( ForthCoreState *pCore, long op )
 	if ( traceFlags & kLogInnerInterpreter )
 	{
 		// fetch op at IP, advance IP
-		pEngine->TraceOp( pCore, op );
+		long* pIP = GET_IP;
+		pEngine->TraceOp(pIP);
 		//DISPATCH_FORTH_OP( pCore, op );
 		optypeActionRoutine typeAction = pCore->optypeAction[(int)FORTH_OP_TYPE(op)];
 		typeAction(pCore, FORTH_OP_VALUE(op));
@@ -2521,7 +2522,7 @@ InnerInterpreter( ForthCoreState *pCore )
 		{
 			// fetch op at IP, advance IP
 			pIP = GET_IP;
-			pEngine->TraceOp( pCore );
+			pEngine->TraceOp( pIP );
 			op = *pIP++;
 			SET_IP( pIP );
 			opType = FORTH_OP_TYPE( op );

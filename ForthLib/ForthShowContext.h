@@ -36,10 +36,17 @@ public:
 
 	std::vector<ForthObject>& GetObjects();
 
+	void SetShowIDElement(bool inShow) { mShowIDElement = inShow; }
+	bool GetShowIDElement(void) { return mShowIDElement;  }
+	void SetShowRefCount(bool inShow) { mShowRefCount = inShow; }
+	bool GetShowRefCount(void) { return mShowRefCount; }
+
 private:
 	ulong mDepth;
 	std::set<void *> mShownObjects;
 	std::vector<ForthObject> mObjects;
 	ForthEngine* mpEngine;
+	bool mShowIDElement;
+	bool mShowRefCount;
 };
 

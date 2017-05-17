@@ -2,9 +2,9 @@
 autoforget atc
 : atc ;
 
-OFileOutStream traceFileStream
+FileOutStream traceFileStream
 : openTrace
-  new OFileOutStream -> traceFileStream
+  new FileOutStream -> traceFileStream
   traceFileStream.open( "traceOut.txt" "w")
 ;
 
@@ -116,7 +116,7 @@ class: atcTile
   atcTileType tileType      // airport, portal, boundary, beacon
   atcDirection direction    // for airports, currently unused
 
-  OList airplanes
+  List airplanes
 
   m: addAirplane       // airplane ...
     airplanes.addTail
@@ -131,7 +131,7 @@ class: atcTile
     'tile' -> tag
     0 -> altitude
     kATTEmpty -> tileType
-    new OList -> airplanes
+    new List -> airplanes
   ;m
     
   m: reset
@@ -149,7 +149,7 @@ class: atcTile
 
 class: iAtcDisplay
   int tag
-  OByteArray text
+  ByteArray text
   ptrTo byte textBase
   
   m: init                  ;m // REGION ...
@@ -166,12 +166,12 @@ class: iAtcDisplay
 
 class: iAtcGame
   int tag
-  OArray airplanes
-  OList activeAirplanes
-  OList inactiveAirplanes
+  Array airplanes
+  List activeAirplanes
+  List inactiveAirplanes
   iAtcDisplay display
   atcStatus status
-  OString name
+  String name
   
   m: init                ;m   // GAME_NAME
   m: reset               ;m
@@ -188,7 +188,7 @@ iAtcGame game
 class: iAtcAirplane
   int tag
   int fuel
-  OString name
+  String name
   int id
   int altitude
   int commandedAltitude
@@ -280,11 +280,11 @@ class: iAtcRegion
   int startingFuel
   int warningFuel
   
-  OArray tiles
-  OArray airports
-  OArray portals
-  OArray beacons
-  OArray lines
+  Array tiles
+  Array airports
+  Array portals
+  Array beacons
+  Array lines
   
   m: init                                ;m // width height game
   m: reset                               ;m
@@ -308,16 +308,16 @@ class: iAtcInputHandler
   int tag
   iAtcDisplay display
   iAtcRegion region
-  OString displayString
-  OString commandString
+  String displayString
+  String commandString
   atcCommandInfo commandInfo
   atcCommandState commandState
   int isGameOver
   
   m: init                              ;m // REGION DISPLAY_OBJ ...
   m: update                            ;m // ...
-  m: getString returns OString         ;m // ... STRING_OBJ
-  m: getCommandString returns OString  ;m // ... STRING_OBJ
+  m: getString returns String         ;m // ... STRING_OBJ
+  m: getCommandString returns String  ;m // ... STRING_OBJ
 
 ;class
 
@@ -347,7 +347,7 @@ lf atcFileReader.txt
   int dirHandle
   ptrTo dirent pEntry
   int pName
-  new OArray -> OArray filenames
+  new Array -> Array filenames
   
   opendir -> dirHandle
   if( dirHandle )
@@ -356,7 +356,7 @@ lf atcFileReader.txt
     while( pEntry )
       pEntry.d_name(0 ref) -> pName
       if(pName c@ '.' <>)
-        new OString -> OString filename
+        new String -> String filename
         filename.set(pName)
         filenames.push(filename)
         oclear filename
@@ -368,12 +368,12 @@ lf atcFileReader.txt
 ;
 
 : listGames
-  listFilesToArray("games") -> OArray gameFilenames
+  listFilesToArray("games") -> Array gameFilenames
   
-  gameFilenames.headIter -> OIter iter
+  gameFilenames.headIter -> Iter iter
   begin
   while( iter.next )
-    -> OString gameFilename
+    -> String gameFilename
     "   " %s gameFilename.get %s %nl
     oclear gameFilename
   repeat

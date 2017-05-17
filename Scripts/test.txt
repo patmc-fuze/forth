@@ -1,42 +1,74 @@
-: runtest ds "##################### run " %s blword dup %s " #####################\n" %s $load ;
 
-runtest evil.txt
+FileOutStream testFileOut
+
+scSetShowID(false)
+
+: runtest
+  depth -> int oldDepth
+  mko String testName
+  mko String testScriptName
+  testName.set(blword)
+  testScriptName.set(testName.get) testScriptName.append(".txt")
+  "##################### run " %s testScriptName.get %s " #####################\n" %s
+  $load(testScriptName.get)
+  if(depth oldDepth <>)
+    "!!!!!!!!!!!!!!!!!!!!!! stack depth changed !!!!!!!!!!!!!!!!!!!!!!\n" %s
+    ds
+  endif
+  oclear testName
+  oclear testScriptName
+;
+
+runtest evil
 forget evilVM
 
-runtest async_philosophers.txt
+runtest async_philosophers
 go
 forget asyncPhilosophers
 
-runtest philosophers.txt
+runtest philosophers
 go
 forget philosophers
 
 200 -> int numElems
-runtest sort_examples.txt
+runtest sort_examples
 go
 forget sort_examples
 
-runtest tree_examples.txt
+runtest tree_examples
 go
 forget tree_examples
 
+cd adv
+runtest adv
+cd ..
+
+cd atc
+runtest atc
+cd ..
+
+cd system
+runtest hersheyfont
+runtest file
+runtest rbtree
+cd ..
 
 cd tests
 
-runtest forthtest.txt
+runtest forthtest
 
-runtest biclasstest.txt
+runtest biclasstest
 cleanup
 
-runtest rctest.txt
+runtest rctest
 test
 cleanup
 
-runtest structtest.txt
+runtest structtest
 
-runtest misctest.txt
+runtest misctest
 
-runtest ansitest.txt
+runtest ansitest
 
 cd ..
 

@@ -869,6 +869,8 @@ ForthLocalVocabulary::Push()
 		mStack[mDepth++] = mFrameLongs;
 		mStack[mDepth++] = (long) mpAllocOp;
 		mNumSymbols = 0;
+		mFrameLongs = 0;
+		mpAllocOp = NULL;
 	}
 	else
 	{
@@ -1512,8 +1514,8 @@ namespace OVocabulary
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("OVocabulary", kBCIVocabulary, kBCIObject, oVocabularyMembers);
-		pEngine->AddBuiltinClass("OVocabularyIter", kBCIVocabularyIter, kBCIObject, oVocabularyIterMembers);
+		pEngine->AddBuiltinClass("Vocabulary", kBCIVocabulary, kBCIObject, oVocabularyMembers);
+		pEngine->AddBuiltinClass("VocabularyIter", kBCIVocabularyIter, kBCIObject, oVocabularyIterMembers);
 	}
 
 } // namespace OVocabulary 

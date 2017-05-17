@@ -158,7 +158,6 @@ public:
     // The sequence must be terminated with an OP_DONE
 	eForthResult        ExecuteOps(ForthCoreState* pCore, long* pOps);
 
-    eForthResult        ExecuteOneMethod( ForthCoreState* pCore, ForthObject& obj, long methodNum );
 	eForthResult		FullyExecuteMethod(ForthCoreState* pCore, ForthObject& obj, long methodNum);
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
@@ -222,8 +221,7 @@ public:
     char *          GetLastInputToken( void );
 
     const char *            GetOpTypeName( long opType );
-	void                    TraceOp(ForthCoreState* pCore, long op);
-	void                    TraceOp(ForthCoreState* pCore);
+	void                    TraceOp(long *pOp);
 	void                    TraceStack(ForthCoreState* pCore);
     void                    DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUserDefs=false );
     long *                  NextOp( long *pOp );
@@ -333,6 +331,11 @@ public:
 
 	void					DefineLabel(const char* inLabelName, long* inLabelIP);
 	void					AddGoto(const char* inName, int inBranchType, long* inBranchIP);
+
+	// if inText is null, string is not copied, an uninitialized space of size inNumChars+1 is allocated
+	// if inNumChars is null and inText is not null, strlen(inText) is used for temp string size
+	// if both inText and inNumChars are null, an uninitialized space of 255 chars is allocated
+	char*					AddTempString(const char* inText = nullptr, int inNumChars = -1);
 
 protected:
     // NOTE: temporarily modifies string @pToken

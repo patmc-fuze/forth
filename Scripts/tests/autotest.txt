@@ -7,7 +7,7 @@ int _testfile
 
 : checktest
   -> 100 string fname
-  fname "good_test_output.txt" comparefiles
+  fname "good_test_output.txt" compareTextFiles
   not if
     fname %s " didn't match known good output!\n" %s
   endif

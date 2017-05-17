@@ -767,6 +767,7 @@ variable fsize
 // cond -- here 
 : if,           here dup 2 + rot  ~cond  jmpIF ;
 : endif,        dup here >offset swap 1+ c! ;
+alias then, endif,
 : _ahead        here dup 2 + rel] jmp, ;
 : else,         _ahead swap endif, ;
 : begin,        here ;
@@ -774,6 +775,7 @@ variable fsize
 : while,        if, swap ;
 : again,        rel] jmp, ;
 : repeat,       again, endif, ;
+: until,        ~cond jmpIF ;
 : ?do,          here dup 2 + dup jcxz, ;
 : but,          swap ;
 : yet,          dup ;
