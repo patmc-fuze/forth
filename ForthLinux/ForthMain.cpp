@@ -30,9 +30,12 @@ void OutputToLogger(const char* pBuffer)
         {
             perror("error making fifo");
         }
-        loggerFD = open(myfifo, O_WRONLY);
+        loggerFD = open(myfifo, O_NONBLOCK | O_WRONLY);
     }
-    write(loggerFD, pBuffer, strlen(pBuffer) + 1);
+    if (loggerFD >= 0)
+    {
+        write(loggerFD, pBuffer, strlen(pBuffer) + 1);
+    }
     //close(loggerFD);
     
     /* remove the FIFO */
