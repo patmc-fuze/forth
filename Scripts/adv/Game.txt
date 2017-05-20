@@ -6,7 +6,7 @@ class: Game
   
   Player player
   Data data
-  StringArray lineVector
+  Array of String lineVector
   Array spokenWords   // array of Noun
   String parseScratch
   
@@ -19,7 +19,7 @@ class: Game
     new Player -> player
     player.init(data.getLocationByNumber(1))
     new String -> parseScratch
-    new StringArray -> lineVector
+    new Array -> lineVector
     new Array -> spokenWords
   ;m
   
@@ -575,7 +575,7 @@ class: Game
       if(objNotNull(word))
         spokenWords.push(word)
       else
-        "Word not found: " %s lineVector.getRaw(i) %s %nl
+        "Word not found: " %s lineVector.get(i).get %s %nl
       endif
     loop
     //spokenWords.show

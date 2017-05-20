@@ -396,7 +396,7 @@ ForthTypesManager::GetInstance( void )
 void
 ForthTypesManager::GetFieldInfo( long fieldType, long& fieldBytes, long& alignment )
 {
-    long subType;
+    long subType = CODE_TO_BASE_TYPE(fieldType);
     if ( CODE_IS_PTR( fieldType ) )
     {
         fieldBytes = 4;
@@ -404,7 +404,6 @@ ForthTypesManager::GetFieldInfo( long fieldType, long& fieldBytes, long& alignme
     }
     else if ( CODE_IS_NATIVE( fieldType ) )
     {
-        subType = CODE_TO_BASE_TYPE( fieldType );
         if ( subType == kBaseTypeString )
         {
             // add in for maxLen, curLen fields & terminating null byte
@@ -418,7 +417,8 @@ ForthTypesManager::GetFieldInfo( long fieldType, long& fieldBytes, long& alignme
     }
     else
     {
-        ForthTypeInfo* pInfo = GetTypeInfo( CODE_TO_STRUCT_INDEX( fieldType ) );
+        long typeIndex = (subType == kBaseTypeObject) ? CODE_TO_CONTAINED_CLASS_INDEX(fieldType) : CODE_TO_STRUCT_INDEX(fieldType);
+        ForthTypeInfo* pInfo = GetTypeInfo(typeIndex);
         if ( pInfo )
         {
             alignment = pInfo->pVocab->GetAlignment();
@@ -1367,8 +1367,8 @@ ForthClassVocabulary::DefineInstance( void )
     char* pContainedClassName = nullptr;
     if (::strcmp(pInstanceName, "of") == 0)
     {
-        pContainedClassName = mpEngine->GetNextSimpleToken();
-        pInstanceName = mpEngine->GetNextSimpleToken();
+        pContainedClassName = mpEngine->AddTempString(mpEngine->GetNextSimpleToken());
+        pInstanceName = mpEngine->AddTempString(mpEngine->GetNextSimpleToken());
     }
     DefineInstance(pInstanceName, pContainedClassName);
 }

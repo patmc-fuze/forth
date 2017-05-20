@@ -322,7 +322,8 @@ bool ForthStructCodeGenerator::HandleFirst()
 			{
 				// this method must return either a struct or an object
 				COMPILE_OP( "method with this", kOpMethodWithThis, pEntry[0] );
-				ForthTypeInfo* pStruct = mpTypeManager->GetTypeInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
+                long typeIndex = isObject ? CODE_TO_CONTAINED_CLASS_INDEX(mTypeCode) : CODE_TO_STRUCT_INDEX(mTypeCode);
+                ForthTypeInfo* pStruct = mpTypeManager->GetTypeInfo(typeIndex);
 				if ( pStruct == NULL )
 				{
 					pEngine->SetError( kForthErrorStruct, "Method return type not found by type manager" );

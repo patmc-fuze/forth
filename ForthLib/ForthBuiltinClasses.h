@@ -62,7 +62,6 @@ typedef enum
 	kBCIDoubleArrayIter,
 	kBCILongArray,
 	kBCILongArrayIter,
-	kBCIStringArray,
 	kBCIInt,
 	kBCILong,
 	kBCIFloat,

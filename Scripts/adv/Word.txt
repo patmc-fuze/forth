@@ -2,7 +2,7 @@
 class: Word
 
   int number
-  StringArray words     // array of String
+  Array of String words
   String comment
   eAdventureWordType wordType
   
@@ -14,13 +14,13 @@ class: Word
     
   m: init  // int number
     -> number
-    new StringArray -> words
+    new Array -> words
     new String -> comment
     //"init Word " %s number %d %bl wordType %d %nl
   ;m
   
   m: initWith    // int number, string word
-    new StringArray -> words
+    new Array -> words
     new String -> comment
     words.push
     -> number
@@ -30,7 +30,7 @@ class: Word
   m: showIt
     "Word " %s number %d " words:" %s
     do(words.count 0)
-      words.getRaw(i) %s %bl
+      words.get(i).get %s %bl
     loop
     %nl
     if(comment.length 0>)

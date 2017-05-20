@@ -3953,39 +3953,6 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 StringArray
-	//
-
-	FORTHOP(oStringArrayGetRawMethod)
-	{
-		GET_THIS(oArrayStruct, pArray);
-		oArray& a = *(pArray->elements);
-		ulong ix = (ulong)SPOP;
-		if (a.size() > ix)
-		{
-			ForthObject fobj = a[ix];
-			oStringStruct* pString = (oStringStruct *)fobj.pData;
-			SPUSH((long)&(pString->str->data[0]));
-		}
-		else
-		{
-			ReportBadArrayIndex("OStringArray:getRaw", ix, a.size());
-		}
-		METHOD_RETURN;
-	}
-
-	
-	baseMethodEntry oStringArrayMembers[] =
-	{
-		METHOD_RET("get", oArrayGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIString)),
-		METHOD_RET("getRaw", oStringArrayGetRawMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte | kDTIsPtr)),
-		// following must be last in table
-		END_MEMBERS
-	};
-
-
-	//////////////////////////////////////////////////////////////////////
-	///
 	//                 Pair
 	//
 
@@ -4667,8 +4634,6 @@ namespace OArray
 		pEngine->AddBuiltinClass("DoubleArray", kBCIDoubleArray, kBCILongArray, oDoubleArrayMembers);
 		pEngine->AddBuiltinClass("DoubleArrayIter", kBCIDoubleArrayIter, kBCIIter, oLongArrayIterMembers);
 
-		pEngine->AddBuiltinClass("StringArray", kBCIStringArray, kBCIArray, oStringArrayMembers);
-		
 		pEngine->AddBuiltinClass("Pair", kBCIPair, kBCIIterable, oPairMembers);
 		pEngine->AddBuiltinClass("PairIter", kBCIPairIter, kBCIIter, oPairIterMembers);
 
