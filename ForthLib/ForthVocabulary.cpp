@@ -1202,7 +1202,7 @@ namespace OVocabulary
 {
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oVocabulary
+	//                 Vocabulary
 	//
 	struct oVocabularyStruct
 	{
@@ -1221,7 +1221,7 @@ namespace OVocabulary
 	FORTHOP(oVocabularyNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create an OVocabulary object");
+		pEngine->SetError(kForthErrorException, " cannot explicitly create a Vocabulary object");
 	}
 
 	FORTHOP(oVocabularyDeleteMethod)
@@ -1378,7 +1378,7 @@ namespace OVocabulary
 	FORTHOP(oVocabularyIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create an OVocabulary object");
+		pEngine->SetError(kForthErrorException, " cannot explicitly create a Vocabulary object");
 	}
 
 	FORTHOP(oVocabularyIterDeleteMethod)

@@ -2050,13 +2050,13 @@ FORTHOP( superOp )
     SPUSH( ((long) pMethods) );
 }
 
-void __newOp(ForthCoreState* pCore, const char* pSym)
+void __newOp(ForthCoreState* pCore, const char* pClassName)
 {
     // TODO: allow sizeOf to be applied to variables
     // TODO: allow sizeOf to apply to native types, including strings
     ForthEngine *pEngine = GET_ENGINE;
     ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSym, &pFoundVocab );
+    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pClassName, &pFoundVocab);
 
     if ( pEntry )
     {
@@ -2091,13 +2091,13 @@ void __newOp(ForthCoreState* pCore, const char* pSym)
         }
         else
         {
-            pEngine->AddErrorText( pSym );
+            pEngine->AddErrorText(pClassName);
             pEngine->SetError( kForthErrorUnknownSymbol, " is not a class" );
         }
     }
     else
     {
-        pEngine->SetError( kForthErrorUnknownSymbol, pSym );
+        pEngine->SetError(kForthErrorUnknownSymbol, pClassName);
     }
 }
 
@@ -2114,8 +2114,8 @@ FORTHOP(strNewOp)
 	ForthEngine *pEngine = GET_ENGINE;
 	ForthVocabulary* pFoundVocab;
 
-	char *pSym = (char*)(SPOP);
-	long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pSym, &pFoundVocab);
+    char *pClassName = (char*)(SPOP);
+    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pClassName, &pFoundVocab);
 
 	if (pEntry)
 	{
@@ -2137,20 +2137,27 @@ FORTHOP(strNewOp)
 		}
 		else
 		{
-			pEngine->AddErrorText(pSym);
+            pEngine->AddErrorText(pClassName);
 			pEngine->SetError(kForthErrorUnknownSymbol, " is not a class");
 		}
 	}
 	else
 	{
-		pEngine->SetError(kForthErrorUnknownSymbol, pSym);
+        pEngine->SetError(kForthErrorUnknownSymbol, pClassName);
 	}
 }
 
 FORTHOP(makeObjectOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
-	const char *pClassName = pEngine->GetNextSimpleToken();
+    const char *pClassName = pEngine->AddTempString(pEngine->GetNextSimpleToken());
+    char* pInstanceName = pEngine->GetNextSimpleToken();
+    char* pContainedClassName = nullptr;
+    if (::strcmp(pInstanceName, "of") == 0)
+    {
+        pContainedClassName = pEngine->AddTempString(pEngine->GetNextSimpleToken());
+        pInstanceName = pEngine->GetNextSimpleToken();
+    }
 
     __newOp(pCore, pClassName);
 
@@ -2172,8 +2179,7 @@ FORTHOP(makeObjectOp)
             {
                 SET_VAR_OPERATION(kVarStore);
             }
-			const char *pInstanceName = pEngine->GetNextSimpleToken();
-			pClassVocab->DefineInstance(pInstanceName);
+            pClassVocab->DefineInstance(pInstanceName, pContainedClassName);
         }
         else
         {

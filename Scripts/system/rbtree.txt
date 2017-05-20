@@ -590,7 +590,7 @@ class: RBTree
     // if (isEmpty()) throw new NoSuchElementException("BST underflow");
     
     // if both children of root are black, set root to red
-    if( isBlack( root.left ) ) isBlack( root.right ) ) and )
+    if( and( isBlack( root.left ) isBlack( root.right ) ) )
       true -> root.red
     endif
 

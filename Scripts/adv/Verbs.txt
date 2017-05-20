@@ -20,7 +20,6 @@ class: MotionVerb extends Word
   
   m: initWith
     super.initWith
-    //"initWith MotionVerb " %s words.getRaw(0) %s %bl number %d %bl wordType %d %nl
   ;m
   
 ;class

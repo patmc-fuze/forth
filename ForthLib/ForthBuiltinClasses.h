@@ -16,6 +16,7 @@ class ForthClassVocabulary;
 typedef enum
 {
 	kBCIInvalid,
+    kBCIContainedType,
     kBCIObject,
     kBCIClass,
 	kBCIIter,
@@ -61,7 +62,6 @@ typedef enum
 	kBCIDoubleArrayIter,
 	kBCILongArray,
 	kBCILongArrayIter,
-	kBCIStringArray,
 	kBCIInt,
 	kBCILong,
 	kBCIFloat,

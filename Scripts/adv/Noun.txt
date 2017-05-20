@@ -34,7 +34,6 @@ class: Noun extends Word
     true -> movable
     false -> lightable
     false -> lit
-    //"initWith Noun " %s words.getRaw(0) %s %bl number %d %bl wordType %d %nl
   ;m
 
   m: delete

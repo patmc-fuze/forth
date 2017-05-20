@@ -510,7 +510,6 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
             {
                 if ( mPoundIfDepth == 0 )
                 {
-                    mpStack->Push( kShellTagPoundIf );
                     mFlags &= ~SHELL_FLAG_SKIP_SECTION;
                 }
             }
@@ -533,6 +532,10 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
 
             }
         }
+        if (mpEngine->GetError() != kForthErrorNone)
+        {
+            result = kResultError;
+        }
     }
     else
     {
@@ -549,12 +552,8 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
                 if ( GET_SDEPTH > 0 )
                 {
                     long expressionResult = SPOP;
-                    if ( expressionResult != 0 )
-                    {
-                        // compile "if" part
-                        mpStack->Push( kShellTagPoundIf );
-                    }
-                    else
+                    mpStack->Push(kShellTagPoundIf);
+                    if (expressionResult == 0)
                     {
                         // skip to #else or #endif
                         mFlags |= SHELL_FLAG_SKIP_SECTION;
@@ -603,10 +602,14 @@ ForthShell::InterpretLine( const char *pSrcLine )
     while ( !bLineEmpty && (result == kResultOk) )
 	{
         bLineEmpty = ParseToken( &parseInfo );
-        SPEW_SHELL( "input %s:%s buffer 0x%x readoffset %d write %d\n", mpInput->InputStream()->GetType(), mpInput->InputStream()->GetName(),
+        if (mpEngine->GetError() != kForthErrorNone)
+        {
+            result = kResultError;
+        }
+        SPEW_SHELL("input %s:%s buffer 0x%x readoffset %d write %d\n", mpInput->InputStream()->GetType(), mpInput->InputStream()->GetName(),
             mpInput->InputStream()->GetBufferPointer(), mpInput->InputStream()->GetReadOffset(), mpInput->InputStream()->GetWriteOffset() );
 
-        if ( !bLineEmpty )
+        if (!bLineEmpty && (result == kResultOk))
 		{
 
 
@@ -637,28 +640,27 @@ ForthShell::InterpretLine( const char *pSrcLine )
 			{
                 result = mpEngine->CheckStacks();
             }
-            if ( result != kResultOk )
-			{
-				bool exitingShell = (result == kResultExitShell) || (result == kResultShutdown);
-                if ( !exitingShell )
-				{
-                    ReportError();
-					if (mpEngine->GetError() == kForthErrorUnknownSymbol)
-					{
-						ForthConsoleCharOut(mpEngine->GetCoreState(), '\n');
-						mpEngine->ShowSearchInfo();
-					}
-					mpEngine->DumpCrashState();
+        }
+        if (result != kResultOk)
+        {
+            bool exitingShell = (result == kResultExitShell) || (result == kResultShutdown);
+            if (!exitingShell)
+            {
+                ReportError();
+                if (mpEngine->GetError() == kForthErrorUnknownSymbol)
+                {
+                    ForthConsoleCharOut(mpEngine->GetCoreState(), '\n');
+                    mpEngine->ShowSearchInfo();
                 }
-				ErrorReset();
-                if ( !mpInput->InputStream()->IsInteractive() && !exitingShell )
-				{
-                    // if the initial input stream was a file, any error
-                    //   must be treated as a fatal error
-                    result = kResultFatalError;
-                }
+                mpEngine->DumpCrashState();
             }
-           
+            ErrorReset();
+            if (!mpInput->InputStream()->IsInteractive() && !exitingShell)
+            {
+                // if the initial input stream was a file, any error
+                //   must be treated as a fatal error
+                result = kResultFatalError;
+            }
         }
     }
 
