@@ -589,7 +589,7 @@ namespace OThread
 
 	FORTHOP(oAsyncThreadNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an OAsyncThread object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an AsyncThread object");
 	}
 
 	FORTHOP(oAsyncThreadDeleteMethod)
@@ -734,7 +734,7 @@ namespace OThread
 
 	FORTHOP(oThreadNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an OThread object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a Thread object");
 	}
 
 	FORTHOP(oThreadDeleteMethod)
@@ -942,7 +942,7 @@ namespace OLock
 
 	FORTHOP(oAsyncLockNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an OAsyncLock object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an AsyncLock object");
 	}
 
 	FORTHOP(oAsyncLockDeleteMethod)

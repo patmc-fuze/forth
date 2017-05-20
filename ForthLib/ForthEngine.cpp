@@ -882,6 +882,7 @@ long *
 ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt, forthOpType opType )
 {
     mpLocalVocab->Empty();
+    mpLocalVocab->ClearFrame();
     //mLocalFrameSize = 0;
     //mpLocalAllocOp = NULL;
     mpOpcodeCompiler->ClearPeephole();

@@ -1037,6 +1037,36 @@ ForthStructVocabulary::TypecodeToString( long typeCode, char* outBuff, size_t ou
         switch ( baseType )
         {
         case kBaseTypeObject:
+            {
+                long containedTypeIndex = CODE_TO_CONTAINED_CLASS_INDEX(typeCode);
+                ForthTypeInfo* pContainedInfo = ForthTypesManager::GetInstance()->GetTypeInfo(containedTypeIndex);
+                if (pContainedInfo)
+                {
+                    long containerTypeIndex = CODE_TO_CONTAINER_CLASS_INDEX(typeCode);
+                    if (containerTypeIndex == kBCIInvalid)
+                    {
+                        sprintf(buff2, "%s", pContainedInfo->pVocab->GetName());
+                    }
+                    else
+                    {
+                        ForthTypeInfo* pContainerInfo = ForthTypesManager::GetInstance()->GetTypeInfo(containerTypeIndex);
+                        if (pContainerInfo)
+                        {
+                            sprintf(buff2, "%s of %s", pContainerInfo->pVocab->GetName(), pContainedInfo->pVocab->GetName());
+                        }
+                        else
+                        {
+                            sprintf(buff2, "<UNKNOWN CONTAINER CLASS INDEX %d!>", containerTypeIndex);
+                        }
+                    }
+                }
+                else
+                {
+                    sprintf(buff2, "<UNKNOWN CLASS INDEX %d!>", containedTypeIndex);
+                }
+            }
+            break;
+
         case kBaseTypeStruct:
             {
                 long typeIndex = CODE_TO_STRUCT_INDEX( typeCode );
@@ -1333,12 +1363,19 @@ ForthClassVocabulary::~ForthClassVocabulary()
 void
 ForthClassVocabulary::DefineInstance( void )
 {
-    DefineInstance(mpEngine->GetNextSimpleToken());
+    char* pInstanceName = mpEngine->GetNextSimpleToken();
+    char* pContainedClassName = nullptr;
+    if (::strcmp(pInstanceName, "of") == 0)
+    {
+        pContainedClassName = mpEngine->GetNextSimpleToken();
+        pInstanceName = mpEngine->GetNextSimpleToken();
+    }
+    DefineInstance(pInstanceName, pContainedClassName);
 }
 
 
 void
-ForthClassVocabulary::DefineInstance( const char* pToken )
+ForthClassVocabulary::DefineInstance(const char* pInstanceName, const char* pContainedClassName)
 {
     // do one of the following:
     // - define a global instance of this class type
@@ -1353,12 +1390,36 @@ ForthClassVocabulary::DefineInstance( const char* pToken )
     bool isPtr = false;
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthCoreState *pCore = mpEngine->GetCoreState();
+    long typeIndex = mTypeIndex;
 
+    if (pContainedClassName != nullptr)
+    {
+        ForthVocabulary* pFoundVocab;
+        pEntry = mpEngine->GetVocabularyStack()->FindSymbol(pContainedClassName, &pFoundVocab);
+        if (pEntry != nullptr)
+        {
+            ForthClassVocabulary* pContainedClassVocab = (ForthClassVocabulary *)(pManager->GetStructVocabulary(pEntry[0]));
+            if (pContainedClassVocab && pContainedClassVocab->IsClass())
+            {
+                typeIndex = (typeIndex << 16) | pContainedClassVocab->GetTypeIndex();
+            }
+            else
+            {
+                mpEngine->SetError(kForthErrorUnknownSymbol, "class define instance: bad contained class");
+                return;
+            }
+        }
+        else
+        {
+            mpEngine->SetError(kForthErrorUnknownSymbol, "class define instance: contained class not found");
+            return;
+        }
+    }
     long numElements = mpEngine->GetArraySize();
     bool isArray = (numElements != 0);
     long arrayFlag = (isArray) ? kDTIsArray : 0;
     mpEngine->SetArraySize( 0 );
-    typeCode = OBJECT_TYPE_TO_CODE( arrayFlag, mTypeIndex );
+    typeCode = OBJECT_TYPE_TO_CODE( arrayFlag, typeIndex );
 
     if ( mpEngine->CheckFlag( kEngineFlagIsPointer ) )
     {
@@ -1376,12 +1437,12 @@ ForthClassVocabulary::DefineInstance( const char* pToken )
         if ( isArray )
         {
             mpEngine->SetArraySize( numElements );
-            mpEngine->AddLocalArray( pToken, typeCode, nBytes );
+            mpEngine->AddLocalArray( pInstanceName, typeCode, nBytes );
         }
         else
         {
             pHere = mpEngine->GetDP();
-            mpEngine->AddLocalVar( pToken, typeCode, nBytes );
+            mpEngine->AddLocalVar( pInstanceName, typeCode, nBytes );
             long* pLastIntoOp = mpEngine->GetLastCompiledIntoPtr();
             if ( pLastIntoOp == (((long *) pHere) - 1) )
             {
@@ -1396,15 +1457,15 @@ ForthClassVocabulary::DefineInstance( const char* pToken )
     {
 		if ( mpEngine->CheckFlag( kEngineFlagInStructDefinition ) )
 		{
-			pManager->GetNewestStruct()->AddField( pToken, typeCode, numElements );
+			pManager->GetNewestStruct()->AddField( pInstanceName, typeCode, numElements );
 			return;
 		}
 
         // define global object(s)
-        long newGlobalOp = mpEngine->AddUserOp( pToken );
+        long newGlobalOp = mpEngine->AddUserOp( pInstanceName );
 
 		// create object which will release object referenced by this global when it is forgotten
-		new ForthForgettableGlobalObject( pToken, mpEngine->GetDP(), newGlobalOp, isArray ? numElements : 1 );
+		new ForthForgettableGlobalObject( pInstanceName, mpEngine->GetDP(), newGlobalOp, isArray ? numElements : 1 );
 
         pEntry = mpEngine->GetDefinitionVocabulary()->GetNewestEntry();
         if ( isArray )
@@ -1682,6 +1743,36 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
         switch ( baseType )
         {
         case kBaseTypeObject:
+            {
+                long containedTypeIndex = CODE_TO_CONTAINED_CLASS_INDEX(typeCode);
+                ForthTypeInfo* pContainedInfo = ForthTypesManager::GetInstance()->GetTypeInfo(containedTypeIndex);
+                if (pContainedInfo)
+                {
+                    long containerTypeIndex = CODE_TO_CONTAINER_CLASS_INDEX(typeCode);
+                    if (containerTypeIndex == kBCIInvalid)
+                    {
+                        sprintf(buff, "%s", pContainedInfo->pVocab->GetName());
+                    }
+                    else
+                    {
+                        ForthTypeInfo* pContainerInfo = ForthTypesManager::GetInstance()->GetTypeInfo(containerTypeIndex);
+                        if (pContainerInfo)
+                        {
+                            sprintf(buff, "%s of %s", pContainerInfo->pVocab->GetName(), pContainedInfo->pVocab->GetName());
+                        }
+                        else
+                        {
+                            sprintf(buff, "<UNKNOWN CONTAINER CLASS INDEX %d!>", containerTypeIndex);
+                        }
+                    }
+                }
+                else
+                {
+                    sprintf(buff, "<UNKNOWN CLASS INDEX %d!>", containedTypeIndex);
+                }
+            }
+            break;
+
         case kBaseTypeStruct:
             {
                 long typeIndex = CODE_TO_STRUCT_INDEX( typeCode );

@@ -30,7 +30,7 @@ namespace OString
 
 	//////////////////////////////////////////////////////////////////////
     ///
-    //                 oString
+    //                 String
     //
 
 	int gDefaultOStringSize = DEFAULT_STRING_DATA_BYTES - 1;
@@ -855,7 +855,7 @@ namespace OString
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oStringMap
+	//                 StringMap
 	//
 
 	typedef std::map<std::string, ForthObject> oStringMap;
@@ -1196,7 +1196,7 @@ namespace OString
 		METHOD("clear", oStringMapClearMethod),
 		METHOD("load", oStringMapLoadMethod),
 
-		METHOD_RET("get", oStringMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("get", oStringMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
 		METHOD("set", oStringMapSetMethod),
 		METHOD_RET("findKey", oStringMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oStringMapRemoveMethod),
@@ -1211,7 +1211,7 @@ namespace OString
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oStringMapIter
+	//                 StringMapIter
 	//
 
 	FORTHOP(oStringMapIterNew)

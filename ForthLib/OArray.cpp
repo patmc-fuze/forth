@@ -40,7 +40,7 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oArray
+	//                 Array
 	//
 
 	FORTHOP(oArrayNew)
@@ -663,7 +663,7 @@ namespace OArray
 		METHOD("delete", oArrayDeleteMethod),
 		METHOD("show", oArrayShowMethod),
 
-        METHOD_RET("get", oArrayGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("get", oArrayGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
         METHOD("set", oArraySetMethod),
         METHOD_RET("ref", oArrayRefMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod | kDTIsPtr, kBCIObject)),
         METHOD("swap", oArraySwapMethod),
@@ -695,12 +695,12 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oArrayIter
+	//                 ArrayIter
 	//
 
 	FORTHOP(oArrayIterNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a oArrayIter object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an ArrayIter object");
 	}
 
 	FORTHOP(oArrayIterDeleteMethod)
@@ -960,7 +960,7 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oByteArray
+	//                 ByteArray
 	//
 
 	typedef std::vector<char> oByteArray;
@@ -1432,12 +1432,12 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oByteArrayIter
+	//                 ByteArrayIter
 	//
 
 	FORTHOP(oByteArrayIterNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a oByteArrayIter object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a ByteArrayIter object");
 	}
 
 	FORTHOP(oByteArrayIterDeleteMethod)
@@ -1616,7 +1616,7 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oShortArray
+	//                 ShortArray
 	//
 
 	typedef std::vector<short> oShortArray;
@@ -2077,13 +2077,13 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oShortArrayIter
+	//                 ShortArrayIter
 	//
 
 	FORTHOP(oShortArrayIterNew)
 	{
 		ForthEngine *pEngine = GET_ENGINE;
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oShortArrayIter object");
+		pEngine->SetError(kForthErrorException, " cannot explicitly create a ShortArrayIter object");
 	}
 
 	FORTHOP(oShortArrayIterDeleteMethod)
@@ -2259,7 +2259,7 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oIntArray
+	//                 IntArray
 	//
 
 	typedef std::vector<int> oIntArray;
@@ -2720,12 +2720,12 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oIntArrayIter
+	//                 IntArrayIter
 	//
 
 	FORTHOP(oIntArrayIterNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a oIntArrayIter object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an IntArrayIter object");
 	}
 
 	FORTHOP(oIntArrayIterDeleteMethod)
@@ -2899,7 +2899,7 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oFloatArray
+	//                 FloatArray
 	//
 
 	FORTHOP(oFloatArrayShowMethod)
@@ -2968,7 +2968,7 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oLongArray
+	//                 LongArray
 	//
 
 	typedef std::vector<long long> oLongArray;
@@ -3442,12 +3442,12 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oLongArrayIter
+	//                 LongArrayIter
 	//
 
 	FORTHOP(oLongArrayIterNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a oLongArrayIter object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a LongArrayIter object");
 	}
 
 	FORTHOP(oLongArrayIterDeleteMethod)
@@ -3630,7 +3630,7 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oDoubleArray
+	//                 DoubleArray
 	//
 
 	typedef std::vector<double> oDoubleArray;
@@ -3953,7 +3953,7 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oStringArray
+	//                 StringArray
 	//
 
 	FORTHOP(oStringArrayGetRawMethod)
@@ -3986,7 +3986,7 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oPair
+	//                 Pair
 	//
 
 	struct oPairStruct
@@ -4136,9 +4136,9 @@ namespace OArray
 		//METHOD(     "clear",                oPairClearMethod ),
 
 		METHOD("setA", oPairSetAMethod),
-		METHOD_RET("getA", oPairGetAMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("getA", oPairGetAMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
 		METHOD("setB", oPairSetBMethod),
-		METHOD_RET("getB", oPairGetBMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("getB", oPairGetBMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
 
 		MEMBER_VAR("objectA", OBJECT_TYPE_TO_CODE(0, kBCIObject)),
 		MEMBER_VAR("objectB", OBJECT_TYPE_TO_CODE(0, kBCIObject)),
@@ -4150,12 +4150,12 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oPairIter
+	//                 PairIter
 	//
 
 	FORTHOP(oPairIterNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a oPairIter object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a PairIter object");
 	}
 
 	FORTHOP(oPairIterDeleteMethod)
@@ -4293,7 +4293,7 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oTriple
+	//                 Triple
 	//
 
 	struct oTripleStruct
@@ -4471,11 +4471,11 @@ namespace OArray
 		//METHOD(     "clear",                oTripleClearMethod ),
 
 		METHOD("setA", oTripleSetAMethod),
-		METHOD_RET("getA", oTripleGetAMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("getA", oTripleGetAMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
 		METHOD("setB", oTripleSetBMethod),
-		METHOD_RET("getB", oTripleGetBMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("getB", oTripleGetBMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
 		METHOD("setC", oTripleSetCMethod),
-		METHOD_RET("getC", oTripleGetCMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("getC", oTripleGetCMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
 
 		MEMBER_VAR("objectA", OBJECT_TYPE_TO_CODE(0, kBCIObject)),
 		MEMBER_VAR("objectB", OBJECT_TYPE_TO_CODE(0, kBCIObject)),
@@ -4488,12 +4488,12 @@ namespace OArray
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oTripleIter
+	//                 TripleIter
 	//
 
 	FORTHOP(oTripleIterNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a oTripleIter object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a TripleIter object");
 	}
 
 	FORTHOP(oTripleIterDeleteMethod)

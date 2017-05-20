@@ -28,7 +28,7 @@ namespace OList
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oList
+	//                 List
 	//
 
 	FORTHOP(oListNew)
@@ -572,8 +572,8 @@ namespace OList
 		METHOD_RET("toArray", oListToArrayMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIArray)),
 
 		METHOD_RET("isEmpty", oListIsEmptyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD_RET("head", oListHeadMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
-		METHOD_RET("tail", oListTailMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("head", oListHeadMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
+        METHOD_RET("tail", oListTailMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
 		METHOD("addHead", oListAddHeadMethod),
 		METHOD("addTail", oListAddTailMethod),
 		METHOD("removeHead", oListRemoveHeadMethod),
@@ -592,13 +592,13 @@ namespace OList
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oListIter
+	//                 ListIter
 	//
 
 	FORTHOP(oListIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oListIter object");
+		pEngine->SetError(kForthErrorException, " cannot explicitly create a ListIter object");
 	}
 
 	FORTHOP(oListIterDeleteMethod)

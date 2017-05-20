@@ -27,7 +27,7 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oMap
+	//                 Map
 	//
 
 	typedef std::map<long long, ForthObject> oMap;
@@ -392,7 +392,7 @@ namespace OMap
 		METHOD("clear", oMapClearMethod),
 		METHOD("load", oMapLoadMethod),
 
-		METHOD_RET("get", oMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("get", oMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
 		METHOD("set", oMapSetMethod),
 		METHOD_RET("findKey", oMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oMapRemoveMethod),
@@ -407,13 +407,13 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oMapIter
+	//                 MapIter
 	//
 
 	FORTHOP(oMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oMapIter object");
+		pEngine->SetError(kForthErrorException, " cannot explicitly create a MapIter object");
 	}
 
 	FORTHOP(oMapIterDeleteMethod)
@@ -602,7 +602,7 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oIntMap
+	//                 IntMap
 	//
 
 	typedef std::map<long, ForthObject> oIntMap;
@@ -941,7 +941,7 @@ namespace OMap
 		METHOD("clear", oIntMapClearMethod),
 		METHOD("load", oIntMapLoadMethod),
 
-		METHOD_RET("get", oIntMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("get", oIntMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
 		METHOD("set", oIntMapSetMethod),
 		METHOD_RET("findKey", oIntMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oIntMapRemoveMethod),
@@ -956,13 +956,13 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oIntMapIter
+	//                 IntMapIter
 	//
 
 	FORTHOP(oIntMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oIntMapIter object");
+		pEngine->SetError(kForthErrorException, " cannot explicitly create an IntMapIter object");
 	}
 
 	FORTHOP(oIntMapIterDeleteMethod)
@@ -1139,7 +1139,7 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oFloatMap
+	//                 FloatMap
 	//
 
 	typedef std::map<float, ForthObject> oFloatMap;
@@ -1435,7 +1435,7 @@ namespace OMap
 		//METHOD_RET( "clone",                oFloatMapCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIFloatMap) ),
 		METHOD("load", oFloatMapLoadMethod),
 
-		METHOD_RET("get", oFloatMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("get", oFloatMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
 		METHOD("set", oFloatMapSetMethod),
 		METHOD_RET("findKey", oFloatMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oFloatMapRemoveMethod),
@@ -1450,7 +1450,7 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oLongMap
+	//                 LongMap
 	//
 
 	typedef std::map<long long, ForthObject> oLongMap;
@@ -1794,7 +1794,7 @@ namespace OMap
 		METHOD("clear", oLongMapClearMethod),
 		METHOD("load", oLongMapLoadMethod),
 
-		METHOD_RET("get", oLongMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("get", oLongMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
 		METHOD("set", oLongMapSetMethod),
 		METHOD_RET("findKey", oLongMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oLongMapRemoveMethod),
@@ -1809,13 +1809,13 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oLongMapIter
+	//                 LongMapIter
 	//
 
 	FORTHOP(oLongMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oLongMapIter object");
+		pEngine->SetError(kForthErrorException, " cannot explicitly create a LongMapIter object");
 	}
 
 	FORTHOP(oLongMapIterDeleteMethod)
@@ -1996,7 +1996,7 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oDoubleMap
+	//                 DoubleMap
 	//
 
 	typedef std::map<double, ForthObject> oDoubleMap;
@@ -2334,7 +2334,7 @@ namespace OMap
 		METHOD("clear", oDoubleMapClearMethod),
 		METHOD("load", oDoubleMapLoadMethod),
 
-		METHOD_RET("get", oDoubleMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+        METHOD_RET("get", oDoubleMapGetMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
 		METHOD("set", oDoubleMapSetMethod),
 		METHOD_RET("findKey", oDoubleMapFindKeyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("remove", oDoubleMapRemoveMethod),
@@ -2349,13 +2349,13 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oDoubleMapIter
+	//                 DoubleMapIter
 	//
 
 	FORTHOP(oDoubleMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oDoubleMapIter object");
+		pEngine->SetError(kForthErrorException, " cannot explicitly create a DoubleMapIter object");
 	}
 
 	FORTHOP(oDoubleMapIterDeleteMethod)
@@ -2534,7 +2534,7 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oStringIntMap
+	//                 StringIntMap
 	//
 
 	typedef std::map<std::string, int> oStringIntMap;
@@ -2819,13 +2819,13 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oStringIntMapIter
+	//                 StringIntMapIter
 	//
 
 	FORTHOP(oStringIntMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oStringIntMapIter object");
+		pEngine->SetError(kForthErrorException, " cannot explicitly create a StringIntMapIter object");
 	}
 
 	FORTHOP(oStringIntMapIterDeleteMethod)
@@ -3005,7 +3005,7 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oStringFloatMap
+	//                 StringFloatMap
 	//
 
 	FORTHOP(oStringFloatMapShowMethod)
@@ -3061,7 +3061,7 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oStringLongMap
+	//                 StringLongMap
 	//
 
 	typedef std::map<std::string, long long> oStringLongMap;
@@ -3352,13 +3352,13 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oStringLongMapIter
+	//                 StringLongMapIter
 	//
 
 	FORTHOP(oStringLongMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oStringLongMapIter object");
+		pEngine->SetError(kForthErrorException, " cannot explicitly create a StringLongMapIter object");
 	}
 
 	FORTHOP(oStringLongMapIterDeleteMethod)
@@ -3544,7 +3544,7 @@ namespace OMap
 
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oStringDoubleMap
+	//                 StringDoubleMap
 	//
 
 	FORTHOP(oStringDoubleMapShowMethod)
