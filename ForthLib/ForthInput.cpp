@@ -1024,12 +1024,7 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 			//SPEW_SHELL("process character {%c} 0x%x\n", c, c);
 			if (c == '\\')
 			{
-				c = *pSrc;
-				if (c != '\0')
-				{
-					pSrc++;
-					c = ForthParseInfo::BackslashChar(c);
-				}
+                c = ForthParseInfo::BackslashChar(pSrc);
 			}
 			pInputStream->SetBufferPointer(pSrc);
 			switch (c)
@@ -1116,8 +1111,9 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 					if (mpRightCursor != mpRightBase)
 					{
 						CombineRightIntoLeft();
-					}
-					pNewSrc = parseInfo.ParseDoubleQuote(pSrc - 1, pSrcLimit, true);
+                    }
+                    pNewSrc = pSrc - 1;   // point back at the quote
+                    parseInfo.ParseDoubleQuote(pNewSrc, pSrcLimit, true);
 					if (pNewSrc == (pSrc - 1))
 					{
 						// TODO: report error

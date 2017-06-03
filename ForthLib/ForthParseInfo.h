@@ -29,9 +29,9 @@ public:
 	inline int		GetMaxChars(void) const { return mMaxChars; };
 
 	const char*		ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, ForthEngine *pEngine, bool keepBackslashes = false);
-	const char *	ParseDoubleQuote(const char *pSrc, const char *pSrcLimit, bool keepBackslashes = false);
+	void	        ParseDoubleQuote(const char *&pSrc, const char *pSrcLimit, bool keepBackslashes = false);
 	
-	static char		BackslashChar(char c);
+	static char		BackslashChar(const char*& pSrc);
 
 private:
 	long *      mpToken;         // pointer to token buffer, first byte is strlen(token)

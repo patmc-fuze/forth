@@ -784,7 +784,8 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
               // support C-style quoted strings...
               if ( mpEngine->CheckFeature( kFFCStringLiterals ) )
               {
-				  pEndSrc = pInfo->ParseDoubleQuote(pSrc, pSrcLimit);
+                  pEndSrc = pSrc;
+                  pInfo->ParseDoubleQuote(pEndSrc, pSrcLimit);
                   gotAToken = true;
               }
               break;
@@ -919,7 +920,8 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
               // support C-style quoted strings...
               if ( mpEngine->CheckFeature( kFFCStringLiterals ) )
               {
-				  pEndSrc = pInfo->ParseDoubleQuote(pSrc, pSrcLimit);
+                  pEndSrc = pSrc;
+                  pInfo->ParseDoubleQuote(pEndSrc, pSrcLimit);
                   gotAToken = true;
               }
               break;
