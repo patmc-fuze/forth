@@ -174,6 +174,41 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 3 2017
+
+I added the ability to have hexadecimal values in string and character literals
+by using \xVV.
+
+I added a StructArray builtin class.  You need to invoke its setType method
+on each instance before using it so that it knows the size of array elements
+and so that show works.  It would be nice if 'StructArray of Foo' would be
+enough so that you didn't need to manually set the type, but I can't think of
+any straightforward way to make that work.
+
+I decided to do a playthrough of adventure to see if it had any bugs, and found
+out pretty quickly that it is very incomplete - when I got to the part where
+you release the bird to kill the snake it didn't recognize any way to throw
+the bird or the cage.  I guess the guys who did the C++ port didn't get that
+far.  I found an annotated C version by Donald Knuth, but it didn't make any
+attempt at restructuring the code - it is just Fortran transcribed to C with
+goto being used all over the place.  Arthur O'Dwyer took Knuth's version and
+added a little more structure to it, but it is still a mess.  O'Dwyer also has
+similar C versions for the 440, 550 and 551 point versions of the game which
+appear to have very similar code.
+
+I don't know if I should try to add missing stuff to the existing code, or
+start over with one of O'Dwyers versions.  Another possibility would be to
+port one of the interactive fiction engines like tads or acode to forth,
+but that looks like a mammoth undertaking.
+
+I added continuation lines - if a line ends in "\+" the next line will be
+appended to it before any of it is interpreted.  I tested in the console and
+in files, I haven't tested it for buffer input or server mode.
+I also haven't tested edge cases, like where the resulting input line would
+be too big for the input streams buffer - that should be very rare, since the
+buffers are currently 16K bytes long.
+Continuations are only really useful for long literal strings and expressions.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 20 2017
 
 I removed the StringArray builtin class and replaced it with Array of String in

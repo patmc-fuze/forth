@@ -30,6 +30,7 @@ public:
     virtual int     GetSourceID();
 
     virtual char    *GetLine( const char *pPrompt );
+    virtual char    *AddContinuationLine();
 
     virtual bool    IsInteractive( void );
 

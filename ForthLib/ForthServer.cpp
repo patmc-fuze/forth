@@ -493,6 +493,59 @@ char* ForthServerInputStream::GetLine( const char *pPrompt )
     return result;
 }
 
+char* ForthServerInputStream::AddContinuationLine()
+{
+    int msgType, msgLen;
+    char* result = NULL;
+
+    mpMsgPipe->StartMessage(kClientMsgSendLine);
+    mpMsgPipe->WriteString(nullptr);
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage(msgType, msgLen);
+    switch (msgType)
+    {
+    case kServerMsgProcessLine:
+    {
+        const char* pSrcLine;
+        int srcLen = 0;
+        if (mpMsgPipe->ReadCountedData(pSrcLine, srcLen))
+        {
+            if (srcLen != 0)
+            {
+#ifdef PIPE_SPEW
+                printf("line = '%s'\n", pSrcLine);
+#endif
+                char* pBufferDst = mpBufferBase + mWriteOffset;
+                if ((srcLen + mWriteOffset) > mBufferLen)
+                {
+                    srcLen = (mBufferLen - mWriteOffset) - 1;
+                }
+                memcpy(pBufferDst, pSrcLine, srcLen);
+                pBufferDst[srcLen] = '\0';
+                mWriteOffset = srcLen;
+                result = mpBufferBase;
+            }
+        }
+        else
+        {
+            // TODO: report error
+        }
+    }
+    break;
+
+    case kServerMsgPopStream:
+        break;
+
+    default:
+        // TODO: report unexpected message type error
+        printf("ForthServerShell::GetLine unexpected message type %d\n", msgType);
+        break;
+    }
+
+    return result;
+}
+
 bool ForthServerInputStream::IsInteractive( void )
 {
     return !mIsFile;

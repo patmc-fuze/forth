@@ -431,6 +431,19 @@ ForthShell::Run( ForthInputStream *pInStream )
         {
             bQuit = PopInputStream();
         }
+        else
+        {
+            // add on continuation lines if necessary
+            while (mpInput->HandleContinuation("\\+"))
+            {
+                pBuffer = mpInput->AddContinuationLine();
+                if (pBuffer == nullptr)
+                {
+                    bQuit = PopInputStream();
+                    break;
+                }
+            }
+        }
 
         if ( !bQuit )
         {
