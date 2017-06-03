@@ -525,7 +525,24 @@ entry pushBranchType
 
 ;-----------------------------------------------
 ;
-; relative def branch ops
+; relative data block ops
+;
+entry relativeDataType
+	; ebx is offset from dictionary base of user definition
+	and	ebx, 00FFFFFFh
+	sal	ebx, 2
+	mov	eax, [ebp + FCore.DictionaryPtr]
+	add	ebx, [eax + ForthMemorySection.pBase]
+	cmp	ebx, [eax + ForthMemorySection.pCurrent]
+	jge	badUserDef
+	; push address of data on pstack
+	sub	edx, 4
+	mov	[edx], ebx
+	jmp	edi
+
+;-----------------------------------------------
+;
+; relative data ops
 ;
 entry relativeDefBranchType
 	; push relativeDef opcode for immediately following anonymous definition (IP in esi points to it)
@@ -6636,12 +6653,12 @@ entry opTypesTable
 ;	10 - 19
 	DD	branchType				; kOpBranch = 10,
 	DD	branchNZType			; kOpBranchNZ,
-	DD	branchZType			; kOpBranchZ,
+	DD	branchZType			    ; kOpBranchZ,
 	DD	caseBranchType			; kOpCaseBranch,
 	DD	pushBranchType			; kOpPushBranch,	
-	DD	relativeDefBranchType	; kOpRelativeDefBranch
-	DD	extOpType	
-	DD	extOpType	
+	DD	relativeDefBranchType	; kOpRelativeDefBranch,
+	DD	relativeDataType		; kOpRelativeData,
+	DD	relativeDataType		; kOpRelativeString,
 	DD	extOpType	
 	DD	extOpType	
 ;	20 - 29

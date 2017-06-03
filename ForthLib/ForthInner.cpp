@@ -1733,7 +1733,22 @@ OPTYPE_ACTION( RelativeDefAction )
     }
 }
 
-OPTYPE_ACTION( BranchAction )
+OPTYPE_ACTION(RelativeDataAction)
+{
+    // op is normal user-defined, push IP on rstack,
+    //  newIP is opVal + dictionary base
+    long* pData = pCore->pDictionary->pBase + opVal;
+    if (pData < pCore->pDictionary->pCurrent)
+    {
+        SPUSH((long) pData);
+    }
+    else
+    {
+        SET_ERROR(kForthErrorBadOpcode);
+    }
+}
+
+OPTYPE_ACTION(BranchAction)
 {
     if ( (opVal & 0x00800000) != 0 )
     {
@@ -2245,8 +2260,8 @@ optypeActionRoutine builtinOptypeAction[] =
     CaseBranchAction,
     PushBranchAction,
     RelativeDefBranchAction,
-    ReservedOptypeAction,		// 0x10
-    ReservedOptypeAction,
+    RelativeDataAction,		    // 0x10
+    RelativeDataAction,
     ReservedOptypeAction,
     ReservedOptypeAction,
 
