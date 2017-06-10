@@ -466,10 +466,11 @@ FORTHOP(doOp)
     pShellStack->Push( gCompiledOps[ OP_DO_DO ] );
     // save address for loop/+loop
     pShellStack->Push( (long)GET_DP );
-    pShellStack->Push( kShellTagDo );
+    pShellStack->PushTag( kShellTagDo );
     // this will be fixed by loop/+loop
     pEngine->CompileBuiltinOpcode( OP_ABORT );
     pEngine->CompileLong( 0 );
+    pEngine->StartLoopContinuations();
 }
 
 // has precedence!
@@ -481,10 +482,11 @@ FORTHOP(checkDoOp)
     pShellStack->Push( gCompiledOps[ OP_DO_CHECKDO ] );
     // save address for loop/+loop
     pShellStack->Push( (long)GET_DP );
-    pShellStack->Push( kShellTagDo );
+    pShellStack->PushTag( kShellTagDo );
     // this will be fixed by loop/+loop
     pEngine->CompileBuiltinOpcode( OP_ABORT );
     pEngine->CompileLong( 0 );
+    pEngine->StartLoopContinuations();
 }
 
 // has precedence!
@@ -505,6 +507,7 @@ FORTHOP(loopOp)
     pEngine->CompileBuiltinOpcode( OP_DO_LOOP );
     // fill in the branch to after loop opcode
     *pDoOp = COMPILED_OP( kOpBranch, (GET_DP - pDoOp) - 1 );
+    pEngine->EndLoopContinuations();
 }
 
 // has precedence!
@@ -525,6 +528,7 @@ FORTHOP(loopNOp)
     pEngine->CompileBuiltinOpcode( OP_DO_LOOPN );
     // fill in the branch to after loop opcode
     *pDoOp = COMPILED_OP( kOpBranch, (GET_DP - pDoOp) - 1 );
+    pEngine->EndLoopContinuations();
 }
 
 // if - has precedence
@@ -536,7 +540,7 @@ FORTHOP( ifOp )
     // save address for else/endif
     pShellStack->Push( (long)GET_DP );
     // flag that this is the "if" branch
-    pShellStack->Push( kShellTagBranchZ );
+    pShellStack->PushTag(kShellTagIf);
     // this will be fixed by else/endif
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
@@ -550,7 +554,7 @@ FORTHOP(orifOp)
 	// save address for else/endif
 	pShellStack->Push((long)GET_DP);
 	// flag that this is an "orif" clause
-	pShellStack->Push(kShellTagOrIf);
+    pShellStack->PushTag(kShellTagOrIf);
 	// this will be fixed by else/endif
 	pEngine->CompileBuiltinOpcode(OP_ABORT);
 }
@@ -564,7 +568,7 @@ FORTHOP(andifOp)
 	// save address for else/endif
 	pShellStack->Push((long)GET_DP);
 	// flag that this is an "andif" clause
-	pShellStack->Push(kShellTagAndIf);
+    pShellStack->PushTag(kShellTagAndIf);
 	// this will be fixed by else/endif
 	pEngine->CompileBuiltinOpcode(OP_ABORT);
 }
@@ -579,9 +583,8 @@ FORTHOP( elseOp )
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
 	long branchTag = pShellStack->Peek();
-	if ((branchTag != kShellTagBranchZ) && (branchTag != kShellTagOrIf) && (branchTag != kShellTagAndIf))
+    if (!pShell->CheckSyntaxError("else", branchTag, (kShellTagIf | kShellTagWhile | kShellTagOrIf | kShellTagAndIf)))
     {
-		pShell->CheckSyntaxError("else", branchTag, kShellTagBranchZ);
         return;
     }
 	long* falseIP = GET_DP + 1;
@@ -602,8 +605,9 @@ FORTHOP( elseOp )
 		}
 		switch (branchTag)
 		{
-		case kShellTagBranchZ:
-			notDone = false;
+        case kShellTagIf:
+        case kShellTagWhile:
+            notDone = false;
 			break;
 		case kShellTagOrIf:
 			followedByOr = true;
@@ -614,14 +618,14 @@ FORTHOP( elseOp )
 			trueIP = ((long *)pShellStack->Peek(1)) + 1;
 			break;
 		default:
-			pShell->CheckSyntaxError("else", branchTag, kShellTagBranchZ);
+            pShell->CheckSyntaxError("else", branchTag, kShellTagIf);
 			return;
 		}
 	}
     // save address for endif
     pShellStack->Push( (long) GET_DP );
     // flag that this is the "else" branch
-    pShellStack->Push( kShellTagBranch );
+    pShellStack->PushTag( kShellTagElse );
     // this will be fixed by endif
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
@@ -635,12 +639,11 @@ FORTHOP( endifOp )
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
 	long branchTag = pShellStack->Peek();
-	if ((branchTag != kShellTagBranch) && (branchTag != kShellTagBranchZ) && (branchTag != kShellTagOrIf) && (branchTag != kShellTagAndIf))
+    if (!pShell->CheckSyntaxError("endif", branchTag, (kShellTagIf | kShellTagElse | kShellTagWhile | kShellTagOrIf | kShellTagAndIf)))
 	{
-		pShell->CheckSyntaxError("endif", branchTag, kShellTagBranchZ);
 		return;
 	}
-	if (branchTag == kShellTagBranch)
+	if (branchTag == kShellTagElse)
 	{
 		// "else" has already handled if/andif/orif, just do branch at end of true body around false body
 		pShellStack->Pop();
@@ -668,8 +671,9 @@ FORTHOP( endifOp )
 		}
 		switch (branchTag)
 		{
-		case kShellTagBranchZ:
-			notDone = false;
+        case kShellTagIf:
+        case kShellTagWhile:
+            notDone = false;
 			break;
 		case kShellTagOrIf:
 			followedByOr = true;
@@ -678,7 +682,7 @@ FORTHOP( endifOp )
 			followedByOr = false;
 			break;
 		default:
-			pShell->CheckSyntaxError("else", branchTag, kShellTagBranchZ);
+            pShell->CheckSyntaxError("else", branchTag, kShellTagIf);
 			return;
 		}
 	}
@@ -694,7 +698,8 @@ FORTHOP( beginOp )
     ForthShellStack *pShellStack = pShell->GetShellStack();
     // save address for repeat/until/again
     pShellStack->Push( (long)GET_DP );
-    pShellStack->Push( kShellTagBegin );
+    pShellStack->PushTag( kShellTagBegin );
+    pEngine->StartLoopContinuations();
 }
 
 
@@ -710,8 +715,8 @@ FORTHOP( untilOp )
         long *pBeginOp = (long *) pShellStack->Pop();
         pEngine->CompileOpcode( kOpBranchZ, (pBeginOp - GET_DP) - 1 );
     }
+    pEngine->EndLoopContinuations();
 }
-
 
 
 // while - has precedence
@@ -721,16 +726,16 @@ FORTHOP( whileOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "while", pShellStack->Pop(), kShellTagBegin ) )
+    if (!pShell->CheckSyntaxError("while", pShellStack->Pop(), kShellTagBegin))
     {
         return;
     }
     // stick while tag/address under the begin tag/address
     long oldAddress = pShellStack->Pop();
     pShellStack->Push( (long) GET_DP );
-    pShellStack->Push( kShellTagBranchZ );
-    pShellStack->Push( oldAddress );
-    pShellStack->Push( kShellTagBegin );
+    pShellStack->PushTag(kShellTagWhile);
+    pShellStack->Push(oldAddress);
+    pShellStack->PushTag(kShellTagBegin);
     // repeat will fill this in
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
@@ -743,20 +748,22 @@ FORTHOP( repeatOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "repeat", pShellStack->Pop(), kShellTagBegin ) )
+    if (!pShell->CheckSyntaxError("repeat", pShellStack->Pop(), kShellTagBegin))
     {
         return;
     }
     long *pBeginAddress =  (long *) pShellStack->Pop();
     long branchTag = pShellStack->Pop();
-    if ( !pShell->CheckSyntaxError( "repeat", branchTag, kShellTagBranchZ ) )
+    if (!pShell->CheckSyntaxError("repeat", branchTag, kShellTagWhile))
     {
         return;
     }
     // fill in the branch taken when "while" fails
     long *pBranch =  (long *) pShellStack->Pop();
-    *pBranch = COMPILED_OP( (branchTag == kShellTagBranchZ) ? kOpBranchZ : kOpBranch, (GET_DP - pBranch) );
-    pEngine->CompileOpcode( kOpBranch, (pBeginAddress - GET_DP) - 1 );
+    //*pBranch = COMPILED_OP((branchTag == kShellTagBranchZ) ? kOpBranchZ : kOpBranch, (GET_DP - pBranch));
+    *pBranch = COMPILED_OP(kOpBranchZ, (GET_DP - pBranch));
+    pEngine->CompileOpcode(kOpBranch, (pBeginAddress - GET_DP) - 1);
+    pEngine->EndLoopContinuations();
 }
 
 // again - has precedence
@@ -772,6 +779,7 @@ FORTHOP( againOp )
     }
     long *pLoopTop =  (long *) pShellStack->Pop();
     pEngine->CompileOpcode( kOpBranch, (pLoopTop - GET_DP) - 1 );
+    pEngine->EndLoopContinuations();
 }
 
 // case - has precedence
@@ -782,7 +790,7 @@ FORTHOP( caseOp )
    ForthShell *pShell = pEngine->GetShell();
    ForthShellStack *pShellStack = pShell->GetShellStack();
    pShellStack->Push( 0 );
-   pShellStack->Push( kShellTagCase );
+   pShellStack->PushTag( kShellTagCase );
 }
 
 
@@ -799,8 +807,8 @@ FORTHOP( ofOp )
 
     // save address for endof
     pShellStack->Push( (long)GET_DP );
-    pShellStack->Push( kShellTagOf );
-    pShellStack->Push( kShellTagCase );
+    pShellStack->PushTag( kShellTagOf );
+    pShellStack->PushTag( kShellTagCase );
     // this will be set to a caseBranch by endof
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
@@ -819,8 +827,8 @@ FORTHOP( ofifOp )
 
     // save address for endof
     pShellStack->Push( (long)GET_DP );
-    pShellStack->Push( kShellTagOfIf );
-    pShellStack->Push( kShellTagCase );
+    pShellStack->PushTag( kShellTagOfIf );
+    pShellStack->PushTag( kShellTagCase );
     // this will be set to a zBranch by endof
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 	// if the ofif test succeeded, we need to dispose of the switch input value
@@ -862,7 +870,7 @@ FORTHOP( endofOp )
 
     // save address for endcase
     pShellStack->Push( (long) pDP );
-    pShellStack->Push( kShellTagCase );
+    pShellStack->PushTag( kShellTagCase );
 }
 
 
@@ -930,6 +938,35 @@ FORTHOP(gotoIfNotOp)
 	// this will be fixed when label is defined
 	pEngine->CompileBuiltinOpcode(OP_ABORT);
 	pEngine->AddGoto(labelName, kOpBranchZ, pHere);
+}
+
+FORTHOP(continueDefineOp)
+{
+    GET_ENGINE->SetContinuationDestination(GET_DP);
+}
+
+FORTHOP(continueOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->AddContinuationBranch(GET_DP, kOpBranch);
+    // this will be fixed when surrounding loop is finished
+    pEngine->CompileBuiltinOpcode(OP_ABORT);
+}
+
+FORTHOP(continueIfOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->AddContinuationBranch(GET_DP, kOpBranchNZ);
+    // this will be fixed when surrounding loop is finished
+    pEngine->CompileBuiltinOpcode(OP_ABORT);
+}
+
+FORTHOP(continueIfNotOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->AddContinuationBranch(GET_DP, kOpBranchZ);
+    // this will be fixed when surrounding loop is finished
+    pEngine->CompileBuiltinOpcode(OP_ABORT);
 }
 
 // align (upwards) DP to longword boundary
@@ -1717,12 +1754,27 @@ FORTHOP( methodOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
+    ForthVocabulary* pDefinitionVocab = nullptr;
     const char* pMethodName = pEngine->GetNextSimpleToken();
+    int len = strlen(pMethodName);
+    char* pColon = (char *) strchr(pMethodName, ':');
+    if ((pColon != nullptr) && (len > 2) && (*pMethodName != ':') && (pMethodName[len - 1] != ':'))
+    {
+        // symbol may be of form CLASS:METHOD
+        // this allows you to add methods to a class outside the class: ... ;class 
+        *pColon = '\0';
+        ForthVocabulary* pVocab = ForthVocabulary::FindVocabulary(pMethodName);
+        if ((pVocab != NULL) && pVocab->IsClass())
+        {
+            pMethodName = pColon + 1;
+            pDefinitionVocab = pVocab;
+        }
+    }
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->GetNewestClass();
 
     long methodIndex = pVocab->FindMethod( pMethodName );
-    pEngine->StartOpDefinition( pMethodName, true );
+    pEngine->StartOpDefinition(pMethodName, true, kOpUserDef, pDefinitionVocab);
     // switch to compile mode
     pEngine->SetCompileState( 1 );
     pEngine->SetFlag( kEngineFlagIsMethod );
@@ -8636,6 +8688,10 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(gotoOp,                 "goto" ),
     PRECOP_DEF(gotoIfOp,               "gotoIf" ),
     PRECOP_DEF(gotoIfNotOp,            "gotoIfNot" ),
+    PRECOP_DEF(continueDefineOp,       "continue:" ),
+    PRECOP_DEF(continueOp,             "continue" ),
+    PRECOP_DEF(continueIfOp,           "continueIf" ),
+    PRECOP_DEF(continueIfNotOp,        "continueIfNot" ),
 
     ///////////////////////////////////////////
     //  op definition

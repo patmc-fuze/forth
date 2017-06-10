@@ -203,8 +203,8 @@ public:
     void            PopInputStream( void );
 
     // returns pointer to new vocabulary entry
-    long *          StartOpDefinition( const char *pName=NULL, bool smudgeIt=false, forthOpType opType=kOpUserDef );
-    void            EndOpDefinition( bool unsmudgeIt=false );
+    long *          StartOpDefinition(const char *pName = NULL, bool smudgeIt = false, forthOpType opType = kOpUserDef, ForthVocabulary* pDefinitionVocab = nullptr);
+    void            EndOpDefinition(bool unsmudgeIt = false);
     // return pointer to symbol entry, NULL if not found
     long *          FindSymbol( const char *pSymName );
     void            DescribeSymbol( const char *pSymName );
@@ -399,6 +399,21 @@ protected:
 	ForthObject		mDefaultConsoleOutStream;
 
 	std::vector<ForthLabel> mLabels;
+
+public:
+    void                    PushContinuation(long val);
+    long                    PopContinuation();
+    void                    ResetContinuations();
+    long*                   GetContinuationDestination();
+    void                    SetContinuationDestination(long* pDest);
+    void                    AddContinuationBranch(long* pAddr, long opType);
+    void                    StartLoopContinuations();
+    void                    EndLoopContinuations();
+protected:
+    std::vector<long> mContinuations;
+    long            mContinuationIx;
+    long*           mContinueDestination;
+    long            mContinueCount;
 
 #ifdef WIN32
 #ifdef MSDEV

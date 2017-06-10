@@ -90,7 +90,7 @@ ForthEngine* ForthEngine::mpInstance = NULL;
 static const char *opTypeNames[] =
 {
     "Native", "NativeImmediate", "UserDefined", "UserDefinedImmediate", "CCode", "CCodeImmediate", "RelativeDef", "RelativeDefImmediate", "DLLEntryPoint", 0,
-    "Branch", "BranchTrue", "BranchFalse", "CaseBranch", "PushBranch", "RelativeDefBranch", 0, 0, 0, 0,
+    "Branch", "BranchTrue", "BranchFalse", "CaseBranch", "PushBranch", "RelativeDefBranch", "RelativeData", "RelativeString", 0, 0,
 	"Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "LocalStringInit", "LocalStructArray", "OffsetFetch", "MemberRef",
     "LocalByte", "LocalUByte", "LocalShort", "LocalUShort", "LocalInt", "LocalUInt", "LocalLong", "LocalULong", "LocalFloat", "LocalDouble",
 	"LocalString", "LocalOp", "LocalObject", "LocalByteArray", "LocalUByteArray", "LocalShortArray", "LocalUShortArray", "LocalIntArray", "LocalUIntArray", "LocalLongArray",
@@ -253,6 +253,9 @@ ForthEngine::ForthEngine()
             | kFFCHexLiterals | kFFDoubleSlashComment | kFFCFloatLiterals | kFFParenIsExpression)
 , mBlockFileManager( NULL )
 , mIsServer(false)
+, mContinuationIx(0)
+, mContinueDestination(nullptr)
+, mContinueCount(0)
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -467,6 +470,7 @@ ForthEngine::Reset( void )
     mpOpcodeCompiler->Reset();
     mCompileState = 0;
     mCompileFlags = 0;
+    ResetContinuations();
 
 	mTokenStack.Clear();
 
@@ -879,7 +883,7 @@ ForthEngine::PopInputStream( void )
 
 
 long *
-ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt, forthOpType opType )
+ForthEngine::StartOpDefinition(const char *pName, bool smudgeIt, forthOpType opType, ForthVocabulary* pDefinitionVocab)
 {
     mpLocalVocab->Empty();
     mpLocalVocab->ClearFrame();
@@ -887,14 +891,20 @@ ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt, forthOpType op
     //mpLocalAllocOp = NULL;
     mpOpcodeCompiler->ClearPeephole();
     AlignDP();
+
+    if (pDefinitionVocab == nullptr)
+    {
+        pDefinitionVocab = mpDefinitionVocab;
+    }
+
     if ( pName == NULL )
     {
         pName = GetNextSimpleToken();
     }
-    long* pEntry = mpDefinitionVocab->AddSymbol( pName, opType, (long) mDictionary.pCurrent, true );
+    long* pEntry = pDefinitionVocab->AddSymbol(pName, opType, (long)mDictionary.pCurrent, true);
     if ( smudgeIt )
     {
-        mpDefinitionVocab->SmudgeNewestSymbol();
+        pDefinitionVocab->SmudgeNewestSymbol();
     }
 	mLabels.clear();
 
@@ -2521,6 +2531,98 @@ char* ForthEngine::AddTempString(const char* inText, int inNumChars)
 	return result;
 }
 
+
+//############################################################################
+//
+//          Continue statement support
+//
+//############################################################################
+void ForthEngine::PushContinuation(long val)
+{
+    if (mContinuationIx >= mContinuations.size())
+    {
+        mContinuations.resize(mContinuationIx + 32);
+    }
+    mContinuations[mContinuationIx++] = val;
+}
+
+long ForthEngine::PopContinuation()
+{
+    if (mContinuationIx > 0)
+    {
+        mContinuationIx--;
+        return mContinuations[mContinuationIx];
+    }
+    else
+    {
+        SetError(kForthErrorBadSyntax, "not enough continuations");
+    }
+}
+
+void ForthEngine::ResetContinuations()
+{
+    mContinuations.clear();
+    mContinuationIx = 0;
+    mContinueDestination = nullptr;
+    mContinueCount = 0;
+}
+
+long* ForthEngine::GetContinuationDestination()
+{
+    return mContinueDestination;
+}
+
+void ForthEngine::SetContinuationDestination(long* pDest)
+{
+    mContinueDestination = pDest;
+}
+
+void ForthEngine::AddContinuationBranch(long* pAddr, long opType)
+{
+    PushContinuation((long) pAddr);
+    PushContinuation(opType);
+    ++mContinueCount;
+}
+
+void ForthEngine::StartLoopContinuations()
+{
+    PushContinuation((long) mContinueDestination);
+    PushContinuation(mContinueCount);
+    mContinueDestination = nullptr;
+    mContinueCount = 0;
+}
+
+void ForthEngine::EndLoopContinuations()
+{
+    // fixup pending continue branches for current loop
+    if (mContinueCount > 0)
+    {
+        if (mContinueDestination != nullptr)
+        {
+            for (int i = 0; i < mContinueCount; ++i)
+            {
+                if (mContinuationIx >= 2)
+                {
+                    long opType = PopContinuation();
+                    long *pDest = (long *)PopContinuation();
+                    *pDest = COMPILED_OP(opType, (mContinueDestination - pDest) - 1);
+                }
+                else
+                {
+                    // report error - end loop with continuation stack empty
+                    SetError(kForthErrorBadSyntax, "end loop with continuation stack empty");
+                    break;
+                }
+            }
+        }
+        else
+        {
+            SetError(kForthErrorBadSyntax, "end loop with unresolved continues");
+        }
+    }
+    mContinueCount = PopContinuation();
+    mContinueDestination = (long *)PopContinuation();
+}
 
 
 //############################################################################

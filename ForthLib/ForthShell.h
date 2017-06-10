@@ -35,23 +35,24 @@ class ForthExpressionInputStream;
 
 typedef enum
 {
-   kShellTagNothing  = 0,
-   kShellTagDo       = 1,
-   kShellTagBegin    = 2,
-   //kShellTagWhile    = 3,
-   kShellTagCase     = 4,
-   kShellTagBranchZ  = 5,
-   kShellTagBranch   = 6,
-   kShellTagParen    = 7,
-   kShellTagString   = 8,
-   kShellTagDefine   = 9,
-   kShellTagPoundIf  = 10,
-   kShellTagOf       = 11,
-   kShellTagOfIf     = 12,
-   kShellTagAndIf    = 13,
-   kShellTagOrIf     = 14,
+   kShellTagNothing  = 0x00000001,
+   kShellTagDo       = 0x00000002,
+   kShellTagBegin    = 0x00000004,
+   kShellTagWhile    = 0x00000008,
+   kShellTagCase     = 0x00000010,
+   kShellTagIf       = 0x00000020,
+   kShellTagElse     = 0x00000040,
+   kShellTagParen    = 0x00000080,
+   kShellTagString   = 0x00000100,
+   kShellTagDefine   = 0x00000200,
+   kShellTagPoundIf  = 0x00000400,
+   kShellTagOf       = 0x00000800,
+   kShellTagOfIf     = 0x00001000,
+   kShellTagAndIf    = 0x00002000,
+   kShellTagOrIf     = 0x00004000,
+   kShellTagElif     = 0x00008000,
+   kShellLastTag = kShellTagElif   // update this when you add a new tag
    // if you add tags, remember to update TagStrings in ForthShell.cpp
-   kNumShellTags
 } eShellTag;
 
 
@@ -68,7 +69,8 @@ public:
    inline long         GetDepth(void)        { return mSST - mSSP; };
    inline void         EmptyStack(void)      { mSSP = mSST; };
    // push tag telling what control structure we are compiling (if/else/for/...)
-   void         Push(long tag);
+   void         PushTag(long tag);
+   void         Push(long val);
    long         Pop(void);
    long         Peek(int index = 0);
 

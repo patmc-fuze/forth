@@ -174,6 +174,61 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 10 2017
+
+I added continuations last night, it came together in just a few hours.  The
+best thing about it is that it has almost interaction with the other control
+flow code - it doesn't use the shell stack at all.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 5 2017
+
+I was thinking about adding 'elseif' and 'continue' flow control ops.
+The elseif op is basically impossible in standard forth, because
+  CONDITIONAL_CODE elseif
+needs to do actions both before and after CONDITIONAL_CODE.
+It would be possible with parenthesized expressions with some magic, specifically
+having the expression processor recognize special starting symbols, like 'elseif'
+and adding both before and after symbols to the expression result string, so
+  elseif(CONDITIONAL_CODE)
+would be turned into:
+  else[ CONDITIONAL_CODE ]if
+
+Each elseif collapses the branches of the preceeding if or elseif, but
+each leaves behind a pending branch to the final endif.  The endif op
+will need to do what it currently does (deal with last if/else) and also
+iterate over all the elseifs in the shell stack until it gets to an if,
+filling in the branches to the final endif for each one.
+
+I should also look into making andif and orif work with while and until.
+
+Adding 'continue' initially didn't look that complicated until I looked
+at all the cases and saw that a lot of them didn't have an obvious value
+for the continue branch destination.  do..+loop could have an arbitrary
+number of ops before +loop used to compute the loop index increment,
+and the same is true for the conditional in begin..until and the proper
+continue spot for begin..while..repeat is also unclear - probably somewhere
+shortly before the repeat statement.
+
+I think the best way to implement continue is to add 3 ops:
+  continue:
+    this defines the branch destination for all continues inside a particular loop
+  continue
+    this causes a branch to spot defined by 'continue:'
+  continueIf
+    this causes a branch to spot defined by 'continue:' if TOS is true
+  continueIfNot
+    this causes a branch to spot defined by 'continue:' if TOS is false
+
+Keeping all the continue addresses on the shell stack would make processing
+other flow control structures messy, it might be better to have a continue
+stack with the IPs of all the continue statements, and whenever a loop ending
+statement is processed it would pop all the continue IPs off that stack that
+fell within the range of the loop and throw an error if there were continue branches
+in the loop and no 'continue:' within the loop.
+
+Loop starting ops would need to stick the previous value of continue address on
+the shell stack and zero out the current continue address to mark it as invalid.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 3 2017
 
 I added the ability to have hexadecimal values in string and character literals
