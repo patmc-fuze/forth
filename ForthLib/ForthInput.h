@@ -59,7 +59,10 @@ public:
     virtual long*   GetInputState() = 0;
     virtual bool    SetInputState( long* pState ) = 0;
 
-    virtual void    StuffBuffer( const char* pSrc );
+    virtual void    StuffBuffer(const char* pSrc);
+    virtual void    PrependString(const char* pSrc);
+    virtual void    AppendString(const char* pSrc);
+    virtual void    CropCharacters(int numCharacters);
 
 	virtual bool	DeleteWhenEmpty();
 

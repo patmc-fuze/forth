@@ -421,6 +421,42 @@ ForthInputStream::StuffBuffer( const char* pSrc )
     mWriteOffset = len;
 }
 
+void ForthInputStream::PrependString(const char* pSrc)
+{
+    int len = strlen(pSrc);
+    if (len < (mBufferLen - 1) - mWriteOffset)
+    {
+        memmove(mpBufferBase + len, mpBufferBase, mWriteOffset);
+        memcpy(mpBufferBase, pSrc, len);
+        mWriteOffset += len;
+        mpBufferBase[mWriteOffset] = '\0';
+    }
+}
+
+void ForthInputStream::AppendString(const char* pSrc)
+{
+    int len = strlen(pSrc);
+    if (len < (mBufferLen - 1) - mWriteOffset)
+    {
+        memcpy(mpBufferBase + mWriteOffset, pSrc, len);
+        mWriteOffset += len;
+        mpBufferBase[mWriteOffset] = '\0';
+    }
+}
+
+void ForthInputStream::CropCharacters(int numCharacters)
+{
+    if (mWriteOffset >= numCharacters)
+    {
+        mWriteOffset -= numCharacters;
+    }
+    else
+    {
+        mWriteOffset = 0;
+    }
+    mpBufferBase[mWriteOffset] = '\0';
+}
+
 
 bool
 ForthInputStream::DeleteWhenEmpty()

@@ -179,6 +179,15 @@ June 10 2017
 I added continuations last night, it came together in just a few hours.  The
 best thing about it is that it has almost interaction with the other control
 flow code - it doesn't use the shell stack at all.
+
+I added elseif today, the way to do it without using parenthesized expressions is:
+  else CONDITIONAL_CODE ]if BODY endif
+with parenthesis it is done as:
+  elseif(CONDITIONAL_CODE) BODY endif
+Right now there an ugly kludge in ForthShell::ParseToken that looks for " elseif"
+at the end of processed parenthesized expressions, strips the " elseif" off,
+prepends " else " and appends " ]if" to make it work.  This will be replaced with
+something more general and less kludgy as soon as possible.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 5 2017
 

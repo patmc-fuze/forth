@@ -69,10 +69,12 @@ public:
    inline long         GetDepth(void)        { return mSST - mSSP; };
    inline void         EmptyStack(void)      { mSSP = mSST; };
    // push tag telling what control structure we are compiling (if/else/for/...)
-   void         PushTag(long tag);
+   void         PushTag(eShellTag tag);
    void         Push(long val);
    long         Pop(void);
+   eShellTag    PopTag(void);
    long         Peek(int index = 0);
+   eShellTag    PeekTag(int index = 0);
 
    // push a string, this should be followed by a PushTag of a tag which uses this string (such as paren)
    void                PushString(const char *pString);
@@ -137,7 +139,7 @@ public:
     inline const char*      GetTempDir() const { return mTempDir; }
     inline const char*      GetSystemDir() const { return mSystemDir; }
 
-    bool                    CheckSyntaxError( const char *pString, long tag, long desiredTag );
+    bool                    CheckSyntaxError(const char *pString, eShellTag tag, long desiredTag);
 	void					StartDefinition(const char*pDefinedSymbol, const char* pFourCharCode);
 	bool					CheckDefinitionEnd( const char* pDisplayName, const char* pFourCharCode );
 

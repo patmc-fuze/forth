@@ -496,7 +496,7 @@ FORTHOP(loopOp)
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "loop", pShellStack->Pop(), kShellTagDo ) )
+    if ( !pShell->CheckSyntaxError( "loop", pShellStack->PopTag(), kShellTagDo ) )
     {
         return;
     }
@@ -517,7 +517,7 @@ FORTHOP(loopNOp)
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "loop+", pShellStack->Pop(), kShellTagDo ) )
+    if ( !pShell->CheckSyntaxError( "loop+", pShellStack->PopTag(), kShellTagDo ) )
     {
         return;
     }
@@ -543,6 +543,20 @@ FORTHOP( ifOp )
     pShellStack->PushTag(kShellTagIf);
     // this will be fixed by else/endif
     pEngine->CompileBuiltinOpcode( OP_ABORT );
+}
+
+// ]if - has precedence
+FORTHOP(elifOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    // save address for else/endif
+    pShellStack->Push((long)GET_DP);
+    // flag that this is the "if" branch
+    pShellStack->PushTag(kShellTagElif);
+    // this will be fixed by else/endif
+    pEngine->CompileBuiltinOpcode(OP_ABORT);
 }
 
 // orif - has precedence
@@ -576,56 +590,70 @@ FORTHOP(andifOp)
 
 
 // else - has precedence
-FORTHOP( elseOp )
+FORTHOP(elseOp)
 {
     NEEDS(2);
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-	long branchTag = pShellStack->Peek();
-    if (!pShell->CheckSyntaxError("else", branchTag, (kShellTagIf | kShellTagWhile | kShellTagOrIf | kShellTagAndIf)))
+    eShellTag branchTag = pShellStack->PeekTag();
+    if (!pShell->CheckSyntaxError("else", branchTag, (kShellTagIf | kShellTagElif | kShellTagWhile | kShellTagOrIf | kShellTagAndIf)))
     {
         return;
     }
-	long* falseIP = GET_DP + 1;
-	long* trueIP = ((long *)pShellStack->Peek(1)) + 1;
-	bool notDone = true;
-	bool followedByOr = false;
-	while (notDone)
-	{
-		branchTag = pShellStack->Pop();
-		long *pBranch = (long *)pShellStack->Pop();
-		if (followedByOr)
-		{
-			*pBranch = COMPILED_OP(kOpBranchNZ, (trueIP - pBranch) - 1);
-		}
-		else
-		{
-			*pBranch = COMPILED_OP(kOpBranchZ, (falseIP - pBranch) - 1);
-		}
-		switch (branchTag)
-		{
+    long* falseIP = GET_DP + 1;
+    long* trueIP = ((long *)pShellStack->Peek(1)) + 1;
+    bool notDone = true;
+    bool followedByOr = false;
+    while (notDone)
+    {
+        branchTag = pShellStack->PopTag();
+        long *pBranch = (long *)pShellStack->Pop();
+        if (followedByOr)
+        {
+            *pBranch = COMPILED_OP(kOpBranchNZ, (trueIP - pBranch) - 1);
+        }
+        else
+        {
+            *pBranch = COMPILED_OP(kOpBranchZ, (falseIP - pBranch) - 1);
+        }
+        switch (branchTag)
+        {
         case kShellTagIf:
+        case kShellTagElif:
         case kShellTagWhile:
             notDone = false;
-			break;
-		case kShellTagOrIf:
-			followedByOr = true;
-			falseIP = ((long *)pShellStack->Peek(1)) + 1;
-			break;
-		case kShellTagAndIf:
-			followedByOr = false;
-			trueIP = ((long *)pShellStack->Peek(1)) + 1;
-			break;
-		default:
+            break;
+        case kShellTagOrIf:
+            followedByOr = true;
+            falseIP = ((long *)pShellStack->Peek(1)) + 1;
+            break;
+        case kShellTagAndIf:
+            followedByOr = false;
+            trueIP = ((long *)pShellStack->Peek(1)) + 1;
+            break;
+        default:
             pShell->CheckSyntaxError("else", branchTag, kShellTagIf);
-			return;
-		}
-	}
+            return;
+        }
+    }
+    long elseCount = 1; // assume there is only one else branch
+    if (branchTag == kShellTagElif)
+    {
+        // this isn't first else
+        // shell stack at this point: elseTag numberOfElseBranches <N elseBranchAddresses>
+        branchTag = pShellStack->PopTag();
+        if (!pShell->CheckSyntaxError("else", branchTag, (kShellTagElse)))
+        {
+            return;
+        }
+        elseCount = pShellStack->Pop() + 1;
+    }
     // save address for endif
-    pShellStack->Push( (long) GET_DP );
+    pShellStack->Push((long)GET_DP);
+    pShellStack->Push(elseCount);
     // flag that this is the "else" branch
-    pShellStack->PushTag( kShellTagElse );
+    pShellStack->PushTag(kShellTagElse);
     // this will be fixed by endif
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
@@ -638,54 +666,69 @@ FORTHOP( endifOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-	long branchTag = pShellStack->Peek();
-    if (!pShell->CheckSyntaxError("endif", branchTag, (kShellTagIf | kShellTagElse | kShellTagWhile | kShellTagOrIf | kShellTagAndIf)))
+    eShellTag branchTag = pShellStack->PeekTag();
+    if (!pShell->CheckSyntaxError("endif", branchTag, (kShellTagIf | kShellTagElif | kShellTagElse | kShellTagWhile | kShellTagOrIf | kShellTagAndIf)))
 	{
 		return;
 	}
+    bool processElseBranches = false;
 	if (branchTag == kShellTagElse)
 	{
-		// "else" has already handled if/andif/orif, just do branch at end of true body around false body
-		pShellStack->Pop();
-		long *pBranch = (long *)pShellStack->Pop();
-		*pBranch = COMPILED_OP(kOpBranch, (GET_DP - pBranch) - 1);
-		return;
+        processElseBranches = true;
 	}
-
-	// there was no "else", so process if/andif/orif
-	long* falseIP = GET_DP;
-	long* trueIP = ((long *)pShellStack->Peek(1)) + 1;
-	bool notDone = true;
-	bool followedByOr = false;
-	while (notDone)
-	{
-		branchTag = pShellStack->Pop();
-		long *pBranch = (long *)pShellStack->Pop();
-		if (followedByOr)
-		{
-			*pBranch = COMPILED_OP(kOpBranchNZ, (trueIP - pBranch) - 1);
-		}
-		else
-		{
-			*pBranch = COMPILED_OP(kOpBranchZ, (falseIP - pBranch) - 1);
-		}
-		switch (branchTag)
-		{
-        case kShellTagIf:
-        case kShellTagWhile:
-            notDone = false;
-			break;
-		case kShellTagOrIf:
-			followedByOr = true;
-			break;
-		case kShellTagAndIf:
-			followedByOr = false;
-			break;
-		default:
-            pShell->CheckSyntaxError("else", branchTag, kShellTagIf);
-			return;
-		}
-	}
+    else
+    {
+        // there was no "else", so process if/andif/orif
+        long* falseIP = GET_DP;
+        long* trueIP = ((long *)pShellStack->Peek(1)) + 1;
+        bool notDone = true;
+        bool followedByOr = false;
+        while (notDone)
+        {
+            branchTag = pShellStack->PopTag();
+            long *pBranch = (long *)pShellStack->Pop();
+            if (followedByOr)
+            {
+                *pBranch = COMPILED_OP(kOpBranchNZ, (trueIP - pBranch) - 1);
+            }
+            else
+            {
+                *pBranch = COMPILED_OP(kOpBranchZ, (falseIP - pBranch) - 1);
+            }
+            switch (branchTag)
+            {
+            case kShellTagIf:
+            case kShellTagWhile:
+                notDone = false;
+                break;
+            case kShellTagElif:
+                notDone = false;
+                processElseBranches = true;
+                break;
+            case kShellTagOrIf:
+                followedByOr = true;
+                break;
+            case kShellTagAndIf:
+                followedByOr = false;
+                break;
+            default:
+                //huh ? can this happen ?
+                pShell->CheckSyntaxError("else", branchTag, kShellTagIf);
+                return;
+            }
+        }
+    }
+    if (processElseBranches)
+    {
+        // "else" has already handled if/andif/orif, just do branch at end of true body around false body
+        branchTag = pShellStack->PopTag();
+        long numElseBranches = pShellStack->Pop();
+        for (long i = 0; i < numElseBranches; ++i)
+        {
+            long *pBranch = (long *)pShellStack->Pop();
+            *pBranch = COMPILED_OP(kOpBranch, (GET_DP - pBranch) - 1);
+        }
+    }
 }
 
 
@@ -710,7 +753,7 @@ FORTHOP( untilOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( pShell->CheckSyntaxError( "until", pShellStack->Pop(), kShellTagBegin ) )
+    if ( pShell->CheckSyntaxError( "until", pShellStack->PopTag(), kShellTagBegin ) )
     {
         long *pBeginOp = (long *) pShellStack->Pop();
         pEngine->CompileOpcode( kOpBranchZ, (pBeginOp - GET_DP) - 1 );
@@ -726,7 +769,7 @@ FORTHOP( whileOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if (!pShell->CheckSyntaxError("while", pShellStack->Pop(), kShellTagBegin))
+    if (!pShell->CheckSyntaxError("while", pShellStack->PopTag(), kShellTagBegin))
     {
         return;
     }
@@ -748,12 +791,12 @@ FORTHOP( repeatOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if (!pShell->CheckSyntaxError("repeat", pShellStack->Pop(), kShellTagBegin))
+    if (!pShell->CheckSyntaxError("repeat", pShellStack->PopTag(), kShellTagBegin))
     {
         return;
     }
     long *pBeginAddress =  (long *) pShellStack->Pop();
-    long branchTag = pShellStack->Pop();
+    eShellTag branchTag = pShellStack->PopTag();
     if (!pShell->CheckSyntaxError("repeat", branchTag, kShellTagWhile))
     {
         return;
@@ -773,7 +816,7 @@ FORTHOP( againOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "again", pShellStack->Pop(), kShellTagBegin ) )
+    if ( !pShell->CheckSyntaxError( "again", pShellStack->PopTag(), kShellTagBegin ) )
     {
         return;
     }
@@ -800,7 +843,7 @@ FORTHOP( ofOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "of", pShellStack->Pop(), kShellTagCase ) )
+    if ( !pShell->CheckSyntaxError( "of", pShellStack->PopTag(), kShellTagCase ) )
     {
         return;
     }
@@ -820,7 +863,7 @@ FORTHOP( ofifOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "ofif", pShellStack->Pop(), kShellTagCase ) )
+    if ( !pShell->CheckSyntaxError( "ofif", pShellStack->PopTag(), kShellTagCase ) )
     {
         return;
     }
@@ -848,11 +891,11 @@ FORTHOP( endofOp )
     // this will be fixed by endcase
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 
-    if ( !pShell->CheckSyntaxError( "endof", pShellStack->Pop(), kShellTagCase ) )
+    if ( !pShell->CheckSyntaxError( "endof", pShellStack->PopTag(), kShellTagCase ) )
     {
         return;
     }
-    long tag = pShellStack->Pop();
+    eShellTag tag = (eShellTag)pShellStack->Pop();
     long *pOp = (long *) pShellStack->Pop();
     // fill in the branch taken when case doesn't match
 	if ( tag == kShellTagOfIf )
@@ -883,7 +926,7 @@ FORTHOP( endcaseOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "endcase", pShellStack->Pop(), kShellTagCase ) )
+    if ( !pShell->CheckSyntaxError( "endcase", pShellStack->PopTag(), kShellTagCase ) )
     {
         return;
     }
@@ -8670,6 +8713,7 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(loopOp,                 "loop" ),
     PRECOP_DEF(loopNOp,                "+loop" ),
     PRECOP_DEF(ifOp,                   "if" ),
+    PRECOP_DEF(elifOp,                 "]if" ),
     PRECOP_DEF(orifOp,                 "orif" ),
     PRECOP_DEF(andifOp,                "andif" ),
     PRECOP_DEF(elseOp,                 "else" ),

@@ -60,7 +60,7 @@ namespace
 		"ofif",
 		"andif",
 		"orif",
-        "elif",
+        "]if",
         nullptr
     };
 
@@ -877,7 +877,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
     {
         // previous symbol ended in ")", so next token to process is on top of shell stack
         mFlags &= ~SHELL_FLAG_POP_NEXT_TOKEN;
-        if ( CheckSyntaxError( ")", mpStack->Pop(), kShellTagParen ) )
+        if ( CheckSyntaxError( ")", mpStack->PopTag(), kShellTagParen ) )
         {
             long tag = mpStack->Peek();
             if ( mpStack->PopString( pInfo->GetToken(), pInfo->GetMaxChars() ) )
@@ -1008,7 +1008,22 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
 						 pInfo->SetAllFlags(0);
 						 mpInput->SetBufferPointer(pSrc);
 						 mExpressionInputStream->ProcessExpression(mpInput->InputStream());
-						 mpInput->PushInputStream(mExpressionInputStream);
+                         // begin horrible nasty kludge for elseif
+                         const char* endOfExpression = mExpressionInputStream->GetBufferBasePointer() + (mExpressionInputStream->GetWriteOffset() - 1);
+                         int charsToCrop = 7;
+                         while (*endOfExpression == ' ')
+                         {
+                             --endOfExpression;
+                             ++charsToCrop;
+                         }
+                         if (strncmp(" elseif", endOfExpression - 6, 7) == 0)
+                         {
+                             mExpressionInputStream->CropCharacters(charsToCrop);
+                             mExpressionInputStream->PrependString(" else ");
+                             mExpressionInputStream->AppendString(" ]if");
+                         }
+                         // end horrible nasty kludge for elseif
+                         mpInput->PushInputStream(mExpressionInputStream);
 						 done = true;
 						 /*pEndSrc++;
                          *pDst++ = '\0';
@@ -1419,9 +1434,10 @@ ForthShell::GetEnvironmentVar(const char* envVarName)
 
 
 bool
-ForthShell::CheckSyntaxError(const char *pString, long tag, long desiredTags)
+ForthShell::CheckSyntaxError(const char *pString, eShellTag tag, long desiredTags)
 {
-    bool tagsMatched = ((tag & desiredTags) != 0);
+    long tagVal = (long)tag;
+    bool tagsMatched = ((tagVal & desiredTags) != 0);
 	// special case: BranchZ will match either Branch or BranchZ
     /*
 	if (!tagsMatched && (desiredTag == kShellTagBranchZ) && (tag == kShellTagBranch))
@@ -1433,12 +1449,12 @@ ForthShell::CheckSyntaxError(const char *pString, long tag, long desiredTags)
 	{
         char* pExpected = (char *) malloc(32);
         char* pActual = (char *) malloc(512);
-        GetTagString(tag, pExpected);
+        GetTagString(tagVal, pExpected);
         GetTagString(desiredTags, pActual);
 		sprintf(mErrorString, "<%s> preceeded by <%s>, was expecting <%s>", pString, pExpected, pActual);
         free(pExpected);
         free(pActual);
-		mpStack->Push(tag);
+		mpStack->PushTag(tag);
 		mpEngine->SetError(kForthErrorBadSyntax, mErrorString);
 		return false;
 	}
@@ -1458,7 +1474,7 @@ ForthShell::StartDefinition(const char* pSymbol, const char* pFourCharCode)
 bool
 ForthShell::CheckDefinitionEnd(const char* pDisplayName, const char* pFourCharCode)
 {
-	long defineTag = mpStack->Pop();
+    eShellTag defineTag = mpStack->PopTag();
 
 	if (CheckSyntaxError(pDisplayName, defineTag, kShellTagDefine))
 	{
@@ -1761,19 +1777,9 @@ ForthShellStack::~ForthShellStack()
 
 
 void
-ForthShellStack::PushTag(long tag)
+ForthShellStack::PushTag(eShellTag tag)
 {
-    char tagString[32];
-    if (mSSP > mSSB)
-    {
-        *--mSSP = tag;
-        GetTagString(tag, tagString);
-        SPEW_SHELL("Pushed tag %s\n", tagString);
-    }
-    else
-    {
-        ForthEngine::GetInstance()->SetError(kForthErrorShellStackOverflow);
-    }
+    Push((long)tag);
 }
 
 void
@@ -1840,6 +1846,11 @@ ForthShellStack::Pop( void )
     return val;
 }
 
+eShellTag ForthShellStack::PopTag(void)
+{
+    return (eShellTag)Pop();
+}
+
 long
 ForthShellStack::Peek( int index )
 {
@@ -1848,6 +1859,15 @@ ForthShellStack::Peek( int index )
         return kShellTagNothing;
     }
     return mSSP[index];
+}
+
+eShellTag ForthShellStack::PeekTag(int index)
+{
+    if ((mSSP + index) >= mSST)
+    {
+        return kShellTagNothing;
+    }
+    return (eShellTag) mSSP[index];
 }
 
 void
