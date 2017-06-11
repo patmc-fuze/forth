@@ -1784,11 +1784,30 @@ OPTYPE_ACTION( BranchZAction )
     }
 }
 
-OPTYPE_ACTION( CaseBranchAction )
+OPTYPE_ACTION(CaseBranchTAction)
 {
     // TOS: this_case_value case_selector
     long *pSP = GET_SP;
-    if ( *pSP == pSP[1] )
+    if ( *pSP != pSP[1] )
+    {
+        // case didn't match
+        pSP += 2;
+    }
+    else
+    {
+        // case matched - drop this_case_value & skip to case body
+        pSP++;
+        // case branch is always forward
+        SET_IP( GET_IP + opVal );
+    }
+    SET_SP( pSP );
+}
+
+OPTYPE_ACTION(CaseBranchFAction)
+{
+    // TOS: this_case_value case_selector
+    long *pSP = GET_SP;
+    if (*pSP == pSP[1])
     {
         // case matched
         pSP += 2;
@@ -1798,12 +1817,12 @@ OPTYPE_ACTION( CaseBranchAction )
         // no match - drop this_case_value & skip to next case
         pSP++;
         // case branch is always forward
-        SET_IP( GET_IP + opVal );
+        SET_IP(GET_IP + opVal);
     }
-    SET_SP( pSP );
+    SET_SP(pSP);
 }
 
-OPTYPE_ACTION( PushBranchAction )
+OPTYPE_ACTION(PushBranchAction)
 {
 	SPUSH((long)(GET_IP));
 	SET_IP(GET_IP + opVal);
@@ -2257,12 +2276,12 @@ optypeActionRoutine builtinOptypeAction[] =
     BranchAction,				// 0x0A
     BranchNZAction,
     BranchZAction,
-    CaseBranchAction,
+    CaseBranchTAction,
+    CaseBranchFAction,
     PushBranchAction,
-    RelativeDefBranchAction,
-    RelativeDataAction,		    // 0x10
+    RelativeDefBranchAction,    // 0x10
+    RelativeDataAction,		
     RelativeDataAction,
-    ReservedOptypeAction,
     ReservedOptypeAction,
 
     // 20 - 29

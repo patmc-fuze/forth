@@ -494,13 +494,27 @@ entry branchNZType
 ;
 ; case branch ops
 ;
-entry caseBranchType
+entry caseBranchTType
+    ; TOS: this_case_value case_selector
+	mov	eax, [edx]		; eax is this_case_value
+	add	edx, 4
+	cmp	eax, [edx]
+	jnz	caseMismatch
+	; case did match - branch to case body
+	and	ebx, 00FFFFFFh
+	sal	ebx, 2
+	add	esi, ebx
+	add	edx, 4
+caseMismatch:
+	jmp	edi
+
+entry caseBranchFType
     ; TOS: this_case_value case_selector
 	mov	eax, [edx]		; eax is this_case_value
 	add	edx, 4
 	cmp	eax, [edx]
 	jz	caseMatched
-	; case didn't match - branch to next case
+	; case didn't match - branch to next case test
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	add	esi, ebx
@@ -510,7 +524,6 @@ caseMatched:
 	add	edx, 4
 	jmp	edi
 	
-
 ;-----------------------------------------------
 ;
 ; branch around block ops
@@ -6654,12 +6667,12 @@ entry opTypesTable
 	DD	branchType				; kOpBranch = 10,
 	DD	branchNZType			; kOpBranchNZ,
 	DD	branchZType			    ; kOpBranchZ,
-	DD	caseBranchType			; kOpCaseBranch,
+	DD	caseBranchTType			; kOpCaseBranchT,
+	DD	caseBranchFType			; kOpCaseBranchF,
 	DD	pushBranchType			; kOpPushBranch,	
 	DD	relativeDefBranchType	; kOpRelativeDefBranch,
 	DD	relativeDataType		; kOpRelativeData,
 	DD	relativeDataType		; kOpRelativeString,
-	DD	extOpType	
 	DD	extOpType	
 ;	20 - 29
 	DD	constantType			; kOpConstant = 20,   

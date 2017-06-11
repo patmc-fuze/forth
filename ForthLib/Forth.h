@@ -40,12 +40,13 @@ typedef enum
     kOpBranch = 10,          // low 24 bits is signed branch offset
     kOpBranchNZ,
     kOpBranchZ,
-    kOpCaseBranch,
-	kOpPushBranch,
+    kOpCaseBranchT,
+    kOpCaseBranchF,
+    kOpPushBranch,
 	kOpRelativeDefBranch,
     kOpRelativeData,
     kOpRelativeString,
-    // 18 - 19 are unused
+    // 19 is unused
 
     kOpConstant = 20,   // low 24 bits is signed symbol value
     kOpConstantString,  // low 24 bits is number of longwords to skip over

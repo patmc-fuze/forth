@@ -90,7 +90,7 @@ ForthEngine* ForthEngine::mpInstance = NULL;
 static const char *opTypeNames[] =
 {
     "Native", "NativeImmediate", "UserDefined", "UserDefinedImmediate", "CCode", "CCodeImmediate", "RelativeDef", "RelativeDefImmediate", "DLLEntryPoint", 0,
-    "Branch", "BranchTrue", "BranchFalse", "CaseBranch", "PushBranch", "RelativeDefBranch", "RelativeData", "RelativeString", 0, 0,
+    "Branch", "BranchTrue", "BranchFalse", "CaseBranchT", "CaseBranchF", "PushBranch", "RelativeDefBranch", "RelativeData", "RelativeString", 0,
 	"Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "LocalStringInit", "LocalStructArray", "OffsetFetch", "MemberRef",
     "LocalByte", "LocalUByte", "LocalShort", "LocalUShort", "LocalInt", "LocalUInt", "LocalLong", "LocalULong", "LocalFloat", "LocalDouble",
 	"LocalString", "LocalOp", "LocalObject", "LocalByteArray", "LocalUByteArray", "LocalShortArray", "LocalUShortArray", "LocalIntArray", "LocalUIntArray", "LocalLongArray",
@@ -1391,7 +1391,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 }
                 break;
 
-            case kOpCaseBranch:
+            case kOpCaseBranchT:  case kOpCaseBranchF:
             case kOpBranch:   case kOpBranchNZ:  case kOpBranchZ:
                 if ( opVal & 0x800000 )
                 {

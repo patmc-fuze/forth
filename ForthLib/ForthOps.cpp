@@ -843,15 +843,9 @@ FORTHOP( ofOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "of", pShellStack->PopTag(), kShellTagCase ) )
-    {
-        return;
-    }
-
     // save address for endof
     pShellStack->Push( (long)GET_DP );
     pShellStack->PushTag( kShellTagOf );
-    pShellStack->PushTag( kShellTagCase );
     // this will be set to a caseBranch by endof
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
@@ -863,15 +857,10 @@ FORTHOP( ofifOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "ofif", pShellStack->PopTag(), kShellTagCase ) )
-    {
-        return;
-    }
 
     // save address for endof
     pShellStack->Push( (long)GET_DP );
     pShellStack->PushTag( kShellTagOfIf );
-    pShellStack->PushTag( kShellTagCase );
     // this will be set to a zBranch by endof
     pEngine->CompileBuiltinOpcode( OP_ABORT );
 	// if the ofif test succeeded, we need to dispose of the switch input value
@@ -890,29 +879,43 @@ FORTHOP( endofOp )
 
     // this will be fixed by endcase
     pEngine->CompileBuiltinOpcode( OP_ABORT );
+    bool isLastCase = true;
+    long *pCaseBody = nullptr;
 
-    if ( !pShell->CheckSyntaxError( "endof", pShellStack->PopTag(), kShellTagCase ) )
+    while (true)
     {
-        return;
+        eShellTag tag = pShellStack->PopTag();
+        if (!pShell->CheckSyntaxError("endof", tag, kShellTagOf | kShellTagOfIf | kShellTagCase))
+        {
+            return;
+        }
+        if (tag == kShellTagCase)
+        {
+            break;
+        }
+        long *pOp = (long *)pShellStack->Pop();
+        // fill in the branch taken when case doesn't match
+        long branchOp;
+        long branchOffset;
+        long* pHere = GET_DP;
+        if (isLastCase)
+        {
+            // last case test compiles a branch around case body on mismatch
+            branchOp = (tag == kShellTagOfIf) ? kOpBranchZ : kOpCaseBranchF;
+            pCaseBody = pOp + 1;
+            branchOffset = (pHere - pOp) - 1;
+        }
+        else
+        {
+            // all case tests except last compiles a branch to case body on match
+            branchOp = (tag == kShellTagOfIf) ? kOpBranchNZ : kOpCaseBranchT;
+            branchOffset = (pCaseBody - pOp) - 1;
+        }
+        *pOp = COMPILED_OP(branchOp, branchOffset);
+        isLastCase = false;
     }
-    eShellTag tag = (eShellTag)pShellStack->Pop();
-    long *pOp = (long *) pShellStack->Pop();
-    // fill in the branch taken when case doesn't match
-	if ( tag == kShellTagOfIf )
-	{
-        *pOp = COMPILED_OP( kOpBranchZ, (GET_DP - pOp) - 1 );
-	}
-	else if ( pShell->CheckSyntaxError( "endof", tag, kShellTagOf ) )
-	{
-	    *pOp = COMPILED_OP( kOpCaseBranch, (GET_DP - pOp) - 1 );
-	}
-	else
-	{
-		return;
-	}
-
     // save address for endcase
-    pShellStack->Push( (long) pDP );
+    pShellStack->Push((long)pDP);
     pShellStack->PushTag( kShellTagCase );
 }
 
@@ -938,9 +941,14 @@ FORTHOP( endcaseOp )
         pEngine->CompileBuiltinOpcode( OP_DROP );
     }
     // patch branches from end-of-case to common exit point
-    while ( (pEndofOp = (long *) (pShellStack->Pop())) != NULL )
+    while (true)
     {
-        *pEndofOp = COMPILED_OP( kOpBranch, (GET_DP - pEndofOp) - 1 );
+        pEndofOp = (long *)(pShellStack->Pop());
+        if (pEndofOp == nullptr)
+        {
+            break;
+        }
+        *pEndofOp = COMPILED_OP(kOpBranch, (GET_DP - pEndofOp) - 1);
     }
     SET_SP( pSP );
 }
