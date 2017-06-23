@@ -705,6 +705,7 @@ namespace OString
         bool tryAgain = true;
         int maxLen = pOStr->maxLen;
 		int curLen = pOStr->curLen;
+        long* oldSP = pCore->SP;
         while (tryAgain)
         {
 			int roomLeft = maxLen - curLen;
@@ -729,11 +730,9 @@ namespace OString
                     }
                 }
 				pOStr = resizeOString(pString, maxLen);
+                pCore->SP = oldSP;
             }
         }
-        // remove args from parameter stack
-        int numArgs = SPOP;
-        pCore->SP += (numArgs + 1);
 
 		pOStr->curLen = curLen;
 		pString->hash = 0;
