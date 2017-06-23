@@ -24,7 +24,7 @@ public:
 
 	inline char *   GetToken(void) { return ((char *)mpToken) + 1; };
 	inline long *   GetTokenAsLong(void) { return mpToken; };
-	inline int      GetTokenLength(void) { return (int)(*((char *)mpToken)); };
+	inline int      GetTokenLength(void) { return mNumChars; };
 	inline int      GetNumLongs(void) { return mNumLongs; };
 	inline int		GetMaxChars(void) const { return mMaxChars; };
 
@@ -37,6 +37,7 @@ private:
 	long *      mpToken;         // pointer to token buffer, first byte is strlen(token)
 	int         mFlags;          // flags set by ForthShell::ParseToken for ForthEngine::ProcessToken
 	int         mNumLongs;       // number of longwords for fast comparison algorithm
+    int         mNumChars;
 	int         mMaxChars;
 };
 
