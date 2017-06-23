@@ -625,7 +625,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
 	{
 		mpInput->InputStream()->StuffBuffer( pSrcLine );
 	}
-	SPEW_SHELL( "*** InterpretLine {%s}\n", pLineBuff );
+	SPEW_SHELL( "\n*** InterpretLine {%s}\n", pLineBuff );
     bLineEmpty = false;
     mpEngine->SetError( kForthErrorNone );
     while ( !bLineEmpty && (result == kResultOk) )
@@ -635,8 +635,9 @@ ForthShell::InterpretLine( const char *pSrcLine )
         {
             result = kResultError;
         }
-        SPEW_SHELL("input %s:%s buffer 0x%x readoffset %d write %d\n", mpInput->InputStream()->GetType(), mpInput->InputStream()->GetName(),
-            mpInput->InputStream()->GetBufferPointer(), mpInput->InputStream()->GetReadOffset(), mpInput->InputStream()->GetWriteOffset() );
+        ForthInputStream* pInput = mpInput->InputStream();
+        SPEW_SHELL("input %s:%s[%d] buffer 0x%x readoffset %d write %d\n", pInput->GetType(), pInput->GetName(),
+            pInput->GetLineNumber(), pInput->GetBufferPointer(), pInput->GetReadOffset(), pInput->GetWriteOffset() );
 
         if (!bLineEmpty && (result == kResultOk))
 		{
@@ -1642,15 +1643,10 @@ void ForthShell::PoundIfdef( bool isDefined )
 {
     ForthVocabulary* pVocab = mpEngine->GetSearchVocabulary();
     char* pToken = GetNextSimpleToken();
-    if ( (pToken != NULL) && (pVocab != NULL)
-        && ((pVocab->FindSymbol( pToken ) != NULL) == isDefined) )
-    {
-        // compile "if" part
-        mpStack->PushTag(kShellTagPoundIf);
-    }
-    else
+    if ( (pToken == NULL) || (pVocab == NULL) || ((pVocab->FindSymbol( pToken ) != NULL) != isDefined) )
     {
         // skip to "else" or "endif"
+        mpStack->PushTag(kShellTagPoundIf);
         mFlags |= SHELL_FLAG_SKIP_SECTION;
         mPoundIfDepth = 0;
     }
@@ -1779,7 +1775,20 @@ ForthShellStack::~ForthShellStack()
 void
 ForthShellStack::PushTag(eShellTag tag)
 {
-    Push((long)tag);
+    char tagString[256];
+    if (mSSP > mSSB)
+    {
+        *--mSSP = (long) tag;
+        if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell)
+        {
+            GetTagString(tag, tagString);
+            SPEW_SHELL("ShellStack: pushed tag %s 0x%08x\n", tagString, (long) tag);
+        }
+    }
+    else
+    {
+        ForthEngine::GetInstance()->SetError(kForthErrorShellStackOverflow);
+    }
 }
 
 void
@@ -1788,7 +1797,7 @@ ForthShellStack::Push(long val)
     if (mSSP > mSSB)
     {
         *--mSSP = val;
-        SPEW_SHELL("Pushed value 0x%08x\n", val);
+        SPEW_SHELL("ShellStack: pushed value 0x%08x\n", val);
     }
     else
     {
@@ -1835,11 +1844,11 @@ ForthShellStack::Pop( void )
         if (mayBeAShellTag(val))
         {
             GetTagString(val, tagString);
-            SPEW_SHELL("Popped Tag %s\n", tagString);
+            SPEW_SHELL("ShellStack: popped Tag %s\n", tagString);
         }
         else
         {
-            SPEW_SHELL("Popped value 0x%08x\n", val);
+            SPEW_SHELL("ShellStack: popped value 0x%08x\n", val);
         }
     }
 #endif
@@ -1924,6 +1933,21 @@ ForthShellStack::ShowStack()
 	{
 		long tag = *pSP++;
         sprintf(buff, "%08x   ", tag);
+        ForthEngine::GetInstance()->ConsoleOut(buff);
+        long tagChars = tag;
+        for (int i = 0; i < 4; ++i)
+        {
+            char ch = (char)(tagChars & 0x7f);
+            tagChars >>= 8;
+            if ((ch < 0x20) || (ch >= 0x7f))
+            {
+                ch = '.';
+            }
+            buff[i] = ch;
+        }
+        buff[4] = ' ';
+        buff[5] = ' ';
+        buff[6] = '\0';
         ForthEngine::GetInstance()->ConsoleOut(buff);
         if (mayBeAShellTag(tag))
         {
