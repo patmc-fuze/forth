@@ -716,14 +716,18 @@ ForthVocabulary::PrintEntry( long*   pEntry )
     CONSOLE_STRING_OUT( buff );
 
     bool showCodeAddress = false;
+    char immediateChar = ' ';
     switch ( entryType )
     {
-    case kOpUserDef:
     case kOpUserDefImmediate:
+        immediateChar = 'I';
+    case kOpUserDef:
         showCodeAddress = CODE_IS_USER_DEFINITION( pEntry[1] );
         break;
-    case kOpNative:
+
     case kOpNativeImmediate:
+        immediateChar = 'I';
+    case kOpNative:
 		if ( ((unsigned long) FORTH_OP_VALUE( *pEntry )) >= mpEngine->GetCoreState()->numBuiltinOps )
 		{
 			showCodeAddress = true;
@@ -737,7 +741,7 @@ ForthVocabulary::PrintEntry( long*   pEntry )
         // for user defined ops the second entry field is meaningless, just show code address
         if ( entryValue < GET_NUM_OPS )
         {
-            sprintf( buff, "%08x *  ", OP_TABLE[entryValue] );
+            sprintf( buff, "%08x *%c  ", OP_TABLE[entryValue], immediateChar );
             CONSOLE_STRING_OUT( buff );
         }
         else
@@ -750,7 +754,7 @@ ForthVocabulary::PrintEntry( long*   pEntry )
     {
         for ( int j = 1; j < mValueLongs; j++ )
         {
-            sprintf( buff, "%08x    ", pEntry[j] );
+            sprintf(buff, "%08x  %c ", pEntry[j], immediateChar);
             CONSOLE_STRING_OUT( buff );
         }
     }
