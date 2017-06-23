@@ -50,8 +50,9 @@ ForthParseInfo::SetToken(const char *pSrc)
 		{
 			symLen = mMaxChars;
 		}
+        mNumChars = symLen;
 		// set length byte
-		*pDst++ = symLen;
+        *pDst++ = min(symLen, 255);
 
 		// make copy of symbol
 		memcpy(pDst, pSrc, symLen);
@@ -64,7 +65,8 @@ ForthParseInfo::SetToken(const char *pSrc)
 
 		// token has already been copied to mpToken, just set length byte
 		symLen = strlen(((char *)mpToken) + 1);
-		*((char *)mpToken) = symLen;
+        mNumChars = symLen;
+		*((char *)mpToken) = min(symLen, 255);
 		pDst = ((char *)mpToken) + symLen + 2;
 	}
 
