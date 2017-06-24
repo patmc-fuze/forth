@@ -174,6 +174,21 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 22 2017
+
+I've done a bunch of minor fixes spurred on by debugging the O'Dwyer/Knuth
+adventure program.  I added the ability to go from an enum value back to its
+symbolic name.  This required a little hackery, when an enum defining word is
+defined it saves the defining vocabulary, the offset into the vocabulary of the
+last enum symbol entry, and the number of defined values in the enum.
+
+I got bitten again several times by the bug where if you define the first local
+variable inside a control structure the code will compile but will then crash,
+usually because the allocate-variables opcode isn't always executed, but the
+exitL opcode is always executed.  I added a check when defining the first local
+variable to throw an error if the shell stack shows you aren't at the top level
+of a definition.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 11 2017
 
 I changed case statements to allow multiple 'of' or 'ofif' clauses for a single

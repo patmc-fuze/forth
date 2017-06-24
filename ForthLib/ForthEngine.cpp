@@ -256,6 +256,7 @@ ForthEngine::ForthEngine()
 , mContinuationIx(0)
 , mContinueDestination(nullptr)
 , mContinueCount(0)
+, mpNewestEnum(nullptr)
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -471,6 +472,8 @@ ForthEngine::Reset( void )
     mCompileState = 0;
     mCompileFlags = 0;
     ResetContinuations();
+    mpNewestEnum = nullptr;
+
 
 	mTokenStack.Clear();
 
@@ -968,27 +971,46 @@ ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
         long* curIP = mpCore->ops[ opValue ];
 		long* baseIP = curIP;
         long* endIP = (opValue == (mpCore->numOps - 1)) ? GetDP() : mpCore->ops[ opValue + 1 ];
-        while ( (curIP < endIP) && notDone )
+        if (*curIP == gCompiledOps[OP_DO_ENUM])
         {
-            SNPRINTF( buff, sizeof(buff), "  +%04x  %08x  ", (curIP - baseIP), curIP );
-            ConsoleOut( buff );
-            DescribeOp( curIP, buff, sizeof(buff), true );
-            ConsoleOut( buff );
-            SNPRINTF( buff, sizeof(buff), "\n" );
-            ConsoleOut( buff );
-            if ( ((line & 31) == 0) && (mpShell != NULL) && mpShell->GetInput()->InputStream()->IsInteractive() )
+            ForthEnumInfo* pEnumInfo = (ForthEnumInfo *)(curIP + 1);
+            ForthVocabulary* pVocab = pEnumInfo->pVocab;
+            long numEnums = pEnumInfo->numEnums;
+            long* pEntry = pVocab->GetEntriesEnd() - pEnumInfo->vocabOffset;
+            SNPRINTF(buff, sizeof(buff), "Enum size %d entries %d\n", pEnumInfo->size, numEnums);
+            ConsoleOut(buff);
+            for (int i = 0; i < numEnums; ++i)
             {
-                ConsoleOut( "Hit ENTER to continue, 'q' & ENTER to quit\n" );
-                c = mpShell->GetChar();
-
-                if ( (c == 'q') || (c == 'Q') )
-                {
-                    c = mpShell->GetChar();
-                    notDone = false;
-                }
+                char* pEnumName = AddTempString(pVocab->GetEntryName(pEntry), pVocab->GetEntryNameLength(pEntry));
+                SNPRINTF(buff, sizeof(buff), "%d %s\n", *pEntry & 0xFFFFFF, pEnumName);
+                ConsoleOut(buff);
+                pEntry = pVocab->NextEntry(pEntry);
             }
-            curIP = NextOp( curIP );
-            line++;
+        }
+        else
+        {
+            while ((curIP < endIP) && notDone)
+            {
+                SNPRINTF(buff, sizeof(buff), "  +%04x  %08x  ", (curIP - baseIP), curIP);
+                ConsoleOut(buff);
+                DescribeOp(curIP, buff, sizeof(buff), true);
+                ConsoleOut(buff);
+                SNPRINTF(buff, sizeof(buff), "\n");
+                ConsoleOut(buff);
+                if (((line & 31) == 0) && (mpShell != NULL) && mpShell->GetInput()->InputStream()->IsInteractive())
+                {
+                    ConsoleOut("Hit ENTER to continue, 'q' & ENTER to quit\n");
+                    c = mpShell->GetChar();
+
+                    if ((c == 'q') || (c == 'Q'))
+                    {
+                        c = mpShell->GetChar();
+                        notDone = false;
+                    }
+                }
+                curIP = NextOp(curIP);
+                line++;
+            }
         }
     }
 }
@@ -1079,10 +1101,17 @@ ForthEngine::AddLocalVar( const char        *pVarName,
     }
     pEntry = mpLocalVocab->AddVariable( pVarName, fieldType, frameLongs + varSize, varSize );
     pEntry[1] = typeCode;
-    if ( frameLongs == 0 )
+    if (frameLongs == 0)
     {
-        // this is first local var definition, leave space for local alloc op
-        CompileLong( 0 );
+        if (mpShell->GetShellStack()->PeekTag() != kShellTagDefine)
+        {
+            SetError(kForthErrorBadSyntax, "First local variable definition inside control structure");
+        }
+        else
+        {
+            // this is first local var definition, leave space for local alloc op
+            CompileLong(0);
+        }
     }
 
     return mpLocalVocab->GetFrameLongs();
@@ -1211,12 +1240,12 @@ ForthEngine::TraceOp(long* pOp)
 void
 ForthEngine::TraceStack( ForthCoreState* pCore )
 {
-	long *pSP = GET_SP;
-	int nItems = GET_SDEPTH;
 	int i;
 
-	TraceOut("  stack[%d]:", nItems); 
-#define MAX_TRACE_STACK_ITEMS 12
+    long *pSP = GET_SP;
+    int nItems = GET_SDEPTH;
+    TraceOut("  stack[%d]:", nItems);
+#define MAX_TRACE_STACK_ITEMS 8
 #if defined(WIN32)
 	int numToDisplay = min(MAX_TRACE_STACK_ITEMS, nItems);
 #else
@@ -1230,8 +1259,24 @@ ForthEngine::TraceStack( ForthCoreState* pCore )
 	{
 		TraceOut(" <%d more>", nItems - numToDisplay);
 	}
-	int rDepth = pCore->RT - pCore->RP;
-    TraceOut( "  rstack[%d]", rDepth );
+
+    long *pRP = GET_RP;
+    nItems = pCore->RT - pRP;
+    TraceOut("  rstack[%d]", nItems);
+#define MAX_TRACE_RSTACK_ITEMS 8
+#if defined(WIN32)
+    numToDisplay = min(MAX_TRACE_RSTACK_ITEMS, nItems);
+#else
+    numToDisplay = std::min(MAX_TRACE_RSTACK_ITEMS, nItems);
+#endif
+    for (i = 0; i < numToDisplay; i++)
+    {
+        TraceOut(" %x", *pRP++);
+    }
+    if (nItems > numToDisplay)
+    {
+        TraceOut(" <%d more>", nItems - numToDisplay);
+    }
 }
 
 void
@@ -2656,7 +2701,14 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         return kResultOk;
     }
     
-    SPEW_OUTER_INTERPRETER( "%s {%s} flags[%x]\t", mCompileState ? "Compile" : "Interpret", pToken, pInfo->GetFlags() );
+    if (mCompileState)
+    {
+        SPEW_OUTER_INTERPRETER("Compile {%s} flags[%x] @0x%08x\t", pToken, pInfo->GetFlags(), mDictionary.pCurrent);
+    }
+    else
+    {
+        SPEW_OUTER_INTERPRETER("Interpret {%s} flags[%x]\t", pToken, pInfo->GetFlags());
+    }
     if ( isAString )
     {
         ////////////////////////////////////
@@ -2664,7 +2716,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         // symbol is a quoted string - the quotes have already been stripped
         //
         ////////////////////////////////////
-        SPEW_OUTER_INTERPRETER( "String{%s} flags[%x]\n", pToken, pInfo->GetFlags() );
+        SPEW_OUTER_INTERPRETER( "String{%s} flags[%x] len %d\n", pToken, pInfo->GetFlags(), len );
         if ( mCompileState )
         {
             int lenLongs = ((len + 4) & ~3) >> 2;

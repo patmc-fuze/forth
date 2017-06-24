@@ -2014,7 +2014,11 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
 	if (!isString && ((pEngine->GetFlags() & kEngineFlagInEnumDefinition) != 0))
 	{
 		// byte/short/int/long inside an enum definition sets the number of bytes an enum of this type requires
-		pEngine->GetDP()[-1] = mNumBytes;
+        ForthEnumInfo* pNewestEnum = pEngine->GetNewestEnumInfo();
+        if (pNewestEnum != nullptr)
+        {
+            pNewestEnum->size = mNumBytes;
+        }
 		return;
 	}
 
@@ -2120,7 +2124,35 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
                 if ( GET_VAR_OPERATION == kVarStore )
                 {
                     // var definition was preceeded by "->", so initialize var
-                    pEngine->ExecuteOp(pCore,  pEntry[0] );
+#if 1
+                    int val = SPOP;
+                    switch (nBytes)
+                    {
+                    case 1:
+                        *pHere = (char)val;
+                        break;
+                    case 2:
+                        *((short *)pHere) = (short)val;
+                        break;
+                    case 4:
+                        *((int *)pHere) = val;
+                        break;
+                    case 8:
+                    {
+                        stackInt64 val64;
+                        val64.s32[1] = val;
+                        val64.s32[0] = SPOP;
+                        *((long long *)pHere) = val64.s64;
+                        break;
+                    }
+                    default:
+                        // TODO! complain bad int size
+                        break;
+                    }
+                    CLEAR_VAR_OPERATION;
+#else
+                    pEngine->ExecuteOp(pCore, pEntry[0]);
+#endif
                 }
                 else
                 {

@@ -1269,9 +1269,9 @@ GFORTHOP( doOpBop )
 {    
     // IP points to data field
     long* pVar = (long *)(GET_IP);
+    SET_IP((long *)(RPOP));
 
 	_doOpVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
 }
 
 GFORTHOP( opVarActionBop )
@@ -1791,12 +1791,12 @@ OPTYPE_ACTION(CaseBranchTAction)
     if ( *pSP != pSP[1] )
     {
         // case didn't match
-        pSP += 2;
+        pSP++;
     }
     else
     {
         // case matched - drop this_case_value & skip to case body
-        pSP++;
+        pSP += 2;
         // case branch is always forward
         SET_IP( GET_IP + opVal );
     }
@@ -2021,8 +2021,14 @@ OPTYPE_ACTION( MethodWithTOSAction )
     RPUSH( ((long) GET_TPD) );
     RPUSH( ((long) GET_TPM) );
     long* pMethods = (long *)(SPOP);
-    SET_TPM( pMethods );
-    SET_TPD( (long *) (SPOP) );
+    long* pData = (long *)(SPOP);
+    if (pMethods == nullptr)
+    {
+        SET_ERROR(kForthErrorBadMethod);
+        return;
+    }
+    SET_TPM(pMethods);
+    SET_TPD(pData);
 	if (pEngine->GetTraceFlags() & kLogInnerInterpreter)
 	{
 		SpewMethodName(pMethods, opVal);

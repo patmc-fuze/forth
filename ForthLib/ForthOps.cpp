@@ -934,12 +934,9 @@ FORTHOP( endcaseOp )
         return;
     }
 
-    if ( ((GET_DP) - (long *)(pShellStack->Peek())) == 1 )
-    {
-        // there is no default case, we must compile a "drop" to
-        //   dispose of the case selector on TOS
-        pEngine->CompileBuiltinOpcode( OP_DROP );
-    }
+    // compile a "drop" to dispose of the case selector on TOS
+    pEngine->CompileBuiltinOpcode(OP_DROP);
+
     // patch branches from end-of-case to common exit point
     while (true)
     {
@@ -2402,10 +2399,29 @@ FORTHOP( enumOp )
     //}
     pEngine->StartEnumDefinition();
 	const char* pName = pEngine->GetNextSimpleToken();
-	long* pEntry = pEngine->StartOpDefinition(pName);
+    long* pEntry = pEngine->StartOpDefinition(pName, false, kOpUserDefImmediate);
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_ENUM );
-	pEngine->CompileLong(4);	// default enum size is 4 bytes
+    // save ptr to enum info block for ;enum to fill in number of symbols
+    long* pHere = pEngine->GetDP();
+    pEngine->SetNewestEnumInfo((ForthEnumInfo*)pHere);
+    // enum info block holds:
+    // 0  enum size in bytes (default to 4)
+    // 1  ptr to vocabulary enum is defined in
+    // 2  number of enums defined
+    // 3  offset in longs from top of vocabulary to last enum symbol defined
+    // 4+ enum name string
+    pEngine->CompileLong(4);	// default enum size is 4 bytes
+    ForthVocabulary* pDefinitionVocabulary = pEngine->GetDefinitionVocabulary();
+    pEngine->CompileLong((long)pDefinitionVocabulary);
+    // the actual number of enums and vocabulary offset of last enum are filled in in endenumOp
+    pEngine->CompileLong(pDefinitionVocabulary->GetNumEntries());
+    pEngine->CompileLong(0);
+    // stick enum name string on the end
+    int nameLen = strlen(pName) + 1;
+    memcpy(pEngine->GetDP(), pName, nameLen);
+    pEngine->AllotBytes(nameLen);
+    pEngine->AlignDP();
 
 	pEngine->GetShell()->StartDefinition(pName, "enum");
 }
@@ -2413,11 +2429,60 @@ FORTHOP( enumOp )
 FORTHOP( endenumOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
+    ForthEnumInfo* pNewestEnum = pEngine->GetNewestEnumInfo();
     pEngine->EndEnumDefinition();
-	pEngine->GetShell()->CheckDefinitionEnd("enum", "enum");
+    if (pNewestEnum != nullptr)
+    {
+        if (pEngine->GetShell()->CheckDefinitionEnd("enum", "enum"))
+        {
+            ForthVocabulary* pVocab = pNewestEnum->pVocab;
+            pNewestEnum->numEnums = pVocab->GetNumEntries() - pNewestEnum->numEnums;
+            pNewestEnum->vocabOffset = pVocab->GetEntriesEnd() - pVocab->GetNewestEntry();
+        }
+        pEngine->SetNewestEnumInfo(nullptr);
+    }
+    else
+    {
+        pEngine->SetError(kForthErrorBadSyntax, "Missing enum info pointer at end of enum definition");
+    }
 }
 
-FORTHOP( doVocabOp )
+FORTHOP(findEnumSymbolOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    long* pEnumInfo = (long*)(SPOP);
+    long enumValue = SPOP;
+    ForthVocabulary* pVocab = (ForthVocabulary *)(pEnumInfo[1]);
+    // NOTE: this will only find enums which are defined as constants with 24 bits or less
+    long numEnums = pEnumInfo[2];
+    long lastEnumOffset = pEnumInfo[3];
+    long numSymbols = pVocab->GetNumEntries();
+    long *pFoundEntry = nullptr;
+    long currentVocabOffset = pVocab->GetEntriesEnd() - pVocab->GetNewestEntry();
+    if (currentVocabOffset >= lastEnumOffset)
+    {
+        long* pEntry = pVocab->GetEntriesEnd() - lastEnumOffset;
+        for (int i = 0; i < numEnums; i++)
+        {
+            if (pEntry < pVocab->GetNewestEntry())
+            {
+                break;
+            }
+            if ((*pEntry & 0xFFFFFF) == enumValue)
+            {
+                char* pEnumName = pEngine->AddTempString(pVocab->GetEntryName(pEntry), pVocab->GetEntryNameLength(pEntry));
+                SPUSH((long)pEnumName);
+                SPUSH(~0);
+                return;
+            }
+            pEntry = pVocab->NextEntry(pEntry);
+            --numSymbols;
+        }
+    }
+    SPUSH(0);
+}
+
+FORTHOP(doVocabOp)
 {
     // IP points to data field
     ForthVocabulary* pVocab = (ForthVocabulary *) (*GET_IP);
@@ -2499,34 +2564,59 @@ FORTHOP( doClassTypeOp )
 // a variable or field that is 4 bytes in size
 FORTHOP( doEnumOp )
 {
-	switch (*GET_IP)
-	{
-	case 1:
-		byteOp(pCore);
-		break;
-
-	case 2:
-		shortOp(pCore);
-		break;
-
-	case 4:
-		intOp(pCore);
-		break;
-
-	case 8:
-		longOp(pCore);
-		break;
-
-	default:
-		{
-
-			SET_ERROR(kForthErrorBadParameter);
-			ForthEngine *pEngine = GET_ENGINE;
-			pEngine->SetError(kForthErrorBadParameter, "enum size must be 1, 2, 4 or 8");
-		}
-	}
+    bool doDefineInstance = true;
+    ForthEngine *pEngine = GET_ENGINE;
+    long* oldIP = GET_IP;
     // we need to pop the IP, since there is no instruction after this one
-    SET_IP( (long *) (RPOP) );
+    SET_IP((long *)(RPOP));
+
+    if (pEngine->IsCompiling())
+    {
+        // handle the case 'ref ENUM_TYPE'
+        long* pLastOp = pEngine->GetLastCompiledOpcodePtr();
+        if ((pLastOp != NULL) && (*pLastOp == gCompiledOps[OP_REF]))
+        {
+            // compile the opcode that called us so at runtime (ref ENUM_OP) will push enum info ptr
+            pEngine->CompileOpcode(GET_IP[-1]);
+            doDefineInstance = false;
+        }
+    }
+    else
+    {
+        if (GET_VAR_OPERATION == kVarRef)
+        {
+            // ref ENUM_DEFINING_OP ... returns ptr to enum info block
+            SPUSH((long)oldIP);
+            doDefineInstance = false;
+        }
+    }
+
+    if (doDefineInstance)
+    {
+        long numBytes = *oldIP;
+        switch (numBytes)
+        {
+        case 1:
+            byteOp(pCore);
+            break;
+
+        case 2:
+            shortOp(pCore);
+            break;
+
+        case 4:
+            intOp(pCore);
+            break;
+
+            //case 8:
+            //	longOp(pCore);
+            //	break;
+
+        default:
+            pEngine->SetError(kForthErrorBadParameter, "enum size must be 1, 2 or 4");
+        }
+    }
+    CLEAR_VAR_OPERATION;
 }
 
 // in traditional FORTH, the vocabulary entry for the operation currently
@@ -3496,8 +3586,26 @@ FORTHOP(toupperOp)
 
 FORTHOP(isupperOp)
 {
-	int c = SPOP;
-	SPUSH(isupper(c));
+    int c = SPOP;
+    SPUSH(isupper(c));
+}
+
+FORTHOP(isspaceOp)
+{
+    int c = SPOP;
+    SPUSH(isspace(c));
+}
+
+FORTHOP(isalphaOp)
+{
+    int c = SPOP;
+    SPUSH(isalpha(c));
+}
+
+FORTHOP(isgraphOp)
+{
+    int c = SPOP;
+    SPUSH(isgraph(c));
 }
 
 FORTHOP(tolowerOp)
@@ -5567,6 +5675,11 @@ FORTHOP( shutdownOp )
 FORTHOP( abortOp )
 {
     SET_FATAL_ERROR( kForthErrorAbort );
+}
+
+FORTHOP(bkptOp)
+{
+    CONSOLE_STRING_OUT("<<<BREAKPOINT HIT>>>\n");
 }
 
 #ifndef ASM_INNER_INTERPRETER
@@ -8305,7 +8418,7 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     OP_COMPILED_DEF(		badOpOp,                "badOp",			OP_BAD_OP ),
 	OP_COMPILED_DEF(		doStructTypeOp,         "_doStructType",	OP_DO_STRUCT_TYPE ),
     OP_COMPILED_DEF(		doClassTypeOp,          "_doClassType",		OP_DO_CLASS_TYPE ),
-    PRECOP_COMPILED_DEF(	doEnumOp,               "_doEnum",			OP_DO_ENUM ),
+    OP_COMPILED_DEF(	    doEnumOp,               "_doEnum",			OP_DO_ENUM ),
     OP_COMPILED_DEF(		doNewOp,                "_doNew",			OP_DO_NEW ),
     OP_COMPILED_DEF(		allocObjectOp,          "_allocObject",		OP_ALLOC_OBJECT ),
 	OP_COMPILED_DEF(		superOp,                "super",			OP_SUPER ),
@@ -8803,6 +8916,8 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(initMemberStringOp,     "initMemberString"),
     OP_DEF(    enumOp,                 "enum:" ),
     OP_DEF(    endenumOp,              ";enum" ),
+    OP_DEF(    findEnumSymbolOp,       "findEnumSymbol" ),
+    
     PRECOP_DEF(recursiveOp,            "recursive" ),
     OP_DEF(    precedenceOp,           "precedence" ),
     OP_DEF(    strRunFileOp,           "$runFile" ),
@@ -8887,6 +9002,9 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF(    resetConsoleOutOp,      "resetConsoleOut" ),
     OP_DEF(    toupperOp,              "toupper" ),
     OP_DEF(    isupperOp,              "isupper" ),
+    OP_DEF(    isspaceOp,              "isspace" ),
+    OP_DEF(    isalphaOp,              "isalpha" ),
+    OP_DEF(    isgraphOp,              "isgraph" ),
     OP_DEF(    tolowerOp,              "tolower" ),
     OP_DEF(    islowerOp,              "islower" ),
 	
@@ -9000,6 +9118,7 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF(		ssPopBop,				"ss>"),
 	OP_DEF(		ssPeekBop,				"ss@"),
 	OP_DEF(		ssDepthBop,				"ssdepth"),
+	OP_DEF(		bkptOp,				    "bkpt"),
 
     ///////////////////////////////////////////
     //  conditional compilation

@@ -130,6 +130,16 @@ public:
 	long *labelIP;
 };
 
+// ForthEnumInfo is compiled with each enum defining word
+struct ForthEnumInfo
+{
+    long size;                  // enum size in bytes (default to 4)
+    ForthVocabulary* pVocab;    // ptr to vocabulary enum is defined in
+    long numEnums;              // number of enums defined
+    long vocabOffset;           // offset in longs from top of vocabulary to last enum symbol defined
+    char nameStart;             // enum name string (including null terminator) plus zero padding to next longword
+};
+
 class ForthEngine
 {
 public:
@@ -275,7 +285,8 @@ public:
 	inline int				GetTmpStringBufferSize( void ) { return MAX_STRING_SIZE; };
     inline void             SetArraySize( long numElements )        { mNumElements = numElements; };
     inline long             GetArraySize( void )                    { return mNumElements; };
-
+    inline ForthEnumInfo*   GetNewestEnumInfo(void) { return mpNewestEnum; };
+    void                    SetNewestEnumInfo(ForthEnumInfo *pInfo) { mpNewestEnum = pInfo; };
     void                    GetErrorString( char *pBuffer, int bufferSize );
     eForthResult            CheckStacks( void );
     void                    SetError( eForthError e, const char *pString = NULL );
@@ -414,6 +425,8 @@ protected:
     long            mContinuationIx;
     long*           mContinueDestination;
     long            mContinueCount;
+
+    ForthEnumInfo*  mpNewestEnum;
 
 #ifdef WIN32
 #ifdef MSDEV
