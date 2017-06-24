@@ -68,6 +68,7 @@ class: evil
 	;m
     
 	m: wopen
+        int ix
 		if( wheelSize wheel.count >= )
 			wheel -> ByteArray temp
 			new ByteArray -> wheel
@@ -76,7 +77,7 @@ class: evil
 				wheel.set(temp.get(i) i)
 			loop
 		endif
-		wheelSize -> int ix
+		wheelSize -> ix
 		begin
 		while(ix wheelPos >)
 			wheel.set(wheel.get(i 1-) i)
@@ -215,7 +216,6 @@ class: evil
 
 			'z' of	0 -> areg							endof
 
-			drop
 		endcase
 		
 		1 ->+ sourcePos
