@@ -1133,8 +1133,7 @@ namespace OArray
 		// go through all elements and release any which are not null
 		GET_THIS(oByteArrayStruct, pArray);
 		oByteArray& a = *(pArray->elements);
-		char* pElement = &(a[0]);
-		memset(pElement, 0, a.size());
+        a.clear();
 		METHOD_RETURN;
 	}
 
@@ -1789,9 +1788,8 @@ namespace OArray
 		// go through all elements and release any which are not null
 		GET_THIS(oShortArrayStruct, pArray);
 		oShortArray& a = *(pArray->elements);
-		short* pElement = &(a[0]);
-		memset(pElement, 0, (a.size() << 1));
-		METHOD_RETURN;
+        a.clear();
+        METHOD_RETURN;
 	}
 
     FORTHOP(oShortArrayInsertMethod)
@@ -2432,8 +2430,7 @@ namespace OArray
 		// go through all elements and release any which are not null
 		GET_THIS(oIntArrayStruct, pArray);
 		oIntArray& a = *(pArray->elements);
-		int* pElement = &(a[0]);
-		memset(pElement, 0, (a.size() << 2));
+        a.clear();
 		METHOD_RETURN;
 	}
 
@@ -3145,9 +3142,8 @@ namespace OArray
 		// go through all elements and release any which are not null
 		GET_THIS(oLongArrayStruct, pArray);
 		oLongArray& a = *(pArray->elements);
-		long long* pElement = &(a[0]);
-		memset(pElement, 0, (a.size() << 3));
-		METHOD_RETURN;
+        a.clear();
+        METHOD_RETURN;
 	}
 
     FORTHOP(oLongArrayInsertMethod)
@@ -4154,8 +4150,7 @@ namespace OArray
     {
         GET_THIS(oStructArrayStruct, pArray);
         oStructArray& a = *(pArray->elements);
-        char* pElement = &(a[0]);
-        memset(pElement, 0, a.size());
+        a.clear();
         METHOD_RETURN;
     }
 
