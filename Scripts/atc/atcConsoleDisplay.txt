@@ -213,7 +213,7 @@ class: atcConsoleDisplay extends iAtcDisplay
               case(plane.forceDirection)
                 of(1) " Turn right" endof
                 of(-1) " Turn left" endof
-                drop " Turn"
+                " Turn" swap
               endcase
               %s " to " %s plane.commandedHeading 45 * %d
             endif

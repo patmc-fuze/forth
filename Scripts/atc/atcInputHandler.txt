@@ -116,7 +116,6 @@ class: atcInputHandler extends iAtcInputHandler
         0 -> commandInfo.forceDirection
       endof
       
-      drop
       //display.showWarning( "valid command letters are actmui  altitude/circle/turn/mark/unmark/ignore" )
       unrecognizedCommandWarning( "actmui  altitude/circle/turn/mark/unmark/ignore" )
     endcase
@@ -136,7 +135,6 @@ class: atcInputHandler extends iAtcInputHandler
     case( cmdChar )
       '-' of  'd' -> cmdChar endof
       '+' of  'c' -> cmdChar endof
-      drop
     endcase
   
     case( cmdChar )
@@ -152,7 +150,6 @@ class: atcInputHandler extends iAtcInputHandler
         kACSAltitudeDescend -> commandState
       endof
 
-      drop
       if( within(altitude 0 10) )
         commandString.appendChar( cmdChar )
         displayString.appendChar( '\ ' )
@@ -235,8 +232,8 @@ class: atcInputHandler extends iAtcInputHandler
         executeCommand
       endof
     
-      //drop display.showWarning( "valid command letters are lra or ENTER" )
-      drop unrecognizedCommandWarning("lra or ENTER")
+      // display.showWarning( "valid command letters are lra or ENTER" )
+      unrecognizedCommandWarning("lra or ENTER")
     endcase
   ;
   
@@ -258,8 +255,8 @@ class: atcInputHandler extends iAtcInputHandler
         executeCommand
       endof
       
-      //drop display.showWarning( "valid command letters are a or ENTER" )
-      drop unrecognizedCommandWarning("a or ENTER")
+      // display.showWarning( "valid command letters are a or ENTER" )
+      unrecognizedCommandWarning("a or ENTER")
     endcase
   ;
   

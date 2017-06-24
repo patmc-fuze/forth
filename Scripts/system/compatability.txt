@@ -6,29 +6,6 @@ requires forth_optype
 autoforget compatability
 : compatability ;
 
-: cells 4* ;
-: cell+ 4+ ;
-: chars ;
-: char blword c@ ;
-
-// given ptr to cstring, compile code which will push ptr to cstring
-: compileStringLiteral
-  -> ptrTo byte src
-  src strlen -> int len
-  len 4+ 0xFFFFFFFC and 2 rshift -> int lenInts
-  opType:makeOpcode( opType:litString lenInts ) ,		// compile literal string opcode
-  strcpy( here src )
-  allot( lenInts cells )
-;
-
-: count dup 1+ swap c@ ;
-
-: 2, here 8 allot 2! ;
-: literal postpone lit , ;
-alias fliteral literal
-: dliteral postpone dlit 2, ;
-precedence literal   precedence fliteral   precedence dliteral
-
 : countedStringToString
   // src dst
   -> ptrTo byte dst
@@ -88,64 +65,12 @@ precedence literal   precedence fliteral   precedence dliteral
   endif
 ;
 
-: cmove 0 do over i + c@ over i + c! loop 2drop ;
-: cmove> 0 swap 1- do over i + c@ over i + c! -1 +loop 2drop ;
-: ."
-  '"' $word state @
-  if
-    compileStringLiteral
-    postpone %s
-  else
-    %s
-  endif
-;
-precedence ."
-
 : .(
   ')' $word %s
 ;
 precedence .(
 
-: s"
-  '"' $word
-  if( state @ )
-    compileStringLiteral( dup )
-    strlen postpone literal
-  else
-    dup strlen
-  endif
-;
-precedence s"
-: accept
-  stdin fgets dup -> ptrTo byte buffer
-  strlen -> int bytesRead
-  if( bytesRead )
-    if( buffer bytesRead + 1- c@ '\n' = )
-      // trim trailing linefeed from count
-      1 ->- bytesRead
-    endif
-  endif
-  bytesRead
-;
-: quit r0 -> rp 0 -> fp done ;
-: erase 0 fill ;
-: blank bl fill ;
-alias emit %c
-alias does> does
-alias then endif
-
 : [char]  opType:makeOpcode( opType:litInt blword c@ ) , ; precedence [char]
-: char+ 1+ ;
-: spaces
-  dup 0> if
-    0 do %bl loop
-  else
-    drop
-  endif
-;
-
-alias cr %nl
-alias space %bl
 
 : _abortQuote
   swap

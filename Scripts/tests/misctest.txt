@@ -217,7 +217,7 @@ label exit
     ofif(n 10 =) "ten" %s endof
     ofif(n 20 <) "11 to 19" %s endof
     ofif(n 30 <) "20 to 29" %s endof
-    %d
+    dup %d
   endcase
 ;
 

@@ -107,7 +107,7 @@ kFFParenIsExpression ->+ features
       +loop(2)
     endof
       
-    "unexpected command in atc file" %s %d
+    "unexpected command in atc file" %s dup %d
   endcase
   
   0 -> numArgs
