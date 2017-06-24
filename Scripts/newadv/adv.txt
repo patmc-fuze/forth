@@ -1,6 +1,6 @@
 requires randoms
 
-true -> compileDebug
+//true -> compileDebug
 
 autoforget newadv
 : newadv ;
@@ -113,8 +113,14 @@ class: Dwarf
   bool seen
   Location oldloc
   Location loc
+  int index
   
-  m: setLoc -> loc ;m
+  m: setLoc
+    -> loc
+    //">>> Moving dwarf " %s index %d " to " %s loc ref Location findEnumSymbol if(0=) "???" endif %s %nl
+  ;m
+  
+  m: setIndex -> index ;m
   m: setOldloc -> oldloc ;m
   m: setSeen -> seen ;m
 
@@ -237,6 +243,12 @@ class: IGame
   int __west_count
   Array of AdventureState adventureStates
   
+  ConsoleInStream consoleInStream
+  FileInStream restoreStream
+  String saveFileName
+  String restoreFileName
+  FileOutStream saveStream
+  
   // start adventure state machine variables
   Location mOldOldLoc
   Location mOldLoc
@@ -269,6 +281,11 @@ class: IGame
     oclear inWord1
     oclear inWord2
     oclear adventureStates
+    oclear consoleInStream
+    oclear restoreFileName
+    oclear restoreStream
+    oclear saveFileName
+    oclear saveStream
   ;m
   
   m: init
@@ -301,6 +318,12 @@ class: IGame
     new ByteArray -> inWord1    inWord1.resize(BUF_SIZE)    inWord1.set(0 0)
     new ByteArray -> inWord2    inWord2.resize(BUF_SIZE)    inWord2.set(0 0)
     new Array -> adventureStates
+    
+    new ConsoleInStream -> consoleInStream
+    new String -> saveFileName
+    saveFileName.set("tmp.sav")
+    new String -> restoreFileName
+    restoreFileName.set("adventure.sav")
   ;m
   
   m: getWordByName returns Word
@@ -388,8 +411,7 @@ spoo after IGame
 spoo before game
 requires game
 
-mko Game game
-game.init
+Game game
 
 spoo before hints
 requires hints
@@ -399,13 +421,14 @@ spoo before words
 requires words
 spoo after words
 
-: go
-  "Using random seed " %s getRandomSeed %d %nl
+: goBody
 //0 setTrace
   d[ ." before build_vocabulary" cr   ds ]d
   build_vocabulary
   d[ ." before build_travel_table" cr  ds ]d
   build_travel_table
+  d[ ." before build_hints" cr  ds ]d
+  build_hints
   d[ ." before build_object_table" cr  ds ]d
   game.build_object_table
   d[ ." before initialSetup" cr  ds ]d
@@ -415,6 +438,36 @@ spoo after words
   game.simulate_an_adventure
 ;
 
+: go
+  "Using random seed " %s getRandomSeed %d %nl
+  new Game -> game
+  game.init
+  goBody
+;
+
+: restore
+  new Game -> game
+  game.init
+  new FileInStream -> game.restoreStream
+  blword -> ptrTo byte restoreName
+  if(strlen(restoreName) 0>)
+    game.restoreFileName.set(restoreName)
+    game.restoreFileName.append(".sav")
+  else
+    game.restoreFileName.set("adventure.sav")
+  endif
+  game.restoreStream.open(game.restoreFileName.get "r")
+  goBody
+;
+
+"Type:\n\+
+  go            to start a new adventure\n\+
+  restore       to restore the default save (adventure.sav)\n\+
+  restore BLAH  to restore from BLAH.sav\n\+
+In the game enter:\n\+
+  save          to save to the default save\n\+
+  save BLAH     to save to BLAH.sav\n" %s
+  
 loaddone
 
 e
@@ -488,9 +541,7 @@ w
 get eggs
 n
 oil door
-
-
-
+  need to say "pour oil"
 n
 get trident
 w
@@ -499,6 +550,7 @@ drop bottle
 sw                      You should be at the South-West side of the chasm now.
 u
 toss eggs
+  didn't work, neither did "give eggs"
 cross
 ne
 barren
@@ -608,8 +660,9 @@ s
 n
 e
 n
-e                   Now into Dead end (if he hasn't shown up by now, see note 1).
-nw
+e
+nw                     Now into Dead end (if he hasn't shown up by now, see note 1).
+   repeat se,n,w,w,w,e,e,w,s,n,s,s,s,n,e,n,e,nw until he appears
 get chest           Also get any other treasures the pirate stole.
 get diamond
 se
@@ -628,8 +681,9 @@ e
 e
 get magazine
 e
-drop magazine       Go North until you get out (see note 2).
-n                   Wait until the cave closes.
+drop magazine       
+n                   Go North until you get out (see note 2).
+   Wait until the cave closes.
 sw
 get rod
 ne

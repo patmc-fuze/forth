@@ -4,6 +4,10 @@ mko Array of AdventureState Game_adventureStates
 
 class: Game extends IGame
 
+  : setState
+    -> mCurStateNum
+  ;
+  
   // remove an object from a locations linked list of objects  
   : removeObjectFrom
     -> Location loc
@@ -93,16 +97,15 @@ class: Game extends IGame
   // value is irrelevant (we use the prop value of the base object RUG).
   
   : is_treasure
-    false -> bool result
     case
-      of(GOLD) endof of(DIAMONDS) endof of(SILVER) endof of(JEWELS) endof
-      of(COINS) endof of(CHEST) endof of(EGGS) endof of(TRIDENT) endof
-      of(VASE) endof of(EMERALD) endof of(PYRAMID) endof of(PEARL) endof
-      of(RUG) endof of(SPICES) endof of(CHAIN)
-        true -> result
+      of(GOLD) of(DIAMONDS) of(SILVER) of(JEWELS)
+      of(COINS) of(CHEST) of(EGGS) of(TRIDENT)
+      of(VASE) of(EMERALD) of(PYRAMID) of(PEARL)
+      of(RUG) of(SPICES) of(CHAIN)
+        true
       endof
+      false swap
     endcase
-    result
   ;
   
   : bottle_contents
@@ -387,12 +390,48 @@ treasure before you may cross.")
     addObjDesc(CHAIN "There is a golden chain locked to the wall!")
   ;m
 
+  : writeToSaveFile
+    -> ptrTo byte line
+    if(objIsNull(saveStream))
+      // this is first write to save file, create the file, output the line, then add the seed string
+      new FileOutStream -> saveStream
+      saveStream.open(saveFileName.get "w") drop
+      saveStream.putString(line)
+      if(objIsNull(restoreStream))    // don't add the seed string line if we are restoring
+        mko String seedString
+        seedString.appendFormatted("seed %d" getRandomSeed 1)
+        saveStream.putLine(seedString.get)
+        oclear seedString
+      endif
+    else
+      saveStream.open(saveFileName.get "a") drop
+      saveStream.putString(line)
+    endif
+    saveStream.close
+  ;
+    
   //========== Input routines. ==============================================
   // This section corresponds to sections 71--73 in Knuth.
 
   : getInputLine
     dup if %s endif
-    fgets(inBuffer.base BUF_SIZE stdin) drop
+    if(objNotNull(restoreStream))
+      restoreStream
+    else
+      consoleInStream
+    endif
+    ->o InStream inStream
+    inStream.setTrimEOL(false)
+    0 inBuffer.base c!
+    inStream.getLine(inBuffer.base BUF_SIZE) drop
+    if(objNotNull(restoreStream))
+      if(restoreStream.atEOF)
+        restoreStream.close
+        oclear restoreStream
+      endif
+      inBuffer.base %s
+    endif
+    //fgets(inBuffer.base BUF_SIZE stdin) drop
     inBuffer.base
   ;
     
@@ -490,6 +529,7 @@ continue:
     -> dwarf.loc
     R_LIMBO -> dwarf.oldloc
     false -> dwarf.seen
+    dwarves.count -> dwarf.index
     dwarves.push(dwarf)
     oclear dwarf
   ;
@@ -559,6 +599,7 @@ continue:
     false -> bool stalking
     // The pirate leaves you alone once you've found the chest.
     if(loc R_PIRATES_NEST =) orif(objs(CHEST).prop 0>=)
+    ." not nest or found chest" %nl
       exit
     endif
     do(MAX_OBJ 1+ MIN_OBJ)
@@ -647,8 +688,7 @@ axe at you which missed, cursed, and ran away.")
       0 -> int dtotal   // this many dwarves are in the room with you
       0 -> int attack   // this many have had time to draw their knives
       0 -> int stick    // this many have hurled their knives accurately
-      mko IntArray ploc
-      ploc.resize(19)
+      20 arrayOf Location ploc
       do(6 0)
         dwarves.get(i) ->o dwarf
         0 -> int ii
@@ -660,7 +700,7 @@ axe at you which missed, cursed, and ran away.")
           begin
           while(q start(dwarf.loc 1+) <)
             q.dest -> Location newloc
-            if(ii 0<>) andif(newloc ploc.get(ii 1-) =)
+            if(ii 0<>) andif(newloc ploc(ii 1-) =)
               continue
             endif
             continueIf(newloc MIN_LOWER_LOC <)  // don't wander above level 2
@@ -670,17 +710,17 @@ axe at you which missed, cursed, and ran away.")
               continueIf(forbidden_to_pirate(newloc))
             endif
             continueIf(or(is_forced(newloc) (newloc MAX_LOC >)))
-            ploc.set(newloc ii)
+            ploc(newloc ii ->)
             1 ->+ ii
 continue:
             sizeOf Instruction ->+ q
           repeat
           if(ii 0=)
-            ploc.set(dwarf.oldloc ii)
+            ploc(dwarf.oldloc ii ->)
             1 ->+ ii
           endif
           dwarf.loc -> dwarf.oldloc
-          ploc.get(ran(ii)) -> dwarf.loc    // this is the random walk
+          dwarf.setLoc(ploc(ran(ii))) // this is the random walk
               
           // Dwarves follow the player once they've spotted him. But
           // they won't follow outside the lower cave.
@@ -712,7 +752,7 @@ continue:
       if(dtotal 0<>)
         // Make the threatening dwarves attack.
         if(dtotal 1 =)
-              puts("There is a threatening little dwarf in the room with you!")
+          puts("There is a threatening little dwarf in the room with you!")
         else 
           "There are " %s dtotal %d " threatening little dwarves in the room with you!\n" %s
         endif
@@ -1032,7 +1072,7 @@ continue:
       
           of(2)  // How to get into the cave.
             if(not(objs(GRATE).prop)) andif(not(here(KEYS loc)))
-              offer(j) 
+              offer(i) 
             endif
             0 -> hint.count
           endof
@@ -1042,13 +1082,13 @@ continue:
             // chamber carrying the rod and experimenting with the bird.
             // This behavior is in Woods' Fortran original.
             if(here(BIRD loc)) andif(oldobj BIRD =) andif(toting(ROD))
-              offer(j) 
+              offer(i) 
               0 -> hint.count
             endif
           endof
           of(4)  // How to deal with the snake.
             if(here(SNAKE loc)) andif(not(here(BIRD loc)))
-              offer(j) 
+              offer(i) 
             endif
             0 -> hint.count
           endof
@@ -1057,18 +1097,18 @@ continue:
             andif(places.get(oldloc).objects NOTHING =)
             andif(places.get(oldoldloc).objects NOTHING =)
             andif(holding_count 1 >)
-              offer(j) 
+              offer(i) 
             endif
             0 -> hint.count
           endof
           of(6)  // How to explore beyond the Plover Room.
             if(objs(EMERALD).prop -1 <>)  andif(objs(PYRAMID).prop -1 =)
-              offer(j)
+              offer(i)
             endif
             0 -> hint.count
           endof
           of(7)  // How to get out of Witt's End.
-            offer(j) 
+            offer(i) 
             0 -> hint.count
           endof
         endcase
@@ -1126,13 +1166,14 @@ continue:
   : addScoreClass
     mko String desc
     desc.set
-    -> int minScore
     classMessages.push(desc)
     oclear desc
     classScores.push
   ;
   
   : initScoreClasses
+    classMessages.clear
+    classScores.clear
     addScoreClass(35 "You are obviously a rank amateur.  Better luck next time.")
     addScoreClass(100 "Your score qualifies you as a novice class adventurer.")
     addScoreClass(130 "You have achieved the rating \"Experienced Adventurer\".")
@@ -1153,13 +1194,15 @@ continue:
     // Print the score and say adieu.
     score -> int s
     0 -> int rank
+    initScoreClasses
     "You scored " %s s %d " out of a possible " %s MAX_SCORE %d ", using " %s turns %d
     " turn" %s if(turns 1 >) 's' %c endif ".\n" %s
+ 
     begin
     while(classScores.get(rank) s <=)
       1 ->+ rank
     repeat
-    classMessages.get(rank) %s "\nTo achieve the next higher rating" %s
+    classMessages.get(rank).get %s "\nTo achieve the next higher rating" %s
     if(rank HIGHEST_CLASS <)
       classScores.get(rank) s - -> int delta
       ", you need " %s delta %d " more point" %s if(delta 1 >) 's' %c endif ".\n" %s
@@ -1270,7 +1313,7 @@ spoo before kill_the_player
 
   : attempt_plover_passage    // section 149 in Knuth
     -> Location from
-    if(holding_count 1 =) andif(toting(EMERALD))
+    if(holding_count   if(toting(EMERALD)) 1 else 0 endif   =)
       R_ALCOVE R_PLOVER + from -
     else
       puts("Something you're carrying won't fit through the tunnel with you.\n\+
@@ -1489,7 +1532,7 @@ gets burnt to a cinder.  The ashes blow away.")
 
   : attempt_blast  // section 99 in Knuth
     -> Location loc
-    if(closed) andif(objs(ROD2).prop 0>=)
+    if(closed) andif(objs(ROD2).prop)
       if(here(ROD2 loc))
         25 -> bonus
         puts("There is a loud explosion and you are suddenly splashed across the\n\+
@@ -1506,6 +1549,7 @@ wall, burying the dwarves in the rubble.  You march through the hole\n\+
 and find yourself in the main office, where a cheering band of\n\+
 friendly elves carry the conquering adventurer off into the sunset.")
       endif
+      setState(kStateQuit)
       quit
     else
       puts("Blasting requires dynamite.")
@@ -1607,7 +1651,7 @@ things.  I cannot tell you where remote things are.")
     do(6 1)
       dwarves.get(i) -> Dwarf dwarf
       if(dwarf.loc loc =)
-        R_LIMBO -> dwarf.loc  // Once killed, a dwarf never comes back.
+        dwarf.setLoc(R_LIMBO)  // Once killed, a dwarf never comes back.
         false -> dwarf.seen
       endif
     loop
@@ -2302,18 +2346,26 @@ unless you explicitly ask me to.")
     endif
   ;
 
-
   : incantation
     case
       of(0) "fee" endof
       of(1) "fie" endof
-      of(2) "foo" endof
-      of(3) "fum" endof
-      of(4) "fee" endof
+      of(2) "foe" endof
+      of(3) "foo" endof
+      of(4) "fum" endof
       "frabozzle"
     endcase
   ;
   
+  : saveAdventure
+    mko String saveCommand
+    saveCommand.set("copy tmp.sav ")
+    saveCommand.append
+    saveCommand.append(".sav")
+    $shellRun(saveCommand.get)
+    oclear saveCommand
+  ;
+
 spoo before simulate_an_adventure
  
   m: dwarves_upset
@@ -2324,10 +2376,6 @@ knives at you!  All of them get you!")
   ;m
   
 
-  : setState
-    -> mCurStateNum
-  ;
-  
   m: simulate_an_adventure
     R_ROAD -> mOldOldLoc
     R_ROAD -> mOldLoc
@@ -2360,6 +2408,7 @@ knives at you!  All of them get you!")
   ;m
   
   : stateLoopTop    // state 0
+    //." >>> pirate at " dwarves.get(0).loc ref Location findEnumSymbol if(0=) "???" endif %s %nl
     // Check for interference with the proposed move to mNewLoc.
     if(cave_is_closing) andif(mNewLoc MIN_IN_CAVE <) andif(mNewLoc R_LIMBO <>)
       panic_at_closing_time
@@ -2410,6 +2459,37 @@ knives at you!  All of them get you!")
   ;
   
   : statePreParse    // state 4
+    if(streq(inWord1.base "save"))
+      if(inWord2.base c@ 0<>)
+        inWord2.base
+      else
+        "adventure"
+      endif
+      saveAdventure
+      setState(kStateInnerLoop)
+      exit
+    endif
+
+    // writing user input to save file is delayed until here so line "save blah" isn't last line of save file
+    writeToSaveFile(inBuffer.base)
+    
+    if(streq(inWord1.base "seed")) andif(inWord2.base c@ 0<>)
+      setRandomSeed(atoi(inWord2.base))
+      setState(kStateInnerLoop)
+      exit
+    endif
+    
+    if(streq(inWord1.base "save"))
+      if(inWord2.base c@ 0<>)
+        inWord2.base
+      else
+        "adventure"
+      endif
+      saveAdventure
+      setState(kStateInnerLoop)
+      exit
+    endif
+    
     1 ->+ turns
     if(mVerb SAY =)
       // Maybe you said "say" and we said "say what?" and you replied
@@ -2475,6 +2555,7 @@ knives at you!  All of them get you!")
         setState(kStateCycle)
         exit
       endof
+      
       of(WordClass_Motion)
         mWordTemp -> mMotion
         setState(kStateTryMove)
@@ -2744,7 +2825,9 @@ you come to it.  To get the full description, say \"LOOK\".")
       endof
       of(BLAST)
         attempt_blast(mLoc) 
-        setState(kStateInnerLoop)
+        if(mCurStateNum kStateQuit <>)
+          setState(kStateInnerLoop)
+        endif
         exit
       endof
       of(RUB)
@@ -2906,7 +2989,9 @@ minerals, but is not unpleasant.  It is extremely cold.")
         exit
       endof
       of(TOSS)
-        if(mObj ROD =) andif(toting(ROD2)) andif(not(toting(ROD))) ROD2 -> mObj  endif
+        if(mObj ROD =) andif(toting(ROD2)) andif(not(toting(ROD)))
+          ROD2 -> mObj
+        endif
         if(not(toting(mObj)))
           puts("You aren't carrying it!")
           setState(kStateInnerLoop)
