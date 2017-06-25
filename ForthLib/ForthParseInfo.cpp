@@ -52,7 +52,11 @@ ForthParseInfo::SetToken(const char *pSrc)
 		}
         mNumChars = symLen;
 		// set length byte
+#ifdef WIN32
         *pDst++ = min(symLen, 255);
+#else
+        *pDst++ = std::min(symLen, 255);
+#endif
 
 		// make copy of symbol
 		memcpy(pDst, pSrc, symLen);
@@ -66,7 +70,11 @@ ForthParseInfo::SetToken(const char *pSrc)
 		// token has already been copied to mpToken, just set length byte
 		symLen = strlen(((char *)mpToken) + 1);
         mNumChars = symLen;
+#ifdef WIN32
 		*((char *)mpToken) = min(symLen, 255);
+#else
+		*((char *)mpToken) = std::min(symLen, 255);
+#endif
 		pDst = ((char *)mpToken) + symLen + 2;
 	}
 

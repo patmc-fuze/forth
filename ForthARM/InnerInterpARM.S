@@ -5296,7 +5296,7 @@ relativeDataType:
     add r1, r2
 	ldr	r2, [r0, #FMSCurrent]
     cmp r1, r2
-    bge badUserDef
+    bge badOpcode
 	@ push address of data on pstack
     stmdb	rsp!, {r1}
     bx  lr
