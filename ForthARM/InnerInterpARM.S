@@ -5288,6 +5288,19 @@ pushBranchType:
 	add rip, r1
 	bx  lr
 
+relativeDataType:
+	@ r1 is offset from dictionary base of user definition
+    lsl r1, #2
+	ldr	r0, [rcore, #dict_mem_sect]
+	ldr	r2, [r0, #FMSBase]
+    add r1, r2
+	ldr	r2, [r0, #FMSCurrent]
+    cmp r1, r2
+    bge badUserDef
+	@ push address of data on pstack
+    stmdb	rsp!, {r1}
+    bx  lr
+
 relativeDefBranchType:
 	@ push relativeDef opcode for immediately following anonymous definition (IP points to it)
 	@ compute offset from dictionary base to anonymous def
@@ -5308,21 +5321,38 @@ relativeDefBranchType:
     add rip, r1
     bx  lr
     
-caseBranchType:
+caseBranchTType:
 	@ TOS is current case value to match against, TOS-1 is value to check
 	@ r1 holds branch offset in longs
 	ldmia	rsp, {r0, r2}
 	cmp	r0, r2
-	bne	.caseBranch1
-	@ case matched, drop top 2 TOS items, continue executing this branch
+	bne	.caseMismatch
+	@ case did match - branch to case body
 	add	rsp, #8
+	lsl	r1, #2
+	add	rip, r1
 	bx	lr
 	
-.caseBranch1:
+.caseMismatch:
+	@ case didn't match, drop top TOS item, continue on to next instruction
+	add	rsp, #4
+	bx	lr
+	
+caseBranchFType:
+	@ TOS is current case value to match against, TOS-1 is value to check
+	@ r1 holds branch offset in longs
+	ldmia	rsp, {r0, r2}
+	cmp	r0, r2
+	beq	.caseMatched
 	@ case did not match, drop current case value & skip to next case
 	add	rsp, #4
 	lsl	r1, #2
 	add	rip, r1
+	bx	lr
+	
+.caseMatched:
+	@ case matched, drop top 2 TOS items, continue executing this branch
+	add	rsp, #8
 	bx	lr
 	
 constantType:
@@ -5753,12 +5783,12 @@ opTypesTable:
 	.word	branchType				@ kOpBranch = 10,
 	.word	branchNZType			@ kOpBranchNZ,
 	.word	branchZType				@ kOpBranchZ,
-	.word	caseBranchType		    @ kOpCaseBranch,
+	.word	caseBranchTType		    @ kOpCaseBranchT,
+	.word	caseBranchFType		    @ kOpCaseBranchF,
 	.word	pushBranchType          @ kOpPushBranch,	
-	.word	relativeDefBranchType	@ kOpRelativeDefBranch
-	.word	extOpType	
-	.word	extOpType	
-	.word	extOpType	
+	.word	relativeDefBranchType	@ kOpRelativeDefBranch,
+	.word	relativeDataType	    @ kOpRelativeData,
+	.word	relativeDataType	    @ kOpRelativeString,
 	.word	extOpType	
 @	20 - 29
 	.word	constantType			@ kOpConstant = 20,   
