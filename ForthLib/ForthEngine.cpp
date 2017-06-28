@@ -2593,15 +2593,17 @@ void ForthEngine::PushContinuation(long val)
 
 long ForthEngine::PopContinuation()
 {
+    long result = 0;
     if (mContinuationIx > 0)
     {
         mContinuationIx--;
-        return mContinuations[mContinuationIx];
+        result = mContinuations[mContinuationIx];
     }
     else
     {
         SetError(kForthErrorBadSyntax, "not enough continuations");
     }
+    return result;
 }
 
 void ForthEngine::ResetContinuations()
@@ -2629,6 +2631,13 @@ void ForthEngine::AddContinuationBranch(long* pAddr, long opType)
     ++mContinueCount;
 }
 
+void ForthEngine::AddBreakBranch(long* pAddr, long opType)
+{
+    PushContinuation(((long)pAddr) + 1);
+    PushContinuation(opType);
+    ++mContinueCount;
+}
+
 void ForthEngine::StartLoopContinuations()
 {
     PushContinuation((long) mContinueDestination);
@@ -2637,36 +2646,70 @@ void ForthEngine::StartLoopContinuations()
     mContinueCount = 0;
 }
 
-void ForthEngine::EndLoopContinuations()
+void ForthEngine::EndLoopContinuations(int controlFlowType)  // actually takes a eShellTag
 {
     // fixup pending continue branches for current loop
     if (mContinueCount > 0)
     {
-        if (mContinueDestination != nullptr)
+        long *pDP = GetDP();
+
+        for (int i = 0; i < mContinueCount; ++i)
         {
-            for (int i = 0; i < mContinueCount; ++i)
+            if (mContinuationIx >= 2)
             {
-                if (mContinuationIx >= 2)
+                long opType = PopContinuation();
+                long target = PopContinuation();
+                if ((target & 1) != 0)
                 {
-                    long opType = PopContinuation();
-                    long *pDest = (long *)PopContinuation();
-                    *pDest = COMPILED_OP(opType, (mContinueDestination - pDest) - 1);
+                    // this is actually a break
+                    if (controlFlowType != kShellTagDo)
+                    {
+                        long *pBreak = (long *)(target & ~1);
+                        *pBreak = COMPILED_OP(opType, (pDP - pBreak) - 1);
+                    }
+                    else
+                    {
+                        SetError(kForthErrorBadSyntax, "break not allowed in do loop, use leave");
+                        break;
+                    }
                 }
                 else
                 {
-                    // report error - end loop with continuation stack empty
-                    SetError(kForthErrorBadSyntax, "end loop with continuation stack empty");
-                    break;
+                    if (controlFlowType != kShellTagCase)
+                    {
+                        if (mContinueDestination != nullptr)
+                        {
+                            long *pContinue = (long *)target;
+                            *pContinue = COMPILED_OP(opType, (mContinueDestination - pContinue) - 1);
+                        }
+                        else
+                        {
+                            SetError(kForthErrorBadSyntax, "end loop with unresolved continues");
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        SetError(kForthErrorBadSyntax, "continue not allowed in case statement");
+                        break;
+                    }
                 }
             }
-        }
-        else
-        {
-            SetError(kForthErrorBadSyntax, "end loop with unresolved continues");
+            else
+            {
+                // report error - end loop with continuation stack empty
+                SetError(kForthErrorBadSyntax, "end loop with continuation stack empty");
+                break;
+            }
         }
     }
     mContinueCount = PopContinuation();
     mContinueDestination = (long *)PopContinuation();
+}
+
+bool ForthEngine::HasPendingContinuations()
+{
+    return mContinueCount != 0;
 }
 
 

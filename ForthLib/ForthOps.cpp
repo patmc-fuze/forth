@@ -507,7 +507,7 @@ FORTHOP(loopOp)
     pEngine->CompileBuiltinOpcode( OP_DO_LOOP );
     // fill in the branch to after loop opcode
     *pDoOp = COMPILED_OP( kOpBranch, (GET_DP - pDoOp) - 1 );
-    pEngine->EndLoopContinuations();
+    pEngine->EndLoopContinuations(kShellTagDo);
 }
 
 // has precedence!
@@ -528,7 +528,7 @@ FORTHOP(loopNOp)
     pEngine->CompileBuiltinOpcode( OP_DO_LOOPN );
     // fill in the branch to after loop opcode
     *pDoOp = COMPILED_OP( kOpBranch, (GET_DP - pDoOp) - 1 );
-    pEngine->EndLoopContinuations();
+    pEngine->EndLoopContinuations(kShellTagDo);
 }
 
 // if - has precedence
@@ -758,7 +758,7 @@ FORTHOP( untilOp )
         long *pBeginOp = (long *) pShellStack->Pop();
         pEngine->CompileOpcode( kOpBranchZ, (pBeginOp - GET_DP) - 1 );
     }
-    pEngine->EndLoopContinuations();
+    pEngine->EndLoopContinuations(kShellTagBegin);
 }
 
 
@@ -806,7 +806,7 @@ FORTHOP( repeatOp )
     //*pBranch = COMPILED_OP((branchTag == kShellTagBranchZ) ? kOpBranchZ : kOpBranch, (GET_DP - pBranch));
     *pBranch = COMPILED_OP(kOpBranchZ, (GET_DP - pBranch));
     pEngine->CompileOpcode(kOpBranch, (pBeginAddress - GET_DP) - 1);
-    pEngine->EndLoopContinuations();
+    pEngine->EndLoopContinuations(kShellTagBegin);
 }
 
 // again - has precedence
@@ -822,7 +822,7 @@ FORTHOP( againOp )
     }
     long *pLoopTop =  (long *) pShellStack->Pop();
     pEngine->CompileOpcode( kOpBranch, (pLoopTop - GET_DP) - 1 );
-    pEngine->EndLoopContinuations();
+    pEngine->EndLoopContinuations(kShellTagBegin);
 }
 
 // case - has precedence
@@ -834,6 +834,7 @@ FORTHOP( caseOp )
    ForthShellStack *pShellStack = pShell->GetShellStack();
    pShellStack->Push( 0 );
    pShellStack->PushTag( kShellTagCase );
+   pEngine->StartLoopContinuations();
 }
 
 
@@ -948,6 +949,7 @@ FORTHOP( endcaseOp )
         *pEndofOp = COMPILED_OP(kOpBranch, (GET_DP - pEndofOp) - 1);
     }
     SET_SP( pSP );
+    pEngine->EndLoopContinuations(kShellTagCase);
 }
 
 FORTHOP(labelOp)
@@ -1013,6 +1015,30 @@ FORTHOP(continueIfNotOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
     pEngine->AddContinuationBranch(GET_DP, kOpBranchZ);
+    // this will be fixed when surrounding loop is finished
+    pEngine->CompileBuiltinOpcode(OP_ABORT);
+}
+
+FORTHOP(breakOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->AddBreakBranch(GET_DP, kOpBranch);
+    // this will be fixed when surrounding loop is finished
+    pEngine->CompileBuiltinOpcode(OP_ABORT);
+}
+
+FORTHOP(breakIfOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->AddBreakBranch(GET_DP, kOpBranchNZ);
+    // this will be fixed when surrounding loop is finished
+    pEngine->CompileBuiltinOpcode(OP_ABORT);
+}
+
+FORTHOP(breakIfNotOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->AddBreakBranch(GET_DP, kOpBranchZ);
     // this will be fixed when surrounding loop is finished
     pEngine->CompileBuiltinOpcode(OP_ABORT);
 }
@@ -1254,6 +1280,10 @@ FORTHOP( semiOp )
     pEngine->ClearFlag( kEngineFlagNoNameDefinition );
 
 	pEngine->GetShell()->CheckDefinitionEnd(":", "coln");
+    if (pEngine->HasPendingContinuations())
+    {
+        pEngine->SetError(kForthErrorBadSyntax, "There are unresolved continue/break branches at end of definition");
+    }
 }
 
 static void startColonDefinition(ForthCoreState* pCore, const char* pName)
@@ -7641,13 +7671,14 @@ FORTHOP(ofetchNextBop)
 	*ppA = pA;
 }
 
-FORTHOP(memcpyBop)
+FORTHOP(memcmpOp)
 {
     NEEDS(3);
-    size_t nBytes = (size_t) (SPOP);
-    const void* pSrc = (const void *) (SPOP);
-    void* pDst = (void *) (SPOP);
-    memcpy( pDst, pSrc, nBytes );
+    size_t nBytes = (size_t)(SPOP);
+    const void* pStr2 = (const void *)(SPOP);
+    void* pStr1 = (void *)(SPOP);
+    int result = memcmp(pStr1, pStr2, nBytes);
+    SPUSH(result);
 }
 
 FORTHOP(moveBop)
@@ -8320,7 +8351,6 @@ OPREF( wfetchBop );         OPREF( wstoreNextBop );     OPREF( wfetchNextBop );
 OPREF( swfetchBop );        OPREF( w2iBop );            OPREF( dstoreBop );
 OPREF( dstoreNextBop );     OPREF( dfetchNextBop );     OPREF( lfetchBop );
 OPREF( lstoreBop );         OPREF( lstoreNextBop );     OPREF( lfetchNextBop );
-OPREF( memcpyBop );
 OPREF( moveBop );           OPREF( fillBop );           OPREF( setVarActionBop );
 OPREF( getVarActionBop );   OPREF( byteVarActionBop );  OPREF( ubyteVarActionBop );
 OPREF( shortVarActionBop ); OPREF( ushortVarActionBop ); OPREF( intVarActionBop );
@@ -8718,6 +8748,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    stringVarActionBop,      "stringVarAction" ),
     NATIVE_DEF(    opVarActionBop,          "opVarAction" ),
     NATIVE_DEF(    objectVarActionBop,      "objectVarAction" ),
+    OP_DEF(        memcmpOp,                "memcmp" ),
 
     ///////////////////////////////////////////
     //  string manipulation
@@ -8857,6 +8888,9 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(continueOp,             "continue" ),
     PRECOP_DEF(continueIfOp,           "continueIf" ),
     PRECOP_DEF(continueIfNotOp,        "continueIfNot" ),
+    PRECOP_DEF(breakOp,                "break" ),
+    PRECOP_DEF(breakIfOp,              "breakIf" ),
+    PRECOP_DEF(breakIfNotOp,           "breakIfNot" ),
 
     ///////////////////////////////////////////
     //  op definition

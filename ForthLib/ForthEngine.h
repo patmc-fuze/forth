@@ -418,8 +418,11 @@ public:
     long*                   GetContinuationDestination();
     void                    SetContinuationDestination(long* pDest);
     void                    AddContinuationBranch(long* pAddr, long opType);
+    void                    AddBreakBranch(long* pAddr, long opType);
     void                    StartLoopContinuations();
-    void                    EndLoopContinuations();
+    void                    EndLoopContinuations(int controlFlowType);  // actually takes a eShellTag
+    bool                    HasPendingContinuations();
+
 protected:
     std::vector<long> mContinuations;
     long            mContinuationIx;
