@@ -1,5 +1,6 @@
+no
 seed 1498281252
-e
+enter
 get lamp
 xyzzy
 on lamp
@@ -167,6 +168,7 @@ w
 u
 s
 kill dragon
+yes
 get rug
 e
 e
@@ -306,7 +308,10 @@ w
 e
 d
 sw
+sw
 get rod
 ne
 drop rod
 sw
+get rod
+blast

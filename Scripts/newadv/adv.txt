@@ -9,11 +9,26 @@ autoforget newadv
 
 mko TraceOutStream tout
 
+: sp!
+  depth r> swap >r >r
+;
+int _spName
+: sp@
+  -> _spName
+  r> r> swap >r depth 1-
+  if(2dup <>)
+    "Stack mismatch in " %s _spName %s %bl %d %bl %d %bl ds
+  else
+    2drop
+  endif
+;
+alias sp? sp@
+
 : spoo
-  0 $word
+  0 $word -> ptrTo byte msg
   d[
     pushConsoleOut(tout)
-    %s %nl ds
+    msg %s %nl ds
     popConsoleOut 2drop
   ]d
 ; immediate spoo
@@ -422,19 +437,17 @@ requires words
 spoo after words
 
 : goBody
-//0 setTrace
-  d[ ." before build_vocabulary" cr   ds ]d
+  // ." before build_vocabulary" cr   ds 
   build_vocabulary
-  d[ ." before build_travel_table" cr  ds ]d
+  // ." before build_travel_table" cr  ds 
   build_travel_table
-  d[ ." before build_hints" cr  ds ]d
+  // ." before build_hints" cr  ds 
   build_hints
-  d[ ." before build_object_table" cr  ds ]d
+  // ." before build_object_table" cr  ds 
   game.build_object_table
-  d[ ." before initialSetup" cr  ds ]d
-//255 setTrace
+  // ." before initialSetup" cr  ds 
   game.initialSetup
-  d[ ." before simulate_an_adventure" cr  ds ]d
+  // ." before simulate_an_adventure" cr  ds 
   game.simulate_an_adventure
 ;
 
@@ -456,7 +469,7 @@ spoo after words
   else
     game.restoreFileName.set("adventure.sav")
   endif
-  game.restoreStream.open(game.restoreFileName.get "r")
+  game.restoreStream.open(game.restoreFileName.get "r") drop
   goBody
 ;
 

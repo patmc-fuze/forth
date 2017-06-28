@@ -91,6 +91,20 @@ class: Game extends IGame
     swap objs.place =
   ;
   
+  : showObjectsAtLocation
+    -> Location loc
+    locationToName(loc) %s " has " %s
+    places.get(loc) ->o Place place
+    place.objects -> ObjectWord objWord
+    begin
+    while(objWord NOTHING <>)
+      wordToName(objWord) %s %bl
+      objs(objWord) ->o ObjectData obj
+      obj.link -> objWord
+    repeat
+    %nl
+  ;
+
   // Return true if t is a treasure. Notice that RUG_ (the other half
   // of the schizoid rug) does not need to be a treasure. You can
   // never be carrying it; the pirate can't steal it; and its prop
@@ -134,6 +148,7 @@ class: Game extends IGame
       1 ->- holding_count
     endif
     loc -> obj.place
+    //"dropped " %s t wordToName %s " at " %s loc locationToName %s %nl
     if(loc R_INHAND =)
       1 ->+ holding_count
     elseif(loc R_LIMBO <>)
@@ -442,6 +457,7 @@ treasure before you may cross.")
     begin
       q %s
       getInputLine("\n**") -> ptrTo byte answer
+      writeToSaveFile(answer)
       if(tolower(answer c@) 'y' =)
         if(y null <>)
           y %s %nl
@@ -648,6 +664,7 @@ With that, he vanishes into the gloom.")
   // This function represents sections 161--168, 170--175 in Knuth.
   : move_dwarves_and_pirate
     -> Location loc
+    false -> bool playerWasKilled
     Dwarf dwarf
     //assert(R_LIMBO <= loc && loc <= MAX_LOC) 
     if(forbidden_to_pirate(loc)) orif(loc R_LIMBO =)
@@ -778,8 +795,7 @@ continue:
             endif
                 
             if(stick)
-              true  // goto death
-              exit
+              true -> playerWasKilled // goto death
             endif
                 
           endif
@@ -787,7 +803,7 @@ continue:
         endif // if attack
       endif  // dtotal nonzero
     endif  // else dwarfAngerLevel > 1
-    false  // the player survived this function
+    playerWasKilled
   ;
 
 
@@ -992,7 +1008,7 @@ spoo before spot_treasure
     // I'm not sure going_up is correct - how does a bool->int cast work in C99? true/false -> 0/1?
     if(and(t TREADS =  loc R_EMIST =)) 1 else 0 endif -> int going_up
     String obj_description
-    objs(t).desc.get(objs(t).prop going_up ) -> obj_description
+    objs(t).desc.get(objs(t).prop going_up +) -> obj_description
     if(objNotNull(obj_description))
       puts(obj_description.get) 
     endif
@@ -1010,7 +1026,7 @@ spoo before spot_treasure
         exit
       endif
       pitchDarkMsg -> room_description
-    elseif(place.short_desc null =) orif(mod(place.visits verbose_interval) 0=)
+    elseif(place.short_desc.get 0=) orif(mod(place.visits verbose_interval) 0=)
       place.long_desc.get -> room_description
     else
       place.short_desc.get -> room_description
@@ -1443,9 +1459,9 @@ disturbed and you cannot catch it.")
   
 spoo before attempt drop
   : attempt_drop
-   -> Location loc
-   -> ObjectWord obj
-    if(obj ROD ) andif(toting(ROD2)) andif(not(toting(ROD)))
+    -> Location loc
+    -> ObjectWord obj
+    if(obj ROD =) andif(toting(ROD2)) andif(not(toting(ROD)))
       ROD2 -> obj
     endif
 
@@ -1500,10 +1516,10 @@ gets burnt to a cinder.  The ashes blow away.")
       if(obj CAGE =) andif(objs(BIRD).prop) dropObject(BIRD loc) endif
 
       // Special cases for dropping a liquid.
-      if(obj WATER =) andif(objs(BOTTLE).prop 0 =) BOTTLE -> obj endif
+      if(obj WATER =) andif(objs(BOTTLE).prop 0=) BOTTLE -> obj endif
       if(obj OIL =) andif(objs(BOTTLE).prop 2 =) BOTTLE -> obj endif
       if(obj BOTTLE =) andif(bottle_contents NOTHING <>)
-        move(bottle_contents() R_LIMBO) 
+        move(bottle_contents R_LIMBO) 
       endif
 
       dropObject(obj loc) 
@@ -1514,7 +1530,7 @@ gets burnt to a cinder.  The ashes blow away.")
   : attempt_wave  // section 99 in Knuth
    -> Location loc
    -> ObjectWord obj
-    if(obj ROD) andif(or(loc R_EFISS = loc R_WFISS =))
+    if(obj ROD =) andif(or(loc R_EFISS = loc R_WFISS =))
         andif(toting(ROD)) andif(not(cave_is_closing))
       if(objs(FISSURE).prop)
         puts("The crystal bridge has vanished!")
@@ -2027,12 +2043,9 @@ spoo before determine_motion_instruction
     start(loc) -> ptrTo Instruction q
     begin
     while(q start(loc 1+) <)
-      if(is_forced(loc)) orif(q.mot mot =)
-        goto dtm_break1
-      endif
+      breakIf(or(is_forced(loc)  q.mot mot =))
       sizeOf Instruction ->+ q
     repeat
-label dtm_break1
     if(q start(loc 1+) =)
       // we didn't find a matching command for mot
       null  // newloc = loc at this point
@@ -2047,16 +2060,16 @@ label dtm_break1
       q.cond -> int cond
       mod(cond 100) MIN_OBJ + -> int obj
       if(cond 0=)
-        goto dtm_break2  // the usual case
+        break  // the usual case
       elseif(cond 100 <=)
-        gotoIf(pct(cond)) dtm_break2  // dwarves won't take these routes
+        breakIf(pct(cond))  // dwarves won't take these routes
       elseif(cond 200 <=)
-        gotoIf(toting(obj)) dtm_break2
+        breakIf(toting(obj))
       elseif(cond 300 <=)
-        gotoIf(is_at_loc(obj loc)) dtm_break2
+        breakIf(is_at_loc(obj loc))
       else
         cond 100 / 3- -> int propValue
-        gotoIf(objs(obj).prop  propValue <>) dtm_break2
+        breakIf(objs(obj).prop  propValue <>)
       endif
       // The verb in this instruction matches the "mot" typed by the user,
       // but the condition failed, either randomly (j < 100) or because
@@ -2069,7 +2082,6 @@ label dtm_break1
         sizeOf Instruction ->+ q
       repeat
     again
-label dtm_break2
     q
   ;
   : determine_motion_instruction
@@ -2394,6 +2406,7 @@ knives at you!  All of them get you!")
     AdventureState curState
 
     begin
+      //sp!
       Game_adventureStates.get(mCurStateNum) ->o curState
       d[
         pushConsoleOut(tout)
@@ -2404,12 +2417,14 @@ knives at you!  All of them get you!")
         popConsoleOut 2drop
       ]d
       curState.stateOp
+      //sp?(curState.name.get)
     until(or(mCurStateNum kStateQuit =  gave_up))
   ;m
   
   : stateLoopTop    // state 0
     //." >>> pirate at " dwarves.get(0).loc ref Location findEnumSymbol if(0=) "???" endif %s %nl
     // Check for interference with the proposed move to mNewLoc.
+    //showObjectsAtLocation(mLoc)
     if(cave_is_closing) andif(mNewLoc MIN_IN_CAVE <) andif(mNewLoc R_LIMBO <>)
       panic_at_closing_time
       mLoc -> mNewLoc
@@ -2432,11 +2447,13 @@ knives at you!  All of them get you!")
   ;
 
   : stateCommence    // state 1
+    int lookResult
     if(mLoc R_LIMBO =)
       setState(kStateDeath)
       exit
     endif
-    case(look_around(mLoc now_in_darkness(mLoc) mWasDark))
+    look_around(mLoc now_in_darkness(mLoc) mWasDark) -> lookResult
+    case(lookResult)
       of('p') setState(kStatePitchDark) exit endof
       of('t') setState(kStateTryMove) exit endof
     endcase
@@ -2571,12 +2588,30 @@ knives at you!  All of them get you!")
         // water and oil might be present inside the bottle or
         // as a feature of the location.
         case(check_noun_validity(mObj mLoc))
-          of('c') setState(kStateCantSeeIt) exit endof
-          of('d') DEPRESSION -> mMotion setState(kStateTryMove) exit endof
-          of('e') ENTRANCE -> mMotion setState(kStateTryMove) exit endof
-          of('f') continue endof
-          of('p') PLANT2 -> mObj endof
-          of('r') ROD2 -> mObj endof
+          of('c')
+            setState(kStateCantSeeIt)
+            exit
+          endof
+          of('d')
+            DEPRESSION -> mMotion
+            setState(kStateTryMove)
+            exit
+          endof
+          of('e')
+            ENTRANCE -> mMotion
+            setState(kStateTryMove)
+            exit
+          endof
+          of('f')
+            setState(kStateInnerLoop)
+            exit
+          endof
+          of('p')
+            PLANT2 -> mObj
+          endof
+          of('r')
+            ROD2 -> mObj
+          endof
           // of(0) endof
         endcase
         if(inWord2.base c@ 0=)
