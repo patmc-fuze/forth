@@ -5211,6 +5211,26 @@ entry moveBop
 
 ;========================================
 
+entry memcmpBop
+	;	TOS: nBytes mem2Ptr mem1Ptr
+	push	edx
+	push	esi
+    sub esp, 8      ; 16-byte align for mac
+	mov	eax, [edx]
+	push	eax
+	mov	eax, [edx+4]
+	push	eax
+	mov	eax, [edx+8]
+	push	eax
+	xcall	memcmp
+	add	esp, 20
+	pop	esi
+	pop	edx
+	add	edx, 12
+	jmp	edi
+
+;========================================
+
 entry fillBop
 	;	TOS: nBytes byteVal dstPtr
 	push	edx
@@ -6170,7 +6190,7 @@ oSFormatSub1:
 	jmp oSFormatSub1
 oSFormatSub2:
 	; all args have been copied from parameter stack to PC stack
-	; we don't remove args from parameter stack in case printf fails and we need to retry with a bigger buffer
+	mov	[ebx + FCore.SPtr], edx
 	mov	eax, [ebp + 16]         ; bufferSize
 	push eax
 	mov	eax, [ebp + 12]         ; pBuffer

@@ -7671,7 +7671,7 @@ FORTHOP(ofetchNextBop)
 	*ppA = pA;
 }
 
-FORTHOP(memcmpOp)
+FORTHOP(memcmpBop)
 {
     NEEDS(3);
     size_t nBytes = (size_t)(SPOP);
@@ -8352,6 +8352,7 @@ OPREF( swfetchBop );        OPREF( w2iBop );            OPREF( dstoreBop );
 OPREF( dstoreNextBop );     OPREF( dfetchNextBop );     OPREF( lfetchBop );
 OPREF( lstoreBop );         OPREF( lstoreNextBop );     OPREF( lfetchNextBop );
 OPREF( moveBop );           OPREF( fillBop );           OPREF( setVarActionBop );
+OPREF(memcmpBop);
 OPREF( getVarActionBop );   OPREF( byteVarActionBop );  OPREF( ubyteVarActionBop );
 OPREF( shortVarActionBop ); OPREF( ushortVarActionBop ); OPREF( intVarActionBop );
 OPREF( longVarActionBop );  OPREF( floatVarActionBop ); OPREF( doubleVarActionBop );
@@ -8734,6 +8735,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    ofetchNextBop,           "o@@++" ),
 	*/
     NATIVE_DEF(    moveBop,                 "move" ),
+    NATIVE_DEF(    memcmpBop,               "memcmp"),
     NATIVE_DEF(    fillBop,                 "fill" ),
     NATIVE_DEF(    setVarActionBop,         "varAction!" ),
     NATIVE_DEF(    getVarActionBop,         "varAction@" ),
@@ -8748,7 +8750,6 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    stringVarActionBop,      "stringVarAction" ),
     NATIVE_DEF(    opVarActionBop,          "opVarAction" ),
     NATIVE_DEF(    objectVarActionBop,      "objectVarAction" ),
-    OP_DEF(        memcmpOp,                "memcmp" ),
 
     ///////////////////////////////////////////
     //  string manipulation
