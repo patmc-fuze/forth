@@ -1475,7 +1475,11 @@ ForthClassVocabulary::DefineInstance(const char* pInstanceName, const char* pCon
         {
             mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_INT_ARRAY : OP_DO_OBJECT_ARRAY );
             pHere = mpEngine->GetDP();
-            mpEngine->AllotLongs( (nBytes * numElements) >> 2 );
+            if (!isPtr)
+            {
+                mpEngine->AddGlobalObjectVariable((ForthObject *)pHere);
+            }
+            mpEngine->AllotLongs((nBytes * numElements) >> 2);
             memset( pHere, 0, (nBytes * numElements) );
             if ( !(typeCode & kDTIsPtr) )
             {
@@ -1497,6 +1501,7 @@ ForthClassVocabulary::DefineInstance(const char* pInstanceName, const char* pCon
             {
                 // TBD: fill in vtable pointer
                 *pHere = 0;
+                mpEngine->AddGlobalObjectVariable((ForthObject *)pHere);
             }
             if ( GET_VAR_OPERATION == kVarStore )
             {

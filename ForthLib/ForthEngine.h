@@ -348,6 +348,9 @@ public:
 	// if both inText and inNumChars are null, an uninitialized space of 255 chars is allocated
 	char*					AddTempString(const char* inText = nullptr, int inNumChars = -1);
 
+    void                    AddGlobalObjectVariable(ForthObject* pObject);
+    void                    CleanupGlobalObjectVariables(long* pNewDP);
+
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char* pToken, long& value, long long& lvalue, int base, bool& isOffset, bool& isSingle );
@@ -410,6 +413,8 @@ protected:
 	ForthObject		mDefaultConsoleOutStream;
 
 	std::vector<ForthLabel> mLabels;
+
+    std::vector<ForthObject*> mGlobalObjectVariables;
 
 public:
     void                    PushContinuation(long val);

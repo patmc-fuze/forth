@@ -292,6 +292,8 @@ ForthEngine::ForthEngine()
 
 ForthEngine::~ForthEngine()
 {
+    CleanupGlobalObjectVariables(nullptr);
+
     if ( mpExtension != NULL )
     {
         mpExtension->Shutdown();
@@ -682,7 +684,9 @@ ForthEngine::ForgetOp( ulong opNumber, bool quietMode )
 {
     if ( opNumber < mpCore->numOps )
     {
-        mDictionary.pCurrent = mpCore->ops[ opNumber ];
+        long* pNewDP = mpCore->ops[opNumber];
+        CleanupGlobalObjectVariables(pNewDP);
+        mDictionary.pCurrent = pNewDP;
         mpCore->numOps = opNumber;
     }
     else
@@ -2545,8 +2549,8 @@ void ForthEngine::AddGoto(const char* inLabelName, int inBranchType, long* inBra
 }
 
 // if inText is null, string is not copied, an uninitialized space of size inNumChars+1 is allocated
-// if inNumChars is null and inText is not null, length of input string is used for temp string size
-// if both inText and inNumChars are null, an uninitialized space of 255 chars is allocated
+// if inNumChars is -1 and inText is not null, length of input string is used for temp string size
+// if both inText is null and inNumChars is -1, an uninitialized space of 255 chars is allocated
 char* ForthEngine::AddTempString(const char* inText, int inNumChars)
 {
 	// this hooha turns mpStringBufferA into multiple string buffers
@@ -2712,6 +2716,31 @@ bool ForthEngine::HasPendingContinuations()
     return mContinueCount != 0;
 }
 
+
+void ForthEngine::AddGlobalObjectVariable(ForthObject* pObject)
+{
+    mGlobalObjectVariables.push_back(pObject);
+}
+
+void ForthEngine::CleanupGlobalObjectVariables(long* pNewDP)
+{
+    int objectIndex = mGlobalObjectVariables.size() - 1;
+    while (objectIndex >= 0)
+    {
+        if (mGlobalObjectVariables[objectIndex] < (ForthObject *)pNewDP)
+        {
+            // we are done releasing objects, all remaining objects are below new DP
+            break;
+        }
+        ForthObject& o = *(mGlobalObjectVariables[objectIndex]);
+        if (o.pMethodOps != nullptr)
+        {
+            FULLY_EXECUTE_METHOD(mpCore, o, kMethodDelete);
+        }
+        objectIndex--;
+    }
+    mGlobalObjectVariables.resize(objectIndex + 1);
+}
 
 //############################################################################
 //
