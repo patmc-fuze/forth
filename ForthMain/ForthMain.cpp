@@ -161,6 +161,7 @@ int main( int argc, char* argv[], char* envp[] )
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
 	_CrtSetReportFile(_CRT_WARN, hLoggingPipe);    // or _CRTDBG_FILE_STDERR?
 	_CrtDumpMemoryLeaks();
+    _CrtSetReportMode(_CRT_WARN, 0);
 
 	return nRetCode;
 }
