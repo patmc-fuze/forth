@@ -21,6 +21,7 @@
 extern "C" {
 	extern void unimplementedMethodOp(ForthCoreState *pCore);
 	extern void illegalMethodOp(ForthCoreState *pCore);
+	extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 };
 
 namespace OStream
@@ -884,6 +885,36 @@ namespace OStream
 		METHOD_RETURN;
 	}
 
+    FORTHOP(oOutStreamPrintfMethod)
+    {
+        GET_THIS(oOutStreamStruct, pOutStream);
+        ForthEngine* pEngine = GET_ENGINE;
+        // NOTE: this could lock your thread until temp buffer is available
+        char* pBuffer = pEngine->GrabTempBuffer();
+        int numChars = oStringFormatSub(pCore, pBuffer, pEngine->GetTempBufferSize() - 1);
+        if (pOutStream->pOutFuncs == NULL)
+        {
+            ForthObject obj;
+            obj.pData = pCore->TPD;
+            obj.pMethodOps = pCore->TPM;
+            int numBytes = strlen(pBuffer);
+            for (int i = 0; i < numBytes; i++)
+            {
+                char ch = *pBuffer++;
+                SPUSH(((long)ch));
+                pEngine->FullyExecuteMethod(pCore, obj, kOutStreamPutCharMethod);
+            }
+            SPUSH((long)'\n');
+            pEngine->FullyExecuteMethod(pCore, obj, kOutStreamPutCharMethod);
+        }
+        else
+        {
+            streamStringOut(pCore, pOutStream, pBuffer);
+        }
+        pEngine->UngrabTempBuffer();
+        METHOD_RETURN;
+    }
+
 	baseMethodEntry oOutStreamMembers[] =
 	{
 		// putChar, putBytes and putString must be first 3 methods and in this order
@@ -891,6 +922,7 @@ namespace OStream
 		METHOD("putBytes", oOutStreamPutBytesMethod),
 		METHOD("putString", oOutStreamPutStringMethod),
 		METHOD("putLine", oOutStreamPutLineMethod),
+        METHOD("printf", oOutStreamPrintfMethod),
 		MEMBER_VAR("userData", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 		MEMBER_VAR("__outFuncs", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 		MEMBER_VAR("__eolChars", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),

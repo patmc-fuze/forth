@@ -26,26 +26,22 @@ extern "C" {
 
 namespace OSystem
 {
-	// TODO: delete gSystemSingleton object at shutdown
-	static ForthObject gSystemSingleton;
-
 	//////////////////////////////////////////////////////////////////////
 	///
 	//                 OSystem
 	//
 
-	FORTHOP(oSystemNew)
+    static oSystemStruct gSystemSingleton;
+
+    FORTHOP(oSystemNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		if (gSystemSingleton.pMethodOps == nullptr)
-		{
-			ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-			MALLOCATE_OBJECT(oSystemStruct, pSystem, pClassVocab);
-			pSystem->refCount = 1000000;
-			gSystemSingleton.pMethodOps = pPrimaryInterface->GetMethods();
-			gSystemSingleton.pData = reinterpret_cast<long *>(pSystem);
-		}
-		PUSH_OBJECT(gSystemSingleton);
+        ForthObject obj;
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
+        gSystemSingleton.refCount = 1000000;
+        obj.pMethodOps = pPrimaryInterface->GetMethods();
+        obj.pData = reinterpret_cast<long *>(&gSystemSingleton);
+        PUSH_OBJECT(obj);
 	}
 
 	FORTHOP(oSystemDeleteMethod)
@@ -270,8 +266,6 @@ namespace OSystem
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		gSystemSingleton.pMethodOps = nullptr;
-		gSystemSingleton.pData = nullptr;
 		pEngine->AddBuiltinClass("System", kBCISystem, kBCIObject, oSystemMembers);
 	}
 

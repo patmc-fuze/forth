@@ -234,8 +234,9 @@ ForthEngine::ForthEngine()
 , mpStringBufferA( NULL )
 , mpStringBufferANext( NULL )
 , mStringBufferASize( 0 )
-, mpStringBufferB( NULL )
-, mpThreads( NULL )
+, mpTempBuffer(NULL)
+, mpTempBufferLock(NULL)
+, mpThreads(NULL)
 , mpInterpreterExtension( NULL )
 , mpMainThread( NULL )
 , mFastMode( true )
@@ -313,11 +314,21 @@ ForthEngine::~ForthEngine()
         delete mpTypesManager;
 		delete mpOpcodeCompiler;
         delete [] mpStringBufferA;
-        delete [] mpStringBufferB;
+        delete [] mpTempBuffer;
     }
     delete [] mpErrorString;
 
-	ForthForgettable* pForgettable = ForthForgettable::GetForgettableChainHead();
+    if (mpTempBufferLock != nullptr)
+    {
+#ifdef WIN32
+        DeleteCriticalSection(mpTempBufferLock);
+#else
+        pthread_mutex_destroy(mpTempBufferLock);
+#endif
+        delete mpTempBufferLock;
+    }
+
+    ForthForgettable* pForgettable = ForthForgettable::GetForgettableChainHead();
     while ( pForgettable != NULL )
     {
         ForthForgettable* pNextForgettable = pForgettable->GetNextForgettable();
@@ -399,7 +410,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
     mpLocalVocab = new ForthLocalVocabulary( "locals", NUM_LOCALS_VOCAB_VALUE_LONGS );
 	mStringBufferASize = 3 *  MAX_STRING_SIZE;
     mpStringBufferA = new char[mStringBufferASize];
-    mpStringBufferB = new char[MAX_STRING_SIZE];
+    mpTempBuffer = new char[MAX_STRING_SIZE];
 
     mpMainThread = CreateAsyncThread( 0, MAIN_THREAD_PSTACK_LONGS, MAIN_THREAD_RSTACK_LONGS );
 	mpCore = mpMainThread->GetThread(0)->GetCore();
@@ -476,10 +487,33 @@ ForthEngine::Reset( void )
     ResetContinuations();
     mpNewestEnum = nullptr;
 
-
 	mTokenStack.Clear();
 
-    if ( mpExtension != NULL )
+#ifdef WIN32
+    if (mpTempBufferLock != nullptr)
+    {
+        DeleteCriticalSection(mpTempBufferLock);
+        delete mpTempBufferLock;
+    }
+    mpTempBufferLock = new CRITICAL_SECTION();
+    InitializeCriticalSection(mpTempBufferLock);
+#else
+    if (mpTempBufferLock != nullptr)
+    {
+        pthread_mutex_destroy(mpTempBufferLock);
+        delete mpTempBufferLock;
+    }
+    mpTempBufferLock = new pthread_mutex_t;
+    pthread_mutexattr_t mutexAttr;
+    pthread_mutexattr_init(&mutexAttr);
+    pthread_mutexattr_settype(&mutexAttr, PTHREAD_MUTEX_RECURSIVE);
+
+    pthread_mutex_init(mpTempBufferLock, &mutexAttr);
+
+    pthread_mutexattr_destroy(&mutexAttr);
+#endif
+
+    if (mpExtension != NULL)
     {
         mpExtension->Reset();
     }
@@ -2561,7 +2595,7 @@ char* ForthEngine::AddTempString(const char* inText, int inNumChars)
 	{
 		inNumChars = (inText == nullptr) ? 255 : strlen(inText);
 	}
-	if ((mStringBufferASize - (mpStringBufferANext - mpStringBufferA)) <= (inNumChars + 2))
+	if (UnusedTempStringSpace() <= (inNumChars + 2))
 	{
 		mpStringBufferANext = mpStringBufferA;
 	}
@@ -2579,7 +2613,6 @@ char* ForthEngine::AddTempString(const char* inText, int inNumChars)
 
 	return result;
 }
-
 
 //############################################################################
 //
@@ -2735,11 +2768,33 @@ void ForthEngine::CleanupGlobalObjectVariables(long* pNewDP)
         ForthObject& o = *(mGlobalObjectVariables[objectIndex]);
         if (o.pMethodOps != nullptr)
         {
-            FULLY_EXECUTE_METHOD(mpCore, o, kMethodDelete);
+            ForthClassObject* pClassObj = (ForthClassObject *)(o.pMethodOps[-1]);
+            TraceOut("Releasing object of class %s, refcount %d\n", pClassObj->pVocab->GetName(), o.pData[0]);
+            SAFE_RELEASE(mpCore, o);
         }
         objectIndex--;
     }
     mGlobalObjectVariables.resize(objectIndex + 1);
+}
+
+char* ForthEngine::GrabTempBuffer()
+{
+#ifdef WIN32
+    EnterCriticalSection(mpTempBufferLock);
+#else
+    pthread_mutex_lock(mpTempBufferLock);
+#endif
+
+    return mpTempBuffer;
+}
+
+void ForthEngine::UngrabTempBuffer()
+{
+#ifdef WIN32
+    EnterCriticalSection(mpTempBufferLock);
+#else
+    pthread_mutex_lock(mpTempBufferLock);
+#endif
 }
 
 //############################################################################

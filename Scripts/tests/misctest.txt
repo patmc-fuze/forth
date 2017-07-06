@@ -1,5 +1,5 @@
-autoforget misc_tests
-: misc_tests ;
+autoforget MISCTEST
+: MISCTEST ;
 
 // these are less rigorous tests than those in forthtest, they are mainly looking for compile failures or runtime exceptions
 : section ds " ======================== " dup %s 0 $word %s %s %nl ;

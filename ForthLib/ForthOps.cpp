@@ -3281,8 +3281,8 @@ FORTHOP(format32Op)
 
     ForthEngine *pEngine = GET_ENGINE;
     char* pFmt = (char *) (SPOP);
-	char *pDst = pEngine->GetTmpStringBuffer();
-	int buffLen = pEngine->GetTmpStringBufferSize();
+    int buffLen = 32;
+    char *pDst = pEngine->AddTempString(nullptr, buffLen);
 	int len = strlen( pFmt );
 
 	if ( len < 2 ) 
@@ -3321,8 +3321,8 @@ FORTHOP( format64Op )
 
     ForthEngine *pEngine = GET_ENGINE;
     char* pFmt = (char *) (SPOP);
-	char *pDst = GET_ENGINE->GetTmpStringBuffer();
-	int buffLen = pEngine->GetTmpStringBufferSize();
+    int buffLen = 64;
+    char *pDst = pEngine->AddTempString(nullptr, buffLen);
 	int len = strlen( pFmt );
 
 	if ( len < 2 ) 
@@ -3353,6 +3353,17 @@ FORTHOP( format64Op )
 #endif
 		SPUSH( (long) pDst );
 	}
+}
+
+FORTHOP(addTempStringOp)
+{
+    NEEDS(2);
+
+    ForthEngine *pEngine = GET_ENGINE;
+    long stringSize = SPOP;
+    char* pSrc = (char *)(SPOP);
+    char *pDst = pEngine->AddTempString(pSrc, stringSize);
+    SPUSH((long)pDst);
 }
 
 #ifdef ASM_INNER_INTERPRETER
@@ -3716,26 +3727,6 @@ FORTHOP( _filenoOp )
 	FILE* pFile = (FILE *) SPOP;
 	int result = pCore->pFileFuncs->fileNo( pFile );
     SPUSH( result );
-}
-
-FORTHOP( tmpnamOp )
-{
-	char* pOutName = (char *)__MALLOC(L_tmpnam + 1);
-	char* pDstName = pOutName;
-#if !defined(MACOSX)
-	// on OSX, the tmp filename is an absolute path, on windows and linux it is in current directory
-	// I prepend a dot in windows/linux to make the file hidden (I think)
-	*pDstName++ = '.';
-#endif
-	if (pCore->pFileFuncs->getTmpnam(pDstName) == NULL)
-	{
-		ForthEngine *pEngine = GET_ENGINE;
-		SET_ERROR(kForthErrorFileOpen);
-        pEngine->AddErrorText( "system: failure creating standard out tempfile name" );
-		__FREE(pOutName);
-		pOutName = NULL;
-	}
-	SPUSH((long) pOutName);
 }
 
 FORTHOP( fflushOp )
@@ -4434,20 +4425,20 @@ FORTHOP( strftimeOp )
     timeinfo = localtime ( &rawtime );
     // Www Mmm dd yyyy (weekday, month, day, year)
 	errno = 0;
-	strftime(buffer, bufferSize, fmt, timeinfo);
+    strftime(buffer, bufferSize, fmt, timeinfo);
 	if (errno)
 	{
-		GET_ENGINE->SetError(kForthErrorBadVarOperation);
+		GET_ENGINE->SetError(kForthErrorBadParameter);
 	}
 }
 
-FORTHOP( timeAndDateOp )
+FORTHOP( splitTimeOp )
 {
-    time_t rawtime;
-    time( &rawtime );
-    struct tm* brokenDownTime = gmtime( &rawtime );
-    SPUSH( brokenDownTime->tm_year );
-    SPUSH( brokenDownTime->tm_mon );
+    double dtime = DPOP;
+    time_t rawtime = *((time_t*)&dtime);
+    struct tm* brokenDownTime = localtime(&rawtime);
+    SPUSH( brokenDownTime->tm_year + 1900 );
+    SPUSH( brokenDownTime->tm_mon + 1 );
     SPUSH( brokenDownTime->tm_mday );
     SPUSH( brokenDownTime->tm_hour );
     SPUSH( brokenDownTime->tm_min );
@@ -9017,6 +9008,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    printDoubleGOp,         "%2g" ),
     OP_DEF(    format32Op,             "format" ),
     OP_DEF(    format64Op,             "2format" ),
+    OP_DEF(    addTempStringOp,        "addTempString"),
     OP_DEF(    fprintfOp,              "fprintf" ),
     OP_DEF(    snprintfOp,             "snprintf" ),
     OP_DEF(    fscanfOp,               "fscanf" ),
@@ -9107,7 +9099,7 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     OP_DEF(    timeOp,                 "time" ),
     OP_DEF(    strftimeOp,             "strftime" ),
-    OP_DEF(    timeAndDateOp,          "time&date" ),
+    OP_DEF(    splitTimeOp,            "splitTime" ),
     OP_DEF(    millitimeOp,            "ms@" ),
     OP_DEF(    millisleepOp,           "ms" ),
 
@@ -9132,7 +9124,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    _dupOp,                 "_dup" ),
     OP_DEF(    _dup2Op,                "_dup2" ),
     OP_DEF(    _filenoOp,              "_fileno" ),
-    OP_DEF(    tmpnamOp,               "tmpnam" ),
     OP_DEF(    shellRunOp,             "_shellRun" ),
     OP_DEF(    byeOp,                  "bye" ),
     OP_DEF(    argvOp,                 "argv" ),

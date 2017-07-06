@@ -75,6 +75,8 @@ setTrace( 0 )
 : count dup 1+ swap c@ ;
 : 2, here 8 allot 2! ;
 
+: time&date splitTime(time) ;
+
 //######################################################################
 // features support
 
@@ -415,12 +417,25 @@ addHelp cd	cd BLAH			change working directory to BLAH
   endif
 ;
 
-// TOS: permissionStr filePrefix
-: makeTempfile
-  -> ptrTo byte permissionStr
-  -> ptrTo byte filePrefix
-  malloc(strlen(filePrefix) 32+) -> ptrTo byte fileName
-  //TODOOOOO!
+// creates a temporary filename that does not currently exist in current directory
+// the name is very easily predictable, if you need a name that is secure against hacks
+// replace this op with one of your own
+: makeTempfileName
+  mko String timeStr
+  timeStr.resize(128)
+  strftime(timeStr.get timeStr.size "%Y%m%d%H%M%S" time)
+  timeStr.fixup
+  mko String resultStr
+  begin
+    resultStr.set(timeStr.get)
+    resultStr.append(format(rand "%d"))
+    resultStr.append(".tmp")
+  until(not(fexists(resultStr.get)))
+
+  addTempString(resultStr.get resultStr.length)
+
+  oclear resultStr
+  oclear timeStr
 ;
 
 : $shellRun
@@ -438,13 +453,13 @@ addHelp cd	cd BLAH			change working directory to BLAH
   -1   -> int result
   
   // create temp filenames for stdout and stderr streams
-  tmpnam -> outName
+  makeTempfileName -> outName
   if( outName 0= )
     error( "$shellRun: failure creating standard out tempfile name" )
     false -> okay
   endif
   
-  tmpnam -> errName
+  makeTempfileName -> errName
   if( errName 0= )
     error( "$shellRun: failure creating standard error tempfile name" )
     false -> okay
@@ -563,11 +578,9 @@ addHelp cd	cd BLAH			change working directory to BLAH
   endif
   if( outName )
 	remove( outName ) drop
-    free( outName )
   endif
   if( errName )
 	remove( errName ) drop
-    free( errName )
   endif
   free( buffer )
   

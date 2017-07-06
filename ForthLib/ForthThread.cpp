@@ -1067,9 +1067,9 @@ namespace OLock
         DeleteCriticalSection(pLockStruct->pLock);
 #else
 		pthread_mutex_destroy(pLockStruct->pLock);
-		delete pLockStruct->pLock;
 #endif
-		delete pLockStruct->pBlockedThreads;
+        delete pLockStruct->pLock;
+        delete pLockStruct->pBlockedThreads;
 		FREE_OBJECT(pLockStruct);
 		METHOD_RETURN;
 	}

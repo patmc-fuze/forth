@@ -1,6 +1,6 @@
-autoforget builtinClassTest
+autoforget BUILTIN_CLASS_TEST
 
-: builtinClassTest ;
+: BUILTIN_CLASS_TEST ;
 
 // Object: delete show getClass compare(OBJ) keep release refCount
 // Class: delete create getParent getName getVocabulary getInterface("INTERFACE_NAME") setNew(OP)

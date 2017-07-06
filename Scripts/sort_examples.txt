@@ -3,9 +3,9 @@
 
 // insertion, selection, bubble, shell, comb, quick, heap, merge sorts
 
-autoforget sort_examples
+autoforget SORT_EXAMPLES
 
-: sort_examples ;
+: SORT_EXAMPLES ;
 
 false extParam bool beNoisy   // set beNoisy to true to display sort array before and after sort
 3000 extParam int numElems

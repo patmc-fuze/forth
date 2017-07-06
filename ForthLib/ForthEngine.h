@@ -281,9 +281,11 @@ public:
     inline void             SetFeature( long features ) { mFeatures |= features; };
     inline void             ClearFeature( long features ) { mFeatures &= (~features); };
     inline long             CheckFeature( long features ) { return mFeatures & features; };
-    inline char *           GetTmpStringBuffer( void ) { return mpStringBufferB; };
-	inline int				GetTmpStringBufferSize( void ) { return MAX_STRING_SIZE; };
-    inline void             SetArraySize( long numElements )        { mNumElements = numElements; };
+    inline char *           GetTempBuffer(void) { return mpTempBuffer; };
+	inline int				GetTempBufferSize( void ) { return MAX_STRING_SIZE; };
+    char *                  GrabTempBuffer(void);
+    void                    UngrabTempBuffer(void);
+    inline void             SetArraySize(long numElements)        { mNumElements = numElements; };
     inline long             GetArraySize( void )                    { return mNumElements; };
     inline ForthEnumInfo*   GetNewestEnumInfo(void) { return mpNewestEnum; };
     void                    SetNewestEnumInfo(ForthEnumInfo *pInfo) { mpNewestEnum = pInfo; };
@@ -347,6 +349,7 @@ public:
 	// if inNumChars is null and inText is not null, strlen(inText) is used for temp string size
 	// if both inText and inNumChars are null, an uninitialized space of 255 chars is allocated
 	char*					AddTempString(const char* inText = nullptr, int inNumChars = -1);
+    inline long             UnusedTempStringSpace() { return (mStringBufferASize - (mpStringBufferANext - mpStringBufferA)); }
 
     void                    AddGlobalObjectVariable(ForthObject* pObject);
     void                    CleanupGlobalObjectVariables(long* pNewDP);
@@ -380,7 +383,13 @@ protected:
     char        *mpStringBufferA;       // string buffer A is used for quoted strings when in interpreted mode
     char        *mpStringBufferANext;   // one char past last used in A
     int         mStringBufferASize;
-    char        *mpStringBufferB;       // string buffer B is the buffer which string IO ops append to
+
+    char        *mpTempBuffer;
+#ifdef WIN32
+    CRITICAL_SECTION* mpTempBufferLock;
+#else
+    pthread_mutex_t* mpTempBufferLock;
+#endif
 
     long        mCompileState;          // true iff compiling
 
@@ -446,6 +455,7 @@ protected:
 #else
     struct timeb    mStartTime;
 #endif
+
     ForthExtension* mpExtension;
 
     static ForthEngine* mpInstance;

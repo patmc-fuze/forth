@@ -1,8 +1,8 @@
 requires numberio
 requires randoms
 
-autoforget tree_examples
-: tree_examples ;
+autoforget TREE_EXAMPLES
+: TREE_EXAMPLES ;
 
 false -> bool beNoisy   // set beNoisyto true to display sort array before and after sort
 

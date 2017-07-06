@@ -1,4 +1,7 @@
 
+autoforget TEST
+: TEST ;
+
 FileOutStream testFileOut
 
 scSetShowID(false)
@@ -20,37 +23,41 @@ scSetShowID(false)
 ;
 
 runtest evil
-forget evilVM
+forget EVIL
 
 runtest async_philosophers
 go
-forget asyncPhilosophers
+forget ASYNC_PHILOSOPHERS
 
 runtest philosophers
 go
-forget philosophers
+forget PHILOSOPHERS
 
 200 -> int numElems
 runtest sort_examples
 go
-forget sort_examples
+forget SORT_EXAMPLES
 
 runtest tree_examples
 go
-forget tree_examples
+forget TREE_EXAMPLES
 
-cd adv
+cd newadv
 runtest adv
+forget ADV
 cd ..
 
 cd atc
 runtest atc
+forget ATC
 cd ..
 
 cd system
+: _TEST_ ;
 runtest hersheyfont
 runtest file
 runtest rbtree
+forget _TEST_
 cd ..
 
 cd tests
@@ -59,17 +66,22 @@ runtest forthtest
 
 runtest biclasstest
 cleanup
+forget BUILTIN_CLASS_TEST
 
 runtest rctest
 test
 cleanup
+forget RCTEST
 
 runtest structtest
+forget STRUCTTEST
 
 runtest misctest
+forget MISCTEST
 
 runtest ansitest
 
+forget TEST
 cd ..
 
 

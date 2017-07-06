@@ -1481,9 +1481,9 @@ ForthShell::CheckDefinitionEnd(const char* pDisplayName, const char* pFourCharCo
 	{
 		long defineType = mpStack->Pop();
 		long expectedDefineType = FourCharToLong(pFourCharCode);
-		char* definedSymbol = mpEngine->GetTmpStringBuffer();
+        char definedSymbol[128];
 		definedSymbol[0] = '\0';
-		bool gotString = mpStack->PopString(definedSymbol, mpEngine->GetTmpStringBufferSize());
+		bool gotString = mpStack->PopString(definedSymbol, sizeof(definedSymbol) - 1);
 
 		if (gotString && (defineType == expectedDefineType))
 		{

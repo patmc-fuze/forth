@@ -2,8 +2,8 @@ requires randoms
 
 //true -> compileDebug
 
-autoforget newadv
-: newadv ;
+autoforget ADV
+: ADV ;
 
 0 setTrace
 

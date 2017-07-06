@@ -1,6 +1,6 @@
-autoforget evilVM
+autoforget EVIL
 
-: evilVM ;
+: EVIL ;
 
 class: evil
 	// implements the 'evil' language - see http://web.archive.org/web/20070103000858/www1.pacific.edu/~twrensch/evil/index.html

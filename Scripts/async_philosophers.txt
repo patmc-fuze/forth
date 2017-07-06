@@ -1,6 +1,6 @@
 
-autoforget asyncPhilosophers
-: asyncPhilosophers ;
+autoforget ASYNC_PHILOSOPHERS
+: ASYNC_PHILOSOPHERS ;
 
 mko Array philosophers
 mko Array forks
