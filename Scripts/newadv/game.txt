@@ -1026,7 +1026,7 @@ spoo before spot_treasure
         exit
       endif
       pitchDarkMsg -> room_description
-    elseif(place.short_desc.get 0=) orif(mod(place.visits verbose_interval) 0=)
+    elseif(place.short_desc.length 0=) orif(mod(place.visits verbose_interval) 0=)
       place.long_desc.get -> room_description
     else
       place.short_desc.get -> room_description
@@ -2554,9 +2554,9 @@ knives at you!  All of them get you!")
       // Sometimes "water" and "oil" are used as verbs.
       if(streq(inWord2.base "plant")) andif(there(PLANT mLoc))
         strcpy(inWord2.base "pour")
-        if(streq(inWord2.base "door")) andif(there(RUSTY_DOOR mLoc))
-          strcpy(inWord2.base "pour")
-        endif
+      endif
+      if(streq(inWord2.base "door")) andif(there(RUSTY_DOOR mLoc))
+        strcpy(inWord2.base "pour")
       endif
     endif
     setState(kStateParse)
