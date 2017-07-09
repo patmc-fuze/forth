@@ -409,7 +409,6 @@ protected:
     long            mCompileFlags;
     long            mFeatures;
     long            mNumElements;       // number of elements in next array declared
-	long			mTraceFlags;
 
 	traceOutRoutine	mTraceOutRoutine;
 	void*			mpTraceOutData;

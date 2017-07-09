@@ -106,6 +106,7 @@ struct ForthCoreState
 
     long                base;               // output base
     ulong               signedPrintMode;   // if numers are printed as signed/unsigned
+    long                traceFlags;
     ulong               scratch[4];
 };
 

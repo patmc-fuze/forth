@@ -84,7 +84,6 @@ ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, 
 
     mCore.pDictionary = NULL;
 
-	SPEW_SHELL("ForthThread pCore=%p NULLing consoleOutStream\n", &mCore);
 	mCore.consoleOutStream.pData = NULL;
 	mCore.consoleOutStream.pMethodOps = NULL;
 
@@ -169,6 +168,7 @@ ForthThread::Reset( void )
     mCore.base = 10;
     mCore.signedPrintMode = kPrintSignedDecimal;
 	mCore.IP = &(mOps[0]);
+    mCore.traceFlags = 0;
 	//mCore.IP = nullptr;
 
 	if (mpShowContext != NULL)
