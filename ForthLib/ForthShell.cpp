@@ -768,6 +768,59 @@ ForthShell::ReportError( void )
 	}
 }
 
+void ForthShell::ReportWarning(const char* pMessage)
+{
+    char errorBuf1[512];
+    char errorBuf2[512];
+    const char *pLastInputToken;
+
+    pLastInputToken = mpEngine->GetLastInputToken();
+    ForthCoreState* pCore = mpEngine->GetCoreState();
+
+    if (pLastInputToken != NULL)
+    {
+        sprintf(errorBuf2, "WARNING %s, last input token: <%s> last IP 0x%x", pMessage, pLastInputToken, pCore->IP);
+    }
+    else
+    {
+        sprintf(errorBuf2, "WARNING %s", pMessage);
+    }
+    int lineNumber;
+    const char* fileName = mpInput->GetFilenameAndLineNumber(lineNumber);
+    if (fileName != NULL)
+    {
+        sprintf(errorBuf1, "%s at line number %d of %s", errorBuf2, lineNumber, fileName);
+    }
+    else
+    {
+        strcpy(errorBuf1, errorBuf2);
+    }
+    SPEW_SHELL("%s", errorBuf1);
+    CONSOLE_STRING_OUT(errorBuf1);
+    const char *pBase = mpInput->GetBufferBasePointer();
+    pLastInputToken = mpInput->GetBufferPointer();
+    if ((pBase != NULL) && (pLastInputToken != NULL))
+    {
+        char* pBuf = errorBuf1;
+        *pBuf++ = '\n';
+        while (pBase < pLastInputToken)
+        {
+            *pBuf++ = *pBase++;
+        }
+        *pBuf++ = '{';
+        *pBuf++ = '}';
+        char *pBufferLimit = &(errorBuf1[0]) + (sizeof(errorBuf1) - 2);
+        while ((*pLastInputToken != '\0') && (pBuf < pBufferLimit))
+        {
+            *pBuf++ = *pLastInputToken++;
+        }
+        *pBuf++ = '\n';
+        *pBuf++ = '\0';
+    }
+    SPEW_SHELL("%s", errorBuf1);
+    CONSOLE_STRING_OUT(errorBuf1);
+}
+
 // return true IFF done parsing line - in this case no string is returned in pInfo
 // this is a stripped down version of ParseToken used just for building string tables
 // TODO!!! there is nothing to keep us from writing past end of pTokenBuffer
@@ -993,12 +1046,16 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                      break;
 
                   case '(':
-                     if ( (pEndSrc == pSrc) || mpEngine->CheckFeature( kFFParenIsComment ) )
+                     if ((pEndSrc == pSrc) || mpEngine->CheckFeature(kFFParenIsComment))
                      {
                          // paren at start of token is part of token (allows old forth-style inline comments to work)
+                         if (mpEngine->CheckFeature(kFFParenIsComment) == 0)
+                         {
+                             ReportWarning("Possibly misplaced parentheses");
+                         }
                          *pDst++ = *pEndSrc++;
                      }
-					 else if (mpEngine->CheckFeature(kFFParenIsExpression))
+                     else if (mpEngine->CheckFeature(kFFParenIsExpression))
                      {
                          // push accumulated token (if any) onto shell stack
 						 advanceInputBuffer = false;

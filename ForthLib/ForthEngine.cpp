@@ -70,6 +70,15 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 	}
 }
 
+void traceOp(ForthCoreState* pCore)
+{
+    if (pCore->traceFlags != 0)
+    {
+        ForthEngine* pEngine = (ForthEngine *)(pCore->pEngine);
+        pEngine->TraceOp(pCore->IP);
+    }
+}
+
 //#ifdef TRACE_INNER_INTERPRETER
 
 // provide trace ability for builtin ops
@@ -246,7 +255,6 @@ ForthEngine::ForthEngine()
 , mpExtension( NULL )
 , mpCore( NULL )
 , mpShell( NULL )
-, mTraceFlags( kLogShell )
 , mTraceOutRoutine(defaultTraceOutRoutine)
 , mpTraceOutData( NULL )
 , mpOpcodeCompiler( NULL )
@@ -2129,7 +2137,7 @@ ForthEngine::ExecuteOps(ForthCoreState* pCore, long *pOps)
     savedIP = pCore->IP;
     pCore->IP = pOps;
 #ifdef ASM_INNER_INTERPRETER
-    bool bFast = mFastMode && ((mTraceFlags & kLogInnerInterpreter) == 0);
+    bool bFast = mFastMode && ((GetTraceFlags() & kLogInnerInterpreter) == 0);
 #endif
 	do
 	{
@@ -2302,7 +2310,6 @@ void ForthEngine::ResetConsoleOut( ForthCoreState* pCore )
 	//  without doing a release, and possibly leak a stream object, or we do a release
 	//  and risk a crash, since ResetConsoleOut is called when an error is detected,
 	//  so the object we are releasing may already be deleted or otherwise corrupted.
-	SPEW_SHELL("ResetConsoleOut pCore=%p  pMethods=%p  pData=%p\n", pCore, mDefaultConsoleOutStream.pMethodOps, mDefaultConsoleOutStream.pData);
 	OBJECT_ASSIGN(pCore, pCore->consoleOutStream, mDefaultConsoleOutStream);
 	pCore->consoleOutStream = mDefaultConsoleOutStream;
 }
@@ -2316,12 +2323,12 @@ void ForthEngine::ConsoleOut( const char* pBuff )
 
 long ForthEngine::GetTraceFlags( void )
 {
-	return mTraceFlags;
+	return mpCore->traceFlags;
 }
 
 void ForthEngine::SetTraceFlags( long flags )
 {
-	mTraceFlags = flags;
+	mpCore->traceFlags = flags;
 }
 
 ////////////////////////////

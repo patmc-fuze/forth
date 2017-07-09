@@ -150,7 +150,8 @@ STRUC FCore
     .innerLoop			RESD 1
     .consoleOutStream	RESD 2
     .base				RESD 1
-    .signedPrintMode		RESD 1
+    .signedPrintMode	RESD 1
+    .traceFlags			RESD 1
     .scratch            RESD 4
 ENDSTRUC 
 

@@ -180,8 +180,9 @@ protected:
     // parse next string from input stream into mTokenBuff, padded with 0's up
     // to next longword boundary
     bool                    ParseString( ForthParseInfo *pInfo );
-	void                    ReportError( void );
-	void                    ErrorReset( void );
+    void                    ReportError(void);
+    void                    ReportWarning(const char* pMessage);
+    void                    ErrorReset(void);
 
     void                    DeleteEnvironmentVars();
     void                    DeleteCommandLine();
