@@ -169,7 +169,7 @@ filePutString	=		48
 	.global rpushBop, rpopBop, rdropBop, rpBop, r0Bop, dupBop, checkDupBop, swapBop, overBop
 	.global rotBop, tuckBop, pickBop, spBop, s0Bop, fpBop, ddupBop, dswapBop, ddropBop, doverBop, drotBop,
 	.global storeBop, cstoreBop, cfetchBop, scfetchBop, c2iBop, wstoreBop, wfetchBop, swfetchBop, w2iBop, dstoreBop
-	.global	moveBop, fillBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop
+	.global	moveBop, memcmpBop, fillBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop
 	.global	strchrBop, strrchrBop, strcmpBop, stricmpBop, strstrBop, strtokBop, initStringBop, strFixupBop
 	.global doUByteBop, doUByteArrayBop, doUShortBop, doUShortArrayBop
 	.global dsinBop, dasinBop, dcosBop, dacosBop, dtanBop, datanBop, datan2Bop, dexpBop, dlnBop, dlog10Bop, dpowBop
@@ -4582,11 +4582,25 @@ moveBop:
 	@	TOS is #bytes, TOS-1 is dst, TOS-2 is src
 	push	{rcore, lr}
 	ldmia	rsp!, {r0, r1, r3}		@ r0 = #bytes, r1 = dst r3 = src
-	@ memcpy takes r0 = dst, r1 = src, r2 = #bytes
+	@ memmove takes r0 = dst, r1 = src, r2 = #bytes
 	mov	r2, r0
 	mov	r0, r1
 	mov	r1, r3
 	bl	memmove
+	pop	{rcore, lr}
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  memcmp  @@@@@@@@@@@@@@@@@
+
+memcmpBop:
+	@	TOS is #bytes, TOS-1 is mem2ptr, TOS-2 is mem1ptr
+	push	{rcore, lr}
+	ldmia	rsp!, {r0, r1, r3}		@ r0 = #bytes, r1 = mem1 r3 = mem2
+	@ memcmp takes r0 = mem1, r1 = mem2, r2 = #bytes
+	mov	r2, r0
+	mov	r0, r1
+	mov	r1, r3
+	bl	memcmp
 	pop	{rcore, lr}
 	bx	lr
 	
@@ -5117,7 +5131,7 @@ oSFormatSub2:
 	@ r0 = bufferPtr   r1 = bufferSize   r2 = format   r3 = pointer to args
 	bl	vsnprintf
 
-	@ leave args on param stack since we may need to retry printf is overflow occurs
+	str rsp, [rcore, #spsave]
 	ldmia	rrp!, {sp}		@ cleanup PC stack
 	pop	{r1-r3, rcore, rsp, rrp, lr}
 	bx	lr
@@ -5638,11 +5652,17 @@ methodWithTOSType:
 	stmdb	rrp!, {r2, r3}
 	@ set this data,methods from TOS	
 	ldmia	rsp!, {r2, r3}
+	orrs r2, r2
+	beq	badMethod
 	str	r2, [rcore, #tpm]
 	str	r3, [rcore, #tpd]
 	@ get method opcode
 	ldr	r0, [r2, r1, lsl #2]
 	b	interpLoopExecuteEntry
+
+badMethod:
+	mov	r0, #kForthErrorIllegalMethod
+	b	interpLoopErrorExit
 	
 @ squished float literal
 squishedFloatType:
