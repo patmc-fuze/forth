@@ -18,6 +18,8 @@
 
 ForthShowContext::ForthShowContext()
 	: mDepth(0)
+	, mShowIDElement(true)
+	, mShowRefCount(true)
 {
 	mpEngine = ForthEngine::GetInstance();
 }

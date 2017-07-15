@@ -7,11 +7,7 @@
   -> WordClass wc
   -> int m
   -> ptrTo byte w
-  d[
-    pushConsoleOut(tout)
-    "new_word " %s w %s %bl m %d %nl
-    popConsoleOut 2drop
-  ]d
+  d[ t{  "new_word " %s w %s %bl m %d %nl  }t ]d
   new Word -> Word word
   word.init(w m wc)
   game.words.push(word)

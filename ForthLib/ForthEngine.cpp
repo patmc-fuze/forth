@@ -70,14 +70,22 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 	}
 }
 
-void traceOp(ForthCoreState* pCore)
+extern "C"
 {
-    if (pCore->traceFlags != 0)
-    {
-        ForthEngine* pEngine = (ForthEngine *)(pCore->pEngine);
-        pEngine->TraceOp(pCore->IP);
-    }
-}
+	void traceOp(ForthCoreState* pCore)
+	{
+		if (pCore->traceFlags != 0)
+		{
+		    ForthEngine* pEngine = (ForthEngine *)(pCore->pEngine);
+			if ((pCore->traceFlags & kLogStack) != 0)
+			{
+				pEngine->TraceStack(pCore);
+			}
+			pEngine->TraceOut("\n");
+		    pEngine->TraceOp(pCore->IP);
+		}
+	}
+};
 
 //#ifdef TRACE_INNER_INTERPRETER
 
@@ -2137,7 +2145,7 @@ ForthEngine::ExecuteOps(ForthCoreState* pCore, long *pOps)
     savedIP = pCore->IP;
     pCore->IP = pOps;
 #ifdef ASM_INNER_INTERPRETER
-    bool bFast = mFastMode && ((GetTraceFlags() & kLogInnerInterpreter) == 0);
+    bool bFast = mFastMode;// && ((GetTraceFlags() & kLogInnerInterpreter) == 0);
 #endif
 	do
 	{
@@ -2310,6 +2318,7 @@ void ForthEngine::ResetConsoleOut( ForthCoreState* pCore )
 	//  without doing a release, and possibly leak a stream object, or we do a release
 	//  and risk a crash, since ResetConsoleOut is called when an error is detected,
 	//  so the object we are releasing may already be deleted or otherwise corrupted.
+	CLEAR_OBJECT(pCore->consoleOutStream);
 	OBJECT_ASSIGN(pCore, pCore->consoleOutStream, mDefaultConsoleOutStream);
 	pCore->consoleOutStream = mDefaultConsoleOutStream;
 }

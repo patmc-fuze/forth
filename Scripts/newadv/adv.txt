@@ -7,8 +7,6 @@ autoforget ADV
 
 0 setTrace
 
-mko TraceOutStream tout
-
 : sp!
   depth r> swap >r >r
 ;
@@ -26,11 +24,7 @@ alias sp? sp@
 
 : spoo
   0 $word -> ptrTo byte msg
-  d[
-    pushConsoleOut(tout)
-    msg %s %nl ds
-    popConsoleOut 2drop
-  ]d
+  d[ t{ msg %s %nl ds }t ]d
 ; immediate spoo
 
 spoo before defs

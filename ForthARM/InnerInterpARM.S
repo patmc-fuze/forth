@@ -80,7 +80,8 @@ inner_loop		=	96			@	inner interpreter asm reentry point
 conout_stream  	=	100
 base          	=	108
 signed_print_mode = 112
-scratch			=	116
+trace_flags     =   116
+scratch			=	120
 
 kVarDefaultOp			=		0
 kVarFetch				=		1
@@ -329,6 +330,20 @@ innerInterpLoop:
 	cmp	rops, #0
 	beq	badTuna
 .backFromBadTuna:
+
+
+	push {lr}
+	ldr	r0, [rcore, #trace_flags]
+	orrs r0, r0
+	beq	.noTrace
+	add	r0, rcore, #ipsave			@ r1 -> IP
+	stmia	r0!, {rip-rfp}			@ save IP, SP, RP, FP in core
+	mov	r0, rcore
+	bl	traceOp
+.noTrace:
+	pop {lr}
+
+
 	ldmia	rip!, {r0}			@ r0 = next opcode, advance IP
 @ interpLoopExecuteEntry is entry for executeBop - expects opcode in r0
 interpLoopExecuteEntry:
@@ -1681,38 +1696,37 @@ localObjectRef:
 	bx	lr
 	
 localObjectStore:
+	@ r0 points to oldObj container var
+	@ TOS is newObj contents
 	push	{rcore,rip}
-	ldmia	rsp!, {rcore,rip}	@ pop TOS object value into rcore,rip
-	ldmia	r0, {r2,r3}			@ r2,r3 are oldObj
-	cmp	rcore, r2
-	beq	.losx
+	ldmia	rsp!, {rcore,rip}	@ pop TOS object value into rcore,rip (newObj)
+	ldmia	r0, {r2,r3}			@ r2,r3 are oldObj contents
+	stmia	r0, {rcore,rip}		@ newObj -> oldObj
+	cmp	rip, r3
+	beq	.los2					@ if oldObj.data == newObj.data, don't touch refcounts
 	orrs	rip, rip
-	beq	.los1					@ if newObj data ptr is null, don't increment refcount
+	beq	.los1					@ if newObj.data is null, don't increment refcount
 	ldr	r1, [rip]				@ increment newObj refcount
 	add	r1, #1
 	str	r1, [rip]
 .los1:
 	orrs	r3, r3
-	beq	.los2
+	beq	.los2					@ if oldObj.data is null, don't decrement refcount
 	ldr	r1, [r3]				@ decrement oldObj refcount
 	subs	r1, #1
 	str	r1, [r3]
 	beq	.los3					@ oldObj refcount went to zero, go delete it
 .los2:
-	str	rcore, [r0]
-.losx:
-	str	rip, [r0, #4]
 	pop	{rcore,rip}
 	bx	lr
 	
 .los3:
 	@ object var held last reference to oldObj, invoke olbObj.delete method
-	stmia	r0, {rcore,rip}			@ store newObj
 	pop	{rcore,rip}
 	@ push pCore->this pair on rstack
-	ldr	r0,[rcore, #tpm]
-	stmdb	rrp!, {r0}
 	ldr	r0,[rcore, #tpd]
+	stmdb	rrp!, {r0}
+	ldr	r0,[rcore, #tpm]
 	stmdb	rrp!, {r0}
 	str	r2, [rcore, #tpm]
 	str	r3, [rcore, #tpd]	
@@ -1732,8 +1746,8 @@ localObjectStore:
 	bx	r1
 	
 localObjectClear:
-	@ TOS is new object, eax points to destination/old object
-    mov r3, r2
+	@ TOS is new object, r0 points to destination/old object
+    eor r3, r3
 	stmdb	rsp!, {r2, r3}
 	@ for now, do the clear operation by pushing dnull on TOS then doing a regular object store
 	@ later on optimize it since we know source is a dnull
@@ -2532,8 +2546,7 @@ dfetchBop:
 @@@@@@@@@@@@@@@@@  this  @@@@@@@@@@@@@@@@@
 
 thisBop:
-	ldr	r1, [rcore, #tpd]
-	ldr	r0, [rcore, #tpm]
+	ldrd	r0, [rcore, #tpm]
 	stmdb	rsp!, {r0, r1}
 	bx	lr
 	

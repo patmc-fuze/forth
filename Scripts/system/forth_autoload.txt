@@ -410,6 +410,20 @@ alias space %bl
   bytesRead
 ;
 
+// enumInfo enumValue ... str
+: $enum
+  -> int enumInfo
+  -> int enumValue
+  findEnumSymbol(enumValue enumInfo)
+  if(0=)
+    mko String ss
+    ss.resize(256)
+    ss.format("unknown_%s_%d" enumInfo 16+ enumValue 2)
+    addTempString(ss.get ss.length)
+    oclear ss
+  endif
+;
+
 addHelp cd	cd BLAH			change working directory to BLAH
 : cd
   if( chdir( blword ) )
@@ -918,6 +932,11 @@ addHelp popConsoleOut   popConsoleOut ... OLD_CONSOLE_OUTSTREAM      restore pre
     error("popConsoleOutStream - stack is empty")
   endif
 ;
+
+// use t{ ... }t to quickly redirect all print output to the trace stream (usually an external logger program)
+mko TraceOutStream traceOut
+: t{ pushConsoleOut(traceOut) ;
+: }t popConsoleOut 2drop ;
 
 addHelp outToScreen   restore output to the normal console
 : outToScreen getDefaultConsoleOut setConsoleOut ;

@@ -123,7 +123,7 @@ class: Game extends IGame
   ;
   
   : bottle_contents
-    case (objs(BOTTLE).prop)
+    case(objs(BOTTLE).prop)
       of(0) WATER endof
       of(2) OIL endof
       // other valid values: 1, -2 (post-closing)
@@ -721,12 +721,12 @@ axe at you which missed, cursed, and ran away.")
               continue
             endif
             continueIf(newloc MIN_LOWER_LOC <)  // don't wander above level 2
-            continueIf(or((newloc dwarf.oldloc =) (newloc dwarf.loc =)))  // don't double back
+            continueIf(or(newloc dwarf.oldloc =  newloc dwarf.loc =))  // don't double back
             continueIf(q.cond 100 =)
             if(dwarf pirate l=)
               continueIf(forbidden_to_pirate(newloc))
             endif
-            continueIf(or(is_forced(newloc) (newloc MAX_LOC >)))
+            continueIf(or(is_forced(newloc)  newloc MAX_LOC >))
             ploc(newloc ii ->)
             1 ->+ ii
 continue:
@@ -759,7 +759,7 @@ continue:
               if(dwarf.oldloc dwarf.loc =)
                 1 ->+ attack
                 loc -> last_knife_loc
-                if(ran(1000) 95 (dwarfAngerLevel 2-) * <) 1 ->+ stick endif
+                if(ran(1000) 95 dwarfAngerLevel 2- * <) 1 ->+ stick endif
               endif
             endif
           endif
@@ -969,7 +969,7 @@ a vending machine in the maze.  Bring some coins with you.")
     else
       yes(hint.prompt.get hint.hint.get okMsg) -> hint.given
     endif
-    if (and(hint.given  lamp_limit 30 >))
+    if(and(hint.given  lamp_limit 30 >))
       // Give the lamp some more power.
       30 hint.cost * ->+ lamp_limit
     endif
@@ -1380,11 +1380,11 @@ You'd best take inventory and drop something.")
   : take_something_immobile
     -> ObjectWord obj
    
-    if(and(obj CHAIN =) (objs(BEAR).prop 0<>))
+    if(and(obj CHAIN =  objs(BEAR).prop 0<>))
         puts("The chain is still locked.")
-    elseif(and(obj BEAR =) (objs(BEAR).prop 1 =))
+    elseif(and(obj BEAR =  objs(BEAR).prop 1 =))
       puts("The bear is still chained to the wall.")
-    elseif(and(obj PLANT =) (objs(PLANT).prop 0<=))
+    elseif(and(obj PLANT = objs(PLANT).prop 0<=))
       puts("The plant has exceptionally deep roots and cannot be pulled free.")
     else
       puts("You can't be serious!")
@@ -2052,11 +2052,7 @@ spoo before determine_motion_instruction
       exit
     endif
     begin
-      d[
-        pushConsoleOut(tout)
-        showInstruction(q)
-        popConsoleOut 2drop
-      ]d
+      d[ t{ showInstruction(q) }t ]d
       q.cond -> int cond
       mod(cond 100) MIN_OBJ + -> int obj
       if(cond 0=)
@@ -2408,14 +2404,12 @@ knives at you!  All of them get you!")
     begin
       //sp!
       Game_adventureStates.get(mCurStateNum) ->o curState
-      d[
-        pushConsoleOut(tout)
+      d[ t{
         "<<<STATE>>> " %s mCurStateNum %d %bl
         curState.name.get %s %bl
         " location " %s mLoc locationToName %s %bl
         inWord1.base %s %bl inWord2.base %s %bl %nl
-        popConsoleOut 2drop
-      ]d
+      }t ]d
       curState.stateOp
       //sp?(curState.name.get)
     until(or(mCurStateNum kStateQuit =  gave_up))
