@@ -505,18 +505,6 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                 }
                 break;
 
-            case kClientMsgGetTempFilename:
-                {
-					char* pBuffer = (char *) __MALLOC( L_tmpnam );
-					char* pResult = tmpnam( pBuffer );
-
-                    pMsgPipe->StartMessage( kServerMsgGetTmpnamResult );
-                    pMsgPipe->WriteString( pResult );
-                    pMsgPipe->SendMessage();
-					__FREE( pBuffer );
-                }
-                break;
-
             case kClientMsgRenameFile:
                 {
                     const char* pOldName;

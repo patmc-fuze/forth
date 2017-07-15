@@ -151,6 +151,7 @@ void ForthThread::InitTables(ForthThread* pSourceThread)
 	mCore.maxOps = sourceCore.maxOps;
 	mCore.ops = sourceCore.ops;
 	mCore.innerLoop = sourceCore.innerLoop;
+    mCore.innerExecute = sourceCore.innerExecute;
 }
 
 void

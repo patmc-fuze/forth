@@ -857,7 +857,8 @@ ForthEngine::CreateAsyncThread( long threadOp, int paramStackSize, int returnSta
         pNewThread->mCore.numOps = mpCore->numOps;
         pNewThread->mCore.maxOps = mpCore->maxOps;
         pNewThread->mCore.ops = mpCore->ops;
-		pNewThread->mCore.innerLoop = mpCore->innerLoop;
+        pNewThread->mCore.innerLoop = mpCore->innerLoop;
+        pNewThread->mCore.innerExecute = mpCore->innerExecute;
     }
 
 	pAsyncThread->mpNext = mpThreads;
@@ -2637,7 +2638,7 @@ char* ForthEngine::AddTempString(const char* inText, int inNumChars)
 //############################################################################
 void ForthEngine::PushContinuation(long val)
 {
-    if (mContinuationIx >= mContinuations.size())
+    if ((size_t)mContinuationIx >= mContinuations.size())
     {
         mContinuations.resize(mContinuationIx + 32);
     }

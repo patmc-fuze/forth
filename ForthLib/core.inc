@@ -148,6 +148,7 @@ STRUC FCore
     .DictionaryPtr		RESD 1
     .FileFuncs			RESD 1
     .innerLoop			RESD 1
+    .innerExecute		RESD 1
     .consoleOutStream	RESD 2
     .base				RESD 1
     .signedPrintMode	RESD 1

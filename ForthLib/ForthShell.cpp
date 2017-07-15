@@ -210,7 +210,6 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 	mFileInterface.fileNo = fileno;
 #endif
 	mFileInterface.fileFlush = fflush;
-	mFileInterface.getTmpnam = tmpnam;
 	mFileInterface.renameFile = rename;
 	mFileInterface.runSystem = system;
 	mFileInterface.changeDir = chdir;

@@ -176,6 +176,9 @@ entry InitAsmTables
 	; setup normal (non-debug) inner interpreter re-entry point
 	mov	ebx, interpLoopDebug
 	mov	[ebp + FCore.innerLoop], ebx
+	mov	ebx, interpLoopExecuteEntry
+	mov	[ebp + FCore.innerExecute], ebx
+	
 
 	pop ebp
 	pop	edi

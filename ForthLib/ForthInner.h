@@ -40,7 +40,6 @@ struct ForthFileInterface
 	int					(*fileDup2)( int srcFileHandle, int dstFileHandle );
 	int					(*fileNo)( FILE* pFile );
 	int					(*fileFlush)( FILE* pFile );
-	char*				(*getTmpnam)( char* path );
 	int					(*renameFile)( const char* pOldName, const char* pNewName );
 	int					(*runSystem)( const char* pCmdline );
 	int					(*changeDir)( const char* pPath );
@@ -100,7 +99,8 @@ struct ForthCoreState
     ForthMemorySection* pDictionary;
     ForthFileInterface* pFileFuncs;
 
-	void				*innerLoop;		// inner loop reentry point for assembler inner interpreter
+    void				*innerLoop;		// inner loop reentry point for assembler inner interpreter
+    void				*innerExecute;	// inner loop entry point for assembler inner interpreter for 'execute' op
 
 	ForthObject			consoleOutStream;
 

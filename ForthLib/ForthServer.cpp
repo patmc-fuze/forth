@@ -154,12 +154,6 @@ namespace
         return pShell->FileFlush( pFile );
     }
 
-	char* getTmpnam( char* pPath )
-    {
-        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
-        return pShell->GetTmpnam( pPath );
-    }
-
 	int renameFile( const char* pOldName, const char* pNewName )
     {
         ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
@@ -599,7 +593,6 @@ ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, Forth
 	mFileInterface.fileDup2 = fileDup2;
 	mFileInterface.fileNo = fileNo;
 	mFileInterface.fileFlush = fileFlush;
-	mFileInterface.getTmpnam = getTmpnam;
 	mFileInterface.renameFile = renameFile;
 	mFileInterface.runSystem = runSystem;
 	mFileInterface.changeDir = changeDir;
@@ -1233,37 +1226,6 @@ ForthServerShell::FileFlush( FILE* pFile )
         printf( "ForthServerShell::FileFlush unexpected message type %d\n", msgType );
     }
     return result;
-}
-
-char*
-ForthServerShell::GetTmpnam( char* pBuffer )
-{
-	static_cast<void>( pBuffer );		// we can't use the passed in buffer, size might be different on server
-	// !!! TODO - how should this work?
-    int msgType, msgLen;
-    char* pResult = NULL;
-
-    mpMsgPipe->StartMessage( kClientMsgGetTempFilename );
-    mpMsgPipe->SendMessage();
-
-    mpMsgPipe->GetMessage( msgType, msgLen );
-    if ( msgType == kServerMsgGetTmpnamResult )
-    {
-        int numBytes;
-        const char* pData;
-        mpMsgPipe->ReadCountedData( pData, numBytes );
-		if ( numBytes > 0 )
-		{
-			pResult = (char *) __MALLOC( numBytes );
-            memcpy( pResult, pData, numBytes );
-		}
-    }
-    else
-    {
-        // TODO: report error
-        printf( "ForthServerShell::GetTmpnam unexpected message type %d\n", msgType );
-    }
-	return pResult;
 }
 
 int

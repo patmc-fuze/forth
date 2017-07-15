@@ -3994,7 +3994,6 @@ namespace OArray
     {
         EXIT_IF_OBJECT_ALREADY_SHOWN;
 
-        char buffer[8];
         GET_THIS(oStructArrayStruct, pArray);
         if (pArray->pVocab != nullptr)
         {
@@ -4109,7 +4108,7 @@ namespace OArray
         {
             ix *= pArray->elementSize;
             jx *= pArray->elementSize;
-            for (int i = 0; i < pArray->elementSize; ++i)
+            for (unsigned long i = 0; i < pArray->elementSize; ++i)
             {
                 char t = a[ix];
                 a[ix] = a[jx];
