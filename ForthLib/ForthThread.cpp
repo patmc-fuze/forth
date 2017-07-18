@@ -84,7 +84,6 @@ ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, 
 
     mCore.pDictionary = NULL;
 
-	SPEW_SHELL("ForthThread pCore=%p NULLing consoleOutStream\n", &mCore);
 	mCore.consoleOutStream.pData = NULL;
 	mCore.consoleOutStream.pMethodOps = NULL;
 
@@ -152,6 +151,7 @@ void ForthThread::InitTables(ForthThread* pSourceThread)
 	mCore.maxOps = sourceCore.maxOps;
 	mCore.ops = sourceCore.ops;
 	mCore.innerLoop = sourceCore.innerLoop;
+    mCore.innerExecute = sourceCore.innerExecute;
 }
 
 void
@@ -169,6 +169,7 @@ ForthThread::Reset( void )
     mCore.base = 10;
     mCore.signedPrintMode = kPrintSignedDecimal;
 	mCore.IP = &(mOps[0]);
+    mCore.traceFlags = 0;
 	//mCore.IP = nullptr;
 
 	if (mpShowContext != NULL)
@@ -1067,9 +1068,9 @@ namespace OLock
         DeleteCriticalSection(pLockStruct->pLock);
 #else
 		pthread_mutex_destroy(pLockStruct->pLock);
-		delete pLockStruct->pLock;
 #endif
-		delete pLockStruct->pBlockedThreads;
+        delete pLockStruct->pLock;
+        delete pLockStruct->pBlockedThreads;
 		FREE_OBJECT(pLockStruct);
 		METHOD_RETURN;
 	}

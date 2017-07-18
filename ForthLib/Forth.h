@@ -40,10 +40,13 @@ typedef enum
     kOpBranch = 10,          // low 24 bits is signed branch offset
     kOpBranchNZ,
     kOpBranchZ,
-    kOpCaseBranch,
-	kOpPushBranch,
+    kOpCaseBranchT,
+    kOpCaseBranchF,
+    kOpPushBranch,
 	kOpRelativeDefBranch,
-    // 16 - 19 are unused
+    kOpRelativeData,
+    kOpRelativeString,
+    // 19 is unused
 
     kOpConstant = 20,   // low 24 bits is signed symbol value
     kOpConstantString,  // low 24 bits is number of longwords to skip over
@@ -269,6 +272,7 @@ typedef enum {
     kFFDollarHexLiterals        = 0x080,
     kFFCFloatLiterals           = 0x100,
     kFFParenIsExpression        = 0x200,
+    kFFAllowContinuations       = 0x400,
 } ForthFeatureFlags;
 
 

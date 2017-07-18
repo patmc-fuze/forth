@@ -30,6 +30,7 @@ public:
     virtual int     GetSourceID();
 
     virtual char    *GetLine( const char *pPrompt );
+    virtual char    *AddContinuationLine();
 
     virtual bool    IsInteractive( void );
 
@@ -78,7 +79,6 @@ public:
 	virtual int				FileDup2( int srcFileHandle, int dstFileHandle );
 	virtual int				FileNo( FILE* pFile );
 	virtual int				FileFlush( FILE* pFile );
-	virtual char*			GetTmpnam( char* path );
 	virtual int				RenameFile( const char* pOldName, const char* pNewName );
 	virtual int				RunSystem( const char* pCmdline );
 	virtual int				ChangeDir( const char* pPath );

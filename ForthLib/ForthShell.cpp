@@ -59,19 +59,35 @@ namespace
 		"of",
 		"ofif",
 		"andif",
-		"orif"
+		"orif",
+        "]if",
+        nullptr
     };
 
-    const char * GetTagString( long tag )
+    void GetTagString( unsigned long tag, char* pMsg )
     {
-        static char msg[28];
-
-        if ( tag < kNumShellTags )
+        bool foundOne = false;
+        int mask = 1;
+        int index = 0;
+        pMsg[0] = '\0';
+        while ((tag != 0) && (TagStrings[index] != nullptr))
         {
-            return TagStrings[ tag ];
+            if ((mask & tag) != 0)
+            {
+                if (foundOne)
+                {
+                    strcat(pMsg, " or ");
+                }
+                strcat(pMsg, TagStrings[index]);
+                foundOne = true;
+            }
+            index++;
+            tag >>= 1;
         }
-        sprintf( msg, "UNKNOWN TAG 0x%x", tag );
-        return msg;
+        if (!foundOne)
+        {
+            sprintf(pMsg, "UNKNOWN TAG 0x%x", tag);
+        }
     }
 
     int fileExists( const char* pFilename )
@@ -194,7 +210,6 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 	mFileInterface.fileNo = fileno;
 #endif
 	mFileInterface.fileFlush = fflush;
-	mFileInterface.getTmpnam = tmpnam;
 	mFileInterface.renameFile = rename;
 	mFileInterface.runSystem = system;
 	mFileInterface.changeDir = chdir;
@@ -431,6 +446,19 @@ ForthShell::Run( ForthInputStream *pInStream )
         {
             bQuit = PopInputStream();
         }
+        else
+        {
+            // add on continuation lines if necessary
+            while (mpInput->HandleContinuation("\\+"))
+            {
+                pBuffer = mpInput->AddContinuationLine();
+                if (pBuffer == nullptr)
+                {
+                    bQuit = PopInputStream();
+                    break;
+                }
+            }
+        }
 
         if ( !bQuit )
         {
@@ -552,7 +580,7 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
                 if ( GET_SDEPTH > 0 )
                 {
                     long expressionResult = SPOP;
-                    mpStack->Push(kShellTagPoundIf);
+                    mpStack->PushTag(kShellTagPoundIf);
                     if (expressionResult == 0)
                     {
                         // skip to #else or #endif
@@ -576,7 +604,7 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
     return result;
 }
 
-static bool gbCatchExceptions = true;
+static bool gbCatchExceptions = false;
 //
 // return true IFF the forth shell should exit
 //
@@ -596,7 +624,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
 	{
 		mpInput->InputStream()->StuffBuffer( pSrcLine );
 	}
-	SPEW_SHELL( "*** InterpretLine {%s}\n", pLineBuff );
+	SPEW_SHELL( "\n*** InterpretLine {%s}\n", pLineBuff );
     bLineEmpty = false;
     mpEngine->SetError( kForthErrorNone );
     while ( !bLineEmpty && (result == kResultOk) )
@@ -606,8 +634,9 @@ ForthShell::InterpretLine( const char *pSrcLine )
         {
             result = kResultError;
         }
-        SPEW_SHELL("input %s:%s buffer 0x%x readoffset %d write %d\n", mpInput->InputStream()->GetType(), mpInput->InputStream()->GetName(),
-            mpInput->InputStream()->GetBufferPointer(), mpInput->InputStream()->GetReadOffset(), mpInput->InputStream()->GetWriteOffset() );
+        ForthInputStream* pInput = mpInput->InputStream();
+        SPEW_SHELL("input %s:%s[%d] buffer 0x%x readoffset %d write %d\n", pInput->GetType(), pInput->GetName(),
+            pInput->GetLineNumber(), pInput->GetBufferPointer(), pInput->GetReadOffset(), pInput->GetWriteOffset() );
 
         if (!bLineEmpty && (result == kResultOk))
 		{
@@ -738,6 +767,59 @@ ForthShell::ReportError( void )
 	}
 }
 
+void ForthShell::ReportWarning(const char* pMessage)
+{
+    char errorBuf1[512];
+    char errorBuf2[512];
+    const char *pLastInputToken;
+
+    pLastInputToken = mpEngine->GetLastInputToken();
+    ForthCoreState* pCore = mpEngine->GetCoreState();
+
+    if (pLastInputToken != NULL)
+    {
+        sprintf(errorBuf2, "WARNING %s, last input token: <%s> last IP 0x%x", pMessage, pLastInputToken, pCore->IP);
+    }
+    else
+    {
+        sprintf(errorBuf2, "WARNING %s", pMessage);
+    }
+    int lineNumber;
+    const char* fileName = mpInput->GetFilenameAndLineNumber(lineNumber);
+    if (fileName != NULL)
+    {
+        sprintf(errorBuf1, "%s at line number %d of %s", errorBuf2, lineNumber, fileName);
+    }
+    else
+    {
+        strcpy(errorBuf1, errorBuf2);
+    }
+    SPEW_SHELL("%s", errorBuf1);
+    CONSOLE_STRING_OUT(errorBuf1);
+    const char *pBase = mpInput->GetBufferBasePointer();
+    pLastInputToken = mpInput->GetBufferPointer();
+    if ((pBase != NULL) && (pLastInputToken != NULL))
+    {
+        char* pBuf = errorBuf1;
+        *pBuf++ = '\n';
+        while (pBase < pLastInputToken)
+        {
+            *pBuf++ = *pBase++;
+        }
+        *pBuf++ = '{';
+        *pBuf++ = '}';
+        char *pBufferLimit = &(errorBuf1[0]) + (sizeof(errorBuf1) - 2);
+        while ((*pLastInputToken != '\0') && (pBuf < pBufferLimit))
+        {
+            *pBuf++ = *pLastInputToken++;
+        }
+        *pBuf++ = '\n';
+        *pBuf++ = '\0';
+    }
+    SPEW_SHELL("%s", errorBuf1);
+    CONSOLE_STRING_OUT(errorBuf1);
+}
+
 // return true IFF done parsing line - in this case no string is returned in pInfo
 // this is a stripped down version of ParseToken used just for building string tables
 // TODO!!! there is nothing to keep us from writing past end of pTokenBuffer
@@ -784,7 +866,8 @@ ForthShell::ParseString( ForthParseInfo *pInfo )
               // support C-style quoted strings...
               if ( mpEngine->CheckFeature( kFFCStringLiterals ) )
               {
-				  pEndSrc = pInfo->ParseDoubleQuote(pSrc, pSrcLimit);
+                  pEndSrc = pSrc;
+                  pInfo->ParseDoubleQuote(pEndSrc, pSrcLimit);
                   gotAToken = true;
               }
               break;
@@ -847,7 +930,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
     {
         // previous symbol ended in ")", so next token to process is on top of shell stack
         mFlags &= ~SHELL_FLAG_POP_NEXT_TOKEN;
-        if ( CheckSyntaxError( ")", mpStack->Pop(), kShellTagParen ) )
+        if ( CheckSyntaxError( ")", mpStack->PopTag(), kShellTagParen ) )
         {
             long tag = mpStack->Peek();
             if ( mpStack->PopString( pInfo->GetToken(), pInfo->GetMaxChars() ) )
@@ -877,8 +960,10 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
             }
             else
             {
-                sprintf( mErrorString,  "top of shell stack is <%s>, was expecting <string>",
-                         GetTagString( tag ) );
+                char* pTagString = (char *)malloc(512);
+                GetTagString(tag, pTagString);
+                sprintf(mErrorString,  "top of shell stack is <%s>, was expecting <string>", pTagString);
+                free(pTagString);
                 mpEngine->SetError( kForthErrorBadSyntax, mErrorString );
             }
         }
@@ -919,7 +1004,8 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
               // support C-style quoted strings...
               if ( mpEngine->CheckFeature( kFFCStringLiterals ) )
               {
-				  pEndSrc = pInfo->ParseDoubleQuote(pSrc, pSrcLimit);
+                  pEndSrc = pSrc;
+                  pInfo->ParseDoubleQuote(pEndSrc, pSrcLimit);
                   gotAToken = true;
               }
               break;
@@ -959,12 +1045,16 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
                      break;
 
                   case '(':
-                     if ( (pEndSrc == pSrc) || mpEngine->CheckFeature( kFFParenIsComment ) )
+                     if ((pEndSrc == pSrc) || mpEngine->CheckFeature(kFFParenIsComment))
                      {
                          // paren at start of token is part of token (allows old forth-style inline comments to work)
+                         if (mpEngine->CheckFeature(kFFParenIsComment) == 0)
+                         {
+                             ReportWarning("Possibly misplaced parentheses");
+                         }
                          *pDst++ = *pEndSrc++;
                      }
-					 else if (mpEngine->CheckFeature(kFFParenIsExpression))
+                     else if (mpEngine->CheckFeature(kFFParenIsExpression))
                      {
                          // push accumulated token (if any) onto shell stack
 						 advanceInputBuffer = false;
@@ -975,13 +1065,28 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
 						 pInfo->SetAllFlags(0);
 						 mpInput->SetBufferPointer(pSrc);
 						 mExpressionInputStream->ProcessExpression(mpInput->InputStream());
-						 mpInput->PushInputStream(mExpressionInputStream);
+                         // begin horrible nasty kludge for elseif
+                         const char* endOfExpression = mExpressionInputStream->GetBufferBasePointer() + (mExpressionInputStream->GetWriteOffset() - 1);
+                         int charsToCrop = 7;
+                         while (*endOfExpression == ' ')
+                         {
+                             --endOfExpression;
+                             ++charsToCrop;
+                         }
+                         if (strncmp(" elseif", endOfExpression - 6, 7) == 0)
+                         {
+                             mExpressionInputStream->CropCharacters(charsToCrop);
+                             mExpressionInputStream->PrependString(" else ");
+                             mExpressionInputStream->AppendString(" ]if");
+                         }
+                         // end horrible nasty kludge for elseif
+                         mpInput->PushInputStream(mExpressionInputStream);
 						 done = true;
 						 /*pEndSrc++;
                          *pDst++ = '\0';
                          pDst = pInfo->GetToken();
                          mpStack->PushString( pDst );
-                         mpStack->Push( kShellTagParen );*/
+                         mpStack->PushTag( kShellTagParen );*/
                      }
 					 else
 					 {
@@ -1386,19 +1491,27 @@ ForthShell::GetEnvironmentVar(const char* envVarName)
 
 
 bool
-ForthShell::CheckSyntaxError(const char *pString, long tag, long desiredTag)
+ForthShell::CheckSyntaxError(const char *pString, eShellTag tag, long desiredTags)
 {
-	bool tagsMatched = (tag == desiredTag);
+    long tagVal = (long)tag;
+    bool tagsMatched = ((tagVal & desiredTags) != 0);
 	// special case: BranchZ will match either Branch or BranchZ
+    /*
 	if (!tagsMatched && (desiredTag == kShellTagBranchZ) && (tag == kShellTagBranch))
 	{
 		tagsMatched = true;
 	}
+    */
 	if (!tagsMatched)
 	{
-		sprintf(mErrorString, "<%s> preceeded by <%s>, was expecting <%s>",
-			pString, GetTagString(tag), GetTagString(desiredTag));
-		mpStack->Push(tag);
+        char* pExpected = (char *) malloc(32);
+        char* pActual = (char *) malloc(512);
+        GetTagString(tagVal, pExpected);
+        GetTagString(desiredTags, pActual);
+		sprintf(mErrorString, "<%s> preceeded by <%s>, was expecting <%s>", pString, pExpected, pActual);
+        free(pExpected);
+        free(pActual);
+		mpStack->PushTag(tag);
 		mpEngine->SetError(kForthErrorBadSyntax, mErrorString);
 		return false;
 	}
@@ -1411,22 +1524,22 @@ ForthShell::StartDefinition(const char* pSymbol, const char* pFourCharCode)
 {
 	mpStack->PushString(pSymbol);
 	mpStack->Push(FourCharToLong(pFourCharCode));
-	mpStack->Push(kShellTagDefine);
+    mpStack->PushTag(kShellTagDefine);
 }
 
 
 bool
 ForthShell::CheckDefinitionEnd(const char* pDisplayName, const char* pFourCharCode)
 {
-	long defineTag = mpStack->Pop();
+    eShellTag defineTag = mpStack->PopTag();
 
 	if (CheckSyntaxError(pDisplayName, defineTag, kShellTagDefine))
 	{
 		long defineType = mpStack->Pop();
 		long expectedDefineType = FourCharToLong(pFourCharCode);
-		char* definedSymbol = mpEngine->GetTmpStringBuffer();
+        char definedSymbol[128];
 		definedSymbol[0] = '\0';
-		bool gotString = mpStack->PopString(definedSymbol, mpEngine->GetTmpStringBufferSize());
+		bool gotString = mpStack->PopString(definedSymbol, sizeof(definedSymbol) - 1);
 
 		if (gotString && (defineType == expectedDefineType))
 		{
@@ -1586,15 +1699,10 @@ void ForthShell::PoundIfdef( bool isDefined )
 {
     ForthVocabulary* pVocab = mpEngine->GetSearchVocabulary();
     char* pToken = GetNextSimpleToken();
-    if ( (pToken != NULL) && (pVocab != NULL)
-        && ((pVocab->FindSymbol( pToken ) != NULL) == isDefined) )
-    {
-        // compile "if" part
-        mpStack->Push( kShellTagPoundIf );
-    }
-    else
+    if ( (pToken == NULL) || (pVocab == NULL) || ((pVocab->FindSymbol( pToken ) != NULL) != isDefined) )
     {
         // skip to "else" or "endif"
+        mpStack->PushTag(kShellTagPoundIf);
         mFlags |= SHELL_FLAG_SKIP_SECTION;
         mPoundIfDepth = 0;
     }
@@ -1721,29 +1829,91 @@ ForthShellStack::~ForthShellStack()
 
 
 void
-ForthShellStack::Push( long tag )
+ForthShellStack::PushTag(eShellTag tag)
 {
-	if ( mSSP > mSSB )
-	{
-		*--mSSP = tag;
-		SPEW_SHELL( "Pushed Tag %s\n", GetTagString( tag ) );
-	}
-	else
-	{
-		ForthEngine::GetInstance()->SetError( kForthErrorShellStackOverflow );
-	}
+    char tagString[256];
+    if (mSSP > mSSB)
+    {
+        *--mSSP = (long) tag;
+        if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell)
+        {
+            GetTagString(tag, tagString);
+            SPEW_SHELL("ShellStack: pushed tag %s 0x%08x\n", tagString, (long) tag);
+        }
+    }
+    else
+    {
+        ForthEngine::GetInstance()->SetError(kForthErrorShellStackOverflow);
+    }
+}
+
+void
+ForthShellStack::Push(long val)
+{
+    if (mSSP > mSSB)
+    {
+        *--mSSP = val;
+        SPEW_SHELL("ShellStack: pushed value 0x%08x\n", val);
+    }
+    else
+    {
+        ForthEngine::GetInstance()->SetError(kForthErrorShellStackOverflow);
+    }
+}
+
+static bool mayBeAShellTag(unsigned long tag)
+{
+    bool couldBeATag = false;
+    if (tag <= kShellLastTag)
+    {
+        if ((tag & kShellTagNothing) == 0)
+        {
+            tag >>= 1;
+            while (tag != 0)
+            {
+                if ((tag & 1) != 0)
+                {
+                    tag >>= 1;
+                    couldBeATag = ((tag >> 1) == 0);
+                    break;
+                }
+                tag >>= 1;
+            }
+        }
+    }
+    return couldBeATag;
 }
 
 long
 ForthShellStack::Pop( void )
 {
-    if ( mSSP == mSST )
+    if (mSSP == mSST)
     {
         ForthEngine::GetInstance()->SetError( kForthErrorShellStackUnderflow );
         return kShellTagNothing;
     }
-    SPEW_SHELL( "Popped Tag %s\n", GetTagString( *mSSP ) );
-    return *mSSP++;
+    long val = *mSSP++;
+#ifdef TRACE_SHELL
+    char tagString[256];
+    if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell)
+    {
+        if (mayBeAShellTag(val))
+        {
+            GetTagString(val, tagString);
+            SPEW_SHELL("ShellStack: popped Tag %s\n", tagString);
+        }
+        else
+        {
+            SPEW_SHELL("ShellStack: popped value 0x%08x\n", val);
+        }
+    }
+#endif
+    return val;
+}
+
+eShellTag ForthShellStack::PopTag(void)
+{
+    return (eShellTag)Pop();
 }
 
 long
@@ -1756,6 +1926,15 @@ ForthShellStack::Peek( int index )
     return mSSP[index];
 }
 
+eShellTag ForthShellStack::PeekTag(int index)
+{
+    if ((mSSP + index) >= mSST)
+    {
+        return kShellTagNothing;
+    }
+    return (eShellTag) mSSP[index];
+}
+
 void
 ForthShellStack::PushString( const char *pString )
 {
@@ -1765,7 +1944,7 @@ ForthShellStack::PushString( const char *pString )
 	{
 		strcpy( (char *) mSSP, pString );
 		SPEW_SHELL( "Pushed String \"%s\"\n", pString );
-		Push( kShellTagString );
+        PushTag(kShellTagString);
 	}
 	else
 	{
@@ -1802,36 +1981,38 @@ void
 ForthShellStack::ShowStack()
 {
 	long* pSP = mSSP;
-	char buff[256];
+    char* buff = (char *)malloc(512);
 
 	ForthEngine::GetInstance()->ConsoleOut("Shell Stack:\n");
 	
 	while (pSP != mSST)
 	{
 		long tag = *pSP++;
-		if (tag < kNumShellTags)
-		{
-			sprintf(buff, "%08x   <%s>\n", tag, TagStrings[tag]);
-		}
-		else
-		{
-			char* pTag = (char *)&tag;
-			long dispTag = tag;
-			char b[4];
-			for (int i = 0; i < 4; i++)
-			{
-				char c = pTag[i];
-				if (c == '\0')
-				{
-					// replace nuls with spaces to avoid terminating display
-					c = ' ';
-				}
-				b[i] = c;
-			}
-			sprintf(buff, "%08x   %c%c%c%c\n", tag, b[0], b[1], b[2], b[3]);
-		}
-		ForthEngine::GetInstance()->ConsoleOut(buff);
-	}
+        sprintf(buff, "%08x   ", tag);
+        ForthEngine::GetInstance()->ConsoleOut(buff);
+        long tagChars = tag;
+        for (int i = 0; i < 4; ++i)
+        {
+            char ch = (char)(tagChars & 0x7f);
+            tagChars >>= 8;
+            if ((ch < 0x20) || (ch >= 0x7f))
+            {
+                ch = '.';
+            }
+            buff[i] = ch;
+        }
+        buff[4] = ' ';
+        buff[5] = ' ';
+        buff[6] = '\0';
+        ForthEngine::GetInstance()->ConsoleOut(buff);
+        if (mayBeAShellTag(tag))
+        {
+            GetTagString(tag, buff);
+            ForthEngine::GetInstance()->ConsoleOut(buff);
+        }
+        ForthEngine::GetInstance()->ConsoleOut("\n");
+    }
+    free(buff);
 }
 
 //////////////////////////////////////////////////////////////////////

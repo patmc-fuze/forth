@@ -51,7 +51,6 @@ class: atcAirplane extends iAtcAirplane
         negate(leftTurns) -> deltaHeading
       endof
 
-      drop
       if( rightTurns leftTurns < )
         rightTurns -> deltaHeading
       else
@@ -216,7 +215,7 @@ class: atcAirplane extends iAtcAirplane
         endof
    
         //display.showWarning("unexpected command ") %d
-        display.startWarning "unexpected command " %s %d
+        display.startWarning "unexpected command " %s dup %d
       endcase
     
     else

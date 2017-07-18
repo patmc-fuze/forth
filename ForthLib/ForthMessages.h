@@ -56,7 +56,6 @@ enum
     kServerMsgFileReadResult,
     kServerMsgFileGetStringResult,
     kServerMsgStartLoadResult,      // sent in response to kClientMsgStartLoad
-	kServerMsgGetTmpnamResult,
     kServerMsgLimit
 };
 

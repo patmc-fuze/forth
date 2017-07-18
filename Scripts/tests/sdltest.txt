@@ -89,7 +89,7 @@ SDL_Rect dstPos
       endof
       
       // default:
-      "event type 0x" %s %x %bl %bl
+      "event type 0x" %s dup %x %bl %bl
       dump( ev 16 )
     endcase
   loop

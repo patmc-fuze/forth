@@ -1,6 +1,6 @@
 
-autoforget atc
-: atc ;
+autoforget ATC
+: ATC ;
 
 FileOutStream traceFileStream
 : openTrace

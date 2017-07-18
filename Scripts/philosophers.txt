@@ -1,3 +1,6 @@
+autoforget PHILOSOPHERS
+: PHILOSOPHERS ;
+
 mko Array philosophers
 mko Array forks
 

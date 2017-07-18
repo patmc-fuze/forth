@@ -3,6 +3,38 @@ setTrace( 0 )
 "forth_autoload" $forget drop
 : forth_autoload "This is the forth_autoload.txt tools module" %s ;
 
+// create the system singleton
+makeObject System system
+
+: $alias
+  -> int oldSymbol
+  -> int newSymbol
+  system.getDefinitionsVocab -> Vocabulary vocab
+  vocab.findEntryByName(oldSymbol) -> int oldEntry
+  // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
+  makeObject ByteArray valueBuffer
+  valueBuffer.fromMemory(oldEntry vocab.getValueLength 0)
+  valueBuffer.base -> oldEntry
+  //newSymbol %s %nl dump(oldEntry 32)
+  if(oldEntry)
+    vocab.addSymbol(newSymbol 0 0 0)
+    vocab.getNewestEntry -> int newEntry
+    move(oldEntry  newEntry  vocab.getValueLength)
+  else
+    "Symbol " %s oldSymbol %s " not found!\n" %s
+  endif
+  oclear vocab
+  oclear valueBuffer
+;
+
+: alias blword -> 250 string aa  aa blword $alias ;
+alias ->o ->+    // ->o stores to an object variable without changing refcounts
+alias mko makeObject
+alias bool int
+alias objIsNull l0=
+alias objNotNull l0<>
+alias ds dstack
+
 0x7FFFFFFF -> int MAXINT
 0x80000000 -> int MININT
 
@@ -18,11 +50,9 @@ setTrace( 0 )
 ;
 : autoforget blword $forget drop ;
 
-: ds dstack ;
-
 : see verbose describe ;
 
-: %nc swap 0 do dup %c loop drop ;
+: %nc swap 0 ?do dup %c loop drop ;
 0x20 constant bl
 : spaces bl %nc ;
 
@@ -40,6 +70,42 @@ setTrace( 0 )
 : sizeOf blword $sizeOf processConstant ; precedence sizeOf
 : offsetOf blword $offsetOf processConstant ; precedence offsetOf
 : $: pushToken : ;
+
+: $,
+  // TOS is ptr to nul terminated string
+  here over strlen 1+ allot
+  swap strcpy
+;
+
+: $constant create $, align ;
+
+: _buildConstantArray
+  -> int numStrings
+  // compile number of strings
+  numStrings ,
+  // create array of pointers to strings
+  here -> ptrTo int string0
+  numStrings 4* allot
+  // compile strings and stuff ptrs to them into array
+  ?do(numStrings 0) 
+    here swap $, 
+    numStrings 1- i - string0 int[] !
+  loop
+;
+
+// N_STRING_PTRS N $constantArray ...
+: $constantArray
+  builds
+    _buildConstantArray
+  does
+    int[] 4+ @
+;
+
+
+: count dup 1+ swap c@ ;
+: 2, here 8 allot 2! ;
+
+: time&date splitTime(time) ;
 
 //######################################################################
 // features support
@@ -83,47 +149,37 @@ enum: eFeatures
 255 string _TempStringA
 255 string _TempStringB
 
-: $,
-  // TOS is ptr to nul terminated string at DP
-  here over strlen 1+ allot
-  swap strcpy
-;
-
-0 -> int helpChain
-: addHelp
-  here helpChain , -> helpChain		// link new entry into help chain
-  blword $,		// compile new symbol
-  0 $word $,		// compile symbols help definition
-  align
-;
-
 false -> int _helpfileLoaded
+mko StringMap _helpMap
+
+: addHelp
+  blword -> ptrTo byte name
+  mko String helpContents
+  helpContents.set($word(0))
+  _helpMap.set(helpContents name)
+  oclear helpContents
+;
+
 
 : $help
-  -> ptrTo byte s
-  helpChain	-> int pNext
-  if( strlen( s ) 0= )
+  -> ptrTo byte opName
+  
+  if( strlen( opName ) 0= )
     // line was empty, just list all help
+    _helpMap.headIter -> StringMapIter iter
     begin
-    while( pNext )
-      pNext 4+ dup %s "	" %s
-      strlen( dup ) 1+ + %s %nl
-      pNext @ -> pNext
+    while( iter.nextPair )
+      %s %bl <String>.get %s %nl
     repeat
-    exit
-  endif
-
-  begin
-  while( pNext )
-    if( strcmp( pNext 4+ s ) 0= )
-      pNext 4+ strlen( dup ) 1+ + %s
-      exit
+  else
+    _helpMap.get(opName) -> String opDescription
+    if(objIsNull(opDescription))
+      opName %s " not found!\n" %s
+    else
+      opDescription.get %s %nl
     endif
-    pNext @ -> pNext
-  repeat
-  s %s " not found!\n" %s
+  endif
 ;
-
 
 : help
   blword -> _TempStringA
@@ -137,9 +193,6 @@ false -> int _helpfileLoaded
   endif
 ;
 
-// create the system singleton
-makeObject System system
-
 : immediate
   system.getDefinitionsVocab -> Vocabulary vocab
   vocab.getNewestEntry
@@ -150,7 +203,7 @@ makeObject System system
   precedence(pushToken(_TempStringA))
   oclear vocab
 ;
-  
+
 addHelp	dump		ADDRESS LEN dump	dump memory
 addHelp	ldump		ADDRESS LEN ldump	dump memory as longs
 addHelp fdump	FILENAME OFFSET LEN fdump	dump file contents
@@ -275,34 +328,6 @@ int dumpWidth
 : fdump ['] _dump _fdump ;
 : fldump ['] _ldump _fdump ;
 
-: $alias
-  -> int oldSymbol
-  -> int newSymbol
-  system.getDefinitionsVocab -> Vocabulary vocab
-  vocab.findEntryByName(oldSymbol) -> int oldEntry
-  // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
-  makeObject ByteArray valueBuffer
-  valueBuffer.fromMemory(oldEntry vocab.getValueLength 0)
-  valueBuffer.base -> oldEntry
-  //newSymbol %s %nl dump(oldEntry 32)
-  if(oldEntry)
-    vocab.addSymbol(newSymbol 0 0 0)
-    vocab.getNewestEntry -> int newEntry
-    move(oldEntry  newEntry  vocab.getValueLength)
-  else
-    "Symbol " %s oldSymbol %s " not found!\n" %s
-  endif
-  oclear vocab
-  oclear valueBuffer
-;
-
-: alias blword -> 250 string aa  aa blword $alias ;
-alias ->o ->+    // ->o stores to an object variable without changing refcounts
-alias mko makeObject
-alias bool int
-alias objIsNull l0=
-alias objNotNull l0<>
-
 addHelp addHelp	addHelp SYMBOL REST_OF_LINE		add help entry
 addHelp $,	STRING_ADDR $,		compiles string (can leave DP unaligned)
 addHelp help	help BLAH		show help for BLAH
@@ -313,6 +338,86 @@ addHelp $hash   STRING_ADDR $hash     return hash of string
   strlen( dup ) phHash
 ;
 
+: literal postpone lit , ;
+alias fliteral literal
+: dliteral postpone dlit 2, ;
+precedence literal   precedence fliteral   precedence dliteral
+
+: cells 4* ;
+: cell+ 4+ ;
+: chars ;
+: char blword c@ ;
+
+// given ptr to cstring, compile code which will push ptr to cstring
+: compileStringLiteral
+  -> ptrTo byte src
+  src strlen -> int len
+  len 4+ 0xFFFFFFFC and 2 rshift -> int lenInts
+  //opType:makeOpcode( opType:litString lenInts ) ,		// compile literal string opcode
+  or(0x15000000 lenInts) ,		// compile literal string opcode
+  strcpy( here src )
+  allot( lenInts cells )
+;
+
+: cmove 0 do over i + c@ over i + c! loop 2drop ;
+: cmove> 0 swap 1- do over i + c@ over i + c! -1 +loop 2drop ;
+: ."
+  '"' $word
+  if( state @ )
+    compileStringLiteral
+    postpone %s
+  else
+    %s
+  endif
+;
+precedence ."
+
+: s"
+  '"' $word
+  if( state @ )
+    compileStringLiteral( dup )
+    strlen postpone literal
+  else
+    dup strlen
+  endif
+;
+precedence s"
+
+: quit r0 -> rp 0 -> fp done ;
+: erase 0 fill ;
+: blank bl fill ;
+alias emit %c
+alias does> does
+alias then endif
+: char+ 1+ ;
+alias cr %nl
+alias space %bl
+: accept
+  stdin fgets dup -> ptrTo byte buffer
+  strlen -> int bytesRead
+  if( bytesRead )
+    if( buffer bytesRead + 1- c@ '\n' = )
+      // trim trailing linefeed from count
+      1 ->- bytesRead
+    endif
+  endif
+  bytesRead
+;
+
+// enumInfo enumValue ... str
+: $enum
+  -> int enumInfo
+  -> int enumValue
+  findEnumSymbol(enumValue enumInfo)
+  if(0=)
+    mko String ss
+    ss.resize(256)
+    ss.format("unknown_%s_%d" enumInfo 16+ enumValue 2)
+    addTempString(ss.get ss.length)
+    oclear ss
+  endif
+;
+
 addHelp cd	cd BLAH			change working directory to BLAH
 : cd
   if( chdir( blword ) )
@@ -320,12 +425,25 @@ addHelp cd	cd BLAH			change working directory to BLAH
   endif
 ;
 
-// TOS: permissionStr filePrefix
-: makeTempfile
-  -> ptrTo byte permissionStr
-  -> ptrTo byte filePrefix
-  malloc(strlen(filePrefix) 32+) -> ptrTo byte fileName
-  //TODOOOOO!
+// creates a temporary filename that does not currently exist in current directory
+// the name is very easily predictable, if you need a name that is secure against hacks
+// replace this op with one of your own
+: makeTempfileName
+  mko String timeStr
+  timeStr.resize(128)
+  strftime(timeStr.get timeStr.size "%Y%m%d%H%M%S" time)
+  timeStr.fixup
+  mko String resultStr
+  begin
+    resultStr.set(timeStr.get)
+    resultStr.append(format(rand "%d"))
+    resultStr.append(".tmp")
+  until(not(fexists(resultStr.get)))
+
+  addTempString(resultStr.get resultStr.length)
+
+  oclear resultStr
+  oclear timeStr
 ;
 
 : $shellRun
@@ -343,13 +461,13 @@ addHelp cd	cd BLAH			change working directory to BLAH
   -1   -> int result
   
   // create temp filenames for stdout and stderr streams
-  tmpnam -> outName
+  makeTempfileName -> outName
   if( outName 0= )
     error( "$shellRun: failure creating standard out tempfile name" )
     false -> okay
   endif
   
-  tmpnam -> errName
+  makeTempfileName -> errName
   if( errName 0= )
     error( "$shellRun: failure creating standard error tempfile name" )
     false -> okay
@@ -468,11 +586,9 @@ addHelp cd	cd BLAH			change working directory to BLAH
   endif
   if( outName )
 	remove( outName ) drop
-    free( outName )
   endif
   if( errName )
 	remove( errName ) drop
-    free( errName )
   endif
   free( buffer )
   
@@ -810,6 +926,11 @@ addHelp popConsoleOut   popConsoleOut ... OLD_CONSOLE_OUTSTREAM      restore pre
     error("popConsoleOutStream - stack is empty")
   endif
 ;
+
+// use t{ ... }t to quickly redirect all print output to the trace stream (usually an external logger program)
+mko TraceOutStream traceOut
+: t{ pushConsoleOut(traceOut) ;
+: }t popConsoleOut 2drop ;
 
 addHelp outToScreen   restore output to the normal console
 : outToScreen getDefaultConsoleOut setConsoleOut ;

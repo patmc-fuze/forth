@@ -74,7 +74,7 @@ test[ testDoLoop checkResult( "0 1 2 3 4 0 -1 -2 -3 -4 -5 0 0 1 2 " ) ]
     0 of "zero" endof
     1 of "one" endof
     2 of "two" endof
-    drop "whatever"
+    "whatever" swap
   endcase
   addBuff
 ;

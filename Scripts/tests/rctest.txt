@@ -1,5 +1,5 @@
-autoforget rctest
-: rctest ;
+autoforget RCTEST
+: RCTEST ;
 
 // add ndrop
 // fix bug where apps which contain app_autoload.txt only run it if there is an app_autoload.txt file also
@@ -191,10 +191,8 @@ class: zoo extends object
 
 
 : cleanup
-  dogA.release dogB.release dogC.release
-  adogs.release
-  ldogs.release
-  mdogs.release
+  oclear dogA   oclear dogB   oclear dogC
+  oclear adogs  oclear ldogs  oclear mdogs
 ;
 
 loaddone

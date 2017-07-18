@@ -1,8 +1,8 @@
 requires numberio
 requires randoms
 
-autoforget tree_examples
-: tree_examples ;
+autoforget TREE_EXAMPLES
+: TREE_EXAMPLES ;
 
 false -> bool beNoisy   // set beNoisyto true to display sort array before and after sort
 
@@ -375,7 +375,7 @@ class: Tree
       endof
       
       // default case
-      2/ left + -> int middle
+      dup 2/ left + -> int middle
       a.get(middle) ->o branchRoot
       branchRoot.setLeft(_fromArray(a left middle 1-))
       branchRoot.setRight(_fromArray(a middle 1+ right))
@@ -610,12 +610,13 @@ class: Tree
   // this assumes tree has all levels except bottom completely filled,
   //  bottom level is filled left-to-right
   m: findBottomHeapSlot
+    int branchChoices
     if(root or)
       // a relatively simple way of determining the left-right path to the rightmost node on
       //  the bottom (incomplete) layer of the tree - take the bits below the top set bit of the (numNodes + 1)
       // here we stick them on the stack starting at the low bit to do the reversing
       // this is a terrible way of reversing the bits, but it is fine for the trees we are dealing with (depth < 8 or so)
-      numNodes -> int branchChoices
+      numNodes -> branchChoices
       0 -> int numChoices
       root -> Node bottomSlot
       begin
