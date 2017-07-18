@@ -267,6 +267,20 @@ entry InnerInterpreterFast
 ; inner interpreter
 ;	jump to interpFunc if you need to reload IP, SP, interpLoop
 entry interpFunc
+	mov	eax, [ebp + FCore.traceFlags]
+	or	eax, eax
+	jz .interpFunc1
+	mov	ebx, traceLoopDebug
+	mov	[ebp + FCore.innerLoop], ebx
+	mov	ebx, traceLoopExecuteEntry
+	mov	[ebp + FCore.innerExecute], ebx
+	jmp	.interpFunc2
+.interpFunc1:
+	mov	ebx, interpLoopDebug
+	mov	[ebp + FCore.innerLoop], ebx
+	mov	ebx, interpLoopExecuteEntry
+	mov	[ebp + FCore.innerExecute], ebx
+.interpFunc2:
 	mov	esi, [ebp + FCore.IPtr]
 	mov	edx, [ebp + FCore.SPtr]
 	;mov	edi, interpLoopDebug
@@ -281,7 +295,7 @@ entry interpLoopDebug
 entry interpLoop
 	mov	ebx, [esi]		; ebx is opcode
 	add	esi, 4			; advance IP
-	; interpLoopExecuteEntry is entry for executeBop - expects opcode in ebx
+	; interpLoopExecuteEntry is entry for executeBop/methodWithThis/methodWithTos - expects opcode in ebx
 interpLoopExecuteEntry:
 %ifdef MACOSX
     ; check if system stack has become unaligned
@@ -307,6 +321,32 @@ badStack:
 	mov eax, [ebp + FCore.ops]
 	mov	ecx, [eax+ebx*4]
 	jmp	ecx
+
+entry traceLoopDebug
+	; while debugging, store IP,SP in corestate shadow copies after every instruction
+	;   so crash stacktrace will be more accurate (off by only one instruction)
+	mov	[ebp + FCore.IPtr], esi
+	mov	[ebp + FCore.SPtr], edx
+	mov	ebx, [esi]		; ebx is opcode
+	mov	eax, esi		; eax is the IP for trace
+	jmp	traceLoopDebug2
+
+	; traceLoopExecuteEntry is entry for executeBop/methodWithThis/methodWithTos - expects opcode in ebx
+traceLoopExecuteEntry:
+	xor	eax, eax		; put null in trace IP for indirect execution (op isn't at IP)
+	sub	esi, 4			; actual IP was already advanced by execute/method op, don't double advance it
+traceLoopDebug2:
+	push edx
+	push ebx
+	push eax
+	push ebp
+	xcall traceOp
+	pop ebp
+	pop eax
+	pop ebx
+	pop edx
+	add	esi, 4			; advance IP
+	jmp interpLoopExecuteEntry
 
 interpLoopExit:
 	mov	[ebp + FCore.state], eax
@@ -1768,7 +1808,8 @@ opEntry:
 	; execute local op
 localOpExecute:
 	mov	ebx, [eax]
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 
 
 localOpActionTable:
@@ -2066,7 +2107,8 @@ los3:
 	add	edx, 8
 
 	; execute the delete method opcode which is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 
 localObjectClear:
 	; TOS is new object, eax points to destination/old object
@@ -2215,7 +2257,8 @@ entry methodWithThisType
 	sal	ebx, 2
 	add	ebx, eax
 	mov	ebx, [ebx]	; ebx = method opcode
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 ; invoke a method on an object referenced by ptr pair on TOS
 entry methodWithTOSType
@@ -2241,7 +2284,8 @@ entry methodWithTOSType
 	add	ebx, eax
 	mov	ebx, [ebx]	; ebx = method opcode
 	add	edx, 8
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 ;-----------------------------------------------
 ;
@@ -5786,7 +5830,8 @@ entry thisMethodsBop
 entry executeBop
 	mov	ebx, [edx]
 	add	edx, 4
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 ;========================================
 
@@ -6029,6 +6074,15 @@ entry	fputsBop
 	mov	[edx], eax	; push fseek result
 	jmp	edi
 	
+;========================================
+entry	setTraceBop
+	mov	eax, [edx]
+	add	edx, 4
+	mov	[ebp + FCore.traceFlags], eax
+	mov	[ebp + FCore.SPtr], edx
+	mov	[ebp + FCore.IPtr], esi
+	jmp interpFunc
+
 ;========================================
 
 ;extern void fprintfSub( ForthCoreState* pCore );
@@ -6392,7 +6446,8 @@ nvoCombo1:
 	shr	ebx, 2
 	and	ebx, 0000007FFh			; ebx is 11 bit opcode
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 
 ;-----------------------------------------------
 ;
@@ -6446,7 +6501,8 @@ noCombo1:
 	shr	ebx, 13
 	and	ebx, 0000007FFh			; ebx is 11 bit opcode
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 ;-----------------------------------------------
 ;
@@ -6465,7 +6521,8 @@ entry voComboType
 	and	ebx, 0003FFFFFh			; ebx is 22 bit opcode
 
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 
 ;-----------------------------------------------
 ;
@@ -6481,7 +6538,8 @@ entry ozbComboType
 	mov	edi, ozbCombo1
 	and	ebx, 0FFFh
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 ozbCombo1:
 	pop	edi
@@ -6515,7 +6573,8 @@ entry obComboType
 	mov	edi, obCombo1
 	and	ebx, 0FFFh
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 obCombo1:
 	pop	edi
@@ -6645,7 +6704,8 @@ entry lroComboType
 	shr	ebx, 12
 	and	ebx, 0FFFH			; ebx is 12 bit opcode
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 ;-----------------------------------------------
 ;
@@ -6664,7 +6724,8 @@ entry mroComboType
 	shr	ebx, 12
 	and	ebx, 0FFFH			; ebx is 12 bit opcode
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 
 
 ;=================================================================================================

@@ -5176,13 +5176,6 @@ FORTHOP( bracketEndifOp )
 {
 }
 
-FORTHOP(setTraceOp)
-{
-	int traceFlags = SPOP;
-	GET_ENGINE->SetTraceFlags(traceFlags);
-	SET_STATE(kResultTrace);
-}
-
 FORTHOP(getTraceOp)
 {
 	int traceFlags = GET_ENGINE->GetTraceFlags();
@@ -8363,7 +8356,7 @@ OPREF( fatan2Bop );         OPREF( fexpBop );           OPREF( flnBop );
 OPREF( flog10Bop );         OPREF( fpowBop );           OPREF( fsqrtBop );
 OPREF( fceilBop );          OPREF( ffloorBop );         OPREF( fabsBop );
 OPREF( fldexpBop );         OPREF( ffrexpBop );         OPREF( fmodfBop );
-OPREF( ffmodBop );
+OPREF( ffmodBop );          OPREF( setTraceBop );
 #else
 
 // helper macro for built-in op entries in baseDictionary
@@ -9135,7 +9128,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    addErrorTextOp,         "addErrorText" ),
     OP_DEF(    unimplementedMethodOp,  "unimplementedMethod" ),
     OP_DEF(    illegalMethodOp,        "illegalMethod" ),
-	OP_DEF(    setTraceOp,             "setTrace" ),
+    NATIVE_DEF( setTraceBop,           "setTrace"),
 	OP_DEF(    getTraceOp,             "getTrace" ),
     OP_DEF(    verboseBop,             "verbose" ),
     OP_DEF(    featuresOp,             "features" ),

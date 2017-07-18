@@ -72,7 +72,7 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 
 extern "C"
 {
-	void traceOp(ForthCoreState* pCore)
+	void traceOp(ForthCoreState* pCore, long* pIP, long op)
 	{
 		if (pCore->traceFlags != 0)
 		{
@@ -82,7 +82,17 @@ extern "C"
 				pEngine->TraceStack(pCore);
 			}
 			pEngine->TraceOut("\n");
-		    pEngine->TraceOp(pCore->IP);
+		    pEngine->TraceOp(pIP, op);
+            if (pCore->traceFlags & kLogInnerInterpreter)
+            {
+                forthOpType opType = FORTH_OP_TYPE(op);
+                if ((opType == kOpMethodWithThis) || (opType == kOpMethodWithTOS))
+                {
+                    long* pMethods = (opType == kOpMethodWithTOS) ? ((long *)*(pCore->SP)) : pCore->TPM;
+                    long opVal = FORTH_OP_VALUE(op);
+                    SpewMethodName(pMethods, opVal);
+                }
+            }
 		}
 	}
 };
@@ -1266,10 +1276,10 @@ ForthEngine::GetTraceOutRoutine(traceOutRoutine& traceRoutine, void*& pTraceData
 }
 
 void
-ForthEngine::TraceOp(long* pOp)
+ForthEngine::TraceOp(long* pOp, long op)
 {
 #ifdef TRACE_INNER_INTERPRETER
-    char buff[ 256 ];
+    char buff[ 512 ];
 #if 0
     int rDepth = pCore->RT - pCore->RP;
     char* sixteenSpaces = "                ";     // 16 spaces
@@ -1286,6 +1296,14 @@ ForthEngine::TraceOp(long* pOp)
 		TraceOut("%s%s # ", pIndent, buff);
 	}
 #else
+    long opIn;
+    if (pOp == nullptr)
+    {
+        // this is used for indirect op execution, where the op to be executed
+        //  isn't pointed to by the IP, things like 'execute' or methods
+        opIn = op;
+        pOp = &opIn;
+    }
     DescribeOp(pOp, buff, sizeof(buff), lookupUserTraces);
     TraceOut("# 0x%08x # %s # ", pOp, buff);
 #endif

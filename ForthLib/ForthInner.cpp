@@ -2470,8 +2470,9 @@ InnerInterpreter( ForthCoreState *pCore )
 			{
 				// fetch op at IP, advance IP
 				long* pIP = GET_IP;
-				pEngine->TraceOp(pIP);
-				long op = *pIP++;
+                long op = *pIP;
+                pEngine->TraceOp(pIP, op);
+                pIP++;
 				SET_IP(pIP);
 				DISPATCH_FORTH_OP(pCore, op);
 				result = GET_STATE;
@@ -2521,7 +2522,7 @@ InterpretOneOp( ForthCoreState *pCore, long op )
 	{
 		// fetch op at IP, advance IP
 		long* pIP = GET_IP;
-		pEngine->TraceOp(pIP);
+		pEngine->TraceOp(pIP, *pIP);
 		//DISPATCH_FORTH_OP( pCore, op );
 		optypeActionRoutine typeAction = pCore->optypeAction[(int)FORTH_OP_TYPE(op)];
 		typeAction(pCore, FORTH_OP_VALUE(op));

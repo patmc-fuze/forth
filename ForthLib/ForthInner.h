@@ -122,6 +122,7 @@ extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, long op );
 void InitDispatchTables( ForthCoreState* pCore );
 void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal );
 void _doIntVarop(ForthCoreState* pCore, int* pVar);
+void SpewMethodName(long* pMethods, long opVal);
 
 // DLLRoutine is used for any external DLL routine - it can take any number of arguments
 typedef long (*DLLRoutine)();

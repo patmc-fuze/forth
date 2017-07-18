@@ -3,6 +3,38 @@ setTrace( 0 )
 "forth_autoload" $forget drop
 : forth_autoload "This is the forth_autoload.txt tools module" %s ;
 
+// create the system singleton
+makeObject System system
+
+: $alias
+  -> int oldSymbol
+  -> int newSymbol
+  system.getDefinitionsVocab -> Vocabulary vocab
+  vocab.findEntryByName(oldSymbol) -> int oldEntry
+  // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
+  makeObject ByteArray valueBuffer
+  valueBuffer.fromMemory(oldEntry vocab.getValueLength 0)
+  valueBuffer.base -> oldEntry
+  //newSymbol %s %nl dump(oldEntry 32)
+  if(oldEntry)
+    vocab.addSymbol(newSymbol 0 0 0)
+    vocab.getNewestEntry -> int newEntry
+    move(oldEntry  newEntry  vocab.getValueLength)
+  else
+    "Symbol " %s oldSymbol %s " not found!\n" %s
+  endif
+  oclear vocab
+  oclear valueBuffer
+;
+
+: alias blword -> 250 string aa  aa blword $alias ;
+alias ->o ->+    // ->o stores to an object variable without changing refcounts
+alias mko makeObject
+alias bool int
+alias objIsNull l0=
+alias objNotNull l0<>
+alias ds dstack
+
 0x7FFFFFFF -> int MAXINT
 0x80000000 -> int MININT
 
@@ -17,8 +49,6 @@ setTrace( 0 )
   endif
 ;
 : autoforget blword $forget drop ;
-
-: ds dstack ;
 
 : see verbose describe ;
 
@@ -119,42 +149,37 @@ enum: eFeatures
 255 string _TempStringA
 255 string _TempStringB
 
+false -> int _helpfileLoaded
+mko StringMap _helpMap
 
-0 -> int helpChain
 : addHelp
-  here helpChain , -> helpChain		// link new entry into help chain
-  blword $,		// compile new symbol
-  0 $word $,		// compile symbols help definition
-  align
+  blword -> ptrTo byte name
+  mko String helpContents
+  helpContents.set($word(0))
+  _helpMap.set(helpContents name)
+  oclear helpContents
 ;
 
-false -> int _helpfileLoaded
 
 : $help
-  -> ptrTo byte s
-  helpChain	-> int pNext
-  if( strlen( s ) 0= )
+  -> ptrTo byte opName
+  
+  if( strlen( opName ) 0= )
     // line was empty, just list all help
+    _helpMap.headIter -> StringMapIter iter
     begin
-    while( pNext )
-      pNext 4+ dup %s "	" %s
-      strlen( dup ) 1+ + %s %nl
-      pNext @ -> pNext
+    while( iter.nextPair )
+      %s %bl <String>.get %s %nl
     repeat
-    exit
-  endif
-
-  begin
-  while( pNext )
-    if( strcmp( pNext 4+ s ) 0= )
-      pNext 4+ strlen( dup ) 1+ + %s
-      exit
+  else
+    _helpMap.get(opName) -> String opDescription
+    if(objIsNull(opDescription))
+      opName %s " not found!\n" %s
+    else
+      opDescription.get %s %nl
     endif
-    pNext @ -> pNext
-  repeat
-  s %s " not found!\n" %s
+  endif
 ;
-
 
 : help
   blword -> _TempStringA
@@ -168,9 +193,6 @@ false -> int _helpfileLoaded
   endif
 ;
 
-// create the system singleton
-makeObject System system
-
 : immediate
   system.getDefinitionsVocab -> Vocabulary vocab
   vocab.getNewestEntry
@@ -181,7 +203,7 @@ makeObject System system
   precedence(pushToken(_TempStringA))
   oclear vocab
 ;
-  
+
 addHelp	dump		ADDRESS LEN dump	dump memory
 addHelp	ldump		ADDRESS LEN ldump	dump memory as longs
 addHelp fdump	FILENAME OFFSET LEN fdump	dump file contents
@@ -305,34 +327,6 @@ int dumpWidth
 
 : fdump ['] _dump _fdump ;
 : fldump ['] _ldump _fdump ;
-
-: $alias
-  -> int oldSymbol
-  -> int newSymbol
-  system.getDefinitionsVocab -> Vocabulary vocab
-  vocab.findEntryByName(oldSymbol) -> int oldEntry
-  // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
-  makeObject ByteArray valueBuffer
-  valueBuffer.fromMemory(oldEntry vocab.getValueLength 0)
-  valueBuffer.base -> oldEntry
-  //newSymbol %s %nl dump(oldEntry 32)
-  if(oldEntry)
-    vocab.addSymbol(newSymbol 0 0 0)
-    vocab.getNewestEntry -> int newEntry
-    move(oldEntry  newEntry  vocab.getValueLength)
-  else
-    "Symbol " %s oldSymbol %s " not found!\n" %s
-  endif
-  oclear vocab
-  oclear valueBuffer
-;
-
-: alias blword -> 250 string aa  aa blword $alias ;
-alias ->o ->+    // ->o stores to an object variable without changing refcounts
-alias mko makeObject
-alias bool int
-alias objIsNull l0=
-alias objNotNull l0<>
 
 addHelp addHelp	addHelp SYMBOL REST_OF_LINE		add help entry
 addHelp $,	STRING_ADDR $,		compiles string (can leave DP unaligned)

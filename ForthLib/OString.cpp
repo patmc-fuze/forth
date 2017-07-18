@@ -1112,10 +1112,9 @@ namespace OString
 		TRACK_ITER_NEW;
 		pIter->refCount = 0;
 		pIter->parent.pMethodOps = GET_TPM;
-		pIter->parent.pData = reinterpret_cast<long *>(pMap);
-		oStringMap::iterator iter = pMap->elements->begin();
-		*(pIter->cursor) = iter;
-		//pIter->cursor = pMap->elements->begin();
+        pIter->parent.pData = reinterpret_cast<long *>(pMap);
+        pIter->cursor = new oStringMap::iterator;
+        *(pIter->cursor) = pMap->elements->begin();
 		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
@@ -1133,7 +1132,8 @@ namespace OString
 		pIter->refCount = 0;
 		pIter->parent.pMethodOps = GET_TPM;
 		pIter->parent.pData = reinterpret_cast<long *>(pMap);
-		*(pIter->cursor) = pMap->elements->end();
+        pIter->cursor = new oStringMap::iterator;
+        *(pIter->cursor) = pMap->elements->end();
 		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
 		METHOD_RETURN;
