@@ -148,7 +148,7 @@ alias is ->
 
 int _handler
 
-: catch  ( ... xt -- ... 0 )
+: catch  // ... xt -- ... 0
   _handler  >r
   sp >r
   rp -> _handler
@@ -157,7 +157,7 @@ int _handler
   r> -> _handler
 ;
 
-: throw  ( error -- error )
+: throw  // error -- error
   dup 0= if
     drop exit
   endif
@@ -205,7 +205,7 @@ alias at-xy setConsoleCursor
 ;
  
 : cell- 4- ;
-: [defined] ( "word" -- tf ) bl word find nip ; precedence [defined]
+
 : -trailing
   -> int numChars
   -> ptrTo byte pStr
