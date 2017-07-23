@@ -340,35 +340,8 @@ lf atcGame.txt
 
 lf atcFileReader.txt
 
-
-//  new atcGame -> atcGame game
-
-: listFilesToArray
-  int dirHandle
-  ptrTo dirent pEntry
-  int pName
-  new Array -> Array filenames
-  
-  opendir -> dirHandle
-  if( dirHandle )
-    begin
-      readdir(dirHandle) -> pEntry
-    while( pEntry )
-      pEntry.d_name(0 ref) -> pName
-      if(pName c@ '.' <>)
-        new String -> String filename
-        filename.set(pName)
-        filenames.push(filename)
-        oclear filename
-      endif
-    repeat
-    closedir(dirHandle) drop
-  endif
-  unref filenames
-;
-
-: listGames
-  listFilesToArray("games") -> Array gameFilenames
+: listATCGames
+  getFilesInDirectory("games") -> Array gameFilenames
   
   gameFilenames.headIter -> Iter iter
   begin
@@ -396,7 +369,7 @@ lf atcFileReader.txt
     game.reset
   else
     "Available games:" %s %nl
-    listGames
+    listATCGames
   endif
   //t{ game.show }t
   oclear game
@@ -404,7 +377,11 @@ lf atcFileReader.txt
   closeTrace
 ;
 
-
+"Type:\n\+
+  atc            to play an atc game with the default map\n\+
+  listATCGames   to see a list of atc maps\n\+
+  atc MAPNAME    to play an atc game with specified map\n" %s
+  
 loaddone
 
 : listGames

@@ -170,7 +170,7 @@ unsigned long ConsoleInputThreadRoutine( void* pThreadData );
 //                     ForthShell
 // 
 
-ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthThread *pThread, int shellStackLongs )
+ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEngine *pEngine, ForthExtension *pExtension, ForthThread *pThread, int shellStackLongs)
 : mpEngine(pEngine)
 , mpThread(pThread)
 , mFlags(0)
@@ -185,6 +185,7 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 , mExpressionInputStream(NULL)
 , mSystemDir(NULL)
 , mTempDir(NULL)
+, mBlockfilePath(nullptr)
 {
     mFileInterface.fileOpen = fopen;
     mFileInterface.fileClose = fclose;
@@ -223,6 +224,23 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 	mFileInterface.closeDir = closeDir;
 	mFileInterface.rewindDir = rewindDir;
 
+#if defined( WIN32 )
+    DWORD result = GetCurrentDirectory(MAX_PATH, mWorkingDirPath);
+    if (result == 0)
+    {
+        mWorkingDirPath[0] = '\0';
+    }
+#elif defined(LINUX) || defined(MACOSX)
+    if (getcwd(mWorkingDirPath, MAX_PATH) == NULL)
+    {
+        // failed to get current directory
+        strcpy(mWorkingDirPath, ".");
+    }
+#endif
+
+    SetCommandLine(argc, argv);
+    SetEnvironmentVars(envp);
+
     if ( mpEngine == NULL )
     {
         mpEngine = new ForthEngine();
@@ -240,21 +258,6 @@ ForthShell::ForthShell( ForthEngine *pEngine, ForthExtension *pExtension, ForthT
 
     mpInput = new ForthInputStack;
 	mpStack = new ForthShellStack( shellStackLongs );
-
-
-#if defined( WIN32 )
-	DWORD result = GetCurrentDirectory( MAX_PATH, mWorkingDirPath );
-	if ( result == 0 )
-	{
-		mWorkingDirPath[0] = '\0';
-	}
-#elif defined(LINUX) || defined(MACOSX)
-	if ( getcwd( mWorkingDirPath, MAX_PATH ) == NULL )
-	{
-		// failed to get current directory
-		strcpy( mWorkingDirPath, "." );
-	}
-#endif
 
 #if 0
     mMainThreadId = GetThreadId( GetMainThread() );
@@ -288,6 +291,7 @@ ForthShell::~ForthShell()
 	}
     delete [] mTempDir;
     delete [] mSystemDir;
+    delete [] mBlockfilePath;
     // engine will destroy thread for us if we created it
 	if (mFlags & SHELL_FLAG_CREATED_ENGINE)
 	{
@@ -1358,12 +1362,11 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
 }
 
 
-void
-ForthShell::SetCommandLine( const char *pCmdLine )
-{
-    // TODO
-}
-
+#if defined(WIN32)
+#define PATH_SEPARATOR "\\"
+#else
+#define PATH_SEPARATOR "/"
+#endif
 
 void
 ForthShell::SetEnvironmentVars( const char ** envp )
@@ -1379,8 +1382,9 @@ ForthShell::SetEnvironmentVars( const char ** envp )
     {
         mNumEnvVars++;
     }
-    mpEnvVarNames = new char *[ mNumEnvVars ];
-    mpEnvVarValues = new char *[ mNumEnvVars ];
+    // leave room for 3 environment vars we may need to add: FORTH_ROOT, FORTH_TEMP and FORTH_BLOCKFILE
+    mpEnvVarNames = new char *[mNumEnvVars + 3];
+    mpEnvVarValues = new char *[mNumEnvVars + 3];
     const char* tempDir = NULL;
 
     // make copies of vars
@@ -1395,17 +1399,20 @@ ForthShell::SetEnvironmentVars( const char ** envp )
         {
             *pValue++ = '\0';
             mpEnvVarValues[i] = pValue;
-            if (strcmp(mpEnvVarNames[i], "FORTH_SYSTEM_DIR") == 0)
+            if (strcmp(mpEnvVarNames[i], "FORTH_ROOT") == 0)
             {
-                delete [] mSystemDir;
                 mSystemDir = new char[strlen(pValue) + 1];
                 strcpy(mSystemDir, pValue);
             }
-            else if (strcmp(mpEnvVarNames[i], "FORTH_TEMP_DIR") == 0)
+            else if (strcmp(mpEnvVarNames[i], "FORTH_TEMP") == 0)
             {
-                delete[] mTempDir;
                 mTempDir = new char[strlen(pValue) + 1];
                 strcpy(mTempDir, pValue);
+            }
+            else if (strcmp(mpEnvVarNames[i], "FORTH_BLOCKFILE") == 0)
+            {
+                mBlockfilePath = new char[strlen(pValue) + 1];
+                strcpy(mBlockfilePath, pValue);
             }
             else if (strcmp(mpEnvVarNames[i], "TMP") == 0)
             {
@@ -1423,11 +1430,47 @@ ForthShell::SetEnvironmentVars( const char ** envp )
         i++;
     }
 
-    if ((mTempDir == NULL) && (tempDir != NULL))
+    if (mSystemDir == nullptr)
     {
-        delete[] mTempDir;
-        mTempDir = new char[strlen(tempDir) + 1];
-        strcpy(mTempDir, tempDir);
+        mSystemDir = new char[strlen(mWorkingDirPath) + 2];
+        strcpy(mSystemDir, mWorkingDirPath);
+        strcat(mSystemDir, PATH_SEPARATOR);
+        mpEnvVarNames[mNumEnvVars] = new char[16];
+        strcpy(mpEnvVarNames[mNumEnvVars], "FORTH_ROOT");
+        mpEnvVarValues[mNumEnvVars] = mSystemDir;
+        mNumEnvVars++;
+    }
+    if (mTempDir == nullptr)
+    {
+        if (tempDir == nullptr)
+        {
+            mTempDir = new char[strlen(mSystemDir) + 1];
+            strcpy(mTempDir, mSystemDir);
+        }
+        else
+        {
+            mTempDir = new char[strlen(tempDir) + 2];
+            strcpy(mTempDir, tempDir);
+            strcat(mTempDir, PATH_SEPARATOR);
+        }
+        mpEnvVarNames[mNumEnvVars] = new char[16];
+        strcpy(mpEnvVarNames[mNumEnvVars], "FORTH_TEMP");
+        mpEnvVarValues[mNumEnvVars] = mTempDir;
+        mNumEnvVars++;
+    }
+    if (mBlockfilePath == nullptr)
+    {
+        if (tempDir == NULL)
+        {
+            tempDir = mSystemDir;
+        }
+        mBlockfilePath = new char[strlen(mSystemDir) + 16];
+        strcpy(mBlockfilePath, mSystemDir);
+        strcat(mBlockfilePath, "_blocks.blk");
+        mpEnvVarNames[mNumEnvVars] = new char[20];
+        strcpy(mpEnvVarNames[mNumEnvVars], "FORTH_BLOCKFILE");
+        mpEnvVarValues[mNumEnvVars] = mBlockfilePath;
+        mNumEnvVars++;
     }
 }
 

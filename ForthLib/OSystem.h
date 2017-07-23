@@ -15,7 +15,11 @@ namespace OSystem
 	struct oSystemStruct
 	{
 		ulong			refCount;
-	};
+        ForthObject     namedObjects;
+        ForthObject     args;
+        ForthObject     env;
+    };
 
-	void AddClasses(ForthEngine* pEngine);
+    void AddClasses(ForthEngine* pEngine);
+    void Shutdown(ForthEngine* pEngine);
 }

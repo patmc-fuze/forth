@@ -495,7 +495,6 @@ ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 	pEngine->AddBuiltinClass("Iter", kBCIIter, kBCIObject, oIterMembers);
 	pEngine->AddBuiltinClass("Iterable", kBCIIterable, kBCIObject, oIterableMembers);
 
-	OSystem::AddClasses(pEngine);
 	OArray::AddClasses(pEngine);
 	OList::AddClasses(pEngine);
 	OMap::AddClasses(pEngine);
@@ -505,7 +504,13 @@ ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 	OVocabulary::AddClasses(pEngine);
 	OThread::AddClasses(pEngine);
 	OLock::AddClasses(pEngine);
+    OSystem::AddClasses(pEngine);
 
 	mpClassMethods = pClassClassVocab->GetInterface(0)->GetMethods();
 }
 
+void
+ForthTypesManager::ShutdownBuiltinClasses(ForthEngine* pEngine)
+{
+    OSystem::Shutdown(pEngine);
+}
