@@ -38,7 +38,10 @@ namespace OSystem
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
         ForthObject obj;
         ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-        gSystemSingleton.refCount = 1000000;
+        gSystemSingleton.refCount = 2000000000;
+        CLEAR_OBJECT(gSystemSingleton.namedObjects);
+        CLEAR_OBJECT(gSystemSingleton.args);
+        CLEAR_OBJECT(gSystemSingleton.env);
         obj.pMethodOps = pPrimaryInterface->GetMethods();
         obj.pData = reinterpret_cast<long *>(&gSystemSingleton);
         PUSH_OBJECT(obj);
@@ -47,7 +50,7 @@ namespace OSystem
 	FORTHOP(oSystemDeleteMethod)
 	{
 		GET_THIS(oSystemStruct, pSystem);
-		pSystem->refCount = 1000000;
+        pSystem->refCount = 2000000000;
         // TODO: warn that something tried to delete system
 		METHOD_RETURN;
 	}
@@ -258,6 +261,9 @@ namespace OSystem
 		METHOD_RET("createAsyncThread", oSystemCreateAsyncThreadMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncThread)),
 		METHOD_RET("createAsyncLock", oSystemCreateAsyncLockMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncLock)),
 
+        MEMBER_VAR("namedObjects", OBJECT_TYPE_TO_CODE(0, kBCIStringMap)),
+        MEMBER_VAR("args", OBJECT_TYPE_TO_CODE(0, kBCIArray)),
+        MEMBER_VAR("env", OBJECT_TYPE_TO_CODE(0, kBCIStringMap)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -268,6 +274,14 @@ namespace OSystem
 	{
 		pEngine->AddBuiltinClass("System", kBCISystem, kBCIObject, oSystemMembers);
 	}
+
+    void Shutdown(ForthEngine* pEngine)
+    {
+        ForthCoreState* pCore = pEngine->GetCoreState();
+        SAFE_RELEASE(pCore, gSystemSingleton.args);
+        SAFE_RELEASE(pCore, gSystemSingleton.env);
+        SAFE_RELEASE(pCore, gSystemSingleton.namedObjects);
+    }
 
 } // namespace OSystem
 

@@ -305,8 +305,6 @@ ForthEngine::ForthEngine()
 	mDefaultConsoleOutStream.pMethodOps = NULL;
 	mDefaultConsoleOutStream.pData = NULL;
 
-    mBlockFileManager = new ForthBlockFileManager;
-
 	mDictionary.pBase = NULL;
 
     // At this point, the main thread does not exist, it will be created later in Initialize, this
@@ -326,7 +324,13 @@ ForthEngine::~ForthEngine()
         mpExtension->Shutdown();
     }
 	
-    if ( mDictionary.pBase )
+    if (mpTypesManager != nullptr)
+    {
+        mpTypesManager->ShutdownBuiltinClasses(this);
+        delete mpTypesManager;
+    }
+
+    if (mDictionary.pBase)
     {
 #ifdef WIN32
 		VirtualFree( mDictionary.pBase, 0, MEM_RELEASE );
@@ -337,7 +341,6 @@ ForthEngine::~ForthEngine()
 #endif
 		delete mpForthVocab;
         delete mpLocalVocab;
-        delete mpTypesManager;
 		delete mpOpcodeCompiler;
         delete [] mpStringBufferA;
         delete [] mpTempBuffer;
@@ -410,7 +413,9 @@ ForthEngine::Initialize( ForthShell*        pShell,
 {
     mpShell = pShell;
 
-	size_t dictionarySize = totalLongs * sizeof(long);
+    mBlockFileManager = new ForthBlockFileManager(mpShell->GetBlockfilePath());
+
+    size_t dictionarySize = totalLongs * sizeof(long);
 #ifdef WIN32
 	void* dictionaryAddress = NULL;
 	// we need to allocate memory that is immune to Data Execution Prevention
