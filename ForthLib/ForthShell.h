@@ -106,7 +106,7 @@ public:
 
     // if the creator of a ForthShell passes in non-NULL engine and/or thread params,
     //   that creator is responsible for deleting the engine and/or thread
-    ForthShell( ForthEngine *pEngine = NULL, ForthExtension *pExtension = NULL, ForthThread *pThread = NULL, int shellStackLongs = 1024 );
+    ForthShell(int argc, const char ** argv, const char ** envp, ForthEngine *pEngine = NULL, ForthExtension *pExtension = NULL, ForthThread *pThread = NULL, int shellStackLongs = 1024);
     virtual ~ForthShell();
 
     // returns true IFF file opened successfully
@@ -119,11 +119,6 @@ public:
 	virtual int             RunOneStream(ForthInputStream *pStream);
 	char *                  GetNextSimpleToken(void);
     char *                  GetToken( char delim, bool bSkipLeadingWhiteSpace = true );
-
-    void                    SetCommandLine( int argc, const char ** argv );
-    void                    SetCommandLine( const char *pCmdLine );
-
-    void                    SetEnvironmentVars( const char ** envp );
 
     inline ForthEngine *    GetEngine( void ) { return mpEngine; };
     inline ForthThread *    GetThread( void ) { return mpThread; };
@@ -138,6 +133,7 @@ public:
     inline int              GetEnvironmentVarCount() const { return mNumEnvVars;  }
     inline const char*      GetTempDir() const { return mTempDir; }
     inline const char*      GetSystemDir() const { return mSystemDir; }
+    inline const char*      GetBlockfilePath() const { return mBlockfilePath; }
 
     bool                    CheckSyntaxError(const char *pString, eShellTag tag, long desiredTag);
 	void					StartDefinition(const char*pDefinedSymbol, const char* pFourCharCode);
@@ -173,6 +169,9 @@ public:
 
 	static long				FourCharToLong(const char* pFourCC);
 protected:
+
+    void                    SetCommandLine(int argc, const char ** argv);
+    void                    SetEnvironmentVars(const char ** envp);
 
     // parse next token from input stream into mTokenBuff, padded with 0's up
     // to next longword boundary
@@ -211,6 +210,7 @@ protected:
     char                    mToken[MAX_TOKEN_BYTES + 1];
     char*                   mTempDir;
     char*                   mSystemDir;
+    char*                   mBlockfilePath;
     int                     mPoundIfDepth;
 
 #if defined(LINUX) || defined(MACOSX)

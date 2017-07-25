@@ -112,6 +112,7 @@ public:
     virtual bool    ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
 
     void            AddBuiltinClasses( ForthEngine* pEngine );
+    void            ShutdownBuiltinClasses(ForthEngine* pEngine);
 
     // add a new structure type
     ForthStructVocabulary*          StartStructDefinition( const char *pName );

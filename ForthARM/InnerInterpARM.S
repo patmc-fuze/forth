@@ -77,11 +77,12 @@ cur_thread		=	84			@	current ForthThread pointer
 dict_mem_sect	=	88			@	dictionary memory section pointer
 file_funcs		=	92			@
 inner_loop		=	96			@	inner interpreter asm reentry point
-conout_stream  	=	100
-base          	=	108
-signed_print_mode = 112
-trace_flags     =   116
-scratch			=	120
+inner_execute	=	100			@	inner interpreter reentry for execute/methodWithThis/methodWithTOS
+conout_stream  	=	104
+base          	=	112
+signed_print_mode = 116
+trace_flags     =   120
+scratch			=	124
 
 kVarDefaultOp			=		0
 kVarFetch				=		1
@@ -196,7 +197,7 @@ filePutString	=		48
 	.global icmpBop, uicmpBop, oclearBop, lplusBop, lminusBop, ltimesBop, mtimesBop, umtimesBop
     .global lcmpBop, ulcmpBop
     
-	.global fprintfSub, fscanfSub, snprintfSub, sscanfSub, oStringFormatSub
+	.global fprintfSub, fscanfSub, snprintfSub, sscanfSub, oStringFormatSub, setTraceBop
 
 	.global InterpretOneOpFast
 	
@@ -288,6 +289,7 @@ InnerInterpreterFast:
 
 	@
 	@ re-enter here if you stomped on rip/rsp/rrp	
+	@  or if you are switching trace modes
 	@
 InnerInterpreterReentry:
 	add	r0, rcore, #ipsave
@@ -299,50 +301,43 @@ InnerInterpreterReentry:
 	mov	r3, #kResultOk				@ r3 = kResultOk
 	str	r3, [rcore, #istate]		@ SET_STATE( kResultOk )
 
-	@ uncomment next 2 lines to display IP each instruction	
-	@mov	r0, rip
-	@bl	ShowIP
-	@bl	break_me	
-	
-	bl	.II2					@ don't know how to load lr directly
+	@ load core inner_loop and inner_execute entry points into core based
+	@  on if we are tracing or not
+	ldr	r2, .normalInterpTable
+	ldr	r0, [rcore, #trace_flags]
+	orrs	r0, r0
+	beq	.IIR1
+	ldr	r2, .traceInterpTable
+.IIR1:
+	ldrd	r0, [r2]
+	strd	r0, [rcore, #inner_loop]
+	mov	lr, r0
+	bx	lr
+
 	@
 	@ we come back here whenever an op does a "bx lr"
 	@
 innerInterpLoop:
 .II1:
-	push {lr}
-	bl checkOptypeTable
-	pop {lr}
-	@swi	#0xFD
+@	push {lr}
+@	bl checkOptypeTable
+@	pop {lr}
 	ldrb	r0, [rcore, #istate]	@ get state from core
 	cmp	r0, #kResultOk			@ keep looping if state is still ok (zero)
 	bne	.IIExit
 .II2:
-	ldr	r0, [rcore, #ops]			@ rops = table of ops
-	cmp r0, rops
-	bne	badTuna
-	ldr	r0, [rcore, #n_ops]	@ rnumops = number of ops implemented in assembler
-	cmp r0, rnumops
-	bne	badTuna
-	ldr	r0, .opTypesTable		@ raction = table of opType handlers
-	cmp r0, raction
-	bne	badTuna
-	cmp	rops, #0
-	beq	badTuna
+@	ldr	r0, [rcore, #ops]			@ rops = table of ops
+@	cmp r0, rops
+@	bne	badTuna
+@	ldr	r0, [rcore, #n_ops]	@ rnumops = number of ops implemented in assembler
+@	cmp r0, rnumops
+@	bne	badTuna
+@	ldr	r0, .opTypesTable		@ raction = table of opType handlers
+@	cmp r0, raction
+@	bne	badTuna
+@	cmp	rops, #0
+@	beq	badTuna
 .backFromBadTuna:
-
-
-	push {lr}
-	ldr	r0, [rcore, #trace_flags]
-	orrs r0, r0
-	beq	.noTrace
-	add	r0, rcore, #ipsave			@ r1 -> IP
-	stmia	r0!, {rip-rfp}			@ save IP, SP, RP, FP in core
-	mov	r0, rcore
-	bl	traceOp
-.noTrace:
-	pop {lr}
-
 
 	ldmia	rip!, {r0}			@ r0 = next opcode, advance IP
 @ interpLoopExecuteEntry is entry for executeBop - expects opcode in r0
@@ -359,9 +354,9 @@ interpLoopExecuteEntry:
 @	str	r0, [r3]
 iidisp:
 	str	r0, [rcore, #scratch]
-	push {lr}
-	bl checkOptypeTable
-	pop {lr}
+@	push {lr}
+@	bl checkOptypeTable
+@	pop {lr}
 	cmp	r0, rnumops					@ is opcode native op?
 	bge	.II3
 	@ handle native ops
@@ -387,15 +382,45 @@ badTuna:
 	@
 	bx	r0						@ dispatch to action routine
 
+
+	@
+	@ we come back here whenever an op does a "bx lr" in trace mode
+	@
+traceInterpLoop:
+	ldrb	r0, [rcore, #istate]	@ get state from core
+	cmp	r0, #kResultOk			@ keep looping if state is still ok (zero)
+	bne	.IIExit
+
+	ldmia	rip, {r2}			@ r2 = next opcode, don't advance IP
+	b	.trace1
+
+traceLoopExecuteEntry:
+	mov	r2, r0
+	sub	rip, #4			@ move IP back to avoid advancing twice
+	eor	r1, r1		@ pass null for IP
+
+.trace1:
+	mov	r1, rip
+	push {r2, lr}
+	eor	r0, r0
+	add	r0, rcore, #ipsave			@ r1 -> IP
+	stmia	r0!, {rip-rfp}			@ save IP, SP, RP, FP in core
+	mov	r0, rcore
+@ core, ip, opcode
+	bl	traceOp
+	pop {r0, lr}
+	add	rip, #4
+	b iidisp
+
 	
 	@
 	@ exit inner interpreter
 	@	
 .IIExit:
 interpLoopExit:
-	push {lr}
-	bl checkOptypeTable
-	pop {lr}
+@	push {lr}
+@	bl checkOptypeTable
+@	pop {lr}
 	add	r1, rcore, #ipsave			@ r1 -> IP
 	stmia	r1!, {rip-rfp}			@ save IP, SP, RP, FP in core
 	pop	{rcore-raction, r12, pc}
@@ -415,9 +440,19 @@ interpLoopFatalErrorExit:
 	.align	2
 .opTypesTable:
 	.word	opTypesTable
+
+.normalInterpTable:
+	.word	.innerInterpLoop
+.traceInterpTable:
+	.word	.traceInterpLoop
+
 .innerInterpLoop:
 	.word	innerInterpLoop
-	
+	.word	interpLoopExecuteEntry
+.traceInterpLoop:
+	.word	traceInterpLoop
+	.word	traceLoopExecuteEntry
+
 @-----------------------------------------------
 @
 @ InitAsmTables
@@ -1578,7 +1613,8 @@ opEntry:
 	@ execute local op
 localOpExecute:
 	ldr	r0, [r0]
-	b	interpLoopExecuteEntry
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 
 @
 @ these routines can rely on:
@@ -1732,7 +1768,8 @@ localObjectStore:
 	str	r3, [rcore, #tpd]	
 	
 	ldr	r0, [r2]				@ r0 is method 0 (delete) opcode
-	b		interpLoopExecuteEntry	
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 	
 .localObject1:
 	@ r0 points to the object field
@@ -2568,7 +2605,8 @@ thisMethodsBop:
 
 executeBop:
 	ldmia	rsp!, {r0}
-	b	interpLoopExecuteEntry
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 
 
 @#############################################@
@@ -4861,6 +4899,15 @@ strFixupBop3:
 	str r0, [r2, #-4]
 	bx	lr
 
+@@@@@@@@@@@@@@@@@  setTraceBop  @@@@@@@@@@@@@@@@@
+
+setTraceBop:
+	ldmia	rsp!, {r0}
+	str	r0, [rcore, #trace_flags]
+	add	r0, rcore, #ipsave
+	stmia	r0!, {rip-rfp}			@ save IP, SP, RP, FP to core
+	b	InnerInterpreterReentry
+
 @#############################################@
 @                                             @
 @           file manipulation                 @   
@@ -5653,7 +5700,8 @@ methodWithThisType:
 	stmdb	rrp!, {r2, r3}
 	@ get method opcode
 	ldr	r0, [r2, r1, lsl #2]
-	b	interpLoopExecuteEntry
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 		
 @ invoke a method on an object referenced by ptr pair on TOS
 methodWithTOSType:
@@ -5671,7 +5719,8 @@ methodWithTOSType:
 	str	r3, [rcore, #tpd]
 	@ get method opcode
 	ldr	r0, [r2, r1, lsl #2]
-	b	interpLoopExecuteEntry
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 
 badMethod:
 	mov	r0, #kForthErrorIllegalMethod
@@ -5772,7 +5821,8 @@ lroComboType:
 	lsr	r1, #12
 	ldr	r0, =0x0FFF
 	and	r0, r2				@ opcode is in r0
-	b	interpLoopExecuteEntry
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 	
 @ MEMBERREF OP combo ops
 mroComboType:
@@ -5787,7 +5837,8 @@ mroComboType:
 	lsr	r1, #12
 	ldr	r0, =0x0FFF
 	and	r0, r2				@ opcode is in r0
-	b	interpLoopExecuteEntry
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

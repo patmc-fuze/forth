@@ -174,6 +174,21 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 19 2017
+
+I merged fast-mode tracing back to the ARM build.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 16 2017
+
+I reworked how trace is done so that now you don't leave fast mode if you go
+into trace mode, you stay in the assembler inner interpreter which calls out
+to the engine's trace routines.  The trace flags had to be moved into the
+thread core, and another inner interpreter entry point was also added to the
+thread core, this one is used when executing an op which isn't stored at the IP,
+which is used by the execute op and methodWithThis and methodWithTOS optypes.
+
+I also changed the help system to use a StringMap instead of its linked list.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 4 2017
 
 I had to change the global object variable forget/shutdown code to do a release

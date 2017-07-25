@@ -3824,7 +3824,6 @@ FORTHOP(getEnvironmentVarOp)
 FORTHOP(getEnvironmentOp)
 {
     ForthShell *pShell = GET_ENGINE->GetShell();
-    const char* pVarName = (const char *)(SPOP);
     SPUSH((long)(pShell->GetEnvironmentVarNames()));
     SPUSH((long)(pShell->GetEnvironmentVarValues()));
     SPUSH(pShell->GetEnvironmentVarCount());

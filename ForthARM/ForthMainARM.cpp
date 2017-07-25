@@ -125,6 +125,10 @@ int main(int argc, char* argv[] )
     ForthInputStream *pInStream = NULL;
 
     tcgetattr( STDIN_FILENO, &oldTermSettings);
+
+	// uncomment this getchar if you want to attach gdb before forth initialization has occured
+	//getchar();
+
 	if ( !InitSystem() )
 	{
 		nRetCode = 1;

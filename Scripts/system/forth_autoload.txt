@@ -50,6 +50,40 @@ alias ds dstack
 ;
 : autoforget blword $forget drop ;
 
+// initialize the system object
+: _initSystemObject
+  new StringMap -> system.namedObjects
+
+  mko StringMap env
+  getEnvironment   -> int numVars  -> int envValues  -> int envNames
+  ?do(numVars 0)
+    mko String varValue
+    varValue.set(envValues @)
+    //"adding environment variable " %s envNames @ %s " = " %s varValue.get %s %nl
+    4 ->+ envValues
+    env.set(varValue envNames @)
+    4 ->+ envNames
+    oclear varValue
+  loop
+  env -> system.env
+  oclear env
+  
+  mko Array args
+  argc -> int numArgs
+  args.resize(numArgs)
+  ?do(numArgs 0)
+    mko String arg
+    arg.set(argv(i))
+    args.push(arg)
+    //"adding argument " %s arg.get %s %nl
+    oclear arg
+  loop
+  args -> system.args
+  oclear args
+;
+_initSystemObject
+forget _initSystemObject
+
 : see verbose describe ;
 
 : %nc swap 0 ?do dup %c loop drop ;
@@ -429,14 +463,20 @@ addHelp cd	cd BLAH			change working directory to BLAH
 // the name is very easily predictable, if you need a name that is secure against hacks
 // replace this op with one of your own
 : makeTempfileName
+  getEnvironmentVar("FORTH_TEMP") -> ptrTo byte tempDir
   mko String timeStr
-  timeStr.resize(128)
-  strftime(timeStr.get timeStr.size "%Y%m%d%H%M%S" time)
+  timeStr.resize(256)
+  strftime(timeStr.get timeStr.size "%Y%m%d_%H%M%S" time)
   timeStr.fixup
   mko String resultStr
   begin
-    resultStr.set(timeStr.get)
-    resultStr.append(format(rand "%d"))
+    if(tempDir)
+      resultStr.set(tempDir)
+    else
+      resultStr.clear
+    endif
+    resultStr.append(timeStr.get)
+    resultStr.append(format(rand "_%d"))
     resultStr.append(".tmp")
   until(not(fexists(resultStr.get)))
 
@@ -785,6 +825,31 @@ struct: dirent
 ;struct
 
 #endif
+
+// "DIRECTORY_PATH" ... Array of String
+: getFilesInDirectory
+  int dirHandle
+  ptrTo dirent pEntry
+  int pName
+  new Array -> Array of String filenames
+  
+  opendir -> dirHandle
+  if( dirHandle )
+    begin
+      readdir(dirHandle) -> pEntry
+    while( pEntry )
+      pEntry.d_name(0 ref) -> pName
+      if(pName c@ '.' <>)
+        new String -> String filename
+        filename.set(pName)
+        filenames.push(filename)
+        oclear filename
+      endif
+    repeat
+    closedir(dirHandle) drop
+  endif
+  unref filenames
+;
 
 //######################################################################
 // debug and trace statements

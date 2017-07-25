@@ -5,8 +5,6 @@ requires randoms
 autoforget ADV
 : ADV ;
 
-0 setTrace
-
 : sp!
   depth r> swap >r >r
 ;
