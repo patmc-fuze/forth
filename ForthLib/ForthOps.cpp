@@ -127,7 +127,8 @@ FORTHOP( illegalMethodOp )
 FORTHOP( argvOp )
 {
     NEEDS( 1 );
-    SPUSH( (long) (GET_ENGINE->GetShell()->GetArg( SPOP )) );
+    int argNum = SPOP;
+    SPUSH( (long) (GET_ENGINE->GetShell()->GetArg( argNum )) );
 }
 
 FORTHOP( argcOp )
