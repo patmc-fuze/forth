@@ -6,6 +6,40 @@ setTrace( 0 )
 // create the system singleton
 makeObject System system
 
+// initialize the system object
+: _initSystemObject
+  new StringMap -> system.namedObjects
+
+  makeObject StringMap env
+  getEnvironment   -> int numVars  -> int envValues  -> int envNames
+  ?do(numVars 0)
+    makeObject String varValue
+    varValue.set(envValues @)
+    //"adding environment variable " %s envNames @ %s " = " %s varValue.get %s %nl
+    4 ->+ envValues
+    env.set(varValue envNames @)
+    4 ->+ envNames
+    oclear varValue
+  loop
+  env -> system.env
+  oclear env
+  
+  makeObject Array args
+  argc -> int numArgs
+  args.resize(numArgs)
+  ?do(numArgs 0)
+    makeObject String arg
+    arg.set(argv(i))
+    args.push(arg)
+    //"adding argument " %s arg.get %s %nl
+    oclear arg
+  loop
+  args -> system.args
+  oclear args
+;
+_initSystemObject
+$forget("_initSystemObject") drop
+
 : $alias
   -> int oldSymbol
   -> int newSymbol
@@ -49,40 +83,6 @@ alias ds dstack
   endif
 ;
 : autoforget blword $forget drop ;
-
-// initialize the system object
-: _initSystemObject
-  new StringMap -> system.namedObjects
-
-  mko StringMap env
-  getEnvironment   -> int numVars  -> int envValues  -> int envNames
-  ?do(numVars 0)
-    mko String varValue
-    varValue.set(envValues @)
-    //"adding environment variable " %s envNames @ %s " = " %s varValue.get %s %nl
-    4 ->+ envValues
-    env.set(varValue envNames @)
-    4 ->+ envNames
-    oclear varValue
-  loop
-  env -> system.env
-  oclear env
-  
-  mko Array args
-  argc -> int numArgs
-  args.resize(numArgs)
-  ?do(numArgs 0)
-    mko String arg
-    arg.set(argv(i))
-    args.push(arg)
-    //"adding argument " %s arg.get %s %nl
-    oclear arg
-  loop
-  args -> system.args
-  oclear args
-;
-_initSystemObject
-forget _initSystemObject
 
 : see verbose describe ;
 
@@ -464,17 +464,16 @@ addHelp cd	cd BLAH			change working directory to BLAH
 // replace this op with one of your own
 : makeTempfileName
   getEnvironmentVar("FORTH_TEMP") -> ptrTo byte tempDir
+  if(tempDir 0=)
+    "" -> tempDir
+  endif
   mko String timeStr
   timeStr.resize(256)
-  strftime(timeStr.get timeStr.size "%Y%m%d_%H%M%S" time)
+  strftime(timeStr.get timeStr.size "forth_%Y%m%d_%H%M%S" time)
   timeStr.fixup
   mko String resultStr
   begin
-    if(tempDir)
-      resultStr.set(tempDir)
-    else
-      resultStr.clear
-    endif
+    resultStr.set(tempDir)
     resultStr.append(timeStr.get)
     resultStr.append(format(rand "_%d"))
     resultStr.append(".tmp")
