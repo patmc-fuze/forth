@@ -23,6 +23,7 @@ enum
 
 class ForthInputStack;
 class ForthParseInfo;
+class ForthBlockFileManager;
 
 class ForthInputStream
 {
@@ -187,7 +188,7 @@ protected:
 class ForthBlockInputStream : public ForthInputStream
 {
 public:
-    ForthBlockInputStream( unsigned int firstBlock, unsigned int lastBlock );
+    ForthBlockInputStream(ForthBlockFileManager* pManager, unsigned int firstBlock, unsigned int lastBlock);
     virtual ~ForthBlockInputStream();
 
     virtual int     GetSourceID();
@@ -206,6 +207,7 @@ public:
 protected:
     bool            ReadBlock();
 
+    ForthBlockFileManager* mpManager;
     unsigned int    mCurrentBlock;
     unsigned int    mLastBlock;
     char			*mpDataBuffer;

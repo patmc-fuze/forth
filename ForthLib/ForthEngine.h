@@ -209,7 +209,7 @@ public:
     // returns true IFF file opened successfully
     bool            PushInputFile( const char *pInFileName );
     void            PushInputBuffer( const char *pDataBuffer, int dataBufferLen );
-    void            PushInputBlocks( unsigned int firstBlock, unsigned int lastBlock );
+    void            PushInputBlocks(ForthBlockFileManager*  pManager, unsigned int firstBlock, unsigned int lastBlock);
     void            PopInputStream( void );
 
     // returns pointer to new vocabulary entry
@@ -336,7 +336,6 @@ public:
 	bool					SquishLong( long long lvalue, ulong& squishedLong );
 	long long				UnsquishLong( ulong squishedLong );
 
-    inline long*            GetBlockPtr() { return &mBlockNumber; };
     ForthBlockFileManager*  GetBlockFileManager();
 
 	bool					IsServer() const;
@@ -415,8 +414,6 @@ protected:
 
     long *          mpEnumStackBase;
     long            mNextEnum;
-
-    long            mBlockNumber;       // number returned by 'blk'
 
 	ForthObject		mDefaultConsoleOutStream;
 

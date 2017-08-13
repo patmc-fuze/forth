@@ -47,7 +47,7 @@ ForthInputStack::PushInputStream( ForthInputStream *pNewStream )
     mpHead = pNewStream;
     mpHead->mpNext = pOldStream;
 
-    *(ForthEngine::GetInstance()->GetBlockPtr()) = mpHead->GetBlockNumber();
+    *(ForthEngine::GetInstance()->GetBlockFileManager()->GetBlockPtr()) = mpHead->GetBlockNumber();
 
 	SPEW_SHELL("PushInputStream %s:%s\n", pNewStream->GetType(), pNewStream->GetName());
 }
@@ -71,7 +71,7 @@ ForthInputStack::PopInputStream( void )
 	}
     mpHead = pNext;
 
-    *(ForthEngine::GetInstance()->GetBlockPtr()) = mpHead->GetBlockNumber();
+    *(ForthEngine::GetInstance()->GetBlockFileManager()->GetBlockPtr()) = mpHead->GetBlockNumber();
 
 	SPEW_SHELL("PopInputStream %s\n", (mpHead == NULL) ? "NULL" : mpHead->GetType());
 
@@ -944,8 +944,9 @@ ForthBufferInputStream::SetInputState( long* pState )
 //                     ForthBlockInputStream
 // 
 
-ForthBlockInputStream::ForthBlockInputStream( unsigned int firstBlock, unsigned int lastBlock )
+ForthBlockInputStream::ForthBlockInputStream(ForthBlockFileManager* pManager, unsigned int firstBlock, unsigned int lastBlock)
 :   ForthInputStream( BYTES_PER_BLOCK + 1 )
+,   mpManager(pManager)
 ,   mCurrentBlock( firstBlock )
 ,   mLastBlock( lastBlock )
 {
@@ -1062,8 +1063,7 @@ ForthBlockInputStream::ReadBlock()
 {
     bool success = true;
     ForthEngine* pEngine = ForthEngine::GetInstance();
-    ForthBlockFileManager* pBlockManager = pEngine->GetBlockFileManager();
-    FILE * pInFile = pBlockManager->OpenBlockFile( false );
+    FILE * pInFile = mpManager->OpenBlockFile(false);
     if ( pInFile == NULL )
     {
         pEngine->SetError( kForthErrorIO, "BlockInputStream - failed to open block file" );

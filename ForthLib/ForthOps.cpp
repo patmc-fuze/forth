@@ -5210,7 +5210,8 @@ FORTHOP(ssDepthBop)
 
 FORTHOP( blkOp )
 {
-    SPUSH( (long)(GET_ENGINE->GetBlockPtr()) );
+    ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
+    SPUSH((long)(pBlockManager->GetBlockPtr()));
 }
 
 FORTHOP( blockOp )
@@ -5263,7 +5264,7 @@ FORTHOP( thruOp )
         ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
         if ( lastBlock < pBlockManager->GetNumBlocksInFile())
         {
-            GET_ENGINE->PushInputBlocks( firstBlock, lastBlock );
+            GET_ENGINE->PushInputBlocks(pBlockManager, firstBlock, lastBlock );
         }
         else
         {

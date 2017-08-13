@@ -332,9 +332,9 @@ ForthShell::PushInputBuffer( const char *pDataBuffer, int dataBufferLen )
 
 
 void
-ForthShell::PushInputBlocks( unsigned int firstBlock, unsigned int lastBlock )
+ForthShell::PushInputBlocks(ForthBlockFileManager* pManager, unsigned int firstBlock, unsigned int lastBlock)
 {
-    mpInput->PushInputStream( new ForthBlockInputStream( firstBlock, lastBlock ) );
+    mpInput->PushInputStream( new ForthBlockInputStream(pManager, firstBlock, lastBlock) );
 }
 
 

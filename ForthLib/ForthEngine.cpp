@@ -941,9 +941,9 @@ ForthEngine::PushInputBuffer( const char *pDataBuffer, int dataBufferLen )
 }
 
 void
-ForthEngine::PushInputBlocks( unsigned int firstBlock, unsigned int lastBlock )
+ForthEngine::PushInputBlocks(ForthBlockFileManager* pManager, unsigned int firstBlock, unsigned int lastBlock)
 {
-    mpShell->PushInputBlocks( firstBlock, lastBlock );
+    mpShell->PushInputBlocks(pManager, firstBlock, lastBlock);
 }
 
 

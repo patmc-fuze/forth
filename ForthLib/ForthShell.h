@@ -112,7 +112,7 @@ public:
     // returns true IFF file opened successfully
     virtual bool            PushInputFile( const char *pInFileName );
     virtual void            PushInputBuffer( const char *pDataBuffer, int dataBufferLen );
-    virtual void            PushInputBlocks( unsigned int firstBlock, unsigned int lastBlock );
+    virtual void            PushInputBlocks(ForthBlockFileManager*  pManager, unsigned int firstBlock, unsigned int lastBlock);
     virtual bool            PopInputStream( void );
     // NOTE: the input stream passed to Run will be deleted by ForthShell
 	virtual int             Run(ForthInputStream *pStream);

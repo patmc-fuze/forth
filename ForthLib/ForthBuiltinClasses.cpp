@@ -14,6 +14,7 @@
 #include "ForthObject.h"
 #include "ForthBuiltinClasses.h"
 #include "ForthShowContext.h"
+#include "ForthBlockFileManager.h"
 
 #include "OArray.h"
 #include "OList.h"
@@ -500,7 +501,8 @@ ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 	OMap::AddClasses(pEngine);
 	OString::AddClasses(pEngine);
 	OStream::AddClasses(pEngine);
-	ONumber::AddClasses(pEngine);
+    OBlockFile::AddClasses(pEngine);
+    ONumber::AddClasses(pEngine);
 	OVocabulary::AddClasses(pEngine);
 	OThread::AddClasses(pEngine);
 	OLock::AddClasses(pEngine);

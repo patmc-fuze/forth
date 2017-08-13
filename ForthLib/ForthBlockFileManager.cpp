@@ -35,8 +35,9 @@
 // INVALID_BLOCK_NUMBER is also used to indicate 'no current buffer'
 
 
-ForthBlockFileManager::ForthBlockFileManager( const char* pBlockFilename , unsigned int numBuffers )
+ForthBlockFileManager::ForthBlockFileManager( const char* pBlockFilename , unsigned int numBuffers, unsigned int bytesPerBlock )
 :   mNumBuffers( numBuffers )
+,   mBytesPerBlock(bytesPerBlock)
 ,   mCurrentBuffer( INVALID_BLOCK_NUMBER )
 ,   mNumBlocksInFile( 0 )
 {
@@ -51,7 +52,7 @@ ForthBlockFileManager::ForthBlockFileManager( const char* pBlockFilename , unsig
 	mAssignedBlocks = (unsigned int *)__MALLOC(sizeof(unsigned int) * numBuffers);
 	mUpdatedBlocks = (bool *)__MALLOC(sizeof(bool) * numBuffers);
 
-	mpBlocks = (char *)__MALLOC(BYTES_PER_BLOCK * numBuffers);
+	mpBlocks = (char *)__MALLOC(mBytesPerBlock * numBuffers);
 
     EmptyBuffers();
 }
@@ -77,7 +78,7 @@ ForthBlockFileManager::GetNumBlocksInFile()
         {
             if ( !fseek( pBlockFile, 0, SEEK_END ) )
             {
-                mNumBlocksInFile = ftell( pBlockFile ) / BYTES_PER_BLOCK;
+                mNumBlocksInFile = ftell( pBlockFile ) / mBytesPerBlock;
             }
             fclose( pBlockFile );
         }
@@ -115,7 +116,7 @@ ForthBlockFileManager::GetBlock( unsigned int blockNum, bool readContents )
 {
     mCurrentBuffer = AssignBuffer( blockNum, readContents );
     UpdateLRU();
-    return &(mpBlocks[BYTES_PER_BLOCK * mCurrentBuffer]);
+    return &(mpBlocks[mBytesPerBlock * mCurrentBuffer]);
 }
 
 void
@@ -153,8 +154,8 @@ ForthBlockFileManager::SaveBuffer( unsigned int bufferNum )
     }
 
     SPEW_IO( "ForthBlockFileManager::AssignBuffer writing block %d from buffer %d\n", mAssignedBlocks[bufferNum], bufferNum );
-    fseek( pBlockFile, BYTES_PER_BLOCK * mAssignedBlocks[bufferNum], SEEK_SET );
-    size_t numWritten = fwrite( &(mpBlocks[BYTES_PER_BLOCK * bufferNum]), BYTES_PER_BLOCK, 1, pBlockFile );
+    fseek( pBlockFile, mBytesPerBlock * mAssignedBlocks[bufferNum], SEEK_SET );
+    size_t numWritten = fwrite( &(mpBlocks[mBytesPerBlock * bufferNum]), mBytesPerBlock, 1, pBlockFile );
     if ( numWritten != 1 )
     {
         ReportError( kForthErrorIO, "SaveBuffer - failed to write block file" );
@@ -212,8 +213,8 @@ ForthBlockFileManager::AssignBuffer( unsigned int blockNum, bool readContents )
         else
         {
             SPEW_IO( "ForthBlockFileManager::AssignBuffer reading block %d into buffer %d\n", blockNum, availableBuffer );
-            fseek( pInFile, BYTES_PER_BLOCK * blockNum, SEEK_SET );
-            int numRead = fread( &(mpBlocks[BYTES_PER_BLOCK * availableBuffer]), BYTES_PER_BLOCK, 1, pInFile );
+            fseek( pInFile, mBytesPerBlock * blockNum, SEEK_SET );
+            int numRead = fread( &(mpBlocks[mBytesPerBlock * availableBuffer]), mBytesPerBlock, 1, pInFile );
             if ( numRead != 1 )
             {
                 ReportError( kForthErrorIO, "AssignBuffer - failed to read block file" );
@@ -295,4 +296,188 @@ void
 ForthBlockFileManager::ReportError( eForthError errorCode, const char* pErrorMessage )
 {
     ForthEngine::GetInstance()->SetError( errorCode, pErrorMessage );
+}
+
+unsigned int
+ForthBlockFileManager::GetBytesPerBlock() const
+{
+    return mBytesPerBlock;
+}
+
+unsigned int
+ForthBlockFileManager::GetNumBuffers() const
+{
+    return mNumBuffers;
+}
+
+namespace OBlockFile
+{
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oBlockFile
+    //
+
+    struct oBlockFileStruct
+    {
+        ulong                   refCount;
+        ForthBlockFileManager*  pManager;
+    };
+
+
+    FORTHOP(oBlockFileNew)
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
+        MALLOCATE_OBJECT(oBlockFileStruct, pBlockFile, pClassVocab);
+        pBlockFile->refCount = 0;
+        pBlockFile->pManager = nullptr;
+        PUSH_PAIR(pPrimaryInterface->GetMethods(), pBlockFile);
+    }
+
+    FORTHOP(oBlockFileDeleteMethod)
+    {
+        GET_THIS(oBlockFileStruct, pBlockFile);
+        if (pBlockFile->pManager != nullptr)
+        {
+            delete pBlockFile->pManager;
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBlockFileInitMethod)
+    {
+        GET_THIS(oBlockFileStruct, pBlockFile);
+        int bytesPerBlock = SPOP;
+        if (bytesPerBlock == 0)
+        {
+            bytesPerBlock = BYTES_PER_BLOCK;
+        }
+        int numBuffers = SPOP;
+        if (numBuffers == 0)
+        {
+            numBuffers = NUM_BLOCK_BUFFERS;
+        }
+        const char* pBlockFileName = (const char *)(SPOP);
+        pBlockFile->pManager = new ForthBlockFileManager(pBlockFileName, numBuffers, bytesPerBlock);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBlockFileBlkMethod)
+    {
+        GET_THIS(oBlockFileStruct, pBlockFile);
+        SPUSH((long)(pBlockFile->pManager->GetBlockPtr()));
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBlockFileBlockMethod)
+    {
+        GET_THIS(oBlockFileStruct, pBlockFile);
+        SPUSH((long)(pBlockFile->pManager->GetBlock(SPOP, true)));
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBlockFileBufferMethod)
+    {
+        GET_THIS(oBlockFileStruct, pBlockFile);
+        SPUSH((long)(pBlockFile->pManager->GetBlock(SPOP, false)));
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBlockFileEmptyBuffersMethod)
+    {
+        GET_THIS(oBlockFileStruct, pBlockFile);
+        pBlockFile->pManager->EmptyBuffers();
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBlockFileFlushMethod)
+    {
+        GET_THIS(oBlockFileStruct, pBlockFile);
+        pBlockFile->pManager->SaveBuffers(true);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBlockFileSaveBuffersMethod)
+    {
+        GET_THIS(oBlockFileStruct, pBlockFile);
+        pBlockFile->pManager->SaveBuffers(false);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBlockFileUpdateMethod)
+    {
+        GET_THIS(oBlockFileStruct, pBlockFile);
+        pBlockFile->pManager->UpdateCurrentBuffer();
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBlockFileThruMethod)
+    {
+        GET_THIS(oBlockFileStruct, pBlockFile);
+        unsigned int lastBlock = (unsigned int)SPOP;
+        unsigned int firstBlock = (unsigned int)SPOP;
+        ForthEngine* pEngine = GET_ENGINE;
+        if (lastBlock < firstBlock)
+        {
+            pEngine->SetError(kForthErrorIO, "thru - last block less than first block");
+        }
+        else
+        {
+            ForthBlockFileManager*  pManager = pBlockFile->pManager;
+            if (lastBlock < pManager->GetNumBlocksInFile())
+            {
+                GET_ENGINE->PushInputBlocks(pManager, firstBlock, lastBlock);
+            }
+            else
+            {
+                pEngine->SetError(kForthErrorIO, "thru - last block beyond end of block file");
+            }
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBlockFileBytesPerBlockMethod)
+    {
+        GET_THIS(oBlockFileStruct, pBlockFile);
+        SPUSH(pBlockFile->pManager->GetBytesPerBlock());
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBlockFileNumBuffersMethod)
+    {
+        GET_THIS(oBlockFileStruct, pBlockFile);
+        SPUSH(pBlockFile->pManager->GetNumBuffers());
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oBlockFileMembers[] =
+    {
+        METHOD("__newOp", oBlockFileNew),
+        METHOD("delete", oBlockFileDeleteMethod),
+
+        METHOD_RET("blk", oBlockFileBlkMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt | kDTIsPtr)),
+        METHOD_RET("block", oBlockFileBlockMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte | kDTIsPtr)),
+        METHOD_RET("buffer", oBlockFileBufferMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte | kDTIsPtr)),
+        METHOD("emptyBuffers", oBlockFileEmptyBuffersMethod),
+        METHOD("flush", oBlockFileFlushMethod),
+        METHOD("saveBuffers", oBlockFileSaveBuffersMethod),
+        METHOD("update", oBlockFileUpdateMethod),
+        METHOD("thru", oBlockFileThruMethod),
+
+        METHOD("bytesPerBlock", oBlockFileBytesPerBlockMethod),
+        METHOD("numBuffers", oBlockFileNumBuffersMethod),
+
+        MEMBER_VAR("__manager", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    void AddClasses(ForthEngine* pEngine)
+    {
+        pEngine->AddBuiltinClass("Blo0ck", kBCIBlockFile, kBCIObject, oBlockFileMembers);
+    }
+
 }
