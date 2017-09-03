@@ -2,8 +2,8 @@ BITS 32
 
 %include "core.inc"
 
-cextern	_filbuf
-cextern	_chkesp
+;cextern	_filbuf
+;cextern	_chkesp
 
 EXTERN _CallDLLRoutine
 

@@ -662,7 +662,7 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
 	add_history(pBuffer);
     strncpy(mpBufferBase, pBuffer, mBufferLen);
 #else
-	pBuffer = gets(mpBufferBase);
+    pBuffer = fgets(mpBufferBase, mBufferLen - 1, stdin);
 #endif
 
     mReadOffset = 0;
@@ -684,7 +684,7 @@ char * ForthConsoleInputStream::AddContinuationLine()
     add_history(pBuffer);
     strncpy(mpBufferBase + mWriteOffset, pBuffer, mBufferLen - mWriteOffset);
 #else
-    pBuffer = gets(mpBufferBase + mWriteOffset);
+    pBuffer = fgets(mpBufferBase + mWriteOffset, (mBufferLen - mWriteOffset) - 1, stdin);
 #endif
 
     mpBufferBase[mBufferLen - 1] = '\0';
