@@ -4037,7 +4037,7 @@ FORTHOP( DLLVocabularyOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthVocabulary *pDefinitionsVocab = pEngine->GetDefinitionVocabulary();
     // get next symbol, add it to vocabulary with type "user op"
-    char* pDLLOpName = pEngine->GetNextSimpleToken();
+    char* pDLLOpName = pEngine->AddTempString(pEngine->GetNextSimpleToken());
     pEngine->StartOpDefinition( pDLLOpName );
     char* pDLLName = pEngine->GetNextSimpleToken();
     ForthDLLVocabulary* pVocab = new ForthDLLVocabulary( pDLLOpName,
@@ -4047,6 +4047,7 @@ FORTHOP( DLLVocabularyOp )
                                                          GET_DP,
                                                          ForthVocabulary::GetEntryValue( pDefinitionsVocab->GetNewestEntry() ) );
     pEngine->CompileBuiltinOpcode( OP_DO_VOCAB );
+    pVocab->UnloadDLL();
     pVocab->LoadDLL();
     pEngine->CompileLong( (long) pVocab );
 }

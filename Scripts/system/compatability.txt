@@ -243,3 +243,6 @@ alias d>f l2f
   _TempStringA "%f" ref fval 1 sscanf
   fval swap
 ;
+
+loaddone
+

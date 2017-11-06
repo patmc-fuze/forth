@@ -438,7 +438,7 @@ alias space %bl
   bytesRead
 ;
 
-// enumInfo enumValue ... str
+addHelp enumInfo enumValue ... str
 : $enum
   -> int enumInfo
   -> int enumValue

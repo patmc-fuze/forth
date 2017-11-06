@@ -62,12 +62,18 @@ namespace OSystem
 		SNPRINTF(buff, sizeof(buff), "pCore %p pEngine %p     DP %p DBase %p    IP %p\n",
 			pCore, pCore->pEngine, pCore->pDictionary, pCore->pDictionary->pBase, pCore->IP);
 		CONSOLE_STRING_OUT(buff);
-		SNPRINTF(buff, sizeof(buff), "SP %p ST %p SLen %d    RP %p RT %p RLen %d\n",
+
+        SNPRINTF(buff, sizeof(buff), "SP %p ST %p SLen %d    RP %p RT %p RLen %d\n",
 			pCore->SP, pCore->ST, pCore->SLen,
 			pCore->RP, pCore->RT, pCore->RLen);
 		CONSOLE_STRING_OUT(buff);
+
 		SNPRINTF(buff, sizeof(buff), "%d builtins    %d userops @ %p\n", pCore->numBuiltinOps, pCore->numOps, pCore->ops);
 		CONSOLE_STRING_OUT(buff);
+
+        ForthEngine *pEngine = GET_ENGINE;
+        pEngine->ShowSearchInfo();
+
 		METHOD_RETURN;
 	}
 

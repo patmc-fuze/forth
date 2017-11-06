@@ -615,7 +615,7 @@ bool ForthStructCodeGenerator::HandleMiddle()
             SPEW_STRUCTS( " ofetchOp 0x%x", gCompiledOps[OP_OFETCH] );
             *mpDst++ = gCompiledOps[OP_OFETCH];
         }
-        else if (baseType == kBaseTypeStruct)
+        if (baseType == kBaseTypeStruct)
         {
             bSetStructVocab = true;
         }

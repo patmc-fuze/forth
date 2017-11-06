@@ -1,7 +1,7 @@
 
 autoforget graf2d
-requires sdl
-also sdl
+requires sdl2
+also sdl2
 
 : graf2d ;
 

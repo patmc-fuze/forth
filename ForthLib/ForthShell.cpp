@@ -184,6 +184,7 @@ ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEn
 , mInternalFileCount(0)
 , mExpressionInputStream(NULL)
 , mSystemDir(NULL)
+, mDLLDir(NULL)
 , mTempDir(NULL)
 , mBlockfilePath(nullptr)
 {
@@ -289,9 +290,10 @@ ForthShell::~ForthShell()
 	{
 		delete mExpressionInputStream;
 	}
-    delete [] mTempDir;
-    delete [] mSystemDir;
-    delete [] mBlockfilePath;
+    delete[] mTempDir;
+    delete[] mSystemDir;
+    delete[] mDLLDir;
+    delete[] mBlockfilePath;
     // engine will destroy thread for us if we created it
 	if (mFlags & SHELL_FLAG_CREATED_ENGINE)
 	{
@@ -1383,8 +1385,8 @@ ForthShell::SetEnvironmentVars( const char ** envp )
         mNumEnvVars++;
     }
     // leave room for 3 environment vars we may need to add: FORTH_ROOT, FORTH_TEMP and FORTH_BLOCKFILE
-    mpEnvVarNames = new char *[mNumEnvVars + 3];
-    mpEnvVarValues = new char *[mNumEnvVars + 3];
+    mpEnvVarNames = new char *[mNumEnvVars + NUM_FORTH_ENV_VARS];
+    mpEnvVarValues = new char *[mNumEnvVars + NUM_FORTH_ENV_VARS];
     const char* tempDir = NULL;
 
     // make copies of vars
@@ -1403,6 +1405,11 @@ ForthShell::SetEnvironmentVars( const char ** envp )
             {
                 mSystemDir = new char[strlen(pValue) + 1];
                 strcpy(mSystemDir, pValue);
+            }
+            else if (strcmp(mpEnvVarNames[i], "FORTH_DLL") == 0)
+            {
+                mDLLDir = new char[strlen(pValue) + 1];
+                strcpy(mDLLDir, pValue);
             }
             else if (strcmp(mpEnvVarNames[i], "FORTH_TEMP") == 0)
             {
@@ -1438,6 +1445,15 @@ ForthShell::SetEnvironmentVars( const char ** envp )
         mpEnvVarNames[mNumEnvVars] = new char[16];
         strcpy(mpEnvVarNames[mNumEnvVars], "FORTH_ROOT");
         mpEnvVarValues[mNumEnvVars] = mSystemDir;
+        mNumEnvVars++;
+    }
+    if (mDLLDir == nullptr)
+    {
+        mDLLDir = new char[strlen(mSystemDir) + 2];
+        strcpy(mDLLDir, mSystemDir);
+        mpEnvVarNames[mNumEnvVars] = new char[16];
+        strcpy(mpEnvVarNames[mNumEnvVars], "FORTH_DLL");
+        mpEnvVarValues[mNumEnvVars] = mDLLDir;
         mNumEnvVars++;
     }
     if (mTempDir == nullptr)

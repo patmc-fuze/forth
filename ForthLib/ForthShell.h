@@ -55,6 +55,12 @@ typedef enum
    // if you add tags, remember to update TagStrings in ForthShell.cpp
 } eShellTag;
 
+// NUM_FORTH_ENV_VARS is the number of environment variables which forth uses:
+//  FORTH_ROOT
+//  FORTH_DLL
+//  FORTH_TEMP
+//  FORTH_BLOCKFILE
+#define NUM_FORTH_ENV_VARS 4
 
 class ForthShellStack
 {
@@ -133,6 +139,7 @@ public:
     inline int              GetEnvironmentVarCount() const { return mNumEnvVars;  }
     inline const char*      GetTempDir() const { return mTempDir; }
     inline const char*      GetSystemDir() const { return mSystemDir; }
+    inline const char*      GetDLLDir() const { return mDLLDir; }
     inline const char*      GetBlockfilePath() const { return mBlockfilePath; }
 
     bool                    CheckSyntaxError(const char *pString, eShellTag tag, long desiredTag);
@@ -210,6 +217,7 @@ protected:
     char                    mToken[MAX_TOKEN_BYTES + 1];
     char*                   mTempDir;
     char*                   mSystemDir;
+    char*                   mDLLDir;
     char*                   mBlockfilePath;
     int                     mPoundIfDepth;
 

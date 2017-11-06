@@ -908,24 +908,19 @@ ForthLocalVocabulary::Pop()
 //
 //
 
-ForthDLLVocabulary::ForthDLLVocabulary( const char      *pName,
-                                        const char      *pDLLName,
-                                        int             valueLongs,
-                                        int             storageBytes,
-                                        void*           pForgetLimit,
-                                        long            op )
-: ForthVocabulary( pName, valueLongs, storageBytes, pForgetLimit, op )
-, mDLLFlags( 0 )
+ForthDLLVocabulary::ForthDLLVocabulary(const char      *pName,
+    const char      *pDLLName,
+    int             valueLongs,
+    int             storageBytes,
+    void*           pForgetLimit,
+    long            op)
+    : ForthVocabulary(pName, valueLongs, storageBytes, pForgetLimit, op)
+    , mDLLFlags(0)
 {
-    int len = strlen( pDLLName ) + 1;
+    int len = strlen(pDLLName) + 1;
     mpDLLName = new char[len];
-    strcpy( mpDLLName, pDLLName );
-
-#if defined(WIN32)
-    mhDLL = LoadLibrary( mpDLLName );
-#elif defined(LINUX) || defined(MACOSX)
-    mLibHandle = dlopen( mpDLLName, RTLD_LAZY );
-#endif
+    strcpy(mpDLLName, pDLLName);
+    LoadDLL();
 }
 
 ForthDLLVocabulary::~ForthDLLVocabulary()
@@ -936,13 +931,28 @@ ForthDLLVocabulary::~ForthDLLVocabulary()
 
 long ForthDLLVocabulary::LoadDLL( void )
 {
-	UnloadDLL();
+
+    ForthEngine* pEngine = ForthEngine::GetInstance();
+    ForthShell* pShell = pEngine->GetShell();
+    char* pDLLPath = nullptr;
+    const char *pDLLSrc = mpDLLName;
+    int len = strlen(mpDLLName) + 1;
+    if (!pEngine->GetCoreState()->pFileFuncs->fileExists(mpDLLName))
+    {
+        const char* pDLLDir = pShell->GetDLLDir();
+        pDLLPath = new char[strlen(pDLLDir) + len];
+        strcpy(pDLLPath, pDLLDir);
+        strcat(pDLLPath, mpDLLName);
+        pDLLSrc = pDLLPath;
+    }
 #if defined(WIN32)
-    mhDLL = LoadLibrary( mpDLLName );
-    return (long) mhDLL;
+    mhDLL = LoadLibrary(pDLLSrc);
+    delete[] pDLLPath;
+    return (long)mhDLL;
 #elif defined(LINUX) || defined(MACOSX)
-    mLibHandle = dlopen( mpDLLName, RTLD_LAZY );
-    return (long) mLibHandle;
+    mLibHandle = dlopen(pDLLSrc, RTLD_LAZY);
+    delete[] pDLLPath;
+    return (long)mLibHandle;
 #endif
 }
 

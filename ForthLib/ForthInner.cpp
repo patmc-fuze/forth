@@ -1406,7 +1406,7 @@ static void _doObjectVarop( ForthCoreState* pCore, ForthObject* pVar )
 			if (oldObj.pMethodOps != NULL)
 			{
 				long* pData = oldObj.pData;
-				if (pData > 0)
+				if (*pData > 0)
 				{
 					*pData -= 1;
 				}

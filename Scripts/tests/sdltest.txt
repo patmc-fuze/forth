@@ -1,8 +1,9 @@
 
-autoforget screen
-requires graf2d
-requires sdl_events
-also sdl
+autoforget sdltest
+: sdltest ;
+
+requires sdlscreen
+also sdl2
 
 #if 1
 ptrTo int worldBM
