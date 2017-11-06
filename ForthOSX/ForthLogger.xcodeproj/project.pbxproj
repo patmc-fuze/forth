@@ -24,7 +24,7 @@
 		6E1727D31E907B0000174501 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = /Users/patmcelhatton/prj/Forth/Sandbox;
+			dstPath = "~/prj/Forth/Sandbox";
 			dstSubfolderSpec = 0;
 			files = (
 				6E1727D41E907B0E00174501 /* ForthLogger in CopyFiles */,
