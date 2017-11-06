@@ -337,13 +337,15 @@ traceLoopExecuteEntry:
 	sub	esi, 4			; actual IP was already advanced by execute/method op, don't double advance it
 traceLoopDebug2:
 	push edx
-	push ebx
-	push eax
-	push ebp
+    sub esp, 4          ; 16-byte align for OSX
+    push ebx            ; opcode
+    push eax            ; IP
+    push ebp            ; core
 	xcall traceOp
 	pop ebp
 	pop eax
 	pop ebx
+    add esp, 4
 	pop edx
 	add	esi, 4			; advance IP
 	jmp interpLoopExecuteEntry
@@ -843,6 +845,13 @@ localUByteFetch:
 	mov	[edx], ebx
 	jmp	edi
 
+localByte1:
+	cmp	ebx, kVarMinusStore
+	jg	badVarOperation
+	; dispatch based on value in ebx
+	mov	ebx, [localByteActionTable + ebx*4]
+	jmp	ebx
+
 localByteRef:
 	sub	edx, 4
 	mov	[edx], eax
@@ -897,13 +906,6 @@ localUByteActionTable:
 	DD	localByteStore
 	DD	localBytePlusStore
 	DD	localByteMinusStore
-
-localByte1:
-	cmp	ebx, kVarMinusStore
-	jg	badVarOperation
-	; dispatch based on value in ebx
-	mov	ebx, [localByteActionTable + ebx*4]
-	jmp	ebx
 
 entry fieldByteType
 	; get ptr to byte var into eax
@@ -1045,6 +1047,12 @@ localUShortFetch:
 	mov	[edx], ebx
 	jmp	edi
 
+localShort1:
+	cmp	ebx, kVarMinusStore
+	jg	badVarOperation
+	; dispatch based on value in ebx
+	mov	ebx, [localShortActionTable + ebx*4]
+	jmp	ebx
 localShortRef:
 	sub	edx, 4
 	mov	[edx], eax
@@ -1097,13 +1105,6 @@ localUShortActionTable:
 	DD	localShortStore
 	DD	localShortPlusStore
 	DD	localShortMinusStore
-
-localShort1:
-	cmp	ebx, kVarMinusStore
-	jg	badVarOperation
-	; dispatch based on value in ebx
-	mov	ebx, [localShortActionTable + ebx*4]
-	jmp	ebx
 
 entry fieldShortType
 	; get ptr to short var into eax
@@ -1618,6 +1619,13 @@ localStringFetch:
 	xor	eax, eax
 	mov	[ebp + FCore.varMode], eax
 	jmp	edi
+
+localString1:
+	cmp	ebx, kVarPlusStore
+	jg	badVarOperation
+	; dispatch based on value in ebx
+	mov	ebx, [localStringActionTable + ebx*4]
+	jmp	ebx
 	
 ; ref on a string returns the address of maxLen field, not the string chars
 localStringRef:
@@ -1654,13 +1662,15 @@ lsStore1:
 	mov	[edi - 4], eax
 	
 	; do the copy
+	sub esp, 12      ; thanks OSX!
 	push	eax		; push numBytes
 	push	eax		; and save a copy in case strncpy modifies its stack inputs
 	push	ecx		; srcPtr
 	push	edi		; dstPtr
-    xcall	strncpy
-    add esp, 12
+	xcall	strncpy
+	add esp, 12
 	pop	esi			; esi = numBytes
+    	add esp, 12
 
 	; add the terminating null
 	xor	eax, eax
@@ -1720,13 +1730,6 @@ localStringActionTable:
 	DD	localStringRef
 	DD	localStringStore
 	DD	localStringAppend
-
-localString1:
-	cmp	ebx, kVarPlusStore
-	jg	badVarOperation
-	; dispatch based on value in ebx
-	mov	ebx, [localStringActionTable + ebx*4]
-	jmp	ebx
 
 entry fieldStringType
 	; get ptr to byte var into eax
@@ -1900,6 +1903,13 @@ localLongFetch:
 	mov	[edx], ebx
 	jmp	edi
 
+localLong1:
+	cmp	ebx, kVarMinusStore
+	jg	badVarOperation
+	; dispatch based on value in ebx
+	mov	ebx, [localLongActionTable + ebx*4]
+	jmp	ebx
+
 localLongRef:
 	sub	edx, 4
 	mov	[edx], eax
@@ -1952,13 +1962,6 @@ localLongActionTable:
 	DD	localLongStore
 	DD	localLongPlusStore
 	DD	localLongMinusStore
-
-localLong1:
-	cmp	ebx, kVarMinusStore
-	jg	badVarOperation
-	; dispatch based on value in ebx
-	mov	ebx, [localLongActionTable + ebx*4]
-	jmp	ebx
 
 entry fieldLongType
 	; get ptr to double var into eax
@@ -2036,6 +2039,13 @@ localObjectFetch:
 	mov	ebx, [eax+4]
 	mov	[edx+4], ebx
 	jmp	edi
+
+localObject1:
+	cmp	ebx, kVarObjectClear
+	jg	badVarOperation
+	; dispatch based on value in ebx
+	mov	ebx, [localObjectActionTable + ebx*4]
+	jmp	ebx
 
 localObjectRef:
 	sub	edx, 4
@@ -2175,13 +2185,6 @@ localObjectActionTable:
 	DD	localObjectStoreNoRef
 	DD	localObjectUnref
 	DD	localObjectClear
-
-localObject1:
-	cmp	ebx, kVarObjectClear
-	jg	badVarOperation
-	; dispatch based on value in ebx
-	mov	ebx, [localObjectActionTable + ebx*4]
-	jmp	ebx
 
 entry fieldObjectType
 	; get ptr to Object var into eax

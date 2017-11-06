@@ -578,6 +578,8 @@ namespace OStream
 		{
 #if defined(WIN32)
 			pos.s64 = _ftelli64(pFileInStreamStruct->pInFile);
+#elif defined(MACOSX)
+            pos.s64 = ftello(pFileInStreamStruct->pInFile);
 #else
 			pos.s64 = ftello64(pFileInStreamStruct->pInFile);
 #endif
@@ -599,6 +601,11 @@ namespace OStream
 			_fseeki64(pFileInStreamStruct->pInFile, 0l, SEEK_END);
 			size.s64 = _ftelli64(pFileInStreamStruct->pInFile);
 			_fseeki64(pFileInStreamStruct->pInFile, oldPos, SEEK_SET);
+#elif defined(MACOSX)
+            off_t oldPos = ftello(pFileInStreamStruct->pInFile);
+            fseeko(pFileInStreamStruct->pInFile, 0l, SEEK_END);
+            size.s64 = ftello(pFileInStreamStruct->pInFile);
+            fseeko(pFileInStreamStruct->pInFile, oldPos, SEEK_SET);
 #else
 			off64_t oldPos = ftello64(pFileInStreamStruct->pInFile);
 			fseeko64(pFileInStreamStruct->pInFile, 0l, SEEK_END);
@@ -621,6 +628,8 @@ namespace OStream
 		{
 #if defined(WIN32)
 			_fseeki64(pFileInStreamStruct->pInFile, pos.s64, seekType);
+#elif defined(MACOSX)
+            fseeko(pFileInStreamStruct->pInFile, pos.s64, seekType);
 #else
 			fseeko64(pFileInStreamStruct->pInFile, pos.s64, seekType);
 #endif
@@ -1039,6 +1048,8 @@ namespace OStream
 		{
 #if defined(WIN32)
 			pos.s64 = _ftelli64(pFileOutStream->pOutFile);
+#elif defined(MACOSX)
+            pos.s64 = ftello(pFileOutStream->pOutFile);
 #else
 			pos.s64 = ftello64(pFileOutStream->pOutFile);
 #endif
@@ -1060,6 +1071,11 @@ namespace OStream
 			_fseeki64(pFileOutStream->pOutFile, 0l, SEEK_END);
 			size.s64 = _ftelli64(pFileOutStream->pOutFile);
 			_fseeki64(pFileOutStream->pOutFile, oldPos, SEEK_SET);
+#elif defined(MACOSX)
+            off_t oldPos = ftello(pFileOutStream->pOutFile);
+            fseeko(pFileOutStream->pOutFile, 0l, SEEK_END);
+            size.s64 = ftello(pFileOutStream->pOutFile);
+            fseeko(pFileOutStream->pOutFile, oldPos, SEEK_SET);
 #else
 			off64_t oldPos = ftello64(pFileOutStream->pOutFile);
 			fseeko64(pFileOutStream->pOutFile, 0l, SEEK_END);
@@ -1082,6 +1098,8 @@ namespace OStream
 		{
 #if defined(WIN32)
 			_fseeki64(pFileOutStream->pOutFile, pos.s64, seekType);
+#elif defined(MACOSX)
+            fseeko(pFileOutStream->pOutFile, pos.s64, seekType);
 #else
 			fseeko64(pFileOutStream->pOutFile, pos.s64, seekType);
 #endif
