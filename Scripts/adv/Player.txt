@@ -6,11 +6,11 @@ class: Player
 
   int score
   Location currentLocation
-  OArray objects
+  Array objects
 
   m: init
     -> currentLocation
-    new OArray -> objects
+    new Array -> objects
     0 -> score
   ;m
 
@@ -34,7 +34,7 @@ class: Player
   m: dropObject    // takes Noun
     ->o Noun objToDrop
     
-    objects.headIter -> OArrayIter iter
+    objects.headIter -> ArrayIter iter
     if(iter.findNext(objToDrop))
       iter.remove
     else
@@ -46,7 +46,7 @@ class: Player
   m: hasObject     // takes Noun, returns bool
     ->o Noun obj
     
-    objects.headIter -> OArrayIter iter
+    objects.headIter -> ArrayIter iter
     iter.findNext(obj)
     oclear iter
   ;m
@@ -54,7 +54,7 @@ class: Player
   m: removeObject     // takes Noun
     ->o Noun objToRemove
     
-    objects.headIter -> OArrayIter iter
+    objects.headIter -> ArrayIter iter
     if(iter.findNext(objToRemove))
       iter.remove
     else

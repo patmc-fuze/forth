@@ -341,8 +341,8 @@ addHelp struct:		struct: NAME		start a structure type definition
 addHelp ;struct							end a structure type definition
 addHelp class:		class: NAME			start a class type definition
 addHelp ;class							end a class definition
-addHelp method:		method: NAME		start a class method definition
-addHelp ;method							end a class method definition
+addHelp m:		    m: NAME		        start a class method definition
+addHelp ;m   							end a class method definition
 addHelp returns		returns TYPE		specify the return type of a method, can only occur in a class method definition
 addHelp doMethod	OBJECT METHOD# doMethod		execute speficied method on OBJECT			
 addHelp implements:	implements: NAME	start an interface definition within a class definition

@@ -18,9 +18,9 @@ lf CCInterfaces.txt
 requires Game
 
 : adventure
-  mko OString input
-  mko OString result
-  mko OConsoleInStream conIn
+  mko String input
+  mko String result
+  mko ConsoleInStream conIn
   mko Game game
   200 string inBuffer
   true -> bool notDone

@@ -20,14 +20,13 @@ class: MotionVerb extends Word
   
   m: initWith
     super.initWith
-    //"initWith MotionVerb " %s words.getRaw(0) %s %bl number %d %bl wordType %d %nl
   ;m
   
 ;class
 
 ///////////////////////////// ActionVerb //////////////////////////////////////////
 
-mko OString __defaultActionVerbMessage
+mko String __defaultActionVerbMessage
 __defaultActionVerbMessage.set("[No message object attached to this ActionVerb]")
 
 class: ActionVerb extends Word

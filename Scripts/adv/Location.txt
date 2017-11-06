@@ -11,19 +11,19 @@ class: Location extends ILocation
     -> number
     //"creating Location " %s number %d %nl
     0 -> numberOfVisits
-    new OArray -> objects
-    new OByteArray -> assets
+    new Array -> objects
+    new ByteArray -> assets
     do(10 0)
       assets.push(0)
     loop
-    new OArray -> hints
-    new OArray -> motionVerbs
-    new OArray -> accessibleLocations
-    new OArray -> motionVerbsForPrintingMessage
-    new OArray -> printMessages
-    new OArray -> locationConditions
-    new OString -> longDescription
-    new OString -> shortDescription
+    new Array -> hints
+    new Array -> motionVerbs
+    new Array -> accessibleLocations
+    new Array -> motionVerbsForPrintingMessage
+    new Array -> printMessages
+    new Array -> locationConditions
+    new String -> longDescription
+    new String -> shortDescription
     
   ;m
   
@@ -84,19 +84,19 @@ class: Location extends ILocation
     result
   ;m
   
-  m: listObjects returns OString
+  m: listObjects returns String
   ;m
   
-  m: getAccessibleLocationsAndMotionVerbsAsString returns OString
+  m: getAccessibleLocationsAndMotionVerbsAsString returns String
   ;m
   
-  m: getPrintMessagesAndMotionVerbsAsString returns OString
+  m: getPrintMessagesAndMotionVerbsAsString returns String
   ;m
   
-  m: getAssetsAsString returns OString
+  m: getAssetsAsString returns String
   ;m
   
-  m: getHintsAsString returns OString
+  m: getHintsAsString returns String
   ;m
   
   m: addAccessibleLocation // (Location* loc)
@@ -104,7 +104,7 @@ class: Location extends ILocation
     ->o Location loc
     if(getAccessibleLocationIndex(loc) -1 =)
       accessibleLocations.push(loc)
-      motionVerbs.push(new OArray)
+      motionVerbs.push(new Array)
     endif
   ;m
   
@@ -112,19 +112,19 @@ class: Location extends ILocation
     ->o MotionVerb verb
     ->o Location loc
     getAccessibleLocationIndex(loc) -> int index
-    motionVerbs.get(index) ->o OArray aa
+    motionVerbs.get(index) ->o Array aa
     aa.push(verb)
   ;m
   
   m: appendToShortDescription   // (const string desc)
-    ->o OString s
+    ->o String s
     shortDescription.append(s.get)
     shortDescription.append(" ")
     //"appendToShortDescription node:" %s number %d %bl s.get %s %nl
   ;m
   
   m: appendToLongDescription   // (const string desc)
-    ->o OString s
+    ->o String s
     longDescription.append(s.get)
     longDescription.append(" ")
   ;m
@@ -146,7 +146,7 @@ class: Location extends ILocation
     // Only add if not alread added
     if(getPrintMessageIndex(msg) -1 =)
       printMessages.push(msg)
-      motionVerbsForPrintingMessage.push(new OArray)
+      motionVerbsForPrintingMessage.push(new Array)
     endif
   ;m
   
@@ -155,8 +155,8 @@ class: Location extends ILocation
     ->o Message msg
     getPrintMessageIndex(msg) -> int index
     // TODO: find out why this crashes
-    //motionVerbsForPrintingMessage.get(index) <OArray>.push(verb)
-    motionVerbsForPrintingMessage.get(index) ->o OArray aa
+    //motionVerbsForPrintingMessage.get(index) <Array>.push(verb)
+    motionVerbsForPrintingMessage.get(index) ->o Array aa
     aa.push(verb)
   ;m
 
@@ -164,7 +164,7 @@ class: Location extends ILocation
     ->o MotionVerb verb
     Message result
     ?do(motionVerbsForPrintingMessage.count 0)
-      motionVerbsForPrintingMessage.get(i) -> OArray verbs
+      motionVerbsForPrintingMessage.get(i) -> Array verbs
       ?do(verbs.count 0)
         // OK to compare pointers
         if(verbs.get(i) verb l=)
@@ -183,7 +183,7 @@ class: Location extends ILocation
     ->o MotionVerb verb
     Location result
     ?do(motionVerbs.count 0)
-      motionVerbs.get(i) -> OArray verbs
+      motionVerbs.get(i) -> Array verbs
       ?do(verbs.count 0)
         // OK to compare pointers
         if(verbs.get(i) verb l=)
@@ -243,7 +243,7 @@ class: Location extends ILocation
   m: removeObject     // takes Noun
     ->o Noun objToRemove
     
-    objects.headIter -> OArrayIter iter
+    objects.headIter -> ArrayIter iter
     if(iter.findNext(objToRemove))
       iter.remove
     else

@@ -50,8 +50,13 @@ ForthParseInfo::SetToken(const char *pSrc)
 		{
 			symLen = mMaxChars;
 		}
+        mNumChars = symLen;
 		// set length byte
-		*pDst++ = symLen;
+#ifdef WIN32
+        *pDst++ = min(symLen, 255);
+#else
+        *pDst++ = std::min(symLen, 255);
+#endif
 
 		// make copy of symbol
 		memcpy(pDst, pSrc, symLen);
@@ -64,7 +69,12 @@ ForthParseInfo::SetToken(const char *pSrc)
 
 		// token has already been copied to mpToken, just set length byte
 		symLen = strlen(((char *)mpToken) + 1);
-		*((char *)mpToken) = symLen;
+        mNumChars = symLen;
+#ifdef WIN32
+		*((char *)mpToken) = min(symLen, 255);
+#else
+		*((char *)mpToken) = std::min(symLen, 255);
+#endif
 		pDst = ((char *)mpToken) + symLen + 2;
 	}
 
@@ -92,32 +102,71 @@ ForthParseInfo::SetToken(const char *pSrc)
 	}
 }
 
+// return -1 for not a valid hexadecimal char
+int hexValue(char c)
+{
+    int result = -1;
+    
+    c = tolower(c);
+    if ((c >= '0') && (c <= '9'))
+    {
+        result = c - '0';
+    }
+    else if ((c >= 'a') && (c <= 'f'))
+    {
+        result = 10 + (c - 'a');
+    }
+
+    return result;
+}
 
 char
-ForthParseInfo::BackslashChar(char c)
+ForthParseInfo::BackslashChar(const char*& pSrc)
 {
-	char cResult;
+    char c = *pSrc;
+    char cResult = c;
 
-	switch (c)
-	{
+    if (c != '\0')
+    {
+        pSrc++;
+        switch (c)
+        {
 
-	case 'a':        cResult = '\a';        break;
-	case 'b':        cResult = '\b';        break;
-	case 'e':        cResult = 0x1b;        break;
-	case 'f':        cResult = '\f';        break;
-	case 'n':        cResult = '\n';        break;
-	case 'r':        cResult = '\r';        break;
-	case 't':        cResult = '\t';        break;
-	case 'v':        cResult = '\v';        break;
-	case '0':        cResult = '\0';        break;
-	case '?':        cResult = '\?';        break;
-	case '\\':       cResult = '\\';        break;
-	case '\'':       cResult = '\'';        break;
-	case '\"':       cResult = '\"';        break;
+        case 'a':        cResult = '\a';        break;
+        case 'b':        cResult = '\b';        break;
+        case 'e':        cResult = 0x1b;        break;
+        case 'f':        cResult = '\f';        break;
+        case 'n':        cResult = '\n';        break;
+        case 'r':        cResult = '\r';        break;
+        case 't':        cResult = '\t';        break;
+        case 'v':        cResult = '\v';        break;
+        case '0':        cResult = '\0';        break;
+        case '?':        cResult = '\?';        break;
+        case '\\':       cResult = '\\';        break;
+        case '\'':       cResult = '\'';        break;
+        case '\"':       cResult = '\"';        break;
 
-	default:         cResult = c;           break;
+        case 'x':
+        {
+            int val = hexValue(*pSrc);
+            if (val >= 0)
+            {
+                cResult = val << 4;
+                val = hexValue(pSrc[1]);
+                if (val >= 0)
+                {
+                    cResult += val;
+                    pSrc += 2;
+                }
+            }
+            break;
+        }
 
-	}
+        default:         cResult = c;           break;
+
+        }
+    }
+
 	return cResult;
 }
 
@@ -150,12 +199,12 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 				{
 					cc[iDst++] = ch;
 				}
-				ch = *pSrc++;
-				if (ch == '\0')
+				if (*pSrc == '\0')
 				{
 					break;
 				}
-				cc[iDst++] = BackslashChar(ch);
+                ch = BackslashChar(pSrc);
+                cc[iDst++] = ch;
 			}
 			else if (ch == '\'')
 			{
@@ -210,8 +259,8 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 }
 
 
-const char *
-ForthParseInfo::ParseDoubleQuote(const char *pSrc, const char *pSrcLimit, bool keepBackslashes)
+void
+ForthParseInfo::ParseDoubleQuote(const char *&pSrc, const char *pSrcLimit, bool keepBackslashes)
 {
 	char  *pDst = GetToken();
 
@@ -220,6 +269,7 @@ ForthParseInfo::ParseDoubleQuote(const char *pSrc, const char *pSrcLimit, bool k
 	pSrc++;  // skip first double-quote
 	while ((*pSrc != '\0') && (pSrc < pSrcLimit))
 	{
+        char ch = '\0';
 
 		switch (*pSrc)
 		{
@@ -228,28 +278,28 @@ ForthParseInfo::ParseDoubleQuote(const char *pSrc, const char *pSrcLimit, bool k
 			*pDst = 0;
 			// set token length byte
 			SetToken();
-			return pSrc + 1;
+            pSrc++;
+			return;
 
 		case '\\':
 			if (keepBackslashes)
 			{
 				*pDst++ = '\\';
 			}
-			pSrc++;
-			*pDst++ = BackslashChar(*pSrc);
+            pSrc++;
+			ch = BackslashChar(pSrc);
 			break;
 
 		default:
-			*pDst++ = *pSrc;
+			ch = *pSrc++;
 			break;
 
 		}
 
-		pSrc++;
+        *pDst++ = ch;
 	}
 	*pDst = 0;
 	SetToken();
-	return pSrc;
 }
 
 

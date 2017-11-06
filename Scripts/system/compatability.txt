@@ -6,29 +6,6 @@ requires forth_optype
 autoforget compatability
 : compatability ;
 
-: cells 4* ;
-: cell+ 4+ ;
-: chars ;
-: char blword c@ ;
-
-// given ptr to cstring, compile code which will push ptr to cstring
-: compileStringLiteral
-  -> ptrTo byte src
-  src strlen -> int len
-  len 4+ 0xFFFFFFFC and 2 rshift -> int lenInts
-  opType:makeOpcode( opType:litString lenInts ) ,		// compile literal string opcode
-  strcpy( here src )
-  allot( lenInts cells )
-;
-
-: count dup 1+ swap c@ ;
-
-: 2, here 8 allot 2! ;
-: literal postpone lit , ;
-: fliteral literal ;
-: dliteral postpone dlit 2, ;
-precedence literal   precedence fliteral   precedence dliteral
-
 : countedStringToString
   // src dst
   -> ptrTo byte dst
@@ -88,64 +65,12 @@ precedence literal   precedence fliteral   precedence dliteral
   endif
 ;
 
-: cmove 0 do over i + c@ over i + c! loop 2drop ;
-: cmove> 0 swap 1- do over i + c@ over i + c! -1 +loop 2drop ;
-: ."
-  '"' $word state @
-  if
-    compileStringLiteral
-    postpone %s
-  else
-    %s
-  endif
-;
-precedence ."
-
 : .(
   ')' $word %s
 ;
 precedence .(
 
-: s"
-  '"' $word
-  if( state @ )
-    compileStringLiteral( dup )
-    strlen postpone literal
-  else
-    dup strlen
-  endif
-;
-precedence s"
-: accept
-  stdin fgets dup -> ptrTo byte buffer
-  strlen -> int bytesRead
-  if( bytesRead )
-    if( buffer bytesRead + 1- c@ '\n' = )
-      // trim trailing linefeed from count
-      1 ->- bytesRead
-    endif
-  endif
-  bytesRead
-;
-: quit r0 -> rp 0 -> fp done ;
-: erase 0 fill ;
-: blank bl fill ;
-: emit %c ;
-: does> postpone does ; precedence does>
-: then postpone endif ; precedence then
-
 : [char]  opType:makeOpcode( opType:litInt blword c@ ) , ; precedence [char]
-: char+ 1+ ;
-: spaces
-  dup 0> if
-    0 do %bl loop
-  else
-    drop
-  endif
-;
-
-: cr %nl ;
-: space %bl ;
 
 : _abortQuote
   swap
@@ -166,7 +91,7 @@ precedence s"
 ; precedence abort"
 
 : value -> postpone int ;
-: to -> ;
+alias to ->
 
 int __sp
 : !csp sp -> __sp ;
@@ -213,8 +138,8 @@ true constant locals-ext
   $evaluate( varExpression )
 ; precedence (local)
 
-: defer postpone op ;
-: is -> ;
+alias defer op
+alias is ->
 
 : off false swap ! ;
 : on true swap ! ;
@@ -223,7 +148,7 @@ true constant locals-ext
 
 int _handler
 
-: catch  ( ... xt -- ... 0 )
+: catch  // ... xt -- ... 0
   _handler  >r
   sp >r
   rp -> _handler
@@ -232,7 +157,7 @@ int _handler
   r> -> _handler
 ;
 
-: throw  ( error -- error )
+: throw  // error -- error
   dup 0= if
     drop exit
   endif
@@ -248,7 +173,7 @@ int _handler
   -
 ;
 
-: include lf ;
+alias include lf
 
 : marker
   blword dup $:
@@ -259,12 +184,12 @@ int _handler
 ;
 
 : recurse
-  system.getDefinitionsVocab -> OVocabulary vocab
+  system.getDefinitionsVocab -> Vocabulary vocab
   vocab.getNewestEntry @ ,
   oclear vocab
 ; precedence recurse
 
-: at-xy setConsoleCursor ;
+alias at-xy setConsoleCursor
 : page clearConsole 0 0 setConsoleCursor ;
 // addr count ... addr+count addr
 : bounds over + swap ;
@@ -280,7 +205,7 @@ int _handler
 ;
  
 : cell- 4- ;
-: [defined] ( "word" -- tf ) bl word find nip ; precedence [defined]
+
 : -trailing
   -> int numChars
   -> ptrTo byte pStr
@@ -293,17 +218,17 @@ int _handler
   pStr numChars
 ;
 
-: d>s drop ;
+alias d>s drop
 
 : [defined] bl word find nip ;
 : [undefined] [defined] not ;
 precedence [defined]  precedence [undefined]
 
-: fconstant constant ;
-: s>f i2f ;
-: s>d i2l ;
-: f>d f2l ;
-: d>f l2f ;
+alias fconstant constant
+alias s>f i2f
+alias s>d i2l
+alias f>d f2l
+alias d>f l2f
 : fround
   dup f0>= if
     0.5 f+ floor
@@ -318,3 +243,6 @@ precedence [defined]  precedence [undefined]
   _TempStringA "%f" ref fval 1 sscanf
   fval swap
 ;
+
+loaddone
+

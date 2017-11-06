@@ -14,6 +14,7 @@
 #include "ForthObject.h"
 #include "ForthBuiltinClasses.h"
 #include "ForthShowContext.h"
+#include "ForthBlockFileManager.h"
 
 #include "OArray.h"
 #include "OList.h"
@@ -225,9 +226,26 @@ namespace
 	};
 
 
-	//////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 ContainedType
+    //
+    FORTHOP(oContainedTypeNew)
+    {
+        GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a ContainedType object");
+    }
+
+    baseMethodEntry containedTypeMembers[] =
+    {
+        METHOD("__newOp", oContainedTypeNew),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
 	///
-	//                 class
+	//                 Class
 	//
 	FORTHOP(classCreateMethod)
 	{
@@ -471,23 +489,30 @@ ForthTypesManager::GetTypeName( void )
 void
 ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 {
-	pEngine->AddBuiltinClass("Object", kBCIObject, kBCIInvalid, objectMembers);
-	ForthClassVocabulary* pClassClassVocab = pEngine->AddBuiltinClass("Class", kBCIClass, kBCIObject, classMembers);
+    pEngine->AddBuiltinClass("Object", kBCIObject, kBCIInvalid, objectMembers);
+    pEngine->AddBuiltinClass("ContainedType", kBCIContainedType, kBCIObject, containedTypeMembers);
+    ForthClassVocabulary* pClassClassVocab = pEngine->AddBuiltinClass("Class", kBCIClass, kBCIObject, classMembers);
 
-	pEngine->AddBuiltinClass("OIter", kBCIIter, kBCIObject, oIterMembers);
-	pEngine->AddBuiltinClass("OIterable", kBCIIterable, kBCIObject, oIterableMembers);
+	pEngine->AddBuiltinClass("Iter", kBCIIter, kBCIObject, oIterMembers);
+	pEngine->AddBuiltinClass("Iterable", kBCIIterable, kBCIObject, oIterableMembers);
 
-	OSystem::AddClasses(pEngine);
 	OArray::AddClasses(pEngine);
 	OList::AddClasses(pEngine);
 	OMap::AddClasses(pEngine);
 	OString::AddClasses(pEngine);
 	OStream::AddClasses(pEngine);
-	ONumber::AddClasses(pEngine);
+    OBlockFile::AddClasses(pEngine);
+    ONumber::AddClasses(pEngine);
 	OVocabulary::AddClasses(pEngine);
 	OThread::AddClasses(pEngine);
 	OLock::AddClasses(pEngine);
+    OSystem::AddClasses(pEngine);
 
 	mpClassMethods = pClassClassVocab->GetInterface(0)->GetMethods();
 }
 
+void
+ForthTypesManager::ShutdownBuiltinClasses(ForthEngine* pEngine)
+{
+    OSystem::Shutdown(pEngine);
+}

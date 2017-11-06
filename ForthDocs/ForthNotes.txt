@@ -172,6 +172,286 @@ ll      10 32 54 76  98 ba dc fe     98 ba dc fe  10 32 54 76
 ll == 0xfedcba9876543210L
 
 Double has consistent layout, long is reversed on param stack.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 2 2017
+
+I created a github account gnosys2u and added forth project to it with:
+
+git remote add origingh https://github.com/gnosys2u/forth.git
+git push -u origingh master
+
+Note that I had to create a new remote 'origingh' since origin already existed.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 13 2017
+
+I added a BlockFile builtin object.  I still need to remove block operators
+from the kernel.
+o kernel needs access to the 'blk' variable
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 19 2017
+
+I merged fast-mode tracing back to the ARM build.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 16 2017
+
+I reworked how trace is done so that now you don't leave fast mode if you go
+into trace mode, you stay in the assembler inner interpreter which calls out
+to the engine's trace routines.  The trace flags had to be moved into the
+thread core, and another inner interpreter entry point was also added to the
+thread core, this one is used when executing an op which isn't stored at the IP,
+which is used by the execute op and methodWithThis and methodWithTOS optypes.
+
+I also changed the help system to use a StringMap instead of its linked list.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 4 2017
+
+I had to change the global object variable forget/shutdown code to do a release
+instead of a delete to avoid a crash if an object was ever referenced by more
+than one global variable.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 1 2017
+
+I added automatic deletion of objects referenced by global object variables
+when forgetting or shutting down forth.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 22 2017
+
+I've done a bunch of minor fixes spurred on by debugging the O'Dwyer/Knuth
+adventure program.  I added the ability to go from an enum value back to its
+symbolic name.  This required a little hackery, when an enum defining word is
+defined it saves the defining vocabulary, the offset into the vocabulary of the
+last enum symbol entry, and the number of defined values in the enum.
+
+I got bitten again several times by the bug where if you define the first local
+variable inside a control structure the code will compile but will then crash,
+usually because the allocate-variables opcode isn't always executed, but the
+exitL opcode is always executed.  I added a check when defining the first local
+variable to throw an error if the shell stack shows you aren't at the top level
+of a definition.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 11 2017
+
+I changed case statements to allow multiple 'of' or 'ofif' clauses for a single
+case body and 'endof'.
+
+There is still a bug in my case implementation.  I had the default case branch
+have the case selector on TOS, which the default case branch code was responsible
+for consuming.  I read somewhere that the default case branch code is allowed to
+look at the case selector on TOS, but that it not consume, that endcase will
+compile a 'drop' at the very end of the case statement.
+Fixing this would require fixing every case statement in every script.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 10 2017
+
+I added continuations last night, it came together in just a few hours.  The
+best thing about it is that it has almost interaction with the other control
+flow code - it doesn't use the shell stack at all.
+
+I added elseif today, the way to do it without using parenthesized expressions is:
+  else CONDITIONAL_CODE ]if BODY endif
+with parenthesis it is done as:
+  elseif(CONDITIONAL_CODE) BODY endif
+Right now there an ugly kludge in ForthShell::ParseToken that looks for " elseif"
+at the end of processed parenthesized expressions, strips the " elseif" off,
+prepends " else " and appends " ]if" to make it work.  This will be replaced with
+something more general and less kludgy as soon as possible.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 5 2017
+
+I was thinking about adding 'elseif' and 'continue' flow control ops.
+The elseif op is basically impossible in standard forth, because
+  CONDITIONAL_CODE elseif
+needs to do actions both before and after CONDITIONAL_CODE.
+It would be possible with parenthesized expressions with some magic, specifically
+having the expression processor recognize special starting symbols, like 'elseif'
+and adding both before and after symbols to the expression result string, so
+  elseif(CONDITIONAL_CODE)
+would be turned into:
+  else[ CONDITIONAL_CODE ]if
+
+Each elseif collapses the branches of the preceeding if or elseif, but
+each leaves behind a pending branch to the final endif.  The endif op
+will need to do what it currently does (deal with last if/else) and also
+iterate over all the elseifs in the shell stack until it gets to an if,
+filling in the branches to the final endif for each one.
+
+I should also look into making andif and orif work with while and until.
+
+Adding 'continue' initially didn't look that complicated until I looked
+at all the cases and saw that a lot of them didn't have an obvious value
+for the continue branch destination.  do..+loop could have an arbitrary
+number of ops before +loop used to compute the loop index increment,
+and the same is true for the conditional in begin..until and the proper
+continue spot for begin..while..repeat is also unclear - probably somewhere
+shortly before the repeat statement.
+
+I think the best way to implement continue is to add 3 ops:
+  continue:
+    this defines the branch destination for all continues inside a particular loop
+  continue
+    this causes a branch to spot defined by 'continue:'
+  continueIf
+    this causes a branch to spot defined by 'continue:' if TOS is true
+  continueIfNot
+    this causes a branch to spot defined by 'continue:' if TOS is false
+
+Keeping all the continue addresses on the shell stack would make processing
+other flow control structures messy, it might be better to have a continue
+stack with the IPs of all the continue statements, and whenever a loop ending
+statement is processed it would pop all the continue IPs off that stack that
+fell within the range of the loop and throw an error if there were continue branches
+in the loop and no 'continue:' within the loop.
+
+Loop starting ops would need to stick the previous value of continue address on
+the shell stack and zero out the current continue address to mark it as invalid.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 3 2017
+
+I added the ability to have hexadecimal values in string and character literals
+by using \xVV.
+
+I added a StructArray builtin class.  You need to invoke its setType method
+on each instance before using it so that it knows the size of array elements
+and so that show works.  It would be nice if 'StructArray of Foo' would be
+enough so that you didn't need to manually set the type, but I can't think of
+any straightforward way to make that work.
+
+I decided to do a playthrough of adventure to see if it had any bugs, and found
+out pretty quickly that it is very incomplete - when I got to the part where
+you release the bird to kill the snake it didn't recognize any way to throw
+the bird or the cage.  I guess the guys who did the C++ port didn't get that
+far.  I found an annotated C version by Donald Knuth, but it didn't make any
+attempt at restructuring the code - it is just Fortran transcribed to C with
+goto being used all over the place.  Arthur O'Dwyer took Knuth's version and
+added a little more structure to it, but it is still a mess.  O'Dwyer also has
+similar C versions for the 440, 550 and 551 point versions of the game which
+appear to have very similar code.
+
+I don't know if I should try to add missing stuff to the existing code, or
+start over with one of O'Dwyers versions.  Another possibility would be to
+port one of the interactive fiction engines like tads or acode to forth,
+but that looks like a mammoth undertaking.
+
+I added continuation lines - if a line ends in "\+" the next line will be
+appended to it before any of it is interpreted.  I tested in the console and
+in files, I haven't tested it for buffer input or server mode.
+I also haven't tested edge cases, like where the resulting input line would
+be too big for the input streams buffer - that should be very rare, since the
+buffers are currently 16K bytes long.
+Continuations are only really useful for long literal strings and expressions.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 20 2017
+
+I removed the StringArray builtin class and replaced it with Array of String in
+the scripts.  In doing that I had to fix a few bugs in the contained class code.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 19 2017
+
+When I was debugging contained classes, I noticed that there are several cases
+of ForthEngine::SetError happening when I run test.txt that don't abort test.txt:
+
+- multiple instances of bad preprocessor directive when #endif is processed during skipping
+- line 593 of rbtree.txt - "<)> preceeded by <if>, was expecting <paren>"
+
+I don't think these are new errors.
+I think errors that happen outside the inner interpreter don't get reported,
+like syntax error or preprocessor errors.
++ make sure all errors are getting reported
++ look at preprocessor directives
+  + why is #endif failing?
+  - do we need both #if and [if] preprocesser directives?
+-> I think this is now fixed
+
+Oddly, if you type a garbage symbol and get an undefined symbol error report,
+ForthEngine::SetError is never called.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 18 2017
+
+I have been thinking about allowing container classes to have a 'contained' class
+type, so that when you get an object from an array or map you don't have to
+cast its type to use it.  
+
+o syntax:
+  local var, global var, struct field and member field syntax:
+    CONTAINER_TYPE of CONTAINED_TYPE OBJ_NAME
+  method return value
+    m: BLAH returns CONTAINER_TYPE of CONTAINED_TYPE OBJ_NAME
+
+o implementation:
+  1. Vocabulary type descriptor change for object fields
+    vocabulary type descriptor for object fields/return values changes from:
+      bits 8..31 are classID
+    to:
+      bits 8..22 are contained classID (8192 possibilities)
+	  bits 23..31 are container classID (512 possibilities)
+    This does mean that there can be at most 8192 class types, and only the bottom 512
+    class types can be 'containers'.
+
+    The number of bits for container type and contained is an arbitrary choice.
+    If a very small number of bits is used for the container classID, maybe all
+    low classIDs should be reserved for containers.  This would require some way
+    of indicating that a new class type is a container type.
+
+    Another possible encoding:
+      bit 31 selects container/no container encoding
+      if bit 31 is 0, bits 8..30 are the classID
+      if bit 31 is 1, bits 8..N are contained classID, bits N+1..31 are container classID
+  2. Container methods which returned the contained type must be declared to return
+    a special classID 'containedType' instead of Object
+
+Look at all things which reference any of these:
+  CODE_TO_STRUCT_INDEX
+  kBaseTypeObject
+  OBJECT_TYPE_TO_CODE
+
+I will need to keep track of the previous fields type in the struct code generator,
+currently it just has the struct vocab for the previous field, so for foo.get.blah,
+when processing 'get' it just knows it should lookup the method in Array, and
+when it does it finds that Array.get returns Object, and there is no Object.blah method.
+The struct code generator will need to keep track of both the container and contained
+vocabs now.
+
+The makeObject op will also need to be modified to work with container/contained objects.
+
+"ContainerType of ContainedType" won't work with the simple token stack feature.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 16 2017
+
+I changed builtin class names to not start with 'O'.
+
+I added does-it-compile tests of atc, adv, hersheyfont, file and rbtree to the tests.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 10 2017
+
+I replaced method: ;method fun: ;fun with m: ;m f: ;f instead of using aliases.
+
+I changed the single engine temp string buffer to be a ring buffer containing
+multiple strings, and it is now used by blword, $word and literal strings in
+interpret mode.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+April 18 2017
+
+I started working on making the test.txt script include automatic validation
+for scripts which don't do result validation.  The overall plan is:
+
+o make it easy to redirect output to a file
+o add a flag that scripts can check to skip doing output which is inherently
+  variable, like the run times for the dining philosophers
+o add a way to hide id/refCount fields in object show methods
+o add extParam, which allows files to have variables with default values which can be overridden
+
+I added file stream getSize/getPosition/seek/tell methods, all of which use
+64 bits for file offsets/positions.
+
+I added input stream GetString, which reads a line of text into an OString, which
+resizes the OString if needed to fit the line of text.
+
+I ran into an intermittent crash that was being caused by the allocLocals op
+not being compiled.  It was happening on alternating compiles of a test program.
+It stopped happening on its own, sadly.  I guess it is remotely possible that it
+was being caused by bugs in the input file stream GetString code, but that seems
+unlikely.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 April 15 2017
 

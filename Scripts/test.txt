@@ -1,43 +1,87 @@
-: runtest ds "##################### run " %s blword dup %s " #####################\n" %s $load ;
 
-runtest evil.txt
-forget evilVM
+autoforget TEST
+: TEST ;
 
-runtest async_philosophers.txt
+FileOutStream testFileOut
+
+scSetShowID(false)
+
+: runtest
+  depth -> int oldDepth
+  mko String testName
+  mko String testScriptName
+  testName.set(blword)
+  testScriptName.set(testName.get) testScriptName.append(".txt")
+  "##################### run " %s testScriptName.get %s " #####################\n" %s
+  $load(testScriptName.get)
+  if(depth oldDepth <>)
+    "!!!!!!!!!!!!!!!!!!!!!! stack depth changed !!!!!!!!!!!!!!!!!!!!!!\n" %s
+    ds
+  endif
+  oclear testName
+  oclear testScriptName
+;
+
+runtest evil
+forget EVIL
+
+runtest async_philosophers
 go
-forget asyncPhilosophers
+forget ASYNC_PHILOSOPHERS
 
-runtest philosophers.txt
+runtest philosophers
 go
-forget philosophers
+forget PHILOSOPHERS
 
 200 -> int numElems
-runtest sort_examples.txt
+runtest sort_examples
 go
-forget sort_examples
+forget SORT_EXAMPLES
 
-runtest tree_examples.txt
+runtest tree_examples
 go
-forget tree_examples
+forget TREE_EXAMPLES
 
+cd newadv
+runtest adv
+forget ADV
+cd ..
+
+cd atc
+runtest atc
+forget ATC
+cd ..
+
+cd system
+: _TEST_ ;
+runtest hersheyfont
+runtest file
+runtest rbtree
+forget _TEST_
+cd ..
 
 cd tests
 
-runtest forthtest.txt
+runtest forthtest
 
-runtest biclasstest.txt
+runtest biclasstest
 cleanup
+forget BUILTIN_CLASS_TEST
 
-runtest rctest.txt
+runtest rctest
 test
 cleanup
+forget RCTEST
 
-runtest structtest.txt
+runtest structtest
+forget STRUCTTEST
 
-runtest misctest.txt
+runtest misctest
+forget MISCTEST
 
-runtest ansitest.txt
+runtest ansitest
 
+forget TEST
 cd ..
 
 

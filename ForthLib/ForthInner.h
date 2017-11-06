@@ -40,7 +40,6 @@ struct ForthFileInterface
 	int					(*fileDup2)( int srcFileHandle, int dstFileHandle );
 	int					(*fileNo)( FILE* pFile );
 	int					(*fileFlush)( FILE* pFile );
-	char*				(*getTmpnam)( char* path );
 	int					(*renameFile)( const char* pOldName, const char* pNewName );
 	int					(*runSystem)( const char* pCmdline );
 	int					(*changeDir)( const char* pPath );
@@ -100,12 +99,14 @@ struct ForthCoreState
     ForthMemorySection* pDictionary;
     ForthFileInterface* pFileFuncs;
 
-	void				*innerLoop;		// inner loop reentry point for assembler inner interpreter
+    void				*innerLoop;		// inner loop reentry point for assembler inner interpreter
+    void				*innerExecute;	// inner loop entry point for assembler inner interpreter for 'execute' op
 
 	ForthObject			consoleOutStream;
 
     long                base;               // output base
     ulong               signedPrintMode;   // if numers are printed as signed/unsigned
+    long                traceFlags;
     ulong               scratch[4];
 };
 
@@ -121,6 +122,7 @@ extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, long op );
 void InitDispatchTables( ForthCoreState* pCore );
 void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal );
 void _doIntVarop(ForthCoreState* pCore, int* pVar);
+void SpewMethodName(long* pMethods, long opVal);
 
 // DLLRoutine is used for any external DLL routine - it can take any number of arguments
 typedef long (*DLLRoutine)();

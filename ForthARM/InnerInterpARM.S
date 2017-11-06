@@ -77,10 +77,12 @@ cur_thread		=	84			@	current ForthThread pointer
 dict_mem_sect	=	88			@	dictionary memory section pointer
 file_funcs		=	92			@
 inner_loop		=	96			@	inner interpreter asm reentry point
-conout_stream  	=	100
-base          	=	108
-signed_print_mode = 112
-scratch			=	116
+inner_execute	=	100			@	inner interpreter reentry for execute/methodWithThis/methodWithTOS
+conout_stream  	=	104
+base          	=	112
+signed_print_mode = 116
+trace_flags     =   120
+scratch			=	124
 
 kVarDefaultOp			=		0
 kVarFetch				=		1
@@ -169,7 +171,7 @@ filePutString	=		48
 	.global rpushBop, rpopBop, rdropBop, rpBop, r0Bop, dupBop, checkDupBop, swapBop, overBop
 	.global rotBop, tuckBop, pickBop, spBop, s0Bop, fpBop, ddupBop, dswapBop, ddropBop, doverBop, drotBop,
 	.global storeBop, cstoreBop, cfetchBop, scfetchBop, c2iBop, wstoreBop, wfetchBop, swfetchBop, w2iBop, dstoreBop
-	.global	moveBop, fillBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop
+	.global	moveBop, memcmpBop, fillBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop
 	.global	strchrBop, strrchrBop, strcmpBop, stricmpBop, strstrBop, strtokBop, initStringBop, strFixupBop
 	.global doUByteBop, doUByteArrayBop, doUShortBop, doUShortArrayBop
 	.global dsinBop, dasinBop, dcosBop, dacosBop, dtanBop, datanBop, datan2Bop, dexpBop, dlnBop, dlog10Bop, dpowBop
@@ -195,7 +197,7 @@ filePutString	=		48
 	.global icmpBop, uicmpBop, oclearBop, lplusBop, lminusBop, ltimesBop, mtimesBop, umtimesBop
     .global lcmpBop, ulcmpBop
     
-	.global fprintfSub, fscanfSub, snprintfSub, sscanfSub, oStringFormatSub
+	.global fprintfSub, fscanfSub, snprintfSub, sscanfSub, oStringFormatSub, setTraceBop
 
 	.global InterpretOneOpFast
 	
@@ -287,6 +289,7 @@ InnerInterpreterFast:
 
 	@
 	@ re-enter here if you stomped on rip/rsp/rrp	
+	@  or if you are switching trace modes
 	@
 InnerInterpreterReentry:
 	add	r0, rcore, #ipsave
@@ -298,37 +301,44 @@ InnerInterpreterReentry:
 	mov	r3, #kResultOk				@ r3 = kResultOk
 	str	r3, [rcore, #istate]		@ SET_STATE( kResultOk )
 
-	@ uncomment next 2 lines to display IP each instruction	
-	@mov	r0, rip
-	@bl	ShowIP
-	@bl	break_me	
-	
-	bl	.II2					@ don't know how to load lr directly
+	@ load core inner_loop and inner_execute entry points into core based
+	@  on if we are tracing or not
+	ldr	r2, .normalInterpTable
+	ldr	r0, [rcore, #trace_flags]
+	orrs	r0, r0
+	beq	.IIR1
+	ldr	r2, .traceInterpTable
+.IIR1:
+	ldrd	r0, [r2]
+	strd	r0, [rcore, #inner_loop]
+	mov	lr, r0
+	bx	lr
+
 	@
 	@ we come back here whenever an op does a "bx lr"
 	@
 innerInterpLoop:
 .II1:
-	push {lr}
-	bl checkOptypeTable
-	pop {lr}
-	@swi	#0xFD
+@	push {lr}
+@	bl checkOptypeTable
+@	pop {lr}
 	ldrb	r0, [rcore, #istate]	@ get state from core
 	cmp	r0, #kResultOk			@ keep looping if state is still ok (zero)
 	bne	.IIExit
 .II2:
-	ldr	r0, [rcore, #ops]			@ rops = table of ops
-	cmp r0, rops
-	bne	badTuna
-	ldr	r0, [rcore, #n_ops]	@ rnumops = number of ops implemented in assembler
-	cmp r0, rnumops
-	bne	badTuna
-	ldr	r0, .opTypesTable		@ raction = table of opType handlers
-	cmp r0, raction
-	bne	badTuna
-	cmp	rops, #0
-	beq	badTuna
+@	ldr	r0, [rcore, #ops]			@ rops = table of ops
+@	cmp r0, rops
+@	bne	badTuna
+@	ldr	r0, [rcore, #n_ops]	@ rnumops = number of ops implemented in assembler
+@	cmp r0, rnumops
+@	bne	badTuna
+@	ldr	r0, .opTypesTable		@ raction = table of opType handlers
+@	cmp r0, raction
+@	bne	badTuna
+@	cmp	rops, #0
+@	beq	badTuna
 .backFromBadTuna:
+
 	ldmia	rip!, {r0}			@ r0 = next opcode, advance IP
 @ interpLoopExecuteEntry is entry for executeBop - expects opcode in r0
 interpLoopExecuteEntry:
@@ -344,9 +354,9 @@ interpLoopExecuteEntry:
 @	str	r0, [r3]
 iidisp:
 	str	r0, [rcore, #scratch]
-	push {lr}
-	bl checkOptypeTable
-	pop {lr}
+@	push {lr}
+@	bl checkOptypeTable
+@	pop {lr}
 	cmp	r0, rnumops					@ is opcode native op?
 	bge	.II3
 	@ handle native ops
@@ -372,15 +382,45 @@ badTuna:
 	@
 	bx	r0						@ dispatch to action routine
 
+
+	@
+	@ we come back here whenever an op does a "bx lr" in trace mode
+	@
+traceInterpLoop:
+	ldrb	r0, [rcore, #istate]	@ get state from core
+	cmp	r0, #kResultOk			@ keep looping if state is still ok (zero)
+	bne	.IIExit
+
+	ldmia	rip, {r2}			@ r2 = next opcode, don't advance IP
+	b	.trace1
+
+traceLoopExecuteEntry:
+	mov	r2, r0
+	sub	rip, #4			@ move IP back to avoid advancing twice
+	eor	r1, r1		@ pass null for IP
+
+.trace1:
+	mov	r1, rip
+	push {r2, lr}
+	eor	r0, r0
+	add	r0, rcore, #ipsave			@ r1 -> IP
+	stmia	r0!, {rip-rfp}			@ save IP, SP, RP, FP in core
+	mov	r0, rcore
+@ core, ip, opcode
+	bl	traceOp
+	pop {r0, lr}
+	add	rip, #4
+	b iidisp
+
 	
 	@
 	@ exit inner interpreter
 	@	
 .IIExit:
 interpLoopExit:
-	push {lr}
-	bl checkOptypeTable
-	pop {lr}
+@	push {lr}
+@	bl checkOptypeTable
+@	pop {lr}
 	add	r1, rcore, #ipsave			@ r1 -> IP
 	stmia	r1!, {rip-rfp}			@ save IP, SP, RP, FP in core
 	pop	{rcore-raction, r12, pc}
@@ -400,9 +440,19 @@ interpLoopFatalErrorExit:
 	.align	2
 .opTypesTable:
 	.word	opTypesTable
+
+.normalInterpTable:
+	.word	.innerInterpLoop
+.traceInterpTable:
+	.word	.traceInterpLoop
+
 .innerInterpLoop:
 	.word	innerInterpLoop
-	
+	.word	interpLoopExecuteEntry
+.traceInterpLoop:
+	.word	traceInterpLoop
+	.word	traceLoopExecuteEntry
+
 @-----------------------------------------------
 @
 @ InitAsmTables
@@ -1563,7 +1613,8 @@ opEntry:
 	@ execute local op
 localOpExecute:
 	ldr	r0, [r0]
-	b	interpLoopExecuteEntry
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 
 @
 @ these routines can rely on:
@@ -1681,44 +1732,44 @@ localObjectRef:
 	bx	lr
 	
 localObjectStore:
+	@ r0 points to oldObj container var
+	@ TOS is newObj contents
 	push	{rcore,rip}
-	ldmia	rsp!, {rcore,rip}	@ pop TOS object value into rcore,rip
-	ldmia	r0, {r2,r3}			@ r2,r3 are oldObj
-	cmp	rcore, r2
-	beq	.losx
+	ldmia	rsp!, {rcore,rip}	@ pop TOS object value into rcore,rip (newObj)
+	ldmia	r0, {r2,r3}			@ r2,r3 are oldObj contents
+	stmia	r0, {rcore,rip}		@ newObj -> oldObj
+	cmp	rip, r3
+	beq	.los2					@ if oldObj.data == newObj.data, don't touch refcounts
 	orrs	rip, rip
-	beq	.los1					@ if newObj data ptr is null, don't increment refcount
+	beq	.los1					@ if newObj.data is null, don't increment refcount
 	ldr	r1, [rip]				@ increment newObj refcount
 	add	r1, #1
 	str	r1, [rip]
 .los1:
 	orrs	r3, r3
-	beq	.los2
+	beq	.los2					@ if oldObj.data is null, don't decrement refcount
 	ldr	r1, [r3]				@ decrement oldObj refcount
 	subs	r1, #1
 	str	r1, [r3]
 	beq	.los3					@ oldObj refcount went to zero, go delete it
 .los2:
-	str	rcore, [r0]
-.losx:
-	str	rip, [r0, #4]
 	pop	{rcore,rip}
 	bx	lr
 	
 .los3:
 	@ object var held last reference to oldObj, invoke olbObj.delete method
-	stmia	r0, {rcore,rip}			@ store newObj
 	pop	{rcore,rip}
 	@ push pCore->this pair on rstack
-	ldr	r0,[rcore, #tpm]
-	stmdb	rrp!, {r0}
 	ldr	r0,[rcore, #tpd]
+	stmdb	rrp!, {r0}
+	ldr	r0,[rcore, #tpm]
 	stmdb	rrp!, {r0}
 	str	r2, [rcore, #tpm]
 	str	r3, [rcore, #tpd]	
 	
 	ldr	r0, [r2]				@ r0 is method 0 (delete) opcode
-	b		interpLoopExecuteEntry	
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 	
 .localObject1:
 	@ r0 points to the object field
@@ -1732,8 +1783,8 @@ localObjectStore:
 	bx	r1
 	
 localObjectClear:
-	@ TOS is new object, eax points to destination/old object
-    mov r3, r2
+	@ TOS is new object, r0 points to destination/old object
+    eor r3, r3
 	stmdb	rsp!, {r2, r3}
 	@ for now, do the clear operation by pushing dnull on TOS then doing a regular object store
 	@ later on optimize it since we know source is a dnull
@@ -2532,8 +2583,7 @@ dfetchBop:
 @@@@@@@@@@@@@@@@@  this  @@@@@@@@@@@@@@@@@
 
 thisBop:
-	ldr	r1, [rcore, #tpd]
-	ldr	r0, [rcore, #tpm]
+	ldrd	r0, [rcore, #tpm]
 	stmdb	rsp!, {r0, r1}
 	bx	lr
 	
@@ -2555,7 +2605,8 @@ thisMethodsBop:
 
 executeBop:
 	ldmia	rsp!, {r0}
-	b	interpLoopExecuteEntry
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 
 
 @#############################################@
@@ -4582,11 +4633,25 @@ moveBop:
 	@	TOS is #bytes, TOS-1 is dst, TOS-2 is src
 	push	{rcore, lr}
 	ldmia	rsp!, {r0, r1, r3}		@ r0 = #bytes, r1 = dst r3 = src
-	@ memcpy takes r0 = dst, r1 = src, r2 = #bytes
+	@ memmove takes r0 = dst, r1 = src, r2 = #bytes
 	mov	r2, r0
 	mov	r0, r1
 	mov	r1, r3
 	bl	memmove
+	pop	{rcore, lr}
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  memcmp  @@@@@@@@@@@@@@@@@
+
+memcmpBop:
+	@	TOS is #bytes, TOS-1 is mem2ptr, TOS-2 is mem1ptr
+	push	{rcore, lr}
+	ldmia	rsp!, {r0, r1, r3}		@ r0 = #bytes, r1 = mem1 r3 = mem2
+	@ memcmp takes r0 = mem1, r1 = mem2, r2 = #bytes
+	mov	r2, r0
+	mov	r0, r1
+	mov	r1, r3
+	bl	memcmp
 	pop	{rcore, lr}
 	bx	lr
 	
@@ -4833,6 +4898,15 @@ strFixupBop2:
 strFixupBop3:
 	str r0, [r2, #-4]
 	bx	lr
+
+@@@@@@@@@@@@@@@@@  setTraceBop  @@@@@@@@@@@@@@@@@
+
+setTraceBop:
+	ldmia	rsp!, {r0}
+	str	r0, [rcore, #trace_flags]
+	add	r0, rcore, #ipsave
+	stmia	r0!, {rip-rfp}			@ save IP, SP, RP, FP to core
+	b	InnerInterpreterReentry
 
 @#############################################@
 @                                             @
@@ -5117,7 +5191,7 @@ oSFormatSub2:
 	@ r0 = bufferPtr   r1 = bufferSize   r2 = format   r3 = pointer to args
 	bl	vsnprintf
 
-	@ leave args on param stack since we may need to retry printf is overflow occurs
+	str rsp, [rcore, #spsave]
 	ldmia	rrp!, {sp}		@ cleanup PC stack
 	pop	{r1-r3, rcore, rsp, rrp, lr}
 	bx	lr
@@ -5288,6 +5362,19 @@ pushBranchType:
 	add rip, r1
 	bx  lr
 
+relativeDataType:
+	@ r1 is offset from dictionary base of user definition
+    lsl r1, #2
+	ldr	r0, [rcore, #dict_mem_sect]
+	ldr	r2, [r0, #FMSBase]
+    add r1, r2
+	ldr	r2, [r0, #FMSCurrent]
+    cmp r1, r2
+    bge badOpcode
+	@ push address of data on pstack
+    stmdb	rsp!, {r1}
+    bx  lr
+
 relativeDefBranchType:
 	@ push relativeDef opcode for immediately following anonymous definition (IP points to it)
 	@ compute offset from dictionary base to anonymous def
@@ -5308,21 +5395,38 @@ relativeDefBranchType:
     add rip, r1
     bx  lr
     
-caseBranchType:
+caseBranchTType:
 	@ TOS is current case value to match against, TOS-1 is value to check
 	@ r1 holds branch offset in longs
 	ldmia	rsp, {r0, r2}
 	cmp	r0, r2
-	bne	.caseBranch1
-	@ case matched, drop top 2 TOS items, continue executing this branch
+	bne	.caseMismatch
+	@ case did match - branch to case body
 	add	rsp, #8
+	lsl	r1, #2
+	add	rip, r1
 	bx	lr
 	
-.caseBranch1:
+.caseMismatch:
+	@ case didn't match, drop top TOS item, continue on to next instruction
+	add	rsp, #4
+	bx	lr
+	
+caseBranchFType:
+	@ TOS is current case value to match against, TOS-1 is value to check
+	@ r1 holds branch offset in longs
+	ldmia	rsp, {r0, r2}
+	cmp	r0, r2
+	beq	.caseMatched
 	@ case did not match, drop current case value & skip to next case
 	add	rsp, #4
 	lsl	r1, #2
 	add	rip, r1
+	bx	lr
+	
+.caseMatched:
+	@ case matched, drop top 2 TOS items, continue executing this branch
+	add	rsp, #8
 	bx	lr
 	
 constantType:
@@ -5596,7 +5700,8 @@ methodWithThisType:
 	stmdb	rrp!, {r2, r3}
 	@ get method opcode
 	ldr	r0, [r2, r1, lsl #2]
-	b	interpLoopExecuteEntry
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 		
 @ invoke a method on an object referenced by ptr pair on TOS
 methodWithTOSType:
@@ -5608,11 +5713,18 @@ methodWithTOSType:
 	stmdb	rrp!, {r2, r3}
 	@ set this data,methods from TOS	
 	ldmia	rsp!, {r2, r3}
+	orrs r2, r2
+	beq	badMethod
 	str	r2, [rcore, #tpm]
 	str	r3, [rcore, #tpd]
 	@ get method opcode
 	ldr	r0, [r2, r1, lsl #2]
-	b	interpLoopExecuteEntry
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
+
+badMethod:
+	mov	r0, #kForthErrorIllegalMethod
+	b	interpLoopErrorExit
 	
 @ squished float literal
 squishedFloatType:
@@ -5709,7 +5821,8 @@ lroComboType:
 	lsr	r1, #12
 	ldr	r0, =0x0FFF
 	and	r0, r2				@ opcode is in r0
-	b	interpLoopExecuteEntry
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 	
 @ MEMBERREF OP combo ops
 mroComboType:
@@ -5724,7 +5837,8 @@ mroComboType:
 	lsr	r1, #12
 	ldr	r0, =0x0FFF
 	and	r0, r2				@ opcode is in r0
-	b	interpLoopExecuteEntry
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -5753,12 +5867,12 @@ opTypesTable:
 	.word	branchType				@ kOpBranch = 10,
 	.word	branchNZType			@ kOpBranchNZ,
 	.word	branchZType				@ kOpBranchZ,
-	.word	caseBranchType		    @ kOpCaseBranch,
+	.word	caseBranchTType		    @ kOpCaseBranchT,
+	.word	caseBranchFType		    @ kOpCaseBranchF,
 	.word	pushBranchType          @ kOpPushBranch,	
-	.word	relativeDefBranchType	@ kOpRelativeDefBranch
-	.word	extOpType	
-	.word	extOpType	
-	.word	extOpType	
+	.word	relativeDefBranchType	@ kOpRelativeDefBranch,
+	.word	relativeDataType	    @ kOpRelativeData,
+	.word	relativeDataType	    @ kOpRelativeString,
 	.word	extOpType	
 @	20 - 29
 	.word	constantType			@ kOpConstant = 20,   

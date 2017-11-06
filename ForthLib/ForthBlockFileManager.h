@@ -13,11 +13,12 @@
 #define BYTES_PER_BLOCK 1024
 
 class ForthBlockInputStream;
+class ForthEngine;
 
 class ForthBlockFileManager
 {
 public:
-    ForthBlockFileManager( const char* pBlockFilename = NULL, unsigned int numBuffers = NUM_BLOCK_BUFFERS );
+    ForthBlockFileManager(const char* pBlockFilename, unsigned int numBuffers = NUM_BLOCK_BUFFERS, unsigned int bytesPerBlock = BYTES_PER_BLOCK);
     ~ForthBlockFileManager();
 
     const char*     GetBlockFilename();
@@ -27,6 +28,9 @@ public:
     void            EmptyBuffers();
     FILE*           OpenBlockFile( bool forWrite = false );
     unsigned int    GetNumBlocksInFile();
+    inline long*    GetBlockPtr() { return &mBlockNumber; };
+    unsigned int    GetBytesPerBlock() const;
+    unsigned int    GetNumBuffers() const;
 
 private:
 
@@ -43,4 +47,11 @@ private:
     unsigned int*   mAssignedBlocks;
     char*           mpBlocks;
     bool*           mUpdatedBlocks;
+    long            mBlockNumber;       // number returned by 'blk'
+    unsigned int    mBytesPerBlock;
 };
+
+namespace OBlockFile
+{
+    void AddClasses(ForthEngine* pEngine);
+} // namespace OBlockFile

@@ -23,6 +23,7 @@ o builtin symbol types
   o integers
     o hex numbers:   0xBadFood
     o increments:  11+   47-   0x100+
+    o long integers: 55L 0xBadFoodL
     
   o strings: "A spotted elephant"  "In my pajamas!\n"
     Any symbol which begins and ends with double quotes is treated as a literal
@@ -38,9 +39,23 @@ o builtin symbol types
     two characters if it is a backslash special character), followed by one
     of (single quote  or  white space  or  end of line).  Single quote supports
     the  same backslash special characters supported by double quote.
+    o multiple character constants: 'abcd'
     
 o you can access ops in vocabularies which aren't in the current search stack
   by using the syntax   VOCABULARYNAME:OPNAME
+  
+o variables by default fetch their value, you can preceed them with an operator
+  to store or add to their value:
+  int joe
+  5 -> joe
+  joe               // leaves 5 on TOS
+  2 ->+ joe         // joe now contains 7
+  3 ->- joe         // joe now contains 4
+  ref joe           // leave address of joe on stack
+  
+o simple arrays
+
+o local variables
   
 o conditional compilation
   All conditional compilation ops must be the first symbol on a line.
@@ -106,4 +121,14 @@ o uncompiling
     right before symbols that were reordered due to parentheses, but I can't
     find any sign of this in the code
     
-    
+o control flow extensions
+  o continue statements
+  o labels and gotos
+  o more flexible case statements
+    o multiple 'of's sharing a single body
+    o ofif clause
+  o andif, orif, elseif
+
+o classes
+  o builtin array, map, list, string and stream classes
+  o user defined classes

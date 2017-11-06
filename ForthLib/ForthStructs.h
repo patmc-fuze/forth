@@ -112,6 +112,7 @@ public:
     virtual bool    ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
 
     void            AddBuiltinClasses( ForthEngine* pEngine );
+    void            ShutdownBuiltinClasses(ForthEngine* pEngine);
 
     // add a new structure type
     ForthStructVocabulary*          StartStructDefinition( const char *pName );
@@ -221,7 +222,7 @@ public:
 
     // handle invocation of a struct op - define a local/global struct or struct array, or define a field
     virtual void	    DefineInstance(void);
-    virtual void	    DefineInstance(const char* pSym);
+    virtual void	    DefineInstance(const char* pInstanceName, const char* pContainedClassName = nullptr);
 
     virtual const char* GetTypeName();
 

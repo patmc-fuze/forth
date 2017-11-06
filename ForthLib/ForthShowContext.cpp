@@ -18,6 +18,8 @@
 
 ForthShowContext::ForthShowContext()
 	: mDepth(0)
+	, mShowIDElement(true)
+	, mShowRefCount(true)
 {
 	mpEngine = ForthEngine::GetInstance();
 }
@@ -114,10 +116,13 @@ void ForthShowContext::ShowHeader(ForthCoreState* pCore, const char* pTypeName, 
 
 	EndElement("{");
 	ShowIDElement(pTypeName, pData);
-	ShowIndent();
-	mpEngine->ConsoleOut("'__refCount' : ");
-	sprintf(buffer, "%d,", *(int *)(pData));
-	EndElement(buffer);
+	if (mShowRefCount)
+	{
+		ShowIndent();
+		mpEngine->ConsoleOut("'__refCount' : ");
+		sprintf(buffer, "%d,", *(int *)(pData));
+		EndElement(buffer);
+	}
 }
 
 void ForthShowContext::ShowID(const char* pTypeName, const void* pData)
@@ -131,9 +136,12 @@ void ForthShowContext::ShowID(const char* pTypeName, const void* pData)
 
 void ForthShowContext::ShowIDElement(const char* pTypeName, const void* pData)
 {
-	ShowIndent("'__id' : '");
-	ShowID(pTypeName, pData);
-	mpEngine->ConsoleOut("',");
-	EndElement();
+	if (mShowIDElement)
+	{
+		ShowIndent("'__id' : '");
+		ShowID(pTypeName, pData);
+		mpEngine->ConsoleOut("',");
+		EndElement();
+	}
 }
 

@@ -6,9 +6,9 @@ class: Game
   
   Player player
   Data data
-  OStringArray lineVector
-  OArray spokenWords   // array of Noun
-  OString parseScratch
+  Array of String lineVector
+  Array spokenWords   // array of Noun
+  String parseScratch
   
   m: init
     // This will parse the data file
@@ -18,9 +18,9 @@ class: Game
     
     new Player -> player
     player.init(data.getLocationByNumber(1))
-    new OString -> parseScratch
-    new OStringArray -> lineVector
-    new OArray -> spokenWords
+    new String -> parseScratch
+    new Array -> lineVector
+    new Array -> spokenWords
   ;m
   
   m: delete
@@ -33,23 +33,23 @@ class: Game
   
   m: split
      -> int lengthPerWord
-     ->o OArray elems
+     ->o Array elems
      -> byte delim
-     ->o OString s
+     ->o String s
      //"splitting " %s s.show
      s.split(delim elems)
      ?do(elems.count 0)
-       elems.get(i) ->o OString elem
+       elems.get(i) ->o String elem
        if(elem.length lengthPerWord >)
          elem.resize(lengthPerWord)
        endif
      loop
   ;m
   
-  m: getHint returns OString // takes Location
+  m: getHint returns String // takes Location
     ->o Location loc
-    mko OString result
-    loc.hints ->o OArray hints
+    mko String result
+    loc.hints ->o Array hints
     ?do(hints.count 0)
       hints.get(i) -> Hint hint
       if(and(not(hint.read) loc.numberOfVisits hint.numberOfTurns >=))
@@ -61,12 +61,12 @@ class: Game
     unref result
   ;m
   
-  m: handleMovementAndLook returns OString  // takes MotionVerb* verb
+  m: handleMovementAndLook returns String  // takes MotionVerb* verb
     ->o MotionVerb verb
     //"handleMovementAndLook verb " %s verb.words.get(0).get %s %bl verb.number %d %nl
     Message msg
-    mko OString result
-    mko OString mess
+    mko String result
+    mko String mess
     data.getObjectByNumber(2) ->o Noun torch
     and(player.hasObject(torch)  torch.lit) -> bool playerHasLitTorch
     player.currentLocation ->o Location currentLocation
@@ -74,7 +74,7 @@ class: Game
     if(verb.number 57 =)    // 57   LOOK EXAMI TOUCH DESCR
       false -> bool doIt
       if(or(currentLocation.assets.get(0)  playerHasLitTorch))
-        currentLocation.objects ->o OArray objects
+        currentLocation.objects ->o Array objects
         ?do(objects.count 0)
           if(i 0=)
             result.append("\n\n")
@@ -231,7 +231,7 @@ class: Game
     player
   ;m
   
-  m: parseTake returns OString
+  m: parseTake returns String
     ->o Noun obj
     player.currentLocation -> Location currentLocation
     data.getObjectByNumber(2) ->o Noun torch
@@ -297,7 +297,7 @@ class: Game
     endif
   ;m
   
-  m: parseDrop returns OString
+  m: parseDrop returns String
     ->o Noun obj
     player.currentLocation -> Location currentLocation
     if(player.hasObject(obj))
@@ -315,9 +315,9 @@ class: Game
     parseScratch
   ;m
   
-  m: parseOpen returns OString
+  m: parseOpen returns String
     ->o Noun obj
-    OString result
+    String result
     player.currentLocation -> Location currentLocation
     
     case(obj.number)
@@ -387,9 +387,9 @@ class: Game
     result
   ;m
   
-  m: parseClose returns OString
+  m: parseClose returns String
     ->o Noun obj
-    OString result
+    String result
     player.currentLocation -> Location currentLocation
     
     if(obj.number 1003 =)    // GRATE
@@ -419,9 +419,9 @@ class: Game
     result
   ;m
                             
-  m: parseOn returns OString
+  m: parseOn returns String
     ->o Noun obj
-    OString result
+    String result
     
     if(player.hasObject(obj))
       if(not(obj.lit))
@@ -439,9 +439,9 @@ class: Game
     result
   ;m
                             
-  m: parseOff returns OString
+  m: parseOff returns String
     ->o Noun obj
-    OString result
+    String result
     
     if(player.hasObject(obj))
       if(obj.lit)
@@ -459,10 +459,10 @@ class: Game
     result
   ;m
 
-  m: parseEat returns OString
+  m: parseEat returns String
     ->o Noun obj
     player.currentLocation -> Location currentLocation
-    OString result
+    String result
     
     if(player.hasObject(obj))
       if(obj.number 1019 =)    // FOOD
@@ -494,9 +494,9 @@ class: Game
     result
   ;m
 
-  m: parseDrink returns OString
+  m: parseDrink returns String
     ->o Noun obj
-    OString result
+    String result
 
     data.getObjectByNumber(20) ->o obj
     // TODO: why is the bottle not found?
@@ -522,9 +522,9 @@ class: Game
     result
   ;m
 
-  m: parseFill returns OString
+  m: parseFill returns String
     ->o Noun obj
-    OString result
+    String result
     player.currentLocation -> Location currentLocation
     
     if(obj.number 1020 =)  // bottle
@@ -555,9 +555,9 @@ class: Game
   ;m
                             
  
-  m: parseInput returns OString
-    ->o OString input
-    OString result
+  m: parseInput returns String
+    ->o String input
+    String result
     
     if(input.length 0=)
       result
@@ -575,7 +575,7 @@ class: Game
       if(objNotNull(word))
         spokenWords.push(word)
       else
-        "Word not found: " %s lineVector.getRaw(i) %s %nl
+        "Word not found: " %s lineVector.get(i).get %s %nl
       endif
     loop
     //spokenWords.show

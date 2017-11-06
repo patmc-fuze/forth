@@ -85,7 +85,7 @@ SDL_Rect dstPos
       // unhandled pixel size
       lit dummyFetchOp -> pixel@
       lit 2drop -> pixel!
-      "startSDL: Unhandled pixel size " %s %d %nl
+      "startSDL: Unhandled pixel size " %s dup %d %nl
     endcase
     
     // set coordinates so center of screen is 0,0

@@ -3,9 +3,9 @@
 class: atcGame extends iAtcGame
 
   iAtcRegion region
-  //OArray pendingTakeoffs
+  //Array pendingTakeoffs
   atcInputHandler inputHandler
-  OString message
+  String message
   
   int updateRate
   int newplaneRate
@@ -14,20 +14,20 @@ class: atcGame extends iAtcGame
   
   m: init
     'game' -> tag
-    new OString -> name
+    new String -> name
     name.set("games/")
     if( dup strlen 0=)
       drop "default"
     endif
     name.append
     //name.get %s '!' %c %nl
-    new OArray -> airplanes
-    new OList -> activeAirplanes
-    new OList -> inactiveAirplanes
+    new Array -> airplanes
+    new List -> activeAirplanes
+    new List -> inactiveAirplanes
     new atcConsoleDisplay -> display
     new atcRegion -> region
     new atcInputHandler -> inputHandler
-    new OString -> message
+    new String -> message
     inputHandler.init( region display )
   ;m
   
@@ -63,7 +63,7 @@ class: atcGame extends iAtcGame
       // create all airplanes and add to inactive list
       new atcAirplane -> plane
       plane.init( region i )
-      new OString -> plane.name
+      new String -> plane.name
       plane.name.appendChar('A' i +)
       airplanes.push(plane)
       inactiveAirplanes.addTail(plane)
@@ -262,7 +262,7 @@ class: atcGame extends iAtcGame
   ;
   
   : checkAirplanes
-    activeAirplanes.headIter -> OIter iter
+    activeAirplanes.headIter -> Iter iter
     -1 -> int collidedPlaneId
     setConsoleCursor(0 40)
     begin
@@ -289,7 +289,7 @@ class: atcGame extends iAtcGame
   ;
   
   : updatePlanes
-    activeAirplanes.headIter -> OIter iter
+    activeAirplanes.headIter -> Iter iter
     begin
     while( iter.next )
       -> atcAirplane plane
@@ -300,7 +300,7 @@ class: atcGame extends iAtcGame
   ;
   
   : handleArrivals
-    activeAirplanes.headIter -> OIter iter
+    activeAirplanes.headIter -> Iter iter
     begin
     while( iter.next )
       -> atcAirplane plane

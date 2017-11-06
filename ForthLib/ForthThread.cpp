@@ -84,7 +84,6 @@ ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, 
 
     mCore.pDictionary = NULL;
 
-	SPEW_SHELL("ForthThread pCore=%p NULLing consoleOutStream\n", &mCore);
 	mCore.consoleOutStream.pData = NULL;
 	mCore.consoleOutStream.pMethodOps = NULL;
 
@@ -152,6 +151,7 @@ void ForthThread::InitTables(ForthThread* pSourceThread)
 	mCore.maxOps = sourceCore.maxOps;
 	mCore.ops = sourceCore.ops;
 	mCore.innerLoop = sourceCore.innerLoop;
+    mCore.innerExecute = sourceCore.innerExecute;
 }
 
 void
@@ -169,6 +169,7 @@ ForthThread::Reset( void )
     mCore.base = 10;
     mCore.signedPrintMode = kPrintSignedDecimal;
 	mCore.IP = &(mOps[0]);
+    mCore.traceFlags = 0;
 	//mCore.IP = nullptr;
 
 	if (mpShowContext != NULL)
@@ -589,7 +590,7 @@ namespace OThread
 
 	FORTHOP(oAsyncThreadNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an OAsyncThread object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an AsyncThread object");
 	}
 
 	FORTHOP(oAsyncThreadDeleteMethod)
@@ -734,7 +735,7 @@ namespace OThread
 
 	FORTHOP(oThreadNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an OThread object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a Thread object");
 	}
 
 	FORTHOP(oThreadDeleteMethod)
@@ -890,8 +891,8 @@ namespace OThread
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		gpThreadVocabulary = pEngine->AddBuiltinClass("OThread", kBCIThread, kBCIObject, oThreadMembers);
-		gpAsyncThreadVocabulary = pEngine->AddBuiltinClass("OAsyncThread", kBCIAsyncThread, kBCIObject, oAsyncThreadMembers);
+		gpThreadVocabulary = pEngine->AddBuiltinClass("Thread", kBCIThread, kBCIObject, oThreadMembers);
+		gpAsyncThreadVocabulary = pEngine->AddBuiltinClass("AsyncThread", kBCIAsyncThread, kBCIObject, oAsyncThreadMembers);
 	}
 
 } // namespace OThread
@@ -942,7 +943,7 @@ namespace OLock
 
 	FORTHOP(oAsyncLockNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an OAsyncLock object");
+		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an AsyncLock object");
 	}
 
 	FORTHOP(oAsyncLockDeleteMethod)
@@ -1067,9 +1068,9 @@ namespace OLock
         DeleteCriticalSection(pLockStruct->pLock);
 #else
 		pthread_mutex_destroy(pLockStruct->pLock);
-		delete pLockStruct->pLock;
 #endif
-		delete pLockStruct->pBlockedThreads;
+        delete pLockStruct->pLock;
+        delete pLockStruct->pBlockedThreads;
 		FREE_OBJECT(pLockStruct);
 		METHOD_RETURN;
 	}
@@ -1237,8 +1238,8 @@ namespace OLock
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		gpAsyncLockVocabulary = pEngine->AddBuiltinClass("OAsyncLock", kBCIAsyncLock, kBCIObject, oAsyncLockMembers);
-		pEngine->AddBuiltinClass("OLock", kBCILock, kBCIObject, oLockMembers);
+		gpAsyncLockVocabulary = pEngine->AddBuiltinClass("AsyncLock", kBCIAsyncLock, kBCIObject, oAsyncLockMembers);
+		pEngine->AddBuiltinClass("Lock", kBCILock, kBCIObject, oLockMembers);
 	}
 
 } // namespace OLock

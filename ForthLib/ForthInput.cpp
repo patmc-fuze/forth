@@ -47,7 +47,7 @@ ForthInputStack::PushInputStream( ForthInputStream *pNewStream )
     mpHead = pNewStream;
     mpHead->mpNext = pOldStream;
 
-    *(ForthEngine::GetInstance()->GetBlockPtr()) = mpHead->GetBlockNumber();
+    *(ForthEngine::GetInstance()->GetBlockFileManager()->GetBlockPtr()) = mpHead->GetBlockNumber();
 
 	SPEW_SHELL("PushInputStream %s:%s\n", pNewStream->GetType(), pNewStream->GetName());
 }
@@ -71,7 +71,7 @@ ForthInputStack::PopInputStream( void )
 	}
     mpHead = pNext;
 
-    *(ForthEngine::GetInstance()->GetBlockPtr()) = mpHead->GetBlockNumber();
+    *(ForthEngine::GetInstance()->GetBlockFileManager()->GetBlockPtr()) = mpHead->GetBlockNumber();
 
 	SPEW_SHELL("PopInputStream %s\n", (mpHead == NULL) ? "NULL" : mpHead->GetType());
 
@@ -223,6 +223,17 @@ ForthInputStack::IsEmpty(void)
 	return (mpHead == NULL) ? true : mpHead->IsEmpty();
 }
 
+bool ForthInputStack::HandleContinuation(const char* pContinuation)
+{
+    return (mpHead == nullptr) ? false : mpHead->HandleContinuation(pContinuation);
+}
+
+
+char* ForthInputStack::AddContinuationLine()
+{
+    return (mpHead == nullptr) ? nullptr : mpHead->AddContinuationLine();
+}
+
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -251,8 +262,28 @@ ForthInputStream::~ForthInputStream()
 }
 
 
+bool ForthInputStream::HandleContinuation(const char* pContinuation)     // return true if a continuation line should be appended
+{
+    bool result = false;
+    if (pContinuation != nullptr)
+    {
+        int len = strlen(pContinuation);
+        if ((len > 0) && (mWriteOffset >= len))
+        {
+            char* pLineEnd = mpBufferBase + (mWriteOffset - len);
+            if (strcmp(pLineEnd, pContinuation) == 0)
+            {
+                mWriteOffset -= len;
+                mpBufferBase[mWriteOffset] = '\0';
+                result = true;
+            }
+        }
+    }
+    return result;
+}
+
 const char *
-ForthInputStream::GetBufferPointer( void )
+ForthInputStream::GetBufferPointer(void)
 {
     return mpBufferBase + mReadOffset;
 }
@@ -390,6 +421,42 @@ ForthInputStream::StuffBuffer( const char* pSrc )
     mWriteOffset = len;
 }
 
+void ForthInputStream::PrependString(const char* pSrc)
+{
+    int len = strlen(pSrc);
+    if (len < (mBufferLen - 1) - mWriteOffset)
+    {
+        memmove(mpBufferBase + len, mpBufferBase, mWriteOffset);
+        memcpy(mpBufferBase, pSrc, len);
+        mWriteOffset += len;
+        mpBufferBase[mWriteOffset] = '\0';
+    }
+}
+
+void ForthInputStream::AppendString(const char* pSrc)
+{
+    int len = strlen(pSrc);
+    if (len < (mBufferLen - 1) - mWriteOffset)
+    {
+        memcpy(mpBufferBase + mWriteOffset, pSrc, len);
+        mWriteOffset += len;
+        mpBufferBase[mWriteOffset] = '\0';
+    }
+}
+
+void ForthInputStream::CropCharacters(int numCharacters)
+{
+    if (mWriteOffset >= numCharacters)
+    {
+        mWriteOffset -= numCharacters;
+    }
+    else
+    {
+        mWriteOffset = 0;
+    }
+    mpBufferBase[mWriteOffset] = '\0';
+}
+
 
 bool
 ForthInputStream::DeleteWhenEmpty()
@@ -464,6 +531,29 @@ ForthFileInputStream::GetLine( const char *pPrompt )
         {
             --mWriteOffset;
             mpBufferBase[ mWriteOffset ] = '\0';
+        }
+    }
+    mLineNumber++;
+    return pBuffer;
+}
+
+char * ForthFileInputStream::AddContinuationLine()
+{
+    char *pBuffer;
+
+    //mLineStartOffset = ftell(mpInFile);
+
+    pBuffer = fgets(mpBufferBase + mWriteOffset, mBufferLen - mWriteOffset, mpInFile);
+
+    mpBufferBase[mBufferLen - 1] = '\0';
+    mWriteOffset = strlen(mpBufferBase);
+    if (mWriteOffset > 0)
+    {
+        // trim trailing linefeed if any
+        if (mpBufferBase[mWriteOffset - 1] == '\n')
+        {
+            --mWriteOffset;
+            mpBufferBase[mWriteOffset] = '\0';
         }
     }
     mLineNumber++;
@@ -572,12 +662,42 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
 	add_history(pBuffer);
     strncpy(mpBufferBase, pBuffer, mBufferLen);
 #else
-	pBuffer = gets(mpBufferBase);
+    pBuffer = fgets(mpBufferBase, mBufferLen - 1, stdin);
 #endif
 
     mReadOffset = 0;
     const char* pEnd = (const char*) memchr( pBuffer, '\0', mBufferLen );
     mWriteOffset = (pEnd == NULL) ? (mBufferLen - 1) : (pEnd - pBuffer);
+    mLineNumber++;
+    return pBuffer;
+}
+
+char * ForthConsoleInputStream::AddContinuationLine()
+{
+    char *pBuffer;
+
+#if defined(LINUX) || defined(MACOSX)
+    do
+    {
+        pBuffer = readline("");
+    } while (pBuffer == nullptr);
+    add_history(pBuffer);
+    strncpy(mpBufferBase + mWriteOffset, pBuffer, mBufferLen - mWriteOffset);
+#else
+    pBuffer = fgets(mpBufferBase + mWriteOffset, (mBufferLen - mWriteOffset) - 1, stdin);
+#endif
+
+    mpBufferBase[mBufferLen - 1] = '\0';
+    mWriteOffset = strlen(mpBufferBase);
+    if (mWriteOffset > 0)
+    {
+        // trim trailing linefeed if any
+        if (mpBufferBase[mWriteOffset - 1] == '\n')
+        {
+            --mWriteOffset;
+            mpBufferBase[mWriteOffset] = '\0';
+        }
+    }
     mLineNumber++;
     return pBuffer;
 }
@@ -726,6 +846,38 @@ ForthBufferInputStream::GetLine( const char *pPrompt )
 }
 
 
+char *
+ForthBufferInputStream::AddContinuationLine()
+{
+    char *pBuffer = NULL;
+    char *pDst, c;
+
+    SPEW_SHELL("ForthBufferInputStream::AddContinuationLine %s:%s  {%s}\n", GetType(), GetName(), mpDataBuffer);
+    if (mpDataBuffer < mpDataBufferLimit)
+    {
+        pDst = mpBufferBase + mWriteOffset;
+        while (mpDataBuffer < mpDataBufferLimit)
+        {
+            c = *mpDataBuffer++;
+            if ((c == '\0') || (c == '\n') || (c == '\r'))
+            {
+                break;
+            }
+            else
+            {
+                *pDst++ = c;
+            }
+        }
+        *pDst = '\0';
+
+        mWriteOffset = (pDst - mpBufferBase);
+        pBuffer = mpBufferBase;
+    }
+
+    return pBuffer;
+}
+
+
 const char*
 ForthBufferInputStream::GetType( void )
 {
@@ -792,8 +944,9 @@ ForthBufferInputStream::SetInputState( long* pState )
 //                     ForthBlockInputStream
 // 
 
-ForthBlockInputStream::ForthBlockInputStream( unsigned int firstBlock, unsigned int lastBlock )
+ForthBlockInputStream::ForthBlockInputStream(ForthBlockFileManager* pManager, unsigned int firstBlock, unsigned int lastBlock)
 :   ForthInputStream( BYTES_PER_BLOCK + 1 )
+,   mpManager(pManager)
 ,   mCurrentBlock( firstBlock )
 ,   mLastBlock( lastBlock )
 {
@@ -910,8 +1063,7 @@ ForthBlockInputStream::ReadBlock()
 {
     bool success = true;
     ForthEngine* pEngine = ForthEngine::GetInstance();
-    ForthBlockFileManager* pBlockManager = pEngine->GetBlockFileManager();
-    FILE * pInFile = pBlockManager->OpenBlockFile( false );
+    FILE * pInFile = mpManager->OpenBlockFile(false);
     if ( pInFile == NULL )
     {
         pEngine->SetError( kForthErrorIO, "BlockInputStream - failed to open block file" );
@@ -1024,12 +1176,7 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 			//SPEW_SHELL("process character {%c} 0x%x\n", c, c);
 			if (c == '\\')
 			{
-				c = *pSrc;
-				if (c != '\0')
-				{
-					pSrc++;
-					c = ForthParseInfo::BackslashChar(c);
-				}
+                c = ForthParseInfo::BackslashChar(pSrc);
 			}
 			pInputStream->SetBufferPointer(pSrc);
 			switch (c)
@@ -1116,8 +1263,9 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 					if (mpRightCursor != mpRightBase)
 					{
 						CombineRightIntoLeft();
-					}
-					pNewSrc = parseInfo.ParseDoubleQuote(pSrc - 1, pSrcLimit, true);
+                    }
+                    pNewSrc = pSrc - 1;   // point back at the quote
+                    parseInfo.ParseDoubleQuote(pNewSrc, pSrcLimit, true);
 					if (pNewSrc == (pSrc - 1))
 					{
 						// TODO: report error

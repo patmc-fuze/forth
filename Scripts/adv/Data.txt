@@ -7,13 +7,13 @@ true -> bool dumpAllData
 class: Data extends IData
 
   m: init   // takes char* filename
-    new OArray -> locations
-    new OArray -> locationConditions
-    new OArray -> words
-    new OArray -> messages
-    new OArray -> magicMessages
-    new OArray -> classMessages
-    new OArray -> hints
+    new Array -> locations
+    new Array -> locationConditions
+    new Array -> words
+    new Array -> messages
+    new Array -> magicMessages
+    new Array -> classMessages
+    new Array -> hints
     loadData
   ;m
   
@@ -29,7 +29,7 @@ class: Data extends IData
 
   m: parseLines
     mko DataParser dataParser
-    ->o OFileInStream dataFile
+    ->o FileInStream dataFile
     dataParser.init(dataFile this)
     dataParser.parseLines
   ;m
@@ -38,7 +38,7 @@ class: Data extends IData
     -> ptrTo byte filename
 
     // Declare and open file stream
-    mko OFileInStream dataFile
+    mko FileInStream dataFile
     dataFile.open(filename "r")
     
     // If the file was successfully opened, start processing
@@ -58,8 +58,8 @@ class: Data extends IData
   ;m
   
   // Could return any of the subclasses of Word as well
-  m: findWord returns Word     // takes OString word
-    ->o OString str
+  m: findWord returns Word     // takes String word
+    ->o String str
     Word result
     ?do(words.count 0)
       words.get(i) ->o Word word

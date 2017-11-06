@@ -4,17 +4,22 @@ autoforget testbase
 false -> int testFailed
 false -> int beNoisy
 
-new OString -> OString testBuff
-new OString -> OString testBuff2
-new OStringOutStream -> OStringOutStream testOut
+new String -> String testBuff
+new String -> String testBuff2
+new StringOutStream -> StringOutStream testOut
+mko Array testStreamStack
 
-: cleanupTestBase  oclear testBuff  oclear testBuff2  oclear testOut  ;
+: cleanupTestBase
+  oclear testBuff  oclear testBuff2
+  oclear testOut
+  oclear testStreamStack
+;
 
 : clearBuff testBuff.clear ;
 : addBuff testBuff.append ;
 
 : outToTestBuffer
-  -> OString stringBuff
+  -> String stringBuff
   stringBuff.clear
   testOut.setString( stringBuff )
   setConsoleOut( testOut )
@@ -68,5 +73,41 @@ new OStringOutStream -> OStringOutStream testOut
     drop
   loop
 ;
+
+// FILENAME N_VALUES N ...
+: makeShortFile
+  mko ByteArray buffer
+  mko FileOutStream outFile
+  buffer.load
+  -> ptrTo byte outFileName
+  
+  if( outFile.open(outFileName "wb") )
+    outFile.putBytes(buffer.base buffer.count)
+    outFile.close
+  else
+    addErrorText(outFileName)
+    error("makeShortFile: failed to open ")
+  endif
+  
+  oclear outFile
+  oclear buffer
+;
+
+// FILENAME FILE_CONTENTS ...
+: makeFileFromString
+  mko FileOutStream outFile
+  -> ptrTo byte contents
+  -> ptrTo byte outFileName
+  
+  if(outFile.open(outFileName "wb"))
+    outFile.putBytes(contents strlen(contents))
+    outFile.close
+  else
+    addErrorText(outFileName)
+    error("makeFileFromString: failed to open ")
+  endif
+  oclear outFile
+;
+
 
 loaddone

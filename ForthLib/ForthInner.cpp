@@ -1269,9 +1269,9 @@ GFORTHOP( doOpBop )
 {    
     // IP points to data field
     long* pVar = (long *)(GET_IP);
+    SET_IP((long *)(RPOP));
 
 	_doOpVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
 }
 
 GFORTHOP( opVarActionBop )
@@ -1406,7 +1406,7 @@ static void _doObjectVarop( ForthCoreState* pCore, ForthObject* pVar )
 			if (oldObj.pMethodOps != NULL)
 			{
 				long* pData = oldObj.pData;
-				if (pData > 0)
+				if (*pData > 0)
 				{
 					*pData -= 1;
 				}
@@ -1733,7 +1733,22 @@ OPTYPE_ACTION( RelativeDefAction )
     }
 }
 
-OPTYPE_ACTION( BranchAction )
+OPTYPE_ACTION(RelativeDataAction)
+{
+    // op is normal user-defined, push IP on rstack,
+    //  newIP is opVal + dictionary base
+    long* pData = pCore->pDictionary->pBase + opVal;
+    if (pData < pCore->pDictionary->pCurrent)
+    {
+        SPUSH((long) pData);
+    }
+    else
+    {
+        SET_ERROR(kForthErrorBadOpcode);
+    }
+}
+
+OPTYPE_ACTION(BranchAction)
 {
     if ( (opVal & 0x00800000) != 0 )
     {
@@ -1769,11 +1784,30 @@ OPTYPE_ACTION( BranchZAction )
     }
 }
 
-OPTYPE_ACTION( CaseBranchAction )
+OPTYPE_ACTION(CaseBranchTAction)
 {
     // TOS: this_case_value case_selector
     long *pSP = GET_SP;
-    if ( *pSP == pSP[1] )
+    if ( *pSP != pSP[1] )
+    {
+        // case didn't match
+        pSP++;
+    }
+    else
+    {
+        // case matched - drop this_case_value & skip to case body
+        pSP += 2;
+        // case branch is always forward
+        SET_IP( GET_IP + opVal );
+    }
+    SET_SP( pSP );
+}
+
+OPTYPE_ACTION(CaseBranchFAction)
+{
+    // TOS: this_case_value case_selector
+    long *pSP = GET_SP;
+    if (*pSP == pSP[1])
     {
         // case matched
         pSP += 2;
@@ -1783,12 +1817,12 @@ OPTYPE_ACTION( CaseBranchAction )
         // no match - drop this_case_value & skip to next case
         pSP++;
         // case branch is always forward
-        SET_IP( GET_IP + opVal );
+        SET_IP(GET_IP + opVal);
     }
-    SET_SP( pSP );
+    SET_SP(pSP);
 }
 
-OPTYPE_ACTION( PushBranchAction )
+OPTYPE_ACTION(PushBranchAction)
 {
 	SPUSH((long)(GET_IP));
 	SET_IP(GET_IP + opVal);
@@ -1987,8 +2021,14 @@ OPTYPE_ACTION( MethodWithTOSAction )
     RPUSH( ((long) GET_TPD) );
     RPUSH( ((long) GET_TPM) );
     long* pMethods = (long *)(SPOP);
-    SET_TPM( pMethods );
-    SET_TPD( (long *) (SPOP) );
+    long* pData = (long *)(SPOP);
+    if (pMethods == nullptr)
+    {
+        SET_ERROR(kForthErrorBadMethod);
+        return;
+    }
+    SET_TPM(pMethods);
+    SET_TPD(pData);
 	if (pEngine->GetTraceFlags() & kLogInnerInterpreter)
 	{
 		SpewMethodName(pMethods, opVal);
@@ -2242,12 +2282,12 @@ optypeActionRoutine builtinOptypeAction[] =
     BranchAction,				// 0x0A
     BranchNZAction,
     BranchZAction,
-    CaseBranchAction,
+    CaseBranchTAction,
+    CaseBranchFAction,
     PushBranchAction,
-    RelativeDefBranchAction,
-    ReservedOptypeAction,		// 0x10
-    ReservedOptypeAction,
-    ReservedOptypeAction,
+    RelativeDefBranchAction,    // 0x10
+    RelativeDataAction,		
+    RelativeDataAction,
     ReservedOptypeAction,
 
     // 20 - 29
@@ -2430,8 +2470,9 @@ InnerInterpreter( ForthCoreState *pCore )
 			{
 				// fetch op at IP, advance IP
 				long* pIP = GET_IP;
-				pEngine->TraceOp(pIP);
-				long op = *pIP++;
+                long op = *pIP;
+                pEngine->TraceOp(pIP, op);
+                pIP++;
 				SET_IP(pIP);
 				DISPATCH_FORTH_OP(pCore, op);
 				result = GET_STATE;
@@ -2481,7 +2522,7 @@ InterpretOneOp( ForthCoreState *pCore, long op )
 	{
 		// fetch op at IP, advance IP
 		long* pIP = GET_IP;
-		pEngine->TraceOp(pIP);
+		pEngine->TraceOp(pIP, *pIP);
 		//DISPATCH_FORTH_OP( pCore, op );
 		optypeActionRoutine typeAction = pCore->optypeAction[(int)FORTH_OP_TYPE(op)];
 		typeAction(pCore, FORTH_OP_VALUE(op));

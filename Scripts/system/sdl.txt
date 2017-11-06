@@ -1,6 +1,6 @@
 
 "SDL is deprecated, use SDL2\n" %s
-lf sdl.txt
+lf sdl2.txt
 loaddone
 
 autoforget sdl

@@ -30,16 +30,19 @@ void OutputToLogger(const char* pBuffer)
         {
             perror("error making fifo");
         }
-        loggerFD = open(myfifo, O_WRONLY);
+        loggerFD = open(myfifo, O_NONBLOCK | O_WRONLY);
     }
-    write(loggerFD, pBuffer, strlen(pBuffer) + 1);
+    if (loggerFD >= 0)
+    {
+        write(loggerFD, pBuffer, strlen(pBuffer) + 1);
+    }
     //close(loggerFD);
     
     /* remove the FIFO */
     //unlink(myfifo);
 }
 
-int main(int argc, const char * argv[])
+int main(int argc, const char * argv[], char * envp[])
 {
     int nRetCode = 0;
     ForthShell *pShell = NULL;
@@ -53,9 +56,7 @@ int main(int argc, const char * argv[])
     else*/
     {
         nRetCode = 1;
-        pShell = new ForthShell;
-        pShell->SetCommandLine( argc, (const char **) (argv));
-        //pShell->SetEnvironmentVars( (const char **) envp );
+        pShell = new ForthShell(argc, (const char **)(argv), (const char **)envp);
 #if 0
         if ( argc > 1 )
         {

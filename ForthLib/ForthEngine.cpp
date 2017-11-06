@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <sys/mman.h>
 #endif
+
 #include "ForthEngine.h"
 #include "ForthThread.h"
 #include "ForthShell.h"
@@ -69,6 +70,33 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 	}
 }
 
+extern "C"
+{
+	void traceOp(ForthCoreState* pCore, long* pIP, long op)
+	{
+		if (pCore->traceFlags != 0)
+		{
+		    ForthEngine* pEngine = (ForthEngine *)(pCore->pEngine);
+			if ((pCore->traceFlags & kLogStack) != 0)
+			{
+				pEngine->TraceStack(pCore);
+			}
+			pEngine->TraceOut("\n");
+		    pEngine->TraceOp(pIP, op);
+            if (pCore->traceFlags & kLogInnerInterpreter)
+            {
+                forthOpType opType = FORTH_OP_TYPE(op);
+                if ((opType == kOpMethodWithThis) || (opType == kOpMethodWithTOS))
+                {
+                    long* pMethods = (opType == kOpMethodWithTOS) ? ((long *)*(pCore->SP)) : pCore->TPM;
+                    long opVal = FORTH_OP_VALUE(op);
+                    SpewMethodName(pMethods, opVal);
+                }
+            }
+		}
+	}
+};
+
 //#ifdef TRACE_INNER_INTERPRETER
 
 // provide trace ability for builtin ops
@@ -88,8 +116,8 @@ ForthEngine* ForthEngine::mpInstance = NULL;
 
 static const char *opTypeNames[] =
 {
-    "BuiltIn", "BuiltInImmediate", "UserDefined", "UserDefinedImmediate", "CCode", "CCodeImmediate", "RelativeDef", "RelativeDefImmediate", "DLLEntryPoint", 0,
-    "Branch", "BranchTrue", "BranchFalse", "CaseBranch", "PushBranch", "RelativeDefBranch", 0, 0, 0, 0,
+    "Native", "NativeImmediate", "UserDefined", "UserDefinedImmediate", "CCode", "CCodeImmediate", "RelativeDef", "RelativeDefImmediate", "DLLEntryPoint", 0,
+    "Branch", "BranchTrue", "BranchFalse", "CaseBranchT", "CaseBranchF", "PushBranch", "RelativeDefBranch", "RelativeData", "RelativeString", 0,
 	"Constant", "ConstantString", "Offset", "ArrayOffset", "AllocLocals", "LocalRef", "LocalStringInit", "LocalStructArray", "OffsetFetch", "MemberRef",
     "LocalByte", "LocalUByte", "LocalShort", "LocalUShort", "LocalInt", "LocalUInt", "LocalLong", "LocalULong", "LocalFloat", "LocalDouble",
 	"LocalString", "LocalOp", "LocalObject", "LocalByteArray", "LocalUByteArray", "LocalShortArray", "LocalUShortArray", "LocalIntArray", "LocalUIntArray", "LocalLongArray",
@@ -233,8 +261,9 @@ ForthEngine::ForthEngine()
 , mpStringBufferA( NULL )
 , mpStringBufferANext( NULL )
 , mStringBufferASize( 0 )
-, mpStringBufferB( NULL )
-, mpThreads( NULL )
+, mpTempBuffer(NULL)
+, mpTempBufferLock(NULL)
+, mpThreads(NULL)
 , mpInterpreterExtension( NULL )
 , mpMainThread( NULL )
 , mFastMode( true )
@@ -244,7 +273,6 @@ ForthEngine::ForthEngine()
 , mpExtension( NULL )
 , mpCore( NULL )
 , mpShell( NULL )
-, mTraceFlags( kLogShell )
 , mTraceOutRoutine(defaultTraceOutRoutine)
 , mpTraceOutData( NULL )
 , mpOpcodeCompiler( NULL )
@@ -252,6 +280,10 @@ ForthEngine::ForthEngine()
             | kFFCHexLiterals | kFFDoubleSlashComment | kFFCFloatLiterals | kFFParenIsExpression)
 , mBlockFileManager( NULL )
 , mIsServer(false)
+, mContinuationIx(0)
+, mContinueDestination(nullptr)
+, mContinueCount(0)
+, mpNewestEnum(nullptr)
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -273,8 +305,6 @@ ForthEngine::ForthEngine()
 	mDefaultConsoleOutStream.pMethodOps = NULL;
 	mDefaultConsoleOutStream.pData = NULL;
 
-    mBlockFileManager = new ForthBlockFileManager;
-
 	mDictionary.pBase = NULL;
 
     // At this point, the main thread does not exist, it will be created later in Initialize, this
@@ -287,12 +317,20 @@ ForthEngine::ForthEngine()
 
 ForthEngine::~ForthEngine()
 {
+    CleanupGlobalObjectVariables(nullptr);
+
     if ( mpExtension != NULL )
     {
         mpExtension->Shutdown();
     }
 	
-    if ( mDictionary.pBase )
+    if (mpTypesManager != nullptr)
+    {
+        mpTypesManager->ShutdownBuiltinClasses(this);
+        delete mpTypesManager;
+    }
+
+    if (mDictionary.pBase)
     {
 #ifdef WIN32
 		VirtualFree( mDictionary.pBase, 0, MEM_RELEASE );
@@ -303,14 +341,23 @@ ForthEngine::~ForthEngine()
 #endif
 		delete mpForthVocab;
         delete mpLocalVocab;
-        delete mpTypesManager;
 		delete mpOpcodeCompiler;
         delete [] mpStringBufferA;
-        delete [] mpStringBufferB;
+        delete [] mpTempBuffer;
     }
     delete [] mpErrorString;
 
-	ForthForgettable* pForgettable = ForthForgettable::GetForgettableChainHead();
+    if (mpTempBufferLock != nullptr)
+    {
+#ifdef WIN32
+        DeleteCriticalSection(mpTempBufferLock);
+#else
+        pthread_mutex_destroy(mpTempBufferLock);
+#endif
+        delete mpTempBufferLock;
+    }
+
+    ForthForgettable* pForgettable = ForthForgettable::GetForgettableChainHead();
     while ( pForgettable != NULL )
     {
         ForthForgettable* pNextForgettable = pForgettable->GetNextForgettable();
@@ -366,7 +413,9 @@ ForthEngine::Initialize( ForthShell*        pShell,
 {
     mpShell = pShell;
 
-	size_t dictionarySize = totalLongs * sizeof(long);
+    mBlockFileManager = new ForthBlockFileManager(mpShell->GetBlockfilePath());
+
+    size_t dictionarySize = totalLongs * sizeof(long);
 #ifdef WIN32
 	void* dictionaryAddress = NULL;
 	// we need to allocate memory that is immune to Data Execution Prevention
@@ -392,7 +441,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
     mpLocalVocab = new ForthLocalVocabulary( "locals", NUM_LOCALS_VOCAB_VALUE_LONGS );
 	mStringBufferASize = 3 *  MAX_STRING_SIZE;
     mpStringBufferA = new char[mStringBufferASize];
-    mpStringBufferB = new char[MAX_STRING_SIZE];
+    mpTempBuffer = new char[MAX_STRING_SIZE];
 
     mpMainThread = CreateAsyncThread( 0, MAIN_THREAD_PSTACK_LONGS, MAIN_THREAD_RSTACK_LONGS );
 	mpCore = mpMainThread->GetThread(0)->GetCore();
@@ -466,10 +515,36 @@ ForthEngine::Reset( void )
     mpOpcodeCompiler->Reset();
     mCompileState = 0;
     mCompileFlags = 0;
+    ResetContinuations();
+    mpNewestEnum = nullptr;
 
 	mTokenStack.Clear();
 
-    if ( mpExtension != NULL )
+#ifdef WIN32
+    if (mpTempBufferLock != nullptr)
+    {
+        DeleteCriticalSection(mpTempBufferLock);
+        delete mpTempBufferLock;
+    }
+    mpTempBufferLock = new CRITICAL_SECTION();
+    InitializeCriticalSection(mpTempBufferLock);
+#else
+    if (mpTempBufferLock != nullptr)
+    {
+        pthread_mutex_destroy(mpTempBufferLock);
+        delete mpTempBufferLock;
+    }
+    mpTempBufferLock = new pthread_mutex_t;
+    pthread_mutexattr_t mutexAttr;
+    pthread_mutexattr_init(&mutexAttr);
+    pthread_mutexattr_settype(&mutexAttr, PTHREAD_MUTEX_RECURSIVE);
+
+    pthread_mutex_init(mpTempBufferLock, &mutexAttr);
+
+    pthread_mutexattr_destroy(&mutexAttr);
+#endif
+
+    if (mpExtension != NULL)
     {
         mpExtension->Reset();
     }
@@ -674,7 +749,9 @@ ForthEngine::ForgetOp( ulong opNumber, bool quietMode )
 {
     if ( opNumber < mpCore->numOps )
     {
-        mDictionary.pCurrent = mpCore->ops[ opNumber ];
+        long* pNewDP = mpCore->ops[opNumber];
+        CleanupGlobalObjectVariables(pNewDP);
+        mDictionary.pCurrent = pNewDP;
         mpCore->numOps = opNumber;
     }
     else
@@ -795,7 +872,8 @@ ForthEngine::CreateAsyncThread( long threadOp, int paramStackSize, int returnSta
         pNewThread->mCore.numOps = mpCore->numOps;
         pNewThread->mCore.maxOps = mpCore->maxOps;
         pNewThread->mCore.ops = mpCore->ops;
-		pNewThread->mCore.innerLoop = mpCore->innerLoop;
+        pNewThread->mCore.innerLoop = mpCore->innerLoop;
+        pNewThread->mCore.innerExecute = mpCore->innerExecute;
     }
 
 	pAsyncThread->mpNext = mpThreads;
@@ -863,9 +941,9 @@ ForthEngine::PushInputBuffer( const char *pDataBuffer, int dataBufferLen )
 }
 
 void
-ForthEngine::PushInputBlocks( unsigned int firstBlock, unsigned int lastBlock )
+ForthEngine::PushInputBlocks(ForthBlockFileManager* pManager, unsigned int firstBlock, unsigned int lastBlock)
 {
-    mpShell->PushInputBlocks( firstBlock, lastBlock );
+    mpShell->PushInputBlocks(pManager, firstBlock, lastBlock);
 }
 
 
@@ -878,21 +956,28 @@ ForthEngine::PopInputStream( void )
 
 
 long *
-ForthEngine::StartOpDefinition( const char *pName, bool smudgeIt, forthOpType opType )
+ForthEngine::StartOpDefinition(const char *pName, bool smudgeIt, forthOpType opType, ForthVocabulary* pDefinitionVocab)
 {
     mpLocalVocab->Empty();
+    mpLocalVocab->ClearFrame();
     //mLocalFrameSize = 0;
     //mpLocalAllocOp = NULL;
     mpOpcodeCompiler->ClearPeephole();
     AlignDP();
+
+    if (pDefinitionVocab == nullptr)
+    {
+        pDefinitionVocab = mpDefinitionVocab;
+    }
+
     if ( pName == NULL )
     {
         pName = GetNextSimpleToken();
     }
-    long* pEntry = mpDefinitionVocab->AddSymbol( pName, opType, (long) mDictionary.pCurrent, true );
+    long* pEntry = pDefinitionVocab->AddSymbol(pName, opType, (long)mDictionary.pCurrent, true);
     if ( smudgeIt )
     {
-        mpDefinitionVocab->SmudgeNewestSymbol();
+        pDefinitionVocab->SmudgeNewestSymbol();
     }
 	mLabels.clear();
 
@@ -956,27 +1041,46 @@ ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
         long* curIP = mpCore->ops[ opValue ];
 		long* baseIP = curIP;
         long* endIP = (opValue == (mpCore->numOps - 1)) ? GetDP() : mpCore->ops[ opValue + 1 ];
-        while ( (curIP < endIP) && notDone )
+        if (*curIP == gCompiledOps[OP_DO_ENUM])
         {
-            SNPRINTF( buff, sizeof(buff), "  +%04x  %08x  ", (curIP - baseIP), curIP );
-            ConsoleOut( buff );
-            DescribeOp( curIP, buff, sizeof(buff), true );
-            ConsoleOut( buff );
-            SNPRINTF( buff, sizeof(buff), "\n" );
-            ConsoleOut( buff );
-            if ( ((line & 31) == 0) && (mpShell != NULL) && mpShell->GetInput()->InputStream()->IsInteractive() )
+            ForthEnumInfo* pEnumInfo = (ForthEnumInfo *)(curIP + 1);
+            ForthVocabulary* pVocab = pEnumInfo->pVocab;
+            long numEnums = pEnumInfo->numEnums;
+            long* pEntry = pVocab->GetEntriesEnd() - pEnumInfo->vocabOffset;
+            SNPRINTF(buff, sizeof(buff), "Enum size %d entries %d\n", pEnumInfo->size, numEnums);
+            ConsoleOut(buff);
+            for (int i = 0; i < numEnums; ++i)
             {
-                ConsoleOut( "Hit ENTER to continue, 'q' & ENTER to quit\n" );
-                c = mpShell->GetChar();
-
-                if ( (c == 'q') || (c == 'Q') )
-                {
-                    c = mpShell->GetChar();
-                    notDone = false;
-                }
+                char* pEnumName = AddTempString(pVocab->GetEntryName(pEntry), pVocab->GetEntryNameLength(pEntry));
+                SNPRINTF(buff, sizeof(buff), "%d %s\n", *pEntry & 0xFFFFFF, pEnumName);
+                ConsoleOut(buff);
+                pEntry = pVocab->NextEntry(pEntry);
             }
-            curIP = NextOp( curIP );
-            line++;
+        }
+        else
+        {
+            while ((curIP < endIP) && notDone)
+            {
+                SNPRINTF(buff, sizeof(buff), "  +%04x  %08x  ", (curIP - baseIP), curIP);
+                ConsoleOut(buff);
+                DescribeOp(curIP, buff, sizeof(buff), true);
+                ConsoleOut(buff);
+                SNPRINTF(buff, sizeof(buff), "\n");
+                ConsoleOut(buff);
+                if (((line & 31) == 0) && (mpShell != NULL) && mpShell->GetInput()->InputStream()->IsInteractive())
+                {
+                    ConsoleOut("Hit ENTER to continue, 'q' & ENTER to quit\n");
+                    c = mpShell->GetChar();
+
+                    if ((c == 'q') || (c == 'Q'))
+                    {
+                        c = mpShell->GetChar();
+                        notDone = false;
+                    }
+                }
+                curIP = NextOp(curIP);
+                line++;
+            }
         }
     }
 }
@@ -1067,10 +1171,17 @@ ForthEngine::AddLocalVar( const char        *pVarName,
     }
     pEntry = mpLocalVocab->AddVariable( pVarName, fieldType, frameLongs + varSize, varSize );
     pEntry[1] = typeCode;
-    if ( frameLongs == 0 )
+    if (frameLongs == 0)
     {
-        // this is first local var definition, leave space for local alloc op
-        CompileLong( 0 );
+        if (mpShell->GetShellStack()->PeekTag() != kShellTagDefine)
+        {
+            SetError(kForthErrorBadSyntax, "First local variable definition inside control structure");
+        }
+        else
+        {
+            // this is first local var definition, leave space for local alloc op
+            CompileLong(0);
+        }
     }
 
     return mpLocalVocab->GetFrameLongs();
@@ -1170,10 +1281,10 @@ ForthEngine::GetTraceOutRoutine(traceOutRoutine& traceRoutine, void*& pTraceData
 }
 
 void
-ForthEngine::TraceOp(long* pOp)
+ForthEngine::TraceOp(long* pOp, long op)
 {
 #ifdef TRACE_INNER_INTERPRETER
-    char buff[ 256 ];
+    char buff[ 512 ];
 #if 0
     int rDepth = pCore->RT - pCore->RP;
     char* sixteenSpaces = "                ";     // 16 spaces
@@ -1190,6 +1301,14 @@ ForthEngine::TraceOp(long* pOp)
 		TraceOut("%s%s # ", pIndent, buff);
 	}
 #else
+    long opIn;
+    if (pOp == nullptr)
+    {
+        // this is used for indirect op execution, where the op to be executed
+        //  isn't pointed to by the IP, things like 'execute' or methods
+        opIn = op;
+        pOp = &opIn;
+    }
     DescribeOp(pOp, buff, sizeof(buff), lookupUserTraces);
     TraceOut("# 0x%08x # %s # ", pOp, buff);
 #endif
@@ -1199,13 +1318,17 @@ ForthEngine::TraceOp(long* pOp)
 void
 ForthEngine::TraceStack( ForthCoreState* pCore )
 {
-	long *pSP = GET_SP;
-	int nItems = GET_SDEPTH;
 	int i;
 
-	TraceOut("  stack[%d]:", nItems); 
-#define MAX_TRACE_STACK_ITEMS 12
+    long *pSP = GET_SP;
+    int nItems = GET_SDEPTH;
+    TraceOut("  stack[%d]:", nItems);
+#define MAX_TRACE_STACK_ITEMS 8
+#if defined(WIN32)
+	int numToDisplay = min(MAX_TRACE_STACK_ITEMS, nItems);
+#else
 	int numToDisplay = std::min(MAX_TRACE_STACK_ITEMS, nItems);
+#endif
 	for (i = 0; i < numToDisplay; i++)
 	{
 		TraceOut( " %x", *pSP++ );
@@ -1214,8 +1337,24 @@ ForthEngine::TraceStack( ForthCoreState* pCore )
 	{
 		TraceOut(" <%d more>", nItems - numToDisplay);
 	}
-	int rDepth = pCore->RT - pCore->RP;
-    TraceOut( "  rstack[%d]", rDepth );
+
+    long *pRP = GET_RP;
+    nItems = pCore->RT - pRP;
+    TraceOut("  rstack[%d]", nItems);
+#define MAX_TRACE_RSTACK_ITEMS 8
+#if defined(WIN32)
+    numToDisplay = min(MAX_TRACE_RSTACK_ITEMS, nItems);
+#else
+    numToDisplay = std::min(MAX_TRACE_RSTACK_ITEMS, nItems);
+#endif
+    for (i = 0; i < numToDisplay; i++)
+    {
+        TraceOut(" %x", *pRP++);
+    }
+    if (nItems > numToDisplay)
+    {
+        TraceOut(" <%d more>", nItems - numToDisplay);
+    }
 }
 
 void
@@ -1375,7 +1514,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 }
                 break;
 
-            case kOpCaseBranch:
+            case kOpCaseBranchT:  case kOpCaseBranchF:
             case kOpBranch:   case kOpBranchNZ:  case kOpBranchZ:
                 if ( opVal & 0x800000 )
                 {
@@ -2030,7 +2169,7 @@ ForthEngine::ExecuteOps(ForthCoreState* pCore, long *pOps)
     savedIP = pCore->IP;
     pCore->IP = pOps;
 #ifdef ASM_INNER_INTERPRETER
-    bool bFast = mFastMode && ((mTraceFlags & kLogInnerInterpreter) == 0);
+    bool bFast = mFastMode;// && ((GetTraceFlags() & kLogInnerInterpreter) == 0);
 #endif
 	do
 	{
@@ -2203,7 +2342,7 @@ void ForthEngine::ResetConsoleOut( ForthCoreState* pCore )
 	//  without doing a release, and possibly leak a stream object, or we do a release
 	//  and risk a crash, since ResetConsoleOut is called when an error is detected,
 	//  so the object we are releasing may already be deleted or otherwise corrupted.
-	SPEW_SHELL("ResetConsoleOut pCore=%p  pMethods=%p  pData=%p\n", pCore, mDefaultConsoleOutStream.pMethodOps, mDefaultConsoleOutStream.pData);
+	CLEAR_OBJECT(pCore->consoleOutStream);
 	OBJECT_ASSIGN(pCore, pCore->consoleOutStream, mDefaultConsoleOutStream);
 	pCore->consoleOutStream = mDefaultConsoleOutStream;
 }
@@ -2217,12 +2356,12 @@ void ForthEngine::ConsoleOut( const char* pBuff )
 
 long ForthEngine::GetTraceFlags( void )
 {
-	return mTraceFlags;
+	return mpCore->traceFlags;
 }
 
 void ForthEngine::SetTraceFlags( long flags )
 {
-	mTraceFlags = flags;
+	mpCore->traceFlags = flags;
 }
 
 ////////////////////////////
@@ -2483,6 +2622,220 @@ void ForthEngine::AddGoto(const char* inLabelName, int inBranchType, long* inBra
 	mLabels.push_back(newLabel);
 }
 
+// if inText is null, string is not copied, an uninitialized space of size inNumChars+1 is allocated
+// if inNumChars is -1 and inText is not null, length of input string is used for temp string size
+// if both inText is null and inNumChars is -1, an uninitialized space of 255 chars is allocated
+char* ForthEngine::AddTempString(const char* inText, int inNumChars)
+{
+	// this hooha turns mpStringBufferA into multiple string buffers
+	//   so that you can use multiple interpretive string buffers
+	// it is used both for quoted strings in interpretive mode and blword/$word
+	// we leave space for a preceeding  length byte and a trailing null terminator
+	if (inNumChars < 0)
+	{
+		inNumChars = (inText == nullptr) ? 255 : strlen(inText);
+	}
+	if (UnusedTempStringSpace() <= (inNumChars + 2))
+	{
+		mpStringBufferANext = mpStringBufferA;
+	}
+	char* result = mpStringBufferANext + 1;
+	if (inText != nullptr)
+	{
+		memcpy(result, inText, inNumChars);
+	}
+
+	// the preceeding length byte will be wrong for strings longer than 255 characters
+	*mpStringBufferANext = (char)inNumChars;
+	result[inNumChars] = '\0';
+
+	mpStringBufferANext += (inNumChars + 2);
+
+	return result;
+}
+
+//############################################################################
+//
+//          Continue statement support
+//
+//############################################################################
+void ForthEngine::PushContinuation(long val)
+{
+    if ((size_t)mContinuationIx >= mContinuations.size())
+    {
+        mContinuations.resize(mContinuationIx + 32);
+    }
+    mContinuations[mContinuationIx++] = val;
+}
+
+long ForthEngine::PopContinuation()
+{
+    long result = 0;
+    if (mContinuationIx > 0)
+    {
+        mContinuationIx--;
+        result = mContinuations[mContinuationIx];
+    }
+    else
+    {
+        SetError(kForthErrorBadSyntax, "not enough continuations");
+    }
+    return result;
+}
+
+void ForthEngine::ResetContinuations()
+{
+    mContinuations.clear();
+    mContinuationIx = 0;
+    mContinueDestination = nullptr;
+    mContinueCount = 0;
+}
+
+long* ForthEngine::GetContinuationDestination()
+{
+    return mContinueDestination;
+}
+
+void ForthEngine::SetContinuationDestination(long* pDest)
+{
+    mContinueDestination = pDest;
+}
+
+void ForthEngine::AddContinuationBranch(long* pAddr, long opType)
+{
+    PushContinuation((long) pAddr);
+    PushContinuation(opType);
+    ++mContinueCount;
+}
+
+void ForthEngine::AddBreakBranch(long* pAddr, long opType)
+{
+    PushContinuation(((long)pAddr) + 1);
+    PushContinuation(opType);
+    ++mContinueCount;
+}
+
+void ForthEngine::StartLoopContinuations()
+{
+    PushContinuation((long) mContinueDestination);
+    PushContinuation(mContinueCount);
+    mContinueDestination = nullptr;
+    mContinueCount = 0;
+}
+
+void ForthEngine::EndLoopContinuations(int controlFlowType)  // actually takes a eShellTag
+{
+    // fixup pending continue branches for current loop
+    if (mContinueCount > 0)
+    {
+        long *pDP = GetDP();
+
+        for (int i = 0; i < mContinueCount; ++i)
+        {
+            if (mContinuationIx >= 2)
+            {
+                long opType = PopContinuation();
+                long target = PopContinuation();
+                if ((target & 1) != 0)
+                {
+                    // this is actually a break
+                    if (controlFlowType != kShellTagDo)
+                    {
+                        long *pBreak = (long *)(target & ~1);
+                        *pBreak = COMPILED_OP(opType, (pDP - pBreak) - 1);
+                    }
+                    else
+                    {
+                        SetError(kForthErrorBadSyntax, "break not allowed in do loop, use leave");
+                        break;
+                    }
+                }
+                else
+                {
+                    if (controlFlowType != kShellTagCase)
+                    {
+                        if (mContinueDestination != nullptr)
+                        {
+                            long *pContinue = (long *)target;
+                            *pContinue = COMPILED_OP(opType, (mContinueDestination - pContinue) - 1);
+                        }
+                        else
+                        {
+                            SetError(kForthErrorBadSyntax, "end loop with unresolved continues");
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        SetError(kForthErrorBadSyntax, "continue not allowed in case statement");
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                // report error - end loop with continuation stack empty
+                SetError(kForthErrorBadSyntax, "end loop with continuation stack empty");
+                break;
+            }
+        }
+    }
+    mContinueCount = PopContinuation();
+    mContinueDestination = (long *)PopContinuation();
+}
+
+bool ForthEngine::HasPendingContinuations()
+{
+    return mContinueCount != 0;
+}
+
+
+void ForthEngine::AddGlobalObjectVariable(ForthObject* pObject)
+{
+    mGlobalObjectVariables.push_back(pObject);
+}
+
+void ForthEngine::CleanupGlobalObjectVariables(long* pNewDP)
+{
+    int objectIndex = mGlobalObjectVariables.size() - 1;
+    while (objectIndex >= 0)
+    {
+        if (mGlobalObjectVariables[objectIndex] < (ForthObject *)pNewDP)
+        {
+            // we are done releasing objects, all remaining objects are below new DP
+            break;
+        }
+        ForthObject& o = *(mGlobalObjectVariables[objectIndex]);
+        if (o.pMethodOps != nullptr)
+        {
+            ForthClassObject* pClassObj = (ForthClassObject *)(o.pMethodOps[-1]);
+            TraceOut("Releasing object of class %s, refcount %d\n", pClassObj->pVocab->GetName(), o.pData[0]);
+            SAFE_RELEASE(mpCore, o);
+        }
+        objectIndex--;
+    }
+    mGlobalObjectVariables.resize(objectIndex + 1);
+}
+
+char* ForthEngine::GrabTempBuffer()
+{
+#ifdef WIN32
+    EnterCriticalSection(mpTempBufferLock);
+#else
+    pthread_mutex_lock(mpTempBufferLock);
+#endif
+
+    return mpTempBuffer;
+}
+
+void ForthEngine::UngrabTempBuffer()
+{
+#ifdef WIN32
+    EnterCriticalSection(mpTempBufferLock);
+#else
+    pthread_mutex_lock(mpTempBufferLock);
+#endif
+}
 
 //############################################################################
 //
@@ -2515,7 +2868,14 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         return kResultOk;
     }
     
-    SPEW_OUTER_INTERPRETER( "%s {%s} flags[%x]\t", mCompileState ? "Compile" : "Interpret", pToken, pInfo->GetFlags() );
+    if (mCompileState)
+    {
+        SPEW_OUTER_INTERPRETER("Compile {%s} flags[%x] @0x%08x\t", pToken, pInfo->GetFlags(), mDictionary.pCurrent);
+    }
+    else
+    {
+        SPEW_OUTER_INTERPRETER("Interpret {%s} flags[%x]\t", pToken, pInfo->GetFlags());
+    }
     if ( isAString )
     {
         ////////////////////////////////////
@@ -2523,7 +2883,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         // symbol is a quoted string - the quotes have already been stripped
         //
         ////////////////////////////////////
-        SPEW_OUTER_INTERPRETER( "String{%s} flags[%x]\n", pToken, pInfo->GetFlags() );
+        SPEW_OUTER_INTERPRETER( "String{%s} flags[%x] len %d\n", pToken, pInfo->GetFlags(), len );
         if ( mCompileState )
         {
             int lenLongs = ((len + 4) & ~3) >> 2;
@@ -2535,15 +2895,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         {
             // in interpret mode, stick the string in string buffer A
             //   and leave the address on param stack
-            // this hooha turns mpStringBufferA into NUM_INTERP_STRINGS string buffers
-            // so that you can use multiple interpretive string buffers
-            if ( (mStringBufferASize - (mpStringBufferANext - mpStringBufferA)) <= (len + 1) )
-            {
-				mpStringBufferANext = mpStringBufferA;
-			}
-			strcpy( mpStringBufferANext, pToken );
-            *--mpCore->SP = (long) mpStringBufferANext;
-			mpStringBufferANext += (len + 1);
+            *--mpCore->SP = (long) AddTempString(pToken, len);
         }
         return kResultOk;
         

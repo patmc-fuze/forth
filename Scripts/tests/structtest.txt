@@ -1,5 +1,6 @@
 
-autoforget point
+autoforget STRUCTTEST
+: STRUCTTEST ;
 
 struct: point
 	int x

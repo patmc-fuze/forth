@@ -29,19 +29,20 @@
 //
 
 ForthStructCodeGenerator::ForthStructCodeGenerator( ForthTypesManager* pTypeManager )
-:	mpParseInfo( NULL )
-,	mpTypeManager( pTypeManager )
-,	mpStructVocab( NULL )
-,	mpDst( NULL )
-,	mpDstBase( NULL )
-,	mDstLongs( 0 )
-,	mpBuffer( NULL )
-,	mpToken( NULL )
-,	mpNextToken( NULL )
-,	mCompileVarop( 0 )
-,	mOffset( 0 )
-,	mTypeCode( BASE_TYPE_TO_CODE(kBaseTypeVoid) )
-,	mTOSTypeCode( BASE_TYPE_TO_CODE(kBaseTypeVoid) )
+    : mpParseInfo(nullptr)
+    , mpTypeManager( pTypeManager )
+    , mpStructVocab(nullptr)
+    , mpContainedClassVocab(nullptr)
+    , mpDst(nullptr)
+    , mpDstBase(nullptr)
+    , mDstLongs( 0 )
+    , mpBuffer(nullptr)
+    , mpToken(nullptr)
+    , mpNextToken(nullptr)
+    , mCompileVarop( 0 )
+    , mOffset( 0 )
+    , mTypeCode( BASE_TYPE_TO_CODE(kBaseTypeVoid) )
+    , mTOSTypeCode( BASE_TYPE_TO_CODE(kBaseTypeVoid) )
 {
 	mBufferBytes = 512;
 	mpBuffer = (char *)__MALLOC(mBufferBytes);
@@ -55,7 +56,8 @@ ForthStructCodeGenerator::~ForthStructCodeGenerator()
 bool ForthStructCodeGenerator::Generate( ForthParseInfo *pInfo, long*& pDst, int dstLongs )
 {
 	mpParseInfo = pInfo;
-	mpStructVocab = NULL;
+	mpStructVocab = nullptr;
+    mpContainedClassVocab = nullptr;
 	const char* pSource = mpParseInfo->GetToken();
 	int srcBytes = strlen( pSource ) + 1;
 	if ( srcBytes > mBufferBytes )
@@ -147,6 +149,8 @@ bool ForthStructCodeGenerator::HandleFirst()
 	bool success = true;
     ForthEngine *pEngine = ForthEngine::GetInstance();
 	ForthVocabulary* pFoundVocab = NULL;
+    mpStructVocab = nullptr;
+    mpContainedClassVocab = nullptr;
 
     HandlePreceedingVarop();
     
@@ -318,7 +322,8 @@ bool ForthStructCodeGenerator::HandleFirst()
 			{
 				// this method must return either a struct or an object
 				COMPILE_OP( "method with this", kOpMethodWithThis, pEntry[0] );
-				ForthTypeInfo* pStruct = mpTypeManager->GetTypeInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
+                long typeIndex = isObject ? CODE_TO_CONTAINED_CLASS_INDEX(mTypeCode) : CODE_TO_STRUCT_INDEX(mTypeCode);
+                ForthTypeInfo* pStruct = mpTypeManager->GetTypeInfo(typeIndex);
 				if ( pStruct == NULL )
 				{
 					pEngine->SetError( kForthErrorStruct, "Method return type not found by type manager" );
@@ -410,16 +415,64 @@ bool ForthStructCodeGenerator::HandleFirst()
         }
     }
 
-    ForthTypeInfo* pStructInfo = mpTypeManager->GetTypeInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
-    if ( pStructInfo == NULL )
+    if (isObject)
     {
-        SPEW_STRUCTS( "First field not found by types manager\n" );
-        return false;
+        long containedTypeIndex = CODE_TO_CONTAINED_CLASS_INDEX(mTypeCode);
+        long containerTypeIndex = CODE_TO_CONTAINER_CLASS_INDEX(mTypeCode);
+
+        if (containerTypeIndex == kBCIInvalid)
+        {
+            ForthTypeInfo* pClassInfo = mpTypeManager->GetTypeInfo(containedTypeIndex);
+            if (pClassInfo == NULL)
+            {
+                SPEW_STRUCTS("First field not found by types manager\n");
+                return false;
+            }
+            else
+            {
+                // no container type
+                mpStructVocab = pClassInfo->pVocab;
+                SPEW_STRUCTS("First field of type %s\n", mpStructVocab->GetName());
+            }
+        }
+        else
+        {
+            ForthTypeInfo* pContainerInfo = mpTypeManager->GetTypeInfo(containerTypeIndex);
+            if (pContainerInfo == NULL)
+            {
+                SPEW_STRUCTS("First field container type not found by types manager\n");
+                return false;
+            }
+            else
+            {
+                ForthTypeInfo* pContainedClassInfo = mpTypeManager->GetTypeInfo(containedTypeIndex);
+                if (pContainedClassInfo == NULL)
+                {
+                    SPEW_STRUCTS("First field contained type not found by types manager\n");
+                    return false;
+                }
+                else
+                {
+                    mpStructVocab = pContainerInfo->pVocab;
+                    mpContainedClassVocab = pContainedClassInfo->pVocab;
+                    SPEW_STRUCTS("First field of type %s of %s\n", mpStructVocab->GetName(), mpContainedClassVocab->GetName());
+                }
+            }
+        }
     }
     else
     {
-    	mpStructVocab = pStructInfo->pVocab;
-        SPEW_STRUCTS( "First field of type %s\n", mpStructVocab->GetName() );
+        ForthTypeInfo* pStructInfo = mpTypeManager->GetTypeInfo(CODE_TO_STRUCT_INDEX(mTypeCode));
+        if (pStructInfo == NULL)
+        {
+            SPEW_STRUCTS("First field not found by types manager\n");
+            return false;
+        }
+        else
+        {
+            mpStructVocab = pStructInfo->pVocab;
+            SPEW_STRUCTS("First field of type %s\n", mpStructVocab->GetName());
+        }
     }
     
     mOffset = 0;
@@ -479,6 +532,7 @@ bool ForthStructCodeGenerator::HandleMiddle()
             *mpDst++ = gCompiledOps[OP_DROP];
         }
     }
+    bool bSetStructVocab = false;
     if ( isMethod )
     {
         // This is a method which is a non-final accessor field
@@ -488,32 +542,21 @@ bool ForthStructCodeGenerator::HandleMiddle()
         SPEW_STRUCTS( " opcode 0x%x\n", COMPILED_OP( opType, mOffset ) );
         *mpDst++ = COMPILED_OP( opType, mOffset );
         mOffset = 0;
-        switch ( baseType )
+        switch (baseType)
         {
             case kBaseTypeObject:
             case kBaseTypeStruct:
+                bSetStructVocab = true;
                 break;
 
             default:
-                {
-                    // ERROR! method must return object or struct
-                    sprintf( mErrorMsg, "Method %s return value is not an object or struct", mpToken );
-                    pEngine->SetError( kForthErrorStruct, mErrorMsg );
-                    return false;
-                }
+            {
+                // ERROR! method must return object or struct
+                sprintf( mErrorMsg, "Method %s return value is not an object or struct", mpToken );
+                pEngine->SetError( kForthErrorStruct, mErrorMsg );
+                return false;
+            }
         }
-
-	    ForthTypeInfo* pStructInfo = mpTypeManager->GetTypeInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
-	    if ( pStructInfo == NULL )
-	    {
-            pEngine->SetError( kForthErrorStruct, "Method return type not found by type manager" );
-            mpStructVocab = NULL;
-            return false;
-	    }
-	    else
-	    {
-	    	mpStructVocab = pStructInfo->pVocab;
-	    }
     }
     else
     {
@@ -562,7 +605,8 @@ bool ForthStructCodeGenerator::HandleMiddle()
         }
         else if ( isObject )
         {
-            if ( mOffset )
+            bSetStructVocab = true;
+            if (mOffset)
             {
                 SPEW_STRUCTS( " offsetOp 0x%x", COMPILED_OP( kOpOffset, mOffset ) );
                 *mpDst++ = COMPILED_OP( kOpOffset, mOffset );
@@ -571,19 +615,68 @@ bool ForthStructCodeGenerator::HandleMiddle()
             SPEW_STRUCTS( " ofetchOp 0x%x", gCompiledOps[OP_OFETCH] );
             *mpDst++ = gCompiledOps[OP_OFETCH];
         }
-	    ForthTypeInfo* pStructInfo = mpTypeManager->GetTypeInfo( CODE_TO_STRUCT_INDEX( mTypeCode ) );
-	    if ( pStructInfo == NULL )
-	    {
-            pEngine->SetError( kForthErrorStruct, "Struct field not found by type manager" );
-            mpStructVocab = NULL;
-            return false;
-	    }
-	    else
-	    {
-	    	mpStructVocab = pStructInfo->pVocab;
-	    }
+        if (baseType == kBaseTypeStruct)
+        {
+            bSetStructVocab = true;
+        }
+
     }
-	return success;
+    if (bSetStructVocab)
+    {
+        long containedTypeIndex = CODE_TO_CONTAINED_CLASS_INDEX(mTypeCode);
+        long containerTypeIndex = CODE_TO_CONTAINER_CLASS_INDEX(mTypeCode);
+
+        if (containerTypeIndex == kBCIInvalid)
+        {
+            if (containedTypeIndex == kBCIContainedType)
+            {
+                if (mpContainedClassVocab != nullptr)
+                {
+                    mpStructVocab = mpContainedClassVocab;
+                }
+            }
+            else
+            {
+                ForthTypeInfo* pClassInfo = mpTypeManager->GetTypeInfo(containedTypeIndex);
+                if (pClassInfo == NULL)
+                {
+                    SPEW_STRUCTS("Return type not found by types manager\n");
+                    return false;
+                }
+                else
+                {
+                    // no container type
+                    mpStructVocab = pClassInfo->pVocab;
+                    SPEW_STRUCTS("Return type %s\n", mpStructVocab->GetName());
+                }
+            }
+        }
+        else
+        {
+            ForthTypeInfo* pContainerInfo = mpTypeManager->GetTypeInfo(containerTypeIndex);
+            if (pContainerInfo == NULL)
+            {
+                SPEW_STRUCTS("Return container type not found by types manager\n");
+                return false;
+            }
+            else
+            {
+                ForthTypeInfo* pContainedClassInfo = mpTypeManager->GetTypeInfo(containedTypeIndex);
+                if (pContainedClassInfo == NULL)
+                {
+                    SPEW_STRUCTS("Return type not found by types manager\n");
+                    return false;
+                }
+                else
+                {
+                    mpStructVocab = pContainerInfo->pVocab;
+                    mpContainedClassVocab = pContainedClassInfo->pVocab;
+                    SPEW_STRUCTS("Return type %s of %s\n", mpStructVocab->GetName(), mpContainedClassVocab->GetName());
+                }
+            }
+        }
+    }
+    return success;
 }
 	
 bool ForthStructCodeGenerator::HandleLast()

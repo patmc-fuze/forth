@@ -31,8 +31,9 @@ protected:
 	long mTypeCode;
 
 	ForthParseInfo* mpParseInfo;
-	ForthStructVocabulary* mpStructVocab;
-	ForthTypesManager* mpTypeManager;
+    ForthStructVocabulary* mpStructVocab;
+    ForthStructVocabulary* mpContainedClassVocab;
+    ForthTypesManager* mpTypeManager;
 	long* mpDst;
 	long* mpDstBase;
 	int	mDstLongs;

@@ -23,6 +23,7 @@ enum
 
 class ForthInputStack;
 class ForthParseInfo;
+class ForthBlockFileManager;
 
 class ForthInputStream
 {
@@ -31,6 +32,9 @@ public:
     virtual ~ForthInputStream();
 
     virtual char    *GetLine( const char *pPrompt ) = 0;
+    bool            HandleContinuation(const char* pContinuation);     // return true if caller should add a continuation line
+    virtual char    *AddContinuationLine() = 0;
+
     virtual const char* GetBufferPointer( void );
     virtual const char* GetBufferBasePointer( void );
     virtual const char* GetReportedBufferBasePointer( void );
@@ -56,7 +60,10 @@ public:
     virtual long*   GetInputState() = 0;
     virtual bool    SetInputState( long* pState ) = 0;
 
-    virtual void    StuffBuffer( const char* pSrc );
+    virtual void    StuffBuffer(const char* pSrc);
+    virtual void    PrependString(const char* pSrc);
+    virtual void    AppendString(const char* pSrc);
+    virtual void    CropCharacters(int numCharacters);
 
 	virtual bool	DeleteWhenEmpty();
 
@@ -86,7 +93,8 @@ public:
     virtual ~ForthFileInputStream();
 
     virtual char    *GetLine( const char *pPrompt );
-    virtual bool    IsInteractive( void ) { return false; };
+    virtual char    *AddContinuationLine();
+    virtual bool    IsInteractive(void) { return false; };
     virtual int     GetLineNumber( void );
 	virtual const char* GetType( void );
 	virtual const char* GetName( void );
@@ -117,7 +125,8 @@ public:
     virtual ~ForthConsoleInputStream();
 
     virtual char    *GetLine( const char *pPrompt );
-    virtual bool    IsInteractive( void ) { return true; };
+    virtual char    *AddContinuationLine();
+    virtual bool    IsInteractive(void) { return true; };
 	virtual const char* GetType( void );
 	virtual const char* GetName( void );
     virtual int     GetSourceID();
@@ -146,7 +155,8 @@ public:
 
     virtual int     GetSourceID();
     virtual char    *GetLine( const char *pPrompt );
-    virtual bool    IsInteractive( void ) { return mIsInteractive; };
+    virtual char    *AddContinuationLine();
+    virtual bool    IsInteractive(void) { return mIsInteractive; };
 	virtual const char* GetType( void );
     virtual const char* GetReportedBufferBasePointer( void );
  
@@ -178,12 +188,13 @@ protected:
 class ForthBlockInputStream : public ForthInputStream
 {
 public:
-    ForthBlockInputStream( unsigned int firstBlock, unsigned int lastBlock );
+    ForthBlockInputStream(ForthBlockFileManager* pManager, unsigned int firstBlock, unsigned int lastBlock);
     virtual ~ForthBlockInputStream();
 
     virtual int     GetSourceID();
     virtual char    *GetLine( const char *pPrompt );
-    virtual bool    IsInteractive( void ) { return false; };
+    virtual char    *AddContinuationLine() { return nullptr; }  // we don't support continuations in block files
+    virtual bool    IsInteractive(void) { return false; };
 	virtual const char* GetType( void );
  
     virtual void    SeekToLineEnd();
@@ -196,6 +207,7 @@ public:
 protected:
     bool            ReadBlock();
 
+    ForthBlockFileManager* mpManager;
     unsigned int    mCurrentBlock;
     unsigned int    mLastBlock;
     char			*mpDataBuffer;
@@ -214,7 +226,8 @@ public:
 
 	virtual int     GetSourceID();
 	virtual char    *GetLine(const char *pPrompt);
-	virtual bool    IsInteractive(void) { return false; };
+    virtual char    *AddContinuationLine() { return nullptr; }  // continuations can't happen inside expressions
+    virtual bool    IsInteractive(void) { return false; };
 	virtual const char* GetType(void);
 
 	virtual void    SeekToLineEnd();
@@ -273,6 +286,9 @@ public:
     int                     GetWriteOffset( void );
     void                    SetWriteOffset( int offset );
 	virtual bool			IsEmpty();
+
+    bool                    HandleContinuation(const char* pContinuation);
+    char                    *AddContinuationLine();
 protected:
     ForthInputStream        *mpHead;
 };

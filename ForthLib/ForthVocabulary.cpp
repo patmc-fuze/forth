@@ -716,14 +716,18 @@ ForthVocabulary::PrintEntry( long*   pEntry )
     CONSOLE_STRING_OUT( buff );
 
     bool showCodeAddress = false;
+    char immediateChar = ' ';
     switch ( entryType )
     {
-    case kOpUserDef:
     case kOpUserDefImmediate:
+        immediateChar = 'I';
+    case kOpUserDef:
         showCodeAddress = CODE_IS_USER_DEFINITION( pEntry[1] );
         break;
-    case kOpNative:
+
     case kOpNativeImmediate:
+        immediateChar = 'I';
+    case kOpNative:
 		if ( ((unsigned long) FORTH_OP_VALUE( *pEntry )) >= mpEngine->GetCoreState()->numBuiltinOps )
 		{
 			showCodeAddress = true;
@@ -737,7 +741,7 @@ ForthVocabulary::PrintEntry( long*   pEntry )
         // for user defined ops the second entry field is meaningless, just show code address
         if ( entryValue < GET_NUM_OPS )
         {
-            sprintf( buff, "%08x *  ", OP_TABLE[entryValue] );
+            sprintf( buff, "%08x *%c  ", OP_TABLE[entryValue], immediateChar );
             CONSOLE_STRING_OUT( buff );
         }
         else
@@ -750,7 +754,7 @@ ForthVocabulary::PrintEntry( long*   pEntry )
     {
         for ( int j = 1; j < mValueLongs; j++ )
         {
-            sprintf( buff, "%08x    ", pEntry[j] );
+            sprintf(buff, "%08x  %c ", pEntry[j], immediateChar);
             CONSOLE_STRING_OUT( buff );
         }
     }
@@ -869,6 +873,8 @@ ForthLocalVocabulary::Push()
 		mStack[mDepth++] = mFrameLongs;
 		mStack[mDepth++] = (long) mpAllocOp;
 		mNumSymbols = 0;
+		mFrameLongs = 0;
+		mpAllocOp = NULL;
 	}
 	else
 	{
@@ -902,24 +908,19 @@ ForthLocalVocabulary::Pop()
 //
 //
 
-ForthDLLVocabulary::ForthDLLVocabulary( const char      *pName,
-                                        const char      *pDLLName,
-                                        int             valueLongs,
-                                        int             storageBytes,
-                                        void*           pForgetLimit,
-                                        long            op )
-: ForthVocabulary( pName, valueLongs, storageBytes, pForgetLimit, op )
-, mDLLFlags( 0 )
+ForthDLLVocabulary::ForthDLLVocabulary(const char      *pName,
+    const char      *pDLLName,
+    int             valueLongs,
+    int             storageBytes,
+    void*           pForgetLimit,
+    long            op)
+    : ForthVocabulary(pName, valueLongs, storageBytes, pForgetLimit, op)
+    , mDLLFlags(0)
 {
-    int len = strlen( pDLLName ) + 1;
+    int len = strlen(pDLLName) + 1;
     mpDLLName = new char[len];
-    strcpy( mpDLLName, pDLLName );
-
-#if defined(WIN32)
-    mhDLL = LoadLibrary( mpDLLName );
-#elif defined(LINUX) || defined(MACOSX)
-    mLibHandle = dlopen( mpDLLName, RTLD_LAZY );
-#endif
+    strcpy(mpDLLName, pDLLName);
+    LoadDLL();
 }
 
 ForthDLLVocabulary::~ForthDLLVocabulary()
@@ -930,13 +931,28 @@ ForthDLLVocabulary::~ForthDLLVocabulary()
 
 long ForthDLLVocabulary::LoadDLL( void )
 {
-	UnloadDLL();
+
+    ForthEngine* pEngine = ForthEngine::GetInstance();
+    ForthShell* pShell = pEngine->GetShell();
+    char* pDLLPath = nullptr;
+    const char *pDLLSrc = mpDLLName;
+    int len = strlen(mpDLLName) + 1;
+    if (!pEngine->GetCoreState()->pFileFuncs->fileExists(mpDLLName))
+    {
+        const char* pDLLDir = pShell->GetDLLDir();
+        pDLLPath = new char[strlen(pDLLDir) + len];
+        strcpy(pDLLPath, pDLLDir);
+        strcat(pDLLPath, mpDLLName);
+        pDLLSrc = pDLLPath;
+    }
 #if defined(WIN32)
-    mhDLL = LoadLibrary( mpDLLName );
-    return (long) mhDLL;
+    mhDLL = LoadLibrary(pDLLSrc);
+    delete[] pDLLPath;
+    return (long)mhDLL;
 #elif defined(LINUX) || defined(MACOSX)
-    mLibHandle = dlopen( mpDLLName, RTLD_LAZY );
-    return (long) mLibHandle;
+    mLibHandle = dlopen(pDLLSrc, RTLD_LAZY);
+    delete[] pDLLPath;
+    return (long)mLibHandle;
 #endif
 }
 
@@ -1200,7 +1216,7 @@ namespace OVocabulary
 {
 	//////////////////////////////////////////////////////////////////////
 	///
-	//                 oVocabulary
+	//                 Vocabulary
 	//
 	struct oVocabularyStruct
 	{
@@ -1219,7 +1235,7 @@ namespace OVocabulary
 	FORTHOP(oVocabularyNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create an OVocabulary object");
+		pEngine->SetError(kForthErrorException, " cannot explicitly create a Vocabulary object");
 	}
 
 	FORTHOP(oVocabularyDeleteMethod)
@@ -1376,7 +1392,7 @@ namespace OVocabulary
 	FORTHOP(oVocabularyIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create an OVocabulary object");
+		pEngine->SetError(kForthErrorException, " cannot explicitly create a Vocabulary object");
 	}
 
 	FORTHOP(oVocabularyIterDeleteMethod)
@@ -1512,8 +1528,8 @@ namespace OVocabulary
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("OVocabulary", kBCIVocabulary, kBCIObject, oVocabularyMembers);
-		pEngine->AddBuiltinClass("OVocabularyIter", kBCIVocabularyIter, kBCIObject, oVocabularyIterMembers);
+		pEngine->AddBuiltinClass("Vocabulary", kBCIVocabulary, kBCIObject, oVocabularyMembers);
+		pEngine->AddBuiltinClass("VocabularyIter", kBCIVocabularyIter, kBCIObject, oVocabularyIterMembers);
 	}
 
 } // namespace OVocabulary 

@@ -2,8 +2,8 @@ BITS 32
 
 %include "core.inc"
 
-cextern	_filbuf
-cextern	_chkesp
+;cextern	_filbuf
+;cextern	_chkesp
 
 EXTERN _CallDLLRoutine
 
@@ -176,6 +176,9 @@ entry InitAsmTables
 	; setup normal (non-debug) inner interpreter re-entry point
 	mov	ebx, interpLoopDebug
 	mov	[ebp + FCore.innerLoop], ebx
+	mov	ebx, interpLoopExecuteEntry
+	mov	[ebp + FCore.innerExecute], ebx
+	
 
 	pop ebp
 	pop	edi
@@ -264,6 +267,20 @@ entry InnerInterpreterFast
 ; inner interpreter
 ;	jump to interpFunc if you need to reload IP, SP, interpLoop
 entry interpFunc
+	mov	eax, [ebp + FCore.traceFlags]
+	or	eax, eax
+	jz .interpFunc1
+	mov	ebx, traceLoopDebug
+	mov	[ebp + FCore.innerLoop], ebx
+	mov	ebx, traceLoopExecuteEntry
+	mov	[ebp + FCore.innerExecute], ebx
+	jmp	.interpFunc2
+.interpFunc1:
+	mov	ebx, interpLoopDebug
+	mov	[ebp + FCore.innerLoop], ebx
+	mov	ebx, interpLoopExecuteEntry
+	mov	[ebp + FCore.innerExecute], ebx
+.interpFunc2:
 	mov	esi, [ebp + FCore.IPtr]
 	mov	edx, [ebp + FCore.SPtr]
 	;mov	edi, interpLoopDebug
@@ -278,7 +295,7 @@ entry interpLoopDebug
 entry interpLoop
 	mov	ebx, [esi]		; ebx is opcode
 	add	esi, 4			; advance IP
-	; interpLoopExecuteEntry is entry for executeBop - expects opcode in ebx
+	; interpLoopExecuteEntry is entry for executeBop/methodWithThis/methodWithTos - expects opcode in ebx
 interpLoopExecuteEntry:
 %ifdef MACOSX
     ; check if system stack has become unaligned
@@ -304,6 +321,32 @@ badStack:
 	mov eax, [ebp + FCore.ops]
 	mov	ecx, [eax+ebx*4]
 	jmp	ecx
+
+entry traceLoopDebug
+	; while debugging, store IP,SP in corestate shadow copies after every instruction
+	;   so crash stacktrace will be more accurate (off by only one instruction)
+	mov	[ebp + FCore.IPtr], esi
+	mov	[ebp + FCore.SPtr], edx
+	mov	ebx, [esi]		; ebx is opcode
+	mov	eax, esi		; eax is the IP for trace
+	jmp	traceLoopDebug2
+
+	; traceLoopExecuteEntry is entry for executeBop/methodWithThis/methodWithTos - expects opcode in ebx
+traceLoopExecuteEntry:
+	xor	eax, eax		; put null in trace IP for indirect execution (op isn't at IP)
+	sub	esi, 4			; actual IP was already advanced by execute/method op, don't double advance it
+traceLoopDebug2:
+	push edx
+	push ebx
+	push eax
+	push ebp
+	xcall traceOp
+	pop ebp
+	pop eax
+	pop ebx
+	pop edx
+	add	esi, 4			; advance IP
+	jmp interpLoopExecuteEntry
 
 interpLoopExit:
 	mov	[ebp + FCore.state], eax
@@ -494,13 +537,27 @@ entry branchNZType
 ;
 ; case branch ops
 ;
-entry caseBranchType
+entry caseBranchTType
+    ; TOS: this_case_value case_selector
+	mov	eax, [edx]		; eax is this_case_value
+	add	edx, 4
+	cmp	eax, [edx]
+	jnz	caseMismatch
+	; case did match - branch to case body
+	and	ebx, 00FFFFFFh
+	sal	ebx, 2
+	add	esi, ebx
+	add	edx, 4
+caseMismatch:
+	jmp	edi
+
+entry caseBranchFType
     ; TOS: this_case_value case_selector
 	mov	eax, [edx]		; eax is this_case_value
 	add	edx, 4
 	cmp	eax, [edx]
 	jz	caseMatched
-	; case didn't match - branch to next case
+	; case didn't match - branch to next case test
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	add	esi, ebx
@@ -510,7 +567,6 @@ caseMatched:
 	add	edx, 4
 	jmp	edi
 	
-
 ;-----------------------------------------------
 ;
 ; branch around block ops
@@ -525,7 +581,24 @@ entry pushBranchType
 
 ;-----------------------------------------------
 ;
-; relative def branch ops
+; relative data block ops
+;
+entry relativeDataType
+	; ebx is offset from dictionary base of user definition
+	and	ebx, 00FFFFFFh
+	sal	ebx, 2
+	mov	eax, [ebp + FCore.DictionaryPtr]
+	add	ebx, [eax + ForthMemorySection.pBase]
+	cmp	ebx, [eax + ForthMemorySection.pCurrent]
+	jge	badUserDef
+	; push address of data on pstack
+	sub	edx, 4
+	mov	[edx], ebx
+	jmp	edi
+
+;-----------------------------------------------
+;
+; relative data ops
 ;
 entry relativeDefBranchType
 	; push relativeDef opcode for immediately following anonymous definition (IP in esi points to it)
@@ -1735,7 +1808,8 @@ opEntry:
 	; execute local op
 localOpExecute:
 	mov	ebx, [eax]
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 
 
 localOpActionTable:
@@ -2033,7 +2107,8 @@ los3:
 	add	edx, 8
 
 	; execute the delete method opcode which is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 
 localObjectClear:
 	; TOS is new object, eax points to destination/old object
@@ -2182,7 +2257,8 @@ entry methodWithThisType
 	sal	ebx, 2
 	add	ebx, eax
 	mov	ebx, [ebx]	; ebx = method opcode
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 ; invoke a method on an object referenced by ptr pair on TOS
 entry methodWithTOSType
@@ -2208,7 +2284,8 @@ entry methodWithTOSType
 	add	ebx, eax
 	mov	ebx, [ebx]	; ebx = method opcode
 	add	edx, 8
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 ;-----------------------------------------------
 ;
@@ -5181,6 +5258,26 @@ entry moveBop
 
 ;========================================
 
+entry memcmpBop
+	;	TOS: nBytes mem2Ptr mem1Ptr
+	push	edx
+	push	esi
+    sub esp, 8      ; 16-byte align for mac
+	mov	eax, [edx]
+	push	eax
+	mov	eax, [edx+4]
+	push	eax
+	mov	eax, [edx+8]
+	push	eax
+	xcall	memcmp
+	add	esp, 20
+	pop	esi
+	pop	edx
+	add	edx, 12
+	jmp	edi
+
+;========================================
+
 entry fillBop
 	;	TOS: nBytes byteVal dstPtr
 	push	edx
@@ -5733,7 +5830,8 @@ entry thisMethodsBop
 entry executeBop
 	mov	ebx, [edx]
 	add	edx, 4
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 ;========================================
 
@@ -5977,6 +6075,15 @@ entry	fputsBop
 	jmp	edi
 	
 ;========================================
+entry	setTraceBop
+	mov	eax, [edx]
+	add	edx, 4
+	mov	[ebp + FCore.traceFlags], eax
+	mov	[ebp + FCore.SPtr], edx
+	mov	[ebp + FCore.IPtr], esi
+	jmp interpFunc
+
+;========================================
 
 ;extern void fprintfSub( ForthCoreState* pCore );
 ;extern void snprintfSub( ForthCoreState* pCore );
@@ -6140,7 +6247,7 @@ oSFormatSub1:
 	jmp oSFormatSub1
 oSFormatSub2:
 	; all args have been copied from parameter stack to PC stack
-	; we don't remove args from parameter stack in case printf fails and we need to retry with a bigger buffer
+	mov	[ebx + FCore.SPtr], edx
 	mov	eax, [ebp + 16]         ; bufferSize
 	push eax
 	mov	eax, [ebp + 12]         ; pBuffer
@@ -6339,7 +6446,8 @@ nvoCombo1:
 	shr	ebx, 2
 	and	ebx, 0000007FFh			; ebx is 11 bit opcode
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 
 ;-----------------------------------------------
 ;
@@ -6393,7 +6501,8 @@ noCombo1:
 	shr	ebx, 13
 	and	ebx, 0000007FFh			; ebx is 11 bit opcode
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 ;-----------------------------------------------
 ;
@@ -6412,7 +6521,8 @@ entry voComboType
 	and	ebx, 0003FFFFFh			; ebx is 22 bit opcode
 
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 
 ;-----------------------------------------------
 ;
@@ -6428,7 +6538,8 @@ entry ozbComboType
 	mov	edi, ozbCombo1
 	and	ebx, 0FFFh
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 ozbCombo1:
 	pop	edi
@@ -6462,7 +6573,8 @@ entry obComboType
 	mov	edi, obCombo1
 	and	ebx, 0FFFh
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 obCombo1:
 	pop	edi
@@ -6592,7 +6704,8 @@ entry lroComboType
 	shr	ebx, 12
 	and	ebx, 0FFFH			; ebx is 12 bit opcode
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 	
 ;-----------------------------------------------
 ;
@@ -6611,7 +6724,8 @@ entry mroComboType
 	shr	ebx, 12
 	and	ebx, 0FFFH			; ebx is 12 bit opcode
 	; opcode is in ebx
-	jmp	interpLoopExecuteEntry
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
 
 
 ;=================================================================================================
@@ -6636,13 +6750,13 @@ entry opTypesTable
 ;	10 - 19
 	DD	branchType				; kOpBranch = 10,
 	DD	branchNZType			; kOpBranchNZ,
-	DD	branchZType			; kOpBranchZ,
-	DD	caseBranchType			; kOpCaseBranch,
+	DD	branchZType			    ; kOpBranchZ,
+	DD	caseBranchTType			; kOpCaseBranchT,
+	DD	caseBranchFType			; kOpCaseBranchF,
 	DD	pushBranchType			; kOpPushBranch,	
-	DD	relativeDefBranchType	; kOpRelativeDefBranch
-	DD	extOpType	
-	DD	extOpType	
-	DD	extOpType	
+	DD	relativeDefBranchType	; kOpRelativeDefBranch,
+	DD	relativeDataType		; kOpRelativeData,
+	DD	relativeDataType		; kOpRelativeString,
 	DD	extOpType	
 ;	20 - 29
 	DD	constantType			; kOpConstant = 20,   

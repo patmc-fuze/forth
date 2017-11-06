@@ -154,12 +154,6 @@ namespace
         return pShell->FileFlush( pFile );
     }
 
-	char* getTmpnam( char* pPath )
-    {
-        ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
-        return pShell->GetTmpnam( pPath );
-    }
-
 	int renameFile( const char* pOldName, const char* pNewName )
     {
         ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
@@ -493,6 +487,59 @@ char* ForthServerInputStream::GetLine( const char *pPrompt )
     return result;
 }
 
+char* ForthServerInputStream::AddContinuationLine()
+{
+    int msgType, msgLen;
+    char* result = NULL;
+
+    mpMsgPipe->StartMessage(kClientMsgSendLine);
+    mpMsgPipe->WriteString(nullptr);
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage(msgType, msgLen);
+    switch (msgType)
+    {
+    case kServerMsgProcessLine:
+    {
+        const char* pSrcLine;
+        int srcLen = 0;
+        if (mpMsgPipe->ReadCountedData(pSrcLine, srcLen))
+        {
+            if (srcLen != 0)
+            {
+#ifdef PIPE_SPEW
+                printf("line = '%s'\n", pSrcLine);
+#endif
+                char* pBufferDst = mpBufferBase + mWriteOffset;
+                if ((srcLen + mWriteOffset) > mBufferLen)
+                {
+                    srcLen = (mBufferLen - mWriteOffset) - 1;
+                }
+                memcpy(pBufferDst, pSrcLine, srcLen);
+                pBufferDst[srcLen] = '\0';
+                mWriteOffset = srcLen;
+                result = mpBufferBase;
+            }
+        }
+        else
+        {
+            // TODO: report error
+        }
+    }
+    break;
+
+    case kServerMsgPopStream:
+        break;
+
+    default:
+        // TODO: report unexpected message type error
+        printf("ForthServerShell::GetLine unexpected message type %d\n", msgType);
+        break;
+    }
+
+    return result;
+}
+
 bool ForthServerInputStream::IsInteractive( void )
 {
     return !mIsFile;
@@ -523,7 +570,7 @@ ForthServerInputStream::SetInputState( long* pState )
 
 
 ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, ForthExtension *pExtension, ForthThread *pThread, int shellStackLongs )
-:   ForthShell( pEngine, pExtension, pThread, shellStackLongs )
+:   ForthShell( 0, nullptr, nullptr, pEngine, pExtension, pThread, shellStackLongs )
 ,   mDoAutoload( doAutoload )
 ,   mpMsgPipe( NULL )
 ,	mClientSocket( -1 )
@@ -546,7 +593,6 @@ ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, Forth
 	mFileInterface.fileDup2 = fileDup2;
 	mFileInterface.fileNo = fileNo;
 	mFileInterface.fileFlush = fileFlush;
-	mFileInterface.getTmpnam = getTmpnam;
 	mFileInterface.renameFile = renameFile;
 	mFileInterface.runSystem = runSystem;
 	mFileInterface.changeDir = changeDir;
@@ -1180,37 +1226,6 @@ ForthServerShell::FileFlush( FILE* pFile )
         printf( "ForthServerShell::FileFlush unexpected message type %d\n", msgType );
     }
     return result;
-}
-
-char*
-ForthServerShell::GetTmpnam( char* pBuffer )
-{
-	static_cast<void>( pBuffer );		// we can't use the passed in buffer, size might be different on server
-	// !!! TODO - how should this work?
-    int msgType, msgLen;
-    char* pResult = NULL;
-
-    mpMsgPipe->StartMessage( kClientMsgGetTempFilename );
-    mpMsgPipe->SendMessage();
-
-    mpMsgPipe->GetMessage( msgType, msgLen );
-    if ( msgType == kServerMsgGetTmpnamResult )
-    {
-        int numBytes;
-        const char* pData;
-        mpMsgPipe->ReadCountedData( pData, numBytes );
-		if ( numBytes > 0 )
-		{
-			pResult = (char *) __MALLOC( numBytes );
-            memcpy( pResult, pData, numBytes );
-		}
-    }
-    else
-    {
-        // TODO: report error
-        printf( "ForthServerShell::GetTmpnam unexpected message type %d\n", msgType );
-    }
-	return pResult;
 }
 
 int

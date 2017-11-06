@@ -130,6 +130,16 @@ public:
 	long *labelIP;
 };
 
+// ForthEnumInfo is compiled with each enum defining word
+struct ForthEnumInfo
+{
+    long size;                  // enum size in bytes (default to 4)
+    ForthVocabulary* pVocab;    // ptr to vocabulary enum is defined in
+    long numEnums;              // number of enums defined
+    long vocabOffset;           // offset in longs from top of vocabulary to last enum symbol defined
+    char nameStart;             // enum name string (including null terminator) plus zero padding to next longword
+};
+
 class ForthEngine
 {
 public:
@@ -199,12 +209,12 @@ public:
     // returns true IFF file opened successfully
     bool            PushInputFile( const char *pInFileName );
     void            PushInputBuffer( const char *pDataBuffer, int dataBufferLen );
-    void            PushInputBlocks( unsigned int firstBlock, unsigned int lastBlock );
+    void            PushInputBlocks(ForthBlockFileManager*  pManager, unsigned int firstBlock, unsigned int lastBlock);
     void            PopInputStream( void );
 
     // returns pointer to new vocabulary entry
-    long *          StartOpDefinition( const char *pName=NULL, bool smudgeIt=false, forthOpType opType=kOpUserDef );
-    void            EndOpDefinition( bool unsmudgeIt=false );
+    long *          StartOpDefinition(const char *pName = NULL, bool smudgeIt = false, forthOpType opType = kOpUserDef, ForthVocabulary* pDefinitionVocab = nullptr);
+    void            EndOpDefinition(bool unsmudgeIt = false);
     // return pointer to symbol entry, NULL if not found
     long *          FindSymbol( const char *pSymName );
     void            DescribeSymbol( const char *pSymName );
@@ -221,7 +231,7 @@ public:
     char *          GetLastInputToken( void );
 
     const char *            GetOpTypeName( long opType );
-	void                    TraceOp(long *pOp);
+	void                    TraceOp(long *pOp, long op);
 	void                    TraceStack(ForthCoreState* pCore);
     void                    DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUserDefs=false );
     long *                  NextOp( long *pOp );
@@ -271,11 +281,14 @@ public:
     inline void             SetFeature( long features ) { mFeatures |= features; };
     inline void             ClearFeature( long features ) { mFeatures &= (~features); };
     inline long             CheckFeature( long features ) { return mFeatures & features; };
-    inline char *           GetTmpStringBuffer( void ) { return mpStringBufferB; };
-	inline int				GetTmpStringBufferSize( void ) { return MAX_STRING_SIZE; };
-    inline void             SetArraySize( long numElements )        { mNumElements = numElements; };
+    inline char *           GetTempBuffer(void) { return mpTempBuffer; };
+	inline int				GetTempBufferSize( void ) { return MAX_STRING_SIZE; };
+    char *                  GrabTempBuffer(void);
+    void                    UngrabTempBuffer(void);
+    inline void             SetArraySize(long numElements)        { mNumElements = numElements; };
     inline long             GetArraySize( void )                    { return mNumElements; };
-
+    inline ForthEnumInfo*   GetNewestEnumInfo(void) { return mpNewestEnum; };
+    void                    SetNewestEnumInfo(ForthEnumInfo *pInfo) { mpNewestEnum = pInfo; };
     void                    GetErrorString( char *pBuffer, int bufferSize );
     eForthResult            CheckStacks( void );
     void                    SetError( eForthError e, const char *pString = NULL );
@@ -323,7 +336,6 @@ public:
 	bool					SquishLong( long long lvalue, ulong& squishedLong );
 	long long				UnsquishLong( ulong squishedLong );
 
-    inline long*            GetBlockPtr() { return &mBlockNumber; };
     ForthBlockFileManager*  GetBlockFileManager();
 
 	bool					IsServer() const;
@@ -331,6 +343,15 @@ public:
 
 	void					DefineLabel(const char* inLabelName, long* inLabelIP);
 	void					AddGoto(const char* inName, int inBranchType, long* inBranchIP);
+
+	// if inText is null, string is not copied, an uninitialized space of size inNumChars+1 is allocated
+	// if inNumChars is null and inText is not null, strlen(inText) is used for temp string size
+	// if both inText and inNumChars are null, an uninitialized space of 255 chars is allocated
+	char*					AddTempString(const char* inText = nullptr, int inNumChars = -1);
+    inline long             UnusedTempStringSpace() { return (mStringBufferASize - (mpStringBufferANext - mpStringBufferA)); }
+
+    void                    AddGlobalObjectVariable(ForthObject* pObject);
+    void                    CleanupGlobalObjectVariables(long* pNewDP);
 
 protected:
     // NOTE: temporarily modifies string @pToken
@@ -361,7 +382,13 @@ protected:
     char        *mpStringBufferA;       // string buffer A is used for quoted strings when in interpreted mode
     char        *mpStringBufferANext;   // one char past last used in A
     int         mStringBufferASize;
-    char        *mpStringBufferB;       // string buffer B is the buffer which string IO ops append to
+
+    char        *mpTempBuffer;
+#ifdef WIN32
+    CRITICAL_SECTION* mpTempBufferLock;
+#else
+    pthread_mutex_t* mpTempBufferLock;
+#endif
 
     long        mCompileState;          // true iff compiling
 
@@ -381,7 +408,6 @@ protected:
     long            mCompileFlags;
     long            mFeatures;
     long            mNumElements;       // number of elements in next array declared
-	long			mTraceFlags;
 
 	traceOutRoutine	mTraceOutRoutine;
 	void*			mpTraceOutData;
@@ -389,11 +415,31 @@ protected:
     long *          mpEnumStackBase;
     long            mNextEnum;
 
-    long            mBlockNumber;       // number returned by 'blk'
-
 	ForthObject		mDefaultConsoleOutStream;
 
 	std::vector<ForthLabel> mLabels;
+
+    std::vector<ForthObject*> mGlobalObjectVariables;
+
+public:
+    void                    PushContinuation(long val);
+    long                    PopContinuation();
+    void                    ResetContinuations();
+    long*                   GetContinuationDestination();
+    void                    SetContinuationDestination(long* pDest);
+    void                    AddContinuationBranch(long* pAddr, long opType);
+    void                    AddBreakBranch(long* pAddr, long opType);
+    void                    StartLoopContinuations();
+    void                    EndLoopContinuations(int controlFlowType);  // actually takes a eShellTag
+    bool                    HasPendingContinuations();
+
+protected:
+    std::vector<long> mContinuations;
+    long            mContinuationIx;
+    long*           mContinueDestination;
+    long            mContinueCount;
+
+    ForthEnumInfo*  mpNewestEnum;
 
 #ifdef WIN32
 #ifdef MSDEV
@@ -405,6 +451,7 @@ protected:
 #else
     struct timeb    mStartTime;
 #endif
+
     ForthExtension* mpExtension;
 
     static ForthEngine* mpInstance;

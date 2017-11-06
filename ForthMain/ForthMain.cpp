@@ -125,9 +125,7 @@ int main( int argc, char* argv[], char* envp[] )
     else
     {
 		nRetCode = 1;
-        pShell = new ForthShell;
-        pShell->SetCommandLine( argc, (const char **) (argv));
-        pShell->SetEnvironmentVars( (const char **) envp );
+        pShell = new ForthShell(argc, (const char **)(argv), (const char **)envp);
 #if 0
         if ( argc > 1 )
         {
@@ -161,6 +159,7 @@ int main( int argc, char* argv[], char* envp[] )
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
 	_CrtSetReportFile(_CRT_WARN, hLoggingPipe);    // or _CRTDBG_FILE_STDERR?
 	_CrtDumpMemoryLeaks();
+    _CrtSetReportMode(_CRT_WARN, 0);
 
 	return nRetCode;
 }

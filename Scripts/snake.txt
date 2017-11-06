@@ -101,7 +101,6 @@ int penChar
     of(up)      moveUp     endof
     of(right)   moveRight  endof
     of(down)    moveDown   endof
-    drop
   endcase
 ;
 
@@ -139,7 +138,6 @@ false -> int gameOver
     of('d') turnRight  endof
     of('s') turnDown   endof
     of(0x1b) true -> gameOver endof
-    drop
   endcase
 ;
 

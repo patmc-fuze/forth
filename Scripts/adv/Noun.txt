@@ -4,8 +4,8 @@ requires Word
 class: Noun extends Word
 
   int propertyValue
-  OString inventoryMessage
-  OArray descriptions
+  String inventoryMessage
+  Array descriptions
     
   int treasure
   int movable
@@ -21,20 +21,19 @@ class: Noun extends Word
 
   m: init  // int number
     super.init
-    new OString -> inventoryMessage
-    new OArray -> descriptions
+    new String -> inventoryMessage
+    new Array -> descriptions
     //"init Noun " %s number %d %bl wordType %d %nl
   ;m
   
   m: initWith    // int number, string word
     super.initWith  // consumes number, word
-    new OString -> inventoryMessage
-    new OArray -> descriptions
+    new String -> inventoryMessage
+    new Array -> descriptions
     
     true -> movable
     false -> lightable
     false -> lit
-    //"initWith Noun " %s words.getRaw(0) %s %bl number %d %bl wordType %d %nl
   ;m
 
   m: delete
@@ -42,10 +41,10 @@ class: Noun extends Word
     oclear descriptions
   ;m
   
-  m: getPropertyDescriptions returns OString
-    mko OString s
+  m: getPropertyDescriptions returns String
+    mko String s
     do(descriptions.count 0)
-      s.appendFormatted("\n\t%d: %s" i descriptions.get(i) <OString>.get)
+      s.appendFormatted("\n\t%d: %s" i descriptions.get(i) <String>.get)
     loop
     unref s
   ;m
@@ -54,7 +53,7 @@ class: Noun extends Word
   
     if(descriptions.count propertyValue >)
       descriptions.get(propertyValue)
-      <OString>.get
+      <String>.get
     else
       ">?<"
     endif
@@ -65,10 +64,10 @@ class: Noun extends Word
   ;m
   
   m: appendToPropertyDescription  // (const int n, const string desc)
-    ->o OString desc
+    ->o String desc
     -> int n
     if(descriptions.count  n 1+ >=)
-      descriptions.get(n) <OString>.append(desc.get)
+      descriptions.get(n) <String>.append(desc.get)
     endif
   ;m
 

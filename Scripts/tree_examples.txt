@@ -1,8 +1,8 @@
 requires numberio
 requires randoms
 
-autoforget tree_examples
-: tree_examples ;
+autoforget TREE_EXAMPLES
+: TREE_EXAMPLES ;
 
 false -> bool beNoisy   // set beNoisyto true to display sort array before and after sort
 
@@ -11,7 +11,7 @@ setRandomSeed(ms@)
   random 32767 and
 ;
 
-mko OIntArray elemSpacing
+mko IntArray elemSpacing
 r[ 56   26 55   12 25 25 25  4 10 10 10 10 10 10 10   1 1 4 1 4 1 4 1 4 1 4 1 4 1 4 1 4 ]r
 elemSpacing.load
 
@@ -283,8 +283,8 @@ class: Tree
     
     "height: " %s root.height .  " #nodes: " %s numNodes . %nl
     0 -> int elementNum
-    mko OList q
-    mko OList otherQ
+    mko List q
+    mko List otherQ
     q.addTail(root)
     true -> bool keepGoing
     false -> bool minSpacing
@@ -321,7 +321,7 @@ class: Tree
   
   m: _toArray
     recursive
-    ->o OArray a
+    ->o Array a
     ->o Node n
     if(n.left or)
       _toArray(n.left a)
@@ -333,7 +333,7 @@ class: Tree
   ;m
   
   m: toArray
-    mko OArray a
+    mko Array a
     _toArray(root a)
     unref a
   ;m
@@ -353,7 +353,7 @@ class: Tree
   m: _fromArray
     -> int right
     -> int left
-    ->o OArray a
+    ->o Array a
     d[ "_fromArray " %s left . right . %nl ]d
     recursive
     right left - 1+ -> int nodeCount
@@ -375,7 +375,7 @@ class: Tree
       endof
       
       // default case
-      2/ left + -> int middle
+      dup 2/ left + -> int middle
       a.get(middle) ->o branchRoot
       branchRoot.setLeft(_fromArray(a left middle 1-))
       branchRoot.setRight(_fromArray(a middle 1+ right))
@@ -386,7 +386,7 @@ class: Tree
   ;m
   
   m: fromArray
-    ->o OArray a
+    ->o Array a
     clear
     _fromArray(a 0 a.count 1-) -> root
     _fixParentLinks(dnull root)
@@ -394,14 +394,14 @@ class: Tree
   ;m
 
   m: makeBST
-    toArray -> OArray a
+    toArray -> Array a
     a.sort
     fromArray(a)
     oclear a
   ;m
 
   m: _makeHeap
-    ->o OArray a
+    ->o Array a
     clear
     setRoot(a.get(0))
     
@@ -423,7 +423,7 @@ class: Tree
   ;m
 
   m: makeMinHeap
-    toArray -> OArray a
+    toArray -> Array a
 
     if(a.count 2 <)
       exit
@@ -436,7 +436,7 @@ class: Tree
   ;m
   
   m: makeMaxHeap
-    toArray -> OArray a
+    toArray -> Array a
 
     if(a.count 2 <)
       exit
@@ -610,12 +610,13 @@ class: Tree
   // this assumes tree has all levels except bottom completely filled,
   //  bottom level is filled left-to-right
   m: findBottomHeapSlot
+    int branchChoices
     if(root or)
       // a relatively simple way of determining the left-right path to the rightmost node on
       //  the bottom (incomplete) layer of the tree - take the bits below the top set bit of the (numNodes + 1)
       // here we stick them on the stack starting at the low bit to do the reversing
       // this is a terrible way of reversing the bits, but it is fine for the trees we are dealing with (depth < 8 or so)
-      numNodes -> int branchChoices
+      numNodes -> branchChoices
       0 -> int numChoices
       root -> Node bottomSlot
       begin
@@ -714,7 +715,7 @@ class: Tree
   m: fillRandom    // rootNode numNodes ...
     1- -> int nodeCount
     setRoot(new Node)
-    mko OList q
+    mko List q
     q.addHead(root)
     "seed: " %s getRandomSeed . %nl
     smallRandom -> root.val
@@ -775,7 +776,7 @@ mko Tree t
   1- -> int numNodes
   t.root ->o Node root
   root.clear
-  mko OList q
+  mko List q
   q.addHead(root)
   "seed: " %s getRandomSeed . %nl
   smallRandom -> root.val
@@ -809,7 +810,7 @@ mko Tree t
 
 : tt2
   -> int numElems
-  mko OArray a
+  mko Array a
   
   do(numElems 0)
     new Node -> Node n
@@ -846,15 +847,15 @@ mko Tree t
 ;
 
 : tt5  // list nodes at depth
-  mko OList qA
-  mko OList qB
+  mko List qA
+  mko List qB
   Node n
   
   qA.addTail(t.root)
   begin
   while(not(qA.isEmpty))
     // print qA nodes
-    qA.headIter -> OListIter iter
+    qA.headIter -> ListIter iter
     begin
     while(iter.next)
       <Node>.val .

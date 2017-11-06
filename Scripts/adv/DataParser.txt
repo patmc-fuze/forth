@@ -2,8 +2,8 @@
 requires IData
 
 class: DataParser
-  OString line
-  OStringArray lineVector
+  String line
+  Array of String lineVector
   int verbNr
   int lineNumber
   // The data file is divided into different sections, this
@@ -24,14 +24,14 @@ class: DataParser
   int idNumber
 
   IData data
-  OFileInStream dataFile
+  FileInStream dataFile
   
   m: init
     -> data
     -> dataFile
-    new OString -> line
+    new String -> line
     line.resize(512)
-    new OStringArray -> lineVector
+    new Array -> lineVector
     1 -> lineNumber
     -1 -> currentSection
     -1 -> idNumber
@@ -117,7 +117,7 @@ class: DataParser
     //  	THIS SAYS THAT, FROM 11, 49 TAKES HIM TO 8 UNLESS PROP(3)=0, IN WHICH
     //  	CASE HE GOES TO 9.  VERB 50 TAKES HIM TO 9 REGARDLESS OF PROP(3).
     false -> bool newLoc
-    atoi(lineVector.getRaw(1)) -> int Y
+    atoi(lineVector.get(1).get) -> int Y
     mod(Y 1000) ->  int N
           
     if(objIsNull(currentLocation))   orif(idNumber currentLocation.number <>)
@@ -153,7 +153,7 @@ class: DataParser
         // Add the possible MotionVerbs which can be used to go to this location
         -1 -> verbNr
         ?do(lineVector.count 2)
-          atoi(lineVector.getRaw(i)) -> verbNr
+          atoi(lineVector.get(i).get) -> verbNr
           data.getMotionVerbByNumber(verbNr) -> currentMotionVerb
           if(objIsNull(currentMotionVerb))
             new MotionVerb -> currentMotionVerb
@@ -178,7 +178,7 @@ class: DataParser
           // Add the possible MotionVerbs which can be used to go to this location
           -1 -> verbNr
           ?do(lineVector.count 2)
-            atoi(lineVector.getRaw(i)) -> verbNr
+            atoi(lineVector.get(i).get) -> verbNr
             data.getMotionVerbByNumber(verbNr) -> currentMotionVerb
             if(objIsNull(currentMotionVerb))
               new MotionVerb -> currentMotionVerb
@@ -279,7 +279,6 @@ class: DataParser
       if(objIsNull(currentNoun))
         "Object not found: " %s idNumber %d %nl
       else
-      //lineVector.getRaw(1) %s    currentNoun.inventoryMessage.show
         lineVector.get(1) -> currentNoun.inventoryMessage
       endif
     else
@@ -318,7 +317,7 @@ class: DataParser
     //  	THE OBJECT IS ASSUMED TO BE IMMOVABLE.
     0 -> int locNr
     if(lineVector.count 1 >)
-      atoi(lineVector.getRaw(1)) -> locNr
+      atoi(lineVector.get(1).get) -> locNr
     endif
     // If second argument on the line is omitted or zero, the object has no initial location
     if(locNr 0<>)
@@ -328,7 +327,7 @@ class: DataParser
         currentLocation.addObject(currentNoun)
         // Does this object have a second location? Or is it immovable?
         if(lineVector.count 2 >)
-          atoi(lineVector.getRaw(2)) -> locNr
+          atoi(lineVector.get(2).get) -> locNr
           if(locNr -1 <>)
             data.getLocationByNumber(locNr) -> currentLocation
             if(objNotNull(currentLocation))
@@ -357,7 +356,7 @@ class: DataParser
         "ERROR: Section 8.1: Could not find ActionVerb\n" %s
       endif
     endif
-     data.getMessageByNumber(atoi(lineVector.getRaw(1))) -> currentMessage
+    data.getMessageByNumber(atoi(lineVector.get(1).get)) -> currentMessage
     // Some action verbs doesn't have a default message (0)
     if(objNotNull(currentMessage))
       currentMessage -> currentActionVerb.defaultMessage
@@ -383,7 +382,7 @@ class: DataParser
     //  	COND(LOC) IS SET TO 2, OVERRIDING ALL OTHER BITS, IF LOC HAS FORCED
     //  	MOTION.
     ?do(lineVector.count 1)
-      data.getLocationByNumber(atoi(lineVector.getRaw(i))) -> currentLocation
+      data.getLocationByNumber(atoi(lineVector.get(i).get)) -> currentLocation
               
       // For debugging
       if(objIsNull(currentLocation))
@@ -422,11 +421,11 @@ class: DataParser
     //  	REMEMBER IF HE'S READ THE CLUE IN THE REPOSITORY, AND 3 IS USED TO
     //  	REMEMBER WHETHER HE ASKED FOR INSTRUCTIONS (GETS MORE TURNS, BUT LOSES
     //  	POINTS).
-    atoi(lineVector.getRaw(0)) -> int hintNumber
-    atoi(lineVector.getRaw(1)) -> int numberOfTurns
-    atoi(lineVector.getRaw(2)) -> int pointsToDeduct
-    atoi(lineVector.getRaw(3)) -> int questionIdx
-    atoi(lineVector.getRaw(4)) -> int hintIdx
+    atoi(lineVector.get(0).get) -> int hintNumber
+    atoi(lineVector.get(1).get) -> int numberOfTurns
+    atoi(lineVector.get(2).get) -> int pointsToDeduct
+    atoi(lineVector.get(3).get) -> int questionIdx
+    atoi(lineVector.get(4).get) -> int hintIdx
     data.getMessageByNumber(questionIdx) ->o Message question
     data.getMessageByNumber(hintIdx) ->o Message hint
 
@@ -483,7 +482,7 @@ class: DataParser
 
       // If this line is the end of the section, proceed to next section
       false -> bool isEndOfSection
-      if(lineVector.count 0>)   andif(strcmp(lineVector.getRaw(0) "-1") 0=)
+      if(lineVector.count 0>)   andif(strcmp(lineVector.get(0).get "-1") 0=)
         true -> isEndOfSection
         //"=============================================================================== End of section " %s currentSection %d %nl ds
       endif
@@ -505,7 +504,7 @@ class: DataParser
       else
         // If it's not the end of a section, check if it is the beginning
         if(currentSection -1 =)
-          atoi(lineVector.getRaw(0)) -> currentSection
+          atoi(lineVector.get(0).get) -> currentSection
             // We don't want to parse the line which indicate the beginning of a section
             //if(currentSection 3 =)
             //  data.locations.show
@@ -514,7 +513,7 @@ class: DataParser
         else
           if(currentSection 0<>)
             // First is always an id/number
-            atoi(lineVector.getRaw(0)) -> idNumber
+            atoi(lineVector.get(0).get) -> idNumber
           endif
         endif
       endif

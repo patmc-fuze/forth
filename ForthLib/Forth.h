@@ -40,10 +40,13 @@ typedef enum
     kOpBranch = 10,          // low 24 bits is signed branch offset
     kOpBranchNZ,
     kOpBranchZ,
-    kOpCaseBranch,
-	kOpPushBranch,
+    kOpCaseBranchT,
+    kOpCaseBranchF,
+    kOpPushBranch,
 	kOpRelativeDefBranch,
-    // 16 - 19 are unused
+    kOpRelativeData,
+    kOpRelativeString,
+    // 19 is unused
 
     kOpConstant = 20,   // low 24 bits is signed symbol value
     kOpConstantString,  // low 24 bits is number of longwords to skip over
@@ -269,6 +272,7 @@ typedef enum {
     kFFDollarHexLiterals        = 0x080,
     kFFCFloatLiterals           = 0x100,
     kFFParenIsExpression        = 0x200,
+    kFFAllowContinuations       = 0x400,
 } ForthFeatureFlags;
 
 
@@ -643,6 +647,8 @@ typedef enum
 #define STRING_TYPE_TO_CODE( ARRAY_FLAG, MAX_BYTES )        ((ARRAY_FLAG) | kBaseTypeString | ((MAX_BYTES) << 8))
 #define STRUCT_TYPE_TO_CODE( ARRAY_FLAG, STRUCT_INDEX )     ((ARRAY_FLAG) | kBaseTypeStruct | ((STRUCT_INDEX) << 8))
 #define OBJECT_TYPE_TO_CODE( ARRAY_FLAG, STRUCT_INDEX )     ((ARRAY_FLAG) | kBaseTypeObject | ((STRUCT_INDEX) << 8))
+#define CONTAINED_TYPE_TO_CODE( ARRAY_FLAG, CONTAINER_INDEX, CONTAINED_INDEX )  \
+   ((ARRAY_FLAG) | kBaseTypeObject | (((CONTAINED_INDEX) | ((CONTAINER_INDEX) << 16)) << 8))
 
 #define VOCABENTRY_TO_FIELD_OFFSET( PTR_TO_ENTRY )          (*(PTR_TO_ENTRY))
 #define VOCABENTRY_TO_TYPECODE( PTR_TO_ENTRY )              ((PTR_TO_ENTRY)[1])
@@ -657,6 +663,8 @@ typedef enum
 #define CODE_IS_METHOD( CODE )                              (((CODE) & kDTIsMethod) != 0)
 #define CODE_TO_BASE_TYPE( CODE )                           ((CODE) & 0x0F)
 #define CODE_TO_STRUCT_INDEX( CODE )                        ((CODE) >> 8)
+#define CODE_TO_CONTAINED_CLASS_INDEX( CODE )               (((CODE) >> 8) & 0xFFFF)
+#define CODE_TO_CONTAINER_CLASS_INDEX( CODE )               (((CODE) >> 24) & 0xFF)
 #define CODE_TO_STRING_BYTES( CODE )                        ((CODE) >> 8)
 #define CODE_IS_USER_DEFINITION( CODE )                     (((CODE) & 0x0F) == kBaseTypeUserDefinition)
 
