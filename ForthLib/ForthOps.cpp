@@ -5183,6 +5183,17 @@ FORTHOP(getTraceOp)
 	SPUSH(traceFlags);
 }
 
+#ifndef ASM_INNER_INTERPRETER
+
+FORTHOP(setTraceBop)
+{
+    int traceFlags = SPOP;
+    GET_ENGINE->SetTraceFlags(traceFlags);
+}
+
+#endif
+
+
 FORTHOP(ssPushBop)
 {
 	NEEDS(1);

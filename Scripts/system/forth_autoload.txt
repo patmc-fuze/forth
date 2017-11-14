@@ -927,6 +927,8 @@ precedence assert[
 ;
 addHelp oshow   OBJECT oshow ...    like OBJECT.show, but doesn't crash if OBJECT is NULL
 
+: ss system.stats ;
+
 //######################################################################
 // automated test support
 
@@ -998,6 +1000,24 @@ mko TraceOutStream traceOut
 
 addHelp outToScreen   restore output to the normal console
 : outToScreen getDefaultConsoleOut setConsoleOut ;
+
+
+//######################################################################
+// flags to use with setTrace command
+
+enum: eLogFlags
+  1     kLogStack
+  2     kLogOuterInterpreter
+  4     kLogInnerInterpreter
+  8     kLogShell
+  16    kLogStructs
+  32    kLogVocabulary
+  64    kLogIO
+  128   kLogEngine
+  256   kLogToConsole
+  512   kLogCompilation
+  1024  kLogProfiler
+;enum
 
 //######################################################################
 
