@@ -337,7 +337,7 @@ traceLoopExecuteEntry:
 	sub	esi, 4			; actual IP was already advanced by execute/method op, don't double advance it
 traceLoopDebug2:
 	push edx
-    sub esp, 4          ; 16-byte align for OSX
+    sub esp, 12         ; 16-byte align for OSX
     push ebx            ; opcode
     push eax            ; IP
     push ebp            ; core
@@ -345,7 +345,7 @@ traceLoopDebug2:
 	pop ebp
 	pop eax
 	pop ebx
-    add esp, 4
+    add esp, 12
 	pop edx
 	add	esi, 4			; advance IP
 	jmp interpLoopExecuteEntry
