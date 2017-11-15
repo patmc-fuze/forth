@@ -38,6 +38,7 @@
 *.DS_Store
 *.project
 *.cproject
+*.filters
 build
 Backup
 ColossalCaveAdventure
@@ -81,3 +82,32 @@ Unused
 */Debug Client
 */Debug GUI
 */Debug Midi
+.vs/Forth/v15/Browse.VC.db
+.vs/Forth/v15/Browse.VC.opendb
+.vs/Forth/v15/Solution.VC.db
+.vs/Forth/v15/Solution.VC.db-shm
+.vs/Forth/v15/Solution.VC.db-wal
+arm2016.log
+branchdiff.txt
+backup.bat
+Forth_for_ARM.txt
+ForthARM/gdbs.txt
+ForthARM/sdlt.txt
+ForthARM/t.txt
+ForthClient/ForthClient.vcxproj
+ForthClient/ForthClient.vcxproj.filters
+ForthDocs/ForthDocs.vcxproj.filters
+ForthDocs/Manual/*.txt
+*.nas
+ForthLogger/ForthLogger.vcxproj
+ForthLogger/ReadMe.txt
+ForthMidi/ForthMidi.vcxproj
+ForthMidi/Resource.h
+ForthMidi/stdafx.cpp
+ForthMidi/stdafx.h
+ForthServer/ForthServer.vcxproj
+make_release.bat
+make_release.ps1
+Makefile.new
+master.log
+Scripts/tests/goodOutput/*.txt

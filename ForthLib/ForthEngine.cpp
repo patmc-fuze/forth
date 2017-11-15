@@ -82,9 +82,9 @@ extern "C"
 				pEngine->TraceStack(pCore);
 			}
 			pEngine->TraceOut("\n");
-		    pEngine->TraceOp(pIP, op);
             if (pCore->traceFlags & kLogInnerInterpreter)
             {
+                pEngine->TraceOp(pIP, op);
                 forthOpType opType = FORTH_OP_TYPE(op);
                 if ((opType == kOpMethodWithThis) || (opType == kOpMethodWithTOS))
                 {

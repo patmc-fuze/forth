@@ -83,6 +83,18 @@ kPrintSignedDecimal		EQU		0
 kPrintAllSigned		EQU		1
 kPrintAllUnsigned		EQU		2
 
+kLogStack					EQU 1
+kLogOuterInterpreter		EQU 2
+kLogInnerInterpreter		EQU 4
+kLogShell					EQU 8
+kLogStructs					EQU 16
+kLogVocabulary				EQU 32
+kLogIO						EQU 64
+kLogEngine					EQU 128
+kLogToConsole				EQU 256
+kLogCompilation				EQU 512
+kLogProfiler                EQU 1024
+
 ; the kOp definitions are all out of date, bogus and luckily unused
 ;kOpNative		EQU		0
 ;kOpUserDef		EQU		1

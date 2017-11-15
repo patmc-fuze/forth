@@ -34,10 +34,21 @@ SECTION .text
 ; 1) they are free to stomp EAX, EBX, ECX and EDX
 ; 2) they are free to modify their input params on stack
 
-; if you need more than EAX and EBX in a routine, save ECX/IP & EDX/SP in FCore at start with these instructions:
+; if you need more than EAX, EBX and ECX in a routine, save ESI/IP & EDX/SP in FCore at start with these instructions:
 ;	mov	[ebp + FCore.IPtr], esi
 ;	mov	[ebp + FCore.SPtr], edx
-; jump to interpFunc at end - interpFunc will restore ECX, EDX, and EDI and go back to inner loop
+; jump to interpFunc at end - interpFunc will restore ESI, EDX, and EDI and go back to inner loop
+
+; OSX requires that the system stack be on a 16-byte boundary before you call any system routine
+; In general in the inner interpreter code the system stack is kept at 16-byte boundary, so to
+; determine how much need to offset the system stack to maintain OSX stack alignment, you count
+; the number of pushes done, including both arguments to the called routine and any extra registers
+; you have saved on the stack, and use this formula:
+; offset = 4 * (3 - (numPushesDone mod 4))
+
+; these are the trace flags that force the external trace output to be
+; called each time an instruction is executed
+traceDebugFlags EQU	kLogProfiler + kLogStack + kLogInnerInterpreter
 
 ;-----------------------------------------------
 ;
@@ -268,7 +279,7 @@ entry InnerInterpreterFast
 ;	jump to interpFunc if you need to reload IP, SP, interpLoop
 entry interpFunc
 	mov	eax, [ebp + FCore.traceFlags]
-	or	eax, eax
+	and	eax, traceDebugFlags
 	jz .interpFunc1
 	mov	ebx, traceLoopDebug
 	mov	[ebp + FCore.innerLoop], ebx

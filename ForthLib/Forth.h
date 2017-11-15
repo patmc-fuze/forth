@@ -474,7 +474,8 @@ enum
 	kLogIO						= 64,
 	kLogEngine					= 128,
 	kLogToConsole				= 256,
-	kLogCompilation				= 512
+	kLogCompilation				= 512,
+	kLogProfiler				= 1024
 };
 
 #ifdef TRACE_PRINTS
