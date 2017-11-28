@@ -5895,36 +5895,36 @@ FORTHOP( negateBop )
     SPUSH( -a );
 }
 
-FORTHOP( fplusBop )
+FORTHOP(fplusBop)
 {
     NEEDS(2);
     float b = FPOP;
     float a = FPOP;
-    FPUSH( a + b );
+    FPUSH(a + b);
 }
 
-FORTHOP( fminusBop )
+FORTHOP(fminusBop)
 {
     NEEDS(2);
     float b = FPOP;
     float a = FPOP;
-    FPUSH( a - b );
+    FPUSH(a - b);
 }
 
-FORTHOP( ftimesBop )
+FORTHOP(ftimesBop)
 {
     NEEDS(2);
     float b = FPOP;
     float a = FPOP;
-    FPUSH( a * b );
+    FPUSH(a * b);
 }
 
-FORTHOP( fdivideBop )
+FORTHOP(fdivideBop)
 {
     NEEDS(2);
     float b = FPOP;
     float a = FPOP;
-    FPUSH( a / b );
+    FPUSH(a / b);
 }
 
 
@@ -8121,7 +8121,192 @@ FORTHOP( oclearBop )
 	SET_VAR_OPERATION( kVarObjectClear );
 }
 
+FORTHOP(faddBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrcB = (float *)SPOP;
+    float *pSrcA = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) + (*pSrcB++);
+    }
+}
+
+FORTHOP(fsubBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrcB = (float *)SPOP;
+    float *pSrcA = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) - (*pSrcB++);
+    }
+}
+
+FORTHOP(fmulBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrcB = (float *)SPOP;
+    float *pSrcA = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) * (*pSrcB++);
+    }
+}
+
+FORTHOP(fdivBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrcB = (float *)SPOP;
+    float *pSrcA = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) / (*pSrcB++);
+    }
+}
+
+FORTHOP(fscaleBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float scale = FPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrc = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrc++) * scale;
+    }
+}
+
+FORTHOP(foffsetBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float offset = FPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrc = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrc++) + offset;
+    }
+}
+
+FORTHOP(fmixBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float scale = FPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrc = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        float oldDst = *pDst;
+        *pDst++ = ((*pSrc++) * scale) + oldDst;
+    }
+}
+
+FORTHOP(daddBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrcB = (double *)SPOP;
+    double *pSrcA = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) + (*pSrcB++);
+    }
+}
+
+FORTHOP(dsubBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrcB = (double *)SPOP;
+    double *pSrcA = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) - (*pSrcB++);
+    }
+}
+
+FORTHOP(dmulBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrcB = (double *)SPOP;
+    double *pSrcA = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) * (*pSrcB++);
+    }
+}
+
+FORTHOP(ddivBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrcB = (double *)SPOP;
+    double *pSrcA = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) / (*pSrcB++);
+    }
+}
+
+FORTHOP(dscaleBlockBop)
+{
+    NEEDS(5);
+    int num = SPOP;
+    double scale = DPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrc = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrc++) * scale;
+    }
+}
+
+FORTHOP(doffsetBlockBop)
+{
+    NEEDS(5);
+    int num = SPOP;
+    double offset = DPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrc = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrc++) + offset;
+    }
+}
+
+FORTHOP(dmixBlockBop)
+{
+    NEEDS(5);
+    int num = SPOP;
+    double scale = DPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrc = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        double oldDst = *pDst;
+        *pDst++ = ((*pSrc++) * scale) + oldDst;
+    }
+}
+
 #endif
+
 
 //##############################
 //
@@ -8370,6 +8555,12 @@ OPREF( flog10Bop );         OPREF( fpowBop );           OPREF( fsqrtBop );
 OPREF( fceilBop );          OPREF( ffloorBop );         OPREF( fabsBop );
 OPREF( fldexpBop );         OPREF( ffrexpBop );         OPREF( fmodfBop );
 OPREF( ffmodBop );          OPREF( setTraceBop );
+OPREF(faddBlockBop);        OPREF(fsubBlockBop);        OPREF(fmulBlockBop);
+OPREF(fdivBlockBop);        OPREF(fscaleBlockBop);      OPREF(foffsetBlockBop);
+OPREF(fmixBlockBop);
+OPREF(daddBlockBop);        OPREF(dsubBlockBop);        OPREF(dmulBlockBop);
+OPREF(ddivBlockBop);        OPREF(dscaleBlockBop);      OPREF(doffsetBlockBop);
+OPREF(dmixBlockBop);
 #else
 
 // helper macro for built-in op entries in baseDictionary
@@ -8550,6 +8741,17 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    ffmodBop,                "ffmod" ),
     
     ///////////////////////////////////////////
+    //  single-precision fp block ops
+    ///////////////////////////////////////////
+    NATIVE_DEF(    faddBlockBop,           "fAddBlock"),
+    NATIVE_DEF(    fsubBlockBop,           "fSubBlock"),
+    NATIVE_DEF(    fmulBlockBop,           "fMulBlock"),
+    NATIVE_DEF(    fdivBlockBop,           "fDivBlock"),
+    NATIVE_DEF(    fscaleBlockBop,         "fScaleBlock"),
+    NATIVE_DEF(    foffsetBlockBop,        "fOffsetBlock"),
+    NATIVE_DEF(    fmixBlockBop,           "fMixBlock"),
+
+    ///////////////////////////////////////////
     //  double-precision fp math
     ///////////////////////////////////////////
     NATIVE_DEF(    dplusBop,                "d+" ),
@@ -8601,6 +8803,17 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dmodfBop,                "dmodf" ),
     NATIVE_DEF(    dfmodBop,                "dfmod" ),
     
+    ///////////////////////////////////////////
+    //  single-precision fp block ops
+    ///////////////////////////////////////////
+    NATIVE_DEF(    daddBlockBop,           "dAddBlock"),
+    NATIVE_DEF(    dsubBlockBop,           "dSubBlock"),
+    NATIVE_DEF(    dmulBlockBop,           "dMulBlock"),
+    NATIVE_DEF(    ddivBlockBop,           "dDivBlock"),
+    NATIVE_DEF(    dscaleBlockBop,         "dScaleBlock"),
+    NATIVE_DEF(    doffsetBlockBop,        "dOffsetBlock"),
+    NATIVE_DEF(    dmixBlockBop,           "dMixBlock"),
+
     ///////////////////////////////////////////
     //  integer/long/float/double conversion
     ///////////////////////////////////////////
