@@ -112,6 +112,18 @@ ForthThread::~ForthThread()
 	}
 }
 
+void ForthThread::Destroy()
+{
+    if (mpParentThread != nullptr)
+    {
+        mpParentThread->DeleteThread(this);
+    }
+    else
+    {
+        delete this;
+    }
+}
+
 #ifdef CHECK_GAURD_AREAS
 bool
 ForthThread::CheckGaurdAreas( void )
@@ -554,8 +566,8 @@ void ForthAsyncThread::DeleteThread(ForthThread* pInThread)
 		{
 			delete pThread;
 			mSoftThreads.erase(mSoftThreads.begin() + i);
-		}
-		break;
+            break;
+        }
 	}
 	if (mActiveThreadIndex == lastIndex)
 	{
@@ -743,8 +755,8 @@ namespace OThread
 		GET_THIS(oThreadStruct, pThreadStruct);
 		if (pThreadStruct->pThread != NULL)
 		{
-			delete pThreadStruct->pThread;
-		}
+            pThreadStruct->pThread->Destroy();
+        }
 		METHOD_RETURN;
 	}
 
@@ -863,7 +875,14 @@ namespace OThread
 		METHOD_RETURN;
 	}
 
-	baseMethodEntry oThreadMembers[] =
+    FORTHOP(oThreadGetCoreMethod)
+    {
+        GET_THIS(oThreadStruct, pThreadStruct);
+        SPUSH((long)(pThreadStruct->pThread->GetCore()));
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oThreadMembers[] =
 	{
 		METHOD("__newOp", oThreadNew),
 		METHOD("delete", oThreadDeleteMethod),
@@ -879,6 +898,7 @@ namespace OThread
 		METHOD_RET("step", oThreadStepMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("reset", oThreadResetMethod),
 		METHOD("resetIP", oThreadResetIPMethod),
+        METHOD("getCore", oThreadGetCoreMethod),
 		//METHOD_RET("getParent", oThreadGetParentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseType)),
 
 		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),

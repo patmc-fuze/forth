@@ -35,6 +35,7 @@ class ForthThread
 public:
 	ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_RSTACK_SIZE);
     virtual ~ForthThread();
+    void Destroy();
 
 #ifdef CHECK_GAURD_AREAS
     bool CheckGaurdAreas();
