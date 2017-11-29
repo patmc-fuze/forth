@@ -43,15 +43,25 @@ namespace OArray
 	//                 Array
 	//
 
+    ForthClassVocabulary* gpArrayClassVocab = nullptr;
+
+    void createArrayObject(ForthObject& destObj, ForthClassVocabulary *pClassVocab)
+    {
+        destObj.pMethodOps = pClassVocab->GetInterface(0)->GetMethods();
+
+        MALLOCATE_OBJECT(oArrayStruct, pArray, pClassVocab);
+        pArray->refCount = 0;
+        pArray->elements = new oArray;
+        destObj.pData = (long *) pArray;
+    }
+
 	FORTHOP(oArrayNew)
 	{
-		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oArrayStruct, pArray, pClassVocab);
-		pArray->refCount = 0;
-		pArray->elements = new oArray;
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pArray);
-	}
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
+        ForthObject newArray;
+        createArrayObject(newArray, pClassVocab);
+        PUSH_OBJECT(newArray);
+    }
 
 	FORTHOP(oArrayDeleteMethod)
 	{
@@ -5203,7 +5213,7 @@ namespace OArray
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("Array", kBCIArray, kBCIIterable, oArrayMembers);
+		gpArrayClassVocab = pEngine->AddBuiltinClass("Array", kBCIArray, kBCIIterable, oArrayMembers);
 		pEngine->AddBuiltinClass("ArrayIter", kBCIArrayIter, kBCIIter, oArrayIterMembers);
 
         pEngine->AddBuiltinClass("ByteArray", kBCIByteArray, kBCIIterable, oByteArrayMembers);

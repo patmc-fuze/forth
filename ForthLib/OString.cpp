@@ -34,6 +34,8 @@ namespace OString
     //
 
 	int gDefaultOStringSize = DEFAULT_STRING_DATA_BYTES - 1;
+    ForthClassVocabulary* gpStringClassVocab = nullptr;
+    ForthClassVocabulary* gpStringMapClassVocab = nullptr;
 
 // temp hackaround for a heap corruption when expanding a string
 //#define RCSTRING_SLOP 16
@@ -872,15 +874,22 @@ namespace OString
 	};
 
 
+    void createStringMapObject(ForthObject& destObj, ForthClassVocabulary *pClassVocab)
+    {
+        destObj.pMethodOps = pClassVocab->GetInterface(0)->GetMethods();
 
-	FORTHOP(oStringMapNew)
+        MALLOCATE_OBJECT(oStringMapStruct, pMap, pClassVocab);
+        pMap->refCount = 0;
+        pMap->elements = new oStringMap;
+        destObj.pData = (long *) pMap;
+    }
+
+    FORTHOP(oStringMapNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oStringMapStruct, pMap, pClassVocab);
-		pMap->refCount = 0;
-		pMap->elements = new oStringMap;
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pMap);
+        ForthObject newMap;
+        createStringMapObject(newMap, pClassVocab);
+        PUSH_OBJECT(newMap);
 	}
 
 	FORTHOP(oStringMapDeleteMethod)
@@ -1418,9 +1427,9 @@ namespace OString
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("String", kBCIString, kBCIObject, oStringMembers);
+        gpStringClassVocab = pEngine->AddBuiltinClass("String", kBCIString, kBCIObject, oStringMembers);
 
-		pEngine->AddBuiltinClass("StringMap", kBCIStringMap, kBCIIterable, oStringMapMembers);
+        gpStringMapClassVocab = pEngine->AddBuiltinClass("StringMap", kBCIStringMap, kBCIIterable, oStringMapMembers);
 		pEngine->AddBuiltinClass("StringMapIter", kBCIStringMapIter, kBCIIter, oStringMapIterMembers);
 	}
 

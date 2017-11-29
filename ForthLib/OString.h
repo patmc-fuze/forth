@@ -14,21 +14,25 @@
 
 namespace OString
 {
-	extern int gDefaultOStringSize;
-
 	extern oString* createOString(int maxChars);
 	extern oString* resizeOString(oStringStruct* pString, int newLen);
 	extern void appendOString(oStringStruct* pString, const char* pSrc, int numNewBytes);
 	extern void prependOString(oStringStruct* pString, const char* pSrc, int numNewBytes);
 
-    extern baseMethodEntry oStringMembers[];
-    extern baseMethodEntry oStringMapMembers[];
-    extern baseMethodEntry oStringMapIterMembers[];
-  
     // functions for string output streams
 	extern void stringCharOut( ForthCoreState* pCore, void *pData, char ch );
 	extern void stringBlockOut( ForthCoreState* pCore, void *pData, const char *pBuffer, int numChars );
 	extern void stringStringOut( ForthCoreState* pCore, void *pData, const char *pBuffer );
     
 	void AddClasses(ForthEngine* pEngine);
+    void createStringMapObject(ForthObject& destObj, ForthClassVocabulary *pClassVocab);
+
+
+    extern int gDefaultOStringSize;
+    extern ForthClassVocabulary* gpStringClassVocab;
+    extern ForthClassVocabulary* gpStringMapClassVocab;
+
+    extern baseMethodEntry oStringMembers[];
+    extern baseMethodEntry oStringMapMembers[];
+    extern baseMethodEntry oStringMapIterMembers[];
 } // namespace oString
