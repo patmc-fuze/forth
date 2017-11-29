@@ -118,7 +118,7 @@ static bool InitSystem()
 	return true;
 }
 	
-int main(int argc, char* argv[] )
+int main(int argc, const char* argv[], const char* envp[] )
 {
     int nRetCode = 0;
     ForthShell *pShell = NULL;
@@ -137,8 +137,7 @@ int main(int argc, char* argv[] )
     {
 		nRetCode = 1;
 //return 0;
-        pShell = new ForthShell;
-        pShell->SetCommandLine( argc, (const char **) (argv));
+        pShell = new ForthShell( argc, (const char **) argv, (const char **) envp);
 		OutputToLogger("created shell\n");
         //pShell->SetEnvironmentVars( (const char **) envp );
 #if 0

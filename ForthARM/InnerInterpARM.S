@@ -199,6 +199,9 @@ filePutString	=		48
     
 	.global fprintfSub, fscanfSub, snprintfSub, sscanfSub, oStringFormatSub, setTraceBop
 
+	.global faddBlockBop, fsubBlockBop, fmulBlockBop, fdivBlockBop, fscaleBlockBop, foffsetBlockBop, fmixBlockBop
+	.global daddBlockBop, dsubBlockBop, dmulBlockBop, ddivBlockBop, dscaleBlockBop, doffsetBlockBop, dmixBlockBop
+
 	.global InterpretOneOpFast
 	
 	.global	break_me
@@ -2837,9 +2840,6 @@ fdivideBop:
 	fsts	s15, [rsp]
 	
 faddBlockBop:
-fsubBlockBop:
-fmulBlockBop:
-fdivBlockBop:
 	@ TOS: num pDst pSrcB pSrcA
 	ldmia	rsp!, {r0-r3}	@ r0 = num  r1 = pDst  r2 = pSrcB  r3 = pSrcA
 .faddBlockBop1:
@@ -2852,6 +2852,51 @@ fdivBlockBop:
     add r1, #4
     subs r0, #1
     bne .faddBlockBop1
+    bx  lr
+
+fsubBlockBop:
+	@ TOS: num pDst pSrcB pSrcA
+	ldmia	rsp!, {r0-r3}	@ r0 = num  r1 = pDst  r2 = pSrcB  r3 = pSrcA
+.fsubBlockBop1:
+    flds    s14, [r2]
+    flds    s15, [r3]
+    fsubs   s15, s15, s14
+    fsts    s15, [r1]
+    add r3, #4
+    add r2, #4
+    add r1, #4
+    subs r0, #1
+    bne .fsubBlockBop1
+    bx  lr
+
+fmulBlockBop:
+	@ TOS: num pDst pSrcB pSrcA
+	ldmia	rsp!, {r0-r3}	@ r0 = num  r1 = pDst  r2 = pSrcB  r3 = pSrcA
+.fmulBlockBop1:
+    flds    s14, [r3]
+    flds    s15, [r2]
+    fmuls   s15, s15, s14
+    fsts    s15, [r1]
+    add r3, #4
+    add r2, #4
+    add r1, #4
+    subs r0, #1
+    bne .fmulBlockBop1
+    bx  lr
+
+fdivBlockBop:
+	@ TOS: num pDst pSrcB pSrcA
+	ldmia	rsp!, {r0-r3}	@ r0 = num  r1 = pDst  r2 = pSrcB  r3 = pSrcA
+.fdivBlockBop1:
+    flds    s14, [r2]
+    flds    s15, [r3]
+    fdivs   s15, s15, s14
+    fsts    s15, [r1]
+    add r3, #4
+    add r2, #4
+    add r1, #4
+    subs r0, #1
+    bne .fdivBlockBop1
     bx  lr
 
 foffsetBlockBop:
@@ -2905,21 +2950,63 @@ fmixBlockBop:
     bx  lr
 	
 daddBlockBop:
-dsubBlockBop:
-dmulBlockBop:
-ddivBlockBop:
 	@ TOS: num pDst pSrcB pSrcA
 	ldmia	rsp!, {r0-r3}	@ r0 = num  r1 = pDst  r2 = pSrcB  r3 = pSrcA
 .daddBlockBop1:
     fldd    d6, [r3]
     fldd    d7, [r2]
-    fadds   d7, d7, d6
+    faddd   d7, d7, d6
     fstd    d7, [r1]
     add r3, #8
     add r2, #8
     add r1, #8
     subs r0, #1
     bne .daddBlockBop1
+    bx  lr
+
+dsubBlockBop:
+	@ TOS: num pDst pSrcB pSrcA
+	ldmia	rsp!, {r0-r3}	@ r0 = num  r1 = pDst  r2 = pSrcB  r3 = pSrcA
+.dsubBlockBop1:
+    fldd    d6, [r2]
+    fldd    d7, [r3]
+    fsubd   d7, d7, d6
+    fstd    d7, [r1]
+    add r3, #8
+    add r2, #8
+    add r1, #8
+    subs r0, #1
+    bne .dsubBlockBop1
+    bx  lr
+
+dmulBlockBop:
+	@ TOS: num pDst pSrcB pSrcA
+	ldmia	rsp!, {r0-r3}	@ r0 = num  r1 = pDst  r2 = pSrcB  r3 = pSrcA
+.dmulBlockBop1:
+    fldd    d6, [r3]
+    fldd    d7, [r2]
+    fmuld   d7, d7, d6
+    fstd    d7, [r1]
+    add r3, #8
+    add r2, #8
+    add r1, #8
+    subs r0, #1
+    bne .dmulBlockBop1
+    bx  lr
+
+ddivBlockBop:
+	@ TOS: num pDst pSrcB pSrcA
+	ldmia	rsp!, {r0-r3}	@ r0 = num  r1 = pDst  r2 = pSrcB  r3 = pSrcA
+.ddivBlockBop1:
+    fldd    d6, [r2]
+    fldd    d7, [r3]
+    fdivd   d7, d7, d6
+    fstd    d7, [r1]
+    add r3, #8
+    add r2, #8
+    add r1, #8
+    subs r0, #1
+    bne .ddivBlockBop1
     bx  lr
 
 dscaleBlockBop:
@@ -2929,9 +3016,9 @@ dscaleBlockBop:
     add rsp, #8
     ldmia   rsp!, {r2,r3}   @ r2 = pDst  r3 = pSrc
 .dscaleBlockBop1:
-    fldd    s15, [r3]
+    fldd    d7, [r3]
     fmuld   d7, d7, d6
-    fstd    s15, [r2]
+    fstd    d7, [r2]
     add r3, #8
     add r2, #8
     subs r0, #1
@@ -2945,9 +3032,9 @@ doffsetBlockBop:
     add rsp, #8
     ldmia   rsp!, {r2,r3}   @ r2 = pDst  r3 = pSrc
 .doffsetBlockBop1:
-    fldd    s15, [r3]
+    fldd    d7, [r3]
     faddd   d7, d7, d6
-    fstd    s15, [r2]
+    fstd    d7, [r2]
     add r3, #8
     add r2, #8
     subs r0, #1
