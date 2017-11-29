@@ -2835,7 +2835,142 @@ fdivideBop:
 	flds	s15, [rsp]
 	fdivs	s15, s15, s14
 	fsts	s15, [rsp]
-	bx	lr
+	
+faddBlockBop:
+fsubBlockBop:
+fmulBlockBop:
+fdivBlockBop:
+	@ TOS: num pDst pSrcB pSrcA
+	ldmia	rsp!, {r0-r3}	@ r0 = num  r1 = pDst  r2 = pSrcB  r3 = pSrcA
+.faddBlockBop1:
+    flds    s14, [r3]
+    flds    s15, [r2]
+    fadds   s15, s15, s14
+    fsts    s15, [r1]
+    add r3, #4
+    add r2, #4
+    add r1, #4
+    subs r0, #1
+    bne .faddBlockBop1
+    bx  lr
+
+foffsetBlockBop:
+	@ TOS: num scale pDst pSrc
+    ldmia   rsp!, {r0}      @ r0 = num
+    flds    s14, [rsp]
+    add rsp, #4
+    ldmia   rsp!, {r2,r3}   @ r2 = pDst  r3 = pSrc
+.foffsetBlockBop1:
+    flds    s15, [r3]
+    fadds   s15, s15, s14
+    fsts    s15, [r2]
+    add r3, #4
+    add r2, #4
+    subs r0, #1
+    bne .foffsetBlockBop1
+    bx  lr
+
+fscaleBlockBop:
+	@ TOS: num scale pDst pSrc
+    ldmia   rsp!, {r0}      @ r0 = num
+    flds    s14, [rsp]
+    add rsp, #4
+    ldmia   rsp!, {r2,r3}   @ r2 = pDst  r3 = pSrc
+.fscaleBlockBop1:
+    flds    s15, [r3]
+    fmuls   s15, s15, s14
+    fsts    s15, [r2]
+    add r3, #4
+    add r2, #4
+    subs r0, #1
+    bne .fscaleBlockBop1
+    bx  lr
+
+fmixBlockBop:
+	@ TOS: num scale pDst pSrc
+    ldmia   rsp!, {r0}      @ r0 = num
+    flds    s14, [rsp]
+    add rsp, #4
+    ldmia   rsp!, {r2,r3}   @ r2 = pDst  r3 = pSrc
+.fmixBlockBop1:
+    flds    s15, [r3]
+    fmuls   s15, s15, s14
+    flds    s13, [r2]
+    fadds   s15, s15, s13
+    fsts    s15, [r2]
+    add r3, #4
+    add r2, #4
+    subs r0, #1
+    bne .fmixBlockBop1
+    bx  lr
+	
+daddBlockBop:
+dsubBlockBop:
+dmulBlockBop:
+ddivBlockBop:
+	@ TOS: num pDst pSrcB pSrcA
+	ldmia	rsp!, {r0-r3}	@ r0 = num  r1 = pDst  r2 = pSrcB  r3 = pSrcA
+.daddBlockBop1:
+    fldd    d6, [r3]
+    fldd    d7, [r2]
+    fadds   d7, d7, d6
+    fstd    d7, [r1]
+    add r3, #8
+    add r2, #8
+    add r1, #8
+    subs r0, #1
+    bne .daddBlockBop1
+    bx  lr
+
+dscaleBlockBop:
+	@ TOS: num scale pDst pSrc
+    ldmia   rsp!, {r0}      @ r0 = num
+    fldd    d6, [rsp]
+    add rsp, #8
+    ldmia   rsp!, {r2,r3}   @ r2 = pDst  r3 = pSrc
+.dscaleBlockBop1:
+    fldd    s15, [r3]
+    fmuld   d7, d7, d6
+    fstd    s15, [r2]
+    add r3, #8
+    add r2, #8
+    subs r0, #1
+    bne .dscaleBlockBop1
+    bx  lr
+
+doffsetBlockBop:
+	@ TOS: num scale pDst pSrc
+    ldmia   rsp!, {r0}      @ r0 = num
+    fldd    d6, [rsp]
+    add rsp, #8
+    ldmia   rsp!, {r2,r3}   @ r2 = pDst  r3 = pSrc
+.doffsetBlockBop1:
+    fldd    s15, [r3]
+    faddd   d7, d7, d6
+    fstd    s15, [r2]
+    add r3, #8
+    add r2, #8
+    subs r0, #1
+    bne .doffsetBlockBop1
+    bx  lr
+
+dmixBlockBop:
+	@ TOS: num scale pDst pSrc
+    ldmia   rsp!, {r0}      @ r0 = num
+    fldd    d6, [rsp]
+    add rsp, #8
+    ldmia   rsp!, {r2,r3}   @ r2 = pDst  r3 = pSrc
+.dmixBlockBop1:
+    fldd    d7, [r3]
+    fmuld   d7, d7, d6
+    fldd    d5, [r2]
+    faddd   d7, d7, d5
+    fstd    d7, [r2]
+    add r3, #8
+    add r2, #8
+    subs r0, #1
+    bne .dmixBlockBop1
+    bx  lr
 	
 @#############################################@
 @                                             @
