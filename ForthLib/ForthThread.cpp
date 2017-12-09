@@ -602,7 +602,7 @@ namespace OThread
 
 	FORTHOP(oAsyncThreadNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an AsyncThread object");
+		GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create an AsyncThread object");
 	}
 
 	FORTHOP(oAsyncThreadDeleteMethod)
@@ -747,7 +747,7 @@ namespace OThread
 
 	FORTHOP(oThreadNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a Thread object");
+		GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create a Thread object");
 	}
 
 	FORTHOP(oThreadDeleteMethod)
@@ -963,7 +963,7 @@ namespace OLock
 
 	FORTHOP(oAsyncLockNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an AsyncLock object");
+		GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create an AsyncLock object");
 	}
 
 	FORTHOP(oAsyncLockDeleteMethod)
@@ -1082,7 +1082,7 @@ namespace OLock
 	FORTHOP(oLockDeleteMethod)
 	{
 		GET_THIS(oLockStruct, pLockStruct);
-		GET_ENGINE->SetError(kForthErrorException, " OLock.delete called with threads blocked on lock");
+		GET_ENGINE->SetError(kForthErrorIllegalOperation, " OLock.delete called with threads blocked on lock");
 
 #ifdef WIN32
         DeleteCriticalSection(pLockStruct->pLock);
@@ -1109,7 +1109,7 @@ namespace OLock
 		{
 			if (pLockStruct->lockDepth != 0)
 			{
-				GET_ENGINE->SetError(kForthErrorException, " OLock.grab called with no lock holder and lock depth not 0");
+				GET_ENGINE->SetError(kForthErrorIllegalOperation, " OLock.grab called with no lock holder and lock depth not 0");
 			}
 			else
 			{
@@ -1154,7 +1154,7 @@ namespace OLock
 		{
 			if (pLockStruct->lockDepth != 0)
 			{
-				GET_ENGINE->SetError(kForthErrorException, " OLock.tryGrab called with no lock holder and lock depth not 0");
+				GET_ENGINE->SetError(kForthErrorIllegalOperation, " OLock.tryGrab called with no lock holder and lock depth not 0");
 			}
 			else
 			{
@@ -1192,19 +1192,19 @@ namespace OLock
 
 		if (pLockStruct->pLockHolder == nullptr)
 		{
-			GET_ENGINE->SetError(kForthErrorException, " OLock.ungrab called on ungrabbed lock");
+			GET_ENGINE->SetError(kForthErrorIllegalOperation, " OLock.ungrab called on ungrabbed lock");
 		}
 		else
 		{
 			if (pLockStruct->pLockHolder != (ForthThread*)(pCore->pThread))
 			{
-				GET_ENGINE->SetError(kForthErrorException, " OLock.ungrab called by thread which does not have lock");
+				GET_ENGINE->SetError(kForthErrorIllegalOperation, " OLock.ungrab called by thread which does not have lock");
 			}
 			else
 			{
 				if (pLockStruct->lockDepth <= 0)
 				{
-					GET_ENGINE->SetError(kForthErrorException, " OLock.ungrab called with lock depth <= 0");
+					GET_ENGINE->SetError(kForthErrorIllegalOperation, " OLock.ungrab called with lock depth <= 0");
 				}
 				else
 				{

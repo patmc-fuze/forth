@@ -77,7 +77,10 @@ kForthErrorBadReferenceCount		EQU		24
 kForthErrorIO						EQU		25
 kForthErrorBadObject				EQU		26
 kForthErrorStringOverflow			EQU		27
-kForthNumErrors						EQU		28
+kForthErrorBadArrayIndex			EQU		28
+kForthErrorIllegalOperation			EQU		29
+kForthErrorOSException				EQU		30
+kForthNumErrors						EQU		31
 
 kPrintSignedDecimal		EQU		0
 kPrintAllSigned		EQU		1

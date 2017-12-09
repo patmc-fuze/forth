@@ -151,7 +151,7 @@ static const char *pErrorStrings[] =
     "Aborted",
     "Can't Forget Builtin Op",
     "Bad Method Number",
-    "Unhandled Exception",
+    "Exception",
     "Missing Preceeding Size Constant",
     "Error In Struct Definition",
     "Error In User-Defined Op",
@@ -166,6 +166,8 @@ static const char *pErrorStrings[] =
 	"Bad Object",
     "StringOverflow",
 	"Bad Array Index",
+    "Illegal Operation",
+    "System Exception"
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -2139,7 +2141,7 @@ ForthEngine::FullyExecuteOp(ForthCoreState* pCore, long opCode)
 	eForthResult exitStatus = ExecuteOps(pCore, &(opScratch[0]));
 	if (exitStatus == kResultYield)
 	{
-		SetError(kForthErrorException, " yield not allowed in FullyExecuteOp");
+		SetError(kForthErrorIllegalOperation, " yield not allowed in FullyExecuteOp");
 	}
 
 	return exitStatus;
@@ -2212,7 +2214,7 @@ ForthEngine::FullyExecuteMethod(ForthCoreState* pCore, ForthObject& obj, long me
 
 	if (exitStatus == kResultYield)
 	{
-		SetError(kForthErrorException, " yield not allowed in FullyExecuteMethod");
+		SetError(kForthErrorIllegalOperation, " yield not allowed in FullyExecuteMethod");
 	}
 	return exitStatus;
 }

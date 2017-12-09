@@ -31,10 +31,7 @@ autoforget BUILTIN_CLASS_TEST
 // LongArray: resize ref(N) get(N) set(OBJ N) findIndex(OBJ) push(BYTE) pop base
 // LongArrayIter: 
 
-// Int: get set(N) show compare(N)
-// Long: get set(N) show compare(N)
-// Float: get set(N) show compare(N)
-// Double: get set(N) show compare(N)
+// Int Long Float Double: get set(N) show compare(N)
 
 // Thread: init(PSTACK_SIZE RSTACK_SIZE OP) start push(N) pop rpush(N) rpop getState step reset
 

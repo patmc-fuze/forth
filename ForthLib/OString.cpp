@@ -311,10 +311,7 @@ namespace OString
 		long newLen = SPOP;
 		oString* dst = resizeOString(pString, newLen);
 		dst->data[newLen] = '\0';
-		if ( dst->curLen > dst->maxLen )
-		{
-			dst->curLen = dst->maxLen;
-		}
+        dst->curLen = newLen;
         METHOD_RETURN;
     }
 
@@ -329,7 +326,7 @@ namespace OString
             pEngine->SetError(kForthErrorBadParameter, " OString.leftBytes negative length");
             newLen = 0;
         }
-        else if (newLen < str->curLen)
+        else if (newLen > str->curLen)
         {
             newLen = str->curLen;
         }
@@ -621,11 +618,11 @@ namespace OString
 	{
 		GET_THIS(oStringStruct, pString);
 		
-		ForthObject dstArrayObj;
+        int delimiter = SPOP;
+
+        ForthObject dstArrayObj;
 		POP_OBJECT(dstArrayObj);
 		oArrayStruct* pArray = (oArrayStruct *)(dstArrayObj.pData);
-
-		int delimiter = SPOP;
 
 		if ((pArray != nullptr) && (pString->str->curLen != 0))
 		{
@@ -682,7 +679,9 @@ namespace OString
 		oArray::iterator iter;
 		oArray& a = *(pArray->elements);
 		bool firstTime = true;
-		for (iter = a.begin(); iter != a.end(); ++iter)
+        pString->str->curLen = 0;
+        pString->str->data[0] = '\0';
+        for (iter = a.begin(); iter != a.end(); ++iter)
 		{
 			ForthObject& o = *iter;
 			oStringStruct* pStr = (oStringStruct *)o.pData;
@@ -780,7 +779,7 @@ namespace OString
 		char* pDst = &(dst->data[0]);
 		for (int i = dst->curLen; i >0; --i)
 		{
-			*pDst = toupper(*pDst);
+			*pDst = tolower(*pDst);
 			pDst++;
 		}
 		METHOD_RETURN;
@@ -1225,7 +1224,7 @@ namespace OString
 	FORTHOP(oStringMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oStringMapIter object");
+		pEngine->SetError(kForthErrorIllegalOperation, " cannot explicitly create a oStringMapIter object");
 	}
 
 	FORTHOP(oStringMapIterDeleteMethod)

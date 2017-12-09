@@ -85,6 +85,8 @@ typedef enum
 	kBCIFunctionOutStream,
 	kBCITraceOutStream,
     kBCIBlockFile,
+    kBCIBag,
+    kBCIBagIter,
 	kNumBuiltinClasses		// must be last
 } eBuiltinClassIndex;
 
@@ -187,6 +189,20 @@ struct oStringStruct
 	ulong		refCount;
 	ulong		hash;
 	oString*	str;
+};
+
+typedef std::map<long long, ForthObject> oLongMap;
+struct oLongMapStruct
+{
+    ulong       refCount;
+    oLongMap*	elements;
+};
+
+struct oLongMapIterStruct
+{
+    ulong				refCount;
+    ForthObject			parent;
+    oLongMap::iterator*	cursor;
 };
 
 class ForthForgettableGlobalObject : public ForthForgettable
