@@ -1170,6 +1170,77 @@ FORTHOP(initStructArrayOp)
 
 //##############################
 //
+//  exception handling ops
+//
+FORTHOP(doTryOp)
+{
+    long* IP = GET_IP;
+    RPUSH((long) IP);
+    RPUSH((long) GET_SP);
+    RPUSH((long) pCore->pExceptionFrame);
+    pCore->pExceptionFrame = GET_RP;
+    SET_IP(IP + 2);
+}
+
+FORTHOP(tryOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+    pEngine->CompileBuiltinOpcode(OP_DO_TRY);
+    SPUSH((long) GET_DP);
+    pEngine->CompileLong(0);
+    pEngine->CompileLong(0);
+}
+
+FORTHOP(doCatchOp)
+{
+    pCore->pExceptionFrame = (long *)(RPOP);
+    RPOP;
+    long* pHandlerIPs = (long *)(RPOP);
+    SET_IP((long *)(pHandlerIPs[1]));
+}
+
+FORTHOP(catchOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+    long* pHandlerIPs = (long *)(*GET_SP);
+    pEngine->CompileBuiltinOpcode(OP_DO_CATCH);
+    *pHandlerIPs = (long)(GET_DP);
+}
+
+FORTHOP(endtryOp)
+{
+    long* pHandlerIPs = (long *)(SPOP);
+    pHandlerIPs[1] = (long)(GET_DP);
+}
+
+FORTHOP(throwOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+    long exceptionNum = SPOP;
+    //SET_SP((long *)(RPOP));
+    char errorMsg[128];
+    long **pExceptionFrame = (long **)(pCore->pExceptionFrame);
+    if (pExceptionFrame != nullptr)
+    {
+        pCore->pExceptionFrame = *pExceptionFrame;
+        SET_SP(pExceptionFrame[1]);
+        SPUSH(exceptionNum);
+        long *catchIP = (long *)*(pExceptionFrame[2]);
+        SET_IP(catchIP);
+        SET_RP((long *)(pExceptionFrame + 3));
+    }
+    else
+    {
+        snprintf(errorMsg, sizeof(errorMsg), "Unhandled exception of type %d", exceptionNum);
+        pEngine->SetError(kForthErrorException, errorMsg);
+    }
+}
+
+//##############################
+//
 //  forth defining ops
 //
 
@@ -8646,6 +8717,8 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
 	OP_COMPILED_DEF(		initStructArrayOp,      "initStructArray",	OP_INIT_STRUCT_ARRAY ),
 	NATIVE_COMPILED_DEF(    dupBop,					"dup",				OP_DUP ),
 	NATIVE_COMPILED_DEF(    overBop,				"over",				OP_OVER ),
+    OP_COMPILED_DEF(        doTryOp,                "_doTry",           OP_DO_TRY ),
+    OP_COMPILED_DEF(        doCatchOp,              "_doCatch",         OP_DO_CATCH ),
 
     // following must be last in table
     OP_COMPILED_DEF(		NULL,                   NULL,					-1 )
@@ -9405,6 +9478,14 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF( getCurrentThreadOp,         "getCurrentThread"),
 	OP_DEF( getCurrentAsyncThreadOp,    "getCurrentAsyncThread"),
 	
+    ///////////////////////////////////////////
+    //  threads
+    ///////////////////////////////////////////
+    PRECOP_DEF( tryOp,                  "try"),
+    PRECOP_DEF( endtryOp,               "endtry"),
+    PRECOP_DEF( catchOp,                "catch"),
+    OP_DEF( throwOp,                    "throw"),
+
 #ifdef WIN32
     ///////////////////////////////////////////
     //  Windows support

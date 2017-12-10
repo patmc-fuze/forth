@@ -168,6 +168,7 @@ STRUC FCore
     .base				RESD 1
     .signedPrintMode	RESD 1
     .traceFlags			RESD 1
+	.ExceptionPtr		RESD 1
     .scratch            RESD 4
 ENDSTRUC 
 

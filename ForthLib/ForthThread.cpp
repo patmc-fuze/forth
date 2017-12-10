@@ -182,6 +182,7 @@ ForthThread::Reset( void )
     mCore.signedPrintMode = kPrintSignedDecimal;
 	mCore.IP = &(mOps[0]);
     mCore.traceFlags = 0;
+    mCore.pExceptionFrame = nullptr;
 	//mCore.IP = nullptr;
 
 	if (mpShowContext != NULL)
