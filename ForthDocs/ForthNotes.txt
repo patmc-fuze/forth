@@ -176,6 +176,14 @@ Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 9 2017
 
+I added basic exception handling - try...catch...endtry and throw.
+I should change recoverable errors, like bad array indices, into exceptions.
+This will allow better testing of classes.
+Things that should eventually be added:
+o add registering exception numbers with a string message
+  o register kernel exceptions like bad array index
+o 'finally' clause
+o use shell stack for better compile error reporting
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 5 2017
 

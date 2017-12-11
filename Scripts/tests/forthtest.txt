@@ -288,52 +288,6 @@ test[ checkResult( testBuff2.get ) ]
 
 test[ 0xDEADBEEF 123456789 l= ]	// check for stack underflow or extra items
 
-// Int Float Double Long
-mko Int mostRandomNumber   mostRandomNumber.set(17)
-mko Int theAnswer   theAnswer.set(42)
-test[ mostRandomNumber.value 2* 8+ theAnswer.get = ]
-test[ mostRandomNumber.compare(theAnswer) 0< ]
-
-mko Float fluffy   fluffy.set(5.625)
-mko Float froofy   froofy.set(i2f(44))
-test[ fluffy.value 8.0 f* 45.0 f= ]
-test[ fluffy.get 1.0 f+ 6.625 f= ]
-test[ fluffy.set(fluffy.value 8.0 f*)  fluffy.compare(froofy) 0> ]
-
-mko Double dribble   dribble.set(11.0625L)
-mko Double drabble  drabble.set(i2d(mostRandomNumber.get))
-test[ dribble.get 0.9375L d+ 12 i2d d= ]
-test[ dribble.set(dribble.value 5.9375L d+) drabble.compare(dribble) 0= ]
-
-
-// String
-
-mko Array arr
-mko String donner   donner.set("Donner")
-mko String blitzen   blitzen.set("Blitzen")
-mko String rudy
-test[ blitzen.compare(donner) 0< ]
-test[ donner.length 6 = blitzen.length 7 = ]
-test[ donner.size donner.length >=  blitzen.size blitzen.length >= ]
-test[ strcmp(blitzen.get "Blitzen") 0=   strcmp(blitzen.get "Blitzend") 0<  strcmp(blitzen.get "Blitze") 0> ]
-test[ rudy.copy(blitzen)   rudy.keepLeft(5)  rudy.appendBytes("krieg" 5)   strcmp(rudy.get "Blitzkrieg") 0= ]
-test[ rudy.clear rudy.length 0= ]
-test[ rudy.copy(donner) rudy.append(" Part") rudy.appendChar('y') rudy.prepend("The ") strcmp(rudy.get "The Donner Party") 0= ]
-test[ donner.toLower strcmp(donner.get "donner") 0=  donner.toUpper strcmp(donner.get "DONNER") 0= ]
-test[ donner.replaceChar('N' 'l') strcmp(donner.get "DOllER") 0= ]
-test[ rudy.split(arr '\ ') rudy.join(arr "_") rudy.equals("The_Donner_Party") not(rudy.equals("foo")) ]
-test[ rudy.startsWith("Th") not(rudy.startsWith("bl")) rudy.endsWith("rty") not(rudy.endsWith("vw")) ]
-test[ rudy.contains("onne") not(rudy.contains("cheesecake")) ]
-test[ rudy.copy(donner) rudy.resize(3) rudy.length 3 = rudy.equals("DOl") ]
-test[ rudy.getBytes 3 = swap strcmp("Don") ]
-test[ rudy.setBytes("spoofity" 5) rudy.equals("spoof") ]
-test[ rudy.appendBytes("ishness" 3) rudy.equals("spoofish") ]
-test[ rudy.prependBytes("unti" 2) rudy.equals("unspoofish") ]
-test[ rudy.hash 0<> ]
-test[ rudy.format("all %d %s" 9 "yards" 2) rudy.equals("all 9 yards") ]
-test[ rudy.appendFormatted(" of %s" "ale" 1) rudy.equals("all 9 yards of ale") ]
-test[ 0 rudy.get 5+ c! rudy.fixup rudy.length 5 = ]
-
 
 ///////////////////////////////////////////////////////////
 // test $evaluate

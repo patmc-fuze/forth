@@ -1220,23 +1220,7 @@ FORTHOP(throwOp)
     ForthEngine *pEngine = GET_ENGINE;
 
     long exceptionNum = SPOP;
-    //SET_SP((long *)(RPOP));
-    char errorMsg[128];
-    long **pExceptionFrame = (long **)(pCore->pExceptionFrame);
-    if (pExceptionFrame != nullptr)
-    {
-        pCore->pExceptionFrame = *pExceptionFrame;
-        SET_SP(pExceptionFrame[1]);
-        SPUSH(exceptionNum);
-        long *catchIP = (long *)*(pExceptionFrame[2]);
-        SET_IP(catchIP);
-        SET_RP((long *)(pExceptionFrame + 3));
-    }
-    else
-    {
-        snprintf(errorMsg, sizeof(errorMsg), "Unhandled exception of type %d", exceptionNum);
-        pEngine->SetError(kForthErrorException, errorMsg);
-    }
+    pEngine->ThrowException(pCore, exceptionNum);
 }
 
 //##############################
@@ -7888,6 +7872,20 @@ FORTHOP( stricmpBop )
 	SPUSH( (long) result );
 }
 
+FORTHOP(strncmpBop)
+{
+    int numChars = SPOP;
+    char *pStr2 = (char *)SPOP;
+    char *pStr1 = (char *)SPOP;
+    int result = strncmp(pStr1, pStr2, numChars);
+    // only return 1, 0 or -1
+    if (result != 0)
+    {
+        result = (result > 0) ? 1 : -1;
+    }
+    SPUSH((long)result);
+}
+
 
 FORTHOP( strstrBop )
 {
@@ -8625,7 +8623,7 @@ OPREF( fatan2Bop );         OPREF( fexpBop );           OPREF( flnBop );
 OPREF( flog10Bop );         OPREF( fpowBop );           OPREF( fsqrtBop );
 OPREF( fceilBop );          OPREF( ffloorBop );         OPREF( fabsBop );
 OPREF( fldexpBop );         OPREF( ffrexpBop );         OPREF( fmodfBop );
-OPREF( ffmodBop );          OPREF( setTraceBop );
+OPREF( ffmodBop );          OPREF( setTraceBop );       OPREF( strncmpBop );
 OPREF(faddBlockBop);        OPREF(fsubBlockBop);        OPREF(fmulBlockBop);
 OPREF(fdivBlockBop);        OPREF(fscaleBlockBop);      OPREF(foffsetBlockBop);
 OPREF(fmixBlockBop);
@@ -9046,6 +9044,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    strrchrBop,              "strrchr" ),
     NATIVE_DEF(    strcmpBop,               "strcmp" ),
     NATIVE_DEF(    stricmpBop,              "stricmp" ),
+    NATIVE_DEF(    strncmpBop,              "strncmp" ),
     NATIVE_DEF(    strstrBop,               "strstr" ),
     NATIVE_DEF(    strtokBop,               "strtok" ),
     NATIVE_DEF(    strFixupBop,             "$fixup" ),

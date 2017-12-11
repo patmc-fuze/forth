@@ -5924,6 +5924,36 @@ entry stricmpBop
 	
 ;========================================
 
+entry strncmpBop
+	;	TOS: numChars ptr2 ptr1
+	push	edx
+	push	esi
+    sub esp, 8     ; 16-byte align for mac
+	mov	eax, [edx]
+	push	eax
+	mov	eax, [edx+4]
+	push	eax
+	mov	eax, [edx+8]
+	push	eax
+	xcall	strncmp
+strncmp1:
+	xor	ebx, ebx
+	cmp	eax, ebx
+	jz	strncmp3		; if strings equal, return 0
+	jg	strncmp2
+	sub	ebx, 2
+strncmp2:
+	inc	ebx
+strncmp3:
+	add	esp, 20
+	pop	esi
+	pop	edx
+	add	edx, 8
+	mov	[edx], ebx
+	jmp	edi
+	
+;========================================
+
 entry strstrBop
 	;	TOS: ptr2 ptr1
 	push	edx

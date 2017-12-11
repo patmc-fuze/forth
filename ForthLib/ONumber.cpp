@@ -72,7 +72,7 @@ namespace ONumber
     FORTHOP(oIntGetSignedShortMethod)
     {
         GET_THIS(oIntStruct, pInt);
-        int val = pInt->val & 0xFF;
+        int val = pInt->val & 0xFFFF;
         if (val > 0x7FFF)
         {
             val |= 0xFFFF0000;

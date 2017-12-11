@@ -323,7 +323,7 @@ namespace OString
         if (newLen < 0)
         {
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            pEngine->SetError(kForthErrorBadParameter, " OString.leftBytes negative length");
+            pEngine->SetError(kForthErrorBadParameter, " String.keepLeft negative length");
             newLen = 0;
         }
         else if (newLen > str->curLen)
@@ -344,7 +344,7 @@ namespace OString
         if (newLen < 0)
         {
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            pEngine->SetError(kForthErrorBadParameter, " OString.rightBytes negative length");
+            pEngine->SetError(kForthErrorBadParameter, " String.keepRight negative length");
             newLen = 0;
         }
         else if (newLen < str->curLen)
@@ -370,11 +370,11 @@ namespace OString
         ForthEngine *pEngine = ForthEngine::GetInstance();
         if (firstChar < 0)
         {
-            pEngine->SetError(kForthErrorBadParameter, " OString.mid negative first character");
+            pEngine->SetError(kForthErrorBadParameter, " String.keepMiddle negative first character");
         }
         else if (newLen < 0)
         {
-            pEngine->SetError(kForthErrorBadParameter, " OString.mid negative length");
+            pEngine->SetError(kForthErrorBadParameter, " String.keepMiddle negative length");
         }
         else
         {
@@ -416,10 +416,10 @@ namespace OString
         if (newLen < 0)
         {
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            pEngine->SetError(kForthErrorBadParameter, " OString.leftBytes negative length");
+            pEngine->SetError(kForthErrorBadParameter, " String.leftBytes negative length");
             newLen = 0;
         }
-        else if (newLen < str->curLen)
+        else if (newLen > str->curLen)
         {
             newLen = str->curLen;
         }
@@ -437,7 +437,7 @@ namespace OString
         if (newLen < 0)
         {
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            pEngine->SetError(kForthErrorBadParameter, " OString.rightBytes negative length");
+            pEngine->SetError(kForthErrorBadParameter, " String.rightBytes negative length");
             newLen = 0;
         }
         else if (newLen >= str->curLen)
@@ -464,12 +464,12 @@ namespace OString
         if (firstChar < 0)
         {
             newLen = 0;
-            pEngine->SetError(kForthErrorBadParameter, " OString.mid negative first character");
+            pEngine->SetError(kForthErrorBadParameter, " String.middleBytes negative first character");
         }
         else if (newLen < 0)
         {
             newLen = 0;
-            pEngine->SetError(kForthErrorBadParameter, " OString.mid negative length");
+            pEngine->SetError(kForthErrorBadParameter, " String.middleBytes negative length");
         }
         else
         {
@@ -491,8 +491,8 @@ namespace OString
             }
         }
 
-        SPUSH(newLen);
         SPUSH((long)(pBytes));
+        SPUSH(newLen);
         METHOD_RETURN;
     }
 

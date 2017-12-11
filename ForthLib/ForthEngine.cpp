@@ -2839,6 +2839,26 @@ void ForthEngine::UngrabTempBuffer()
 #endif
 }
 
+void ForthEngine::ThrowException(ForthCoreState *pCore, long exceptionNum)
+{
+    char errorMsg[64];
+    long **pExceptionFrame = (long **)(pCore->pExceptionFrame);
+    if (pExceptionFrame != nullptr)
+    {
+        pCore->pExceptionFrame = *pExceptionFrame;
+        SET_SP(pExceptionFrame[1]);
+        SPUSH(exceptionNum);
+        long *catchIP = (long *)*(pExceptionFrame[2]);
+        SET_IP(catchIP);
+        SET_RP((long *)(pExceptionFrame + 3));
+    }
+    else
+    {
+        snprintf(errorMsg, sizeof(errorMsg), "Unhandled exception of type %d", exceptionNum);
+        SetError(kForthErrorException, errorMsg);
+    }
+}
+
 //############################################################################
 //
 //          O U T E R    I N T E R P R E T E R  (sort of)

@@ -158,6 +158,11 @@ struct: ForthCoreState
   ptrTo int     pDefaultInFile         // FILE*
   int           base                   // output base
   int           signedPrintMode        // if numers are printed as signed/unsigned
+
+  int           traceFlags             // trace flag bits
+
+  ptrTo int     pExceptionFrame        // points to current exception handler frame in rstack
+
 ;struct
 
 -> features
