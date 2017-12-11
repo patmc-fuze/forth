@@ -413,7 +413,7 @@ namespace OMap
 	FORTHOP(oMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a MapIter object");
+		pEngine->SetError(kForthErrorIllegalOperation, " cannot explicitly create a MapIter object");
 	}
 
 	FORTHOP(oMapIterDeleteMethod)
@@ -962,7 +962,7 @@ namespace OMap
 	FORTHOP(oIntMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create an IntMapIter object");
+		pEngine->SetError(kForthErrorIllegalOperation, " cannot explicitly create an IntMapIter object");
 	}
 
 	FORTHOP(oIntMapIterDeleteMethod)
@@ -1453,29 +1453,24 @@ namespace OMap
 	//                 LongMap
 	//
 
-	typedef std::map<long long, ForthObject> oLongMap;
-	struct oLongMapStruct
-	{
-		ulong       refCount;
-		oLongMap*	elements;
-	};
+    ForthClassVocabulary* gpLongMapClassVocab = nullptr;
 
-	struct oLongMapIterStruct
-	{
-		ulong				refCount;
-		ForthObject			parent;
-		oLongMap::iterator*	cursor;
-	};
+    void createLongMapObject(ForthObject& destObj, ForthClassVocabulary *pClassVocab)
+    {
+        destObj.pMethodOps = pClassVocab->GetInterface(0)->GetMethods();
 
+        MALLOCATE_OBJECT(oLongMapStruct, pMap, pClassVocab);
+        pMap->refCount = 0;
+        pMap->elements = new oLongMap;
+        destObj.pData = (long *)pMap;
+    }
 
-	FORTHOP(oLongMapNew)
+    FORTHOP(oLongMapNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oLongMapStruct, pMap, pClassVocab);
-		pMap->refCount = 0;
-		pMap->elements = new oLongMap;
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pMap);
+        ForthObject newMap;
+        createLongMapObject(newMap, pClassVocab);
+        PUSH_OBJECT(newMap);
 	}
 
 	FORTHOP(oLongMapDeleteMethod)
@@ -1815,7 +1810,7 @@ namespace OMap
 	FORTHOP(oLongMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a LongMapIter object");
+		pEngine->SetError(kForthErrorIllegalOperation, " cannot explicitly create a LongMapIter object");
 	}
 
 	FORTHOP(oLongMapIterDeleteMethod)
@@ -2355,7 +2350,7 @@ namespace OMap
 	FORTHOP(oDoubleMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a DoubleMapIter object");
+		pEngine->SetError(kForthErrorIllegalOperation, " cannot explicitly create a DoubleMapIter object");
 	}
 
 	FORTHOP(oDoubleMapIterDeleteMethod)
@@ -2825,7 +2820,7 @@ namespace OMap
 	FORTHOP(oStringIntMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a StringIntMapIter object");
+		pEngine->SetError(kForthErrorIllegalOperation, " cannot explicitly create a StringIntMapIter object");
 	}
 
 	FORTHOP(oStringIntMapIterDeleteMethod)
@@ -3358,7 +3353,7 @@ namespace OMap
 	FORTHOP(oStringLongMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a StringLongMapIter object");
+		pEngine->SetError(kForthErrorIllegalOperation, " cannot explicitly create a StringLongMapIter object");
 	}
 
 	FORTHOP(oStringLongMapIterDeleteMethod)
@@ -3616,7 +3611,7 @@ namespace OMap
 		pEngine->AddBuiltinClass("FloatMap", kBCIFloatMap, kBCIIntMap, oFloatMapMembers);
 		pEngine->AddBuiltinClass("FloatMapIter", kBCIFloatMapIter, kBCIIter, oIntMapIterMembers);
 
-		pEngine->AddBuiltinClass("LongMap", kBCILongMap, kBCIIterable, oLongMapMembers);
+        gpLongMapClassVocab = pEngine->AddBuiltinClass("LongMap", kBCILongMap, kBCIIterable, oLongMapMembers);
 		pEngine->AddBuiltinClass("LongMapIter", kBCILongMapIter, kBCIIter, oLongMapIterMembers);
 
 		pEngine->AddBuiltinClass("DoubleMap", kBCIDoubleMap, kBCILongMap, oDoubleMapMembers);

@@ -18,6 +18,7 @@
 
 #include "OArray.h"
 #include "OList.h"
+#include "OMap.h"
 
 extern "C" {
 	extern void unimplementedMethodOp(ForthCoreState *pCore);
@@ -43,15 +44,25 @@ namespace OArray
 	//                 Array
 	//
 
+    ForthClassVocabulary* gpArrayClassVocab = nullptr;
+
+    void createArrayObject(ForthObject& destObj, ForthClassVocabulary *pClassVocab)
+    {
+        destObj.pMethodOps = pClassVocab->GetInterface(0)->GetMethods();
+
+        MALLOCATE_OBJECT(oArrayStruct, pArray, pClassVocab);
+        pArray->refCount = 0;
+        pArray->elements = new oArray;
+        destObj.pData = (long *) pArray;
+    }
+
 	FORTHOP(oArrayNew)
 	{
-		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oArrayStruct, pArray, pClassVocab);
-		pArray->refCount = 0;
-		pArray->elements = new oArray;
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pArray);
-	}
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
+        ForthObject newArray;
+        createArrayObject(newArray, pClassVocab);
+        PUSH_OBJECT(newArray);
+    }
 
 	FORTHOP(oArrayDeleteMethod)
 	{
@@ -700,7 +711,7 @@ namespace OArray
 
 	FORTHOP(oArrayIterNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an ArrayIter object");
+		GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create an ArrayIter object");
 	}
 
 	FORTHOP(oArrayIterDeleteMethod)
@@ -853,7 +864,7 @@ namespace OArray
 		fobj.pMethodOps = NULL;
 		if (pIter->cursor < a.size())
 		{
-			ForthObject fobj = a[pIter->cursor];
+			fobj = a[pIter->cursor];
 			unrefObject(fobj);
 			a[pIter->cursor].pData = NULL;
 			a[pIter->cursor].pMethodOps = NULL;
@@ -958,7 +969,950 @@ namespace OArray
 	};
 
 
-	//////////////////////////////////////////////////////////////////////
+    struct bagElement
+    {
+        stackInt64   tag;
+        ForthObject obj;
+    };
+
+    typedef std::vector<bagElement> oBag;
+    struct oBagStruct
+    {
+        ulong       refCount;
+        oBag*    elements;
+    };
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 Bag
+    //
+
+    ForthClassVocabulary* gpBagClassVocab = nullptr;
+
+    void createBagObject(ForthObject& destObj, ForthClassVocabulary *pClassVocab)
+    {
+        destObj.pMethodOps = pClassVocab->GetInterface(0)->GetMethods();
+
+        MALLOCATE_OBJECT(oBagStruct, pBag, pClassVocab);
+        pBag->refCount = 0;
+        pBag->elements = new oBag;
+        destObj.pData = (long *)pBag;
+    }
+
+    FORTHOP(oBagNew)
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
+        ForthObject newBag;
+        createBagObject(newBag, pClassVocab);
+        PUSH_OBJECT(newBag);
+    }
+
+    FORTHOP(oBagDeleteMethod)
+    {
+        // go through all elements and release any which are not null
+        GET_THIS(oBagStruct, pBag);
+        oBag::iterator iter;
+        oBag& a = *(pBag->elements);
+        for (iter = a.begin(); iter != a.end(); ++iter)
+        {
+            bagElement& element = *iter;
+            SAFE_RELEASE(pCore, element.obj);
+        }
+        delete pBag->elements;
+        FREE_OBJECT(pBag);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagShowMethod)
+    {
+        EXIT_IF_OBJECT_ALREADY_SHOWN;
+        GET_THIS(oBagStruct, pBag);
+        oBag::iterator iter;
+        oBag& a = *(pBag->elements);
+        char tag[12] = "12345678\0";
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        pShowContext->BeginIndent();
+        SHOW_OBJ_HEADER;
+        pShowContext->ShowIndent("'elements' : {");
+        if (a.size() > 0)
+        {
+            pShowContext->EndElement();
+            // TODO: show tag
+            pShowContext->BeginIndent();
+            for (iter = a.begin(); iter != a.end(); ++iter)
+            {
+                if (iter != a.begin())
+                {
+                    pShowContext->EndElement(",");
+                }
+                bagElement& element = *iter;
+                ForthObject& o = element.obj;
+                pShowContext->ShowIndent("'");
+                *((long long *)&tag[0]) = element.tag.s64;
+                pEngine->ConsoleOut(tag);
+                pEngine->ConsoleOut("' : ");
+                ForthShowObject(o, pCore);
+            }
+            pShowContext->EndElement();
+            pShowContext->EndIndent();
+            pShowContext->ShowIndent();
+        }
+        pShowContext->EndElement("}");
+        pShowContext->EndIndent();
+        pShowContext->ShowIndent("}");
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagGetMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        ulong ix = (ulong)SPOP;
+        if (a.size() > ix)
+        {
+            bagElement& element = a[ix];
+            PUSH_OBJECT(element.obj);
+            LPUSH(element.tag);
+        }
+        else
+        {
+            ReportBadArrayIndex("OBag:get", ix, a.size());
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagGetObjectMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        ulong ix = (ulong)SPOP;
+        if (a.size() > ix)
+        {
+            bagElement& element = a[ix];
+            PUSH_OBJECT(element.obj);
+        }
+        else
+        {
+            ReportBadArrayIndex("OBag:geto", ix, a.size());
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagGetTagMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        ulong ix = (ulong)SPOP;
+        if (a.size() > ix)
+        {
+            bagElement& element = a[ix];
+            LPUSH(element.tag);
+        }
+        else
+        {
+            ReportBadArrayIndex("OBag:gett", ix, a.size());
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagSetMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        ulong ix = (ulong)SPOP;
+        if (a.size() > ix)
+        {
+            bagElement& element = a[ix];
+            ForthObject& oldObj = element.obj;
+            ForthObject newObj;
+            LPOP(element.tag);
+            POP_OBJECT(newObj);
+            OBJECT_ASSIGN(pCore, oldObj, newObj);
+            element.obj = newObj;
+        }
+        else
+        {
+            ReportBadArrayIndex("OBag:set", ix, a.size());
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagRefMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        ulong ix = (ulong)SPOP;
+        if (a.size() > ix)
+        {
+            SPUSH((long)&(a[ix]));
+        }
+        else
+        {
+            ReportBadArrayIndex("OBag:ref", ix, a.size());
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagSwapMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        ulong ix = (ulong)SPOP;
+        ulong jx = (ulong)SPOP;
+        if ((a.size() > ix) && (a.size() > jx))
+        {
+            bagElement t = a[ix];
+            a[ix] = a[jx];
+            a[jx] = t;
+        }
+        else
+        {
+            ReportBadArrayIndex("OBag:swap", ix, a.size());
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagResizeMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        ulong newSize = SPOP;
+        if (a.size() != newSize)
+        {
+            if (a.size() > newSize)
+            {
+                // shrinking - release elements which are beyond new end of array
+                for (ulong i = newSize; i < a.size(); i++)
+                {
+                    SAFE_RELEASE(pCore, a[i].obj);
+                }
+                a.resize(newSize);
+            }
+            else
+            {
+                // growing - add null elements to end of array
+                a.resize(newSize);
+                bagElement emptyElement;
+                emptyElement.obj.pMethodOps = NULL;
+                emptyElement.obj.pData = NULL;
+                emptyElement.tag.s64 = 0L;
+                for (ulong i = a.size(); i < newSize; i++)
+                {
+                    a[i] = emptyElement;
+                }
+            }
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagCountMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        SPUSH((long)(pBag->elements->size()));
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagClearMethod)
+    {
+        // go through all elements and release any which are not null
+        GET_THIS(oBagStruct, pBag);
+        oBag::iterator iter;
+        oBag& a = *(pBag->elements);
+        for (iter = a.begin(); iter != a.end(); ++iter)
+        {
+            bagElement& element = *iter;
+            SAFE_RELEASE(pCore, element.obj);
+        }
+        a.clear();
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagInsertMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+
+        oBag& a = *(pBag->elements);
+        ulong ix = (ulong)SPOP;
+        ulong oldSize = a.size();
+        if (oldSize >= ix)
+        {
+            bagElement newElement;
+            LPOP(newElement.tag);
+            POP_OBJECT(newElement.obj);
+            // add dummy element to end of array
+            a.resize(oldSize + 1);
+            if ((oldSize > 0) && (ix < oldSize))
+            {
+                // move old entries up by size of ForthObject
+                memmove(&(a[ix + 1]), &(a[ix]), sizeof(bagElement) * (oldSize - ix));
+            }
+            a[ix] = newElement;
+            SAFE_KEEP(newElement.obj);
+        }
+        else
+        {
+            ReportBadArrayIndex("OBag:insert", ix, a.size());
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagRemoveMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+
+        oBag& a = *(pBag->elements);
+        ulong ix = (ulong)SPOP;
+        ulong oldSize = a.size();
+        if (ix < a.size())
+        {
+            bagElement oldElement = a[ix];
+            unrefObject(oldElement.obj);
+            PUSH_OBJECT(oldElement.obj);
+            LPUSH(oldElement.tag);
+            a.erase(a.begin() + ix);
+        }
+        else
+        {
+            ReportBadArrayIndex("OBag:remove", ix, a.size());
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagPushMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        bagElement newElement;
+        LPOP(newElement.tag);
+        POP_OBJECT(newElement.obj);
+        SAFE_KEEP(newElement.obj);
+        a.push_back(newElement);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagPopMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        if (a.size() > 0)
+        {
+            bagElement oldElement = a.back();
+            unrefObject(oldElement.obj);
+            PUSH_OBJECT(oldElement.obj);
+            LPUSH(oldElement.tag);
+        }
+        else
+        {
+            GET_ENGINE->SetError(kForthErrorBadParameter, " pop of empty OBag");
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagBaseMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        SPUSH(a.size() > 0 ? (long)&(a[0]) : NULL);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagLoadMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        ulong newSize = SPOP;
+        if (a.size() != newSize)
+        {
+            if (a.size() > newSize)
+            {
+                // shrinking - release elements which are beyond new end of array
+                for (ulong i = newSize; i < a.size(); i++)
+                {
+                    SAFE_RELEASE(pCore, a[i].obj);
+                }
+                a.resize(newSize);
+            }
+            else
+            {
+                // growing - add null elements to end of array
+                a.resize(newSize);
+                bagElement emptyElement;
+                emptyElement.obj.pMethodOps = NULL;
+                emptyElement.obj.pData = NULL;
+                emptyElement.tag.s64 = 0L;
+                for (ulong i = a.size(); i < newSize; i++)
+                {
+                    a[i] = emptyElement;
+                }
+            }
+        }
+        if (newSize > 0)
+        {
+            for (int i = newSize - 1; i >= 0; i--)
+            {
+                bagElement& oldElement = a[i];
+                bagElement newElement;
+                LPOP(newElement.tag);
+                POP_OBJECT(newElement.obj);
+                if (OBJECTS_DIFFERENT(oldElement.obj, newElement.obj))
+                {
+                    SAFE_KEEP(newElement.obj);
+                    SAFE_RELEASE(pCore, oldElement.obj);
+                }
+                a[i] = newElement;
+            }
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagFromMemoryMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        ulong offset = SPOP;
+        ulong numElements = SPOP;
+        bagElement* pSrc = (bagElement*)(SPOP);
+        ulong newSize = (ulong)(numElements + offset);
+        ulong oldSize = a.size();
+
+        // NOTE: overlapping source and dest will result in undefined behavior
+
+        // increase refcount on all source objects
+        for (ulong i = 0; i < numElements; i++)
+        {
+            bagElement& srcElement = pSrc[i];
+            SAFE_KEEP(srcElement.obj);
+        }
+
+        // decrease refcount on all dest objects
+        for (ulong i = offset; i < oldSize; i++)
+        {
+            bagElement& dstElement = a[i];
+            SAFE_RELEASE(pCore, dstElement.obj);
+        }
+
+        // resize dest array
+        if (newSize != oldSize)
+        {
+            a.resize(newSize);
+        }
+
+        // copy objects
+        bagElement* pDst = &(a[offset]);
+        memcpy(pDst, pSrc, numElements << 4);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagCloneMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag::iterator iter;
+        oBag& a = *(pBag->elements);
+        // bump reference counts of all valid elements in this array
+        for (iter = a.begin(); iter != a.end(); ++iter)
+        {
+            bagElement& element = *iter;
+            SAFE_KEEP(element.obj);
+        }
+        // create clone array and set is size to match this array
+        ForthClassVocabulary *pBagVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIBag);
+        MALLOCATE_OBJECT(oBagStruct, pCloneBag, pBagVocab);
+        pCloneBag->refCount = 0;
+        pCloneBag->elements = new oBag;
+        size_t numElements = a.size();
+        if (numElements != 0)
+        {
+            pCloneBag->elements->resize(numElements);
+            // copy this array contents to clone array
+            oBag& cloneElements = *(pCloneBag->elements);
+            memcpy(&(cloneElements[0]), &(a[0]), numElements << 4);
+        }
+        // push cloned array on TOS
+        PUSH_PAIR(GET_TPM, pCloneBag);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagHeadIterMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        pBag->refCount++;
+        TRACK_KEEP;
+        ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIBagIter);
+        MALLOCATE_ITER(oArrayIterStruct, pIter, pIterVocab);
+        pIter->refCount = 0;
+        pIter->parent.pMethodOps = GET_TPM;
+        pIter->parent.pData = reinterpret_cast<long *>(pBag);
+        pIter->cursor = 0;
+        ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIBagIter, 0);
+        PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagTailIterMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        pBag->refCount++;
+        TRACK_KEEP;
+        ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIBagIter);
+        MALLOCATE_ITER(oArrayIterStruct, pIter, pIterVocab);
+        pIter->refCount = 0;
+        pIter->parent.pMethodOps = GET_TPM;
+        pIter->parent.pData = reinterpret_cast<long *>(pBag);
+        pIter->cursor = pBag->elements->size();
+        ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIBagIter, 0);
+        PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagFindMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        long retVal = -1;
+        stackInt64 soughtTag;
+        LPOP(soughtTag);
+        oBag::iterator iter;
+        oBag& a = *(pBag->elements);
+        for (ulong i = 0; i < a.size(); i++)
+        {
+            if (a[i].tag.s64 == soughtTag.s64)
+            {
+                retVal = i;
+                break;
+            }
+        }
+        if (retVal < 0)
+        {
+            SPUSH(0);
+        }
+        else
+        {
+            pBag->refCount++;
+            TRACK_KEEP;
+            ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIBagIter);
+            MALLOCATE_ITER(oArrayIterStruct, pIter, pIterVocab);
+            pIter->refCount = 0;
+            pIter->parent.pMethodOps = GET_TPM;
+            pIter->parent.pData = reinterpret_cast<long *>(pBag);
+            pIter->cursor = retVal;
+            ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIBagIter, 0);
+            PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+            SPUSH(~0);
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagFindIndexMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        long retVal = -1;
+        stackInt64 soughtTag;
+        LPOP(soughtTag);
+        oBag::iterator iter;
+        oBag& a = *(pBag->elements);
+        for (ulong i = 0; i < a.size(); i++)
+        {
+            if (a[i].tag.s64 == soughtTag.s64)
+            {
+                retVal = i;
+                break;
+            }
+        }
+        SPUSH(retVal);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagGrabMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        long retVal = 0;
+        stackInt64 soughtTag;
+        LPOP(soughtTag);
+        oBag::iterator iter;
+        oBag& a = *(pBag->elements);
+        for (ulong i = 0; i < a.size(); i++)
+        {
+            if (a[i].tag.s64 == soughtTag.s64)
+            {
+                retVal = -1;
+                PUSH_OBJECT(a[retVal].obj);
+                break;
+            }
+        }
+        SPUSH(retVal);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagReverseMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        std::reverse(a.begin(), a.end());
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagToLongMapMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag::iterator iter;
+        oBag& a = *(pBag->elements);
+
+        ForthObject newMapObject;
+        OMap::createLongMapObject(newMapObject, OMap::gpLongMapClassVocab);
+        oLongMapStruct* pMap = (oLongMapStruct *)(newMapObject.pData);
+        oLongMap& destMap = *(pMap->elements);
+
+        // bump reference counts of all valid elements in this array
+        for (iter = a.begin(); iter != a.end(); ++iter)
+        {
+            bagElement& element = *iter;
+            if (element.obj.pMethodOps != NULL)
+            {
+                SAFE_KEEP(element.obj);
+            }
+            destMap[element.tag.s64] = element.obj;
+        }
+
+        // push new LongMap on TOS
+        PUSH_OBJECT(newMapObject);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagUnrefMethod)
+    {
+        GET_THIS(oBagStruct, pBag);
+        oBag& a = *(pBag->elements);
+        ulong ix = (ulong)SPOP;
+        if (a.size() > ix)
+        {
+            bagElement element = a[ix];
+            unrefObject(element.obj);
+            PUSH_OBJECT(element.obj);
+            LPUSH(element.tag);
+            a[ix].obj.pData = NULL;
+            a[ix].obj.pMethodOps = NULL;
+            a[ix].tag.s64 = 0L;
+        }
+        else
+        {
+            ReportBadArrayIndex("OBag:unref", ix, a.size());
+        }
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oBagMembers[] =
+    {
+        METHOD("__newOp", oBagNew),
+        METHOD("delete", oBagDeleteMethod),
+        METHOD("show", oBagShowMethod),
+
+        METHOD_RET("get", oBagGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong)),
+        METHOD_RET("geto", oBagGetObjectMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIContainedType)),
+        METHOD_RET("gett", oBagGetTagMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong)),
+        METHOD("set", oBagSetMethod),
+        METHOD_RET("ref", oBagRefMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod | kDTIsPtr, kBCIObject)),
+        METHOD("swap", oBagSwapMethod),
+        METHOD("resize", oBagResizeMethod),
+        METHOD_RET("count", oBagCountMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+        METHOD("clear", oBagClearMethod),
+        METHOD("insert", oBagInsertMethod),
+        // TODO: METHOD("remove", oBagRemoveMethod),
+        METHOD("push", oBagPushMethod),
+        METHOD("pop", oBagPopMethod),
+        METHOD_RET("base", oBagBaseMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod | kDTIsPtr, kBCIObject)),
+        METHOD("load", oBagLoadMethod),
+        METHOD("fromMemory", oBagFromMemoryMethod),
+        METHOD_RET("clone", oBagCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIBag)),
+        METHOD_RET("headIter", oBagHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIBagIter)),
+        METHOD_RET("tailIter", oBagTailIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIBagIter)),
+        METHOD_RET("find", oBagFindMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIBagIter)),
+        METHOD_RET("findIndex", oBagFindIndexMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+        METHOD_RET("grab", oBagGrabMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+        METHOD("reverse", oBagReverseMethod),
+
+        METHOD_RET("toLongMap", oBagToLongMapMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCILongMap)),
+        METHOD("unref", oBagUnrefMethod),
+
+        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        // following must be last in table
+        END_MEMBERS
+    };
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 BagIter
+    //
+
+    FORTHOP(oBagIterNew)
+    {
+        GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create a BagIter object");
+    }
+
+    FORTHOP(oBagIterDeleteMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+        SAFE_RELEASE(pCore, pIter->parent);
+        FREE_ITER(pIter);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterShowMethod)
+    {
+        EXIT_IF_OBJECT_ALREADY_SHOWN;
+        ForthEngine *pEngine = GET_ENGINE;
+        GET_THIS(oArrayIterStruct, pIter);
+        oBagStruct* pBag = reinterpret_cast<oBagStruct *>(pIter->parent.pData);
+        oBag& a = *(pBag->elements);
+        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        pShowContext->BeginIndent();
+        SHOW_OBJ_HEADER;
+        pShowContext->ShowIndent("'cursor : ");
+        ForthShowObject(a[pIter->cursor].obj, pCore);
+        pShowContext->EndElement(",");
+        pShowContext->ShowIndent("'parent' : '@");
+        long* pParentData = pIter->parent.pData;
+        long* pParentMethods = pIter->parent.pMethodOps;
+        ForthClassObject* pClassObject = (ForthClassObject *)(*((pParentMethods)-1));
+        pShowContext->ShowID(pClassObject->pVocab->GetName(), pParentData);
+        pShowContext->EndElement("'");
+        pShowContext->EndIndent();
+        pEngine->ConsoleOut("}");
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterSeekNextMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+        oBagStruct* pBag = reinterpret_cast<oBagStruct *>(pIter->parent.pData);
+        if (pIter->cursor < pBag->elements->size())
+        {
+            pIter->cursor++;
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterSeekPrevMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+        if (pIter->cursor > 0)
+        {
+            pIter->cursor--;
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterSeekHeadMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+        pIter->cursor = 0;
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterSeekTailMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+        oBagStruct* pBag = reinterpret_cast<oBagStruct *>(pIter->parent.pData);
+        pIter->cursor = pBag->elements->size();
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterNextMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+        oBagStruct* pBag = reinterpret_cast<oBagStruct *>(pIter->parent.pData);
+        oBag& a = *(pBag->elements);
+        if (pIter->cursor >= a.size())
+        {
+            SPUSH(0);
+        }
+        else
+        {
+            bagElement& element = a[pIter->cursor];
+            LPUSH(element.tag);
+            PUSH_OBJECT(element.obj);
+            pIter->cursor++;
+            SPUSH(~0);
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterPrevMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+        oBagStruct* pBag = reinterpret_cast<oBagStruct *>(pIter->parent.pData);
+        oBag& a = *(pBag->elements);
+        if (pIter->cursor == 0)
+        {
+            SPUSH(0);
+        }
+        else
+        {
+            pIter->cursor--;
+            bagElement& element = a[pIter->cursor];
+            LPUSH(element.tag);
+            PUSH_OBJECT(element.obj);
+            SPUSH(~0);
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterCurrentMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+        oBagStruct* pBag = reinterpret_cast<oBagStruct *>(pIter->parent.pData);
+        oBag& a = *(pBag->elements);
+        if (pIter->cursor >= a.size())
+        {
+            SPUSH(0);
+        }
+        else
+        {
+            bagElement& element = a[pIter->cursor];
+            LPUSH(element.tag);
+            PUSH_OBJECT(element.obj);
+            SPUSH(~0);
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterRemoveMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+        oBagStruct* pBag = reinterpret_cast<oBagStruct *>(pIter->parent.pData);
+        oBag& a = *(pBag->elements);
+        if (pIter->cursor < a.size())
+        {
+            // TODO!
+            bagElement& element = a[pIter->cursor];
+            LPUSH(element.tag);
+            PUSH_OBJECT(element.obj);
+            SAFE_RELEASE(pCore, element.obj);
+            pBag->elements->erase(pBag->elements->begin() + pIter->cursor);
+        }
+        else
+        {
+            ReportBadArrayIndex("OBagIter:remove", pIter->cursor, a.size());
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterUnrefMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+        oBagStruct* pBag = reinterpret_cast<oBagStruct *>(pIter->parent.pData);
+        oBag& a = *(pBag->elements);
+        ForthObject fobj;
+        fobj.pData = NULL;
+        fobj.pMethodOps = NULL;
+        if (pIter->cursor < a.size())
+        {
+            ForthObject& obj = a[pIter->cursor].obj;
+            fobj = obj;
+            unrefObject(fobj);
+            obj.pData = NULL;
+            obj.pMethodOps = NULL;
+        }
+        PUSH_OBJECT(fobj);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterFindNextMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+        long retVal = 0;
+        stackInt64 soughtTag;
+        LPOP(soughtTag);
+        oBagStruct* pBag = reinterpret_cast<oBagStruct *>(pIter->parent.pData);
+        oBag& a = *(pBag->elements);
+        unsigned int i = pIter->cursor;
+        while (i < a.size())
+        {
+            if (a[i].tag.s64 == soughtTag.s64)
+            {
+                retVal = ~0;
+                pIter->cursor = i;
+                break;
+            }
+            ++i;
+        }
+        SPUSH(retVal);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterCloneMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+        ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIBagIter);
+        MALLOCATE_ITER(oArrayIterStruct, pNewIter, pIterVocab);
+        pNewIter->refCount = 0;
+        pNewIter->parent.pMethodOps = pIter->parent.pMethodOps;
+        pNewIter->parent.pData = pIter->parent.pData;
+        oBagStruct* pBag = reinterpret_cast<oBagStruct *>(pIter->parent.pData);
+        pBag->refCount++;
+        TRACK_KEEP;
+        pNewIter->cursor = pIter->cursor;
+        PUSH_PAIR(GET_TPM, pNewIter);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oBagIterInsertMethod)
+    {
+        GET_THIS(oArrayIterStruct, pIter);
+
+        oBagStruct* pBag = reinterpret_cast<oBagStruct *>(pIter->parent.pData);
+        oBag& a = *(pBag->elements);
+        ulong ix = pIter->cursor;
+        ulong oldSize = a.size();
+        if (oldSize >= ix)
+        {
+            bagElement newElement;
+            POP_OBJECT(newElement.obj);
+            LPOP(newElement.tag);
+            // add dummy element to end of array
+            a.resize(oldSize + 1);
+            if ((oldSize > 0) && (ix < oldSize))
+            {
+                // move old entries up by size of ForthObject
+                memmove(&(a[ix + 1]), &(a[ix]), sizeof(ForthObject) * (oldSize - ix));
+            }
+            a[ix] = newElement;
+            SAFE_KEEP(newElement.obj);
+        }
+        else
+        {
+            ReportBadArrayIndex("OBagIter:insert", ix, a.size());
+        }
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oBagIterMembers[] =
+    {
+        METHOD("__newOp", oBagIterNew),
+        METHOD("delete", oBagIterDeleteMethod),
+        METHOD("show", oBagIterShowMethod),
+
+        METHOD("seekNext", oBagIterSeekNextMethod),
+        METHOD("seekPrev", oBagIterSeekPrevMethod),
+        METHOD("seekHead", oBagIterSeekHeadMethod),
+        METHOD("seekTail", oBagIterSeekTailMethod),
+        METHOD_RET("next", oBagIterNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+        METHOD_RET("prev", oBagIterPrevMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+        METHOD_RET("current", oBagIterCurrentMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+        METHOD("remove", oBagIterRemoveMethod),
+        METHOD("unref", oBagIterUnrefMethod),
+        METHOD_RET("findNext", oBagIterFindNextMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+        METHOD_RET("clone", oBagIterCloneMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIBagIter)),
+        METHOD("insert", oBagIterInsertMethod),
+
+        MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIBag)),
+        MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
 	///
 	//                 ByteArray
 	//
@@ -1436,7 +2390,7 @@ namespace OArray
 
 	FORTHOP(oByteArrayIterNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a ByteArrayIter object");
+		GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create a ByteArrayIter object");
 	}
 
 	FORTHOP(oByteArrayIterDeleteMethod)
@@ -2081,7 +3035,7 @@ namespace OArray
 	FORTHOP(oShortArrayIterNew)
 	{
 		ForthEngine *pEngine = GET_ENGINE;
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a ShortArrayIter object");
+		pEngine->SetError(kForthErrorIllegalOperation, " cannot explicitly create a ShortArrayIter object");
 	}
 
 	FORTHOP(oShortArrayIterDeleteMethod)
@@ -2722,7 +3676,7 @@ namespace OArray
 
 	FORTHOP(oIntArrayIterNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create an IntArrayIter object");
+		GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create an IntArrayIter object");
 	}
 
 	FORTHOP(oIntArrayIterDeleteMethod)
@@ -3443,7 +4397,7 @@ namespace OArray
 
 	FORTHOP(oLongArrayIterNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a LongArrayIter object");
+		GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create a LongArrayIter object");
 	}
 
 	FORTHOP(oLongArrayIterDeleteMethod)
@@ -4375,7 +5329,7 @@ namespace OArray
 
     FORTHOP(oStructArrayIterNew)
     {
-        GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a StructArrayIter object");
+        GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create a StructArrayIter object");
     }
 
     FORTHOP(oStructArrayIterDeleteMethod)
@@ -4712,7 +5666,7 @@ namespace OArray
 
 	FORTHOP(oPairIterNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a PairIter object");
+		GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create a PairIter object");
 	}
 
 	FORTHOP(oPairIterDeleteMethod)
@@ -5050,7 +6004,7 @@ namespace OArray
 
 	FORTHOP(oTripleIterNew)
 	{
-		GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a TripleIter object");
+		GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create a TripleIter object");
 	}
 
 	FORTHOP(oTripleIterDeleteMethod)
@@ -5203,8 +6157,11 @@ namespace OArray
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("Array", kBCIArray, kBCIIterable, oArrayMembers);
+		gpArrayClassVocab = pEngine->AddBuiltinClass("Array", kBCIArray, kBCIIterable, oArrayMembers);
 		pEngine->AddBuiltinClass("ArrayIter", kBCIArrayIter, kBCIIter, oArrayIterMembers);
+
+        pEngine->AddBuiltinClass("Bag", kBCIBag, kBCIIterable, oBagMembers);
+        pEngine->AddBuiltinClass("BagIter", kBCIBagIter, kBCIIter, oBagIterMembers);
 
         pEngine->AddBuiltinClass("ByteArray", kBCIByteArray, kBCIIterable, oByteArrayMembers);
 		pEngine->AddBuiltinClass("ByteArrayIter", kBCIByteArrayIter, kBCIIter, oByteArrayIterMembers);

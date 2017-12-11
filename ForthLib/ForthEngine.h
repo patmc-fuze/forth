@@ -353,6 +353,8 @@ public:
     void                    AddGlobalObjectVariable(ForthObject* pObject);
     void                    CleanupGlobalObjectVariables(long* pNewDP);
 
+    void                    ThrowException(ForthCoreState* pCore, long exceptionNum);
+
 protected:
     // NOTE: temporarily modifies string @pToken
     bool                    ScanIntegerToken( char* pToken, long& value, long long& lvalue, int base, bool& isOffset, bool& isSingle );

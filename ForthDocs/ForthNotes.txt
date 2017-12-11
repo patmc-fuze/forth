@@ -174,6 +174,41 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 9 2017
+
+I added basic exception handling - try...catch...endtry and throw.
+I should change recoverable errors, like bad array indices, into exceptions.
+This will allow better testing of classes.
+Things that should eventually be added:
+o add registering exception numbers with a string message
+  o register kernel exceptions like bad array index
+o 'finally' clause
+o use shell stack for better compile error reporting
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 5 2017
+
+I added some more tests for Int, Long, Float, Double and String, which found
+multiple bugs.
+o Double and Long public 'value' member didn't work, because the compiler forced
+  its alignment to 8-byte, so I had to add a dummy member to fix it
+o String had many bugs
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 2 2017
+
+I added a new builtin class, Bag, which is an array of key, object pairs.
+It is intended for things like small collections of optional parameters, sort
+of a lightweight map.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 29 2017
+
+I added float/double block operators to x86 and ARM.
+ARM still needs the changes to do tracing within the inner interpreter.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 6 2017
+
+I got the OSX branch working again, fixing stack misalignments in new code mostly.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 2 2017
 
 I created a github account gnosys2u and added forth project to it with:

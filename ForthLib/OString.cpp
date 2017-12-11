@@ -34,6 +34,8 @@ namespace OString
     //
 
 	int gDefaultOStringSize = DEFAULT_STRING_DATA_BYTES - 1;
+    ForthClassVocabulary* gpStringClassVocab = nullptr;
+    ForthClassVocabulary* gpStringMapClassVocab = nullptr;
 
 // temp hackaround for a heap corruption when expanding a string
 //#define RCSTRING_SLOP 16
@@ -309,10 +311,7 @@ namespace OString
 		long newLen = SPOP;
 		oString* dst = resizeOString(pString, newLen);
 		dst->data[newLen] = '\0';
-		if ( dst->curLen > dst->maxLen )
-		{
-			dst->curLen = dst->maxLen;
-		}
+        dst->curLen = newLen;
         METHOD_RETURN;
     }
 
@@ -324,10 +323,10 @@ namespace OString
         if (newLen < 0)
         {
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            pEngine->SetError(kForthErrorBadParameter, " OString.leftBytes negative length");
+            pEngine->SetError(kForthErrorBadParameter, " String.keepLeft negative length");
             newLen = 0;
         }
-        else if (newLen < str->curLen)
+        else if (newLen > str->curLen)
         {
             newLen = str->curLen;
         }
@@ -345,7 +344,7 @@ namespace OString
         if (newLen < 0)
         {
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            pEngine->SetError(kForthErrorBadParameter, " OString.rightBytes negative length");
+            pEngine->SetError(kForthErrorBadParameter, " String.keepRight negative length");
             newLen = 0;
         }
         else if (newLen < str->curLen)
@@ -371,11 +370,11 @@ namespace OString
         ForthEngine *pEngine = ForthEngine::GetInstance();
         if (firstChar < 0)
         {
-            pEngine->SetError(kForthErrorBadParameter, " OString.mid negative first character");
+            pEngine->SetError(kForthErrorBadParameter, " String.keepMiddle negative first character");
         }
         else if (newLen < 0)
         {
-            pEngine->SetError(kForthErrorBadParameter, " OString.mid negative length");
+            pEngine->SetError(kForthErrorBadParameter, " String.keepMiddle negative length");
         }
         else
         {
@@ -417,10 +416,10 @@ namespace OString
         if (newLen < 0)
         {
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            pEngine->SetError(kForthErrorBadParameter, " OString.leftBytes negative length");
+            pEngine->SetError(kForthErrorBadParameter, " String.leftBytes negative length");
             newLen = 0;
         }
-        else if (newLen < str->curLen)
+        else if (newLen > str->curLen)
         {
             newLen = str->curLen;
         }
@@ -438,7 +437,7 @@ namespace OString
         if (newLen < 0)
         {
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            pEngine->SetError(kForthErrorBadParameter, " OString.rightBytes negative length");
+            pEngine->SetError(kForthErrorBadParameter, " String.rightBytes negative length");
             newLen = 0;
         }
         else if (newLen >= str->curLen)
@@ -465,12 +464,12 @@ namespace OString
         if (firstChar < 0)
         {
             newLen = 0;
-            pEngine->SetError(kForthErrorBadParameter, " OString.mid negative first character");
+            pEngine->SetError(kForthErrorBadParameter, " String.middleBytes negative first character");
         }
         else if (newLen < 0)
         {
             newLen = 0;
-            pEngine->SetError(kForthErrorBadParameter, " OString.mid negative length");
+            pEngine->SetError(kForthErrorBadParameter, " String.middleBytes negative length");
         }
         else
         {
@@ -492,8 +491,8 @@ namespace OString
             }
         }
 
-        SPUSH(newLen);
         SPUSH((long)(pBytes));
+        SPUSH(newLen);
         METHOD_RETURN;
     }
 
@@ -619,11 +618,11 @@ namespace OString
 	{
 		GET_THIS(oStringStruct, pString);
 		
-		ForthObject dstArrayObj;
+        int delimiter = SPOP;
+
+        ForthObject dstArrayObj;
 		POP_OBJECT(dstArrayObj);
 		oArrayStruct* pArray = (oArrayStruct *)(dstArrayObj.pData);
-
-		int delimiter = SPOP;
 
 		if ((pArray != nullptr) && (pString->str->curLen != 0))
 		{
@@ -680,7 +679,9 @@ namespace OString
 		oArray::iterator iter;
 		oArray& a = *(pArray->elements);
 		bool firstTime = true;
-		for (iter = a.begin(); iter != a.end(); ++iter)
+        pString->str->curLen = 0;
+        pString->str->data[0] = '\0';
+        for (iter = a.begin(); iter != a.end(); ++iter)
 		{
 			ForthObject& o = *iter;
 			oStringStruct* pStr = (oStringStruct *)o.pData;
@@ -778,7 +779,7 @@ namespace OString
 		char* pDst = &(dst->data[0]);
 		for (int i = dst->curLen; i >0; --i)
 		{
-			*pDst = toupper(*pDst);
+			*pDst = tolower(*pDst);
 			pDst++;
 		}
 		METHOD_RETURN;
@@ -872,15 +873,22 @@ namespace OString
 	};
 
 
+    void createStringMapObject(ForthObject& destObj, ForthClassVocabulary *pClassVocab)
+    {
+        destObj.pMethodOps = pClassVocab->GetInterface(0)->GetMethods();
 
-	FORTHOP(oStringMapNew)
+        MALLOCATE_OBJECT(oStringMapStruct, pMap, pClassVocab);
+        pMap->refCount = 0;
+        pMap->elements = new oStringMap;
+        destObj.pData = (long *) pMap;
+    }
+
+    FORTHOP(oStringMapNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
-		MALLOCATE_OBJECT(oStringMapStruct, pMap, pClassVocab);
-		pMap->refCount = 0;
-		pMap->elements = new oStringMap;
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pMap);
+        ForthObject newMap;
+        createStringMapObject(newMap, pClassVocab);
+        PUSH_OBJECT(newMap);
 	}
 
 	FORTHOP(oStringMapDeleteMethod)
@@ -1216,7 +1224,7 @@ namespace OString
 	FORTHOP(oStringMapIterNew)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot explicitly create a oStringMapIter object");
+		pEngine->SetError(kForthErrorIllegalOperation, " cannot explicitly create a oStringMapIter object");
 	}
 
 	FORTHOP(oStringMapIterDeleteMethod)
@@ -1418,9 +1426,9 @@ namespace OString
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("String", kBCIString, kBCIObject, oStringMembers);
+        gpStringClassVocab = pEngine->AddBuiltinClass("String", kBCIString, kBCIObject, oStringMembers);
 
-		pEngine->AddBuiltinClass("StringMap", kBCIStringMap, kBCIIterable, oStringMapMembers);
+        gpStringMapClassVocab = pEngine->AddBuiltinClass("StringMap", kBCIStringMap, kBCIIterable, oStringMapMembers);
 		pEngine->AddBuiltinClass("StringMapIter", kBCIStringMapIter, kBCIIter, oStringMapIterMembers);
 	}
 

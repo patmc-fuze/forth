@@ -288,6 +288,7 @@ test[ checkResult( testBuff2.get ) ]
 
 test[ 0xDEADBEEF 123456789 l= ]	// check for stack underflow or extra items
 
+
 ///////////////////////////////////////////////////////////
 // test $evaluate
 

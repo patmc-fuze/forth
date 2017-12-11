@@ -250,6 +250,8 @@ typedef enum {
 	kForthErrorBadObject,
     kForthErrorStringOverflow,
 	kForthErrorBadArrayIndex,
+    kForthErrorIllegalOperation,
+    kForthOSException,
 	// NOTE: if you add errors, make sure that you update ForthEngine::GetErrorString
     kForthNumErrors
 } eForthError;
@@ -424,6 +426,8 @@ enum {
 	OP_INIT_STRUCT_ARRAY,
 	OP_DUP,
 	OP_OVER,
+    OP_DO_TRY,
+    OP_DO_CATCH,
 
 	NUM_COMPILED_OPS
 };

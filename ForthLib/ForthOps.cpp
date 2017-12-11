@@ -1170,6 +1170,61 @@ FORTHOP(initStructArrayOp)
 
 //##############################
 //
+//  exception handling ops
+//
+FORTHOP(doTryOp)
+{
+    long* IP = GET_IP;
+    RPUSH((long) IP);
+    RPUSH((long) GET_SP);
+    RPUSH((long) pCore->pExceptionFrame);
+    pCore->pExceptionFrame = GET_RP;
+    SET_IP(IP + 2);
+}
+
+FORTHOP(tryOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+    pEngine->CompileBuiltinOpcode(OP_DO_TRY);
+    SPUSH((long) GET_DP);
+    pEngine->CompileLong(0);
+    pEngine->CompileLong(0);
+}
+
+FORTHOP(doCatchOp)
+{
+    pCore->pExceptionFrame = (long *)(RPOP);
+    RPOP;
+    long* pHandlerIPs = (long *)(RPOP);
+    SET_IP((long *)(pHandlerIPs[1]));
+}
+
+FORTHOP(catchOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+    long* pHandlerIPs = (long *)(*GET_SP);
+    pEngine->CompileBuiltinOpcode(OP_DO_CATCH);
+    *pHandlerIPs = (long)(GET_DP);
+}
+
+FORTHOP(endtryOp)
+{
+    long* pHandlerIPs = (long *)(SPOP);
+    pHandlerIPs[1] = (long)(GET_DP);
+}
+
+FORTHOP(throwOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+    long exceptionNum = SPOP;
+    pEngine->ThrowException(pCore, exceptionNum);
+}
+
+//##############################
+//
 //  forth defining ops
 //
 
@@ -5895,36 +5950,36 @@ FORTHOP( negateBop )
     SPUSH( -a );
 }
 
-FORTHOP( fplusBop )
+FORTHOP(fplusBop)
 {
     NEEDS(2);
     float b = FPOP;
     float a = FPOP;
-    FPUSH( a + b );
+    FPUSH(a + b);
 }
 
-FORTHOP( fminusBop )
+FORTHOP(fminusBop)
 {
     NEEDS(2);
     float b = FPOP;
     float a = FPOP;
-    FPUSH( a - b );
+    FPUSH(a - b);
 }
 
-FORTHOP( ftimesBop )
+FORTHOP(ftimesBop)
 {
     NEEDS(2);
     float b = FPOP;
     float a = FPOP;
-    FPUSH( a * b );
+    FPUSH(a * b);
 }
 
-FORTHOP( fdivideBop )
+FORTHOP(fdivideBop)
 {
     NEEDS(2);
     float b = FPOP;
     float a = FPOP;
-    FPUSH( a / b );
+    FPUSH(a / b);
 }
 
 
@@ -7817,6 +7872,20 @@ FORTHOP( stricmpBop )
 	SPUSH( (long) result );
 }
 
+FORTHOP(strncmpBop)
+{
+    int numChars = SPOP;
+    char *pStr2 = (char *)SPOP;
+    char *pStr1 = (char *)SPOP;
+    int result = strncmp(pStr1, pStr2, numChars);
+    // only return 1, 0 or -1
+    if (result != 0)
+    {
+        result = (result > 0) ? 1 : -1;
+    }
+    SPUSH((long)result);
+}
+
 
 FORTHOP( strstrBop )
 {
@@ -8121,7 +8190,192 @@ FORTHOP( oclearBop )
 	SET_VAR_OPERATION( kVarObjectClear );
 }
 
+FORTHOP(faddBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrcB = (float *)SPOP;
+    float *pSrcA = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) + (*pSrcB++);
+    }
+}
+
+FORTHOP(fsubBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrcB = (float *)SPOP;
+    float *pSrcA = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) - (*pSrcB++);
+    }
+}
+
+FORTHOP(fmulBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrcB = (float *)SPOP;
+    float *pSrcA = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) * (*pSrcB++);
+    }
+}
+
+FORTHOP(fdivBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrcB = (float *)SPOP;
+    float *pSrcA = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) / (*pSrcB++);
+    }
+}
+
+FORTHOP(fscaleBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float scale = FPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrc = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrc++) * scale;
+    }
+}
+
+FORTHOP(foffsetBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float offset = FPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrc = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrc++) + offset;
+    }
+}
+
+FORTHOP(fmixBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    float scale = FPOP;
+    float *pDst = (float *)SPOP;
+    float *pSrc = (float *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        float oldDst = *pDst;
+        *pDst++ = ((*pSrc++) * scale) + oldDst;
+    }
+}
+
+FORTHOP(daddBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrcB = (double *)SPOP;
+    double *pSrcA = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) + (*pSrcB++);
+    }
+}
+
+FORTHOP(dsubBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrcB = (double *)SPOP;
+    double *pSrcA = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) - (*pSrcB++);
+    }
+}
+
+FORTHOP(dmulBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrcB = (double *)SPOP;
+    double *pSrcA = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) * (*pSrcB++);
+    }
+}
+
+FORTHOP(ddivBlockBop)
+{
+    NEEDS(4);
+    int num = SPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrcB = (double *)SPOP;
+    double *pSrcA = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrcA++) / (*pSrcB++);
+    }
+}
+
+FORTHOP(dscaleBlockBop)
+{
+    NEEDS(5);
+    int num = SPOP;
+    double scale = DPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrc = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrc++) * scale;
+    }
+}
+
+FORTHOP(doffsetBlockBop)
+{
+    NEEDS(5);
+    int num = SPOP;
+    double offset = DPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrc = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        *pDst++ = (*pSrc++) + offset;
+    }
+}
+
+FORTHOP(dmixBlockBop)
+{
+    NEEDS(5);
+    int num = SPOP;
+    double scale = DPOP;
+    double *pDst = (double *)SPOP;
+    double *pSrc = (double *)SPOP;
+    for (int i = 0; i < num; ++i)
+    {
+        double oldDst = *pDst;
+        *pDst++ = ((*pSrc++) * scale) + oldDst;
+    }
+}
+
 #endif
+
 
 //##############################
 //
@@ -8369,7 +8623,13 @@ OPREF( fatan2Bop );         OPREF( fexpBop );           OPREF( flnBop );
 OPREF( flog10Bop );         OPREF( fpowBop );           OPREF( fsqrtBop );
 OPREF( fceilBop );          OPREF( ffloorBop );         OPREF( fabsBop );
 OPREF( fldexpBop );         OPREF( ffrexpBop );         OPREF( fmodfBop );
-OPREF( ffmodBop );          OPREF( setTraceBop );
+OPREF( ffmodBop );          OPREF( setTraceBop );       OPREF( strncmpBop );
+OPREF(faddBlockBop);        OPREF(fsubBlockBop);        OPREF(fmulBlockBop);
+OPREF(fdivBlockBop);        OPREF(fscaleBlockBop);      OPREF(foffsetBlockBop);
+OPREF(fmixBlockBop);
+OPREF(daddBlockBop);        OPREF(dsubBlockBop);        OPREF(dmulBlockBop);
+OPREF(ddivBlockBop);        OPREF(dscaleBlockBop);      OPREF(doffsetBlockBop);
+OPREF(dmixBlockBop);
 #else
 
 // helper macro for built-in op entries in baseDictionary
@@ -8455,6 +8715,8 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
 	OP_COMPILED_DEF(		initStructArrayOp,      "initStructArray",	OP_INIT_STRUCT_ARRAY ),
 	NATIVE_COMPILED_DEF(    dupBop,					"dup",				OP_DUP ),
 	NATIVE_COMPILED_DEF(    overBop,				"over",				OP_OVER ),
+    OP_COMPILED_DEF(        doTryOp,                "_doTry",           OP_DO_TRY ),
+    OP_COMPILED_DEF(        doCatchOp,              "_doCatch",         OP_DO_CATCH ),
 
     // following must be last in table
     OP_COMPILED_DEF(		NULL,                   NULL,					-1 )
@@ -8550,6 +8812,17 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    ffmodBop,                "ffmod" ),
     
     ///////////////////////////////////////////
+    //  single-precision fp block ops
+    ///////////////////////////////////////////
+    NATIVE_DEF(    faddBlockBop,           "fAddBlock"),
+    NATIVE_DEF(    fsubBlockBop,           "fSubBlock"),
+    NATIVE_DEF(    fmulBlockBop,           "fMulBlock"),
+    NATIVE_DEF(    fdivBlockBop,           "fDivBlock"),
+    NATIVE_DEF(    fscaleBlockBop,         "fScaleBlock"),
+    NATIVE_DEF(    foffsetBlockBop,        "fOffsetBlock"),
+    NATIVE_DEF(    fmixBlockBop,           "fMixBlock"),
+
+    ///////////////////////////////////////////
     //  double-precision fp math
     ///////////////////////////////////////////
     NATIVE_DEF(    dplusBop,                "d+" ),
@@ -8601,6 +8874,17 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dmodfBop,                "dmodf" ),
     NATIVE_DEF(    dfmodBop,                "dfmod" ),
     
+    ///////////////////////////////////////////
+    //  single-precision fp block ops
+    ///////////////////////////////////////////
+    NATIVE_DEF(    daddBlockBop,           "dAddBlock"),
+    NATIVE_DEF(    dsubBlockBop,           "dSubBlock"),
+    NATIVE_DEF(    dmulBlockBop,           "dMulBlock"),
+    NATIVE_DEF(    ddivBlockBop,           "dDivBlock"),
+    NATIVE_DEF(    dscaleBlockBop,         "dScaleBlock"),
+    NATIVE_DEF(    doffsetBlockBop,        "dOffsetBlock"),
+    NATIVE_DEF(    dmixBlockBop,           "dMixBlock"),
+
     ///////////////////////////////////////////
     //  integer/long/float/double conversion
     ///////////////////////////////////////////
@@ -8760,6 +9044,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    strrchrBop,              "strrchr" ),
     NATIVE_DEF(    strcmpBop,               "strcmp" ),
     NATIVE_DEF(    stricmpBop,              "stricmp" ),
+    NATIVE_DEF(    strncmpBop,              "strncmp" ),
     NATIVE_DEF(    strstrBop,               "strstr" ),
     NATIVE_DEF(    strtokBop,               "strtok" ),
     NATIVE_DEF(    strFixupBop,             "$fixup" ),
@@ -9192,6 +9477,14 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF( getCurrentThreadOp,         "getCurrentThread"),
 	OP_DEF( getCurrentAsyncThreadOp,    "getCurrentAsyncThread"),
 	
+    ///////////////////////////////////////////
+    //  threads
+    ///////////////////////////////////////////
+    PRECOP_DEF( tryOp,                  "try"),
+    PRECOP_DEF( endtryOp,               "endtry"),
+    PRECOP_DEF( catchOp,                "catch"),
+    OP_DEF( throwOp,                    "throw"),
+
 #ifdef WIN32
     ///////////////////////////////////////////
     //  Windows support

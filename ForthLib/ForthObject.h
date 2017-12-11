@@ -100,4 +100,6 @@ extern long gStatReleases;
 #define MALLOCATE_ITER( _type, _ptr, _vocab )  MALLOCATE_OBJECT( _type, _ptr, _vocab );  TRACK_ITER_NEW
 #define FREE_ITER( _link )  FREE_OBJECT( _link );  TRACK_ITER_DELETE
 
-
+// UNDELETABLE_OBJECT_REFCOUNT is used for objects like the system object or vocabularies which
+//   you don't want to be mistakenly deleted due to refcount mistakes
+#define UNDELETABLE_OBJECT_REFCOUNT 2000000000

@@ -2910,6 +2910,304 @@ entry fdivideBop
 	
 ;========================================
 	
+entry faddBlockBop
+	; TOS: num pDst pSrcB pSrcA
+	push	edx
+	mov	eax, [edx+12]
+	mov	ebx, [edx+8]
+	mov	ecx, [edx]
+	mov	edx, [edx+4]
+.faddBlockBop1:
+	fld	DWORD[eax]
+	fadd	DWORD[ebx]
+	fstp	DWORD[edx]
+	add eax,4
+	add ebx,4
+	add	edx,4
+	sub ecx,1
+	jnz .faddBlockBop1
+	pop edx
+	add	edx,16
+	jmp	edi
+	
+;========================================
+	
+entry fsubBlockBop
+	; TOS: num pDst pSrcB pSrcA
+	push	edx
+	mov	eax, [edx+12]
+	mov	ebx, [edx+8]
+	mov	ecx, [edx]
+	mov	edx, [edx+4]
+.fsubBlockBop1:
+	fld	DWORD[eax]
+	fsub	DWORD[ebx]
+	fstp	DWORD[edx]
+	add eax,4
+	add ebx,4
+	add	edx,4
+	sub ecx,1
+	jnz .fsubBlockBop1
+	pop edx
+	add	edx,16
+	jmp	edi
+	
+;========================================
+	
+entry fmulBlockBop
+	; TOS: num pDst pSrcB pSrcA
+	push	edx
+	mov	eax, [edx+12]
+	mov	ebx, [edx+8]
+	mov	ecx, [edx]
+	mov	edx, [edx+4]
+.fmulBlockBop1:
+	fld	DWORD[eax]
+	fmul	DWORD[ebx]
+	fstp	DWORD[edx]
+	add eax,4
+	add ebx,4
+	add	edx,4
+	sub ecx,1
+	jnz .fmulBlockBop1
+	pop edx
+	add	edx,16
+	jmp	edi
+	
+;========================================
+	
+entry fdivBlockBop
+	; TOS: num pDst pSrcB pSrcA
+	push	edx
+	mov	eax, [edx+12]
+	mov	ebx, [edx+8]
+	mov	ecx, [edx]
+	mov	edx, [edx+4]
+.fdivBlockBop1:
+	fld	DWORD[eax]
+	fdiv	DWORD[ebx]
+	fstp	DWORD[edx]
+	add eax,4
+	add ebx,4
+	add	edx,4
+	sub ecx,1
+	jnz .fdivBlockBop1
+	pop edx
+	add	edx,16
+	jmp	edi
+	
+;========================================
+	
+entry fscaleBlockBop
+	; TOS: num scale pDst pSrc
+	mov	eax, [edx+12]	; pSrc
+	mov	ebx, [edx+8]	; pDst
+	fld	DWORD[edx + 4]	; scale
+	mov	ecx, [edx]		; num
+.fscaleBlockBop1:
+	fld	DWORD[eax]
+	fmul	st0, st1
+	fstp	DWORD[ebx]
+	add eax,4
+	add ebx,4
+	sub ecx,1
+	jnz .fscaleBlockBop1
+	ffree	st0
+	add	edx,16
+	jmp	edi
+	
+;========================================
+	
+entry foffsetBlockBop
+	; TOS: num scale pDst pSrc
+	mov	eax, [edx+12]	; pSrc
+	mov	ebx, [edx+8]	; pDst
+	fld	DWORD[edx + 4]	; scale
+	mov	ecx, [edx]		; num
+.foffsetBlockBop1:
+	fld	DWORD[eax]
+	fadd	st0, st1
+	fstp	DWORD[ebx]
+	add eax,4
+	add ebx,4
+	sub ecx,1
+	jnz .foffsetBlockBop1
+	ffree	st0
+	add	edx,16
+	jmp	edi
+	
+;========================================
+	
+entry fmixBlockBop
+	; TOS: num scale pDst pSrc
+	mov	eax, [edx+12]	; pSrc
+	mov	ebx, [edx+8]	; pDst
+	fld	DWORD[edx + 4]	; scale
+	mov	ecx, [edx]		; num
+.fmixBlockBop1:
+	fld	DWORD[eax]
+	fmul	st0, st1
+	fadd	DWORD[ebx]
+	fstp	DWORD[ebx]
+	add eax,4
+	add ebx,4
+	sub ecx,1
+	jnz .fmixBlockBop1
+	ffree	st0
+	add	edx,16
+	jmp	edi
+	
+;========================================
+	
+entry daddBlockBop
+	; TOS: num pDst pSrcB pSrcA
+	push	edx
+	mov	eax, [edx+12]
+	mov	ebx, [edx+8]
+	mov	ecx, [edx]
+	mov	edx, [edx+4]
+.daddBlockBop1:
+	fld	QWORD[eax]
+	fadd	QWORD[ebx]
+	fstp	QWORD[edx]
+	add eax,8
+	add ebx,8
+	add	edx,8
+	sub ecx,1
+	jnz .daddBlockBop1
+	pop edx
+	add	edx,16
+	jmp	edi
+	
+;========================================
+	
+entry dsubBlockBop
+	; TOS: num pDst pSrcB pSrcA
+	push	edx
+	mov	eax, [edx+12]
+	mov	ebx, [edx+8]
+	mov	ecx, [edx]
+	mov	edx, [edx+4]
+.dsubBlockBop1:
+	fld	QWORD[eax]
+	fsub	QWORD[ebx]
+	fstp	QWORD[edx]
+	add eax,8
+	add ebx,8
+	add	edx,8
+	sub ecx,1
+	jnz .dsubBlockBop1
+	pop edx
+	add	edx,16
+	jmp	edi
+	
+;========================================
+	
+entry dmulBlockBop
+	; TOS: num pDst pSrcB pSrcA
+	push	edx
+	mov	eax, [edx+12]
+	mov	ebx, [edx+8]
+	mov	ecx, [edx]
+	mov	edx, [edx+4]
+.dmulBlockBop1:
+	fld	QWORD[eax]
+	fmul	QWORD[ebx]
+	fstp	QWORD[edx]
+	add eax,8
+	add ebx,8
+	add	edx,8
+	sub ecx,1
+	jnz .dmulBlockBop1
+	pop edx
+	add	edx,16
+	jmp	edi
+	
+;========================================
+	
+entry ddivBlockBop
+	; TOS: num pDst pSrcB pSrcA
+	push	edx
+	mov	eax, [edx+12]
+	mov	ebx, [edx+8]
+	mov	ecx, [edx]
+	mov	edx, [edx+4]
+.ddivBlockBop1:
+	fld	QWORD[eax]
+	fdiv	QWORD[ebx]
+	fstp	QWORD[edx]
+	add eax,8
+	add ebx,8
+	add	edx,8
+	sub ecx,1
+	jnz .ddivBlockBop1
+	pop edx
+	add	edx,16
+	jmp	edi
+	
+;========================================
+	
+entry dscaleBlockBop
+	; TOS: num scale pDst pSrc
+	mov	eax, [edx+16]	; pSrc
+	mov	ebx, [edx+12]	; pDst
+	fld	QWORD[edx + 4]	; scale
+	mov	ecx, [edx]		; num
+.dscaleBlockBop1:
+	fld	QWORD[eax]
+	fmul	st0, st1
+	fstp	QWORD[ebx]
+	add eax,8
+	add ebx,8
+	sub ecx,1
+	jnz .dscaleBlockBop1
+	ffree	st0
+	add	edx,20
+	jmp	edi
+	
+;========================================
+	
+entry doffsetBlockBop
+	; TOS: num scale pDst pSrc
+	mov	eax, [edx+16]	; pSrc
+	mov	ebx, [edx+12]	; pDst
+	fld	QWORD[edx + 4]	; scale
+	mov	ecx, [edx]		; num
+.doffsetBlockBop1:
+	fld	QWORD[eax]
+	fadd	st0, st1
+	fstp	QWORD[ebx]
+	add eax,8
+	add ebx,8
+	sub ecx,1
+	jnz .doffsetBlockBop1
+	ffree	st0
+	add	edx,20
+	jmp	edi
+	
+;========================================
+	
+entry dmixBlockBop
+	; TOS: num scale pDst pSrc
+	mov	eax, [edx+16]	; pSrc
+	mov	ebx, [edx+12]	; pDst
+	fld	QWORD[edx + 4]	; scale
+	mov	ecx, [edx]		; num
+.dmixBlockBop1:
+	fld	QWORD[eax]
+	fmul	st0, st1
+	fadd	QWORD[ebx]
+	fstp	QWORD[ebx]
+	add eax,8
+	add ebx,8
+	sub ecx,1
+	jnz .dmixBlockBop1
+	ffree	st0
+	add	edx,20
+	jmp	edi
+	
+;========================================
+	
 entry fEquals0Bop
 	fldz
 	jmp	fEqualsBop1
@@ -5623,6 +5921,36 @@ entry stricmpBop
 	xcall	strcasecmp
 %endif
 	jmp	strcmp1
+	
+;========================================
+
+entry strncmpBop
+	;	TOS: numChars ptr2 ptr1
+	push	edx
+	push	esi
+    sub esp, 8     ; 16-byte align for mac
+	mov	eax, [edx]
+	push	eax
+	mov	eax, [edx+4]
+	push	eax
+	mov	eax, [edx+8]
+	push	eax
+	xcall	strncmp
+strncmp1:
+	xor	ebx, ebx
+	cmp	eax, ebx
+	jz	strncmp3		; if strings equal, return 0
+	jg	strncmp2
+	sub	ebx, 2
+strncmp2:
+	inc	ebx
+strncmp3:
+	add	esp, 20
+	pop	esi
+	pop	edx
+	add	edx, 8
+	mov	[edx], ebx
+	jmp	edi
 	
 ;========================================
 

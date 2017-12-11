@@ -42,14 +42,54 @@ namespace ONumber
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pInt);
 	}
 
-	FORTHOP(oIntGetMethod)
-	{
-		GET_THIS(oIntStruct, pInt);
-		SPUSH(pInt->val);
-		METHOD_RETURN;
-	}
+    FORTHOP(oIntGetMethod)
+    {
+        GET_THIS(oIntStruct, pInt);
+        SPUSH(pInt->val);
+        METHOD_RETURN;
+    }
 
-	FORTHOP(oIntSetMethod)
+    FORTHOP(oIntGetSignedByteMethod)
+    {
+        GET_THIS(oIntStruct, pInt);
+        int val = pInt->val & 0xFF;
+        if (val > 0x7F)
+        {
+            val |= 0xFFFFFF00;
+        }
+        SPUSH(val);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oIntGetUnsignedByteMethod)
+    {
+        GET_THIS(oIntStruct, pInt);
+        int val = pInt->val & 0xFF;
+        SPUSH(val);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oIntGetSignedShortMethod)
+    {
+        GET_THIS(oIntStruct, pInt);
+        int val = pInt->val & 0xFFFF;
+        if (val > 0x7FFF)
+        {
+            val |= 0xFFFF0000;
+        }
+        SPUSH(val);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oIntGetUnsignedShortMethod)
+    {
+        GET_THIS(oIntStruct, pInt);
+        int val = pInt->val & 0xFFFF;
+        SPUSH(val);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oIntSetMethod)
 	{
 		GET_THIS(oIntStruct, pInt);
 		pInt->val = SPOP;
@@ -91,7 +131,11 @@ namespace ONumber
 
 		METHOD("set", oIntSetMethod),
 		METHOD_RET("get", oIntGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD("show", oIntShowMethod),
+        METHOD_RET("getByte", oIntGetSignedByteMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte)),
+        METHOD_RET("getUByte", oIntGetUnsignedByteMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeUByte)),
+        METHOD_RET("getShort", oIntGetSignedShortMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeShort)),
+        METHOD_RET("getUShort", oIntGetUnsignedShortMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeUShort)),
+        METHOD("show", oIntShowMethod),
 		METHOD_RET("compare", oIntCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 
 		MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
@@ -109,6 +153,7 @@ namespace ONumber
 	struct oLongStruct
 	{
 		ulong       refCount;
+        int dummy;
 		long long	val;
 	};
 
@@ -179,7 +224,8 @@ namespace ONumber
 		METHOD("show", oLongShowMethod),
 		METHOD_RET("compare", oLongCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 
-		MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeLong)),
+        MEMBER_VAR("__dummy", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeLong)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -260,7 +306,7 @@ namespace ONumber
 		METHOD("show", oFloatShowMethod),
 		METHOD_RET("compare", oFloatCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 
-		MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeFloat)),
+        MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeFloat)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -275,6 +321,7 @@ namespace ONumber
 	struct oDoubleStruct
 	{
 		ulong       refCount;
+        int         dummy;
 		double		val;
 	};
 
@@ -341,7 +388,8 @@ namespace ONumber
 		METHOD("show", oDoubleShowMethod),
 		METHOD_RET("compare", oDoubleCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 
-		MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeDouble)),
+        MEMBER_VAR("__dummy", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeDouble)),
 
 		// following must be last in table
 		END_MEMBERS

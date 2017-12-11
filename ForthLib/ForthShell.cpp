@@ -659,7 +659,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
 				catch(...)
 				{
 					result = kResultException;
-					mpEngine->SetError( kForthErrorException );
+					mpEngine->SetError( kForthErrorIllegalOperation );
 				}
 			}
 			else

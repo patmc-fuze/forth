@@ -107,6 +107,8 @@ struct ForthCoreState
     long                base;               // output base
     ulong               signedPrintMode;   // if numers are printed as signed/unsigned
     long                traceFlags;
+
+    long                *pExceptionFrame;   // points to current exception handler frame in rstack
     ulong               scratch[4];
 };
 

@@ -232,7 +232,7 @@ namespace
     //
     FORTHOP(oContainedTypeNew)
     {
-        GET_ENGINE->SetError(kForthErrorException, " cannot explicitly create a ContainedType object");
+        GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create a ContainedType object");
     }
 
     baseMethodEntry containedTypeMembers[] =
@@ -305,7 +305,7 @@ namespace
 	FORTHOP(classDeleteMethod)
 	{
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		pEngine->SetError(kForthErrorException, " cannot delete a class object");
+		pEngine->SetError(kForthErrorIllegalOperation, " cannot delete a class object");
 		METHOD_RETURN;
 	}
 
