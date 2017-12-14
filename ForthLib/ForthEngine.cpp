@@ -2839,18 +2839,24 @@ void ForthEngine::UngrabTempBuffer()
 #endif
 }
 
-void ForthEngine::ThrowException(ForthCoreState *pCore, long exceptionNum)
+void ForthEngine::RaiseException(ForthCoreState *pCore, long exceptionNum)
 {
     char errorMsg[64];
     long **pExceptionFrame = (long **)(pCore->pExceptionFrame);
     if (pExceptionFrame != nullptr)
     {
+        // exception frame:
+        //  0   old exception frame ptr
+        //  1   saved pstack ptr
+        //  2   ptr to catchIP,finallyIP
+        //  3   saved frame ptr
         pCore->pExceptionFrame = *pExceptionFrame;
         SET_SP(pExceptionFrame[1]);
         SPUSH(exceptionNum);
         long *catchIP = (long *)*(pExceptionFrame[2]);
         SET_IP(catchIP);
-        SET_RP((long *)(pExceptionFrame + 3));
+        SET_FP((pExceptionFrame[3]));
+        SET_RP((long *)(pExceptionFrame + 4));
     }
     else
     {

@@ -1174,6 +1174,7 @@ FORTHOP(initStructArrayOp)
 //
 FORTHOP(doTryOp)
 {
+    RPUSH((long)GET_FP);
     long* IP = GET_IP;
     RPUSH((long) IP);
     RPUSH((long) GET_SP);
@@ -1192,20 +1193,21 @@ FORTHOP(tryOp)
     pEngine->CompileLong(0);
 }
 
-FORTHOP(doCatchOp)
+FORTHOP(doExceptOp)
 {
     pCore->pExceptionFrame = (long *)(RPOP);
     RPOP;
     long* pHandlerIPs = (long *)(RPOP);
     SET_IP((long *)(pHandlerIPs[1]));
+    SET_FP((long *)(RPOP));
 }
 
-FORTHOP(catchOp)
+FORTHOP(exceptOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
 
     long* pHandlerIPs = (long *)(*GET_SP);
-    pEngine->CompileBuiltinOpcode(OP_DO_CATCH);
+    pEngine->CompileBuiltinOpcode(OP_DO_EXCEPT);
     *pHandlerIPs = (long)(GET_DP);
 }
 
@@ -1215,12 +1217,12 @@ FORTHOP(endtryOp)
     pHandlerIPs[1] = (long)(GET_DP);
 }
 
-FORTHOP(throwOp)
+FORTHOP(raiseOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
 
     long exceptionNum = SPOP;
-    pEngine->ThrowException(pCore, exceptionNum);
+    pEngine->RaiseException(pCore, exceptionNum);
 }
 
 //##############################
@@ -8716,7 +8718,7 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
 	NATIVE_COMPILED_DEF(    dupBop,					"dup",				OP_DUP ),
 	NATIVE_COMPILED_DEF(    overBop,				"over",				OP_OVER ),
     OP_COMPILED_DEF(        doTryOp,                "_doTry",           OP_DO_TRY ),
-    OP_COMPILED_DEF(        doCatchOp,              "_doCatch",         OP_DO_CATCH ),
+    OP_COMPILED_DEF(        doExceptOp,             "_doExcept",        OP_DO_EXCEPT ),
 
     // following must be last in table
     OP_COMPILED_DEF(		NULL,                   NULL,					-1 )
@@ -9482,8 +9484,8 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     PRECOP_DEF( tryOp,                  "try"),
     PRECOP_DEF( endtryOp,               "endtry"),
-    PRECOP_DEF( catchOp,                "catch"),
-    OP_DEF( throwOp,                    "throw"),
+    PRECOP_DEF( exceptOp,               "except"),
+    OP_DEF( raiseOp,                    "raise"),
 
 #ifdef WIN32
     ///////////////////////////////////////////

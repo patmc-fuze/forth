@@ -427,7 +427,7 @@ enum {
 	OP_DUP,
 	OP_OVER,
     OP_DO_TRY,
-    OP_DO_CATCH,
+    OP_DO_EXCEPT,
 
 	NUM_COMPILED_OPS
 };
