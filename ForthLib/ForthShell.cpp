@@ -61,6 +61,9 @@ namespace
 		"andif",
 		"orif",
         "]if",
+        "try",
+        "except",
+        "finally",
         nullptr
     };
 

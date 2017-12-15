@@ -1174,47 +1174,138 @@ FORTHOP(initStructArrayOp)
 //
 FORTHOP(doTryOp)
 {
-    RPUSH((long)GET_FP);
+    long *pNewRP = (long *)((long)(GET_RP) - sizeof(ForthExceptionFrame));
+    ForthExceptionFrame *pFrame = (ForthExceptionFrame *)pNewRP;
+    SET_RP(pNewRP);
     long* IP = GET_IP;
-    RPUSH((long) IP);
-    RPUSH((long) GET_SP);
-    RPUSH((long) pCore->pExceptionFrame);
-    pCore->pExceptionFrame = GET_RP;
-    SET_IP(IP + 2);
+    pFrame->pNextFrame = pCore->pExceptionFrame;
+    pFrame->pSavedSP = GET_SP;
+    pFrame->pSavedFP = GET_FP;
+    pFrame->pHandlerIPs = (long **)IP;
+    pFrame->exceptionNumber = 0;
+    pFrame->exceptionState = kForthExceptionStateTry;
+
+    SET_IP(IP + 2);     // skip immediately following handlerIPs
+    pCore->pExceptionFrame = pFrame;
 }
 
 FORTHOP(tryOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
 
     pEngine->CompileBuiltinOpcode(OP_DO_TRY);
-    SPUSH((long) GET_DP);
+    pShellStack->Push((long)GET_DP);
+    // flag that this is the "if" branch
+    pShellStack->PushTag(kShellTagTry);
     pEngine->CompileLong(0);
     pEngine->CompileLong(0);
-}
-
-FORTHOP(doExceptOp)
-{
-    pCore->pExceptionFrame = (long *)(RPOP);
-    RPOP;
-    long* pHandlerIPs = (long *)(RPOP);
-    SET_IP((long *)(pHandlerIPs[1]));
-    SET_FP((long *)(RPOP));
 }
 
 FORTHOP(exceptOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
 
-    long* pHandlerIPs = (long *)(*GET_SP);
-    pEngine->CompileBuiltinOpcode(OP_DO_EXCEPT);
-    *pHandlerIPs = (long)(GET_DP);
+    eShellTag tryTag = pShellStack->PopTag();
+    if (!pShell->CheckSyntaxError("except", tryTag, kShellTagTry))
+    {
+        return;
+    }
+    long *pHandlerIPs = (long *)pShellStack->Pop();
+    pEngine->CompileLong(0);        // this will be a branch to the finally section
+    long dp = (long)(GET_DP);
+    *pHandlerIPs = dp;
+    pShellStack->Push((long)pHandlerIPs);
+    pShellStack->PushTag(kShellTagExcept);
+}
+
+FORTHOP(doFinallyOp)
+{
+    if (pCore->pExceptionFrame != nullptr)
+    {
+        pCore->pExceptionFrame->exceptionState = kForthExceptionStateFinally;
+    }
+    else
+    {
+        GET_ENGINE->SetError(kForthErrorIllegalOperation, "_doFinally executed when there is no exception frame");
+    }
+}
+
+FORTHOP(finallyOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+
+    eShellTag exceptTag = pShellStack->PopTag();
+    if (!pShell->CheckSyntaxError("finally", exceptTag, kShellTagExcept))
+    {
+        return;
+    }
+    // compile raise(0) to clear the exception
+    pEngine->CompileLong(COMPILED_OP(kOpConstant, 0));
+    pEngine->CompileBuiltinOpcode(OP_RAISE);
+    long *pHandlerIPs = (long *)pShellStack->Pop();
+    long* dp = GET_DP;
+    pHandlerIPs[1] = (long) dp;
+    pEngine->CompileBuiltinOpcode(OP_DO_FINALLY);
+    // create branch from end of try section to finally section
+    long *pBranch = (long*)(pHandlerIPs[0]) - 1;
+    *pBranch = COMPILED_OP(kOpBranch, (dp - pBranch) - 1);
+    pShellStack->PushTag(kShellTagFinally);
 }
 
 FORTHOP(endtryOp)
 {
-    long* pHandlerIPs = (long *)(SPOP);
-    pHandlerIPs[1] = (long)(GET_DP);
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+
+    eShellTag tag = pShellStack->PopTag();
+    if (!pShell->CheckSyntaxError("endtry", tag, (kShellTagExcept | kShellTagFinally)))
+    {
+        return;
+    }
+
+    if (tag == kShellTagExcept)
+    {
+        // compile raise(0) to clear the exception
+        pEngine->CompileLong(COMPILED_OP(kOpConstant, 0));
+        pEngine->CompileBuiltinOpcode(OP_RAISE);
+        // set finallyIP to here
+        long *pHandlerIPs = (long *)pShellStack->Pop();
+        long* dp = GET_DP;
+        pHandlerIPs[1] = (long)dp;
+        // create branch from end of try section to empty finally section
+        long *pBranch = (long*)(pHandlerIPs[0]) - 1;
+        *pBranch = COMPILED_OP(kOpBranch, (dp - pBranch) - 1);
+    }
+    pEngine->CompileBuiltinOpcode(OP_DO_ENDTRY);
+}
+
+FORTHOP(doEndtryOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    if (pCore->pExceptionFrame != nullptr)
+    {
+        // unwind current exception frame
+        SET_FP(pCore->pExceptionFrame->pSavedFP);
+        long oldExceptionNum = pCore->pExceptionFrame->exceptionNumber;
+        long *pNewRP = (long *)((long)(GET_RP) + sizeof(ForthExceptionFrame));
+        SET_RP(pNewRP);
+        pCore->pExceptionFrame = pCore->pExceptionFrame->pNextFrame;
+        if (oldExceptionNum != 0)
+        {
+            pEngine->RaiseException(pCore, oldExceptionNum);
+        }
+    }
+    else
+    {
+        pEngine->SetError(kForthErrorIllegalOperation, "endtry executed when there is no exception frame");
+    }
 }
 
 FORTHOP(raiseOp)
@@ -8718,7 +8809,9 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
 	NATIVE_COMPILED_DEF(    dupBop,					"dup",				OP_DUP ),
 	NATIVE_COMPILED_DEF(    overBop,				"over",				OP_OVER ),
     OP_COMPILED_DEF(        doTryOp,                "_doTry",           OP_DO_TRY ),
-    OP_COMPILED_DEF(        doExceptOp,             "_doExcept",        OP_DO_EXCEPT ),
+    OP_COMPILED_DEF(        doFinallyOp,            "_doFinally",       OP_DO_FINALLY ),
+    OP_COMPILED_DEF(        doEndtryOp,             "_doEndtry",        OP_DO_ENDTRY ),
+    OP_COMPILED_DEF(        raiseOp,                "raise",            OP_RAISE),
 
     // following must be last in table
     OP_COMPILED_DEF(		NULL,                   NULL,					-1 )
@@ -9480,12 +9573,12 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF( getCurrentAsyncThreadOp,    "getCurrentAsyncThread"),
 	
     ///////////////////////////////////////////
-    //  threads
+    //  exception handling
     ///////////////////////////////////////////
     PRECOP_DEF( tryOp,                  "try"),
-    PRECOP_DEF( endtryOp,               "endtry"),
     PRECOP_DEF( exceptOp,               "except"),
-    OP_DEF( raiseOp,                    "raise"),
+    PRECOP_DEF( finallyOp,              "finally"),
+    PRECOP_DEF( endtryOp,               "endtry"),
 
 #ifdef WIN32
     ///////////////////////////////////////////

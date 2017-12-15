@@ -256,6 +256,29 @@ typedef enum {
     kForthNumErrors
 } eForthError;
 
+typedef enum
+{
+    kForthExceptionStateTry,
+    kForthExceptionStateExcept,
+    kForthExceptionStateFinally,
+    kForthNumExceptionStates
+} eForthExceptionState;
+
+// exception handler IPs (compiled just after _doTry opcode)
+// 0    exceptIP
+// 1    finallyIP
+
+// exception frame on rstack:
+struct ForthExceptionFrame
+{
+    ForthExceptionFrame*    pNextFrame;
+    long*                   pSavedSP;
+    long**                  pHandlerIPs;
+    long*                   pSavedFP;
+    long                    exceptionNumber;
+    eForthExceptionState    exceptionState;
+};
+
 // how sign should be handled while printing integers
 typedef enum {
     kPrintSignedDecimal,
@@ -427,7 +450,9 @@ enum {
 	OP_DUP,
 	OP_OVER,
     OP_DO_TRY,
-    OP_DO_EXCEPT,
+    OP_DO_FINALLY,
+    OP_DO_ENDTRY,
+    OP_RAISE,
 
 	NUM_COMPILED_OPS
 };

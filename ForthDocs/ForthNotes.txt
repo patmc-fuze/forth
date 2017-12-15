@@ -174,6 +174,35 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 15 2017
+
+I added 'finally' to exception handling.
+I also added a ForthExceptionFrame struct and changed the code to use that instead
+of just directly manipulating slots on the rstack.
+
+I added an exception state, it is intended to deal with the case where an
+exception is raised inside a finally section.  In that case I throw a regular
+error, I could instead have sent the exception to the next surrounding exception
+handler, but then it makes it easier to have leaks from not completing finally
+blocks, which could go unnoticed.
+
+I should probably have the code which dumps the stacks on error also show
+the exception handler chain.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 14 2017
+
+I tried grabbing Forth from github on a different computer and it failed to
+build for these reasons:
+1) there is a hardcoded path E:\Apps\NASM\nasm
+2) the ASM_INNER_INTERPRETER define isn't set for the assembler files
+I forgot how I did this - in order to get it to work with nasm. I had to define
+a user macro USE_ASM_INTERP, which is defined to be "-DASM_INNER_INTERPRETER".
+That variable is defined in
+ ForthLib:Properties:Configuration Properties:C/C++:Preprocessor:PreprocessorDefinitions
+ select Edit
+ select Macros>>
+ find $(USE_ASM_INTERP) in the right hand scroll panel
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 13 2017
 
 DOH! The problem with exception handling in forthtest.txt when run in test.txt

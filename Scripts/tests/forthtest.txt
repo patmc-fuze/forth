@@ -343,7 +343,7 @@ test[ dMixBlock(dsrcB ddst 0.5d 4)    37.5L 18.0L 5.125L 102.0L dcheck4 ]
 
 // Test exception handling
 
-int caughtVal   int exNumIn
+int caughtVal   int exNumIn   int finallyVal
 
 : mod7catcher
   int exNum
@@ -356,6 +356,8 @@ int caughtVal   int exNumIn
     else
       raise(exNum)
     endif
+  finally
+    finallyVal 1 or -> finallyVal
   endtry
 ;
 
@@ -370,6 +372,8 @@ int caughtVal   int exNumIn
     else
       raise(exNum)
     endif
+  finally
+    finallyVal 2 or -> finallyVal
   endtry
 ;
 
@@ -384,6 +388,7 @@ int caughtVal   int exNumIn
 : mod11catcher
   -> exNumIn
   -1 -> caughtVal
+  0 -> finallyVal
   int exNum
   try
     bystander1
@@ -397,7 +402,9 @@ int caughtVal   int exNumIn
   endtry
 ;
 
-test[ mod11catcher(42) 17 = caughtVal 7 = mod11catcher(22) caughtVal 11 = mod11catcher(36) 17 = caughtVal 3 = ]
+test[ mod11catcher(42) 17 = caughtVal 7 = finallyVal 3 = ]
+test[ mod11catcher(22) caughtVal 11 = finallyVal 3 = ]
+test[ mod11catcher(36) 17 = caughtVal 3 = finallyVal 3 = ]
 
 ///////////////////////////////////////////////////////////
 
