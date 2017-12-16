@@ -1003,6 +1003,37 @@ addHelp outToScreen   restore output to the normal console
 
 
 //######################################################################
+addHelp pushContext save the current base, search vocabularies and definitions vocabulary on stack
+: pushContext
+  do(system.getSearchVocabDepth 0)
+    system.getSearchVocabAt(i)
+  loop
+  system.getSearchVocabDepth
+  system.getDefinitionsVocab
+  base @
+  'fctx'
+;
+
+addHelp popContext restore the current base, search vocabularies and definitions vocabulary from stack
+: popContext
+  int numSearchVocabs
+  if('fctx' <>)
+    error("popContext - wrong stuff on stack")
+  else
+    base !
+    system.setDefinitionsVocab
+    -> numSearchVocabs
+    only
+    if(numSearchVocabs 0>)
+      system.setSearchVocabTop
+      do(numSearchVocabs 1)
+        system.pushSearchVocab
+      loop
+    endif
+  endif
+;
+
+//######################################################################
 // flags to use with setTrace command
 
 enum: eLogFlags
