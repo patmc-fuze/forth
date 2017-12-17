@@ -117,6 +117,14 @@ addHelp fwithin	FVAL FLO FHI ... (FLO<=FVAL<FHI)
 addHelp fmin	FA FB ... min(FA,FB)
 addHelp fmax	FA FB ... max(FA,FB)
 
+addHelp fAddBlock    SRCA SRCB DST NUM ...   add blocks of NUM floats at SRCA and SRCB and store results in DST
+addHelp fSubBlock    SRCA SRCB DST NUM ...   subtract blocks of NUM floats at SRCA and SRCB and store results in DST
+addHelp fMulBlock    SRCA SRCB DST NUM ...   multiply blocks of NUM floats at SRCA and SRCB and store results in DST
+addHelp fDivBlock    SRCA SRCB DST NUM ...   divide blocks of NUM floats at SRCA and SRCB and store results in DST
+addHelp fScaleBlock  SRC DST SCALE NUM ...   multiply block of NUM floats at SRC by SCALE and store results in DST
+addHelp fOffsetBlock  SRC DST OFFSET NUM ... add OFFSET to block of NUM floats at SRC and store results in DST
+addHelp fMixBlock    SRC DST SCALE NUM ...   multiply block of NUM floats at SRC by SCALE and add results into DST
+
 addHelp d+	DA DB ... (DA+DB)	add top two double floating point items
 addHelp d-	DA DB ... (DA-DB)	subtract top two double floating point items
 addHelp d*	DA DB ... (DA*DB)	multiply top two double floating point items
@@ -136,6 +144,14 @@ addHelp d0<=	DA ... DA<=0
 addHelp dwithin	DVAL DLO DHI ... (DLO<=DVAL<DHI)
 addHelp dmin	DA DB ... min(DA,DB)
 addHelp dmax	DA DB ... max(DA,DB)
+
+addHelp dAddBlock    SRCA SRCB DST NUM ...   add blocks of NUM doubles at SRCA and SRCB and store results in DST
+addHelp dSubBlock    SRCA SRCB DST NUM ...   subtract blocks of NUM doubles at SRCA and SRCB and store results in DST
+addHelp dMulBlock    SRCA SRCB DST NUM ...   multiply blocks of NUM doubles at SRCA and SRCB and store results in DST
+addHelp dDivBlock    SRCA SRCB DST NUM ...   divide blocks of NUM doubles at SRCA and SRCB and store results in DST
+addHelp dScaleBlock  SRC DST SCALE NUM ...   multiply block of NUM doubles at SRC by SCALE and store results in DST
+addHelp dOffsetBlock  SRC DST OFFSET NUM ...  add OFFSET to block of NUM doubles at SRC and store results in DST
+addHelp dMixBlock    SRC DST SCALE NUM ...   multiply block of NUM doubles at SRC by SCALE and add results into DST
 
 addHelp dsin		DA    ... sin(DA)
 addHelp darcsin		DA    ... arcsin(DA)
@@ -244,8 +260,9 @@ addHelp strcat	STRA STRB ...	appends STRB to string at STRA
 addHelp strncat	STRA STRB N ...	appends up to N chars from STRB to STRA
 addHelp strchr	STR CHAR ... PTR	returns ptr to first occurence of CHAR in string STR
 addHelp strrchr	STR CHAR ... PTR	`returns ptr to last occurence of CHAR is string STR
-addHelp strcmp	STRA STRB ... N		returns 0 iff STRA = STRB, else result of last char comparison
-addHelp stricmp	STRA STRB ... N		returns 0 iff STRA = STRB ignoring case, else result of last char comparison,
+addHelp strcmp	STRA STRB ... V		returns 0 iff STRA = STRB, else result of last char comparison
+addHelp stricmp	STRA STRB ... V		returns 0 iff STRA = STRB ignoring case, else result of last char comparison
+addHelp strncmp	STRA STRB N ... V		returns 0 iff STRA = STRB ignoring case, else result of last char comparison, for first N chars
 addHelp strstr	STRA STRB ... PTR	returns ptr to first occurence of STRB in string STRA
 addHelp strtok	STRA STRB ... PTR	returns ptr to next token in STRA, delimited by a char in STRB, modifies STRA, pass 0 for STRA after first call
 
@@ -312,11 +329,19 @@ addHelp of				CASEVAL ...					begin one case branch
 addHelp endof										end case branch
 addHelp endcase			TESTVAL ...					end all cases - drops TESTVAL
 
+addHelp try                                         start of code section protected by exception handler
+addHelp except                                      start of exception handler code
+addHelp finally                                     defines code run after exception handler
+addHelp endtry                                      end of exception handler
+addHelp raise           EXCEPTION_NUM ...           raise an exception
+
 addHelp builds										starts a builds...does definition
 addHelp does										starts the runtime part of a builds...does definition
 addHelp exit										exit current hi-level op
 addHelp ;											ends a colon definition
-addHelp :											starst a colon definition
+addHelp :											starts a colon definition
+addHelp f:                                          starts a function definition
+addHelp ;f                                          ends a function definition, leaves function opcode on stack
 addHelp code										starts an assembler definition
 addHelp create										starts a 
 addHelp variable	variable NAME		creates a variable op which pushes its address when executed
@@ -379,7 +404,6 @@ addHelp only		...							sets the vocabulary stack to just one element, forth, us
 addHelp forget		forget WORDNAME				forget named word and all newer definitions
 addHelp autoforget	autoforget WORDNAME			forget named word and all newer definitions, don't report error if WORDNAME is not defined yet
 addHelp vlist				display current search vocabulary
-addHelp vlistq				display current search vocabulary
 addHelp find
 
 addHelp align	...		aligns DP to a lonword boundary
@@ -399,14 +423,21 @@ addHelp %2x					LNUM ...			prints 64-bit number in hex
 addHelp %s					STRING ...			prints string
 addHelp %c					CHARVAL ...			prints character
 addHelp %nc					NUM CHARVAL ...			prints character NUM times
-addHelp spaces
+addHelp spaces              NUM ...             prints NUM spaces
 addHelp type				STRING NCHARS ...	print a block of NCHARS characters of text
+addHelp %4c                 NUM ...             prints 32-bit int as 4 characters
+addHelp %8c                 LNUM ...            prints 64-bit int as 8 characters
 addHelp %bl										prints a space
 addHelp %nl										prints a newline
-addHelp %f					FPNUM ...			prints a single-precision floating point number
-addHelp %2f					DOUBLE_FPNUM ...	prints a double-precision floating point number
+addHelp %f					FPNUM ...			prints a single-precision floating point number with %f format
+addHelp %2f					DOUBLE_FPNUM ...	prints a double-precision floating point number with %f format
+addHelp %g					FPNUM ...			prints a single-precision floating point number with %g format
+addHelp %2g					DOUBLE_FPNUM ...	prints a double-precision floating point number with %g format
 addHelp format				ARG FORMAT_STRING ... STRING_ADDR		format a 32-bit numeric value
 addHelp 2format				ARG64 FORMAT_STRING ... STRING_ADDR		format a 64-bit numeric value
+addHelp addTempString       STRING NUM ... TSTRING      allocate a temporary string - STRING may be null or NUM may be 0
+addHelp atoi                STRING ... NUM      convert string to integer
+addHelp atof                STRING ... DOUBLE   convert string to double-precision floating point
 addHelp fprintf				FILE FORMAT_STRING (ARGS) NUM_ARGS ... RESULT		print formatted string to file
 addHelp snprintf			BUFFER BUFFER_SIZE FORMAT_STRING (ARGS) NUM_ARGS ... RESULT		print formatted string to BUFFER
 addHelp fscanf				FILE FORMAT_STRING (ARGS) NUM_ARGS ... RESULT		read formatted string from file
@@ -418,6 +449,20 @@ addHelp hex					sets current base to 16
 addHelp printDecimalSigned	makes all decimal printing signed, printing in any other base is unsigned	
 addHelp printAllSigned		makes printing in any base signed
 addHelp printAllUnsigned	makes printing in any base unsigned
+
+addHelp getConsoleOut       ... OBJECT          get console output stream
+addHelp getDefaultConsoleOut    ... OBJECT      get default console output stream
+addHelp setConsoleOut       OBJECT ...          set console output stream
+addHelp resetConsoleOut     ...                 set console output stream to default
+
+addHelp toupper             CHAR ... UCHAR      change character to upper case
+addHelp isupper             CHAR ... RESULT     test if character is upper case
+addHelp isspace             CHAR ... RESULT     test if character is whitespace
+addHelp isalpha             CHAR ... RESULT     test if character is alphabetic
+addHelp isgraph             CHAR ... RESULT     test if character is graphic
+addHelp tolower             CHAR ... LCHAR      change character to lower case
+addHelp islower             CHAR ... RESULT     test if character is lower case
+
 addHelp outToFile			FILE ...	redirect output to file
 addHelp outToScreen			...			set output to screen (standard out)
 addHelp outToString			STRING ...	redirect output to string
@@ -467,6 +512,7 @@ addHelp dstack				display parameter stack
 addHelp drstack				display return stack
 addHelp system				STRING ... RESULT				pass DOS command line to system, returns exit code (0 means success)
 addHelp chdir				STRING ... RESULT				change current working directory, returns exit code (0 means success)
+addHelp remove				STRING ... RESULT				remove named file, returns exit code (0 means success)
 addHelp bye					exit forth
 addHelp argv				INDEX ... STRING_ADDR			return arguments from command line that started forth
 addHelp argc				... NUM_ARGUMENTS				return number of arguments from command line that started forth (not counting "forth" itself)

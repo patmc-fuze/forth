@@ -205,8 +205,9 @@ mko StringMap _helpMap
     while( iter.nextPair )
       %s %bl <String>.get %s %nl
     repeat
+    oclear iter
   else
-    _helpMap.get(opName) -> String opDescription
+    _helpMap.get(opName) ->o String opDescription
     if(objIsNull(opDescription))
       opName %s " not found!\n" %s
     else
@@ -227,6 +228,7 @@ mko StringMap _helpMap
   endif
 ;
 
+addHelp immediate    makes most recently defined word have precedence
 : immediate
   system.getDefinitionsVocab -> Vocabulary vocab
   vocab.getNewestEntry
@@ -438,7 +440,7 @@ alias space %bl
   bytesRead
 ;
 
-addHelp enumInfo enumValue ... str
+addHelp $enum       enumInfo enumValue ... str      convert an enum value into its string
 : $enum
   -> int enumInfo
   -> int enumValue
