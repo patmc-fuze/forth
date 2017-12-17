@@ -268,6 +268,147 @@ test[ 43 27 88 -rot 27 = -rot 43 = -rot 88 = and and and 1 4 5 nip 5 = swap 1 = 
 // . %d %x %2d %2x %s %c type %bl %nl %f %2f format 2format
 // printDecimalSigned printAllSigned printAllUnsigned octal decimal hex
 
+///////////////////////////////////////////////////////////
+
+// Test block floating point ops
+create srcA
+  35.0 , 17.0 , 1.125 , 100.0 ,
+create srcB
+  5.0 , 2.0 , 8.0 , 4.0 ,
+create dst
+  0.0 , 0.0 , 0.0 , 0.0 , 17.0 ,
+
+: fcheck4
+  dst 16+ -> ptrTo float pf
+  false -> int itWorked
+  if(pf @ 17.0 f=)
+    true -> itWorked
+    do(4 0)
+      -> float fv
+      4 ->- pf
+      if(pf @ fv f<>)
+        pf @ %g %bl fv %g %nl
+        false -> itWorked
+      endif
+    loop
+  endif
+  itWorked
+;
+
+test[ fAddBlock(srcA srcB dst 4)   40.0 19.0 9.125 104.0 fcheck4 ]
+test[ fSubBlock(srcA srcB dst 4)   30.0 15.0 -6.875 96.0 fcheck4 ]
+test[ fMulBlock(srcA srcB dst 4)   175.0 34.0 9.0 400.0 fcheck4 ]
+test[ fDivBlock(srcA srcB dst 4)   7.0 8.5 0.140625 25.0 fcheck4 ]
+test[ fScaleBlock(srcA dst 4.0 4)  140.0 68.0 4.5 400.0 fcheck4 ]
+test[ fOffsetBlock(srcA dst 4.0 4) 39.0 21.0 5.125 104.0 fcheck4 ]
+test[ fScaleBlock(srcA dst 0.0 4)  0.0 0.0 0.0 0.0 fcheck4 ]
+test[ fMixBlock(srcA dst 1.0 4)    35.0 17.0 1.125 100.0 fcheck4 ]
+test[ fMixBlock(srcB dst 0.5 4)    37.5 18.0 5.125 102.0 fcheck4 ]
+
+create dsrcA
+  35.0d 2, 17.0d 2, 1.125d 2, 100.0d 2,
+create dsrcB
+  5.0d 2, 2.0d 2, 8.0d 2, 4.0d 2,
+create ddst
+  0.0d 2, 0.0d 2, 0.0d 2, 0.0d 2, 17.0d 2,
+
+: dcheck4
+  ddst 32+ -> ptrTo double pd
+  false -> int itWorked
+  if(pd 2@ 17.0L d=)
+    true -> itWorked
+    do(4 0)
+      -> double dv
+      8 ->- pd
+      if(dv pd 2@ d<>)
+        pd 2@ %2g %bl dv %2g %nl
+        false -> itWorked
+      endif
+    loop
+  endif
+  itWorked
+;
+
+test[ dAddBlock(dsrcA dsrcB ddst 4)   40.0L 19.0L 9.125L 104.0L  dcheck4 ]
+test[ dSubBlock(dsrcA dsrcB ddst 4)   30.0L 15.0L -6.875L 96.0L dcheck4 ]
+test[ dMulBlock(dsrcA dsrcB ddst 4)   175.0L 34.0L 9.0L 400.0L dcheck4 ]
+test[ dDivBlock(dsrcA dsrcB ddst 4)   7.0L 8.5L 0.140625L 25.0L dcheck4 ]
+test[ dScaleBlock(dsrcA ddst 4.0d 4)  140.0L 68.0L 4.5L 400.0L dcheck4 ]
+test[ dOffsetBlock(dsrcA ddst 4.0d 4) 39.0L 21.0L 5.125L 104.0L dcheck4 ]
+test[ dScaleBlock(dsrcA ddst 0.0d 4)  0.0L 0.0L 0.0L 0.0L dcheck4 ]
+test[ dMixBlock(dsrcA ddst 1.0d 4)    35.0L 17.0L 1.125L 100.0L dcheck4 ]
+test[ dMixBlock(dsrcB ddst 0.5d 4)    37.5L 18.0L 5.125L 102.0L dcheck4 ]
+
+///////////////////////////////////////////////////////////
+
+// Test exception handling
+
+int caughtVal   int exNumIn   int finallyVal
+
+: mod7catcher
+  int exNum
+  try
+    raise(exNumIn)
+  except
+    -> exNum
+    if(mod(exNum 7) 0=)
+      7 -> caughtVal
+    else
+      raise(exNum)
+    endif
+  finally
+    finallyVal 1 or -> finallyVal
+  endtry
+;
+
+: mod3catcher
+  int exNum
+  try
+    mod7catcher
+  except
+    -> exNum
+    if(mod(exNum 3) 0=)
+      3 -> caughtVal
+    else
+      raise(exNum)
+    endif
+  finally
+    finallyVal 2 or -> finallyVal
+  endtry
+;
+
+: bystander2
+  17 mod3catcher
+;
+
+: bystander1
+  bystander2
+;
+
+: mod11catcher
+  -> exNumIn
+  -1 -> caughtVal
+  0 -> finallyVal
+  int exNum
+  try
+    bystander1
+  except
+    -> exNum
+    if(mod(exNum 11) 0=)
+      11 -> caughtVal
+    else
+      raise(exNum)
+    endif
+  endtry
+;
+
+test[ mod11catcher(42) 17 = caughtVal 7 = finallyVal 3 = ]
+test[ mod11catcher(22) caughtVal 11 = finallyVal 3 = ]
+test[ mod11catcher(36) 17 = caughtVal 3 = finallyVal 3 = ]
+
+///////////////////////////////////////////////////////////
+
+// Test pointer move ops
 
 //0123456789abcdef012345 
 testBuff2.set( "This is a test string" )

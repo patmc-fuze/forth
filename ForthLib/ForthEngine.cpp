@@ -2839,23 +2839,57 @@ void ForthEngine::UngrabTempBuffer()
 #endif
 }
 
-void ForthEngine::ThrowException(ForthCoreState *pCore, long exceptionNum)
+void ForthEngine::RaiseException(ForthCoreState *pCore, long newExceptionNum)
 {
     char errorMsg[64];
-    long **pExceptionFrame = (long **)(pCore->pExceptionFrame);
+    ForthExceptionFrame *pExceptionFrame = pCore->pExceptionFrame;
     if (pExceptionFrame != nullptr)
     {
-        pCore->pExceptionFrame = *pExceptionFrame;
-        SET_SP(pExceptionFrame[1]);
-        SPUSH(exceptionNum);
-        long *catchIP = (long *)*(pExceptionFrame[2]);
-        SET_IP(catchIP);
-        SET_RP((long *)(pExceptionFrame + 3));
+        // exception frame:
+        //  0   old exception frame ptr
+        //  1   saved pstack ptr
+        //  2   ptr to catchIP,finallyIP
+        //  3   saved frame ptr
+        //  4   exception number
+        //  5   exception state
+        if (newExceptionNum)
+        {
+            long oldExceptionNum = pExceptionFrame->exceptionNumber;
+            pExceptionFrame->exceptionNumber = newExceptionNum;
+            if (oldExceptionNum)
+            {
+                if (pExceptionFrame->exceptionState == kForthExceptionStateFinally)
+                {
+                    // exception inside a finally section, avoid infinite loop
+                    // ? should this be a reraise to surrounding handler instead
+                    snprintf(errorMsg, sizeof(errorMsg), "Reraised exception of type %d in finally section", newExceptionNum);
+                    SetError(kForthErrorException, errorMsg);
+                }
+                else
+                {
+                    // re-raise inside an exception handler - transfer control to finally body
+                    SET_SP(pExceptionFrame->pSavedSP);
+                    SET_IP(pExceptionFrame->pHandlerIPs[1]);
+                }
+            }
+            else
+            {
+                // raise in try body
+                SET_SP(pExceptionFrame->pSavedSP);
+                SPUSH(newExceptionNum);
+                SET_IP(pExceptionFrame->pHandlerIPs[0]);
+                pExceptionFrame->exceptionState = kForthExceptionStateExcept;
+            }
+        }
+        pExceptionFrame->exceptionNumber = newExceptionNum;
     }
     else
     {
-        snprintf(errorMsg, sizeof(errorMsg), "Unhandled exception of type %d", exceptionNum);
-        SetError(kForthErrorException, errorMsg);
+        if (newExceptionNum)
+        {
+            snprintf(errorMsg, sizeof(errorMsg), "Unhandled exception of type %d", newExceptionNum);
+            SetError(kForthErrorException, errorMsg);
+        }
     }
 }
 

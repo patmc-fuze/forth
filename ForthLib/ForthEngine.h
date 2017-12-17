@@ -353,7 +353,7 @@ public:
     void                    AddGlobalObjectVariable(ForthObject* pObject);
     void                    CleanupGlobalObjectVariables(long* pNewDP);
 
-    void                    ThrowException(ForthCoreState* pCore, long exceptionNum);
+    void                    RaiseException(ForthCoreState* pCore, long exceptionNum);
 
 protected:
     // NOTE: temporarily modifies string @pToken

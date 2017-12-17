@@ -174,6 +174,73 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 15 2017
+
+I added 'finally' to exception handling.
+I also added a ForthExceptionFrame struct and changed the code to use that instead
+of just directly manipulating slots on the rstack.
+
+I added an exception state, it is intended to deal with the case where an
+exception is raised inside a finally section.  In that case I throw a regular
+error, I could instead have sent the exception to the next surrounding exception
+handler, but then it makes it easier to have leaks from not completing finally
+blocks, which could go unnoticed.
+
+I should probably have the code which dumps the stacks on error also show
+the exception handler chain.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 14 2017
+
+I tried grabbing Forth from github on a different computer and it failed to
+build for these reasons:
+1) there is a hardcoded path E:\Apps\NASM\nasm
+2) the ASM_INNER_INTERPRETER define isn't set for the assembler files
+I forgot how I did this - in order to get it to work with nasm. I had to define
+a user macro USE_ASM_INTERP, which is defined to be "-DASM_INNER_INTERPRETER".
+That variable is defined in
+ ForthLib:Properties:Configuration Properties:C/C++:Preprocessor:PreprocessorDefinitions
+ select Edit
+ select Macros>>
+ find $(USE_ASM_INTERP) in the right hand scroll panel
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 13 2017
+
+DOH! The problem with exception handling in forthtest.txt when run in test.txt
+was because an earlier test before forthtest.txt loads numberio.txt, which loads
+compatability.txt, which defines the ANSI forth throw and catch ops.
+
+I changed catch/throw to except/raise and the test works fine now, plus ANSI
+compatability is still possible.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 12 2017
+
+I found and fixed some bugs with exception handling, and added a test for it
+to forthtest.txt.  That test runs without errors when you run forthtest.txt
+directly, but crashes if you run test.txt, which runs forthtest.txt.
+If I run forthtest.txt from t.txt, there is no crash.
+
+Cases to test:
+o when no throw happens within try...catch (or below)
+o when throw happens directly in try...catch
+o when throw happens in something invoked from an op in try...catch
+o exit from catch handler when exception is handled (no re-throw)
+o exit from catch handler when re-throwing
+o throw when there is no surrounding handler (unhandled exception)
+
+Maybe I should add a settable global 'onError' handler op, that can be used
+for testing - if defined it could decide if an error should be ignored or
+should cause the current thread to reset.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 11 2017
+
+Forth is up to date on osx, with the following problems (not new):
+
+1) when you run it in the debugger in release mode, it doesn't respond to input
+  at all, and if you try to stop running it, it kills all xcode windows (not just forth)
+2) when you run it in the debugger in debug mode, characters you type are doubled up.
+
+On the plus side, all the tests work, and even trace mode runs without crashing.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 9 2017
 
 I added basic exception handling - try...catch...endtry and throw.
