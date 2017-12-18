@@ -235,6 +235,9 @@ public:
 	void                    TraceStack(ForthCoreState* pCore);
     void                    DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUserDefs=false );
     long *                  NextOp( long *pOp );
+    void                    AddOpExecutionToProfile(long op);
+    void                    DumpExecutionProfile();
+    void                    ResetExecutionProfile();
 
     inline long *           GetDP() { return mDictionary.pCurrent; };
     inline void             SetDP( long *pNewDP ) { mDictionary.pCurrent = pNewDP; };
@@ -422,6 +425,13 @@ protected:
 	std::vector<ForthLabel> mLabels;
 
     std::vector<ForthObject*> mGlobalObjectVariables;
+
+    struct opcodeProfileInfo {
+        long op;
+        long count;
+    };
+    std::vector<opcodeProfileInfo> mProfileOpcodeCounts;
+    int mProfileOpcodeTypeCounts[256];
 
 public:
     void                    PushContinuation(long val);

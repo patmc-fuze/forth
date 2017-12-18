@@ -5857,6 +5857,19 @@ FORTHOP(bkptOp)
     CONSOLE_STRING_OUT("<<<BREAKPOINT HIT>>>\n");
 }
 
+FORTHOP(dumpProfileOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->DumpExecutionProfile();
+}
+
+FORTHOP(resetProfileOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->ResetExecutionProfile();
+}
+
+
 #ifndef ASM_INNER_INTERPRETER
 
 
@@ -9531,6 +9544,8 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF(		ssPeekBop,				"ss@"),
 	OP_DEF(		ssDepthBop,				"ssdepth"),
 	OP_DEF(		bkptOp,				    "bkpt"),
+    OP_DEF(     dumpProfileOp,          "dumpProfile"),
+    OP_DEF(     resetProfileOp,         "resetProfile"),
 
     ///////////////////////////////////////////
     //  conditional compilation

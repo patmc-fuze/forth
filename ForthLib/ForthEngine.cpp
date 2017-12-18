@@ -81,7 +81,12 @@ extern "C"
 			{
 				pEngine->TraceStack(pCore);
 			}
-			pEngine->TraceOut("\n");
+
+            if (pCore->traceFlags & (kLogStack | kLogInnerInterpreter))
+            {
+                pEngine->TraceOut("\n");
+            }
+
             if (pCore->traceFlags & kLogInnerInterpreter)
             {
                 pEngine->TraceOp(pIP, op);
@@ -93,7 +98,12 @@ extern "C"
                     SpewMethodName(pMethods, opVal);
                 }
             }
-		}
+
+            if (pCore->traceFlags & kLogProfiler)
+            {
+                pEngine->AddOpExecutionToProfile(op);
+            }
+        }
 	}
 };
 
@@ -1573,6 +1583,109 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
     }
 }
 
+void ForthEngine::AddOpExecutionToProfile(long op)
+{
+    forthOpType opType = FORTH_OP_TYPE(op);
+    ulong opVal = FORTH_OP_VALUE(op);
+
+    switch (opType)
+    {
+
+    case kOpNative:
+    case kOpNativeImmediate:
+    case kOpCCode:
+    case kOpCCodeImmediate:
+    case kOpUserDef:
+    case kOpUserDefImmediate:
+    case kOpDLLEntryPoint:
+    {
+        size_t oldSize = mProfileOpcodeCounts.size();
+        if (oldSize <= opVal)
+        {
+            size_t newSize = opVal + 64;
+            mProfileOpcodeCounts.resize(newSize);
+            for (size_t i = oldSize; i < newSize; ++i)
+            {
+                mProfileOpcodeCounts[i].count = 0;
+                mProfileOpcodeCounts[i].op = i;
+            }
+        }
+        mProfileOpcodeCounts[opVal].count += 1;
+        mProfileOpcodeCounts[opVal].op = op;
+    }
+    break;
+
+    default:
+        break;
+    }
+    mProfileOpcodeTypeCounts[opType] += 1;
+}
+
+void ForthEngine::DumpExecutionProfile()
+{
+    ForthVocabulary* pFoundVocab;
+    char buffer[256];
+    for (int i = 0; i < mProfileOpcodeCounts.size(); ++i)
+    {
+        long op = mProfileOpcodeCounts[i].op;
+        if (op == 0)
+        {
+            op = i;
+        }
+        long *pEntry = GetVocabularyStack()->FindSymbolByValue(op, &pFoundVocab);
+        if (pEntry == NULL)
+        {
+            ForthVocabulary* pVocab = ForthVocabulary::GetVocabularyChainHead();
+            while (pVocab != NULL)
+            {
+                pEntry = pVocab->FindSymbolByValue(op);
+                if (pEntry != NULL)
+                {
+                    pFoundVocab = pVocab;
+                    
+                    break;
+                }
+                pVocab = pVocab->GetNextChainVocabulary();
+            }
+        }
+        if (pEntry)
+        {
+            // the symbol name in the vocabulary doesn't always have a terminating null
+            int len = pFoundVocab->GetEntryNameLength(pEntry);
+            char *pBuffer = &(buffer[0]);
+            const char* pName = pFoundVocab->GetEntryName(pEntry);
+            for (int i = 0; i < len; i++)
+            {
+                *pBuffer++ = *pName++;
+            }
+            SNPRINTF(pBuffer, sizeof(buffer) - (len + 1), " %d\n", mProfileOpcodeCounts[i].count);
+        }
+        else
+        {
+            SNPRINTF(buffer, sizeof(buffer), "NOT_FOUND:0x%x %d\n", op, mProfileOpcodeCounts[i].count);
+        }
+        ForthConsoleStringOut(mpCore, buffer);
+    }
+    
+    for (int i = 0; i < 256; ++i)
+    {
+        SNPRINTF(buffer, sizeof(buffer), "opType:0x%x %d\n", i, mProfileOpcodeTypeCounts[i]);
+        ForthConsoleStringOut(mpCore, buffer);
+    }
+}
+
+void ForthEngine::ResetExecutionProfile()
+{
+    for (int i = 0; i < mProfileOpcodeCounts.size(); ++i)
+    {
+        mProfileOpcodeCounts[i].count = 0;
+    }
+
+    for (int i = 0; i < 256; ++i)
+    {
+        mProfileOpcodeTypeCounts[i] = 0;
+    }
+}
 
 
 bool
