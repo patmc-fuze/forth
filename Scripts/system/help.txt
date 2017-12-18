@@ -549,6 +549,8 @@ addHelp FindFirstFile	PATHSTR FINDDATA_PTR ... SEARCH_HANDLE
 addHelp FindNextFile	SEARCH_HANDLE FINDDATA_PTR ... RESULT
 addHelp FindClose		SEARCH_HANDLE ... RESULT
 addHelp windowsConstants	... PTR_TO_CONSTANTS
+addHelp dumpProfile         ...         dump opcode execution counts.  start profiling with setTrace(1024)
+addHelp resetProfile        ...         reset opcode execution counts.
 
 
 // THIS NEXT LINE MUST BE THE LAST IN THIS FILE!

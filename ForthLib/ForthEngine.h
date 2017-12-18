@@ -429,6 +429,8 @@ protected:
     struct opcodeProfileInfo {
         long op;
         long count;
+        ForthVocabulary* pVocabulary;
+        long* pEntry;
     };
     std::vector<opcodeProfileInfo> mProfileOpcodeCounts;
     int mProfileOpcodeTypeCounts[256];

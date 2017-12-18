@@ -174,6 +174,12 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 18 2017
+
+I added a simple profiler that just counts opcode and optype execution counts.
+In implementing it, I found that builtin class methods were being assigned two
+opcodes instead of one.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 15 2017
 
 I added 'finally' to exception handling.
