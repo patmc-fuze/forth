@@ -153,13 +153,14 @@ namespace OMap
 		for (int i = 0; i < n; i++)
 		{
 			stackInt64 key;
-			LPOP(key);
+            POP_OBJECT(key.obj);
 			ForthObject newObj;
 			POP_OBJECT(newObj);
 			if (newObj.pMethodOps != NULL)
 			{
-				SAFE_KEEP(newObj);
-			}
+                SAFE_KEEP(key.obj);
+                SAFE_KEEP(newObj);
+            }
 			a[key.s64] = newObj;
 		}
 		METHOD_RETURN;
@@ -176,8 +177,8 @@ namespace OMap
 	{
 		GET_THIS(oMapStruct, pMap);
 		oMap& a = *(pMap->elements);
-		stackInt64 key;
-		LPOP(key);
+        stackInt64 key;
+        POP_OBJECT(key.obj);
 		oMap::iterator iter = a.find(key.s64);
 		if (iter != a.end())
 		{
@@ -195,11 +196,11 @@ namespace OMap
 	{
 		GET_THIS(oMapStruct, pMap);
 		oMap& a = *(pMap->elements);
-		stackInt64 key;
-		LPOP(key);
-		ForthObject newObj;
-		POP_OBJECT(newObj);
-		oMap::iterator iter = a.find(key.s64);
+        stackInt64 key;
+        POP_OBJECT(key.obj);
+        ForthObject newObj;
+        POP_OBJECT(newObj);
+        oMap::iterator iter = a.find(key.s64);
 		if (newObj.pMethodOps != NULL)
 		{
 			if (iter != a.end())
@@ -213,8 +214,9 @@ namespace OMap
 			}
 			else
 			{
-				SAFE_KEEP(newObj);
-			}
+                SAFE_KEEP(key.obj);
+                SAFE_KEEP(newObj);
+            }
 			a[key.s64] = newObj;
 		}
 		else
@@ -253,7 +255,7 @@ namespace OMap
 				break;
 			}
 		}
-		LPUSH(retVal);
+		PUSH_OBJECT(retVal.obj);
 		SPUSH(found);
 		METHOD_RETURN;
 	}
@@ -263,7 +265,7 @@ namespace OMap
 		GET_THIS(oMapStruct, pMap);
 		oMap& a = *(pMap->elements);
 		stackInt64 key;
-		LPOP(key);
+        POP_OBJECT(key.obj);
 		oMap::iterator iter = a.find(key.s64);
 		if (iter != a.end())
 		{
@@ -283,8 +285,8 @@ namespace OMap
 		GET_THIS(oMapStruct, pMap);
 		oMap& a = *(pMap->elements);
 		stackInt64 key;
-		LPOP(key);
-		oMap::iterator iter = a.find(key.s64);
+        POP_OBJECT(key.obj);
+        oMap::iterator iter = a.find(key.s64);
 		if (iter != a.end())
 		{
 			stackInt64 key;
@@ -546,7 +548,7 @@ namespace OMap
 			PUSH_OBJECT(o);
 			stackInt64 key;
 			key.s64 = (*pIter->cursor)->first;
-			LPUSH(key);
+			PUSH_OBJECT(key.obj);
 			(*pIter->cursor)++;
 			SPUSH(~0);
 		}
@@ -568,8 +570,8 @@ namespace OMap
 			PUSH_OBJECT(o);
 			stackInt64 key;
 			key.s64 = (*pIter->cursor)->first;
-			LPUSH(key);
-			SPUSH(~0);
+            PUSH_OBJECT(key.obj);
+            SPUSH(~0);
 		}
 		METHOD_RETURN;
 	}

@@ -102,11 +102,13 @@ namespace ONumber
 		GET_THIS(oIntStruct, pInt);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER;
+        pShowContext->BeginIndent();
+        SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'value' : ");
 		sprintf(buff, "%d", pInt->val);
 		pShowContext->EndElement(buff);
-		pShowContext->ShowIndent("}");
+        pShowContext->EndIndent();
+        pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -192,11 +194,13 @@ namespace ONumber
 		GET_THIS(oLongStruct, pLong);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER;
+        pShowContext->BeginIndent();
+        SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'value' : ");
 		sprintf(buff, "%lld", pLong->val);
 		pShowContext->EndElement(buff);
-		pShowContext->ShowIndent("}");
+        pShowContext->EndIndent();
+        pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -274,11 +278,13 @@ namespace ONumber
 		GET_THIS(oFloatStruct, pFloat);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER;
+        pShowContext->BeginIndent();
+        SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'value' : ");
 		sprintf(buff, "%f", pFloat->val);
 		pShowContext->EndElement(buff);
-		pShowContext->ShowIndent("}");
+        pShowContext->EndIndent();
+        pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -356,11 +362,13 @@ namespace ONumber
 		GET_THIS(oDoubleStruct, pDouble);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		SHOW_OBJ_HEADER;
+        pShowContext->BeginIndent();
+        SHOW_OBJ_HEADER;
 		pShowContext->ShowIndent("'value' : ");
 		sprintf(buff, "%f", pDouble->val);
 		pShowContext->EndElement(buff);
-		pShowContext->ShowIndent("}");
+        pShowContext->EndIndent();
+        pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
