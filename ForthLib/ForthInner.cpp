@@ -2483,10 +2483,6 @@ InnerInterpreter( ForthCoreState *pCore )
 						pEngine->TraceStack(pCore);
 					}
 					pEngine->TraceOut("\n");
-					if (result == kResultTrace)
-					{
-						result = kResultOk;
-					}
 				}
 			}
 			break;

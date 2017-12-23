@@ -5516,7 +5516,7 @@ FORTHOP(stopThreadOp)
 {
 	SET_STATE(kResultYield);
 	ForthThread* pThread = (ForthThread*)(pCore->pThread);
-	pThread->Wake();
+	pThread->Stop();
 }
 
 FORTHOP(sleepThreadOp)

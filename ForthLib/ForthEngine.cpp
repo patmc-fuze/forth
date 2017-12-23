@@ -2382,27 +2382,11 @@ eForthResult
 ForthEngine::ExecuteOps(ForthCoreState* pCore, long *pOps)
 {
     long *savedIP;
-	eForthResult exitStatus;
 
     savedIP = pCore->IP;
     pCore->IP = pOps;
-#ifdef ASM_INNER_INTERPRETER
-    bool bFast = mFastMode;// && ((GetTraceFlags() & kLogInnerInterpreter) == 0);
-#endif
-	do
-	{
-		exitStatus = kResultOk;
-#ifdef ASM_INNER_INTERPRETER
-		if ( bFast )
-		{
-			exitStatus = InnerInterpreterFast(pCore);
-		}
-		else
-#endif
-		{
-			exitStatus = InnerInterpreter(pCore);
-		}
-	} while (exitStatus == kResultTrace);
+    mpMainThread->InnerLoop();
+    eForthResult exitStatus = (eForthResult)pCore->state;
 
 	pCore->IP = savedIP;
     if ( exitStatus == kResultDone )

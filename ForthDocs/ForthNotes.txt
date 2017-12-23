@@ -174,6 +174,53 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 22 2017
+
+I have the join method debugged for sync threads, async threads still have a
+problem in the case where a thread does a join on a thread which has been
+started but hasn't actually started its run loop yet - the join lock for the
+thread won't be grabbed by its owner until it starts its run loop.
+
+To get join for sync threads to work I had to rework the handling of yield
+in the inner interpreter loop wrapper.
+
+In debugging the join/yield changes I found out that threads were being created
+with 0 refCount, which was causing join to immediately execute the destructor
+of the joining thread when the joined thread exited.
+
+I tried replacing the join critical section with a windows event, but it just
+didn't work.  It looked like most of the spawned async threads started their
+run loop but then never returned from the inner interpreter, and there was a
+crash after the async_philosophers program exited, and it exited before all but
+one of the philosophers had eaten.
+
+I changed it to use a semaphore in a way that should have been the same as the
+event method, and that just worked.  Very strange.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 20 2017
+
+I added join methods to Thread and AsyncThread.
+
+Join should only be attempted between sync threads which have the same async
+thread parent, or between two async threads.
+
+The Thread version just adds the joining thread to a link list of threads which
+are waiting for this thread to exit and sets the joining thread run state to blocked.
+Thread:join first checks for the thread having already exited, in which case it
+just returns immediately without blocking.
+
+The AsyncThread version tries to grab a per-thread lock and immediately releases
+the lock as soon as it get it.  Each AsyncThread grabs their join lock when they
+are created and release when the thread exits.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 19 2017
+
+There are a bunch of bugs in Map - the key object in set and get was being popped
+off the stack as a 64-bit long, which swapped the methods and data fields.
+This didn't cause a problem in most places, since the key isn't usually used
+as an object.  I noticed when testing Map:show, since there it tries to display
+the key as an object.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 18 2017
 
 I added a simple profiler that just counts opcode and optype execution counts.

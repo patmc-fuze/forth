@@ -81,32 +81,26 @@ class: Philosopher
     phil.eatingThread.startWithArgs(r[ phil ]r)
   loop
   
-  begin
-    0 -> int numHungryPhilosophers
-    do(numPhilosophers 0)
-      philosophers.get(i) ->o phil
-      if(phil.isHungry)
-        1 ->+ numHungryPhilosophers
-      endif
-    loop
-    sleepThread(50)
-  until(numHungryPhilosophers 0=)
+  do(numPhilosophers 0)
+    philosophers.get(i) ->o phil
+    phil.eatingThread.join
+  loop
+  
   "all philosophers stuffed!\n" %s
   ms@ feastStart - %d " milliseconds elapsed\n\n\n" %s
   
   philosophers.clear
   forks.clear
-  exitAsyncThread
 ;
 
 : diningPhilosophers
   -> int numPhilosophers
-  AsyncThread dinner
+  Philosopher phil
   philosophers.clear
   forks.clear
   
   do(numPhilosophers 0)
-    new Philosopher -> Philosopher phil
+    new Philosopher -> phil
     i -> phil.id
     philosophers.push(phil)
     oclear phil
@@ -116,17 +110,8 @@ class: Philosopher
     forks.push(fork)
     oclear fork
   loop
-  
-  system.createAsyncThread(lit diningLoop 100 100) -> dinner
 
-  dinner.start drop
-
-  begin
-  while(dinner.getRunState kFTRSExited <>)
-    ms(50)
-  repeat
-
-  oclear dinner
+  diningLoop
 ;
 
 : go

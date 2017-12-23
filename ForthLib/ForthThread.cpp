@@ -43,12 +43,15 @@ struct oThreadStruct
 //                     ForthThread
 // 
 
-ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, int paramStackLongs, int returnStackLongs)
+ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, int threadIndex, int paramStackLongs, int returnStackLongs)
 : mpEngine( pEngine )
 , mpParentThread(pParentThread)
+, mThreadIndex(threadIndex)
 , mWakeupTime(0)
 , mpPrivate( NULL )
 , mpShowContext(NULL)
+, mpJoinHead(nullptr)
+, mpNextJoiner(nullptr)
 {
     mCore.pThread = this;
     mCore.SLen = paramStackLongs;
@@ -96,6 +99,12 @@ ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, 
 
 ForthThread::~ForthThread()
 {
+    if (mpJoinHead != nullptr)
+    {
+        WakeAllJoiningThreads();
+    }
+    // TODO: warn if mpNextJoiner is not null
+
     mCore.SB -= GAURD_AREA;
     delete [] mCore.SB;
     mCore.RB -= GAURD_AREA;
@@ -228,6 +237,36 @@ void ForthThread::Run()
     }
 }
 
+void ForthThread::Join(ForthThread* pJoiningThread)
+{
+    //printf("Join: thread %x is waiting for %x to exit\n", pJoiningThread, this);
+    if (mRunState != kFTRSExited)
+    {
+        ForthObject& joiner = pJoiningThread->GetThreadObject();
+        SAFE_KEEP(joiner);
+        pJoiningThread->Block();
+        pJoiningThread->mpNextJoiner = mpJoinHead;
+        mpJoinHead = pJoiningThread;
+    }
+}
+
+void ForthThread::WakeAllJoiningThreads()
+{
+    ForthThread* pThread = mpJoinHead;
+    //printf("WakeAllJoiningThreads: thread %x is exiting\n", this);
+    while (pThread != nullptr)
+    {
+        ForthThread* pNextThread = pThread->mpNextJoiner;
+        //printf("WakeAllJoiningThreads: waking thread %x\n", pThread);
+        pThread->mpNextJoiner = nullptr;
+        pThread->Wake();
+        ForthObject& joiner = pThread->GetThreadObject();
+        SAFE_RELEASE(&mCore, joiner);
+        pThread = pNextThread;
+    }
+    mpJoinHead = nullptr;
+}
+
 ForthShowContext* ForthThread::GetShowContext()
 {
 	if (mpShowContext == NULL)
@@ -269,6 +308,7 @@ void ForthThread::Stop()
 void ForthThread::Exit()
 {
 	mRunState = kFTRSExited;
+    WakeAllJoiningThreads();
 }
 
 
@@ -287,9 +327,20 @@ ForthAsyncThread::ForthAsyncThread(ForthEngine *pEngine, int paramStackLongs, in
 	, mActiveThreadIndex(0)
 	, mRunState(kFTRSStopped)
 {
-	ForthThread* pPrimaryThread = new ForthThread(pEngine, this, paramStackLongs, returnStackLongs);
+	ForthThread* pPrimaryThread = new ForthThread(pEngine, this, 0, paramStackLongs, returnStackLongs);
 	pPrimaryThread->SetRunState(kFTRSReady);
 	mSoftThreads.push_back(pPrimaryThread);
+#ifdef WIN32
+    // default security attributes, initial count 0, max count 1, unnamed semaphore
+    mExitedSemaphore = CreateSemaphore(nullptr, 0, 1, nullptr);
+
+    if (mExitedSemaphore == NULL)
+    {
+        printf("ForthAsyncThread constructor - CreateSemaphore error: %d\n", GetLastError());
+    }
+#else
+    sem_init(&mExitedSemaphore, 0, -1);     // not shared, initial count -1
+#endif
 }
 
 ForthAsyncThread::~ForthAsyncThread()
@@ -299,14 +350,18 @@ ForthAsyncThread::~ForthAsyncThread()
 	{
 		CloseHandle(mHandle);
 	}
+    CloseHandle(mExitedSemaphore);
 #else
 	if (mHandle != 0)
 	{
 		// TODO
 		//CloseHandle( mHandle );
 	}
+    sem_destroy(&mExitedSemaphore);
 #endif
-	for (ForthThread* pThread : mSoftThreads)
+
+
+    for (ForthThread* pThread : mSoftThreads)
 	{
 		if (pThread != nullptr)
 		{
@@ -326,11 +381,12 @@ unsigned __stdcall ForthAsyncThread::RunLoop(void *pUserData)
 void* ForthAsyncThread::RunLoop(void *pUserData)
 #endif
 {
-	ForthAsyncThread* pParentThread = (ForthAsyncThread*)pUserData;
+    ForthAsyncThread* pParentThread = (ForthAsyncThread*)pUserData;
 	ForthThread* pActiveThread = pParentThread->GetActiveThread();
 	ForthEngine* pEngine = pActiveThread->GetEngine();
+    //printf("Starting thread %x\n", pParentThread);
 
-	pParentThread->mRunState = kFTRSReady;
+    pParentThread->mRunState = kFTRSReady;
 	eForthResult exitStatus = kResultOk;
 	bool keepRunning = true;
 	while (keepRunning)
@@ -424,11 +480,134 @@ void* ForthAsyncThread::RunLoop(void *pUserData)
 	}
 
 	pParentThread->mRunState = kFTRSExited;
+    //printf("Exiting thread %x signaling exitEvent %d\n", pParentThread, pParentThread->mExitedSemaphore);
 #ifdef WIN32
-	return 0;
+    /*
+    if (!SetEvent(pParentThread->mExitedSemaphore))
+    {
+        printf("ForthAsyncThread::RunLoop SetEvent failed (%d)\n", GetLastError());
+    }
+    */
+
+    // increment the semaphore to signal all threads waiting for us to exit
+    if (!ReleaseSemaphore(pParentThread->mExitedSemaphore, 1, NULL))
+    {
+        printf("ForthAsyncThread::RunLoop - ReleaseSemaphore error: %d\n", GetLastError());
+    }
+
+    return 0;
 #else
-	return nullptr;
+    sem_post(&(pParentThread->mExitedSemaphore));
+
+    return nullptr;
 #endif
+}
+
+void ForthAsyncThread::InnerLoop()
+{
+    ForthThread* pMainThread = mSoftThreads[0];
+    ForthThread* pActiveThread = pMainThread;
+    ForthEngine* pEngine = pActiveThread->GetEngine();
+    pMainThread->SetRunState(kFTRSReady);
+
+    eForthResult exitStatus = kResultOk;
+    bool keepRunning = true;
+    while (keepRunning)
+    {
+        ForthCoreState* pCore = pActiveThread->GetCore();
+#ifdef ASM_INNER_INTERPRETER
+        if (pEngine->GetFastMode())
+        {
+            exitStatus = InnerInterpreterFast(pCore);
+        }
+        else
+#endif
+        {
+            exitStatus = InnerInterpreter(pCore);
+        }
+
+        bool switchActiveThread = false;
+        if ((exitStatus == kResultYield) || (pActiveThread->GetRunState() == kFTRSExited))
+        {
+            switchActiveThread = true;
+            pCore->state = kResultOk;
+            /*
+            static char* runStateNames[] = {
+                "Stopped",		// initial state, or after executing stop, needs another thread to Start it
+                "Ready",			// ready to continue running
+                "Sleeping",		// sleeping until wakeup time is reached
+                "Blocked",		// blocked on a soft lock
+                "Exited"		// done running - executed exitThread
+            };
+            for (int i = 0; i < mSoftThreads.size(); ++i)
+            {
+                ForthThread* pThread = mSoftThreads[i];
+                printf("Thread %d 0x%x   runState %s   coreState %d\n", i, (int)pThread,
+                    runStateNames[pThread->GetRunState()], pThread->GetCore()->state);
+            }
+            */
+        }
+
+        if (switchActiveThread)
+        {
+            // TODO!
+            // - switch to next runnable thread
+            // - sleep if all threads are sleeping
+            // - deal with all threads stopped
+            ulong now = pEngine->GetElapsedTime();
+
+            ForthThread* pNextThread = GetNextReadyThread();
+            if (pNextThread != nullptr)
+            {
+                //printf("Switching from thread 0x%x to ready thread 0x%x\n", pActiveThread, pNextThread);
+                pActiveThread = pNextThread;
+                SetActiveThread(pActiveThread);
+            }
+            else
+            {
+                pNextThread = GetNextSleepingThread();
+                if (pNextThread != nullptr)
+                {
+                    ulong wakeupTime = pNextThread->GetWakeupTime();
+                    if (now >= wakeupTime)
+                    {
+                        //printf("Switching from thread 0x%x to waking thread 0x%x\n", pActiveThread, pNextThread);
+                        pNextThread->Wake();
+                        pActiveThread = pNextThread;
+                        SetActiveThread(pActiveThread);
+                    }
+                    else
+                    {
+                        // TODO: don't always sleep until wakeupTime, since threads which are blocked or stopped
+                        //  could be unblocked or started by other async threads
+                        int sleepMilliseconds = wakeupTime - now;
+#ifdef WIN32
+                        ::Sleep((DWORD)sleepMilliseconds);
+#else
+                        usleep(sleepMilliseconds * 1000);
+#endif
+                        pActiveThread = pNextThread;
+                        SetActiveThread(pActiveThread);
+                    }
+                }
+            }
+        }  // end if switchActiveThread
+
+        eForthResult mainThreadState = (eForthResult) pMainThread->GetCore()->state;
+        keepRunning = false;
+        if ((exitStatus != kResultDone) && (pMainThread->GetRunState() != kFTRSExited))
+        {
+            switch (pMainThread->GetCore()->state)
+            {
+            case kResultOk:
+            case kResultYield:
+                keepRunning = true;
+                break;
+            default:
+                break;
+            }
+        }
+    }
 }
 
 ForthThread* ForthAsyncThread::GetThread(int threadIndex)
@@ -449,8 +628,16 @@ ForthThread* ForthAsyncThread::GetActiveThread()
 	return nullptr;
 }
 
-void
-ForthAsyncThread::Reset(void)
+
+void ForthAsyncThread::SetActiveThread(ForthThread *pThread)
+{
+    // TODO: verify that active thread is actually a child of this async thread
+    int threadIndex = pThread->GetThreadIndex();
+    // ASSERT(threadIndex < (int)mSoftThreads.size() && mSoftThreads[threadIndex] == pThread);
+    mActiveThreadIndex = pThread->GetThreadIndex();
+}
+
+void ForthAsyncThread::Reset(void)
 { 
 	for (ForthThread* pThread : mSoftThreads)
 	{
@@ -489,7 +676,8 @@ ForthThread* ForthAsyncThread::GetNextSleepingThread()
 	ulong minWakeupTime = (ulong)(~0);
 	do
 	{
-		if (mActiveThreadIndex >= (int)mSoftThreads.size())
+        mActiveThreadIndex++;
+        if (mActiveThreadIndex >= (int)mSoftThreads.size())
 		{
 			mActiveThreadIndex = 0;
 		}
@@ -503,7 +691,6 @@ ForthThread* ForthAsyncThread::GetNextSleepingThread()
 				pThreadToWake = pNextThread;
 			}
 		}
-		mActiveThreadIndex++;
 	} while (originalThreadIndex != mActiveThreadIndex);
 	return pThreadToWake;
 }
@@ -537,16 +724,34 @@ void ForthAsyncThread::Exit()
 	{
 		mRunState = kFTRSExited;
 #ifdef WIN32
-		_endthreadex(0);
+        // increment the semaphore to signal all threads waiting for us to exit
+        if (!ReleaseSemaphore(mExitedSemaphore, 1, NULL))
+        {
+            printf("ForthAsyncThread::Start - ReleaseSemaphore error: %d\n", GetLastError());
+        }
+        _endthreadex(0);
 #else
-		pthread_exit(&mExitStatus);
+        sem_post(&mExitedSemaphore);
 #endif
-	}
+    }
+}
+
+void ForthAsyncThread::Join()
+{
+#ifdef WIN32
+    DWORD waitResult = WaitForSingleObject(mExitedSemaphore, INFINITE);
+    if (waitResult != WAIT_OBJECT_0)
+    {
+        printf("ForthAsyncThread::Join WaitForSingleObject failed (%d)\n", GetLastError());
+    }
+#else
+    sem_wait(&mExitedSemaphore);
+#endif
 }
 
 ForthThread* ForthAsyncThread::CreateThread(ForthEngine *pEngine, long threadOp, int paramStackLongs, int returnStackLongs)
 {
-	ForthThread* pThread = new ForthThread(pEngine, this, paramStackLongs, returnStackLongs);
+	ForthThread* pThread = new ForthThread(pEngine, this, (int)mSoftThreads.size(), paramStackLongs, returnStackLongs);
 	pThread->SetOp(threadOp);
 	pThread->SetRunState(kFTRSStopped);
 	ForthThread* pPrimaryThread = GetThread(0);
@@ -591,14 +796,14 @@ namespace OThread
 		ForthInterface* pPrimaryInterface = gpAsyncThreadVocabulary->GetInterface(0);
 
 		MALLOCATE_OBJECT(oAsyncThreadStruct, pThreadStruct, gpAsyncThreadVocabulary);
-		pThreadStruct->refCount = 0;
+		pThreadStruct->refCount = 1;
 		ForthAsyncThread* pAsyncThread = pEngine->CreateAsyncThread(threadOp, paramStackLongs, returnStackLongs);
 		pThreadStruct->pThread = pAsyncThread;
 		pAsyncThread->Reset();
 		outAsyncThread.pMethodOps = pPrimaryInterface->GetMethods();
 		outAsyncThread.pData = (long *) pThreadStruct;
 		pAsyncThread->SetAsyncThreadObject(outAsyncThread);
-		FixupThread(pAsyncThread->GetThread(0));
+		OThread::FixupThread(pAsyncThread->GetThread(0));
 	}
 
 	FORTHOP(oAsyncThreadNew)
@@ -653,7 +858,15 @@ namespace OThread
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oAsyncThreadResetMethod)
+    FORTHOP(oAsyncThreadJoinMethod)
+    {
+        GET_THIS(oAsyncThreadStruct, pThreadStruct);
+        ForthAsyncThread* pAsyncThread = pThreadStruct->pThread;
+        pAsyncThread->Join();
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oAsyncThreadResetMethod)
 	{
 		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->Reset();
@@ -669,7 +882,7 @@ namespace OThread
 		long threadOp = SPOP;
 		int returnStackLongs = (int)(SPOP);
 		int paramStackLongs = (int)(SPOP);
-		CreateThreadObject(thread, pThreadStruct->pThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
+        OThread::CreateThreadObject(thread, pThreadStruct->pThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
 
 		PUSH_OBJECT(thread);
 		METHOD_RETURN;
@@ -688,8 +901,9 @@ namespace OThread
 		METHOD("delete", oAsyncThreadDeleteMethod),
 		METHOD_RET("start", oAsyncThreadStartMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("startWithArgs", oAsyncThreadStartWithArgsMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD("exit", oAsyncThreadExitMethod),
-		METHOD("reset", oAsyncThreadResetMethod),
+        METHOD("exit", oAsyncThreadExitMethod),
+        METHOD("join", oAsyncThreadJoinMethod),
+        METHOD("reset", oAsyncThreadResetMethod),
 		METHOD_RET("createThread", oAsyncThreadCreateThreadMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIThread)),
 		METHOD_RET("getRunState", oAsyncThreadGetRunStateMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 
@@ -711,7 +925,7 @@ namespace OThread
 		ForthInterface* pPrimaryInterface = gpThreadVocabulary->GetInterface(0);
 
 		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct, gpThreadVocabulary);
-		pThreadStruct->refCount = 0;
+		pThreadStruct->refCount = 1;
 		pThreadStruct->pThread = pParentAsyncThread->CreateThread(pEngine, threadOp, paramStackLongs, returnStackLongs);
 		pThreadStruct->pThread->Reset();
 
@@ -726,7 +940,7 @@ namespace OThread
 
 		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct, gpThreadVocabulary);
 		ForthObject& primaryThread = pThread->GetThreadObject();
-		pThreadStruct->refCount = 0;
+		pThreadStruct->refCount = 1;
 		pThreadStruct->pThread = pThread;
 		primaryThread.pMethodOps = pPrimaryInterface->GetMethods();
 		primaryThread.pData = (long *)pThreadStruct;
@@ -737,13 +951,13 @@ namespace OThread
 		ForthInterface* pPrimaryInterface = gpAsyncThreadVocabulary->GetInterface(0);
 
 		MALLOCATE_OBJECT(oAsyncThreadStruct, pAsyncThreadStruct, gpAsyncThreadVocabulary);
-		pAsyncThreadStruct->refCount = 0;
+		pAsyncThreadStruct->refCount = 1;
 		pAsyncThreadStruct->pThread = pAsyncThread;
 		ForthObject& primaryAsyncThread = pAsyncThread->GetAsyncThreadObject();
 		primaryAsyncThread.pMethodOps = pPrimaryInterface->GetMethods();
 		primaryAsyncThread.pData = (long *)pAsyncThreadStruct;
 
-		FixupThread(pAsyncThread->GetThread(0));
+        OThread::FixupThread(pAsyncThread->GetThread(0));
 	}
 
 	FORTHOP(oThreadNew)
@@ -791,15 +1005,33 @@ namespace OThread
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadSleepMethod)
+    FORTHOP(oThreadJoinMethod)
+    {
+        GET_THIS(oThreadStruct, pThreadStruct);
+        ForthThread* pJoiner = pThreadStruct->pThread->GetParent()->GetActiveThread();
+        pThreadStruct->pThread->Join(pJoiner);
+        SET_STATE(kResultYield);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oThreadSleepMethod)
 	{
 		GET_THIS(oThreadStruct, pThreadStruct);
-		ulong sleepMilliseconds = SPOP;
+        SET_STATE(kResultYield);
+        ulong sleepMilliseconds = SPOP;
 		pThreadStruct->pThread->Sleep(sleepMilliseconds);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadPushMethod)
+    FORTHOP(oThreadWakeMethod)
+    {
+        GET_THIS(oThreadStruct, pThreadStruct);
+        SET_STATE(kResultYield);
+        pThreadStruct->pThread->Wake();
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oThreadPushMethod)
 	{
 		GET_THIS(oThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->Push(SPOP);
@@ -890,8 +1122,10 @@ namespace OThread
 		METHOD("start", oThreadStartMethod),
 		METHOD("startWithArgs", oThreadStartWithArgsMethod),
 		METHOD("stop", oThreadStopMethod),
-		METHOD("sleep", oThreadSleepMethod),
-		METHOD("push", oThreadPushMethod),
+        METHOD("join", oThreadJoinMethod),
+        METHOD("sleep", oThreadSleepMethod),
+        METHOD("wake", oThreadWakeMethod),
+        METHOD("push", oThreadPushMethod),
 		METHOD_RET("pop", oThreadPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("rpush", oThreadRPushMethod),
 		METHOD_RET("rpop", oThreadRPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),

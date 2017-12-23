@@ -206,7 +206,6 @@ typedef enum {
     kResultFatalError,  // exit because of fatal error
     kResultException,   // exit because of uncaught exception
     kResultShutdown,    // exit because of a "shutdown" opcode
-	kResultTrace,		// exit because of a "setTrace" opcode
 	kResultYield,		// exit because of a stopThread/yield/sleepThread opcode
 } eForthResult;
 

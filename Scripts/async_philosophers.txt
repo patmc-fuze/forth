@@ -2,9 +2,6 @@
 autoforget ASYNC_PHILOSOPHERS
 : ASYNC_PHILOSOPHERS ;
 
-mko Array philosophers
-mko Array forks
-
 10 -> int helpingsToEat
 20 -> int eatingTime
 20 -> int digestionTime
@@ -81,6 +78,10 @@ class: AsyncPhilosopher
   
 ;class
 
+mko Array of AsyncPhilosopher philosophers
+mko Array of AsyncLock forks
+
+
 : asyncPhilosopherLoop
   -> AsyncPhilosopher phil
   phil.run
@@ -90,29 +91,24 @@ class: AsyncPhilosopher
 : asyncDiningLoop
   p[ "let the feast begin!\n" %s ]p
   ms@ -> int feastStart
-
+  AsyncPhilosopher phil
+  
   philosophers.count -> int numPhilosophers
   do(numPhilosophers 0)
-    philosophers.get(i) ->o AsyncPhilosopher phil
+    philosophers.get(i) ->o phil
     phil.init(createAsyncThread(lit asyncPhilosopherLoop 1000 1000) i forks.get(i) forks.get(i 1+ numPhilosophers mod))
     //p[ "philosopher " %s i %d %bl phil.eatingThread.__thread %x %nl ]p
   loop
   
   do(numPhilosophers 0)
-    philosophers.get(i) ->o AsyncPhilosopher phil
+    philosophers.get(i) ->o phil
     phil.eatingThread.startWithArgs(r[ phil ]r) drop
   loop
   
-  begin
-    0 -> int numHungryPhilosophers
-    do(numPhilosophers 0)
-      philosophers.get(i) ->o phil
-      if(phil.isHungry)
-        1 ->+ numHungryPhilosophers
-      endif
-    loop
-    ms(50)
-  until(numHungryPhilosophers 0=)
+  do(numPhilosophers 0)
+    philosophers.get(i) ->o phil
+    phil.eatingThread.join
+  loop
   p[ "all philosophers stuffed!\n" %s ]p
   p[ ms@ feastStart - %d " milliseconds elapsed\n\n\n" %s ]p
   
@@ -122,12 +118,13 @@ class: AsyncPhilosopher
 
 : asyncDiningPhilosophers
   -> int numPhilosophers
+  AsyncPhilosopher phil
   philosophers.clear
   forks.clear
   system.createAsyncLock -> printLock
   
   do(numPhilosophers 0)
-    new AsyncPhilosopher -> AsyncPhilosopher phil
+    new AsyncPhilosopher -> phil
     i -> phil.id
     philosophers.push(phil)
     oclear phil
