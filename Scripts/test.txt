@@ -33,6 +33,10 @@ runtest philosophers
 go
 forget PHILOSOPHERS
 
+runtest pizzashop
+go
+forget PIZZASHOP
+
 200 -> int numElems
 runtest sort_examples
 go

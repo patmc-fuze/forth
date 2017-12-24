@@ -72,6 +72,7 @@ typedef enum
 	kBCIThread,
 	kBCIAsyncLock,
 	kBCILock,
+    kBCISemaphore,
 	kBCISystem,
 	kBCIVocabulary,
 	kBCIVocabularyIter,

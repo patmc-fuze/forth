@@ -1491,11 +1491,137 @@ namespace OLock
 	};
 
 
-	void AddClasses(ForthEngine* pEngine)
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 OSemaphore
+    //
+
+    struct oSemaphoreStruct
+    {
+        ulong			refCount;
+        int				id;
+#ifdef WIN32
+        HANDLE pSemaphore;
+#else
+        sem_t* pSemaphore;
+#endif
+    };
+
+    static ForthClassVocabulary* gpSemaphoreVocabulary;
+
+    void CreateSemaphoreObject(ForthObject& outSemaphore, ForthEngine *pEngine)
+    {
+        ForthInterface* pPrimaryInterface = gpSemaphoreVocabulary->GetInterface(0);
+
+        MALLOCATE_OBJECT(oSemaphoreStruct, pSemaphoreStruct, gpSemaphoreVocabulary);
+        pSemaphoreStruct->refCount = 0;
+#ifdef WIN32
+        pSemaphoreStruct->pSemaphore = 0;
+#else
+        pSemaphoreStruct->pSemaphore = nullptr;
+#endif
+
+        outSemaphore.pMethodOps = pPrimaryInterface->GetMethods();
+        outSemaphore.pData = (long *)pSemaphoreStruct;
+    }
+
+    FORTHOP(oSemaphoreNew)
+    {
+        GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create a Semaphore object");
+    }
+
+    FORTHOP(oSemaphoreDeleteMethod)
+    {
+        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+
+#ifdef WIN32
+        if (pSemaphoreStruct->pSemaphore)
+        {
+            CloseHandle(pSemaphoreStruct->pSemaphore);
+        }
+#else
+        if (pSemaphoreStruct->pSemaphore)
+        {
+            sem_destroy(pSemaphoreStruct->pSemaphore);
+        }
+
+        __FREE(pSemaphoreStruct->pSemaphore);
+#endif
+        FREE_OBJECT(pSemaphoreStruct);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSemaphoreInitMethod)
+    {
+        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+        int initialCount = SPOP;
+#ifdef WIN32
+        // default security attributes, initial count, max count, unnamed semaphore
+        pSemaphoreStruct->pSemaphore = CreateSemaphore(nullptr, initialCount, 0x7FFFFFFF, nullptr);
+
+        if (pSemaphoreStruct->pSemaphore == NULL)
+        {
+            printf("Semaphore:init - CreateSemaphore error: %d\n", GetLastError());
+        }
+#else
+        MALLOCATE(sem_t, pSemaphoreStruct->pSemaphore);
+        sem_init(pSemaphoreStruct->pSemaphore, 0, initialCount);     // not shared, initial count -1
+#endif
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSemaphoreWaitMethod)
+    {
+        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+#ifdef WIN32
+        DWORD waitResult = WaitForSingleObject(pSemaphoreStruct->pSemaphore, INFINITE);
+        if (waitResult != WAIT_OBJECT_0)
+        {
+            printf("Semaphore:wait WaitForSingleObject failed (%d)\n", GetLastError());
+        }
+#else
+        sem_wait(pSemaphoreStruct->pSemaphore);
+#endif
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSemaphorePostMethod)
+    {
+        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+#ifdef WIN32
+        // increment the semaphore to signal all threads waiting for us to exit
+        if (!ReleaseSemaphore(pSemaphoreStruct->pSemaphore, 1, NULL))
+        {
+            printf("Semaphore:post - ReleaseSemaphore error: %d\n", GetLastError());
+        }
+#else
+        sem_post(pSemaphoreStruct->pSemaphor);
+#endif
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oSemaphoreMembers[] =
+    {
+        METHOD("__newOp", oSemaphoreNew),
+        METHOD("delete", oSemaphoreDeleteMethod),
+        METHOD("init", oSemaphoreInitMethod),
+        METHOD("wait", oSemaphoreWaitMethod),
+        METHOD("post", oSemaphorePostMethod),
+
+        MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__semaphore", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+
+        // following must be last in table
+        END_MEMBERS
+    };
+   
+    
+    void AddClasses(ForthEngine* pEngine)
 	{
 		gpAsyncLockVocabulary = pEngine->AddBuiltinClass("AsyncLock", kBCIAsyncLock, kBCIObject, oAsyncLockMembers);
-		pEngine->AddBuiltinClass("Lock", kBCILock, kBCIObject, oLockMembers);
-	}
+        pEngine->AddBuiltinClass("Lock", kBCILock, kBCIObject, oLockMembers);
+        gpSemaphoreVocabulary = pEngine->AddBuiltinClass("Semaphore", kBCISemaphore, kBCIObject, oSemaphoreMembers);
+    }
 
 } // namespace OLock
 
