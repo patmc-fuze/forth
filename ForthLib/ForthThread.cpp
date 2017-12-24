@@ -1,3 +1,5 @@
+//////////////////////////////////////////////////////////////////////
+//
 // ForthThread.cpp: implementation of the ForthThread class.
 //
 //////////////////////////////////////////////////////////////////////
@@ -14,6 +16,8 @@
 #include "ForthEngine.h"
 #include "ForthShowContext.h"
 #include "ForthBuiltinClasses.h"
+
+#define JOIN_USES_EVENT
 
 // this is the number of extra longs to allocate at top and
 //    bottom of stacks
@@ -331,15 +335,24 @@ ForthAsyncThread::ForthAsyncThread(ForthEngine *pEngine, int paramStackLongs, in
 	pPrimaryThread->SetRunState(kFTRSReady);
 	mSoftThreads.push_back(pPrimaryThread);
 #ifdef WIN32
+#if defined(JOIN_USES_EVENT)
+    // default security attributes, manual reset event, initially nonsignaled, unnamed event
+    mExitedSignal = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+    if (mExitedSignal == NULL)
+    {
+        printf("ForthAsyncThread constructor - CreateEvent error: %d\n", GetLastError());
+    }
+#else
     // default security attributes, initial count 0, max count 1, unnamed semaphore
-    mExitedSemaphore = CreateSemaphore(nullptr, 0, 1, nullptr);
+    mExitedSignal = CreateSemaphore(nullptr, 0, 1, nullptr);
 
-    if (mExitedSemaphore == NULL)
+    if (mExitedSignal == NULL)
     {
         printf("ForthAsyncThread constructor - CreateSemaphore error: %d\n", GetLastError());
     }
+#endif
 #else
-    sem_init(&mExitedSemaphore, 0, -1);     // not shared, initial count -1
+    sem_init(&mExitedSignal, 0, -1);     // not shared, initial count -1
 #endif
 }
 
@@ -350,14 +363,14 @@ ForthAsyncThread::~ForthAsyncThread()
 	{
 		CloseHandle(mHandle);
 	}
-    CloseHandle(mExitedSemaphore);
+    CloseHandle(mExitedSignal);
 #else
 	if (mHandle != 0)
 	{
 		// TODO
 		//CloseHandle( mHandle );
 	}
-    sem_destroy(&mExitedSemaphore);
+    sem_destroy(&mExitedSignal);
 #endif
 
 
@@ -480,24 +493,24 @@ void* ForthAsyncThread::RunLoop(void *pUserData)
 	}
 
 	pParentThread->mRunState = kFTRSExited;
-    //printf("Exiting thread %x signaling exitEvent %d\n", pParentThread, pParentThread->mExitedSemaphore);
+    //printf("Exiting thread %x signaling exitEvent %d\n", pParentThread, pParentThread->mExitedSignal);
 #ifdef WIN32
-    /*
-    if (!SetEvent(pParentThread->mExitedSemaphore))
+#if defined(JOIN_USES_EVENT)
+    if (!SetEvent(pParentThread->mExitedSignal))
     {
         printf("ForthAsyncThread::RunLoop SetEvent failed (%d)\n", GetLastError());
     }
-    */
-
+#else
     // increment the semaphore to signal all threads waiting for us to exit
-    if (!ReleaseSemaphore(pParentThread->mExitedSemaphore, 1, NULL))
+    if (!ReleaseSemaphore(pParentThread->mExitedSignal, 1, NULL))
     {
         printf("ForthAsyncThread::RunLoop - ReleaseSemaphore error: %d\n", GetLastError());
     }
+#endif
 
     return 0;
 #else
-    sem_post(&(pParentThread->mExitedSemaphore));
+    sem_post(&(pParentThread->mExitedSignal));
 
     return nullptr;
 #endif
@@ -724,14 +737,22 @@ void ForthAsyncThread::Exit()
 	{
 		mRunState = kFTRSExited;
 #ifdef WIN32
+#if defined(JOIN_USES_EVENT)
         // increment the semaphore to signal all threads waiting for us to exit
-        if (!ReleaseSemaphore(mExitedSemaphore, 1, NULL))
+        if (!SetEvent(mExitedSignal))
         {
-            printf("ForthAsyncThread::Start - ReleaseSemaphore error: %d\n", GetLastError());
+            printf("ForthAsyncThread::Exit SetEvent error: %d\n", GetLastError());
         }
+#else
+        // increment the semaphore to signal all threads waiting for us to exit
+        if (!ReleaseSemaphore(mExitedSignal, 1, NULL))
+        {
+            printf("ForthAsyncThread::Exit - ReleaseSemaphore error: %d\n", GetLastError());
+        }
+#endif
         _endthreadex(0);
 #else
-        sem_post(&mExitedSemaphore);
+        sem_post(&mExitedSignal);
 #endif
     }
 }
@@ -739,13 +760,13 @@ void ForthAsyncThread::Exit()
 void ForthAsyncThread::Join()
 {
 #ifdef WIN32
-    DWORD waitResult = WaitForSingleObject(mExitedSemaphore, INFINITE);
+    DWORD waitResult = WaitForSingleObject(mExitedSignal, INFINITE);
     if (waitResult != WAIT_OBJECT_0)
     {
         printf("ForthAsyncThread::Join WaitForSingleObject failed (%d)\n", GetLastError());
     }
 #else
-    sem_wait(&mExitedSemaphore);
+    sem_wait(&mExitedSignal);
 #endif
 }
 

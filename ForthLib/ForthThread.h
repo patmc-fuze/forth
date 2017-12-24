@@ -145,11 +145,11 @@ protected:
 	int                 mHandle;
 	pthread_t           mThread;
 	int					mExitStatus;
-    sem_t               mExitedSemaphore;
+    sem_t               mExitedSignal;
 #else
     HANDLE              mHandle;
 	ulong               mThreadId;
-    HANDLE              mExitedSemaphore;
+    HANDLE              mExitedSignal;
 #endif
 };
 
