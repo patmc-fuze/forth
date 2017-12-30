@@ -1,8 +1,8 @@
 autoforget sdl_events
 
-requires sdl
-also sdl
-sdl definitions
+requires sdl2
+also sdl2
+sdl2 definitions
 
 : sdl_events ;
 

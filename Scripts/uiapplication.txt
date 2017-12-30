@@ -23,11 +23,19 @@ class: UIApplication extends UIGroup
   ;m
 
   m: delete
-    "UIApplication delete\n" %s
+    //"UIApplication delete\n" %s
     oclear mRootGroup
     oclear mTouchFocus
     oclear mTextFocus
     super.delete
+  ;m
+  
+  m: setTouchFocus
+    -> mTouchFocus
+  ;m
+  
+  m: setTextFocus
+    -> mTextFocus
   ;m
   
   m: onEvent

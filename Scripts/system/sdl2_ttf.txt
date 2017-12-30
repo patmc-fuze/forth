@@ -5,8 +5,12 @@
 autoforget sdl2_ttf
 requires sdl2
 
+#if WINDOWS
 DLLVocabulary sdl2_ttf SDL2_ttf.dll
-also sdl2
+#else
+DLLVocabulary sdl2_ttf libSDL2_ttf.so
+#endif
+
 also sdl2_ttf definitions
 
 // extern DECLSPEC const SDL_version * SDLCALL TTF_Linked_Version(void);
@@ -218,5 +222,4 @@ dll_0 TTF_WasInit
 //dll_3 TTF_GetFontKerningSize
 
 previous definitions
-
 loaddone
