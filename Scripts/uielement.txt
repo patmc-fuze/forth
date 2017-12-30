@@ -1,0 +1,91 @@
+
+autoforget ui_element       : ui_element ;
+
+class: UIElement
+  UIElement parent
+  int elementID
+  int xoff
+  int yoff
+  int w
+  int h
+  int flags
+
+  m: delete
+    //"UIElement delete\n" %s
+    oclear parent
+  ;m
+  
+  m: init
+    -> parent
+  ;m
+  
+  m: shutdown
+    oclear parent
+  ;m
+  
+  m: onEvent
+    2drop
+  ;m
+  
+  m: sendToParent
+    if(objNotNull(parent))
+      parent.onEvent
+    else
+      2drop
+    endif
+  ;m
+  
+  m: onTouchStart   drop  ;m
+  m: onTouchEnd     drop  ;m
+  m: onTouchMove    drop  ;m
+  m: onKeyDown      drop  ;m
+  m: onKeyUp        drop  ;m
+  
+  m: draw ;m
+  
+;class
+  
+class: UIGroup extends UIElement
+  Array of UIElement mChildren
+
+  m: delete
+    //"UIGroup delete\n" %s
+    oclear mChildren
+    super.delete
+  ;m
+  
+  m: addChild
+    if(objIsNull(mChildren))
+      new Array -> mChildren
+    endif
+    ->o UIElement child
+    child.init(this)
+    mChildren.push(child)
+  ;m
+  
+  m: shutdown
+    ArrayIter iter
+    if(objNotNull(mChildren))
+      mChildren.headIter -> iter
+      begin
+      while(iter.next)
+        <UIElement>.shutdown
+      repeat
+      oclear iter
+    endif
+  ;m
+  
+;class
+
+class: Button extends UIElement
+  op onButtonDown
+  op onButtonUp
+    
+;class
+
+
+// simple buttons
+// toggle buttons
+// radio buttons
+// sliders
+// edit boxes

@@ -1,0 +1,88 @@
+
+autoforget ui_application   : ui_application ;
+
+requires sdlscreen
+requires uielement
+requires eventqueue
+
+also sdl2
+		
+
+class: UIApplication extends UIGroup
+  UIGroup mRootGroup
+  UIElement mTouchFocus
+  UIElement mTextFocus
+  bool mQuit
+
+  m: init
+    -> mRootGroup
+    addChild(mRootGroup)
+    mRootGroup -> mTouchFocus
+    mRootGroup -> mTextFocus
+    false -> mQuit
+  ;m
+
+  m: delete
+    "UIApplication delete\n" %s
+    oclear mRootGroup
+    oclear mTouchFocus
+    oclear mTextFocus
+    super.delete
+  ;m
+  
+  m: onEvent
+    ->o Event ev
+    //"app got event " %s ev.param1 %4c %nl
+    if(ev.param1 'quit' =)
+      true -> mQuit
+    endif
+  ;m
+  
+  m: runLoop
+    SDL_Event sdlEvent
+
+    begin
+      SDL_WaitEvent( sdlEvent ) drop
+    
+      case( sdlEvent.common.type )
+        of( SDL_KEYDOWN )
+          if(objNotNull(mTextFocus))
+            mTextFocus.onKeyDown(sdlEvent)
+          endif
+        endof
+      
+        of( SDL_KEYUP )
+          if(objNotNull(mTextFocus))
+            mTextFocus.onKeyUp(sdlEvent)
+          endif
+        endof
+      
+        of( SDL_MOUSEMOTION )			// Mouse moved
+          if(objNotNull(mTouchFocus))
+            mTouchFocus.onTouchMove(sdlEvent)
+          endif
+        endof
+      
+        of( SDL_MOUSEBUTTONDOWN )			// Mouse button pressed
+          if(objNotNull(mTouchFocus))
+            mTouchFocus.onTouchStart(sdlEvent)
+          endif
+        endof
+      
+        of( SDL_MOUSEBUTTONUP )			// Mouse button released
+          if(objNotNull(mTouchFocus))
+            mTouchFocus.onTouchEnd(sdlEvent)
+          endif
+        endof
+      
+      endcase
+      
+    until(mQuit)
+
+  ;m
+  
+  
+;class
+
+loaddone
+
