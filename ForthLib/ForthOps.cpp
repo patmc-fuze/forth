@@ -2439,6 +2439,10 @@ FORTHOP(makeObjectOp)
     }
 
     __newOp(pCore, pClassName);
+    if (GET_STATE != kResultOk)
+    {
+        return;
+    }
 
     ForthVocabulary* pFoundVocab;
     long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pClassName, &pFoundVocab);
