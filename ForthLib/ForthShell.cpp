@@ -752,7 +752,7 @@ ForthShell::ReportError( void )
     {
 		char* pBuf = errorBuf1;
 		*pBuf++ = '\n';
-        while ( pBase < pLastInputToken )
+        while ((pBase < pLastInputToken) && (*pBase != '\0'))
         {
             *pBuf++ = *pBase++;
         }
@@ -771,7 +771,6 @@ ForthShell::ReportError( void )
 
 	if (mpStack->GetDepth() > 0)
 	{
-		CONSOLE_STRING_OUT("\n");
 		mpStack->ShowStack();
 	}
 }
