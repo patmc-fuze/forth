@@ -174,6 +174,40 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 1 2018
+
+I got a simple UI app running, it is just a window with an exit button that
+closes the app when clicked on.  The app was just enough to test out the
+UI framework for getting SDL events to UI elements.
+
+When I was debugging the UI framework, I found out there is a major flaw in
+how I implemented 'super' - it works by creating a composite object on TOS
+which has the data pointer of the current this object, and the methods pointer
+of super class of the this object.  I had an addChild method in UIApplication
+which assigned a unique ID to the child then called super.addChild so that
+UIGroup would do its thing, including setting the parent of the child.
+This led to the childs parent object being UIGroup methods, UIApplication data.
+This caused a failure because when the child did sendParent to send a message
+up to the top app level, it invoked UIGroup::onEvent, which is really just
+UIElement::onEvent, when it should have invoked UIApplication::onEvent.
+To work around the problem, I changed the UIApplication method name to just add
+instead of addChild.  I need to come up with a better solution to this.
+
+To get the app running I also had to do some work in SDLScreen:
+o added basic text drawing
+o added settable origin mode, so that UI can specify coords with the origin
+  in the top left of the screen, instead of the center of the screen.
+
+I also ran into some crashes in draw code while debugging, it wasn't checking
+for drawing beyond the surface bounds.  I added simple checking that has caught
+all the crashes so far.  In top level primitive ops like drawLine or drawCircle
+the code checks if the entire primitive is onscreen, if so it uses the raw pixel
+store op, if not it uses an op that first does an onscreen check before calling
+the raw pixel store op.
+
+I found out that you don't have to implement window dragging, SDL does it for
+you if you have an SDL_WaitEvent loop that pumps events.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 24 2017
 
 I changed async join back to using event instead of semaphore, and amazingly
