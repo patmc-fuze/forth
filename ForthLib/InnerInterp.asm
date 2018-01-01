@@ -1825,10 +1825,18 @@ localOpExecute:
 	mov	eax, [ebp + FCore.innerExecute]
 	jmp eax
 
+localOpFetch:
+	sub	edx, 4
+	mov	ebx, [eax]
+	mov	[edx], ebx
+	; set var operation back to fetch
+	xor	eax, eax
+	mov	[ebp + FCore.varMode], eax
+	jmp	edi
 
 localOpActionTable:
 	DD	localOpExecute
-	DD	localIntFetch
+	DD	localOpFetch
 	DD	localIntRef
 	DD	localIntStore
 
