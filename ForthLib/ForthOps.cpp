@@ -4142,7 +4142,16 @@ FORTHOP( describeOp )
 			// show structure vocabulary entries
 			while ( pVocab )
 			{
-				SNPRINTF( buff, sizeof(buff), "%s vocabulary %s:\n", ((pVocab->IsClass() ? "class" : "struct")), pVocab->GetName() );
+                if (pVocab->IsClass())
+                {
+                    long *pMethods = ((ForthClassVocabulary *)pVocab)->GetInterface(0)->GetMethods();
+                    SNPRINTF(buff, sizeof(buff), "class vocabulary %s:  methods at 0x%08x\n",
+                        pVocab->GetName(), (int)pMethods);
+                }
+                else
+                {
+                    SNPRINTF(buff, sizeof(buff), "struct vocabulary %s:\n", pVocab->GetName() );
+                }
 				CONSOLE_STRING_OUT( buff );
 				char quit = ShowVocab( pEngine->GetCoreState(), pVocab, !verbose );
 				if ( quit == 'q' )
