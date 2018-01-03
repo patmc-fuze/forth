@@ -2309,6 +2309,37 @@ entry methodWithTOSType
 	mov	eax, [ebp + FCore.innerExecute]
 	jmp eax
 	
+; invoke a method on super class of object currently referenced by this ptr pair
+entry methodWithSuperType
+	; ebx is method number
+	; push this ptr pair on return stack
+	mov	ecx, [ebp + FCore.RPtr]
+	sub	ecx, 8
+	mov	[ebp + FCore.RPtr], ecx
+	mov	eax, [ebp + FCore.TDPtr]
+	mov	[ecx+4], eax
+	mov	eax, [ebp + FCore.TMPtr]
+	mov	[ecx], eax
+	
+	mov	ecx, [eax-4]		; ecx -> super class vocabulary object data
+	mov	eax, [ecx+4]		; eax -> super class vocabulary
+	push edx
+    push ecx
+    push ebx
+    sub esp, 12         ; 16-byte align for OSX
+    push eax            ; IP
+	xcall getSuperClassMethods
+	add esp, 16
+	pop ebx
+	pop ecx
+	pop edx
+	and	ebx, 00FFFFFFh
+	sal	ebx, 2
+	add	ebx, eax
+	mov	ebx, [ebx]	; ebx = method opcode
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
+	
 ;-----------------------------------------------
 ;
 ; member string init ops
@@ -7229,12 +7260,13 @@ entry opTypesTable
 	DD	squishedDoubleType
 	DD	squishedLongType
 	
-;	120 - 121
+;	120 - 122
 	DD	lroComboType
 	DD	mroComboType
+	DD	methodWithSuperType
 	
-;	122 - 149
-	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+;	123 - 149
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 ;	150 - 199

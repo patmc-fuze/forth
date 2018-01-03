@@ -813,7 +813,7 @@ namespace OStream
 
 	void streamStringOut(ForthCoreState* pCore, oOutStreamStruct* pOutStream, const char* pBuffer)
 	{
-		if (pOutStream->pOutFuncs->outString != NULL)
+ 		if (pOutStream->pOutFuncs->outString != NULL)
 		{
 			pOutStream->pOutFuncs->outString(pCore, pOutStream, pBuffer);
 		}

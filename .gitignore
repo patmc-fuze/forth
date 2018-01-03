@@ -111,3 +111,5 @@ make_release.ps1
 Makefile.new
 master.log
 Scripts/tests/goodOutput/*.txt
+*.ipdb
+*.iobj

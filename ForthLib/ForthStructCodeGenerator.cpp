@@ -43,6 +43,7 @@ ForthStructCodeGenerator::ForthStructCodeGenerator( ForthTypesManager* pTypeMana
     , mOffset( 0 )
     , mTypeCode( BASE_TYPE_TO_CODE(kBaseTypeVoid) )
     , mTOSTypeCode( BASE_TYPE_TO_CODE(kBaseTypeVoid) )
+    , mUsesSuper(false)
 {
 	mBufferBytes = 512;
 	mpBuffer = (char *)__MALLOC(mBufferBytes);
@@ -151,6 +152,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 	ForthVocabulary* pFoundVocab = NULL;
     mpStructVocab = nullptr;
     mpContainedClassVocab = nullptr;
+    mUsesSuper = false;
 
     HandlePreceedingVarop();
     
@@ -200,8 +202,8 @@ bool ForthStructCodeGenerator::HandleFirst()
 			if ( pSuperVocab != NULL )
 			{
 				explicitTOSCast = true;
+                mUsesSuper = true;
 				mTypeCode = STRUCT_TYPE_TO_CODE( kDTIsPtr, pSuperVocab->GetTypeIndex() );
-				*mpDst++ = gCompiledOps[OP_SUPER];
 			}
 			else
 			{
@@ -295,7 +297,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 
     // TODO: there is some wasteful fetching of full object when we just end up dropping method ptr
 
-    if ( !explicitTOSCast )
+    if (!explicitTOSCast)
     {
         SPEW_STRUCTS( "First field %s op 0x%x\n", mpToken, pEntry[0] );
 		if ( isMember )
@@ -321,7 +323,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 			if ( isMethod )
 			{
 				// this method must return either a struct or an object
-				COMPILE_OP( "method with this", kOpMethodWithThis, pEntry[0] );
+                COMPILE_OP("method with this", kOpMethodWithThis, pEntry[0]);
                 long typeIndex = isObject ? CODE_TO_CONTAINED_CLASS_INDEX(mTypeCode) : CODE_TO_STRUCT_INDEX(mTypeCode);
                 ForthTypeInfo* pStruct = mpTypeManager->GetTypeInfo(typeIndex);
 				if ( pStruct == NULL )
@@ -482,6 +484,8 @@ bool ForthStructCodeGenerator::HandleFirst()
 	
 bool ForthStructCodeGenerator::HandleMiddle()
 {
+    bool bUsesSuper = mUsesSuper;
+    mUsesSuper = false;
 	if ( mpStructVocab == NULL )
 	{
 		return false;
@@ -537,7 +541,7 @@ bool ForthStructCodeGenerator::HandleMiddle()
     {
         // This is a method which is a non-final accessor field
         // this method must return either a struct or an object
-        opType = kOpMethodWithTOS;
+        opType = (bUsesSuper) ? kOpMethodWithSuper : kOpMethodWithTOS;
         mOffset = pEntry[0];
         SPEW_STRUCTS( " opcode 0x%x\n", COMPILED_OP( opType, mOffset ) );
         *mpDst++ = COMPILED_OP( opType, mOffset );
@@ -744,7 +748,7 @@ bool ForthStructCodeGenerator::HandleLast()
     SPEW_STRUCTS( " FINAL" );
     if ( isMethod )
     {
-        opType = kOpMethodWithTOS;
+        opType = (mUsesSuper) ? kOpMethodWithSuper : kOpMethodWithTOS;
         mOffset = pEntry[0];     // method#
     }
     else if ( isPtr )

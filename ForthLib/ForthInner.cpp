@@ -2008,6 +2008,23 @@ OPTYPE_ACTION(MethodWithThisAction)
 	pEngine->ExecuteOp(pCore, pMethods[opVal]);
 }
 
+OPTYPE_ACTION(MethodWithSuperAction)
+{
+    // this is called when an object method invokes a method off its superclass
+    // opVal is the method number
+    ForthEngine *pEngine = GET_ENGINE;
+    long* pMethods = GET_TPM;
+    RPUSH(((long)GET_TPD));
+    RPUSH(((long)pMethods));
+    if (pEngine->GetTraceFlags() & kLogInnerInterpreter)
+    {
+        SpewMethodName(pMethods, opVal);
+    }
+    ForthClassObject* pClassObject = (ForthClassObject*)pMethods[-1];
+    long* pSuperMethods = pClassObject->pVocab->ParentClass()->GetInterface(0)->GetMethods();
+    pEngine->ExecuteOp(pCore, pMethods[opVal]);
+}
+
 OPTYPE_ACTION( MethodWithTOSAction )
 {
     // TOS is object (top is vtable, next is data)
@@ -2412,7 +2429,7 @@ optypeActionRoutine builtinOptypeAction[] =
 	// 120 - 122
 	LocalRefOpComboAction,		// 0x78
 	MemberRefOpComboAction,
-    ReservedOptypeAction,
+    MethodWithSuperAction,
 
     NULL            // this must be last to end the list
 };

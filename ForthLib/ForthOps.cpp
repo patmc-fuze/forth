@@ -2317,18 +2317,6 @@ FORTHOP(showStructOp)
 	pStructVocab->ShowData(pStruct, pCore);
 }
 
-FORTHOP( superOp )
-{
-	// push version of this which has current objects data pointer and super class method pointer
-    SPUSH( ((long) GET_TPD) );
-	long* pMethods = GET_TPM;
-	// the long before method 0 holds the class object pointer
-	ForthClassObject* pClassObject = (ForthClassObject*) pMethods[-1];
-	// TODO: some error checking here might be nice
-	pMethods = pClassObject->pVocab->ParentClass()->GetInterface(0)->GetMethods();
-    SPUSH( ((long) pMethods) );
-}
-
 void __newOp(ForthCoreState* pCore, const char* pClassName)
 {
     // TODO: allow sizeOf to be applied to variables
@@ -8828,7 +8816,6 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     OP_COMPILED_DEF(	    doEnumOp,               "_doEnum",			OP_DO_ENUM ),
     OP_COMPILED_DEF(		doNewOp,                "_doNew",			OP_DO_NEW ),
     OP_COMPILED_DEF(		allocObjectOp,          "_allocObject",		OP_ALLOC_OBJECT ),
-	OP_COMPILED_DEF(		superOp,                "super",			OP_SUPER ),
     OP_COMPILED_DEF(		endBuildsOp,            "_endBuilds",		OP_END_BUILDS ),
     OP_COMPILED_DEF(		compileOp,              "compile",		    OP_COMPILE ),
 	OP_COMPILED_DEF(		initStructArrayOp,      "initStructArray",	OP_INIT_STRUCT_ARRAY ),

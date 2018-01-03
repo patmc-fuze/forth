@@ -2245,4 +2245,10 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
     }
 }
 
-
+extern "C"
+{
+    long* getSuperClassMethods(ForthClassVocabulary *pVocab)
+    {
+        return pVocab->ParentClass()->GetInterface(0)->GetMethods();
+    }
+};

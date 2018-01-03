@@ -14,16 +14,13 @@ class: UIApplication extends UIGroup
   int mNextElementID
   bool mQuit
 
-  // this can't be an override of addChild, because then UIGroup:addChild
-  //  would need to done as super.addChild, which would make the childs parent
-  //  have UIGroup methods, not UIApplication methods
-  m: add
+  m: addChild
     -> int y
     -> int x
     -> UIElement newChild
     mNextElementID -> newChild.mElementID
     1 ->+ mNextElementID
-    addChild(newChild x y)
+    super.addChild(newChild x y)
     oclear newChild
   ;m
   
@@ -64,7 +61,7 @@ class: UIApplication extends UIGroup
 
     begin
       SDL_WaitEvent( sdlEvent ) drop
-#if(0)
+#if 0
       "runLoop got event of type " %s
       if(findEnumSymbol(sdlEvent.common.type ref SDL_EventType))
         %s %nl
