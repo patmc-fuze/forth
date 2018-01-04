@@ -168,5 +168,5 @@ namespace OLock
 	void AddClasses(ForthEngine* pEngine);
 
 	void CreateAsyncLockObject(ForthObject& outAsyncLock, ForthEngine *pEngine);
-    void CreateSemaphoreObject(ForthObject& outSemaphore, ForthEngine *pEngine);
+    void CreateAsyncSemaphoreObject(ForthObject& outSemaphore, ForthEngine *pEngine);
 }

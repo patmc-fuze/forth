@@ -208,9 +208,7 @@ class: SDLScreen extends SDLSurface
     //SDL_SetVideoMode( width height 0 SDL_SWSURFACE ) -> surface
     
     //SDL_CreateWindow( "My Game Window" SDL_WINDOWPOS_UNDEFINED_MASK SDL_WINDOWPOS_UNDEFINED_MASK width height SDL_WINDOW_SHOWN ) -> window
-    SDL_CreateWindowAndRenderer(width height 0 ref window ref renderer)
-
-    if( window 0= )
+    if(SDL_CreateWindowAndRenderer(width height 0 ref window ref renderer))
       reportError("SDLScreen:start - SDL_CreateWindowAndRenderer")
     else
 

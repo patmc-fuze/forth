@@ -238,10 +238,10 @@ namespace OSystem
 		METHOD_RETURN;
 	}
 
-    FORTHOP(oSystemCreateSemaphoreMethod)
+    FORTHOP(oSystemCreateAsyncSemaphoreMethod)
     {
         ForthObject sem;
-        OLock::CreateSemaphoreObject(sem, GET_ENGINE);
+        OLock::CreateAsyncSemaphoreObject(sem, GET_ENGINE);
 
         PUSH_OBJECT(sem);
         METHOD_RETURN;
@@ -264,7 +264,7 @@ namespace OSystem
 		METHOD_RET("getOpsTable", oSystemGetOpsTableMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("createAsyncThread", oSystemCreateAsyncThreadMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncThread)),
         METHOD_RET("createAsyncLock", oSystemCreateAsyncLockMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncLock)),
-        METHOD_RET("createSemaphore", oSystemCreateSemaphoreMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCISemaphore)),
+        METHOD_RET("createAsyncSemaphore", oSystemCreateAsyncSemaphoreMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncSemaphore)),
 
         MEMBER_VAR("namedObjects", OBJECT_TYPE_TO_CODE(0, kBCIStringMap)),
         MEMBER_VAR("args", OBJECT_TYPE_TO_CODE(0, kBCIArray)),

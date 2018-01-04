@@ -1016,6 +1016,7 @@ namespace OThread
 			pCore->SP += numArgs;
 		}
 		pThread->SetRunState(kFTRSReady);
+        SPUSH(-1);
 		METHOD_RETURN;
 	}
 
@@ -1141,8 +1142,8 @@ namespace OThread
 		METHOD("__newOp", oThreadNew),
 		METHOD("delete", oThreadDeleteMethod),
 		METHOD("start", oThreadStartMethod),
-		METHOD("startWithArgs", oThreadStartWithArgsMethod),
-		METHOD("stop", oThreadStopMethod),
+        METHOD_RET("startWithArgs", oThreadStartWithArgsMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+        METHOD("stop", oThreadStopMethod),
         METHOD("join", oThreadJoinMethod),
         METHOD("sleep", oThreadSleepMethod),
         METHOD("wake", oThreadWakeMethod),
@@ -1521,6 +1522,162 @@ namespace OLock
     {
         ulong			refCount;
         int				id;
+        int				count;
+#ifdef WIN32
+        CRITICAL_SECTION* pLock;
+#else
+        pthread_mutex_t* pLock;
+#endif
+        std::deque<ForthThread*> *pBlockedThreads;
+    };
+
+    FORTHOP(oSemaphoreNew)
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
+        MALLOCATE_OBJECT(oSemaphoreStruct, pSemaphoreStruct, pClassVocab);
+
+        pSemaphoreStruct->refCount = 0;
+#ifdef WIN32
+        pSemaphoreStruct->pLock = new CRITICAL_SECTION();
+        InitializeCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pSemaphoreStruct->pLock = new pthread_mutex_t;
+        pthread_mutexattr_t mutexAttr;
+        pthread_mutexattr_init(&mutexAttr);
+        pthread_mutexattr_settype(&mutexAttr, PTHREAD_MUTEX_RECURSIVE);
+
+        pthread_mutex_init(pSemaphoreStruct->pLock, &mutexAttr);
+
+        pthread_mutexattr_destroy(&mutexAttr);
+#endif
+        pSemaphoreStruct->pBlockedThreads = new std::deque<ForthThread*>;
+        pSemaphoreStruct->count = 0;
+
+        PUSH_PAIR(pPrimaryInterface->GetMethods(), pSemaphoreStruct);
+    }
+
+    FORTHOP(oSemaphoreDeleteMethod)
+    {
+        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+        //GET_ENGINE->SetError(kForthErrorIllegalOperation, " OSemaphore.delete called with threads blocked on lock");
+
+#ifdef WIN32
+        DeleteCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_destroy(pSemaphoreStruct->pLock);
+#endif
+        delete pSemaphoreStruct->pLock;
+        delete pSemaphoreStruct->pBlockedThreads;
+        FREE_OBJECT(pSemaphoreStruct);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSemaphoreInitMethod)
+    {
+        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+#ifdef WIN32
+        EnterCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_lock(pSemaphoreStruct->pLock);
+#endif
+
+        pSemaphoreStruct->count = SPOP;
+
+#ifdef WIN32
+        LeaveCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_unlock(pSemaphoreStruct->pLock);
+#endif
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSemaphoreWaitMethod)
+    {
+        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+#ifdef WIN32
+        EnterCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_lock(pSemaphoreStruct->pLock);
+#endif
+
+        if (pSemaphoreStruct->count > 0)
+        {
+            --(pSemaphoreStruct->count);
+        }
+        else
+        {
+            ForthThread* pThread = (ForthThread*)(pCore->pThread);
+            pThread->Block();
+            SET_STATE(kResultYield);
+            pSemaphoreStruct->pBlockedThreads->push_back(pThread);
+        }
+
+#ifdef WIN32
+        LeaveCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_unlock(pSemaphoreStruct->pLock);
+#endif
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSemaphorePostMethod)
+    {
+        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+#ifdef WIN32
+        EnterCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_lock(pSemaphoreStruct->pLock);
+#endif
+
+        ++(pSemaphoreStruct->count);
+        if (pSemaphoreStruct->count > 0)
+        {
+            if (pSemaphoreStruct->pBlockedThreads->size() > 0)
+            {
+                ForthThread* pThread = pSemaphoreStruct->pBlockedThreads->front();
+                pSemaphoreStruct->pBlockedThreads->pop_front();
+                pThread->Wake();
+                SET_STATE(kResultYield);
+                --(pSemaphoreStruct->count);
+            }
+        }
+
+#ifdef WIN32
+        LeaveCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_unlock(pSemaphoreStruct->pLock);
+#endif
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oSemaphoreMembers[] =
+    {
+        METHOD("__newOp", oSemaphoreNew),
+        METHOD("delete", oSemaphoreDeleteMethod),
+        METHOD("init", oSemaphoreInitMethod),
+        METHOD("wait", oSemaphoreWaitMethod),
+        METHOD("post", oSemaphorePostMethod),
+
+        MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("count", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__blockedThreads", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 OAsyncSemaphore
+    //
+
+    struct oAsyncSemaphoreStruct
+    {
+        ulong			refCount;
+        int				id;
 #ifdef WIN32
         HANDLE pSemaphore;
 #else
@@ -1530,11 +1687,11 @@ namespace OLock
 
     static ForthClassVocabulary* gpSemaphoreVocabulary;
 
-    void CreateSemaphoreObject(ForthObject& outSemaphore, ForthEngine *pEngine)
+    void CreateAsyncSemaphoreObject(ForthObject& outSemaphore, ForthEngine *pEngine)
     {
         ForthInterface* pPrimaryInterface = gpSemaphoreVocabulary->GetInterface(0);
 
-        MALLOCATE_OBJECT(oSemaphoreStruct, pSemaphoreStruct, gpSemaphoreVocabulary);
+        MALLOCATE_OBJECT(oAsyncSemaphoreStruct, pSemaphoreStruct, gpSemaphoreVocabulary);
         pSemaphoreStruct->refCount = 0;
 #ifdef WIN32
         pSemaphoreStruct->pSemaphore = 0;
@@ -1546,14 +1703,14 @@ namespace OLock
         outSemaphore.pData = (long *)pSemaphoreStruct;
     }
 
-    FORTHOP(oSemaphoreNew)
+    FORTHOP(oAsyncSemaphoreNew)
     {
         GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create a Semaphore object");
     }
 
-    FORTHOP(oSemaphoreDeleteMethod)
+    FORTHOP(oAsyncSemaphoreDeleteMethod)
     {
-        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+        GET_THIS(oAsyncSemaphoreStruct, pSemaphoreStruct);
 
 #ifdef WIN32
         if (pSemaphoreStruct->pSemaphore)
@@ -1572,9 +1729,9 @@ namespace OLock
         METHOD_RETURN;
     }
 
-    FORTHOP(oSemaphoreInitMethod)
+    FORTHOP(oAsyncSemaphoreInitMethod)
     {
-        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+        GET_THIS(oAsyncSemaphoreStruct, pSemaphoreStruct);
         int initialCount = SPOP;
 #ifdef WIN32
         // default security attributes, initial count, max count, unnamed semaphore
@@ -1591,9 +1748,9 @@ namespace OLock
         METHOD_RETURN;
     }
 
-    FORTHOP(oSemaphoreWaitMethod)
+    FORTHOP(oAsyncSemaphoreWaitMethod)
     {
-        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+        GET_THIS(oAsyncSemaphoreStruct, pSemaphoreStruct);
 #ifdef WIN32
         DWORD waitResult = WaitForSingleObject(pSemaphoreStruct->pSemaphore, INFINITE);
         if (waitResult != WAIT_OBJECT_0)
@@ -1606,9 +1763,9 @@ namespace OLock
         METHOD_RETURN;
     }
 
-    FORTHOP(oSemaphorePostMethod)
+    FORTHOP(oAsyncSemaphorePostMethod)
     {
-        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+        GET_THIS(oAsyncSemaphoreStruct, pSemaphoreStruct);
 #ifdef WIN32
         // increment the semaphore to signal all threads waiting for us to exit
         if (!ReleaseSemaphore(pSemaphoreStruct->pSemaphore, 1, NULL))
@@ -1621,13 +1778,13 @@ namespace OLock
         METHOD_RETURN;
     }
 
-    baseMethodEntry oSemaphoreMembers[] =
+    baseMethodEntry oAsyncSemaphoreMembers[] =
     {
-        METHOD("__newOp", oSemaphoreNew),
-        METHOD("delete", oSemaphoreDeleteMethod),
-        METHOD("init", oSemaphoreInitMethod),
-        METHOD("wait", oSemaphoreWaitMethod),
-        METHOD("post", oSemaphorePostMethod),
+        METHOD("__newOp", oAsyncSemaphoreNew),
+        METHOD("delete", oAsyncSemaphoreDeleteMethod),
+        METHOD("init", oAsyncSemaphoreInitMethod),
+        METHOD("wait", oAsyncSemaphoreWaitMethod),
+        METHOD("post", oAsyncSemaphorePostMethod),
 
         MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
         MEMBER_VAR("__semaphore", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
@@ -1641,7 +1798,8 @@ namespace OLock
 	{
 		gpAsyncLockVocabulary = pEngine->AddBuiltinClass("AsyncLock", kBCIAsyncLock, kBCIObject, oAsyncLockMembers);
         pEngine->AddBuiltinClass("Lock", kBCILock, kBCIObject, oLockMembers);
-        gpSemaphoreVocabulary = pEngine->AddBuiltinClass("Semaphore", kBCISemaphore, kBCIObject, oSemaphoreMembers);
+        gpSemaphoreVocabulary = pEngine->AddBuiltinClass("AsyncSemaphore", kBCIAsyncSemaphore, kBCIObject, oAsyncSemaphoreMembers);
+        pEngine->AddBuiltinClass("Semaphore", kBCISemaphore, kBCIObject, oSemaphoreMembers);
     }
 
 } // namespace OLock
