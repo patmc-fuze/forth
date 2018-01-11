@@ -6734,12 +6734,22 @@ FORTHOP( invertBop )
     SPUSH( ~a );
 }
 
-FORTHOP( lshiftBop )
+FORTHOP(lshiftBop)
 {
     NEEDS(2);
     unsigned long b = SPOP;
     unsigned long a = SPOP;
-    SPUSH( a << b );
+    SPUSH(a << b);
+}
+
+FORTHOP(lshift64Bop)
+{
+    NEEDS(3);
+    unsigned long b = SPOP;
+    stackInt64 a;
+    LPOP(a);
+    a.u64 <<= b;
+    LPUSH(a);
 }
 
 FORTHOP( rshiftBop )
@@ -6748,6 +6758,16 @@ FORTHOP( rshiftBop )
     unsigned long b = SPOP;
     unsigned long a = SPOP;
     SPUSH( a >> b );
+}
+
+FORTHOP(rshift64Bop)
+{
+    NEEDS(3);
+    unsigned long b = SPOP;
+    stackInt64 a;
+    LPOP(a);
+    a.u64 >>= b;
+    LPUSH(a);
 }
 
 
@@ -6760,13 +6780,23 @@ FORTHOP( arshiftBop )
 }
 
 
-FORTHOP( rotateBop )
+FORTHOP(rotateBop)
 {
-	NEEDS(2);
-	unsigned long b = (SPOP) & 31;
-	unsigned long a = SPOP;
-	unsigned long result = (a << b) | (a >> (32 - b));
-	SPUSH( result );
+    NEEDS(2);
+    unsigned long b = (SPOP) & 31;
+    unsigned long a = SPOP;
+    unsigned long result = (a << b) | (a >> (32 - b));
+    SPUSH(result);
+}
+
+FORTHOP(rotate64Bop)
+{
+    NEEDS(2);
+    unsigned long b = (SPOP) & 31;
+    stackInt64 a;
+    LPOP(a);
+    a.u64 = (a.u64 << b) | (a.u64 >> (32 - b));
+    LPUSH(a);
 }
 
 
@@ -8673,7 +8703,8 @@ OPREF( mtimesBop );         OPREF( umtimesBop);
 OPREF( i2fBop );            OPREF( i2dBop );            OPREF( f2iBop );
 OPREF( f2dBop );            OPREF( d2iBop );            OPREF( d2fBop );
 OPREF( orBop );             OPREF( andBop );            OPREF( xorBop );
-OPREF( invertBop );         OPREF( lshiftBop );         OPREF( rshiftBop );
+OPREF( invertBop );         OPREF( lshiftBop );         OPREF( lshift64Bop );
+OPREF( rshiftBop );         OPREF( rshift64Bop );       OPREF( rotate64Bop );
 OPREF( arshiftBop );        OPREF( rotateBop );         OPREF( trueBop );
 OPREF( falseBop );          OPREF( nullBop );           OPREF( dnullBop );
 OPREF( equalsBop );         OPREF( notEqualsBop );      OPREF( greaterThanBop );
@@ -9016,9 +9047,12 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    xorBop,                  "xor" ),
     NATIVE_DEF(    invertBop,               "invert" ),
     NATIVE_DEF(    lshiftBop,               "lshift" ),
+    NATIVE_DEF(    lshift64Bop,             "2lshift" ),
     NATIVE_DEF(    rshiftBop,               "rshift" ),
+    NATIVE_DEF(    rshift64Bop,             "2rshift" ),
     NATIVE_DEF(    arshiftBop,              "arshift" ),
     NATIVE_DEF(    rotateBop,               "rotate" ),
+    NATIVE_DEF(    rotate64Bop,             "2rotate" ),
 
     ///////////////////////////////////////////
     //  boolean logic

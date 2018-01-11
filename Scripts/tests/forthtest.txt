@@ -253,6 +253,8 @@ test[ -10.0d 4.3d dmax 4.3d d= ]
 test[ 1 8 lshift 256 = ] test[ 17 2 lshift 68 = ] test[ -80 3 arshift -10 = ] test[ 19 2 arshift 4 = ]
 test[ 0xF1234567 4 arshift 0xFF123456 = ] test[ 0xF1234567 4 rshift 0xF123456 = ]
 test[ 0x12345678 8 rotate 0x34567812 = ]
+test[ 0x1234567876543210L 8 2lshift 0x3456787654321000L l= ] test[ 0x1234567876543210L 8 2rshift 0x0012345678765432L l= ]
+test[ 0x1234567876543210L 8 2rotate 0x3456787654321012L l= ] test[ 0x1234567876543210L -8 2rotate 0x1012345678765432L l= ]
 
 // dup ?dup swap over rot pick
 test[ 17 5 dup 2 pick tuck 17 = swap 5 = and rot 5 = rot 17 = 0 drop and rot 17 = ]

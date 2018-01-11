@@ -4496,6 +4496,19 @@ entry lshiftBop
 	
 ;========================================
 
+entry lshift64Bop
+	mov	ecx, [edx]
+	add	edx, 4
+	mov	ebx, [edx]
+	mov	eax, [edx+4]
+	shld	ebx, eax, cl
+	shl	eax, cl
+	mov	[edx], ebx
+	mov	[edx+4], eax
+	jmp	edi
+	
+;========================================
+
 entry arshiftBop
 	mov	ecx, [edx]
 	add	edx, 4
@@ -4516,6 +4529,19 @@ entry rshiftBop
 	
 ;========================================
 
+entry rshift64Bop
+	mov	ecx, [edx]
+	add	edx, 4
+	mov	ebx, [edx]
+	mov	eax, [edx+4]
+	shrd	eax, ebx, cl
+	shr	ebx, cl
+	mov	[edx], ebx
+	mov	[edx+4], eax
+	jmp	edi
+	
+;========================================
+
 entry rotateBop
 	mov	ecx, [edx]
 	add	edx, 4
@@ -4525,6 +4551,30 @@ entry rotateBop
 	mov	[edx], ebx
 	jmp	edi
 	
+;========================================
+
+entry rotate64Bop
+	mov	ecx, [edx]
+	mov	ebx, [edx+4]
+	mov	eax, [edx+8]
+	push	edx
+	; if rotate count is >31, swap lo & hi parts
+	bt ecx, 5
+	jnc	rotate64Bop_1
+	xchg	eax, ebx
+rotate64Bop_1:
+	and	cl, 01Fh
+	mov	edx, ebx
+	shld	ebx, eax, cl
+	xchg	edx, ebx
+	shld	eax, ebx, cl
+	mov	ebx, edx
+	pop	edx
+	add	edx, 4
+	mov	[edx], ebx
+	mov	[edx+4], eax
+	jmp	edi
+
 ;========================================
 
 entry archX86Bop

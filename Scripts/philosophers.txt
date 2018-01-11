@@ -201,7 +201,7 @@ mko Array of AsyncLock asyncForks
 ;
   
 : asyncDiningLoop
-  p[ "let the feast begin!\n" %s ]p
+  p[ "let the asynchronous feast begin!\n" %s ]p
   ms@ -> int feastStart
   AsyncPhilosopher phil
   

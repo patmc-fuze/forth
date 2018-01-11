@@ -87,7 +87,7 @@ class: AsyncPizzaDriver
   0 -> pizzasDelivered
   ms@ -> int workStart
   
-  p[ "open for business!\n" %s ]p
+  p[ "open for asynchronous business!\n" %s ]p
   
   mko Array of AsyncPizzaDriver drivers
   

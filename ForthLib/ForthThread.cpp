@@ -289,7 +289,7 @@ void ForthThread::SetRunState(eForthThreadRunState newState)
 void ForthThread::Sleep(ulong sleepMilliSeconds)
 {
 	ulong now = mpEngine->GetElapsedTime();
-	mWakeupTime = now + sleepMilliSeconds;
+	mWakeupTime = (sleepMilliSeconds == MAXINT32) ? MAXINT32 : now + sleepMilliSeconds;
 	mRunState = kFTRSSleeping;
 }
 
