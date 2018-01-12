@@ -1950,18 +1950,17 @@ void SpewMethodName(long* pMethods, long opVal)
 {
 	char buffer[256];
 	ForthClassObject* pClassObject = (ForthClassObject *)(*((pMethods)-1));
-	ForthClassVocabulary* pVocab = pClassObject->pVocab;
-	const char* pVocabName = pVocab->GetName();
-	if (pClassObject != NULL)
+	if (pClassObject != nullptr)
 	{
-		strcpy(buffer, "UNKNOWN_METHOD");
-		while (pVocab != NULL)
+        ForthClassVocabulary* pVocab = pClassObject->pVocab;
+        const char* pVocabName = pVocab->GetName();
+        strcpy(buffer, "UNKNOWN_METHOD");
+		while (pVocab != nullptr)
 		{
-			long *pEntry = NULL;
+			long *pEntry = pVocab->FindNextSymbolByValue(opVal, nullptr);
 			while (true)
 			{
-				pEntry = pVocab->FindNextSymbolByValue(opVal, pEntry);
-				if (pEntry != NULL)
+				if (pEntry != nullptr)
 				{
 					long typeCode = pEntry[1];
 					bool isMethod = CODE_IS_METHOD(typeCode);
@@ -1975,7 +1974,7 @@ void SpewMethodName(long* pMethods, long opVal)
 							*pBuffer++ = *pName++;
 						}
 						*pBuffer = '\0';
-						pVocab = NULL;
+						pVocab = nullptr;
 						break;
 					}
 					else
@@ -1988,8 +1987,8 @@ void SpewMethodName(long* pMethods, long opVal)
 					pVocab = pVocab->ParentClass();
 					break;
 				}
-			}
-		}
+			}  // end while true
+		}  // end while pVocab not null
 		SPEW_INNER_INTERPRETER(" %s:%s  ", pVocabName, buffer);
 	}
 }
@@ -2007,6 +2006,23 @@ OPTYPE_ACTION(MethodWithThisAction)
 		SpewMethodName(pMethods, opVal);
 	}
 	pEngine->ExecuteOp(pCore, pMethods[opVal]);
+}
+
+OPTYPE_ACTION(MethodWithSuperAction)
+{
+    // this is called when an object method invokes a method off its superclass
+    // opVal is the method number
+    ForthEngine *pEngine = GET_ENGINE;
+    long* pMethods = GET_TPM;
+    RPUSH(((long)GET_TPD));
+    RPUSH(((long)pMethods));
+    if (pEngine->GetTraceFlags() & kLogInnerInterpreter)
+    {
+        SpewMethodName(pMethods, opVal);
+    }
+    ForthClassObject* pClassObject = (ForthClassObject*)pMethods[-1];
+    long* pSuperMethods = pClassObject->pVocab->ParentClass()->GetInterface(0)->GetMethods();
+    pEngine->ExecuteOp(pCore, pMethods[opVal]);
 }
 
 OPTYPE_ACTION( MethodWithTOSAction )
@@ -2413,7 +2429,7 @@ optypeActionRoutine builtinOptypeAction[] =
 	// 120 - 122
 	LocalRefOpComboAction,		// 0x78
 	MemberRefOpComboAction,
-    ReservedOptypeAction,
+    MethodWithSuperAction,
 
     NULL            // this must be last to end the list
 };
@@ -2483,10 +2499,6 @@ InnerInterpreter( ForthCoreState *pCore )
 						pEngine->TraceStack(pCore);
 					}
 					pEngine->TraceOut("\n");
-					if (result == kResultTrace)
-					{
-						result = kResultOk;
-					}
 				}
 			}
 			break;

@@ -160,7 +160,8 @@ typedef enum
 	kOpLocalRefOpCombo = 120,				// LOCAL_REF OP - bits 0:11 are local var offset in longs, bits 12:23 are opcode
 	kOpMemberRefOpCombo,					// MEMBER_REF OP - bits 0:11 are local var offset in longs, bits 12:23 are opcode
 
-    // 122 is unused
+    kOpMethodWithSuper,                     // low 24 bits is method number
+
     kOpLocalUserDefined = 123,             // user can add more optypes starting with this one
     kOpMaxLocalUserDefined = 127,    // maximum user defined optype
 
@@ -206,7 +207,6 @@ typedef enum {
     kResultFatalError,  // exit because of fatal error
     kResultException,   // exit because of uncaught exception
     kResultShutdown,    // exit because of a "shutdown" opcode
-	kResultTrace,		// exit because of a "setTrace" opcode
 	kResultYield,		// exit because of a stopThread/yield/sleepThread opcode
 } eForthResult;
 

@@ -1825,10 +1825,18 @@ localOpExecute:
 	mov	eax, [ebp + FCore.innerExecute]
 	jmp eax
 
+localOpFetch:
+	sub	edx, 4
+	mov	ebx, [eax]
+	mov	[edx], ebx
+	; set var operation back to fetch
+	xor	eax, eax
+	mov	[ebp + FCore.varMode], eax
+	jmp	edi
 
 localOpActionTable:
 	DD	localOpExecute
-	DD	localIntFetch
+	DD	localOpFetch
 	DD	localIntRef
 	DD	localIntStore
 
@@ -2298,6 +2306,37 @@ entry methodWithTOSType
 	add	ebx, eax
 	mov	ebx, [ebx]	; ebx = method opcode
 	add	edx, 8
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
+	
+; invoke a method on super class of object currently referenced by this ptr pair
+entry methodWithSuperType
+	; ebx is method number
+	; push this ptr pair on return stack
+	mov	ecx, [ebp + FCore.RPtr]
+	sub	ecx, 8
+	mov	[ebp + FCore.RPtr], ecx
+	mov	eax, [ebp + FCore.TDPtr]
+	mov	[ecx+4], eax
+	mov	eax, [ebp + FCore.TMPtr]
+	mov	[ecx], eax
+	
+	mov	ecx, [eax-4]		; ecx -> super class vocabulary object data
+	mov	eax, [ecx+4]		; eax -> super class vocabulary
+	push edx
+    push ecx
+    push ebx
+    sub esp, 12         ; 16-byte align for OSX
+    push eax            ; IP
+	xcall getSuperClassMethods
+	add esp, 16
+	pop ebx
+	pop ecx
+	pop edx
+	and	ebx, 00FFFFFFh
+	sal	ebx, 2
+	add	ebx, eax
+	mov	ebx, [ebx]	; ebx = method opcode
 	mov	eax, [ebp + FCore.innerExecute]
 	jmp eax
 	
@@ -4457,6 +4496,19 @@ entry lshiftBop
 	
 ;========================================
 
+entry lshift64Bop
+	mov	ecx, [edx]
+	add	edx, 4
+	mov	ebx, [edx]
+	mov	eax, [edx+4]
+	shld	ebx, eax, cl
+	shl	eax, cl
+	mov	[edx], ebx
+	mov	[edx+4], eax
+	jmp	edi
+	
+;========================================
+
 entry arshiftBop
 	mov	ecx, [edx]
 	add	edx, 4
@@ -4477,6 +4529,19 @@ entry rshiftBop
 	
 ;========================================
 
+entry rshift64Bop
+	mov	ecx, [edx]
+	add	edx, 4
+	mov	ebx, [edx]
+	mov	eax, [edx+4]
+	shrd	eax, ebx, cl
+	shr	ebx, cl
+	mov	[edx], ebx
+	mov	[edx+4], eax
+	jmp	edi
+	
+;========================================
+
 entry rotateBop
 	mov	ecx, [edx]
 	add	edx, 4
@@ -4486,6 +4551,30 @@ entry rotateBop
 	mov	[edx], ebx
 	jmp	edi
 	
+;========================================
+
+entry rotate64Bop
+	mov	ecx, [edx]
+	mov	ebx, [edx+4]
+	mov	eax, [edx+8]
+	push	edx
+	; if rotate count is >31, swap lo & hi parts
+	bt ecx, 5
+	jnc	rotate64Bop_1
+	xchg	eax, ebx
+rotate64Bop_1:
+	and	cl, 01Fh
+	mov	edx, ebx
+	shld	ebx, eax, cl
+	xchg	edx, ebx
+	shld	eax, ebx, cl
+	mov	ebx, edx
+	pop	edx
+	add	edx, 4
+	mov	[edx], ebx
+	mov	[edx+4], eax
+	jmp	edi
+
 ;========================================
 
 entry archX86Bop
@@ -7221,12 +7310,13 @@ entry opTypesTable
 	DD	squishedDoubleType
 	DD	squishedLongType
 	
-;	120 - 121
+;	120 - 122
 	DD	lroComboType
 	DD	mroComboType
+	DD	methodWithSuperType
 	
-;	122 - 149
-	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+;	123 - 149
+	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 	DD	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 ;	150 - 199

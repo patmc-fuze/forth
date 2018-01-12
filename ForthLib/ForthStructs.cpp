@@ -1811,7 +1811,7 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
         CONSOLE_STRING_OUT( buff );
     }
     long* pMethod = pPrimaryInterface->GetMethods() + methodNum;
-    sprintf( buff, "opcode=%02x:%06x", GetEntryType(pMethod), GetEntryValue(pMethod) );
+    sprintf( buff, " opcode=%02x:%06x", GetEntryType(pMethod), GetEntryValue(pMethod) );
     CONSOLE_STRING_OUT( buff );
 }
 
@@ -2245,4 +2245,10 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
     }
 }
 
-
+extern "C"
+{
+    long* getSuperClassMethods(ForthClassVocabulary *pVocab)
+    {
+        return pVocab->ParentClass()->GetInterface(0)->GetMethods();
+    }
+};

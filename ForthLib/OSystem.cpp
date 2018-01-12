@@ -81,9 +81,8 @@ namespace OSystem
 	FORTHOP(oSystemGetDefinitionsVocabMethod)
 	{
 		GET_THIS(oSystemStruct, pSystem);
-		ForthEngine *pEngine = GET_ENGINE;
 
-		ForthVocabulary* pVocab = pEngine->GetDefinitionVocabulary();
+		ForthVocabulary* pVocab = GET_ENGINE->GetDefinitionVocabulary();
 		if (pVocab != NULL)
 		{
 			PUSH_OBJECT(pVocab->GetVocabularyObject());
@@ -105,8 +104,7 @@ namespace OSystem
 		ForthVocabulary* pVocab = pVocabStruct->vocabulary;
 		if (pVocab != NULL)
 		{
-			ForthEngine *pEngine = GET_ENGINE;
-			pEngine->SetDefinitionVocabulary(pVocab);
+            GET_ENGINE->SetDefinitionVocabulary(pVocab);
 		}
 		METHOD_RETURN;
 	}
@@ -114,8 +112,7 @@ namespace OSystem
 	FORTHOP(oSystemGetSearchVocabDepthMethod)
 	{
 		GET_THIS(oSystemStruct, pSystem);
-		ForthEngine *pEngine = GET_ENGINE;
-		ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+		ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
 		SPUSH(pVocabStack->GetDepth());
 
 		METHOD_RETURN;
@@ -124,8 +121,7 @@ namespace OSystem
 	FORTHOP(oSystemClearSearchVocabMethod)
 	{
 		GET_THIS(oSystemStruct, pSystem);
-		ForthEngine *pEngine = GET_ENGINE;
-		ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+		ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
 		pVocabStack->Clear();
 
 		METHOD_RETURN;
@@ -135,9 +131,8 @@ namespace OSystem
 	{
 		GET_THIS(oSystemStruct, pSystem);
 		int vocabStackIndex = SPOP;
-		ForthEngine *pEngine = GET_ENGINE;
 
-		ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+		ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
 		ForthVocabulary* pVocab = pVocabStack->GetElement(vocabStackIndex);
 		if (pVocab != NULL)
 		{
@@ -153,9 +148,8 @@ namespace OSystem
 	FORTHOP(oSystemGetSearchVocabTopMethod)
 	{
 		GET_THIS(oSystemStruct, pSystem);
-		ForthEngine *pEngine = GET_ENGINE;
 
-		ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+		ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
 		ForthVocabulary* pVocab = pVocabStack->GetTop();
 		if (pVocab != NULL)
 		{
@@ -177,8 +171,7 @@ namespace OSystem
 		ForthVocabulary* pVocab = pVocabStruct->vocabulary;
 		if (pVocab != NULL)
 		{
-			ForthEngine *pEngine = GET_ENGINE;
-			ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+			ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
 			pVocabStack->SetTop(pVocab);
 		}
 		METHOD_RETURN;
@@ -193,8 +186,7 @@ namespace OSystem
 		ForthVocabulary* pVocab = pVocabStruct->vocabulary;
 		if (pVocab != NULL)
 		{
-			ForthEngine *pEngine = GET_ENGINE;
-			ForthVocabularyStack* pVocabStack = pEngine->GetVocabularyStack();
+			ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
 			pVocabStack->DupTop();
 			pVocabStack->SetTop(pVocab);
 		}
@@ -204,7 +196,6 @@ namespace OSystem
 	FORTHOP(oSystemGetVocabByNameMethod)
 	{
 		GET_THIS(oSystemStruct, pSystem);
-		ForthEngine *pEngine = GET_ENGINE;
 
 		const char* pVocabName = reinterpret_cast<const char*>(SPOP);
 		ForthVocabulary* pVocab = ForthVocabulary::FindVocabulary(pVocabName);
@@ -228,12 +219,11 @@ namespace OSystem
 
 	FORTHOP(oSystemCreateAsyncThreadMethod)
 	{
-		ForthEngine* pEngine = GET_ENGINE;
 		ForthObject asyncThread;
 		int returnStackLongs = (int)(SPOP);
 		int paramStackLongs = (int)(SPOP);
 		long threadOp = SPOP;
-		OThread::CreateAsyncThreadObject(asyncThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
+		OThread::CreateAsyncThreadObject(asyncThread, GET_ENGINE, threadOp, paramStackLongs, returnStackLongs);
 
 		PUSH_OBJECT(asyncThread);
 		METHOD_RETURN;
@@ -241,15 +231,23 @@ namespace OSystem
 
 	FORTHOP(oSystemCreateAsyncLockMethod)
 	{
-		ForthEngine *pEngine = GET_ENGINE;
 		ForthObject asyncLock;
-		OLock::CreateAsyncLockObject(asyncLock, pEngine);
+		OLock::CreateAsyncLockObject(asyncLock, GET_ENGINE);
 
 		PUSH_OBJECT(asyncLock);
 		METHOD_RETURN;
 	}
 
-	baseMethodEntry oSystemMembers[] =
+    FORTHOP(oSystemCreateAsyncSemaphoreMethod)
+    {
+        ForthObject sem;
+        OLock::CreateAsyncSemaphoreObject(sem, GET_ENGINE);
+
+        PUSH_OBJECT(sem);
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oSystemMembers[] =
 	{
 		METHOD("__newOp", oSystemNew),
 		METHOD("delete", oSystemDeleteMethod),
@@ -265,7 +263,8 @@ namespace OSystem
 		METHOD_RET("getVocabByName", oSystemGetVocabByNameMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIVocabulary)),
 		METHOD_RET("getOpsTable", oSystemGetOpsTableMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("createAsyncThread", oSystemCreateAsyncThreadMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncThread)),
-		METHOD_RET("createAsyncLock", oSystemCreateAsyncLockMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncLock)),
+        METHOD_RET("createAsyncLock", oSystemCreateAsyncLockMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncLock)),
+        METHOD_RET("createAsyncSemaphore", oSystemCreateAsyncSemaphoreMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIAsyncSemaphore)),
 
         MEMBER_VAR("namedObjects", OBJECT_TYPE_TO_CODE(0, kBCIStringMap)),
         MEMBER_VAR("args", OBJECT_TYPE_TO_CODE(0, kBCIArray)),

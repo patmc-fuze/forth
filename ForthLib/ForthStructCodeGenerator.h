@@ -44,6 +44,7 @@ protected:
 	ulong mCompileVarop;
 	ulong mOffset;
 	char mErrorMsg[ 512 ];
+    bool mUsesSuper;
 };
 
 

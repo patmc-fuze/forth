@@ -25,13 +25,15 @@ scSetShowID(false)
 runtest evil
 forget EVIL
 
-runtest async_philosophers
-go
-forget ASYNC_PHILOSOPHERS
-
 runtest philosophers
 go
+goAsync
 forget PHILOSOPHERS
+
+runtest pizzashop
+go
+goAsync
+forget PIZZASHOP
 
 200 -> int numElems
 runtest sort_examples

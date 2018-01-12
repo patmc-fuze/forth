@@ -71,6 +71,10 @@ alias ds dstack
 
 0x7FFFFFFF -> int MAXINT
 0x80000000 -> int MININT
+0xFFFFFFFF -> int MAXUINT
+0xFFFFFFFFFFFFFFFFL -> long MAXULONG
+0x7FFFFFFFFFFFFFFFL -> long MAXLONG
+0x8000000000000000L -> long MINLONG
 
 : ' blword $' ;
 : lf blword $load ;

@@ -11,6 +11,7 @@
 #include "ForthInner.h"
 #if defined(LINUX) || defined(MACOSX)
 #include <pthread.h>
+#include <semaphore.h>
 #endif
 
 class ForthEngine;
@@ -33,7 +34,7 @@ class ForthAsyncThread;
 class ForthThread  
 {
 public:
-	ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_RSTACK_SIZE);
+	ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, int threadIndex, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_RSTACK_SIZE);
     virtual ~ForthThread();
     void Destroy();
 
@@ -61,6 +62,7 @@ public:
 	void				Wake();
 	void				Stop();
 	void				Exit();
+    void                Join(ForthThread* pJoiningThread);
 
 	inline void			SetIP( long* newIP ) { mCore.IP = newIP; };
 	
@@ -78,7 +80,11 @@ public:
 	inline ForthObject& GetThreadObject() { return mObject; }
 	inline void SetThreadObject(ForthObject& inObject) { mObject = inObject; }
 
+    inline int GetThreadIndex() { return mThreadIndex; }
+
 protected:
+    void    WakeAllJoiningThreads();
+
 	ForthObject			mObject;
     ForthEngine         *mpEngine;
     void                *mpPrivate;
@@ -89,6 +95,9 @@ protected:
     long                mOps[2];
     ulong				mWakeupTime;
 	eForthThreadRunState mRunState;
+    ForthThread*         mpJoinHead;
+    ForthThread*         mpNextJoiner;
+    int                 mThreadIndex;
 };
 
 class ForthAsyncThread
@@ -105,7 +114,13 @@ public:
 	ForthThread*		GetNextSleepingThread();
 	ForthThread*		GetThread(int threadIndex);
 	ForthThread*		GetActiveThread();
+    void                SetActiveThread(ForthThread *pThread);
+
 	inline eForthThreadRunState GetRunState() { return mRunState; }
+
+    void                Join();
+
+    void                InnerLoop();
 
 	ForthThread*		CreateThread(ForthEngine *pEngine, long threadOp, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_RSTACK_SIZE);
 	void				DeleteThread(ForthThread* pThread);
@@ -131,9 +146,11 @@ protected:
 	int                 mHandle;
 	pthread_t           mThread;
 	int					mExitStatus;
+    sem_t               mExitedSignal;
 #else
-	HANDLE              mHandle;
+    HANDLE              mHandle;
 	ulong               mThreadId;
+    HANDLE              mExitedSignal;
 #endif
 };
 
@@ -152,4 +169,5 @@ namespace OLock
 	void AddClasses(ForthEngine* pEngine);
 
 	void CreateAsyncLockObject(ForthObject& outAsyncLock, ForthEngine *pEngine);
+    void CreateAsyncSemaphoreObject(ForthObject& outSemaphore, ForthEngine *pEngine);
 }

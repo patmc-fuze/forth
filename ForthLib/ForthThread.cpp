@@ -1,3 +1,5 @@
+//////////////////////////////////////////////////////////////////////
+//
 // ForthThread.cpp: implementation of the ForthThread class.
 //
 //////////////////////////////////////////////////////////////////////
@@ -8,12 +10,15 @@
 #else
 #include <unistd.h>
 #include <pthread.h>
+#include <cstdint>
 #endif
 #include <deque>
 #include "ForthThread.h"
 #include "ForthEngine.h"
 #include "ForthShowContext.h"
 #include "ForthBuiltinClasses.h"
+
+#define JOIN_USES_EVENT
 
 // this is the number of extra longs to allocate at top and
 //    bottom of stacks
@@ -43,12 +48,15 @@ struct oThreadStruct
 //                     ForthThread
 // 
 
-ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, int paramStackLongs, int returnStackLongs)
+ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, int threadIndex, int paramStackLongs, int returnStackLongs)
 : mpEngine( pEngine )
 , mpParentThread(pParentThread)
+, mThreadIndex(threadIndex)
 , mWakeupTime(0)
 , mpPrivate( NULL )
 , mpShowContext(NULL)
+, mpJoinHead(nullptr)
+, mpNextJoiner(nullptr)
 {
     mCore.pThread = this;
     mCore.SLen = paramStackLongs;
@@ -96,6 +104,12 @@ ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, 
 
 ForthThread::~ForthThread()
 {
+    if (mpJoinHead != nullptr)
+    {
+        WakeAllJoiningThreads();
+    }
+    // TODO: warn if mpNextJoiner is not null
+
     mCore.SB -= GAURD_AREA;
     delete [] mCore.SB;
     mCore.RB -= GAURD_AREA;
@@ -228,6 +242,36 @@ void ForthThread::Run()
     }
 }
 
+void ForthThread::Join(ForthThread* pJoiningThread)
+{
+    //printf("Join: thread %x is waiting for %x to exit\n", pJoiningThread, this);
+    if (mRunState != kFTRSExited)
+    {
+        ForthObject& joiner = pJoiningThread->GetThreadObject();
+        SAFE_KEEP(joiner);
+        pJoiningThread->Block();
+        pJoiningThread->mpNextJoiner = mpJoinHead;
+        mpJoinHead = pJoiningThread;
+    }
+}
+
+void ForthThread::WakeAllJoiningThreads()
+{
+    ForthThread* pThread = mpJoinHead;
+    //printf("WakeAllJoiningThreads: thread %x is exiting\n", this);
+    while (pThread != nullptr)
+    {
+        ForthThread* pNextThread = pThread->mpNextJoiner;
+        //printf("WakeAllJoiningThreads: waking thread %x\n", pThread);
+        pThread->mpNextJoiner = nullptr;
+        pThread->Wake();
+        ForthObject& joiner = pThread->GetThreadObject();
+        SAFE_RELEASE(&mCore, joiner);
+        pThread = pNextThread;
+    }
+    mpJoinHead = nullptr;
+}
+
 ForthShowContext* ForthThread::GetShowContext()
 {
 	if (mpShowContext == NULL)
@@ -246,7 +290,11 @@ void ForthThread::SetRunState(eForthThreadRunState newState)
 void ForthThread::Sleep(ulong sleepMilliSeconds)
 {
 	ulong now = mpEngine->GetElapsedTime();
-	mWakeupTime = now + sleepMilliSeconds;
+#ifdef WIN32
+	mWakeupTime = (sleepMilliSeconds == MAXINT32) ? MAXINT32 : now + sleepMilliSeconds;
+#else
+	mWakeupTime = (sleepMilliSeconds == INT32_MAX) ? INT32_MAX : now + sleepMilliSeconds;
+#endif
 	mRunState = kFTRSSleeping;
 }
 
@@ -269,6 +317,7 @@ void ForthThread::Stop()
 void ForthThread::Exit()
 {
 	mRunState = kFTRSExited;
+    WakeAllJoiningThreads();
 }
 
 
@@ -287,9 +336,33 @@ ForthAsyncThread::ForthAsyncThread(ForthEngine *pEngine, int paramStackLongs, in
 	, mActiveThreadIndex(0)
 	, mRunState(kFTRSStopped)
 {
-	ForthThread* pPrimaryThread = new ForthThread(pEngine, this, paramStackLongs, returnStackLongs);
+	ForthThread* pPrimaryThread = new ForthThread(pEngine, this, 0, paramStackLongs, returnStackLongs);
 	pPrimaryThread->SetRunState(kFTRSReady);
 	mSoftThreads.push_back(pPrimaryThread);
+#ifdef WIN32
+#if defined(JOIN_USES_EVENT)
+    // default security attributes, manual reset event, initially nonsignaled, unnamed event
+    mExitedSignal = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+    if (mExitedSignal == NULL)
+    {
+        printf("ForthAsyncThread constructor - CreateEvent error: %d\n", GetLastError());
+    }
+#else
+    // default security attributes, initial count 0, max count 1, unnamed semaphore
+    mExitedSignal = CreateSemaphore(nullptr, 0, 1, nullptr);
+
+    if (mExitedSignal == NULL)
+    {
+        printf("ForthAsyncThread constructor - CreateSemaphore error: %d\n", GetLastError());
+    }
+#endif
+#else
+	// not shared, initial count 0
+    if (sem_init(&mExitedSignal, 0, 0) == -1)
+    {
+    	printf("sem_init: failed: %s\n", strerror(errno));
+    }
+#endif
 }
 
 ForthAsyncThread::~ForthAsyncThread()
@@ -299,14 +372,18 @@ ForthAsyncThread::~ForthAsyncThread()
 	{
 		CloseHandle(mHandle);
 	}
+    CloseHandle(mExitedSignal);
 #else
 	if (mHandle != 0)
 	{
 		// TODO
 		//CloseHandle( mHandle );
 	}
+    sem_destroy(&mExitedSignal);
 #endif
-	for (ForthThread* pThread : mSoftThreads)
+
+
+    for (ForthThread* pThread : mSoftThreads)
 	{
 		if (pThread != nullptr)
 		{
@@ -326,11 +403,12 @@ unsigned __stdcall ForthAsyncThread::RunLoop(void *pUserData)
 void* ForthAsyncThread::RunLoop(void *pUserData)
 #endif
 {
-	ForthAsyncThread* pParentThread = (ForthAsyncThread*)pUserData;
+    ForthAsyncThread* pParentThread = (ForthAsyncThread*)pUserData;
 	ForthThread* pActiveThread = pParentThread->GetActiveThread();
 	ForthEngine* pEngine = pActiveThread->GetEngine();
+    //printf("Starting thread %x\n", pParentThread);
 
-	pParentThread->mRunState = kFTRSReady;
+    pParentThread->mRunState = kFTRSReady;
 	eForthResult exitStatus = kResultOk;
 	bool keepRunning = true;
 	while (keepRunning)
@@ -424,11 +502,134 @@ void* ForthAsyncThread::RunLoop(void *pUserData)
 	}
 
 	pParentThread->mRunState = kFTRSExited;
+    //printf("Exiting thread %x signaling exitEvent %d\n", pParentThread, pParentThread->mExitedSignal);
 #ifdef WIN32
-	return 0;
+#if defined(JOIN_USES_EVENT)
+    if (!SetEvent(pParentThread->mExitedSignal))
+    {
+        printf("ForthAsyncThread::RunLoop SetEvent failed (%d)\n", GetLastError());
+    }
 #else
-	return nullptr;
+    // increment the semaphore to signal all threads waiting for us to exit
+    if (!ReleaseSemaphore(pParentThread->mExitedSignal, 1, NULL))
+    {
+        printf("ForthAsyncThread::RunLoop - ReleaseSemaphore error: %d\n", GetLastError());
+    }
 #endif
+
+    return 0;
+#else
+    sem_post(&(pParentThread->mExitedSignal));
+
+    return nullptr;
+#endif
+}
+
+void ForthAsyncThread::InnerLoop()
+{
+    ForthThread* pMainThread = mSoftThreads[0];
+    ForthThread* pActiveThread = pMainThread;
+    ForthEngine* pEngine = pActiveThread->GetEngine();
+    pMainThread->SetRunState(kFTRSReady);
+
+    eForthResult exitStatus = kResultOk;
+    bool keepRunning = true;
+    while (keepRunning)
+    {
+        ForthCoreState* pCore = pActiveThread->GetCore();
+#ifdef ASM_INNER_INTERPRETER
+        if (pEngine->GetFastMode())
+        {
+            exitStatus = InnerInterpreterFast(pCore);
+        }
+        else
+#endif
+        {
+            exitStatus = InnerInterpreter(pCore);
+        }
+
+        bool switchActiveThread = false;
+        if ((exitStatus == kResultYield) || (pActiveThread->GetRunState() == kFTRSExited))
+        {
+            switchActiveThread = true;
+            pCore->state = kResultOk;
+            /*
+            static char* runStateNames[] = {
+                "Stopped",		// initial state, or after executing stop, needs another thread to Start it
+                "Ready",			// ready to continue running
+                "Sleeping",		// sleeping until wakeup time is reached
+                "Blocked",		// blocked on a soft lock
+                "Exited"		// done running - executed exitThread
+            };
+            for (int i = 0; i < mSoftThreads.size(); ++i)
+            {
+                ForthThread* pThread = mSoftThreads[i];
+                printf("Thread %d 0x%x   runState %s   coreState %d\n", i, (int)pThread,
+                    runStateNames[pThread->GetRunState()], pThread->GetCore()->state);
+            }
+            */
+        }
+
+        if (switchActiveThread)
+        {
+            // TODO!
+            // - switch to next runnable thread
+            // - sleep if all threads are sleeping
+            // - deal with all threads stopped
+            ulong now = pEngine->GetElapsedTime();
+
+            ForthThread* pNextThread = GetNextReadyThread();
+            if (pNextThread != nullptr)
+            {
+                //printf("Switching from thread 0x%x to ready thread 0x%x\n", pActiveThread, pNextThread);
+                pActiveThread = pNextThread;
+                SetActiveThread(pActiveThread);
+            }
+            else
+            {
+                pNextThread = GetNextSleepingThread();
+                if (pNextThread != nullptr)
+                {
+                    ulong wakeupTime = pNextThread->GetWakeupTime();
+                    if (now >= wakeupTime)
+                    {
+                        //printf("Switching from thread 0x%x to waking thread 0x%x\n", pActiveThread, pNextThread);
+                        pNextThread->Wake();
+                        pActiveThread = pNextThread;
+                        SetActiveThread(pActiveThread);
+                    }
+                    else
+                    {
+                        // TODO: don't always sleep until wakeupTime, since threads which are blocked or stopped
+                        //  could be unblocked or started by other async threads
+                        int sleepMilliseconds = wakeupTime - now;
+#ifdef WIN32
+                        ::Sleep((DWORD)sleepMilliseconds);
+#else
+                        usleep(sleepMilliseconds * 1000);
+#endif
+                        pActiveThread = pNextThread;
+                        SetActiveThread(pActiveThread);
+                    }
+                }
+            }
+        }  // end if switchActiveThread
+
+        eForthResult mainThreadState = (eForthResult) pMainThread->GetCore()->state;
+        keepRunning = false;
+        if ((exitStatus != kResultDone) && (pMainThread->GetRunState() != kFTRSExited))
+        {
+            switch (pMainThread->GetCore()->state)
+            {
+            case kResultOk:
+            case kResultYield:
+                keepRunning = true;
+                break;
+            default:
+                break;
+            }
+        }
+    }
 }
 
 ForthThread* ForthAsyncThread::GetThread(int threadIndex)
@@ -449,8 +650,16 @@ ForthThread* ForthAsyncThread::GetActiveThread()
 	return nullptr;
 }
 
-void
-ForthAsyncThread::Reset(void)
+
+void ForthAsyncThread::SetActiveThread(ForthThread *pThread)
+{
+    // TODO: verify that active thread is actually a child of this async thread
+    int threadIndex = pThread->GetThreadIndex();
+    // ASSERT(threadIndex < (int)mSoftThreads.size() && mSoftThreads[threadIndex] == pThread);
+    mActiveThreadIndex = pThread->GetThreadIndex();
+}
+
+void ForthAsyncThread::Reset(void)
 { 
 	for (ForthThread* pThread : mSoftThreads)
 	{
@@ -489,7 +698,8 @@ ForthThread* ForthAsyncThread::GetNextSleepingThread()
 	ulong minWakeupTime = (ulong)(~0);
 	do
 	{
-		if (mActiveThreadIndex >= (int)mSoftThreads.size())
+        mActiveThreadIndex++;
+        if (mActiveThreadIndex >= (int)mSoftThreads.size())
 		{
 			mActiveThreadIndex = 0;
 		}
@@ -503,7 +713,6 @@ ForthThread* ForthAsyncThread::GetNextSleepingThread()
 				pThreadToWake = pNextThread;
 			}
 		}
-		mActiveThreadIndex++;
 	} while (originalThreadIndex != mActiveThreadIndex);
 	return pThreadToWake;
 }
@@ -537,16 +746,43 @@ void ForthAsyncThread::Exit()
 	{
 		mRunState = kFTRSExited;
 #ifdef WIN32
-		_endthreadex(0);
+#if defined(JOIN_USES_EVENT)
+        // increment the semaphore to signal all threads waiting for us to exit
+        if (!SetEvent(mExitedSignal))
+        {
+            printf("ForthAsyncThread::Exit SetEvent error: %d\n", GetLastError());
+        }
 #else
-		pthread_exit(&mExitStatus);
+        // increment the semaphore to signal all threads waiting for us to exit
+        if (!ReleaseSemaphore(mExitedSignal, 1, NULL))
+        {
+            printf("ForthAsyncThread::Exit - ReleaseSemaphore error: %d\n", GetLastError());
+        }
 #endif
-	}
+        _endthreadex(0);
+#else
+        sem_post(&mExitedSignal);
+        pthread_exit(&mExitStatus);
+#endif
+    }
+}
+
+void ForthAsyncThread::Join()
+{
+#ifdef WIN32
+    DWORD waitResult = WaitForSingleObject(mExitedSignal, INFINITE);
+    if (waitResult != WAIT_OBJECT_0)
+    {
+        printf("ForthAsyncThread::Join WaitForSingleObject failed (%d)\n", GetLastError());
+    }
+#else
+    sem_wait(&mExitedSignal);
+#endif
 }
 
 ForthThread* ForthAsyncThread::CreateThread(ForthEngine *pEngine, long threadOp, int paramStackLongs, int returnStackLongs)
 {
-	ForthThread* pThread = new ForthThread(pEngine, this, paramStackLongs, returnStackLongs);
+	ForthThread* pThread = new ForthThread(pEngine, this, (int)mSoftThreads.size(), paramStackLongs, returnStackLongs);
 	pThread->SetOp(threadOp);
 	pThread->SetRunState(kFTRSStopped);
 	ForthThread* pPrimaryThread = GetThread(0);
@@ -591,14 +827,14 @@ namespace OThread
 		ForthInterface* pPrimaryInterface = gpAsyncThreadVocabulary->GetInterface(0);
 
 		MALLOCATE_OBJECT(oAsyncThreadStruct, pThreadStruct, gpAsyncThreadVocabulary);
-		pThreadStruct->refCount = 0;
+		pThreadStruct->refCount = 1;
 		ForthAsyncThread* pAsyncThread = pEngine->CreateAsyncThread(threadOp, paramStackLongs, returnStackLongs);
 		pThreadStruct->pThread = pAsyncThread;
 		pAsyncThread->Reset();
 		outAsyncThread.pMethodOps = pPrimaryInterface->GetMethods();
 		outAsyncThread.pData = (long *) pThreadStruct;
 		pAsyncThread->SetAsyncThreadObject(outAsyncThread);
-		FixupThread(pAsyncThread->GetThread(0));
+		OThread::FixupThread(pAsyncThread->GetThread(0));
 	}
 
 	FORTHOP(oAsyncThreadNew)
@@ -653,7 +889,15 @@ namespace OThread
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oAsyncThreadResetMethod)
+    FORTHOP(oAsyncThreadJoinMethod)
+    {
+        GET_THIS(oAsyncThreadStruct, pThreadStruct);
+        ForthAsyncThread* pAsyncThread = pThreadStruct->pThread;
+        pAsyncThread->Join();
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oAsyncThreadResetMethod)
 	{
 		GET_THIS(oAsyncThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->Reset();
@@ -669,7 +913,7 @@ namespace OThread
 		long threadOp = SPOP;
 		int returnStackLongs = (int)(SPOP);
 		int paramStackLongs = (int)(SPOP);
-		CreateThreadObject(thread, pThreadStruct->pThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
+        OThread::CreateThreadObject(thread, pThreadStruct->pThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
 
 		PUSH_OBJECT(thread);
 		METHOD_RETURN;
@@ -688,8 +932,9 @@ namespace OThread
 		METHOD("delete", oAsyncThreadDeleteMethod),
 		METHOD_RET("start", oAsyncThreadStartMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD_RET("startWithArgs", oAsyncThreadStartWithArgsMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD("exit", oAsyncThreadExitMethod),
-		METHOD("reset", oAsyncThreadResetMethod),
+        METHOD("exit", oAsyncThreadExitMethod),
+        METHOD("join", oAsyncThreadJoinMethod),
+        METHOD("reset", oAsyncThreadResetMethod),
 		METHOD_RET("createThread", oAsyncThreadCreateThreadMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIThread)),
 		METHOD_RET("getRunState", oAsyncThreadGetRunStateMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 
@@ -711,7 +956,7 @@ namespace OThread
 		ForthInterface* pPrimaryInterface = gpThreadVocabulary->GetInterface(0);
 
 		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct, gpThreadVocabulary);
-		pThreadStruct->refCount = 0;
+		pThreadStruct->refCount = 1;
 		pThreadStruct->pThread = pParentAsyncThread->CreateThread(pEngine, threadOp, paramStackLongs, returnStackLongs);
 		pThreadStruct->pThread->Reset();
 
@@ -726,7 +971,7 @@ namespace OThread
 
 		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct, gpThreadVocabulary);
 		ForthObject& primaryThread = pThread->GetThreadObject();
-		pThreadStruct->refCount = 0;
+		pThreadStruct->refCount = 1;
 		pThreadStruct->pThread = pThread;
 		primaryThread.pMethodOps = pPrimaryInterface->GetMethods();
 		primaryThread.pData = (long *)pThreadStruct;
@@ -737,13 +982,13 @@ namespace OThread
 		ForthInterface* pPrimaryInterface = gpAsyncThreadVocabulary->GetInterface(0);
 
 		MALLOCATE_OBJECT(oAsyncThreadStruct, pAsyncThreadStruct, gpAsyncThreadVocabulary);
-		pAsyncThreadStruct->refCount = 0;
+		pAsyncThreadStruct->refCount = 1;
 		pAsyncThreadStruct->pThread = pAsyncThread;
 		ForthObject& primaryAsyncThread = pAsyncThread->GetAsyncThreadObject();
 		primaryAsyncThread.pMethodOps = pPrimaryInterface->GetMethods();
 		primaryAsyncThread.pData = (long *)pAsyncThreadStruct;
 
-		FixupThread(pAsyncThread->GetThread(0));
+        OThread::FixupThread(pAsyncThread->GetThread(0));
 	}
 
 	FORTHOP(oThreadNew)
@@ -781,6 +1026,7 @@ namespace OThread
 			pCore->SP += numArgs;
 		}
 		pThread->SetRunState(kFTRSReady);
+        SPUSH(-1);
 		METHOD_RETURN;
 	}
 
@@ -791,15 +1037,33 @@ namespace OThread
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadSleepMethod)
+    FORTHOP(oThreadJoinMethod)
+    {
+        GET_THIS(oThreadStruct, pThreadStruct);
+        ForthThread* pJoiner = pThreadStruct->pThread->GetParent()->GetActiveThread();
+        pThreadStruct->pThread->Join(pJoiner);
+        SET_STATE(kResultYield);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oThreadSleepMethod)
 	{
 		GET_THIS(oThreadStruct, pThreadStruct);
-		ulong sleepMilliseconds = SPOP;
+        SET_STATE(kResultYield);
+        ulong sleepMilliseconds = SPOP;
 		pThreadStruct->pThread->Sleep(sleepMilliseconds);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oThreadPushMethod)
+    FORTHOP(oThreadWakeMethod)
+    {
+        GET_THIS(oThreadStruct, pThreadStruct);
+        SET_STATE(kResultYield);
+        pThreadStruct->pThread->Wake();
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oThreadPushMethod)
 	{
 		GET_THIS(oThreadStruct, pThreadStruct);
 		pThreadStruct->pThread->Push(SPOP);
@@ -888,10 +1152,12 @@ namespace OThread
 		METHOD("__newOp", oThreadNew),
 		METHOD("delete", oThreadDeleteMethod),
 		METHOD("start", oThreadStartMethod),
-		METHOD("startWithArgs", oThreadStartWithArgsMethod),
-		METHOD("stop", oThreadStopMethod),
-		METHOD("sleep", oThreadSleepMethod),
-		METHOD("push", oThreadPushMethod),
+        METHOD_RET("startWithArgs", oThreadStartWithArgsMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+        METHOD("stop", oThreadStopMethod),
+        METHOD("join", oThreadJoinMethod),
+        METHOD("sleep", oThreadSleepMethod),
+        METHOD("wake", oThreadWakeMethod),
+        METHOD("push", oThreadPushMethod),
 		METHOD_RET("pop", oThreadPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
 		METHOD("rpush", oThreadRPushMethod),
 		METHOD_RET("rpop", oThreadRPopMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
@@ -1257,11 +1523,294 @@ namespace OLock
 	};
 
 
-	void AddClasses(ForthEngine* pEngine)
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 OSemaphore
+    //
+
+    struct oSemaphoreStruct
+    {
+        ulong			refCount;
+        int				id;
+        int				count;
+#ifdef WIN32
+        CRITICAL_SECTION* pLock;
+#else
+        pthread_mutex_t* pLock;
+#endif
+        std::deque<ForthThread*> *pBlockedThreads;
+    };
+
+    FORTHOP(oSemaphoreNew)
+    {
+        ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
+        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
+        MALLOCATE_OBJECT(oSemaphoreStruct, pSemaphoreStruct, pClassVocab);
+
+        pSemaphoreStruct->refCount = 0;
+#ifdef WIN32
+        pSemaphoreStruct->pLock = new CRITICAL_SECTION();
+        InitializeCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pSemaphoreStruct->pLock = new pthread_mutex_t;
+        pthread_mutexattr_t mutexAttr;
+        pthread_mutexattr_init(&mutexAttr);
+        pthread_mutexattr_settype(&mutexAttr, PTHREAD_MUTEX_RECURSIVE);
+
+        pthread_mutex_init(pSemaphoreStruct->pLock, &mutexAttr);
+
+        pthread_mutexattr_destroy(&mutexAttr);
+#endif
+        pSemaphoreStruct->pBlockedThreads = new std::deque<ForthThread*>;
+        pSemaphoreStruct->count = 0;
+
+        PUSH_PAIR(pPrimaryInterface->GetMethods(), pSemaphoreStruct);
+    }
+
+    FORTHOP(oSemaphoreDeleteMethod)
+    {
+        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+        //GET_ENGINE->SetError(kForthErrorIllegalOperation, " OSemaphore.delete called with threads blocked on lock");
+
+#ifdef WIN32
+        DeleteCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_destroy(pSemaphoreStruct->pLock);
+#endif
+        delete pSemaphoreStruct->pLock;
+        delete pSemaphoreStruct->pBlockedThreads;
+        FREE_OBJECT(pSemaphoreStruct);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSemaphoreInitMethod)
+    {
+        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+#ifdef WIN32
+        EnterCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_lock(pSemaphoreStruct->pLock);
+#endif
+
+        pSemaphoreStruct->count = SPOP;
+
+#ifdef WIN32
+        LeaveCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_unlock(pSemaphoreStruct->pLock);
+#endif
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSemaphoreWaitMethod)
+    {
+        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+#ifdef WIN32
+        EnterCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_lock(pSemaphoreStruct->pLock);
+#endif
+
+        if (pSemaphoreStruct->count > 0)
+        {
+            --(pSemaphoreStruct->count);
+        }
+        else
+        {
+            ForthThread* pThread = (ForthThread*)(pCore->pThread);
+            pThread->Block();
+            SET_STATE(kResultYield);
+            pSemaphoreStruct->pBlockedThreads->push_back(pThread);
+        }
+
+#ifdef WIN32
+        LeaveCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_unlock(pSemaphoreStruct->pLock);
+#endif
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSemaphorePostMethod)
+    {
+        GET_THIS(oSemaphoreStruct, pSemaphoreStruct);
+#ifdef WIN32
+        EnterCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_lock(pSemaphoreStruct->pLock);
+#endif
+
+        ++(pSemaphoreStruct->count);
+        if (pSemaphoreStruct->count > 0)
+        {
+            if (pSemaphoreStruct->pBlockedThreads->size() > 0)
+            {
+                ForthThread* pThread = pSemaphoreStruct->pBlockedThreads->front();
+                pSemaphoreStruct->pBlockedThreads->pop_front();
+                pThread->Wake();
+                SET_STATE(kResultYield);
+                --(pSemaphoreStruct->count);
+            }
+        }
+
+#ifdef WIN32
+        LeaveCriticalSection(pSemaphoreStruct->pLock);
+#else
+        pthread_mutex_unlock(pSemaphoreStruct->pLock);
+#endif
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oSemaphoreMembers[] =
+    {
+        METHOD("__newOp", oSemaphoreNew),
+        METHOD("delete", oSemaphoreDeleteMethod),
+        METHOD("init", oSemaphoreInitMethod),
+        METHOD("wait", oSemaphoreWaitMethod),
+        METHOD("post", oSemaphorePostMethod),
+
+        MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("count", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__blockedThreads", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 OAsyncSemaphore
+    //
+
+    struct oAsyncSemaphoreStruct
+    {
+        ulong			refCount;
+        int				id;
+#ifdef WIN32
+        HANDLE pSemaphore;
+#else
+        sem_t* pSemaphore;
+#endif
+    };
+
+    static ForthClassVocabulary* gpSemaphoreVocabulary;
+
+    void CreateAsyncSemaphoreObject(ForthObject& outSemaphore, ForthEngine *pEngine)
+    {
+        ForthInterface* pPrimaryInterface = gpSemaphoreVocabulary->GetInterface(0);
+
+        MALLOCATE_OBJECT(oAsyncSemaphoreStruct, pSemaphoreStruct, gpSemaphoreVocabulary);
+        pSemaphoreStruct->refCount = 0;
+#ifdef WIN32
+        pSemaphoreStruct->pSemaphore = 0;
+#else
+        pSemaphoreStruct->pSemaphore = nullptr;
+#endif
+
+        outSemaphore.pMethodOps = pPrimaryInterface->GetMethods();
+        outSemaphore.pData = (long *)pSemaphoreStruct;
+    }
+
+    FORTHOP(oAsyncSemaphoreNew)
+    {
+        GET_ENGINE->SetError(kForthErrorIllegalOperation, " cannot explicitly create a Semaphore object");
+    }
+
+    FORTHOP(oAsyncSemaphoreDeleteMethod)
+    {
+        GET_THIS(oAsyncSemaphoreStruct, pSemaphoreStruct);
+
+#ifdef WIN32
+        if (pSemaphoreStruct->pSemaphore)
+        {
+            CloseHandle(pSemaphoreStruct->pSemaphore);
+        }
+#else
+        if (pSemaphoreStruct->pSemaphore)
+        {
+            sem_destroy(pSemaphoreStruct->pSemaphore);
+        }
+
+        __FREE(pSemaphoreStruct->pSemaphore);
+#endif
+        FREE_OBJECT(pSemaphoreStruct);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oAsyncSemaphoreInitMethod)
+    {
+        GET_THIS(oAsyncSemaphoreStruct, pSemaphoreStruct);
+        int initialCount = SPOP;
+#ifdef WIN32
+        // default security attributes, initial count, max count, unnamed semaphore
+        pSemaphoreStruct->pSemaphore = CreateSemaphore(nullptr, initialCount, 0x7FFFFFFF, nullptr);
+
+        if (pSemaphoreStruct->pSemaphore == NULL)
+        {
+            printf("Semaphore:init - CreateSemaphore error: %d\n", GetLastError());
+        }
+#else
+        pSemaphoreStruct->pSemaphore = (sem_t *)__MALLOC(sizeof(sem_t));
+        sem_init(pSemaphoreStruct->pSemaphore, 0, initialCount);     // not shared, initial count -1
+#endif
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oAsyncSemaphoreWaitMethod)
+    {
+        GET_THIS(oAsyncSemaphoreStruct, pSemaphoreStruct);
+#ifdef WIN32
+        DWORD waitResult = WaitForSingleObject(pSemaphoreStruct->pSemaphore, INFINITE);
+        if (waitResult != WAIT_OBJECT_0)
+        {
+            printf("Semaphore:wait WaitForSingleObject failed (%d)\n", GetLastError());
+        }
+#else
+        sem_wait(pSemaphoreStruct->pSemaphore);
+#endif
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oAsyncSemaphorePostMethod)
+    {
+        GET_THIS(oAsyncSemaphoreStruct, pSemaphoreStruct);
+#ifdef WIN32
+        // increment the semaphore to signal all threads waiting for us to exit
+        if (!ReleaseSemaphore(pSemaphoreStruct->pSemaphore, 1, NULL))
+        {
+            printf("Semaphore:post - ReleaseSemaphore error: %d\n", GetLastError());
+        }
+#else
+        sem_post(pSemaphoreStruct->pSemaphore);
+#endif
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oAsyncSemaphoreMembers[] =
+    {
+        METHOD("__newOp", oAsyncSemaphoreNew),
+        METHOD("delete", oAsyncSemaphoreDeleteMethod),
+        METHOD("init", oAsyncSemaphoreInitMethod),
+        METHOD("wait", oAsyncSemaphoreWaitMethod),
+        METHOD("post", oAsyncSemaphorePostMethod),
+
+        MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__semaphore", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+
+        // following must be last in table
+        END_MEMBERS
+    };
+   
+    
+    void AddClasses(ForthEngine* pEngine)
 	{
 		gpAsyncLockVocabulary = pEngine->AddBuiltinClass("AsyncLock", kBCIAsyncLock, kBCIObject, oAsyncLockMembers);
-		pEngine->AddBuiltinClass("Lock", kBCILock, kBCIObject, oLockMembers);
-	}
+        pEngine->AddBuiltinClass("Lock", kBCILock, kBCIObject, oLockMembers);
+        gpSemaphoreVocabulary = pEngine->AddBuiltinClass("AsyncSemaphore", kBCIAsyncSemaphore, kBCIObject, oAsyncSemaphoreMembers);
+        pEngine->AddBuiltinClass("Semaphore", kBCISemaphore, kBCIObject, oSemaphoreMembers);
+    }
 
 } // namespace OLock
 

@@ -174,6 +174,143 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 11 2018
+
+I added 64 bit versions of lshift, rshift and rotate.
+
+I also changed sleepThread and Thread:sleep to set wakeup time to MAX_INT if the
+input is MAX_INT, instead of just adding it to the current time.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 2 2018
+
+I got super working as optype methodWithSuper, I have the assembler interp
+call C to get the parent class methods pointer.  I may change the implementation
+to have the parent methods pointer stored with the methods table so that calling
+C won't be necessary.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 1 2018
+
+I got a simple UI app running, it is just a window with an exit button that
+closes the app when clicked on.  The app was just enough to test out the
+UI framework for getting SDL events to UI elements.
+
+When I was debugging the UI framework, I found out there is a major flaw in
+how I implemented 'super' - it works by creating a composite object on TOS
+which has the data pointer of the current this object, and the methods pointer
+of super class of the this object.  I had an addChild method in UIApplication
+which assigned a unique ID to the child then called super.addChild so that
+UIGroup would do its thing, including setting the parent of the child.
+This led to the childs parent object being UIGroup methods, UIApplication data.
+This caused a failure because when the child did sendParent to send a message
+up to the top app level, it invoked UIGroup::onEvent, which is really just
+UIElement::onEvent, when it should have invoked UIApplication::onEvent.
+To work around the problem, I changed the UIApplication method name to just add
+instead of addChild.  I need to come up with a better solution to this.
+
+To get the app running I also had to do some work in SDLScreen:
+o added basic text drawing
+o added settable origin mode, so that UI can specify coords with the origin
+  in the top left of the screen, instead of the center of the screen.
+
+I also ran into some crashes in draw code while debugging, it wasn't checking
+for drawing beyond the surface bounds.  I added simple checking that has caught
+all the crashes so far.  In top level primitive ops like drawLine or drawCircle
+the code checks if the entire primitive is onscreen, if so it uses the raw pixel
+store op, if not it uses an op that first does an onscreen check before calling
+the raw pixel store op.
+
+I found out that you don't have to implement window dragging, SDL does it for
+you if you have an SDL_WaitEvent loop that pumps events.
+
+I think I can fix super by replacing the super opcode with a methodWithSuper opType,
+which takes the this object and finds its superclass, then invokes the method
+it gets from the superclasses methods table.  Getting the superclass when all
+you have is the class methods pointer is a little messy to implement in assembler
+code:
+
+superMethods = pClassObject->pVocab->ParentClass()->GetInterface(0)->GetMethods();
+
+pClassObject is classMethods[-1]
+pVocab is at offset 4 from pClassObject
+
+Getting the parent class and interface 0 would be ugly in assembler, and it would
+break easily if the C++ code changed.
+
+I can either call a C method from assembler that gets the parent class methods
+table pointer, or I could save the parent class methods table pointer at
+classMethods[-2] to make grabbing super methods simple from assembler.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 24 2017
+
+I changed async join back to using event instead of semaphore, and amazingly
+it just worked.  I must have fixed something while I was doing the semaphore
+version which made both work.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 23 2017
+
+After thinking about it, a semaphore is probably not the right thing for join,
+since it would need to be incremented once for each thread waiting to join.
+
+I added a Semaphore builtin class, I'm not sure if the semaphore count needs to
+be positive or zero to allow a thread to not block on it, it may be different
+for Windows and posix.  For windows it looks like the count needs to be positive
+to allow a semaphore wait to stop blocking.
+
+I added a new test, pizzashop which tests semaphores and join.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 22 2017
+
+I have the join method debugged for sync threads, async threads still have a
+problem in the case where a thread does a join on a thread which has been
+started but hasn't actually started its run loop yet - the join lock for the
+thread won't be grabbed by its owner until it starts its run loop.
+
+To get join for sync threads to work I had to rework the handling of yield
+in the inner interpreter loop wrapper.
+
+In debugging the join/yield changes I found out that threads were being created
+with 0 refCount, which was causing join to immediately execute the destructor
+of the joining thread when the joined thread exited.
+
+I tried replacing the join critical section with a windows event, but it just
+didn't work.  It looked like most of the spawned async threads started their
+run loop but then never returned from the inner interpreter, and there was a
+crash after the async_philosophers program exited, and it exited before all but
+one of the philosophers had eaten.
+
+I changed it to use a semaphore in a way that should have been the same as the
+event method, and that just worked.  Very strange.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 20 2017
+
+I added join methods to Thread and AsyncThread.
+
+Join should only be attempted between sync threads which have the same async
+thread parent, or between two async threads.
+
+The Thread version just adds the joining thread to a link list of threads which
+are waiting for this thread to exit and sets the joining thread run state to blocked.
+Thread:join first checks for the thread having already exited, in which case it
+just returns immediately without blocking.
+
+The AsyncThread version tries to grab a per-thread lock and immediately releases
+the lock as soon as it get it.  Each AsyncThread grabs their join lock when they
+are created and release when the thread exits.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 19 2017
+
+There are a bunch of bugs in Map - the key object in set and get was being popped
+off the stack as a 64-bit long, which swapped the methods and data fields.
+This didn't cause a problem in most places, since the key isn't usually used
+as an object.  I noticed when testing Map:show, since there it tries to display
+the key as an object.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 18 2017
+
+I added a simple profiler that just counts opcode and optype execution counts.
+In implementing it, I found that builtin class methods were being assigned two
+opcodes instead of one.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 15 2017
 
 I added 'finally' to exception handling.

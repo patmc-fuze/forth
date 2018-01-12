@@ -22,10 +22,10 @@ addHelp _doFloat		INTERNAL	compiled at start of float global vars
 addHelp _doDouble		INTERNAL	compiled at start of double global vars
 addHelp _doString		INTERNAL	compiled at start of string global vars
 addHelp _doOp			INTERNAL	compiled at start of opcode global vars
-addHelp _doLong			INTERNAL	compiled at start of opcode global vars
-addHelp _doObject		INTERNAL	compiled at start of opcode global vars
-addHelp _doUByte		INTERNAL	compiled at start of opcode global vars
-addHelp _doUShort		INTERNAL	compiled at start of opcode global vars
+addHelp _doLong			INTERNAL	compiled at start of long global vars
+addHelp _doObject		INTERNAL	compiled at start of object global vars
+addHelp _doUByte		INTERNAL	compiled at start of unsigned byte global vars
+addHelp _doUShort		INTERNAL	compiled at start of unsigned short global vars
 addHelp _exit			INTERNAL	compiled at end of user definitions which have no local vars
 addHelp _exitL			INTERNAL	compiled at end of user definitions which have local vars
 addHelp _exitM			INTERNAL	compiled at end of method definitions which have no local vars
@@ -549,6 +549,8 @@ addHelp FindFirstFile	PATHSTR FINDDATA_PTR ... SEARCH_HANDLE
 addHelp FindNextFile	SEARCH_HANDLE FINDDATA_PTR ... RESULT
 addHelp FindClose		SEARCH_HANDLE ... RESULT
 addHelp windowsConstants	... PTR_TO_CONSTANTS
+addHelp dumpProfile         ...         dump opcode execution counts.  start profiling with setTrace(1024)
+addHelp resetProfile        ...         reset opcode execution counts.
 
 
 // THIS NEXT LINE MUST BE THE LAST IN THIS FILE!

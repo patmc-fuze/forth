@@ -1442,7 +1442,7 @@ struct: SDL_UserEvent
 
 // General event structure
 struct: SDL_Event
-  ubyte padding[56]
+  56 arrayOf ubyte padding
   union SDL_CommonEvent common
   union SDL_WindowEvent window
   union SDL_KeyboardEvent key

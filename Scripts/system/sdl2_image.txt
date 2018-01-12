@@ -1,4 +1,11 @@
+//  SDL_image:  An example image loading library for use with SDL
+//  Copyright (C) 1997-2013 Sam Lantinga <slouken@libsdl.org>
+
+// A simple library to load images of various formats as SDL surfaces
+
+
 autoforget sdl2_image
+requires sdl2
 
 #if WINDOWS
 DLLVocabulary sdl2_image SDL2_image.dll
@@ -7,8 +14,6 @@ DLLVocabulary sdl2_image libSDL2_image.so
 #endif
 
 also sdl2_image definitions
-
-
 
 
 // A simple library to load images of various formats as SDL surfaces
@@ -88,4 +93,7 @@ dll_1           IMG_ReadXPMFromArray    // char **xpm
 // Individual saving functions (return int)
 dll_2           IMG_SavePNG       // SDL_Surface *surface, const char *file
 dll_3           IMG_SavePNG_RW    // SDL_Surface *surface, SDL_RWops *dst, int freedst
+
+previous definitions
+loaddone
 

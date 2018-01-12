@@ -2317,18 +2317,6 @@ FORTHOP(showStructOp)
 	pStructVocab->ShowData(pStruct, pCore);
 }
 
-FORTHOP( superOp )
-{
-	// push version of this which has current objects data pointer and super class method pointer
-    SPUSH( ((long) GET_TPD) );
-	long* pMethods = GET_TPM;
-	// the long before method 0 holds the class object pointer
-	ForthClassObject* pClassObject = (ForthClassObject*) pMethods[-1];
-	// TODO: some error checking here might be nice
-	pMethods = pClassObject->pVocab->ParentClass()->GetInterface(0)->GetMethods();
-    SPUSH( ((long) pMethods) );
-}
-
 void __newOp(ForthCoreState* pCore, const char* pClassName)
 {
     // TODO: allow sizeOf to be applied to variables
@@ -2439,6 +2427,10 @@ FORTHOP(makeObjectOp)
     }
 
     __newOp(pCore, pClassName);
+    if (GET_STATE != kResultOk)
+    {
+        return;
+    }
 
     ForthVocabulary* pFoundVocab;
     long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pClassName, &pFoundVocab);
@@ -4138,7 +4130,16 @@ FORTHOP( describeOp )
 			// show structure vocabulary entries
 			while ( pVocab )
 			{
-				SNPRINTF( buff, sizeof(buff), "%s vocabulary %s:\n", ((pVocab->IsClass() ? "class" : "struct")), pVocab->GetName() );
+                if (pVocab->IsClass())
+                {
+                    long *pMethods = ((ForthClassVocabulary *)pVocab)->GetInterface(0)->GetMethods();
+                    SNPRINTF(buff, sizeof(buff), "class vocabulary %s:  methods at 0x%08x\n",
+                        pVocab->GetName(), (int)pMethods);
+                }
+                else
+                {
+                    SNPRINTF(buff, sizeof(buff), "struct vocabulary %s:\n", pVocab->GetName() );
+                }
 				CONSOLE_STRING_OUT( buff );
 				char quit = ShowVocab( pEngine->GetCoreState(), pVocab, !verbose );
 				if ( quit == 'q' )
@@ -5516,7 +5517,7 @@ FORTHOP(stopThreadOp)
 {
 	SET_STATE(kResultYield);
 	ForthThread* pThread = (ForthThread*)(pCore->pThread);
-	pThread->Wake();
+	pThread->Stop();
 }
 
 FORTHOP(sleepThreadOp)
@@ -5856,6 +5857,19 @@ FORTHOP(bkptOp)
 {
     CONSOLE_STRING_OUT("<<<BREAKPOINT HIT>>>\n");
 }
+
+FORTHOP(dumpProfileOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->DumpExecutionProfile();
+}
+
+FORTHOP(resetProfileOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->ResetExecutionProfile();
+}
+
 
 #ifndef ASM_INNER_INTERPRETER
 
@@ -6720,12 +6734,22 @@ FORTHOP( invertBop )
     SPUSH( ~a );
 }
 
-FORTHOP( lshiftBop )
+FORTHOP(lshiftBop)
 {
     NEEDS(2);
     unsigned long b = SPOP;
     unsigned long a = SPOP;
-    SPUSH( a << b );
+    SPUSH(a << b);
+}
+
+FORTHOP(lshift64Bop)
+{
+    NEEDS(3);
+    unsigned long b = SPOP;
+    stackInt64 a;
+    LPOP(a);
+    a.u64 <<= b;
+    LPUSH(a);
 }
 
 FORTHOP( rshiftBop )
@@ -6734,6 +6758,16 @@ FORTHOP( rshiftBop )
     unsigned long b = SPOP;
     unsigned long a = SPOP;
     SPUSH( a >> b );
+}
+
+FORTHOP(rshift64Bop)
+{
+    NEEDS(3);
+    unsigned long b = SPOP;
+    stackInt64 a;
+    LPOP(a);
+    a.u64 >>= b;
+    LPUSH(a);
 }
 
 
@@ -6746,13 +6780,23 @@ FORTHOP( arshiftBop )
 }
 
 
-FORTHOP( rotateBop )
+FORTHOP(rotateBop)
 {
-	NEEDS(2);
-	unsigned long b = (SPOP) & 31;
-	unsigned long a = SPOP;
-	unsigned long result = (a << b) | (a >> (32 - b));
-	SPUSH( result );
+    NEEDS(2);
+    unsigned long b = (SPOP) & 31;
+    unsigned long a = SPOP;
+    unsigned long result = (a << b) | (a >> (32 - b));
+    SPUSH(result);
+}
+
+FORTHOP(rotate64Bop)
+{
+    NEEDS(2);
+    unsigned long b = (SPOP) & 31;
+    stackInt64 a;
+    LPOP(a);
+    a.u64 = (a.u64 << b) | (a.u64 >> (32 - b));
+    LPUSH(a);
 }
 
 
@@ -8659,7 +8703,8 @@ OPREF( mtimesBop );         OPREF( umtimesBop);
 OPREF( i2fBop );            OPREF( i2dBop );            OPREF( f2iBop );
 OPREF( f2dBop );            OPREF( d2iBop );            OPREF( d2fBop );
 OPREF( orBop );             OPREF( andBop );            OPREF( xorBop );
-OPREF( invertBop );         OPREF( lshiftBop );         OPREF( rshiftBop );
+OPREF( invertBop );         OPREF( lshiftBop );         OPREF( lshift64Bop );
+OPREF( rshiftBop );         OPREF( rshift64Bop );       OPREF( rotate64Bop );
 OPREF( arshiftBop );        OPREF( rotateBop );         OPREF( trueBop );
 OPREF( falseBop );          OPREF( nullBop );           OPREF( dnullBop );
 OPREF( equalsBop );         OPREF( notEqualsBop );      OPREF( greaterThanBop );
@@ -8802,7 +8847,6 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     OP_COMPILED_DEF(	    doEnumOp,               "_doEnum",			OP_DO_ENUM ),
     OP_COMPILED_DEF(		doNewOp,                "_doNew",			OP_DO_NEW ),
     OP_COMPILED_DEF(		allocObjectOp,          "_allocObject",		OP_ALLOC_OBJECT ),
-	OP_COMPILED_DEF(		superOp,                "super",			OP_SUPER ),
     OP_COMPILED_DEF(		endBuildsOp,            "_endBuilds",		OP_END_BUILDS ),
     OP_COMPILED_DEF(		compileOp,              "compile",		    OP_COMPILE ),
 	OP_COMPILED_DEF(		initStructArrayOp,      "initStructArray",	OP_INIT_STRUCT_ARRAY ),
@@ -9003,9 +9047,12 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    xorBop,                  "xor" ),
     NATIVE_DEF(    invertBop,               "invert" ),
     NATIVE_DEF(    lshiftBop,               "lshift" ),
+    NATIVE_DEF(    lshift64Bop,             "2lshift" ),
     NATIVE_DEF(    rshiftBop,               "rshift" ),
+    NATIVE_DEF(    rshift64Bop,             "2rshift" ),
     NATIVE_DEF(    arshiftBop,              "arshift" ),
     NATIVE_DEF(    rotateBop,               "rotate" ),
+    NATIVE_DEF(    rotate64Bop,             "2rotate" ),
 
     ///////////////////////////////////////////
     //  boolean logic
@@ -9531,6 +9578,8 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF(		ssPeekBop,				"ss@"),
 	OP_DEF(		ssDepthBop,				"ssdepth"),
 	OP_DEF(		bkptOp,				    "bkpt"),
+    OP_DEF(     dumpProfileOp,          "dumpProfile"),
+    OP_DEF(     resetProfileOp,         "resetProfile"),
 
     ///////////////////////////////////////////
     //  conditional compilation

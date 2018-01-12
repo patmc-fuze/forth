@@ -56,7 +56,7 @@ SDL_Rect dstPos
   SDL_Event ev
   startSDL
 
-    false -> int buttonDown
+  false -> int buttonDown
   sc( -1 )		// draw in white
   
   do( 800 0 )

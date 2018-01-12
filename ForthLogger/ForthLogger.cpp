@@ -32,7 +32,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
     while (hPipe != INVALID_HANDLE_VALUE)
     {
-        printf("========================== NEW CLIENT =============================\n");
+        printf("\n\n========================== NEW CLIENT =============================\n");
         if (ConnectNamedPipe(hPipe, NULL) != FALSE)   // wait for someone to connect to the pipe
         {
             while (ReadFile(hPipe, buffer, sizeof(buffer) - 1, &dwRead, NULL) != FALSE)

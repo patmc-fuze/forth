@@ -81,7 +81,12 @@ extern "C"
 			{
 				pEngine->TraceStack(pCore);
 			}
-			pEngine->TraceOut("\n");
+
+            if (pCore->traceFlags & (kLogStack | kLogInnerInterpreter))
+            {
+                pEngine->TraceOut("\n");
+            }
+
             if (pCore->traceFlags & kLogInnerInterpreter)
             {
                 pEngine->TraceOp(pIP, op);
@@ -93,7 +98,12 @@ extern "C"
                     SpewMethodName(pMethods, opVal);
                 }
             }
-		}
+
+            if (pCore->traceFlags & kLogProfiler)
+            {
+                pEngine->AddOpExecutionToProfile(op);
+            }
+        }
 	}
 };
 
@@ -450,7 +460,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
 	mpCore->optypeAction = (optypeActionRoutine *) __MALLOC(sizeof(optypeActionRoutine) * 256);
     mpCore->numBuiltinOps = 0;
     mpCore->numOps = 0;
-    mpCore->maxOps = 1024;
+    mpCore->maxOps = MAX_BUILTIN_OPS;
 	mpCore->ops = (long **) __MALLOC(sizeof(long *) * mpCore->maxOps);
 
     mpVocabStack = new ForthVocabularyStack;
@@ -696,24 +706,26 @@ ForthEngine::AddBuiltinClass(const char* pClassName, eBuiltinClassIndex classInd
                 // this entry is a member method
                 // add method routine to builtinOps table
                 long methodOp = gCompiledOps[OP_BAD_OP];
-				if ( pEntries->value != NULL )
-				{
-					methodOp = AddOp( (long *) pEntries->value );
-					methodOp = COMPILED_OP( kOpCCode, methodOp );
-					if ( (mpCore->numOps - 1) < NUM_TRACEABLE_OPS )
-					{
-						gOpNames[mpCore->numOps - 1] = pMemberName;
-					}
-				}
                 // do "method:"
                 long methodIndex = pVocab->FindMethod( pMemberName );
                 StartOpDefinition( pMemberName, false );
                 long* pEntry = pVocab->GetNewestEntry();
+                methodOp = FORTH_OP_VALUE(*pEntry);
+                methodOp = COMPILED_OP(kOpCCode, methodOp);
+                if (pEntries->value != NULL)
+                {
+                    if ((mpCore->numOps - 1) < NUM_TRACEABLE_OPS)
+                    {
+                        gOpNames[mpCore->numOps - 1] = pMemberName;
+                    }
+                }
                 // pEntry[0] is initially the opcode for the method, now we replace it with the method index,
                 //  and put the opcode in the method table
 				methodIndex = pVocab->AddMethod( pMemberName, methodIndex, methodOp );
                 pEntry[0] = methodIndex;
                 pEntry[1] = pEntries->returnType;
+                mpCore->ops[mpCore->numOps - 1] = (long *)(pEntries->value);
+
                 SPEW_ENGINE( "Method %s op is 0x%x\n", pMemberName, methodOp );
 
                 // do ";method"
@@ -1573,6 +1585,210 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
     }
 }
 
+void ForthEngine::AddOpExecutionToProfile(long op)
+{
+    forthOpType opType = FORTH_OP_TYPE(op);
+    ulong opVal = FORTH_OP_VALUE(op);
+
+    switch (opType)
+    {
+
+    case kOpNative:
+    case kOpNativeImmediate:
+    case kOpCCode:
+    case kOpCCodeImmediate:
+    case kOpUserDef:
+    case kOpUserDefImmediate:
+    case kOpDLLEntryPoint:
+    {
+        size_t oldSize = mProfileOpcodeCounts.size();
+        if (oldSize <= opVal)
+        {
+            size_t newSize = opVal + 64;
+            mProfileOpcodeCounts.resize(newSize);
+            for (size_t i = oldSize; i < newSize; ++i)
+            {
+                mProfileOpcodeCounts[i].count = 0;
+                mProfileOpcodeCounts[i].op = 0;
+                mProfileOpcodeCounts[i].pEntry = nullptr;
+                mProfileOpcodeCounts[i].pVocabulary = nullptr;
+            }
+        }
+        mProfileOpcodeCounts[opVal].count += 1;
+        mProfileOpcodeCounts[opVal].op = op;
+    }
+    break;
+
+    default:
+        break;
+    }
+    mProfileOpcodeTypeCounts[opType] += 1;
+}
+
+void ForthEngine::DumpExecutionProfile()
+{
+    char buffer[256];
+    char opBuffer[128];
+
+    ForthVocabulary* pVocab = ForthVocabulary::GetVocabularyChainHead();
+    while (pVocab != NULL)
+    {
+        long *pEntry = pVocab->GetNewestEntry();
+        if (pVocab->IsClass())
+        {
+
+            ForthInterface* pPrimaryInterface = ((ForthClassVocabulary *)pVocab)->GetInterface(0);
+            while (pEntry != nullptr)
+            {
+                long op = *pEntry;
+                long typeCode = pEntry[1];
+                if (CODE_IS_METHOD(typeCode))
+                {
+                    ulong opVal = FORTH_OP_VALUE(op);
+                    long methodOp = pPrimaryInterface->GetMethods()[opVal];
+                    forthOpType opType = FORTH_OP_TYPE(methodOp);
+                    opVal = FORTH_OP_VALUE(methodOp);
+                    switch (opType)
+                    {
+
+                    case kOpNative:
+                    case kOpNativeImmediate:
+                    case kOpCCode:
+                    case kOpCCodeImmediate:
+                    case kOpUserDef:
+                    case kOpUserDefImmediate:
+                    case kOpDLLEntryPoint:
+                    {
+                        if (opVal < mProfileOpcodeCounts.size())
+                        {
+                            opcodeProfileInfo& opInfo = mProfileOpcodeCounts[opVal];
+                            if ((opInfo.op == methodOp) || (opInfo.op == 0))
+                            {
+                                opInfo.pEntry = pEntry;
+                                opInfo.pVocabulary = pVocab;
+                            }
+                        }
+                    }
+                    break;
+
+                    default:
+                        break;
+                    }
+                }
+
+
+                pEntry = pVocab->NextEntrySafe(pEntry);
+            }
+        }
+        else
+        {
+            while (pEntry != nullptr)
+            {
+                long op = *pEntry;
+                forthOpType opType = FORTH_OP_TYPE(op);
+                ulong opVal = FORTH_OP_VALUE(op);
+
+                switch (opType)
+                {
+
+                case kOpNative:
+                case kOpNativeImmediate:
+                case kOpCCode:
+                case kOpCCodeImmediate:
+                case kOpUserDef:
+                case kOpUserDefImmediate:
+                case kOpDLLEntryPoint:
+                {
+                    if (opVal < mProfileOpcodeCounts.size())
+                    {
+                        opcodeProfileInfo& opInfo = mProfileOpcodeCounts[opVal];
+                        if ((opInfo.op == op) || (opInfo.op == 0))
+                        {
+                            opInfo.pEntry = pEntry;
+                            opInfo.pVocabulary = pVocab;
+                        }
+                    }
+                }
+                break;
+
+                default:
+                    break;
+                }
+
+                pEntry = pVocab->NextEntrySafe(pEntry);
+            }
+        }
+        pVocab = pVocab->GetNextChainVocabulary();
+    }
+
+    for (int i = 0; i < mProfileOpcodeCounts.size(); ++i)
+    {
+        opcodeProfileInfo& opInfo = mProfileOpcodeCounts[i];
+        long op = opInfo.op;
+        if (op == 0)
+        {
+            op = i;
+        }
+
+        ForthVocabulary *pVocab = opInfo.pVocabulary;
+        const char* pVocabName = (pVocab != nullptr) ? pVocab->GetName() : "UNKNOWN_VOCABULARY";
+
+        const char* pOpName = "UNKNOWN_OP";
+        long *pEntry = opInfo.pEntry;
+        if ((pEntry != nullptr) && (pVocab != nullptr))
+        {
+            // the symbol name in the vocabulary doesn't always have a terminating null
+            int len = pVocab->GetEntryNameLength(pEntry);
+            if (len > (sizeof(opBuffer) - 1))
+            {
+                len = sizeof(opBuffer) - 1;
+            }
+            char *pBuffer = &(opBuffer[0]);
+            const char* pName = pVocab->GetEntryName(pEntry);
+            for (int i = 0; i < len; i++)
+            {
+                *pBuffer++ = *pName++;
+            }
+            *pBuffer = '\0';
+            pOpName = &(opBuffer[0]);
+        }
+        SNPRINTF(buffer, sizeof(buffer), "%s:%s %d\n", pVocabName, pOpName, opInfo.count);
+        ForthConsoleStringOut(mpCore, buffer);
+    }
+    
+    for (int i = 0; i < 256; ++i)
+    {
+        if ((i <= kOpLocalUserDefined) && (opTypeNames[i] != nullptr))
+        {
+            SNPRINTF(buffer, sizeof(buffer), "opType:%s %d\n", opTypeNames[i], mProfileOpcodeTypeCounts[i]);
+            ForthConsoleStringOut(mpCore, buffer);
+        }
+        else
+        {
+            if (mProfileOpcodeTypeCounts[i] != 0)
+            {
+                SNPRINTF(buffer, sizeof(buffer), "opType:0x%x %d\n", i, mProfileOpcodeTypeCounts[i]);
+                ForthConsoleStringOut(mpCore, buffer);
+            }
+        }
+    }
+}
+
+void ForthEngine::ResetExecutionProfile()
+{
+    for (int i = 0; i < mProfileOpcodeCounts.size(); ++i)
+    {
+        mProfileOpcodeCounts[i].count = 0;
+        mProfileOpcodeCounts[i].op = 0;
+        mProfileOpcodeCounts[i].pEntry = nullptr;
+        mProfileOpcodeCounts[i].pVocabulary = nullptr;
+    }
+
+    for (int i = 0; i < 256; ++i)
+    {
+        mProfileOpcodeTypeCounts[i] = 0;
+    }
+}
 
 
 bool
@@ -2166,27 +2382,11 @@ eForthResult
 ForthEngine::ExecuteOps(ForthCoreState* pCore, long *pOps)
 {
     long *savedIP;
-	eForthResult exitStatus;
 
     savedIP = pCore->IP;
     pCore->IP = pOps;
-#ifdef ASM_INNER_INTERPRETER
-    bool bFast = mFastMode;// && ((GetTraceFlags() & kLogInnerInterpreter) == 0);
-#endif
-	do
-	{
-		exitStatus = kResultOk;
-#ifdef ASM_INNER_INTERPRETER
-		if ( bFast )
-		{
-			exitStatus = InnerInterpreterFast(pCore);
-		}
-		else
-#endif
-		{
-			exitStatus = InnerInterpreter(pCore);
-		}
-	} while (exitStatus == kResultTrace);
+    mpMainThread->InnerLoop();
+    eForthResult exitStatus = (eForthResult)pCore->state;
 
 	pCore->IP = savedIP;
     if ( exitStatus == kResultDone )

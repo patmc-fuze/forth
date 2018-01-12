@@ -46,7 +46,7 @@ kResultError			EQU		3
 kResultFatalError		EQU		4
 kResultException		EQU		5
 kResultShutdown			EQU		6
-kResultTrace			EQU		7
+kResultYield			EQU		7
 
 
 kForthErrorNone						EQU		0
