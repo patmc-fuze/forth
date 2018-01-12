@@ -1731,9 +1731,9 @@ void ForthEngine::DumpExecutionProfile()
         }
 
         ForthVocabulary *pVocab = opInfo.pVocabulary;
-        char* pVocabName = (pVocab != nullptr) ? pVocab->GetName() : "UNKNOWN_VOCABULARY";
+        const char* pVocabName = (pVocab != nullptr) ? pVocab->GetName() : "UNKNOWN_VOCABULARY";
 
-        char* pOpName = "UNKNOWN_OP";
+        const char* pOpName = "UNKNOWN_OP";
         long *pEntry = opInfo.pEntry;
         if ((pEntry != nullptr) && (pVocab != nullptr))
         {

@@ -11,6 +11,7 @@
 #include "ForthInner.h"
 #if defined(LINUX) || defined(MACOSX)
 #include <pthread.h>
+#include <semaphore.h>
 #endif
 
 class ForthEngine;

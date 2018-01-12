@@ -10,6 +10,7 @@
 #else
 #include <unistd.h>
 #include <pthread.h>
+#include <cstdint>
 #endif
 #include <deque>
 #include "ForthThread.h"
@@ -289,7 +290,11 @@ void ForthThread::SetRunState(eForthThreadRunState newState)
 void ForthThread::Sleep(ulong sleepMilliSeconds)
 {
 	ulong now = mpEngine->GetElapsedTime();
+#ifdef WIN32
 	mWakeupTime = (sleepMilliSeconds == MAXINT32) ? MAXINT32 : now + sleepMilliSeconds;
+#else
+	mWakeupTime = (sleepMilliSeconds == INT32_MAX) ? INT32_MAX : now + sleepMilliSeconds;
+#endif
 	mRunState = kFTRSSleeping;
 }
 
@@ -352,7 +357,11 @@ ForthAsyncThread::ForthAsyncThread(ForthEngine *pEngine, int paramStackLongs, in
     }
 #endif
 #else
-    sem_init(&mExitedSignal, 0, -1);     // not shared, initial count -1
+	// not shared, initial count 0
+    if (sem_init(&mExitedSignal, 0, 0) == -1)
+    {
+    	printf("sem_init: failed: %s\n", strerror(errno));
+    }
 #endif
 }
 
@@ -753,6 +762,7 @@ void ForthAsyncThread::Exit()
         _endthreadex(0);
 #else
         sem_post(&mExitedSignal);
+        pthread_exit(&mExitStatus);
 #endif
     }
 }
@@ -1742,7 +1752,7 @@ namespace OLock
             printf("Semaphore:init - CreateSemaphore error: %d\n", GetLastError());
         }
 #else
-        MALLOCATE(sem_t, pSemaphoreStruct->pSemaphore);
+        pSemaphoreStruct->pSemaphore = (sem_t *)__MALLOC(sizeof(sem_t));
         sem_init(pSemaphoreStruct->pSemaphore, 0, initialCount);     // not shared, initial count -1
 #endif
         METHOD_RETURN;
@@ -1773,7 +1783,7 @@ namespace OLock
             printf("Semaphore:post - ReleaseSemaphore error: %d\n", GetLastError());
         }
 #else
-        sem_post(pSemaphoreStruct->pSemaphor);
+        sem_post(pSemaphoreStruct->pSemaphore);
 #endif
         METHOD_RETURN;
     }
