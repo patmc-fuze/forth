@@ -496,7 +496,7 @@ void* ForthAsyncThread::RunLoop(void *pUserData)
 #else
     pthread_mutex_lock(&pParentThread->mExitMutex);
 	pParentThread->mRunState = kFTRSExited;
-	pthread_cond_signal(&pParentThread->mExitSignal);
+	pthread_cond_broadcast(&pParentThread->mExitSignal);
     pthread_mutex_unlock(&pParentThread->mExitMutex);
 
     return nullptr;
@@ -733,7 +733,7 @@ void ForthAsyncThread::Exit()
 #else
         pthread_mutex_lock(&mExitMutex);
 		mRunState = kFTRSExited;
-    	pthread_cond_signal(&mExitSignal);
+    	pthread_cond_broadcast(&mExitSignal);
         pthread_mutex_unlock(&mExitMutex);
         pthread_exit(&mExitStatus);
 #endif
