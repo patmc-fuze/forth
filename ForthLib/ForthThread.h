@@ -146,11 +146,12 @@ protected:
 	int                 mHandle;
 	pthread_t           mThread;
 	int					mExitStatus;
-    sem_t               mExitedSignal;
+    pthread_mutex_t		mExitMutex;
+    pthread_cond_t		mExitSignal;
 #else
     HANDLE              mHandle;
 	ulong               mThreadId;
-    HANDLE              mExitedSignal;
+    HANDLE              mExitSignal;
 #endif
 };
 
