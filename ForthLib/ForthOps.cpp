@@ -4608,9 +4608,8 @@ FORTHOP( millisleepOp )
     ::Sleep( dwMilliseconds );
 #else
     int milliseconds = SPOP;
-#if defined(LINUX)
+#if defined(LINUX) || defined(MACOSX)
     usleep( milliseconds * 1000 );
-#elif defined(MACOSX)
 #endif
 #endif
 }

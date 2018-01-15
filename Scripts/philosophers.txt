@@ -1,9 +1,6 @@
 autoforget PHILOSOPHERS
 : PHILOSOPHERS ;
 
-mko Array philosophers
-mko Array forks
-
 100 -> int helpingsToEat
 2 -> int eatingTime
 2 -> int digestionTime
@@ -82,37 +79,13 @@ class: Philosopher
   phil.run
   oclear phil
 ;
-  
-: diningLoop
-  "let the feast begin!\n" %s
-  ms@ -> int feastStart
-
-  philosophers.count -> int numPhilosophers
-  do(numPhilosophers 0)
-    philosophers.get(i) ->o Philosopher phil
-    phil.init(createThread(lit philosopherLoop 1000 1000) i forks.get(i) forks.get(i 1+ numPhilosophers mod))
-   //"philosopher " %s i %d %bl phil.eatingThread.__thread %x %nl
-    
-    phil.eatingThread.startWithArgs(r[ phil ]r) drop
-  loop
-  
-  do(numPhilosophers 0)
-    philosophers.get(i) ->o phil
-    phil.eatingThread.join
-  loop
-  
-  "all philosophers stuffed!\n" %s
-  ms@ feastStart - %d " milliseconds elapsed\n\n\n" %s
-  
-  philosophers.clear
-  forks.clear
-;
 
 : diningPhilosophers
   -> int numPhilosophers
   Philosopher phil
-  philosophers.clear
-  forks.clear
+  mko Array of Philosopher philosophers
+  mko Array of Lock forks
+
   
   do(numPhilosophers 0)
     new Philosopher -> phil
@@ -126,7 +99,36 @@ class: Philosopher
     oclear fork
   loop
 
-  diningLoop
+  "let the feast begin!\n" %s
+  ms@ -> int feastStart
+
+  int firstFork
+  int secondFork
+  do(numPhilosophers 0)
+    i -> int firstFork
+    i 1+ -> int secondFork
+    if(i numPhilosophers 1- =)
+      // switch grab order for last philosopher to prevent deadlock
+      firstFork -> secondFork
+      0 -> firstFork
+    endif
+    philosophers.get(i) ->o Philosopher phil
+    phil.init(createThread(lit philosopherLoop 1000 1000) i forks.get(firstFork) forks.get(secondFork))
+   //"philosopher " %s i %d %bl phil.eatingThread.__thread %x %nl
+    
+    phil.eatingThread.startWithArgs(r[ phil ]r) drop
+  loop
+  
+  do(numPhilosophers 0)
+    philosophers.get(i) ->o phil
+    phil.eatingThread.join
+  loop
+  
+  "all philosophers stuffed!\n" %s
+  ms@ feastStart - %d " milliseconds elapsed\n\n\n" %s
+
+  oclear philosophers
+  oclear forks
 ;
 
 : go
@@ -190,8 +192,6 @@ class: AsyncPhilosopher
   
 ;class
 
-mko Array of AsyncPhilosopher asyncPhilosophers
-mko Array of AsyncLock asyncForks
 
 
 : asyncPhilosopherLoop
@@ -200,15 +200,40 @@ mko Array of AsyncLock asyncForks
   oclear phil
 ;
   
-: asyncDiningLoop
-  p[ "let the asynchronous feast begin!\n" %s ]p
-  ms@ -> int feastStart
+: asyncDiningPhilosophers
+  -> int numPhilosophers
+  mko Array of AsyncPhilosopher asyncPhilosophers
+  mko Array of AsyncLock asyncForks
+  system.createAsyncLock -> printLock
   AsyncPhilosopher phil
   
-  asyncPhilosophers.count -> int numPhilosophers
   do(numPhilosophers 0)
+    new AsyncPhilosopher -> phil
+    i -> phil.id
+    asyncPhilosophers.push(phil)
+    oclear phil
+    
+    system.createAsyncLock -> AsyncLock fork
+    i -> fork.id
+    asyncForks.push(fork)
+    oclear fork
+  loop
+  
+  p[ "let the asynchronous feast begin!\n" %s ]p
+  ms@ -> int feastStart
+  
+  int firstFork
+  int secondFork
+  do(numPhilosophers 0)
+    i -> int firstFork
+    i 1+ -> int secondFork
+    if(i numPhilosophers 1- =)
+      // switch grab order for last philosopher to prevent deadlock
+      firstFork -> secondFork
+      0 -> firstFork
+    endif
     asyncPhilosophers.get(i) ->o phil
-    phil.init(createAsyncThread(lit asyncPhilosopherLoop 1000 1000) i asyncForks.get(i) asyncForks.get(i 1+ numPhilosophers mod))
+    phil.init(createAsyncThread(lit asyncPhilosopherLoop 1000 1000) i asyncForks.get(firstFork) asyncForks.get(secondFork))
     //p[ "philosopher " %s i %d %bl phil.eatingThread.__thread %x %nl ]p
   loop
   
@@ -224,31 +249,9 @@ mko Array of AsyncLock asyncForks
   p[ "all philosophers stuffed!\n" %s ]p
   p[ ms@ feastStart - %d " milliseconds elapsed\n\n\n" %s ]p
   
-  asyncPhilosophers.clear
-  asyncForks.clear
-;
-
-: asyncDiningPhilosophers
-  -> int numPhilosophers
-  AsyncPhilosopher phil
-  asyncPhilosophers.clear
-  asyncForks.clear
-  system.createAsyncLock -> printLock
-  
-  do(numPhilosophers 0)
-    new AsyncPhilosopher -> phil
-    i -> phil.id
-    asyncPhilosophers.push(phil)
-    oclear phil
-    
-    system.createAsyncLock -> AsyncLock fork
-    i -> fork.id
-    asyncForks.push(fork)
-    oclear fork
-  loop
-  
-  asyncDiningLoop
   oclear printLock
+  oclear asyncPhilosophers
+  oclear asyncForks
 ;
 
 : goAsync
