@@ -37,7 +37,7 @@
 		6EE5F0AE1E8DEDC300489D87 /* AsmCore.asm in Sources */ = {isa = PBXBuildFile; fileRef = 6EE5F0AD1E8DEDC300489D87 /* AsmCore.asm */; };
 		6EE5F0B21E8DF24000489D87 /* kbhit.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6EE5F0B11E8DF24000489D87 /* kbhit.cpp */; };
 		6EE5F0B51E8DF31E00489D87 /* libreadline.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 6EE5F0B41E8DF31E00489D87 /* libreadline.tbd */; };
-		6EE5F0B71E8DFD1F00489D87 /* Forth in CopyFiles */ = {isa = PBXBuildFile; fileRef = 6E7980531E8B0EA400FB03ED /* Forth */; };
+		6EE5F0B71E8DFD1F00489D87 /* forth in CopyFiles */ = {isa = PBXBuildFile; fileRef = 6E7980531E8B0EA400FB03ED /* forth */; };
 		6EEB076A1E8F5E400099AA4E /* ForthMainOSX.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6EEB07691E8F5E400099AA4E /* ForthMainOSX.cpp */; };
 /* End PBXBuildFile section */
 
@@ -56,22 +56,13 @@
 /* End PBXBuildRule section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		6E7980511E8B0EA400FB03ED /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
 		6EE5F0B61E8DFC5000489D87 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "~/prj/Forth/Sandbox";
 			dstSubfolderSpec = 0;
 			files = (
-				6EE5F0B71E8DFD1F00489D87 /* Forth in CopyFiles */,
+				6EE5F0B71E8DFD1F00489D87 /* forth in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -79,7 +70,7 @@
 
 /* Begin PBXFileReference section */
 		6E49A8C51E8B3C8C003BE440 /* InnerInterp.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; name = InnerInterp.asm; path = ../ForthLib/InnerInterp.asm; sourceTree = "<group>"; };
-		6E7980531E8B0EA400FB03ED /* Forth */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Forth; sourceTree = BUILT_PRODUCTS_DIR; };
+		6E7980531E8B0EA400FB03ED /* forth */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = forth; sourceTree = BUILT_PRODUCTS_DIR; };
 		6E79805D1E8B0F5400FB03ED /* Forth.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Forth.h; path = ../ForthLib/Forth.h; sourceTree = SOURCE_ROOT; };
 		6E79805E1E8B0F5400FB03ED /* ForthBlockFileManager.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ForthBlockFileManager.cpp; path = ../ForthLib/ForthBlockFileManager.cpp; sourceTree = SOURCE_ROOT; };
 		6E79805F1E8B0F5400FB03ED /* ForthBlockFileManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ForthBlockFileManager.h; path = ../ForthLib/ForthBlockFileManager.h; sourceTree = SOURCE_ROOT; };
@@ -168,7 +159,7 @@
 		6E7980541E8B0EA400FB03ED /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				6E7980531E8B0EA400FB03ED /* Forth */,
+				6E7980531E8B0EA400FB03ED /* forth */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -257,7 +248,6 @@
 			buildPhases = (
 				6E79804F1E8B0EA400FB03ED /* Sources */,
 				6E7980501E8B0EA400FB03ED /* Frameworks */,
-				6E7980511E8B0EA400FB03ED /* CopyFiles */,
 				6EE5F0B61E8DFC5000489D87 /* CopyFiles */,
 			);
 			buildRules = (
@@ -267,7 +257,7 @@
 			);
 			name = Forth;
 			productName = Forth;
-			productReference = 6E7980531E8B0EA400FB03ED /* Forth */;
+			productReference = 6E7980531E8B0EA400FB03ED /* forth */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
@@ -374,7 +364,8 @@
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
+				GCC_PREPROCESSOR_DEFINITIONS = ASM_INNER_INTERPRETER;
+				"GCC_PREPROCESSOR_DEFINITIONS[arch=*]" = (
 					"DEBUG=1",
 					"$(inherited)",
 				);
@@ -421,6 +412,7 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = ASM_INNER_INTERPRETER;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -449,7 +441,7 @@
 				);
 				"HEADER_SEARCH_PATHS[arch=*]" = ForthLib;
 				"OTHER_CPLUSPLUSFLAGS[arch=*]" = "$(OTHER_CFLAGS)";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = forth;
 			};
 			name = Debug;
 		};
@@ -461,14 +453,14 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					MACOSX,
 					ASM_UNDERSCORE_PREFIX,
-					NO_ASM_INNER_INTERPRETER,
+					ASM_INNER_INTERPRETER,
 					X86_ARCHITECTURE,
 					INCLUDE_TRACE,
 					PLB_MAC_OS_X,
 				);
 				"HEADER_SEARCH_PATHS[arch=*]" = ForthLib;
 				"OTHER_CPLUSPLUSFLAGS[arch=*]" = "$(OTHER_CFLAGS)";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = forth;
 			};
 			name = Release;
 		};
