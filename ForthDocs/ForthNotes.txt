@@ -174,6 +174,33 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 14 2018
+
+I brought the Linux, OSX and ARM versions up to date.
+I first got the Linux thread join stuff working, then tried porting it to OSX,
+but it turns out that OSX doesn't have unnamed semaphores, so I had to change
+the join support to use posix condition variables, and change the AsyncSemaphore
+class to use named semaphores.
+
+There are still some problems:
+- on Linux, the async dining philosophers takes twice as long as it should
+- on OSX, the sync dining philosophers sometimes hangs
+
+I found out that the OSX version of 'ms' was doing nothing - making it actually
+sleep made async dining philosophers work again.  Since the only thing new on
+OSX that should affect dining philosophers was join, I tried some simple tests
+of join, one where the main thread did the join before the child thread was done
+and another where the child finished before the parent joined, both worked.
+
+I set the eat/digest waits in async dining philosophers to 0, with that it will
+hang about one time out of five, and it looks like actual deadlock - all five
+philosophers are in AsyncLock:grab.  I thought the code to make them always grab
+forks in a specific order was supposed to avoid deadlock, but maybe I messed
+that up.  It is odd that if I do the same thing on Windows I never get a
+deadlock.
+-> I hadn't done the deadlock avoidance (last philosopher grabs forks in opposite
+   order of other philosophers), after fixing that it doesn't hang.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 January 11 2018
 
 I added 64 bit versions of lshift, rshift and rotate.
