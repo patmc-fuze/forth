@@ -2,6 +2,8 @@ autoforget BUILTIN_CLASS_TEST
 
 requires testbase
 
+setupTestBase
+
 : BUILTIN_CLASS_TEST ;
 
 // Object: delete show getClass compare(OBJ) keep release refCount
@@ -284,6 +286,8 @@ test
   oclear zz2
   oclear za  oclear zb  oclear zc  oclear zd  oclear zr
 ;
+
+cleanupTestBase
 
 loaddone
 

@@ -4,10 +4,17 @@ autoforget testbase
 false -> int testFailed
 false -> int beNoisy
 
-new String -> String testBuff
-new String -> String testBuff2
-new StringOutStream -> StringOutStream testOut
-mko Array testStreamStack
+String testBuff
+String testBuff2
+StringOutStream testOut
+Array testStreamStack
+
+: setupTestBase
+  new String -> testBuff
+  new String -> testBuff2
+  new StringOutStream -> testOut
+  new Array -> testStreamStack
+;
 
 : cleanupTestBase
   oclear testBuff  oclear testBuff2

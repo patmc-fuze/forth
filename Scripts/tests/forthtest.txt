@@ -11,6 +11,8 @@ decimal
 
 //: showsection " ================== " dup %s swap %s %s %nl ;
 
+setupTestBase
+
 testBuff.set( "aba" )
 //turbo 255 setTrace
 //vd checkResult
