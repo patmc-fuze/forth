@@ -370,7 +370,7 @@ ForthShell::RunOneStream(ForthInputStream *pInStream)
 		pBuffer = mpInput->GetLine(mpEngine->GetFastMode() ? "ok>" : "OK>");
 		if (pBuffer == NULL)
 		{
-			bQuit = PopInputStream();
+            bQuit = PopInputStream() || (mpInput->InputStream() == pOldInput);
 		}
 
 		if (!bQuit)
