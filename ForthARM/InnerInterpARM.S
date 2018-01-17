@@ -165,14 +165,15 @@ filePutString	=		48
 	.global	minusBop, noopBop
 	.global	timesBop, times2Bop, times4Bop, times8Bop, divideBop, divide2Bop, divide4Bop, divide8Bop, divmodBop, modBop, negateBop
 	.global fplusBop, fminusBop, ftimesBop, fdivideBop,	dplusBop, dminusBop, dtimesBop, ddivideBop
-	.global orBop, andBop, xorBop, invertBop, lshiftBop, arshiftBop, rotateBop, notBop, trueBop, falseBop, nullBop, dnullBop
+	.global orBop, andBop, xorBop, invertBop, lshiftBop, arshiftBop, rotateBop, notBop, trueBop, falseBop
+	.global nullBop, dnullBop, lshift64Bop, rshift64Bop, rotate64Bop
 	.global equalsBop, notEqualsBop, greaterThanBop, greaterEqualsBop, lessThanBop, lessEqualsBop
 	.global equals0Bop, notEquals0Bop, greaterThan0Bop, greaterEquals0Bop, lessThan0Bop, lessEquals0Bop
 	.global rpushBop, rpopBop, rdropBop, rpBop, r0Bop, dupBop, checkDupBop, swapBop, overBop
 	.global rotBop, tuckBop, pickBop, spBop, s0Bop, fpBop, ddupBop, dswapBop, ddropBop, doverBop, drotBop,
 	.global storeBop, cstoreBop, cfetchBop, scfetchBop, c2iBop, wstoreBop, wfetchBop, swfetchBop, w2iBop, dstoreBop
 	.global	moveBop, memcmpBop, fillBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop
-	.global	strchrBop, strrchrBop, strcmpBop, stricmpBop, strstrBop, strtokBop, initStringBop, strFixupBop
+	.global	strchrBop, strrchrBop, strcmpBop, strncmpBop, stricmpBop, strstrBop, strtokBop, initStringBop, strFixupBop
 	.global doUByteBop, doUByteArrayBop, doUShortBop, doUShortArrayBop
 	.global dsinBop, dasinBop, dcosBop, dacosBop, dtanBop, datanBop, datan2Bop, dexpBop, dlnBop, dlog10Bop, dpowBop
 	.global dsqrtBop, dceilBop, dfloorBop, dabsBop, dldexpBop, dfrexpBop, dmodfBop, dfmodBop, i2fBop, i2dBop, f2iBop, f2dBop, d2iBop, d2fBop
@@ -467,10 +468,10 @@ InitAsmTables:
 	@
 	@	TBD: set inner interpreter reentry point in pCore (inner_loop)
 	@
-	stmdb	sp!, {r1}
+	push	{r1}
 	ldr	r1, .innerInterpLoop
 	str	r1, [r0, #inner_loop]
-	ldmia	sp!, {r1}
+	pop	{r1}
 	bx	lr
 
 @-----------------------------------------------
@@ -927,7 +928,7 @@ localIntType:
 	@ see if it is a fetch
 
 @	
-@ entry point for byte variable action routines
+@ entry point for int variable action routines
 @	r0 -> int
 @
 intEntry:
@@ -1619,6 +1620,11 @@ localOpExecute:
 	ldr	r1, [rcore, #inner_execute]
 	bx	r1
 
+	@ fetch local int
+localOpFetch:
+	ldr	r2, [r0]
+	stmdb	rsp!, {r2}				@ push int on TOS
+	bx	lr
 @
 @ these routines can rely on:
 @	r0 -> op
@@ -2838,7 +2844,8 @@ fdivideBop:
 	flds	s15, [rsp]
 	fdivs	s15, s15, s14
 	fsts	s15, [rsp]
-	
+	bx	lr
+
 faddBlockBop:
 	@ TOS: num pDst pSrcB pSrcA
 	ldmia	rsp!, {r0-r3}	@ r0 = num  r1 = pDst  r2 = pSrcB  r3 = pSrcA
@@ -3786,6 +3793,168 @@ lshiftBop:
 	str	r1, [rsp]
 	bx	lr
 
+lshift64Bop:
+	ldmia	rsp!, {r0, r1, r2}		@ r0 = N (shift count),  r1 = hipart, r2 = lopart
+	eor	r3, r3
+	cmp	r0, r3
+	bgt	lsh64_1
+	@ N <= 0, leave unshifted result on TOS
+	stmdb	rsp!, {r1, r2}
+	bx	lr
+
+lsh64_1:
+	mov	r3, #32
+	cmp	r0, r3
+	bge	lsh64_2
+
+	@ N is in 1..31
+	push	{r4, r5}
+	@ rotate lopart left by N
+	sub	r4, r3, r0
+	ror	r2, r4
+	@ shift hipart up by N bits 
+	lsl	r1, r0
+	@ make r5 a mask with the bottom N bits set
+	mov	r5, #1
+	lsl	r5, r0
+	sub	r5, #1
+	@ add top bits from lopart to bottom of hipart
+	and	r0, r2, r5
+	orr	r1, r0
+	@ clear out bottom bits of lopart
+	mvn	r0, #0	@ r0 is all ones
+	eor	r0, r5		@ r0 is inverted mask, bottom N bits clear, others set
+	and	r2, r0
+	stmdb	rsp!, {r1, r2}
+	pop	{r4, r5}
+	bx	lr
+
+lsh64_2:
+	mov	r3, #64
+	cmp	r0, r3
+	bge	lsh64_3
+
+	@ N is in 32..63
+	@ hipart is old lshift(lopart, n - 32), lopart is 0
+	sub	r0, #32
+	lsl	r1, r2, r0
+	eor	r2, r2
+	stmdb	rsp!, {r1, r2}
+	bx	lr
+	
+lsh64_3:
+	@ N is 64 or greater, result is 0,0
+	eor	r2, r2
+	mov	r1, r2
+	stmdb	rsp!, {r1, r2}
+	bx	lr
+	
+
+rshift64Bop:
+	ldmia	rsp!, {r0, r1, r2}		@ r0 = N (shift count),  r1 = hipart, r2 = lopart
+	eor	r3, r3
+	cmp	r0, r3
+	bgt	rsh64_1
+	@ N <= 0, leave unshifted result on TOS
+	stmdb	rsp!, {r1, r2}
+	bx	lr
+
+rsh64_1:
+	mov	r3, #32
+	cmp	r0, r3
+	bge	rsh64_2
+
+	@ N is in 1..31
+	push	{r4, r5}
+	@ rotate hipart right by N
+	ror	r1, r0
+	@ shift lopart down by N bits 
+	lsr r2, r0
+	@ make r5 a mask with the top N bits clear, all others set
+	mov	r5, #1
+	ror	r5, r0
+	sub	r5, #1
+	@ make r4 a mask with the top N bits set, all others clear
+	mvn	r0, #0	@ r0 is all ones
+	eor	r4, r0, r5
+	@ add bottom bits from hipart to top of lopart
+	and	r0, r1, r4
+	orr	r2, r0
+	@ clear out top bits of hipart
+	and	r1, r5
+	stmdb	rsp!, {r1, r2}
+	pop	{r4, r5}
+	bx	lr
+
+rsh64_2:
+	mov	r3, #64
+	cmp	r0, r3
+	bge	rsh64_3
+
+	@ N is in 32..63
+	@ lopart is rshift(old lopart, n - 32), hipart is 0
+	sub	r0, #32
+	lsr	r2, r1, r0
+	eor	r1, r1
+	stmdb	rsp!, {r1, r2}
+	bx	lr
+	
+rsh64_3:
+	@ N is 64 or greater, result is 0,0
+	eor	r2, r2
+	mov	r1, r2
+	stmdb	rsp!, {r1, r2}
+	bx	lr
+	
+
+rotate64Bop:
+	ldmia	rsp!, {r0}		@ r0 = N (the shift count)
+	ldmia	rsp, {r1, r2}	@ r1 = hipart, r2 = lopart
+
+	@ translate from left to right (no rol instruction)
+	mov	r3, #63
+	and	r0, r3
+	rsbs	r0, r0, #64
+	bne	rot64_1
+	@ N == 0, leave unshifted result on TOS
+	bx	lr
+
+rot64_1:
+	push	{r4, r5}
+
+	mov	r3, #32
+	cmp	r0, r3
+	blt	rot64_2
+	@  N is in 32..63, swap lo & hi and reduce N by 32
+	mov	r4, r1
+	mov	r1, r2
+	mov	r2, r4
+	sub	r0, #32
+
+rot64_2:
+	ror	r4, r1, r0		@ r4 is rotated hipart
+	ror	r5, r2, r0		@ r5 is rotated lopart
+	@ make r3 a mask with the top N bits clear, all others set
+	mov	r3, #1
+	ror	r3, r0
+	sub	r3, #1
+	@ make r0 a mask with the top N bits set, all others clear
+	mvn	r0, #0	@ r0 is all ones
+	eor	r0, r0, r3
+	@ make hipart
+	and	r1, r3, r4
+	and	r2, r0, r5
+	orr	r1, r2
+	str	r1, [rsp]
+	@ make lopart
+	and	r1, r3, r5
+	and	r2, r0, r4
+	orr	r1, r2
+	str	r1, [rsp, #4]
+	pop	{r4, r5}
+	bx	lr
+
+
 arshiftBop:
 	ldmia	rsp!, {r0}		@ r0 = shift count
 	ldr	r1, [rsp]
@@ -4048,7 +4217,7 @@ fNotEqualsBop:
 	fcmps	s15, s14
 	fmstat
 	subne	r2, #1
-	stmdb	rsp!, {r2}
+	str	r2, [rsp]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  f>  @@@@@@@@@@@@@@@@@
@@ -5059,6 +5228,16 @@ stricmpBop:
 	bl	strcasecmp
 	b	strcmp1
 	
+@@@@@@@@@@@@@@@@@  strncmp  @@@@@@@@@@@@@@@@@
+
+strncmpBop:
+	push	{rcore, lr}
+	ldmia	rsp!, {r2}
+	ldmia	rsp!, {r1}
+	ldr	r0, [rsp]
+	bl	strncmp
+	b	strcmp1
+	
 @@@@@@@@@@@@@@@@@  strstr  @@@@@@@@@@@@@@@@@
 
 strstrBop:
@@ -5948,6 +6127,22 @@ badMethod:
 	mov	r0, #kForthErrorIllegalMethod
 	b	interpLoopErrorExit
 	
+@ invoke a method on object currently referenced by this ptr pair
+methodWithSuperType:
+	@ r1 is method number
+	@ push this ptr pair on return stack
+	ldr	r2, [rcore, #tpm]
+	ldr	r3, [rcore, #tpd]
+	stmdb	rrp!, {r2, r3}
+	ldr	r3, [r2, #-4]		@ r3 -> super vocabulary object data
+	ldr	r0, [r3, #4]			@ r0 -> super vocabulary
+	bl	getSuperClassMethods
+	@ r0 is super method table
+	@ get method opcode
+	ldr	r0, [r0, r1, lsl #2]
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
+		
 @ squished float literal
 squishedFloatType:
 	@ r1: bit 23 is sign, bits 22..18 are exponent, bits 17..0 are mantissa
@@ -6004,7 +6199,7 @@ squishedDoubleType:
 	
 	stmdb	rsp!, {r0}
 	eor	r2, r2
-	stmdb	rsp!, {r0}		@ loword of double is all zeros
+	stmdb	rsp!, {r2}		@ loword of double is all zeros
 	bx	lr
 	
 @ squished long literal
@@ -6219,9 +6414,10 @@ opTypesTable:
 @	120 - 121
 	.word	lroComboType
 	.word	mroComboType
+	.word	methodWithSuperType
 
-@	122 - 149
-	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
+@	123 - 149
+	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 	.word	extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType,extOpType
 @	150 - 199
