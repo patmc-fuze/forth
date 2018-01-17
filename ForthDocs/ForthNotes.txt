@@ -174,6 +174,38 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 16 2018
+
+Bringing ARM version up to speed.
+
+The last time I touched the ARM inner interp was to add the block floating
+point ops (Nov. 28). The changes to InnerInterp.asm since then:
+
+1) add strncmp
+2) fix a bug in op variable fetch (bug doesn't exist on ARM)
+3) fix super
+4) add 64-bit shift and rotate ops
+
+ARM doesn't have extended shift ops like x86, and its shift/rotate ops don't
+take carry in, making things a pain.  Probably the best way to do things would
+be to rotate each word, then use complimentary masks to swap bits around:
+
+	0x0123456789abcdef -> 0x01234567 0x89abcdef
+rotate left 4:
+	0x23456701 0xabcdef89
+apply masks: 0xffffff00 0x000000ff
+	0x23456700 0x00000001 0xabcdef00 0x00000089
+swap:
+	0x23456700 0x00000089 0xabcdef00 0x00000001
+combine:
+	0x23456789 0xabcdef01
+
+The rotate/shift ops and strncmp are tested work.
+There is a crash in forthtest when it does a 'raise'.
+I haven't tested super at all.
+I fixed bugs in f<> and squished double literals, I don't know how those didn't
+get tested before.  This all points to me using very old scripts to test ARM.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 January 14 2018
 
 I brought the Linux, OSX and ARM versions up to date.
