@@ -2252,3 +2252,4 @@ extern "C"
         return pVocab->ParentClass()->GetInterface(0)->GetMethods();
     }
 };
+

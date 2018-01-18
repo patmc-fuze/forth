@@ -91,7 +91,7 @@ extern "C"
             {
                 pEngine->TraceOp(pIP, op);
                 forthOpType opType = FORTH_OP_TYPE(op);
-                if ((opType == kOpMethodWithThis) || (opType == kOpMethodWithTOS))
+                if ((opType == kOpMethodWithThis) || (opType == kOpMethodWithTOS) || (opType == kOpMethodWithSuper))
                 {
                     long* pMethods = (opType == kOpMethodWithTOS) ? ((long *)*(pCore->SP)) : pCore->TPM;
                     long opVal = FORTH_OP_VALUE(op);
@@ -138,7 +138,7 @@ static const char *opTypeNames[] =
 	"MemberFloat", "MemberDouble", "MemberString", "MemberOp", "MemberObject", "MemberByteArray", "MemberUByteArray", "MemberShortArray", "MemberUShortArray", "MemberIntArray",
 	"MemberUIntArray", "MemberLongArray", "MemberULongArray", "MemberFloatArray", "MemberDoubleArray", "MemberStringArray", "MemberOpArray", "MemberObjectArray", "MethodWithThis", "MethodWithTOS",
 	"MemberStringInit", "NumVaropOpCombo", "NumVaropCombo", "NumOpCombo", "VaropOpCombo", "OpBranchFalseCombo", "OpBranchCombo", "SquishedFloat", "SquishedDouble", "SquishedLong",
-	"LocalRefOpCombo", "MemberRefOpCombo", 0, "LocalUserDefined"
+	"LocalRefOpCombo", "MemberRefOpCombo", "MethodWithSuper", "LocalUserDefined"
 };
 
 ///////////////////////////////////////////////////////////////////////
@@ -1556,6 +1556,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
             
             case kOpMethodWithThis:
             case kOpMethodWithTOS:
+            case kOpMethodWithSuper:
                 SNPRINTF( pBuffer, buffSize, "%s    %d", opTypeNames[opType], opVal );
                 break;
 

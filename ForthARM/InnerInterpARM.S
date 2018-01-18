@@ -82,7 +82,8 @@ conout_stream  	=	104
 base          	=	112
 signed_print_mode = 116
 trace_flags     =   120
-scratch			=	124
+exception_ptr	=	124
+scratch			=	128
 
 kVarDefaultOp			=		0
 kVarFetch				=		1
@@ -6136,7 +6137,9 @@ methodWithSuperType:
 	stmdb	rrp!, {r2, r3}
 	ldr	r3, [r2, #-4]		@ r3 -> super vocabulary object data
 	ldr	r0, [r3, #4]			@ r0 -> super vocabulary
+	push	{rcore, lr}
 	bl	getSuperClassMethods
+	pop	{rcore, lr}
 	@ r0 is super method table
 	@ get method opcode
 	ldr	r0, [r0, r1, lsl #2]
@@ -6411,7 +6414,7 @@ opTypesTable:
 	.word	squishedDoubleType
 	.word	squishedLongType
 	
-@	120 - 121
+@	120 - 122
 	.word	lroComboType
 	.word	mroComboType
 	.word	methodWithSuperType
