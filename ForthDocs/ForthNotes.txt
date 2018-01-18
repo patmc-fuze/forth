@@ -174,6 +174,15 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 17 2018
+
+I fixed the ARM exception handling and super bugs.
+The super bug was just that I forgot I needed to push/pop lr since I was calling
+a regular C routine which was going to stomp lr.
+The exception handling bug was that I forgot to add the exception pointer to the
+ARM inner asm definition of the core struct, so when it stuck debug info in 'scratch'
+each time through the inner loop, it was actually overwriting the exception pointer.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 January 16 2018
 
 Bringing ARM version up to speed.
