@@ -1057,6 +1057,40 @@ enum: eLogFlags
 ;enum
 
 //######################################################################
+//  defs used with Socket
+
+enum: networkEnums
+  0     INADDR_ANY
+  
+  1     SOCK_STREAM     // stream socket
+  2     SOCK_DGRAM      // datagram socket
+  3     SOCK_RAW        // raw-protocol interface
+  
+  0     AF_UNSPEC       // unspecified
+  1     AF_UNIX         // local to host (pipes, portals)
+  2     AF_INET         // internetwork: UDP, TCP, etc.
+  23    AF_INET6        // Internetwork Version 6
+  
+  4     IPPROTO_IPV4
+  6     IPPROTO_TCP
+  17    IPPROTO_UDP
+  41    IPPROTO_IPV6
+;enum
+
+struct: sockaddr_in
+    ushort family
+    ushort port
+    uint  ipv4addr
+    long  dummy
+;struct
+
+struct: sockaddr
+  ushort family
+  14 arrayOf ubyte dummy
+;struct
+
+
+//######################################################################
 
 : goclient 0x6701a8c0 client ;
 : goserver server ;

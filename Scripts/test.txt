@@ -2,6 +2,8 @@
 autoforget TEST
 : TEST ;
 
+decimal
+
 FileOutStream testFileOut
 
 scSetShowID(false)
