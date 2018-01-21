@@ -132,13 +132,13 @@ namespace ONumber
 		METHOD("__newOp", oIntNew),
 
 		METHOD("set", oIntSetMethod),
-		METHOD_RET("get", oIntGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-        METHOD_RET("getByte", oIntGetSignedByteMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte)),
-        METHOD_RET("getUByte", oIntGetUnsignedByteMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeUByte)),
-        METHOD_RET("getShort", oIntGetSignedShortMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeShort)),
-        METHOD_RET("getUShort", oIntGetUnsignedShortMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeUShort)),
+		METHOD_RET("get", oIntGetMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("getByte", oIntGetSignedByteMethod, RETURNS_NATIVE(kBaseTypeByte)),
+        METHOD_RET("getUByte", oIntGetUnsignedByteMethod, RETURNS_NATIVE(kBaseTypeUByte)),
+        METHOD_RET("getShort", oIntGetSignedShortMethod, RETURNS_NATIVE(kBaseTypeShort)),
+        METHOD_RET("getUShort", oIntGetUnsignedShortMethod, RETURNS_NATIVE(kBaseTypeUShort)),
         METHOD("show", oIntShowMethod),
-		METHOD_RET("compare", oIntCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("compare", oIntCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
@@ -224,9 +224,9 @@ namespace ONumber
 		METHOD("__newOp", oLongNew),
 
 		METHOD("set", oLongSetMethod),
-		METHOD_RET("get", oLongGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong)),
+		METHOD_RET("get", oLongGetMethod, RETURNS_NATIVE(kBaseTypeLong)),
 		METHOD("show", oLongShowMethod),
-		METHOD_RET("compare", oLongCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("compare", oLongCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
         MEMBER_VAR("__dummy", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
         MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeLong)),
@@ -308,9 +308,9 @@ namespace ONumber
 		METHOD("__newOp", oFloatNew),
 
 		METHOD("set", oFloatSetMethod),
-		METHOD_RET("get", oFloatGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeFloat)),
+		METHOD_RET("get", oFloatGetMethod, RETURNS_NATIVE(kBaseTypeFloat)),
 		METHOD("show", oFloatShowMethod),
-		METHOD_RET("compare", oFloatCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("compare", oFloatCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
         MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeFloat)),
 
@@ -392,9 +392,9 @@ namespace ONumber
 		METHOD("__newOp", oDoubleNew),
 
 		METHOD("set", oDoubleSetMethod),
-		METHOD_RET("get", oDoubleGetMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeDouble)),
+		METHOD_RET("get", oDoubleGetMethod, RETURNS_NATIVE(kBaseTypeDouble)),
 		METHOD("show", oDoubleShowMethod),
-		METHOD_RET("compare", oDoubleCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("compare", oDoubleCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
         MEMBER_VAR("__dummy", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
         MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeDouble)),

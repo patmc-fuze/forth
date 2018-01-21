@@ -199,8 +199,15 @@ I was planning to represent forth ops in a class with:
 I was already doing this in a kludgy way for __newOp.
 It works well enough to connect a client and server and send "Hello World!".
 
-I should replace a lot of the builtin class member defintions with shorter
-and more meaningful macros.
+I replaced the clunky builtin class member return definitions with shorter
+versions that remove the noise of always having kDTIsMethod stuck in there.
+  OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject) becomes RETURNS_OBJECT(kBCIObject)
+  NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt) becomes RETURNS_NATIVE(kBaseTypeInt)
+
+There are several methods which return a pointer to a native type or an array of
+a native type, those should be okay.
+There are a few methods which return a pointer to an object (Array base and ref
+for examples), these still have to use the old clunky macros.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 January 17 2018
 

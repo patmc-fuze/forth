@@ -217,8 +217,8 @@ namespace
 		METHOD("__newOp", objectNew),
 		METHOD("delete", objectDeleteMethod),
 		METHOD("show", objectShowMethod),
-		METHOD_RET("getClass", objectClassMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIClass)),
-		METHOD_RET("compare", objectCompareMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("getClass", objectClassMethod, RETURNS_OBJECT(kBCIClass)),
+		METHOD_RET("compare", objectCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("keep", objectKeepMethod),
 		METHOD("release", objectReleaseMethod),
 		MEMBER_VAR("__refCount", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
@@ -320,11 +320,11 @@ namespace
 	baseMethodEntry classMembers[] =
 	{
 		METHOD("delete", classDeleteMethod),
-		METHOD_RET("create", classCreateMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
-		METHOD_RET("getParent", classSuperMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIClass)),
-		METHOD_RET("getName", classNameMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kDTIsPtr|kBaseTypeByte)),
-		METHOD_RET("getVocabulary", classVocabularyMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kDTIsPtr|kBaseTypeInt)),
-		METHOD_RET("getInterface", classGetInterfaceMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
+		METHOD_RET("create", classCreateMethod, RETURNS_OBJECT(kBCIObject)),
+		METHOD_RET("getParent", classSuperMethod, RETURNS_OBJECT(kBCIClass)),
+		METHOD_RET("getName", classNameMethod, RETURNS_NATIVE(kDTIsPtr|kBaseTypeByte)),
+		METHOD_RET("getVocabulary", classVocabularyMethod, RETURNS_NATIVE(kDTIsPtr|kBaseTypeInt)),
+		METHOD_RET("getInterface", classGetInterfaceMethod, RETURNS_OBJECT(kBCIObject)),
 		METHOD("setNew", classSetNewMethod),
 
 		MEMBER_VAR("vocab", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
@@ -348,13 +348,13 @@ namespace
 		METHOD("seekPrev", unimplementedMethodOp),
 		METHOD("seekHead", unimplementedMethodOp),
 		METHOD("seekTail", unimplementedMethodOp),
-		METHOD_RET("next", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD_RET("prev", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD_RET("current", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("next", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("prev", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("current", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", unimplementedMethodOp),
-		METHOD_RET("unref", unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIObject)),
-		METHOD_RET("findNext", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
-		METHOD_RET("clone", unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIter)),
+		METHOD_RET("unref", unimplementedMethodOp, RETURNS_OBJECT(kBCIObject)),
+		METHOD_RET("findNext", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("clone", unimplementedMethodOp, RETURNS_OBJECT(kBCIIter)),
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -369,11 +369,11 @@ namespace
 
 	baseMethodEntry oIterableMembers[] =
 	{
-		METHOD_RET("headIter", unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIter)),
-		METHOD_RET("tailIter", unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIter)),
-		METHOD_RET("find", unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIter)),
-		METHOD_RET("clone", unimplementedMethodOp, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIIterable)),
-		METHOD_RET("count", unimplementedMethodOp, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("headIter", unimplementedMethodOp, RETURNS_OBJECT(kBCIIter)),
+		METHOD_RET("tailIter", unimplementedMethodOp, RETURNS_OBJECT(kBCIIter)),
+		METHOD_RET("find", unimplementedMethodOp, RETURNS_OBJECT(kBCIIter)),
+		METHOD_RET("clone", unimplementedMethodOp, RETURNS_OBJECT(kBCIIterable)),
+		METHOD_RET("count", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("clear", unimplementedMethodOp),
 		// following must be last in table
 		END_MEMBERS

@@ -640,7 +640,7 @@ namespace OStream
 	baseMethodEntry oFileInStreamMembers[] =
 	{
 		METHOD("__newOp", oFileInStreamNew),
-		METHOD_RET("open", oFileInStreamOpenMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("open", oFileInStreamOpenMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("close", oFileInStreamCloseMethod),
 		METHOD("setFile", oFileInStreamSetFileMethod),
 		METHOD("getFile", oFileInStreamGetFileMethod),
@@ -653,8 +653,8 @@ namespace OStream
 		METHOD("getString", oFileInStreamGetStringMethod),
 		METHOD("iterLine", oFileInStreamIterLineMethod),
 		METHOD("atEOF", oFileInStreamSetAtEOFMethod),
-		METHOD_RET("getSize", oFileInStreamGetSizeMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong)),
-		METHOD_RET("tell", oFileInStreamTellMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong)),
+		METHOD_RET("getSize", oFileInStreamGetSizeMethod, RETURNS_NATIVE(kBaseTypeLong)),
+		METHOD_RET("tell", oFileInStreamTellMethod, RETURNS_NATIVE(kBaseTypeLong)),
 		METHOD("seek", oFileInStreamSeekMethod),
 
 		MEMBER_VAR("inFile", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
@@ -1112,12 +1112,12 @@ namespace OStream
 		METHOD("__newOp", oFileOutStreamNew),
 		METHOD("delete", oFileOutStreamDeleteMethod),
 
-		METHOD_RET("open", oFileOutStreamOpenMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt)),
+		METHOD_RET("open", oFileOutStreamOpenMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("close", oFileOutStreamCloseMethod),
 		METHOD("setFile", oFileOutStreamSetFileMethod),
 		METHOD("getFile", oFileOutStreamGetFileMethod),
-		METHOD_RET("getSize", oFileOutStreamGetSizeMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong)),
-		METHOD_RET("tell", oFileOutStreamTellMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeLong)),
+		METHOD_RET("getSize", oFileOutStreamGetSizeMethod, RETURNS_NATIVE(kBaseTypeLong)),
+		METHOD_RET("tell", oFileOutStreamTellMethod, RETURNS_NATIVE(kBaseTypeLong)),
 		METHOD("seek", oFileOutStreamSeekMethod),
 
 		MEMBER_VAR("outFile", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
@@ -1186,7 +1186,7 @@ namespace OStream
 		METHOD("__newOp", oStringOutStreamNew),
 		METHOD("delete", oStringOutStreamDeleteMethod),
 		METHOD("setString", oStringOutStreamSetStringMethod),
-		METHOD_RET("getString", oStringOutStreamGetStringMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIString)),
+		METHOD_RET("getString", oStringOutStreamGetStringMethod, RETURNS_OBJECT(kBCIString)),
 
 		MEMBER_VAR("outString", OBJECT_TYPE_TO_CODE(0, kBCIString)),
 

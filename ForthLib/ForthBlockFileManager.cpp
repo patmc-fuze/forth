@@ -456,9 +456,9 @@ namespace OBlockFile
         METHOD("__newOp", oBlockFileNew),
         METHOD("delete", oBlockFileDeleteMethod),
 
-        METHOD_RET("blk", oBlockFileBlkMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeInt | kDTIsPtr)),
-        METHOD_RET("block", oBlockFileBlockMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte | kDTIsPtr)),
-        METHOD_RET("buffer", oBlockFileBufferMethod, NATIVE_TYPE_TO_CODE(kDTIsMethod, kBaseTypeByte | kDTIsPtr)),
+        METHOD_RET("blk", oBlockFileBlkMethod, RETURNS_NATIVE(kBaseTypeInt | kDTIsPtr)),
+        METHOD_RET("block", oBlockFileBlockMethod, RETURNS_NATIVE(kBaseTypeByte | kDTIsPtr)),
+        METHOD_RET("buffer", oBlockFileBufferMethod, RETURNS_NATIVE(kBaseTypeByte | kDTIsPtr)),
         METHOD("emptyBuffers", oBlockFileEmptyBuffersMethod),
         METHOD("flush", oBlockFileFlushMethod),
         METHOD("saveBuffers", oBlockFileSaveBuffersMethod),

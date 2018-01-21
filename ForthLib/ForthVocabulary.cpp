@@ -1370,7 +1370,7 @@ namespace OVocabulary
 		METHOD("__newOp", oVocabularyNew),
 		METHOD("delete", oVocabularyDeleteMethod),
 		METHOD("getName", oVocabularyGetNameMethod),
-		METHOD_RET("headIter", oVocabularyHeadIterMethod, OBJECT_TYPE_TO_CODE(kDTIsMethod, kBCIVocabularyIter)),
+		METHOD_RET("headIter", oVocabularyHeadIterMethod, RETURNS_OBJECT(kBCIVocabularyIter)),
 		METHOD("findEntryByName", oVocabularyFindEntryByNameMethod),
 		METHOD("getNewestEntry", oVocabularyGetNewestEntryMethod),
 		METHOD("getNumEntries", oVocabularyGetNumEntriesMethod),
