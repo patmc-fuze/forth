@@ -4595,6 +4595,23 @@ FORTHOP( splitTimeOp )
     SPUSH( brokenDownTime->tm_sec );
 }
 
+FORTHOP(unsplitTimeOp)
+{
+    time_t rawtime;
+    struct tm brokenDownTime;
+
+    brokenDownTime.tm_sec = SPOP;
+    brokenDownTime.tm_min = SPOP;
+    brokenDownTime.tm_hour = SPOP;
+    brokenDownTime.tm_mday = SPOP;
+    brokenDownTime.tm_mon = SPOP - 1;
+    brokenDownTime.tm_year = SPOP - 1900;
+
+    rawtime = mktime(&brokenDownTime);
+    double dtime = *((double *)&rawtime);
+    DPUSH(dtime);
+}
+
 FORTHOP( millitimeOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
@@ -5867,6 +5884,49 @@ FORTHOP(resetProfileOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
     pEngine->ResetExecutionProfile();
+}
+
+FORTHOP(readOp)
+{
+    NEEDS(3);
+
+    int numBytes = SPOP;
+    char* buffer = (char *)(SPOP);
+    int fd = SPOP;
+
+    int result = read(fd, buffer, numBytes);
+    SPUSH(result);
+}
+
+FORTHOP(writeOp)
+{
+    NEEDS(3);
+
+    int numBytes = SPOP;
+    char* buffer = (char *)(SPOP);
+    int fd = SPOP;
+
+    int result = write(fd, buffer, numBytes);
+    SPUSH(result);
+}
+
+FORTHOP(openOp)
+{
+    NEEDS(2);
+    int flags = SPOP;
+    char* filename = (char *)(SPOP);
+
+    int result = open(filename, flags);
+    SPUSH(result);
+}
+
+FORTHOP(closeOp)
+{
+    NEEDS(1);
+    int fd = SPOP;
+
+    int result = close(fd);
+    SPUSH(result);
 }
 
 
@@ -9532,6 +9592,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    timeOp,                 "time" ),
     OP_DEF(    strftimeOp,             "strftime" ),
     OP_DEF(    splitTimeOp,            "splitTime" ),
+    OP_DEF(    unsplitTimeOp,          "unsplitTime" ),
     OP_DEF(    millitimeOp,            "ms@" ),
     OP_DEF(    millisleepOp,           "ms" ),
 
@@ -9619,7 +9680,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( exitThreadOp,				"exitThread" ),
 	OP_DEF( getCurrentThreadOp,         "getCurrentThread"),
 	OP_DEF( getCurrentAsyncThreadOp,    "getCurrentAsyncThread"),
-	
+
     ///////////////////////////////////////////
     //  exception handling
     ///////////////////////////////////////////
@@ -9627,6 +9688,14 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF( exceptOp,               "except"),
     PRECOP_DEF( finallyOp,              "finally"),
     PRECOP_DEF( endtryOp,               "endtry"),
+
+    ///////////////////////////////////////////
+    //  low level file IO ops
+    ///////////////////////////////////////////
+    OP_DEF(    openOp,                 "open" ),
+    OP_DEF(    closeOp,                "close" ),
+    OP_DEF(    readOp,                 "read" ),
+    OP_DEF(    writeOp,                "write" ),
 
 #ifdef WIN32
     ///////////////////////////////////////////
