@@ -39,6 +39,9 @@
 #if defined(LINUX) || defined(MACOSX)
 #include <strings.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 extern int kbhit(void);
 extern int getch(void);

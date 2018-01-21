@@ -11,6 +11,10 @@
 #if defined(WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#else
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #endif
 
 #include "ForthEngine.h"
@@ -251,7 +255,7 @@ namespace OSocket
     {
         GET_THIS(oSocketStruct, pSocket);
 
-        int *pAddrLen = (int *)(SPOP);
+        socklen_t *pAddrLen = (socklen_t *)(SPOP);
         struct sockaddr *destAddr = (struct sockaddr *)(SPOP);
         int flags = SPOP;
         size_t len = SPOP;

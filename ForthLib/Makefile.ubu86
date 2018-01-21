@@ -45,6 +45,7 @@ SRCS = \
 	OList.cpp \
 	OMap.cpp \
 	ONumber.cpp \
+	OSocket.cpp \
 	OStream.cpp \
 	OString.cpp \
 	OSystem.cpp
