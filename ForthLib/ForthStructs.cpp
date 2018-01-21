@@ -1693,6 +1693,14 @@ ForthClassVocabulary::PrintEntry( long*   pEntry )
     char nameBuff[128];
     long methodNum = *pEntry;
     long typeCode = pEntry[1];
+    long baseType = CODE_TO_BASE_TYPE(typeCode);
+    
+    if (baseType == kBaseTypeUserDefinition)
+    {
+        ForthVocabulary::PrintEntry(pEntry);
+        return;
+    }
+
     bool isMethod = CODE_IS_METHOD( typeCode );
     if ( !isMethod )
     {

@@ -659,6 +659,7 @@ typedef enum
     kDTIsPtr        = 16,
     kDTIsArray      = 32,
     kDTIsMethod     = 64,
+    kDTIsFunky      = 128       // use depends on context
 } storageDescriptor;
 
 // user-defined structure fields have a 32-bit descriptor with the following format:
@@ -666,7 +667,7 @@ typedef enum
 //   4          is field a pointer
 //   5          is field an array
 //   6          is this a method
-//   7          unused
+//   7          unused (except for class precedence ops)
 // 31...8       depends on base type:
 //      string      length
 //      struct      typeIndex
@@ -691,6 +692,7 @@ typedef enum
 #define CODE_IS_PTR( CODE )                                 (((CODE) & kDTIsPtr) != 0)
 #define CODE_IS_NATIVE( CODE )                              (((CODE) & 0xF) < kNumNativeTypes)
 #define CODE_IS_METHOD( CODE )                              (((CODE) & kDTIsMethod) != 0)
+#define CODE_IS_FUNKY( CODE )                               (((CODE) & kDTIsFunky) != 0)
 #define CODE_TO_BASE_TYPE( CODE )                           ((CODE) & 0x0F)
 #define CODE_TO_STRUCT_INDEX( CODE )                        ((CODE) >> 8)
 #define CODE_TO_CONTAINED_CLASS_INDEX( CODE )               (((CODE) >> 8) & 0xFFFF)

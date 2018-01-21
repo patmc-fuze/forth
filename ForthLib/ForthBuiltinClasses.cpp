@@ -23,6 +23,7 @@
 #include "OStream.h"
 #include "ONumber.h"
 #include "OSystem.h"
+#include "OSocket.h"
 
 #ifdef TRACK_OBJECT_ALLOCATIONS
 long gStatNews = 0;
@@ -507,6 +508,7 @@ ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 	OThread::AddClasses(pEngine);
 	OLock::AddClasses(pEngine);
     OSystem::AddClasses(pEngine);
+    OSocket::AddClasses(pEngine);
 
 	mpClassMethods = pClassClassVocab->GetInterface(0)->GetMethods();
 }

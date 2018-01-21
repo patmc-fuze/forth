@@ -257,19 +257,12 @@ namespace
 
 int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short portNum )
 {
-#ifdef WIN32
-	WSADATA WsaData;
-#endif
     SOCKET ServerSocket;
     struct sockaddr_in ServerInfo;
     int iRetVal = 0;
     ForthServerShell *pShell;
 
-#ifdef WIN32
-    WSAStartup(0x202, &WsaData);
-#else
-    // TODO
-#endif
+    startupSockets();
 
 #if 0
     char hostnameBuffer[256];
@@ -326,7 +319,7 @@ int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short p
 					{
 						//struct sockaddr_in* sockaddr_ipv4 = (struct sockaddr_in *) resultAddr->ai_addr;
 						unsigned char* pAddrBytes = (unsigned char*) (&resultAddr->ai_addr->sa_data[2]);
-						printf( "IPv4 %d.%d.%d.%d   use %d for forth client address\n",
+						printf( "IPv4 %d.%d.%d.%d   use %u for forth client address\n",
 							pAddrBytes[0], pAddrBytes[1], pAddrBytes[2], pAddrBytes[3],
 							*(reinterpret_cast<long*>(pAddrBytes)) );
 					}
@@ -408,11 +401,11 @@ int ForthServerMainLoop( ForthEngine *pEngine, bool doAutoload, unsigned short p
     }
 #ifdef WIN32
     closesocket(ServerSocket);
-    WSACleanup();
 #else
     // TODO
     close( ServerSocket );
 #endif
+    shutdownSockets();
     return 0;
 }
 

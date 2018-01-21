@@ -14,50 +14,88 @@
 
 #include "ForthMessages.h"
 
-static const char* clientMsgNames[] =
+namespace
 {
-    "DisplayText",
-    "SendLine",
-    "StartLoad",
-    "PopStream",
-    "GetChar",
-    "GoAway",
-    "FileOpen",
-    "FileClose",
-    "FileSetPosition",
-    "FileRead",
-    "FileWrite",
-    "FileGetChar",
-    "FilePutChar",
-    "FileCheckEOF",
-    "FileGetPosition",
-    "FileGetLength",
-    "FileCheckExists",
-    "FileGetLine",
-    "Limit",
-};
 
-static const char* serverMsgNames[] =
-{
-    "ProcessLine",
-    "ProcessChar",
-    "PopStream",
-    "FileOpResult",
-    "Limit"
-};
-
-const char* MessageName( int msgType )
-{
-    if ( (msgType >= kClientMsgDisplayText) && (msgType < kClientMsgLimit) )
+    static const char* clientMsgNames[] =
     {
-        return clientMsgNames[ msgType - kClientMsgDisplayText ];
+        "DisplayText",
+        "SendLine",
+        "StartLoad",
+        "PopStream",
+        "GetChar",
+        "GoAway",
+        "FileOpen",
+        "FileClose",
+        "FileSetPosition",
+        "FileRead",
+        "FileWrite",
+        "FileGetChar",
+        "FilePutChar",
+        "FileCheckEOF",
+        "FileGetPosition",
+        "FileGetLength",
+        "FileCheckExists",
+        "FileGetLine",
+        "Limit",
+    };
+
+    static const char* serverMsgNames[] =
+    {
+        "ProcessLine",
+        "ProcessChar",
+        "PopStream",
+        "FileOpResult",
+        "Limit"
+    };
+
+    const char* MessageName(int msgType)
+    {
+        if ((msgType >= kClientMsgDisplayText) && (msgType < kClientMsgLimit))
+        {
+            return clientMsgNames[msgType - kClientMsgDisplayText];
+        }
+
+        if ((msgType >= kServerMsgProcessLine) && (msgType < kServerMsgLimit))
+        {
+            return serverMsgNames[msgType - kServerMsgProcessLine];
+        }
+        return "WTF!!!????";
     }
 
-    if ( (msgType >= kServerMsgProcessLine) && (msgType < kServerMsgLimit) )
+    bool socketsNotStarted = true;
+}
+
+void startupSockets()
+{
+#ifdef WIN32
+    if (socketsNotStarted)
     {
-        return serverMsgNames[ msgType - kServerMsgProcessLine ];
+        //----------------------
+        // Initialize Winsock
+        WSADATA wsaData;
+        int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
+        if (iResult != NO_ERROR)
+        {
+            printf("Error at WSAStartup()\n");
+        }
+        else
+        {
+            socketsNotStarted = false;
+        }
     }
-    return "WTF!!!????";
+#endif
+}
+
+void shutdownSockets()
+{
+#ifdef WIN32
+    if (!socketsNotStarted)
+    {
+        WSACleanup();
+        socketsNotStarted = true;
+    }
+#endif
 }
 
 //

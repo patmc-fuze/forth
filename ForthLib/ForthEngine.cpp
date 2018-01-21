@@ -692,7 +692,8 @@ ForthEngine::AddBuiltinClass(const char* pClassName, eBuiltinClassIndex classInd
     while ( pEntries->name != NULL )
     {
         const char* pMemberName = pEntries->name;
-        if ( (pEntries->returnType & kDTIsMethod) != 0 )
+        ulong entryType = pEntries->returnType;
+        if (CODE_IS_METHOD(entryType))
         {
             if ( !strcmp( pMemberName, "__newOp" ) )
             {
@@ -734,9 +735,28 @@ ForthEngine::AddBuiltinClass(const char* pClassName, eBuiltinClassIndex classInd
         }
         else
         {
-            // this entry is a member variable
-            pManager->GetNewestStruct()->AddField( pMemberName, pEntries->returnType, (int) pEntries->value );
-
+            ulong baseType = CODE_TO_BASE_TYPE(entryType);
+            if (baseType == kBaseTypeUserDefinition)
+            {
+                // forth op defined within class
+                if (CODE_IS_FUNKY(entryType))
+                {
+                    // class op with precedence
+                    long* pEntry = AddBuiltinOp(pMemberName, kOpCCodeImmediate, pEntries->value);
+                    pEntry[1] = kBaseTypeUserDefinition;
+                }
+                else
+                {
+                    // class op
+                    long* pEntry = AddBuiltinOp(pMemberName, kOpCCode, pEntries->value);
+                    pEntry[1] = kBaseTypeUserDefinition;
+                }
+            }
+            else
+            {
+                // this entry is a member variable
+                pManager->GetNewestStruct()->AddField(pMemberName, pEntries->returnType, (int)pEntries->value);
+            }
         }
 
 #ifdef TRACE_INNER_INTERPRETER

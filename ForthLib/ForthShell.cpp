@@ -1250,6 +1250,10 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
 {
     int i, len;
 
+    if (argv == nullptr)
+    {
+        return;
+    }
     DeleteCommandLine();
 
     i = 0;
@@ -1378,6 +1382,10 @@ ForthShell::SetEnvironmentVars( const char ** envp )
     int i, nameLen;
     char *pValue;
 
+    if (envp == nullptr)
+    {
+        return;
+    }
     DeleteEnvironmentVars();
 
     // count number of environment variables

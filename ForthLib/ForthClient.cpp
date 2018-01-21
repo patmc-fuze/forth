@@ -34,7 +34,7 @@ namespace
 	void ErrorExit( const char* message )
 	{
 #ifdef WIN32
-		WSACleanup();
+        shutdownSockets();
 #else
 		// TODO
 #endif
@@ -46,14 +46,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
     char errorMessage[128];
 	unsigned long ipAddress;
 #ifdef WIN32
-	//----------------------
-    // Initialize Winsock
-    WSADATA wsaData;
-    int iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
-    if (iResult != NO_ERROR)
-    {
-        printf("Error at WSAStartup()\n");
-    }
+    startupSockets();
 #else
 		// TODO
 #endif
@@ -612,7 +605,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
     }   // end     while ( !done )
 
 #ifdef WIN32
-    WSACleanup();
+    shutdownSockets();
 #else
     // TODO
 #endif

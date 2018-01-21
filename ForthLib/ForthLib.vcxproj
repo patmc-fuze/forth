@@ -376,6 +376,7 @@
     <ClCompile Include="OList.cpp" />
     <ClCompile Include="OMap.cpp" />
     <ClCompile Include="ONumber.cpp" />
+    <ClCompile Include="OSocket.cpp" />
     <ClCompile Include="OStream.cpp" />
     <ClCompile Include="OString.cpp" />
     <ClCompile Include="OSystem.cpp" />
@@ -467,6 +468,7 @@
     <ClInclude Include="OList.h" />
     <ClInclude Include="OMap.h" />
     <ClInclude Include="ONumber.h" />
+    <ClInclude Include="OSocket.h" />
     <ClInclude Include="OStream.h" />
     <ClInclude Include="OString.h" />
     <ClInclude Include="OSystem.h" />

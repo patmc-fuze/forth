@@ -17,6 +17,8 @@
 #define METHOD_RET( NAME, VAL, RVAL )   { NAME, (ulong) VAL, RVAL }
 #define MEMBER_VAR( NAME, TYPE )        { NAME, 0, (ulong) TYPE }
 #define MEMBER_ARRAY( NAME, TYPE, NUM ) { NAME, NUM, (ulong) (TYPE | kDTIsArray) }
+#define CLASS_OP( NAME, VALUE )                { NAME, (ulong) VALUE, NATIVE_TYPE_TO_CODE(0, kBaseTypeUserDefinition) }
+#define CLASS_PRECOP( NAME, VALUE )     { NAME, (ulong) VALUE, NATIVE_TYPE_TO_CODE(kDTIsFunky, kBaseTypeUserDefinition) }
 
 #define END_MEMBERS { NULL, 0, 0 }
 

@@ -16,6 +16,9 @@
 
 //#define PIPE_SPEW
 
+// it is safe to call startupSockets multiple times
+extern void startupSockets();
+extern void shutdownSockets();
 
 class ForthPipe
 {

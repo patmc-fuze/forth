@@ -89,6 +89,7 @@ typedef enum
     kBCIBlockFile,
     kBCIBag,
     kBCIBagIter,
+    kBCISocket,
 	kNumBuiltinClasses		// must be last
 } eBuiltinClassIndex;
 
