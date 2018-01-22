@@ -2022,7 +2022,7 @@ OPTYPE_ACTION(MethodWithSuperAction)
     }
     ForthClassObject* pClassObject = (ForthClassObject*)pMethods[-1];
     long* pSuperMethods = pClassObject->pVocab->ParentClass()->GetInterface(0)->GetMethods();
-    pEngine->ExecuteOp(pCore, pMethods[opVal]);
+    pEngine->ExecuteOp(pCore, pSuperMethods[opVal]);
 }
 
 OPTYPE_ACTION( MethodWithTOSAction )
