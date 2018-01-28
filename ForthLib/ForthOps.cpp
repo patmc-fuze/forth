@@ -541,12 +541,13 @@ FORTHOP( ifOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
+    // this will be fixed by else/endif
+    pEngine->CompileOpcode(kOpBranchZ, 0);
+    long branchAddr = (long)(GET_DP - 1);
     // save address for else/endif
-    pShellStack->Push( (long)GET_DP );
+    pShellStack->Push(branchAddr);
     // flag that this is the "if" branch
     pShellStack->PushTag(kShellTagIf);
-    // this will be fixed by else/endif
-    pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
 
 // ]if - has precedence
@@ -555,26 +556,28 @@ FORTHOP(elifOp)
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
+    // this will be fixed by else/endif
+    pEngine->CompileOpcode(kOpBranchZ, 0);
+    long branchAddr = (long)(GET_DP - 1);
     // save address for else/endif
-    pShellStack->Push((long)GET_DP);
+    pShellStack->Push(branchAddr);
     // flag that this is the "if" branch
     pShellStack->PushTag(kShellTagElif);
-    // this will be fixed by else/endif
-    pEngine->CompileBuiltinOpcode(OP_ABORT);
 }
 
 // orif - has precedence
 FORTHOP(orifOp)
 {
-	ForthEngine *pEngine = GET_ENGINE;
-	ForthShell *pShell = pEngine->GetShell();
-	ForthShellStack *pShellStack = pShell->GetShellStack();
-	// save address for else/endif
-	pShellStack->Push((long)GET_DP);
-	// flag that this is an "orif" clause
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    // this will be fixed by else/endif
+    pEngine->CompileOpcode(kOpBranchZ, 0);
+    long branchAddr = (long)(GET_DP - 1);
+    // save address for else/endif
+    pShellStack->Push(branchAddr);
+    // flag that this is an "orif" clause
     pShellStack->PushTag(kShellTagOrIf);
-	// this will be fixed by else/endif
-	pEngine->CompileBuiltinOpcode(OP_ABORT);
 }
 
 // andif - has precedence
@@ -583,12 +586,13 @@ FORTHOP(andifOp)
 	ForthEngine *pEngine = GET_ENGINE;
 	ForthShell *pShell = pEngine->GetShell();
 	ForthShellStack *pShellStack = pShell->GetShellStack();
-	// save address for else/endif
-	pShellStack->Push((long)GET_DP);
+    // this will be fixed by else/endif
+    pEngine->CompileOpcode(kOpBranchZ, 0);
+    long branchAddr = (long)(GET_DP - 1);
+    // save address for else/endif
+    pShellStack->Push(branchAddr);
 	// flag that this is an "andif" clause
     pShellStack->PushTag(kShellTagAndIf);
-	// this will be fixed by else/endif
-	pEngine->CompileBuiltinOpcode(OP_ABORT);
 }
 
 
@@ -615,11 +619,11 @@ FORTHOP(elseOp)
         long *pBranch = (long *)pShellStack->Pop();
         if (followedByOr)
         {
-            *pBranch = COMPILED_OP(kOpBranchNZ, (trueIP - pBranch) - 1);
+            pEngine->PatchOpcode(kOpBranchNZ, (trueIP - pBranch) - 1, pBranch);
         }
         else
         {
-            *pBranch = COMPILED_OP(kOpBranchZ, (falseIP - pBranch) - 1);
+            pEngine->PatchOpcode(kOpBranchZ, (falseIP - pBranch) - 1, pBranch);
         }
         switch (branchTag)
         {
@@ -693,11 +697,11 @@ FORTHOP( endifOp )
             long *pBranch = (long *)pShellStack->Pop();
             if (followedByOr)
             {
-                *pBranch = COMPILED_OP(kOpBranchNZ, (trueIP - pBranch) - 1);
+                pEngine->PatchOpcode(kOpBranchNZ, (trueIP - pBranch) - 1, pBranch);
             }
             else
             {
-                *pBranch = COMPILED_OP(kOpBranchZ, (falseIP - pBranch) - 1);
+                pEngine->PatchOpcode(kOpBranchZ, (falseIP - pBranch) - 1, pBranch);
             }
             switch (branchTag)
             {
@@ -733,6 +737,7 @@ FORTHOP( endifOp )
             *pBranch = COMPILED_OP(kOpBranch, (GET_DP - pBranch) - 1);
         }
     }
+    pEngine->ClearPeephole();
 }
 
 
@@ -760,9 +765,11 @@ FORTHOP( untilOp )
     if ( pShell->CheckSyntaxError( "until", pShellStack->PopTag(), kShellTagBegin ) )
     {
         long *pBeginOp = (long *) pShellStack->Pop();
-        pEngine->CompileOpcode( kOpBranchZ, (pBeginOp - GET_DP) - 1 );
+        pEngine->CompileOpcode(kOpBranchZ, 0);
+        pEngine->PatchOpcode(kOpBranchZ, (pBeginOp - GET_DP), GET_DP - 1);
     }
     pEngine->EndLoopContinuations(kShellTagBegin);
+    pEngine->ClearPeephole();
 }
 
 
@@ -779,12 +786,13 @@ FORTHOP( whileOp )
     }
     // stick while tag/address under the begin tag/address
     long oldAddress = pShellStack->Pop();
-    pShellStack->Push( (long) GET_DP );
+    // this will be fixed by else/endif
+    pEngine->CompileOpcode(kOpBranchZ, 0);
+    long branchAddr = (long)(GET_DP - 1);
+    pShellStack->Push(branchAddr);
     pShellStack->PushTag(kShellTagWhile);
     pShellStack->Push(oldAddress);
     pShellStack->PushTag(kShellTagBegin);
-    // repeat will fill this in
-    pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
 
 
@@ -808,9 +816,10 @@ FORTHOP( repeatOp )
     // fill in the branch taken when "while" fails
     long *pBranch =  (long *) pShellStack->Pop();
     //*pBranch = COMPILED_OP((branchTag == kShellTagBranchZ) ? kOpBranchZ : kOpBranch, (GET_DP - pBranch));
-    *pBranch = COMPILED_OP(kOpBranchZ, (GET_DP - pBranch));
+    pEngine->PatchOpcode(kOpBranchZ, (GET_DP - pBranch), pBranch);
     pEngine->CompileOpcode(kOpBranch, (pBeginAddress - GET_DP) - 1);
     pEngine->EndLoopContinuations(kShellTagBegin);
+    pEngine->ClearPeephole();
 }
 
 // again - has precedence
@@ -827,6 +836,7 @@ FORTHOP( againOp )
     long *pLoopTop =  (long *) pShellStack->Pop();
     pEngine->CompileOpcode( kOpBranch, (pLoopTop - GET_DP) - 1 );
     pEngine->EndLoopContinuations(kShellTagBegin);
+    pEngine->ClearPeephole();
 }
 
 // case - has precedence
@@ -954,6 +964,7 @@ FORTHOP( endcaseOp )
     }
     SET_SP( pSP );
     pEngine->EndLoopContinuations(kShellTagCase);
+    pEngine->ClearPeephole();
 }
 
 FORTHOP(labelOp)
@@ -1050,17 +1061,23 @@ FORTHOP(breakIfNotOp)
 // align (upwards) DP to longword boundary
 FORTHOP( alignOp )
 {
-    GET_ENGINE->AlignDP();
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->AlignDP();
+    pEngine->ClearPeephole();
 }
 
 FORTHOP( allotOp )
 {
-    GET_ENGINE->AllotBytes( SPOP );
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->AllotBytes(SPOP);
+    pEngine->ClearPeephole();
 }
 
 FORTHOP( commaOp )
 {
-    GET_ENGINE->CompileLong( SPOP );
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->CompileLong( SPOP );
+    pEngine->ClearPeephole();
 }
 
 FORTHOP( cCommaOp )
@@ -1069,6 +1086,7 @@ FORTHOP( cCommaOp )
     char *pChar = (char *)GET_DP;
     *pChar++ = (char) SPOP;
     pEngine->SetDP( (long *) pChar);
+    pEngine->ClearPeephole();
 }
 
 FORTHOP( unusedOp )
@@ -6854,10 +6872,10 @@ FORTHOP(rotateBop)
 FORTHOP(rotate64Bop)
 {
     NEEDS(2);
-    unsigned long b = (SPOP) & 31;
+    unsigned long b = (SPOP) & 63;
     stackInt64 a;
     LPOP(a);
-    a.u64 = (a.u64 << b) | (a.u64 >> (32 - b));
+    a.u64 = (a.u64 << b) | (a.u64 >> (64 - b));
     LPUSH(a);
 }
 
@@ -9148,6 +9166,26 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    icmpBop,                 "icmp" ),
     NATIVE_DEF(    uicmpBop,                "uicmp" ),
 
+    ///////////////////////////////////////////
+    //  64-bit integer comparisons
+    ///////////////////////////////////////////
+	NATIVE_DEF(lEqualsBop,				"l="),
+	NATIVE_DEF(lNotEqualsBop,			"l<>"),
+	NATIVE_DEF(lGreaterThanBop,			"l>"),
+	NATIVE_DEF(lGreaterEqualsBop,		"l>="),
+	NATIVE_DEF(lLessThanBop,			"l<"),
+	NATIVE_DEF(lLessEqualsBop,			"l<="),
+	NATIVE_DEF(lEquals0Bop,				"l0="),
+	NATIVE_DEF(lNotEquals0Bop,			"l0<>"),
+	NATIVE_DEF(lGreaterThan0Bop,		"l0>"),
+	NATIVE_DEF(lGreaterEquals0Bop,		"l0>="),
+	NATIVE_DEF(lLessThan0Bop,			"l0<"),
+	NATIVE_DEF(lLessEquals0Bop,			"l0<="),
+    OP_DEF(    lWithinOp,               "lwithin" ),
+    OP_DEF(    lMinOp,                  "lmin" ),
+    OP_DEF(    lMaxOp,                  "lmax" ),
+	NATIVE_DEF(lcmpBop, "lcmp"),
+	NATIVE_DEF(ulcmpBop, "ulcmp"),
 
     ///////////////////////////////////////////
     //  stack manipulation
@@ -9323,27 +9361,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    smRemOp,                "sm/rem" ),
 #endif   
     
-    ///////////////////////////////////////////
-    //  64-bit integer comparisons
-    ///////////////////////////////////////////
-	NATIVE_DEF(lEqualsBop,				"l="),
-	NATIVE_DEF(lNotEqualsBop,			"l<>"),
-	NATIVE_DEF(lGreaterThanBop,			"l>"),
-	NATIVE_DEF(lGreaterEqualsBop,		"l>="),
-	NATIVE_DEF(lLessThanBop,			"l<"),
-	NATIVE_DEF(lLessEqualsBop,			"l<="),
-	NATIVE_DEF(lEquals0Bop,				"l0="),
-	NATIVE_DEF(lNotEquals0Bop,			"l0<>"),
-	NATIVE_DEF(lGreaterThan0Bop,		"l0>"),
-	NATIVE_DEF(lGreaterEquals0Bop,		"l0>="),
-	NATIVE_DEF(lLessThan0Bop,			"l0<"),
-	NATIVE_DEF(lLessEquals0Bop,			"l0<="),
-    OP_DEF(    lWithinOp,               "lwithin" ),
-    OP_DEF(    lMinOp,                  "lmin" ),
-    OP_DEF(    lMaxOp,                  "lmax" ),
-	NATIVE_DEF(lcmpBop, "lcmp"),
-	NATIVE_DEF(ulcmpBop, "ulcmp"),
-
     ///////////////////////////////////////////
     //  control flow
     ///////////////////////////////////////////

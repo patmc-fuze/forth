@@ -20,6 +20,7 @@
 
 ForthOpcodeCompiler::ForthOpcodeCompiler(ForthMemorySection*	pDictionarySection)
 : mpDictionarySection( pDictionarySection )
+, mbCompileComboOps(true)
 {
 	for ( unsigned int i = 0; i < MAX_PEEPHOLE_PTRS; ++i )
 	{
@@ -53,8 +54,8 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
 {
     long* pOpcode = mpDictionarySection->pCurrent;
 	long op = COMPILED_OP( opType, opVal );
-	//forthOpType previousType;
-	//long previousVal;
+	forthOpType previousType;
+	long previousVal;
 	
 	switch( opType )
 	{
@@ -71,33 +72,35 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
 		}
 		break;
 
-#if 0
 	case kOpBranchZ:
 		{
 			unsigned long uVal = opVal & OPCODE_VALUE_MASK;
-			if ( GetPreviousOpcode( previousType, previousVal ) && (previousType == NATIVE_OPTYPE)
+			if (mbCompileComboOps && GetPreviousOpcode( previousType, previousVal )
+                && (previousType == NATIVE_OPTYPE)
 				&& FITS_IN_BITS(previousVal, 12) && FITS_IN_SIGNED_BITS(uVal, 12) )
 			{
 				// OP ZBRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
 				UncompileLastOpcode();
-				op = COMPILED_OP( kOpOZBCombo, previousVal | (uVal << 12) );
+                pOpcode--;
+				op = COMPILED_OP(kOpOZBCombo, previousVal | (uVal << 12));
 			}
 		}
 		break;
 
-	case kOpBranch:
-		{
-			unsigned long uVal = opVal & OPCODE_VALUE_MASK;
-			if ( GetPreviousOpcode( previousType, previousVal ) && (previousType == NATIVE_OPTYPE)
-				&& FITS_IN_BITS(previousVal, 12) && FITS_IN_SIGNED_BITS(uVal, 12) )
-			{
-				// OP ZBRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
-				UncompileLastOpcode();
-				op = COMPILED_OP( kOpOBCombo, previousVal | (uVal << 12) );
-			}
-		}
-		break;
-#endif
+    case kOpBranchNZ:
+    {
+        unsigned long uVal = opVal & OPCODE_VALUE_MASK;
+        if (mbCompileComboOps && GetPreviousOpcode(previousType, previousVal)
+            && (previousType == NATIVE_OPTYPE)
+            && FITS_IN_BITS(previousVal, 12) && FITS_IN_SIGNED_BITS(uVal, 12))
+        {
+            // OP NZBRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
+            UncompileLastOpcode();
+            pOpcode--;
+            op = COMPILED_OP(kOpONZBCombo, previousVal | (uVal << 12));
+        }
+    }
+    break;
 
 	default:
 		break;
@@ -108,6 +111,45 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
 	*pOpcode++ = op;
 	mpDictionarySection->pCurrent = pOpcode;
 	mPeepholeValidCount++;
+}
+
+void ForthOpcodeCompiler::PatchOpcode(forthOpType opType, long opVal, long* pOpcode)
+{
+    if ((opType == kOpBranchZ) || (opType == kOpBranchNZ))
+    {
+        long oldOpcode = *pOpcode;
+        forthOpType oldOpType = FORTH_OP_TYPE(oldOpcode);
+        long oldOpVal = FORTH_OP_VALUE(oldOpcode);
+        switch (oldOpType)
+        {
+        case kOpBranchZ:
+        case kOpBranchNZ:
+            *pOpcode = COMPILED_OP(opType, opVal);
+            break;
+
+        case kOpOZBCombo:
+        case kOpONZBCombo:
+            // preserve opcode part of old value
+            oldOpVal &= 0xFFF;
+            if (opType == kOpBranchZ)
+            {
+                *pOpcode = COMPILED_OP(kOpOZBCombo, oldOpVal | (opVal << 12));
+            }
+            else
+            {
+                *pOpcode = COMPILED_OP(kOpONZBCombo, oldOpVal | (opVal << 12));
+            }
+            break;
+
+        default:
+            // TODO - report error
+            break;
+        }
+    }
+    else
+    {
+        // TODO: report error
+    }
 }
 
 void ForthOpcodeCompiler::UncompileLastOpcode()

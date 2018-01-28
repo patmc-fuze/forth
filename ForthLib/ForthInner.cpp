@@ -2144,7 +2144,7 @@ OPTYPE_ACTION( VaropOpComboAction )
 OPTYPE_ACTION( OpZBranchComboAction )
 {
 	// bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
-	long op = COMPILED_OP( kOpNative, (opVal & 0xFFF) );
+	long op = COMPILED_OP(kOpCCode, (opVal & 0xFFF));
     ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
     if ( SPOP == 0 )
     {
@@ -2158,18 +2158,21 @@ OPTYPE_ACTION( OpZBranchComboAction )
     }
 }
 
-OPTYPE_ACTION( OpBranchComboAction )
+OPTYPE_ACTION(OpNZBranchComboAction)
 {
-	// bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
-	long op = COMPILED_OP( kOpNative, (opVal & 0xFFF) );
-    ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
-	long branchOffset = opVal >> 12;
-    if ( (branchOffset & 0x800) != 0 )
+    // bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
+    long op = COMPILED_OP(kOpCCode, (opVal & 0xFFF));
+    ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore, op);
+    if (SPOP != 0)
     {
-        // TODO: trap a hard loop (opVal == -1)?
-        branchOffset |= 0xFFFFF000;
+        long branchOffset = opVal >> 12;
+        if ((branchOffset & 0x800) != 0)
+        {
+            // TODO: trap a hard loop (opVal == -1)?
+            branchOffset |= 0xFFFFF000;
+        }
+        SET_IP(GET_IP + branchOffset);
     }
-    SET_IP( GET_IP + branchOffset );
 }
 
 OPTYPE_ACTION( SquishedFloatAction )
@@ -2421,7 +2424,7 @@ optypeActionRoutine builtinOptypeAction[] =
 	NumOpComboAction,
 	VaropOpComboAction,
 	OpZBranchComboAction,
-	OpBranchComboAction,		// 0x74
+	OpNZBranchComboAction,		// 0x74
 	SquishedFloatAction,
 	SquishedDoubleAction,
 	SquishedLongAction,

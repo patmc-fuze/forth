@@ -151,7 +151,7 @@ typedef enum
 	kOpNOCombo,								// NUM OP combo - bits 0:12 are signed integer, bit 13 is builtin/userdef, bits 14:23 are opcode
 	kOpVOCombo,								// VAROP OP combo - bits 0:1 are varop-2, bit 2 is builtin/userdef, bits 3:23 are opcode
 	kOpOZBCombo,							// OP ZBRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
-	kOpOBCombo,								// OP BRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
+	kOpONZBCombo,							// OP NZBRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
 
 	kOpSquishedFloat,						// low 24 bits is float as sign bit, 5 exponent bits, 18 mantissa bits
 	kOpSquishedDouble,						// low 24 bits is double as sign bit, 5 exponent bits, 18 mantissa bits

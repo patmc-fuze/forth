@@ -6962,8 +6962,8 @@ entry voComboType
 entry ozbComboType
 	; ebx: bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
 	mov	eax, ebx
-	shr	eax, 12
-	and	eax, 0FFFh
+	shr	eax, 10
+	and	eax, 03FFCh
 	push	eax
 	push	edi
 	mov	edi, ozbCombo1
@@ -6980,47 +6980,49 @@ ozbCombo1:
 	or	ebx, ebx
 	jnz	ozbCombo2			; if TOS not 0, don't branch
 	mov	ebx, eax
-	and	eax, 0800h
-	jnz	ozbNegative
-	; positive branch
+	and	eax, 02000h
+	jz	ozbForward
+	; backward branch
 	or	ebx,0FFFFC000h
-
-ozbNegative:
+ozbForward:
 	add	esi, ebx
 ozbCombo2:
 	jmp	edi
 	
 ;-----------------------------------------------
 ;
-; OP BRANCH combo ops
+; OP NZBRANCH combo ops
 ;  
-entry obComboType
+entry onzbComboType
 	; ebx: bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
 	mov	eax, ebx
-	shr	eax, 12
-	and	eax, 0FFFh
+	shr	eax, 10
+	and	eax, 03FFCh
 	push	eax
 	push	edi
-	mov	edi, obCombo1
+	mov	edi, onzbCombo1
 	and	ebx, 0FFFh
 	; opcode is in ebx
 	mov	eax, [ebp + FCore.innerExecute]
 	jmp eax
 	
-obCombo1:
+onzbCombo1:
 	pop	edi
 	pop	eax
+	mov	ebx, [edx]
+	add	edx, 4
+	or	ebx, ebx
+	jz	onzbCombo2			; if TOS 0, don't branch
 	mov	ebx, eax
-	and	eax, 0800h
-	jnz	obNegative
-	; positive branch
+	and	eax, 02000h
+	jz	onzbForward
+	; backward branch
 	or	ebx,0FFFFC000h
-
-obNegative:
+onzbForward:
 	add	esi, ebx
+onzbCombo2:
 	jmp	edi
 	
-
 ;-----------------------------------------------
 ;
 ; squished float literal
@@ -7304,7 +7306,7 @@ entry opTypesTable
 	DD	noComboType
 	DD	voComboType
 	DD	ozbComboType
-	DD	obComboType
+	DD	onzbComboType
 	
 	DD	squishedFloatType
 	DD	squishedDoubleType

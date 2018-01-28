@@ -13,7 +13,8 @@ public:
 			        ~ForthOpcodeCompiler();
 	void			Reset();
 	void			CompileOpcode( forthOpType opType, long opVal );
-	void			UncompileLastOpcode();
+    void			PatchOpcode(forthOpType opType, long opVal, long* pOpcode);
+    void			UncompileLastOpcode();
 	unsigned int	PeepholeValidCount();
 	void			ClearPeephole();
     long*           GetLastCompiledOpcodePtr();
@@ -27,5 +28,6 @@ private:
 	unsigned int	mPeepholeIndex;
 	unsigned int	mPeepholeValidCount;
 	long*			mpLastIntoOpcode;
+    bool            mbCompileComboOps;
 };
 
