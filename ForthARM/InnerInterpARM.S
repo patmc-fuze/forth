@@ -536,6 +536,12 @@ cCodeTypeExit:
 @ local byte ops
 @
 localByteType:
+	lsrs	r0, r1, #21
+	beq	localByteType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+localByteType1:
 	lsl	r1, #2
 	sub	r0, rfp, r1					@ r0 points to the byte field
 	@ see if it is a fetch
@@ -564,6 +570,12 @@ localByteFetch:
 
 @------------ unsigned byte support ----------------
 localUByteType:
+	lsrs	r0, r1, #21
+	beq	localUByteType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+localUByteType1:
 	lsl	r1, #2
 	sub	r0, rfp, r1					@ r0 points to the byte field
 	@ see if it is a fetch
@@ -632,6 +644,12 @@ localByteActionTable:
 	.word	localByteMinusStore
 
 fieldByteType:
+	lsrs	r0, r1, #21
+	beq	fieldByteType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+fieldByteType1:
 	@ get ptr to byte var into r0
 	@ TOS is base ptr, r1 is field offset in bytes
 	
@@ -640,6 +658,12 @@ fieldByteType:
 	b	byteEntry	
 
 memberByteType:
+	lsrs	r0, r1, #21
+	beq	memberByteType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+memberByteType1:
 	@ get ptr to byte var into r0
 	@ this data ptr is base ptr, r1 is field offset in bytes
 	ldr	r0, [rcore, #tpd]
@@ -676,6 +700,12 @@ memberByteArrayType:
 
 @----------------- unsigned byte ---------------------------------------
 fieldUByteType:
+	lsrs	r0, r1, #21
+	beq	fieldUByteType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+fieldUByteType1:
 	@ get ptr to byte var into r0
 	@ TOS is base ptr, r1 is field offset in bytes
 	
@@ -684,6 +714,12 @@ fieldUByteType:
 	b	ubyteEntry	
 
 memberUByteType:
+	lsrs	r0, r1, #21
+	beq	memberUByteType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+memberUByteType1:
 	@ get ptr to byte var into r0
 	@ this data ptr is base ptr, r1 is field offset in bytes
 	ldr	r0, [rcore, #tpd]
@@ -730,6 +766,12 @@ memberUByteArrayType:
 @ local short ops
 @
 localShortType:
+	lsrs	r0, r1, #21
+	beq	localShortType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+localShortType1:
 	lsl	r1, #2
 	sub	r0, rfp, r1					@ r0 points to the byte field
 	@ see if it is a fetch
@@ -758,6 +800,12 @@ localShortFetch:
 
 @------------ unsigned short support ----------------
 localUShortType:
+	lsrs	r0, r1, #21
+	beq	localUShortType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+localUShortType1:
 	lsl	r1, #2
 	sub	r0, rfp, r1					@ r0 points to the byte field
 ushortEntry:
@@ -819,6 +867,12 @@ localShortActionTable:
 	.word	localShortMinusStore
 
 fieldShortType:
+	lsrs	r0, r1, #21
+	beq	fieldShortType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+fieldShortType1:
 	@ get ptr to short var into r0
 	@ TOS is base ptr, r1 is field offset in bytes
 	
@@ -827,6 +881,12 @@ fieldShortType:
 	b	shortEntry	
 
 memberShortType:
+	lsrs	r0, r1, #21
+	beq	memberShortType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+memberShortType1:
 	@ get ptr to short var into r0
 	@ this data ptr is base ptr, r1 is field offset in bytes
 	ldr	r0, [rcore, #tpd]
@@ -867,6 +927,12 @@ memberShortArrayType:
 @----------------- unsigned short ---------------------------------------
 
 fieldUShortType:
+	lsrs	r0, r1, #21
+	beq	fieldUShortType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+fieldUShortType1:
 	@ get ptr to short var into r0
 	@ TOS is base ptr, r1 is field offset in bytes
 	
@@ -875,6 +941,12 @@ fieldUShortType:
 	b	ushortEntry	
 
 memberUShortType:
+	lsrs	r0, r1, #21
+	beq	memberUShortType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+memberUShortType1:
 	@ get ptr to short var into r0
 	@ this data ptr is base ptr, r1 is field offset in bytes
 	ldr	r0, [rcore, #tpd]
@@ -924,6 +996,12 @@ memberUShortArrayType:
 @ local int ops
 @
 localIntType:
+	lsrs	r0, r1, #21
+	beq	localIntType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+localIntType1:
 	lsl	r1, #2
 	sub	r0, rfp, r1					@ r0 points to the int field
 	@ see if it is a fetch
@@ -1001,6 +1079,12 @@ localIntActionTable:
 	.word	localIntMinusStore
 
 fieldIntType:
+	lsrs	r0, r1, #21
+	beq	fieldIntType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+fieldIntType1:
 	@ get ptr to int var into r0
 	@ TOS is base ptr, r1 is field offset in bytes
 	
@@ -1009,6 +1093,12 @@ fieldIntType:
 	b	intEntry	
 
 memberIntType:
+	lsrs	r0, r1, #21
+	beq	memberIntType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+memberIntType1:
 	@ get ptr to int var into r0
 	@ this data ptr is base ptr, r1 is field offset in bytes
 	ldr	r0, [rcore, #tpd]
@@ -1057,6 +1147,12 @@ memberIntArrayType:
 @ local float ops
 @
 localFloatType:
+	lsrs	r0, r1, #21
+	beq	localFloatType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+localFloatType1:
 	lsl	r1, #2
 	sub	r0, rfp, r1					@ r0 points to the int field
 	@ see if it is a fetch
@@ -1133,6 +1229,12 @@ localFloatActionTable:
 	.word	localFloatMinusStore
 
 fieldFloatType:
+	lsrs	r0, r1, #21
+	beq	fieldFloatType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+fieldFloatType1:
 	@ get ptr to float var into r0
 	@ TOS is base ptr, r1 is field offset in bytes
 	
@@ -1141,6 +1243,12 @@ fieldFloatType:
 	b	floatEntry	
 
 memberFloatType:
+	lsrs	r0, r1, #21
+	beq	memberFloatType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+memberFloatType1:
 	@ get ptr to float var into r0
 	@ this data ptr is base ptr, r1 is field offset in bytes
 	ldr	r0, [rcore, #tpd]
@@ -1189,6 +1297,12 @@ memberFloatArrayType:
 @ local double ops
 @
 localDoubleType:
+	lsrs	r0, r1, #21
+	beq	localDoubleType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+localDoubleType1:
 	lsl	r1, #2
 	sub	r0, rfp, r1					@ r0 points to the int field
 	@ see if it is a fetch
@@ -1264,6 +1378,12 @@ localDoubleActionTable:
 	.word	localDoubleMinusStore
 
 fieldDoubleType:
+	lsrs	r0, r1, #21
+	beq	fieldDoubleType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+fieldDoubleType1:
 	@ get ptr to double var into r0
 	@ TOS is base ptr, r1 is field offset in bytes
 	
@@ -1272,6 +1392,12 @@ fieldDoubleType:
 	b	doubleEntry	
 
 memberDoubleType:
+	lsrs	r0, r1, #21
+	beq	memberDoubleType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+memberDoubleType1:
 	@ get ptr to double var into r0
 	@ this data ptr is base ptr, r1 is field offset in bytes
 	ldr	r0, [rcore, #tpd]
@@ -1320,6 +1446,12 @@ memberDoubleArrayType:
 @ local long ops
 @
 localLongType:
+	lsrs	r0, r1, #21
+	beq	localLongType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+localLongType1:
 	lsl	r1, #2
 	sub	r0, rfp, r1					@ r0 points to the int field
 	@ see if it is a fetch
@@ -1401,6 +1533,12 @@ localLongActionTable:
 	.word	localLongMinusStore
 
 fieldLongType:
+	lsrs	r0, r1, #21
+	beq	fieldLongType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+fieldLongType1:
 	@ get ptr to long var into r0
 	@ TOS is base ptr, r1 is field offset in bytes
 	
@@ -1409,6 +1547,12 @@ fieldLongType:
 	b	longEntry	
 
 memberLongType:
+	lsrs	r0, r1, #21
+	beq	memberLongType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+memberLongType1:
 	@ get ptr to long var into r0
 	@ this data ptr is base ptr, r1 is field offset in bytes
 	ldr	r0, [rcore, #tpd]
@@ -1457,6 +1601,12 @@ memberLongArrayType:
 @ local string ops
 @
 localStringType:
+	lsrs	r0, r1, #21
+	beq	localStringType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+localStringType1:
 	lsl	r1, #2
 	sub	r0, rfp, r1					@ r0 points to the int field
 	@ see if it is a fetch
@@ -1546,6 +1696,12 @@ localStringActionTable:
 	.word	localStringPlusStore
 
 fieldStringType:
+	lsrs	r0, r1, #21
+	beq	fieldStringType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+fieldStringType1:
 	@ get ptr to string var into r0
 	@ TOS is base ptr, r1 is field offset in bytes
 	
@@ -1554,6 +1710,12 @@ fieldStringType:
 	b	stringEntry	
 
 memberStringType:
+	lsrs	r0, r1, #21
+	beq	memberStringType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+memberStringType1:
 	@ get ptr to string var into r0
 	@ this data ptr is base ptr, r1 is field offset in bytes
 	ldr	r0, [rcore, #tpd]
@@ -1602,6 +1764,12 @@ memberStringArrayType:
 @ local op ops
 @
 localOpType:
+	lsrs	r0, r1, #21
+	beq	localOpType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+localOpType1:
 	lsl	r1, #2
 	sub	r0, rfp, r1					@ r0 points to the op field
 	@ see if it is a fetch
@@ -1655,6 +1823,12 @@ localOpActionTable:
 	.word	localIntStore
 
 fieldOpType:
+	lsrs	r0, r1, #21
+	beq	fieldOpType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+fieldOpType1:
 	@ get ptr to op var opo r0
 	@ TOS is base ptr, r1 is field offset in bytes
 	
@@ -1663,6 +1837,12 @@ fieldOpType:
 	b	opEntry	
 
 memberOpType:
+	lsrs	r0, r1, #21
+	beq	memberOpType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+memberOpType1:
 	@ get ptr to op var opo r0
 	@ this data ptr is base ptr, r1 is field offset in bytes
 	ldr	r0, [rcore, #tpd]
@@ -1711,6 +1891,12 @@ memberOpArrayType:
 @ local object ops
 @
 localObjectType:
+	lsrs	r0, r1, #21
+	beq	localObjectType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+localObjectType1:
 	lsl	r1, #2
 	sub	r0, rfp, r1					@ r0 points to the int field
 	@ see if it is a fetch
@@ -1849,6 +2035,12 @@ localObjectActionTable:
 
 	
 fieldObjectType:
+	lsrs	r0, r1, #21
+	beq	fieldObjectType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+fieldObjectType1:
 	@ get ptr to object var into r0
 	@ TOS is base ptr, r1 is field offset in bytes
 	
@@ -1857,6 +2049,12 @@ fieldObjectType:
 	b	objectEntry	
 
 memberObjectType:
+	lsrs	r0, r1, #21
+	beq	memberObjectType1
+	str	r0, [rcore, #varmode]
+	mvn	r2,#0x00E00000
+	and	r1, r2
+memberObjectType1:
 	@ get ptr to object var into r0
 	@ this data ptr is base ptr, r1 is field offset in bytes
 	ldr	r0, [rcore, #tpd]
@@ -6229,6 +6427,61 @@ longConstantNegative:
 	bx	lr
 
 
+@ OP ZBRANCH combo ops
+ozbComboType:
+	@ r1: bits 0..11 are op, bits 12-23 are branch offset
+	ldr	r0, =0x0FFF
+	and	r0, r1
+	ldr	r2, [rops, r0, lsl #2]
+	str	r2, [rcore, #scratch]
+	push	{r1, lr}
+	ldr	lr, .ozbReturnAddr
+	bx	r2
+
+ozbComboType1:
+	pop	{r1, lr}
+	ldmia	rsp!, {r0}
+	cmp	r0, #0
+	beq	comboTakeBranch
+	bx	lr
+
+.ozbReturnAddr:
+	.word	ozbComboType1
+
+@ OP NZBRANCH combo ops
+onzbComboType:
+	@ r1: bits 0..11 are op, bits 12-23 are branch offset
+	ldr	r0, =0x0FFF
+	and	r0, r1
+	ldr	r2, [rops, r0, lsl #2]
+	str	r2, [rcore, #scratch]
+	push	{r1, lr}
+	ldr	lr, .onzbReturnAddr
+	bx	r2
+
+onzbComboType1:
+	pop	{r1, lr}
+	ldmia	rsp!, {r0}
+	cmp	r0, #0
+	bne	comboTakeBranch
+	bx	lr
+
+.onzbReturnAddr:
+	.word	onzbComboType1
+
+comboTakeBranch:
+	@ r1: bits 12-23 are branch offset
+	ldr	r2,=0xFF000000
+	ldr	r3,=0x00800000
+	ands	r3, r1
+	orrne	r1,r2
+	asr	r1, #10
+	mvn	r2, #3
+	and	r1, r2
+	add	rip, r1			@ add branchVal to IP
+	bx	lr
+
+
 @ LOCALREF OP combo ops
 lroComboType:
 	@ r1: bits 0..11 are frame offset in longs, bits 12-23 are op
@@ -6407,8 +6660,8 @@ opTypesTable:
 	.word	extOpType @ nvComboType
 	.word	extOpType @ noComboType
 	.word	extOpType @ voComboType
-	.word	extOpType @ ozbComboType
-	.word	extOpType @ obComboType
+	.word	ozbComboType
+	.word	onzbComboType
 
 	.word	squishedFloatType 
 	.word	squishedDoubleType
