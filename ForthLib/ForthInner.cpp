@@ -170,7 +170,7 @@ GFORTHOP( ubyteVarActionBop )
 }
 #endif
 
-#define SET_OPVAL ulong varMode = opVal >> 20; 	if (varMode != 0) { pCore->varMode = varMode; opVal &= 0xFFFFF; }
+#define SET_OPVAL ulong varMode = opVal >> 21; 	if (varMode != 0) { pCore->varMode = varMode; opVal &= 0x1FFFFF; }
 
 OPTYPE_ACTION( LocalByteAction )
 {

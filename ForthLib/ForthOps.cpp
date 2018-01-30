@@ -1689,6 +1689,7 @@ ShowVocab( ForthCoreState   *pCore,
     memset( spaces, ' ', ENTRY_COLUMNS );
     spaces[ENTRY_COLUMNS] = '\0';
 
+    bool bDoPauses = true;
     for ( i = 0; i < nEntries; i++ )
     {
         bool lastEntry = (i == (nEntries-1));
@@ -1727,11 +1728,11 @@ ShowVocab( ForthCoreState   *pCore,
             pVocab->PrintEntry( pEntry );
             CONSOLE_CHAR_OUT( '\n' );
             pEntry = pVocab->NextEntry( pEntry );
-            if ( ((i % 22) == 21) || lastEntry )
+            if ( (bDoPauses && ((i % 22) == 21)) || lastEntry )
             {
                 if ( (pShell != NULL) && pShell->GetInput()->InputStream()->IsInteractive() )
                 {
-                    CONSOLE_STRING_OUT( "\nHit ENTER to continue, 'q' & ENTER to quit, 'n' & ENTER to do next vocabulary\n" );
+                    CONSOLE_STRING_OUT( "\nHit ENTER to continue, 'q' & ENTER to quit, 'n' & ENTER to do next vocabulary, 'z' to stop pausing\n" );
                     retVal = tolower( pShell->GetChar() );
                     if ( retVal == 'q' )
                     {
@@ -1742,6 +1743,10 @@ ShowVocab( ForthCoreState   *pCore,
                     {
                         pShell->GetChar();
                         break;
+                    }
+                    else if (retVal == 'z')
+                    {
+                        bDoPauses = false;
                     }
                 }
             }
@@ -8859,7 +8864,7 @@ OPREF(dmixBlockBop);
 baseDictionaryCompiledEntry baseCompiledDictionary[] =
 {
 	//NATIVE_COMPILED_DEF(    abortBop,                "abort",			OP_ABORT ),
-	OP_COMPILED_DEF(    abortOp,                "abort",			OP_ABORT ),
+	OP_COMPILED_DEF(    abortOp,                     "abort",			OP_ABORT ),
     NATIVE_COMPILED_DEF(    dropBop,                 "drop",			OP_DROP ),
     NATIVE_COMPILED_DEF(    doDoesBop,               "_doDoes",			OP_DO_DOES ),
     NATIVE_COMPILED_DEF(    litBop,                  "lit",				OP_INT_VAL ),
@@ -8908,14 +8913,15 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     NATIVE_COMPILED_DEF(    doDoBop,                 "_do",				OP_DO_DO ),				// 52
     NATIVE_COMPILED_DEF(    doLoopBop,               "_loop",			OP_DO_LOOP ),
     NATIVE_COMPILED_DEF(    doLoopNBop,              "_+loop",			OP_DO_LOOPN ),
-    //NATIVE_COMPILED_DEF(    ofetchBop,               "o@",				OP_OFETCH ),				// 56
-    NATIVE_COMPILED_DEF(    dfetchBop,               "2@",				OP_OFETCH ),				// 56
     // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
+    NATIVE_COMPILED_DEF(    fetchBop,                "fetch",			OP_FETCH ),				// 56
     NATIVE_COMPILED_DEF(    refBop,                  "ref",				OP_REF ),
 	NATIVE_COMPILED_DEF(    intoBop,                 "->",				OP_INTO ),				// 59
     NATIVE_COMPILED_DEF(    addToBop,                "->+",				OP_INTO_PLUS ),
     NATIVE_COMPILED_DEF(    subtractFromBop,         "->-",				OP_INTO_MINUS ),
     NATIVE_COMPILED_DEF(    oclearBop,               "oclear",          OP_OCLEAR ),
+    //NATIVE_COMPILED_DEF(    ofetchBop,               "o@",				OP_OFETCH ),
+    NATIVE_COMPILED_DEF(    dfetchBop,               "2@",				OP_OFETCH ),
 	NATIVE_COMPILED_DEF(    doCheckDoBop,            "_?do",			OP_DO_CHECKDO ),
 
 	OP_COMPILED_DEF(		doVocabOp,              "_doVocab",			OP_DO_VOCAB ),
@@ -9008,40 +9014,6 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    fcmpBop,                 "fcmp" ),
 
     ///////////////////////////////////////////
-    //  single-precision fp functions
-    ///////////////////////////////////////////
-    NATIVE_DEF(    fsinBop,                 "fsin" ),
-    NATIVE_DEF(    fasinBop,                "fasin" ),
-    NATIVE_DEF(    fcosBop,                 "fcos" ),
-    NATIVE_DEF(    facosBop,                "facos" ),
-    NATIVE_DEF(    ftanBop,                 "ftan" ),
-    NATIVE_DEF(    fatanBop,                "fatan" ),
-    NATIVE_DEF(    fatan2Bop,               "fatan2" ),
-    NATIVE_DEF(    fexpBop,                 "fexp" ),
-    NATIVE_DEF(    flnBop,                  "fln" ),
-    NATIVE_DEF(    flog10Bop,               "flog10" ),
-    NATIVE_DEF(    fpowBop,                 "fpow" ),
-    NATIVE_DEF(    fsqrtBop,                "fsqrt" ),
-    NATIVE_DEF(    fceilBop,                "fceil" ),
-    NATIVE_DEF(    ffloorBop,               "floor" ),
-    NATIVE_DEF(    fabsBop,                 "fabs" ),
-    NATIVE_DEF(    fldexpBop,               "fldexp" ),
-    NATIVE_DEF(    ffrexpBop,               "ffrexp" ),
-    NATIVE_DEF(    fmodfBop,                "fmodf" ),
-    NATIVE_DEF(    ffmodBop,                "ffmod" ),
-    
-    ///////////////////////////////////////////
-    //  single-precision fp block ops
-    ///////////////////////////////////////////
-    NATIVE_DEF(    faddBlockBop,           "fAddBlock"),
-    NATIVE_DEF(    fsubBlockBop,           "fSubBlock"),
-    NATIVE_DEF(    fmulBlockBop,           "fMulBlock"),
-    NATIVE_DEF(    fdivBlockBop,           "fDivBlock"),
-    NATIVE_DEF(    fscaleBlockBop,         "fScaleBlock"),
-    NATIVE_DEF(    foffsetBlockBop,        "fOffsetBlock"),
-    NATIVE_DEF(    fmixBlockBop,           "fMixBlock"),
-
-    ///////////////////////////////////////////
     //  double-precision fp math
     ///////////////////////////////////////////
     NATIVE_DEF(    dplusBop,                "d+" ),
@@ -9069,40 +9041,6 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dMinBop,                 "dmin" ),
     NATIVE_DEF(    dMaxBop,                 "dmax" ),
     NATIVE_DEF(    dcmpBop,                 "dcmp" ),
-
-    ///////////////////////////////////////////
-    //  double-precision fp functions
-    ///////////////////////////////////////////
-    NATIVE_DEF(    dsinBop,                 "dsin" ),
-    NATIVE_DEF(    dasinBop,                "dasin" ),
-    NATIVE_DEF(    dcosBop,                 "dcos" ),
-    NATIVE_DEF(    dacosBop,                "dacos" ),
-    NATIVE_DEF(    dtanBop,                 "dtan" ),
-    NATIVE_DEF(    datanBop,                "datan" ),
-    NATIVE_DEF(    datan2Bop,               "datan2" ),
-    NATIVE_DEF(    dexpBop,                 "dexp" ),
-    NATIVE_DEF(    dlnBop,                  "dln" ),
-    NATIVE_DEF(    dlog10Bop,               "dlog10" ),
-    NATIVE_DEF(    dpowBop,                 "dpow" ),
-    NATIVE_DEF(    dsqrtBop,                "dsqrt" ),
-    NATIVE_DEF(    dceilBop,                "dceil" ),
-    NATIVE_DEF(    dfloorBop,               "dfloor" ),
-    NATIVE_DEF(    dabsBop,                 "dabs" ),
-    NATIVE_DEF(    dldexpBop,               "dldexp" ),
-    NATIVE_DEF(    dfrexpBop,               "dfrexp" ),
-    NATIVE_DEF(    dmodfBop,                "dmodf" ),
-    NATIVE_DEF(    dfmodBop,                "dfmod" ),
-    
-    ///////////////////////////////////////////
-    //  single-precision fp block ops
-    ///////////////////////////////////////////
-    NATIVE_DEF(    daddBlockBop,           "dAddBlock"),
-    NATIVE_DEF(    dsubBlockBop,           "dSubBlock"),
-    NATIVE_DEF(    dmulBlockBop,           "dMulBlock"),
-    NATIVE_DEF(    ddivBlockBop,           "dDivBlock"),
-    NATIVE_DEF(    dscaleBlockBop,         "dScaleBlock"),
-    NATIVE_DEF(    doffsetBlockBop,        "dOffsetBlock"),
-    NATIVE_DEF(    dmixBlockBop,           "dMixBlock"),
 
     ///////////////////////////////////////////
     //  integer/long/float/double conversion
@@ -9273,6 +9211,74 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    stringVarActionBop,      "stringVarAction" ),
     NATIVE_DEF(    opVarActionBop,          "opVarAction" ),
     NATIVE_DEF(    objectVarActionBop,      "objectVarAction" ),
+
+    ///////////////////////////////////////////
+    //  single-precision fp functions
+    ///////////////////////////////////////////
+    NATIVE_DEF(fsinBop,                 "fsin"),
+    NATIVE_DEF(fasinBop,                "fasin"),
+    NATIVE_DEF(fcosBop,                 "fcos"),
+    NATIVE_DEF(facosBop,                "facos"),
+    NATIVE_DEF(ftanBop,                 "ftan"),
+    NATIVE_DEF(fatanBop,                "fatan"),
+    NATIVE_DEF(fatan2Bop,               "fatan2"),
+    NATIVE_DEF(fexpBop,                 "fexp"),
+    NATIVE_DEF(flnBop,                  "fln"),
+    NATIVE_DEF(flog10Bop,               "flog10"),
+    NATIVE_DEF(fpowBop,                 "fpow"),
+    NATIVE_DEF(fsqrtBop,                "fsqrt"),
+    NATIVE_DEF(fceilBop,                "fceil"),
+    NATIVE_DEF(ffloorBop,               "floor"),
+    NATIVE_DEF(fabsBop,                 "fabs"),
+    NATIVE_DEF(fldexpBop,               "fldexp"),
+    NATIVE_DEF(ffrexpBop,               "ffrexp"),
+    NATIVE_DEF(fmodfBop,                "fmodf"),
+    NATIVE_DEF(ffmodBop,                "ffmod"),
+
+    ///////////////////////////////////////////
+    //  single-precision fp block ops
+    ///////////////////////////////////////////
+    NATIVE_DEF(faddBlockBop,           "fAddBlock"),
+    NATIVE_DEF(fsubBlockBop,           "fSubBlock"),
+    NATIVE_DEF(fmulBlockBop,           "fMulBlock"),
+    NATIVE_DEF(fdivBlockBop,           "fDivBlock"),
+    NATIVE_DEF(fscaleBlockBop,         "fScaleBlock"),
+    NATIVE_DEF(foffsetBlockBop,        "fOffsetBlock"),
+    NATIVE_DEF(fmixBlockBop,           "fMixBlock"),
+
+    ///////////////////////////////////////////
+    //  double-precision fp functions
+    ///////////////////////////////////////////
+    NATIVE_DEF(    dsinBop,                 "dsin" ),
+    NATIVE_DEF(    dasinBop,                "dasin" ),
+    NATIVE_DEF(    dcosBop,                 "dcos" ),
+    NATIVE_DEF(    dacosBop,                "dacos" ),
+    NATIVE_DEF(    dtanBop,                 "dtan" ),
+    NATIVE_DEF(    datanBop,                "datan" ),
+    NATIVE_DEF(    datan2Bop,               "datan2" ),
+    NATIVE_DEF(    dexpBop,                 "dexp" ),
+    NATIVE_DEF(    dlnBop,                  "dln" ),
+    NATIVE_DEF(    dlog10Bop,               "dlog10" ),
+    NATIVE_DEF(    dpowBop,                 "dpow" ),
+    NATIVE_DEF(    dsqrtBop,                "dsqrt" ),
+    NATIVE_DEF(    dceilBop,                "dceil" ),
+    NATIVE_DEF(    dfloorBop,               "dfloor" ),
+    NATIVE_DEF(    dabsBop,                 "dabs" ),
+    NATIVE_DEF(    dldexpBop,               "dldexp" ),
+    NATIVE_DEF(    dfrexpBop,               "dfrexp" ),
+    NATIVE_DEF(    dmodfBop,                "dmodf" ),
+    NATIVE_DEF(    dfmodBop,                "dfmod" ),
+    
+    ///////////////////////////////////////////
+    //  single-precision fp block ops
+    ///////////////////////////////////////////
+    NATIVE_DEF(    daddBlockBop,           "dAddBlock"),
+    NATIVE_DEF(    dsubBlockBop,           "dSubBlock"),
+    NATIVE_DEF(    dmulBlockBop,           "dMulBlock"),
+    NATIVE_DEF(    ddivBlockBop,           "dDivBlock"),
+    NATIVE_DEF(    dscaleBlockBop,         "dScaleBlock"),
+    NATIVE_DEF(    doffsetBlockBop,        "dOffsetBlock"),
+    NATIVE_DEF(    dmixBlockBop,           "dMixBlock"),
 
     ///////////////////////////////////////////
     //  string manipulation

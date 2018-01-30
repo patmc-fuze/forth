@@ -424,7 +424,7 @@ enum {
 	OP_DO_LOOP,
 
 	OP_DO_LOOPN,		// 0x30
-	OP_OFETCH,
+	OP_FETCH,
 	OP_REF,
 	OP_INTO,
 	OP_INTO_PLUS,
@@ -453,6 +453,7 @@ enum {
     OP_DO_FINALLY,
     OP_DO_ENDTRY,
     OP_RAISE,
+    OP_OFETCH,
 
 	NUM_COMPILED_OPS
 };
@@ -490,6 +491,7 @@ typedef struct
 #define TRACE_VOCABULARY
 #define TRACE_STRUCTS
 #define TRACE_ENGINE
+//#define TRACE_COMPILATION
 #endif
 
 enum

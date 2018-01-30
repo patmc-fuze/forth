@@ -1215,6 +1215,7 @@ ForthEngine::AddLocalVar( const char        *pVarName,
         {
             // this is first local var definition, leave space for local alloc op
             CompileLong(0);
+            ClearPeephole();
         }
     }
 
@@ -1521,8 +1522,18 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
             case kOpMemberObject:        case kOpMemberObjectArray:
             case kOpMemberUByte:         case kOpMemberUByteArray:
             case kOpMemberUShort:        case kOpMemberUShortArray:
-                SNPRINTF( pBuffer, buffSize, "%s_%x", opTypeName, opVal );
+            {
+                if ((opVal & 0xE00000) != 0)
+                {
+                    int varOp = opVal >> 21;
+                    SNPRINTF(pBuffer, buffSize, "%s %s_%x", gOpNames[(OP_FETCH - 1) + varOp], opTypeName, (opVal & 0x1FFFFF));
+                }
+                else
+                {
+                    SNPRINTF(pBuffer, buffSize, "%s_%x", opTypeName, opVal);
+                }
                 break;
+            }
 
             case kOpConstantString:
                 SNPRINTF( pBuffer, buffSize, "\"%s\"", (char *)(pOp + 1) );
@@ -2240,6 +2251,14 @@ ForthEngine::CompileOpcode(forthOpType opType, long opVal)
     SPEW_COMPILATION("Compiling 0x%08x @ 0x%08x\n", COMPILED_OP(opType, opVal), mDictionary.pCurrent);
     mpOpcodeCompiler->CompileOpcode(opType, opVal);
 }
+
+#if 0
+void ForthEngine::CompileLong(long v)
+{
+    SPEW_COMPILATION("Compiling 0x%08x @ 0x%08x\n", v, mDictionary.pCurrent);
+    *mDictionary.pCurrent++ = v;
+}
+#endif
 
 // patch an opcode - fill in the branch destination offset
 void ForthEngine::PatchOpcode(forthOpType opType, long opVal, long* pOpcode)

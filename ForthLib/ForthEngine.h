@@ -241,6 +241,7 @@ public:
 
     inline long *           GetDP() { return mDictionary.pCurrent; };
     inline void             SetDP( long *pNewDP ) { mDictionary.pCurrent = pNewDP; };
+    //void                    CompileLong(long v);
     inline void             CompileLong( long v ) { *mDictionary.pCurrent++ = v; };
     inline void             CompileDouble( double v ) { *((double *) mDictionary.pCurrent) = v; mDictionary.pCurrent += 2; };
 	void					CompileOpcode( forthOpType opType, long opVal );

@@ -12,6 +12,19 @@
 #include "ForthEngine.h"
 #include "ForthOpcodeCompiler.h"
 
+// compile enable flags for peephole optimizer features
+enum
+{
+    kCENumVarop       = 1,
+    kCENumOp          = 2,
+    kCEOpBranch       = 4,          // enables both OpZBranch and OpNZBranch
+    kCELocalRefOp     = 8,
+    kCEMemberRefOp    = 16,
+    kCEVaropVar       = 32          // enables all varop local/member/field var combos
+};
+//#define ENABLED_COMBO_OPS  (kCENumVarop | kCENumOp | kCEOpBranch | kCELocalRefOp | kCEMemberRefOp | kCEVaropVar)
+#define ENABLED_COMBO_OPS  (kCEOpBranch | kCEVaropVar)
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -20,7 +33,7 @@
 
 ForthOpcodeCompiler::ForthOpcodeCompiler(ForthMemorySection*	pDictionarySection)
 : mpDictionarySection( pDictionarySection )
-, mbCompileComboOps(true)
+, mCompileComboOpFlags(ENABLED_COMBO_OPS)
 {
 	for ( unsigned int i = 0; i < MAX_PEEPHOLE_PTRS; ++i )
 	{
@@ -57,7 +70,8 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
 	forthOpType previousType;
 	long previousVal;
 	
-	switch( opType )
+    unsigned long uVal = opVal & OPCODE_VALUE_MASK;
+    switch( opType )
 	{
 	case NATIVE_OPTYPE:
 		{
@@ -74,8 +88,8 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
 
 	case kOpBranchZ:
 		{
-			unsigned long uVal = opVal & OPCODE_VALUE_MASK;
-			if (mbCompileComboOps && GetPreviousOpcode( previousType, previousVal )
+			if (((mCompileComboOpFlags & kCEOpBranch) != 0)
+                && GetPreviousOpcode( previousType, previousVal )
                 && (previousType == NATIVE_OPTYPE)
 				&& FITS_IN_BITS(previousVal, 12) && FITS_IN_SIGNED_BITS(uVal, 12) )
 			{
@@ -89,8 +103,8 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
 
     case kOpBranchNZ:
     {
-        unsigned long uVal = opVal & OPCODE_VALUE_MASK;
-        if (mbCompileComboOps && GetPreviousOpcode(previousType, previousVal)
+        if (((mCompileComboOpFlags & kCEOpBranch) != 0)
+            && GetPreviousOpcode(previousType, previousVal)
             && (previousType == NATIVE_OPTYPE)
             && FITS_IN_BITS(previousVal, 12) && FITS_IN_SIGNED_BITS(uVal, 12))
         {
@@ -103,10 +117,31 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
     break;
 
 	default:
-		break;
+        if (((mCompileComboOpFlags & kCEVaropVar) != 0)
+            && GetPreviousOpcode(previousType, previousVal)
+            && (previousType == NATIVE_OPTYPE)
+            && ((opType >= kOpLocalByte) && (opType <= kOpMemberObject))
+            && FITS_IN_BITS(uVal, 21))
+        {
+            ulong previousOp = COMPILED_OP(previousType, previousVal);
+            if ((previousOp >= gCompiledOps[OP_FETCH]) && (previousOp <= gCompiledOps[OP_OCLEAR]))
+            {
+                if (((opType >= kOpLocalByte) && (opType <= kOpLocalObject))
+                    || ((opType >= kOpFieldByte) && (opType <= kOpFieldObject))
+                    || ((opType >= kOpMemberByte) && (opType <= kOpMemberObject)))
+                {
+                    UncompileLastOpcode();
+                    pOpcode--;
+                    ulong varOpBits = (previousOp - (gCompiledOps[OP_FETCH] - 1)) << 21;
+                    op = COMPILED_OP(opType, varOpBits | opVal);
+                    SPEW_COMPILATION("Compiling 0x%08x @ 0x%08x\n", op, pOpcode);
+                }
+            }
+        }
+        break;
 	}
 
-	mPeepholeIndex = (mPeepholeIndex + 1) & (MAX_PEEPHOLE_PTRS - 1);
+	mPeepholeIndex = (mPeepholeIndex + 1) & PEEPHOLE_PTR_MASK;
 	mPeephole[mPeepholeIndex] = pOpcode;
 	*pOpcode++ = op;
 	mpDictionarySection->pCurrent = pOpcode;
@@ -161,8 +196,9 @@ void ForthOpcodeCompiler::UncompileLastOpcode()
 			mpLastIntoOpcode = NULL;
 
 		}
-		mpDictionarySection->pCurrent = mPeephole[mPeepholeIndex];
-		mPeepholeIndex = (mPeepholeIndex - 1) & (MAX_PEEPHOLE_PTRS - 1);
+        SPEW_COMPILATION("Uncompiling: move DP back from 0x%08x to 0x%08x\n", mpDictionarySection->pCurrent, mPeephole[mPeepholeIndex]);
+        mpDictionarySection->pCurrent = mPeephole[mPeepholeIndex];
+		mPeepholeIndex = (mPeepholeIndex - 1) & PEEPHOLE_PTR_MASK;
 		mPeepholeValidCount--;
 	}
 }
@@ -187,11 +223,11 @@ long* ForthOpcodeCompiler::GetLastCompiledIntoPtr( void )
 	return mpLastIntoOpcode;
 }
 
-bool ForthOpcodeCompiler::GetPreviousOpcode( forthOpType& opType, long& opVal )
+bool ForthOpcodeCompiler::GetPreviousOpcode( forthOpType& opType, long& opVal, int index )
 {
-	if ( mPeepholeValidCount > 0 )
+	if ( mPeepholeValidCount > index )
 	{
-		long op = *(mPeephole[mPeepholeIndex]);
+		long op = *(mPeephole[(mPeepholeIndex - index) & PEEPHOLE_PTR_MASK]);
 
 		opType = FORTH_OP_TYPE( op );
 		opVal = FORTH_OP_VALUE( op );

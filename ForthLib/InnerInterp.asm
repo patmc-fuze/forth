@@ -820,9 +820,16 @@ entry memberRefType
 ; local byte ops
 ;
 entry localByteType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz localByteType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+localByteType1:
 	; get ptr to byte var into eax
 	mov	eax, [ebp + FCore.FPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
@@ -838,9 +845,16 @@ localByteFetch:
 	jmp	edi
 
 entry localUByteType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz localUByteType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+localUByteType1:
 	; get ptr to byte var into eax
 	mov	eax, [ebp + FCore.FPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
@@ -919,36 +933,64 @@ localUByteActionTable:
 	DD	localByteMinusStore
 
 entry fieldByteType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz fieldByteType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+fieldByteType1:
 	; get ptr to byte var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
 	add	edx, 4
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	byteEntry
 
 entry fieldUByteType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz fieldUByteType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+fieldUByteType1:
 	; get ptr to byte var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
 	add	edx, 4
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	ubyteEntry
 
 entry memberByteType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz memberByteType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+memberByteType1:
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp + FCore.TDPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	byteEntry
 
 entry memberUByteType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz memberUByteType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+memberUByteType1:
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp + FCore.TDPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	ubyteEntry
 
@@ -1021,9 +1063,16 @@ entry memberUByteArrayType
 ; local short ops
 ;
 entry localShortType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz localShortType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+localShortType1:
 	; get ptr to short var into eax
 	mov	eax, [ebp + FCore.FPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
@@ -1039,9 +1088,16 @@ localShortFetch:
 	jmp	edi
 
 entry localUShortType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz localUShortType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+localUShortType1:
 	; get ptr to short var into eax
 	mov	eax, [ebp + FCore.FPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
@@ -1118,36 +1174,64 @@ localUShortActionTable:
 	DD	localShortMinusStore
 
 entry fieldShortType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz fieldShortType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+fieldShortType1:
 	; get ptr to short var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
 	add	edx, 4
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	shortEntry
 
 entry fieldUShortType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz fieldUShortType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+fieldUShortType1:
 	; get ptr to unsigned short var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
 	add	edx, 4
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	ushortEntry
 
 entry memberShortType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz memberShortType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+memberShortType1:
 	; get ptr to short var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp + FCore.TDPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	shortEntry
 
 entry memberUShortType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz memberUShortType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+memberUShortType1:
 	; get ptr to unsigned short var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp + FCore.TDPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	ushortEntry
 
@@ -1229,9 +1313,16 @@ entry memberUShortArrayType
 ; local int ops
 ;
 entry localIntType
-	; get ptr to int var into eax
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz localIntType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+localIntType1:
+	; get ptr to float var into eax
 	mov	eax, [ebp + FCore.FPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
@@ -1301,17 +1392,31 @@ localInt1:
 entry fieldIntType
 	; get ptr to int var into eax
 	; TOS is base ptr, ebx is field offset in bytes
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz fieldIntType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+fieldIntType1:
 	mov	eax, [edx]
 	add	edx, 4
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	intEntry
 
 entry memberIntType
 	; get ptr to int var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz memberIntType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+memberIntType1:
 	mov	eax, [ebp + FCore.TDPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	intEntry
 
@@ -1354,9 +1459,16 @@ entry memberIntArrayType
 ; local float ops
 ;
 entry localFloatType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz localFloatType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+localFloatType1:
 	; get ptr to float var into eax
 	mov	eax, [ebp + FCore.FPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
@@ -1424,19 +1536,33 @@ localFloat1:
 	jmp	ebx
 
 entry fieldFloatType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz fieldFloatType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+fieldFloatType1:
 	; get ptr to float var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
 	add	edx, 4
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	floatEntry
 
 entry memberFloatType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz memberFloatType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+memberFloatType1:
 	; get ptr to float var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp + FCore.TDPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	floatEntry
 
@@ -1479,9 +1605,16 @@ entry memberFloatArrayType
 ; local double ops
 ;
 entry localDoubleType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz localDoubleType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+localDoubleType1:
 	; get ptr to double var into eax
 	mov	eax, [ebp + FCore.FPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
@@ -1553,19 +1686,33 @@ localDouble1:
 	jmp	ebx
 
 entry fieldDoubleType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz fieldDoubleType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+fieldDoubleType1:
 	; get ptr to double var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
 	add	edx, 4
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	doubleEntry
 
 entry memberDoubleType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz memberDoubleType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+memberDoubleType1:
 	; get ptr to double var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp + FCore.TDPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	doubleEntry
 
@@ -1611,9 +1758,16 @@ entry memberDoubleArrayType
 ;
 GLOBAL localStringType, stringEntry, localStringFetch, localStringStore, localStringAppend
 entry localStringType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz localStringType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+localStringType1:
 	; get ptr to string var into eax
 	mov	eax, [ebp + FCore.FPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
@@ -1743,19 +1897,33 @@ localStringActionTable:
 	DD	localStringAppend
 
 entry fieldStringType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz fieldStringType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+fieldStringType1:
 	; get ptr to byte var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
 	add	edx, 4
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	stringEntry
 
 entry memberStringType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz memberStringType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+memberStringType1:
 	; get ptr to byte var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp + FCore.TDPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	stringEntry
 
@@ -1809,9 +1977,16 @@ entry memberStringArrayType
 ; local op ops
 ;
 entry localOpType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz localOpType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+localOpType1:
 	; get ptr to op var into ebx
 	mov	eax, [ebp + FCore.FPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch (execute for ops)
@@ -1848,19 +2023,33 @@ localOp1:
 	jmp	ebx
 
 entry fieldOpType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz fieldOpType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+fieldOpType1:
 	; get ptr to op var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
 	add	edx, 4
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	opEntry
 
 entry memberOpType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz memberOpType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+memberOpType1:
 	; get ptr to op var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp + FCore.TDPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	opEntry
 
@@ -1903,9 +2092,16 @@ entry memberOpArrayType
 ; local long (int64) ops
 ;
 entry localLongType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz localLongType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+localLongType1:
 	; get ptr to long var into eax
 	mov	eax, [ebp + FCore.FPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
@@ -1983,19 +2179,33 @@ localLongActionTable:
 	DD	localLongMinusStore
 
 entry fieldLongType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz fieldLongType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+fieldLongType1:
 	; get ptr to double var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
 	add	edx, 4
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	longEntry
 
 entry memberLongType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz memberLongType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+memberLongType1:
 	; get ptr to double var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp + FCore.TDPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	longEntry
 
@@ -2040,9 +2250,16 @@ entry memberLongArrayType
 ; local object ops
 ;
 entry localObjectType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz localObjectType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+localObjectType1:
 	; get ptr to Object var into eax
 	mov	eax, [ebp + FCore.FPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	sal	ebx, 2
 	sub	eax, ebx
 	; see if it is a fetch
@@ -2206,19 +2423,33 @@ localObjectActionTable:
 	DD	localObjectClear
 
 entry fieldObjectType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz fieldObjectType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+fieldObjectType1:
 	; get ptr to Object var into eax
 	; TOS is base ptr, ebx is field offset in bytes
 	mov	eax, [edx]
 	add	edx, 4
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	objectEntry
 
 entry memberObjectType
+	mov	eax, ebx
+	; see if a varop is specified
+	and	eax, 00E00000h
+	jz memberObjectType1
+	shr	eax, 21
+	mov	[ebp + FCore.varMode], eax
+memberObjectType1:
 	; get ptr to Object var into eax
 	; this data ptr is base ptr, ebx is field offset in bytes
 	mov	eax, [ebp + FCore.TDPtr]
-	and	ebx, 00FFFFFFh
+	and	ebx, 001FFFFFh
 	add	eax, ebx
 	jmp	objectEntry
 
