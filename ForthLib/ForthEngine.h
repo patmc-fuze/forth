@@ -241,9 +241,13 @@ public:
 
     inline long *           GetDP() { return mDictionary.pCurrent; };
     inline void             SetDP( long *pNewDP ) { mDictionary.pCurrent = pNewDP; };
-    //void                    CompileLong(long v);
-    inline void             CompileLong( long v ) { *mDictionary.pCurrent++ = v; };
-    inline void             CompileDouble( double v ) { *((double *) mDictionary.pCurrent) = v; mDictionary.pCurrent += 2; };
+#if defined(DEBUG)
+    void                    CompileLong(long v);
+    void                    CompileDouble(double v);
+#else
+    inline void             CompileLong(long v) { *mDictionary.pCurrent++ = v; };
+    inline void             CompileDouble(double v) { *((double *)mDictionary.pCurrent) = v; mDictionary.pCurrent += 2; };
+#endif
 	void					CompileOpcode( forthOpType opType, long opVal );
     void			        PatchOpcode(forthOpType opType, long opVal, long* pOpcode);
     void                    ClearPeephole();

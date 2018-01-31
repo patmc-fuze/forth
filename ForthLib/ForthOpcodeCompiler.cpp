@@ -18,12 +18,11 @@ enum
     kCENumVarop       = 1,
     kCENumOp          = 2,
     kCEOpBranch       = 4,          // enables both OpZBranch and OpNZBranch
-    kCELocalRefOp     = 8,
-    kCEMemberRefOp    = 16,
-    kCEVaropVar       = 32          // enables all varop local/member/field var combos
+    kCERefOp          = 8,          // enables localRefOp and memberRefOp combos
+    kCEVaropVar       = 16          // enables all varop local/member/field var combos
 };
-//#define ENABLED_COMBO_OPS  (kCENumVarop | kCENumOp | kCEOpBranch | kCELocalRefOp | kCEMemberRefOp | kCEVaropVar)
-#define ENABLED_COMBO_OPS  (kCEOpBranch | kCEVaropVar)
+//#define ENABLED_COMBO_OPS  (kCENumVarop | kCENumOp | kCEOpBranch | kCERefOp | kCEVaropVar)
+#define ENABLED_COMBO_OPS  (kCEOpBranch | kCEVaropVar | kCERefOp)
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -80,9 +79,25 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
 			   // we need this to support initialization of local string vars (ugh)
 			   mpLastIntoOpcode = pOpcode;
 			}
-			else
+
+			if (((mCompileComboOpFlags & kCERefOp) != 0)
+                && GetPreviousOpcode(previousType, previousVal)
+                && (previousType == kOpMemberRef) || (previousType == kOpLocalRef)
+				&& FITS_IN_BITS(previousVal, 12) && FITS_IN_BITS(uVal, 12) )
 			{
-			}
+                // LOCALREF OP combo - bits 0:11 are frame offset, bits 12:23 are opcode
+                // MEMBERREF OP combo - bits 0:11 are member offset, bits 12:23 are opcode
+                UncompileLastOpcode();
+                pOpcode--;
+                if (previousType == kOpMemberRef)
+                {
+                    op = COMPILED_OP(kOpMemberRefOpCombo, previousVal | (uVal << 12));
+                }
+                else
+                {
+                    op = COMPILED_OP(kOpLocalRefOpCombo, previousVal | (uVal << 12));
+                }
+            }
 		}
 		break;
 
@@ -126,14 +141,22 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
             ulong previousOp = COMPILED_OP(previousType, previousVal);
             if ((previousOp >= gCompiledOps[OP_FETCH]) && (previousOp <= gCompiledOps[OP_OCLEAR]))
             {
-                if (((opType >= kOpLocalByte) && (opType <= kOpLocalObject))
-                    || ((opType >= kOpFieldByte) && (opType <= kOpFieldObject))
-                    || ((opType >= kOpMemberByte) && (opType <= kOpMemberObject)))
+                bool isLocal = (opType >= kOpLocalByte) && (opType <= kOpLocalObject);
+                bool isField = (opType >= kOpFieldByte) && (opType <= kOpFieldObject);
+                bool isMember = (opType >= kOpMemberByte) && (opType <= kOpMemberObject);
+                if (isLocal || isField || isMember)
                 {
                     UncompileLastOpcode();
                     pOpcode--;
-                    ulong varOpBits = (previousOp - (gCompiledOps[OP_FETCH] - 1)) << 21;
-                    op = COMPILED_OP(opType, varOpBits | opVal);
+                    if ((previousOp == gCompiledOps[OP_REF]) && (isLocal || isMember))
+                    {
+                        op = COMPILED_OP(isLocal ? kOpLocalRef : kOpMemberRef, opVal);
+                    }
+                    else
+                    {
+                        ulong varOpBits = (previousOp - (gCompiledOps[OP_FETCH] - 1)) << 21;
+                        op = COMPILED_OP(opType, varOpBits | opVal);
+                    }
                     SPEW_COMPILATION("Compiling 0x%08x @ 0x%08x\n", op, pOpcode);
                 }
             }

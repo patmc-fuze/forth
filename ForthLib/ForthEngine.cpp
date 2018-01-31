@@ -1577,11 +1577,21 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 {
                     branchOffset |= 0xFFFFF000;
                 }
-                SNPRINTF(pBuffer, buffSize, "%s:   %s   %s 0x%08x", opTypeName,
+                SNPRINTF(pBuffer, buffSize, "%s   %s   %s 0x%08x", opTypeName,
                     gOpNames[embeddedOp], pBranchType, branchOffset + 1 + pOp);
                 break;
             }
 
+            case kOpLocalRefOpCombo:  case kOpMemberRefOpCombo:
+            {
+                const char* pVarType = (opType == kOpLocalRefOpCombo) ? "Local" : "Member";
+                long varOffset = opVal & 0xFFF;
+                long embeddedOp = opVal >> 12;
+                SNPRINTF(pBuffer, buffSize, "%s   &%s_%x   %s", opTypeName,
+                    pVarType, varOffset, gOpNames[embeddedOp]);
+                break;
+            }
+            
             case kOpLocalStringInit:    // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
             case kOpMemberStringInit:   // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
                 SNPRINTF( pBuffer, buffSize, "%s    maxBytes %d offset %d", opTypeName, opVal & 0xFFF, opVal >> 12 );
@@ -2252,11 +2262,17 @@ ForthEngine::CompileOpcode(forthOpType opType, long opVal)
     mpOpcodeCompiler->CompileOpcode(opType, opVal);
 }
 
-#if 0
+#if defined(DEBUG)
 void ForthEngine::CompileLong(long v)
 {
     SPEW_COMPILATION("Compiling 0x%08x @ 0x%08x\n", v, mDictionary.pCurrent);
     *mDictionary.pCurrent++ = v;
+}
+
+void ForthEngine::CompileDouble(double v)
+{
+    SPEW_COMPILATION("Compiling double %g @ 0x%08x\n", v, mDictionary.pCurrent);
+    *((double *)mDictionary.pCurrent) = v; mDictionary.pCurrent += 2;
 }
 #endif
 
