@@ -6493,7 +6493,7 @@ lroComboType:
 
 	lsr	r1, #12
 	ldr	r0, =0x0FFF
-	and	r0, r2				@ opcode is in r0
+	and	r0, r1				@ opcode is in r0
 	ldr	r1, [rcore, #inner_execute]
 	bx	r1
 	
@@ -6509,7 +6509,7 @@ mroComboType:
 
 	lsr	r1, #12
 	ldr	r0, =0x0FFF
-	and	r0, r2				@ opcode is in r0
+	and	r0, r1				@ opcode is in r0
 	ldr	r1, [rcore, #inner_execute]
 	bx	r1
 
