@@ -137,7 +137,7 @@ static const char *opTypeNames[] =
 	"FieldOpArray", "FieldObjectArray", "MemberByte", "MemberUByte", "MemberShort", "MemberUShort", "MemberInt", "MemberUInt", "MemberLong", "MemberULong",
 	"MemberFloat", "MemberDouble", "MemberString", "MemberOp", "MemberObject", "MemberByteArray", "MemberUByteArray", "MemberShortArray", "MemberUShortArray", "MemberIntArray",
 	"MemberUIntArray", "MemberLongArray", "MemberULongArray", "MemberFloatArray", "MemberDoubleArray", "MemberStringArray", "MemberOpArray", "MemberObjectArray", "MethodWithThis", "MethodWithTOS",
-	"MemberStringInit", "NumVaropOpCombo", "NumVaropCombo", "NumOpCombo", "VaropOpCombo", "OpBranchFalseCombo", "OpBranchCombo", "SquishedFloat", "SquishedDouble", "SquishedLong",
+	"MemberStringInit", "NumVaropOpCombo", "NumVaropCombo", "NumOpCombo", "VaropOpCombo", "OpBranchFalseCombo", "OpBranchTrueCombo", "SquishedFloat", "SquishedDouble", "SquishedLong",
 	"LocalRefOpCombo", "MemberRefOpCombo", "MethodWithSuper", "LocalUserDefined"
 };
 
@@ -1215,6 +1215,7 @@ ForthEngine::AddLocalVar( const char        *pVarName,
         {
             // this is first local var definition, leave space for local alloc op
             CompileLong(0);
+            ClearPeephole();
         }
     }
 
@@ -1416,10 +1417,10 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
     }
     else
     {
+        const char *opTypeName = opTypeNames[opType];
 
         switch( opType )
         {
-
             case kOpNative:
             case kOpNativeImmediate:
             case kOpCCode:
@@ -1451,7 +1452,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 else
                 {
                     // op we don't have name pointer for
-                    SNPRINTF( pBuffer, buffSize, "%s(%d)", opTypeNames[opType], opVal );
+                    SNPRINTF( pBuffer, buffSize, "%s(%d)", opTypeName, opVal );
                 }
                 break;
             
@@ -1495,7 +1496,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 }
                 else
                 {
-                    SNPRINTF( pBuffer, buffSize, "%s", opTypeNames[opType] );
+                    SNPRINTF( pBuffer, buffSize, "%s", opTypeName );
                 }
                 break;
 
@@ -1521,8 +1522,18 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
             case kOpMemberObject:        case kOpMemberObjectArray:
             case kOpMemberUByte:         case kOpMemberUByteArray:
             case kOpMemberUShort:        case kOpMemberUShortArray:
-                SNPRINTF( pBuffer, buffSize, "%s_%x", opTypeNames[opType], opVal );
+            {
+                if ((opVal & 0xE00000) != 0)
+                {
+                    int varOp = opVal >> 21;
+                    SNPRINTF(pBuffer, buffSize, "%s %s_%x", gOpNames[(OP_FETCH - 1) + varOp], opTypeName, (opVal & 0x1FFFFF));
+                }
+                else
+                {
+                    SNPRINTF(pBuffer, buffSize, "%s_%x", opTypeName, opVal);
+                }
                 break;
+            }
 
             case kOpConstantString:
                 SNPRINTF( pBuffer, buffSize, "\"%s\"", (char *)(pOp + 1) );
@@ -1533,18 +1544,18 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 {
                     opVal |= 0xFF000000;
                 }
-                SNPRINTF( pBuffer, buffSize, "%s    %d", opTypeNames[opType], opVal );
+                SNPRINTF( pBuffer, buffSize, "%s    %d", opTypeName, opVal );
                 break;
 
             case kOpOffset:
                 if ( opVal & 0x800000 )
                 {
                     opVal |= 0xFF000000;
-                    SNPRINTF( pBuffer, buffSize, "%s    %d", opTypeNames[opType], opVal );
+                    SNPRINTF( pBuffer, buffSize, "%s    %d", opTypeName, opVal );
                 }
                 else
                 {
-                    SNPRINTF( pBuffer, buffSize, "%s    +%d", opTypeNames[opType], opVal );
+                    SNPRINTF( pBuffer, buffSize, "%s    +%d", opTypeName, opVal );
                 }
                 break;
 
@@ -1554,42 +1565,66 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 {
                     opVal |= 0xFF000000;
                 }
-                SNPRINTF( pBuffer, buffSize, "%s    0x%08x", opTypeNames[opType], opVal + 1 + pOp );
+                SNPRINTF( pBuffer, buffSize, "%s    0x%08x", opTypeName, opVal + 1 + pOp );
                 break;
 
+            case kOpOZBCombo:  case kOpONZBCombo:
+            {
+                const char* pBranchType = (opType == kOpOZBCombo) ? "BranchFalse" : "BranchTrue";
+                long embeddedOp = opVal & 0xFFF;
+                long branchOffset = opVal >> 12;
+                if (opVal & 0x800000)
+                {
+                    branchOffset |= 0xFFFFF000;
+                }
+                SNPRINTF(pBuffer, buffSize, "%s   %s   %s 0x%08x", opTypeName,
+                    gOpNames[embeddedOp], pBranchType, branchOffset + 1 + pOp);
+                break;
+            }
+
+            case kOpLocalRefOpCombo:  case kOpMemberRefOpCombo:
+            {
+                const char* pVarType = (opType == kOpLocalRefOpCombo) ? "Local" : "Member";
+                long varOffset = opVal & 0xFFF;
+                long embeddedOp = opVal >> 12;
+                SNPRINTF(pBuffer, buffSize, "%s   &%s_%x   %s", opTypeName,
+                    pVarType, varOffset, gOpNames[embeddedOp]);
+                break;
+            }
+            
             case kOpLocalStringInit:    // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
             case kOpMemberStringInit:   // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
-                SNPRINTF( pBuffer, buffSize, "%s    maxBytes %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
+                SNPRINTF( pBuffer, buffSize, "%s    maxBytes %d offset %d", opTypeName, opVal & 0xFFF, opVal >> 12 );
                 break;
             
             case kOpLocalStructArray:   // bits 0..11 are padded struct size in bytes, bits 12..23 are frame offset in longs
-                SNPRINTF( pBuffer, buffSize, "%s    elementSize %d offset %d", opTypeNames[opType], opVal & 0xFFF, opVal >> 12 );
+                SNPRINTF( pBuffer, buffSize, "%s    elementSize %d offset %d", opTypeName, opVal & 0xFFF, opVal >> 12 );
                 break;
             
             case kOpAllocLocals:
-                SNPRINTF( pBuffer, buffSize, "%s    longs %d", opTypeNames[opType], opVal );
+                SNPRINTF( pBuffer, buffSize, "%s    longs %d", opTypeName, opVal );
                 break;
             
             case kOpArrayOffset:
-                SNPRINTF( pBuffer, buffSize, "%s    elementSize %d", opTypeNames[opType], opVal );
+                SNPRINTF( pBuffer, buffSize, "%s    elementSize %d", opTypeName, opVal );
                 break;
             
             case kOpMethodWithThis:
             case kOpMethodWithTOS:
             case kOpMethodWithSuper:
-                SNPRINTF( pBuffer, buffSize, "%s    %d", opTypeNames[opType], opVal );
+                SNPRINTF( pBuffer, buffSize, "%s    %d", opTypeName, opVal );
                 break;
 
             case kOpSquishedFloat:
-				SNPRINTF( pBuffer, buffSize, "%s %f", opTypeNames[opType], UnsquishFloat( opVal ) );
+				SNPRINTF( pBuffer, buffSize, "%s %f", opTypeName, UnsquishFloat( opVal ) );
 				break;
 
             case kOpSquishedDouble:
-				SNPRINTF( pBuffer, buffSize, "%s %g", opTypeNames[opType], UnsquishDouble( opVal ) );
+				SNPRINTF( pBuffer, buffSize, "%s %g", opTypeName, UnsquishDouble( opVal ) );
 				break;
 
             case kOpSquishedLong:
-				SNPRINTF( pBuffer, buffSize, "%s %lld", opTypeNames[opType], UnsquishLong( opVal ) );
+				SNPRINTF( pBuffer, buffSize, "%s %lld", opTypeName, UnsquishLong( opVal ) );
 				break;
 
             default:
@@ -1599,7 +1634,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 }
                 else
                 {
-                    SNPRINTF( pBuffer, buffSize, "%s", opTypeNames[opType] );
+                    SNPRINTF( pBuffer, buffSize, "%s", opTypeName );
                 }
                 break;
         }
@@ -2221,10 +2256,36 @@ ForthEngine::UnsquishLong( ulong squishedLong )
 // remember the last opcode compiled so someday we can do optimizations
 //   like combining "->" followed by a local var name into one opcode
 void
-ForthEngine::CompileOpcode( forthOpType opType, long opVal )
+ForthEngine::CompileOpcode(forthOpType opType, long opVal)
 {
-	SPEW_COMPILATION("Compiling 0x%08x @ 0x%08x\n", COMPILED_OP(opType, opVal), mDictionary.pCurrent);
-	mpOpcodeCompiler->CompileOpcode( opType, opVal );
+    SPEW_COMPILATION("Compiling 0x%08x @ 0x%08x\n", COMPILED_OP(opType, opVal), mDictionary.pCurrent);
+    mpOpcodeCompiler->CompileOpcode(opType, opVal);
+}
+
+#if defined(DEBUG)
+void ForthEngine::CompileLong(long v)
+{
+    SPEW_COMPILATION("Compiling 0x%08x @ 0x%08x\n", v, mDictionary.pCurrent);
+    *mDictionary.pCurrent++ = v;
+}
+
+void ForthEngine::CompileDouble(double v)
+{
+    SPEW_COMPILATION("Compiling double %g @ 0x%08x\n", v, mDictionary.pCurrent);
+    *((double *)mDictionary.pCurrent) = v; mDictionary.pCurrent += 2;
+}
+#endif
+
+// patch an opcode - fill in the branch destination offset
+void ForthEngine::PatchOpcode(forthOpType opType, long opVal, long* pOpcode)
+{
+    SPEW_COMPILATION("Patching 0x%08x @ 0x%08x\n", COMPILED_OP(opType, opVal), pOpcode);
+    mpOpcodeCompiler->PatchOpcode(opType, opVal, pOpcode);
+}
+
+void ForthEngine::ClearPeephole()
+{
+    mpOpcodeCompiler->ClearPeephole();
 }
 
 void

@@ -174,6 +174,106 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 30 2018
+
+I added the compilation of localRefOp and memberRefOp combos today.  It is
+tested on Windows, OSX and ARM.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 29 2018
+
+The compilation of the varop as part of local var opcodes breaks many things.
+In particular local vars with initializers are broken:
+o initializer for the first local var will have an allocLocals between -> and local
+  var opcode
+o initializer for local string variables can have both an allocLocals and a localStringInit
+  opcode compiled between the -> and the local var opcode
+
+I put in code that uncompiled the ->, then compiled the allocLocals, then recompiled
+the -> and the local var opcode, I should remove that, it isn't worth the complexity
+and brittleness.
+-> I removed it
+
+End of the day: test.txt works in assembler version and C++ version.
+The C++ version already had this in it from the beginning, the only difference
+is that it used 4 bits for the varop.
+What is strange and worrisome is that the C++ version no longer has the crash on
+exit after running test.txt.
+
+There is a compiled OP_OFETCH, which I guess is compiled if you define a pointer
+to object field or member, currently it is defined to use the 2@ op, which must
+be wrong, since that will swap the two words.  I don't think it has ever been used.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 28 2018
+
+I should scrap the numVaropOp and VaropOp combos - they make no sense.
+I also never wrote down what I was going to do with the localRefOp and memberRefOp
+combos, maybe they were to be used with the @@++ and @!++ ops.
+
+More useful combo ops would be ones that combined a number, varop and a local
+member int variable.  The varop would be either -> or ->+.
+
+Or maybe just take the local and member variable optypes and have all include
+a varop override, varop 0 wouldn't override the varop variable, it would be
+ignored.
+I did this in the windows assembler version, and it didn't break anything.
+I did this for all the native types, excluding the array variations.
+I still need to do the compilation side to actually activate this, plus I need
+to do the C++ version and the ARM assembler version.
+
+I should look at the case of the first local variable including an initializer,
+IE "5 -> int foo", which winds up having an allocVars opcode stuck between the ->
+and the local variable op and make sure that works.
+
+I shold take a look at 2@@++ - the name implies it is for longs, but the C++
+version of the code shows it using doubles.  I should probably create a
+set of ones for doubles.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 27 2018
+
+I decided to dust off the peephole compiler and combo ops idea.
+There was already ifdefed code to compile the branch/zbranch combo ops, so I
+reenabled that, and it caused a crash in test.txt.  I made a simplified test to
+check out just branch/zbranch combo ops, but it turns out those don't get
+compiled most of the time, because I had forgot that most branch instructions
+don't go through CompileOpcode, they are patched into code when the destination
+for the branches are known, like else or endif compiles the branch for if.
+
+I could make the conditional compiling ops use CompileOpcode, then the ops
+which fill in the branch destinations would need to use a new method which
+would look at the already compiled instruction and just change the branch
+part of it.  Previously an abort instruction was used as the filler op for
+branches which hadn't been patched yet, this would lose that, but that isn't
+as important now since there is better code for catching bad syntax earlier.
+
+One problem is that this would put a limit on the length of conditional branches
+of only +- 2048 longs, since I would be choosing to use op-zbranch combo before
+I knew the destination of the branch.  I could change the op-zbranch opcode to
+use 16 bits for the branch and only 8 for the opcode, since the native comparison
+opcodes are all less than 256, that would give +- 32K for the branch range which
+would be fine.
+
+I should also replace the op-branch combo with a op-nzbranch combo, since nzbranch
+is used by andif/orif.
+
+At the end of the day, it is mostly working, at least in the no-asm version.
+I ran into problems like these:
+1) an opcode that was the last one in an else branch was combined into a
+   branch for an immediately following 'until'.
+2) an opcode that was compiled be a user def using 'lit' was combined into a
+   following 'if'.
+
+I added ForthEngine::ClearPeephole, which must be called at the end of any control
+structure definition, and after ops which move the DP.
+
+test.txt runs all the way through with no errors, but there is a heap corruption
+exception on exit in the ForthThread destructor for the main forth thread.
+It happens when it tries to delete the parameter stack.
+The asm inner interpreter version does not have the heap corruption exception.
+
+ForthOpcodeCompiler::mbCompileComboOps can be used to turn combo ops on/off.
+
+The ARM version will need to be updated to add the op-NZBranch optype.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 January 21 2018
 
 I've started adding a Socket builtin class.

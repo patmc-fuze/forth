@@ -576,9 +576,10 @@ ForthTypesManager::ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exi
     int nLongs = pDst - &(mCode[0]);
     if ( nLongs )
     {
-        pDst = pEngine->GetDP();
-        pEngine->AllotLongs( nLongs );
-        memcpy( pDst, &(mCode[0]), (nLongs << 2) );
+        for (int i = 0; i < nLongs; ++i)
+        {
+            pEngine->CompileOpcode(mCode[i]);
+        }
     }
     return true;
 }
@@ -725,12 +726,12 @@ ForthStructVocabulary::DefineInstance( void )
         else
         {
             pHere = (char *) (mpEngine->GetDP());
+            bool bCompileInstanceOp = mpEngine->GetLastCompiledIntoPtr() == (((long *)pHere) - 1);
             mpEngine->AddLocalVar( pToken, typeCode, nBytes );
             if ( isPtr )
             {
                 // handle "-> ptrTo STRUCT_TYPE pWoof"
-                long* pLastIntoOp = mpEngine->GetLastCompiledIntoPtr();
-                if ( pLastIntoOp == (((long *) pHere) - 1) )
+                if (bCompileInstanceOp)
                 {
                     // local var definition was preceeded by "->", so compile the op for this local var
                     //  so it will be initialized
@@ -1445,9 +1446,9 @@ ForthClassVocabulary::DefineInstance(const char* pInstanceName, const char* pCon
         else
         {
             pHere = mpEngine->GetDP();
+            bool bCompileInstanceOp = mpEngine->GetLastCompiledIntoPtr() == (((long *)pHere) - 1);
             mpEngine->AddLocalVar( pInstanceName, typeCode, nBytes );
-            long* pLastIntoOp = mpEngine->GetLastCompiledIntoPtr();
-            if ( pLastIntoOp == (((long *) pHere) - 1) )
+            if (bCompileInstanceOp)
             {
                 // local var definition was preceeded by "->", so compile the op for this local var
                 //  so it will be initialized
@@ -2100,14 +2101,14 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             else
             {
                 pHere = (char *) (pEngine->GetDP());
-                pEngine->AddLocalVar( pToken, typeCode, nBytes );
-                long* pLastIntoOp = pEngine->GetLastCompiledIntoPtr();
-                if ( pLastIntoOp == (((long *) pHere) - 1) )
+                bool bCompileInstanceOp = pEngine->GetLastCompiledIntoPtr() == (((long *)pHere) - 1);
+                pEngine->AddLocalVar(pToken, typeCode, nBytes);
+                if (bCompileInstanceOp)
                 {
                     // local var definition was preceeded by "->", so compile the op for this local var
                     //  so it will be initialized
                     long *pEntry = pVocab->GetNewestEntry();
-                    pEngine->CompileOpcode( pEntry[0] );
+                    pEngine->CompileOpcode(pEntry[0]);
                 }
             }
         }
@@ -2199,13 +2200,14 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             {
                 // define local string variable
                 pHere = (char *) (pEngine->GetDP());
+                bool bCompileInstanceOp = pEngine->GetLastCompiledIntoPtr() == (((long *)pHere) - 1);
                 varOffset = pEngine->AddLocalVar( pToken, typeCode, storageLen );
                 // compile initLocalString op
                 varOffset = (varOffset << 12) | len;
                 // NOTE: do not use CompileOpcode here - it would screw up the OP_INTO check just below
                 pEngine->CompileOpcode( kOpLocalStringInit, varOffset );
                 long* pLastIntoOp = pEngine->GetLastCompiledIntoPtr();
-                if ( pLastIntoOp == (((long *) pHere) - 1) )
+                if (bCompileInstanceOp)
                 {
                     // local var definition was preceeded by "->", so compile the op for this local var
                     //  so it will be initialized

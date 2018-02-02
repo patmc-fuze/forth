@@ -151,7 +151,7 @@ typedef enum
 	kOpNOCombo,								// NUM OP combo - bits 0:12 are signed integer, bit 13 is builtin/userdef, bits 14:23 are opcode
 	kOpVOCombo,								// VAROP OP combo - bits 0:1 are varop-2, bit 2 is builtin/userdef, bits 3:23 are opcode
 	kOpOZBCombo,							// OP ZBRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
-	kOpOBCombo,								// OP BRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
+	kOpONZBCombo,							// OP NZBRANCH combo - bits 0:11 are opcode, bits 12:23 are signed integer branch offset in longs
 
 	kOpSquishedFloat,						// low 24 bits is float as sign bit, 5 exponent bits, 18 mantissa bits
 	kOpSquishedDouble,						// low 24 bits is double as sign bit, 5 exponent bits, 18 mantissa bits
@@ -424,7 +424,7 @@ enum {
 	OP_DO_LOOP,
 
 	OP_DO_LOOPN,		// 0x30
-	OP_OFETCH,
+	OP_FETCH,
 	OP_REF,
 	OP_INTO,
 	OP_INTO_PLUS,
@@ -453,6 +453,7 @@ enum {
     OP_DO_FINALLY,
     OP_DO_ENDTRY,
     OP_RAISE,
+    OP_OFETCH,
 
 	NUM_COMPILED_OPS
 };
@@ -490,6 +491,7 @@ typedef struct
 #define TRACE_VOCABULARY
 #define TRACE_STRUCTS
 #define TRACE_ENGINE
+//#define TRACE_COMPILATION
 #endif
 
 enum

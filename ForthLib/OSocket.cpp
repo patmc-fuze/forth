@@ -17,6 +17,10 @@
 #include <arpa/inet.h>
 #endif
 
+#if defined(MACOSX)
+#include <unistd.h>
+#endif
+
 #include "ForthEngine.h"
 #include "ForthVocabulary.h"
 #include "ForthObject.h"

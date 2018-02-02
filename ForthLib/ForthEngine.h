@@ -241,10 +241,17 @@ public:
 
     inline long *           GetDP() { return mDictionary.pCurrent; };
     inline void             SetDP( long *pNewDP ) { mDictionary.pCurrent = pNewDP; };
-    inline void             CompileLong( long v ) { *mDictionary.pCurrent++ = v; };
-    inline void             CompileDouble( double v ) { *((double *) mDictionary.pCurrent) = v; mDictionary.pCurrent += 2; };
+#if defined(DEBUG)
+    void                    CompileLong(long v);
+    void                    CompileDouble(double v);
+#else
+    inline void             CompileLong(long v) { *mDictionary.pCurrent++ = v; };
+    inline void             CompileDouble(double v) { *((double *)mDictionary.pCurrent) = v; mDictionary.pCurrent += 2; };
+#endif
 	void					CompileOpcode( forthOpType opType, long opVal );
-	void					CompileOpcode( long op );
+    void			        PatchOpcode(forthOpType opType, long opVal, long* pOpcode);
+    void                    ClearPeephole();
+    void					CompileOpcode( long op );
     void                    CompileBuiltinOpcode( long v );
     void                    UncompileLastOpcode( void );
     long *					GetLastCompiledOpcodePtr( void );

@@ -119,7 +119,7 @@ void ForthStructCodeGenerator::HandlePreceedingVarop()
     {
         long *pLastOp = pEngine->GetLastCompiledOpcodePtr();
         if ( pLastOp && ((pLastOp + 1) == GET_DP)
-            && (*pLastOp >= gCompiledOps[OP_REF]) && (*pLastOp <= gCompiledOps[OP_OCLEAR]) )
+            && (*pLastOp >= gCompiledOps[OP_FETCH]) && (*pLastOp <= gCompiledOps[OP_OCLEAR]) )
         {
             // overwrite the varAction setting op with first accessor op
             mCompileVarop = *pLastOp;
@@ -132,7 +132,7 @@ void ForthStructCodeGenerator::HandlePreceedingVarop()
         if ( varMode )
         {
             CLEAR_VAR_OPERATION;
-            mCompileVarop = gCompiledOps[OP_REF] + (varMode - kVarRef);
+            mCompileVarop = gCompiledOps[OP_FETCH] + (varMode - kVarFetch);
         }
     }
 }

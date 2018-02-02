@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		44A93AEC2015176E0087F29A /* OSocket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 44A93AEA2015176D0087F29A /* OSocket.cpp */; };
 		6E7980951E8B0F5400FB03ED /* ForthBlockFileManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E79805E1E8B0F5400FB03ED /* ForthBlockFileManager.cpp */; };
 		6E7980961E8B0F5400FB03ED /* ForthBuiltinClasses.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980601E8B0F5400FB03ED /* ForthBuiltinClasses.cpp */; };
 		6E7980971E8B0F5400FB03ED /* ForthClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E7980621E8B0F5400FB03ED /* ForthClient.cpp */; };
@@ -69,6 +70,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		44A93AEA2015176D0087F29A /* OSocket.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = OSocket.cpp; path = ../ForthLib/OSocket.cpp; sourceTree = "<group>"; };
+		44A93AEB2015176E0087F29A /* OSocket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OSocket.h; path = ../ForthLib/OSocket.h; sourceTree = "<group>"; };
 		6E49A8C51E8B3C8C003BE440 /* InnerInterp.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; name = InnerInterp.asm; path = ../ForthLib/InnerInterp.asm; sourceTree = "<group>"; };
 		6E7980531E8B0EA400FB03ED /* forth */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = forth; sourceTree = BUILT_PRODUCTS_DIR; };
 		6E79805D1E8B0F5400FB03ED /* Forth.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Forth.h; path = ../ForthLib/Forth.h; sourceTree = SOURCE_ROOT; };
@@ -221,6 +224,8 @@
 				6E79808C1E8B0F5400FB03ED /* OMap.h */,
 				6E79808D1E8B0F5400FB03ED /* ONumber.cpp */,
 				6E79808E1E8B0F5400FB03ED /* ONumber.h */,
+				44A93AEA2015176D0087F29A /* OSocket.cpp */,
+				44A93AEB2015176E0087F29A /* OSocket.h */,
 				6E79808F1E8B0F5400FB03ED /* OStream.cpp */,
 				6E7980901E8B0F5400FB03ED /* OStream.h */,
 				6E7980911E8B0F5400FB03ED /* OString.cpp */,
@@ -318,6 +323,7 @@
 				6EEB076A1E8F5E400099AA4E /* ForthMainOSX.cpp in Sources */,
 				6E7980AD1E8B0F5400FB03ED /* OString.cpp in Sources */,
 				6E7980A21E8B0F5400FB03ED /* ForthShell.cpp in Sources */,
+				44A93AEC2015176E0087F29A /* OSocket.cpp in Sources */,
 				6E7980AA1E8B0F5400FB03ED /* OMap.cpp in Sources */,
 				6E79809E1E8B0F5400FB03ED /* ForthOps.cpp in Sources */,
 				6E7980981E8B0F5400FB03ED /* ForthEngine.cpp in Sources */,

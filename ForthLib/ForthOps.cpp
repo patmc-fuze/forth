@@ -541,12 +541,13 @@ FORTHOP( ifOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
+    // this will be fixed by else/endif
+    pEngine->CompileOpcode(kOpBranchZ, 0);
+    long branchAddr = (long)(GET_DP - 1);
     // save address for else/endif
-    pShellStack->Push( (long)GET_DP );
+    pShellStack->Push(branchAddr);
     // flag that this is the "if" branch
     pShellStack->PushTag(kShellTagIf);
-    // this will be fixed by else/endif
-    pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
 
 // ]if - has precedence
@@ -555,26 +556,28 @@ FORTHOP(elifOp)
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
+    // this will be fixed by else/endif
+    pEngine->CompileOpcode(kOpBranchZ, 0);
+    long branchAddr = (long)(GET_DP - 1);
     // save address for else/endif
-    pShellStack->Push((long)GET_DP);
+    pShellStack->Push(branchAddr);
     // flag that this is the "if" branch
     pShellStack->PushTag(kShellTagElif);
-    // this will be fixed by else/endif
-    pEngine->CompileBuiltinOpcode(OP_ABORT);
 }
 
 // orif - has precedence
 FORTHOP(orifOp)
 {
-	ForthEngine *pEngine = GET_ENGINE;
-	ForthShell *pShell = pEngine->GetShell();
-	ForthShellStack *pShellStack = pShell->GetShellStack();
-	// save address for else/endif
-	pShellStack->Push((long)GET_DP);
-	// flag that this is an "orif" clause
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthShell *pShell = pEngine->GetShell();
+    ForthShellStack *pShellStack = pShell->GetShellStack();
+    // this will be fixed by else/endif
+    pEngine->CompileOpcode(kOpBranchZ, 0);
+    long branchAddr = (long)(GET_DP - 1);
+    // save address for else/endif
+    pShellStack->Push(branchAddr);
+    // flag that this is an "orif" clause
     pShellStack->PushTag(kShellTagOrIf);
-	// this will be fixed by else/endif
-	pEngine->CompileBuiltinOpcode(OP_ABORT);
 }
 
 // andif - has precedence
@@ -583,12 +586,13 @@ FORTHOP(andifOp)
 	ForthEngine *pEngine = GET_ENGINE;
 	ForthShell *pShell = pEngine->GetShell();
 	ForthShellStack *pShellStack = pShell->GetShellStack();
-	// save address for else/endif
-	pShellStack->Push((long)GET_DP);
+    // this will be fixed by else/endif
+    pEngine->CompileOpcode(kOpBranchZ, 0);
+    long branchAddr = (long)(GET_DP - 1);
+    // save address for else/endif
+    pShellStack->Push(branchAddr);
 	// flag that this is an "andif" clause
     pShellStack->PushTag(kShellTagAndIf);
-	// this will be fixed by else/endif
-	pEngine->CompileBuiltinOpcode(OP_ABORT);
 }
 
 
@@ -615,11 +619,11 @@ FORTHOP(elseOp)
         long *pBranch = (long *)pShellStack->Pop();
         if (followedByOr)
         {
-            *pBranch = COMPILED_OP(kOpBranchNZ, (trueIP - pBranch) - 1);
+            pEngine->PatchOpcode(kOpBranchNZ, (trueIP - pBranch) - 1, pBranch);
         }
         else
         {
-            *pBranch = COMPILED_OP(kOpBranchZ, (falseIP - pBranch) - 1);
+            pEngine->PatchOpcode(kOpBranchZ, (falseIP - pBranch) - 1, pBranch);
         }
         switch (branchTag)
         {
@@ -693,11 +697,11 @@ FORTHOP( endifOp )
             long *pBranch = (long *)pShellStack->Pop();
             if (followedByOr)
             {
-                *pBranch = COMPILED_OP(kOpBranchNZ, (trueIP - pBranch) - 1);
+                pEngine->PatchOpcode(kOpBranchNZ, (trueIP - pBranch) - 1, pBranch);
             }
             else
             {
-                *pBranch = COMPILED_OP(kOpBranchZ, (falseIP - pBranch) - 1);
+                pEngine->PatchOpcode(kOpBranchZ, (falseIP - pBranch) - 1, pBranch);
             }
             switch (branchTag)
             {
@@ -733,6 +737,7 @@ FORTHOP( endifOp )
             *pBranch = COMPILED_OP(kOpBranch, (GET_DP - pBranch) - 1);
         }
     }
+    pEngine->ClearPeephole();
 }
 
 
@@ -760,9 +765,11 @@ FORTHOP( untilOp )
     if ( pShell->CheckSyntaxError( "until", pShellStack->PopTag(), kShellTagBegin ) )
     {
         long *pBeginOp = (long *) pShellStack->Pop();
-        pEngine->CompileOpcode( kOpBranchZ, (pBeginOp - GET_DP) - 1 );
+        pEngine->CompileOpcode(kOpBranchZ, 0);
+        pEngine->PatchOpcode(kOpBranchZ, (pBeginOp - GET_DP), GET_DP - 1);
     }
     pEngine->EndLoopContinuations(kShellTagBegin);
+    pEngine->ClearPeephole();
 }
 
 
@@ -779,12 +786,13 @@ FORTHOP( whileOp )
     }
     // stick while tag/address under the begin tag/address
     long oldAddress = pShellStack->Pop();
-    pShellStack->Push( (long) GET_DP );
+    // this will be fixed by else/endif
+    pEngine->CompileOpcode(kOpBranchZ, 0);
+    long branchAddr = (long)(GET_DP - 1);
+    pShellStack->Push(branchAddr);
     pShellStack->PushTag(kShellTagWhile);
     pShellStack->Push(oldAddress);
     pShellStack->PushTag(kShellTagBegin);
-    // repeat will fill this in
-    pEngine->CompileBuiltinOpcode( OP_ABORT );
 }
 
 
@@ -808,9 +816,10 @@ FORTHOP( repeatOp )
     // fill in the branch taken when "while" fails
     long *pBranch =  (long *) pShellStack->Pop();
     //*pBranch = COMPILED_OP((branchTag == kShellTagBranchZ) ? kOpBranchZ : kOpBranch, (GET_DP - pBranch));
-    *pBranch = COMPILED_OP(kOpBranchZ, (GET_DP - pBranch));
+    pEngine->PatchOpcode(kOpBranchZ, (GET_DP - pBranch), pBranch);
     pEngine->CompileOpcode(kOpBranch, (pBeginAddress - GET_DP) - 1);
     pEngine->EndLoopContinuations(kShellTagBegin);
+    pEngine->ClearPeephole();
 }
 
 // again - has precedence
@@ -827,6 +836,7 @@ FORTHOP( againOp )
     long *pLoopTop =  (long *) pShellStack->Pop();
     pEngine->CompileOpcode( kOpBranch, (pLoopTop - GET_DP) - 1 );
     pEngine->EndLoopContinuations(kShellTagBegin);
+    pEngine->ClearPeephole();
 }
 
 // case - has precedence
@@ -954,6 +964,7 @@ FORTHOP( endcaseOp )
     }
     SET_SP( pSP );
     pEngine->EndLoopContinuations(kShellTagCase);
+    pEngine->ClearPeephole();
 }
 
 FORTHOP(labelOp)
@@ -1050,17 +1061,23 @@ FORTHOP(breakIfNotOp)
 // align (upwards) DP to longword boundary
 FORTHOP( alignOp )
 {
-    GET_ENGINE->AlignDP();
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->AlignDP();
+    pEngine->ClearPeephole();
 }
 
 FORTHOP( allotOp )
 {
-    GET_ENGINE->AllotBytes( SPOP );
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->AllotBytes(SPOP);
+    pEngine->ClearPeephole();
 }
 
 FORTHOP( commaOp )
 {
-    GET_ENGINE->CompileLong( SPOP );
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->CompileLong( SPOP );
+    pEngine->ClearPeephole();
 }
 
 FORTHOP( cCommaOp )
@@ -1069,6 +1086,7 @@ FORTHOP( cCommaOp )
     char *pChar = (char *)GET_DP;
     *pChar++ = (char) SPOP;
     pEngine->SetDP( (long *) pChar);
+    pEngine->ClearPeephole();
 }
 
 FORTHOP( unusedOp )
@@ -1671,6 +1689,7 @@ ShowVocab( ForthCoreState   *pCore,
     memset( spaces, ' ', ENTRY_COLUMNS );
     spaces[ENTRY_COLUMNS] = '\0';
 
+    bool bDoPauses = true;
     for ( i = 0; i < nEntries; i++ )
     {
         bool lastEntry = (i == (nEntries-1));
@@ -1709,11 +1728,11 @@ ShowVocab( ForthCoreState   *pCore,
             pVocab->PrintEntry( pEntry );
             CONSOLE_CHAR_OUT( '\n' );
             pEntry = pVocab->NextEntry( pEntry );
-            if ( ((i % 22) == 21) || lastEntry )
+            if ( (bDoPauses && ((i % 22) == 21)) || lastEntry )
             {
                 if ( (pShell != NULL) && pShell->GetInput()->InputStream()->IsInteractive() )
                 {
-                    CONSOLE_STRING_OUT( "\nHit ENTER to continue, 'q' & ENTER to quit, 'n' & ENTER to do next vocabulary\n" );
+                    CONSOLE_STRING_OUT( "\nHit ENTER to continue, 'q' & ENTER to quit, 'n' & ENTER to do next vocabulary, 'z' to stop pausing\n" );
                     retVal = tolower( pShell->GetChar() );
                     if ( retVal == 'q' )
                     {
@@ -1724,6 +1743,10 @@ ShowVocab( ForthCoreState   *pCore,
                     {
                         pShell->GetChar();
                         break;
+                    }
+                    else if (retVal == 'z')
+                    {
+                        bDoPauses = false;
                     }
                 }
             }
@@ -6854,10 +6877,10 @@ FORTHOP(rotateBop)
 FORTHOP(rotate64Bop)
 {
     NEEDS(2);
-    unsigned long b = (SPOP) & 31;
+    unsigned long b = (SPOP) & 63;
     stackInt64 a;
     LPOP(a);
-    a.u64 = (a.u64 << b) | (a.u64 >> (32 - b));
+    a.u64 = (a.u64 << b) | (a.u64 >> (64 - b));
     LPUSH(a);
 }
 
@@ -8841,7 +8864,7 @@ OPREF(dmixBlockBop);
 baseDictionaryCompiledEntry baseCompiledDictionary[] =
 {
 	//NATIVE_COMPILED_DEF(    abortBop,                "abort",			OP_ABORT ),
-	OP_COMPILED_DEF(    abortOp,                "abort",			OP_ABORT ),
+	OP_COMPILED_DEF(    abortOp,                     "abort",			OP_ABORT ),
     NATIVE_COMPILED_DEF(    dropBop,                 "drop",			OP_DROP ),
     NATIVE_COMPILED_DEF(    doDoesBop,               "_doDoes",			OP_DO_DOES ),
     NATIVE_COMPILED_DEF(    litBop,                  "lit",				OP_INT_VAL ),
@@ -8890,14 +8913,15 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     NATIVE_COMPILED_DEF(    doDoBop,                 "_do",				OP_DO_DO ),				// 52
     NATIVE_COMPILED_DEF(    doLoopBop,               "_loop",			OP_DO_LOOP ),
     NATIVE_COMPILED_DEF(    doLoopNBop,              "_+loop",			OP_DO_LOOPN ),
-    //NATIVE_COMPILED_DEF(    ofetchBop,               "o@",				OP_OFETCH ),				// 56
-    NATIVE_COMPILED_DEF(    dfetchBop,               "2@",				OP_OFETCH ),				// 56
     // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
+    NATIVE_COMPILED_DEF(    fetchBop,                "fetch",			OP_FETCH ),				// 56
     NATIVE_COMPILED_DEF(    refBop,                  "ref",				OP_REF ),
 	NATIVE_COMPILED_DEF(    intoBop,                 "->",				OP_INTO ),				// 59
     NATIVE_COMPILED_DEF(    addToBop,                "->+",				OP_INTO_PLUS ),
     NATIVE_COMPILED_DEF(    subtractFromBop,         "->-",				OP_INTO_MINUS ),
     NATIVE_COMPILED_DEF(    oclearBop,               "oclear",          OP_OCLEAR ),
+    //NATIVE_COMPILED_DEF(    ofetchBop,               "o@",				OP_OFETCH ),
+    NATIVE_COMPILED_DEF(    dfetchBop,               "2@",				OP_OFETCH ),
 	NATIVE_COMPILED_DEF(    doCheckDoBop,            "_?do",			OP_DO_CHECKDO ),
 
 	OP_COMPILED_DEF(		doVocabOp,              "_doVocab",			OP_DO_VOCAB ),
@@ -8990,40 +9014,6 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    fcmpBop,                 "fcmp" ),
 
     ///////////////////////////////////////////
-    //  single-precision fp functions
-    ///////////////////////////////////////////
-    NATIVE_DEF(    fsinBop,                 "fsin" ),
-    NATIVE_DEF(    fasinBop,                "fasin" ),
-    NATIVE_DEF(    fcosBop,                 "fcos" ),
-    NATIVE_DEF(    facosBop,                "facos" ),
-    NATIVE_DEF(    ftanBop,                 "ftan" ),
-    NATIVE_DEF(    fatanBop,                "fatan" ),
-    NATIVE_DEF(    fatan2Bop,               "fatan2" ),
-    NATIVE_DEF(    fexpBop,                 "fexp" ),
-    NATIVE_DEF(    flnBop,                  "fln" ),
-    NATIVE_DEF(    flog10Bop,               "flog10" ),
-    NATIVE_DEF(    fpowBop,                 "fpow" ),
-    NATIVE_DEF(    fsqrtBop,                "fsqrt" ),
-    NATIVE_DEF(    fceilBop,                "fceil" ),
-    NATIVE_DEF(    ffloorBop,               "floor" ),
-    NATIVE_DEF(    fabsBop,                 "fabs" ),
-    NATIVE_DEF(    fldexpBop,               "fldexp" ),
-    NATIVE_DEF(    ffrexpBop,               "ffrexp" ),
-    NATIVE_DEF(    fmodfBop,                "fmodf" ),
-    NATIVE_DEF(    ffmodBop,                "ffmod" ),
-    
-    ///////////////////////////////////////////
-    //  single-precision fp block ops
-    ///////////////////////////////////////////
-    NATIVE_DEF(    faddBlockBop,           "fAddBlock"),
-    NATIVE_DEF(    fsubBlockBop,           "fSubBlock"),
-    NATIVE_DEF(    fmulBlockBop,           "fMulBlock"),
-    NATIVE_DEF(    fdivBlockBop,           "fDivBlock"),
-    NATIVE_DEF(    fscaleBlockBop,         "fScaleBlock"),
-    NATIVE_DEF(    foffsetBlockBop,        "fOffsetBlock"),
-    NATIVE_DEF(    fmixBlockBop,           "fMixBlock"),
-
-    ///////////////////////////////////////////
     //  double-precision fp math
     ///////////////////////////////////////////
     NATIVE_DEF(    dplusBop,                "d+" ),
@@ -9051,40 +9041,6 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dMinBop,                 "dmin" ),
     NATIVE_DEF(    dMaxBop,                 "dmax" ),
     NATIVE_DEF(    dcmpBop,                 "dcmp" ),
-
-    ///////////////////////////////////////////
-    //  double-precision fp functions
-    ///////////////////////////////////////////
-    NATIVE_DEF(    dsinBop,                 "dsin" ),
-    NATIVE_DEF(    dasinBop,                "dasin" ),
-    NATIVE_DEF(    dcosBop,                 "dcos" ),
-    NATIVE_DEF(    dacosBop,                "dacos" ),
-    NATIVE_DEF(    dtanBop,                 "dtan" ),
-    NATIVE_DEF(    datanBop,                "datan" ),
-    NATIVE_DEF(    datan2Bop,               "datan2" ),
-    NATIVE_DEF(    dexpBop,                 "dexp" ),
-    NATIVE_DEF(    dlnBop,                  "dln" ),
-    NATIVE_DEF(    dlog10Bop,               "dlog10" ),
-    NATIVE_DEF(    dpowBop,                 "dpow" ),
-    NATIVE_DEF(    dsqrtBop,                "dsqrt" ),
-    NATIVE_DEF(    dceilBop,                "dceil" ),
-    NATIVE_DEF(    dfloorBop,               "dfloor" ),
-    NATIVE_DEF(    dabsBop,                 "dabs" ),
-    NATIVE_DEF(    dldexpBop,               "dldexp" ),
-    NATIVE_DEF(    dfrexpBop,               "dfrexp" ),
-    NATIVE_DEF(    dmodfBop,                "dmodf" ),
-    NATIVE_DEF(    dfmodBop,                "dfmod" ),
-    
-    ///////////////////////////////////////////
-    //  single-precision fp block ops
-    ///////////////////////////////////////////
-    NATIVE_DEF(    daddBlockBop,           "dAddBlock"),
-    NATIVE_DEF(    dsubBlockBop,           "dSubBlock"),
-    NATIVE_DEF(    dmulBlockBop,           "dMulBlock"),
-    NATIVE_DEF(    ddivBlockBop,           "dDivBlock"),
-    NATIVE_DEF(    dscaleBlockBop,         "dScaleBlock"),
-    NATIVE_DEF(    doffsetBlockBop,        "dOffsetBlock"),
-    NATIVE_DEF(    dmixBlockBop,           "dMixBlock"),
 
     ///////////////////////////////////////////
     //  integer/long/float/double conversion
@@ -9148,6 +9104,26 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    icmpBop,                 "icmp" ),
     NATIVE_DEF(    uicmpBop,                "uicmp" ),
 
+    ///////////////////////////////////////////
+    //  64-bit integer comparisons
+    ///////////////////////////////////////////
+	NATIVE_DEF(lEqualsBop,				"l="),
+	NATIVE_DEF(lNotEqualsBop,			"l<>"),
+	NATIVE_DEF(lGreaterThanBop,			"l>"),
+	NATIVE_DEF(lGreaterEqualsBop,		"l>="),
+	NATIVE_DEF(lLessThanBop,			"l<"),
+	NATIVE_DEF(lLessEqualsBop,			"l<="),
+	NATIVE_DEF(lEquals0Bop,				"l0="),
+	NATIVE_DEF(lNotEquals0Bop,			"l0<>"),
+	NATIVE_DEF(lGreaterThan0Bop,		"l0>"),
+	NATIVE_DEF(lGreaterEquals0Bop,		"l0>="),
+	NATIVE_DEF(lLessThan0Bop,			"l0<"),
+	NATIVE_DEF(lLessEquals0Bop,			"l0<="),
+    OP_DEF(    lWithinOp,               "lwithin" ),
+    OP_DEF(    lMinOp,                  "lmin" ),
+    OP_DEF(    lMaxOp,                  "lmax" ),
+	NATIVE_DEF(lcmpBop, "lcmp"),
+	NATIVE_DEF(ulcmpBop, "ulcmp"),
 
     ///////////////////////////////////////////
     //  stack manipulation
@@ -9237,6 +9213,74 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    objectVarActionBop,      "objectVarAction" ),
 
     ///////////////////////////////////////////
+    //  single-precision fp functions
+    ///////////////////////////////////////////
+    NATIVE_DEF(fsinBop,                 "fsin"),
+    NATIVE_DEF(fasinBop,                "fasin"),
+    NATIVE_DEF(fcosBop,                 "fcos"),
+    NATIVE_DEF(facosBop,                "facos"),
+    NATIVE_DEF(ftanBop,                 "ftan"),
+    NATIVE_DEF(fatanBop,                "fatan"),
+    NATIVE_DEF(fatan2Bop,               "fatan2"),
+    NATIVE_DEF(fexpBop,                 "fexp"),
+    NATIVE_DEF(flnBop,                  "fln"),
+    NATIVE_DEF(flog10Bop,               "flog10"),
+    NATIVE_DEF(fpowBop,                 "fpow"),
+    NATIVE_DEF(fsqrtBop,                "fsqrt"),
+    NATIVE_DEF(fceilBop,                "fceil"),
+    NATIVE_DEF(ffloorBop,               "floor"),
+    NATIVE_DEF(fabsBop,                 "fabs"),
+    NATIVE_DEF(fldexpBop,               "fldexp"),
+    NATIVE_DEF(ffrexpBop,               "ffrexp"),
+    NATIVE_DEF(fmodfBop,                "fmodf"),
+    NATIVE_DEF(ffmodBop,                "ffmod"),
+
+    ///////////////////////////////////////////
+    //  single-precision fp block ops
+    ///////////////////////////////////////////
+    NATIVE_DEF(faddBlockBop,           "fAddBlock"),
+    NATIVE_DEF(fsubBlockBop,           "fSubBlock"),
+    NATIVE_DEF(fmulBlockBop,           "fMulBlock"),
+    NATIVE_DEF(fdivBlockBop,           "fDivBlock"),
+    NATIVE_DEF(fscaleBlockBop,         "fScaleBlock"),
+    NATIVE_DEF(foffsetBlockBop,        "fOffsetBlock"),
+    NATIVE_DEF(fmixBlockBop,           "fMixBlock"),
+
+    ///////////////////////////////////////////
+    //  double-precision fp functions
+    ///////////////////////////////////////////
+    NATIVE_DEF(    dsinBop,                 "dsin" ),
+    NATIVE_DEF(    dasinBop,                "dasin" ),
+    NATIVE_DEF(    dcosBop,                 "dcos" ),
+    NATIVE_DEF(    dacosBop,                "dacos" ),
+    NATIVE_DEF(    dtanBop,                 "dtan" ),
+    NATIVE_DEF(    datanBop,                "datan" ),
+    NATIVE_DEF(    datan2Bop,               "datan2" ),
+    NATIVE_DEF(    dexpBop,                 "dexp" ),
+    NATIVE_DEF(    dlnBop,                  "dln" ),
+    NATIVE_DEF(    dlog10Bop,               "dlog10" ),
+    NATIVE_DEF(    dpowBop,                 "dpow" ),
+    NATIVE_DEF(    dsqrtBop,                "dsqrt" ),
+    NATIVE_DEF(    dceilBop,                "dceil" ),
+    NATIVE_DEF(    dfloorBop,               "dfloor" ),
+    NATIVE_DEF(    dabsBop,                 "dabs" ),
+    NATIVE_DEF(    dldexpBop,               "dldexp" ),
+    NATIVE_DEF(    dfrexpBop,               "dfrexp" ),
+    NATIVE_DEF(    dmodfBop,                "dmodf" ),
+    NATIVE_DEF(    dfmodBop,                "dfmod" ),
+    
+    ///////////////////////////////////////////
+    //  single-precision fp block ops
+    ///////////////////////////////////////////
+    NATIVE_DEF(    daddBlockBop,           "dAddBlock"),
+    NATIVE_DEF(    dsubBlockBop,           "dSubBlock"),
+    NATIVE_DEF(    dmulBlockBop,           "dMulBlock"),
+    NATIVE_DEF(    ddivBlockBop,           "dDivBlock"),
+    NATIVE_DEF(    dscaleBlockBop,         "dScaleBlock"),
+    NATIVE_DEF(    doffsetBlockBop,        "dOffsetBlock"),
+    NATIVE_DEF(    dmixBlockBop,           "dMixBlock"),
+
+    ///////////////////////////////////////////
     //  string manipulation
     ///////////////////////////////////////////
     NATIVE_DEF(    strcpyBop,               "strcpy" ),
@@ -9323,27 +9367,6 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    smRemOp,                "sm/rem" ),
 #endif   
     
-    ///////////////////////////////////////////
-    //  64-bit integer comparisons
-    ///////////////////////////////////////////
-	NATIVE_DEF(lEqualsBop,				"l="),
-	NATIVE_DEF(lNotEqualsBop,			"l<>"),
-	NATIVE_DEF(lGreaterThanBop,			"l>"),
-	NATIVE_DEF(lGreaterEqualsBop,		"l>="),
-	NATIVE_DEF(lLessThanBop,			"l<"),
-	NATIVE_DEF(lLessEqualsBop,			"l<="),
-	NATIVE_DEF(lEquals0Bop,				"l0="),
-	NATIVE_DEF(lNotEquals0Bop,			"l0<>"),
-	NATIVE_DEF(lGreaterThan0Bop,		"l0>"),
-	NATIVE_DEF(lGreaterEquals0Bop,		"l0>="),
-	NATIVE_DEF(lLessThan0Bop,			"l0<"),
-	NATIVE_DEF(lLessEquals0Bop,			"l0<="),
-    OP_DEF(    lWithinOp,               "lwithin" ),
-    OP_DEF(    lMinOp,                  "lmin" ),
-    OP_DEF(    lMaxOp,                  "lmax" ),
-	NATIVE_DEF(lcmpBop, "lcmp"),
-	NATIVE_DEF(ulcmpBop, "ulcmp"),
-
     ///////////////////////////////////////////
     //  control flow
     ///////////////////////////////////////////
