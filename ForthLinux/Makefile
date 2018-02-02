@@ -22,10 +22,7 @@ $(OBJDIR)/ForthMain.o:	ForthMain.cpp
 	echo "@ " $@
 	$(CC) $(CPPFLAGS) -o $(OBJDIR)/ForthMain.o ForthMain.cpp
 
-../ForthLib/libforth.a:
-	make -C ../ForthLib -f Makefile.ubu86 libforth.a
-
-forth:	$(OBJDIR)/ForthMain.o ../ForthLib/libforth.a
+forth:	$(OBJDIR)/ForthMain.o
 	gcc $(OBJDIR)/ForthMain.o $(DEFINES) -o forth -I ../ForthLib $(LD_LIBRARIES)
 	cp forth ../Sandbox
 
@@ -43,5 +40,4 @@ clean:
 	-rm ./forth
 #	-rm $(DEPDIR)/*.d
 
-all:	../ForthLib/libforth.a forth
-
+all:	forth ../ForthLib/libforth.a
