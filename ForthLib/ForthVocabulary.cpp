@@ -947,10 +947,20 @@ long ForthDLLVocabulary::LoadDLL( void )
     }
 #if defined(WIN32)
     mhDLL = LoadLibrary(pDLLSrc);
+    if (mhDLL == 0)
+    {
+        pEngine->SetError(kForthErrorFileOpen, "failed to open DLL ");
+        pEngine->AddErrorText(pDLLSrc);
+    }
     delete[] pDLLPath;
     return (long)mhDLL;
 #elif defined(LINUX) || defined(MACOSX)
     mLibHandle = dlopen(pDLLSrc, RTLD_LAZY);
+    if (mLibHandle == nullptr)
+    {
+        pEngine->SetError(kForthErrorFileOpen, "failed to open DLL ");
+        pEngine->AddErrorText(pDLLSrc);
+    }
     delete[] pDLLPath;
     return (long)mLibHandle;
 #endif
