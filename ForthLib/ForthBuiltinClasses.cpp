@@ -71,26 +71,6 @@ float boohoo(int aa, int bb, int cc)
 #define SNPRINTF _snprintf
 #endif
 
-void* ForthAllocateBlock(size_t numBytes)
-{
-	void* pData = malloc(numBytes);
-	ForthEngine::GetInstance()->TraceOut("malloc %d bytes @ 0x%p\n", numBytes, pData);
-	return pData;
-}
-
-void* ForthReallocateBlock(void *pMemory, size_t numBytes)
-{
-	void* pData = realloc(pMemory, numBytes);
-	ForthEngine::GetInstance()->TraceOut("realloc %d bytes @ 0x%p\n", numBytes, pData);
-	return pData;
-}
-
-void ForthFreeBlock(void* pBlock)
-{
-	free(pBlock);
-	ForthEngine::GetInstance()->TraceOut("free @ 0x%p\n", pBlock);
-}
-
 void unrefObject(ForthObject& fobj)
 {
 	ForthEngine *pEngine = ForthEngine::GetInstance();

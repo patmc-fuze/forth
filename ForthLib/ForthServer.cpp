@@ -562,8 +562,8 @@ ForthServerInputStream::SetInputState( long* pState )
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, ForthExtension *pExtension, ForthThread *pThread, int shellStackLongs )
-:   ForthShell( 0, nullptr, nullptr, pEngine, pExtension, pThread, shellStackLongs )
+ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, ForthExtension *pExtension, int shellStackLongs )
+:   ForthShell( 0, nullptr, nullptr, pEngine, pExtension, shellStackLongs )
 ,   mDoAutoload( doAutoload )
 ,   mpMsgPipe( NULL )
 ,	mClientSocket( -1 )

@@ -714,17 +714,16 @@ typedef enum
 #define DLL_ENTRY_FLAG_STDCALL			0x40000
 
 // memory allocation wrappers
-void* ForthAllocateBlock(size_t numBytes);
-void* ForthReallocateBlock(void *pMemory, size_t numBytes);
-void ForthFreeBlock(void* pBlock);
+typedef void* (*allocateMemoryFunc)(size_t numBytes);
+typedef void* (*reallocateMemoryFunc)(void *pMemory, size_t numBytes);
+typedef void (*freeMemoryFunc)(void* pBlock);
 
-#if 0
-#define __MALLOC ForthAllocateBlock
-#define __REALLOC ForthReallocateBlock
-#define __FREE ForthFreeBlock
-#else
-#define __MALLOC malloc
-#define __REALLOC realloc
-#define __FREE free
-#endif
+extern allocateMemoryFunc __allocateMemory;
+extern reallocateMemoryFunc __reallocateMemory;
+extern freeMemoryFunc __freeMemory;
 
+#define __MALLOC __allocateMemory
+#define __REALLOC __reallocateMemory
+#define __FREE __freeMemory
+
+extern void initMemoryAllocation();

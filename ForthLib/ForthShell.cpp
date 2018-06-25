@@ -132,11 +132,66 @@ namespace
 	int makeDir( const char* pPath, int mode )
 	{
 #ifdef WIN32
-		return mkdir( pPath );
+		return _mkdir( pPath );
 #else
 		return mkdir( pPath, mode );
 #endif
 	}
+
+    void* ForthAllocateBlock(size_t numBytes)
+    {
+        void* pData = malloc(numBytes);
+        ForthEngine::GetInstance()->TraceOut("malloc %d bytes @ 0x%p\n", numBytes, pData);
+        return pData;
+    }
+
+    void* ForthReallocateBlock(void *pMemory, size_t numBytes)
+    {
+        void* pData = realloc(pMemory, numBytes);
+        ForthEngine::GetInstance()->TraceOut("realloc %d bytes @ 0x%p\n", numBytes, pData);
+        return pData;
+    }
+
+    void ForthFreeBlock(void* pBlock)
+    {
+        free(pBlock);
+        ForthEngine::GetInstance()->TraceOut("free @ 0x%p\n", pBlock);
+    }
+
+}
+
+bool __useStandardMemoryAllocation = true;
+allocateMemoryFunc __allocateMemory = nullptr;
+reallocateMemoryFunc __reallocateMemory = nullptr;
+freeMemoryFunc __freeMemory = nullptr;
+
+void useStandardMemoryAllocation()
+{
+    __allocateMemory = malloc;
+    __reallocateMemory = realloc;
+    __freeMemory = free;
+}
+
+void useDebugMemoryAllocation()
+{
+    __allocateMemory = ForthAllocateBlock;
+    __reallocateMemory = ForthReallocateBlock;
+    __freeMemory = ForthFreeBlock;
+}
+
+void initMemoryAllocation()
+{
+    if (__allocateMemory == nullptr)
+    {
+        if (__useStandardMemoryAllocation)
+        {
+            useStandardMemoryAllocation();
+        }
+        else
+        {
+            useDebugMemoryAllocation();
+        }
+    }
 }
 
 // return is a DIR*
@@ -173,9 +228,8 @@ unsigned long ConsoleInputThreadRoutine( void* pThreadData );
 //                     ForthShell
 // 
 
-ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEngine *pEngine, ForthExtension *pExtension, ForthThread *pThread, int shellStackLongs)
+ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEngine *pEngine, ForthExtension *pExtension, int shellStackLongs)
 : mpEngine(pEngine)
-, mpThread(pThread)
 , mFlags(0)
 , mNumArgs(0)
 , mpArgs(NULL)
@@ -191,6 +245,8 @@ ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEn
 , mTempDir(NULL)
 , mBlockfilePath(nullptr)
 {
+    initMemoryAllocation();
+
     mFileInterface.fileOpen = fopen;
     mFileInterface.fileClose = fclose;
     mFileInterface.fileRead = fread;
@@ -217,9 +273,14 @@ ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEn
 	mFileInterface.fileFlush = fflush;
 	mFileInterface.renameFile = rename;
 	mFileInterface.runSystem = system;
-	mFileInterface.changeDir = chdir;
-	mFileInterface.makeDir = makeDir;
-	mFileInterface.removeDir = rmdir;
+#ifdef WIN32
+    mFileInterface.changeDir = _chdir;
+    mFileInterface.removeDir = _rmdir;
+#else
+    mFileInterface.changeDir = chdir;
+    mFileInterface.removeDir = rmdir;
+#endif
+    mFileInterface.makeDir = makeDir;
 	mFileInterface.getStdIn = getStdIn;
 	mFileInterface.getStdOut = getStdOut;
 	mFileInterface.getStdErr = getStdErr;
@@ -229,7 +290,7 @@ ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEn
 	mFileInterface.rewindDir = rewindDir;
 
 #if defined( WIN32 )
-    DWORD result = GetCurrentDirectory(MAX_PATH, mWorkingDirPath);
+    DWORD result = GetCurrentDirectoryA(MAX_PATH, mWorkingDirPath);
     if (result == 0)
     {
         mWorkingDirPath[0] = '\0';

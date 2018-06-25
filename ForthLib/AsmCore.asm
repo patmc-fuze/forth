@@ -1,5 +1,5 @@
 BITS 32
-%include "core.inc"
+%include "..\ForthLib\core.inc"
 
 SECTION .text
 

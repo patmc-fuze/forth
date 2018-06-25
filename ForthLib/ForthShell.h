@@ -115,7 +115,7 @@ public:
 
     // if the creator of a ForthShell passes in non-NULL engine and/or thread params,
     //   that creator is responsible for deleting the engine and/or thread
-    ForthShell(int argc, const char ** argv, const char ** envp, ForthEngine *pEngine = NULL, ForthExtension *pExtension = NULL, ForthThread *pThread = NULL, int shellStackLongs = 1024);
+    ForthShell(int argc, const char ** argv, const char ** envp, ForthEngine *pEngine = NULL, ForthExtension *pExtension = NULL, int shellStackLongs = 1024);
     virtual ~ForthShell();
 
     // returns true IFF file opened successfully
@@ -130,7 +130,6 @@ public:
     char *                  GetToken( char delim, bool bSkipLeadingWhiteSpace = true );
 
     inline ForthEngine *    GetEngine( void ) { return mpEngine; };
-    inline ForthThread *    GetThread( void ) { return mpThread; };
     inline ForthInputStack * GetInput( void ) { return mpInput; };
 	inline ForthShellStack * GetShellStack( void ) { return mpStack; };
 
@@ -203,7 +202,6 @@ protected:
 
     ForthInputStack *       mpInput;
     ForthEngine *           mpEngine;
-    ForthThread *           mpThread;
     ForthShellStack *       mpStack;
     ForthFileInterface      mFileInterface;
 	ForthExpressionInputStream* mExpressionInputStream;

@@ -273,7 +273,8 @@ public:
 	void					ShowSearchInfo();
     inline ForthShell       *GetShell( void ) { return mpShell; };
 	inline void				SetShell( ForthShell *pShell ) { mpShell = pShell; };
-    inline ForthVocabulary  *GetForthVocabulary( void )   { return mpForthVocab; };
+    inline ForthVocabulary  *GetForthVocabulary(void) { return mpForthVocab; };
+    inline ForthVocabulary  *GetLiteralsVocabulary(void) { return mpLiteralsVocab; };
     inline ForthThread      *GetMainThread( void )  { return mpMainThread->GetThread(0); };
 
     inline long             *GetCompileStatePtr( void ) { return &mCompileState; };
@@ -382,7 +383,8 @@ protected:
 
 	ForthEngineTokenStack mTokenStack;		// contains tokens which will be gotten by GetNextSimpleToken instead of from input stream
 
-	ForthVocabulary * mpForthVocab;              // main forth vocabulary
+    ForthVocabulary * mpForthVocab;              // main forth vocabulary
+    ForthVocabulary * mpLiteralsVocab;            // user-defined literals vocabulary
     ForthLocalVocabulary * mpLocalVocab;         // local variable vocabulary
 
     ForthVocabulary * mpDefinitionVocab;    // vocabulary which new definitions are added to

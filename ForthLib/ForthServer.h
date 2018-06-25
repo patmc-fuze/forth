@@ -49,7 +49,7 @@ protected:
 class ForthServerShell : public ForthShell
 {
 public:
-    ForthServerShell( bool doAutoload = true, ForthEngine *pEngine = NULL, ForthExtension *pExtension = NULL, ForthThread *pThread = NULL, int shellStackLongs = 1024 );
+    ForthServerShell( bool doAutoload = true, ForthEngine *pEngine = NULL, ForthExtension *pExtension = NULL, int shellStackLongs = 1024 );
     virtual ~ForthServerShell();
 
     virtual int             Run( ForthInputStream *pInputStream );

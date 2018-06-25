@@ -1,6 +1,6 @@
 BITS 32
 
-%include "core.inc"
+%include "..\ForthLib\core.inc"
 
 ;cextern	_filbuf
 ;cextern	_chkesp
