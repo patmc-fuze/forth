@@ -346,7 +346,7 @@ CForthGuiDlg::~CForthGuiDlg()
 void CForthGuiDlg::CreateForth()
 {
 	char autoloadBuffer[64];
-	mpShell = new ForthShell;
+    mpShell = new ForthShell(__argc, __argv, _environ);
 	ForthEngine* pEngine = mpShell->GetEngine();
 	ForthCoreState* pCore = pEngine->GetCoreState();
 	CreateForthFunctionOutStream( pCore, mConsoleOutObject, NULL, NULL, ForthOutRoutine, GetDlgItem( IDC_RICHEDIT_OUTPUT ) );

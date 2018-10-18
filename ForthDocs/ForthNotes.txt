@@ -174,6 +174,42 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 13 2018
+
+Life and work have kept me away for a long while.
+An idea I had earlier but gave up on was having the return stack be a set of
+ops, and exit would just execute the top rstack opcode.
+
+o there would be 2 kOpUserDef optypes
+  1) for user defs defined inside the dictionary memory section
+    this would rpush a branch-relative-to-DP optype
+  2) for user defs defined outside the dictionary memory section
+    this would push the return addres with a set-IP op on top
+o there would be a deallocate local frame op
+o there would be a pop 'this' op
+
+This would allow easier implementation of go-like defer sections.
+
+The next thing I should really work on is creating objects from the stored
+JSON-ish output of Object::show.  The way I implemented the show method, and
+the way that a large percentage of builtin classes have very special internal
+structure will require that I implement deserializers for most classes.
+I'm not sure if these should be methods, I can't see a very general way of
+doing that, I might need to have custom deserializers for all builtin classes,
+and a general deserializer for user-defined classes.
+The custom deserializers will make extending builtin classes impossible, if
+it isn't already.
+
+I tried out ForthGUI again, it took a little futzing to get it to build again,
+and when I tried test.txt it hung when it got to the asynchronous pizza shop.
+It is stuck in a ForthAsyncThread::Join, I think it is probably the main thread,
+and there is a deadlock between the main thread message pump and the WaitForSingleObject
+event that the child thread uses to signal that it has exited.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 25 2018
+
+I added a ForthDLL project.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 February 2 2018
 
 I decided to test out DLL/shared library support on non-windows versions.
