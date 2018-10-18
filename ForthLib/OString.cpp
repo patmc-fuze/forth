@@ -142,7 +142,13 @@ namespace OString
 		pEngine->ConsoleOut(buffer);
 		pShowContext->EndElement();
 
-		pShowContext->EndIndent();
+        pShowContext->ShowIndent();
+        pEngine->ConsoleOut("'hash' : ");
+        sprintf(buffer, "%d", pString->hash);
+        pEngine->ConsoleOut(buffer);
+        pShowContext->EndElement();
+
+        pShowContext->EndIndent();
 		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
     }
