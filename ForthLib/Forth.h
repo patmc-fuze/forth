@@ -8,6 +8,8 @@
 
 //#include "stdafx.h"
 
+#include "ForthMemoryManager.h"
+
 struct ForthCoreState;
 
 typedef unsigned int uint32;
@@ -713,17 +715,3 @@ typedef enum
 #define DLL_ENTRY_FLAG_RETURN_64BIT		0x20000
 #define DLL_ENTRY_FLAG_STDCALL			0x40000
 
-// memory allocation wrappers
-typedef void* (*allocateMemoryFunc)(size_t numBytes);
-typedef void* (*reallocateMemoryFunc)(void *pMemory, size_t numBytes);
-typedef void (*freeMemoryFunc)(void* pBlock);
-
-extern allocateMemoryFunc __allocateMemory;
-extern reallocateMemoryFunc __reallocateMemory;
-extern freeMemoryFunc __freeMemory;
-
-#define __MALLOC __allocateMemory
-#define __REALLOC __reallocateMemory
-#define __FREE __freeMemory
-
-extern void initMemoryAllocation();

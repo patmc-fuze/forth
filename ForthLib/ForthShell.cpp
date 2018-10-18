@@ -138,60 +138,6 @@ namespace
 #endif
 	}
 
-    void* ForthAllocateBlock(size_t numBytes)
-    {
-        void* pData = malloc(numBytes);
-        ForthEngine::GetInstance()->TraceOut("malloc %d bytes @ 0x%p\n", numBytes, pData);
-        return pData;
-    }
-
-    void* ForthReallocateBlock(void *pMemory, size_t numBytes)
-    {
-        void* pData = realloc(pMemory, numBytes);
-        ForthEngine::GetInstance()->TraceOut("realloc %d bytes @ 0x%p\n", numBytes, pData);
-        return pData;
-    }
-
-    void ForthFreeBlock(void* pBlock)
-    {
-        free(pBlock);
-        ForthEngine::GetInstance()->TraceOut("free @ 0x%p\n", pBlock);
-    }
-
-}
-
-bool __useStandardMemoryAllocation = true;
-allocateMemoryFunc __allocateMemory = nullptr;
-reallocateMemoryFunc __reallocateMemory = nullptr;
-freeMemoryFunc __freeMemory = nullptr;
-
-void useStandardMemoryAllocation()
-{
-    __allocateMemory = malloc;
-    __reallocateMemory = realloc;
-    __freeMemory = free;
-}
-
-void useDebugMemoryAllocation()
-{
-    __allocateMemory = ForthAllocateBlock;
-    __reallocateMemory = ForthReallocateBlock;
-    __freeMemory = ForthFreeBlock;
-}
-
-void initMemoryAllocation()
-{
-    if (__allocateMemory == nullptr)
-    {
-        if (__useStandardMemoryAllocation)
-        {
-            useStandardMemoryAllocation();
-        }
-        else
-        {
-            useDebugMemoryAllocation();
-        }
-    }
 }
 
 // return is a DIR*
