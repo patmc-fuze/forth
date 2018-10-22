@@ -336,17 +336,61 @@ CForthGuiDlg::CForthGuiDlg(CWnd* pParent /*=NULL*/)
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	mConsoleOutObject.pData = NULL;
 	mConsoleOutObject.pMethodOps = NULL;
+
+    InitializeCriticalSection(&mInputCriticalSection);
+    // default security attributes, initial count, max count, unnamed semaphore
+    mInputSemaphore = CreateSemaphore(nullptr, 0, 0x7FFFFFFF, nullptr);
 }
 
 CForthGuiDlg::~CForthGuiDlg()
 {
 	DestroyForth();
+    DeleteCriticalSection(&mInputCriticalSection);
+    CloseHandle(mInputSemaphore);
+    // TODO: kill worker thread?
+}
+
+UINT ForthWorkerThread(LPVOID pParam)
+{
+    ((CForthGuiDlg*)pParam)->RunForthThreadLoop();
+    return 0;
+}
+
+void CForthGuiDlg::RunForthThreadLoop()
+{
+    // loop, waiting on input semaphore and processing lines until 'bye'
+    eForthResult result = kResultOk;
+    while (result != kResultExitShell && result != kResultShutdown)
+    {
+        DWORD waitResult = WaitForSingleObject(mInputSemaphore, INFINITE);
+        if (waitResult != WAIT_OBJECT_0)
+        {
+            printf("ForthWorkerThread WaitForSingleObject failed (%d)\n", GetLastError());
+        }
+        else
+        {
+            CRichEditCtrl *pOutEdit = (CRichEditCtrl*)GetDlgItem(IDC_RICHEDIT_OUTPUT);
+            StreamToOutputPane(pOutEdit, mInBuffer);
+            StreamToOutputPane(pOutEdit, "\r\n");
+
+            char* pBuffer = mpShell->AddToInputLine(&(mInBuffer[0]));
+            if (mpShell->InputLineReadyToProcess())
+            {
+                result = ProcessLine(pBuffer);
+            }
+            StreamToOutputPane(pOutEdit, "\r\n");
+            // re-enable user text input
+            CButton* pOkButton = (CButton *)GetDlgItem(IDOK);
+            pOkButton->EnableWindow(true);
+        }
+    }
+    OnCancel();
 }
 
 void CForthGuiDlg::CreateForth()
 {
 	char autoloadBuffer[64];
-    mpShell = new ForthShell(__argc, __argv, _environ);
+    mpShell = new ForthShell(__argc, const_cast<const char **>(__argv), const_cast<const char **>(_environ));
 	ForthEngine* pEngine = mpShell->GetEngine();
 	ForthCoreState* pCore = pEngine->GetCoreState();
 	CreateForthFunctionOutStream( pCore, mConsoleOutObject, NULL, NULL, ForthOutRoutine, GetDlgItem( IDC_RICHEDIT_OUTPUT ) );
@@ -361,6 +405,9 @@ void CForthGuiDlg::CreateForth()
     mpShell->GetInput()->PushInputStream( mpInStream );
 	strncpy(autoloadBuffer, "\"forth_autoload.txt\" $load", sizeof(autoloadBuffer) - 1);
 	ProcessLine(autoloadBuffer);
+
+    AfxBeginThread(ForthWorkerThread, this);
+
 #ifdef TEST_MIDI
     /* Open MIDI In */
 	MIDIINCAPS deviceCaps;
@@ -541,25 +588,26 @@ HCURSOR CForthGuiDlg::OnQueryDragIcon()
 
 void CForthGuiDlg::OnBnClickedOk()
 {
-    // TODO: Add your control notification handler code here
-    //OnOK();
     CEdit *pEdit = (CEdit* )GetDlgItem( IDC_EDIT_INPUT );
 	pEdit->GetWindowText( mInBuffer, INPUT_BUFFER_SIZE - 4 );
 
-	CRichEditCtrl *pOutEdit = (CRichEditCtrl*) GetDlgItem( IDC_RICHEDIT_OUTPUT );
-	StreamToOutputPane( pOutEdit, mInBuffer );
-	StreamToOutputPane( pOutEdit, "\r\n" );
+    CButton* pOkButton = (CButton *)GetDlgItem(IDOK);
+    pOkButton->EnableWindow(false);
 
-	ProcessLine( &(mInBuffer[0]) );
+    // clear input buffer
+    pEdit->SetSel(0, -1);
+    pEdit->ReplaceSel("");
 
-	StreamToOutputPane( pOutEdit, "\r\n" );
-
-	// clear input buffer
-	pEdit->SetSel( 0, -1 );
-	pEdit->ReplaceSel( "" );
+    //EnterCriticalSection(&mInputCriticalSection);
+    // increment the semaphore to tell forth worker thread to process mInBuffer
+    if (!ReleaseSemaphore(mInputSemaphore, 1, NULL))
+    {
+        printf("CForthGuiDlg::OnBnClickedOk - ReleaseSemaphore error: %d\n", GetLastError());
+    }
+    //LeaveCriticalSection(&mInputCriticalSection);
 }
 
-void CForthGuiDlg::ProcessLine( char* pLine )
+eForthResult CForthGuiDlg::ProcessLine( char* pLine )
 {
 	ForthInputStack* pInput = mpShell->GetInput();
     eForthResult result = kResultOk;
@@ -588,7 +636,11 @@ void CForthGuiDlg::ProcessLine( char* pLine )
 
 			if ( !bQuit )
 			{
-			    result = mpShell->ProcessLine();
+                char* pLine = mpShell->AddToInputLine(pBuffer);
+                if (mpShell->InputLineReadyToProcess())
+                {
+                    result = mpShell->ProcessLine(pLine);
+                }
 			}
 			if ( bQuit || (result != kResultOk) )
 			{
@@ -598,12 +650,6 @@ void CForthGuiDlg::ProcessLine( char* pLine )
 	}
 	switch ( result )
 	{
-	case kResultExitShell:
-	case kResultShutdown:		// is this right?
-		// exit program
-		OnCancel();
-		break;
-
 	case kResultFatalError:
 		DestroyForth();
 		CreateForth();
@@ -612,6 +658,7 @@ void CForthGuiDlg::ProcessLine( char* pLine )
 	default:
 		break;
 	}
+    return result;
 }
 
 FORTHOP( makeDialogOp )

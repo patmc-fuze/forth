@@ -174,6 +174,25 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 21 2018
+
+I finished fixing continuations.
+ForthGui fails at the very end of test.txt, in the ansi test when it does 'accept',
+which isn't very surprising since it isn't a console app.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 20 2018
+
+I fixed the problem with AsyncThread::Join hanging in ForthGui, it was what
+I thought, the main thread was blocked inside the OK button handler at the
+point that it did the wait for the event coming from the joined thread, which
+would only get delivered when the main thread had gotten back to the message pump.
+Loading the adventure game has an error, because it includes continuation lines,
+and those are handled in a part of ForthShell that ForthGui doesn't use.
+I think I have to change the continuation handling, remove the part of it that
+is in the ForthInput classes and move all of it to ForthShell - have the shell
+recognize that an input line has continuations, merge and buffer continuation
+lines, and finally process them when a line without a continuation arrives.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 13 2018
 
 Life and work have kept me away for a long while.

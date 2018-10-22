@@ -32,8 +32,6 @@ public:
     virtual ~ForthInputStream();
 
     virtual char    *GetLine( const char *pPrompt ) = 0;
-    bool            HandleContinuation(const char* pContinuation);     // return true if caller should add a continuation line
-    virtual char    *AddContinuationLine() = 0;
 
     virtual const char* GetBufferPointer( void );
     virtual const char* GetBufferBasePointer( void );
@@ -93,7 +91,6 @@ public:
     virtual ~ForthFileInputStream();
 
     virtual char    *GetLine( const char *pPrompt );
-    virtual char    *AddContinuationLine();
     virtual bool    IsInteractive(void) { return false; };
     virtual int     GetLineNumber( void );
 	virtual const char* GetType( void );
@@ -125,7 +122,6 @@ public:
     virtual ~ForthConsoleInputStream();
 
     virtual char    *GetLine( const char *pPrompt );
-    virtual char    *AddContinuationLine();
     virtual bool    IsInteractive(void) { return true; };
 	virtual const char* GetType( void );
 	virtual const char* GetName( void );
@@ -155,7 +151,6 @@ public:
 
     virtual int     GetSourceID();
     virtual char    *GetLine( const char *pPrompt );
-    virtual char    *AddContinuationLine();
     virtual bool    IsInteractive(void) { return mIsInteractive; };
 	virtual const char* GetType( void );
     virtual const char* GetReportedBufferBasePointer( void );
@@ -193,7 +188,6 @@ public:
 
     virtual int     GetSourceID();
     virtual char    *GetLine( const char *pPrompt );
-    virtual char    *AddContinuationLine() { return nullptr; }  // we don't support continuations in block files
     virtual bool    IsInteractive(void) { return false; };
 	virtual const char* GetType( void );
  
@@ -226,7 +220,6 @@ public:
 
 	virtual int     GetSourceID();
 	virtual char    *GetLine(const char *pPrompt);
-    virtual char    *AddContinuationLine() { return nullptr; }  // continuations can't happen inside expressions
     virtual bool    IsInteractive(void) { return false; };
 	virtual const char* GetType(void);
 
@@ -287,8 +280,6 @@ public:
     void                    SetWriteOffset( int offset );
 	virtual bool			IsEmpty();
 
-    bool                    HandleContinuation(const char* pContinuation);
-    char                    *AddContinuationLine();
 protected:
     ForthInputStream        *mpHead;
 };

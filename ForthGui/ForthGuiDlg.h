@@ -10,6 +10,7 @@
 #endif // _MSC_VER > 1000
 
 #include "../ForthLib/ForthShell.h"
+#include <deque>
 
 class ForthShell;
 class ForthBufferInputStream;
@@ -26,6 +27,7 @@ public:
 	CForthGuiDlg(CWnd* pParent = NULL);	// standard constructor
 	~CForthGuiDlg();
 
+    void            RunForthThreadLoop();
 
 // Dialog Data
 	//{{AFX_DATA(CForthGuiDlg)
@@ -44,7 +46,8 @@ protected:
 	void			CreateForth();
     void            CreateDialogOps();
 	void			DestroyForth();
-	void			ProcessLine( char* pLine );
+    eForthResult	ProcessLine( char* pLine );
+    void            QueueInputLine(const char* pLine);
 	void			SetupTabbedPane( int tabNum, int tabID, LPSTR tabText );
 
 	HICON m_hIcon;
@@ -54,6 +57,9 @@ protected:
 	ForthObject					mConsoleOutObject;
     char                        mInBuffer[INPUT_BUFFER_SIZE];
 	int							mSelectedTab;
+    HANDLE                      mInputSemaphore;
+    CRITICAL_SECTION            mInputCriticalSection;
+    std::deque<CString>         mInputQueue;
 
 #define NUM_TABBED_PANES 4
 	CRichEditCtrl*				mTabbedPanes[ NUM_TABBED_PANES ];

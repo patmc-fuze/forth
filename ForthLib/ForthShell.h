@@ -132,7 +132,8 @@ public:
     inline ForthEngine *    GetEngine( void ) { return mpEngine; };
     inline ForthInputStack * GetInput( void ) { return mpInput; };
 	inline ForthShellStack * GetShellStack( void ) { return mpStack; };
-
+    inline bool             InputLineReadyToProcess() { return !mInContinuationLine; }
+    char*                   AddToInputLine(const char* pBuffer);
     inline int              GetArgCount( void ) const { return mNumArgs; };
     inline const char *     GetArg( int argNum ) const { return mpArgs[argNum]; };
     const char*             GetEnvironmentVar(const char* envVarName);
@@ -216,6 +217,8 @@ protected:
     int                     mFlags;
     char                    mErrorString[ 128 ];
     char                    mToken[MAX_TOKEN_BYTES + 1];
+    char                    mContinuationBuffer[DEFAULT_INPUT_BUFFER_LEN];
+    int                     mContinuationBytesStored;
     char*                   mTempDir;
     char*                   mSystemDir;
     char*                   mDLLDir;
@@ -246,5 +249,6 @@ protected:
 
     bool                    mWaitingForConsoleInput;
     bool                    mConsoleInputReady;
+    bool                    mInContinuationLine;
 };
 
