@@ -128,19 +128,19 @@ namespace OString
 		pEngine->ConsoleOut("'value' : '");
 		GET_THIS(oStringStruct, pString);
 		pEngine->ConsoleOut(&(pString->str->data[0]));
-		pShowContext->EndElement("'");
+		pShowContext->EndElement("',");
 
 		pShowContext->ShowIndent();
 		pEngine->ConsoleOut("'curLen' : ");
 		sprintf(buffer, "%d", pString->str->curLen);
 		pEngine->ConsoleOut(buffer);
-		pShowContext->EndElement();
+		pShowContext->EndElement(",");
 
 		pShowContext->ShowIndent();
 		pEngine->ConsoleOut("'maxLen' : ");
 		sprintf(buffer, "%d", pString->str->maxLen);
 		pEngine->ConsoleOut(buffer);
-		pShowContext->EndElement();
+        pShowContext->EndElement(",");
 
         pShowContext->ShowIndent();
         pEngine->ConsoleOut("'hash' : ");
