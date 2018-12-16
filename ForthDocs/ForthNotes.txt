@@ -174,6 +174,54 @@ ll == 0xfedcba9876543210L
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 16 2018
+
+I finished the show method rewrite, there are still a number of classes that
+have no showInner method that might need one, stuff like Thread, System, Lock,
+streams and so on.  I think none of the map iterators have showInner methods.
+
+When I did the Map showInner, I changed it so the shown key object is shown
+as an object like "@IntArray_00242288", otherwise the output couldn't be valid
+JSON.  I should followup by showing any of the unshown linked objects after
+showing the map itself.
+
+I also need to redo the showContext forthops.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 15 2018
+
+I rewrote the show methods to allow things like extending builtin classes to
+work, and also to reduce the amount of repeated code, like deciding when a comma
+needed to be printed between elements.  A major change was to add a showInner
+method, which for a class is responsible for showing just the elements which that
+level of class has added.  The show method handles iterating down the class
+derivation chain, giving each level of class a chance to show the members which
+it added.
+Things went pretty well, I finished all the classes in OArray.cpp, OList.cpp and
+ONumber.cpp, then I noticed that FloatArray was displaying the array elements first as
+floats, then again as ints, and finally as bytes.  The problem is that FloatArray
+is derived from IntArray, and IntArray is defined from ByteArray.  I stuck in a
+check that stops going down the class derivation chain if the next lower class is
+the same size as this class, that "fixed" this particular problem, but is actually
+the wrong thing to do - if a user defined class just adds some methods to another
+class without adding any new members, invoking show on a class instance will show
+nothing, since it has no added members and will immediately exit without showing
+the members defined by lower level classes.
+FloatArray/IntArray/ByteArray (and a bunch of others like it) is an odd case, since
+the derived classes do not add any of their own members, but instead use the
+existing 'elements' member in a different way.
+
+ShortArray - ByteArray - gets nothing but __elements
+IntArray - ByteArray - gets nothing but __elements
+FloatArray - IntArray - gets everything except showInner and sort
+LongArray - ByteArray - gets nothing but __elements
+DoubleArray - LongArray - gets about half its methods
+
+So the fix at least for the array classes is to remove the derivation links,
+and explicitly copying IntArray methods into the FloatArray methods - same for
+LongArray/DoubleArray.
+
+I'll have to look for the same situation in the map classes.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 21 2018
 
 I finished fixing continuations.

@@ -18,11 +18,6 @@
 #include "OList.h"
 #include "OArray.h"
 
-extern "C" {
-	extern void unimplementedMethodOp(ForthCoreState *pCore);
-	extern void illegalMethodOp(ForthCoreState *pCore);
-};
-
 namespace OList
 {
 
@@ -58,37 +53,33 @@ namespace OList
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oListShowMethod)
+	FORTHOP(oListShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oListStruct, pList);
 		oListElement* pCur = pList->head;
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'elements' : [");
+        pShowContext->BeginElement("elements");
+        pShowContext->ShowTextReturn("[");
 		if (pCur != NULL)
 		{
-			pShowContext->EndElement();
 			pShowContext->BeginIndent();
 			while (pCur != NULL)
 			{
 				oListElement* pNext = pCur->next;
 				if (pCur != pList->head)
 				{
-					pShowContext->EndElement(",");
-				}
+                    pShowContext->ShowTextReturn(",");
+                }
 				pShowContext->ShowIndent();
 				ForthShowObject(pCur->obj, pCore);
-				pCur = pNext;
+                pCur = pNext;
 			}
-			pShowContext->EndElement();
 			pShowContext->EndIndent();
 			pShowContext->ShowIndent();
 		}
-		pShowContext->EndElement("]");
-		pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
+        pShowContext->ShowTextReturn();
+        pShowContext->ShowIndent();
+        pShowContext->EndElement("]");
 		METHOD_RETURN;
 	}
 
@@ -560,7 +551,7 @@ namespace OList
 	{
 		METHOD("__newOp", oListNew),
 		METHOD("delete", oListDeleteMethod),
-		METHOD("show", oListShowMethod),
+		METHOD("showInner", oListShowInnerMethod),
 
 		METHOD_RET("headIter", oListHeadIterMethod, RETURNS_OBJECT(kBCIListIter)),
 		METHOD_RET("tailIter", oListTailIterMethod, RETURNS_OBJECT(kBCIListIter)),
@@ -609,25 +600,31 @@ namespace OList
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oListIterShowMethod)
+	FORTHOP(oListIterShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oListIterStruct, pIter);
+        char buffer[32];
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'cursor : ");
-		ForthShowObject(pIter->cursor->obj, pCore);
-		pShowContext->EndElement(",");
-		pShowContext->ShowIndent("'parent' : '@");
-		long* pParentData = pIter->parent.pData;
-		long* pParentMethods = pIter->parent.pMethodOps;
-		ForthClassObject* pClassObject = (ForthClassObject *)(*((pParentMethods)-1));
-		pShowContext->ShowID(pClassObject->pVocab->GetName(), pParentData);
-		pShowContext->EndElement("'");
-		pShowContext->EndIndent();
-		pEngine->ConsoleOut("}");
+        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        oListElement* pCur = reinterpret_cast<oListStruct *>(pIter->parent.pData)->head;
+        int cursor = 0;
+        while (pCur != NULL)
+        {
+            if (pCur == pIter->cursor)
+            {
+                break;
+            }
+            cursor++;
+            pCur = pCur->next;
+        }
+
+        pShowContext->BeginElement("cursor");
+        sprintf(buffer, "%d", cursor);
+        pShowContext->ShowText(buffer);
+        pShowContext->EndElement();
+        pShowContext->BeginElement("parent");
+        ForthShowObject(pIter->parent, pCore);
+		pShowContext->EndElement();
 		METHOD_RETURN;
 	}
 
@@ -901,7 +898,8 @@ namespace OList
 	baseMethodEntry oListIterMembers[] =
 	{
 		METHOD("__newOp", oListIterNew),
-		METHOD("delete", oListIterDeleteMethod),
+        METHOD("delete", oListIterDeleteMethod),
+        METHOD("showInner", oListIterShowInnerMethod),
 
 		METHOD("seekNext", oListIterSeekNextMethod),
 		METHOD("seekPrev", oListIterSeekPrevMethod),

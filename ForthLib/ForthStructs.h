@@ -200,7 +200,11 @@ public:
 
     virtual void        EndDefinition();
 
-	virtual void		ShowData(const void* pData, ForthCoreState* pCore);
+    virtual void		ShowData(const void* pData, ForthCoreState* pCore);
+    // returns number of top-level data items shown
+    // pass optional pEndVocab to prevent showing items from that vocab or lower
+    virtual int		    ShowDataInner(const void* pData, ForthCoreState* pCore,
+        ForthStructVocabulary* pEndVocab = nullptr);
 
 	inline long			GetInitOpcode() { return mInitOpcode;  }
 	void				SetInitOpcode(long op);

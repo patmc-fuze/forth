@@ -17,11 +17,6 @@
 
 #include "OMap.h"
 
-extern "C" {
-	extern void unimplementedMethodOp(ForthCoreState *pCore);
-	extern void illegalMethodOp(ForthCoreState *pCore);
-};
-
 namespace OMap
 {
 
@@ -75,41 +70,34 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oMapShowMethod)
+	FORTHOP(oMapShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oMapStruct, pMap);
 		oMap::iterator iter;
 		oMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'map' : {");
+        pShowContext->BeginElement("map");
+        pShowContext->ShowTextReturn("{");
+        pShowContext->BeginNestedShow();
 		if (a.size() > 0)
 		{
-			pShowContext->EndElement();
 			pShowContext->BeginIndent();
 			for (iter = a.begin(); iter != a.end(); ++iter)
 			{
 				stackInt64 key;
 				key.s64 = iter->first;
-				if (iter != a.begin())
-				{
-					pShowContext->EndElement(",");
-				}
-				pShowContext->ShowIndent();
-				ForthShowObject(key.obj, pCore);
-				pEngine->ConsoleOut(" : ");
+                pShowContext->AddObject(key.obj);
+                pShowContext->BeginLinkElement(key.obj);
 				ForthShowObject(iter->second, pCore);
-			}
-			pShowContext->EndElement();
+                pShowContext->EndElement();
+            }
 			pShowContext->EndIndent();
-			pShowContext->ShowIndent();
 		}
-		pShowContext->EndElement("}");
-		pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
+        pShowContext->EndNestedShow();
+        pShowContext->ShowTextReturn();
+        pShowContext->ShowIndent();
+        pShowContext->EndElement("}");
 		METHOD_RETURN;
 	}
 
@@ -384,7 +372,7 @@ namespace OMap
 	{
 		METHOD("__newOp", oMapNew),
 		METHOD("delete", oMapDeleteMethod),
-		METHOD("show", oMapShowMethod),
+		METHOD("showInner", oMapShowInnerMethod),
 
 		METHOD_RET("headIter", oMapHeadIterMethod, RETURNS_OBJECT(kBCIMapIter)),
 		METHOD_RET("tailIter", oMapTailIterMethod, RETURNS_OBJECT(kBCIMapIter)),
@@ -649,39 +637,33 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oIntMapShowMethod)
+	FORTHOP(oIntMapShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[20];
 		GET_THIS(oIntMapStruct, pMap);
 		oIntMap::iterator iter;
 		oIntMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'map' : {");
-		if (a.size() > 0)
+        pShowContext->BeginElement("map");
+        pShowContext->ShowTextReturn("{");
+        pShowContext->BeginNestedShow();
+        if (a.size() > 0)
 		{
-			pShowContext->EndElement();
 			pShowContext->BeginIndent();
 			for (iter = a.begin(); iter != a.end(); ++iter)
 			{
-				if (iter != a.begin())
-				{
-					pShowContext->EndElement(",");
-				}
-				sprintf(buffer, "%d : ", iter->first);
-				pShowContext->ShowIndent(buffer);
+				sprintf(buffer, "%d", iter->first);
+				pShowContext->BeginRawElement(buffer);
 				ForthShowObject(iter->second, pCore);
-			}
-			pShowContext->EndElement();
+                pShowContext->EndElement();
+            }
 			pShowContext->EndIndent();
 			pShowContext->ShowIndent();
 		}
-		pShowContext->EndElement("}");
-		pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
+        pShowContext->ShowTextReturn();
+        pShowContext->ShowIndent();
+        pShowContext->EndElement("}");
 		METHOD_RETURN;
 	}
 
@@ -933,7 +915,7 @@ namespace OMap
 	{
 		METHOD("__newOp", oIntMapNew),
 		METHOD("delete", oIntMapDeleteMethod),
-		METHOD("show", oIntMapShowMethod),
+		METHOD("showInner", oIntMapShowInnerMethod),
 
 		METHOD_RET("headIter", oIntMapHeadIterMethod, RETURNS_OBJECT(kBCIIntMapIter)),
 		METHOD_RET("tailIter", oIntMapTailIterMethod, RETURNS_OBJECT(kBCIIntMapIter)),
@@ -1169,42 +1151,36 @@ namespace OMap
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pMap);
 	}
 
-	FORTHOP(oFloatMapShowMethod)
+	FORTHOP(oFloatMapShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		char buffer[20];
 		GET_THIS(oFloatMapStruct, pMap);
 		oFloatMap::iterator iter;
 		oFloatMap& a = *(pMap->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'map' : {");
-		if (a.size() > 0)
-		{
-			pShowContext->EndElement();
-			pShowContext->BeginIndent();
-			for (iter = a.begin(); iter != a.end(); ++iter)
-			{
-				if (iter != a.begin())
-				{
-					pShowContext->EndElement(",");
-				}
-				float fval = *((float *)(&(iter->first)));
-				sprintf(buffer, "%f : ", fval);
-				pShowContext->ShowIndent(buffer);
-				ForthShowObject(iter->second, pCore);
-			}
-			pShowContext->EndElement();
-			pShowContext->EndIndent();
-			pShowContext->ShowIndent();
-		}
-		pShowContext->EndElement("}");
-		pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
-		METHOD_RETURN;
-	}
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        pShowContext->BeginElement("map");
+        pShowContext->ShowTextReturn("{");
+        pShowContext->BeginNestedShow();
+        if (a.size() > 0)
+        {
+            pShowContext->BeginIndent();
+            for (iter = a.begin(); iter != a.end(); ++iter)
+            {
+                float fval = *((float *)(&(iter->first)));
+                sprintf(buffer, "%f", fval);
+                pShowContext->BeginRawElement(buffer);
+                ForthShowObject(iter->second, pCore);
+                pShowContext->EndElement();
+            }
+            pShowContext->EndIndent();
+            pShowContext->ShowIndent();
+        }
+        pShowContext->ShowTextReturn();
+        pShowContext->ShowIndent();
+        pShowContext->EndElement("}");
+        METHOD_RETURN;
+    }
 
 	FORTHOP(oFloatMapLoadMethod)
 	{
@@ -1429,7 +1405,7 @@ namespace OMap
 	baseMethodEntry oFloatMapMembers[] =
 	{
 		METHOD("__newOp", oFloatMapNew),
-		METHOD("show", oFloatMapShowMethod),
+		METHOD("showInner", oFloatMapShowInnerMethod),
 
 		METHOD_RET("headIter", oFloatMapHeadIterMethod, RETURNS_OBJECT(kBCIFloatMapIter)),
 		METHOD_RET("tailIter", oFloatMapTailIterMethod, RETURNS_OBJECT(kBCIFloatMapIter)),
@@ -1492,41 +1468,35 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oLongMapShowMethod)
+	FORTHOP(oLongMapShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
-		char buffer[20];
-		GET_THIS(oLongMapStruct, pMap);
-		oLongMap::iterator iter;
-		oLongMap& a = *(pMap->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'map' : {");
-		if (a.size() > 0)
-		{
-			pShowContext->EndElement();
-			pShowContext->BeginIndent();
-			for (iter = a.begin(); iter != a.end(); ++iter)
-			{
-				if (iter != a.begin())
-				{
-					pShowContext->EndElement(",");
-				}
-				sprintf(buffer, "%lld : ", iter->first);
-				pShowContext->ShowIndent(buffer);
-				ForthShowObject(iter->second, pCore);
-			}
-			pShowContext->EndElement();
-			pShowContext->EndIndent();
-			pShowContext->ShowIndent();
-		}
-		pShowContext->EndElement("}");
-		pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
-		METHOD_RETURN;
-	}
+        char buffer[32];
+        GET_THIS(oLongMapStruct, pMap);
+        oLongMap::iterator iter;
+        oLongMap& a = *(pMap->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        pShowContext->BeginElement("map");
+        pShowContext->ShowTextReturn("{");
+        pShowContext->BeginNestedShow();
+        if (a.size() > 0)
+        {
+            pShowContext->BeginIndent();
+            for (iter = a.begin(); iter != a.end(); ++iter)
+            {
+                sprintf(buffer, "%lld", iter->first);
+                pShowContext->BeginRawElement(buffer);
+                ForthShowObject(iter->second, pCore);
+                pShowContext->EndElement();
+            }
+            pShowContext->EndIndent();
+            pShowContext->ShowIndent();
+        }
+        pShowContext->ShowTextReturn();
+        pShowContext->ShowIndent();
+        pShowContext->EndElement("}");
+        METHOD_RETURN;
+    }
 
 	FORTHOP(oLongMapClearMethod)
 	{
@@ -1781,7 +1751,7 @@ namespace OMap
 	{
 		METHOD("__newOp", oLongMapNew),
 		METHOD("delete", oLongMapDeleteMethod),
-		METHOD("show", oLongMapShowMethod),
+		METHOD("showInner", oLongMapShowInnerMethod),
 
 		METHOD_RET("headIter", oLongMapHeadIterMethod, RETURNS_OBJECT(kBCILongMapIter)),
 		METHOD_RET("tailIter", oLongMapTailIterMethod, RETURNS_OBJECT(kBCILongMapIter)),
@@ -2038,41 +2008,35 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oDoubleMapShowMethod)
+	FORTHOP(oDoubleMapShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
-		char buffer[64];
-		GET_THIS(oDoubleMapStruct, pMap);
-		oDoubleMap::iterator iter;
-		oDoubleMap& a = *(pMap->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'map' : {");
-		if (a.size() > 0)
-		{
-			pShowContext->EndElement();
-			pShowContext->BeginIndent();
-			for (iter = a.begin(); iter != a.end(); ++iter)
-			{
-				if (iter != a.begin())
-				{
-					pShowContext->EndElement(",");
-				}
-				sprintf(buffer, "%g : ", iter->first);
-				pShowContext->ShowIndent(buffer);
-				ForthShowObject(iter->second, pCore);
-			}
-			pShowContext->EndElement();
-			pShowContext->EndIndent();
-			pShowContext->ShowIndent();
-		}
-		pShowContext->EndElement("}");
-		pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
-		METHOD_RETURN;
-	}
+        char buffer[64];
+        GET_THIS(oDoubleMapStruct, pMap);
+        oDoubleMap::iterator iter;
+        oDoubleMap& a = *(pMap->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        pShowContext->BeginElement("map");
+        pShowContext->ShowTextReturn("{");
+        pShowContext->BeginNestedShow();
+        if (a.size() > 0)
+        {
+            pShowContext->BeginIndent();
+            for (iter = a.begin(); iter != a.end(); ++iter)
+            {
+                sprintf(buffer, "%g", iter->first);
+                pShowContext->BeginRawElement(buffer);
+                ForthShowObject(iter->second, pCore);
+                pShowContext->EndElement();
+            }
+            pShowContext->EndIndent();
+            pShowContext->ShowIndent();
+        }
+        pShowContext->ShowTextReturn();
+        pShowContext->ShowIndent();
+        pShowContext->EndElement("}");
+        METHOD_RETURN;
+    }
 
 	FORTHOP(oDoubleMapClearMethod)
 	{
@@ -2321,7 +2285,7 @@ namespace OMap
 	{
 		METHOD("__newOp", oDoubleMapNew),
 		METHOD("delete", oDoubleMapDeleteMethod),
-		METHOD("show", oDoubleMapShowMethod),
+		METHOD("showInner", oDoubleMapShowInnerMethod),
 
 		METHOD_RET("headIter", oDoubleMapHeadIterMethod, RETURNS_OBJECT(kBCIDoubleMapIter)),
 		METHOD_RET("tailIter", oDoubleMapTailIterMethod, RETURNS_OBJECT(kBCIDoubleMapIter)),
@@ -2570,44 +2534,34 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oStringIntMapShowMethod)
+	FORTHOP(oStringIntMapShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
-		char buffer[16];
+		char buffer[20];
 		GET_THIS(oStringIntMapStruct, pMap);
 		oStringIntMap::iterator iter;
 		oStringIntMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'map' : {");
-		if (a.size() > 0)
+        pShowContext->BeginElement("map");
+        pShowContext->ShowTextReturn("{");
+        pShowContext->BeginNestedShow();
+        if (a.size() > 0)
 		{
-			pShowContext->EndElement();
 			pShowContext->BeginIndent();
 			for (iter = a.begin(); iter != a.end(); ++iter)
 			{
-				if (iter != a.begin())
-				{
-					pShowContext->EndElement(",");
-				}
-				pShowContext->ShowIndent("'");
-				pEngine->ConsoleOut(iter->first.c_str());
-				pEngine->ConsoleOut("' : ");
+                pShowContext->BeginElement(iter->first.c_str());
 				sprintf(buffer, "%d", iter->second);
-				pEngine->ConsoleOut(buffer);
-			}
+                pShowContext->EndElement(buffer);
+            }
 			pShowContext->EndIndent();
-			pShowContext->EndElement();
 			pShowContext->ShowIndent();
 		}
-		pShowContext->EndElement("}");
-		pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
-		METHOD_RETURN;
-	}
-
+        pShowContext->ShowTextReturn();
+        pShowContext->ShowIndent();
+        pShowContext->EndElement("}");
+        METHOD_RETURN;
+    }
 
 	FORTHOP(oStringIntMapClearMethod)
 	{
@@ -2792,7 +2746,7 @@ namespace OMap
 	{
 		METHOD("__newOp", oStringIntMapNew),
 		METHOD("delete", oStringIntMapDeleteMethod),
-		METHOD("show", oStringIntMapShowMethod),
+		METHOD("showInner", oStringIntMapShowInnerMethod),
 
 		METHOD_RET("headIter", oStringIntMapHeadIterMethod, RETURNS_OBJECT(kBCIStringIntMapIter)),
 		METHOD_RET("tailIter", oStringIntMapTailIterMethod, RETURNS_OBJECT(kBCIStringIntMapIter)),
@@ -3005,51 +2959,41 @@ namespace OMap
 	//                 StringFloatMap
 	//
 
-	FORTHOP(oStringFloatMapShowMethod)
-	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
-		char buffer[16];
-		GET_THIS(oStringIntMapStruct, pMap);
-		oStringIntMap::iterator iter;
-		oStringIntMap& a = *(pMap->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'map' : {");
-		if (a.size() > 0)
-		{
-			pShowContext->EndElement();
-			pShowContext->BeginIndent();
-			for (iter = a.begin(); iter != a.end(); ++iter)
-			{
-				if (iter != a.begin())
-				{
-					pShowContext->EndElement(",");
-				}
-				pShowContext->ShowIndent("'");
-				pEngine->ConsoleOut(iter->first.c_str());
-				pEngine->ConsoleOut("' : ");
-				float fval = *((float *)&(iter->second));
-				sprintf(buffer, "%f", fval);
-				pEngine->ConsoleOut(buffer);
-			}
-			pShowContext->EndIndent();
-			pShowContext->EndElement();
-			pShowContext->ShowIndent();
-		}
-		pShowContext->EndElement("}");
-		pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
-		METHOD_RETURN;
-	}
-
+    FORTHOP(oStringFloatMapShowInnerMethod)
+    {
+        char buffer[20];
+        GET_THIS(oStringIntMapStruct, pMap);
+        oStringIntMap::iterator iter;
+        oStringIntMap& a = *(pMap->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        pShowContext->BeginElement("map");
+        pShowContext->ShowTextReturn("{");
+        pShowContext->BeginNestedShow();
+        if (a.size() > 0)
+        {
+            pShowContext->BeginIndent();
+            for (iter = a.begin(); iter != a.end(); ++iter)
+            {
+                pShowContext->BeginElement(iter->first.c_str());
+                float fval = *((float *)&(iter->second));
+                sprintf(buffer, "%f", fval);
+                pShowContext->EndElement(buffer);
+            }
+            pShowContext->EndIndent();
+            pShowContext->ShowIndent();
+        }
+        pShowContext->ShowTextReturn();
+        pShowContext->ShowIndent();
+        pShowContext->EndElement("}");
+        METHOD_RETURN;
+    }
 
 
 	baseMethodEntry oStringFloatMapMembers[] =
 	{
 		METHOD("__newOp", oStringIntMapNew),
-		METHOD("show", oStringFloatMapShowMethod),
+		METHOD("showInner", oStringFloatMapShowInnerMethod),
 
 		// following must be last in table
 		END_MEMBERS
@@ -3097,43 +3041,34 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oStringLongMapShowMethod)
+	FORTHOP(oStringLongMapShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
-		char buffer[32];
-		GET_THIS(oStringLongMapStruct, pMap);
-		oStringLongMap::iterator iter;
-		oStringLongMap& a = *(pMap->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'map' : {");
-		if (a.size() > 0)
-		{
-			pShowContext->EndElement();
-			pShowContext->BeginIndent();
-			for (iter = a.begin(); iter != a.end(); ++iter)
-			{
-				if (iter != a.begin())
-				{
-					pShowContext->EndElement(",");
-				}
-				pShowContext->ShowIndent("'");
-				pEngine->ConsoleOut(iter->first.c_str());
-				pEngine->ConsoleOut("' : ");
-				sprintf(buffer, "%lld", iter->second);
-				pEngine->ConsoleOut(buffer);
-			}
-			pShowContext->EndIndent();
-			pShowContext->EndElement();
-			pShowContext->ShowIndent();
-		}
-		pShowContext->EndElement("}");
-		pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
-		METHOD_RETURN;
-	}
+        char buffer[32];
+        GET_THIS(oStringLongMapStruct, pMap);
+        oStringLongMap::iterator iter;
+        oStringLongMap& a = *(pMap->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        pShowContext->BeginElement("map");
+        pShowContext->ShowTextReturn("{");
+        pShowContext->BeginNestedShow();
+        if (a.size() > 0)
+        {
+            pShowContext->BeginIndent();
+            for (iter = a.begin(); iter != a.end(); ++iter)
+            {
+                pShowContext->BeginElement(iter->first.c_str());
+                sprintf(buffer, "%lld", iter->second);
+                pShowContext->EndElement(buffer);
+            }
+            pShowContext->EndIndent();
+            pShowContext->ShowIndent();
+        }
+        pShowContext->ShowTextReturn();
+        pShowContext->ShowIndent();
+        pShowContext->EndElement("}");
+        METHOD_RETURN;
+    }
 
 
 	FORTHOP(oStringLongMapClearMethod)
@@ -3325,7 +3260,7 @@ namespace OMap
 	{
 		METHOD("__newOp", oStringLongMapNew),
 		METHOD("delete", oStringLongMapDeleteMethod),
-		METHOD("show", oStringLongMapShowMethod),
+		METHOD("showInner", oStringLongMapShowInnerMethod),
 		
 		METHOD_RET("headIter", oStringLongMapHeadIterMethod, RETURNS_OBJECT(kBCIStringLongMapIter)),
 		METHOD_RET("tailIter", oStringLongMapTailIterMethod, RETURNS_OBJECT(kBCIStringLongMapIter)),
@@ -3544,56 +3479,46 @@ namespace OMap
 	//                 StringDoubleMap
 	//
 
-	FORTHOP(oStringDoubleMapShowMethod)
+	FORTHOP(oStringDoubleMapShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
-		char buffer[32];
-		GET_THIS(oStringLongMapStruct, pMap);
-		oStringLongMap::iterator iter;
-		oStringLongMap& a = *(pMap->elements);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'map' : {");
-		if (a.size() > 0)
-		{
-			pShowContext->EndElement();
-			pShowContext->BeginIndent();
-			for (iter = a.begin(); iter != a.end(); ++iter)
-			{
-				if (iter != a.begin())
-				{
-					pShowContext->EndElement(",");
-				}
-				pShowContext->ShowIndent("'");
-				pEngine->ConsoleOut(iter->first.c_str());
-				pEngine->ConsoleOut("' : ");
-
-				stackInt64 val;
-				val.s64 = iter->second;
-				stackInt64 valb;
-				valb.s32[0] = val.s32[1];
-				valb.s32[1] = val.s32[0];
-				double dvalb = *((double *)&valb);
-				sprintf(buffer, "%f", dvalb);
-				pEngine->ConsoleOut(buffer);
-			}
-			pShowContext->EndIndent();
-			pShowContext->EndElement();
-			pShowContext->ShowIndent();
-		}
-		pShowContext->EndElement("}");
-		pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
-		METHOD_RETURN;
-	}
+        char buffer[32];
+        GET_THIS(oStringLongMapStruct, pMap);
+        oStringLongMap::iterator iter;
+        oStringLongMap& a = *(pMap->elements);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        pShowContext->BeginElement("map");
+        pShowContext->ShowTextReturn("{");
+        pShowContext->BeginNestedShow();
+        if (a.size() > 0)
+        {
+            pShowContext->BeginIndent();
+            for (iter = a.begin(); iter != a.end(); ++iter)
+            {
+                pShowContext->BeginElement(iter->first.c_str());
+                stackInt64 val;
+                val.s64 = iter->second;
+                stackInt64 valb;
+                valb.s32[0] = val.s32[1];
+                valb.s32[1] = val.s32[0];
+                double dvalb = *((double *)&valb);
+                sprintf(buffer, "%f", dvalb);
+                pShowContext->EndElement(buffer);
+            }
+            pShowContext->EndIndent();
+            pShowContext->ShowIndent();
+        }
+        pShowContext->ShowTextReturn();
+        pShowContext->ShowIndent();
+        pShowContext->EndElement("}");
+        METHOD_RETURN;
+    }
 
 
 	baseMethodEntry oStringDoubleMapMembers[] =
 	{
 		METHOD("__newOp", oStringLongMapNew),
-		METHOD("show", oStringDoubleMapShowMethod),
+		METHOD("showInner", oStringDoubleMapShowInnerMethod),
 
 		// following must be last in table
 		END_MEMBERS

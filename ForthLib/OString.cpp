@@ -18,10 +18,9 @@
 #include "OString.h"
 #include "OArray.h"
 
-extern "C" {
+extern "C"
+{
 	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
-	extern void unimplementedMethodOp( ForthCoreState *pCore );
-	extern void illegalMethodOp( ForthCoreState *pCore );
 	extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 };
 
@@ -116,40 +115,29 @@ namespace OString
         METHOD_RETURN;
     }
 
-    FORTHOP( oStringShowMethod )
+    FORTHOP( oStringShowInnerMethod )
     {
 		char buffer[16];
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
 
-		pShowContext->ShowIndent();
-		pEngine->ConsoleOut("'value' : '");
+		pShowContext->BeginElement("value");
 		GET_THIS(oStringStruct, pString);
-		pEngine->ConsoleOut(&(pString->str->data[0]));
-		pShowContext->EndElement("',");
+        pShowContext->ShowText("\"");
+        pShowContext->ShowText(&(pString->str->data[0]));
+        pShowContext->EndElement("\"");
 
-		pShowContext->ShowIndent();
-		pEngine->ConsoleOut("'curLen' : ");
+        pShowContext->BeginElement("curlen");
 		sprintf(buffer, "%d", pString->str->curLen);
-		pEngine->ConsoleOut(buffer);
-		pShowContext->EndElement(",");
+        pShowContext->EndElement(buffer);
 
-		pShowContext->ShowIndent();
-		pEngine->ConsoleOut("'maxLen' : ");
+        pShowContext->BeginElement("maxLen");
 		sprintf(buffer, "%d", pString->str->maxLen);
-		pEngine->ConsoleOut(buffer);
-        pShowContext->EndElement(",");
+        pShowContext->EndElement(buffer);
 
-        pShowContext->ShowIndent();
-        pEngine->ConsoleOut("'hash' : ");
+        pShowContext->BeginElement("hash");
         sprintf(buffer, "%d", pString->hash);
-        pEngine->ConsoleOut(buffer);
-        pShowContext->EndElement();
+        pShowContext->EndElement(buffer);
 
-        pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
 		METHOD_RETURN;
     }
 
@@ -815,7 +803,7 @@ namespace OString
     {
         METHOD(     "__newOp",              oStringNew ),
         METHOD(     "delete",               oStringDeleteMethod ),
-        METHOD(     "show",					oStringShowMethod ),
+        METHOD(     "showInner",					oStringShowInnerMethod ),
         METHOD_RET( "compare",              oStringCompareMethod, RETURNS_NATIVE(kBaseTypeInt) ),
         METHOD(     "size",                 oStringSizeMethod ),
         METHOD(     "length",               oStringLengthMethod ),
@@ -913,40 +901,32 @@ namespace OString
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oStringMapShowMethod)
+	FORTHOP(oStringMapShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oStringMapStruct, pMap);
 		oStringMap::iterator iter;
 		oStringMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'map' : {");
-		if (a.size() > 0)
+        pShowContext->BeginElement("map");
+        pShowContext->ShowTextReturn("{");
+        pShowContext->BeginNestedShow();
+        if (a.size() > 0)
 		{
-			pShowContext->EndElement();
 			pShowContext->BeginIndent();
 			for (iter = a.begin(); iter != a.end(); ++iter)
 			{
-				if (iter != a.begin())
-				{
-					pShowContext->EndElement(",");
-				}
-				pShowContext->ShowIndent("'");
-				pEngine->ConsoleOut(iter->first.c_str());
-				pEngine->ConsoleOut("' : ");
+                pShowContext->BeginElement(iter->first.c_str());
 				ForthShowObject(iter->second, pCore);
-			}
+                pShowContext->EndElement();
+            }
 			pShowContext->EndIndent();
-			pShowContext->EndElement();
 			pShowContext->ShowIndent();
 		}
-		pShowContext->EndElement("}");
-		pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
-		METHOD_RETURN;
+        pShowContext->ShowTextReturn();
+        pShowContext->ShowIndent();
+        pShowContext->EndElement("}");
+        METHOD_RETURN;
 	}
 
 
@@ -1199,7 +1179,7 @@ namespace OString
 	{
 		METHOD("__newOp", oStringMapNew),
 		METHOD("delete", oStringMapDeleteMethod),
-		METHOD("show", oStringMapShowMethod),
+		METHOD("showInner", oStringMapShowInnerMethod),
 
 		METHOD_RET("headIter", oStringMapHeadIterMethod, RETURNS_OBJECT(kBCIMapIter)),
 		METHOD_RET("tailIter", oStringMapTailIterMethod, RETURNS_OBJECT(kBCIMapIter)),

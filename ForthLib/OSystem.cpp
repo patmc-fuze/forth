@@ -19,12 +19,6 @@
 
 #include "OSystem.h"
 
-extern "C"
-{
-	extern void unimplementedMethodOp(ForthCoreState *pCore);
-	extern void illegalMethodOp(ForthCoreState *pCore);
-};
-
 namespace OSystem
 {
 	//////////////////////////////////////////////////////////////////////

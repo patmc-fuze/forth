@@ -18,9 +18,8 @@
 #include "OStream.h"
 #include "OString.h"
 
-extern "C" {
-	extern void unimplementedMethodOp(ForthCoreState *pCore);
-	extern void illegalMethodOp(ForthCoreState *pCore);
+extern "C"
+{
 	extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 };
 

@@ -96,19 +96,14 @@ namespace ONumber
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oIntShowMethod)
+	FORTHOP(oIntShowInnerMethod)
 	{
 		char buff[32];
 		GET_THIS(oIntStruct, pInt);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        pShowContext->BeginIndent();
-        SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'value' : ");
+		pShowContext->BeginElement("value");
 		sprintf(buff, "%d", pInt->val);
 		pShowContext->EndElement(buff);
-        pShowContext->EndIndent();
-        pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -137,7 +132,7 @@ namespace ONumber
         METHOD_RET("getUByte", oIntGetUnsignedByteMethod, RETURNS_NATIVE(kBaseTypeUByte)),
         METHOD_RET("getShort", oIntGetSignedShortMethod, RETURNS_NATIVE(kBaseTypeShort)),
         METHOD_RET("getUShort", oIntGetUnsignedShortMethod, RETURNS_NATIVE(kBaseTypeUShort)),
-        METHOD("show", oIntShowMethod),
+        METHOD("showInner", oIntShowInnerMethod),
 		METHOD_RET("compare", oIntCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
@@ -188,19 +183,14 @@ namespace ONumber
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oLongShowMethod)
+	FORTHOP(oLongShowInnerMethod)
 	{
 		char buff[32];
 		GET_THIS(oLongStruct, pLong);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        pShowContext->BeginIndent();
-        SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'value' : ");
+        pShowContext->BeginElement("value");
 		sprintf(buff, "%lld", pLong->val);
 		pShowContext->EndElement(buff);
-        pShowContext->EndIndent();
-        pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -225,7 +215,7 @@ namespace ONumber
 
 		METHOD("set", oLongSetMethod),
 		METHOD_RET("get", oLongGetMethod, RETURNS_NATIVE(kBaseTypeLong)),
-		METHOD("show", oLongShowMethod),
+		METHOD("showInner", oLongShowInnerMethod),
 		METHOD_RET("compare", oLongCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
         MEMBER_VAR("__dummy", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
@@ -272,19 +262,15 @@ namespace ONumber
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oFloatShowMethod)
+	FORTHOP(oFloatShowInnerMethod)
 	{
 		char buff[32];
 		GET_THIS(oFloatStruct, pFloat);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        pShowContext->BeginIndent();
-        SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'value' : ");
-		sprintf(buff, "%f", pFloat->val);
-		pShowContext->EndElement(buff);
-        pShowContext->EndIndent();
-        pShowContext->ShowIndent("}");
+        pShowContext->BeginElement("value");
+        sprintf(buff, "%f", pFloat->val);
+        pShowContext->EndElement(buff);
 		METHOD_RETURN;
 	}
 
@@ -309,7 +295,7 @@ namespace ONumber
 
 		METHOD("set", oFloatSetMethod),
 		METHOD_RET("get", oFloatGetMethod, RETURNS_NATIVE(kBaseTypeFloat)),
-		METHOD("show", oFloatShowMethod),
+		METHOD("showInner", oFloatShowInnerMethod),
 		METHOD_RET("compare", oFloatCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
         MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeFloat)),
@@ -356,19 +342,15 @@ namespace ONumber
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oDoubleShowMethod)
+	FORTHOP(oDoubleShowInnerMethod)
 	{
 		char buff[32];
 		GET_THIS(oDoubleStruct, pDouble);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        pShowContext->BeginIndent();
-        SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'value' : ");
-		sprintf(buff, "%f", pDouble->val);
-		pShowContext->EndElement(buff);
-        pShowContext->EndIndent();
-        pShowContext->ShowIndent("}");
+        pShowContext->BeginElement("value");
+        sprintf(buff, "%f", pDouble->val);
+        pShowContext->EndElement(buff);
 		METHOD_RETURN;
 	}
 
@@ -393,7 +375,7 @@ namespace ONumber
 
 		METHOD("set", oDoubleSetMethod),
 		METHOD_RET("get", oDoubleGetMethod, RETURNS_NATIVE(kBaseTypeDouble)),
-		METHOD("show", oDoubleShowMethod),
+		METHOD("showInner", oDoubleShowInnerMethod),
 		METHOD_RET("compare", oDoubleCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
         MEMBER_VAR("__dummy", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
