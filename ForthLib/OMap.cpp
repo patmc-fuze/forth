@@ -77,15 +77,48 @@ namespace OMap
 		oMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        pShowContext->BeginElement("map");
-        pShowContext->ShowTextReturn("{");
-        pShowContext->BeginNestedShow();
 		if (a.size() > 0)
 		{
-			pShowContext->BeginIndent();
-			for (iter = a.begin(); iter != a.end(); ++iter)
+            stackInt64 key;
+            pShowContext->BeginIndent();
+
+            // first, show any key objects that weren't already shown
+            std::vector<ForthObject> keysToShow;
+            for (iter = a.begin(); iter != a.end(); ++iter)
+            {
+                key.s64 = iter->first;
+                if (!pShowContext->ObjectAlreadyShown(key.obj))
+                {
+                    keysToShow.push_back(key.obj);
+                }
+            }
+            if (keysToShow.size() > 0)
+            {
+                pShowContext->BeginElement("__keys");
+                pShowContext->ShowText("[");
+                pShowContext->BeginNestedShow();
+                pShowContext->BeginIndent();
+                for (ForthObject& keyObj : keysToShow)
+                {
+                    pShowContext->BeginArrayElement();
+                    pShowContext->ShowTextReturn();
+                    pShowContext->ShowIndent();
+                    ForthShowObject(keyObj, pCore);
+                    pShowContext->EndElement();
+                }
+                pShowContext->EndIndent();
+                pShowContext->ShowIndent();
+                pShowContext->EndNestedShow();
+                pShowContext->ShowTextReturn();
+                pShowContext->ShowIndent();
+                pShowContext->EndElement("]");
+            }
+
+            pShowContext->BeginElement("map");
+            pShowContext->ShowTextReturn("{");
+            pShowContext->BeginNestedShow();
+            for (iter = a.begin(); iter != a.end(); ++iter)
 			{
-				stackInt64 key;
 				key.s64 = iter->first;
                 pShowContext->AddObject(key.obj);
                 pShowContext->BeginLinkElement(key.obj);

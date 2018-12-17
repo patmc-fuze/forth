@@ -234,7 +234,7 @@ void ForthShowContext::EndNestedShow()
 
 void ForthShowContext::BeginArray()
 {
-    EndElement("[");
+    ShowText("[");
     BeginIndent();
     ShowIndent();
 }
