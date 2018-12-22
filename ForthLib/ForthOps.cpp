@@ -2384,7 +2384,7 @@ void __newOp(ForthCoreState* pCore, const char* pClassName)
 					// copy object data pointer to TOS to be used by init 
 					long a = (GET_SP)[1];
 					SPUSH(a);
-					pEngine->ExecuteOp(pCore, initOpcode);
+					pEngine->FullyExecuteOp(pCore, initOpcode);
 				}
 			}
         }

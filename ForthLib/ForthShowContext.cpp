@@ -151,7 +151,9 @@ void ForthShowContext::AddObject(ForthObject& obj)
 
 bool ForthShowContext::ObjectAlreadyShown(ForthObject& obj)
 {
-	return mShownObjects.find(obj.pData) != mShownObjects.end();
+	return obj.pMethodOps == nullptr
+        || obj.pData == nullptr
+        || mShownObjects.find(obj.pData) != mShownObjects.end();
 }
 
 std::vector<ForthObject>& ForthShowContext::GetObjects()
@@ -264,10 +266,16 @@ void ForthShowContext::EndObject()
 
 void ForthShowContext::ShowObjectLink(const ForthObject& obj)
 {
-    const ForthClassObject* pClassObject = (const ForthClassObject *)(*((obj.pMethodOps) - 1));
-    const char* pTypeName = pClassObject->pVocab->GetName();
     ShowText("\"@");
+
+    const char* pTypeName = "Null";
+    if (obj.pMethodOps != nullptr)
+    {
+        const ForthClassObject* pClassObject = (const ForthClassObject *)(*((obj.pMethodOps) - 1));
+        pTypeName = pClassObject->pVocab->GetName();
+    }
     ShowID(pTypeName, obj.pData);
+
     ShowText("\"");
 }
 
