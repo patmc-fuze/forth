@@ -181,6 +181,8 @@ strings and arrays (not object String or Array) members.  If a class has an
 old style string, if you do a makeObject in interpret mode, the created object
 will have its methods and data pointers swapped.  The problem won't happen
 if you compile the same makeObject in an op definition.
+-> The problem was __newOp was doing ExecuteOp instead of FullyExecuteOp on
+   the class _init op.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 16 2018
 
