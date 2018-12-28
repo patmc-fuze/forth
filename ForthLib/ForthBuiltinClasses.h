@@ -128,6 +128,15 @@ struct oOutStreamStruct
 	char				eolChars[4];
 };
 
+struct InStreamFuncs
+{
+    streamCharInRoutine		    inChar;
+    streamBytesInRoutine		inBytes;
+    streamLineInRoutine		    inLine;
+    streamStringInRoutine		inString;
+};
+
+
 enum
 {
 	kOutStreamPutCharMethod = kNumBaseMethods,
@@ -145,6 +154,7 @@ struct oInStreamStruct
 	ulong               refCount;
 	void*               pUserData;
 	int					bTrimEOL;
+    InStreamFuncs*      pInFuncs;
 };
 
 typedef std::vector<ForthObject> oArray;

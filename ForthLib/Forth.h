@@ -341,6 +341,18 @@ typedef void (*streamBytesOutRoutine) ( ForthCoreState* pCore, void *pData, cons
 // stream string output routine type
 typedef void (*streamStringOutRoutine) ( ForthCoreState* pCore, void *pData, const char *pBuff );
 
+// stream character input routine type - returns 1 for char gotten, 0 for EOF
+typedef int (*streamCharInRoutine) (ForthCoreState* pCore, void *pData, int& ch);
+
+// stream block input routine type - returns number of chars gotten
+typedef int (*streamBytesInRoutine) (ForthCoreState* pCore, void *pData, char *pBuff, int numChars);
+
+// stream string input routine type - returns number of chars gotten
+typedef int(*streamStringInRoutine) (ForthCoreState* pCore, void *pData, ForthObject& dstString);
+
+// stream line input routine type - returns number of chars gotten
+typedef int(*streamLineInRoutine) (ForthCoreState* pCore, void *pData, char *pBuff, int maxChars);
+
 // these routines allow code external to forth to redirect the forth output stream
 extern void GetForthConsoleOutStream( ForthCoreState* pCore, ForthObject& outObject );
 extern void CreateForthFileOutStream( ForthCoreState* pCore, ForthObject& outObject, FILE* pOutFile );
