@@ -35,6 +35,7 @@
 #include "ForthObject.h"
 #include "ForthBlockFileManager.h"
 #include "ForthShowContext.h"
+#include "ForthObjectReader.h"
 
 #if defined(LINUX) || defined(MACOSX)
 #include <strings.h>
@@ -119,6 +120,7 @@ FORTHOP( badOpOp )
 FORTHOP( unimplementedMethodOp )
 {
     SET_ERROR( kForthErrorUnimplementedMethod );
+    METHOD_RETURN;
 }
 
 // unimplementedMethodOp is used to detect executing unimplemented methods
@@ -2592,7 +2594,23 @@ FORTHOP( initMemberStringOp )
     pEngine->CompileOpcode( kOpMemberStringInit, varOffset );
 }
 
-FORTHOP( enumOp )
+FORTHOP(readObjectsOp)
+{
+    ForthObject outObjects;
+    ForthObject inStream;
+    POP_OBJECT(outObjects);
+    POP_OBJECT(inStream);
+    ForthObjectReader reader;
+
+    bool itWorked = reader.ReadObjects(inStream, outObjects);
+    if (!itWorked)
+    {
+        ForthEngine *pEngine = GET_ENGINE;
+        pEngine->SetError(kForthErrorBadSyntax, reader.GetError().c_str());
+    }
+}
+
+FORTHOP(enumOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
     //if ( pEngine->CheckFlag( kEngineFlagInStructDefinition ) )
@@ -9672,6 +9690,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    strNewOp,               "$new" ),
     PRECOP_DEF(makeObjectOp,           "makeObject" ),
     PRECOP_DEF(initMemberStringOp,     "initMemberString"),
+    OP_DEF(    readObjectsOp,          "readObjects" ),
     OP_DEF(    enumOp,                 "enum:" ),
     OP_DEF(    endenumOp,              ";enum" ),
     OP_DEF(    findEnumSymbolOp,       "findEnumSymbol" ),

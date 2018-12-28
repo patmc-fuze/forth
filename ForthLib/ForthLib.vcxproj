@@ -314,6 +314,7 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MaxSpeed</Optimization>
     </ClCompile>
     <ClCompile Include="ForthMemoryManager.cpp" />
+    <ClCompile Include="ForthObjectReader.cpp" />
     <ClCompile Include="ForthOpcodeCompiler.cpp" />
     <ClCompile Include="ForthOps.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Debug GUI|Win32'">Disabled</Optimization>
@@ -455,6 +456,7 @@
     <ClInclude Include="ForthMemoryManager.h" />
     <ClInclude Include="ForthMessages.h" />
     <ClInclude Include="ForthObject.h" />
+    <ClInclude Include="ForthObjectReader.h" />
     <ClInclude Include="ForthOpcodeCompiler.h" />
     <ClInclude Include="ForthParseInfo.h" />
     <ClInclude Include="ForthPipe.h" />

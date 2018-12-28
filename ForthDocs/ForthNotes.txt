@@ -165,14 +165,30 @@ Gotchas with structure and object support:
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 Double and long memory and stack layouts:
 
-           memory                       param stack
-0.5d    00 00 00 00  00 00 e0 3f     00 00 00 00  00 00 e0 3f
-ll      10 32 54 76  98 ba dc fe     98 ba dc fe  10 32 54 76  
-
-ll == 0xfedcba9876543210L
+                              memory                       param stack
+0.5d                   00 00 00 00  00 00 e0 3f     00 00 00 00  00 00 e0 3f
+0xfedcba9876543210L    10 32 54 76  98 ba dc fe     98 ba dc fe  10 32 54 76  
 
 Double has consistent layout, long is reversed on param stack.
 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 28 2018
+
+ForthObjectReader is mostly working.  There is a bug where the output object
+array has entries for inner objects, and structs and builtin classes aren't
+supported yet.
+
+- redundant objects in output object array
+- structs inside objects aren't supported yet
+- add a way to specify a custom reader for classes which have custom show method
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 26 2018
+
+I started ForthObjectReader yesterday.
+I still need to figure out how to add custom readers for builtin classes.
+One choice I might regret is to throw an exception whenever a parse error
+occurs - this might be a problem for cases where an unknown element could
+be ignored without aborting object readback.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 21 2018
 
