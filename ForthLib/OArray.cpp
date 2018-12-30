@@ -1079,7 +1079,6 @@ namespace OArray
             ForthCoreState* pCore = reader->GetCoreState();
             oBagStruct *dstBag = (oBagStruct *)(reader->getCustomReaderContext().pData);
             reader->getRequiredChar('{');
-            ForthObject obj;
             std::string tag;
             bagElement newElement;
             int tagParts[3];
@@ -5216,28 +5215,29 @@ namespace OArray
             ForthEngine *pEngine = GET_ENGINE;
             ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
             oStructArray& a = *(pArray->elements);
-            pShowContext->ShowIndent("'elements' : [");
+            pShowContext->BeginElement("elements");
+            pShowContext->ShowTextReturn("[");
+            pShowContext->BeginNestedShow();
             if (a.size() > 0)
             {
-                pShowContext->EndElement();
                 pShowContext->BeginIndent();
                 for (unsigned int i = 0; i < pArray->numElements; i++)
                 {
                     if (i != 0)
                     {
-                        pShowContext->EndElement(",");
+                        pShowContext->ShowTextReturn(",");
                     }
                     pShowContext->ShowIndent();
                     void* pStruct = &(a[i * pArray->elementSize]);
                     pArray->pVocab->ShowData(pStruct, pCore);
                 }
-                pShowContext->EndElement();
                 pShowContext->EndIndent();
                 pShowContext->ShowIndent();
             }
+            pShowContext->EndNestedShow();
+            pShowContext->ShowTextReturn();
+            pShowContext->ShowIndent();
             pShowContext->EndElement("]");
-            pShowContext->EndIndent();
-            pShowContext->ShowIndent("}");
         }
         else
         {

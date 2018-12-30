@@ -14,6 +14,7 @@
 #include "ForthObject.h"
 #include "ForthBuiltinClasses.h"
 #include "ForthShowContext.h"
+#include "ForthObjectReader.h"
 
 #include "OMap.h"
 
@@ -134,7 +135,100 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oMapClearMethod)
+    void setObjectMap(oMapStruct* pMap, ForthObject& keyObj, ForthObject& valueObj, ForthCoreState* pCore)
+    {
+        stackInt64 key;
+        key.obj = keyObj;
+        oMap& a = *(pMap->elements);
+        oMap::iterator iter = a.find(key.s64);
+        if (valueObj.pMethodOps != NULL)
+        {
+            if (iter != a.end())
+            {
+                ForthObject oldObj = iter->second;
+                if (OBJECTS_DIFFERENT(oldObj, valueObj))
+                {
+                    SAFE_KEEP(valueObj);
+                    SAFE_RELEASE(pCore, oldObj);
+                }
+            }
+            else
+            {
+                SAFE_KEEP(key.obj);
+                SAFE_KEEP(valueObj);
+            }
+            a[key.s64] = valueObj;
+        }
+        else
+        {
+            // remove element associated with key from map
+            if (iter != a.end())
+            {
+                stackInt64 key;
+                key.s64 = iter->first;
+                SAFE_RELEASE(pCore, key.obj);
+                ForthObject& val = iter->second;
+                SAFE_RELEASE(pCore, val);
+                a.erase(iter);
+            }
+        }
+    }
+
+    bool customMapReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "__keys")
+        {
+            reader->getRequiredChar('[');
+            ForthObject obj;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == ']')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getObjectOrLink(&obj);
+                SAFE_KEEP(obj);
+                //dstArray->elements->push_back(obj);
+                // TODO: release obj here?
+            }
+            return true;
+        }
+        else if (elementName == "map")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oMapStruct *dstMap = (oMapStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('{');
+            std::string number;
+            ForthObject keyObj;
+            ForthObject valueObj;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == '}')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getObjectOrLink(&keyObj);
+                reader->getRequiredChar(':');
+                reader->getObjectOrLink(&valueObj);
+                setObjectMap(dstMap, keyObj, valueObj, pCore);
+                // TODO: release obj here?
+            }
+            return true;
+        }
+        return false;
+    }
+
+    FORTHOP(oMapClearMethod)
 	{
 		// go through all elements and release any which are not null
 		GET_THIS(oMapStruct, pMap);
@@ -216,43 +310,11 @@ namespace OMap
 	FORTHOP(oMapSetMethod)
 	{
 		GET_THIS(oMapStruct, pMap);
-		oMap& a = *(pMap->elements);
-        stackInt64 key;
-        POP_OBJECT(key.obj);
-        ForthObject newObj;
-        POP_OBJECT(newObj);
-        oMap::iterator iter = a.find(key.s64);
-		if (newObj.pMethodOps != NULL)
-		{
-			if (iter != a.end())
-			{
-				ForthObject oldObj = iter->second;
-				if (OBJECTS_DIFFERENT(oldObj, newObj))
-				{
-					SAFE_KEEP(newObj);
-					SAFE_RELEASE(pCore, oldObj);
-				}
-			}
-			else
-			{
-                SAFE_KEEP(key.obj);
-                SAFE_KEEP(newObj);
-            }
-			a[key.s64] = newObj;
-		}
-		else
-		{
-			// remove element associated with key from map
-			if (iter != a.end())
-			{
-				stackInt64 key;
-				key.s64 = iter->first;
-				SAFE_RELEASE(pCore, key.obj);
-				ForthObject& val = iter->second;
-				SAFE_RELEASE(pCore, val);
-				a.erase(iter);
-			}
-		}
+        ForthObject keyObj;
+        POP_OBJECT(keyObj);
+        ForthObject valueObj;
+        POP_OBJECT(valueObj);
+        setObjectMap(pMap, keyObj, valueObj, pCore);
 		METHOD_RETURN;
 	}
 
@@ -700,7 +762,73 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oIntMapClearMethod)
+    void setIntMap(oIntMapStruct* pMap, int key, ForthObject& newObj, ForthCoreState* pCore)
+    {
+        oIntMap& a = *(pMap->elements);
+        oIntMap::iterator iter = a.find(key);
+        if (newObj.pMethodOps != NULL)
+        {
+            if (iter != a.end())
+            {
+                ForthObject oldObj = iter->second;
+                if (OBJECTS_DIFFERENT(oldObj, newObj))
+                {
+                    SAFE_KEEP(newObj);
+                    SAFE_RELEASE(pCore, oldObj);
+                }
+            }
+            else
+            {
+                SAFE_KEEP(newObj);
+            }
+            a[key] = newObj;
+        }
+        else
+        {
+            // remove element associated with key from map
+            if (iter != a.end())
+            {
+                ForthObject& oldObj = iter->second;
+                SAFE_RELEASE(pCore, oldObj);
+                a.erase(iter);
+            }
+        }
+    }
+
+    bool customIntMapReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "map")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oIntMapStruct *dstMap = (oIntMapStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('{');
+            std::string number;
+            ForthObject obj;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == '}')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getNumber(number);
+                int key;
+                sscanf(number.c_str(), "%d", &key);
+                reader->getRequiredChar(':');
+                reader->getObjectOrLink(&obj);
+                setIntMap(dstMap, key, obj, pCore);
+                // TODO: release obj here?
+            }
+            return true;
+        }
+        return false;
+    }
+
+    FORTHOP(oIntMapClearMethod)
 	{
 		// go through all elements and release any which are not null
 		GET_THIS(oIntMapStruct, pMap);
@@ -769,41 +897,13 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oIntMapSetMethod)
+    FORTHOP(oIntMapSetMethod)
 	{
 		GET_THIS(oIntMapStruct, pMap);
-		oIntMap& a = *(pMap->elements);
-		long key = SPOP;
-		ForthObject newObj;
-		POP_OBJECT(newObj);
-		oIntMap::iterator iter = a.find(key);
-		if (newObj.pMethodOps != NULL)
-		{
-			if (iter != a.end())
-			{
-				ForthObject oldObj = iter->second;
-				if (OBJECTS_DIFFERENT(oldObj, newObj))
-				{
-					SAFE_KEEP(newObj);
-					SAFE_RELEASE(pCore, oldObj);
-				}
-			}
-			else
-			{
-				SAFE_KEEP(newObj);
-			}
-			a[key] = newObj;
-		}
-		else
-		{
-			// remove element associated with key from map
-			if (iter != a.end())
-			{
-				ForthObject& oldObj = iter->second;
-				SAFE_RELEASE(pCore, oldObj);
-				a.erase(iter);
-			}
-		}
+        long key = SPOP;
+        ForthObject newObj;
+        POP_OBJECT(newObj);
+        setIntMap(pMap, key, newObj, pCore);
 		METHOD_RETURN;
 	}
 
@@ -1215,7 +1315,73 @@ namespace OMap
         METHOD_RETURN;
     }
 
-	FORTHOP(oFloatMapLoadMethod)
+    void setFloatMap(oFloatMapStruct* pMap, float key, ForthObject& newObj, ForthCoreState* pCore)
+    {
+        oFloatMap& a = *(pMap->elements);
+        oFloatMap::iterator iter = a.find(key);
+        if (newObj.pMethodOps != NULL)
+        {
+            if (iter != a.end())
+            {
+                ForthObject oldObj = iter->second;
+                if (OBJECTS_DIFFERENT(oldObj, newObj))
+                {
+                    SAFE_KEEP(newObj);
+                    SAFE_RELEASE(pCore, oldObj);
+                }
+            }
+            else
+            {
+                SAFE_KEEP(newObj);
+            }
+            a[key] = newObj;
+        }
+        else
+        {
+            // remove element associated with key from map
+            if (iter != a.end())
+            {
+                ForthObject& oldObj = iter->second;
+                SAFE_RELEASE(pCore, oldObj);
+                a.erase(iter);
+            }
+        }
+    }
+
+    bool customFloatMapReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "map")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oFloatMapStruct *dstMap = (oFloatMapStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('{');
+            std::string number;
+            ForthObject obj;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == '}')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getNumber(number);
+                float key;
+                sscanf(number.c_str(), "%f", &key);
+                reader->getRequiredChar(':');
+                reader->getObjectOrLink(&obj);
+                setFloatMap(dstMap, key, obj, pCore);
+                // TODO: release obj here?
+            }
+            return true;
+        }
+        return false;
+    }
+
+    FORTHOP(oFloatMapLoadMethod)
 	{
 		// go through all elements and release any which are not null
 		GET_THIS(oFloatMapStruct, pMap);
@@ -1264,38 +1430,10 @@ namespace OMap
 	FORTHOP(oFloatMapSetMethod)
 	{
 		GET_THIS(oFloatMapStruct, pMap);
-		oFloatMap& a = *(pMap->elements);
 		float key = FPOP;
 		ForthObject newObj;
 		POP_OBJECT(newObj);
-		oFloatMap::iterator iter = a.find(key);
-		if (newObj.pMethodOps != NULL)
-		{
-			if (iter != a.end())
-			{
-				ForthObject oldObj = iter->second;
-				if (OBJECTS_DIFFERENT(oldObj, newObj))
-				{
-					SAFE_KEEP(newObj);
-					SAFE_RELEASE(pCore, oldObj);
-				}
-			}
-			else
-			{
-				SAFE_KEEP(newObj);
-			}
-			a[key] = newObj;
-		}
-		else
-		{
-			// remove element associated with key from map
-			if (iter != a.end())
-			{
-				ForthObject& oldObj = iter->second;
-				SAFE_RELEASE(pCore, oldObj);
-				a.erase(iter);
-			}
-		}
+        setFloatMap(pMap, key, newObj, pCore);
 		METHOD_RETURN;
 	}
 
@@ -1531,7 +1669,73 @@ namespace OMap
         METHOD_RETURN;
     }
 
-	FORTHOP(oLongMapClearMethod)
+    void setLongMap(oLongMapStruct* pMap, stackInt64& key, ForthObject& newObj, ForthCoreState* pCore)
+    {
+        oLongMap& a = *(pMap->elements);
+        oLongMap::iterator iter = a.find(key.s64);
+        if (newObj.pMethodOps != NULL)
+        {
+            if (iter != a.end())
+            {
+                ForthObject oldObj = iter->second;
+                if (OBJECTS_DIFFERENT(oldObj, newObj))
+                {
+                    SAFE_KEEP(newObj);
+                    SAFE_RELEASE(pCore, oldObj);
+                }
+            }
+            else
+            {
+                SAFE_KEEP(newObj);
+            }
+            a[key.s64] = newObj;
+        }
+        else
+        {
+            // remove element associated with key from map
+            if (iter != a.end())
+            {
+                ForthObject& oldObj = iter->second;
+                SAFE_RELEASE(pCore, oldObj);
+                a.erase(iter);
+            }
+        }
+    }
+
+    bool customLongMapReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "map")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oLongMapStruct *dstMap = (oLongMapStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('{');
+            std::string number;
+            ForthObject obj;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == '}')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getNumber(number);
+                stackInt64 key;
+                sscanf(number.c_str(), "%lld", &key.s64);
+                reader->getRequiredChar(':');
+                reader->getObjectOrLink(&obj);
+                setLongMap(dstMap, key, obj, pCore);
+                // TODO: release obj here?
+            }
+            return true;
+        }
+        return false;
+    }
+
+    FORTHOP(oLongMapClearMethod)
 	{
 		// go through all elements and release any which are not null
 		GET_THIS(oLongMapStruct, pMap);
@@ -1605,39 +1809,11 @@ namespace OMap
 	FORTHOP(oLongMapSetMethod)
 	{
 		GET_THIS(oLongMapStruct, pMap);
-		oLongMap& a = *(pMap->elements);
 		stackInt64 key;
 		LPOP(key);
 		ForthObject newObj;
 		POP_OBJECT(newObj);
-		oLongMap::iterator iter = a.find(key.s64);
-		if (newObj.pMethodOps != NULL)
-		{
-			if (iter != a.end())
-			{
-				ForthObject oldObj = iter->second;
-				if (OBJECTS_DIFFERENT(oldObj, newObj))
-				{
-					SAFE_KEEP(newObj);
-					SAFE_RELEASE(pCore, oldObj);
-				}
-			}
-			else
-			{
-				SAFE_KEEP(newObj);
-			}
-			a[key.s64] = newObj;
-		}
-		else
-		{
-			// remove element associated with key from map
-			if (iter != a.end())
-			{
-				ForthObject& oldObj = iter->second;
-				SAFE_RELEASE(pCore, oldObj);
-				a.erase(iter);
-			}
-		}
+        setLongMap(pMap, key, newObj, pCore);
 		METHOD_RETURN;
 	}
 
@@ -2071,7 +2247,73 @@ namespace OMap
         METHOD_RETURN;
     }
 
-	FORTHOP(oDoubleMapClearMethod)
+    void setDoubleMap(oDoubleMapStruct* pMap, double key, ForthObject& newObj, ForthCoreState* pCore)
+    {
+        oDoubleMap& a = *(pMap->elements);
+        oDoubleMap::iterator iter = a.find(key);
+        if (newObj.pMethodOps != NULL)
+        {
+            if (iter != a.end())
+            {
+                ForthObject oldObj = iter->second;
+                if (OBJECTS_DIFFERENT(oldObj, newObj))
+                {
+                    SAFE_KEEP(newObj);
+                    SAFE_RELEASE(pCore, oldObj);
+                }
+            }
+            else
+            {
+                SAFE_KEEP(newObj);
+            }
+            a[key] = newObj;
+        }
+        else
+        {
+            // remove element associated with key from map
+            if (iter != a.end())
+            {
+                ForthObject& oldObj = iter->second;
+                SAFE_RELEASE(pCore, oldObj);
+                a.erase(iter);
+            }
+        }
+    }
+
+    bool customDoubleMapReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "map")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oDoubleMapStruct *dstMap = (oDoubleMapStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('{');
+            std::string number;
+            ForthObject obj;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == '}')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getNumber(number);
+                double key;
+                sscanf(number.c_str(), "%lf", &key);
+                reader->getRequiredChar(':');
+                reader->getObjectOrLink(&obj);
+                setDoubleMap(dstMap, key, obj, pCore);
+                // TODO: release obj here?
+            }
+            return true;
+        }
+        return false;
+    }
+
+    FORTHOP(oDoubleMapClearMethod)
 	{
 		// go through all elements and release any which are not null
 		GET_THIS(oDoubleMapStruct, pMap);
@@ -2143,38 +2385,10 @@ namespace OMap
 	FORTHOP(oDoubleMapSetMethod)
 	{
 		GET_THIS(oDoubleMapStruct, pMap);
-		oDoubleMap& a = *(pMap->elements);
 		double key = DPOP;
 		ForthObject newObj;
 		POP_OBJECT(newObj);
-		oDoubleMap::iterator iter = a.find(key);
-		if (newObj.pMethodOps != NULL)
-		{
-			if (iter != a.end())
-			{
-				ForthObject oldObj = iter->second;
-				if (OBJECTS_DIFFERENT(oldObj, newObj))
-				{
-					SAFE_KEEP(newObj);
-					SAFE_RELEASE(pCore, oldObj);
-				}
-			}
-			else
-			{
-				SAFE_KEEP(newObj);
-			}
-			a[key] = newObj;
-		}
-		else
-		{
-			// remove element associated with key from map
-			if (iter != a.end())
-			{
-				ForthObject& oldObj = iter->second;
-				SAFE_RELEASE(pCore, oldObj);
-				a.erase(iter);
-			}
-		}
+        setDoubleMap(pMap, key, newObj, pCore);
 		METHOD_RETURN;
 	}
 
@@ -2596,7 +2810,41 @@ namespace OMap
         METHOD_RETURN;
     }
 
-	FORTHOP(oStringIntMapClearMethod)
+    bool customStringIntMapReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "map")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oStringIntMapStruct *dstMap = (oStringIntMapStruct *)(reader->getCustomReaderContext().pData);
+            oStringIntMap& a = *(dstMap->elements);
+            reader->getRequiredChar('{');
+            std::string number;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == '}')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                std::string key;
+                reader->getString(key);
+                reader->getRequiredChar(':');
+                reader->getNumber(number);
+                std::string number;
+                int value;
+                sscanf(number.c_str(), "%d", &value);
+                a[key] = value;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    FORTHOP(oStringIntMapClearMethod)
 	{
 		// go through all elements and release any which are not null
 		GET_THIS(oStringIntMapStruct, pMap);
@@ -3022,6 +3270,40 @@ namespace OMap
         METHOD_RETURN;
     }
 
+    bool customStringFloatMapReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "map")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oStringIntMapStruct *dstMap = (oStringIntMapStruct *)(reader->getCustomReaderContext().pData);
+            oStringIntMap& a = *(dstMap->elements);
+            reader->getRequiredChar('{');
+            std::string number;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == '}')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                std::string key;
+                reader->getString(key);
+                reader->getRequiredChar(':');
+                reader->getNumber(number);
+                std::string number;
+                float value;
+                sscanf(number.c_str(), "%f", &value);
+                a[key] = *((int *)&value);
+            }
+            return true;
+        }
+        return false;
+    }
+
 
 	baseMethodEntry oStringFloatMapMembers[] =
 	{
@@ -3103,6 +3385,39 @@ namespace OMap
         METHOD_RETURN;
     }
 
+    bool customStringLongMapReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "map")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oStringLongMapStruct *dstMap = (oStringLongMapStruct *)(reader->getCustomReaderContext().pData);
+            oStringLongMap& a = *(dstMap->elements);
+            reader->getRequiredChar('{');
+            std::string number;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == '}')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                std::string key;
+                reader->getString(key);
+                reader->getRequiredChar(':');
+                reader->getNumber(number);
+                std::string number;
+                long long value;
+                sscanf(number.c_str(), "%lld", &value);
+                a[key] = *((int *)&value);
+            }
+            return true;
+        }
+        return false;
+    }
 
 	FORTHOP(oStringLongMapClearMethod)
 	{
@@ -3547,6 +3862,39 @@ namespace OMap
         METHOD_RETURN;
     }
 
+    bool customStringDoubleMapReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "map")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oStringLongMapStruct *dstMap = (oStringLongMapStruct *)(reader->getCustomReaderContext().pData);
+            oStringLongMap& a = *(dstMap->elements);
+            reader->getRequiredChar('{');
+            std::string number;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == '}')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                std::string key;
+                reader->getString(key);
+                reader->getRequiredChar(':');
+                reader->getNumber(number);
+                std::string number;
+                double value;
+                sscanf(number.c_str(), "%lf", &value);
+                a[key] = *((long long *)&value);
+            }
+            return true;
+        }
+        return false;
+    }
 
 	baseMethodEntry oStringDoubleMapMembers[] =
 	{
@@ -3558,36 +3906,45 @@ namespace OMap
 	};
 
 
-	// TODO: string-double map iter, it can just be string-long map iter, but parent member should be type kBCIStringDoubleMap
+    // TODO: string-double map iter, it can just be string-long map iter, but parent member should be type kBCIStringDoubleMap
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("Map", kBCIMap, kBCIIterable, oMapMembers);
-		pEngine->AddBuiltinClass("MapIter", kBCIMapIter, kBCIIter, oMapIterMembers);
+		ForthClassVocabulary* pVocab = pEngine->AddBuiltinClass("Map", kBCIMap, kBCIIterable, oMapMembers);
+        pVocab->SetCustomObjectReader(customMapReader);
+        pEngine->AddBuiltinClass("MapIter", kBCIMapIter, kBCIIter, oMapIterMembers);
 
-		pEngine->AddBuiltinClass("IntMap", kBCIIntMap, kBCIIterable, oIntMapMembers);
-		pEngine->AddBuiltinClass("IntMapIter", kBCIIntMapIter, kBCIIter, oIntMapIterMembers);
+        pVocab = pEngine->AddBuiltinClass("IntMap", kBCIIntMap, kBCIIterable, oIntMapMembers);
+        pVocab->SetCustomObjectReader(customIntMapReader);
+        pEngine->AddBuiltinClass("IntMapIter", kBCIIntMapIter, kBCIIter, oIntMapIterMembers);
 
-		pEngine->AddBuiltinClass("FloatMap", kBCIFloatMap, kBCIIntMap, oFloatMapMembers);
-		pEngine->AddBuiltinClass("FloatMapIter", kBCIFloatMapIter, kBCIIter, oIntMapIterMembers);
+        pVocab = pEngine->AddBuiltinClass("FloatMap", kBCIFloatMap, kBCIIntMap, oFloatMapMembers);
+        pVocab->SetCustomObjectReader(customFloatMapReader);
+        pEngine->AddBuiltinClass("FloatMapIter", kBCIFloatMapIter, kBCIIter, oIntMapIterMembers);
 
         gpLongMapClassVocab = pEngine->AddBuiltinClass("LongMap", kBCILongMap, kBCIIterable, oLongMapMembers);
-		pEngine->AddBuiltinClass("LongMapIter", kBCILongMapIter, kBCIIter, oLongMapIterMembers);
+        gpLongMapClassVocab->SetCustomObjectReader(customLongMapReader);
+        pEngine->AddBuiltinClass("LongMapIter", kBCILongMapIter, kBCIIter, oLongMapIterMembers);
 
-		pEngine->AddBuiltinClass("DoubleMap", kBCIDoubleMap, kBCILongMap, oDoubleMapMembers);
-		pEngine->AddBuiltinClass("DoubleMapIter", kBCIDoubleMapIter, kBCIIter, oLongMapIterMembers);
+        pVocab = pEngine->AddBuiltinClass("DoubleMap", kBCIDoubleMap, kBCILongMap, oDoubleMapMembers);
+        pVocab->SetCustomObjectReader(customDoubleMapReader);
+        pEngine->AddBuiltinClass("DoubleMapIter", kBCIDoubleMapIter, kBCIIter, oLongMapIterMembers);
 
-		pEngine->AddBuiltinClass("StringIntMap", kBCIStringIntMap, kBCIIterable, oStringIntMapMembers);
-		pEngine->AddBuiltinClass("StringIntMapIter", kBCIStringIntMapIter, kBCIIter, oStringIntMapIterMembers);
+        pVocab = pEngine->AddBuiltinClass("StringIntMap", kBCIStringIntMap, kBCIIterable, oStringIntMapMembers);
+        pVocab->SetCustomObjectReader(customStringIntMapReader);
+        pEngine->AddBuiltinClass("StringIntMapIter", kBCIStringIntMapIter, kBCIIter, oStringIntMapIterMembers);
 
-		pEngine->AddBuiltinClass("StringFloatMap", kBCIStringFloatMap, kBCIStringIntMap, oStringFloatMapMembers);
-		pEngine->AddBuiltinClass("StringFloatMapIter", kBCIStringFloatMapIter, kBCIIter, oStringIntMapIterMembers);
+        pVocab = pEngine->AddBuiltinClass("StringFloatMap", kBCIStringFloatMap, kBCIStringIntMap, oStringFloatMapMembers);
+        pVocab->SetCustomObjectReader(customStringFloatMapReader);
+        pEngine->AddBuiltinClass("StringFloatMapIter", kBCIStringFloatMapIter, kBCIIter, oStringIntMapIterMembers);
 
-		pEngine->AddBuiltinClass("StringLongMap", kBCIStringLongMap, kBCIIterable, oStringLongMapMembers);
-		pEngine->AddBuiltinClass("StringLongMapIter", kBCIStringLongMapIter, kBCIIter, oLongMapIterMembers);
+        pVocab = pEngine->AddBuiltinClass("StringLongMap", kBCIStringLongMap, kBCIIterable, oStringLongMapMembers);
+        pVocab->SetCustomObjectReader(customStringLongMapReader);
+        pEngine->AddBuiltinClass("StringLongMapIter", kBCIStringLongMapIter, kBCIIter, oLongMapIterMembers);
 
-		pEngine->AddBuiltinClass("StringDoubleMap", kBCIStringDoubleMap, kBCIStringLongMap, oStringDoubleMapMembers);
-		pEngine->AddBuiltinClass("StringDoubleMapIter", kBCIStringDoubleMapIter, kBCIIter, oLongMapIterMembers);
+        pVocab = pEngine->AddBuiltinClass("StringDoubleMap", kBCIStringDoubleMap, kBCIStringLongMap, oStringDoubleMapMembers);
+        pVocab->SetCustomObjectReader(customStringDoubleMapReader);
+        pEngine->AddBuiltinClass("StringDoubleMapIter", kBCIStringDoubleMapIter, kBCIIter, oLongMapIterMembers);
 	}
 
 } // namespace OMap

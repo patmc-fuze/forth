@@ -172,6 +172,12 @@ Double and long memory and stack layouts:
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 30 2018
+
+I added custom object readers for the remaining map classes.  The only class
+that I know of with a custom show method and no custom reader is StructArray.
+Testing of custom object readers is just starting.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 29 2018
 
 I added custom object readers for most of the array classes, lists, strings
