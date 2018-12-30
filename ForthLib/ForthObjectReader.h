@@ -12,6 +12,13 @@
 
 class ForthClassVocabulary;
 
+typedef struct
+{
+    ForthStructVocabulary* pVocab;
+    int objIndex;
+    char* pData;
+} CustomReaderContext;
+
 class ForthObjectReader
 {
 public:
@@ -19,10 +26,8 @@ public:
     ~ForthObjectReader();
 
     // returns true if there were no errors
-    bool ReadObjects(ForthObject& inStream, ForthObject& outObjects);
+    bool ReadObjects(ForthObject& inStream, ForthObject& outObjects, ForthCoreState* pCore);
     const std::string& GetError() const { return mError; }
-
-private:
 
     char getChar();
     char getRawChar();
@@ -32,32 +37,27 @@ private:
     void getString(std::string& str);
     void getNumber(std::string& str);
     void skipWhitespace();
-    void getObject();
-    void getStruct();
+    void getObject(ForthObject* pDst);
+    void getObjectOrLink(ForthObject* pDst);
+    void getStruct(ForthStructVocabulary* pVocab, int offset);
     void processElement(const std::string& name);
+    void processCustomElement(const std::string& name);
     void throwError(const char* message);
     void throwError(const std::string& message);
+    CustomReaderContext& getCustomReaderContext();
+    ForthCoreState* GetCoreState() { return mpCore; }
+
+private:
 
     typedef std::map<std::string, int> knownObjectMap;
-    typedef struct
-    {
-        ForthStructVocabulary* pVocab;
-        int objIndex;
-        char* pData;
-    } readerContext;
 
     ForthObject mInStreamObject;
     ForthObject mOutArrayObject;
     oInStreamStruct* mInStream;
-    oArrayStruct* mOutArray;
-    char* mObjectData;
-    int mCurrentObjectIndex;
+    //oArrayStruct* mOutArray;
     std::vector<ForthObject> mObjects;
-    std::vector<readerContext> mContextStack;
-
-    ForthClassVocabulary* mCurrentVocab;
-
-    std::vector<int> mObjectStack;
+    CustomReaderContext mContext;
+    std::vector<CustomReaderContext> mContextStack;
 
     knownObjectMap mKnownObjects;
 

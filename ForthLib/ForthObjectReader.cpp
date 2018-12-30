@@ -18,35 +18,32 @@
 */
 
 ForthObjectReader::ForthObjectReader()
-: mOutArray(nullptr)
-, mInStream(nullptr)
+: mInStream(nullptr)
 , mSavedChar('\0')
 , mHaveSavedChar(false)
 , mOutArrayObject({ nullptr, nullptr })
 , mInStreamObject({ nullptr, nullptr })
-, mObjectData(nullptr)
-, mCurrentVocab(nullptr)
-, mCurrentObjectIndex(-1)
 {
     mpEngine = ForthEngine::GetInstance();
-    mpCore = mpEngine->GetCoreState();
 }
 
 ForthObjectReader::~ForthObjectReader()
 {
 }
 
-bool ForthObjectReader::ReadObjects(ForthObject& inStream, ForthObject& outArray)
+bool ForthObjectReader::ReadObjects(ForthObject& inStream, ForthObject& outArray, ForthCoreState *pCore)
 {
     mInStreamObject = inStream;
     mOutArrayObject = outArray;
+    mpCore = pCore;
     mInStream = reinterpret_cast<oInStreamStruct *>(inStream.pData);
-    mOutArray = reinterpret_cast<oArrayStruct *>(mOutArrayObject.pData);
-    mObjectStack.clear();
-    mCurrentObjectIndex = -1;
-    mCurrentVocab = nullptr;
+    mContextStack.clear();
     mLineNum = 1;
     mCharOffset = 0;
+
+    mContext.pVocab = nullptr;
+    mContext.objIndex = -1;
+    mContext.pData = nullptr;
 
     bool itWorked = true;
     mError.clear();
@@ -57,7 +54,13 @@ bool ForthObjectReader::ReadObjects(ForthObject& inStream, ForthObject& outArray
         {
             throwError("unusable input stream");
         }
-        getObject();
+        ForthObject obj;
+        getObject(&obj);
+        if (obj.pData != nullptr && obj.pMethodOps != nullptr)
+        {
+            oArrayStruct* outArray = reinterpret_cast<oArrayStruct *>(mOutArrayObject.pData);
+            outArray->elements->push_back(obj);
+        }
     }
     catch (const std::exception& ex)
     {
@@ -169,10 +172,21 @@ void ForthObjectReader::getNumber(std::string& str)
 
 void ForthObjectReader::skipWhitespace()
 {
+    const char* whitespace = " \t\r\n";
+    if (mHaveSavedChar)
+    {
+        if (strchr(whitespace, mSavedChar) == nullptr)
+        {
+            // there is a saved non-whitespace character, nothing to skip
+            return;
+        }
+        mHaveSavedChar = false;
+    }
+
     while (true)
     {
         char ch = getRawChar();
-        if (strchr(" \t\r\n", ch) == nullptr)
+        if (strchr(whitespace, ch) == nullptr)
         {
             ungetChar(ch);
             break;
@@ -180,11 +194,16 @@ void ForthObjectReader::skipWhitespace()
     }
 }
 
-void ForthObjectReader::getObject()
+void ForthObjectReader::getObject(ForthObject* pDst)
 {
     getRequiredChar('{');
-    mObjectStack.push_back(mCurrentObjectIndex);
-    mCurrentVocab = nullptr;
+    mContextStack.push_back(mContext);
+    mContext.pVocab = nullptr;
+    mContext.pData = nullptr;
+    mContext.objIndex = -1;
+    pDst->pData = nullptr;
+    pDst->pMethodOps = nullptr;
+
     bool done = false;
     while (!done)
     {
@@ -214,25 +233,108 @@ void ForthObjectReader::getObject()
         }
     }
     getRequiredChar('}');
-    mCurrentObjectIndex = mObjectStack.back();
-    mObjectStack.pop_back();
-    if (mCurrentObjectIndex >= 0)
+    if (mContext.objIndex >= 0)
     {
-        ForthObject& currentObject = mOutArray->elements->at(mCurrentObjectIndex);
-        ForthClassObject* pClassObject = (ForthClassObject *)(currentObject.pMethodOps[-1]);
-        mCurrentVocab = pClassObject->pVocab;
-        mObjectData = (char *)currentObject.pData;
+        *pDst = mObjects[mContext.objIndex];
+    }
+    mContext = mContextStack.back();
+    mContextStack.pop_back();
+}
+
+void ForthObjectReader::getObjectOrLink(ForthObject* pDst)
+{
+    char ch = getChar();
+    std::string str;
+
+    if (ch == '\"')
+    {
+        // this must be an object link
+        ungetChar(ch);
+        getString(str);
+        if (str.length() < 2)
+        {
+            throwError("object link too short");
+        }
+        else
+        {
+            if (str[0] == '@')
+            {
+                str = str.substr(1);
+            }
+            else
+            {
+                throwError("object link must begin with @");
+            }
+        }
+        auto foundObj = mKnownObjects.find(str);
+        if (foundObj != mKnownObjects.end())
+        {
+            ForthObject linkedObject = mObjects.at(foundObj->second);
+            *pDst = linkedObject;
+
+            // bump linked object refcount
+            *(linkedObject.pData) += 1;
+        }
+        else
+        {
+            throwError("unknown linked object");
+        }
+    }
+    else if (ch == '{')
+    {
+        // this must be an object
+        ungetChar(ch);
+        getObject(pDst);
     }
     else
     {
-        mCurrentVocab = nullptr;
-        mObjectData = nullptr;
+        throwError("unexpected char at start of object");
     }
+}
+
+void ForthObjectReader::getStruct(ForthStructVocabulary* pVocab, int offset)
+{
+    getRequiredChar('{');
+    char *pData = mContext.pData + offset;
+    mContextStack.push_back(mContext);
+    mContext.pVocab = pVocab;
+    mContext.pData = pData;
+    bool done = false;
+    while (!done)
+    {
+        char ch = getChar();
+
+        if (ch == '}')
+        {
+            done = true;
+        }
+        else if (ch == '\"')
+        {
+            std::string elementName;
+            ungetChar(ch);
+            getName(elementName);
+            getRequiredChar(':');
+            processElement(elementName);
+            char nextChar = getChar();
+            if (nextChar != ',')
+            {
+                done = true;
+                ungetChar(nextChar);
+            }
+        }
+        else
+        {
+            throwError("unexpected char in getStruct");
+        }
+    }
+    getRequiredChar('}');
+    mContext = mContextStack.back();
+    mContextStack.pop_back();
 }
 
 void ForthObjectReader::processElement(const std::string& name)
 {
-    if (mCurrentVocab == nullptr)
+    if (mContext.pVocab == nullptr)
     {
         // name has to be __id, value has to be string with form CLASSNAME_ID
         if (name == "__id")
@@ -251,17 +353,16 @@ void ForthObjectReader::processElement(const std::string& name)
             }
             std::string className = classId.substr(0, lastUnderscore);
 
-            ForthEngine* pEngine = ForthEngine::GetInstance();
-            ForthCoreState *pCore = pEngine->GetCoreState();
+            ForthCoreState *pCore = mpCore;
             ForthStructVocabulary* newClassVocab = ForthTypesManager::GetInstance()->GetStructVocabulary(className.c_str());
             if (newClassVocab->IsClass())
             {
-                mCurrentVocab = static_cast<ForthClassVocabulary *>(newClassVocab);
-                mCurrentObjectIndex = mOutArray->elements->size();
+                mContext.pVocab = newClassVocab;
+                mContext.objIndex = mObjects.size();
 
-                long initOpcode = mCurrentVocab->GetInitOpcode();
-                SPUSH((long)mCurrentVocab);
-                pEngine->FullyExecuteOp(pCore, mCurrentVocab->GetClassObject()->newOp);
+                long initOpcode = mContext.pVocab->GetInitOpcode();
+                SPUSH((long)mContext.pVocab);
+                mpEngine->FullyExecuteOp(pCore, (static_cast<ForthClassVocabulary *>(mContext.pVocab))->GetClassObject()->newOp);
                 if (initOpcode != 0)
                 {
                     // copy object data pointer to TOS to be used by init 
@@ -272,10 +373,11 @@ void ForthObjectReader::processElement(const std::string& name)
 
                 ForthObject newObject;
                 POP_OBJECT(newObject);
-                // new object has refcount of 1, since it is in outArray
+                // new object has refcount of 1
                 *newObject.pData = 1;
-                mOutArray->elements->push_back(newObject);
-                mObjectData = (char *) newObject.pData;
+                mObjects.push_back(newObject);
+                mContext.pData = (char *) newObject.pData;
+                mKnownObjects[classId] = mContext.objIndex;
             }
             else
             {
@@ -296,10 +398,16 @@ void ForthObjectReader::processElement(const std::string& name)
             std::string unusedCount;
             getNumber(unusedCount);
         }
+        else if (name == "__id")
+        {
+            // discard struct id
+            std::string unusedId;
+            getString(unusedId);
+        }
         else
         {
             // lookup name in current vocabulary to see how to process
-            long* pEntry = mCurrentVocab->FindSymbol(name.c_str());
+            long* pEntry = mContext.pVocab->FindSymbol(name.c_str());
             if (pEntry != nullptr)
             {
                 // TODO - handle number, string, object, array
@@ -324,8 +432,8 @@ void ForthObjectReader::processElement(const std::string& name)
                 int ival;
                 long long lval;
                 std::string str;
-                char *pDst = mObjectData + byteOffset;
-                int roomLeft = mCurrentVocab->GetSize() - byteOffset;
+                char *pDst = mContext.pData + byteOffset;
+                int roomLeft = mContext.pVocab->GetSize() - byteOffset;
 
                 if (isArray)
                 {
@@ -338,8 +446,8 @@ void ForthObjectReader::processElement(const std::string& name)
                     int bytesConsumed = 0;
                     switch (baseType)
                     {
-                    case kBaseTypeByte:          // 0 - byte
-                    case kBaseTypeUByte:         // 1 - ubyte
+                    case kBaseTypeByte:
+                    case kBaseTypeUByte:
                     {
                         getNumber(str);
                         if (roomLeft < 1)
@@ -355,8 +463,8 @@ void ForthObjectReader::processElement(const std::string& name)
                         break;
                     }
 
-                    case kBaseTypeShort:         // 2 - short
-                    case kBaseTypeUShort:        // 3 - ushort
+                    case kBaseTypeShort:
+                    case kBaseTypeUShort:
                     {
                         getNumber(str);
                         if (roomLeft < 2)
@@ -372,9 +480,9 @@ void ForthObjectReader::processElement(const std::string& name)
                         break;
                     }
 
-                    case kBaseTypeInt:           // 4 - int
-                    case kBaseTypeUInt:          // 5 - uint
-                    case kBaseTypeOp:            // 11 - op
+                    case kBaseTypeInt:
+                    case kBaseTypeUInt:
+                    case kBaseTypeOp:
                     {
                         getNumber(str);
                         if (roomLeft < 4)
@@ -407,7 +515,7 @@ void ForthObjectReader::processElement(const std::string& name)
                         break;
                     }
 
-                    case kBaseTypeFloat:         // 8 - float
+                    case kBaseTypeFloat:
                     {
                         getNumber(str);
                         if (roomLeft < 4)
@@ -423,7 +531,7 @@ void ForthObjectReader::processElement(const std::string& name)
                         break;
                     }
 
-                    case kBaseTypeDouble:        // 9 - double
+                    case kBaseTypeDouble:
                     {
                         getNumber(str);
                         if (roomLeft < 8)
@@ -439,7 +547,7 @@ void ForthObjectReader::processElement(const std::string& name)
                         break;
                     }
 
-                    case kBaseTypeString:        // 10 - string
+                    case kBaseTypeString:
                     {
                         getString(str);
                         int maxBytes = CODE_TO_STRING_BYTES(typeCode);
@@ -452,48 +560,20 @@ void ForthObjectReader::processElement(const std::string& name)
                         break;
                     }
 
-                    case kBaseTypeObject:      // 12 - object
+                    case kBaseTypeObject:
                     {
-                        char ch = getChar();
-                        if (ch == '\"')
-                        {
-                            // this must be an object link
-                            ungetChar(ch);
-                            getString(str);
-                            auto foundObj = mKnownObjects.find(str);
-                            if (foundObj != mKnownObjects.end())
-                            {
-                                ForthObject linkedObject = mOutArray->elements->at(foundObj->second);
-                                *(ForthObject*)pDst = linkedObject;
-                                bytesConsumed = 8;
-
-                                // bump linked object refcount
-                                *(linkedObject.pData) += 1;
-                            }
-                            else
-                            {
-                                throwError("unknown linked object");
-                            }
-                        }
-                        else if (ch == '{')
-                        {
-                            // this must be an object
-                            ungetChar(ch);
-                            getObject();
-                            *(ForthObject*)pDst = mOutArray->elements->back();
-                            bytesConsumed = 8;
-                        }
-                        else
-                        {
-                            throwError("unexpected char at start of object");
-                        }
+                        getObjectOrLink((ForthObject *) pDst);
+                        bytesConsumed = 8;
                         break;
                     }
 
-                    case kBaseTypeStruct:                        // 13 - struct
-                        // TODO!
-                        throwError("structs not supported yet");
+                    case kBaseTypeStruct:
+                    {
+                        int typeIndex = CODE_TO_STRUCT_INDEX(typeCode);
+                        ForthTypeInfo* structInfo = ForthTypesManager::GetInstance()->GetTypeInfo(typeIndex);
+                        getStruct(structInfo->pVocab, byteOffset);
                         break;
+                    }
 
                     default:
                         throwError("unexpected type found");
@@ -528,10 +608,38 @@ void ForthObjectReader::processElement(const std::string& name)
             }
             else
             {
-                throwError("name not found");
+                processCustomElement(name);
             }
         }
     }
+}
+
+void ForthObjectReader::processCustomElement(const std::string& name)
+{
+    if (mContext.pVocab->IsClass())
+    {
+        ForthClassVocabulary* pVocab = (ForthClassVocabulary *)mContext.pVocab;
+
+        while (pVocab != nullptr)
+        {
+            CustomObjectReader customReader = pVocab->GetCustomObjectReader();
+            if (customReader != nullptr)
+            {
+                if (customReader(name, this))
+                {
+                    // customReader processed this element, all done
+                    return;
+                }
+            }
+            pVocab = (ForthClassVocabulary *)pVocab->BaseVocabulary();
+        }
+    }
+    throwError("name not found");
+}
+
+CustomReaderContext& ForthObjectReader::getCustomReaderContext()
+{
+    return mContext;
 }
 
 void ForthObjectReader::throwError(const char* message)

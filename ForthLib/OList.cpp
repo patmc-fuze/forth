@@ -14,6 +14,7 @@
 #include "ForthObject.h"
 #include "ForthBuiltinClasses.h"
 #include "ForthShowContext.h"
+#include "ForthObjectReader.h"
 
 #include "OList.h"
 #include "OArray.h"
@@ -149,26 +150,33 @@ namespace OList
 		METHOD_RETURN;
 	}
 
+    void listAddTail(oListStruct* pList, ForthObject& obj, ForthCoreState* pCore)
+    {
+        MALLOCATE_LINK(oListElement, newElem);
+        newElem->obj = obj;
+        SAFE_KEEP(obj);
+        newElem->next = NULL;
+        oListElement* oldTail = pList->tail;
+        if (oldTail == NULL)
+        {
+            ASSERT(pList->head == NULL);
+            pList->head = newElem;
+        }
+        else
+        {
+            ASSERT(oldTail->next == NULL);
+            oldTail->next = newElem;
+        }
+        newElem->prev = oldTail;
+        pList->tail = newElem;
+    }
+
 	FORTHOP(oListAddTailMethod)
 	{
 		GET_THIS(oListStruct, pList);
-		MALLOCATE_LINK(oListElement, newElem);
-		POP_OBJECT(newElem->obj);
-		SAFE_KEEP(newElem->obj);
-		newElem->next = NULL;
-		oListElement* oldTail = pList->tail;
-		if (oldTail == NULL)
-		{
-			ASSERT(pList->head == NULL);
-			pList->head = newElem;
-		}
-		else
-		{
-			ASSERT(oldTail->next == NULL);
-			oldTail->next = newElem;
-		}
-		newElem->prev = oldTail;
-		pList->tail = newElem;
+        ForthObject obj;
+        POP_OBJECT(obj);
+        listAddTail(pList, obj, pCore);
 		METHOD_RETURN;
 	}
 
@@ -925,10 +933,40 @@ namespace OList
 		END_MEMBERS
 	};
 
+    bool customListReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "elements")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oListStruct *dstList = (oListStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('[');
+            ForthObject obj;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == ']')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getObjectOrLink(&obj);
+                listAddTail(dstList, obj, pCore);
+                // TODO: release obj here?
+            }
+            return true;
+        }
+        return false;
+    }
+
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("List", kBCIList, kBCIIterable, oListMembers);
+		ForthClassVocabulary* pListVoc = pEngine->AddBuiltinClass("List", kBCIList, kBCIIterable, oListMembers);
+        pListVoc->SetCustomObjectReader(customListReader);
+
 		pEngine->AddBuiltinClass("ListIter", kBCIListIter, kBCIIter, oListIterMembers);
 	}
 

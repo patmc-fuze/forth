@@ -15,6 +15,7 @@
 #include "ForthObject.h"
 #include "ForthBuiltinClasses.h"
 #include "ForthShowContext.h"
+#include "ForthObjectReader.h"
 
 #include "OArray.h"
 #include "OList.h"
@@ -105,6 +106,35 @@ namespace OArray
         pShowContext->EndElement("]");
 		METHOD_RETURN;
 	}
+
+    bool customArrayReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "elements")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oArrayStruct *dstArray = (oArrayStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('[');
+            ForthObject obj;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == ']')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getObjectOrLink(&obj);
+                SAFE_KEEP(obj);
+                dstArray->elements->push_back(obj);
+                // TODO: release obj here?
+            }
+            return true;
+        }
+        return false;
+    }
 
     FORTHOP(oArrayGetMethod)
     {
@@ -1042,6 +1072,47 @@ namespace OArray
         METHOD_RETURN;
     }
 
+    bool customBagReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "elements")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oBagStruct *dstBag = (oBagStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('{');
+            ForthObject obj;
+            std::string tag;
+            bagElement newElement;
+            int tagParts[3];
+
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == '}')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getName(tag);
+                reader->getRequiredChar(':');
+                reader->getObjectOrLink(&newElement.obj);
+                tagParts[0] = 0;
+                tagParts[1] = 0;
+                tagParts[2] = 0;
+                strcpy((char *)(&tagParts[0]), tag.c_str());
+                newElement.tag.s64 = *((long long *)(&tagParts[0]));
+                SAFE_KEEP(newElement.obj);
+                dstBag->elements->push_back(newElement);
+                // TODO: release obj here?
+            }
+            return true;
+        }
+        return false;
+    }
+
+
     FORTHOP(oBagGetMethod)
     {
         GET_THIS(oBagStruct, pBag);
@@ -1956,6 +2027,41 @@ namespace OArray
         METHOD_RETURN;
     }
 
+    bool customByteArrayReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "elements")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oByteArrayStruct *dstArray = (oByteArrayStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('[');
+            std::string number;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == ']')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getNumber(number);
+                int value;
+                if (sscanf(number.c_str(), "%d", &value) == 1)
+                {
+                    dstArray->elements->push_back((char) value);
+                }
+                else
+                {
+                    reader->throwError("error parsing byte value");
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
     FORTHOP(oByteArrayGetMethod)
     {
         GET_THIS(oByteArrayStruct, pArray);
@@ -2629,6 +2735,42 @@ namespace OArray
         pShowContext->EndElement("]");
         METHOD_RETURN;
     }
+
+    bool customShortArrayReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "elements")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oShortArrayStruct *dstArray = (oShortArrayStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('[');
+            std::string number;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == ']')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getNumber(number);
+                int value;
+                if (sscanf(number.c_str(), "%d", &value) == 1)
+                {
+                    dstArray->elements->push_back((short)value);
+                }
+                else
+                {
+                    reader->throwError("error parsing short value");
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
     FORTHOP(oShortArrayGetMethod)
     {
         GET_THIS(oShortArrayStruct, pArray);
@@ -3263,6 +3405,41 @@ namespace OArray
         METHOD_RETURN;
     }
 
+    bool customIntArrayReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "elements")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oIntArrayStruct *dstArray = (oIntArrayStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('[');
+            std::string number;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == ']')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getNumber(number);
+                int value;
+                if (sscanf(number.c_str(), "%d", &value) == 1)
+                {
+                    dstArray->elements->push_back(value);
+                }
+                else
+                {
+                    reader->throwError("error parsing float value");
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
     FORTHOP(oIntArrayGetMethod)
     {
         GET_THIS(oIntArrayStruct, pArray);
@@ -3863,6 +4040,41 @@ namespace OArray
         METHOD_RETURN;
     }
 
+    bool customFloatArrayReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "elements")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oIntArrayStruct *dstArray = (oIntArrayStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('[');
+            std::string number;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == ']')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getNumber(number);
+                float value;
+                if (sscanf(number.c_str(), "%f", &value) == 1)
+                {
+                    dstArray->elements->push_back(*((int *)&value));
+                }
+                else
+                {
+                    reader->throwError("error parsing float value");
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
     FORTHOP(oFloatArraySortMethod)
     {
         GET_THIS(oIntArrayStruct, pArray);
@@ -3977,6 +4189,41 @@ namespace OArray
         pShowContext->ShowIndent();
         pShowContext->EndElement("]");
         METHOD_RETURN;
+    }
+
+    bool customLongArrayReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "elements")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oLongArrayStruct *dstArray = (oLongArrayStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('[');
+            std::string number;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == ']')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getNumber(number);
+                long long value;
+                if (sscanf(number.c_str(), "%lld", &value) == 1)
+                {
+                    dstArray->elements->push_back(value);
+                }
+                else
+                {
+                    reader->throwError("error parsing long value");
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     FORTHOP(oLongArrayGetMethod)
@@ -4600,9 +4847,9 @@ namespace OArray
     FORTHOP(oDoubleArrayShowInnerMethod)
     {
         char buffer[32];
-        GET_THIS(oLongArrayStruct, pArray);
+        GET_THIS(oDoubleArrayStruct, pArray);
         ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        oLongArray& a = *(pArray->elements);
+        oDoubleArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
         pShowContext->ShowText("[");
         pShowContext->BeginNestedShow();
@@ -4618,8 +4865,7 @@ namespace OArray
                     pShowContext->ShowTextReturn();
                     pShowContext->ShowIndent();
                 }
-                double dval = *((double *)(&(a[i])));
-                sprintf(buffer, "%g", dval);
+                sprintf(buffer, "%g", a[i]);
                 pShowContext->ShowText(buffer);
                 pShowContext->EndElement();
             }
@@ -4633,7 +4879,42 @@ namespace OArray
         METHOD_RETURN;
     }
 
-	FORTHOP(oDoubleArrayGetMethod)
+    bool customDoubleArrayReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "elements")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oDoubleArrayStruct *dstArray = (oDoubleArrayStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('[');
+            std::string number;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == ']')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getNumber(number);
+                double value;
+                if (sscanf(number.c_str(), "%lg", &value) == 1)
+                {
+                    dstArray->elements->push_back(value);
+                }
+                else
+                {
+                    reader->throwError("error parsing double value");
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+   
+    FORTHOP(oDoubleArrayGetMethod)
 	{
 		GET_THIS(oDoubleArrayStruct, pArray);
 		oDoubleArray& a = *(pArray->elements);
@@ -6093,33 +6374,42 @@ namespace OArray
 	};
 
 
-	void AddClasses(ForthEngine* pEngine)
+    void AddClasses(ForthEngine* pEngine)
 	{
 		gpArrayClassVocab = pEngine->AddBuiltinClass("Array", kBCIArray, kBCIIterable, oArrayMembers);
-		pEngine->AddBuiltinClass("ArrayIter", kBCIArrayIter, kBCIIter, oArrayIterMembers);
+        gpArrayClassVocab->SetCustomObjectReader(customArrayReader);
+        pEngine->AddBuiltinClass("ArrayIter", kBCIArrayIter, kBCIIter, oArrayIterMembers);
 
-        pEngine->AddBuiltinClass("Bag", kBCIBag, kBCIIterable, oBagMembers);
+        ForthClassVocabulary* pVocab = pEngine->AddBuiltinClass("Bag", kBCIBag, kBCIIterable, oBagMembers);
+        pVocab->SetCustomObjectReader(customBagReader);
         pEngine->AddBuiltinClass("BagIter", kBCIBagIter, kBCIIter, oBagIterMembers);
 
-        pEngine->AddBuiltinClass("ByteArray", kBCIByteArray, kBCIIterable, oByteArrayMembers);
-		pEngine->AddBuiltinClass("ByteArrayIter", kBCIByteArrayIter, kBCIIter, oByteArrayIterMembers);
+        pVocab = pEngine->AddBuiltinClass("ByteArray", kBCIByteArray, kBCIIterable, oByteArrayMembers);
+        pVocab->SetCustomObjectReader(customByteArrayReader);
+        pEngine->AddBuiltinClass("ByteArrayIter", kBCIByteArrayIter, kBCIIter, oByteArrayIterMembers);
 
-        pEngine->AddBuiltinClass("ShortArray", kBCIShortArray, kBCIIterable, oShortArrayMembers);
-		pEngine->AddBuiltinClass("ShortArrayIter", kBCIShortArrayIter, kBCIIter, oShortArrayIterMembers);
+        pVocab = pEngine->AddBuiltinClass("ShortArray", kBCIShortArray, kBCIIterable, oShortArrayMembers);
+        pVocab->SetCustomObjectReader(customShortArrayReader);
+        pEngine->AddBuiltinClass("ShortArrayIter", kBCIShortArrayIter, kBCIIter, oShortArrayIterMembers);
 
-        pEngine->AddBuiltinClass("IntArray", kBCIIntArray, kBCIIterable, oIntArrayMembers);
-		pEngine->AddBuiltinClass("IntArrayIter", kBCIIntArrayIter, kBCIIter, oIntArrayIterMembers);
+        pVocab = pEngine->AddBuiltinClass("IntArray", kBCIIntArray, kBCIIterable, oIntArrayMembers);
+        pVocab->SetCustomObjectReader(customIntArrayReader);
+        pEngine->AddBuiltinClass("IntArrayIter", kBCIIntArrayIter, kBCIIter, oIntArrayIterMembers);
 
-		pEngine->AddBuiltinClass("FloatArray", kBCIFloatArray, kBCIIterable, oFloatArrayMembers);
-		pEngine->AddBuiltinClass("FloatArrayIter", kBCIFloatArrayIter, kBCIIter, oIntArrayIterMembers);
+        pVocab = pEngine->AddBuiltinClass("FloatArray", kBCIFloatArray, kBCIIterable, oFloatArrayMembers);
+        pVocab->SetCustomObjectReader(customFloatArrayReader);
+        pEngine->AddBuiltinClass("FloatArrayIter", kBCIFloatArrayIter, kBCIIter, oIntArrayIterMembers);
 
-        pEngine->AddBuiltinClass("LongArray", kBCILongArray, kBCIIterable, oLongArrayMembers);
-		pEngine->AddBuiltinClass("LongArrayIter", kBCILongArrayIter, kBCIIter, oLongArrayIterMembers);
+        pVocab = pEngine->AddBuiltinClass("LongArray", kBCILongArray, kBCIIterable, oLongArrayMembers);
+        pVocab->SetCustomObjectReader(customLongArrayReader);
+        pEngine->AddBuiltinClass("LongArrayIter", kBCILongArrayIter, kBCIIter, oLongArrayIterMembers);
 
-		pEngine->AddBuiltinClass("DoubleArray", kBCIDoubleArray, kBCIIterable, oDoubleArrayMembers);
-		pEngine->AddBuiltinClass("DoubleArrayIter", kBCIDoubleArrayIter, kBCIIter, oLongArrayIterMembers);
+        pVocab = pEngine->AddBuiltinClass("DoubleArray", kBCIDoubleArray, kBCIIterable, oDoubleArrayMembers);
+        pVocab->SetCustomObjectReader(customDoubleArrayReader);
+        pEngine->AddBuiltinClass("DoubleArrayIter", kBCIDoubleArrayIter, kBCIIter, oLongArrayIterMembers);
 
-        pEngine->AddBuiltinClass("StructArray", kBCIStructArray, kBCIIterable, oStructArrayMembers);
+        pVocab = pEngine->AddBuiltinClass("StructArray", kBCIStructArray, kBCIIterable, oStructArrayMembers);
+        //pVocab->SetCustomObjectReader(customStructArrayReader);
         pEngine->AddBuiltinClass("StructArrayIter", kBCIStructArrayIter, kBCIIter, oStructArrayIterMembers);
 
         pEngine->AddBuiltinClass("Pair", kBCIPair, kBCIIterable, oPairMembers);

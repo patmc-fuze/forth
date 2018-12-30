@@ -14,6 +14,7 @@
 #include "ForthObject.h"
 #include "ForthBuiltinClasses.h"
 #include "ForthShowContext.h"
+#include "ForthObjectReader.h"
 
 #include "OString.h"
 #include "OArray.h"
@@ -126,7 +127,7 @@ namespace OString
         pShowContext->ShowText(&(pString->str->data[0]));
         pShowContext->EndElement("\"");
 
-        pShowContext->BeginElement("curlen");
+        pShowContext->BeginElement("curLen");
 		sprintf(buffer, "%d", pString->str->curLen);
         pShowContext->EndElement(buffer);
 
@@ -134,7 +135,7 @@ namespace OString
 		sprintf(buffer, "%d", pString->str->maxLen);
         pShowContext->EndElement(buffer);
 
-        pShowContext->BeginElement("hash");
+        pShowContext->BeginElement("hashVal");
         sprintf(buffer, "%d", pString->hash);
         pShowContext->EndElement(buffer);
 
@@ -173,31 +174,36 @@ namespace OString
         METHOD_RETURN;
     }
 
+    void setString(oStringStruct* pString, const char* srcStr)
+    {
+        long len = 0;
+        if (srcStr != NULL)
+        {
+            len = (long)strlen(srcStr);
+        }
+        else
+        {
+            // treat null input as an empty string
+            srcStr = "";
+        }
+        oString* dst = pString->str;
+        if (len > dst->maxLen)
+        {
+            // enlarge string
+            free(dst);
+            dst = createOString(len);
+            pString->str = dst;
+        }
+        dst->curLen = len;
+        memmove(&(dst->data[0]), srcStr, len + 1);
+        pString->hash = 0;
+    }
+
     FORTHOP( oStringSetMethod )
     {
         GET_THIS( oStringStruct, pString );
 		const char* srcStr = (const char *) SPOP;
-		long len = 0;
-		if (srcStr != NULL)
-		{
-			len = (long)strlen(srcStr);
-		}
-		else
-		{
-			// treat null input as an empty string
-			srcStr = "";
-		}
-		oString* dst = pString->str;
-		if ( len > dst->maxLen )
-		{
-			// enlarge string
-			free( dst );
-			dst = createOString( len );
-			pString->str = dst;
-		}
-		dst->curLen = len;
-		memmove( &(dst->data[0]), srcStr, len + 1 );
-		pString->hash = 0;
+        setString(pString, srcStr);
         METHOD_RETURN;
     }
 
@@ -999,43 +1005,51 @@ namespace OString
 		METHOD_RETURN;
 	}
 
+    void setStringMap(oStringMapStruct* pMap, std::string& key, ForthObject& obj, ForthCoreState* pCore)
+    {
+        oStringMap& a = *(pMap->elements);
+        oStringMap::iterator iter = a.find(key);
+        if (obj.pMethodOps != NULL)
+        {
+            if (iter != a.end())
+            {
+                ForthObject oldObj = iter->second;
+                if (OBJECTS_DIFFERENT(oldObj, obj))
+                {
+                    SAFE_KEEP(obj);
+                    SAFE_RELEASE(pCore, oldObj);
+                }
+            }
+            else
+            {
+                SAFE_KEEP(obj);
+            }
+            a[key] = obj;
+        }
+        else
+        {
+            // remove element associated with key from map
+            if (iter != a.end())
+            {
+                ForthObject& oldObj = iter->second;
+                SAFE_RELEASE(pCore, oldObj);
+                a.erase(iter);
+            }
+        }
+
+    }
+
 	FORTHOP(oStringMapSetMethod)
 	{
 		GET_THIS(oStringMapStruct, pMap);
-		oStringMap& a = *(pMap->elements);
-		std::string key;
-		key = (const char*)(SPOP);
-		ForthObject newObj;
-		POP_OBJECT(newObj);
-		oStringMap::iterator iter = a.find(key);
-		if (newObj.pMethodOps != NULL)
-		{
-			if (iter != a.end())
-			{
-				ForthObject oldObj = iter->second;
-				if (OBJECTS_DIFFERENT(oldObj, newObj))
-				{
-					SAFE_KEEP(newObj);
-					SAFE_RELEASE(pCore, oldObj);
-				}
-			}
-			else
-			{
-				SAFE_KEEP(newObj);
-			}
-			a[key] = newObj;
-		}
-		else
-		{
-			// remove element associated with key from map
-			if (iter != a.end())
-			{
-				ForthObject& oldObj = iter->second;
-				SAFE_RELEASE(pCore, oldObj);
-				a.erase(iter);
-			}
-		}
-		METHOD_RETURN;
+        std::string key;
+        key = (const char*)(SPOP);
+        ForthObject newObj;
+        POP_OBJECT(newObj);
+
+        setStringMap(pMap, key, newObj, pCore);
+
+        METHOD_RETURN;
 	}
 
 	FORTHOP(oStringMapFindKeyMethod)
@@ -1390,7 +1404,7 @@ namespace OString
 		END_MEMBERS
 	};
 
-  // functions for string output streams
+    // functions for string output streams
 	void stringCharOut( ForthCoreState* pCore, void *pData, char ch )
 	{
 		oStringStruct* pString = reinterpret_cast<oStringStruct*>( static_cast<ForthObject*>(static_cast<oOutStreamStruct*>(pData)->pUserData)->pData );
@@ -1410,12 +1424,68 @@ namespace OString
 		appendOString( pString, pBuffer, numChars );
 	}
 
-	void AddClasses(ForthEngine* pEngine)
+    bool customStringReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "value")
+        {
+            oStringStruct *dstString = (oStringStruct *)(reader->getCustomReaderContext().pData);
+            std::string value;
+            reader->getString(value);
+            setString(dstString, value.c_str());
+            return true;
+        }
+        else
+        {
+            if ((elementName == "curLen") || (elementName == "maxLen") || (elementName == "hashVal"))
+            {
+                std::string ignoredValue;
+                reader->getNumber(ignoredValue);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool customStringMapReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "map")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oStringMapStruct *dstMap = (oStringMapStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('{');
+            std::string name;
+            ForthObject obj;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == '}')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getString(name);
+                reader->getRequiredChar(':');
+                reader->getObjectOrLink(&obj);
+                setStringMap(dstMap, name, obj, pCore);
+                // TODO: release obj here?
+            }
+            return true;
+        }
+        return false;
+    }
+
+    void AddClasses(ForthEngine* pEngine)
 	{
         gpStringClassVocab = pEngine->AddBuiltinClass("String", kBCIString, kBCIObject, oStringMembers);
+        gpStringClassVocab->SetCustomObjectReader(customStringReader);
 
         gpStringMapClassVocab = pEngine->AddBuiltinClass("StringMap", kBCIStringMap, kBCIIterable, oStringMapMembers);
-		pEngine->AddBuiltinClass("StringMapIter", kBCIStringMapIter, kBCIIter, oStringMapIterMembers);
+        gpStringMapClassVocab->SetCustomObjectReader(customStringMapReader);
+
+        pEngine->AddBuiltinClass("StringMapIter", kBCIStringMapIter, kBCIIter, oStringMapIterMembers);
 	}
 
 } // namespace oString

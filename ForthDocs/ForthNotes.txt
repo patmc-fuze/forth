@@ -172,14 +172,32 @@ Double and long memory and stack layouts:
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 29 2018
+
+I added custom object readers for most of the array classes, lists, strings
+and string maps.  I'm pretty sure there are refcount bugs in the object reader.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 28 2018
 
 ForthObjectReader is mostly working.  There is a bug where the output object
 array has entries for inner objects, and structs and builtin classes aren't
 supported yet.
 
-- redundant objects in output object array
-- structs inside objects aren't supported yet
+I've run into a mysterious bug that I think I've seen before recently.  A class
+definition will have a symbol missing when shown with vd, but if that symbol is
+a data member it will be displayed by show.  When it happened, the vocabulary
+symbol count was one too low, which screwed up vd, but show doesn't use that
+count, it iterates over vocab entries until it reaches the end pointer.
+
+The other phantom bug like this (maybe) is a case where a method will be missing,
+it looks like it hasn't been unsmudged.
+
+And of course the bug goes away when you rearrange the source to try to nail it down.
+
+I've gotten structs inside objects working.
+
+For builtin classes with custom show methods, how can custom readers be added?
+
 - add a way to specify a custom reader for classes which have custom show method
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 26 2018

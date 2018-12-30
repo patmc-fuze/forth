@@ -1331,6 +1331,7 @@ ForthClassVocabulary::ForthClassVocabulary( const char*     pName,
 : ForthStructVocabulary( pName, typeIndex )
 , mpParentClass( NULL )
 , mCurrentInterface( 0 )
+, mCustomReader(nullptr)
 {
     mpClassObject = new ForthClassObject;
 	mpClassObject->refCount = 1;				// TBD: should this be 0? or a huge number?
@@ -1838,6 +1839,16 @@ const char *
 ForthClassVocabulary::GetTypeName( void )
 {
     return "classVocabulary";
+}
+
+void ForthClassVocabulary::SetCustomObjectReader(CustomObjectReader reader)
+{
+    mCustomReader = reader;
+}
+
+CustomObjectReader ForthClassVocabulary::GetCustomObjectReader()
+{
+    return mCustomReader;
 }
 
 // TBD: implement FindSymbol which iterates over all interfaces

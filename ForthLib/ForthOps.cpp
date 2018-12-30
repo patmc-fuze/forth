@@ -2602,7 +2602,7 @@ FORTHOP(readObjectsOp)
     POP_OBJECT(inStream);
     ForthObjectReader reader;
 
-    bool itWorked = reader.ReadObjects(inStream, outObjects);
+    bool itWorked = reader.ReadObjects(inStream, outObjects, pCore);
     if (!itWorked)
     {
         ForthEngine *pEngine = GET_ENGINE;
