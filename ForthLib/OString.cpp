@@ -123,9 +123,8 @@ namespace OString
 
 		pShowContext->BeginElement("value");
 		GET_THIS(oStringStruct, pString);
-        pShowContext->ShowText("\"");
-        pShowContext->ShowText(&(pString->str->data[0]));
-        pShowContext->EndElement("\"");
+        pShowContext->ShowQuotedText(&(pString->str->data[0]));
+        pShowContext->EndElement();
 
         pShowContext->BeginElement("curLen");
 		sprintf(buffer, "%d", pString->str->curLen);

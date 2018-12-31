@@ -39,7 +39,7 @@ public:
     void skipWhitespace();
     void getObject(ForthObject* pDst);
     void getObjectOrLink(ForthObject* pDst);
-    void getStruct(ForthStructVocabulary* pVocab, int offset);
+    void getStruct(ForthStructVocabulary* pVocab, int offset, char *pDstData);
     void processElement(const std::string& name);
     void processCustomElement(const std::string& name);
     void throwError(const char* message);

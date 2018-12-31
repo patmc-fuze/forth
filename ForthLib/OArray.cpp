@@ -5215,6 +5215,10 @@ namespace OArray
             ForthEngine *pEngine = GET_ENGINE;
             ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
             oStructArray& a = *(pArray->elements);
+
+            pShowContext->BeginElement("structType");
+            pShowContext->ShowQuotedText(pArray->pVocab->GetName());
+
             pShowContext->BeginElement("elements");
             pShowContext->ShowTextReturn("[");
             pShowContext->BeginNestedShow();
@@ -5244,6 +5248,53 @@ namespace OArray
             GET_ENGINE->SetError(kForthErrorBadParameter, "StructArray:show unknown struct type");
         }
         METHOD_RETURN;
+    }
+
+    bool customStructArrayReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        oStructArrayStruct *dstArray = (oStructArrayStruct *)(reader->getCustomReaderContext().pData);
+        if (elementName == "structType")
+        {
+            std::string structType;
+            reader->getString(structType);
+            dstArray->pVocab = ForthTypesManager::GetInstance()->GetStructVocabulary(structType.c_str());
+            if (dstArray->pVocab == nullptr)
+            {
+                reader->throwError("unknown struct type for StructArray");
+            }
+            dstArray->elementSize = dstArray->pVocab->GetSize();
+            dstArray->numElements = 0;
+            return true;
+        }
+        else if (elementName == "elements")
+        {
+            if (dstArray->pVocab == nullptr)
+            {
+                reader->throwError("StructArray is missing struct type");
+            }
+            oStructArray& a = *(dstArray->elements);
+            reader->getRequiredChar('[');
+            int offset = 0;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == ']')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                int oldSize = a.size();
+                a.resize(oldSize + dstArray->elementSize);
+                char* pDst = &(a[oldSize]);
+                reader->getStruct(dstArray->pVocab, 0, pDst);
+                dstArray->numElements++;
+            }
+            return true;
+        }
+        return false;
     }
 
     FORTHOP(oStructArrayGetMethod)
@@ -6409,7 +6460,7 @@ namespace OArray
         pEngine->AddBuiltinClass("DoubleArrayIter", kBCIDoubleArrayIter, kBCIIter, oLongArrayIterMembers);
 
         pVocab = pEngine->AddBuiltinClass("StructArray", kBCIStructArray, kBCIIterable, oStructArrayMembers);
-        //pVocab->SetCustomObjectReader(customStructArrayReader);
+        pVocab->SetCustomObjectReader(customStructArrayReader);
         pEngine->AddBuiltinClass("StructArrayIter", kBCIStructArrayIter, kBCIIter, oStructArrayIterMembers);
 
         pEngine->AddBuiltinClass("Pair", kBCIPair, kBCIIterable, oPairMembers);

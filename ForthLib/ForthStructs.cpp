@@ -1245,9 +1245,7 @@ ForthStructVocabulary::ShowDataInner(const void* pData, ForthCoreState* pCore, F
                         break;
 
                     case kBaseTypeString:
-                        pShowContext->ShowText("\"");
-                        pShowContext->ShowText(pStruct + byteOffset + 8);
-                        pShowContext->ShowText("\"");
+                        pShowContext->ShowQuotedText(pStruct + byteOffset + 8);
                         break;
 
                     case kBaseTypeOp:

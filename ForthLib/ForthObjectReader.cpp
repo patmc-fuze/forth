@@ -292,13 +292,12 @@ void ForthObjectReader::getObjectOrLink(ForthObject* pDst)
     }
 }
 
-void ForthObjectReader::getStruct(ForthStructVocabulary* pVocab, int offset)
+void ForthObjectReader::getStruct(ForthStructVocabulary* pVocab, int offset, char *pDstData)
 {
     getRequiredChar('{');
-    char *pData = mContext.pData + offset;
     mContextStack.push_back(mContext);
     mContext.pVocab = pVocab;
-    mContext.pData = pData;
+    mContext.pData = pDstData;
     bool done = false;
     while (!done)
     {
@@ -571,7 +570,7 @@ void ForthObjectReader::processElement(const std::string& name)
                     {
                         int typeIndex = CODE_TO_STRUCT_INDEX(typeCode);
                         ForthTypeInfo* structInfo = ForthTypesManager::GetInstance()->GetTypeInfo(typeIndex);
-                        getStruct(structInfo->pVocab, byteOffset);
+                        getStruct(structInfo->pVocab, byteOffset, mContext.pData);
                         break;
                     }
 

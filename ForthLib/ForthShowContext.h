@@ -36,6 +36,7 @@ public:
 	void ShowIDElement (const char* pTypeName, const void* pData);
     void ShowObjectLink(const ForthObject& obj);
     void ShowText(const char* pText);
+    void ShowQuotedText(const char* pText);
     void ShowTextReturn(const char* pText = nullptr);
 
     void BeginArray();

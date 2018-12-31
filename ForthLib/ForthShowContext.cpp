@@ -213,6 +213,16 @@ void ForthShowContext::ShowText(const char* pText)
     }
 }
 
+void ForthShowContext::ShowQuotedText(const char* pText)
+{
+    if (pText != NULL)
+    {
+        mpEngine->ConsoleOut("\"");
+        mpEngine->ConsoleOut(pText);
+        mpEngine->ConsoleOut("\"");
+    }
+}
+
 void ForthShowContext::ShowTextReturn(const char* pText)
 {
     ShowText(pText);
