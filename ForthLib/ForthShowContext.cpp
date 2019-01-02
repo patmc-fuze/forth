@@ -21,6 +21,7 @@ ForthShowContext::ForthShowContext()
 	, mShowIDElement(true)
 	, mShowRefCount(true)
     , mShowSpaces(true)
+    , mArrayElementsPerLine(10)
 {
 	mpEngine = ForthEngine::GetInstance();
 }
@@ -49,18 +50,28 @@ void ForthShowContext::BeginIndent()
 
 void ForthShowContext::EndIndent()
 {
-	mDepth--;
-	if (mDepth == 0)
-	{
-		Reset();
-	}
+    if (mDepth > 0)
+    {
+        mDepth--;
+        if (mDepth == 0)
+        {
+            Reset();
+        }
+    }
+    /*
+    // TODO: reporting an error here causes a hang if output is redirected
+    else
+    {
+        mpEngine->SetError(kForthErrorIllegalOperation, "ShowContext with negative indent");
+    }
+    */
 }
 
 void ForthShowContext::ShowIndent(const char* pText)
 {
     if (mShowSpaces)
     {
-        for (uint32 i = 0; i < mDepth; i++)
+        for (int32 i = 0; i < mDepth; i++)
         {
             ShowText("  ");
         }
@@ -77,7 +88,7 @@ void ForthShowContext::BeginElement(const char* pName)
 {
     if (mNumShown != 0)
     {
-        ShowTextReturn(",");
+        ShowCommaReturn();
     }
 
     ShowIndent("\"");
@@ -90,7 +101,7 @@ void ForthShowContext::BeginRawElement(const char* pName)
 {
     if (mNumShown != 0)
     {
-        ShowTextReturn(",");
+        ShowCommaReturn();
     }
 
     ShowIndent();
@@ -103,7 +114,7 @@ void ForthShowContext::BeginLinkElement(const ForthObject& obj)
 {
     if (mNumShown != 0)
     {
-        ShowTextReturn(",");
+        ShowCommaReturn();
     }
 
     ShowIndent();
@@ -112,11 +123,22 @@ void ForthShowContext::BeginLinkElement(const ForthObject& obj)
     mNumShown++;
 }
 
-void ForthShowContext::BeginArrayElement()
+void ForthShowContext::BeginArrayElement(int elementsPerLine)
 {
+    if (elementsPerLine == 0)
+    {
+        elementsPerLine = mArrayElementsPerLine;
+    }
+
     if (mNumShown != 0)
     {
-        ShowText(mShowSpaces ? ", " : ",");
+        ShowComma();
+    }
+
+    if (elementsPerLine == 1 || (mNumShown % elementsPerLine) == 0)
+    {
+        ShowTextReturn();
+        ShowIndent();
     }
     mNumShown++;
 }
@@ -130,7 +152,7 @@ void ForthShowContext::BeginFirstElement(const char* pText)
 
 void ForthShowContext::BeginNextElement(const char* pText)
 {
-	EndElement(",");
+	ShowComma();
 	ShowIndent("\"");
 	ShowText(pText);
     ShowText(mShowSpaces ? "\" : " : "\":");
@@ -174,7 +196,7 @@ void ForthShowContext::ShowHeader(ForthCoreState* pCore, const char* pTypeName, 
 	{
         if (mNumShown != 0)
         {
-            EndElement(",");
+            ShowComma();
         }
 
         ShowIndent();
@@ -190,7 +212,7 @@ void ForthShowContext::ShowID(const char* pTypeName, const void* pData)
 	char buffer[16];
 
 	ShowText(pTypeName);
-	sprintf(buffer, "_%08x", pData);
+	sprintf(buffer, "_%08x", (uint32) pData);
 	ShowText(buffer);
 }
 
@@ -232,6 +254,16 @@ void ForthShowContext::ShowTextReturn(const char* pText)
     }
 }
 
+void ForthShowContext::ShowComma()
+{
+    ShowText(mShowSpaces ? ", " : ",");
+}
+
+void ForthShowContext::ShowCommaReturn()
+{
+    ShowTextReturn(",");
+}
+
 void ForthShowContext::BeginNestedShow()
 {
     mNumShownStack.push_back(mNumShown);
@@ -247,23 +279,27 @@ void ForthShowContext::EndNestedShow()
 void ForthShowContext::BeginArray()
 {
     ShowText("[");
+    BeginNestedShow();
     BeginIndent();
-    ShowIndent();
 }
 
 void ForthShowContext::EndArray()
 {
     EndIndent();
-    EndElement();
+    EndNestedShow();
+    ShowTextReturn();
     ShowIndent("]");
 }
 
 
-void ForthShowContext::BeginObject(const char* pName, const void* pData)
+void ForthShowContext::BeginObject(const char* pName, const void* pData, bool showId)
 {
     ShowTextReturn("{");
     BeginIndent();
-    ShowIDElement(pName, pData);
+    if (showId)
+    {
+        ShowIDElement(pName, pData);
+    }
 }
 
 

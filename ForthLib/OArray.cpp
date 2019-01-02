@@ -83,27 +83,14 @@ namespace OArray
 		oArray& a = *(pArray->elements);
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
         pShowContext->BeginElement("elements");
-        pShowContext->ShowText("[");
-        pShowContext->BeginNestedShow();
-        if (a.size() > 0)
+        pShowContext->BeginArray();
+		for (iter = a.begin(); iter != a.end(); ++iter)
 		{
-			pShowContext->BeginIndent();
-			for (iter = a.begin(); iter != a.end(); ++iter)
-			{
-				ForthObject& o = *iter;
-                pShowContext->BeginArrayElement();
-                pShowContext->ShowTextReturn();
-                pShowContext->ShowIndent();
-                ForthShowObject(o, pCore);
-                pShowContext->EndElement();
-            }
-			pShowContext->EndIndent();
-			pShowContext->ShowIndent();
-		}
-        pShowContext->EndNestedShow();
-        pShowContext->ShowTextReturn();
-        pShowContext->ShowIndent();
-        pShowContext->EndElement("]");
+			ForthObject& o = *iter;
+            pShowContext->BeginArrayElement(1);
+            ForthShowObject(o, pCore);
+        }
+        pShowContext->EndArray();
 		METHOD_RETURN;
 	}
 
@@ -1998,31 +1985,14 @@ namespace OArray
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 		oByteArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
-        pShowContext->ShowText("[");
-        pShowContext->BeginNestedShow();
-        if (a.size() > 0)
+        pShowContext->BeginArray();
+		for (unsigned int i = 0; i < a.size(); i++)
 		{
-			pShowContext->BeginIndent();
-			pShowContext->ShowIndent();
-			for (unsigned int i = 0; i < a.size(); i++)
-			{
-                pShowContext->BeginArrayElement();
-				if ((i % 10) == 0)
-				{
-					pShowContext->ShowTextReturn();
-					pShowContext->ShowIndent();
-				}
-				sprintf(buffer, "%u", a[i] & 0xFF);
-                pShowContext->ShowText(buffer);
-                pShowContext->EndElement();
-            }
-			pShowContext->EndIndent();
-			pShowContext->ShowIndent();
-		}
-        pShowContext->EndNestedShow();
-        pShowContext->ShowTextReturn();
-        pShowContext->ShowIndent();
-        pShowContext->EndElement("]");
+            pShowContext->BeginArrayElement();
+			sprintf(buffer, "%u", a[i] & 0xFF);
+            pShowContext->ShowText(buffer);
+        }
+        pShowContext->EndArray();
         METHOD_RETURN;
     }
 
@@ -2707,31 +2677,14 @@ namespace OArray
         ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
         oShortArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
-        pShowContext->ShowText("[");
-        pShowContext->BeginNestedShow();
-        if (a.size() > 0)
+        pShowContext->BeginArray();
+        for (unsigned int i = 0; i < a.size(); i++)
         {
-            pShowContext->BeginIndent();
-            pShowContext->ShowIndent();
-            for (unsigned int i = 0; i < a.size(); i++)
-            {
-                pShowContext->BeginArrayElement();
-                if ((i % 10) == 0)
-                {
-                    pShowContext->ShowTextReturn();
-                    pShowContext->ShowIndent();
-                }
-                sprintf(buffer, "%d", a[i]);
-                pShowContext->ShowText(buffer);
-                pShowContext->EndElement();
-            }
-            pShowContext->EndIndent();
-            pShowContext->ShowIndent();
+            pShowContext->BeginArrayElement();
+            sprintf(buffer, "%d", a[i]);
+            pShowContext->ShowText(buffer);
         }
-        pShowContext->EndNestedShow();
-        pShowContext->ShowTextReturn();
-        pShowContext->ShowIndent();
-        pShowContext->EndElement("]");
+        pShowContext->EndArray();
         METHOD_RETURN;
     }
 
@@ -3376,31 +3329,14 @@ namespace OArray
         ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
         oIntArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
-        pShowContext->ShowText("[");
-        pShowContext->BeginNestedShow();
-        if (a.size() > 0)
+        pShowContext->BeginArray();
+        for (unsigned int i = 0; i < a.size(); i++)
         {
-            pShowContext->BeginIndent();
-            pShowContext->ShowIndent();
-            for (unsigned int i = 0; i < a.size(); i++)
-            {
-                pShowContext->BeginArrayElement();
-                if ((i % 10) == 0)
-                {
-                    pShowContext->ShowTextReturn();
-                    pShowContext->ShowIndent();
-                }
-                sprintf(buffer, "%d", a[i]);
-                pShowContext->ShowText(buffer);
-                pShowContext->EndElement();
-            }
-            pShowContext->EndIndent();
-            pShowContext->ShowIndent();
+            pShowContext->BeginArrayElement();
+            sprintf(buffer, "%d", a[i]);
+            pShowContext->ShowText(buffer);
         }
-        pShowContext->EndNestedShow();
-        pShowContext->ShowTextReturn();
-        pShowContext->ShowIndent();
-        pShowContext->EndElement("]");
+        pShowContext->EndArray();
         METHOD_RETURN;
     }
 
@@ -4010,32 +3946,15 @@ namespace OArray
         ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
         oIntArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
-        pShowContext->ShowText("[");
-        pShowContext->BeginNestedShow();
-        if (a.size() > 0)
+        pShowContext->BeginArray();
+        for (unsigned int i = 0; i < a.size(); i++)
         {
-            pShowContext->BeginIndent();
-            pShowContext->ShowIndent();
-            for (unsigned int i = 0; i < a.size(); i++)
-            {
-                pShowContext->BeginArrayElement();
-                if ((i % 10) == 0)
-                {
-                    pShowContext->ShowTextReturn();
-                    pShowContext->ShowIndent();
-                }
-                float fval = *((float *)(&(a[i])));
-                sprintf(buffer, "%f", fval);
-                pShowContext->ShowText(buffer);
-                pShowContext->EndElement();
-            }
-            pShowContext->EndIndent();
-            pShowContext->ShowIndent();
+            pShowContext->BeginArrayElement();
+            float fval = *((float *)(&(a[i])));
+            sprintf(buffer, "%f", fval);
+            pShowContext->ShowText(buffer);
         }
-        pShowContext->EndNestedShow();
-        pShowContext->ShowTextReturn();
-        pShowContext->ShowIndent();
-        pShowContext->EndElement("]");
+        pShowContext->EndArray();
         METHOD_RETURN;
     }
 
@@ -4162,31 +4081,14 @@ namespace OArray
         ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
         oLongArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
-        pShowContext->ShowText("[");
-        pShowContext->BeginNestedShow();
-        if (a.size() > 0)
+        pShowContext->BeginArray();
+        for (unsigned int i = 0; i < a.size(); i++)
         {
-            pShowContext->BeginIndent();
-            pShowContext->ShowIndent();
-            for (unsigned int i = 0; i < a.size(); i++)
-            {
-                pShowContext->BeginArrayElement();
-                if ((i % 10) == 0)
-                {
-                    pShowContext->ShowTextReturn();
-                    pShowContext->ShowIndent();
-                }
-                sprintf(buffer, "%lld", a[i]);
-                pShowContext->ShowText(buffer);
-                pShowContext->EndElement();
-            }
-            pShowContext->EndIndent();
-            pShowContext->ShowIndent();
+            pShowContext->BeginArrayElement();
+            sprintf(buffer, "%lld", a[i]);
+            pShowContext->ShowText(buffer);
         }
-        pShowContext->EndNestedShow();
-        pShowContext->ShowTextReturn();
-        pShowContext->ShowIndent();
-        pShowContext->EndElement("]");
+        pShowContext->EndArray();
         METHOD_RETURN;
     }
 
@@ -4850,31 +4752,14 @@ namespace OArray
         ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
         oDoubleArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
-        pShowContext->ShowText("[");
-        pShowContext->BeginNestedShow();
-        if (a.size() > 0)
+        pShowContext->BeginArray();
+        for (unsigned int i = 0; i < a.size(); i++)
         {
-            pShowContext->BeginIndent();
-            pShowContext->ShowIndent();
-            for (unsigned int i = 0; i < a.size(); i++)
-            {
-                pShowContext->BeginArrayElement();
-                if ((i % 10) == 0)
-                {
-                    pShowContext->ShowTextReturn();
-                    pShowContext->ShowIndent();
-                }
-                sprintf(buffer, "%g", a[i]);
-                pShowContext->ShowText(buffer);
-                pShowContext->EndElement();
-            }
-            pShowContext->EndIndent();
-            pShowContext->ShowIndent();
+            pShowContext->BeginArrayElement();
+            sprintf(buffer, "%g", a[i]);
+            pShowContext->ShowText(buffer);
         }
-        pShowContext->EndNestedShow();
-        pShowContext->ShowTextReturn();
-        pShowContext->ShowIndent();
-        pShowContext->EndElement("]");
+        pShowContext->EndArray();
         METHOD_RETURN;
     }
 
@@ -5221,7 +5106,6 @@ namespace OArray
 
             pShowContext->BeginElement("elements");
             pShowContext->ShowTextReturn("[");
-            pShowContext->BeginNestedShow();
             if (a.size() > 0)
             {
                 pShowContext->BeginIndent();
@@ -5233,15 +5117,15 @@ namespace OArray
                     }
                     pShowContext->ShowIndent();
                     void* pStruct = &(a[i * pArray->elementSize]);
-                    pArray->pVocab->ShowData(pStruct, pCore);
+                    pShowContext->BeginNestedShow();
+                    pArray->pVocab->ShowData(pStruct, pCore, false);
+                    pShowContext->EndNestedShow();
                 }
                 pShowContext->EndIndent();
                 pShowContext->ShowIndent();
             }
-            pShowContext->EndNestedShow();
             pShowContext->ShowTextReturn();
-            pShowContext->ShowIndent();
-            pShowContext->EndElement("]");
+            pShowContext->ShowIndent("]");
         }
         else
         {

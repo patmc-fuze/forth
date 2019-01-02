@@ -1119,11 +1119,11 @@ ForthStructVocabulary::GetTypeName( void )
 }
 
 void
-ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore)
+ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore, bool showId)
 {
 	ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 
-    pShowContext->BeginObject(GetName(), pData);
+    pShowContext->BeginObject(GetName(), pData, showId);
 
     ForthStructVocabulary* pVocab = this;
 
@@ -1189,13 +1189,26 @@ ForthStructVocabulary::ShowDataInner(const void* pData, ForthCoreState* pCore, F
                 {
                     numElements = 1;
                 }
+
                 if (isPtr)
                 {
                     // hack to print all pointers in hex
                     baseType = kBaseTypeOp;
                 }
+
+                int elementsPerLine = 0;
+                if (baseType == kBaseTypeStruct || baseType == kBaseTypeObject)
+                {
+                    elementsPerLine = 1;
+                }
+
                 while (numElements > 0)
                 {
+                    if (isArray)
+                    {
+                        pShowContext->BeginArrayElement();
+                    }
+
                     switch (baseType)
                     {
                     case kBaseTypeByte:
@@ -1258,7 +1271,7 @@ ForthStructVocabulary::ShowDataInner(const void* pData, ForthCoreState* pCore, F
                         pShowContext->BeginNestedShow();
 
                         ForthTypeInfo* pStructInfo = ForthTypesManager::GetInstance()->GetTypeInfo(CODE_TO_STRUCT_INDEX(typeCode));
-                        pStructInfo->pVocab->ShowData(pStruct + byteOffset, pCore);
+                        pStructInfo->pVocab->ShowData(pStruct + byteOffset, pCore, false);
                         //elementSize = pStructInfo->pVocab->GetSize();
 
                         pShowContext->EndNestedShow();
@@ -1292,11 +1305,6 @@ ForthStructVocabulary::ShowDataInner(const void* pData, ForthCoreState* pCore, F
                     }
                     byteOffset += elementSize;
                     --numElements;
-                    if (numElements > 0)
-                    {
-                        pShowContext->EndElement(",");
-                        pShowContext->ShowIndent();
-                    }
 
                 }  // end while numElements > 0
 

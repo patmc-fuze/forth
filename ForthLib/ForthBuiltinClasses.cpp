@@ -132,7 +132,7 @@ namespace
             pShowContext->AddObject(obj);
             ForthClassVocabulary* pClassVocab = pClassObject->pVocab;
 
-            pShowContext->BeginObject(pClassVocab->GetName(), obj.pData);
+            pShowContext->BeginObject(pClassVocab->GetName(), obj.pData, true);
 
             while (pClassVocab != nullptr)
             {

@@ -2348,7 +2348,7 @@ FORTHOP(showStructOp)
 	// TOS: structVocabPtr ptrToStructData
 	ForthStructVocabulary *pStructVocab = (ForthStructVocabulary *)(SPOP);
 	void* pStruct = (void *)(SPOP);
-	pStructVocab->ShowData(pStruct, pCore);
+	pStructVocab->ShowData(pStruct, pCore, true);
 }
 
 void __newOp(ForthCoreState* pCore, const char* pClassName)

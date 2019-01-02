@@ -60,27 +60,15 @@ namespace OList
 		oListElement* pCur = pList->head;
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
         pShowContext->BeginElement("elements");
-        pShowContext->ShowTextReturn("[");
-		if (pCur != NULL)
+        pShowContext->BeginArray();
+		while (pCur != NULL)
 		{
-			pShowContext->BeginIndent();
-			while (pCur != NULL)
-			{
-				oListElement* pNext = pCur->next;
-				if (pCur != pList->head)
-				{
-                    pShowContext->ShowTextReturn(",");
-                }
-				pShowContext->ShowIndent();
-				ForthShowObject(pCur->obj, pCore);
-                pCur = pNext;
-			}
-			pShowContext->EndIndent();
-			pShowContext->ShowIndent();
+            pShowContext->BeginArrayElement(1);
+            oListElement* pNext = pCur->next;
+			ForthShowObject(pCur->obj, pCore);
+            pCur = pNext;
 		}
-        pShowContext->ShowTextReturn();
-        pShowContext->ShowIndent();
-        pShowContext->EndElement("]");
+        pShowContext->EndArray();
 		METHOD_RETURN;
 	}
 

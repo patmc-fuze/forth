@@ -203,7 +203,7 @@ public:
 
     virtual void        EndDefinition();
 
-    virtual void		ShowData(const void* pData, ForthCoreState* pCore);
+    virtual void		ShowData(const void* pData, ForthCoreState* pCore, bool showId);
     // returns number of top-level data items shown
     // pass optional pEndVocab to prevent showing items from that vocab or lower
     virtual int		    ShowDataInner(const void* pData, ForthCoreState* pCore,

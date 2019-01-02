@@ -27,7 +27,7 @@ public:
     // BeginRawElement doesn't print quotes around pName
     void BeginRawElement(const char* pName);
     void BeginLinkElement(const ForthObject& obj);
-    void BeginArrayElement();
+    void BeginArrayElement(int elementsPerLine = 0);
     void BeginFirstElement(const char* pText);
     void BeginNextElement(const char* pText);
 	void EndElement(const char* pEndText = NULL);
@@ -38,10 +38,12 @@ public:
     void ShowText(const char* pText);
     void ShowQuotedText(const char* pText);
     void ShowTextReturn(const char* pText = nullptr);
-
+    void ShowComma();
+    void ShowCommaReturn();
+    void SetArrayElementsPerLine(int numPerLine) { mArrayElementsPerLine = numPerLine; }
     void BeginArray();
     void EndArray();
-    void BeginObject(const char* pName, const void* pData);
+    void BeginObject(const char* pName, const void* pData, bool showId);
     void EndObject();
 
     void AddObject(ForthObject& obj);
@@ -66,6 +68,7 @@ public:
 private:
 	ulong mDepth;
     int mNumShown; // num elements shown at current depth
+    int mArrayElementsPerLine;
 	std::set<void *> mShownObjects;
 	std::vector<ForthObject> mObjects;
     std::vector<int> mNumShownStack;

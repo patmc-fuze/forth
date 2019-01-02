@@ -172,6 +172,22 @@ Double and long memory and stack layouts:
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 1 2019
+
+Happy New Year!
+I did a lot of cleanup, particularly of array show methods.
+I ran into a bug when trying to report a negative indent level.  Output had
+been redirected to a file when the error had occured, and after the error
+happened the ok> prompt was appearing, but it didn't seem to execute anything
+typed.  Maybe it was executing the commands but output was still redirected,
+or at least not going to the console?
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 31 2018
+
+I added the StructArray custom object reader, and I've tested a fair number of
+cases, but there are a huge number of combinations of types of containers and
+contents that remain untested.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 30 2018
 
 I added custom object readers for the remaining map classes.  The only class
