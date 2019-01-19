@@ -237,10 +237,11 @@ bool ForthStructCodeGenerator::HandleFirst()
         // this isn't an explicit cast with <TYPE>, so try to determine the
         //  structure type of the first token with a vocabulary search
         //
-        if ( pEntry == NULL )
+        if ( pEntry == NULL && pEngine->IsCompiling())
         {
             pEntry = pEngine->GetLocalVocabulary()->FindSymbol( mpToken );
         }
+
         if ( pEntry == NULL )
         {
             pEntry = pEngine->GetVocabularyStack()->FindSymbol( mpToken, &pFoundVocab );
@@ -265,17 +266,20 @@ bool ForthStructCodeGenerator::HandleFirst()
                     *mpDst++ = gCompiledOps[OP_GET_CLASS_BY_INDEX];
                     mTypeCode = OBJECT_TYPE_TO_CODE( 0, kBCIClass );
                 }
+
 				if ( pFoundVocab != NULL )
 				{
 					isMember = pFoundVocab->IsClass();
 				}
             }
         }
+
         if ( pEntry == NULL )
         {
             // token not found in search or local vocabs
             return false;
         }
+
         // see if token is a struct
         if ( !isClassReference )
         {

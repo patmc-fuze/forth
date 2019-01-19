@@ -404,16 +404,16 @@ ForthTypesManager::GetFieldInfo( long fieldType, long& fieldBytes, long& alignme
     }
     else if ( CODE_IS_NATIVE( fieldType ) )
     {
+        alignment = gpNativeTypes[subType]->GetAlignment();
         if ( subType == kBaseTypeString )
         {
             // add in for maxLen, curLen fields & terminating null byte
-            fieldBytes = 9 + CODE_TO_STRING_BYTES( fieldType );
+            fieldBytes = (12 + CODE_TO_STRING_BYTES( fieldType )) & ~(alignment - 1);
         }
         else
         {
             fieldBytes = gpNativeTypes[subType]->GetSize();
         }
-        alignment = gpNativeTypes[subType]->GetAlignment();
     }
     else
     {

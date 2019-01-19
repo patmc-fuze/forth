@@ -4337,8 +4337,8 @@ FORTHOP( describeOp )
                 if (pVocab->IsClass())
                 {
                     long *pMethods = ((ForthClassVocabulary *)pVocab)->GetInterface(0)->GetMethods();
-                    SNPRINTF(buff, sizeof(buff), "class vocabulary %s:  methods at 0x%08x\n",
-                        pVocab->GetName(), (int)pMethods);
+                    SNPRINTF(buff, sizeof(buff), "class vocabulary %s:  methods at 0x%08x, size %d\n",
+                        pVocab->GetName(), (int)pMethods, pVocab->GetSize());
                 }
                 else
                 {

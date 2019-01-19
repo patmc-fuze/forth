@@ -733,7 +733,7 @@ namespace OMap
 			for (iter = a.begin(); iter != a.end(); ++iter)
 			{
 				sprintf(buffer, "%d", iter->first);
-				pShowContext->BeginRawElement(buffer);
+				pShowContext->BeginElement(buffer);
 				ForthShowObject(iter->second, pCore);
                 pShowContext->EndElement();
             }
@@ -799,7 +799,7 @@ namespace OMap
                 {
                     reader->ungetChar(ch);
                 }
-                reader->getNumber(number);
+                reader->getString(number);
                 int key;
                 sscanf(number.c_str(), "%d", &key);
                 reader->getRequiredChar(':');
@@ -1286,7 +1286,7 @@ namespace OMap
             {
                 float fval = *((float *)(&(iter->first)));
                 sprintf(buffer, "%f", fval);
-                pShowContext->BeginRawElement(buffer);
+                pShowContext->BeginElement(buffer);
                 ForthShowObject(iter->second, pCore);
                 pShowContext->EndElement();
             }
@@ -1352,7 +1352,7 @@ namespace OMap
                 {
                     reader->ungetChar(ch);
                 }
-                reader->getNumber(number);
+                reader->getString(number);
                 float key;
                 sscanf(number.c_str(), "%f", &key);
                 reader->getRequiredChar(':');
@@ -1640,7 +1640,7 @@ namespace OMap
             for (iter = a.begin(); iter != a.end(); ++iter)
             {
                 sprintf(buffer, "%lld", iter->first);
-                pShowContext->BeginRawElement(buffer);
+                pShowContext->BeginElement(buffer);
                 ForthShowObject(iter->second, pCore);
                 pShowContext->EndElement();
             }
@@ -1706,7 +1706,7 @@ namespace OMap
                 {
                     reader->ungetChar(ch);
                 }
-                reader->getNumber(number);
+                reader->getString(number);
                 stackInt64 key;
                 sscanf(number.c_str(), "%lld", &key.s64);
                 reader->getRequiredChar(':');
@@ -2218,7 +2218,7 @@ namespace OMap
             for (iter = a.begin(); iter != a.end(); ++iter)
             {
                 sprintf(buffer, "%g", iter->first);
-                pShowContext->BeginRawElement(buffer);
+                pShowContext->BeginElement(buffer);
                 ForthShowObject(iter->second, pCore);
                 pShowContext->EndElement();
             }
@@ -2284,7 +2284,7 @@ namespace OMap
                 {
                     reader->ungetChar(ch);
                 }
-                reader->getNumber(number);
+                reader->getString(number);
                 double key;
                 sscanf(number.c_str(), "%lf", &key);
                 reader->getRequiredChar(':');

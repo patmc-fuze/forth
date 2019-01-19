@@ -172,6 +172,35 @@ Double and long memory and stack layouts:
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 3 2019
+
+I had a bug where doing a verbose describe of class ca was showing one less
+data member than what caca.show was displaying.  When I looked into it, it
+turned out that there were 2 different ca class vocabularies being used.  I think
+it must be because I had run the test script multiple times, redefining class ca
+each time, but the caca object was being recreated by the test script each time
+also, so there is still something odd going on.
+
+One other little difference I noticed was that ShowVocab uses pVocab->GetFirstEntry,
+which gets mpStorageBottom, while ForthStructVocabulary::ShowDataInner uses
+pVocab->GetNewestEntry, which gets mpNewestSymbol - they are usually the same
+value, I think mpNewestSymbol can be null in a few cases.
+
+There is also a bug with the final computed size of class objects which contain
+arrays of native strings, it probably isn't longword padding them properly.
+The symptom of this is that when showing the class the native string array will
+have one less string than it is defined to have.
+-> ForthStructVocabulary::AddField adds the per-element padding to the field
+   size in the vocab entry, but it doesn't add padding after the final element
+   to the instance size, since the next thing after the array might have a
+   looser alignment and then part of the padding would be wasted.  The show
+   code determines the number of elements by dividing the distance between the
+   beginning of the array and the item after the array by the vocab entry
+   field size, causing the off by one error.
+   ? add the padding for the final element
+   ? or change the show code
+   -> 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 January 1 2019
 
 Happy New Year!
