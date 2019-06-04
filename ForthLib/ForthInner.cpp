@@ -1948,7 +1948,13 @@ OPTYPE_ACTION( DLLEntryPointAction )
 
 void SpewMethodName(long* pMethods, long opVal)
 {
-	char buffer[256];
+    if (pMethods == nullptr)
+    {
+        SPEW_INNER_INTERPRETER(" NULL_OBJECT:method_%d  ", opVal);
+        return;
+    }
+
+    char buffer[256];
 	ForthClassObject* pClassObject = (ForthClassObject *)(*((pMethods)-1));
 	if (pClassObject != nullptr)
 	{

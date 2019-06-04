@@ -2502,6 +2502,11 @@ entry methodWithThisType
 	sub	ecx, 8
 	mov	[ebp + FCore.RPtr], ecx
 	mov	eax, [ebp + FCore.TDPtr]
+	or	eax, eax
+	jnz methodThis1
+	mov	eax, kForthErrorBadObject
+	jmp	interpLoopErrorExit
+methodThis1:
 	mov	[ecx+4], eax
 	mov	eax, [ebp + FCore.TMPtr]
 	mov	[ecx], eax
@@ -2528,6 +2533,11 @@ entry methodWithTOSType
 
 	; set data ptr from TOS	
 	mov	eax, [edx+4]
+	or	eax, eax
+	jnz methodTos1
+	mov	eax, kForthErrorBadObject
+	jmp	interpLoopErrorExit
+methodTos1:
 	mov	[ebp + FCore.TDPtr], eax
 	; set vtable ptr from TOS
 	mov	eax, [edx]
