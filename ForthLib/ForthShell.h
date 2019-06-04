@@ -16,6 +16,12 @@ class ForthInputStack;
 class ForthExtension;
 class ForthExpressionInputStream;
 
+#if defined(WIN32)
+#define PATH_SEPARATOR "\\"
+#else
+#define PATH_SEPARATOR "/"
+#endif
+
 //
 // the ForthParseInfo class exists to support fast vocabulary searches.
 // these searches are sped up by doing symbol comparisons using longwords

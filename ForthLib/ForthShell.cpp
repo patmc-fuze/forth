@@ -1407,12 +1407,6 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
 }
 
 
-#if defined(WIN32)
-#define PATH_SEPARATOR "\\"
-#else
-#define PATH_SEPARATOR "/"
-#endif
-
 void
 ForthShell::SetEnvironmentVars( const char ** envp )
 {

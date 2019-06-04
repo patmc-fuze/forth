@@ -5926,10 +5926,17 @@ FORTHOP(linuxOp)
 FORTHOP(macosxOp)
 {
 #ifdef MACOSX
-	SPUSH(~0);
+    SPUSH(~0);
 #else
-	SPUSH(0);
+    SPUSH(0);
 #endif
+}
+
+FORTHOP(pathSeparatorOp)
+{
+    char sep = PATH_SEPARATOR[0];
+
+    SPUSH(((long)sep));
 }
 
 FORTHOP( setConsoleCursorOp )
@@ -9993,6 +10000,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( windowsOp,					"WINDOWS" ),
     OP_DEF( linuxOp,					"LINUX" ),
     OP_DEF( macosxOp,					"MACOSX" ),
+
+    OP_DEF( pathSeparatorOp,            "PATH_SEPARATOR"),
 
     // following must be last in table
     OP_DEF(    NULL,                   NULL )
