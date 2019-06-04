@@ -172,6 +172,16 @@ Double and long memory and stack layouts:
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 4 2019
+
+I added checks for a null object to the method invocation code to catch a very
+common crash cause.
+
+I also added the notedeck to the system scripts, and a replacement for the help
+system which uses it.  It is currently as functional as the existing help system,
+but will allow more easily adding more features, such as adding help which isn't
+just about a single operator, and adding help for classes and methods.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 January 3 2019
 
 I had a bug where doing a verbose describe of class ca was showing one less
