@@ -40,6 +40,18 @@ makeObject System system
 _initSystemObject
 $forget("_initSystemObject") drop
 
+//  gets next token from input stream, returns:
+//  DELIM ... false                 if token is empty or end of line
+//  DELIM ... TOKEN_PTR true        if token found
+: word?
+  if($word dup strlen)
+    true
+  else
+    drop false
+  endif
+;
+: blword? word?('\ ') ;
+
 : $alias
   -> int oldSymbol
   -> int newSymbol
@@ -142,6 +154,10 @@ alias ds dstack
 
 : count dup 1+ swap c@ ;
 : 2, here 8 allot 2! ;
+
+: land rot and >r and r> ;
+: lor rot or >r and r> ;
+: lxor rot xor >r and r> ;
 
 : time&date splitTime(time) ;
 
@@ -830,6 +846,12 @@ struct: dirent
 ;struct
 
 #endif
+
+// these may be OS specific
+enum: DIRENT_TYPE_BITS
+  0x4000 DIRENT_IS_DIR
+  0x8000 DIRENT_IS_REGULAR
+;enum
 
 // "DIRECTORY_PATH" ... Array of String
 : getFilesInDirectory
