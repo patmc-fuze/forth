@@ -173,7 +173,7 @@ namespace
 		// we could store it in the slot for method 0, but that would be kind of clunky - also,
 		// would slot 0 of non-primary interfaces also have to hold it?
 		// the class object is stored in the long before mehod 0
-		PUSH_PAIR(ForthTypesManager::GetInstance()->GetClassMethods(), (GET_TPM)-1);
+		PUSH_PAIR(ForthTypesManager::GetInstance()->GetClassMethods(), *((GET_TPM)-1));
 		METHOD_RETURN;
 	}
 
@@ -268,8 +268,14 @@ namespace
 	{
 		ForthClassObject* pClassObject = (ForthClassObject *)(GET_TPD);
 		ForthClassVocabulary* pClassVocab = pClassObject->pVocab;
+        stackInt64 superObj;
+        superObj.s64 = 0l;
+        if (pClassVocab->IsClass())
+        {
+            superObj.obj = ((ForthClassVocabulary *)(pClassVocab->BaseVocabulary()))->GetVocabularyObject();
+        }
 		// what should happen if a class is derived from a struct?
-		PUSH_PAIR(GET_TPM, pClassVocab->BaseVocabulary());
+		PUSH_OBJECT(superObj.obj);
 		METHOD_RETURN;
 	}
 
