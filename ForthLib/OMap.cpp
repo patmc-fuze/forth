@@ -272,9 +272,10 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oMapGetMethod)
+	FORTHOP(oMapGrabMethod)
 	{
 		GET_THIS(oMapStruct, pMap);
+        long found = 0;
 		oMap& a = *(pMap->elements);
         stackInt64 key;
         POP_OBJECT(key.obj);
@@ -283,11 +284,9 @@ namespace OMap
 		{
 			ForthObject fobj = iter->second;
 			PUSH_OBJECT(fobj);
+            found = ~0;
 		}
-		else
-		{
-			PUSH_PAIR(0, 0);
-		}
+        SPUSH(found);
 		METHOD_RETURN;
 	}
 
@@ -302,7 +301,7 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oMapFindKeyMethod)
+	FORTHOP(oMapFindValueMethod)
 	{
 		GET_THIS(oMapStruct, pMap);
 		stackInt64 retVal;
@@ -317,12 +316,12 @@ namespace OMap
 			ForthObject& o = iter->second;
 			if (OBJECTS_SAME(o, soughtObj))
 			{
-				found = 1;
+				found = ~0;
 				retVal.s64 = iter->first;
-				break;
+                PUSH_OBJECT(retVal.obj);
+                break;
 			}
 		}
-		PUSH_OBJECT(retVal.obj);
 		SPUSH(found);
 		METHOD_RETURN;
 	}
@@ -367,22 +366,33 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
+    oMapIterStruct* createMapIterator(ForthCoreState* pCore, oMapStruct* pMap, ForthObject& obj)
+    {
+        ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIArrayIter);
+        // needed to use new instead of malloc otherwise the iterator isn't setup right and
+        //   a crash happens when you assign to it
+        oMapIterStruct* pIter = new oMapIterStruct;
+        TRACK_ITER_NEW;
+        pIter->refCount = 0;
+        pIter->parent.pMethodOps = GET_TPM;
+        pIter->parent.pData = reinterpret_cast<long *>(pMap);
+        pIter->cursor = new oMap::iterator;
+        obj.pMethodOps = pIterVocab->GetInterface(0)->GetMethods();
+        obj.pData = (long *)pIter;
+        return pIter;
+    }
+
 	FORTHOP(oMapHeadIterMethod)
 	{
 		GET_THIS(oMapStruct, pMap);
 		pMap->refCount++;
-		TRACK_KEEP;
-		// needed to use new instead of malloc otherwise the iterator isn't setup right and
-		//   a crash happens when you assign to it
-		oMapIterStruct* pIter = new oMapIterStruct;
-		TRACK_ITER_NEW;
-		pIter->refCount = 0;
-		pIter->parent.pMethodOps = GET_TPM;
-		pIter->parent.pData = reinterpret_cast<long *>(pMap);
-		pIter->cursor = new oMap::iterator;
-		*(pIter->cursor) = pMap->elements->begin();
-		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIMapIter, 0);
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+        TRACK_KEEP;
+        ForthObject obj;
+
+        oMapIterStruct* pIter = createMapIterator(pCore, pMap, obj);
+        *(pIter->cursor) = pMap->elements->begin();
+
+        PUSH_OBJECT(obj);
 		METHOD_RETURN;
 	}
 
@@ -391,59 +401,38 @@ namespace OMap
 		GET_THIS(oMapStruct, pMap);
 		pMap->refCount++;
 		TRACK_KEEP;
-		// needed to use new instead of malloc otherwise the iterator isn't setup right and
-		//   a crash happens when you assign to it
-		oMapIterStruct* pIter = new oMapIterStruct;
-		TRACK_ITER_NEW;
-		pIter->refCount = 0;
-		pIter->parent.pMethodOps = GET_TPM;
-		pIter->parent.pData = reinterpret_cast<long *>(pMap);
-		pIter->cursor = new oMap::iterator;
-		*(pIter->cursor) = pMap->elements->end();
-		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIMapIter, 0);
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+        ForthObject obj;
+
+        oMapIterStruct* pIter = createMapIterator(pCore, pMap, obj);
+        *(pIter->cursor) = pMap->elements->end();
+
+        PUSH_OBJECT(obj);
 		METHOD_RETURN;
 	}
 
 	FORTHOP(oMapFindMethod)
 	{
 		GET_THIS(oMapStruct, pMap);
-		bool found = false;
-		ForthObject soughtObj;
-		POP_OBJECT(soughtObj);
-		oMap::iterator iter;
+        long found = 0;
+        
 		oMap& a = *(pMap->elements);
-		for (iter = a.begin(); iter != a.end(); ++iter)
-		{
-			ForthObject& o = iter->second;
-			if (OBJECTS_SAME(o, soughtObj))
-			{
-				found = true;
-				break;
-			}
-		}
-		if (found)
-		{
+        stackInt64 key;
+        POP_OBJECT(key.obj);
+        oMap::iterator iter = a.find(key.s64);
+        if (iter != a.end())
+        {
 			pMap->refCount++;
 			TRACK_KEEP;
-			// needed to use new instead of malloc otherwise the iterator isn't setup right and
-			//   a crash happens when you assign to it
-			oMapIterStruct* pIter = new oMapIterStruct;
-			TRACK_ITER_NEW;
-			pIter->refCount = 0;
-			pIter->parent.pMethodOps = GET_TPM;
-			pIter->parent.pData = reinterpret_cast<long *>(pMap);
-			pIter->cursor = new oMap::iterator;
-			*(pIter->cursor) = iter;
-			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIMapIter, 0);
-			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
-			SPUSH(~0);
+            ForthObject obj;
+
+            oMapIterStruct* pIter = createMapIterator(pCore, pMap, obj);
+            *(pIter->cursor) = iter;
+
+            PUSH_OBJECT(obj);
+			found = ~0;
 		}
-		else
-		{
-			SPUSH(0);
-		}
-		METHOD_RETURN;
+        SPUSH(found);
+        METHOD_RETURN;
 	}
 
 
@@ -455,15 +444,15 @@ namespace OMap
 
 		METHOD_RET("headIter", oMapHeadIterMethod, RETURNS_OBJECT(kBCIMapIter)),
 		METHOD_RET("tailIter", oMapTailIterMethod, RETURNS_OBJECT(kBCIMapIter)),
-		METHOD_RET("find", oMapFindMethod, RETURNS_OBJECT(kBCIMapIter)),
+		METHOD_RET("find", oMapFindMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		//METHOD_RET( "clone",                oMapCloneMethod, RETURNS_OBJECT(kBCIMap) ),
 		METHOD_RET("count", oMapCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("clear", oMapClearMethod),
 		METHOD("load", oMapLoadMethod),
 
-        METHOD_RET("get", oMapGetMethod, RETURNS_OBJECT(kBCIContainedType)),
+        METHOD_RET("grab", oMapGrabMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("set", oMapSetMethod),
-		METHOD_RET("findKey", oMapFindKeyMethod, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("findValue", oMapFindValueMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oMapRemoveMethod),
 		METHOD("unref", oMapUnrefMethod),
 
@@ -525,7 +514,25 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oMapIterNextMethod)
+    FORTHOP(oMapIterAtHeadMethod)
+    {
+        GET_THIS(oMapIterStruct, pIter);
+        oMapStruct* pMap = reinterpret_cast<oMapStruct *>(pIter->parent.pData);
+        long retVal = (*(pIter->cursor) == pMap->elements->begin()) ? ~0 : 0;
+        SPUSH(retVal);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oMapIterAtTailMethod)
+    {
+        GET_THIS(oMapIterStruct, pIter);
+        oMapStruct* pMap = reinterpret_cast<oMapStruct *>(pIter->parent.pData);
+        long retVal = (*(pIter->cursor) == pMap->elements->end()) ? ~0 : 0;
+        SPUSH(retVal);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oMapIterNextMethod)
 	{
 		GET_THIS(oMapIterStruct, pIter);
 		oMapStruct* pMap = reinterpret_cast<oMapStruct *>(pIter->parent.pData);
@@ -597,6 +604,8 @@ namespace OMap
 
 	FORTHOP(oMapIterFindNextMethod)
 	{
+        pCore->SP += 2; // drop key object
+        // TODO: why is this here? is it going to be implemented someday?
 		SPUSH(0);
 		METHOD_RETURN;
 	}
@@ -643,7 +652,27 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	baseMethodEntry oMapIterMembers[] =
+    FORTHOP(oMapIterCurrentPairMethod)
+    {
+        GET_THIS(oMapIterStruct, pIter);
+        oMapStruct* pMap = reinterpret_cast<oMapStruct *>(pIter->parent.pData);
+        if ((*pIter->cursor) == pMap->elements->end())
+        {
+            SPUSH(0);
+        }
+        else
+        {
+            ForthObject& o = (*pIter->cursor)->second;
+            PUSH_OBJECT(o);
+            stackInt64 key;
+            key.s64 = (*pIter->cursor)->first;
+            PUSH_OBJECT(key.obj);
+            SPUSH(~0);
+        }
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oMapIterMembers[] =
 	{
 		METHOD("__newOp", oMapIterNew),
 		METHOD("delete", oMapIterDeleteMethod),
@@ -652,7 +681,9 @@ namespace OMap
 		METHOD("seekPrev", oMapIterSeekPrevMethod),
 		METHOD("seekHead", oMapIterSeekHeadMethod),
 		METHOD("seekTail", oMapIterSeekTailMethod),
-		METHOD_RET("next", oMapIterNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("atHead", oMapIterAtHeadMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("atTail", oMapIterAtTailMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("next", oMapIterNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD_RET("prev", oMapIterPrevMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD_RET("current", oMapIterCurrentMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oMapIterRemoveMethod),
@@ -661,6 +692,7 @@ namespace OMap
 
 		METHOD_RET("nextPair", oMapIterNextPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD_RET("prevPair", oMapIterPrevPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("currentPair", oMapIterCurrentPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIMap)),
 		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
@@ -863,22 +895,23 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oIntMapGetMethod)
+	FORTHOP(oIntMapGrabMethod)
 	{
 		GET_THIS(oIntMapStruct, pMap);
 		oIntMap& a = *(pMap->elements);
 		long key = SPOP;
-		oIntMap::iterator iter = a.find(key);
+        long found = 0;
+
+        oIntMap::iterator iter = a.find(key);
 		if (iter != a.end())
 		{
 			ForthObject fobj = iter->second;
 			PUSH_OBJECT(fobj);
-		}
-		else
-		{
-			PUSH_PAIR(0, 0);
-		}
-		METHOD_RETURN;
+            found = ~0;
+        }
+
+        SPUSH(found);
+        METHOD_RETURN;
 	}
 
     FORTHOP(oIntMapSetMethod)
@@ -891,10 +924,9 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oIntMapFindKeyMethod)
+	FORTHOP(oIntMapFindValueMethod)
 	{
 		GET_THIS(oIntMapStruct, pMap);
-		long retVal = -1;
 		long found = 0;
 		ForthObject soughtObj;
 		POP_OBJECT(soughtObj);
@@ -905,12 +937,11 @@ namespace OMap
 			ForthObject& o = iter->second;
 			if (OBJECTS_SAME(o, soughtObj))
 			{
-				found = 1;
-				retVal = iter->first;
+                found = ~0;
+                SPUSH(iter->first);
 				break;
 			}
 		}
-		SPUSH(retVal);
 		SPUSH(found);
 		METHOD_RETURN;
 	}
@@ -1036,15 +1067,15 @@ namespace OMap
 
 		METHOD_RET("headIter", oIntMapHeadIterMethod, RETURNS_OBJECT(kBCIIntMapIter)),
 		METHOD_RET("tailIter", oIntMapTailIterMethod, RETURNS_OBJECT(kBCIIntMapIter)),
-		METHOD_RET("find", oIntMapFindMethod, RETURNS_OBJECT(kBCIIntMapIter)),
+		METHOD_RET("find", oIntMapFindMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		//METHOD_RET( "clone",                oIntMapCloneMethod, RETURNS_OBJECT(kBCIMap) ),
 		METHOD_RET("count", oIntMapCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("clear", oIntMapClearMethod),
 		METHOD("load", oIntMapLoadMethod),
 
-        METHOD_RET("get", oIntMapGetMethod, RETURNS_OBJECT(kBCIContainedType)),
+        METHOD_RET("grab", oIntMapGrabMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("set", oIntMapSetMethod),
-		METHOD_RET("findKey", oIntMapFindKeyMethod, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("findValue", oIntMapFindValueMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oIntMapRemoveMethod),
 		METHOD("unref", oIntMapUnrefMethod),
 
@@ -1393,22 +1424,23 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oFloatMapGetMethod)
+	FORTHOP(oFloatMapGrabMethod)
 	{
 		GET_THIS(oFloatMapStruct, pMap);
 		oFloatMap& a = *(pMap->elements);
 		float key = FPOP;
-		oFloatMap::iterator iter = a.find(key);
-		if (iter != a.end())
-		{
-			ForthObject fobj = iter->second;
-			PUSH_OBJECT(fobj);
-		}
-		else
-		{
-			PUSH_PAIR(0, 0);
-		}
-		METHOD_RETURN;
+        long found = 0;
+
+        oFloatMap::iterator iter = a.find(key);
+        if (iter != a.end())
+        {
+            ForthObject fobj = iter->second;
+            PUSH_OBJECT(fobj);
+            found = ~0;
+        }
+
+        SPUSH(found);
+        METHOD_RETURN;
 	}
 
 	FORTHOP(oFloatMapSetMethod)
@@ -1459,10 +1491,9 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oFloatMapFindKeyMethod)
+	FORTHOP(oFloatMapFindValueMethod)
 	{
 		GET_THIS(oFloatMapStruct, pMap);
-		float retVal = -1.0f;
 		long found = 0;
 		ForthObject soughtObj;
 		POP_OBJECT(soughtObj);
@@ -1473,12 +1504,11 @@ namespace OMap
 			ForthObject& o = iter->second;
 			if (OBJECTS_SAME(o, soughtObj))
 			{
-				found = 1;
-				retVal = iter->first;
+				found = ~0;
+				FPUSH(iter->first);
 				break;
 			}
 		}
-		FPUSH(retVal);
 		SPUSH(found);
 		METHOD_RETURN;
 	}
@@ -1564,13 +1594,13 @@ namespace OMap
 
 		METHOD_RET("headIter", oFloatMapHeadIterMethod, RETURNS_OBJECT(kBCIFloatMapIter)),
 		METHOD_RET("tailIter", oFloatMapTailIterMethod, RETURNS_OBJECT(kBCIFloatMapIter)),
-		METHOD_RET("find", oFloatMapFindMethod, RETURNS_OBJECT(kBCIFloatMapIter)),
+		METHOD_RET("find", oFloatMapFindMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		//METHOD_RET( "clone",                oFloatMapCloneMethod, RETURNS_OBJECT(kBCIFloatMap) ),
 		METHOD("load", oFloatMapLoadMethod),
 
-        METHOD_RET("get", oFloatMapGetMethod, RETURNS_OBJECT(kBCIContainedType)),
+        METHOD_RET("grab", oFloatMapGrabMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("set", oFloatMapSetMethod),
-		METHOD_RET("findKey", oFloatMapFindKeyMethod, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("findValue", oFloatMapFindValueMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oFloatMapRemoveMethod),
 		METHOD("unref", oFloatMapUnrefMethod),
 
@@ -1771,23 +1801,24 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oLongMapGetMethod)
+	FORTHOP(oLongMapGrabMethod)
 	{
 		GET_THIS(oLongMapStruct, pMap);
 		oLongMap& a = *(pMap->elements);
 		stackInt64 key;
 		LPOP(key);
-		oLongMap::iterator iter = a.find(key.s64);
-		if (iter != a.end())
-		{
-			ForthObject fobj = iter->second;
-			PUSH_OBJECT(fobj);
-		}
-		else
-		{
-			PUSH_PAIR(0, 0);
-		}
-		METHOD_RETURN;
+        long found = 0;
+
+        oLongMap::iterator iter = a.find(key.s64);
+        if (iter != a.end())
+        {
+            ForthObject fobj = iter->second;
+            PUSH_OBJECT(fobj);
+            found = ~0;
+        }
+
+        SPUSH(found);
+        METHOD_RETURN;
 	}
 
 	FORTHOP(oLongMapSetMethod)
@@ -1801,11 +1832,10 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oLongMapFindKeyMethod)
+	FORTHOP(oLongMapFindValueMethod)
 	{
 		GET_THIS(oLongMapStruct, pMap);
 		stackInt64 retVal;
-		retVal.s64 = -1L;
 		long found = 0;
 		ForthObject soughtObj;
 		POP_OBJECT(soughtObj);
@@ -1816,12 +1846,12 @@ namespace OMap
 			ForthObject& o = iter->second;
 			if (OBJECTS_SAME(o, soughtObj))
 			{
-				found = 1;
+				found = ~0;
 				retVal.s64 = iter->first;
-				break;
+                LPUSH(retVal);
+                break;
 			}
 		}
-		LPUSH(retVal);
 		SPUSH(found);
 		METHOD_RETURN;
 	}
@@ -1948,15 +1978,15 @@ namespace OMap
 
 		METHOD_RET("headIter", oLongMapHeadIterMethod, RETURNS_OBJECT(kBCILongMapIter)),
 		METHOD_RET("tailIter", oLongMapTailIterMethod, RETURNS_OBJECT(kBCILongMapIter)),
-		METHOD_RET("find", oLongMapFindMethod, RETURNS_OBJECT(kBCILongMapIter)),
+		METHOD_RET("find", oLongMapFindMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		//METHOD_RET( "clone",                oLongMapCloneMethod, RETURNS_OBJECT(kBCILongMap) ),
 		METHOD_RET("count", oLongMapCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("clear", oLongMapClearMethod),
 		METHOD("load", oLongMapLoadMethod),
 
-        METHOD_RET("get", oLongMapGetMethod, RETURNS_OBJECT(kBCIContainedType)),
+        METHOD_RET("grab", oLongMapGrabMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("set", oLongMapSetMethod),
-		METHOD_RET("findKey", oLongMapFindKeyMethod, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("findValue", oLongMapFindValueMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oLongMapRemoveMethod),
 		METHOD("unref", oLongMapUnrefMethod),
 
@@ -2348,22 +2378,23 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oDoubleMapGetMethod)
+	FORTHOP(oDoubleMapGrabMethod)
 	{
 		GET_THIS(oDoubleMapStruct, pMap);
 		oDoubleMap& a = *(pMap->elements);
 		double key = DPOP;
-		oDoubleMap::iterator iter = a.find(key);
-		if (iter != a.end())
-		{
-			ForthObject fobj = iter->second;
-			PUSH_OBJECT(fobj);
-		}
-		else
-		{
-			PUSH_PAIR(0, 0);
-		}
-		METHOD_RETURN;
+        long found = 0;
+
+        oDoubleMap::iterator iter = a.find(key);
+        if (iter != a.end())
+        {
+            ForthObject fobj = iter->second;
+            PUSH_OBJECT(fobj);
+            found = ~0;
+        }
+
+        SPUSH(found);
+        METHOD_RETURN;
 	}
 
 	FORTHOP(oDoubleMapSetMethod)
@@ -2376,10 +2407,9 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oDoubleMapFindKeyMethod)
+	FORTHOP(oDoubleMapFindValueMethod)
 	{
 		GET_THIS(oDoubleMapStruct, pMap);
-		double retVal = -1.0;
 		long found = 0;
 		ForthObject soughtObj;
 		POP_OBJECT(soughtObj);
@@ -2390,12 +2420,11 @@ namespace OMap
 			ForthObject& o = iter->second;
 			if (OBJECTS_SAME(o, soughtObj))
 			{
-				found = 1;
-				retVal = iter->first;
-				break;
+				found = ~0;
+                DPUSH(iter->first);
+                break;
 			}
 		}
-		DPUSH(retVal);
 		SPUSH(found);
 		METHOD_RETURN;
 	}
@@ -2520,15 +2549,15 @@ namespace OMap
 
 		METHOD_RET("headIter", oDoubleMapHeadIterMethod, RETURNS_OBJECT(kBCIDoubleMapIter)),
 		METHOD_RET("tailIter", oDoubleMapTailIterMethod, RETURNS_OBJECT(kBCIDoubleMapIter)),
-		METHOD_RET("find", oDoubleMapFindMethod, RETURNS_OBJECT(kBCIDoubleMapIter)),
+		METHOD_RET("find", oDoubleMapFindMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		//METHOD_RET( "clone",                oDoubleMapCloneMethod, RETURNS_OBJECT(kBCIDoubleMap) ),
 		METHOD_RET("count", oDoubleMapCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("clear", oDoubleMapClearMethod),
 		METHOD("load", oDoubleMapLoadMethod),
 
-        METHOD_RET("get", oDoubleMapGetMethod, RETURNS_OBJECT(kBCIContainedType)),
+        METHOD_RET("grab", oDoubleMapGrabMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("set", oDoubleMapSetMethod),
-		METHOD_RET("findKey", oDoubleMapFindKeyMethod, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("findValue", oDoubleMapFindValueMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oDoubleMapRemoveMethod),
 		METHOD("unref", oDoubleMapUnrefMethod),
 
@@ -2863,22 +2892,23 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oStringIntMapGetMethod)
+	FORTHOP(oStringIntMapGrabMethod)
 	{
 		GET_THIS(oStringIntMapStruct, pMap);
 		oStringIntMap& a = *(pMap->elements);
 		std::string key;
 		key = (const char*)(SPOP);
-		oStringIntMap::iterator iter = a.find(key);
-		if (iter != a.end())
-		{
-			SPUSH(iter->second);
-		}
-		else
-		{
-			SPUSH(0);
-		}
-		METHOD_RETURN;
+        long found = 0;
+
+        oStringIntMap::iterator iter = a.find(key);
+        if (iter != a.end())
+        {
+            SPUSH(iter->second);
+            found = ~0;
+        }
+
+        SPUSH(found);
+        METHOD_RETURN;
 	}
 
 	FORTHOP(oStringIntMapSetMethod)
@@ -2892,10 +2922,9 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oStringIntMapFindKeyMethod)
+	FORTHOP(oStringIntMapFindValueMethod)
 	{
 		GET_THIS(oStringIntMapStruct, pMap);
-		const char* retVal = NULL;
 		long found = 0;
 		int soughtVal = SPOP;
 
@@ -2905,12 +2934,11 @@ namespace OMap
 		{
 			if (iter->second == soughtVal)
 			{
-				found = 1;
-				retVal = iter->first.c_str();
-				break;
+				found = ~0;
+                SPUSH(((long)(iter->first.c_str())));
+                break;
 			}
 		}
-		SPUSH(((long)retVal));
 		SPUSH(found);
 		METHOD_RETURN;
 	}
@@ -3015,15 +3043,15 @@ namespace OMap
 
 		METHOD_RET("headIter", oStringIntMapHeadIterMethod, RETURNS_OBJECT(kBCIStringIntMapIter)),
 		METHOD_RET("tailIter", oStringIntMapTailIterMethod, RETURNS_OBJECT(kBCIStringIntMapIter)),
-		METHOD_RET("find", oStringIntMapFindMethod, RETURNS_OBJECT(kBCIStringIntMapIter)),
+		METHOD_RET("find", oStringIntMapFindMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		//METHOD_RET( "clone",                oStringIntMapCloneMethod, RETURNS_OBJECT(kBCIStringIntMap) ),
 		METHOD_RET("count", oStringIntMapCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("clear", oStringIntMapClearMethod),
 		METHOD("load", oStringIntMapLoadMethod),
 
-		METHOD_RET("get", oStringIntMapGetMethod, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("grab", oStringIntMapGrabMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("set", oStringIntMapSetMethod),
-		METHOD_RET("findKey", oStringIntMapFindKeyMethod, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("findValue", oStringIntMapFindValueMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oStringIntMapRemoveMethod),
 
 		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
@@ -3439,24 +3467,25 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oStringLongMapGetMethod)
+	FORTHOP(oStringLongMapGrabMethod)
 	{
 		GET_THIS(oStringLongMapStruct, pMap);
 		oStringLongMap& a = *(pMap->elements);
 		std::string key;
 		key = (const char*)(SPOP);
-		oStringLongMap::iterator iter = a.find(key);
 		stackInt64 val;
-		if (iter != a.end())
-		{
-			val.s64 = iter->second;
-		}
-		else
-		{
-			val.s64 = 0;
-		}
-		LPUSH(val);
-		METHOD_RETURN;
+        long found = 0;
+
+        oStringLongMap::iterator iter = a.find(key);
+        if (iter != a.end())
+        {
+            val.s64 = iter->second;
+            LPUSH(val);
+            found = ~0;
+        }
+
+        SPUSH(found);
+        METHOD_RETURN;
 	}
 
 	FORTHOP(oStringLongMapSetMethod)
@@ -3471,10 +3500,9 @@ namespace OMap
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oStringLongMapFindKeyMethod)
+	FORTHOP(oStringLongMapFindValueMethod)
 	{
 		GET_THIS(oStringLongMapStruct, pMap);
-		const char* retVal = NULL;
 		long found = 0;
 		stackInt64 soughtVal;
 		LPOP(soughtVal);
@@ -3485,12 +3513,11 @@ namespace OMap
 		{
 			if (iter->second == soughtVal.s64)
 			{
-				found = 1;
-				retVal = iter->first.c_str();
-				break;
+				found = ~0;
+                SPUSH(((long)(iter->first.c_str())));
+                break;
 			}
 		}
-		SPUSH(((long)retVal));
 		SPUSH(found);
 		METHOD_RETURN;
 	}
@@ -3596,15 +3623,15 @@ namespace OMap
 		
 		METHOD_RET("headIter", oStringLongMapHeadIterMethod, RETURNS_OBJECT(kBCIStringLongMapIter)),
 		METHOD_RET("tailIter", oStringLongMapTailIterMethod, RETURNS_OBJECT(kBCIStringLongMapIter)),
-		METHOD_RET("find", oStringLongMapFindMethod, RETURNS_OBJECT(kBCIStringLongMapIter)),
+		METHOD_RET("find", oStringLongMapFindMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		//METHOD_RET( "clone",                oStringLongMapCloneMethod, RETURNS_OBJECT(kBCIStringLongMap) ),
 		METHOD_RET("count", oStringLongMapCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("clear", oStringLongMapClearMethod),
 		METHOD("load", oStringLongMapLoadMethod),
 
-		METHOD_RET("get", oStringLongMapGetMethod, RETURNS_NATIVE(kBaseTypeLong)),
+		METHOD_RET("grab", oStringLongMapGrabMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("set", oStringLongMapSetMethod),
-		METHOD_RET("findKey", oStringLongMapFindKeyMethod, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("findValue", oStringLongMapFindValueMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oStringLongMapRemoveMethod),
 
 		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),

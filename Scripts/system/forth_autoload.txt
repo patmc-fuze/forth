@@ -1,4 +1,4 @@
-setTrace( 0 )
+setTrace(0)
 
 "forth_autoload" $forget drop
 : forth_autoload "This is the forth_autoload.txt tools module" %s ;
@@ -227,11 +227,11 @@ mko StringMap _helpMap
     repeat
     oclear iter
   else
-    _helpMap.get(opName) ->o String opDescription
-    if(objIsNull(opDescription))
-      opName %s " not found!\n" %s
-    else
+    if(_helpMap.grab(opName))
+      ->o String opDescription
       opDescription.get %s %nl
+    else
+      opName %s " not found!\n" %s
     endif
   endif
 ;

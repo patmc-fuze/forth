@@ -172,6 +172,33 @@ Double and long memory and stack layouts:
 Double has consistent layout, long is reversed on param stack.
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 8 2019
+
+I forgot that the *Map find method actually takes the value object, and returns
+an iterator positioned at it.  I need to think about that.
+
+I changed Map:find to take the key object instead of the value object, I need to
+remember to change it back if needed.
+
+Map:findKey takes key object, returns value object
+IntMap:findKey takes key integer, returns iterator and found flag
+
++ replace *Map get methods with grab method which returns OBJECT FOUND_FLAG
++ change *Map find method to take key and return ITER FOUND_FLAG
++ change/rename *Map findKey to findValue method to take value object and return ITER FOUND_FLAG
+- look at inconsistencies in *Array, some have tell and seek, others don't
+
+Things that may need to be fixed:
++ biclasstest.txt - does a few StringMap:get calls that will need to change
++ rctest.txt - doesn't do get or find*
++ classtest.txt - doesn't use maps
++ notebook.txt & helpdeck.txt have map uses that will need changing
+- t.txt - random tests that probably don't matter
++ forth_autoload.txt - help map
++ hersheyfont.txt - it has an IntMap mGlyphs to map from character codes to glyphs, but it isn't used
++ adv.txt - it has a StringIntMap wordMap, but it isn't used
++ help.txt
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 4 2019
 
 I added checks for a null object to the method invocation code to catch a very

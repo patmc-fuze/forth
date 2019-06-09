@@ -48,6 +48,7 @@ class: NoteFlagDef extends NoteDef
       2lshift(1L id)
     else
       // TODO: report error, too many flags
+      error("too many flag definitions")
     endif
     -> mask
   ;m
@@ -153,6 +154,7 @@ class: Note
   int parent        // -1 for none
   String name
   String body
+  StringMap of Note children
   IntMap of NoteParam params
   long flags
   Object obj        // optional associated object
@@ -173,14 +175,18 @@ class: Note
     oclear body
     oclear params
     oclear obj
+    oclear children
   ;m
 
   m: getParam    // PARAM_ID ...   false   OR   PARAM_OBJ true 
-    params.get 2dup
-    if(objNotNull)
-      true
+    params.grab
+  ;m
+  
+  m: getChild            // NAME ...   false   OR   NOTE_OBJ true
+    if(objNotNull(children))
+      children.grab
     else
-      2drop false
+      false
     endif
   ;m
   
@@ -234,17 +240,8 @@ class: NoteDeck
     unref def
   ;m
 
-  : getFromMap
-    <StringMap>.get 2dup
-    if(objNotNull)
-      true
-    else
-      2drop false
-    endif
-  ;
-  
   m: getTag         // NAME ...    false   OR   TAG_DEF_OBJ true
-    getFromMap(tagMap)
+    tagMap.grab
   ;m
   
   m: addFlagDef      // NAME DISPLAY_NAME DESCRIPTION ... NEW_FLAG_DEF
@@ -252,11 +249,12 @@ class: NoteDeck
     def.init(flags.count)
     flags.push(def)
     flagMap.set(def def.name.get)
+    //def.name.get %s %bl def.mask %x %nl
     unref def
   ;m
   
   m: getFlag         // NAME ...    false   OR   FLAG_DEF_OBJ true
-    getFromMap(flagMap)
+    flagMap.grab
   ;m
   
   m: addSchema      // NAME DESCRIPTION ... NEW_SCHEMA
@@ -268,7 +266,7 @@ class: NoteDeck
   ;m
   
   m: getSchema         // NAME ...    false   OR   SCHEMA_OBJ true
-    getFromMap(schemaMap)
+    schemaMap.grab
   ;m
   
   m: addParamDef      // NAME DESCRIPTION ... NEW_PARAM_DEF
@@ -280,7 +278,7 @@ class: NoteDeck
   ;m
   
   m: getParam        // NAME ...    false   OR   PARAM_DEF_OBJ true
-    getFromMap(schemaMap)
+    paramMap.grab
   ;m
   
   m: addNote      // NAME BODY ... NEW_NOTE
@@ -292,8 +290,22 @@ class: NoteDeck
     unref note
   ;m
   
+  m: addChild      // NAME BODY PARENT_NOTE ... NEW_NOTE
+    ->o Note parent
+    mko Note note
+    note.init(notes.count)
+    note.id -> note.parent
+    if(objIsNull(parent.children))
+      new StringMap -> parent.children
+    endif
+    notes.push(note)
+    // TODO: check for note name already in map
+    parent.children.set(note note.name.get)
+    unref note
+  ;m
+  
   m: getNote            // NAME ...   false   OR   NOTE_OBJ true
-    getFromMap(noteMap)
+    noteMap.grab
   ;m
   
   m: init   // NOTEBOOK_NAME ...
@@ -328,8 +340,6 @@ class: NoteDeck
   ;m
 
 ;class
-
-NoteDeck _currentNoteDeck
 
 loaddone
 

@@ -1068,10 +1068,11 @@ namespace OString
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oStringMapGetMethod)
+	FORTHOP(oStringMapGrabMethod)
 	{
 		GET_THIS(oStringMapStruct, pMap);
-		oStringMap& a = *(pMap->elements);
+        long found = 0;
+        oStringMap& a = *(pMap->elements);
 		std::string key;
 		key = (const char*)(SPOP);
 		oStringMap::iterator iter = a.find(key);
@@ -1079,13 +1080,11 @@ namespace OString
 		{
 			ForthObject fobj = iter->second;
 			PUSH_OBJECT(fobj);
-		}
-		else
-		{
-			PUSH_PAIR(0, 0);
-		}
-		METHOD_RETURN;
-	}
+            found = ~0;
+        }
+        SPUSH(found);
+        METHOD_RETURN;
+    }
 
     void setStringMap(oStringMapStruct* pMap, std::string& key, ForthObject& obj, ForthCoreState* pCore)
     {
@@ -1134,10 +1133,9 @@ namespace OString
         METHOD_RETURN;
 	}
 
-	FORTHOP(oStringMapFindKeyMethod)
+	FORTHOP(oStringMapFindValueMethod)
 	{
 		GET_THIS(oStringMapStruct, pMap);
-		const char* retVal = NULL;
 		long found = 0;
 		ForthObject soughtObj;
 		POP_OBJECT(soughtObj);
@@ -1148,12 +1146,11 @@ namespace OString
 			ForthObject& o = iter->second;
 			if (OBJECTS_SAME(o, soughtObj))
 			{
-				found = 1;
-				retVal = iter->first.c_str();
-				break;
+				found = ~0;
+                SPUSH(((long)(iter->first.c_str())));
+                break;
 			}
 		}
-		SPUSH(((long) retVal));
 		SPUSH(found);
 		METHOD_RETURN;
 	}
@@ -1232,7 +1229,7 @@ namespace OString
 	FORTHOP(oStringMapFindMethod)
 	{
 		GET_THIS(oStringMapStruct, pMap);
-		bool found = false;
+		long found = 0;
 		ForthObject soughtObj;
 		POP_OBJECT(soughtObj);
 		oStringMap::iterator iter;
@@ -1242,31 +1239,24 @@ namespace OString
 			ForthObject& o = iter->second;
 			if (OBJECTS_SAME(o, soughtObj))
 			{
-				found = true;
-				break;
+				found = ~0;
+                pMap->refCount++;
+                TRACK_KEEP;
+                // needed to use new instead of malloc otherwise the iterator isn't setup right and
+                //   a crash happens when you assign to it
+                oStringMapIterStruct* pIter = new oStringMapIterStruct;
+                TRACK_ITER_NEW;
+                pIter->refCount = 0;
+                pIter->parent.pMethodOps = GET_TPM;
+                pIter->parent.pData = reinterpret_cast<long *>(pMap);
+                pIter->cursor = new oStringMap::iterator;
+                *(pIter->cursor) = iter;
+                ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
+                PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+                break;
 			}
 		}
-		if (found)
-		{
-			pMap->refCount++;
-			TRACK_KEEP;
-			// needed to use new instead of malloc otherwise the iterator isn't setup right and
-			//   a crash happens when you assign to it
-			oStringMapIterStruct* pIter = new oStringMapIterStruct;
-			TRACK_ITER_NEW;
-			pIter->refCount = 0;
-			pIter->parent.pMethodOps = GET_TPM;
-			pIter->parent.pData = reinterpret_cast<long *>(pMap);
-			pIter->cursor = new oStringMap::iterator;
-			*(pIter->cursor) = iter;
-			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
-			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
-			SPUSH(~0);
-		}
-		else
-		{
-			SPUSH(0);
-		}
+        SPUSH(found);
 		METHOD_RETURN;
 	}
 
@@ -1285,9 +1275,9 @@ namespace OString
 		METHOD("clear", oStringMapClearMethod),
 		METHOD("load", oStringMapLoadMethod),
 
-        METHOD_RET("get", oStringMapGetMethod, RETURNS_OBJECT(kBCIContainedType)),
+        METHOD_RET("grab", oStringMapGrabMethod, RETURNS_OBJECT(kBCIContainedType)),
 		METHOD("set", oStringMapSetMethod),
-		METHOD_RET("findKey", oStringMapFindKeyMethod, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("findValue", oStringMapFindValueMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oStringMapRemoveMethod),
 		METHOD("unref", oStringMapUnrefMethod),
 
