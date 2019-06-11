@@ -361,14 +361,15 @@ namespace
 		METHOD("seekPrev", unimplementedMethodOp),
 		METHOD("seekHead", unimplementedMethodOp),
 		METHOD("seekTail", unimplementedMethodOp),
-		METHOD_RET("next", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("atHead", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("atTail", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("next", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD_RET("prev", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD_RET("current", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", unimplementedMethodOp),
 		METHOD_RET("unref", unimplementedMethodOp, RETURNS_OBJECT(kBCIObject)),
-		METHOD_RET("findNext", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),
-		METHOD_RET("clone", unimplementedMethodOp, RETURNS_OBJECT(kBCIIter)),
-		// following must be last in table
+        METHOD_RET("clone", unimplementedMethodOp, RETURNS_OBJECT(kBCIIter)),
+        // following must be last in table
 		END_MEMBERS
 	};
 

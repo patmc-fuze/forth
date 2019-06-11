@@ -864,7 +864,7 @@ namespace OArray
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oArrayIterRemoveMethod)
+    FORTHOP(oArrayIterRemoveMethod)
 	{
 		GET_THIS(oArrayIterStruct, pIter);
 		oArrayStruct* pArray = reinterpret_cast<oArrayStruct *>(pIter->parent.pData);
@@ -986,8 +986,8 @@ namespace OArray
         METHOD_RET("tell", oArrayIterTellMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD_RET("next", oArrayIterNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD_RET("prev", oArrayIterPrevMethod, RETURNS_NATIVE(kBaseTypeInt)),
-		METHOD_RET("current", oArrayIterCurrentMethod, RETURNS_NATIVE(kBaseTypeInt)),
-		METHOD("remove", oArrayIterRemoveMethod),
+        METHOD_RET("current", oArrayIterCurrentMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD("remove", oArrayIterRemoveMethod),
 		METHOD("unref", oArrayIterUnrefMethod),
 		METHOD_RET("findNext", oArrayIterFindNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD_RET("clone", oArrayIterCloneMethod, RETURNS_OBJECT(kBCIArrayIter)),

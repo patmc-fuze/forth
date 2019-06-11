@@ -1339,7 +1339,25 @@ namespace OString
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oStringMapIterNextMethod)
+    FORTHOP(oStringMapIterAtHeadMethod)
+    {
+        GET_THIS(oStringMapIterStruct, pIter);
+        oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
+        long retVal = (*(pIter->cursor) == pMap->elements->begin()) ? ~0 : 0;
+        SPUSH(retVal);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringMapIterAtTailMethod)
+    {
+        GET_THIS(oStringMapIterStruct, pIter);
+        oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
+        long retVal = (*(pIter->cursor) == pMap->elements->end()) ? ~0 : 0;
+        SPUSH(retVal);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringMapIterNextMethod)
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
 		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
@@ -1412,7 +1430,7 @@ namespace OString
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oStringMapIterNextPairMethod)
+	FORTHOP(oStringMapIterCurrentPairMethod)
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
 		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
@@ -1422,26 +1440,6 @@ namespace OString
 		}
 		else
 		{
-			ForthObject& o = (*(pIter->cursor))->second;
-			PUSH_OBJECT(o);
-			SPUSH((long)(*(pIter->cursor))->first.c_str());
-			(*pIter->cursor)++;
-			SPUSH(~0);
-		}
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oStringMapIterPrevPairMethod)
-	{
-		GET_THIS(oStringMapIterStruct, pIter);
-		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
-		if (*(pIter->cursor) == pMap->elements->begin())
-		{
-			SPUSH(0);
-		}
-		else
-		{
-			(*pIter->cursor)--;
 			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
 			SPUSH((long)(*(pIter->cursor))->first.c_str());
@@ -1459,15 +1457,16 @@ namespace OString
 		METHOD("seekPrev", oStringMapIterSeekPrevMethod),
 		METHOD("seekHead", oStringMapIterSeekHeadMethod),
 		METHOD("seekTail", oStringMapIterSeekTailMethod),
-		METHOD_RET("next", oStringMapIterNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("atHead", oStringMapIterAtHeadMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("atTail", oStringMapIterAtTailMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("next", oStringMapIterNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD_RET("prev", oStringMapIterPrevMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD_RET("current", oStringMapIterCurrentMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oStringMapIterRemoveMethod),
 		METHOD_RET("findNext", oStringMapIterFindNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		//METHOD_RET( "clone",                oStringMapIterCloneMethod, RETURNS_OBJECT(kBCIMapIter) ),
 
-		METHOD_RET("nextPair", oStringMapIterNextPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
-		METHOD_RET("prevPair", oStringMapIterPrevPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
+		METHOD_RET("currentPair", oStringMapIterCurrentPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIStringMap)),
         MEMBER_VAR( "__cursor",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),

@@ -222,7 +222,7 @@ mko StringMap _helpMap
     // line was empty, just list all help
     _helpMap.headIter -> StringMapIter iter
     begin
-    while( iter.nextPair )
+    while(iter.seekNext iter.currentPair)
       %s %bl <String>.get %s %nl
     repeat
     oclear iter

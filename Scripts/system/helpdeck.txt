@@ -956,6 +956,8 @@ addMethod seekNext|...|move iterator to next element
 addMethod seekPrev|...|move iterator to previous element
 addMethod seekHead|...|move iterator to first element
 addMethod seekTail|...|move iterator to last element
+addMethod atHead|... BOOL|true if at start of collection
+addMethod atTail|... BOOL|true if at end of collection
 addMethod next|... OBJECT true   OR   false|return item at iterator cursor and true, return false if already at last element, advance to next element
 addMethod prev|... OBJECT true   OR   false|return item at iterator cursor and true, return false if already at first element, advance to previous element
 addMethod current|... OBJECT true   OR   false|return item at iterator cursor and true, return false if already at last element
@@ -1243,18 +1245,7 @@ addMethod find|OBJECT_KEY ... ITER true   OR   false|return map iterator at posi
 
 addClass MapIter|Iter|object map iterator
 addMethod findNext|OBJECT_KEY ... false|not implemented, always returns false - why is this here?
-addMethod nextPair|... OBJECT_VALUE OBJECT_KEY true   OR   false|return item at iterator cursor and true, return false if already at last element, advance to next element
-addMethod prevPair|... OBJECT_VALUE OBJECT_KEY true   OR   false|return item at iterator cursor and true, return false if already at first element, advance to previous element
 addMethod currentPair|... OBJECT_VALUE OBJECT_KEY true   OR   false|return item at iterator cursor and true, return false if already at last element
-
-addClass Map|Iterable|map with object keys and object values
-addMethod get|OBJECT_KEY ... OBJECT_VALUE|return object whose key matches OBJECT_KEY, return null object if not found
-addMethod set|OBJECT_VALUE OBJECT_KEY ...|add a key/value pair to the map
-addMethod load|<N PAIRS> N ...|set map to contain N value/key pairs on stack
-addMethod findValue|OBJECT_VALUE ... OBJECT_KEY true   OR   false|return key object given value object
-addMethod remove|OBJECT_KEY ...|remove object,key pair from map
-addMethod unref|OBJECT_KEY ... OBJECT_VALUE|remov object,key pair from map, return value object
-addMethod find|OBJECT_KEY ... ITER true   OR   false|return map iterator at position of found object
 
 addClass IntMap|Iterable|map with integer keys and object values
 addMethod get|INT_KEY ... OBJECT_VALUE|return object whose key matches INT_KEY, return null object if not found
