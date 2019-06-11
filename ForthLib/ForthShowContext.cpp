@@ -22,6 +22,7 @@ ForthShowContext::ForthShowContext()
 	, mShowRefCount(true)
     , mShowSpaces(true)
     , mArrayElementsPerLine(10)
+    , mNumShown(0)
 {
 	mpEngine = ForthEngine::GetInstance();
 }
@@ -294,6 +295,7 @@ void ForthShowContext::EndArray()
 
 void ForthShowContext::BeginObject(const char* pName, const void* pData, bool showId)
 {
+    BeginNestedShow();
     ShowTextReturn("{");
     BeginIndent();
     if (showId)
@@ -308,6 +310,7 @@ void ForthShowContext::EndObject()
     EndIndent();
     ShowTextReturn();
     ShowIndent("}");
+    EndNestedShow();
 }
 
 void ForthShowContext::ShowObjectLink(const ForthObject& obj)
