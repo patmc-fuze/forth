@@ -232,7 +232,7 @@ namespace OSocket
         int flags = SPOP;
         size_t len = SPOP;
         char *buf = (char *)(SPOP);
-        int socketFD = SPOP;
+        //int socketFD = SPOP;  huh? what was this supposed to be?
         int result = recvfrom(pSocket->fd, buf, len, flags, destAddr, pAddrLen);
         SPUSH(result);
         METHOD_RETURN;
@@ -333,6 +333,7 @@ namespace OSocket
     {
         METHOD("__newOp", oSocketNew),
         METHOD("delete", oSocketDeleteMethod),
+
         METHOD_RET("open", oSocketOpenMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD_RET("close", oSocketCloseMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD_RET("bind", oSocketBindMethod, RETURNS_NATIVE(kBaseTypeInt)),

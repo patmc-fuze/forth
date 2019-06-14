@@ -104,20 +104,20 @@ namespace OSystem
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oSystemGetSearchVocabDepthMethod)
+    FORTHOP(oSystemClearSearchVocabMethod)
+    {
+        GET_THIS(oSystemStruct, pSystem);
+        ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
+        pVocabStack->Clear();
+
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSystemGetSearchVocabDepthMethod)
 	{
 		GET_THIS(oSystemStruct, pSystem);
 		ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
 		SPUSH(pVocabStack->GetDepth());
-
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oSystemClearSearchVocabMethod)
-	{
-		GET_THIS(oSystemStruct, pSystem);
-		ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
-		pVocabStack->Clear();
 
 		METHOD_RETURN;
 	}

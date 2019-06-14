@@ -1528,7 +1528,7 @@ namespace OVocabulary
 		METHOD("findNextEntryByValue", oVocabularyIterFindNextEntryByValueMethod),
 		METHOD("removeEntry", oVocabularyIterRemoveEntryMethod),
 
-		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIArray)),
+		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIVocabulary)),
 		MEMBER_VAR("cursor", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt)),
 		//MEMBER_VAR("vocabulary", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt)),
 

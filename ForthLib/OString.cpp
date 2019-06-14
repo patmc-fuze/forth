@@ -885,8 +885,9 @@ namespace OString
     {
         METHOD(     "__newOp",              oStringNew ),
         METHOD(     "delete",               oStringDeleteMethod ),
-        METHOD(     "showInner",					oStringShowInnerMethod ),
+        METHOD(     "showInner",			oStringShowInnerMethod ),
         METHOD_RET( "compare",              oStringCompareMethod, RETURNS_NATIVE(kBaseTypeInt) ),
+
         METHOD(     "size",                 oStringSizeMethod ),
         METHOD(     "length",               oStringLengthMethod ),
         METHOD(     "get",                  oStringGetMethod ),
@@ -955,6 +956,40 @@ namespace OString
 	};
 
 
+    void setStringMap(oStringMapStruct* pMap, std::string& key, ForthObject& obj, ForthCoreState* pCore)
+    {
+        oStringMap& a = *(pMap->elements);
+        oStringMap::iterator iter = a.find(key);
+        if (obj.pMethodOps != NULL)
+        {
+            if (iter != a.end())
+            {
+                ForthObject oldObj = iter->second;
+                if (OBJECTS_DIFFERENT(oldObj, obj))
+                {
+                    SAFE_KEEP(obj);
+                    SAFE_RELEASE(pCore, oldObj);
+                }
+            }
+            else
+            {
+                SAFE_KEEP(obj);
+            }
+            a[key] = obj;
+        }
+        else
+        {
+            // remove element associated with key from map
+            if (iter != a.end())
+            {
+                ForthObject& oldObj = iter->second;
+                SAFE_RELEASE(pCore, oldObj);
+                a.erase(iter);
+            }
+        }
+
+    }
+
     void createStringMapObject(ForthObject& destObj, ForthClassVocabulary *pClassVocab)
     {
         destObj.pMethodOps = pClassVocab->GetInterface(0)->GetMethods();
@@ -1018,7 +1053,86 @@ namespace OString
 	}
 
 
-	FORTHOP(oStringMapClearMethod)
+    FORTHOP(oStringMapHeadIterMethod)
+    {
+        GET_THIS(oStringMapStruct, pMap);
+        pMap->refCount++;
+        TRACK_KEEP;
+        // needed to use new instead of malloc otherwise the iterator isn't setup right and
+        //   a crash happens when you assign to it
+        oStringMapIterStruct* pIter = new oStringMapIterStruct;
+        TRACK_ITER_NEW;
+        pIter->refCount = 0;
+        pIter->parent.pMethodOps = GET_TPM;
+        pIter->parent.pData = reinterpret_cast<long *>(pMap);
+        pIter->cursor = new oStringMap::iterator;
+        *(pIter->cursor) = pMap->elements->begin();
+        ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
+        PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringMapTailIterMethod)
+    {
+        GET_THIS(oStringMapStruct, pMap);
+        pMap->refCount++;
+        TRACK_KEEP;
+        // needed to use new instead of malloc otherwise the iterator isn't setup right and
+        //   a crash happens when you assign to it
+        oStringMapIterStruct* pIter = new oStringMapIterStruct;
+        TRACK_ITER_NEW;
+        pIter->refCount = 0;
+        pIter->parent.pMethodOps = GET_TPM;
+        pIter->parent.pData = reinterpret_cast<long *>(pMap);
+        pIter->cursor = new oStringMap::iterator;
+        *(pIter->cursor) = pMap->elements->end();
+        ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
+        PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringMapFindMethod)
+    {
+        GET_THIS(oStringMapStruct, pMap);
+        long found = 0;
+        ForthObject soughtObj;
+        POP_OBJECT(soughtObj);
+        oStringMap::iterator iter;
+        oStringMap& a = *(pMap->elements);
+        for (iter = a.begin(); iter != a.end(); ++iter)
+        {
+            ForthObject& o = iter->second;
+            if (OBJECTS_SAME(o, soughtObj))
+            {
+                found = ~0;
+                pMap->refCount++;
+                TRACK_KEEP;
+                // needed to use new instead of malloc otherwise the iterator isn't setup right and
+                //   a crash happens when you assign to it
+                oStringMapIterStruct* pIter = new oStringMapIterStruct;
+                TRACK_ITER_NEW;
+                pIter->refCount = 0;
+                pIter->parent.pMethodOps = GET_TPM;
+                pIter->parent.pData = reinterpret_cast<long *>(pMap);
+                pIter->cursor = new oStringMap::iterator;
+                *(pIter->cursor) = iter;
+                ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
+                PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+                break;
+            }
+        }
+        SPUSH(found);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringMapCountMethod)
+    {
+        GET_THIS(oStringMapStruct, pMap);
+        SPUSH((long)(pMap->elements->size()));
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringMapClearMethod)
 	{
 		// go through all elements and release any which are not null
 		GET_THIS(oStringMapStruct, pMap);
@@ -1030,41 +1144,6 @@ namespace OString
 			SAFE_RELEASE(pCore, o);
 		}
 		a.clear();
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oStringMapLoadMethod)
-	{
-		// go through all elements and release any which are not null
-		GET_THIS(oStringMapStruct, pMap);
-		oStringMap::iterator iter;
-		oStringMap& a = *(pMap->elements);
-		for (iter = a.begin(); iter != a.end(); ++iter)
-		{
-			ForthObject& o = iter->second;
-			SAFE_RELEASE(pCore, o);
-		}
-		a.clear();
-		int n = SPOP;
-		for (int i = 0; i < n; i++)
-		{
-			std::string key;
-			key = (const char*)(SPOP);
-			ForthObject newObj;
-			POP_OBJECT(newObj);
-			if (newObj.pMethodOps != NULL)
-			{
-				SAFE_KEEP(newObj);
-			}
-			a[key] = newObj;
-		}
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oStringMapCountMethod)
-	{
-		GET_THIS(oStringMapStruct, pMap);
-		SPUSH((long)(pMap->elements->size()));
 		METHOD_RETURN;
 	}
 
@@ -1086,40 +1165,6 @@ namespace OString
         METHOD_RETURN;
     }
 
-    void setStringMap(oStringMapStruct* pMap, std::string& key, ForthObject& obj, ForthCoreState* pCore)
-    {
-        oStringMap& a = *(pMap->elements);
-        oStringMap::iterator iter = a.find(key);
-        if (obj.pMethodOps != NULL)
-        {
-            if (iter != a.end())
-            {
-                ForthObject oldObj = iter->second;
-                if (OBJECTS_DIFFERENT(oldObj, obj))
-                {
-                    SAFE_KEEP(obj);
-                    SAFE_RELEASE(pCore, oldObj);
-                }
-            }
-            else
-            {
-                SAFE_KEEP(obj);
-            }
-            a[key] = obj;
-        }
-        else
-        {
-            // remove element associated with key from map
-            if (iter != a.end())
-            {
-                ForthObject& oldObj = iter->second;
-                SAFE_RELEASE(pCore, oldObj);
-                a.erase(iter);
-            }
-        }
-
-    }
-
 	FORTHOP(oStringMapSetMethod)
 	{
 		GET_THIS(oStringMapStruct, pMap);
@@ -1133,7 +1178,35 @@ namespace OString
         METHOD_RETURN;
 	}
 
-	FORTHOP(oStringMapFindValueMethod)
+    FORTHOP(oStringMapLoadMethod)
+    {
+        // go through all elements and release any which are not null
+        GET_THIS(oStringMapStruct, pMap);
+        oStringMap::iterator iter;
+        oStringMap& a = *(pMap->elements);
+        for (iter = a.begin(); iter != a.end(); ++iter)
+        {
+            ForthObject& o = iter->second;
+            SAFE_RELEASE(pCore, o);
+        }
+        a.clear();
+        int n = SPOP;
+        for (int i = 0; i < n; i++)
+        {
+            std::string key;
+            key = (const char*)(SPOP);
+            ForthObject newObj;
+            POP_OBJECT(newObj);
+            if (newObj.pMethodOps != NULL)
+            {
+                SAFE_KEEP(newObj);
+            }
+            a[key] = newObj;
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oStringMapFindValueMethod)
 	{
 		GET_THIS(oStringMapStruct, pMap);
 		long found = 0;
@@ -1188,78 +1261,6 @@ namespace OString
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oStringMapHeadIterMethod)
-	{
-		GET_THIS(oStringMapStruct, pMap);
-		pMap->refCount++;
-		TRACK_KEEP;
-		// needed to use new instead of malloc otherwise the iterator isn't setup right and
-		//   a crash happens when you assign to it
-		oStringMapIterStruct* pIter = new oStringMapIterStruct;
-		TRACK_ITER_NEW;
-		pIter->refCount = 0;
-		pIter->parent.pMethodOps = GET_TPM;
-        pIter->parent.pData = reinterpret_cast<long *>(pMap);
-        pIter->cursor = new oStringMap::iterator;
-        *(pIter->cursor) = pMap->elements->begin();
-		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oStringMapTailIterMethod)
-	{
-		GET_THIS(oStringMapStruct, pMap);
-		pMap->refCount++;
-		TRACK_KEEP;
-		// needed to use new instead of malloc otherwise the iterator isn't setup right and
-		//   a crash happens when you assign to it
-		oStringMapIterStruct* pIter = new oStringMapIterStruct;
-		TRACK_ITER_NEW;
-		pIter->refCount = 0;
-		pIter->parent.pMethodOps = GET_TPM;
-		pIter->parent.pData = reinterpret_cast<long *>(pMap);
-        pIter->cursor = new oStringMap::iterator;
-        *(pIter->cursor) = pMap->elements->end();
-		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oStringMapFindMethod)
-	{
-		GET_THIS(oStringMapStruct, pMap);
-		long found = 0;
-		ForthObject soughtObj;
-		POP_OBJECT(soughtObj);
-		oStringMap::iterator iter;
-		oStringMap& a = *(pMap->elements);
-		for (iter = a.begin(); iter != a.end(); ++iter)
-		{
-			ForthObject& o = iter->second;
-			if (OBJECTS_SAME(o, soughtObj))
-			{
-				found = ~0;
-                pMap->refCount++;
-                TRACK_KEEP;
-                // needed to use new instead of malloc otherwise the iterator isn't setup right and
-                //   a crash happens when you assign to it
-                oStringMapIterStruct* pIter = new oStringMapIterStruct;
-                TRACK_ITER_NEW;
-                pIter->refCount = 0;
-                pIter->parent.pMethodOps = GET_TPM;
-                pIter->parent.pData = reinterpret_cast<long *>(pMap);
-                pIter->cursor = new oStringMap::iterator;
-                *(pIter->cursor) = iter;
-                ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
-                PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
-                break;
-			}
-		}
-        SPUSH(found);
-		METHOD_RETURN;
-	}
-
 
 	baseMethodEntry oStringMapMembers[] =
 	{
@@ -1273,11 +1274,11 @@ namespace OString
 		//METHOD_RET( "clone",                oStringMapCloneMethod, RETURNS_OBJECT(kBCIMap) ),
 		METHOD_RET("count", oStringMapCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("clear", oStringMapClearMethod),
-		METHOD("load", oStringMapLoadMethod),
 
         METHOD_RET("grab", oStringMapGrabMethod, RETURNS_OBJECT(kBCIContainedType)),
 		METHOD("set", oStringMapSetMethod),
-		METHOD_RET("findValue", oStringMapFindValueMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD("load", oStringMapLoadMethod),
+        METHOD_RET("findValue", oStringMapFindValueMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oStringMapRemoveMethod),
 		METHOD("unref", oStringMapUnrefMethod),
 

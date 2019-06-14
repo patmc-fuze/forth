@@ -860,13 +860,6 @@ namespace OThread
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oAsyncThreadExitMethod)
-	{
-		GET_THIS(oAsyncThreadStruct, pThreadStruct);
-		pThreadStruct->pThread->Exit();
-		METHOD_RETURN;
-	}
-
     FORTHOP(oAsyncThreadJoinMethod)
     {
         GET_THIS(oAsyncThreadStruct, pThreadStruct);
@@ -888,9 +881,9 @@ namespace OThread
 		ForthEngine* pEngine = GET_ENGINE;
 		ForthObject thread;
 
-		long threadOp = SPOP;
 		int returnStackLongs = (int)(SPOP);
 		int paramStackLongs = (int)(SPOP);
+        long threadOp = SPOP;
         OThread::CreateThreadObject(thread, pThreadStruct->pThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
 
 		PUSH_OBJECT(thread);
@@ -910,7 +903,6 @@ namespace OThread
 		METHOD("delete", oAsyncThreadDeleteMethod),
 		METHOD_RET("start", oAsyncThreadStartMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD_RET("startWithArgs", oAsyncThreadStartWithArgsMethod, RETURNS_NATIVE(kBaseTypeInt)),
-        METHOD("exit", oAsyncThreadExitMethod),
         METHOD("join", oAsyncThreadJoinMethod),
         METHOD("reset", oAsyncThreadResetMethod),
 		METHOD_RET("createThread", oAsyncThreadCreateThreadMethod, RETURNS_OBJECT(kBCIThread)),

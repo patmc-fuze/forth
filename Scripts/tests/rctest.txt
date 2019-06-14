@@ -86,7 +86,7 @@ autoforget RCTEST
 : showMap
   <IntMap>.headIter -> IntMapIter iter
   begin
-    iter.nextPair
+    iter.seekNext iter.currentPair
   while
     "key=" %s %d %bl 2dup <String>.get %s %bl <Object>.show %nl
   repeat
@@ -96,7 +96,7 @@ autoforget RCTEST
 : showMapR
   <IntMap>.tailIter -> IntMapIter iter
   begin
-    iter.prevPair
+    iter.seekPrev iter.currentPair
   while
     "key=" %s %d %bl 2dup <String>.get %s %bl <Object>.show %nl
   repeat
