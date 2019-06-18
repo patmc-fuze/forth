@@ -2562,14 +2562,16 @@ entry methodWithSuperType
 	mov	eax, [ebp + FCore.TMPtr]
 	mov	[ecx], eax
 	
-	mov	ecx, [eax-4]		; ecx -> super class vocabulary object data
-	mov	eax, [ecx+4]		; eax -> super class vocabulary
+	mov	ecx, [eax-4]		; ecx -> class vocabulary object data
+	mov	eax, [ecx+4]		; eax -> class vocabulary
 	push edx
     push ecx
     push ebx
     sub esp, 12         ; 16-byte align for OSX
-    push eax            ; IP
+    push eax            ; class vocabulary
 	xcall getSuperClassMethods
+	; eax -> super class methods table
+	mov	[ebp + FCore.TMPtr], eax		; set this methods ptr to super class methods
 	add esp, 16
 	pop ebx
 	pop ecx
