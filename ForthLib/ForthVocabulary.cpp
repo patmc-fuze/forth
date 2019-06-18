@@ -1412,7 +1412,7 @@ namespace OVocabulary
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oVocabularyIterSeekNewestMethod)
+	FORTHOP(oVocabularyIterSeekHeadMethod)
 	{
 		GET_THIS(oVocabularyIterStruct, pIter);
 		ForthVocabulary* pVocab = pIter->vocabulary;
@@ -1426,21 +1426,22 @@ namespace OVocabulary
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oVocabularyIterSeekNextMethod)
-	{
-		GET_THIS(oVocabularyIterStruct, pIter);
-		ForthVocabulary* pVocab = pIter->vocabulary;
-		long* pEntry = NULL;
-		if ((pVocab != NULL) && (pIter->cursor != NULL))
-		{
-			pIter->cursor = pVocab->NextEntrySafe(pIter->cursor);
-			pEntry = pIter->cursor;
-		}
-		SPUSH((long)pEntry);
-		METHOD_RETURN;
-	}
+    FORTHOP(oVocabularyIterNextMethod)
+    {
+        GET_THIS(oVocabularyIterStruct, pIter);
+        ForthVocabulary* pVocab = pIter->vocabulary;
+        int found = 0;
+        if ((pVocab != NULL) && (pIter->cursor != NULL))
+        {
+            SPUSH((long)(pIter->cursor));
+            pIter->cursor = pVocab->NextEntrySafe(pIter->cursor);
+            found--;
+        }
+        SPUSH(found);
+        METHOD_RETURN;
+    }
 
-	FORTHOP(oVocabularyIterFindEntryByNameMethod)
+    FORTHOP(oVocabularyIterFindEntryByNameMethod)
 	{
 		GET_THIS(oVocabularyIterStruct, pIter);
 		ForthVocabulary* pVocab = pIter->vocabulary;
@@ -1520,8 +1521,8 @@ namespace OVocabulary
 		METHOD("__newOp", oVocabularyIterNew),
 		METHOD("delete", oVocabularyIterDeleteMethod),
 		//METHOD("show", oVocabularyIterShowMethod),
-		METHOD("seekNewestEntry", oVocabularyIterSeekNewestMethod),
-		METHOD("seekNextEntry", oVocabularyIterSeekNextMethod),
+		METHOD("seekHead", oVocabularyIterSeekHeadMethod),
+		METHOD("next", oVocabularyIterNextMethod),
 		METHOD("findEntryByName", oVocabularyIterFindEntryByNameMethod),
 		METHOD("findNextEntryByName", oVocabularyIterFindNextEntryByNameMethod),
 		METHOD("findEntryByValue", oVocabularyIterFindEntryByValueMethod),
