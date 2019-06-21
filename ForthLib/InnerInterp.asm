@@ -1,6 +1,6 @@
 BITS 32
 
-%include "core.inc"
+%include "..\ForthLib\core.inc"
 
 ;cextern	_filbuf
 ;cextern	_chkesp
@@ -2502,6 +2502,11 @@ entry methodWithThisType
 	sub	ecx, 8
 	mov	[ebp + FCore.RPtr], ecx
 	mov	eax, [ebp + FCore.TDPtr]
+	or	eax, eax
+	jnz methodThis1
+	mov	eax, kForthErrorBadObject
+	jmp	interpLoopErrorExit
+methodThis1:
 	mov	[ecx+4], eax
 	mov	eax, [ebp + FCore.TMPtr]
 	mov	[ecx], eax
@@ -2528,6 +2533,11 @@ entry methodWithTOSType
 
 	; set data ptr from TOS	
 	mov	eax, [edx+4]
+	or	eax, eax
+	jnz methodTos1
+	mov	eax, kForthErrorBadObject
+	jmp	interpLoopErrorExit
+methodTos1:
 	mov	[ebp + FCore.TDPtr], eax
 	; set vtable ptr from TOS
 	mov	eax, [edx]
@@ -2552,14 +2562,16 @@ entry methodWithSuperType
 	mov	eax, [ebp + FCore.TMPtr]
 	mov	[ecx], eax
 	
-	mov	ecx, [eax-4]		; ecx -> super class vocabulary object data
-	mov	eax, [ecx+4]		; eax -> super class vocabulary
+	mov	ecx, [eax-4]		; ecx -> class vocabulary object data
+	mov	eax, [ecx+4]		; eax -> class vocabulary
 	push edx
     push ecx
     push ebx
     sub esp, 12         ; 16-byte align for OSX
-    push eax            ; IP
+    push eax            ; class vocabulary
 	xcall getSuperClassMethods
+	; eax -> super class methods table
+	mov	[ebp + FCore.TMPtr], eax		; set this methods ptr to super class methods
 	add esp, 16
 	pop ebx
 	pop ecx
@@ -4805,6 +4817,61 @@ rotate64Bop_1:
 	mov	[edx], ebx
 	mov	[edx+4], eax
 	jmp	edi
+
+;========================================
+entry reverseBop
+    ; Knuth's algorithm
+    ; a = (a << 15) | (a >> 17);
+	mov	eax, [edx]
+	rol	eax, 15
+    ; b = (a ^ (a >> 10)) & 0x003f801f;
+	mov	ebx, eax
+	shr	ebx, 10
+	xor	ebx, eax
+	and	ebx, 03F801Fh
+    ; a = (b + (b << 10)) ^ a;
+	mov	ecx, ebx
+	shl	ecx, 10
+	add	ecx, ebx
+	xor	eax, ecx
+    ; b = (a ^ (a >> 4)) & 0x0e038421;
+	mov	ebx, eax
+	shr	ebx, 4
+	xor	ebx, eax
+	and	ebx, 0E038421h
+    ; a = (b + (b << 4)) ^ a;
+	mov	ecx, ebx
+	shl	ecx, 4
+	add	ecx, ebx
+	xor	eax, ecx
+    ; b = (a ^ (a >> 2)) & 0x22488842;
+	mov	ebx, eax
+	shr	ebx, 2
+	xor	ebx, eax
+	and	ebx, 022488842h
+    ; a = (b + (b << 2)) ^ a;
+	mov	ecx, ebx
+	shl ecx, 2
+	add	ebx, ecx
+	xor	eax, ebx
+	mov	[edx], eax
+	jmp edi
+
+;========================================
+
+entry countLeadingZerosBop
+	mov	eax, [edx]
+	lzcnt	ebx, eax
+	mov	[edx], ebx
+	jmp edi
+
+;========================================
+
+entry countTrailingZerosBop
+	mov	eax, [edx]
+	tzcnt	ebx, eax
+	mov	[edx], ebx
+	jmp edi
 
 ;========================================
 

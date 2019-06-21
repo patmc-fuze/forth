@@ -50,6 +50,7 @@ enum: eInterpreterResult
   kIRFatalError  // exit because of fatal error
   kIRException   // exit because of uncaught exception
   kIRShutdown    // exit because of a "shutdown" opcode
+  kIRYield       // exit because of a stopThread/yield/sleepThread opcode
 ;enum
 
 enum: eForthError

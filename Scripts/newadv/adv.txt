@@ -62,6 +62,7 @@ class: Place
   int objects  // ObjectWord - first object at this location, or NOTHING
   int visits
   
+  // locationID longDescription shortDescription flags ...
   m: init
     -> flags
     new String -> short_desc  short_desc.set

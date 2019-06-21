@@ -118,7 +118,7 @@ class: DoubleOutStream extends OutStream
   
 ;class
 
-new DoubleOutStream -> DoubleOutStream dsObj
+mko DoubleOutStream dsObj
 getConsoleOut dsObj.init
 dsObj setConsoleOut
 'a' %c 'b' %c %nl

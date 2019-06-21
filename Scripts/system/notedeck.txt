@@ -1,0 +1,423 @@
+
+autoforget notedeck
+
+: notedeck ;
+
+// flags are binary properties any note can have, a notedeck can have up to 64 defined
+// params are properties of a note, the params a note can have are defined by its schema
+
+// ----------------------------------------------
+class: NoteDef
+  int id
+  String name
+  String description
+  
+  m: delete
+    oclear name
+    oclear description
+    super.delete
+  ;m
+  
+  m: init  // NAME DESCRIPTION ID ...
+    -> id
+    new String -> description
+    description.set
+    
+    new String -> name
+    name.set
+  ;m
+  
+;class
+
+
+// ----------------------------------------------
+class: NoteFlagDef extends NoteDef
+  String displayName
+  long mask
+  
+  m: delete
+    oclear displayName
+    super.delete
+  ;m
+  
+  m: init  // NAME DISPLAY_NAME DESCRIPTION ID ...
+    new String -> displayName
+    displayName.set(rot)
+    super.init
+    
+    if(id 64 <)
+      2lshift(1L id)
+    else
+      // TODO: report error, too many flags
+      error("too many flag definitions")
+    endif
+    -> mask
+  ;m
+  
+;class
+
+
+// ----------------------------------------------
+class: NoteTagDef extends NoteDef
+  String displayName
+  
+  m: delete
+    oclear displayName
+    super.delete
+  ;m
+  
+  m: init  // NAME DISPLAY_NAME DESCRIPTION ID ...
+    new String -> displayName
+    displayName.set(rot)
+    super.init
+  ;m
+  
+;class
+
+
+// ----------------------------------------------
+class: NoteSchema extends NoteDef
+  IntArray requiredParams
+  IntArray optionalParams
+  
+  m: init
+    new IntArray -> requiredParams
+    new IntArray -> optionalParams
+    super.init
+  ;m
+  
+  m: addOptionalParam
+    optionalParams.push(<NoteDef>.id)
+  ;m
+  
+  m: addRequiredParam
+    requiredParams.push(<NoteDef>.id)
+  ;m
+  
+  m: delete
+    oclear requiredParams
+    oclear optionalParams
+    super.delete
+  ;m
+  
+;class
+
+
+// ----------------------------------------------
+class: NoteParam
+  int id
+  String sval
+  Long nval
+  
+  m: delete
+    oclear sval
+    super.delete
+  ;m
+  
+  m: getInt
+    ref nval @
+  ;m
+
+  m: setInt
+    ref nval !
+  ;m
+  
+  m: getFloat
+    ref nval @
+  ;m
+  
+  m: setFloat
+    ref nval !
+  ;m
+  
+  m: getLong
+    nval
+  ;m
+  
+  m: setLong
+    -> nval
+  ;m
+  
+  m: getDouble
+    nval
+  ;m
+  
+  m: setDouble
+    swap -> nval
+  ;m
+   
+;class
+
+
+// ----------------------------------------------
+class: Note
+  int id            // index into containing Notebook notes array
+  int schema        // 0 for default schema
+  int parent        // -1 for none
+  String name
+  String body
+  StringMap of Note children
+  IntMap of NoteParam params
+  long flags
+  Object obj        // optional associated object
+
+  m: init           // NAME BODY ID ...
+    -> id
+    new String -> body
+    body.set
+    new String -> name
+    name.set
+    0 -> schema
+    -1 -> parent
+    new IntMap -> params
+  ;m
+  
+  m: delete
+    oclear name
+    oclear body
+    oclear children
+    oclear params
+    oclear obj
+    super.delete
+  ;m
+
+  m: getParam    // PARAM_ID ...   false   OR   PARAM_OBJ true 
+    params.grab
+  ;m
+  
+  m: getChild            // NAME ...   false   OR   NOTE_OBJ true
+    if(objNotNull(children))
+      children.grab
+    else
+      false
+    endif
+  ;m
+  
+;class
+
+
+// ----------------------------------------------
+class: NoteDeck
+
+  String name
+  
+  Array of Note notes
+  StringMap noteMap
+  
+  Array of NoteFlagDef flags
+  StringMap flagMap
+  
+  Array of NoteTagDef tags
+  StringMap tagMap
+  
+  Array of NoteSchema schemas
+  StringMap schemaMap
+  
+  Array of NoteDef params
+  StringMap paramMap
+  
+  
+  m: clearAll
+    oclear name
+    oclear notes
+    oclear noteMap
+    oclear flags
+    oclear flagMap
+    oclear tags
+    oclear tagMap
+    oclear schemas
+    oclear schemaMap
+    oclear params
+    oclear paramMap
+  ;m
+  
+  m: delete
+    clearAll
+    super.delete
+  ;m
+  
+  m: addTagDef      // NAME DISPLAY_NAME DESCRIPTION ... NEW_TAG_DEF
+    mko NoteTagDef def
+    def.init(tags.count)
+    tags.push(def)
+    tagMap.set(def def.name.get)
+    unref def
+  ;m
+
+  m: getTag         // NAME ...    false   OR   TAG_DEF_OBJ true
+    tagMap.grab
+  ;m
+  
+  m: addFlagDef      // NAME DISPLAY_NAME DESCRIPTION ... NEW_FLAG_DEF
+    mko NoteFlagDef def
+    def.init(flags.count)
+    flags.push(def)
+    flagMap.set(def def.name.get)
+    //def.name.get %s %bl def.mask %x %nl
+    unref def
+  ;m
+  
+  m: getFlag         // NAME ...    false   OR   FLAG_DEF_OBJ true
+    flagMap.grab
+  ;m
+  
+  m: addSchema      // NAME DESCRIPTION ... NEW_SCHEMA
+    mko NoteSchema def
+    def.init(schemas.count)
+    schemas.push(def)
+    schemaMap.set(def def.name.get)
+    unref def
+  ;m
+  
+  m: getSchema         // NAME ...    false   OR   SCHEMA_OBJ true
+    schemaMap.grab
+  ;m
+  
+  m: addParamDef      // NAME DESCRIPTION ... NEW_PARAM_DEF
+    mko NoteDef def
+    def.init(params.count)
+    params.push(def)
+    paramMap.set(def def.name.get)
+    unref def
+  ;m
+  
+  m: getParam        // NAME ...    false   OR   PARAM_DEF_OBJ true
+    paramMap.grab
+  ;m
+  
+  m: addNote      // NAME BODY ... NEW_NOTE
+    mko Note note
+    note.init(notes.count)
+    notes.push(note)
+    // TODO: check for note name already in map
+    noteMap.set(note note.name.get)
+    unref note
+  ;m
+  
+  m: addChild      // NAME BODY PARENT_NOTE ... NEW_NOTE
+    ->o Note parent
+    mko Note note
+    note.init(notes.count)
+    note.id -> note.parent
+    if(objIsNull(parent.children))
+      new StringMap -> parent.children
+    endif
+    notes.push(note)
+    // TODO: check for note name already in map
+    parent.children.set(note note.name.get)
+    unref note
+  ;m
+  
+  m: getNote            // NAME ...   false   OR   NOTE_OBJ true
+    noteMap.grab
+  ;m
+  
+  m: init   // NOTEBOOK_NAME ...
+    clearAll
+    
+    new String -> name
+    name.set
+    new Array -> notes
+    new StringMap -> noteMap
+
+    new Array -> flags
+    new StringMap -> flagMap
+
+    new Array -> tags
+    new StringMap -> tagMap
+
+    new Array -> schemas
+    new StringMap -> schemaMap
+
+    new Array -> params
+    new StringMap -> paramMap
+
+    addSchema("defaultSchema" "Default Schema - notecard with no params") 2drop
+  ;m
+  
+  m: newestNote
+    if(notes.count)
+      notes.get(notes.count 1-)
+    else
+      dnull
+    endif
+  ;m
+
+;class
+
+loaddone
+
+
+addtags dailyWorkLog forth python c++ math reddit metafilter torrents arm
+
+add a tagged note object/file/db
+nodes have
+  o ID (32-bit)
+  o schema/type
+  o list of linked nodes
+  o list of tags
+  o title
+  o text body
+  o creation date
+  o target date
+  o optional message handlers (forth code as strings)
+? maybe start with a general graph of nodes
+? maybe a 'named object' blob - how would that be different from a string map?
+? maybe an InfoNode is just an id, String, Array
+? should linked nodes be an array of objects, or of nodeIDs
+  o nodeIDs would take half the space
+  o nodeIDs are more easily serializable, and more easy to convert to a database representation
+  o objects have the advantage of refcount being meaningful (but is that really a plus for this application?)
+  
+What exactly is a tag?
+
+6   seconds
+6   minutes
+5   hours
+15  days
+
+32000 days -> 100 years
+
+60
+*60 -> 3600
+*24 -> 86400
+*365 -> 31536000
+136.19 years
+
+---
+NoteCard:
+  body - string
+  tags - array of ids
+  links - array of tag,cardId pairs
+  params - array of tag,string pairs
+  ? should tags/links/params just be combined
+    not combining them is probably better since they have different data and meaning
+
+NoteDeck
+  title - string
+  cards - array of NoteCard
+  tags - array of NoteTag
+  tagMap - map from string to NoteTag id
+
+NoteTag
+  name - string
+  id - int
+
+First cut params:
+  title
+  creationTime
+  completedTime
+  status
+  priority
+  parentCard
+  blockedBy/requires
+  
+First cut tags:
+  forth (or is this ubiquitous to a forthTBD NoteDeck?)
+  tbd
+  tests
+  windows osx arm linux
+  objects strings streams threads
+  language
+  documentation
+  devaid

@@ -389,7 +389,7 @@ class: DataParser
         "ERROR: Section 9.1: Could not find location\n" %s
       endif
               
-      currentLocation.assets.set(true idNumber)
+      currentLocation.setAsset(idNumber true)
     loop
   ;m
 
@@ -440,7 +440,7 @@ class: DataParser
           
     ?do(data.locations.count 0)
       data.locations.get(i) ->o Location loc
-      if(loc.assets.get(hintNumber))
+      if(loc.getAsset(hintNumber))
         loc.addHint(currentHint)
       endif
     loop
@@ -541,7 +541,7 @@ class: DataParser
             false -> keepGoing
           endof
         
-          "Unexpected case in parseLine: " %s %d %nl
+          "Unexpected case in parseLine: " %s dup %d %nl
         
         endcase
       endif

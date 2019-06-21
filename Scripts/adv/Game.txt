@@ -2,6 +2,102 @@
 requires Player
 requires Data
 
+class: SavedLocation
+  int number
+  int numberOfVisits
+  IntArray objectNumbers
+  int assets
+  
+  m: delete
+    oclear objectNumbers
+  ;m
+  
+  m: save
+    ->o Location loc
+    "Saving location " %s loc.number %d %nl
+    loc.number -> number
+    loc.numberOfVisits -> numberOfVisits
+    1 -> int assetMask
+    0 -> assets
+    do(kNumAssetFlags 0)
+      if(loc.getAsset(i))
+        assets assetMask or -> assets
+      endif
+      assetMask 2* -> assetMask
+    loop
+    if(loc.objects.count)
+      new IntArray -> objectNumbers
+
+      loc.objects.headIter ->  ArrayIter iter
+      begin
+      while(iter.next)
+        ->o Noun obj
+        objectNumbers.push(obj.number)
+      repeat
+      oclear iter
+    endif
+  ;m
+  
+  m: restore
+    ->o Data data
+    ->o Location loc
+    loc.numberOfVisits -> numberOfVisits
+    loc.assets -> assets
+
+    loc.objects.clear    
+    objectNumbers.headIter ->  IntArrayIter iter
+    begin
+    while(iter.next)
+      -> int objNumber
+      loc.objects.push(data.getObjectByNumber(objNumber))
+    repeat
+    oclear iter
+  ;m
+  
+;class
+
+class: SavedGame
+  int playerLocationNumber
+  int playerScore
+  Array playerObjects
+  Array of SavedLocation locations
+  
+  m: init
+    new Array -> locations
+  ;m
+  
+  m: delete
+    oclear playerObjects
+    oclear locations
+  ;m
+  
+  m: savePlayer
+    ->o Player player
+    player.currentLocation.number -> playerLocationNumber
+    player.score -> playerScore
+    player.objects -> playerObjects
+  ;m
+  
+  m: restorePlayer
+    ->o Data data
+    ->o Player player
+    
+    player.setCurrentLocation(data.getLocationByNumber(playerLocationNumber))
+    playerScore -> player.score
+    playerObjects -> player.objects
+  ;m
+  
+  m: saveLocation
+    ->o Location loc
+    new SavedLocation -> SavedLocation savedLoc
+    savedLoc.save(loc)
+    locations.push(savedLoc)
+    oclear savedLoc
+  ;m
+  
+;class
+
+
 class: Game
   
   Player player
@@ -29,6 +125,30 @@ class: Game
     oclear lineVector
     oclear spokenWords
     oclear parseScratch
+  ;m
+  
+  m: createSave
+    mko SavedGame savedGame
+    savedGame.init
+    savedGame.savePlayer(player)
+    ?do(data.locations.count 0)
+      data.locations.get(i) ->o Location loc
+      if(loc.needsSaving)
+        savedGame.saveLocation(loc)
+      endif
+    loop
+    savedGame
+  ;m
+
+  m: restoreSave
+    ->o SavedGame savedGame
+    savedGame.restorePlayer(player data)
+    ?do(savedGame.locations.count 0)
+      savedGame.locations.get(i) ->o SavedLocation savedLoc
+      data.locations.get(savedLoc.number) ->o Location loc
+      savedLoc.restore(loc)
+    loop
+    
   ;m
   
   m: split
@@ -73,7 +193,7 @@ class: Game
     
     if(verb.number 57 =)    // 57   LOOK EXAMI TOUCH DESCR
       false -> bool doIt
-      if(or(currentLocation.assets.get(0)  playerHasLitTorch))
+      if(or(currentLocation.getAsset(kAssetHasLight)  playerHasLitTorch))
         currentLocation.objects ->o Array objects
         ?do(objects.count 0)
           if(i 0=)
@@ -190,7 +310,7 @@ class: Game
                 endif
               endof
               
-              "handleMovementAndLook: unrecognized condition " %s %d %nl
+              "handleMovementAndLook: unrecognized condition " %s dup %d %nl
             endcase
               
             // If not allowed, get next condition
@@ -211,7 +331,7 @@ class: Game
               result.append("\n")
             endif
             result.append(loc.longDescription.get)
-            if(and(not(loc.assets.get(0)) not(playerHasLitTorch)))
+            if(and(not(loc.getAsset(kAssetHasLight)) not(playerHasLitTorch)))
               result.append("\n\n")
               // 16	IT IS NOW PITCH DARK.  IF YOU PROCEED YOU WILL LIKELY FALL INTO A PIT.
               result.append(data.getMessageByNumber(16).content.get)
@@ -239,7 +359,7 @@ class: Game
     
     // Names beginning with a star is not possible to pick up (we think)
     if(obj.inventoryMessage.get c@ '*' <>)
-      if(or(currentLocation.assets.get(0) playerHasLitTorch))
+      if(or(currentLocation.getAsset(kAssetHasLight) playerHasLitTorch))
         
         if(currentLocation.hasObject(obj))
           if(obj.number 1008 <>)   // not BIRD
@@ -381,7 +501,7 @@ class: Game
         endif
       endof
       
-      "Game.parseOpen: unexpected object " %s %d %nl
+      "Game.parseOpen: unexpected object " %s dup %d %nl
     endcase
     // TODO: there are several paths that don't set result at all
     result
@@ -529,7 +649,7 @@ class: Game
     
     if(obj.number 1020 =)  // bottle
       if(player.hasObject(obj))
-        if(and(currentLocation.assets.get(2) not(currentLocation.assets.get(1))))   // LIQUID ASSET on and WATER off
+        if(and(currentLocation.getAsset(kAssetLiquid) not(currentLocation.getAsset(kAssetWater))))   // LIQUID ASSET on and WATER off
           if(obj.propertyValue 1 =)     // 1 == empty bottle
             0 -> obj.propertyValue      // Bottle is full with water
             // 107	YOUR BOTTLE IS NOW FULL OF WATER.
@@ -623,7 +743,6 @@ class: Game
                   of(2016) dnull endof                  // 2016 RUB
                   of(2017) dnull endof                  // 2017 THROW TOSS
                   of(2022) parseFill(obj) endof                        // 2022 FILL
-                  drop
                   verb.getDefaultMessage
                 endcase
                 ->o result

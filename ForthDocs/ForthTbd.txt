@@ -6,6 +6,47 @@ o class support
 o ability to build windows GUI apps in forth
 
 =======================================================================
+closure idea:
+
+Add a makeThread op that creates a Thread object from the current running op, the new thread
+gets the local variables and this pointer from the current op/function/method.
+
+A closure is:
+1) a thread
+2) created by an op/function/method
+  o has the local variables of the op/function/method
+
+o when it turns itself into a thread
+  o its local variables are copied to new thread return stack
+    ? at runtime how does it know how much to copy to rstack
+  o its param stack is empty
+  o it exits the current op and returns thread object
+o by default, closure thread gets a tiny param and return stack, but closure op
+  can override that if needed
+o makeThread is a predence op, compiles _makeThread with stack sizes and 
+  amount to copy to rstack, throws an exception in interpret mode
+
+? should methods be able to create closures - if so, should they be required to
+  keep a reference to their this object?
+  
+: anOp
+
+  <params for the handler>
+  f:
+    <store passed in params in locals>
+    threadMe
+    begin
+    while(appIsActive)
+      process event that woke us
+      yield
+    repeat
+    <clear any objects stored in locals
+  ;f
+  execute
+  // TOS is now new thread object for handler
+  ...
+;
+
 - ForthGUI app doesn't use ForthShell::Run, it duplicates its functionality,
   so conditional compilation ops won't work in ForthGUI
 + add (STRUCT).blah to allow treating TOS as a pointer to STRUCT

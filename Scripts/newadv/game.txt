@@ -2037,6 +2037,7 @@ probably just as well.")
   ;
   
 spoo before determine_motion_instruction
+  // Location MotionWord ... Instruction*
   : _determine_motion_instruction  // returns Instruction*
     -> MotionWord mot
     -> Location loc

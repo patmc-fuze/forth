@@ -268,6 +268,7 @@ void ForthEngineTokenStack::Clear()
 
 ForthEngine::ForthEngine()
 : mpForthVocab( NULL )
+, mpLiteralsVocab(nullptr)
 , mpLocalVocab( NULL )
 , mpDefinitionVocab( NULL )
 , mpStringBufferA( NULL )
@@ -302,6 +303,8 @@ ForthEngine::ForthEngine()
     mpInstance = this;
     mpEngineScratch = new long[70];
     mpErrorString = new char[ ERROR_STRING_MAX + 1 ];
+
+    initMemoryAllocation();
 
     // remember creation time for elapsed time method
 #ifdef WIN32
@@ -352,6 +355,7 @@ ForthEngine::~ForthEngine()
         __FREE( mDictionary.pBase );
 #endif
 		delete mpForthVocab;
+        delete mpLiteralsVocab;
         delete mpLocalVocab;
 		delete mpOpcodeCompiler;
         delete [] mpStringBufferA;
@@ -449,7 +453,8 @@ ForthEngine::Initialize( ForthShell*        pShell,
 		mpTypesManager = new ForthTypesManager();
 	}
 
-	mpForthVocab = new ForthVocabulary("forth", NUM_FORTH_VOCAB_VALUE_LONGS);
+    mpForthVocab = new ForthVocabulary("forth", NUM_FORTH_VOCAB_VALUE_LONGS);
+    mpLiteralsVocab = new ForthVocabulary("literals", NUM_FORTH_VOCAB_VALUE_LONGS);
     mpLocalVocab = new ForthLocalVocabulary( "locals", NUM_LOCALS_VOCAB_VALUE_LONGS );
 	mStringBufferASize = 3 *  MAX_STRING_SIZE;
     mpStringBufferA = new char[mStringBufferASize];
@@ -3338,7 +3343,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         {
             ////////////////////////////////////
             //
-            // symbol may be of form VOCABULARY:SYMBOL
+            // symbol may be of form VOCABULARY:SYMBOL or LITERALTYPE:LITERALSTRING
             //
             ////////////////////////////////////
             char* pColon = strchr( pToken, ':' );
@@ -3350,6 +3355,17 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
                 if ( pEntry != NULL )
                 {
                     pFoundVocab = pVocab;
+                }
+            }
+            if (pEntry == nullptr)
+            {
+                pEntry = mpLiteralsVocab->FindSymbol(pToken);
+                if (pEntry != nullptr)
+                {
+                    // push ptr to string after colon and invoke literal processing op
+                    *--mpCore->SP = (long)(pColon + 1);
+                    exitStatus = FullyExecuteOp(mpCore, *pEntry);
+                    return exitStatus;
                 }
             }
             *pColon = ':';

@@ -35,6 +35,7 @@
 #include "ForthObject.h"
 #include "ForthBlockFileManager.h"
 #include "ForthShowContext.h"
+#include "ForthObjectReader.h"
 
 #if defined(LINUX) || defined(MACOSX)
 #include <strings.h>
@@ -119,6 +120,7 @@ FORTHOP( badOpOp )
 FORTHOP( unimplementedMethodOp )
 {
     SET_ERROR( kForthErrorUnimplementedMethod );
+    METHOD_RETURN;
 }
 
 // unimplementedMethodOp is used to detect executing unimplemented methods
@@ -1598,6 +1600,12 @@ FORTHOP( forthVocabOp )
     pEngine->GetForthVocabulary()->DoOp( pCore );
 }
 
+FORTHOP(literalsVocabOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    pEngine->GetLiteralsVocabulary()->DoOp(pCore);
+}
+
 FORTHOP( definitionsOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
@@ -2340,7 +2348,7 @@ FORTHOP(showStructOp)
 	// TOS: structVocabPtr ptrToStructData
 	ForthStructVocabulary *pStructVocab = (ForthStructVocabulary *)(SPOP);
 	void* pStruct = (void *)(SPOP);
-	pStructVocab->ShowData(pStruct, pCore);
+	pStructVocab->ShowData(pStruct, pCore, true);
 }
 
 void __newOp(ForthCoreState* pCore, const char* pClassName)
@@ -2378,7 +2386,7 @@ void __newOp(ForthCoreState* pCore, const char* pClassName)
 					// copy object data pointer to TOS to be used by init 
 					long a = (GET_SP)[1];
 					SPUSH(a);
-					pEngine->ExecuteOp(pCore, initOpcode);
+					pEngine->FullyExecuteOp(pCore, initOpcode);
 				}
 			}
         }
@@ -2586,7 +2594,23 @@ FORTHOP( initMemberStringOp )
     pEngine->CompileOpcode( kOpMemberStringInit, varOffset );
 }
 
-FORTHOP( enumOp )
+FORTHOP(readObjectsOp)
+{
+    ForthObject outObjects;
+    ForthObject inStream;
+    POP_OBJECT(outObjects);
+    POP_OBJECT(inStream);
+    ForthObjectReader reader;
+
+    bool itWorked = reader.ReadObjects(inStream, outObjects, pCore);
+    if (!itWorked)
+    {
+        ForthEngine *pEngine = GET_ENGINE;
+        pEngine->SetError(kForthErrorBadSyntax, reader.GetError().c_str());
+    }
+}
+
+FORTHOP(enumOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
     //if ( pEngine->CheckFlag( kEngineFlagInStructDefinition ) )
@@ -3522,6 +3546,160 @@ FORTHOP( format64Op )
 	}
 }
 
+FORTHOP(scanIntOp)
+{
+    int base = SPOP;
+    int numChars = SPOP;
+    const char* pToken = (const char *)(SPOP);
+
+    if (numChars <= 0)
+    {
+        numChars = strlen(pToken);
+    }
+    int value = 0;
+    int digitsFound = 0;
+    int digit;
+    int isValid = -1;
+    bool isNegative = false;
+
+    if (numChars > 1)
+    {
+        if (*pToken == '-')
+        {
+            isNegative = true;
+            ++pToken;
+            --numChars;
+        }
+    }
+
+    for (int i = 0; i < numChars; ++i)
+    {
+        char c = *pToken++;
+        if ((c >= '0') && (c <= '9'))
+        {
+            digit = c - '0';
+            digitsFound++;
+        }
+        else if ((c >= 'A') && (c <= 'Z'))
+        {
+            digit = 10 + (c - 'A');
+            digitsFound++;
+        }
+        else if ((c >= 'a') && (c <= 'z'))
+        {
+            digit = 10 + (c - 'a');
+            digitsFound++;
+        }
+        else
+        {
+            isValid = 0;
+            break;
+        }
+
+        if (digit >= base)
+        {
+            // invalid digit for current base
+            isValid = 0;
+            break;
+        }
+        value = (value * base) + digit;
+    }
+    
+    if (digitsFound == 0)
+    {
+        isValid = false;
+    }
+
+    if (isNegative)
+    {
+        value *= -1;
+    }
+
+    if (isValid)
+    {
+        SPUSH(value);
+    }
+    SPUSH(isValid);
+}
+
+FORTHOP(scanLongOp)
+{
+    int base = SPOP;
+    int numChars = SPOP;
+    const char* pToken = (const char *)(SPOP);
+
+    if (numChars <= 0)
+    {
+        numChars = strlen(pToken);
+    }
+    stackInt64 value;
+    value.u64 = 0L;
+
+    int digitsFound = 0;
+    int digit;
+    int isValid = -1;
+    bool isNegative = false;
+
+    if (numChars > 1)
+    {
+        if (*pToken == '-')
+        {
+            isNegative = true;
+            ++pToken;
+            --numChars;
+        }
+    }
+
+    for (int i = 0; i < numChars; ++i)
+    {
+        char c = *pToken++;
+        if ((c >= '0') && (c <= '9'))
+        {
+            digit = c - '0';
+            digitsFound++;
+        }
+        else if ((c >= 'A') && (c <= 'Z'))
+        {
+            digit = 10 + (c - 'A');
+            digitsFound++;
+        }
+        else if ((c >= 'a') && (c <= 'z'))
+        {
+            digit = 10 + (c - 'a');
+            digitsFound++;
+        }
+        else
+        {
+            isValid = 0;
+            break;
+        }
+
+        if (digit >= base)
+        {
+            // invalid digit for current base
+            isValid = 0;
+            break;
+        }
+        value.u64 = (value.u64 * base) + digit;
+    }
+
+    if (digitsFound == 0)
+    {
+        isValid = false;
+    }
+
+    if (isNegative)
+    {
+        value.s64 *= -1;
+    }
+
+    if (isValid)
+    {
+        LPUSH(value);
+    }
+    SPUSH(isValid);
+}
+
 FORTHOP(addTempStringOp)
 {
     NEEDS(2);
@@ -4159,8 +4337,8 @@ FORTHOP( describeOp )
                 if (pVocab->IsClass())
                 {
                     long *pMethods = ((ForthClassVocabulary *)pVocab)->GetInterface(0)->GetMethods();
-                    SNPRINTF(buff, sizeof(buff), "class vocabulary %s:  methods at 0x%08x\n",
-                        pVocab->GetName(), (int)pMethods);
+                    SNPRINTF(buff, sizeof(buff), "class vocabulary %s:  methods at 0x%08x, size %d\n",
+                        pVocab->GetName(), (int)pMethods, pVocab->GetSize());
                 }
                 else
                 {
@@ -5748,10 +5926,17 @@ FORTHOP(linuxOp)
 FORTHOP(macosxOp)
 {
 #ifdef MACOSX
-	SPUSH(~0);
+    SPUSH(~0);
 #else
-	SPUSH(0);
+    SPUSH(0);
 #endif
+}
+
+FORTHOP(pathSeparatorOp)
+{
+    char sep = PATH_SEPARATOR[0];
+
+    SPUSH(((long)sep));
 }
 
 FORTHOP( setConsoleCursorOp )
@@ -6884,6 +7069,57 @@ FORTHOP(rotate64Bop)
     LPUSH(a);
 }
 
+FORTHOP(reverseBop)
+{
+    NEEDS(1);
+    //Knuth's algorithm from http://www.hackersdelight.org/revisions.pdf
+    unsigned long a = SPOP;
+    unsigned long t;
+    a = (a << 15) | (a >> 17);
+    t = (a ^ (a >> 10)) & 0x003f801f;
+    a = (t + (t << 10)) ^ a;
+    t = (a ^ (a >> 4)) & 0x0e038421;
+    a = (t + (t << 4)) ^ a;
+    t = (a ^ (a >> 2)) & 0x22488842;
+    a = (t + (t << 2)) ^ a;
+    SPUSH(a);
+}
+
+FORTHOP(countLeadingZerosBop)
+{
+    NEEDS(1);
+    unsigned long a = SPOP;
+    int result = 0;
+    unsigned long mask = 0x80000000;
+    while (mask != 0)
+    {
+        if ((a & mask) != 0)
+        {
+            break;
+        }
+        mask >>= 1;
+        result++;
+    }
+    SPUSH(result);
+}
+
+FORTHOP(countTrailingZerosBop)
+{
+    NEEDS(1);
+    unsigned long a = SPOP;
+    int result = 0;
+    unsigned long mask = 1;
+    while (mask != 0)
+    {
+        if ((a & mask) != 0)
+        {
+            break;
+        }
+        mask <<= 1;
+        result++;
+    }
+    SPUSH(result);
+}
 
 ///////////////////////////////////////////
 //  boolean ops
@@ -8598,7 +8834,6 @@ FORTHOP(dmixBlockBop)
 
 #endif
 
-
 //##############################
 //
 // ops used to implement object show methods
@@ -8800,6 +9035,7 @@ OPREF( unsignedGreaterThanBop );                        OPREF( unsignedLessThanB
 OPREF( withinBop );         OPREF( minBop );            OPREF( maxBop );
 OPREF( icmpBop );           OPREF( uicmpBop );          OPREF( fcmpBop );
 OPREF( dcmpBop );			OPREF( lcmpBop );			OPREF( ulcmpBop );
+OPREF(reverseBop);          OPREF(countLeadingZerosBop); OPREF(countTrailingZerosBop);
 
 OPREF( lEqualsBop );        OPREF( lNotEqualsBop );     OPREF( lEquals0Bop );
 OPREF( lNotEquals0Bop );    OPREF( lGreaterThanBop );   OPREF( lGreaterThan0Bop );
@@ -9071,6 +9307,9 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    arshiftBop,              "arshift" ),
     NATIVE_DEF(    rotateBop,               "rotate" ),
     NATIVE_DEF(    rotate64Bop,             "2rotate" ),
+    NATIVE_DEF(    reverseBop,              "reverse" ),
+    NATIVE_DEF(    countLeadingZerosBop,    "clz" ),
+    NATIVE_DEF(    countTrailingZerosBop,   "ctz" ),
 
     ///////////////////////////////////////////
     //  boolean logic
@@ -9458,6 +9697,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    strNewOp,               "$new" ),
     PRECOP_DEF(makeObjectOp,           "makeObject" ),
     PRECOP_DEF(initMemberStringOp,     "initMemberString"),
+    OP_DEF(    readObjectsOp,          "readObjects" ),
     OP_DEF(    enumOp,                 "enum:" ),
     OP_DEF(    endenumOp,              ";enum" ),
     OP_DEF(    findEnumSymbolOp,       "findEnumSymbol" ),
@@ -9482,6 +9722,7 @@ baseDictionaryEntry baseDictionary[] =
     //  vocabulary/symbol
     ///////////////////////////////////////////
     OP_DEF(    forthVocabOp,           "forth" ),
+    OP_DEF(    literalsVocabOp,        "literals" ),
     OP_DEF(    definitionsOp,          "definitions" ),
     OP_DEF(    vocabularyOp,           "vocabulary" ),
     OP_DEF(    alsoOp,                 "also" ),
@@ -9526,6 +9767,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    printDoubleGOp,         "%2g" ),
     OP_DEF(    format32Op,             "format" ),
     OP_DEF(    format64Op,             "2format" ),
+    OP_DEF(    scanIntOp,              "scanInt" ),
+    OP_DEF(    scanLongOp,             "scanLong" ),
     OP_DEF(    addTempStringOp,        "addTempString"),
     OP_DEF(    fprintfOp,              "fprintf" ),
     OP_DEF(    snprintfOp,             "snprintf" ),
@@ -9757,6 +10000,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( windowsOp,					"WINDOWS" ),
     OP_DEF( linuxOp,					"LINUX" ),
     OP_DEF( macosxOp,					"MACOSX" ),
+
+    OP_DEF( pathSeparatorOp,            "PATH_SEPARATOR"),
 
     // following must be last in table
     OP_DEF(    NULL,                   NULL )

@@ -4,7 +4,7 @@ autoforget TEST
 
 decimal
 
-FileOutStream testFileOut
+//FileOutStream testFileOut
 
 scSetShowID(false)
 
@@ -23,6 +23,10 @@ scSetShowID(false)
   oclear testName
   oclear testScriptName
 ;
+
+runtest helpdeck
+help classes
+forget HELPDECK
 
 runtest evil
 forget EVIL

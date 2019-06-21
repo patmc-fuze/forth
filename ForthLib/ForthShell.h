@@ -16,6 +16,12 @@ class ForthInputStack;
 class ForthExtension;
 class ForthExpressionInputStream;
 
+#if defined(WIN32)
+#define PATH_SEPARATOR "\\"
+#else
+#define PATH_SEPARATOR "/"
+#endif
+
 //
 // the ForthParseInfo class exists to support fast vocabulary searches.
 // these searches are sped up by doing symbol comparisons using longwords
@@ -115,7 +121,7 @@ public:
 
     // if the creator of a ForthShell passes in non-NULL engine and/or thread params,
     //   that creator is responsible for deleting the engine and/or thread
-    ForthShell(int argc, const char ** argv, const char ** envp, ForthEngine *pEngine = NULL, ForthExtension *pExtension = NULL, ForthThread *pThread = NULL, int shellStackLongs = 1024);
+    ForthShell(int argc, const char ** argv, const char ** envp, ForthEngine *pEngine = NULL, ForthExtension *pExtension = NULL, int shellStackLongs = 1024);
     virtual ~ForthShell();
 
     // returns true IFF file opened successfully
@@ -130,10 +136,10 @@ public:
     char *                  GetToken( char delim, bool bSkipLeadingWhiteSpace = true );
 
     inline ForthEngine *    GetEngine( void ) { return mpEngine; };
-    inline ForthThread *    GetThread( void ) { return mpThread; };
     inline ForthInputStack * GetInput( void ) { return mpInput; };
 	inline ForthShellStack * GetShellStack( void ) { return mpStack; };
-
+    inline bool             InputLineReadyToProcess() { return !mInContinuationLine; }
+    char*                   AddToInputLine(const char* pBuffer);
     inline int              GetArgCount( void ) const { return mNumArgs; };
     inline const char *     GetArg( int argNum ) const { return mpArgs[argNum]; };
     const char*             GetEnvironmentVar(const char* envVarName);
@@ -203,7 +209,6 @@ protected:
 
     ForthInputStack *       mpInput;
     ForthEngine *           mpEngine;
-    ForthThread *           mpThread;
     ForthShellStack *       mpStack;
     ForthFileInterface      mFileInterface;
 	ForthExpressionInputStream* mExpressionInputStream;
@@ -218,6 +223,8 @@ protected:
     int                     mFlags;
     char                    mErrorString[ 128 ];
     char                    mToken[MAX_TOKEN_BYTES + 1];
+    char                    mContinuationBuffer[DEFAULT_INPUT_BUFFER_LEN];
+    int                     mContinuationBytesStored;
     char*                   mTempDir;
     char*                   mSystemDir;
     char*                   mDLLDir;
@@ -248,5 +255,6 @@ protected:
 
     bool                    mWaitingForConsoleInput;
     bool                    mConsoleInputReady;
+    bool                    mInContinuationLine;
 };
 

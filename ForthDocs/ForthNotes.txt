@@ -165,14 +165,262 @@ Gotchas with structure and object support:
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 Double and long memory and stack layouts:
 
-           memory                       param stack
-0.5d    00 00 00 00  00 00 e0 3f     00 00 00 00  00 00 e0 3f
-ll      10 32 54 76  98 ba dc fe     98 ba dc fe  10 32 54 76  
-
-ll == 0xfedcba9876543210L
+                              memory                       param stack
+0.5d                   00 00 00 00  00 00 e0 3f     00 00 00 00  00 00 e0 3f
+0xfedcba9876543210L    10 32 54 76  98 ba dc fe     98 ba dc fe  10 32 54 76  
 
 Double has consistent layout, long is reversed on param stack.
 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 8 2019
+
+I forgot that the *Map find method actually takes the value object, and returns
+an iterator positioned at it.  I need to think about that.
+
+I changed Map:find to take the key object instead of the value object, I need to
+remember to change it back if needed.
+
+Map:findKey takes key object, returns value object
+IntMap:findKey takes key integer, returns iterator and found flag
+
++ replace *Map get methods with grab method which returns OBJECT FOUND_FLAG
++ change *Map find method to take key and return ITER FOUND_FLAG
++ change/rename *Map findKey to findValue method to take value object and return ITER FOUND_FLAG
+- look at inconsistencies in *Array, some have tell and seek, others don't
+
+Things that may need to be fixed:
++ biclasstest.txt - does a few StringMap:get calls that will need to change
++ rctest.txt - doesn't do get or find*
++ classtest.txt - doesn't use maps
++ notebook.txt & helpdeck.txt have map uses that will need changing
+- t.txt - random tests that probably don't matter
++ forth_autoload.txt - help map
++ hersheyfont.txt - it has an IntMap mGlyphs to map from character codes to glyphs, but it isn't used
++ adv.txt - it has a StringIntMap wordMap, but it isn't used
++ help.txt
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 4 2019
+
+I added checks for a null object to the method invocation code to catch a very
+common crash cause.
+
+I also added the notedeck to the system scripts, and a replacement for the help
+system which uses it.  It is currently as functional as the existing help system,
+but will allow more easily adding more features, such as adding help which isn't
+just about a single operator, and adding help for classes and methods.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 3 2019
+
+I had a bug where doing a verbose describe of class ca was showing one less
+data member than what caca.show was displaying.  When I looked into it, it
+turned out that there were 2 different ca class vocabularies being used.  I think
+it must be because I had run the test script multiple times, redefining class ca
+each time, but the caca object was being recreated by the test script each time
+also, so there is still something odd going on.
+
+One other little difference I noticed was that ShowVocab uses pVocab->GetFirstEntry,
+which gets mpStorageBottom, while ForthStructVocabulary::ShowDataInner uses
+pVocab->GetNewestEntry, which gets mpNewestSymbol - they are usually the same
+value, I think mpNewestSymbol can be null in a few cases.
+
+There is also a bug with the final computed size of class objects which contain
+arrays of native strings, it probably isn't longword padding them properly.
+The symptom of this is that when showing the class the native string array will
+have one less string than it is defined to have.
+-> ForthStructVocabulary::AddField adds the per-element padding to the field
+   size in the vocab entry, but it doesn't add padding after the final element
+   to the instance size, since the next thing after the array might have a
+   looser alignment and then part of the padding would be wasted.  The show
+   code determines the number of elements by dividing the distance between the
+   beginning of the array and the item after the array by the vocab entry
+   field size, causing the off by one error.
+   ? add the padding for the final element
+   ? or change the show code
+   -> 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 1 2019
+
+Happy New Year!
+I did a lot of cleanup, particularly of array show methods.
+I ran into a bug when trying to report a negative indent level.  Output had
+been redirected to a file when the error had occured, and after the error
+happened the ok> prompt was appearing, but it didn't seem to execute anything
+typed.  Maybe it was executing the commands but output was still redirected,
+or at least not going to the console?
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 31 2018
+
+I added the StructArray custom object reader, and I've tested a fair number of
+cases, but there are a huge number of combinations of types of containers and
+contents that remain untested.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 30 2018
+
+I added custom object readers for the remaining map classes.  The only class
+that I know of with a custom show method and no custom reader is StructArray.
+Testing of custom object readers is just starting.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 29 2018
+
+I added custom object readers for most of the array classes, lists, strings
+and string maps.  I'm pretty sure there are refcount bugs in the object reader.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 28 2018
+
+ForthObjectReader is mostly working.  There is a bug where the output object
+array has entries for inner objects, and structs and builtin classes aren't
+supported yet.
+
+I've run into a mysterious bug that I think I've seen before recently.  A class
+definition will have a symbol missing when shown with vd, but if that symbol is
+a data member it will be displayed by show.  When it happened, the vocabulary
+symbol count was one too low, which screwed up vd, but show doesn't use that
+count, it iterates over vocab entries until it reaches the end pointer.
+
+The other phantom bug like this (maybe) is a case where a method will be missing,
+it looks like it hasn't been unsmudged.
+
+And of course the bug goes away when you rearrange the source to try to nail it down.
+
+I've gotten structs inside objects working.
+
+For builtin classes with custom show methods, how can custom readers be added?
+
+- add a way to specify a custom reader for classes which have custom show method
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 26 2018
+
+I started ForthObjectReader yesterday.
+I still need to figure out how to add custom readers for builtin classes.
+One choice I might regret is to throw an exception whenever a parse error
+occurs - this might be a problem for cases where an unknown element could
+be ignored without aborting object readback.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 21 2018
+
+I ran into a wierd bug when testing show for objects which have old style
+strings and arrays (not object String or Array) members.  If a class has an
+old style string, if you do a makeObject in interpret mode, the created object
+will have its methods and data pointers swapped.  The problem won't happen
+if you compile the same makeObject in an op definition.
+-> The problem was __newOp was doing ExecuteOp instead of FullyExecuteOp on
+   the class _init op.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 16 2018
+
+I finished the show method rewrite, there are still a number of classes that
+have no showInner method that might need one, stuff like Thread, System, Lock,
+streams and so on.  I think none of the map iterators have showInner methods.
+
+When I did the Map showInner, I changed it so the shown key object is shown
+as an object like "@IntArray_00242288", otherwise the output couldn't be valid
+JSON.  I should followup by showing any of the unshown linked objects after
+showing the map itself.
+
+I also need to redo the showContext forthops.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 15 2018
+
+I rewrote the show methods to allow things like extending builtin classes to
+work, and also to reduce the amount of repeated code, like deciding when a comma
+needed to be printed between elements.  A major change was to add a showInner
+method, which for a class is responsible for showing just the elements which that
+level of class has added.  The show method handles iterating down the class
+derivation chain, giving each level of class a chance to show the members which
+it added.
+Things went pretty well, I finished all the classes in OArray.cpp, OList.cpp and
+ONumber.cpp, then I noticed that FloatArray was displaying the array elements first as
+floats, then again as ints, and finally as bytes.  The problem is that FloatArray
+is derived from IntArray, and IntArray is defined from ByteArray.  I stuck in a
+check that stops going down the class derivation chain if the next lower class is
+the same size as this class, that "fixed" this particular problem, but is actually
+the wrong thing to do - if a user defined class just adds some methods to another
+class without adding any new members, invoking show on a class instance will show
+nothing, since it has no added members and will immediately exit without showing
+the members defined by lower level classes.
+FloatArray/IntArray/ByteArray (and a bunch of others like it) is an odd case, since
+the derived classes do not add any of their own members, but instead use the
+existing 'elements' member in a different way.
+
+ShortArray - ByteArray - gets nothing but __elements
+IntArray - ByteArray - gets nothing but __elements
+FloatArray - IntArray - gets everything except showInner and sort
+LongArray - ByteArray - gets nothing but __elements
+DoubleArray - LongArray - gets about half its methods
+
+So the fix at least for the array classes is to remove the derivation links,
+and explicitly copying IntArray methods into the FloatArray methods - same for
+LongArray/DoubleArray.
+
+I'll have to look for the same situation in the map classes.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 21 2018
+
+I finished fixing continuations.
+ForthGui fails at the very end of test.txt, in the ansi test when it does 'accept',
+which isn't very surprising since it isn't a console app.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 20 2018
+
+I fixed the problem with AsyncThread::Join hanging in ForthGui, it was what
+I thought, the main thread was blocked inside the OK button handler at the
+point that it did the wait for the event coming from the joined thread, which
+would only get delivered when the main thread had gotten back to the message pump.
+Loading the adventure game has an error, because it includes continuation lines,
+and those are handled in a part of ForthShell that ForthGui doesn't use.
+I think I have to change the continuation handling, remove the part of it that
+is in the ForthInput classes and move all of it to ForthShell - have the shell
+recognize that an input line has continuations, merge and buffer continuation
+lines, and finally process them when a line without a continuation arrives.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 13 2018
+
+Life and work have kept me away for a long while.
+An idea I had earlier but gave up on was having the return stack be a set of
+ops, and exit would just execute the top rstack opcode.
+
+o there would be 2 kOpUserDef optypes
+  1) for user defs defined inside the dictionary memory section
+    this would rpush a branch-relative-to-DP optype
+  2) for user defs defined outside the dictionary memory section
+    this would push the return addres with a set-IP op on top
+o there would be a deallocate local frame op
+o there would be a pop 'this' op
+
+This would allow easier implementation of go-like defer sections.
+
+The next thing I should really work on is creating objects from the stored
+JSON-ish output of Object::show.  The way I implemented the show method, and
+the way that a large percentage of builtin classes have very special internal
+structure will require that I implement deserializers for most classes.
+I'm not sure if these should be methods, I can't see a very general way of
+doing that, I might need to have custom deserializers for all builtin classes,
+and a general deserializer for user-defined classes.
+The custom deserializers will make extending builtin classes impossible, if
+it isn't already.
+
+I tried out ForthGUI again, it took a little futzing to get it to build again,
+and when I tried test.txt it hung when it got to the asynchronous pizza shop.
+It is stuck in a ForthAsyncThread::Join, I think it is probably the main thread,
+and there is a deadlock between the main thread message pump and the WaitForSingleObject
+event that the child thread uses to signal that it has exited.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 25 2018
+
+I added a ForthDLL project.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 2 2018
+
+I decided to test out DLL/shared library support on non-windows versions.
+The Linux version worked fine, sdl tests worked.
+The Mac version failed in dlopen because the sdl2 dylib was only for x86_64
+architecture, I need the i386 architecture.  I built the 32-bit sdl2 dylib,
+but sdlscreen.txt also loads sdl2_ttf and sdl2_image.  sdl2_ttf has the same
+missing 32-bit architecture problem.  When I tried to build a 32-bit version
+of sdl2_ttf dylib, that fails because it needs freetype, which is 64-bit only.
+freetype requires libpng, that might be the end of that chain.
+I think the sdl2 image library requires a bunch of other libraries, for all
+the different formats it can load.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 January 30 2018
 

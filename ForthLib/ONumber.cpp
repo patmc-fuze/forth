@@ -42,10 +42,43 @@ namespace ONumber
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pInt);
 	}
 
+    FORTHOP(oIntShowInnerMethod)
+    {
+        char buff[32];
+        GET_THIS(oIntStruct, pInt);
+        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        pShowContext->BeginElement("value");
+        sprintf(buff, "%d", pInt->val);
+        pShowContext->EndElement(buff);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oIntCompareMethod)
+    {
+        GET_THIS(oIntStruct, pInt);
+        ForthObject compObj;
+        POP_OBJECT(compObj);
+        oIntStruct* pComp = (oIntStruct *)compObj.pData;
+        int retVal = 0;
+        if (pInt->val != pComp->val)
+        {
+            retVal = (pInt->val > pComp->val) ? 1 : -1;
+        }
+        SPUSH(retVal);
+        METHOD_RETURN;
+    }
+
     FORTHOP(oIntGetMethod)
     {
         GET_THIS(oIntStruct, pInt);
         SPUSH(pInt->val);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oIntSetMethod)
+    {
+        GET_THIS(oIntStruct, pInt);
+        pInt->val = SPOP;
         METHOD_RETURN;
     }
 
@@ -89,56 +122,19 @@ namespace ONumber
         METHOD_RETURN;
     }
 
-    FORTHOP(oIntSetMethod)
-	{
-		GET_THIS(oIntStruct, pInt);
-		pInt->val = SPOP;
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oIntShowMethod)
-	{
-		char buff[32];
-		GET_THIS(oIntStruct, pInt);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        pShowContext->BeginIndent();
-        SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'value' : ");
-		sprintf(buff, "%d", pInt->val);
-		pShowContext->EndElement(buff);
-        pShowContext->EndIndent();
-        pShowContext->ShowIndent("}");
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oIntCompareMethod)
-	{
-		GET_THIS(oIntStruct, pInt);
-		ForthObject compObj;
-		POP_OBJECT(compObj);
-		oIntStruct* pComp = (oIntStruct *)compObj.pData;
-		int retVal = 0;
-		if (pInt->val != pComp->val)
-		{
-			retVal = (pInt->val > pComp->val) ? 1 : -1;
-		}
-		SPUSH(retVal);
-		METHOD_RETURN;
-	}
-
 	baseMethodEntry oIntMembers[] =
 	{
 		METHOD("__newOp", oIntNew),
 
-		METHOD("set", oIntSetMethod),
-		METHOD_RET("get", oIntGetMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD("showInner", oIntShowInnerMethod),
+        METHOD_RET("compare", oIntCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
+       
+        METHOD_RET("get", oIntGetMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD("set", oIntSetMethod),
         METHOD_RET("getByte", oIntGetSignedByteMethod, RETURNS_NATIVE(kBaseTypeByte)),
         METHOD_RET("getUByte", oIntGetUnsignedByteMethod, RETURNS_NATIVE(kBaseTypeUByte)),
         METHOD_RET("getShort", oIntGetSignedShortMethod, RETURNS_NATIVE(kBaseTypeShort)),
         METHOD_RET("getUShort", oIntGetUnsignedShortMethod, RETURNS_NATIVE(kBaseTypeUShort)),
-        METHOD("show", oIntShowMethod),
-		METHOD_RET("compare", oIntCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
@@ -170,37 +166,14 @@ namespace ONumber
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pLong);
 	}
 
-	FORTHOP(oLongGetMethod)
-	{
-		GET_THIS(oLongStruct, pLong);
-		stackInt64 val;
-		val.s64 = pLong->val;
-		LPUSH(val);
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oLongSetMethod)
-	{
-		GET_THIS(oLongStruct, pLong);
-		stackInt64 a64;
-		LPOP(a64);
-		pLong->val = a64.s64;
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oLongShowMethod)
+	FORTHOP(oLongShowInnerMethod)
 	{
 		char buff[32];
 		GET_THIS(oLongStruct, pLong);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        pShowContext->BeginIndent();
-        SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'value' : ");
+        pShowContext->BeginElement("value");
 		sprintf(buff, "%lld", pLong->val);
 		pShowContext->EndElement(buff);
-        pShowContext->EndIndent();
-        pShowContext->ShowIndent("}");
 		METHOD_RETURN;
 	}
 
@@ -219,14 +192,33 @@ namespace ONumber
 		METHOD_RETURN;
 	}
 
-	baseMethodEntry oLongMembers[] =
+    FORTHOP(oLongGetMethod)
+    {
+        GET_THIS(oLongStruct, pLong);
+        stackInt64 val;
+        val.s64 = pLong->val;
+        LPUSH(val);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oLongSetMethod)
+    {
+        GET_THIS(oLongStruct, pLong);
+        stackInt64 a64;
+        LPOP(a64);
+        pLong->val = a64.s64;
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oLongMembers[] =
 	{
 		METHOD("__newOp", oLongNew),
 
-		METHOD("set", oLongSetMethod),
-		METHOD_RET("get", oLongGetMethod, RETURNS_NATIVE(kBaseTypeLong)),
-		METHOD("show", oLongShowMethod),
+		METHOD("showInner", oLongShowInnerMethod),
 		METHOD_RET("compare", oLongCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
+
+        METHOD_RET("get", oLongGetMethod, RETURNS_NATIVE(kBaseTypeLong)),
+        METHOD("set", oLongSetMethod),
 
         MEMBER_VAR("__dummy", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
         MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeLong)),
@@ -258,7 +250,34 @@ namespace ONumber
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pFloat);
 	}
 
-	FORTHOP(oFloatGetMethod)
+    FORTHOP(oFloatShowInnerMethod)
+    {
+        char buff[32];
+        GET_THIS(oFloatStruct, pFloat);
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        pShowContext->BeginElement("value");
+        sprintf(buff, "%f", pFloat->val);
+        pShowContext->EndElement(buff);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oFloatCompareMethod)
+    {
+        GET_THIS(oFloatStruct, pFloat);
+        ForthObject compObj;
+        POP_OBJECT(compObj);
+        oFloatStruct* pComp = (oFloatStruct *)compObj.pData;
+        int retVal = 0;
+        if (pFloat->val != pComp->val)
+        {
+            retVal = (pFloat->val > pComp->val) ? 1 : -1;
+        }
+        SPUSH(retVal);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oFloatGetMethod)
 	{
 		GET_THIS(oFloatStruct, pFloat);
 		FPUSH(pFloat->val);
@@ -272,45 +291,15 @@ namespace ONumber
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oFloatShowMethod)
-	{
-		char buff[32];
-		GET_THIS(oFloatStruct, pFloat);
-		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        pShowContext->BeginIndent();
-        SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'value' : ");
-		sprintf(buff, "%f", pFloat->val);
-		pShowContext->EndElement(buff);
-        pShowContext->EndIndent();
-        pShowContext->ShowIndent("}");
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oFloatCompareMethod)
-	{
-		GET_THIS(oFloatStruct, pFloat);
-		ForthObject compObj;
-		POP_OBJECT(compObj);
-		oFloatStruct* pComp = (oFloatStruct *)compObj.pData;
-		int retVal = 0;
-		if (pFloat->val != pComp->val)
-		{
-			retVal = (pFloat->val > pComp->val) ? 1 : -1;
-		}
-		SPUSH(retVal);
-		METHOD_RETURN;
-	}
-
 	baseMethodEntry oFloatMembers[] =
 	{
 		METHOD("__newOp", oFloatNew),
 
-		METHOD("set", oFloatSetMethod),
-		METHOD_RET("get", oFloatGetMethod, RETURNS_NATIVE(kBaseTypeFloat)),
-		METHOD("show", oFloatShowMethod),
+        METHOD("showInner", oFloatShowInnerMethod),
 		METHOD_RET("compare", oFloatCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
+
+        METHOD_RET("get", oFloatGetMethod, RETURNS_NATIVE(kBaseTypeFloat)),
+        METHOD("set", oFloatSetMethod),
 
         MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeFloat)),
 
@@ -342,33 +331,15 @@ namespace ONumber
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pDouble);
 	}
 
-	FORTHOP(oDoubleGetMethod)
-	{
-		GET_THIS(oDoubleStruct, pDouble);
-		DPUSH(pDouble->val);
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oDoubleSetMethod)
-	{
-		GET_THIS(oDoubleStruct, pDouble);
-		pDouble->val = DPOP;
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oDoubleShowMethod)
+	FORTHOP(oDoubleShowInnerMethod)
 	{
 		char buff[32];
 		GET_THIS(oDoubleStruct, pDouble);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        pShowContext->BeginIndent();
-        SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'value' : ");
-		sprintf(buff, "%f", pDouble->val);
-		pShowContext->EndElement(buff);
-        pShowContext->EndIndent();
-        pShowContext->ShowIndent("}");
+        pShowContext->BeginElement("value");
+        sprintf(buff, "%f", pDouble->val);
+        pShowContext->EndElement(buff);
 		METHOD_RETURN;
 	}
 
@@ -387,14 +358,29 @@ namespace ONumber
 		METHOD_RETURN;
 	}
 
-	baseMethodEntry oDoubleMembers[] =
+    FORTHOP(oDoubleGetMethod)
+    {
+        GET_THIS(oDoubleStruct, pDouble);
+        DPUSH(pDouble->val);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oDoubleSetMethod)
+    {
+        GET_THIS(oDoubleStruct, pDouble);
+        pDouble->val = DPOP;
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oDoubleMembers[] =
 	{
 		METHOD("__newOp", oDoubleNew),
 
-		METHOD("set", oDoubleSetMethod),
-		METHOD_RET("get", oDoubleGetMethod, RETURNS_NATIVE(kBaseTypeDouble)),
-		METHOD("show", oDoubleShowMethod),
+        METHOD("showInner", oDoubleShowInnerMethod),
 		METHOD_RET("compare", oDoubleCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
+
+        METHOD_RET("get", oDoubleGetMethod, RETURNS_NATIVE(kBaseTypeDouble)),
+        METHOD("set", oDoubleSetMethod),
 
         MEMBER_VAR("__dummy", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
         MEMBER_VAR("value", NATIVE_TYPE_TO_CODE(0, kBaseTypeDouble)),

@@ -1,4 +1,4 @@
-setTrace( 0 )
+setTrace(0)
 
 "forth_autoload" $forget drop
 : forth_autoload "This is the forth_autoload.txt tools module" %s ;
@@ -39,6 +39,18 @@ makeObject System system
 ;
 _initSystemObject
 $forget("_initSystemObject") drop
+
+//  gets next token from input stream, returns:
+//  DELIM ... false                 if token is empty or end of line
+//  DELIM ... TOKEN_PTR true        if token found
+: word?
+  if($word dup strlen)
+    true
+  else
+    drop false
+  endif
+;
+: blword? word?('\ ') ;
 
 : $alias
   -> int oldSymbol
@@ -143,6 +155,10 @@ alias ds dstack
 : count dup 1+ swap c@ ;
 : 2, here 8 allot 2! ;
 
+: land rot and >r and r> ;
+: lor rot or >r and r> ;
+: lxor rot xor >r and r> ;
+
 : time&date splitTime(time) ;
 
 //######################################################################
@@ -206,16 +222,16 @@ mko StringMap _helpMap
     // line was empty, just list all help
     _helpMap.headIter -> StringMapIter iter
     begin
-    while( iter.nextPair )
+    while(iter.seekNext iter.currentPair)
       %s %bl <String>.get %s %nl
     repeat
     oclear iter
   else
-    _helpMap.get(opName) ->o String opDescription
-    if(objIsNull(opDescription))
-      opName %s " not found!\n" %s
-    else
+    if(_helpMap.grab(opName))
+      ->o String opDescription
       opDescription.get %s %nl
+    else
+      opName %s " not found!\n" %s
     endif
   endif
 ;
@@ -830,6 +846,12 @@ struct: dirent
 ;struct
 
 #endif
+
+// these may be OS specific
+enum: DIRENT_TYPE_BITS
+  0x4000 DIRENT_IS_DIR
+  0x8000 DIRENT_IS_REGULAR
+;enum
 
 // "DIRECTORY_PATH" ... Array of String
 : getFilesInDirectory

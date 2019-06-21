@@ -14,14 +14,10 @@
 #include "ForthObject.h"
 #include "ForthBuiltinClasses.h"
 #include "ForthShowContext.h"
+#include "ForthObjectReader.h"
 
 #include "OList.h"
 #include "OArray.h"
-
-extern "C" {
-	extern void unimplementedMethodOp(ForthCoreState *pCore);
-	extern void illegalMethodOp(ForthCoreState *pCore);
-};
 
 namespace OList
 {
@@ -58,41 +54,224 @@ namespace OList
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oListShowMethod)
+	FORTHOP(oListShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oListStruct, pList);
 		oListElement* pCur = pList->head;
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'elements' : [");
-		if (pCur != NULL)
+        pShowContext->BeginElement("elements");
+        pShowContext->BeginArray();
+		while (pCur != NULL)
 		{
-			pShowContext->EndElement();
-			pShowContext->BeginIndent();
-			while (pCur != NULL)
-			{
-				oListElement* pNext = pCur->next;
-				if (pCur != pList->head)
-				{
-					pShowContext->EndElement(",");
-				}
-				pShowContext->ShowIndent();
-				ForthShowObject(pCur->obj, pCore);
-				pCur = pNext;
-			}
-			pShowContext->EndElement();
-			pShowContext->EndIndent();
-			pShowContext->ShowIndent();
+            pShowContext->BeginArrayElement(1);
+            oListElement* pNext = pCur->next;
+			ForthShowObject(pCur->obj, pCore);
+            pCur = pNext;
 		}
-		pShowContext->EndElement("]");
-		pShowContext->EndIndent();
-		pShowContext->ShowIndent("}");
+        pShowContext->EndArray();
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oListIsEmptyMethod)
+    FORTHOP(oListHeadIterMethod)
+    {
+        GET_THIS(oListStruct, pList);
+        pList->refCount++;
+        TRACK_KEEP;
+        ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIListIter);
+        MALLOCATE_ITER(oListIterStruct, pIter, pIterVocab);
+        pIter->refCount = 0;
+        pIter->parent.pMethodOps = GET_TPM;
+        pIter->parent.pData = reinterpret_cast<long *>(pList);
+        pIter->cursor = pList->head;
+        ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIListIter, 0);
+        PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oListTailIterMethod)
+    {
+        GET_THIS(oListStruct, pList);
+        pList->refCount++;
+        TRACK_KEEP;
+        ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIListIter);
+        MALLOCATE_ITER(oListIterStruct, pIter, pIterVocab);
+        pIter->refCount = 0;
+        pIter->parent.pMethodOps = GET_TPM;
+        pIter->parent.pData = reinterpret_cast<long *>(pList);
+        pIter->cursor = NULL;
+        ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIListIter, 0);
+        PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oListFindMethod)
+    {
+        GET_THIS(oListStruct, pList);
+        oListElement* pCur = pList->head;
+        ForthObject soughtObj;
+        POP_OBJECT(soughtObj);
+        while (pCur != NULL)
+        {
+            ForthObject& o = pCur->obj;
+            if (OBJECTS_SAME(o, soughtObj))
+            {
+                break;
+            }
+            pCur = pCur->next;
+        }
+        if (pCur == NULL)
+        {
+            SPUSH(0);
+        }
+        else
+        {
+            pList->refCount++;
+            TRACK_KEEP;
+            ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIListIter);
+            MALLOCATE_ITER(oListIterStruct, pIter, pIterVocab);
+            pIter->refCount = 0;
+            pIter->parent.pMethodOps = GET_TPM;
+            pIter->parent.pData = reinterpret_cast<long *>(pList);
+            pIter->cursor = pCur;
+            ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIListIter, 0);
+            PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+            SPUSH(~0);
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oListCloneMethod)
+    {
+        // create an empty list
+        ForthClassVocabulary *pListVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIList);
+        MALLOCATE_OBJECT(oListStruct, pCloneList, pListVocab);
+        pCloneList->refCount = 0;
+        pCloneList->head = NULL;
+        pCloneList->tail = NULL;
+        // go through all elements and add a reference to any which are not null and add to clone list
+        GET_THIS(oListStruct, pList);
+        oListElement* pCur = pList->head;
+        oListElement* oldTail = NULL;
+        while (pCur != NULL)
+        {
+            oListElement* pNext = pCur->next;
+            MALLOCATE_LINK(oListElement, newElem);
+            newElem->obj = pCur->obj;
+            SAFE_KEEP(newElem->obj);
+            if (oldTail == NULL)
+            {
+                pCloneList->head = newElem;
+            }
+            else
+            {
+                oldTail->next = newElem;
+            }
+            newElem->prev = oldTail;
+            oldTail = newElem;
+            pCur = pNext;
+        }
+        if (oldTail != NULL)
+        {
+            oldTail->next = NULL;
+        }
+        PUSH_PAIR(GET_TPM, pCloneList);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oListCountMethod)
+    {
+        GET_THIS(oListStruct, pList);
+        long count = 0;
+        oListElement* pCur = pList->head;
+        while (pCur != NULL)
+        {
+            count++;
+            pCur = pCur->next;
+        }
+        SPUSH(count);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oListClearMethod)
+    {
+        // go through all elements and release any which are not null
+        GET_THIS(oListStruct, pList);
+        oListElement* pCur = pList->head;
+        while (pCur != NULL)
+        {
+            oListElement* pNext = pCur->next;
+            SAFE_RELEASE(pCore, pCur->obj);
+            FREE_LINK(pCur);
+            pCur = pNext;
+        }
+        pList->head = NULL;
+        pList->tail = NULL;
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oListLoadMethod)
+    {
+        // go through all elements and release any which are not null
+        GET_THIS(oListStruct, pList);
+        oListElement* pCur = pList->head;
+        while (pCur != NULL)
+        {
+            oListElement* pNext = pCur->next;
+            SAFE_RELEASE(pCore, pCur->obj);
+            FREE_LINK(pCur);
+            pCur = pNext;
+        }
+        pList->head = NULL;
+        pList->tail = NULL;
+
+        int n = SPOP;
+        for (int i = 0; i < n; i++)
+        {
+            MALLOCATE_LINK(oListElement, newElem);
+            POP_OBJECT(newElem->obj);
+            SAFE_KEEP(newElem->obj);
+            newElem->next = NULL;
+            oListElement* oldTail = pList->tail;
+            if (oldTail == NULL)
+            {
+                ASSERT(pList->head == NULL);
+                pList->head = newElem;
+            }
+            else
+            {
+                ASSERT(oldTail->next == NULL);
+                oldTail->next = newElem;
+            }
+            newElem->prev = oldTail;
+            pList->tail = newElem;
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oListToArrayMethod)
+    {
+        GET_THIS(oListStruct, pList);
+        oListElement* pCur = pList->head;
+        ForthClassVocabulary *pArrayVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIArray);
+        MALLOCATE_OBJECT(oArrayStruct, pArray, pArrayVocab);
+        pArray->refCount = 0;
+        pArray->elements = new oArray;
+
+        while (pCur != NULL)
+        {
+            ForthObject& o = pCur->obj;
+            SAFE_KEEP(o);
+            pArray->elements->push_back(o);
+            pCur = pCur->next;
+        }
+
+        // push array on TOS
+        ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIArray, 0);
+        PUSH_PAIR(pPrimaryInterface->GetMethods(), pArray);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oListIsEmptyMethod)
 	{
 		GET_THIS(oListStruct, pList);
 		int result = 0;
@@ -158,26 +337,33 @@ namespace OList
 		METHOD_RETURN;
 	}
 
+    void listAddTail(oListStruct* pList, ForthObject& obj, ForthCoreState* pCore)
+    {
+        MALLOCATE_LINK(oListElement, newElem);
+        newElem->obj = obj;
+        SAFE_KEEP(obj);
+        newElem->next = NULL;
+        oListElement* oldTail = pList->tail;
+        if (oldTail == NULL)
+        {
+            ASSERT(pList->head == NULL);
+            pList->head = newElem;
+        }
+        else
+        {
+            ASSERT(oldTail->next == NULL);
+            oldTail->next = newElem;
+        }
+        newElem->prev = oldTail;
+        pList->tail = newElem;
+    }
+
 	FORTHOP(oListAddTailMethod)
 	{
 		GET_THIS(oListStruct, pList);
-		MALLOCATE_LINK(oListElement, newElem);
-		POP_OBJECT(newElem->obj);
-		SAFE_KEEP(newElem->obj);
-		newElem->next = NULL;
-		oListElement* oldTail = pList->tail;
-		if (oldTail == NULL)
-		{
-			ASSERT(pList->head == NULL);
-			pList->head = newElem;
-		}
-		else
-		{
-			ASSERT(oldTail->next == NULL);
-			oldTail->next = newElem;
-		}
-		newElem->prev = oldTail;
-		pList->tail = newElem;
+        ForthObject obj;
+        POP_OBJECT(obj);
+        listAddTail(pList, obj, pCore);
 		METHOD_RETURN;
 	}
 
@@ -301,167 +487,6 @@ namespace OList
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oListHeadIterMethod)
-	{
-		GET_THIS(oListStruct, pList);
-		pList->refCount++;
-		TRACK_KEEP;
-		ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIListIter);
-		MALLOCATE_ITER(oListIterStruct, pIter, pIterVocab);
-		pIter->refCount = 0;
-		pIter->parent.pMethodOps = GET_TPM;
-		pIter->parent.pData = reinterpret_cast<long *>(pList);
-		pIter->cursor = pList->head;
-		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIListIter, 0);
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oListTailIterMethod)
-	{
-		GET_THIS(oListStruct, pList);
-		pList->refCount++;
-		TRACK_KEEP;
-		ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIListIter);
-		MALLOCATE_ITER(oListIterStruct, pIter, pIterVocab);
-		pIter->refCount = 0;
-		pIter->parent.pMethodOps = GET_TPM;
-		pIter->parent.pData = reinterpret_cast<long *>(pList);
-		pIter->cursor = NULL;
-		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIListIter, 0);
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oListFindMethod)
-	{
-		GET_THIS(oListStruct, pList);
-		oListElement* pCur = pList->head;
-		ForthObject soughtObj;
-		POP_OBJECT(soughtObj);
-		while (pCur != NULL)
-		{
-			ForthObject& o = pCur->obj;
-			if (OBJECTS_SAME(o, soughtObj))
-			{
-				break;
-			}
-			pCur = pCur->next;
-		}
-		if (pCur == NULL)
-		{
-			SPUSH(0);
-		}
-		else
-		{
-			pList->refCount++;
-			TRACK_KEEP;
-			ForthClassVocabulary *pIterVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIListIter);
-			MALLOCATE_ITER(oListIterStruct, pIter, pIterVocab);
-			pIter->refCount = 0;
-			pIter->parent.pMethodOps = GET_TPM;
-			pIter->parent.pData = reinterpret_cast<long *>(pList);
-			pIter->cursor = pCur;
-			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIListIter, 0);
-			PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
-			SPUSH(~0);
-		}
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oListCountMethod)
-	{
-		GET_THIS(oListStruct, pList);
-		long count = 0;
-		oListElement* pCur = pList->head;
-		while (pCur != NULL)
-		{
-			count++;
-			pCur = pCur->next;
-		}
-		SPUSH(count);
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oListClearMethod)
-	{
-		// go through all elements and release any which are not null
-		GET_THIS(oListStruct, pList);
-		oListElement* pCur = pList->head;
-		while (pCur != NULL)
-		{
-			oListElement* pNext = pCur->next;
-			SAFE_RELEASE(pCore, pCur->obj);
-			FREE_LINK(pCur);
-			pCur = pNext;
-		}
-		pList->head = NULL;
-		pList->tail = NULL;
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oListLoadMethod)
-	{
-		// go through all elements and release any which are not null
-		GET_THIS(oListStruct, pList);
-		oListElement* pCur = pList->head;
-		while (pCur != NULL)
-		{
-			oListElement* pNext = pCur->next;
-			SAFE_RELEASE(pCore, pCur->obj);
-			FREE_LINK(pCur);
-			pCur = pNext;
-		}
-		pList->head = NULL;
-		pList->tail = NULL;
-
-		int n = SPOP;
-		for (int i = 0; i < n; i++)
-		{
-			MALLOCATE_LINK(oListElement, newElem);
-			POP_OBJECT(newElem->obj);
-			SAFE_KEEP(newElem->obj);
-			newElem->next = NULL;
-			oListElement* oldTail = pList->tail;
-			if (oldTail == NULL)
-			{
-				ASSERT(pList->head == NULL);
-				pList->head = newElem;
-			}
-			else
-			{
-				ASSERT(oldTail->next == NULL);
-				oldTail->next = newElem;
-			}
-			newElem->prev = oldTail;
-			pList->tail = newElem;
-		}
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oListToArrayMethod)
-	{
-		GET_THIS(oListStruct, pList);
-		oListElement* pCur = pList->head;
-		ForthClassVocabulary *pArrayVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIArray);
-		MALLOCATE_OBJECT(oArrayStruct, pArray, pArrayVocab);
-		pArray->refCount = 0;
-		pArray->elements = new oArray;
-
-		while (pCur != NULL)
-		{
-			ForthObject& o = pCur->obj;
-			SAFE_KEEP(o);
-			pArray->elements->push_back(o);
-			pCur = pCur->next;
-		}
-
-		// push array on TOS
-		ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIArray, 0);
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pArray);
-		METHOD_RETURN;
-	}
-
 	/*
 
 
@@ -476,44 +501,6 @@ namespace OList
 	? replace an elements object
 	? isEmpty
 	*/
-
-	FORTHOP(oListCloneMethod)
-	{
-		// create an empty list
-		ForthClassVocabulary *pListVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIList);
-		MALLOCATE_OBJECT(oListStruct, pCloneList, pListVocab);
-		pCloneList->refCount = 0;
-		pCloneList->head = NULL;
-		pCloneList->tail = NULL;
-		// go through all elements and add a reference to any which are not null and add to clone list
-		GET_THIS(oListStruct, pList);
-		oListElement* pCur = pList->head;
-		oListElement* oldTail = NULL;
-		while (pCur != NULL)
-		{
-			oListElement* pNext = pCur->next;
-			MALLOCATE_LINK(oListElement, newElem);
-			newElem->obj = pCur->obj;
-			SAFE_KEEP(newElem->obj);
-			if (oldTail == NULL)
-			{
-				pCloneList->head = newElem;
-			}
-			else
-			{
-				oldTail->next = newElem;
-			}
-			newElem->prev = oldTail;
-			oldTail = newElem;
-			pCur = pNext;
-		}
-		if (oldTail != NULL)
-		{
-			oldTail->next = NULL;
-		}
-		PUSH_PAIR(GET_TPM, pCloneList);
-		METHOD_RETURN;
-	}
 
 	FORTHOP(oListRemoveMethod)
 	{
@@ -560,7 +547,7 @@ namespace OList
 	{
 		METHOD("__newOp", oListNew),
 		METHOD("delete", oListDeleteMethod),
-		METHOD("show", oListShowMethod),
+		METHOD("showInner", oListShowInnerMethod),
 
 		METHOD_RET("headIter", oListHeadIterMethod, RETURNS_OBJECT(kBCIListIter)),
 		METHOD_RET("tailIter", oListTailIterMethod, RETURNS_OBJECT(kBCIListIter)),
@@ -568,9 +555,9 @@ namespace OList
 		METHOD_RET("clone", oListCloneMethod, RETURNS_OBJECT(kBCIList)),
 		METHOD_RET("count", oListCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("clear", oListClearMethod),
+
 		METHOD("load", oListLoadMethod),
 		METHOD_RET("toArray", oListToArrayMethod, RETURNS_OBJECT(kBCIArray)),
-
 		METHOD_RET("isEmpty", oListIsEmptyMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD_RET("head", oListHeadMethod, RETURNS_OBJECT(kBCIContainedType)),
         METHOD_RET("tail", oListTailMethod, RETURNS_OBJECT(kBCIContainedType)),
@@ -609,25 +596,31 @@ namespace OList
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oListIterShowMethod)
+	FORTHOP(oListIterShowInnerMethod)
 	{
-		EXIT_IF_OBJECT_ALREADY_SHOWN;
 		GET_THIS(oListIterStruct, pIter);
+        char buffer[32];
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pShowContext->BeginIndent();
-		SHOW_OBJ_HEADER;
-		pShowContext->ShowIndent("'cursor : ");
-		ForthShowObject(pIter->cursor->obj, pCore);
-		pShowContext->EndElement(",");
-		pShowContext->ShowIndent("'parent' : '@");
-		long* pParentData = pIter->parent.pData;
-		long* pParentMethods = pIter->parent.pMethodOps;
-		ForthClassObject* pClassObject = (ForthClassObject *)(*((pParentMethods)-1));
-		pShowContext->ShowID(pClassObject->pVocab->GetName(), pParentData);
-		pShowContext->EndElement("'");
-		pShowContext->EndIndent();
-		pEngine->ConsoleOut("}");
+        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        oListElement* pCur = reinterpret_cast<oListStruct *>(pIter->parent.pData)->head;
+        int cursor = 0;
+        while (pCur != NULL)
+        {
+            if (pCur == pIter->cursor)
+            {
+                break;
+            }
+            cursor++;
+            pCur = pCur->next;
+        }
+
+        pShowContext->BeginElement("cursor");
+        sprintf(buffer, "%d", cursor);
+        pShowContext->ShowText(buffer);
+        pShowContext->EndElement();
+        pShowContext->BeginElement("parent");
+        ForthShowObject(pIter->parent, pCore);
+		pShowContext->EndElement();
 		METHOD_RETURN;
 	}
 
@@ -655,42 +648,6 @@ namespace OList
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oListIterSwapNextMethod)
-	{
-		GET_THIS(oListIterStruct, pIter);
-		oListElement* pCursor = pIter->cursor;
-		if (pCursor != NULL)
-		{
-			oListElement* pNext = pCursor->next;
-			if (pNext != NULL)
-			{
-				ForthObject nextObj = pNext->obj;
-				ForthObject obj = pCursor->obj;
-				pCursor->obj = nextObj;
-				pNext->obj = obj;
-			}
-		}
-		METHOD_RETURN;
-	}
-
-	FORTHOP(oListIterSwapPrevMethod)
-	{
-		GET_THIS(oListIterStruct, pIter);
-		oListElement* pCursor = pIter->cursor;
-		if (pCursor != NULL)
-		{
-			oListElement* pPrev = pCursor->prev;
-			if (pPrev != NULL)
-			{
-				ForthObject prevObj = pPrev->obj;
-				ForthObject obj = pCursor->obj;
-				pCursor->obj = prevObj;
-				pPrev->obj = obj;
-			}
-		}
-		METHOD_RETURN;
-	}
-
 	FORTHOP(oListIterSeekHeadMethod)
 	{
 		GET_THIS(oListIterStruct, pIter);
@@ -704,6 +661,22 @@ namespace OList
 		pIter->cursor = NULL;
 		METHOD_RETURN;
 	}
+
+    FORTHOP(oListIterAtHeadMethod)
+    {
+        GET_THIS(oListIterStruct, pIter);
+        long retVal = (pIter->cursor = reinterpret_cast<oListStruct *>(pIter->parent.pData)->head) ? ~0 : 0;
+        SPUSH(retVal);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oListIterAtTailMethod)
+    {
+        GET_THIS(oListIterStruct, pIter);
+        long retVal = (pIter->cursor == nullptr) ? ~0 : 0;
+        SPUSH(retVal);
+        METHOD_RETURN;
+    }
 
 	FORTHOP(oListIterNextMethod)
 	{
@@ -829,6 +802,7 @@ namespace OList
 	{
 		GET_THIS(oListIterStruct, pIter);
 		oListElement* pCur = pIter->cursor;
+        long found = 0;
 		ForthObject soughtObj;
 		POP_OBJECT(soughtObj);
 		if (pCur != NULL)
@@ -840,23 +814,53 @@ namespace OList
 			ForthObject& o = pCur->obj;
 			if (OBJECTS_SAME(o, soughtObj))
 			{
-				break;
+                pIter->cursor = pCur;
+                found = ~0;
+                break;
 			}
 			pCur = pCur->next;
 		}
-		if (pCur == NULL)
-		{
-			SPUSH(0);
-		}
-		else
-		{
-			pIter->cursor = pCur;
-			SPUSH(~0);
-		}
+		SPUSH(found);
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oListIterSplitMethod)
+    FORTHOP(oListIterSwapNextMethod)
+    {
+        GET_THIS(oListIterStruct, pIter);
+        oListElement* pCursor = pIter->cursor;
+        if (pCursor != NULL)
+        {
+            oListElement* pNext = pCursor->next;
+            if (pNext != NULL)
+            {
+                ForthObject nextObj = pNext->obj;
+                ForthObject obj = pCursor->obj;
+                pCursor->obj = nextObj;
+                pNext->obj = obj;
+            }
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oListIterSwapPrevMethod)
+    {
+        GET_THIS(oListIterStruct, pIter);
+        oListElement* pCursor = pIter->cursor;
+        if (pCursor != NULL)
+        {
+            oListElement* pPrev = pCursor->prev;
+            if (pPrev != NULL)
+            {
+                ForthObject prevObj = pPrev->obj;
+                ForthObject obj = pCursor->obj;
+                pCursor->obj = prevObj;
+                pPrev->obj = obj;
+            }
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oListIterSplitMethod)
 	{
 		GET_THIS(oListIterStruct, pIter);
 
@@ -901,24 +905,26 @@ namespace OList
 	baseMethodEntry oListIterMembers[] =
 	{
 		METHOD("__newOp", oListIterNew),
-		METHOD("delete", oListIterDeleteMethod),
+        METHOD("delete", oListIterDeleteMethod),
+        METHOD("showInner", oListIterShowInnerMethod),
 
 		METHOD("seekNext", oListIterSeekNextMethod),
 		METHOD("seekPrev", oListIterSeekPrevMethod),
 		METHOD("seekHead", oListIterSeekHeadMethod),
 		METHOD("seekTail", oListIterSeekTailMethod),
-		METHOD_RET("next", oListIterNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
-		METHOD_RET("prev", oListIterPrevMethod, RETURNS_NATIVE(kBaseTypeInt)),
-		METHOD_RET("current", oListIterCurrentMethod, RETURNS_NATIVE(kBaseTypeInt)),
-		METHOD("remove", oListIterRemoveMethod),
+        METHOD_RET("atHead", oListIterAtHeadMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("atTail", oListIterAtTailMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("next", oListIterNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("prev", oListIterPrevMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("current", oListIterCurrentMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD("remove", oListIterRemoveMethod),
 		METHOD("unref", oListIterUnrefMethod),
-		METHOD_RET("findNext", oListIterFindNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
-		//METHOD_RET( "clone",                oListIterCloneMethod, RETURNS_OBJECT(kBCIListIter) ),
+        //METHOD_RET( "clone",                oListIterCloneMethod, RETURNS_OBJECT(kBCIListIter) ),
 
+        METHOD_RET("findNext", oListIterFindNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("swapNext", oListIterSwapNextMethod),
 		METHOD("swapPrev", oListIterSwapPrevMethod),
 		METHOD("split", oListIterSplitMethod),
-
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIList)),
 		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
@@ -927,10 +933,40 @@ namespace OList
 		END_MEMBERS
 	};
 
+    bool customListReader(const std::string& elementName, ForthObjectReader* reader)
+    {
+        if (elementName == "elements")
+        {
+            ForthCoreState* pCore = reader->GetCoreState();
+            oListStruct *dstList = (oListStruct *)(reader->getCustomReaderContext().pData);
+            reader->getRequiredChar('[');
+            ForthObject obj;
+            while (true)
+            {
+                char ch = reader->getChar();
+                if (ch == ']')
+                {
+                    break;
+                }
+                if (ch != ',')
+                {
+                    reader->ungetChar(ch);
+                }
+                reader->getObjectOrLink(&obj);
+                listAddTail(dstList, obj, pCore);
+                // TODO: release obj here?
+            }
+            return true;
+        }
+        return false;
+    }
+
 
 	void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("List", kBCIList, kBCIIterable, oListMembers);
+		ForthClassVocabulary* pListVoc = pEngine->AddBuiltinClass("List", kBCIList, kBCIIterable, oListMembers);
+        pListVoc->SetCustomObjectReader(customListReader);
+
 		pEngine->AddBuiltinClass("ListIter", kBCIListIter, kBCIIter, oListIterMembers);
 	}
 

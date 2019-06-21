@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 15
+VisualStudioVersion = 15.0.26730.8
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthLib", "ForthLib\ForthLib.vcxproj", "{749E1CE7-CD96-4DCC-8D3C-DE275F32C926}"
 EndProject
@@ -21,6 +21,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthMidi", "ForthMidi\ForthMidi.vcxproj", "{F3F5174D-B58C-42EC-B613-DE41577F75D2}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthLogger", "ForthLogger\ForthLogger.vcxproj", "{7C18707E-7041-4B4F-9B9E-882A3FA8603A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForthDLL", "ForthDLL\ForthDLL.vcxproj", "{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -138,8 +140,27 @@ Global
 		{7C18707E-7041-4B4F-9B9E-882A3FA8603A}.Release Midi|Win32.Build.0 = Release|Win32
 		{7C18707E-7041-4B4F-9B9E-882A3FA8603A}.Release|Win32.ActiveCfg = Release|Win32
 		{7C18707E-7041-4B4F-9B9E-882A3FA8603A}.Release|Win32.Build.0 = Release|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Debug Client|Win32.ActiveCfg = Debug|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Debug Client|Win32.Build.0 = Debug|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Debug GUI|Win32.ActiveCfg = Debug|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Debug GUI|Win32.Build.0 = Debug|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Debug Midi|Win32.ActiveCfg = Debug|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Debug Midi|Win32.Build.0 = Debug|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Debug Server|Win32.ActiveCfg = Debug|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Debug Server|Win32.Build.0 = Debug|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Debug|Win32.ActiveCfg = Debug|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Debug|Win32.Build.0 = Debug|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Release GUI|Win32.ActiveCfg = Release|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Release GUI|Win32.Build.0 = Release|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Release Midi|Win32.ActiveCfg = Release|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Release Midi|Win32.Build.0 = Release|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Release|Win32.ActiveCfg = Release|Win32
+		{6B420A2F-8341-4EF9-A546-BBBDFB2AA720}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9577CFAE-2CE0-4EFD-A9F4-959D1504323F}
 	EndGlobalSection
 EndGlobal

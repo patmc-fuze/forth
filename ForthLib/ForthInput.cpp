@@ -223,17 +223,6 @@ ForthInputStack::IsEmpty(void)
 	return (mpHead == NULL) ? true : mpHead->IsEmpty();
 }
 
-bool ForthInputStack::HandleContinuation(const char* pContinuation)
-{
-    return (mpHead == nullptr) ? false : mpHead->HandleContinuation(pContinuation);
-}
-
-
-char* ForthInputStack::AddContinuationLine()
-{
-    return (mpHead == nullptr) ? nullptr : mpHead->AddContinuationLine();
-}
-
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -259,27 +248,6 @@ ForthInputStream::~ForthInputStream()
     {
         __FREE( mpBufferBase );
     }
-}
-
-
-bool ForthInputStream::HandleContinuation(const char* pContinuation)     // return true if a continuation line should be appended
-{
-    bool result = false;
-    if (pContinuation != nullptr)
-    {
-        int len = strlen(pContinuation);
-        if ((len > 0) && (mWriteOffset >= len))
-        {
-            char* pLineEnd = mpBufferBase + (mWriteOffset - len);
-            if (strcmp(pLineEnd, pContinuation) == 0)
-            {
-                mWriteOffset -= len;
-                mpBufferBase[mWriteOffset] = '\0';
-                result = true;
-            }
-        }
-    }
-    return result;
 }
 
 const char *
@@ -537,30 +505,6 @@ ForthFileInputStream::GetLine( const char *pPrompt )
     return pBuffer;
 }
 
-char * ForthFileInputStream::AddContinuationLine()
-{
-    char *pBuffer;
-
-    //mLineStartOffset = ftell(mpInFile);
-
-    pBuffer = fgets(mpBufferBase + mWriteOffset, mBufferLen - mWriteOffset, mpInFile);
-
-    mpBufferBase[mBufferLen - 1] = '\0';
-    mWriteOffset = strlen(mpBufferBase);
-    if (mWriteOffset > 0)
-    {
-        // trim trailing linefeed if any
-        if (mpBufferBase[mWriteOffset - 1] == '\n')
-        {
-            --mWriteOffset;
-            mpBufferBase[mWriteOffset] = '\0';
-        }
-    }
-    mLineNumber++;
-    return pBuffer;
-}
-
-
 int
 ForthFileInputStream::GetLineNumber( void )
 {
@@ -671,37 +615,6 @@ ForthConsoleInputStream::GetLine( const char *pPrompt )
     mLineNumber++;
     return pBuffer;
 }
-
-char * ForthConsoleInputStream::AddContinuationLine()
-{
-    char *pBuffer;
-
-#if defined(LINUX) || defined(MACOSX)
-    do
-    {
-        pBuffer = readline("");
-    } while (pBuffer == nullptr);
-    add_history(pBuffer);
-    strncpy(mpBufferBase + mWriteOffset, pBuffer, mBufferLen - mWriteOffset);
-#else
-    pBuffer = fgets(mpBufferBase + mWriteOffset, (mBufferLen - mWriteOffset) - 1, stdin);
-#endif
-
-    mpBufferBase[mBufferLen - 1] = '\0';
-    mWriteOffset = strlen(mpBufferBase);
-    if (mWriteOffset > 0)
-    {
-        // trim trailing linefeed if any
-        if (mpBufferBase[mWriteOffset - 1] == '\n')
-        {
-            --mWriteOffset;
-            mpBufferBase[mWriteOffset] = '\0';
-        }
-    }
-    mLineNumber++;
-    return pBuffer;
-}
-
 
 const char*
 ForthConsoleInputStream::GetType( void )
@@ -840,38 +753,6 @@ ForthBufferInputStream::GetLine( const char *pPrompt )
         mReadOffset = 0;
         mWriteOffset = (pDst - mpBufferBase);
 		pBuffer = mpBufferBase;
-    }
-
-    return pBuffer;
-}
-
-
-char *
-ForthBufferInputStream::AddContinuationLine()
-{
-    char *pBuffer = NULL;
-    char *pDst, c;
-
-    SPEW_SHELL("ForthBufferInputStream::AddContinuationLine %s:%s  {%s}\n", GetType(), GetName(), mpDataBuffer);
-    if (mpDataBuffer < mpDataBufferLimit)
-    {
-        pDst = mpBufferBase + mWriteOffset;
-        while (mpDataBuffer < mpDataBufferLimit)
-        {
-            c = *mpDataBuffer++;
-            if ((c == '\0') || (c == '\n') || (c == '\r'))
-            {
-                break;
-            }
-            else
-            {
-                *pDst++ = c;
-            }
-        }
-        *pDst = '\0';
-
-        mWriteOffset = (pDst - mpBufferBase);
-        pBuffer = mpBufferBase;
     }
 
     return pBuffer;

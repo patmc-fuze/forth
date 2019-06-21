@@ -74,11 +74,7 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
 	{
 	case NATIVE_OPTYPE:
 		{
-			if ((op == gCompiledOps[OP_INTO]) || (op == gCompiledOps[OP_INTO_PLUS]))
-			{
-			   // we need this to support initialization of local string vars (ugh)
-			   mpLastIntoOpcode = pOpcode;
-			}
+            long lastOp = op;
 
 			if (((mCompileComboOpFlags & kCERefOp) != 0)
                 && GetPreviousOpcode(previousType, previousVal)
@@ -97,8 +93,15 @@ void ForthOpcodeCompiler::CompileOpcode( forthOpType opType, long opVal )
                 {
                     op = COMPILED_OP(kOpLocalRefOpCombo, previousVal | (uVal << 12));
                 }
+                lastOp = uVal;
             }
-		}
+
+            if ((lastOp == gCompiledOps[OP_INTO]) || (lastOp == gCompiledOps[OP_INTO_PLUS]))
+            {
+                // we need this to support initialization of local string vars (ugh)
+                mpLastIntoOpcode = pOpcode;
+            }
+        }
 		break;
 
 	case kOpBranchZ:

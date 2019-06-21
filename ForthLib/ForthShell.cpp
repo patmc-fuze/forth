@@ -132,11 +132,12 @@ namespace
 	int makeDir( const char* pPath, int mode )
 	{
 #ifdef WIN32
-		return mkdir( pPath );
+		return _mkdir( pPath );
 #else
 		return mkdir( pPath, mode );
 #endif
 	}
+
 }
 
 // return is a DIR*
@@ -173,9 +174,8 @@ unsigned long ConsoleInputThreadRoutine( void* pThreadData );
 //                     ForthShell
 // 
 
-ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEngine *pEngine, ForthExtension *pExtension, ForthThread *pThread, int shellStackLongs)
+ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEngine *pEngine, ForthExtension *pExtension, int shellStackLongs)
 : mpEngine(pEngine)
-, mpThread(pThread)
 , mFlags(0)
 , mNumArgs(0)
 , mpArgs(NULL)
@@ -190,7 +190,11 @@ ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEn
 , mDLLDir(NULL)
 , mTempDir(NULL)
 , mBlockfilePath(nullptr)
+, mContinuationBytesStored(0)
+, mInContinuationLine(false)
 {
+    initMemoryAllocation();
+
     mFileInterface.fileOpen = fopen;
     mFileInterface.fileClose = fclose;
     mFileInterface.fileRead = fread;
@@ -217,9 +221,14 @@ ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEn
 	mFileInterface.fileFlush = fflush;
 	mFileInterface.renameFile = rename;
 	mFileInterface.runSystem = system;
-	mFileInterface.changeDir = chdir;
-	mFileInterface.makeDir = makeDir;
-	mFileInterface.removeDir = rmdir;
+#ifdef WIN32
+    mFileInterface.changeDir = _chdir;
+    mFileInterface.removeDir = _rmdir;
+#else
+    mFileInterface.changeDir = chdir;
+    mFileInterface.removeDir = rmdir;
+#endif
+    mFileInterface.makeDir = makeDir;
 	mFileInterface.getStdIn = getStdIn;
 	mFileInterface.getStdOut = getStdOut;
 	mFileInterface.getStdErr = getStdErr;
@@ -229,7 +238,7 @@ ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEn
 	mFileInterface.rewindDir = rewindDir;
 
 #if defined( WIN32 )
-    DWORD result = GetCurrentDirectory(MAX_PATH, mWorkingDirPath);
+    DWORD result = GetCurrentDirectoryA(MAX_PATH, mWorkingDirPath);
     if (result == 0)
     {
         mWorkingDirPath[0] = '\0';
@@ -446,32 +455,20 @@ ForthShell::Run( ForthInputStream *pInStream )
     }
     mpEngine->PushInputFile( autoloadFilename );
 
+    const char* pPrompt = mpEngine->GetFastMode() ? "ok>" : "OK>";
     while ( !bQuit )
     {
-
         // try to fetch a line from current stream
-        pBuffer = mpInput->GetLine( mpEngine->GetFastMode() ? "ok>" : "OK>" );
-        if ( pBuffer == NULL )
+        pBuffer = mpInput->GetLine(pPrompt);
+        pBuffer = AddToInputLine(pBuffer);
+        if (pBuffer == nullptr)
         {
             bQuit = PopInputStream();
         }
-        else
-        {
-            // add on continuation lines if necessary
-            while (mpInput->HandleContinuation("\\+"))
-            {
-                pBuffer = mpInput->AddContinuationLine();
-                if (pBuffer == nullptr)
-                {
-                    bQuit = PopInputStream();
-                    break;
-                }
-            }
-        }
 
-        if ( !bQuit )
+        if ( !bQuit && !mInContinuationLine)
         {
-            result = ProcessLine();
+            result = ProcessLine(pBuffer);
 
             switch( result )
             {
@@ -514,11 +511,50 @@ ForthShell::Run( ForthInputStream *pInStream )
     return retVal;
 }
 
+#define CONTINUATION_MARKER "\\+"
+#define CONTINUATION_MARKER_LEN 2
+char* ForthShell::AddToInputLine(const char* pBuffer)
+{
+    char* pResult = nullptr;
+
+    mInContinuationLine = false;
+    if (pBuffer != nullptr)
+    {
+        // add on continuation lines if necessary
+        int lineLen = strlen(pBuffer);
+        int lenWithoutContinuation = lineLen - CONTINUATION_MARKER_LEN;
+        if (lenWithoutContinuation >= 0)
+        {
+            if (!strcmp(pBuffer + lenWithoutContinuation, CONTINUATION_MARKER))
+            {
+                // input line ends in continuation marker "\+"
+                lineLen = lenWithoutContinuation;
+                mInContinuationLine = true;
+            }
+        }
+        int newContinuationBytesStored = mContinuationBytesStored + lineLen;
+        if (newContinuationBytesStored < DEFAULT_INPUT_BUFFER_LEN)
+        {
+            memcpy(&mContinuationBuffer[mContinuationBytesStored], pBuffer, lineLen);
+            mContinuationBuffer[mContinuationBytesStored + lineLen] = '\0';
+            pResult = &mContinuationBuffer[0];
+            mContinuationBytesStored = (mInContinuationLine) ? newContinuationBytesStored : 0;
+        }
+        else
+        {
+            // TODO - string would overflow continuation buffer
+        }
+    }
+
+    return pResult;
+}
+
 // ProcessLine is the layer between Run and InterpretLine that implements pound directives
 eForthResult ForthShell::ProcessLine( const char *pSrcLine )
 {
     eForthResult result = kResultOk;
 
+    mInContinuationLine = false;
     const char* pLineBuff = mpInput->GetBufferBasePointer();
     if ( pSrcLine != NULL )
 	{
@@ -663,6 +699,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
 				{
 					result = kResultException;
 					mpEngine->SetError( kForthErrorIllegalOperation );
+                    mInContinuationLine = false;
 				}
 			}
 			else
@@ -1369,12 +1406,6 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
     }
 }
 
-
-#if defined(WIN32)
-#define PATH_SEPARATOR "\\"
-#else
-#define PATH_SEPARATOR "/"
-#endif
 
 void
 ForthShell::SetEnvironmentVars( const char ** envp )

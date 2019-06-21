@@ -93,19 +93,16 @@ typedef enum
 	kNumBuiltinClasses		// must be last
 } eBuiltinClassIndex;
 
-typedef enum
-{
-	kOMDelete,
-	kOMShow,
-	kOMGetClass,
-	kOMCompare
-} eObjectMethod;
-#define kObjectShowMethodIndex 1
-
 #define SHOW_OBJ_HEADER  pShowContext->ShowHeader(pCore, ((ForthClassObject *)(*((GET_TPM)-1)))->pVocab->GetName(), GET_TPD)
 // ForthShowAlreadyShownObject returns true if object was already shown (or null), does display for those cases
 bool ForthShowAlreadyShownObject(ForthObject* obj, ForthCoreState* pCore, bool addIfUnshown);
 void ForthShowObject(ForthObject& obj, ForthCoreState* pCore);
+
+extern "C"
+{
+    extern FORTHOP(unimplementedMethodOp);
+    extern FORTHOP(illegalMethodOp);
+};
 
 #define EXIT_IF_OBJECT_ALREADY_SHOWN if (ForthShowAlreadyShownObject(GET_THIS_PTR, pCore, true)) { METHOD_RETURN; return; }
 
@@ -131,6 +128,15 @@ struct oOutStreamStruct
 	char				eolChars[4];
 };
 
+struct InStreamFuncs
+{
+    streamCharInRoutine		    inChar;
+    streamBytesInRoutine		inBytes;
+    streamLineInRoutine		    inLine;
+    streamStringInRoutine		inString;
+};
+
+
 enum
 {
 	kOutStreamPutCharMethod = kNumBaseMethods,
@@ -148,6 +154,7 @@ struct oInStreamStruct
 	ulong               refCount;
 	void*               pUserData;
 	int					bTrimEOL;
+    InStreamFuncs*      pInFuncs;
 };
 
 typedef std::vector<ForthObject> oArray;

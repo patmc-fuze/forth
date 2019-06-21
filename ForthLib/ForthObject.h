@@ -50,9 +50,10 @@
 
 enum
 {
-    // all objects have methods 0..5
+    // all objects have methods 0..6
     kMethodDelete,
     kMethodShow,
+    kMethodShowInner,
     kMethodGetClass,
     kMethodCompare,
 	kMethodKeep,

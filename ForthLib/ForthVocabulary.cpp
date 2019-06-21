@@ -947,10 +947,20 @@ long ForthDLLVocabulary::LoadDLL( void )
     }
 #if defined(WIN32)
     mhDLL = LoadLibrary(pDLLSrc);
+    if (mhDLL == 0)
+    {
+        pEngine->SetError(kForthErrorFileOpen, "failed to open DLL ");
+        pEngine->AddErrorText(pDLLSrc);
+    }
     delete[] pDLLPath;
     return (long)mhDLL;
 #elif defined(LINUX) || defined(MACOSX)
     mLibHandle = dlopen(pDLLSrc, RTLD_LAZY);
+    if (mLibHandle == nullptr)
+    {
+        pEngine->SetError(kForthErrorFileOpen, "failed to open DLL ");
+        pEngine->AddErrorText(pDLLSrc);
+    }
     delete[] pDLLPath;
     return (long)mLibHandle;
 #endif
@@ -1402,7 +1412,7 @@ namespace OVocabulary
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oVocabularyIterSeekNewestMethod)
+	FORTHOP(oVocabularyIterSeekHeadMethod)
 	{
 		GET_THIS(oVocabularyIterStruct, pIter);
 		ForthVocabulary* pVocab = pIter->vocabulary;
@@ -1416,21 +1426,22 @@ namespace OVocabulary
 		METHOD_RETURN;
 	}
 
-	FORTHOP(oVocabularyIterSeekNextMethod)
-	{
-		GET_THIS(oVocabularyIterStruct, pIter);
-		ForthVocabulary* pVocab = pIter->vocabulary;
-		long* pEntry = NULL;
-		if ((pVocab != NULL) && (pIter->cursor != NULL))
-		{
-			pIter->cursor = pVocab->NextEntrySafe(pIter->cursor);
-			pEntry = pIter->cursor;
-		}
-		SPUSH((long)pEntry);
-		METHOD_RETURN;
-	}
+    FORTHOP(oVocabularyIterNextMethod)
+    {
+        GET_THIS(oVocabularyIterStruct, pIter);
+        ForthVocabulary* pVocab = pIter->vocabulary;
+        int found = 0;
+        if ((pVocab != NULL) && (pIter->cursor != NULL))
+        {
+            SPUSH((long)(pIter->cursor));
+            pIter->cursor = pVocab->NextEntrySafe(pIter->cursor);
+            found--;
+        }
+        SPUSH(found);
+        METHOD_RETURN;
+    }
 
-	FORTHOP(oVocabularyIterFindEntryByNameMethod)
+    FORTHOP(oVocabularyIterFindEntryByNameMethod)
 	{
 		GET_THIS(oVocabularyIterStruct, pIter);
 		ForthVocabulary* pVocab = pIter->vocabulary;
@@ -1510,15 +1521,15 @@ namespace OVocabulary
 		METHOD("__newOp", oVocabularyIterNew),
 		METHOD("delete", oVocabularyIterDeleteMethod),
 		//METHOD("show", oVocabularyIterShowMethod),
-		METHOD("seekNewestEntry", oVocabularyIterSeekNewestMethod),
-		METHOD("seekNextEntry", oVocabularyIterSeekNextMethod),
+		METHOD("seekHead", oVocabularyIterSeekHeadMethod),
+		METHOD("next", oVocabularyIterNextMethod),
 		METHOD("findEntryByName", oVocabularyIterFindEntryByNameMethod),
 		METHOD("findNextEntryByName", oVocabularyIterFindNextEntryByNameMethod),
 		METHOD("findEntryByValue", oVocabularyIterFindEntryByValueMethod),
 		METHOD("findNextEntryByValue", oVocabularyIterFindNextEntryByValueMethod),
 		METHOD("removeEntry", oVocabularyIterRemoveEntryMethod),
 
-		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIArray)),
+		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIVocabulary)),
 		MEMBER_VAR("cursor", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt)),
 		//MEMBER_VAR("vocabulary", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt)),
 

@@ -18,6 +18,7 @@ class ForthClassVocabulary;
 class ForthNativeType;
 class ForthTypesManager;
 class ForthStructCodeGenerator;
+class ForthObjectReader;
 
 // each new structure type definition is assigned a unique index
 // the struct type index is:
@@ -50,6 +51,8 @@ typedef struct
 	ForthClassVocabulary*       pVocab;
     long                        newOp;
 } ForthClassObject;
+
+typedef bool(*CustomObjectReader)(const std::string& elementName, ForthObjectReader* reader);
 
 ///////////////////////////////////////
 
@@ -200,7 +203,11 @@ public:
 
     virtual void        EndDefinition();
 
-	virtual void		ShowData(const void* pData, ForthCoreState* pCore);
+    virtual void		ShowData(const void* pData, ForthCoreState* pCore, bool showId);
+    // returns number of top-level data items shown
+    // pass optional pEndVocab to prevent showing items from that vocab or lower
+    virtual int		    ShowDataInner(const void* pData, ForthCoreState* pCore,
+        ForthStructVocabulary* pEndVocab = nullptr);
 
 	inline long			GetInitOpcode() { return mInitOpcode;  }
 	void				SetInitOpcode(long op);
@@ -241,13 +248,15 @@ public:
     ForthClassVocabulary* ParentClass( void );
 
     virtual void        PrintEntry( long*   pEntry );
+    void                SetCustomObjectReader(CustomObjectReader reader);
+    CustomObjectReader  GetCustomObjectReader();
 
 protected:
     long                        mCurrentInterface;
 	ForthClassVocabulary*       mpParentClass;
 	std::vector<ForthInterface *>	mInterfaces;
     ForthClassObject*           mpClassObject;
-
+    CustomObjectReader          mCustomReader;
 	static ForthClassVocabulary* smpObjectClass;
 };
 

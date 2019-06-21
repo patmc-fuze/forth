@@ -8,6 +8,8 @@
 
 //#include "stdafx.h"
 
+#include "ForthMemoryManager.h"
+
 struct ForthCoreState;
 
 typedef unsigned int uint32;
@@ -338,6 +340,18 @@ typedef void (*streamBytesOutRoutine) ( ForthCoreState* pCore, void *pData, cons
 
 // stream string output routine type
 typedef void (*streamStringOutRoutine) ( ForthCoreState* pCore, void *pData, const char *pBuff );
+
+// stream character input routine type - returns 1 for char gotten, 0 for EOF
+typedef int (*streamCharInRoutine) (ForthCoreState* pCore, void *pData, int& ch);
+
+// stream block input routine type - returns number of chars gotten
+typedef int (*streamBytesInRoutine) (ForthCoreState* pCore, void *pData, char *pBuff, int numChars);
+
+// stream string input routine type - returns number of chars gotten
+typedef int(*streamStringInRoutine) (ForthCoreState* pCore, void *pData, ForthObject& dstString);
+
+// stream line input routine type - returns number of chars gotten
+typedef int(*streamLineInRoutine) (ForthCoreState* pCore, void *pData, char *pBuff, int maxChars);
 
 // these routines allow code external to forth to redirect the forth output stream
 extern void GetForthConsoleOutStream( ForthCoreState* pCore, ForthObject& outObject );
@@ -712,19 +726,4 @@ typedef enum
 #define DLL_ENTRY_FLAG_RETURN_VOID		0x10000
 #define DLL_ENTRY_FLAG_RETURN_64BIT		0x20000
 #define DLL_ENTRY_FLAG_STDCALL			0x40000
-
-// memory allocation wrappers
-void* ForthAllocateBlock(size_t numBytes);
-void* ForthReallocateBlock(void *pMemory, size_t numBytes);
-void ForthFreeBlock(void* pBlock);
-
-#if 0
-#define __MALLOC ForthAllocateBlock
-#define __REALLOC ForthReallocateBlock
-#define __FREE ForthFreeBlock
-#else
-#define __MALLOC malloc
-#define __REALLOC realloc
-#define __FREE free
-#endif
 

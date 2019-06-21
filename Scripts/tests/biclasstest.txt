@@ -161,17 +161,39 @@ mko DoubleMap dmapA
 dmapA.set( valA 1.7d )  dmapA.set( valB 2.3d )  dmapA.set( valC 33.0d )  dmapA.set( valD 1.234d )  dmapA.set( valE 5.789d )
 %nl dmapA.show %nl
 
+"===================================================\n"%s
 mko StringMap smapA
 smapA.set( valA "aa" )  smapA.set( valB "bb" )  smapA.set( valC "cc" )  smapA.set( valD "dd" )  smapA.set( valE "ee" )
-smapA.get("aa").show smapA.get("bb").show smapA.get("cc").show smapA.get("dd").show smapA.get("ee").show  smapA.get("foo") %2x %nl
+smapA.show %nl
+"===================================================\n"%s
+: testsmapAGet
+  -> ptrTo byte pName
+  if(smapA.grab(pName))
+    <Object>.show
+  else
+    pName %s " not found in smapA\n" %s
+  endif
+;
+testsmapAGet("aa")
+testsmapAGet("bb")
+testsmapAGet("cc")
+testsmapAGet("cc")
+testsmapAGet("ee")
+testsmapAGet("foo")
+%nl
 %nl smapA.show %nl
 
 mko List listA
-listA.addHead(imapA.get( 'b' ))  listA.addHead(imapA.get( 'c' ))  listA.addHead(imapA.get( 'd' ))
+: tlistA
+  if(imapA.grab)
+    listA.addHead
+  endif
+;
+tlistA('b') tlistA('c') tlistA('d')
 %nl listA.show %nl
 
 mko Array arrayA
-arrayA.push(imapA.get( 'a' ))  arrayA.push(valB)  arrayA.push(imapA.get( 'c' ))
+arrayA.push(imapA.grab( 'a' ) drop)  arrayA.push(valB)  arrayA.push(imapA.grab( 'c' ) drop)
 %nl arrayA.show %nl
 
 : showArray

@@ -7,6 +7,22 @@
 
 null -> ptrTo Instruction __nextLoc
 
+// make_loc(locationId longDescription shortDescription flags)
+//   adds a Place to game.places
+//   sets game.start[locationId] = first index in game.travels for this location
+
+// make_inst(motionWord conditionId destLocationId)
+//   sets motion info in current entry in game.travels, doesn't increment current entry
+
+// make_ins(motionWord destLocationId)
+//   adds a non-conditional entry to game.travels, increments current entry
+
+// make_cond_ins(motionWord conditionId destLocationId)
+//   adds a conditional entry to game.travels, increments current entry
+
+// ditto(motionWord)
+//    adds another entry to game.travels, same as previous entry except for motionWord
+
 // void make_loc(Instruction *q, Location x, const char *l, const char *s, unsigned int f)
 : make_loc
   mko Place place
@@ -54,6 +70,7 @@ null -> ptrTo Instruction __nextLoc
   make_inst(m previousInstruction.cond previousInstruction.dest)
   sizeOf Instruction ->+ __nextLoc
 ;
+
 // cond values:
 // 0            no condition, always obey motion word
 // 100 - 199    obey command if carrying object(cond - 100)

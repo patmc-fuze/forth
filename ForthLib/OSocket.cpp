@@ -30,12 +30,6 @@
 
 #include "OSocket.h"
 
-extern "C"
-{
-    extern void unimplementedMethodOp(ForthCoreState *pCore);
-    extern void illegalMethodOp(ForthCoreState *pCore);
-};
-
 namespace OSocket
 {
     //////////////////////////////////////////////////////////////////////
@@ -83,32 +77,6 @@ namespace OSocket
 #endif
         }
         FREE_OBJECT(pSocket);
-        METHOD_RETURN;
-    }
-
-    FORTHOP(oSocketShowMethod)
-    {
-        char buff[32];
-        GET_THIS(oSocketStruct, pSocket);
-
-        ForthEngine *pEngine = ForthEngine::GetInstance();
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        pShowContext->BeginIndent();
-        SHOW_OBJ_HEADER;
-        pShowContext->ShowIndent("'fd' : ");
-        sprintf(buff, "%d,", pSocket->fd);
-        pShowContext->EndElement(buff);
-        pShowContext->ShowIndent("'domain' : ");
-        sprintf(buff, "%d,", pSocket->domain);
-        pShowContext->EndElement(buff);
-        pShowContext->ShowIndent("'type' : ");
-        sprintf(buff, "%d,", pSocket->type);
-        pShowContext->EndElement(buff);
-        pShowContext->ShowIndent("'protocol' : ");
-        sprintf(buff, "%d,", pSocket->protocol);
-        pShowContext->EndElement(buff);
-        pShowContext->EndIndent();
-        pShowContext->ShowIndent("}");
         METHOD_RETURN;
     }
 
@@ -264,7 +232,7 @@ namespace OSocket
         int flags = SPOP;
         size_t len = SPOP;
         char *buf = (char *)(SPOP);
-        int socketFD = SPOP;
+        //int socketFD = SPOP;  huh? what was this supposed to be?
         int result = recvfrom(pSocket->fd, buf, len, flags, destAddr, pAddrLen);
         SPUSH(result);
         METHOD_RETURN;
@@ -365,7 +333,7 @@ namespace OSocket
     {
         METHOD("__newOp", oSocketNew),
         METHOD("delete", oSocketDeleteMethod),
-        METHOD("show", oSocketShowMethod),
+
         METHOD_RET("open", oSocketOpenMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD_RET("close", oSocketCloseMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD_RET("bind", oSocketBindMethod, RETURNS_NATIVE(kBaseTypeInt)),

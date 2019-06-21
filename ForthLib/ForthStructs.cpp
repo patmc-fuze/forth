@@ -404,16 +404,16 @@ ForthTypesManager::GetFieldInfo( long fieldType, long& fieldBytes, long& alignme
     }
     else if ( CODE_IS_NATIVE( fieldType ) )
     {
+        alignment = gpNativeTypes[subType]->GetAlignment();
         if ( subType == kBaseTypeString )
         {
             // add in for maxLen, curLen fields & terminating null byte
-            fieldBytes = 9 + CODE_TO_STRING_BYTES( fieldType );
+            fieldBytes = (12 + CODE_TO_STRING_BYTES( fieldType )) & ~(alignment - 1);
         }
         else
         {
             fieldBytes = gpNativeTypes[subType]->GetSize();
         }
-        alignment = gpNativeTypes[subType]->GetAlignment();
     }
     else
     {
@@ -1119,200 +1119,205 @@ ForthStructVocabulary::GetTypeName( void )
 }
 
 void
-ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore)
+ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore, bool showId)
 {
-	char buffer[32];
-	const char* pStruct = (const char*)pData;
 	ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-	ForthStructVocabulary* pVocab = this;
-	bool notFirstTime = false;
 
-	pShowContext->EndElement("{");
-	pShowContext->BeginIndent();
-	pShowContext->ShowIDElement(GetName(), pData);
-	bool foundSomething;
+    pShowContext->BeginObject(GetName(), pData, showId);
 
-	while (pVocab != NULL)
-	{
-		long* pEntry = pVocab->GetNewestEntry();
-		long* pEntriesEnd = pVocab->GetEntriesEnd();
-		long previousOffset = pVocab->GetSize();
-        if (pEntry != nullptr)
+    ForthStructVocabulary* pVocab = this;
+
+    while (pVocab != nullptr)
+    {
+        pVocab->ShowDataInner(pData, pCore);
+        pVocab = pVocab->BaseVocabulary();
+    }
+
+    pShowContext->EndObject();
+}
+
+int
+ForthStructVocabulary::ShowDataInner(const void* pData, ForthCoreState* pCore, ForthStructVocabulary* pEndVocab)
+{
+    long* pEntry = GetNewestEntry();
+    if (pEntry == nullptr)
+    {
+        return 0;
+    }
+
+    char buffer[256];
+    const char* pStruct = (const char*)pData;
+    ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+    ForthStructVocabulary* pVocab = this;
+
+    const char* pVocabName = pVocab->GetName();
+    long* pEntriesEnd = pVocab->GetEntriesEnd();
+	long previousOffset = pVocab->GetSize();
+    while (pEntry < pEntriesEnd)
+    {
+        long elementSize = VOCABENTRY_TO_ELEMENT_SIZE(pEntry);
+
+        if (elementSize != 0)
         {
-            while (pEntry < pEntriesEnd)
+            long typeCode = VOCABENTRY_TO_TYPECODE(pEntry);
+            long byteOffset = VOCABENTRY_TO_FIELD_OFFSET(pEntry);
+            // this relies on the fact that entries come up in reverse order of base offset
+            long numElements = (previousOffset - byteOffset) / elementSize;
+            previousOffset = byteOffset;
+            long baseType = CODE_TO_BASE_TYPE(typeCode);
+            bool isNative = CODE_IS_NATIVE(typeCode);
+            bool isPtr = CODE_IS_PTR(typeCode);
+            bool isArray = CODE_IS_ARRAY(typeCode);
+            int sval;
+            unsigned int uval;
+
+            // skip displaying __refCount (at offset 0) if the showRefCount flag is false
+            if ((baseType != kBaseTypeUserDefinition) && (baseType != kBaseTypeVoid)
+                && ((byteOffset != 0) || pShowContext->GetShowRefCount() || strcmp(buffer, "__refCount")))
             {
-                long elementSize = VOCABENTRY_TO_ELEMENT_SIZE(pEntry);
+                pVocab->GetEntryName(pEntry, buffer, sizeof(buffer));
+                pShowContext->BeginElement(buffer);
 
-                if (elementSize != 0)
+                // mark buffer as empty by default
+                buffer[0] = '\0';
+
+                if (isArray)
                 {
-                    long typeCode = VOCABENTRY_TO_TYPECODE(pEntry);
-                    long byteOffset = VOCABENTRY_TO_FIELD_OFFSET(pEntry);
-                    // this relies on the fact that entries come up in reverse order of base offset
-                    long numElements = (previousOffset - byteOffset) / elementSize;
-                    previousOffset = byteOffset;
-                    long baseType = CODE_TO_BASE_TYPE(typeCode);
-                    bool isNative = CODE_IS_NATIVE(typeCode);
-                    bool isPtr = CODE_IS_PTR(typeCode);
-                    bool isArray = CODE_IS_ARRAY(typeCode);
-                    int sval;
-                    unsigned int uval;
-
-                    //mpEngine->ConsoleOut("\"");
-                    pVocab->GetEntryName(pEntry, buffer, sizeof(buffer));
-                    // skip displaying __refCount (at offset 0) if the showRefCount flag is false
-                    if ((byteOffset != 0) || pShowContext->GetShowRefCount() || strcmp(buffer, "__refCount"))
-                    {
-                        if (notFirstTime && foundSomething)
-                        {
-                            pShowContext->EndElement(",");
-                        }
-
-                        pShowContext->ShowIndent("'");
-                        mpEngine->ConsoleOut(buffer);
-                        //mpEngine->ConsoleOut("\" : ");
-                        mpEngine->ConsoleOut("' : ");
-
-                        // mark buffer as empty by default
-                        buffer[0] = 0;
-
-                        foundSomething = true;
-                        if (isArray)
-                        {
-                            //mpEngine->ConsoleOut("[");
-                            pShowContext->EndElement("[");
-                            pShowContext->BeginIndent();
-                            pShowContext->ShowIndent();
-                        }
-                        else
-                        {
-                            numElements = 1;
-                        }
-                        if (isPtr)
-                        {
-                            // hack to print all pointers in hex
-                            baseType = kBaseTypeOp;
-                        }
-                        while (numElements > 0)
-                        {
-                            switch (baseType)
-                            {
-                            case kBaseTypeByte:
-                                sval = *((const char*)(pStruct + byteOffset));
-                                sprintf(buffer, "%d", sval);
-                                break;
-
-                            case kBaseTypeUByte:
-                                uval = *((const unsigned char*)(pStruct + byteOffset));
-                                sprintf(buffer, "%u", uval);
-                                break;
-
-                            case kBaseTypeShort:
-                                sval = *((const short*)(pStruct + byteOffset));
-                                sprintf(buffer, "%d", sval);
-                                break;
-
-                            case kBaseTypeUShort:
-                                uval = *((const unsigned short*)(pStruct + byteOffset));
-                                sprintf(buffer, "%u", uval);
-                                break;
-
-                            case kBaseTypeInt:
-                                sval = *((const int*)(pStruct + byteOffset));
-                                sprintf(buffer, "%d", sval);
-                                break;
-
-                            case kBaseTypeUInt:
-                                uval = *((const unsigned int*)(pStruct + byteOffset));
-                                sprintf(buffer, "%u", uval);
-                                break;
-
-                            case kBaseTypeLong:
-                                sprintf(buffer, "%lld", *((const long long*)(pStruct + byteOffset)));
-                                break;
-
-                            case kBaseTypeULong:
-                                sprintf(buffer, "%llu", *((const unsigned long long*)(pStruct + byteOffset)));
-                                break;
-
-                            case kBaseTypeFloat:
-                                sprintf(buffer, "%f", *((const float*)(pStruct + byteOffset)));
-                                break;
-
-                            case kBaseTypeDouble:
-                                sprintf(buffer, "%f", *((const double*)(pStruct + byteOffset)));
-                                break;
-
-                            case kBaseTypeString:
-                                mpEngine->ConsoleOut("'");
-                                mpEngine->ConsoleOut(pStruct + byteOffset + 8);
-                                mpEngine->ConsoleOut("'");
-                                break;
-
-                            case kBaseTypeOp:
-                                uval = *((const unsigned int*)(pStruct + byteOffset));
-                                sprintf(buffer, "0x%x", uval);
-                                break;
-
-                            case kBaseTypeStruct:
-                            {
-                                ForthTypeInfo* pStructInfo = ForthTypesManager::GetInstance()->GetTypeInfo(CODE_TO_STRUCT_INDEX(typeCode));
-                                pStructInfo->pVocab->ShowData(pStruct + byteOffset, pCore);
-                                //elementSize = pStructInfo->pVocab->GetSize();
-                                break;
-                            }
-
-                            case kBaseTypeObject:
-                            {
-                                ForthObject obj = *((ForthObject*)(pStruct + byteOffset));
-                                ForthShowObject(obj, pCore);
-                                break;
-                            }
-
-                            default:
-                                /*
-                                kBaseTypeUserDefinition,                // 14 - user defined forthop
-                                kBaseTypeVoid,							// 15 - void
-                                */
-                                foundSomething = false;
-                                break;
-                            }
-
-                            if (foundSomething)
-                            {
-                                notFirstTime = true;
-                            }
-                            // if something was put in the buffer, print it
-                            if (buffer[0])
-                            {
-                                mpEngine->ConsoleOut(buffer);
-                            }
-                            byteOffset += elementSize;
-                            --numElements;
-                            if (numElements > 0)
-                            {
-                                pShowContext->EndElement(",");
-                                pShowContext->ShowIndent();
-                            }
-
-                        }  // end while numElements > 0
-
-                        if (isArray)
-                        {
-                            pShowContext->EndIndent();
-                            pShowContext->EndElement();
-                            pShowContext->ShowIndent("]");
-                        }
-                    }
+                    pShowContext->BeginArray();
                 }
-                pEntry = NextEntry(pEntry);
+                else
+                {
+                    numElements = 1;
+                }
+
+                if (isPtr)
+                {
+                    // hack to print all pointers in hex
+                    baseType = kBaseTypeOp;
+                }
+
+                int elementsPerLine = 0;
+                if (baseType == kBaseTypeStruct || baseType == kBaseTypeObject)
+                {
+                    elementsPerLine = 1;
+                }
+
+                while (numElements > 0)
+                {
+                    if (isArray)
+                    {
+                        pShowContext->BeginArrayElement();
+                    }
+
+                    switch (baseType)
+                    {
+                    case kBaseTypeByte:
+                        sval = *((const char*)(pStruct + byteOffset));
+                        sprintf(buffer, "%d", sval);
+                        break;
+
+                    case kBaseTypeUByte:
+                        uval = *((const unsigned char*)(pStruct + byteOffset));
+                        sprintf(buffer, "%u", uval);
+                        break;
+
+                    case kBaseTypeShort:
+                        sval = *((const short*)(pStruct + byteOffset));
+                        sprintf(buffer, "%d", sval);
+                        break;
+
+                    case kBaseTypeUShort:
+                        uval = *((const unsigned short*)(pStruct + byteOffset));
+                        sprintf(buffer, "%u", uval);
+                        break;
+
+                    case kBaseTypeInt:
+                        sval = *((const int*)(pStruct + byteOffset));
+                        sprintf(buffer, "%d", sval);
+                        break;
+
+                    case kBaseTypeUInt:
+                        uval = *((const unsigned int*)(pStruct + byteOffset));
+                        sprintf(buffer, "%u", uval);
+                        break;
+
+                    case kBaseTypeLong:
+                        sprintf(buffer, "%lld", *((const long long*)(pStruct + byteOffset)));
+                        break;
+
+                    case kBaseTypeULong:
+                        sprintf(buffer, "%llu", *((const unsigned long long*)(pStruct + byteOffset)));
+                        break;
+
+                    case kBaseTypeFloat:
+                        sprintf(buffer, "%f", *((const float*)(pStruct + byteOffset)));
+                        break;
+
+                    case kBaseTypeDouble:
+                        sprintf(buffer, "%f", *((const double*)(pStruct + byteOffset)));
+                        break;
+
+                    case kBaseTypeString:
+                        pShowContext->ShowQuotedText(pStruct + byteOffset + 8);
+                        break;
+
+                    case kBaseTypeOp:
+                        uval = *((const unsigned int*)(pStruct + byteOffset));
+                        sprintf(buffer, "0x%x", uval);
+                        break;
+
+                    case kBaseTypeStruct:
+                    {
+                        pShowContext->BeginNestedShow();
+
+                        ForthTypeInfo* pStructInfo = ForthTypesManager::GetInstance()->GetTypeInfo(CODE_TO_STRUCT_INDEX(typeCode));
+                        pStructInfo->pVocab->ShowData(pStruct + byteOffset, pCore, false);
+                        //elementSize = pStructInfo->pVocab->GetSize();
+
+                        pShowContext->EndNestedShow();
+                        break;
+                    }
+
+                    case kBaseTypeObject:
+                    {
+                        //pShowContext->BeginNestedShow();
+
+                        ForthObject obj = *((ForthObject*)(pStruct + byteOffset));
+                        ForthShowObject(obj, pCore);
+                        //mpEngine->FullyExecuteMethod(pCore, obj, kMethodInner);
+
+                        //pShowContext->EndNestedShow();
+                        break;
+                    }
+
+                    default:
+                        /*
+                        kBaseTypeUserDefinition,                // 14 - user defined forthop
+                        kBaseTypeVoid,							// 15 - void
+                        */
+                        break;
+                    }
+
+                    // if something was put in the buffer, print it
+                    if (buffer[0])
+                    {
+                        pShowContext->ShowText(buffer);
+                    }
+                    byteOffset += elementSize;
+                    --numElements;
+
+                }  // end while numElements > 0
+
+                if (isArray)
+                {
+                    pShowContext->EndArray();
+                }
             }
         }
+        pEntry = NextEntry(pEntry);
+    }
 
-		pVocab = pVocab->BaseVocabulary();
-	}
-	pShowContext->EndIndent();
-	pShowContext->EndElement();
-	pShowContext->ShowIndent("}");
+    return pShowContext->GetNumShown();
 }
 
 void ForthStructVocabulary::SetInitOpcode(long op)
@@ -1332,6 +1337,7 @@ ForthClassVocabulary::ForthClassVocabulary( const char*     pName,
 : ForthStructVocabulary( pName, typeIndex )
 , mpParentClass( NULL )
 , mCurrentInterface( 0 )
+, mCustomReader(nullptr)
 {
     mpClassObject = new ForthClassObject;
 	mpClassObject->refCount = 1;				// TBD: should this be 0? or a huge number?
@@ -1567,6 +1573,9 @@ ForthClassVocabulary::FindMethod( const char* pName )
 }
 
 
+// TODO: find a better way to do this
+extern long gObjectShowInnerOpcode;
+
 void
 ForthClassVocabulary::Extends( ForthClassVocabulary *pParentClass )
 {
@@ -1589,9 +1598,11 @@ ForthClassVocabulary::Extends( ForthClassVocabulary *pParentClass )
 				mInterfaces[i] = new ForthInterface;
 			}
 			mInterfaces[i]->Copy( mpParentClass->GetInterface( i ), isPrimaryInterface );
+
 			isPrimaryInterface = false;
 		}
-		mpClassObject->newOp = pParentClass->mpClassObject->newOp;
+        mInterfaces[0]->GetMethods()[kMethodShowInner] = gObjectShowInnerOpcode;
+        mpClassObject->newOp = pParentClass->mpClassObject->newOp;
 	}
 
 	ForthStructVocabulary::Extends( pParentClass );
@@ -1834,6 +1845,16 @@ const char *
 ForthClassVocabulary::GetTypeName( void )
 {
     return "classVocabulary";
+}
+
+void ForthClassVocabulary::SetCustomObjectReader(CustomObjectReader reader)
+{
+    mCustomReader = reader;
+}
+
+CustomObjectReader ForthClassVocabulary::GetCustomObjectReader()
+{
+    return mCustomReader;
 }
 
 // TBD: implement FindSymbol which iterates over all interfaces
