@@ -15,6 +15,7 @@ class: NoteDef
   m: delete
     oclear name
     oclear description
+    super.delete
   ;m
   
   m: init  // NAME DESCRIPTION ID ...
@@ -35,8 +36,8 @@ class: NoteFlagDef extends NoteDef
   long mask
   
   m: delete
-    super.delete
     oclear displayName
+    super.delete
   ;m
   
   m: init  // NAME DISPLAY_NAME DESCRIPTION ID ...
@@ -61,8 +62,8 @@ class: NoteTagDef extends NoteDef
   String displayName
   
   m: delete
-    super.delete
     oclear displayName
+    super.delete
   ;m
   
   m: init  // NAME DISPLAY_NAME DESCRIPTION ID ...
@@ -94,9 +95,9 @@ class: NoteSchema extends NoteDef
   ;m
   
   m: delete
-    super.delete
     oclear requiredParams
     oclear optionalParams
+    super.delete
   ;m
   
 ;class
@@ -110,6 +111,7 @@ class: NoteParam
   
   m: delete
     oclear sval
+    super.delete
   ;m
   
   m: getInt
@@ -173,9 +175,10 @@ class: Note
   m: delete
     oclear name
     oclear body
+    oclear children
     oclear params
     oclear obj
-    oclear children
+    super.delete
   ;m
 
   m: getParam    // PARAM_ID ...   false   OR   PARAM_OBJ true 
@@ -215,6 +218,7 @@ class: NoteDeck
   
   
   m: clearAll
+    oclear name
     oclear notes
     oclear noteMap
     oclear flags
@@ -225,11 +229,11 @@ class: NoteDeck
     oclear schemaMap
     oclear params
     oclear paramMap
-    oclear name
   ;m
   
   m: delete
     clearAll
+    super.delete
   ;m
   
   m: addTagDef      // NAME DISPLAY_NAME DESCRIPTION ... NEW_TAG_DEF

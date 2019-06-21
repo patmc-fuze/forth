@@ -1,8 +1,7 @@
 
 lf notedeck.txt
 
-autoforget HELPDECK
-: HELPDECK ;
+autoforget HelpDeck
 
 class: HelpDeck extends NoteDeck
 
@@ -58,6 +57,7 @@ class: HelpDeck extends NoteDeck
     oclear classesNote
     oclear memberSchema
     oclear memberTypeParamDef
+    super.delete
   ;m
   
   m: setFlags
@@ -338,6 +338,28 @@ class: HelpDeck extends NoteDeck
       listClasses
     endif
   ;m
+  
+  m: check
+    system.getVocabByName("forth") -> Vocabulary forthVoc
+    forthVoc.getValueLength -> int valueLength
+    forthVoc.headIter -> VocabularyIter iter
+    mko String opName
+    begin
+    while(iter.next)
+      valueLength + -> ptrTo byte pEntry
+      opName.setBytes(pEntry 1+ pEntry c@)
+      if(opsNote.getChild(opName.get))
+        2drop
+      else
+        opName.get %s " not found in help.\n" %s
+      endif
+      
+    repeat
+    oclear forthVoc
+    oclear opName
+    oclear iter
+  ;m
+
 ;class
 
 mko HelpDeck helpDeck
@@ -347,6 +369,9 @@ helpDeck.init
   oclear helpDeck
 ;
 
+: check
+  helpDeck.check
+;
 
 : mkf
   helpDeck.addFlagDef(blword $word('|') $word(0)) 2drop
@@ -1568,8 +1593,8 @@ addMethod addSymbol|NAME_PTR OP_TYPE OP_VALUE ADD_TO_ENGINE_BOOL ...|add a symbo
 addMember vocabulary|int (really a pointer)|
 
 addClass VocabularyIter|Iterator|vocabulary iterator object
-addMethod seekNewestEntry|...|seek to the newest entry in vocabulary
-addMethod seekNextEntry|...|seek to the next entry in vocabulary
+addMethod seekHead|...|seek to the newest entry in vocabulary
+addMethod next|... ENTRY_PTR true   OR   false|return vocabulary entry pointer at iterator cursor and true, return false if already at last entry, advance to next element
 addMethod findEntryByName|NAME_PTR ... ENTRY_PTR|seek to named entry, return entry pointer or null if not found
 addMethod findNextEntryByName|NAME_PTR ... ENTRY_PTR|seek to next named entry, return entry pointer or null if not found
 addMethod findEntryByValue|INT_VALUE ... ENTRY_PTR|seek to entry with specified value, return entry pointer or null if not found
@@ -1660,17 +1685,17 @@ addMethod listen|INT_BACKLOG ... INT_RESULT|listen to this socket, return 0 or g
 addMethod accept|DST_SOCKADDR_PTR INT_SOCKADDR_LEN ... SOCKET_OBJECT|accept a connection on this socket, returns connection socket
 addMethod connect|SOCKADDR_PTR INT_SOCKADDR_LEN ... INT_RESULT|connect this socket to specified remote address
 addMethod send|BUFFER_PTR INT_NUM_BYTES INT_FLAGS ... INT_RESULT|write bytes to this socket
-addMethod sendTo|BUFFER_PTR INT_NUM_BYTES INT_FLAGS SOCKADDR_PTR INT_SOCKADDR_LEN... INT_RESULT|write bytes to this socket using sendto
-addMethod recv|BUFFER_PTR INT_NUM_BYTES INT_FLAGS ... INT_RESULT|read bytes from this socket
-addMethod recvFrom|BUFFER_PTR INT_NUM_BYTES INT_FLAGS SOCKADDR_PTR INT_SOCKADDR_LEN... INT_RESULT|read bytes from this socket using recvfrom
+addMethod sendTo|BUFFER_PTR INT_NUM_BYTES INT_FLAGS SOCKADDR_PTR INT_SOCKADDR_LEN... INT_RESULT|write bytes to this socket and sends them to specified address
+addMethod recv|BUFFER_PTR INT_NUM_BYTES INT_FLAGS ... INT_RESULT|read bytes from this socket, can be connectionless
+addMethod recvFrom|BUFFER_PTR INT_NUM_BYTES INT_FLAGS SOCKADDR_PTR INT_SOCKADDR_LEN... INT_RESULT|read bytes from this socket using recvfrom, gets address that bytes came from
 addMethod write|BUFFER_PTR INT_NUM_BYTES ... INT_RESULT|write bytes to this socket
 addMethod read|BUFFER_PTR INT_NUM_BYTES ... INT_RESULT|read bytes from this socket
-//addClassOp inetPToN|INT_FAMILY SRC_ADDRESS_PTR DST_PTR ... INT_RESULT|
-//addClassOp inetNToP|INT_FAMILY SRC_ADDRESS_PTR DST_PTR INT_DST_LEN ... INT_RESULT|
-//addClassOp htonl|INT_VAL ... INT_RESULT|
-//addClassOp htons|INT_VAL ... INT_RESULT|
-//addClassOp ntohl|INT_VAL ... INT_RESULT|
-//addClassOp ntohs|INT_VAL ... INT_RESULT|
+//addClassOp inetPToN|INT_FAMILY SRC_TEXT_PTR DST_NETADDRESS_PTR ... INT_RESULT|convert network address string ac SRC_TEXT_PTR to network address in DST_NETADDRESS_PTR
+//addClassOp inetNToP|INT_FAMILY SRC_NETADDRESS_PTR DST_TEXT_PTR INT_DST_LEN ... INT_RESULT|convert network address at SRC_NETADDRESS_PTR to printable form in buffer at DST_TEXT_PTR, at most INT_DST_LEN characters
+//addClassOp htonl|INT_VAL ... INT_RESULT|convert integer from host byte order to network byte order
+//addClassOp htons|SHORT_VAL ... SHORT_RESULT|convert short from host byte order to network byte order
+//addClassOp ntohl|INT_VAL ... INT_RESULT|convert integer from network byte order to host byte order
+//addClassOp ntohs|SHORT_VAL ... SHORT_RESULT|convert short from network byte order to host byte order
 addMember fd|uint|socket file descriptor
 addMember domain|uint|socket domain
 addMember type|uint|socket type
@@ -1679,6 +1704,7 @@ addMember protocol|uint|socket protocol
 loaddone
 
 TODO:
+- add addClassOp and display class ops when showing a class
 - add base class methods and members when class is defined
 - add removeMethods which takes list of inherited methods to remove
   ? just remove them from the class card, or keep them marked as removed and display as such?
