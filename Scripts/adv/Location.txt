@@ -5,6 +5,23 @@ requires Verbs
 requires Hint
 requires Noun
 
+enum: eAssetFlags
+  kAssetHasLight        //  		0	LIGHT
+  kAssetWater           //  		1	IF BIT 2 IS ON: ON FOR OIL, OFF FOR WATER
+  kAssetLiquid          //  		2	LIQUID ASSET, SEE BIT 1
+  kAssetNoPirate        //  		3	PIRATE DOESN'T GO HERE UNLESS FOLLOWING PLAYER
+  //  	OTHER BITS ARE USED TO INDICATE AREAS OF INTEREST TO "HINT" ROUTINES:
+  kAssetTryEnterCave    //  		4	TRYING TO GET INTO CAVE
+  kAssetTryCatchBird    //  		5	TRYING TO CATCH BIRD
+  kAssetDealWithSnake   //  		6	TRYING TO DEAL WITH SNAKE
+  kAssetLostInMaze      //  		7	LOST IN MAZE
+  kAssetDarkRoom        //  		8	PONDERING DARK ROOM
+  kAssetWittsEnd        //  		9	AT WITT'S END
+  
+  // ASSET IS SET TO 2, OVERRIDING ALL OTHER BITS, IF LOC HAS FORCED MOTION.
+  kNumAssetFlags
+;enum
+
 class: Location extends ILocation
     
   m: init    // takes int number
@@ -36,6 +53,18 @@ class: Location extends ILocation
     oclear motionVerbsForPrintingMessage
     oclear printMessages
     oclear locationConditions
+  ;m
+
+  m: getAsset
+    assets.get
+  ;m
+  
+  m: setAsset  // ASSET_INDEX BOOL_VAL
+    swap assets.set
+  ;m
+  
+  m: needsSaving
+    numberOfVisits 0<>
   ;m
   
   m: showIt
