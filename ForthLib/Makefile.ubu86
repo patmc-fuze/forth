@@ -40,6 +40,8 @@ SRCS = \
 	ForthPipe.cpp \
 	ForthForgettable.cpp \
 	ForthThread.cpp \
+	ForthObjectReader.cpp \
+	ForthMemoryManager.cpp \
 	kbhit.cpp \
 	OArray.cpp \
 	OList.cpp \
