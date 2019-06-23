@@ -167,7 +167,7 @@ filePutString	=		48
 	.global	timesBop, times2Bop, times4Bop, times8Bop, divideBop, divide2Bop, divide4Bop, divide8Bop, divmodBop, modBop, negateBop
 	.global fplusBop, fminusBop, ftimesBop, fdivideBop,	dplusBop, dminusBop, dtimesBop, ddivideBop
 	.global orBop, andBop, xorBop, invertBop, lshiftBop, arshiftBop, rotateBop, notBop, trueBop, falseBop
-	.global nullBop, dnullBop, lshift64Bop, rshift64Bop, rotate64Bop
+	.global nullBop, dnullBop, lshift64Bop, rshift64Bop, rotate64Bop, reverseBop, countLeadingZerosBop, countTrailingZerosBop
 	.global equalsBop, notEqualsBop, greaterThanBop, greaterEqualsBop, lessThanBop, lessEqualsBop
 	.global equals0Bop, notEquals0Bop, greaterThan0Bop, greaterEquals0Bop, lessThan0Bop, lessEquals0Bop
 	.global rpushBop, rpopBop, rdropBop, rpBop, r0Bop, dupBop, checkDupBop, swapBop, overBop
@@ -4177,6 +4177,80 @@ rotateBop:
 	str	r1, [rsp]
 	bx	lr
 
+@ bit reverse r0 - trashes r1, r2, r3
+reverse32:
+	push	{r4}
+	ldr	r3, .reverseConstants
+    @ Knuth's algorithm
+
+    @ r0 = (r0 << 15) | (r0 >> 17);
+	ror	r0, r0, #17
+
+    @ r1 = (r0 ^ (r0 >> 10)) & 0x003f801f;
+	lsr	r2, r0, #10
+	eor	r2, r0
+	ldmia	r3!, {r4}
+	and	r1, r2, r4
+	
+    @ r0 = (r1 + (r1 << 10)) ^ r0;
+	lsl	r2, r1, #10
+	add	r2, r1
+	eor	r0, r2
+
+    @ r1 = (r0 ^ (r0 >> 4)) & 0x0e038421;
+	lsr	r2, r0, #4
+	eor	r2, r0
+	ldmia	r3!, {r4}
+	and	r1, r2, r4
+
+    @ r0 = (r1 + (r1 << 4)) ^ r0;
+	lsl	r2, r1, #4
+	add	r2, r1
+	eor	r0, r2, r0
+
+    @ r1 = (r0 ^ (r0 >> 2)) & 0x22488842;
+	lsr	r2, r0, #2
+	eor	r2, r0
+	ldmia	r3!, {r4}
+	and	r1, r2, r4
+
+    @ r0 = (r1 + (r1 << 2)) ^ r0;
+	lsl	r2, r1, #2
+	add	r2, r1
+	eor	r0, r2
+	str	r0, [rsp]
+	pop	{r4}
+	bx	lr
+
+	.align	2
+.reverseConstants:
+	.word	.revConstants
+.revConstants:
+	.word	0x003f801f, 0x0E038421, 0x22488842
+
+reverseBop:
+	ldr	r0, [rsp]
+	push	{lr}
+	bl	reverse32
+	pop	{lr}
+	str	r0, [rsp]
+	bx	lr
+	
+countLeadingZerosBop:
+	ldr	r0, [rsp]
+	clz	r1, r0
+	str	r1, [rsp]
+	bx	lr
+
+countTrailingZerosBop:
+	ldr	r0, [rsp]
+	push	{lr}
+	bl	reverse32
+	pop	{lr}
+	clz	r1, r0
+	str	r1, [rsp]
+	bx	lr
+
 @@@@@@@@@@@@@@@@@  not  @@@@@@@@@@@@@@@@@
 
 notBop:
@@ -6335,10 +6409,11 @@ methodWithSuperType:
 	stmdb	rrp!, {r2, r3}
 	ldr	r3, [r2, #-4]		@ r3 -> super vocabulary object data
 	ldr	r0, [r3, #4]			@ r0 -> super vocabulary
-	push	{rcore, lr}
+	push	{r1, rcore, lr}
 	bl	getSuperClassMethods
-	pop	{rcore, lr}
+	pop	{r1, rcore, lr}
 	@ r0 is super method table
+	str r0, [rcore, #tpm]
 	@ get method opcode
 	ldr	r0, [r0, r1, lsl #2]
 	ldr	r1, [rcore, #inner_execute]
