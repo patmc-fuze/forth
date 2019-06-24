@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "6E7980521E8B0EA400FB03ED"
-               BuildableName = "Forth"
+               BuildableName = "forth"
                BlueprintName = "Forth"
                ReferencedContainer = "container:Forth.xcodeproj">
             </BuildableReference>
@@ -26,6 +26,7 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      language = ""
       shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
       </Testables>
@@ -33,7 +34,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "6E7980521E8B0EA400FB03ED"
-            BuildableName = "Forth"
+            BuildableName = "forth"
             BlueprintName = "Forth"
             ReferencedContainer = "container:Forth.xcodeproj">
          </BuildableReference>
@@ -45,6 +46,7 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      language = ""
       launchStyle = "0"
       useCustomWorkingDirectory = "YES"
       customWorkingDirectory = "/Users/patmcelhatton/prj/Forth/Sandbox"
@@ -57,7 +59,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "6E7980521E8B0EA400FB03ED"
-            BuildableName = "Forth"
+            BuildableName = "forth"
             BlueprintName = "Forth"
             ReferencedContainer = "container:Forth.xcodeproj">
          </BuildableReference>
@@ -80,7 +82,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "6E7980521E8B0EA400FB03ED"
-            BuildableName = "Forth"
+            BuildableName = "forth"
             BlueprintName = "Forth"
             ReferencedContainer = "container:Forth.xcodeproj">
          </BuildableReference>

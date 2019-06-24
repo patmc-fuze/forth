@@ -4861,7 +4861,18 @@ entry reverseBop
 
 entry countLeadingZerosBop
 	mov	eax, [edx]
-	lzcnt	ebx, eax
+    ; NASM on Mac wouldn't do tzcnt or lzcnt, so I had to use bsr
+%ifdef MACOSX
+    mov ebx, 32
+    or  eax, eax
+    jz  clz1
+    bsr ecx, eax
+    mov ebx, 31
+    sub ebx, ecx
+clz1:
+%else
+    lzcnt    ebx, eax
+%endif
 	mov	[edx], ebx
 	jmp edi
 
@@ -4869,7 +4880,16 @@ entry countLeadingZerosBop
 
 entry countTrailingZerosBop
 	mov	eax, [edx]
-	tzcnt	ebx, eax
+    ; NASM on Mac wouldn't do tzcnt or lzcnt, so I had to use bsf
+%ifdef MACOSX
+    mov ebx, 32
+    or  eax, eax
+    jz  ctz1
+    bsf ebx, eax
+ctz1:
+%else
+    tzcnt	ebx, eax
+%endif
 	mov	[edx], ebx
 	jmp edi
 
