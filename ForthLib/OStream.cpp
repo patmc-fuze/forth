@@ -625,6 +625,7 @@ namespace OStream
 
         MEMBER_VAR("userData", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
         MEMBER_VAR("trimEOL", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__inFuncs", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
         // following must be last in table
         END_MEMBERS
@@ -784,6 +785,7 @@ namespace OStream
         pFileInStreamStruct->istream.pInFuncs = &fileInFuncs;
         pFileInStreamStruct->istream.bTrimEOL = true;
 		pFileInStreamStruct->pInFile = NULL;
+        printf("new fileInStream %p\n", pFileInStreamStruct);
 		PUSH_PAIR(pPrimaryInterface->GetMethods(), pFileInStreamStruct);
 	}
 
@@ -898,12 +900,16 @@ namespace OStream
 		GET_THIS(oFileInStreamStruct, pFileInStreamStruct);
 		if (pFileInStreamStruct->pInFile != NULL)
 		{
+            printf("oFileInStreamOpenMethod closing infile\n");
 			GET_ENGINE->GetShell()->GetFileInterface()->fileClose((FILE *)(pFileInStreamStruct->pInFile));
+            printf("oFileInStreamOpenMethod closing infile DONE\n");
 			pFileInStreamStruct->pInFile = NULL;
 		}
 		const char* access = (const char*)(SPOP);
 		const char* path = (const char*)(SPOP);
+        //printf("oFileInStreamOpenMethod fileOpen\n");
 		pFileInStreamStruct->pInFile = GET_ENGINE->GetShell()->GetFileInterface()->fileOpen(path, access);
+        printf("oFileInStreamOpenMethod fileOpen DONE\n");
 		SPUSH(pFileInStreamStruct->pInFile == nullptr ? 0 : -1);
 		METHOD_RETURN;
 	}
