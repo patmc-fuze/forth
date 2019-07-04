@@ -3815,7 +3815,7 @@ int oStringFormatSub(ForthCoreState* pCore, char* pBuffer, int bufferSize)
         result = (int)(SNPRINTF(pBuffer, bufferSize, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]));
         break;
     }
-	return (int)(SNPRINTF(pBuffer, bufferSize, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]));
+    return result;
 }
 
 #endif

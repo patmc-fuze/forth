@@ -1321,9 +1321,9 @@ GFORTHOP( doOpArrayBop )
 {
     // IP points to data field
     long* pVar = ((long *) (GET_IP)) + SPOP;
+    SET_IP((long *)(RPOP));
 
 	_doOpVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
 }
 #endif
 

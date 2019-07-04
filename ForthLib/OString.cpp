@@ -363,7 +363,8 @@ namespace OString
 		long newLen = SPOP;
 		oString* dst = resizeOString(pString, newLen);
 		dst->data[newLen] = '\0';
-        dst->curLen = newLen;
+        pString->hash = 0;
+        dst->curLen = strlen(&(dst->data[0]));
         METHOD_RETURN;
     }
 

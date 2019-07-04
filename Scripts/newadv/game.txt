@@ -3334,9 +3334,10 @@ long description of your location.")
     mko AdventureState advState
     root.set(blword)
     result.resize(64)
-    result.appendFormatted("\"%s\" \' state%s kState%s advState.init" root.get dup dup 3)
+    result.appendFormatted("\"%s\" \' state%s kState%s" root.get dup dup 3)
     d[ "Defining " %s root.get %s  %bl result.get %s %nl ]d
     result.get $evaluate
+    advState.init
     Game_adventureStates.push(advState)
     oclear advState
     oclear root

@@ -146,6 +146,17 @@ Double and long memory and stack layouts:
 
 Double has consistent layout, long is reversed on param stack.
 
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 4 2019
+
+I found what was wrong with atc, when it tried to process a user command it
+was using an op array that had an entry for each input state - idle, planeSelected,
+ready, etc - and doOpArrayBop had a bug where it was popping the IP after the
+op dispatch, it needs to be before.  After fixing that atc works.
+
+The adventure crash was due to a bug in String:resize and a script bug in
+defining adventure states.  Adventure now works.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 3 2019
 
@@ -175,6 +186,14 @@ compile the op for pDst, it just adds the local variable.
 Adventure hangs after printing start instructions.
 
 I should try out atc and adv on the previous stable release.
+
+In the master branch, atc works fine, but adv exits right after printing the
+help message.
+
+I couldn't build a release version, there are unresolved externals for some
+32-bit float intrinsics which are probably usually inlined.  It is a smaller
+list than the last time it happened, but the maximumBogosity hack routine in
+ForthOps.cpp isn't fixing it anymore.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 2 2019
 
