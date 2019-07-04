@@ -723,7 +723,7 @@ axe at you which missed, cursed, and ran away.")
             continueIf(newloc MIN_LOWER_LOC <)  // don't wander above level 2
             continueIf(or(newloc dwarf.oldloc =  newloc dwarf.loc =))  // don't double back
             continueIf(q.cond 100 =)
-            if(dwarf pirate l=)
+            if(dwarf pirate =)
               continueIf(forbidden_to_pirate(newloc))
             endif
             continueIf(or(is_forced(newloc)  newloc MAX_LOC >))
@@ -752,7 +752,7 @@ continue:
           if(dwarf.seen)
             // Make dwarf d follow 
             loc -> dwarf.loc
-            if(dwarf pirate l=)
+            if(dwarf pirate =)
               pirate_tracks_you(loc) 
             else
               1 ->+ dtotal
