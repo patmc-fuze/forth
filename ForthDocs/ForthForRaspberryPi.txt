@@ -38,8 +38,9 @@ cond 1101 ud00  rn   vd  101s imm8
 =============================================================================
 gdb
 
-gdb can't start programs on Ubuntu Mate, get the processid P of forth and do this:
-  grep -i forth
+gdb can't start programs on Ubuntu Mate, get the processid of forth using grep
+and run gdb attaching to the running forth process by doing this:
+  ps -a | grep forth
   gdb -p FORTH_PROCESS_ID
   
 r

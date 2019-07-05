@@ -107,31 +107,6 @@ TBDs:
   Problem: forward referencing breaks "forget"
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
-In a DOS shell:
-
-cvs checkout DIR
-	fetch a project or directory from cvs
-
-cvs commit
-	recursively commit all changes
-		
-cvs log FILENAME
-	show revision history
-
-cvs diff FILENAME
-	show difference between current file & repository
-cvs diff -r REVISION FILENAME
-	show difference between current file & specified revision
-
-cvs update
-	recursively update all directories from repository
-	can be used to show what files are not in CVS or what files have been modified
-	
-cvs log FILENAME
-	show history of a file
-	
-To revert changes to a file, delete the file then do cvs update FILENAME
--|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 colonOp
  ForthEngine::StartOpDefinition
   ForthVocabulary::AddSymbol
@@ -171,6 +146,40 @@ Double and long memory and stack layouts:
 
 Double has consistent layout, long is reversed on param stack.
 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 23 2019
+
+I got the arm2016 and osx branches up to date with master.
+On osx I had a problem with nasm - it didn't recognize the lzcnt or tzcnt
+instructions, so I had to recode using bsf and bsr.  Also, there is a crash
+on osx in misctest.txt at line 311:
+inFile.open("_testData.txt" "r") drop
+The problem doesn't happen if you run it in xcode, and it doesn't happen if you
+turn on tracing.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 21 2019
+
+I think the next big thing to do is to switch from having an object being a
+methods/data pointer pair to just an object pointer with the methods pointer
+being embedded in the object.  I never really used the idea of interfaces and
+it will be a bigger waste when I switch over to 64 bits.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 14 2019
+
+Somewhere around this time I found the bug that was causing massive numbers of
+memory leaks when you tried to do anything complex using objects.  The problem
+happened when you had an object hierarchy more than one level deep, when you
+did the right thing in your classes delete method and called super.delete at
+the end, the code for the methodWithSuper opType was correctly rpushing the object
+being deleted, and then invoking the delete method from the superclass, but it
+wasn't actually changing this.methods, so if that super delete method also did
+a super.delete, it would again use the same methods, not its parents, since it
+was getting the methods based on this.methods.  Setting this.methods to the
+superclass methods in methodWithThis before invoking the delete method fixed
+the problem.
+- check if this is happening in the ARM version
+- test Linux version
+- test OSX version
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 8 2019
 

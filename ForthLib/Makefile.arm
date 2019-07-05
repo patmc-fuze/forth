@@ -42,6 +42,8 @@ LIBCPPSRCS = \
 	ForthBlockFileManager.cpp \
 	ForthShowContext.cpp \
 	ForthOpcodeCompiler.cpp \
+	ForthObjectReader.cpp \
+	ForthMemoryManager.cpp \
 	OArray.cpp \
 	OList.cpp \
 	OMap.cpp \
