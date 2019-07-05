@@ -163,7 +163,7 @@ STRUC FCore
     .FileFuncs			RESD 1
     .innerLoop			RESD 1
     .innerExecute		RESD 1
-    .consoleOutStream	RESD 2
+    .consoleOutStream	RESD 1
     .base				RESD 1
     .signedPrintMode	RESD 1
     .traceFlags			RESD 1

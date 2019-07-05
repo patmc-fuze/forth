@@ -123,7 +123,7 @@ _%1:
 
 ; for some reason, this is always true, you need to change the name,
 ; changing the build rule to not define it isn't enough	
-%ifdef	YASM_INNER_INTERPRETER
+%ifdef	ASM_INNER_INTERPRETER
 
 ;-----------------------------------------------
 ;
@@ -2269,11 +2269,9 @@ objectEntry:
 	jnz	localObject1
 	; fetch local Object
 localObjectFetch:
-	sub	edx, 8
+	sub	edx, 4
 	mov	ebx, [eax]
 	mov	[edx], ebx
-	mov	ebx, [eax+4]
-	mov	[edx+4], ebx
 	jmp	edi
 
 localObject1:
@@ -2296,9 +2294,9 @@ localObjectStore:
 	xor	ebx, ebx			; set var operation back to default/fetch
 	mov	[ebp + FCore.varMode], ebx
 los0:
+	mov ebx, [eax]		; ebx = olbObj
 	mov ecx, eax		; ecx -> destination
 	mov eax, [edx]		; eax = newObj
-	mov ebx, [ecx]		; ebx = olbObj
 	cmp eax, ebx
 	jz losx				; objects are same, don't change refcount
 	; handle newObj refcount
@@ -2325,7 +2323,6 @@ los3:
 	push edi
 	push eax
 	; TOS is object
-	; ebx is method number
 
 	; push this ptr on return stack
 	mov	edi, [ebp + FCore.RPtr]
@@ -2336,12 +2333,13 @@ los3:
 	
 	; set this to oldObj
 	mov	[ebp + FCore.TPtr], ebx
-	mov	ebx, [ecx]	; ebx = method 0 (delete) opcode
+	mov	ebx, [ebx]	; ebx = oldObj methods pointer
+	mov	ebx, [ebx]	; ebx = oldObj method 0 (delete)
 
 	pop eax
 	pop edi
 	
-	mov	[ecx], eax		; var.methods = newObj.methods
+	mov	[ecx], eax		; var = newObj
 	add	edx, 4
 
 	; execute the delete method opcode which is in ebx
@@ -2525,7 +2523,7 @@ methodTos1:
 	sal	ebx, 2
 	add	ebx, [eax]
 	mov	ebx, [ebx]	; ebx = method opcode
-	add	edx, 8
+	add	edx, 4
 	mov	eax, [ebp + FCore.innerExecute]
 	jmp eax
 	
@@ -2536,16 +2534,17 @@ entry methodWithSuperType
 	sub	ecx, 8
 	mov	[ebp + FCore.RPtr], ecx
 	mov	eax, [ebp + FCore.TPtr]
+    push ebx
 	; push original methods ptr on return stack
-	mov	[ecx+4], [eax]
+	mov	ebx, [eax]			; ebx is original methods ptr
+	mov	[ecx+4], ebx
 	; push this on return stack
 	mov	[ecx], eax
 	
-	mov	ecx, [eax-4]		; ecx -> class vocabulary object
-	mov	eax, [ecx+4]		; eax -> class vocabulary
+	mov	ecx, [ebx-4]		; ecx -> class vocabulary object
+	mov	eax, [ecx+8]		; eax -> class vocabulary
 	push edx
     push ecx
-    push ebx
     sub esp, 12         ; 16-byte align for OSX
     push eax            ; class vocabulary
 	xcall getSuperClassMethods
@@ -2553,9 +2552,10 @@ entry methodWithSuperType
 	mov	ebx, [ebp + FCore.TPtr]
 	mov	[ebx], eax		; set this methods ptr to super class methods
 	add esp, 16
-	pop ebx
 	pop ecx
 	pop edx
+	pop ebx
+	; ebx is method number
 	and	ebx, 00FFFFFFh
 	sal	ebx, 2
 	add	ebx, eax

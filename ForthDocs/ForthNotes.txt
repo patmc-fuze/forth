@@ -145,8 +145,22 @@ Double and long memory and stack layouts:
 0xfedcba9876543210L    10 32 54 76  98 ba dc fe     98 ba dc fe  10 32 54 76  
 
 Double has consistent layout, long is reversed on param stack.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 5 2019
 
+Visual Studio is now useless for assembly language debug.  Single stepping
+through instructions will give different results from running up to a breakpoint,
+along with the problem of having the wrong stuff in registers.  They must be
+simulating execution, and their simulation is broken.
 
+I found and fixed a relatively small number of bugs, now test.txt, atc and
+newadv all work in assembler mode.  I got a bogus unrecognized symbol when I
+did this:
+load atc and run a game and quit
+try loading newadv
+This error existed in the previous release.
+After triggering that error, exiting Forth will cause a crash in CleanupGlobalObjectVariables.
+The global that it crashes on is filled with 0xdddddddd, which is freed heap memory.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 4 2019
 
@@ -157,6 +171,15 @@ op dispatch, it needs to be before.  After fixing that atc works.
 
 The adventure crash was due to a bug in String:resize and a script bug in
 defining adventure states.  Adventure now works.
+
+I started debugging the assembler version.   While debugging local object stores
+by single stepping in assembler I kept seeing inconsistent values in registers,
+like after a "mov ecx,eax" instructions ecx wasn't changed, and other times
+registers would change when stepping through an instruction that shouldn't
+change that register.  One time, I saw ebx loaded from a local object
+variable that I just printed out and wasn't zero, but after the load ebx was
+zero, I checked the memory location and it still wasn't zero, but the code
+tested ebx and took a jump zero branch as if ebx really was zero.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 3 2019
 
