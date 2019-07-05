@@ -161,6 +161,11 @@ try loading newadv
 This error existed in the previous release.
 After triggering that error, exiting Forth will cause a crash in CleanupGlobalObjectVariables.
 The global that it crashes on is filled with 0xdddddddd, which is freed heap memory.
+
+The problem was a global variable that was being set with "->o", so its refcount
+wasn't being bumped, and the global wasn't cleared with "null ->o" when it was
+done being used, so it was deleted when its other users were done with it and
+the global object was left a dangling pointer.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 4 2019
 
