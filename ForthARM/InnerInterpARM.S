@@ -59,31 +59,30 @@ ipsave			=	24			@	IP - interpreter pointer (r5)
 spsave			=	28			@	SP - forth stack pointer (r6)
 rpsave			=	32			@	RP - forth return stack pointer (r7)
 fpsave			=	36			@	FP - frame pointer (r8)
-tpm				=	40			@	TPM - this pointer (methods)
-tpd				=	44			@	TPD - this pointer (data)
-varmode			=	48			@	varMode - fetch/store/plusStore/minusStore
-istate			=	52			@	state - ok/done/error
-errorcode		=	56			@	error code
-spbase			=	60			@	base of parameter stack storage
-sp0				=	64			@	empty parameter stack pointer
-ssize			=	68			@	size of param stack in longwords
-rpbase			=	72			@	base of return stack storage
-rp0				=	76			@	empty return stack pointer
-rsize			=	80			@	size of return stack in longwords
+tp				=	40			@	TP - this pointer
+varmode			=	44			@	varMode - fetch/store/plusStore/minusStore
+istate			=	48			@	state - ok/done/error
+errorcode		=	52			@	error code
+spbase			=	56			@	base of parameter stack storage
+sp0				=	60			@	empty parameter stack pointer
+ssize			=	64			@	size of param stack in longwords
+rpbase			=	68			@	base of return stack storage
+rp0				=	72			@	empty return stack pointer
+rsize			=	76			@	size of return stack in longwords
 
 @	end of stuff which is per thread
 
-cur_thread		=	84			@	current ForthThread pointer
-dict_mem_sect	=	88			@	dictionary memory section pointer
-file_funcs		=	92			@
-inner_loop		=	96			@	inner interpreter asm reentry point
-inner_execute	=	100			@	inner interpreter reentry for execute/methodWithThis/methodWithTOS
-conout_stream  	=	104
-base          	=	112
-signed_print_mode = 116
-trace_flags     =   120
-exception_ptr	=	124
-scratch			=	128
+cur_thread		=	80			@	current ForthThread pointer
+dict_mem_sect	=	84			@	dictionary memory section pointer
+file_funcs		=	88			@
+inner_loop		=	92			@	inner interpreter asm reentry point
+inner_execute	=	96			@	inner interpreter reentry for execute/methodWithThis/methodWithTOS
+conout_stream  	=	100
+base          	=	104
+signed_print_mode = 108
+trace_flags     =   112
+exception_ptr	=	116
+scratch			=	120
 
 kVarDefaultOp			=		0
 kVarFetch				=		1
@@ -162,7 +161,7 @@ filePutString	=		48
 	.global	doByteBop, doShortBop, doIntBop, doFloatBop, refBop, fetchBop, intoBop, addToBop, subtractFromBop, doExitBop
 	.global	doExitLBop, doExitMBop, doExitMLBop, doVocabBop, doByteArrayBop, doShortArrayBop, doIntArrayBop, doFloatArrayBop
 	.global	plusBop, ifetchBop, doStructBop, doStructArrayBop, doDoBop, doLoopBop, doLoopNBop, dfetchBop
-	.global	thisBop, thisDataBop, thisMethodsBop, executeBop, callBop, gotoBop, iBop, jBop, unloopBop, leaveBop, hereBop, dpBop
+	.global	thisBop, unsuperBop, executeBop, callBop, gotoBop, iBop, jBop, unloopBop, leaveBop, hereBop, dpBop
 	.global	minusBop, noopBop
 	.global	timesBop, times2Bop, times4Bop, times8Bop, divideBop, divide2Bop, divide4Bop, divide8Bop, divmodBop, modBop, negateBop
 	.global fplusBop, fminusBop, ftimesBop, fdivideBop,	dplusBop, dminusBop, dtimesBop, ddivideBop
@@ -665,8 +664,8 @@ memberByteType:
 	and	r1, r2
 memberByteType1:
 	@ get ptr to byte var into r0
-	@ this data ptr is base ptr, r1 is field offset in bytes
-	ldr	r0, [rcore, #tpd]
+	@ this ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [rcore, #tp]
 	add	r0, r1
 	b	byteEntry	
 	
@@ -690,10 +689,10 @@ fieldByteArrayType:
 
 memberByteArrayType:
 	@ get ptr to into var into r0
-	@ this data ptr is base ptr, TOS is index
+	@ this ptr is base ptr, TOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!,{r0}			@ r0 = index
-	ldr	r2, [rcore, #tpd]			@ r2 = object base ptr
+	ldr	r2, [rcore, #tp]		@ r2 = object base ptr
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	byteEntry
@@ -721,8 +720,8 @@ memberUByteType:
 	and	r1, r2
 memberUByteType1:
 	@ get ptr to byte var into r0
-	@ this data ptr is base ptr, r1 is field offset in bytes
-	ldr	r0, [rcore, #tpd]
+	@ this ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [rcore, #tp]
 	add	r0, r1
 	b	ubyteEntry	
 	
@@ -746,10 +745,10 @@ fieldUByteArrayType:
 
 memberUByteArrayType:
 	@ get ptr to into var into r0
-	@ this data ptr is base ptr, TOS is index
+	@ this ptr is base ptr, TOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!,{r0}			@ r0 = index
-	ldr	r2, [rcore, #tpd]			@ r2 = object base ptr
+	ldr	r2, [rcore, #tp]		@ r2 = object base ptr
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	ubyteEntry
@@ -888,8 +887,8 @@ memberShortType:
 	and	r1, r2
 memberShortType1:
 	@ get ptr to short var into r0
-	@ this data ptr is base ptr, r1 is field offset in bytes
-	ldr	r0, [rcore, #tpd]
+	@ this ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [rcore, #tp]
 	add	r0, r1
 	b	shortEntry	
 	
@@ -915,11 +914,11 @@ fieldShortArrayType:
 
 memberShortArrayType:
 	@ get ptr to into var into r0
-	@ this data ptr is base ptr, TOS is index
+	@ this ptr is base ptr, TOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!,{r0}			@ r0 = index
 	lsl	r0, #1
-	ldr	r2, [rcore, #tpd]			@ r2 = object base ptr
+	ldr	r2, [rcore, #tp]		@ r2 = object base ptr
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	shortEntry
@@ -948,8 +947,8 @@ memberUShortType:
 	and	r1, r2
 memberUShortType1:
 	@ get ptr to short var into r0
-	@ this data ptr is base ptr, r1 is field offset in bytes
-	ldr	r0, [rcore, #tpd]
+	@ this ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [rcore, #tp]
 	add	r0, r1
 	b	ushortEntry	
 	
@@ -975,11 +974,11 @@ fieldUShortArrayType:
 
 memberUShortArrayType:
 	@ get ptr to into var into r0
-	@ this data ptr is base ptr, TOS is index
+	@ this ptr is base ptr, TOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!,{r0}			@ r0 = index
 	lsl	r0, #1
-	ldr	r2, [rcore, #tpd]			@ r2 = object base ptr
+	ldr	r2, [rcore, #tp]		@ r2 = object base ptr
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	ushortEntry
@@ -1100,8 +1099,8 @@ memberIntType:
 	and	r1, r2
 memberIntType1:
 	@ get ptr to int var into r0
-	@ this data ptr is base ptr, r1 is field offset in bytes
-	ldr	r0, [rcore, #tpd]
+	@ this ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [rcore, #tp]
 	add	r0, r1
 	b	intEntry	
 	
@@ -1126,11 +1125,11 @@ fieldIntArrayType:
 
 memberIntArrayType:
 	@ get ptr to into var into r0
-	@ this data ptr is base ptr, TOS is index
+	@ this ptr is base ptr, TOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!,{r0}			@ r0 = index
 	lsl	r0, #2
-	ldr	r2, [rcore, #tpd]			@ r2 = object base ptr
+	ldr	r2, [rcore, #tp]		@ r2 = object base ptr
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	intEntry
@@ -1250,8 +1249,8 @@ memberFloatType:
 	and	r1, r2
 memberFloatType1:
 	@ get ptr to float var into r0
-	@ this data ptr is base ptr, r1 is field offset in bytes
-	ldr	r0, [rcore, #tpd]
+	@ this ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [rcore, #tp]
 	add	r0, r1
 	b	floatEntry	
 	
@@ -1276,11 +1275,11 @@ fieldFloatArrayType:
 
 memberFloatArrayType:
 	@ get ptr to into var into r0
-	@ this data ptr is base ptr, TOS is index
+	@ this ptr is base ptr, TOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!,{r0}			@ r0 = index
 	lsl	r0, #2
-	ldr	r2, [rcore, #tpd]			@ r2 = object base ptr
+	ldr	r2, [rcore, #tp]		@ r2 = object base ptr
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	floatEntry
@@ -1399,8 +1398,8 @@ memberDoubleType:
 	and	r1, r2
 memberDoubleType1:
 	@ get ptr to double var into r0
-	@ this data ptr is base ptr, r1 is field offset in bytes
-	ldr	r0, [rcore, #tpd]
+	@ this ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [rcore, #tp]
 	add	r0, r1
 	b	doubleEntry	
 	
@@ -1425,11 +1424,11 @@ fieldDoubleArrayType:
 
 memberDoubleArrayType:
 	@ get ptr to into var into r0
-	@ this data ptr is base ptr, TOS is index
+	@ this ptr is base ptr, TOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!,{r0}			@ r0 = index
 	lsl	r0, #3
-	ldr	r2, [rcore, #tpd]			@ r2 = object base ptr
+	ldr	r2, [rcore, #tp]		@ r2 = object base ptr
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	doubleEntry
@@ -1554,8 +1553,8 @@ memberLongType:
 	and	r1, r2
 memberLongType1:
 	@ get ptr to long var into r0
-	@ this data ptr is base ptr, r1 is field offset in bytes
-	ldr	r0, [rcore, #tpd]
+	@ this ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [rcore, #tp]
 	add	r0, r1
 	b	longEntry	
 	
@@ -1580,11 +1579,11 @@ fieldLongArrayType:
 
 memberLongArrayType:
 	@ get ptr to into var into r0
-	@ this data ptr is base ptr, TOS is index
+	@ this ptr is base ptr, TOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!,{r0}			@ r0 = index
 	lsl	r0, #3
-	ldr	r2, [rcore, #tpd]			@ r2 = object base ptr
+	ldr	r2, [rcore, #tp]		@ r2 = object base ptr
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	longEntry
@@ -1717,8 +1716,8 @@ memberStringType:
 	and	r1, r2
 memberStringType1:
 	@ get ptr to string var into r0
-	@ this data ptr is base ptr, r1 is field offset in bytes
-	ldr	r0, [rcore, #tpd]
+	@ this ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [rcore, #tp]
 	add	r0, r1
 	b	stringEntry	
 	
@@ -1743,11 +1742,11 @@ fieldStringArrayType:
 
 memberStringArrayType:
 	@ get ptr to into var into r0
-	@ this data ptr is base ptr, TOS is index
+	@ this ptr is base ptr, TOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!,{r0}			@ r0 = index
 	lsl	r0, #3
-	ldr	r2, [rcore, #tpd]			@ r2 = object base ptr
+	ldr	r2, [rcore, #tp]		@ r2 = object base ptr
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	stringEntry
@@ -1844,8 +1843,8 @@ memberOpType:
 	and	r1, r2
 memberOpType1:
 	@ get ptr to op var opo r0
-	@ this data ptr is base ptr, r1 is field offset in bytes
-	ldr	r0, [rcore, #tpd]
+	@ this ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [rcore, #tp]
 	add	r0, r1
 	b	opEntry	
 	
@@ -1870,11 +1869,11 @@ fieldOpArrayType:
 
 memberOpArrayType:
 	@ get ptr to opo var opo r0
-	@ this data ptr is base ptr, TOS is index
+	@ this ptr is base ptr, TOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!,{r0}			@ r0 = index
 	lsl	r0, #2
-	ldr	r2, [rcore, #tpd]			@ r2 = object base ptr
+	ldr	r2, [rcore, #tp]		@ r2 = object base ptr
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	opEntry
@@ -1902,11 +1901,11 @@ localObjectType1:
 	@ see if it is a fetch
 
 @	
-@ entry point for byte variable action routines
+@ entry point for object variable action routines
 @	r0 -> object
 @
 objectEntry:
-	ldr	r1, [rcore, #varmode]			@ r1 = varMode
+	ldr	r1, [rcore, #varmode]		@ r1 = varMode
 	eor	r2, r2						@ r2 = 0
 	cmp	r1, r2
 	bne	.localObject1
@@ -1919,8 +1918,8 @@ objectEntry:
 
 	@ fetch local object
 localObjectFetch:
-	ldrd	r2, [r0]
-	stmdb	rsp!, {r2,r3}			@ push object on TOS
+	ldr	r2, [r0]
+	stmdb	rsp!, {r2}			@ push object on TOS
 	bx	lr
 
 localObjectRef:
@@ -1930,40 +1929,35 @@ localObjectRef:
 localObjectStore:
 	@ r0 points to oldObj container var
 	@ TOS is newObj contents
-	push	{rcore,rip}
-	ldmia	rsp!, {rcore,rip}	@ pop TOS object value into rcore,rip (newObj)
-	ldmia	r0, {r2,r3}			@ r2,r3 are oldObj contents
-	stmia	r0, {rcore,rip}		@ newObj -> oldObj
-	cmp	rip, r3
-	beq	.los2					@ if oldObj.data == newObj.data, don't touch refcounts
-	orrs	rip, rip
-	beq	.los1					@ if newObj.data is null, don't increment refcount
-	ldr	r1, [rip]				@ increment newObj refcount
-	add	r1, #1
-	str	r1, [rip]
-.los1:
+	ldmia	rsp!, {r3}	        @ pop TOS object value into r3 (newObj)
+	ldmia	r0, {r2}			@ r2 is oldObj contents
+	stmia	r0, {r3}		    @ newObj -> oldObj
+	cmp	r3, r2
+	beq	.los2					@ if oldObj == newObj, don't touch refcounts
 	orrs	r3, r3
-	beq	.los2					@ if oldObj.data is null, don't decrement refcount
-	ldr	r1, [r3]				@ decrement oldObj refcount
+	beq	.los1					@ if newObj is null, don't increment refcount
+	ldr	r1, [r3, #4]			@ increment newObj refcount
+	add	r1, #1
+	str	r1, [r3, #4]
+.los1:
+	orrs	r2, r2
+	beq	.los2					@ if oldObj is null, don't decrement refcount
+	ldr	r1, [r2, #4]			@ decrement oldObj refcount
 	subs	r1, #1
-	str	r1, [r3]
+	str	r1, [r2, #4]
 	beq	.los3					@ oldObj refcount went to zero, go delete it
 .los2:
-	pop	{rcore,rip}
 	bx	lr
 	
 .los3:
 	@ object var held last reference to oldObj, invoke olbObj.delete method
-	pop	{rcore,rip}
-	@ push pCore->this pair on rstack
-	ldr	r0,[rcore, #tpd]
+	@ push pCore->this on rstack
+	ldr	r0, [rcore, #tp]
 	stmdb	rrp!, {r0}
-	ldr	r0,[rcore, #tpm]
-	stmdb	rrp!, {r0}
-	str	r2, [rcore, #tpm]
-	str	r3, [rcore, #tpd]	
-	
-	ldr	r0, [r2]				@ r0 is method 0 (delete) opcode
+	str	r2, [rcore, #tp]
+
+	ldr r3, [r2]                @ r3 is oldObj methods table ptr
+	ldr	r0, [r3]				@ r0 is method 0 (delete) opcode
 	ldr	r1, [rcore, #inner_execute]
 	bx	r1
 	
@@ -1980,8 +1974,8 @@ localObjectStore:
 	
 localObjectClear:
 	@ TOS is new object, r0 points to destination/old object
-    eor r3, r3
-	stmdb	rsp!, {r2, r3}
+    eor r2, r2
+	stmdb	rsp!, {r2}
 	@ for now, do the clear operation by pushing dnull on TOS then doing a regular object store
 	@ later on optimize it since we know source is a dnull
 	b	localObjectStore
@@ -1990,25 +1984,24 @@ localObjectClear:
 @ do not adjust reference counts of old object or new object
 localObjectStoreNoRef:
 	@ TOS is new object, r0 points to destination/old object
-	ldmia	rsp!, {r2, r3}			@ r2 = methods, r3 = data
-	strd	r2, [r0]
+	ldmia	rsp!, {r2}			@ r2 = newObj
+	str	r2, [r0]
 	bx	lr
 
 @ clear object reference, leave on TOS
 localObjectUnref:
 	@ leave object on TOS
-	ldrd	r2, [r0]	@ r2 = methods, r3 = data
-	stmdb rsp!, {r2, r3}
+	ldr	r2, [r0]	@ r2 = obj
+	stmdb rsp!, {r2}
 	@ if object var is already null, do nothing else
-	orrs	r3, r2, r1
+	orrs	r2, r2
 	beq	lou2
 	@ clear object var
 	eor	r3, r3
 	str	r3, [r0]
-	str	r3, [r0, #4]
 	@ get object refcount, see if it is already 0
 	ldr r3, [r2]
-	orr r3, r3
+	orrs r3, r3
 	bne lou1
 	@ report refcount negative error
 	mov	r0, #kForthErrorBadReferenceCount
@@ -2056,8 +2049,8 @@ memberObjectType:
 	and	r1, r2
 memberObjectType1:
 	@ get ptr to object var into r0
-	@ this data ptr is base ptr, r1 is field offset in bytes
-	ldr	r0, [rcore, #tpd]
+	@ this ptr is base ptr, r1 is field offset in bytes
+	ldr	r0, [rcore, #tp]
 	add	r0, r1
 	b	objectEntry	
 	
@@ -2082,11 +2075,11 @@ fieldObjectArrayType:
 
 memberObjectArrayType:
 	@ get ptr to into var into r0
-	@ this data ptr is base ptr, TOS is index
+	@ this ptr is base ptr, TOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!,{r0}			@ r0 = index
 	lsl	r0, #3
-	ldr	r2, [rcore, #tpd]			@ r2 = object base ptr
+	ldr	r2, [rcore, #tp]		@ r2 = object base ptr
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	objectEntry
@@ -2593,15 +2586,14 @@ doExitLBop:
 @@@@@@@@@@@@@@@@@  _exitM  @@@@@@@@@@@@@@@@@
 
 doExitMBop:
-    @ rstack: oldIP oldTPM oldTPD
-	ldr	r0, [rcore, #rp0]			@ check for rstack underflow
-	add	r1, rrp, #8				@ take oldTPM and oldTPD into account
+    @ rstack: oldIP oldTP
+	ldr	r0, [rcore, #rp0]		@ check for rstack underflow
+	add	r1, rrp, #4				@ take oldTP into account
 	cmp	r1, r0
 	bge	.doExitMBop1
-	ldmia	rrp!, {r0, r1, r2}	@ pop oldIP, oldTPM, oldTPD off rstack
+	ldmia	rrp!, {r0, r1}	@ pop oldIP, oldTP off rstack
 	mov	rip, r0
-	str	r1, [rcore, #tpm]
-	str	r2, [rcore, #tpd]
+	str	r1, [rcore, #tp]
     orrs    rip, rip
     beq doneBop
 	bx	lr
@@ -2613,18 +2605,17 @@ doExitMBop:
 @@@@@@@@@@@@@@@@@  _exitML  @@@@@@@@@@@@@@@@@
 
 doExitMLBop:
-    @ rstack: local_var_storage oldFP oldIP oldTPM oldTPD
+    @ rstack: local_var_storage oldFP oldIP oldTP
     @ FP points to oldFP
 	ldr	r0, [rcore, #rp0]			@ check for rstack underflow
-	add	r1, rfp, #12				@ take oldFP/oldTPM/oldTPD into account
+	add	r1, rfp, #8					@ take oldFP/oldTP into account
 	cmp	r1, r0
 	bge	.doExitMLBop1
 	mov	rrp, rfp					@ deallocate local vars
 	ldmia	rrp!, {rfp}			@ pop oldFP off rstack
-	ldmia	rrp!, {r0, r1, r2}	@ pop oldIP, oldTPM, oldTPD off rstack
+	ldmia	rrp!, {r0, r1}	    @ pop oldIP, oldTP off rstack
 	mov	rip, r0
-	str	r1, [rcore, #tpm]
-	str	r2, [rcore, #tpd]
+	str	r1, [rcore, #tp]
     orrs    rip, rip
     beq doneBop
 	bx	lr
@@ -2791,22 +2782,18 @@ dfetchBop:
 @@@@@@@@@@@@@@@@@  this  @@@@@@@@@@@@@@@@@
 
 thisBop:
-	ldrd	r0, [rcore, #tpm]
-	stmdb	rsp!, {r0, r1}
-	bx	lr
-	
-@@@@@@@@@@@@@@@@@  thisData  @@@@@@@@@@@@@@@@@
-
-thisDataBop:
-	ldr	r0, [rcore, #tpd]
+	ldrd	r0, [rcore, #tp]
 	stmdb	rsp!, {r0}
 	bx	lr
 	
-@@@@@@@@@@@@@@@@@  thisMethods  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  unsuper  @@@@@@@@@@@@@@@@@
 
-thisMethodsBop:
-	ldr	r0, [rcore, #tpm]
-	stmdb	rsp!, {r0}
+unsuperBop:
+    @ pop original pMethods off rstack
+    ldmia   rrp!, {r0}
+	ldr	r1, [rcore, #tp]
+    @ store original pMethods in this.pMethods
+	str r0, [r1]
 	bx	lr
 	
 @@@@@@@@@@@@@@@@@  execute  @@@@@@@@@@@@@@@@@
@@ -6238,7 +6225,7 @@ localRefType:
 @
 memberRefType:
 	@ push member reference - r1 is member offset in bytes
-	ldr	r0, [rcore, #tpd]
+	ldr	r0, [rcore, #tp]
 	add	r1, r0
 	stmdb	rsp!, {r1}
 	bx	lr
@@ -6258,7 +6245,7 @@ memberStringInitType:
 	lsr	r1, #10
 	ldr	r2, =0x3FFC
 	and	r1, r2			@ r1 is offset of string from member base in bytes
-	ldr	r2, [rcore, #tpd]
+	ldr	r2, [rcore, #tp]
 	add	r3, r2, r1
 	eor	r2, r2
 	stmia	r3!, {r0, r2}	
@@ -6368,12 +6355,12 @@ dllEntryPointType:
 @ invoke a method on object currently referenced by this ptr pair
 methodWithThisType:
 	@ r1 is method number
-	@ push this ptr pair on return stack
-	ldr	r2, [rcore, #tpm]
-	ldr	r3, [rcore, #tpd]
-	stmdb	rrp!, {r2, r3}
+	@ push this ptr on return stack
+	ldr	r2, [rcore, #tp]
+	stmdb	rrp!, {r2}
 	@ get method opcode
-	ldr	r0, [r2, r1, lsl #2]
+    ldr r3, [r2]
+	ldr	r0, [r3, r1, lsl #2]
 	ldr	r1, [rcore, #inner_execute]
 	bx	r1
 		
@@ -6381,18 +6368,17 @@ methodWithThisType:
 methodWithTOSType:
 	@ TOS is object vtable, NOS is object data ptr
 	@ ebx is method number
-	@ push this ptr pair on return stack
-	ldr	r2, [rcore, #tpm]
-	ldr	r3, [rcore, #tpd]
-	stmdb	rrp!, {r2, r3}
-	@ set this data,methods from TOS	
-	ldmia	rsp!, {r2, r3}
+	@ push this ptr on return stack
+	ldr	r2, [rcore, #tp]
+	stmdb	rrp!, {r2}
+	@ set this from TOS	
+	ldmia	rsp!, {r2}
 	orrs r2, r2
 	beq	badMethod
-	str	r2, [rcore, #tpm]
-	str	r3, [rcore, #tpd]
+	str	r2, [rcore, #tp]
 	@ get method opcode
-	ldr	r0, [r2, r1, lsl #2]
+    ldr r3, [r2]
+	ldr	r0, [r3, r1, lsl #2]
 	ldr	r1, [rcore, #inner_execute]
 	bx	r1
 
@@ -6403,17 +6389,17 @@ badMethod:
 @ invoke a method on object currently referenced by this ptr pair
 methodWithSuperType:
 	@ r1 is method number
-	@ push this ptr pair on return stack
-	ldr	r2, [rcore, #tpm]
-	ldr	r3, [rcore, #tpd]
-	stmdb	rrp!, {r2, r3}
-	ldr	r3, [r2, #-4]		@ r3 -> super vocabulary object data
-	ldr	r0, [r3, #4]			@ r0 -> super vocabulary
+	@ push old methods ptr, this ptr on return stack
+	ldr	r2, [rcore, #tp]
+    ldr r0, [r2]                @ r0 is methods table ptr
+	stmdb	rrp!, {r0, r2}
+	ldr	r3, [r0, #-4]		    @ r3 -> super vocabulary object
+	ldr	r0, [r3, #8]			@ r0 -> super vocabulary
 	push	{r1, rcore, lr}
 	bl	getSuperClassMethods
 	pop	{r1, rcore, lr}
 	@ r0 is super method table
-	str r0, [rcore, #tpm]
+	str r0, [r2]
 	@ get method opcode
 	ldr	r0, [r0, r1, lsl #2]
 	ldr	r1, [rcore, #inner_execute]
@@ -6578,7 +6564,7 @@ mroComboType:
 	@ r1: bits 0..11 are frame offset in longs, bits 12-23 are op
 	ldr	r0, =0x0FFF
 	and	r0, r1
-	ldr	r2, [rcore, #tpd]
+	ldr	r2, [rcore, #tp]
 	add	r2, r0							@ r2 points to the member var
 	stmdb	rsp!, {r2}
 
