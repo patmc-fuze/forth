@@ -2000,7 +2000,7 @@ localObjectUnref:
 	eor	r3, r3
 	str	r3, [r0]
 	@ get object refcount, see if it is already 0
-	ldr r3, [r2]
+	ldr r3, [r2, #4]
 	orrs r3, r3
 	bne lou1
 	@ report refcount negative error
@@ -2009,7 +2009,7 @@ localObjectUnref:
 lou1:
 	@ decrement object refcount
 	sub	r3, #1
-	str	r3, [r2]
+	str	r3, [r2, #4]
 lou2:
 	bx	lr
 
@@ -2059,7 +2059,7 @@ localObjectArrayType:
 	@ FP is base ptr, r1 is offset in objects
 	ldmia	rsp!, {r0}			@ r0 = array index
 	sub	r1, r0					@ add in array index
-	lsl	r1, #3
+	lsl	r1, #2
 	sub	r0, rfp, r1				@ r0 points to the object field
 	b	objectEntry
 
@@ -2068,7 +2068,7 @@ fieldObjectArrayType:
 	@ TOS is struct base ptr, NOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!, {r0, r2}		@ r0 = struct base ptr, r2 = index
-	lsl	r2, #3
+	lsl	r2, #2
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
 	b	objectEntry
@@ -2078,7 +2078,7 @@ memberObjectArrayType:
 	@ this ptr is base ptr, TOS is index
 	@ r1 is field offset in bytes
 	ldmia	rsp!,{r0}			@ r0 = index
-	lsl	r0, #3
+	lsl	r0, #2
 	ldr	r2, [rcore, #tp]		@ r2 = object base ptr
 	add	r0, r2
 	add	r0, r1					@ add in offset to base of array
@@ -2491,7 +2491,7 @@ doObjectArrayBop:
 	@ IP points to base of object array
 	mov	r0, rip
 	ldmia	rsp!, {r1}		@ pop index off pstack
-	lsl	r1, #3
+	lsl	r1, #2
 	add	r0, r1				@ add index to array base
 	ldmia	rrp!, {rip}		@ pop IP off rstack
 	b	objectEntry
@@ -6391,13 +6391,14 @@ methodWithSuperType:
 	@ r1 is method number
 	@ push old methods ptr, this ptr on return stack
 	ldr	r2, [rcore, #tp]
-    ldr r0, [r2]                @ r0 is methods table ptr
-	stmdb	rrp!, {r0, r2}
-	ldr	r3, [r0, #-4]		    @ r3 -> super vocabulary object
+    ldr r3, [r2]                @ r3 is methods table ptr
+	stmdb	rrp!, {r3}
+	stmdb	rrp!, {r2}
+	ldr	r3, [r3, #-4]		    @ r3 -> super vocabulary object
 	ldr	r0, [r3, #8]			@ r0 -> super vocabulary
-	push	{r1, rcore, lr}
+	push	{r1, r2, rcore, lr}
 	bl	getSuperClassMethods
-	pop	{r1, rcore, lr}
+	pop	{r1, r2, rcore, lr}
 	@ r0 is super method table
 	str r0, [r2]
 	@ get method opcode

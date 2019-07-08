@@ -236,7 +236,7 @@ class: NoteDeck
     super.delete
   ;m
   
-  m: addTagDef      // NAME DISPLAY_NAME DESCRIPTION ... NEW_TAG_DEF
+  m: addTagDef returns NoteTagDef      // NAME DISPLAY_NAME DESCRIPTION ... NEW_TAG_DEF
     mko NoteTagDef def
     def.init(tags.count)
     tags.push(def)
@@ -248,7 +248,7 @@ class: NoteDeck
     tagMap.grab
   ;m
   
-  m: addFlagDef      // NAME DISPLAY_NAME DESCRIPTION ... NEW_FLAG_DEF
+  m: addFlagDef returns NoteFlagDef      // NAME DISPLAY_NAME DESCRIPTION ... NEW_FLAG_DEF
     mko NoteFlagDef def
     def.init(flags.count)
     flags.push(def)
@@ -261,7 +261,7 @@ class: NoteDeck
     flagMap.grab
   ;m
   
-  m: addSchema      // NAME DESCRIPTION ... NEW_SCHEMA
+  m: addSchema returns NoteSchema     // NAME DESCRIPTION ... NEW_SCHEMA
     mko NoteSchema def
     def.init(schemas.count)
     schemas.push(def)
@@ -273,7 +273,7 @@ class: NoteDeck
     schemaMap.grab
   ;m
   
-  m: addParamDef      // NAME DESCRIPTION ... NEW_PARAM_DEF
+  m: addParamDef returns NoteDef     // NAME DESCRIPTION ... NEW_PARAM_DEF
     mko NoteDef def
     def.init(params.count)
     params.push(def)
@@ -285,7 +285,7 @@ class: NoteDeck
     paramMap.grab
   ;m
   
-  m: addNote      // NAME BODY ... NEW_NOTE
+  m: addNote returns Note      // NAME BODY ... NEW_NOTE
     mko Note note
     note.init(notes.count)
     notes.push(note)
@@ -294,7 +294,7 @@ class: NoteDeck
     unref note
   ;m
   
-  m: addChild      // NAME BODY PARENT_NOTE ... NEW_NOTE
+  m: addChild returns Note     // NAME BODY PARENT_NOTE ... NEW_NOTE
     ->o Note parent
     mko Note note
     note.init(notes.count)
@@ -335,7 +335,7 @@ class: NoteDeck
     addSchema("defaultSchema" "Default Schema - notecard with no params") drop
   ;m
   
-  m: newestNote
+  m: newestNote returns Note
     if(notes.count)
       notes.get(notes.count 1-)
     else
