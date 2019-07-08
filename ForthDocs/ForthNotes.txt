@@ -146,7 +146,33 @@ Double and long memory and stack layouts:
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 7 2019
+
+ARM is still crashing loading helpdeck.txt, when tracing is on it crashes trying
+to get a method name.  I thought I saw that the class vocab pointer which is
+supposed to be in pMethods[-1] actually contained pMethods, which suggests that
+unsuper is trashing things, but the code looks right.
+
+DOH! methodWithSuper and unsuper were fine, the problem in unref I forgot that
+the refcount is now at offset 4, not 0.  Everything works on ARM now.
+
+I couldn't get the ARM pipe based logger to work, I had to just write log output
+to a file.
+
+I can't push from the raspi to my windows machine to work.
+-> I can't have arm2016 as the current branch on windows when I am pushing to
+   that branch from the raspi
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 6 2019
+
+I did the ARM assembler changes, they are almost working, I am having trouble
+tracking down what is failing because for some reason the logger isn't working
+anymore, even though nothing changed with the ARM logger in a very long time.
+The ARM logger and OSX logger are virtually identical.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 5 2019
+
+I brought the linux branch up to date, no changes were needed.
 
 Visual Studio is now useless for assembly language debug.  Single stepping
 through instructions will give different results from running up to a breakpoint,
