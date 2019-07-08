@@ -17,6 +17,7 @@ static int loggerFD = -1;
 
 void OutputToLogger(const char* pBuffer)
 {
+#if 0
 	if (loggerFD < 0)
 	{
 	    const char* myfifo = "/tmp/forthLoggerFIFO";
@@ -34,6 +35,11 @@ void OutputToLogger(const char* pBuffer)
     
     /* remove the FIFO */
     //unlink(myfifo);
+#else
+	FILE* outFile = fopen("logfile.txt", "a");
+	int n = fprintf(outFile, "%s", pBuffer);
+	fclose(outFile);
+#endif
 }
 
 static struct termios oldTermSettings;
