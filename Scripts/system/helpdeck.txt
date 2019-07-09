@@ -1312,6 +1312,16 @@ addMethod seek|INDEX ...|set iterator to position specified by INDEX
 addMethod tell|... INDEX|return position of iterator
 addMember parent|Triple|Triple object this iter is associated with
 
+addClass Deque|Object|double ended queue of objects
+addMethod count|... count|return number of objects in this queue
+addMethod clear|...|empty queue
+addMethod pushHead|OBJ ...|add object to head of queue
+addMethod pushTail|OBJ ...|add object to tail of queue
+addMethod popHead|... OBJ|remove object from head of queue
+addMethod popTail|... OBJ|remove object from tail of queue
+addMethod peekHead|... OBJ|copy object from head of queue
+addMethod peekTail|... OBJ|copy object from tail of queue
+
 addClass List|Iterable|linked list of objects
 addMethod find|OBJECT ... ITER true   OR   false|return list iterator at position of found object
 addMethod load|<N OBJECTS> N ...|set list to contain N objects on stack

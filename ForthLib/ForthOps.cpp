@@ -2136,6 +2136,22 @@ FORTHOP( doMethodOp )
     pEngine->ExecuteOp(pCore,  obj->pMethods[ methodIndex ] );
 }
 
+FORTHOP(odropOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthObject obj;
+
+    // if object on TOS has refcount 0, invoke its delete method
+    //  otherwise just drop it
+    POP_OBJECT(obj);
+    if ((obj != nullptr) && (obj->refCount == 0))
+    {
+        RPUSH(((long)GET_TP));
+        SET_TP(obj);
+        pEngine->ExecuteOp(pCore, obj->pMethods[0]);
+    }
+}
+
 FORTHOP( implementsOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
@@ -9705,6 +9721,7 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(endmethodOp,            ";m" ),
     PRECOP_DEF(returnsOp,              "returns" ),
     OP_DEF(    doMethodOp,             "doMethod" ),
+    OP_DEF(    odropOp,                "odrop"),
     OP_DEF(    implementsOp,           "implements:" ),
     OP_DEF(    endImplementsOp,        ";implements" ),
     OP_DEF(    unionOp,                "union" ),

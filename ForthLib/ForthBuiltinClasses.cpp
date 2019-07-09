@@ -17,6 +17,7 @@
 #include "ForthBlockFileManager.h"
 
 #include "OArray.h"
+#include "ODeque.h"
 #include "OList.h"
 #include "OString.h"
 #include "OMap.h"
@@ -505,8 +506,9 @@ ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
 	pEngine->AddBuiltinClass("Iter", kBCIIter, kBCIObject, oIterMembers);
     pEngine->AddBuiltinClass("Iterable", kBCIIterable, kBCIObject, oIterableMembers);
 
-	OArray::AddClasses(pEngine);
-	OList::AddClasses(pEngine);
+    OArray::AddClasses(pEngine);
+    ODeque::AddClasses(pEngine);
+    OList::AddClasses(pEngine);
 	OMap::AddClasses(pEngine);
 	OString::AddClasses(pEngine);
 	OStream::AddClasses(pEngine);

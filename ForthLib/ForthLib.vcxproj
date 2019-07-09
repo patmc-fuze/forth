@@ -375,6 +375,7 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MaxSpeed</Optimization>
     </ClCompile>
     <ClCompile Include="OArray.cpp" />
+    <ClCompile Include="ODeque.cpp" />
     <ClCompile Include="OList.cpp" />
     <ClCompile Include="OMap.cpp" />
     <ClCompile Include="ONumber.cpp" />
@@ -469,6 +470,7 @@
     <ClInclude Include="ForthThread.h" />
     <ClInclude Include="ForthVocabulary.h" />
     <ClInclude Include="OArray.h" />
+    <ClInclude Include="ODeque.h" />
     <ClInclude Include="OList.h" />
     <ClInclude Include="OMap.h" />
     <ClInclude Include="ONumber.h" />
