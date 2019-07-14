@@ -6029,6 +6029,51 @@ entry oclearBop
 		
 ;========================================
 
+entry odropBop
+	; TOS is object to check - if its refcount is already 0, invoke delete method
+	;  otherwise do nothing
+	mov	eax, [edx]
+	add	edx, 4
+	mov	ebx, [eax + Object.refCount]
+	or	ebx, ebx
+	jnz .odrop1
+
+	; refcount is 0, delete the object
+	; push this ptr on return stack
+	mov	ebx, [ebp + FCore.RPtr]
+	sub	ebx, 4
+	mov	[ebp + FCore.RPtr], ebx
+	mov	ecx, [ebp + FCore.TPtr]
+	mov	[ebx], ecx
+
+	; set this to object to delete
+	mov	[ebp + FCore.TPtr], eax
+
+	mov	ebx, [eax]	; ebx = methods pointer
+	mov	ebx, [ebx]	; ebx = method 0 (delete)
+
+	; execute the delete method opcode which is in ebx
+	mov	eax, [ebp + FCore.innerExecute]
+	jmp eax
+
+.odrop1:
+	jmp edi
+
+	push edi
+	push eax
+
+	mov	[edi], eax
+	
+
+	pop eax
+	pop edi
+	
+	mov	[ecx], eax		; var = newObj
+	add	edx, 4
+
+
+;========================================
+
 entry refBop
 	mov	eax, kVarRef
 	mov	[ebp + FCore.varMode], eax

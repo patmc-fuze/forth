@@ -79,10 +79,6 @@ class: rgba
 	  -> s.alpha -> s.b -> s.g -> s.r
   ;m
   
-  m: show
-	  s.r %d %bl s.g %d %bl s.b %d %bl s.alpha %d %bl %nl
-  ;m
-  
   m: add
     // TOS is object to add
     -> rgba t

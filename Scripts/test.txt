@@ -50,6 +50,19 @@ runtest tree_examples
 go
 forget TREE_EXAMPLES
 
+runtest maze
+forget MAZE
+
+runtest file
+forget File
+
+runtest directory
+mko Directory dd
+dd.openHere
+dd.listFilenames
+oclear dd
+forget Directory
+
 cd newadv
 runtest adv
 forget ADV

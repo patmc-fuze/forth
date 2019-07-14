@@ -121,6 +121,7 @@ test[ 0 rudy.get 5+ c! rudy.fixup rudy.length 5 = ]
 
 
 int nextObjId
+-1 -> int lastTobjDeleted
 
 class: tobj    extends Object
   int objId
@@ -139,6 +140,7 @@ class: tobj    extends Object
   // m: show    objId %d %bl  ;m
   
   m: delete
+    objId -> lastTobjDeleted
     "|-" %s objId %d
     super.delete
   ;m
@@ -245,6 +247,38 @@ oclear listA
 //"{clearing array}" %s
 oclear arrayA
 
+// test odrop
+: test_odrop
+  "testing odrop\n" %s
+  
+  12345
+  nextObjId -> int testId
+  -1 -> lastTobjDeleted
+  
+  new tobj odrop
+  if(testId lastTobjDeleted <>)
+    "odrop test1 FAILED!!!!\n" %s
+  endif
+  
+  if(dup 12345 <>)
+    "odrop test1 left junk on stack!!!!\n" %s
+  endif
+  
+  mko tobj fred
+  -1 -> lastTobjDeleted
+  fred odrop
+  if(-1 lastTobjDeleted <>)
+    "odrop test2 FAILED!!!!\n" %s
+  endif
+  
+  if(12345 <>)
+    "odrop test2 left junk on stack!!!!\n" %s
+  endif
+
+  oclear fred  
+;
+test_odrop
+  
 oclear valA  oclear valB  oclear valC  oclear valD  oclear valE
 
 mko List zz

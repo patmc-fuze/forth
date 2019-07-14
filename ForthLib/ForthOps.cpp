@@ -2136,22 +2136,6 @@ FORTHOP( doMethodOp )
     pEngine->ExecuteOp(pCore,  obj->pMethods[ methodIndex ] );
 }
 
-FORTHOP(odropOp)
-{
-    ForthEngine *pEngine = GET_ENGINE;
-    ForthObject obj;
-
-    // if object on TOS has refcount 0, invoke its delete method
-    //  otherwise just drop it
-    POP_OBJECT(obj);
-    if ((obj != nullptr) && (obj->refCount == 0))
-    {
-        RPUSH(((long)GET_TP));
-        SET_TP(obj);
-        pEngine->ExecuteOp(pCore, obj->pMethods[0]);
-    }
-}
-
 FORTHOP( implementsOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
@@ -7966,6 +7950,22 @@ FORTHOP( noopBop )
 {
 }
 
+FORTHOP(odropBop)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+    ForthObject obj;
+
+    // if object on TOS has refcount 0, invoke its delete method
+    //  otherwise just drop it
+    POP_OBJECT(obj);
+    if ((obj != nullptr) && (obj->refCount == 0))
+    {
+        RPUSH(((long)GET_TP));
+        SET_TP(obj);
+        pEngine->ExecuteOp(pCore, obj->pMethods[0]);
+    }
+}
+
 //##############################
 //
 // loads & stores
@@ -9024,6 +9024,7 @@ OPREF( doLongArrayBop );    OPREF( doLongArrayBop );    OPREF( doFloatArrayBop )
 OPREF( doDoubleArrayBop );  OPREF( doStringArrayBop );  OPREF( doOpArrayBop );
 OPREF( doObjectArrayBop );  OPREF( initStringBop );     OPREF( plusBop );
 OPREF( strFixupBop );       OPREF( fetchBop );			OPREF( noopBop );
+OPREF(odropBop);
 
 OPREF( ifetchBop );          OPREF( doStructBop );       OPREF( doStructArrayBop );
 OPREF( doDoBop );           OPREF( doLoopBop );         OPREF( doLoopNBop );
@@ -9238,10 +9239,11 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    dpBop,                   "dp" ),
     NATIVE_DEF(    fetchBop,                "fetch" ),
     NATIVE_DEF(    noopBop,                 "noop" ),
+    NATIVE_DEF(    odropBop,                "odrop"),
 
 	// object varActions
     NATIVE_DEF(    subtractFromBop,         "unref" ),
-    
+
     ///////////////////////////////////////////
     //  integer math
     ///////////////////////////////////////////
@@ -9721,7 +9723,6 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(endmethodOp,            ";m" ),
     PRECOP_DEF(returnsOp,              "returns" ),
     OP_DEF(    doMethodOp,             "doMethod" ),
-    OP_DEF(    odropOp,                "odrop"),
     OP_DEF(    implementsOp,           "implements:" ),
     OP_DEF(    endImplementsOp,        ";implements" ),
     OP_DEF(    unionOp,                "union" ),

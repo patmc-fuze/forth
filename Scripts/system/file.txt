@@ -4,6 +4,7 @@ autoforget File
 class: File extends Object
 
   int fp
+  String path
   ByteArray buffer		// line buffer for getLine
   byte readOnly
   byte unixEol			// end-of-line for putLine
@@ -14,24 +15,16 @@ class: File extends Object
     "error in file." %s %s %nl
   ;
 
-  //m: show
-  //  "fp " %s fp %x
-  //  "  buffer " %s buffer %x 
-  //  "  unixEol " %s unixEol %d
-  //  "  noTrimEol " %s noTrimEol %d
-  //  "  stdHandle " %s stdHandle %d %nl
-  //;m
-  
   m: delete
     if( fp )
       fclose( fp )
     endif
-    if( buffer objNotNull )
-      buffer.delete
-    endif
+    oclear buffer
+    oclear path
     super.delete
   ;m
     
+  // ...
   m: close
     if( fp )
       if( not( stdHandle ) )
@@ -46,34 +39,33 @@ class: File extends Object
     endif
   ;m
   
-  // open( "path" "mode" ) ... t/f  
+  // "inpath" "mode" ... t/f  
   m: open
     -> ptrTo byte mode
-    -> ptrTo byte path
+    -> ptrTo byte inpath
     
     if( fp )
       close
     endif
     mode c@ 'r' = -> readOnly   // yeah, this is probably wrong
 
-    if( path c@ '<' = )
-      if( strcmp( "<stdin>" path ) 0= )
+    false -> stdHandle
+    if( inpath c@ '<' = )
+      if( strcmp( "<stdin>" inpath ) 0= )
         if( not( readOnly ) )
           error( "open - can't open stdin for write" )
           exit
         endif
         stdin -> fp
         true -> stdHandle
-      endif
-      if( strcmp( "<stdout>" path ) 0= )
+      elseif( strcmp( "<stdout>" inpath ) 0= )
         if( readOnly )
           error( "open - can't open stdout for read" )
           exit
         endif
         stdout -> fp
         true -> stdHandle
-      endif
-      if( strcmp( "<stderr>" path ) 0= )
+      elseif( strcmp( "<stderr>" inpath ) 0= )
         if( readOnly )
           error( "open - can't open stderr for read" )
           exit
@@ -83,11 +75,15 @@ class: File extends Object
       endif
     endif
     
-    if( fp null = )
-      fopen( path mode ) -> fp
+    if( fp 0= )
+      fopen( inpath mode ) -> fp
     endif
     
     if( fp )
+      if(path objIsNull)
+        new String -> path
+      endif
+      path.set(inpath)
       true
     else
       error( "open" )
@@ -95,29 +91,23 @@ class: File extends Object
     endif
   ;m
 
-  m: openRead
-    "r" open
-  ;m
+  // "path" ... t/f  
+  m: openRead    "r" open  ;m
   
-  m: openWrite
-    "w" open
-  ;m
+  // "path" ... t/f  
+  m: openWrite    "w" open  ;m
   
-  m: openAppend
-    "a" open
-  ;m
+  // "path" ... t/f  
+  m: openAppend    "a" open  ;m
   
-  m: openReadBinary
-    "rb" open
-  ;m
+  // "path" ... t/f  
+  m: openReadBinary    "rb" open  ;m
   
-  m: openWriteBinary
-    "wb" open
-  ;m
+  // "path" ... t/f  
+  m: openWriteBinary    "wb" open  ;m
   
-  m: openAppendBinary
-    "ab" open
-  ;m
+  // "path" ... t/f  
+  m: openAppendBinary    "ab" open  ;m
   
   // ... BYTE_VALUE
   m: getByte
@@ -274,7 +264,7 @@ class: File extends Object
       if( buffer objIsNull )
         d[ "file.getLine allocating buffer\n" %s ]d
         new ByteArray -> buffer
-        buffer.resize( 8 )
+        buffer.resize( 256 )
         //buffer.resize( 32000 )
       endif
       //buffer.resize( 1 )			// just for testing
