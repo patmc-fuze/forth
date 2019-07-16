@@ -66,7 +66,7 @@ public:
     void EndNestedShow();
 
 private:
-	ulong mDepth;
+	ucell mDepth;
     int mNumShown; // num elements shown at current depth
     int mArrayElementsPerLine;
 	std::set<void *> mShownObjects;

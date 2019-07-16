@@ -50,12 +50,6 @@ runtest tree_examples
 go
 forget TREE_EXAMPLES
 
-runtest maze
-forget MAZE
-
-runtest file
-forget File
-
 runtest directory
 mko Directory dd
 dd.openHere
@@ -78,6 +72,7 @@ cd system
 runtest hersheyfont
 runtest file
 runtest rbtree
+runtest maze
 forget _TEST_
 cd ..
 

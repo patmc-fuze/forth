@@ -22,7 +22,7 @@ namespace ODeque
     typedef std::deque<ForthObject> oDeque;
     struct oDequeStruct
     {
-        long*           pMethods;
+        forthop*        pMethods;
         ulong			refCount;
         oDeque          *que;
     };

@@ -124,8 +124,8 @@ struct OutStreamFuncs
 
 struct oOutStreamStruct
 {
-    long*               pMethods;
-	ulong               refCount;
+    forthop*            pMethods;
+    ucell               refCount;
 	void*               pUserData;
 	OutStreamFuncs*     pOutFuncs;
 	char				eolChars[4];
@@ -160,8 +160,8 @@ enum
 
 struct oInStreamStruct
 {
-    long*               pMethods;
-    ulong               refCount;
+    forthop*            pMethods;
+    ucell               refCount;
 	void*               pUserData;
 	int					bTrimEOL;
     InStreamFuncs*      pInFuncs;
@@ -170,8 +170,8 @@ struct oInStreamStruct
 typedef std::vector<ForthObject> oArray;
 struct oArrayStruct
 {
-    long*       pMethods;
-    ulong       refCount;
+    forthop*    pMethods;
+    ucell       refCount;
 	oArray*     elements;
 };
 
@@ -184,18 +184,18 @@ struct oListElement
 
 struct oListStruct
 {
-    long*           pMethods;
-    ulong			refCount;
+    forthop*        pMethods;
+    ucell			refCount;
 	oListElement*	head;
 	oListElement*	tail;
 };
 
 struct oArrayIterStruct
 {
-    long*           pMethods;
-    ulong			refCount;
+    forthop*        pMethods;
+    ucell			refCount;
 	ForthObject		parent;
-	ulong			cursor;
+	ucell			cursor;
 };
 
 #define DEFAULT_STRING_DATA_BYTES 32
@@ -209,24 +209,24 @@ struct oString
 
 struct oStringStruct
 {
-    long*       pMethods;
-    ulong		refCount;
-	ulong		hash;
+    forthop*    pMethods;
+    ucell		refCount;
+	ucell		hash;
 	oString*	str;
 };
 
-typedef std::map<long long, ForthObject> oLongMap;
+typedef std::map<int64_t, ForthObject> oLongMap;
 struct oLongMapStruct
 {
-    long*       pMethods;
-    ulong       refCount;
+    forthop*    pMethods;
+    ucell       refCount;
     oLongMap*	elements;
 };
 
 struct oLongMapIterStruct
 {
-    long*               pMethods;
-    ulong				refCount;
+    forthop*            pMethods;
+    ucell				refCount;
     ForthObject			parent;
     oLongMap::iterator*	cursor;
 };
@@ -234,14 +234,14 @@ struct oLongMapIterStruct
 class ForthForgettableGlobalObject : public ForthForgettable
 {
 public:
-    ForthForgettableGlobalObject( const char* pName, void *pOpAddress, long op, int numElements = 1 );
+    ForthForgettableGlobalObject( const char* pName, void *pOpAddress, forthop op, int numElements = 1 );
     virtual ~ForthForgettableGlobalObject();
 
     virtual const char* GetTypeName();
     virtual const char* GetName();
 protected:
     char* mpName;
-    virtual void    ForgetCleanup( void *pForgetLimit, long op );
+    virtual void    ForgetCleanup( void *pForgetLimit, forthop op );
 
 	int		mNumElements;
 };

@@ -23,8 +23,8 @@ public:
 	inline void     SetFlag(int flag) { mFlags |= flag; };
 
 	inline char *   GetToken(void) { return ((char *)mpToken) + 1; };
-	inline long *   GetTokenAsLong(void) { return mpToken; };
-	inline int      GetTokenLength(void) { return mNumChars; };
+    inline long *   GetTokenAsLong(void) { return mpToken; };
+    inline int      GetTokenLength(void) { return mNumChars; };
 	inline int      GetNumLongs(void) { return mNumLongs; };
 	inline int		GetMaxChars(void) const { return mMaxChars; };
 

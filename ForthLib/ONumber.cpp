@@ -27,7 +27,7 @@ namespace ONumber
 
 	struct oIntStruct
 	{
-        long*       pMethods;
+        forthop*    pMethods;
         ulong       refCount;
 		int			val;
 	};
@@ -151,9 +151,9 @@ namespace ONumber
 
 	struct oLongStruct
 	{
-        long*       pMethods;
+        forthop*    pMethods;
         ulong       refCount;
-		long long	val;
+		int64_t	val;
 	};
 
 
@@ -235,7 +235,7 @@ namespace ONumber
 
 	struct oFloatStruct
 	{
-        long*       pMethods;
+        forthop*    pMethods;
         ulong       refCount;
 		float		val;
 	};
@@ -316,7 +316,7 @@ namespace ONumber
 
 	struct oDoubleStruct
 	{
-        long*       pMethods;
+        forthop*    pMethods;
         ulong       refCount;
 		double		val;
 	};

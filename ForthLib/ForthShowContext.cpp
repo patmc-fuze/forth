@@ -72,7 +72,7 @@ void ForthShowContext::ShowIndent(const char* pText)
 {
     if (mShowSpaces)
     {
-        for (int32 i = 0; i < mDepth; i++)
+        for (ucell i = 0; i < mDepth; i++)
         {
             ShowText("  ");
         }
@@ -212,7 +212,11 @@ void ForthShowContext::ShowID(const char* pTypeName, const void* pData)
 	char buffer[16];
 
 	ShowText(pTypeName);
-	sprintf(buffer, "_%08x", (uint32) pData);
+#ifdef FORTH64
+	sprintf(buffer, "_%016x", (uint64_t) pData);
+#else
+    sprintf(buffer, "_%08x", (uint32_t)pData);
+#endif
 	ShowText(buffer);
 }
 

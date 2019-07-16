@@ -48,7 +48,7 @@ extern int kbhit(void);
 extern int getch(void);
 #endif
 
-long gCompiledOps[NUM_COMPILED_OPS];
+forthop gCompiledOps[NUM_COMPILED_OPS];
 
 extern "C"
 {
@@ -132,8 +132,8 @@ FORTHOP( illegalMethodOp )
 FORTHOP( argvOp )
 {
     NEEDS( 1 );
-    int argNum = SPOP;
-    SPUSH( (long) (GET_ENGINE->GetShell()->GetArg( argNum )) );
+    cell argNum = SPOP;
+    SPUSH( (cell) (GET_ENGINE->GetShell()->GetArg( argNum )) );
 }
 
 FORTHOP( argcOp )
@@ -204,7 +204,7 @@ FORTHOP( timesDivOp )
 	int denom = SPOP;
 	int a = SPOP;
 	int b = SPOP;
-	long long product = (long long) a * (long long) b;
+	int64_t product = (int64_t) a * (int64_t) b;
 	int result = product / denom;
 	SPUSH(result);
 }
@@ -214,7 +214,7 @@ FORTHOP( timesDivModOp )
 	int denom = SPOP;
 	int a = SPOP;
 	int b = SPOP;
-	long long product = (long long) a * (long long) b;
+	int64_t product = (int64_t) a * (int64_t) b;
 	int quotient = product / denom;
 	int remainder = product % denom;
 	SPUSH(remainder);
@@ -417,7 +417,7 @@ FORTHOP( i2lOp )
     NEEDS(1);
     int a = SPOP;
     stackInt64 b;
-    b.s64 = (long long) a;
+    b.s64 = (int64_t) a;
     LPUSH( b );
 }
 
@@ -444,7 +444,7 @@ FORTHOP( f2lOp )
     NEEDS(1);
     float a = FPOP;
     stackInt64 b;
-    b.s64 = (long long) a;
+    b.s64 = (int64_t) a;
     LPUSH( b );
 }
 
@@ -453,7 +453,7 @@ FORTHOP( d2lOp )
     NEEDS(2);
     double a = DPOP;
     stackInt64 b;
-    b.s64 = (long long) a;
+    b.s64 = (int64_t) a;
     LPUSH( b );
 }
 
@@ -471,7 +471,7 @@ FORTHOP(doOp)
     ForthShellStack *pShellStack = pEngine->GetShell()->GetShellStack();
     pShellStack->Push( gCompiledOps[ OP_DO_DO ] );
     // save address for loop/+loop
-    pShellStack->Push( (long)GET_DP );
+    pShellStack->PushAddress( GET_DP );
     pShellStack->PushTag( kShellTagDo );
     // this will be fixed by loop/+loop
     pEngine->CompileBuiltinOpcode( OP_ABORT );
@@ -487,7 +487,7 @@ FORTHOP(checkDoOp)
     ForthShellStack *pShellStack = pEngine->GetShell()->GetShellStack();
     pShellStack->Push( gCompiledOps[ OP_DO_CHECKDO ] );
     // save address for loop/+loop
-    pShellStack->Push( (long)GET_DP );
+    pShellStack->PushAddress(GET_DP);
     pShellStack->PushTag( kShellTagDo );
     // this will be fixed by loop/+loop
     pEngine->CompileBuiltinOpcode( OP_ABORT );
@@ -506,8 +506,8 @@ FORTHOP(loopOp)
     {
         return;
     }
-    long *pDoOp = (long *) pShellStack->Pop();
-	long doOpcode = pShellStack->Pop();
+    forthop* pDoOp = pShellStack->PopAddress();
+	forthop doOpcode = pShellStack->Pop();
     *pDoOp++ = doOpcode;
     // compile the "_loop" opcode
     pEngine->CompileBuiltinOpcode( OP_DO_LOOP );
@@ -527,8 +527,8 @@ FORTHOP(loopNOp)
     {
         return;
     }
-    long *pDoOp = (long *) pShellStack->Pop();
-	long doOpcode = pShellStack->Pop();
+    forthop*pDoOp = pShellStack->PopAddress();
+	forthop doOpcode = pShellStack->Pop();
     *pDoOp++ = doOpcode;
     // compile the "_loop" opcode
     pEngine->CompileBuiltinOpcode( OP_DO_LOOPN );
@@ -545,9 +545,9 @@ FORTHOP( ifOp )
     ForthShellStack *pShellStack = pShell->GetShellStack();
     // this will be fixed by else/endif
     pEngine->CompileOpcode(kOpBranchZ, 0);
-    long branchAddr = (long)(GET_DP - 1);
+    forthop* branchAddr = (GET_DP - 1);
     // save address for else/endif
-    pShellStack->Push(branchAddr);
+    pShellStack->PushAddress(branchAddr);
     // flag that this is the "if" branch
     pShellStack->PushTag(kShellTagIf);
 }
@@ -560,9 +560,9 @@ FORTHOP(elifOp)
     ForthShellStack *pShellStack = pShell->GetShellStack();
     // this will be fixed by else/endif
     pEngine->CompileOpcode(kOpBranchZ, 0);
-    long branchAddr = (long)(GET_DP - 1);
+    forthop* branchAddr = (GET_DP - 1);
     // save address for else/endif
-    pShellStack->Push(branchAddr);
+    pShellStack->PushAddress(branchAddr);
     // flag that this is the "if" branch
     pShellStack->PushTag(kShellTagElif);
 }
@@ -575,9 +575,9 @@ FORTHOP(orifOp)
     ForthShellStack *pShellStack = pShell->GetShellStack();
     // this will be fixed by else/endif
     pEngine->CompileOpcode(kOpBranchZ, 0);
-    long branchAddr = (long)(GET_DP - 1);
+    forthop* branchAddr = (GET_DP - 1);
     // save address for else/endif
-    pShellStack->Push(branchAddr);
+    pShellStack->PushAddress(branchAddr);
     // flag that this is an "orif" clause
     pShellStack->PushTag(kShellTagOrIf);
 }
@@ -590,10 +590,10 @@ FORTHOP(andifOp)
 	ForthShellStack *pShellStack = pShell->GetShellStack();
     // this will be fixed by else/endif
     pEngine->CompileOpcode(kOpBranchZ, 0);
-    long branchAddr = (long)(GET_DP - 1);
+    forthop* branchAddr = (GET_DP - 1);
     // save address for else/endif
-    pShellStack->Push(branchAddr);
-	// flag that this is an "andif" clause
+    pShellStack->PushAddress(branchAddr);
+    // flag that this is an "andif" clause
     pShellStack->PushTag(kShellTagAndIf);
 }
 
@@ -611,14 +611,14 @@ FORTHOP(elseOp)
     {
         return;
     }
-    long* falseIP = GET_DP + 1;
-    long* trueIP = ((long *)pShellStack->Peek(1)) + 1;
+    forthop* falseIP = GET_DP + 1;
+    forthop* trueIP = pShellStack->PeekAddress(1) + 1;
     bool notDone = true;
     bool followedByOr = false;
     while (notDone)
     {
         branchTag = pShellStack->PopTag();
-        long *pBranch = (long *)pShellStack->Pop();
+        forthop* pBranch = pShellStack->PopAddress();
         if (followedByOr)
         {
             pEngine->PatchOpcode(kOpBranchNZ, (trueIP - pBranch) - 1, pBranch);
@@ -636,18 +636,18 @@ FORTHOP(elseOp)
             break;
         case kShellTagOrIf:
             followedByOr = true;
-            falseIP = ((long *)pShellStack->Peek(1)) + 1;
+            falseIP = pShellStack->PeekAddress(1) + 1;
             break;
         case kShellTagAndIf:
             followedByOr = false;
-            trueIP = ((long *)pShellStack->Peek(1)) + 1;
+            trueIP = pShellStack->PeekAddress(1) + 1;
             break;
         default:
             pShell->CheckSyntaxError("else", branchTag, kShellTagIf);
             return;
         }
     }
-    long elseCount = 1; // assume there is only one else branch
+    cell elseCount = 1; // assume there is only one else branch
     if (branchTag == kShellTagElif)
     {
         // this isn't first else
@@ -660,7 +660,7 @@ FORTHOP(elseOp)
         elseCount = pShellStack->Pop() + 1;
     }
     // save address for endif
-    pShellStack->Push((long)GET_DP);
+    pShellStack->PushAddress(GET_DP);
     pShellStack->Push(elseCount);
     // flag that this is the "else" branch
     pShellStack->PushTag(kShellTagElse);
@@ -689,14 +689,14 @@ FORTHOP( endifOp )
     else
     {
         // there was no "else", so process if/andif/orif
-        long* falseIP = GET_DP;
-        long* trueIP = ((long *)pShellStack->Peek(1)) + 1;
+        forthop* falseIP = GET_DP;
+        forthop* trueIP = ((forthop *)pShellStack->Peek(1)) + 1;
         bool notDone = true;
         bool followedByOr = false;
         while (notDone)
         {
             branchTag = pShellStack->PopTag();
-            long *pBranch = (long *)pShellStack->Pop();
+            forthop *pBranch = pShellStack->PopAddress();
             if (followedByOr)
             {
                 pEngine->PatchOpcode(kOpBranchNZ, (trueIP - pBranch) - 1, pBranch);
@@ -732,10 +732,10 @@ FORTHOP( endifOp )
     {
         // "else" has already handled if/andif/orif, just do branch at end of true body around false body
         branchTag = pShellStack->PopTag();
-        long numElseBranches = pShellStack->Pop();
-        for (long i = 0; i < numElseBranches; ++i)
+        cell numElseBranches = pShellStack->Pop();
+        for (cell i = 0; i < numElseBranches; ++i)
         {
-            long *pBranch = (long *)pShellStack->Pop();
+            forthop *pBranch = pShellStack->PopAddress();
             *pBranch = COMPILED_OP(kOpBranch, (GET_DP - pBranch) - 1);
         }
     }
@@ -751,7 +751,7 @@ FORTHOP( beginOp )
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
     // save address for repeat/until/again
-    pShellStack->Push( (long)GET_DP );
+    pShellStack->PushAddress(GET_DP);
     pShellStack->PushTag( kShellTagBegin );
     pEngine->StartLoopContinuations();
 }
@@ -766,7 +766,7 @@ FORTHOP( untilOp )
     ForthShellStack *pShellStack = pShell->GetShellStack();
     if ( pShell->CheckSyntaxError( "until", pShellStack->PopTag(), kShellTagBegin ) )
     {
-        long *pBeginOp = (long *) pShellStack->Pop();
+        forthop *pBeginOp = (forthop *) pShellStack->Pop();
         pEngine->CompileOpcode(kOpBranchZ, 0);
         pEngine->PatchOpcode(kOpBranchZ, (pBeginOp - GET_DP), GET_DP - 1);
     }
@@ -787,13 +787,13 @@ FORTHOP( whileOp )
         return;
     }
     // stick while tag/address under the begin tag/address
-    long oldAddress = pShellStack->Pop();
+    forthop* oldAddress = pShellStack->PopAddress();
     // this will be fixed by else/endif
     pEngine->CompileOpcode(kOpBranchZ, 0);
-    long branchAddr = (long)(GET_DP - 1);
-    pShellStack->Push(branchAddr);
+    forthop* branchAddr = GET_DP - 1;
+    pShellStack->PushAddress(branchAddr);
     pShellStack->PushTag(kShellTagWhile);
-    pShellStack->Push(oldAddress);
+    pShellStack->PushAddress(oldAddress);
     pShellStack->PushTag(kShellTagBegin);
 }
 
@@ -809,14 +809,14 @@ FORTHOP( repeatOp )
     {
         return;
     }
-    long *pBeginAddress =  (long *) pShellStack->Pop();
+    forthop *pBeginAddress = pShellStack->PopAddress();
     eShellTag branchTag = pShellStack->PopTag();
     if (!pShell->CheckSyntaxError("repeat", branchTag, kShellTagWhile))
     {
         return;
     }
     // fill in the branch taken when "while" fails
-    long *pBranch =  (long *) pShellStack->Pop();
+    forthop*pBranch =  (forthop*) pShellStack->Pop();
     //*pBranch = COMPILED_OP((branchTag == kShellTagBranchZ) ? kOpBranchZ : kOpBranch, (GET_DP - pBranch));
     pEngine->PatchOpcode(kOpBranchZ, (GET_DP - pBranch), pBranch);
     pEngine->CompileOpcode(kOpBranch, (pBeginAddress - GET_DP) - 1);
@@ -835,7 +835,7 @@ FORTHOP( againOp )
     {
         return;
     }
-    long *pLoopTop =  (long *) pShellStack->Pop();
+    forthop*pLoopTop =  (forthop*) pShellStack->Pop();
     pEngine->CompileOpcode( kOpBranch, (pLoopTop - GET_DP) - 1 );
     pEngine->EndLoopContinuations(kShellTagBegin);
     pEngine->ClearPeephole();
@@ -861,7 +861,7 @@ FORTHOP( ofOp )
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
     // save address for endof
-    pShellStack->Push( (long)GET_DP );
+    pShellStack->PushAddress(GET_DP);
     pShellStack->PushTag( kShellTagOf );
     // this will be set to a caseBranch by endof
     pEngine->CompileBuiltinOpcode( OP_ABORT );
@@ -876,7 +876,7 @@ FORTHOP( ofifOp )
     ForthShellStack *pShellStack = pShell->GetShellStack();
 
     // save address for endof
-    pShellStack->Push( (long)GET_DP );
+    pShellStack->PushAddress(GET_DP);
     pShellStack->PushTag( kShellTagOfIf );
     // this will be set to a zBranch by endof
     pEngine->CompileBuiltinOpcode( OP_ABORT );
@@ -892,12 +892,12 @@ FORTHOP( endofOp )
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    long *pDP = GET_DP;
+    forthop* pDP = GET_DP;
 
     // this will be fixed by endcase
     pEngine->CompileBuiltinOpcode( OP_ABORT );
     bool isLastCase = true;
-    long *pCaseBody = nullptr;
+    forthop* pCaseBody = nullptr;
 
     while (true)
     {
@@ -910,11 +910,11 @@ FORTHOP( endofOp )
         {
             break;
         }
-        long *pOp = (long *)pShellStack->Pop();
+        forthop* pOp = (forthop* )pShellStack->Pop();
         // fill in the branch taken when case doesn't match
-        long branchOp;
-        long branchOffset;
-        long* pHere = GET_DP;
+        forthop branchOp;
+        cell branchOffset;
+        forthop* pHere = GET_DP;
         if (isLastCase)
         {
             // last case test compiles a branch around case body on mismatch
@@ -940,8 +940,8 @@ FORTHOP( endofOp )
 // endcase - has precedence
 FORTHOP( endcaseOp )
 {
-    long *pSP = GET_SP;
-    long *pEndofOp;
+    cell* pSP = GET_SP;
+    forthop* pEndofOp;
 
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
@@ -957,7 +957,7 @@ FORTHOP( endcaseOp )
     // patch branches from end-of-case to common exit point
     while (true)
     {
-        pEndofOp = (long *)(pShellStack->Pop());
+        pEndofOp = (forthop* )(pShellStack->Pop());
         if (pEndofOp == nullptr)
         {
             break;
@@ -972,7 +972,7 @@ FORTHOP( endcaseOp )
 FORTHOP(labelOp)
 {
 	ForthEngine *pEngine = GET_ENGINE;
-	long *pHere = GET_DP;
+	forthop* pHere = GET_DP;
 	char* labelName = pEngine->GetNextSimpleToken();
 	pEngine->DefineLabel(labelName, pHere);
 }
@@ -980,7 +980,7 @@ FORTHOP(labelOp)
 FORTHOP(gotoOp)
 {
 	ForthEngine *pEngine = GET_ENGINE;
-	long *pHere = GET_DP;
+	forthop* pHere = GET_DP;
 	char* labelName = pEngine->GetNextSimpleToken();
 	// this will be fixed when label is defined
 	pEngine->CompileBuiltinOpcode(OP_ABORT);
@@ -990,7 +990,7 @@ FORTHOP(gotoOp)
 FORTHOP(gotoIfOp)
 {
 	ForthEngine *pEngine = GET_ENGINE;
-	long *pHere = GET_DP;
+	forthop* pHere = GET_DP;
 	char* labelName = pEngine->GetNextSimpleToken();
 	// this will be fixed when label is defined
 	pEngine->CompileBuiltinOpcode(OP_ABORT);
@@ -1000,7 +1000,7 @@ FORTHOP(gotoIfOp)
 FORTHOP(gotoIfNotOp)
 {
 	ForthEngine *pEngine = GET_ENGINE;
-	long *pHere = GET_DP;
+	forthop* pHere = GET_DP;
 	char* labelName = pEngine->GetNextSimpleToken();
 	// this will be fixed when label is defined
 	pEngine->CompileBuiltinOpcode(OP_ABORT);
@@ -1087,7 +1087,7 @@ FORTHOP( cCommaOp )
     ForthEngine *pEngine = GET_ENGINE;
     char *pChar = (char *)GET_DP;
     *pChar++ = (char) SPOP;
-    pEngine->SetDP( (long *) pChar);
+    pEngine->SetDP( (forthop *) pChar);
     pEngine->ClearPeephole();
 }
 
@@ -1099,7 +1099,7 @@ FORTHOP( unusedOp )
 
 FORTHOP( here0Op )
 {
-    SPUSH( (long)(pCore->pDictionary->pBase) );
+    SPUSH( (cell)(pCore->pDictionary->pBase) );
 }
 
 FORTHOP( mallocOp )
@@ -1107,7 +1107,7 @@ FORTHOP( mallocOp )
     NEEDS(1);
     long numBytes = SPOP;
 	void* pMemory = __MALLOC(numBytes);
-    SPUSH( (long) pMemory  );
+    SPUSH( (cell) pMemory  );
 }
 
 FORTHOP( reallocOp )
@@ -1115,7 +1115,7 @@ FORTHOP( reallocOp )
     NEEDS(2);
     size_t newSize = (size_t)(SPOP);
     void* allocPtr = (void *)(SPOP);
-    SPUSH(  (long) __REALLOC( allocPtr, newSize )  );
+    SPUSH(  (cell) __REALLOC( allocPtr, newSize )  );
 }
 
 FORTHOP( freeOp )
@@ -1133,6 +1133,7 @@ FORTHOP(initStringArrayOp)
 
 	len = SPOP;
 	numElements = SPOP;
+    // TODO!
 	pStr = ((long *)(SPOP)) - 2;
 	nLongs = (len >> 2) + 3;
 
@@ -1151,8 +1152,8 @@ FORTHOP(initStructArrayOp)
 	ForthEngine *pEngine = GET_ENGINE;
 	ForthTypesManager* pManager = ForthTypesManager::GetInstance();
 
-	long typeIndex = SPOP;
-	long numElements = SPOP;
+	cell typeIndex = SPOP;
+    cell numElements = SPOP;
 	char* pStruct = (char *)(SPOP);
 	ForthTypeInfo* typeInfo = pManager->GetTypeInfo(typeIndex);
 	if (typeInfo != nullptr)
@@ -1169,7 +1170,7 @@ FORTHOP(initStructArrayOp)
 
 					for (int i = 0; i < numElements; i++)
 					{
-						SPUSH((long)pStruct);
+						SPUSH((cell)pStruct);
 						pEngine->FullyExecuteOp(pCore, initStructOp);
 						pStruct += len;
 					}
@@ -1197,14 +1198,14 @@ FORTHOP(initStructArrayOp)
 //
 FORTHOP(doTryOp)
 {
-    long *pNewRP = (long *)((long)(GET_RP) - sizeof(ForthExceptionFrame));
+    cell *pNewRP = (cell *)((cell)(GET_RP) - sizeof(ForthExceptionFrame));
     ForthExceptionFrame *pFrame = (ForthExceptionFrame *)pNewRP;
     SET_RP(pNewRP);
-    long* IP = GET_IP;
+    forthop* IP = GET_IP;
     pFrame->pNextFrame = pCore->pExceptionFrame;
     pFrame->pSavedSP = GET_SP;
     pFrame->pSavedFP = GET_FP;
-    pFrame->pHandlerIPs = (long **)IP;
+    pFrame->pHandlerOffsets = IP;
     pFrame->exceptionNumber = 0;
     pFrame->exceptionState = kForthExceptionStateTry;
 
@@ -1219,8 +1220,7 @@ FORTHOP(tryOp)
     ForthShellStack *pShellStack = pShell->GetShellStack();
 
     pEngine->CompileBuiltinOpcode(OP_DO_TRY);
-    pShellStack->Push((long)GET_DP);
-    // flag that this is the "if" branch
+    pShellStack->PushAddress(GET_DP);
     pShellStack->PushTag(kShellTagTry);
     pEngine->CompileLong(0);
     pEngine->CompileLong(0);
@@ -1237,11 +1237,10 @@ FORTHOP(exceptOp)
     {
         return;
     }
-    long *pHandlerIPs = (long *)pShellStack->Pop();
+    forthop* pHandlerOffsets = pShellStack->PopAddress();
     pEngine->CompileLong(0);        // this will be a branch to the finally section
-    long dp = (long)(GET_DP);
-    *pHandlerIPs = dp;
-    pShellStack->Push((long)pHandlerIPs);
+    *pHandlerOffsets = GET_DP - pHandlerOffsets;
+    pShellStack->PushAddress(pHandlerOffsets);
     pShellStack->PushTag(kShellTagExcept);
 }
 
@@ -1271,12 +1270,12 @@ FORTHOP(finallyOp)
     // compile raise(0) to clear the exception
     pEngine->CompileLong(COMPILED_OP(kOpConstant, 0));
     pEngine->CompileBuiltinOpcode(OP_RAISE);
-    long *pHandlerIPs = (long *)pShellStack->Pop();
-    long* dp = GET_DP;
-    pHandlerIPs[1] = (long) dp;
+    forthop* pHandlerOffsets = pShellStack->PopAddress();
+    forthop* dp = GET_DP;
+    pHandlerOffsets[1] = dp - pHandlerOffsets;
     pEngine->CompileBuiltinOpcode(OP_DO_FINALLY);
     // create branch from end of try section to finally section
-    long *pBranch = (long*)(pHandlerIPs[0]) - 1;
+    forthop* pBranch = pHandlerOffsets +(pHandlerOffsets[0] - 1);
     *pBranch = COMPILED_OP(kOpBranch, (dp - pBranch) - 1);
     pShellStack->PushTag(kShellTagFinally);
 }
@@ -1299,11 +1298,11 @@ FORTHOP(endtryOp)
         pEngine->CompileLong(COMPILED_OP(kOpConstant, 0));
         pEngine->CompileBuiltinOpcode(OP_RAISE);
         // set finallyIP to here
-        long *pHandlerIPs = (long *)pShellStack->Pop();
-        long* dp = GET_DP;
-        pHandlerIPs[1] = (long)dp;
+        forthop* pHandlerOffsets = pShellStack->PopAddress();
+        forthop* dp = GET_DP;
+        pHandlerOffsets[1] = dp - pHandlerOffsets;
         // create branch from end of try section to empty finally section
-        long *pBranch = (long*)(pHandlerIPs[0]) - 1;
+        forthop* pBranch = pHandlerOffsets + (pHandlerOffsets[0] - 1);
         *pBranch = COMPILED_OP(kOpBranch, (dp - pBranch) - 1);
     }
     pEngine->CompileBuiltinOpcode(OP_DO_ENDTRY);
@@ -1316,8 +1315,8 @@ FORTHOP(doEndtryOp)
     {
         // unwind current exception frame
         SET_FP(pCore->pExceptionFrame->pSavedFP);
-        long oldExceptionNum = pCore->pExceptionFrame->exceptionNumber;
-        long *pNewRP = (long *)((long)(GET_RP) + sizeof(ForthExceptionFrame));
+        cell oldExceptionNum = pCore->pExceptionFrame->exceptionNumber;
+        cell *pNewRP = (cell *)((cell)(GET_RP) + sizeof(ForthExceptionFrame));
         SET_RP(pNewRP);
         pCore->pExceptionFrame = pCore->pExceptionFrame->pNextFrame;
         if (oldExceptionNum != 0)
@@ -1335,7 +1334,7 @@ FORTHOP(raiseOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
 
-    long exceptionNum = SPOP;
+    cell exceptionNum = SPOP;
     pEngine->RaiseException(pCore, exceptionNum);
 }
 
@@ -1344,7 +1343,7 @@ FORTHOP(raiseOp)
 //  forth defining ops
 //
 
-static long    *gpSavedDP;
+static forthop    *gpSavedDP;
 
 // builds
 // - does not have precedence
@@ -1354,7 +1353,7 @@ static long    *gpSavedDP;
 FORTHOP(buildsOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
-	long *pEntry;
+	forthop* pEntry;
 
     // get next symbol, add it to vocabulary with type "builds/does"
     pEngine->AlignDP();
@@ -1374,7 +1373,7 @@ FORTHOP(buildsOp)
 //
 FORTHOP( doesOp )
 {
-    long newUserOp;
+    cell newUserOp;
     ForthEngine *pEngine = GET_ENGINE;
 
     if ( pEngine->IsCompiling() )
@@ -1417,7 +1416,7 @@ FORTHOP( endBuildsOp )
     // fetch opcode at pIP, compile it into dummy word remembered by builds
     *gpSavedDP = *GET_IP;
     // we are done defining, bail out
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop* ) (RPOP) );
 }
 
 // exit has precedence
@@ -1461,7 +1460,7 @@ FORTHOP( semiOp )
 static void startColonDefinition(ForthCoreState* pCore, const char* pName)
 {
 	ForthEngine *pEngine = GET_ENGINE;
-	long* pEntry = pEngine->StartOpDefinition(pName, true);
+	forthop* pEntry = pEngine->StartOpDefinition(pName, true);
 	pEntry[1] = BASE_TYPE_TO_CODE(kBaseTypeUserDefinition);
 	// switch to compile mode
 	pEngine->SetCompileState(1);
@@ -1483,9 +1482,9 @@ FORTHOP( colonNoNameOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
-	long newDef = pEngine->AddOp( GET_DP );
+    forthop newDef = pEngine->AddOp( GET_DP );
 	newDef = COMPILED_OP(kOpUserDef, newDef);
-	SPUSH(newDef);
+	SPUSH((cell) newDef);
     // switch to compile mode
     pEngine->SetCompileState( 1 );	
     pEngine->SetFlag( kEngineFlagNoNameDefinition );
@@ -1503,7 +1502,7 @@ FORTHOP(pushTokenOp)
 
 FORTHOP(popTokenOp)
 {
-	SPUSH((long)(GET_ENGINE->GetTokenStack()->Pop()));
+	SPUSH((cell)(GET_ENGINE->GetTokenStack()->Pop()));
 }
 
 
@@ -1519,7 +1518,7 @@ FORTHOP( funcOp )
 
 	//pShellStack->Push(pEngine->GetFlags() & kEngineFlagNoNameDefinition);
 	// save address for ;func
-	pShellStack->Push((long)GET_DP);
+	pShellStack->PushAddress(GET_DP);
 	if (pEngine->IsCompiling())
 	{
 		pEngine->GetLocalVocabulary()->Push();
@@ -1557,16 +1556,16 @@ FORTHOP( endfuncOp )
 	if (pShell->CheckDefinitionEnd("func", "func"))
 	{
 		bool wasCompiling = (pShellStack->Pop() != 0);
-		long* pOldDP = (long *)(pShellStack->Pop());
+        forthop* pOldDP = pShellStack->PopAddress();
 		if (wasCompiling)
 		{
-			long branchOffset = GET_DP - (pOldDP + 1);
+            forthop branchOffset = GET_DP - (pOldDP + 1);
 			*pOldDP = branchOffset | (kOpRelativeDefBranch << 24);
 		}
 		else
 		{
-			long opcode = (pOldDP - pCore->pDictionary->pBase) | (kOpRelativeDef << 24);
-			SPUSH(opcode);
+			forthop opcode = (pOldDP - pCore->pDictionary->pBase) | (kOpRelativeDef << 24);
+			SPUSH((cell)opcode);
 			// switch back from compile mode to execute mode
 			pEngine->SetCompileState(0);
 		}
@@ -1577,9 +1576,9 @@ FORTHOP( codeOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
-    long* pEntry = pEngine->StartOpDefinition( NULL, false );
+    forthop* pEntry = pEngine->StartOpDefinition( NULL, false );
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
-    long newestOp = *pEntry;
+    forthop newestOp = *pEntry;
     *pEntry = COMPILED_OP( kOpNative, FORTH_OP_VALUE( newestOp ) );
 }
 
@@ -1587,7 +1586,7 @@ FORTHOP( createOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
-    long* pEntry = pEngine->StartOpDefinition( NULL, false );
+    forthop* pEntry = pEngine->StartOpDefinition( NULL, false );
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     // remember current DP (for does)
     gpSavedDP = GET_DP;
@@ -1651,7 +1650,7 @@ FORTHOP( vocabularyOp )
     ForthVocabulary *pDefinitionsVocab = pEngine->GetDefinitionVocabulary();
     // get next symbol, add it to vocabulary with type "user op"
     char* pVocabName = pEngine->GetNextSimpleToken();
-    long* pEntry = pEngine->StartOpDefinition( pVocabName );
+    forthop* pEntry = pEngine->StartOpDefinition( pVocabName );
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_VOCAB );
     ForthVocabulary* pVocab = new ForthVocabulary( pVocabName,
@@ -1687,7 +1686,7 @@ ShowVocab( ForthCoreState   *pCore,
     char retVal = 0;
     ForthShell *pShell = GET_ENGINE->GetShell();
     int nEntries = pVocab->GetNumEntries();
-    long *pEntry = pVocab->GetFirstEntry();
+    forthop* pEntry = pVocab->GetFirstEntry();
 #define ENTRY_COLUMNS 16
     char spaces[ENTRY_COLUMNS + 1];
     int column = 0;
@@ -1800,8 +1799,8 @@ FORTHOP( strFindOp )
     ForthVocabulary* pFoundVocab;
 
     char *pSymbol = (char *) (SPOP);
-    long* pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSymbol, &pFoundVocab );
-    SPUSH( ((long) pEntry) );
+    forthop* pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSymbol, &pFoundVocab );
+    SPUSH( ((cell) pEntry) );
 }
 
 
@@ -1809,7 +1808,7 @@ FORTHOP( variableOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     // get next symbol, add it to vocabulary with type "user op"
-    long* pEntry = pEngine->StartOpDefinition();
+    forthop* pEntry = pEngine->StartOpDefinition();
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_VAR );
     pEngine->CompileLong( 0 );
@@ -1818,7 +1817,7 @@ FORTHOP( variableOp )
 FORTHOP( constantOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    long* pEntry = pEngine->StartOpDefinition();
+    forthop* pEntry = pEngine->StartOpDefinition();
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_CONSTANT );
     pEngine->CompileLong( SPOP );
@@ -1827,7 +1826,7 @@ FORTHOP( constantOp )
 FORTHOP( dconstantOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    long* pEntry = pEngine->StartOpDefinition();
+    forthop* pEntry = pEngine->StartOpDefinition();
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_DCONSTANT );
     double d = DPOP;
@@ -1872,13 +1871,13 @@ FORTHOP( uintOp )
 
 FORTHOP( longOp )
 {
-    long long val = 0;
+    int64_t val = 0;
 	gNativeTypeLong.DefineInstance( GET_ENGINE, &val );
 }
 
 FORTHOP( ulongOp )
 {
-    long long val = 0;
+    int64_t val = 0;
 	gNativeTypeULong.DefineInstance( GET_ENGINE, &val );
 }
 
@@ -1995,7 +1994,7 @@ FORTHOP(defineNewOp)
 	ForthClassVocabulary* pVocab = ForthTypesManager::GetInstance()->GetNewestClass();
 	if (pVocab)
 	{
-		long* pEntry = pVocab->GetNewestEntry();
+        forthop* pEntry = pVocab->GetNewestEntry();
 		if (pEntry)
 		{
 			pVocab->GetClassObject()->newOp = pEntry[0];
@@ -2034,14 +2033,14 @@ FORTHOP( methodOp )
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->GetNewestClass();
 
-    long methodIndex = pVocab->FindMethod( pMethodName );
+    int methodIndex = pVocab->FindMethod( pMethodName );
     pEngine->StartOpDefinition(pMethodName, true, kOpUserDef, pDefinitionVocab);
     // switch to compile mode
     pEngine->SetCompileState( 1 );
     pEngine->SetFlag( kEngineFlagIsMethod );
     if ( pVocab )
     {
-        long* pEntry = pVocab->GetNewestEntry();
+        forthop* pEntry = pVocab->GetNewestEntry();
         if ( pEntry )
         {
             methodIndex = pVocab->AddMethod( pMethodName, methodIndex, pEntry[0] );
@@ -2085,7 +2084,7 @@ FORTHOP( returnsOp )
         char *pToken = pEngine->GetNextSimpleToken();
         ForthTypesManager* pManager = ForthTypesManager::GetInstance();
         ForthClassVocabulary* pVocab = pManager->GetNewestClass();
-        long* pEntry = pVocab->GetNewestEntry();
+        forthop* pEntry = pVocab->GetNewestEntry();
         if ( strcmp( pToken, "ptrTo" ) == 0 )
         {
             pToken = pEngine->GetNextSimpleToken();
@@ -2179,7 +2178,7 @@ FORTHOP( extendsOp )
     ForthEngine *pEngine = GET_ENGINE;
     char *pSym = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSym, &pFoundVocab );
+    forthop* pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSym, &pFoundVocab );
     if ( pEntry )
     {
         ForthTypesManager* pManager = ForthTypesManager::GetInstance();
@@ -2236,7 +2235,7 @@ FORTHOP( strSizeOfOp )
     ForthEngine *pEngine = GET_ENGINE;
 	char *pSym = (char *)(SPOP);
     ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSym, &pFoundVocab );
+    forthop* pEntry = pEngine->GetVocabularyStack()->FindSymbol( pSym, &pFoundVocab );
 	long size = 0;
 
     if ( pEntry )
@@ -2282,7 +2281,7 @@ FORTHOP( strOffsetOfOp )
 		*pField++ = '\0';
 
 		ForthVocabulary* pFoundVocab;
-		long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pType, &pFoundVocab);
+		forthop* pEntry = pEngine->GetVocabularyStack()->FindSymbol(pType, &pFoundVocab);
 		if (pEntry)
 		{
 			ForthTypesManager* pManager = ForthTypesManager::GetInstance();
@@ -2356,7 +2355,7 @@ void __newOp(ForthCoreState* pCore, const char* pClassName)
     // TODO: allow sizeOf to apply to native types, including strings
     ForthEngine *pEngine = GET_ENGINE;
     ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pClassName, &pFoundVocab);
+    forthop* pEntry = pEngine->GetVocabularyStack()->FindSymbol(pClassName, &pFoundVocab);
 
     if ( pEntry )
     {
@@ -2415,7 +2414,7 @@ FORTHOP(strNewOp)
 	ForthVocabulary* pFoundVocab;
 
     char *pClassName = (char*)(SPOP);
-    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pClassName, &pFoundVocab);
+    forthop* pEntry = pEngine->GetVocabularyStack()->FindSymbol(pClassName, &pFoundVocab);
 
 	if (pEntry)
 	{
@@ -2466,7 +2465,7 @@ FORTHOP(makeObjectOp)
     }
 
     ForthVocabulary* pFoundVocab;
-    long *pEntry = pEngine->GetVocabularyStack()->FindSymbol(pClassName, &pFoundVocab);
+    forthop* pEntry = pEngine->GetVocabularyStack()->FindSymbol(pClassName, &pFoundVocab);
 
     if (pEntry)
     {
@@ -2530,7 +2529,7 @@ FORTHOP( allocObjectOp )
 	// allocObject is the default new op, it is used only for classes which don't define their
 	//   own 'new' op, or extend a class that does
     ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
-    long* pMethods = pClassVocab->GetMethods();
+    forthop* pMethods = pClassVocab->GetMethods();
     if (pMethods)
     {
         long nBytes = pClassVocab->GetSize();
@@ -2553,7 +2552,7 @@ FORTHOP( initMemberStringOp )
     char *pString = pEngine->GetNextSimpleToken();
     ForthTypesManager* pManager = ForthTypesManager::GetInstance();
     ForthClassVocabulary* pVocab = pManager->GetNewestClass();
-    long* pEntry;
+    forthop* pEntry;
 
     if ( !pEngine->CheckFlag( kEngineFlagIsMethod ) || (pVocab == NULL) )
     {
@@ -2619,11 +2618,11 @@ FORTHOP(enumOp)
     //}
     pEngine->StartEnumDefinition();
 	const char* pName = pEngine->GetNextSimpleToken();
-    long* pEntry = pEngine->StartOpDefinition(pName, false, kOpUserDefImmediate);
+    forthop* pEntry = pEngine->StartOpDefinition(pName, false, kOpUserDefImmediate);
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_ENUM );
     // save ptr to enum info block for ;enum to fill in number of symbols
-    long* pHere = pEngine->GetDP();
+    forthop* pHere = pEngine->GetDP();
     pEngine->SetNewestEnumInfo((ForthEnumInfo*)pHere);
     // enum info block holds:
     // 0  enum size in bytes (default to 4)
@@ -2677,11 +2676,11 @@ FORTHOP(findEnumSymbolOp)
     long numEnums = pEnumInfo[2];
     long lastEnumOffset = pEnumInfo[3];
     long numSymbols = pVocab->GetNumEntries();
-    long *pFoundEntry = nullptr;
+    forthop* pFoundEntry = nullptr;
     long currentVocabOffset = pVocab->GetEntriesEnd() - pVocab->GetNewestEntry();
     if (currentVocabOffset >= lastEnumOffset)
     {
-        long* pEntry = pVocab->GetEntriesEnd() - lastEnumOffset;
+        forthop* pEntry = pVocab->GetEntriesEnd() - lastEnumOffset;
         for (int i = 0; i < numEnums; i++)
         {
             if (pEntry < pVocab->GetNewestEntry())
@@ -2707,7 +2706,7 @@ FORTHOP(doVocabOp)
     // IP points to data field
     ForthVocabulary* pVocab = (ForthVocabulary *) (*GET_IP);
     pVocab->DoOp( pCore );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop* ) (RPOP) );
 }
 
 FORTHOP(getClassByIndexOp)
@@ -2739,7 +2738,7 @@ FORTHOP(doStructTypeOp)
 	if (pEngine->IsCompiling())
 	{
 		// handle the case 'ref STRUCT_TYPE'
-		long* pLastOp = pEngine->GetLastCompiledOpcodePtr();
+		forthop* pLastOp = pEngine->GetLastCompiledOpcodePtr();
 		if ((pLastOp != NULL) && (*pLastOp == gCompiledOps[OP_REF]))
 		{
 			// compile this opcode so at runtime (ref STRUCT_OP) will push struct vocab address
@@ -2752,7 +2751,7 @@ FORTHOP(doStructTypeOp)
 	{
 		if (GET_VAR_OPERATION == kVarRef)
 		{
-			SPUSH((long)pVocab);
+			SPUSH((cell)pVocab);
 			doDefineInstance = false;
 			CLEAR_VAR_OPERATION;
 		}
@@ -2761,7 +2760,7 @@ FORTHOP(doStructTypeOp)
 	{
 		pVocab->DefineInstance();
 	}
-	SET_IP((long *)(RPOP));
+	SET_IP((forthop* )(RPOP));
 }
 
 // doClassTypeOp is compiled at the start of each user-defined class defining word 
@@ -2771,7 +2770,7 @@ FORTHOP( doClassTypeOp )
 	// TODO: change this to take class typeIndex on TOS like doNewOp
     ForthClassVocabulary *pVocab = (ForthClassVocabulary *) (*GET_IP);
 	pVocab->DefineInstance();
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop* ) (RPOP) );
 }
 
 // has precedence!
@@ -2782,14 +2781,14 @@ FORTHOP( doEnumOp )
 {
     bool doDefineInstance = true;
     ForthEngine *pEngine = GET_ENGINE;
-    long* oldIP = GET_IP;
+    forthop* oldIP = GET_IP;
     // we need to pop the IP, since there is no instruction after this one
-    SET_IP((long *)(RPOP));
+    SET_IP((forthop* )(RPOP));
 
     if (pEngine->IsCompiling())
     {
         // handle the case 'ref ENUM_TYPE'
-        long* pLastOp = pEngine->GetLastCompiledOpcodePtr();
+        forthop* pLastOp = pEngine->GetLastCompiledOpcodePtr();
         if ((pLastOp != NULL) && (*pLastOp == gCompiledOps[OP_REF]))
         {
             // compile the opcode that called us so at runtime (ref ENUM_OP) will push enum info ptr
@@ -2853,11 +2852,11 @@ FORTHOP( precedenceOp )
 {
 	ForthEngine *pEngine = GET_ENGINE;
 	char *pSym = pEngine->GetNextSimpleToken();
-	long *pEntry = pEngine->GetDefinitionVocabulary()->FindSymbol(pSym);
+	forthop* pEntry = pEngine->GetDefinitionVocabulary()->FindSymbol(pSym);
     
     if ( pEntry )
     {
-        long op = *pEntry;
+        forthop op = *pEntry;
         ulong opVal = FORTH_OP_VALUE( op );
         switch ( FORTH_OP_TYPE( op ) )
         {
@@ -3005,7 +3004,7 @@ FORTHOP( strTickOp )
     ForthEngine *pEngine = GET_ENGINE;
 	char* pToken = (char *) SPOP;
     ForthVocabulary* pFoundVocab;
-    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
+    forthop* pSymbol = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
     if ( pSymbol != NULL )
     {
         SPUSH( *pSymbol );
@@ -3020,8 +3019,8 @@ FORTHOP( strTickOp )
 FORTHOP( compileOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    long* pIP = GET_IP;
-    long op = *pIP++;
+    forthop* pIP = GET_IP;
+    forthop op = *pIP++;
     SET_IP( pIP );
     pEngine->CompileOpcode( op );
 }
@@ -3033,10 +3032,10 @@ FORTHOP( postponeOp )
     ForthVocabulary* pFoundVocab;
 
     char *pToken = pEngine->GetNextSimpleToken();
-    long* pEntry = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
+    forthop* pEntry = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
     if ( pEntry != NULL )
     {
-        long op = *pEntry;
+        forthop op = *pEntry;
         int opType = FORTH_OP_TYPE( op );
         switch ( opType )
         {
@@ -3066,7 +3065,7 @@ FORTHOP( bracketTickOp )
     ForthEngine *pEngine = GET_ENGINE;
     char *pToken = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
-    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
+    forthop* pSymbol = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
     if ( pSymbol != NULL )
     {
         pEngine->CompileBuiltinOpcode( OP_INT_VAL );
@@ -3082,7 +3081,7 @@ FORTHOP( bodyOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
 
-    long op = SPOP;
+    forthop op = SPOP;
     unsigned long opIndex = FORTH_OP_VALUE( op );
     long opType = FORTH_OP_TYPE( op );
     switch ( opType )
@@ -3147,7 +3146,7 @@ consoleOutToOp( ForthCoreState   *pCore,
                 const char       *pMessage )
 {
     SPUSH( (long) pMessage );
-    long op = GET_CON_OUT_OP;
+    forthop op = GET_CON_OUT_OP;
     ForthEngine* pEngine = GET_ENGINE;
     pEngine->ExecuteOneOp(pCore,  op );
 }
@@ -3239,7 +3238,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
 
 static void
 printLongNumInCurrentBase( ForthCoreState   *pCore,
-						   long long        val )
+						   int64_t        val )
 {
     NEEDS(1);
 #define PRINT_NUM_BUFF_CHARS 68
@@ -3248,7 +3247,7 @@ printLongNumInCurrentBase( ForthCoreState   *pCore,
     ulong base;
     bool bIsNegative, bPrintUnsigned;
     ulong urem;
-	unsigned long long uval;
+	uint64_t uval;
     ePrintSignedMode signMode;
 
     if ( val == 0L )
@@ -3290,7 +3289,7 @@ printLongNumInCurrentBase( ForthCoreState   *pCore,
                 // since div is defined as signed divide/mod, make sure
                 //   that the number is not negative by generating the bottom digit
                 bIsNegative = false;
-				uval = (unsigned long long) val;
+				uval = (uint64_t) val;
                 urem = uval % base;
                 *--pNext = (char) ( (urem < 10) ? (urem + '0') : ((urem - 10) + 'a') );
                 uval = uval / base;
@@ -4041,7 +4040,7 @@ FORTHOP( opendirOp )
 {
     NEEDS(1);
 	const char* pPath = (const char*) SPOP;
-    int result = (int) (pCore->pFileFuncs->openDir( pPath ));
+    cell result = (cell) (pCore->pFileFuncs->openDir( pPath ));
 	// result is actually a DIR*
     SPUSH( result );
 }
@@ -4050,7 +4049,7 @@ FORTHOP( readdirOp )
 {
     NEEDS(1);
 	void* pDir = (void *) SPOP;
-    int result = (int)(pCore->pFileFuncs->readDir( pDir ));
+    cell result = (cell)(pCore->pFileFuncs->readDir( pDir ));
 	// result is actually a struct dirent*
     SPUSH( result );
 }
@@ -4059,7 +4058,7 @@ FORTHOP( closedirOp )
 {
     NEEDS(1);
 	void* pDir = (void *) SPOP;
-    int result = pCore->pFileFuncs->closeDir( pDir );
+    cell result = pCore->pFileFuncs->closeDir( pDir );
     SPUSH( result );
 }
 
@@ -4074,14 +4073,14 @@ FORTHOP( rewinddirOp )
 FORTHOP( removeOp )
 {
 	const char* pFilename = (const char *) (SPOP);
-    int result = pCore->pFileFuncs->fileRemove( pFilename );
+    cell result = pCore->pFileFuncs->fileRemove( pFilename );
     SPUSH( result );
 }
 
 FORTHOP( _dupOp )
 {
 	int fileHandle = SPOP;
-    int result = pCore->pFileFuncs->fileDup( fileHandle );
+    cell result = pCore->pFileFuncs->fileDup( fileHandle );
     SPUSH( result );
 }
 
@@ -4167,7 +4166,7 @@ FORTHOP( sourceIdOp )
 FORTHOP( saveInputOp )
 {
     ForthShell *pShell = GET_ENGINE->GetShell();
-    long* pData = pShell->GetInput()->InputStream()->GetInputState();
+    cell* pData = pShell->GetInput()->InputStream()->GetInputState();
     long nItems = *pData;
     for ( int i = 0; i < nItems; i++ )
     {
@@ -4179,7 +4178,7 @@ FORTHOP( saveInputOp )
 FORTHOP(restoreInputOp)
 {
     ForthShell *pShell = GET_ENGINE->GetShell();
-    long* pSP = GET_SP;
+    cell* pSP = GET_SP;
     long nItems = *pSP;
     pShell->GetInput()->InputStream()->SetInputState(pSP);
     SET_SP(pSP + (nItems + 1));
@@ -4189,14 +4188,14 @@ FORTHOP(getEnvironmentVarOp)
 {
     ForthShell *pShell = GET_ENGINE->GetShell();
     const char* pVarName = (const char *)(SPOP);
-    SPUSH((long)(pShell->GetEnvironmentVar(pVarName)));
+    SPUSH((cell)(pShell->GetEnvironmentVar(pVarName)));
 }
 
 FORTHOP(getEnvironmentOp)
 {
     ForthShell *pShell = GET_ENGINE->GetShell();
-    SPUSH((long)(pShell->GetEnvironmentVarNames()));
-    SPUSH((long)(pShell->GetEnvironmentVarValues()));
+    SPUSH((cell)(pShell->GetEnvironmentVarNames()));
+    SPUSH((cell)(pShell->GetEnvironmentVarValues()));
     SPUSH(pShell->GetEnvironmentVarCount());
 }
 
@@ -4227,25 +4226,25 @@ FORTHOP(getCwdOp)
 
 FORTHOP( stdinOp )
 {
-    int result = (int) (pCore->pFileFuncs->getStdIn());
+    cell result = (cell) (pCore->pFileFuncs->getStdIn());
     SPUSH( result );
 }
 
 FORTHOP( stdoutOp )
 {
-    int result = (int) (pCore->pFileFuncs->getStdOut());
+    cell result = (cell) (pCore->pFileFuncs->getStdOut());
     SPUSH( result );
 }
 
 FORTHOP( stderrOp )
 {
-    int result = (int) (pCore->pFileFuncs->getStdErr());
+    cell result = (cell) (pCore->pFileFuncs->getStdErr());
     SPUSH( result );
 }
 
 FORTHOP( dstackOp )
 {
-    long *pSP = GET_SP;
+    cell *pSP = GET_SP;
     int nItems = GET_SDEPTH;
     int i;
     char buff[64];
@@ -4263,7 +4262,7 @@ FORTHOP( dstackOp )
 
 FORTHOP( drstackOp )
 {
-    long *pRP = GET_RP;
+    cell *pRP = GET_RP;
     int nItems = GET_RDEPTH;
     int i;
     char buff[64];
@@ -4316,10 +4315,10 @@ FORTHOP( describeOp )
 		if ( pMethod != NULL )
 		{
 			ForthVocabulary* pFoundVocab = NULL;
-			long* pEntry = pVocab->FindSymbol( pMethod );
+            forthop* pEntry = pVocab->FindSymbol( pMethod );
 			if (pEntry != NULL) 
 			{
-				long typeCode = pEntry[1];
+                forthop typeCode = pEntry[1];
 				if (pVocab->IsClass())
 				{
 					ForthClassVocabulary* pClassVocab = (ForthClassVocabulary*)pVocab;
@@ -4362,7 +4361,7 @@ FORTHOP( describeOp )
 			{
                 if (pVocab->IsClass())
                 {
-                    long *pMethods = ((ForthClassVocabulary *)pVocab)->GetMethods();
+                    forthop* pMethods = ((ForthClassVocabulary *)pVocab)->GetMethods();
                     SNPRINTF(buff, sizeof(buff), "class vocabulary %s:  methods at 0x%08x, size %d\n",
                         pVocab->GetName(), (int)pMethods, pVocab->GetSize());
                 }
@@ -4394,8 +4393,9 @@ FORTHOP( describeAtOp )
 {
 	NEEDS( 2 );
 	char* pString = reinterpret_cast<char *>(SPOP);
-	long* pOp = reinterpret_cast<long *>(SPOP);
-    long* pLengths = reinterpret_cast<long *>(pString) - 2;
+    forthop* pOp = reinterpret_cast<forthop* >(SPOP);
+    //TODO: are length fields int32 or cell?
+    int32_t* pLengths = reinterpret_cast<int32_t* >(pString) - 2;
 	// pLengths[0] is max length, pLength[1] is current length
     pLengths[1] = 0;
 	if ( pLengths[0] < 1 )
@@ -4687,86 +4687,6 @@ FORTHOP(vocChainNextOp)
 	ForthVocabulary* pVocab = (ForthVocabulary *)(SPOP);
 	SPUSH((long)(pVocab->GetNextChainVocabulary()));
 }
-
-#if 0
-FORTHOP(vocNewestEntryOp)
-{
-	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
-	SPUSH( (long) (pVocab->GetNewestEntry()) );
-}
-
-FORTHOP( vocNextEntryOp )
-{
-	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
-	long *pEntry = (long *) (SPOP);
-	SPUSH( (long) (pVocab->NextEntry( pEntry )) );
-}
-
-FORTHOP( vocNumEntriesOp )
-{
-	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
-	SPUSH( (long) (pVocab->GetNumEntries()) );
-}
-
-FORTHOP( vocNameOp )
-{
-	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
-	SPUSH( (long) (pVocab->GetName()) );
-}
-
-FORTHOP( vocFindEntryOp )
-{
-	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
-	const char* pName = (const char *) (SPOP);
-	SPUSH( (long) (pVocab->FindSymbol( pName )) );
-}
-
-FORTHOP( vocFindNextEntryOp )
-{
-	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
-	const char* pName = (const char *) (SPOP);
-	long *pEntry = (long *) (SPOP);
-	SPUSH( (long) (pVocab->FindNextSymbol( pName, pEntry )) );
-}
-
-FORTHOP( vocFindEntryByValueOp )
-{
-	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
-	long val = SPOP;
-	SPUSH( (long) (pVocab->FindSymbolByValue( val )) );
-}
-
-FORTHOP( vocFindNextEntryByValueOp )
-{
-	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
-	long val = SPOP;
-	long *pEntry = (long *) (SPOP);
-	SPUSH( (long) (pVocab->FindNextSymbolByValue( val, pEntry )) );
-}
-
-FORTHOP( vocAddEntryOp )
-{
-	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
-    long opVal = SPOP;
-    long opType = SPOP;
-    char* pSymbol = (char *) (SPOP);
-	bool addToEngineOps = (opType <= kOpDLLEntryPoint);
-    pVocab->AddSymbol( pSymbol, opType, opVal, addToEngineOps );
-}
-
-FORTHOP( vocRemoveEntryOp )
-{
-	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
-	long *pEntry = (long *) (SPOP);
-	pVocab->DeleteEntry( pEntry );
-}
-
-FORTHOP( vocValueLengthOp )
-{
-	ForthVocabulary* pVocab = (ForthVocabulary *) (SPOP);
-	SPUSH( (long) (pVocab->GetValueLength()) );
-}
-#endif
 
 FORTHOP( turboOp )
 {
@@ -5083,8 +5003,8 @@ namespace
 
     int u64Compare( const void* pA, const void* pB, int )
     {
-        unsigned long long a = *((unsigned long long *) pA);
-        unsigned long long b = *((unsigned long long *) pB);
+        uint64_t a = *((uint64_t *) pA);
+        uint64_t b = *((uint64_t *) pB);
         if ( a > b ) 
         {
             return 1;
@@ -5094,8 +5014,8 @@ namespace
 
     int s64Compare( const void* pA, const void* pB, int )
     {
-        long long a = *((long long *) pA);
-        long long b = *((long long *) pB);
+        int64_t a = *((int64_t *) pA);
+        int64_t b = *((int64_t *) pB);
         if ( a > b ) 
         {
             return 1;
@@ -5123,7 +5043,7 @@ namespace
         memcpy( pivot, pLeft, compareSize );
 
 #if 1
-		long long tmp;
+		int64_t tmp;
 		left--;
 		pLeft -= elementSize;
 		right++;
@@ -5507,7 +5427,7 @@ FORTHOP( bracketIfDefOp )
     ForthEngine *pEngine = GET_ENGINE;
     char* pToken = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
-    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
+    forthop* pSymbol = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
     SPUSH ( (pSymbol != NULL) ? ~0 : 0 );
     bracketIfOp( pCore );
 }
@@ -5518,7 +5438,7 @@ FORTHOP( bracketIfUndefOp )
     ForthEngine *pEngine = GET_ENGINE;
     char* pToken = pEngine->GetNextSimpleToken();
     ForthVocabulary* pFoundVocab;
-    long* pSymbol = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
+    forthop* pSymbol = pEngine->GetVocabularyStack()->FindSymbol( pToken, &pFoundVocab );
     SPUSH ( (pSymbol != NULL) ? 0 : ~0 );
     bracketIfOp( pCore );
 }
@@ -5723,7 +5643,7 @@ FORTHOP( stepThreadOp )
 {
     ForthThread* pThread = (ForthThread*)(SPOP);
 	ForthCoreState* pThreadCore = pThread->GetCore();
-	long op = *(pThreadCore->IP)++;
+	forthop op = *(pThreadCore->IP)++;
     long result;
     ForthEngine *pEngine = GET_ENGINE;
 #ifdef ASM_INNER_INTERPRETER
@@ -6188,7 +6108,7 @@ FORTHOP( doVariableBop )
 {
     // IP points to data field
     SPUSH( (long) GET_IP );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop* ) (RPOP) );
 }
 
 //##############################
@@ -6295,7 +6215,7 @@ FORTHOP( mtimesBop )
     long b = SPOP;
     long a = SPOP;
     stackInt64 result;
-    result.s64 = ((long long) a) * b;
+    result.s64 = ((int64_t) a) * b;
     LPUSH( result );
 }
 
@@ -6305,7 +6225,7 @@ FORTHOP( umtimesBop )
     ulong b = (ulong)(SPOP);
     ulong a = (ulong)(SPOP);
     stackInt64 result;
-    result.u64 = ((unsigned long long) a) * b;
+    result.u64 = ((uint64_t) a) * b;
     LPUSH( result );
 }
 
@@ -6327,7 +6247,7 @@ FORTHOP( smdivremBop )
 {
     NEEDS(2);
     lldiv_t v;
-    long long b = (long long) SPOP;
+    int64_t b = (int64_t) SPOP;
     stackInt64 a;
     LPOP( a );
 
@@ -6796,7 +6716,7 @@ FORTHOP(doExitBop)
     }
     else
     {
-		long* newIP = (long *)RPOP;
+        forthop* newIP = (forthop* )RPOP;
         SET_IP( newIP );
 		if (newIP == nullptr)
 		{
@@ -6811,14 +6731,14 @@ FORTHOP(doExitLBop)
     // rstack: local_var_storage oldFP oldIP
     // FP points to oldFP
     SET_RP( GET_FP );
-    SET_FP( (long *) (RPOP) );
+    SET_FP( (cell *) (RPOP) );
     if ( GET_RDEPTH < 1 )
     {
         SET_ERROR( kForthErrorReturnStackUnderflow );
     }
     else
     {
-		long* newIP = (long *)RPOP;
+        forthop* newIP = (forthop* )RPOP;
 		SET_IP(newIP);
 		if (newIP == nullptr)
 		{
@@ -6837,7 +6757,7 @@ FORTHOP(doExitMBop)
     }
     else
     {
-		long* newIP = (long *)RPOP;
+        forthop* newIP = (forthop* )RPOP;
 		SET_IP(newIP);
         SET_TP((ForthObject)(RPOP));
 
@@ -6854,14 +6774,14 @@ FORTHOP(doExitMLBop)
     // rstack: local_var_storage oldFP oldIP oldTP
     // FP points to oldFP
     SET_RP( GET_FP );
-    SET_FP( (long *) (RPOP) );
+    SET_FP( (cell *) (RPOP) );
     if ( GET_RDEPTH < 2 )
     {
         SET_ERROR( kForthErrorReturnStackUnderflow );
     }
     else
     {
-		long* newIP = (long *)RPOP;
+        forthop* newIP = (forthop* )RPOP;
 		SET_IP(newIP);
         SET_TP((ForthObject)(RPOP));
 
@@ -6875,12 +6795,12 @@ FORTHOP(doExitMLBop)
 FORTHOP(callBop)
 {
     RPUSH( (long) GET_IP );
-    SET_IP( (long *) SPOP );
+    SET_IP( (forthop* ) SPOP );
 }
 
 FORTHOP(gotoBop)
 {
-    SET_IP( (long *) SPOP );
+    SET_IP( (forthop* ) SPOP );
 }
 
 FORTHOP(doDoBop)
@@ -6888,7 +6808,7 @@ FORTHOP(doDoBop)
     NEEDS(2);
     long startIndex = SPOP;
     // skip over loop exit IP right after this op
-    long *newIP = (GET_IP) + 1;
+    forthop* newIP = (GET_IP) + 1;
     SET_IP( newIP );
 
     RPUSH( (long) newIP );
@@ -6906,7 +6826,7 @@ FORTHOP(doCheckDoBop)
     // skip over loop exit IP right after this op
 	if ( startIndex < endIndex)
 	{
-	    long *newIP = (GET_IP + 1);
+	    forthop* newIP = (GET_IP + 1);
 		RPUSH( (long) newIP );
 		RPUSH( endIndex );
 		RPUSH( startIndex );
@@ -6920,8 +6840,8 @@ FORTHOP(doLoopBop)
 {
     RNEEDS(3);
 
-    long *pRP = GET_RP;
-    long newIndex = (*pRP) + 1;
+    cell *pRP = GET_RP;
+    cell newIndex = (*pRP) + 1;
 
     if ( newIndex >= pRP[1] )
     {
@@ -6932,7 +6852,7 @@ FORTHOP(doLoopBop)
     {
         // loop again
         *pRP = newIndex;
-        SET_IP( (long *) (pRP[2]) );
+        SET_IP( (forthop* ) (pRP[2]) );
     }
 }
 
@@ -6941,9 +6861,9 @@ FORTHOP(doLoopNBop)
     RNEEDS(3);
     NEEDS(1);
 
-    long *pRP = GET_RP;
-    long increment = SPOP;
-    long newIndex = (*pRP) + increment;
+    cell *pRP = GET_RP;
+    cell increment = SPOP;
+    cell newIndex = (*pRP) + increment;
     bool done;
 
     done = (increment > 0) ? (newIndex >= pRP[1]) : (newIndex < pRP[1]);
@@ -6956,7 +6876,7 @@ FORTHOP(doLoopNBop)
     {
         // loop again
         *pRP = newIndex;
-        SET_IP( (long *) (pRP[2]) );
+        SET_IP( (forthop* ) (pRP[2]) );
     }
 }
 
@@ -6985,8 +6905,8 @@ FORTHOP( unloopBop )
 FORTHOP( leaveBop )
 {
     RNEEDS(3);
-    long *pRP = GET_RP;
-    long *newIP = (long *) (pRP[2]) - 1;
+    cell *pRP = GET_RP;
+    forthop* newIP = (forthop* ) (pRP[2]) - 1;
 
     // loop has ended, drop end, current indices, loopIP
     SET_RP( pRP + 3 );
@@ -7666,7 +7586,7 @@ FORTHOP(rotBop)
 {
     NEEDS(3);
     int a, b, c;
-    long *pSP = GET_SP;
+    cell *pSP = GET_SP;
     a = pSP[2];
     b = pSP[1];
     c = pSP[0];
@@ -7679,7 +7599,7 @@ FORTHOP(reverseRotBop)
 {
     NEEDS(3);
     int a, b, c;
-    long *pSP = GET_SP;
+    cell *pSP = GET_SP;
     a = pSP[2];
     b = pSP[1];
     c = pSP[0];
@@ -7699,7 +7619,7 @@ FORTHOP(nipBop)
 FORTHOP(tuckBop)
 {
     NEEDS(2);
-    long *pSP = GET_SP;
+    cell *pSP = GET_SP;
     long a = *pSP;
     long b = pSP[1];
     SPUSH( a );
@@ -7710,7 +7630,7 @@ FORTHOP(tuckBop)
 FORTHOP(pickBop)
 {
     NEEDS(1);
-    long *pSP = GET_SP;
+    cell *pSP = GET_SP;
     long n = *pSP;
     long a = pSP[n + 1];
     *pSP = a;
@@ -7722,7 +7642,7 @@ FORTHOP(rollBop)
     // 1 roll is the same as swap
     // 2 roll is the same as rot
     long n = (SPOP);
-    long *pSP = GET_SP;
+    cell *pSP = GET_SP;
     long a;
 	if ( n != 0 )
 	{
@@ -7893,15 +7813,15 @@ FORTHOP(drollBop)
 
 FORTHOP(startTupleBop)
 {
-    long pSP = (long) (GET_SP);
+    cell pSP = (cell) (GET_SP);
     RPUSH( pSP );
 }
 
 FORTHOP(endTupleBop)
 {
-    long* pSP = (GET_SP);
-    long* pOldSP = (long *) (RPOP);
-    long count = pOldSP - pSP;
+    cell* pSP = (GET_SP);
+    cell* pOldSP = (cell *) (RPOP);
+    cell count = pOldSP - pSP;
     SPUSH( count );
 }
 
@@ -7974,7 +7894,7 @@ FORTHOP(odropBop)
 FORTHOP(storeBop)
 {
     NEEDS(2);
-    long *pB = (long *)(SPOP); 
+    cell* pB = (cell* )(SPOP); 
     long a = SPOP;
     *pB = a;
 }
@@ -7982,7 +7902,7 @@ FORTHOP(storeBop)
 FORTHOP(ifetchBop)
 {
     NEEDS(1);
-    long *pA = (long *)(SPOP); 
+    cell* pA = (cell* )(SPOP); 
     SPUSH( *pA );
 }
 
@@ -8146,7 +8066,7 @@ FORTHOP(dfetchNextBop)
 /*FORTHOP(lstoreBop)
 {
     NEEDS(3);
-	long long *pB = (long long *) (SPOP);
+	int64_t *pB = (int64_t *) (SPOP);
 	stackInt64 a;
 	LPOP(a);
     *pB = a.s64;
@@ -8155,7 +8075,7 @@ FORTHOP(dfetchNextBop)
 FORTHOP(lfetchBop)
 {
     NEEDS(1);
-	long long *pA = (long long *) (SPOP);
+	int64_t *pA = (int64_t *) (SPOP);
 	stackInt64 b;
 	b.s64 = *pA;
     LPUSH( b );
@@ -8164,8 +8084,8 @@ FORTHOP(lfetchBop)
 FORTHOP(lstoreNextBop)
 {
     NEEDS(2);
-	long long **ppB = (long long **) (SPOP);
-    long long *pB = *ppB;
+	int64_t **ppB = (int64_t **) (SPOP);
+    int64_t *pB = *ppB;
 	stackInt64 a;
 	LPOP(a);
     *pB++ = a.s64;
@@ -8175,8 +8095,8 @@ FORTHOP(lstoreNextBop)
 FORTHOP(lfetchNextBop)
 {
     NEEDS(1);
-	long long **ppA = (long long **) (SPOP);
-	long long *pA = *ppA;
+	int64_t **ppA = (int64_t **) (SPOP);
+	int64_t *pA = *ppA;
 	stackInt64 a;
 	a.s64 = *pA++;
 	LPUSH( a );
@@ -8433,7 +8353,7 @@ FORTHOP( strFixupBop )
 // push the immediately following literal 32-bit constant
 FORTHOP(litBop)
 {
-    long *pV = GET_IP;
+    forthop*pV = GET_IP;
     SET_IP( pV + 1 );
     SPUSH( *pV );
 }
@@ -8443,7 +8363,7 @@ FORTHOP(dlitBop)
 {
     double *pV = (double *) GET_IP;
     DPUSH( *pV++ );
-    SET_IP( (long *) pV );
+    SET_IP( (forthop*) pV );
 }
 
 // doDoes
@@ -8460,14 +8380,14 @@ FORTHOP( doConstantBop )
 {
     // IP points to data field
     SPUSH( *GET_IP );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop*) (RPOP) );
 }
 
 FORTHOP( doDConstantBop )
 {
     // IP points to data field
     DPUSH( *((double *) (GET_IP)) );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop*) (RPOP) );
 }
 
 FORTHOP( thisBop )
@@ -8479,7 +8399,7 @@ FORTHOP(unsuperBop)
 {
     // this is compiled after every MethodWithSuper op, it pops the original
     //  methods pointer off the rstack and stuffs it back into this.pMethods
-    long* oldMethods = (long *)(RPOP);
+    forthop* oldMethods = (forthop*)(RPOP);
     GET_TP->pMethods = oldMethods;
 }
 
@@ -8488,7 +8408,7 @@ FORTHOP( doStructBop )
 {
     // IP points to data field
     SPUSH( (long) GET_IP );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop*) (RPOP) );
 }
 
 // doStructArrayOp is compiled as the only op of each user-defined global structure array instance
@@ -8497,21 +8417,21 @@ FORTHOP( doStructBop )
 FORTHOP( doStructArrayBop )
 {
     // IP points to data field
-    long *pA = GET_IP;
+    forthop*pA = GET_IP;
     long nBytes = (*pA++) * SPOP;
 
     SPUSH( ((long) pA) + nBytes );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop*) (RPOP) );
 }
 
 FORTHOP( executeBop )
 {
-	long op = SPOP;
+	forthop op = SPOP;
     ForthEngine *pEngine = GET_ENGINE;
 	pEngine->ExecuteOp(pCore,  op );
 #if 0
     long prog[2];
-    long *oldIP = GET_IP;
+    forthop*oldIP = GET_IP;
 
 	// execute the opcode
     prog[0] = SPOP;
@@ -8899,7 +8819,7 @@ FORTHOP(scEndIndentOp)
 FORTHOP(scShowHeaderOp)
 {
 	ForthShowContext* pShowContext = ((ForthThread *)(pCore->pThread))->GetShowContext();
-    long* pMethods = GET_TP->pMethods;
+    forthop* pMethods = GET_TP->pMethods;
     ForthClassObject* classObject = (ForthClassObject *)((GET_TP->pMethods)[-1]);
     pShowContext->ShowHeader(pCore, classObject->pVocab->GetName(), GET_TP);
 }
@@ -10067,7 +9987,7 @@ void AddForthOps( ForthEngine* pEngine )
 
 	while ( pCompEntry->name != NULL )
 	{
-		long* pEntry = pEngine->AddBuiltinOp( pCompEntry->name, pCompEntry->flags, pCompEntry->value );
+		forthop* pEntry = pEngine->AddBuiltinOp( pCompEntry->name, pCompEntry->flags, pCompEntry->value );
 		gCompiledOps[ pCompEntry->index ] = *pEntry;
 		pCompEntry++;
 	}
@@ -10076,7 +9996,7 @@ void AddForthOps( ForthEngine* pEngine )
 
 	while ( pDictEntry->name != NULL )
 	{
-		long* pEntry = pEngine->AddBuiltinOp( pDictEntry->name, pDictEntry->flags, pDictEntry->value );
+		forthop* pEntry = pEngine->AddBuiltinOp( pDictEntry->name, pDictEntry->flags, pDictEntry->value );
 		pDictEntry++;
 	}
 }

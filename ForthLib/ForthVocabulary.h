@@ -27,16 +27,16 @@ class ForthVocabulary;
 // vocabulary object defs
 struct oVocabularyStruct
 {
-    long*               pMethods;
-    ulong				refCount;
+    forthop*            pMethods;
+    ucell               refCount;
 	ForthVocabulary*	vocabulary;
 };
 
 struct oVocabularyIterStruct
 {
-    long*               pMethods;
-    ulong				refCount;
-	ForthObject			parent;
+    forthop*            pMethods;
+    ucell               refCount;
+    ForthObject			parent;
 	long*				cursor;
 	ForthVocabulary*	vocabulary;
 };
@@ -48,10 +48,10 @@ public:
                      int valueLongs = DEFAULT_VALUE_FIELD_LONGS,
                      int storageBytes = DEFAULT_VOCAB_STORAGE,
                      void* pForgetLimit = NULL,
-                     long op = 0 );
+                     forthop op = 0 );
     virtual ~ForthVocabulary();
 
-    virtual void        ForgetCleanup( void *pForgetLimit, long op );
+    virtual void        ForgetCleanup( void *pForgetLimit, forthop op );
 
     virtual void        DoOp( ForthCoreState *pCore );
 
@@ -62,20 +62,20 @@ public:
     void                Empty( void );
 
     // add symbol to symbol table, return ptr to new symbol entry
-    virtual long*       AddSymbol( const char *pSymName, long symType, long symValue, bool addToEngineOps );
+    virtual forthop*    AddSymbol( const char *pSymName, long symType, long symValue, bool addToEngineOps );
 
     // copy a symbol table entry, presumably from another vocabulary
-    void                CopyEntry( long *pEntry );
+    void                CopyEntry(forthop* pEntry );
 
     // delete single symbol table entry
-    void                DeleteEntry( long *pEntry );
+    void                DeleteEntry(forthop* pEntry );
 
     // delete symbol entry and all newer entries
     // return true IFF symbol was forgotten
     virtual bool        ForgetSymbol( const char   *pSymName );
 
     // forget all ops with a greater op#
-    virtual void        ForgetOp( long op );
+    virtual void        ForgetOp( forthop op );
 
     // the FindSymbol* methods take a serial number which is used to avoid doing
     //  redundant searches, since a vocabulary can appear multiple times in the
@@ -85,28 +85,28 @@ public:
     // The default serial value of 0 will force FindSymbol to do the search
 
     // return pointer to symbol entry, NULL if not found
-    virtual long *      FindSymbol( const char *pSymName, ulong serial=0 );
+    virtual forthop*    FindSymbol( const char *pSymName, ucell serial=0 );
 	// continue searching a vocabulary 
-    virtual long *      FindNextSymbol( const char *pSymName, long* pStartEntry, ulong serial=0 );
+    virtual forthop*    FindNextSymbol( const char *pSymName, forthop* pStartEntry, ucell serial=0 );
     // return pointer to symbol entry, NULL if not found, given its value
-    virtual long *      FindSymbolByValue( long val, ulong serial=0 );
+    virtual forthop*    FindSymbolByValue(forthop val, ucell serial=0 );
     // return pointer to symbol entry, NULL if not found, given its value
-    virtual long *      FindNextSymbolByValue( long val, long* pStartEntry, ulong serial=0 );
+    virtual forthop*    FindNextSymbolByValue(forthop val, forthop* pStartEntry, ucell serial=0 );
 
     // return pointer to symbol entry, NULL if not found
     // pSymName is required to be a longword aligned address, and to be padded with 0's
     // to the next longword boundary
-    virtual long *      FindSymbol( ForthParseInfo *pInfo, ulong serial=0 );
+    virtual forthop*    FindSymbol( ForthParseInfo *pInfo, ucell serial=0 );
 	// continue searching a vocabulary 
-    virtual long *      FindNextSymbol( ForthParseInfo *pInfo, long* pStartEntry, ulong serial=0 );
+    virtual forthop*    FindNextSymbol( ForthParseInfo *pInfo, forthop* pStartEntry, ucell serial=0 );
 
     // compile/interpret entry returned by FindSymbol
-    virtual eForthResult ProcessEntry( long *pEntry );
+    virtual eForthResult ProcessEntry(forthop* pEntry );
 
     // return a string telling the type of library
     virtual const char* GetType( void );
 
-    virtual void        PrintEntry( long*   pEntry );
+    virtual void        PrintEntry(forthop*   pEntry );
 
     // the symbol for the word which is currently under construction is "smudged"
     // so that if you try to reference that symbol in its own definition, the match
@@ -119,7 +119,7 @@ public:
 
 	ForthObject& GetVocabularyObject(void);
 
-	inline long *       GetFirstEntry(void) {
+	inline forthop*       GetFirstEntry(void) {
         return mpStorageBottom;
     };
 
@@ -130,48 +130,48 @@ public:
 
     // find next entry in vocabulary
     // invoker is responsible for not going past end of vocabulary
-    inline long *       NextEntry( long *pEntry ) {
-        long *pTmp = pEntry + mValueLongs;
+    inline forthop*       NextEntry(forthop* pEntry ) {
+        forthop* pTmp = pEntry + mValueLongs;
         // add in 1 for length, and 3 for longword rounding
         return (pTmp + ( (( ((char *) pTmp)[0] ) + 4) >> 2));
     };
 
 	// return next entry in vocabulary, return NULL if this is last entry
-	inline long *       NextEntrySafe(long *pEntry) {
-		long *pTmp = pEntry + mValueLongs;
+	inline forthop*       NextEntrySafe(forthop* pEntry) {
+        forthop* pTmp = pEntry + mValueLongs;
 		// add in 1 for length, and 3 for longword rounding
 		pTmp += (((((char *)pTmp)[0]) + 4) >> 2);
 		return (pTmp < mpStorageTop) ? pTmp : NULL;
 	};
 
-	static inline forthOpType   GetEntryType(const long *pEntry) {
+	static inline forthOpType   GetEntryType(const forthop* pEntry) {
         return FORTH_OP_TYPE( *pEntry );
 
     };
 
-    static inline void          SetEntryType( long *pEntry, forthOpType opType ) {
+    static inline void          SetEntryType(forthop* pEntry, forthOpType opType ) {
         *pEntry = COMPILED_OP( opType, FORTH_OP_VALUE( *pEntry ) );
     };
 
-    static inline long          GetEntryValue( const long *pEntry ) {
+    static inline long          GetEntryValue( const forthop* pEntry ) {
         return FORTH_OP_VALUE( *pEntry );
     };
 
-	inline long *               GetNewestEntry(void)
+	inline forthop*               GetNewestEntry(void)
 	{
 		return mpNewestSymbol;
 	};
 
-	inline long *               GetEntriesEnd(void)
+	inline forthop*               GetEntriesEnd(void)
 	{
 		return mpStorageTop;
 	};
 
-	inline char *               GetEntryName(const long *pEntry) {
+	inline char *               GetEntryName(const forthop* pEntry) {
         return ((char *) pEntry) + (mValueLongs << 2) + 1;
     };
 
-    inline int                  GetEntryNameLength( const long *pEntry ) {
+    inline int                  GetEntryNameLength( const forthop* pEntry ) {
         return (int) *(((char *) pEntry) + (mValueLongs << 2));
     };
 
@@ -181,7 +181,7 @@ public:
     }
 
     // returns number of chars in name
-    virtual int                 GetEntryName( const long *pEntry, char *pDstBuff, int buffSize );
+    virtual int                 GetEntryName( const forthop* pEntry, char *pDstBuff, int buffSize );
 
     static ForthVocabulary *FindVocabulary( const char* pName );
 
@@ -215,11 +215,11 @@ protected:
     ForthVocabulary     *mpChainNext;
     int                 mNumSymbols;
     int                 mStorageLongs;
-    long                *mpStorageBase;
-    long                *mpStorageTop;
-    long                *mpStorageBottom;
-    long                *mpNewestSymbol;
-    char                *mpName;
+    forthop*            mpStorageBase;
+    forthop*            mpStorageTop;
+    forthop*            mpStorageBottom;
+    forthop*            mpNewestSymbol;
+    char*               mpName;
     int                 mValueLongs;
     ulong               mLastSerial;
     char                mNewestSymbol[ 256 ];
@@ -250,14 +250,14 @@ public:
 	void				Pop();
 
 	int					GetFrameLongs();
-	long*				GetFrameAllocOpPointer();
-	long*				AddVariable( const char* pVarName, long fieldType, long varValue, int nLongs );
+    forthop*            GetFrameAllocOpPointer();
+    forthop*			AddVariable( const char* pVarName, long fieldType, long varValue, int nLongs );
 	void				ClearFrame();
 
 protected:
 	int					mDepth;
 	int					mStack[ MAX_LOCAL_DEPTH * LOCAL_STACK_STRIDE ];
-	long*				mpAllocOp;
+    forthop*            mpAllocOp;
 	int					mFrameLongs;
 };
 
@@ -269,7 +269,7 @@ public:
                         int valueLongs = DEFAULT_VALUE_FIELD_LONGS,
                         int storageBytes = DEFAULT_VOCAB_STORAGE,
                         void* pForgetLimit = NULL,
-                        long op = 0 );
+                        forthop op = 0 );
     virtual ~ForthDLLVocabulary();
 
     // return a string telling the type of library
@@ -277,7 +277,7 @@ public:
 
     long                LoadDLL( void );
     void                UnloadDLL( void );
-	long *              AddEntry(const char* pFuncName, const char* pEntryName, long numArgs);
+	forthop*            AddEntry(const char* pFuncName, const char* pEntryName, long numArgs);
 	void				SetFlag( unsigned long flag );
 protected:
     char *              mpDLLName;
@@ -308,22 +308,22 @@ public:
     // return pointer to symbol entry, NULL if not found
     // ppFoundVocab will be set to the vocabulary the symbol was actually found in
     // set ppFoundVocab to NULL to search just this vocabulary (not the search chain)
-    long *      FindSymbol( const char *pSymName, ForthVocabulary** ppFoundVocab=NULL );
+    forthop*    FindSymbol( const char *pSymName, ForthVocabulary** ppFoundVocab=NULL );
 
     // return pointer to symbol entry, NULL if not found, given its value
-    long *      FindSymbolByValue( long val, ForthVocabulary** ppFoundVocab=NULL );
+    forthop*    FindSymbolByValue( long val, ForthVocabulary** ppFoundVocab=NULL );
 
     // return pointer to symbol entry, NULL if not found
     // pSymName is required to be a longword aligned address, and to be padded with 0's
     // to the next longword boundary
-    long *      FindSymbol( ForthParseInfo *pInfo, ForthVocabulary** ppFoundVocab=NULL );
+    forthop*    FindSymbol( ForthParseInfo *pInfo, ForthVocabulary** ppFoundVocab=NULL );
 
 private:
     ForthVocabulary**   mStack;
     ForthEngine*        mpEngine;
     int                 mMaxDepth;
     int                 mTop;
-    ulong               mSerial;
+    ucell               mSerial;
 };
 
 namespace OVocabulary

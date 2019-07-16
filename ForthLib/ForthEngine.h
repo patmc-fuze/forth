@@ -69,13 +69,13 @@ private:
 
 struct ForthLabelReference
 {
-	ForthLabelReference(long *inBranchIP, int inBranchType)
+	ForthLabelReference(forthop *inBranchIP, int inBranchType)
 		: branchIP(inBranchIP)
 		, branchType(inBranchType)
 	{
 	}
 
-	long *branchIP;
+    forthop *branchIP;
 	int branchType;		//  kOpBranch, kOpBranchNZ or kOpBranchZ
 };
 
@@ -88,19 +88,19 @@ public:
 	{
 	}
 
-	ForthLabel(const char* pName, long* inLabelIP)
+	ForthLabel(const char* pName, forthop* inLabelIP)
 		: name(pName)
 		, labelIP(inLabelIP)
 	{
 	}
 
-	void CompileBranch(long *inBranchIP, int inBranchType)
+	void CompileBranch(forthop *inBranchIP, int inBranchType)
 	{
 		int offset = (labelIP - inBranchIP) - 1;
 		*inBranchIP = COMPILED_OP(inBranchType, offset);
 	}
 
-	void AddReference(long *inBranchIP, int inBranchType)
+	void AddReference(forthop *inBranchIP, int inBranchType)
 	{
 		if (labelIP == nullptr)
 		{
@@ -112,7 +112,7 @@ public:
 		}
 	}
 
-	void DefineLabelIP(long *inLabelIP)
+	void DefineLabelIP(forthop *inLabelIP)
 	{
 		labelIP = inLabelIP;
 		if (references.size() > 0)
@@ -127,7 +127,7 @@ public:
 
 	std::string name;
 	std::vector<ForthLabelReference> references;
-	long *labelIP;
+    forthop *labelIP;
 };
 
 // ForthEnumInfo is compiled with each enum defining word
@@ -161,19 +161,19 @@ public:
     // FullyExecuteOp is used by the Outer Interpreter (ForthEngine::ProcessToken) to
     // execute forth ops, and is also how systems external to forth execute ops
     //
-	eForthResult        FullyExecuteOp(ForthCoreState* pCore, long opCode);
+	eForthResult        FullyExecuteOp(ForthCoreState* pCore, forthop opCode);
 	// ExecuteOp will start execution of an op, but will not finish user defs or methods
-	eForthResult        ExecuteOp(ForthCoreState* pCore, long opCode);
+	eForthResult        ExecuteOp(ForthCoreState* pCore, forthop opCode);
 	// ExecuteOps executes a sequence of forth ops
     // The sequence must be terminated with an OP_DONE
-	eForthResult        ExecuteOps(ForthCoreState* pCore, long* pOps);
+	eForthResult        ExecuteOps(ForthCoreState* pCore, forthop* pOps);
 
-	eForthResult		FullyExecuteMethod(ForthCoreState* pCore, ForthObject& obj, long methodNum);
+	eForthResult		FullyExecuteMethod(ForthCoreState* pCore, ForthObject& obj, int methodNum);
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
-    long            AddOp( const long *pOp );
-    long            AddUserOp( const char *pSymbol, long** pEntryOut=NULL, bool smudgeIt=false );
-    long*           AddBuiltinOp( const char* name, ulong flags, ulong value );
+    forthop         AddOp( const forthop *pOp );
+    forthop         AddUserOp( const char *pSymbol, forthop** pEntryOut=NULL, bool smudgeIt=false );
+    forthop*        AddBuiltinOp( const char* name, ulong flags, forthop value );
     void            AddBuiltinOps( baseDictionaryEntry *pEntries );
 
 	ForthClassVocabulary*   StartClassDefinition(const char* pClassName, eBuiltinClassIndex classIndex = kNumBuiltinClasses);
@@ -181,13 +181,13 @@ public:
 	ForthClassVocabulary*   AddBuiltinClass(const char* pClassName, eBuiltinClassIndex classIndex, eBuiltinClassIndex parentClassIndex, baseMethodEntry *pEntries);
 
     // forget the specified op and all higher numbered ops, and free the memory where those ops were stored
-    void            ForgetOp( ulong opNumber, bool quietMode=true );
+    void            ForgetOp(forthop opNumber, bool quietMode=true );
     // forget the named symbol - return false if symbol not found
     bool            ForgetSymbol( const char *pSym, bool quietMode=true );
 
     // create a thread which will be managed by the engine - the engine destructor will delete all threads
     //  which were created with CreateThread 
-    ForthAsyncThread * CreateAsyncThread( long threadLoopOp = OP_DONE, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
+    ForthAsyncThread * CreateAsyncThread(forthop threadLoopOp = OP_DONE, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
 	void               DestroyAsyncThread(ForthAsyncThread *pThread);
 
     // return true IFF the last compiled opcode was an integer literal
@@ -213,12 +213,12 @@ public:
     void            PopInputStream( void );
 
     // returns pointer to new vocabulary entry
-    long *          StartOpDefinition(const char *pName = NULL, bool smudgeIt = false, forthOpType opType = kOpUserDef, ForthVocabulary* pDefinitionVocab = nullptr);
+    forthop*        StartOpDefinition(const char *pName = NULL, bool smudgeIt = false, forthOpType opType = kOpUserDef, ForthVocabulary* pDefinitionVocab = nullptr);
     void            EndOpDefinition(bool unsmudgeIt = false);
     // return pointer to symbol entry, NULL if not found
-    long *          FindSymbol( const char *pSymName );
+    forthop*        FindSymbol( const char *pSymName );
     void            DescribeSymbol( const char *pSymName );
-    void            DescribeOp( const char *pSymName, long op, long auxData );
+    void            DescribeOp( const char *pSymName, forthop op, long auxData );
 
     void            StartStructDefinition( void );
     void            EndStructDefinition( void );
@@ -231,16 +231,16 @@ public:
     char *          GetLastInputToken( void );
 
     const char *            GetOpTypeName( long opType );
-	void                    TraceOp(long *pOp, long op);
+	void                    TraceOp(forthop *pOp, forthop op);
 	void                    TraceStack(ForthCoreState* pCore);
-    void                    DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUserDefs=false );
-    long *                  NextOp( long *pOp );
-    void                    AddOpExecutionToProfile(long op);
+    void                    DescribeOp(forthop *pOp, char *pBuffer, int buffSize, bool lookupUserDefs=false );
+    forthop*                NextOp(forthop *pOp );
+    void                    AddOpExecutionToProfile(forthop op);
     void                    DumpExecutionProfile();
     void                    ResetExecutionProfile();
 
-    inline long *           GetDP() { return mDictionary.pCurrent; };
-    inline void             SetDP( long *pNewDP ) { mDictionary.pCurrent = pNewDP; };
+    inline forthop*         GetDP() { return mDictionary.pCurrent; };
+    inline void             SetDP( forthop* pNewDP ) { mDictionary.pCurrent = pNewDP; };
 #if defined(DEBUG)
     void                    CompileLong(long v);
     void                    CompileDouble(double v);
@@ -248,19 +248,20 @@ public:
     inline void             CompileLong(long v) { *mDictionary.pCurrent++ = v; };
     inline void             CompileDouble(double v) { *((double *)mDictionary.pCurrent) = v; mDictionary.pCurrent += 2; };
 #endif
-	void					CompileOpcode( forthOpType opType, long opVal );
-    void			        PatchOpcode(forthOpType opType, long opVal, long* pOpcode);
+	void					CompileOpcode( forthOpType opType, forthop opVal );
+    void			        PatchOpcode(forthOpType opType, forthop opVal, forthop* pOpcode);
     void                    ClearPeephole();
-    void					CompileOpcode( long op );
-    void                    CompileBuiltinOpcode( long v );
+    void					CompileOpcode(forthop op );
+    void                    CompileBuiltinOpcode(forthop v );
     void                    UncompileLastOpcode( void );
-    long *					GetLastCompiledOpcodePtr( void );
-    long *					GetLastCompiledIntoPtr( void );
+    forthop*				GetLastCompiledOpcodePtr( void );
+    forthop*				GetLastCompiledIntoPtr( void );
     void                    ProcessConstant( long value, bool isOffset=false );
-    void                    ProcessLongConstant( long long value );
+    void                    ProcessLongConstant( int64_t value );
     inline void             AllotLongs( int n ) { mDictionary.pCurrent += n; };
-	inline void             AllotBytes( int n )	{ mDictionary.pCurrent = reinterpret_cast<long *>(reinterpret_cast<int>(mDictionary.pCurrent) + n); };
-    inline void             AlignDP( void ) { mDictionary.pCurrent = (long *)(( ((int)mDictionary.pCurrent) + 3 ) & ~3); };
+	inline void             AllotBytes( int n )	{ mDictionary.pCurrent = reinterpret_cast<forthop*>(reinterpret_cast<int>(mDictionary.pCurrent) + n); };
+    inline void             AlignDP( void ) { mDictionary.pCurrent = (forthop*)(( ((int)mDictionary.pCurrent) + (sizeof(forthop) - 1))
+                                                                                    & ~(sizeof(forthop) - 1)); };
     inline ForthMemorySection* GetDictionaryMemorySection() { return &mDictionary; };
 
 	inline ForthEngineTokenStack* GetTokenStack() { return &mTokenStack; };
@@ -344,16 +345,16 @@ public:
 	bool					SquishDouble( double dvalue, bool approximateOkay, ulong& squishedDouble );
 	double					UnsquishDouble( ulong squishedDouble );
 	// squish 64-bit int to 24 bits, returns true IFF number can be represented in 24 bits
-	bool					SquishLong( long long lvalue, ulong& squishedLong );
-	long long				UnsquishLong( ulong squishedLong );
+	bool					SquishLong( int64_t lvalue, ulong& squishedLong );
+	int64_t				UnsquishLong( ulong squishedLong );
 
     ForthBlockFileManager*  GetBlockFileManager();
 
 	bool					IsServer() const;
 	void					SetIsServer(bool isServer);
 
-	void					DefineLabel(const char* inLabelName, long* inLabelIP);
-	void					AddGoto(const char* inName, int inBranchType, long* inBranchIP);
+	void					DefineLabel(const char* inLabelName, forthop* inLabelIP);
+	void					AddGoto(const char* inName, int inBranchType, forthop* inBranchIP);
 
 	// if inText is null, string is not copied, an uninitialized space of size inNumChars+1 is allocated
 	// if inNumChars is null and inText is not null, strlen(inText) is used for temp string size
@@ -362,19 +363,19 @@ public:
     inline long             UnusedTempStringSpace() { return (mStringBufferASize - (mpStringBufferANext - mpStringBufferA)); }
 
     void                    AddGlobalObjectVariable(ForthObject* pObject);
-    void                    CleanupGlobalObjectVariables(long* pNewDP);
+    void                    CleanupGlobalObjectVariables(forthop* pNewDP);
 
-    void                    RaiseException(ForthCoreState* pCore, long exceptionNum);
+    void                    RaiseException(ForthCoreState* pCore, cell exceptionNum);
 
 protected:
     // NOTE: temporarily modifies string @pToken
-    bool                    ScanIntegerToken( char* pToken, long& value, long long& lvalue, int base, bool& isOffset, bool& isSingle );
+    bool                    ScanIntegerToken( char* pToken, int32_t& value, int64_t& lvalue, int base, bool& isOffset, bool& isSingle );
     // NOTE: temporarily modifies string @pToken
     bool                    ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle, bool& isApproximate );
 
 
-	long*					FindUserDefinition( ForthVocabulary* pVocab, long*& pClosestIP, long* pIP, long*& pBase );
-	void					DisplayUserDefCrash( long *pRVal, char* buff, int buffSize );
+    forthop*                FindUserDefinition( ForthVocabulary* pVocab, forthop*& pClosestIP, forthop* pIP, forthop*& pBase );
+	void					DisplayUserDefCrash(forthop *pRVal, char* buff, int buffSize );
 
 protected:
     ForthCoreState*  mpCore;             // core inner interpreter state
@@ -412,7 +413,7 @@ protected:
     long *          mpEngineScratch;
     char *          mpLastToken;
     long            mLocalFrameSize;
-    long *          mpLocalAllocOp;
+    forthop*        mpLocalAllocOp;
     char *          mpErrorString;  // optional error information from shell
 
     ForthTypesManager *mpTypesManager;
@@ -426,8 +427,8 @@ protected:
 	traceOutRoutine	mTraceOutRoutine;
 	void*			mpTraceOutData;
 
-    long *          mpEnumStackBase;
-    long            mNextEnum;
+    cell*           mpEnumStackBase;
+    cell            mNextEnum;
 
 	ForthObject		mDefaultConsoleOutStream;
 
@@ -436,30 +437,32 @@ protected:
     std::vector<ForthObject*> mGlobalObjectVariables;
 
     struct opcodeProfileInfo {
-        long op;
-        long count;
+        forthop op;
+        ucell count;
         ForthVocabulary* pVocabulary;
-        long* pEntry;
+        forthop* pEntry;
     };
     std::vector<opcodeProfileInfo> mProfileOpcodeCounts;
-    int mProfileOpcodeTypeCounts[256];
+    cell mProfileOpcodeTypeCounts[256];
 
 public:
-    void                    PushContinuation(long val);
-    long                    PopContinuation();
+    void                    PushContinuationAddress(forthop* pOP);
+    void                    PushContinuationType(cell val);
+    forthop*                PopContinuationAddress();
+    cell                    PopContinuationType();
     void                    ResetContinuations();
-    long*                   GetContinuationDestination();
-    void                    SetContinuationDestination(long* pDest);
-    void                    AddContinuationBranch(long* pAddr, long opType);
-    void                    AddBreakBranch(long* pAddr, long opType);
+    forthop*                GetContinuationDestination();
+    void                    SetContinuationDestination(forthop* pDest);
+    void                    AddContinuationBranch(forthop* pAddr, cell opType);
+    void                    AddBreakBranch(forthop* pAddr, cell opType);
     void                    StartLoopContinuations();
     void                    EndLoopContinuations(int controlFlowType);  // actually takes a eShellTag
     bool                    HasPendingContinuations();
 
 protected:
-    std::vector<long> mContinuations;
+    std::vector<forthop*> mContinuations;
     long            mContinuationIx;
-    long*           mContinueDestination;
+    forthop*        mContinueDestination;
     long            mContinueCount;
 
     ForthEnumInfo*  mpNewestEnum;

@@ -24,7 +24,7 @@ extern "C"
 {
 
 // NativeAction is used to execute user ops which are defined in assembler
-extern void NativeAction( ForthCoreState *pCore, ulong opVal );
+extern void NativeAction( ForthCoreState *pCore, forthop opVal );
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -108,7 +108,7 @@ GFORTHOP( doByteBop )
     signed char* pVar = (signed char *)(GET_IP);
 
 	_doByteVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 
 GFORTHOP( byteVarActionBop )
@@ -168,7 +168,7 @@ GFORTHOP( doUByteBop )
     unsigned char* pVar = (unsigned char *)(GET_IP);
 
 	_doUByteVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 
 GFORTHOP( ubyteVarActionBop )
@@ -235,7 +235,7 @@ GFORTHOP( doByteArrayBop )
     signed char* pVar = (signed char *)(SPOP + (long)(GET_IP));
 
 	_doByteVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 
 // this is an internal op that is compiled before the data field of each unsigned byte array
@@ -244,7 +244,7 @@ GFORTHOP( doUByteArrayBop )
     unsigned char* pVar = (unsigned char *)(SPOP + (long)(GET_IP));
 
 	_doUByteVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 #endif
 
@@ -389,7 +389,7 @@ GFORTHOP( doShortBop )
     short* pVar = (short *)(GET_IP);
 
 	_doShortVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 
 GFORTHOP( shortVarActionBop )
@@ -449,7 +449,7 @@ GFORTHOP( doUShortBop )
     unsigned short* pVar = (unsigned short *)(GET_IP);
 
 	_doUShortVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 
 GFORTHOP( ushortVarActionBop )
@@ -515,7 +515,7 @@ GFORTHOP( doShortArrayBop )
     short* pVar = ((short *) (GET_IP)) + SPOP;
 
 	_doShortVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 
 GFORTHOP( doUShortArrayBop )
@@ -524,7 +524,7 @@ GFORTHOP( doUShortArrayBop )
     unsigned short* pVar = ((unsigned short *) (GET_IP)) + SPOP;
 
 	_doUShortVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 #endif
 
@@ -675,7 +675,7 @@ GFORTHOP( doIntBop )
     int* pVar = (int *)(GET_IP);
 
 	_doIntVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 
 GFORTHOP( intVarActionBop )
@@ -718,7 +718,7 @@ GFORTHOP( doIntArrayBop )
     int* pVar = ((int *) (GET_IP)) + SPOP;
 
 	_doIntVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 #endif
 
@@ -814,7 +814,7 @@ GFORTHOP( doFloatBop )
     float* pVar = (float *)(GET_IP);
 
 	_doFloatVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 
 GFORTHOP( floatVarActionBop )
@@ -966,7 +966,7 @@ GFORTHOP( doDoubleBop )
     double* pVar = (double *)(GET_IP);
 
 	_doDoubleVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 
 GFORTHOP( doubleVarActionBop )
@@ -1010,7 +1010,7 @@ GFORTHOP( doDoubleArrayBop )
     double* pVar = ((double *) (GET_IP)) + SPOP;
 
 	_doDoubleVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 #endif
 
@@ -1139,7 +1139,7 @@ GFORTHOP( doStringBop )
     char* pVar = (char *) (GET_IP);
 
 	_doStringVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 
 GFORTHOP( stringVarActionBop )
@@ -1180,20 +1180,20 @@ OPTYPE_ACTION( MemberStringAction )
 GFORTHOP( doStringArrayBop )
 {
     // IP points to data field
-    long *pLongs = GET_IP;
+    int32_t *pLongs = (int32_t *) GET_IP;
     int index = SPOP;
     long len = ((*pLongs) >> 2) + 3;      // length of one string in longwords
     char *pVar = (char *) (pLongs + (index * len));
 
 	_doStringVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 #endif
 
 OPTYPE_ACTION( LocalStringArrayAction )
 {
 	SET_OPVAL;
-    long *pLongs = GET_FP - opVal;
+    cell *pLongs = GET_FP - opVal;
     int index = SPOP;
     long len = ((*pLongs) >> 2) + 3;      // length of one string in longwords
     char *pVar = (char *) (pLongs + (index * len));
@@ -1277,7 +1277,7 @@ GFORTHOP( doOpBop )
 {    
     // IP points to data field
     long* pVar = (long *)(GET_IP);
-    SET_IP((long *)(RPOP));
+    SET_IP((forthop *)(RPOP));
 
 	_doOpVarop( pCore, pVar );
 }
@@ -1321,7 +1321,7 @@ GFORTHOP( doOpArrayBop )
 {
     // IP points to data field
     long* pVar = ((long *) (GET_IP)) + SPOP;
-    SET_IP((long *)(RPOP));
+    SET_IP((forthop *)(RPOP));
 
 	_doOpVarop( pCore, pVar );
 }
@@ -1448,7 +1448,7 @@ GFORTHOP( doObjectBop )
 {
     // IP points to data field
 	ForthObject* pVar = (ForthObject *)(GET_IP);
-	SET_IP((long *)(RPOP));
+	SET_IP((forthop *)(RPOP));
 
 	_doObjectVarop( pCore, pVar );
 }
@@ -1495,7 +1495,7 @@ GFORTHOP( doObjectArrayBop )
 	ForthObject* pVar = ((ForthObject *) (GET_IP)) + SPOP;
 
 	_doObjectVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 #endif
 
@@ -1538,7 +1538,7 @@ OPTYPE_ACTION( MemberObjectArrayAction )
 VAR_ACTION( doLongFetch ) 
 {
     stackInt64 val64;
-    long long *pA = (long long *) (SPOP);
+    int64_t *pA = (int64_t *) (SPOP);
     val64.s64 = *pA;
     LPUSH( val64 );
 }
@@ -1546,7 +1546,7 @@ VAR_ACTION( doLongFetch )
 VAR_ACTION( doLongStore ) 
 {
     stackInt64 val64;
-    long long *pA = (long long *) (SPOP);
+    int64_t *pA = (int64_t *) (SPOP);
     LPOP( val64 );
     *pA = val64.s64;
 }
@@ -1554,7 +1554,7 @@ VAR_ACTION( doLongStore )
 VAR_ACTION( doLongPlusStore ) 
 {
     stackInt64 val64;
-    long long *pA = (long long *) (SPOP);
+    int64_t *pA = (int64_t *) (SPOP);
     LPOP( val64 );
     *pA += val64.s64;
 }
@@ -1562,7 +1562,7 @@ VAR_ACTION( doLongPlusStore )
 VAR_ACTION( doLongMinusStore ) 
 {
     stackInt64 val64;
-    long long *pA = (long long *) (SPOP);
+    int64_t *pA = (int64_t *) (SPOP);
     LPOP( val64 );
     *pA -= val64.s64;
 }
@@ -1577,7 +1577,7 @@ VarAction longOps[] =
     doLongMinusStore
 };
 
-static void _doLongVarop( ForthCoreState* pCore, long long* pVar )
+static void _doLongVarop( ForthCoreState* pCore, int64_t* pVar )
 {
     ForthEngine *pEngine = (ForthEngine *)pCore->pEngine;
     ulong varOp = GET_VAR_OPERATION;
@@ -1608,15 +1608,15 @@ static void _doLongVarop( ForthCoreState* pCore, long long* pVar )
 GFORTHOP( doLongBop )
 {
     // IP points to data field
-    long long* pVar = (long long *)(GET_IP);
+    int64_t* pVar = (int64_t *)(GET_IP);
 
 	_doLongVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 
 GFORTHOP( longVarActionBop )
 {
-    long long* pVar = (long long *)(SPOP);
+    int64_t* pVar = (int64_t *)(SPOP);
 	_doLongVarop( pCore, pVar );
 }
 #endif
@@ -1624,7 +1624,7 @@ GFORTHOP( longVarActionBop )
 OPTYPE_ACTION( LocalLongAction )
 {
 	SET_OPVAL;
-    long long* pVar = (long long *)(GET_FP - opVal);
+    int64_t* pVar = (int64_t *)(GET_FP - opVal);
 
 	_doLongVarop( pCore, pVar );
 }
@@ -1633,7 +1633,7 @@ OPTYPE_ACTION( LocalLongAction )
 OPTYPE_ACTION( FieldLongAction )
 {
 	SET_OPVAL;
-    long long* pVar = (long long *)(SPOP + opVal);
+    int64_t* pVar = (int64_t *)(SPOP + opVal);
 
 	_doLongVarop( pCore, pVar );
 }
@@ -1642,7 +1642,7 @@ OPTYPE_ACTION( FieldLongAction )
 OPTYPE_ACTION( MemberLongAction )
 {
 	SET_OPVAL;
-    long long* pVar = (long long *) (((long)(GET_TP)) + opVal);
+    int64_t* pVar = (int64_t *) (((long)(GET_TP)) + opVal);
 
 	_doLongVarop( pCore, pVar );
 }
@@ -1652,17 +1652,17 @@ OPTYPE_ACTION( MemberLongAction )
 GFORTHOP( doLongArrayBop )
 {
     // IP points to data field
-    long long* pVar = ((long long *) (GET_IP)) + SPOP;
+    int64_t* pVar = ((int64_t *) (GET_IP)) + SPOP;
 
 	_doLongVarop( pCore, pVar );
-    SET_IP( (long *) (RPOP) );
+    SET_IP( (forthop *) (RPOP) );
 }
 #endif
 
 OPTYPE_ACTION( LocalLongArrayAction )
 {
 	SET_OPVAL;
-    long long* pVar = ((long long *) (GET_FP - opVal)) + SPOP;
+    int64_t* pVar = ((int64_t *) (GET_FP - opVal)) + SPOP;
 
 	_doLongVarop( pCore, pVar );
 }
@@ -1672,7 +1672,7 @@ OPTYPE_ACTION( FieldLongArrayAction )
 	SET_OPVAL;
     // TOS is struct base, NOS is index
     // opVal is byte offset of double[0]
-    long long* pVar = (long long *)(SPOP + opVal);
+    int64_t* pVar = (int64_t *)(SPOP + opVal);
     pVar += SPOP;
 
 	_doLongVarop( pCore, pVar );
@@ -1683,7 +1683,7 @@ OPTYPE_ACTION( MemberLongArrayAction )
 	SET_OPVAL;
     // TOS is index
     // opVal is byte offset of byte[0]
-    long long* pVar = ((long long *) (((long)(GET_TP)) + opVal)) + SPOP;
+    int64_t* pVar = ((int64_t *) (((long)(GET_TP)) + opVal)) + SPOP;
 
 	_doLongVarop( pCore, pVar );
 }
@@ -1695,11 +1695,11 @@ OPTYPE_ACTION( MemberLongArrayAction )
 
 OPTYPE_ACTION( CCodeAction )
 {
-    ForthOp opRoutine;
+    ForthCOp opRoutine;
     // op is builtin
     if ( opVal < pCore->numOps )
     {
-        opRoutine = (ForthOp)(pCore->ops[opVal]);
+        opRoutine = (ForthCOp)(pCore->ops[opVal]);
         opRoutine( pCore );
     }
     else
@@ -1727,10 +1727,10 @@ OPTYPE_ACTION( RelativeDefAction )
 {
     // op is normal user-defined, push IP on rstack,
     //  newIP is opVal + dictionary base
-    long* newIP = pCore->pDictionary->pBase + opVal;
+    forthop* newIP = pCore->pDictionary->pBase + opVal;
     if ( newIP < pCore->pDictionary->pCurrent )
     {
-        RPUSH( (long) GET_IP );
+        RPUSH( (cell) GET_IP );
         SET_IP( newIP );
     }
     else
@@ -1743,10 +1743,10 @@ OPTYPE_ACTION(RelativeDataAction)
 {
     // op is normal user-defined, push IP on rstack,
     //  newIP is opVal + dictionary base
-    long* pData = pCore->pDictionary->pBase + opVal;
+    forthop* pData = pCore->pDictionary->pBase + opVal;
     if (pData < pCore->pDictionary->pCurrent)
     {
-        SPUSH((long) pData);
+        SPUSH((cell) pData);
     }
     else
     {
@@ -1793,7 +1793,7 @@ OPTYPE_ACTION( BranchZAction )
 OPTYPE_ACTION(CaseBranchTAction)
 {
     // TOS: this_case_value case_selector
-    long *pSP = GET_SP;
+    cell *pSP = GET_SP;
     if ( *pSP != pSP[1] )
     {
         // case didn't match
@@ -1812,7 +1812,7 @@ OPTYPE_ACTION(CaseBranchTAction)
 OPTYPE_ACTION(CaseBranchFAction)
 {
     // TOS: this_case_value case_selector
-    long *pSP = GET_SP;
+    cell *pSP = GET_SP;
     if (*pSP == pSP[1])
     {
         // case matched
@@ -1830,7 +1830,7 @@ OPTYPE_ACTION(CaseBranchFAction)
 
 OPTYPE_ACTION(PushBranchAction)
 {
-	SPUSH((long)(GET_IP));
+	SPUSH((cell)(GET_IP));
 	SET_IP(GET_IP + opVal);
 }
 
@@ -1888,8 +1888,8 @@ OPTYPE_ACTION( LocalStructArrayAction )
 {
     // bits 0..11 are padded struct length in bytes, bits 12..23 are frame offset in longs
     // init the current & max length fields of a local string
-    long* pStruct = GET_FP - (opVal >> 12);
-    long offset = ((opVal & 0xFFF) * SPOP) + ((long) pStruct);
+    cell* pStruct = GET_FP - (opVal >> 12);
+    cell offset = ((opVal & 0xFFF) * SPOP) + ((cell) pStruct);
     SPUSH( offset );
 }
 
@@ -1897,15 +1897,15 @@ OPTYPE_ACTION( ConstantStringAction )
 {
     // push address of immediate string & skip over
     // opVal is number of longwords in string
-    long *pIP = GET_IP;
-    SPUSH( (long) pIP );
+    forthop *pIP = GET_IP;
+    SPUSH( (cell) pIP );
     SET_IP( pIP + opVal );
 }
 
 OPTYPE_ACTION( AllocLocalsAction )
 {
     // allocate a local var stack frame
-    RPUSH( (long) GET_FP );      // rpush old FP
+    RPUSH( (cell) GET_FP );      // rpush old FP
     SET_FP( GET_RP );                // set FP = RP, points at oldFP
     SET_RP( GET_RP - opVal );                // allocate storage for local vars
 	memset( GET_RP, 0, (opVal << 2) );
@@ -1915,8 +1915,8 @@ OPTYPE_ACTION( InitLocalStringAction )
 {
     // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
     // init the current & max length fields of a local string
-    long* pFP = GET_FP;
-    long* pStr = pFP - (opVal >> 12);
+    cell* pFP = GET_FP;
+    cell* pStr = pFP - (opVal >> 12);
     *pStr++ = (opVal & 0xFFF);          // max length
     *pStr++ = 0;                        // current length
     *((char *) pStr) = 0;               // terminating null
@@ -1925,13 +1925,13 @@ OPTYPE_ACTION( InitLocalStringAction )
 OPTYPE_ACTION( LocalRefAction )
 {
     // opVal is offset in longs
-    SPUSH( (long)(GET_FP - opVal) );
+    SPUSH( (cell)(GET_FP - opVal) );
 }
 
 OPTYPE_ACTION( MemberRefAction )
 {
     // opVal is offset in bytes
-    SPUSH( ((long)GET_TP) + opVal );
+    SPUSH( ((cell)GET_TP) + opVal );
 }
 
 // bits 0..15 are index into ForthCoreState userOps table, 16..18 are flags, 19..23 are arg count
@@ -1952,7 +1952,7 @@ OPTYPE_ACTION( DLLEntryPointAction )
 #endif
 }
 
-void SpewMethodName(long* pMethods, long opVal)
+void SpewMethodName(forthop* pMethods, forthop opVal)
 {
     if (pMethods == nullptr)
     {
@@ -1969,7 +1969,7 @@ void SpewMethodName(long* pMethods, long opVal)
         strcpy(buffer, "UNKNOWN_METHOD");
 		while (pVocab != nullptr)
 		{
-			long *pEntry = pVocab->FindNextSymbolByValue(opVal, nullptr);
+            forthop *pEntry = pVocab->FindNextSymbolByValue(opVal, nullptr);
 			while (true)
 			{
 				if (pEntry != nullptr)
@@ -2015,7 +2015,7 @@ OPTYPE_ACTION(MethodWithThisAction)
     // opVal is the method number
     ForthEngine *pEngine = GET_ENGINE;
     ForthObject thisObject = (ForthObject)(GET_TP);
-    long* pMethods = thisObject->pMethods;
+    forthop* pMethods = thisObject->pMethods;
     RPUSH( ((long) GET_TP) );
 	if (pEngine->GetTraceFlags() & kLogInnerInterpreter)
 	{
@@ -2030,17 +2030,17 @@ OPTYPE_ACTION(MethodWithSuperAction)
     // opVal is the method number
     ForthEngine *pEngine = GET_ENGINE;
     ForthObject thisObject = (ForthObject)(GET_TP);
-    long* pMethods = thisObject->pMethods;
+    forthop* pMethods = thisObject->pMethods;
     // save old methods on rstack to be restored by unsuper, which is compiled in next opcode
     //  after the methodWithSuper opcode
-    RPUSH((long)pMethods);
-    RPUSH(((long)GET_TP));
+    RPUSH((cell)pMethods);
+    RPUSH(((cell)GET_TP));
     if (pEngine->GetTraceFlags() & kLogInnerInterpreter)
     {
         SpewMethodName(pMethods, opVal);
     }
     ForthClassObject* pClassObject = (ForthClassObject*)pMethods[-1];
-    long* pSuperMethods = pClassObject->pVocab->ParentClass()->GetMethods();
+    forthop* pSuperMethods = pClassObject->pVocab->ParentClass()->GetMethods();
     thisObject->pMethods = pSuperMethods;
     pEngine->ExecuteOp(pCore, pSuperMethods[opVal]);
 }
@@ -2054,7 +2054,7 @@ OPTYPE_ACTION( MethodWithTOSAction )
     // on using the current "this" pointer
     ForthEngine *pEngine = GET_ENGINE;
 	//pEngine->TraceOut(">>MethodWithTOSAction IP %p  RP %p\n", GET_IP, GET_RP);
-    RPUSH( ((long) GET_TP) );
+    RPUSH( ((cell) GET_TP) );
 
     ForthObject obj;
     POP_OBJECT(obj);
@@ -2104,7 +2104,7 @@ OPTYPE_ACTION( NumVaropOpComboAction )
 	SET_VAR_OPERATION( ((opVal >> 11) & 3) + 2 );
 
 	// execute op in bits 13:23
-	long op = COMPILED_OP(NATIVE_OPTYPE, (opVal >> 13));
+	forthop op = COMPILED_OP(NATIVE_OPTYPE, (opVal >> 13));
     ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
 }
 
@@ -2145,7 +2145,7 @@ OPTYPE_ACTION( NumOpComboAction )
     SPUSH( num );
 
 	// execute op in bits 13:23
-	long op = COMPILED_OP(NATIVE_OPTYPE, (opVal >> 13) );
+    forthop op = COMPILED_OP(NATIVE_OPTYPE, (opVal >> 13) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
 }
 
@@ -2157,14 +2157,14 @@ OPTYPE_ACTION( VaropOpComboAction )
 	SET_VAR_OPERATION( (opVal & 3) + 2 );
 
 	// execute op in bits 2:23
-	long op = COMPILED_OP(NATIVE_OPTYPE, (opVal >> 2) );
+    forthop op = COMPILED_OP(NATIVE_OPTYPE, (opVal >> 2) );
     ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
 }
 
 OPTYPE_ACTION( OpZBranchComboAction )
 {
 	// bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
-	long op = COMPILED_OP(NATIVE_OPTYPE, (opVal & 0xFFF));
+    forthop op = COMPILED_OP(NATIVE_OPTYPE, (opVal & 0xFFF));
     ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
     if ( SPOP == 0 )
     {
@@ -2181,7 +2181,7 @@ OPTYPE_ACTION( OpZBranchComboAction )
 OPTYPE_ACTION(OpNZBranchComboAction)
 {
     // bits 0..11 are opcode, bits 12-23 are signed integer branch offset in longs
-    long op = COMPILED_OP(NATIVE_OPTYPE, (opVal & 0xFFF));
+    forthop op = COMPILED_OP(NATIVE_OPTYPE, (opVal & 0xFFF));
     ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore, op);
     if (SPOP != 0)
     {
@@ -2217,10 +2217,10 @@ OPTYPE_ACTION( SquishedLongAction )
 OPTYPE_ACTION( LocalRefOpComboAction )
 {
 	// REF_OFFSET OP combo - bits 0:11 are local var offset in longs, bits 12:23 are opcode
-    SPUSH( (long)(GET_FP - (opVal & 0xFFF)) );
+    SPUSH( (cell)(GET_FP - (opVal & 0xFFF)) );
 
 	// execute op in bits 12:23
-	long op = COMPILED_OP(NATIVE_OPTYPE, (opVal >> 12));
+    forthop op = COMPILED_OP(NATIVE_OPTYPE, (opVal >> 12));
     ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
 }
 
@@ -2231,7 +2231,7 @@ OPTYPE_ACTION( MemberRefOpComboAction )
     SPUSH( ((long)GET_TP) + (opVal & 0xFFF) );
 
 	// execute op in bits 12:23
-	long op = COMPILED_OP(NATIVE_OPTYPE, (opVal >> 12));
+    forthop op = COMPILED_OP(NATIVE_OPTYPE, (opVal >> 12));
     ((ForthEngine *)pCore->pEngine)->ExecuteOp(pCore,  op );
 }
 
@@ -2249,7 +2249,7 @@ OPTYPE_ACTION( MethodAction )
 {
 #if 0
     // token is object method invocation
-    long op = GET_CURRENT_OP;
+    forthop op = GET_CURRENT_OP;
     forthOpType opType = FORTH_OP_TYPE( op );
     int methodNum = ((int) opType) & 0x7F;
     long* pObj = NULL;
@@ -2282,7 +2282,7 @@ OPTYPE_ACTION( MethodAction )
             RPUSH( (long) GET_IP );
             RPUSH( (long) GET_TP );
             SET_TP( pObj );
-            SET_IP( (long *) (pClass[methodNum + 3]) );
+            SET_IP( (forthop *) (pClass[methodNum + 3]) );
         }
         else
         {
@@ -2468,7 +2468,7 @@ void InitDispatchTables( ForthCoreState* pCore )
 
     for ( i = 0; i < MAX_BUILTIN_OPS; i++ )
     {
-        pCore->ops[i] = (long *)(BadOpcodeOp);
+        pCore->ops[i] = (forthop *)(BadOpcodeOp);
     }
     for ( i = 0; builtinOptypeAction[i] != NULL; i++ )
     {
@@ -2508,8 +2508,8 @@ InnerInterpreter( ForthCoreState *pCore )
 			while (result == kResultOk)
 			{
 				// fetch op at IP, advance IP
-				long* pIP = GET_IP;
-                long op = *pIP;
+                forthop* pIP = GET_IP;
+                forthop op = *pIP;
                 pEngine->TraceOp(pIP, op);
                 pIP++;
 				SET_IP(pIP);
@@ -2531,8 +2531,8 @@ InnerInterpreter( ForthCoreState *pCore )
 		{
 			while (GET_STATE == kResultOk)
 			{
-				long* pIP = GET_IP;
-				long op = *pIP++;
+                forthop* pIP = GET_IP;
+				forthop op = *pIP++;
 				SET_IP(pIP);
 				//DISPATCH_FORTH_OP( pCore, op );
 				//#define DISPATCH_FORTH_OP( _pCore, _op ) 	_pCore->optypeAction[ (int) FORTH_OP_TYPE( _op ) ]( _pCore, FORTH_OP_VALUE( _op ) )
@@ -2546,7 +2546,7 @@ InnerInterpreter( ForthCoreState *pCore )
 }
 
 eForthResult
-InterpretOneOp( ForthCoreState *pCore, long op )
+InterpretOneOp( ForthCoreState *pCore, forthop op )
 {
     SET_STATE( kResultOk );
 
@@ -2556,7 +2556,7 @@ InterpretOneOp( ForthCoreState *pCore, long op )
 	if ( traceFlags & kLogInnerInterpreter )
 	{
 		// fetch op at IP, advance IP
-		long* pIP = GET_IP;
+        forthop* pIP = GET_IP;
 		pEngine->TraceOp(pIP, *pIP);
 		//DISPATCH_FORTH_OP( pCore, op );
 		optypeActionRoutine typeAction = pCore->optypeAction[(int)FORTH_OP_TYPE(op)];
@@ -2581,10 +2581,11 @@ InterpretOneOp( ForthCoreState *pCore, long op )
 eForthResult
 InnerInterpreter( ForthCoreState *pCore )
 {
-    ulong opVal, numBuiltinOps;
+    forthop opVal;
+    ucell numBuiltinOps;
     forthOpType opType;
-    long *pIP;
-    long op;
+    forthop *pIP;
+    forthop op;
     numBuiltinOps = pCore->numBuiltinOps;
 
     SET_STATE( kResultOk );

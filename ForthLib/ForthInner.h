@@ -15,7 +15,7 @@ extern "C" {
 #define VAR_ACTION(NAME) static void NAME( ForthCoreState *pCore )
 typedef void (*VarAction)( ForthCoreState *pCore );
 
-#define OPTYPE_ACTION(NAME) static void NAME( ForthCoreState *pCore, ulong opVal )
+#define OPTYPE_ACTION(NAME) static void NAME( ForthCoreState *pCore, forthop opVal )
 
 // right now there are about 250 builtin ops, allow for future expansion
 #define MAX_BUILTIN_OPS 2048
@@ -58,40 +58,40 @@ struct ForthCoreState
 {
     optypeActionRoutine  *optypeAction;
 
-    ulong               numBuiltinOps;
+    ucell               numBuiltinOps;
 
-    long                **ops;
-    ulong               numOps;
-    ulong               maxOps;     // current size of table at pUserOps
+    forthop**           ops;
+    ucell               numOps;
+    ucell               maxOps;     // current size of table at pUserOps
 
     //ForthEngine         *pEngine;
-    void                 *pEngine;
+    void*               pEngine;
 
-    long                *IP;            // interpreter pointer
+    forthop*            IP;            // interpreter pointer
 
-    long                *SP;            // parameter stack pointer
+    cell*               SP;            // parameter stack pointer
     
-    long                *RP;            // return stack pointer
+    cell*               RP;            // return stack pointer
 
-    long                *FP;            // frame pointer
+    cell*               FP;            // frame pointer
     
     ForthObject         TP;             // this pointer
 
-    ulong               varMode;        // operation to perform on variables
+    ucell               varMode;        // operation to perform on variables
 
-    ulong               state;          // inner loop state - ok/done/error
+    ucell               state;          // inner loop state - ok/done/error
 
-    ulong               error;
+    ucell               error;
 
-    long                *SB;            // param stack base
-    long                *ST;            // empty parameter stack pointer
+    cell*               SB;            // param stack base
+    cell*               ST;            // empty parameter stack pointer
 
-    ulong               SLen;           // size of param stack in longwords
+    ucell               SLen;           // size of param stack in longwords
 
-    long                *RB;            // return stack base
-    long                *RT;            // empty return stack pointer
+    cell*               RB;            // return stack base
+    cell*               RT;            // empty return stack pointer
 
-    ulong               RLen;           // size of return stack in longwords
+    ucell               RLen;           // size of return stack in longwords
 
     void                *pThread;		// actually a ForthAsyncThread
 
@@ -104,26 +104,26 @@ struct ForthCoreState
 	ForthObject			consoleOutStream;
 
     long                base;               // output base
-    ulong               signedPrintMode;   // if numers are printed as signed/unsigned
+    ucell               signedPrintMode;   // if numers are printed as signed/unsigned
     long                traceFlags;
 
     ForthExceptionFrame* pExceptionFrame;  // points to current exception handler frame in rstack
-    ulong               scratch[4];
+    ucell               scratch[4];
 };
 
 
 extern eForthResult InnerInterpreter( ForthCoreState *pCore );
-extern eForthResult InterpretOneOp( ForthCoreState *pCore, long op );
+extern eForthResult InterpretOneOp( ForthCoreState *pCore, forthop op );
 #ifdef ASM_INNER_INTERPRETER
 extern eForthResult InnerInterpreterFast( ForthCoreState *pCore );
 extern void InitAsmTables( ForthCoreState *pCore );
-extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, long op );
+extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, forthop op );
 #endif
 
 void InitDispatchTables( ForthCoreState* pCore );
 void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal );
 void _doIntVarop(ForthCoreState* pCore, int* pVar);
-void SpewMethodName(long* pMethods, long opVal);
+void SpewMethodName(forthop* pMethods, forthop opVal);
 
 // DLLRoutine is used for any external DLL routine - it can take any number of arguments
 typedef long (*DLLRoutine)();
@@ -133,9 +133,9 @@ typedef long (*DLLRoutine)();
 // 3) leaves the DLL routine result on the forth parameter stack
 extern void CallDLLRoutine( DLLRoutine function, long argCount, unsigned long flags, ForthCoreState *pCore );
 
-inline long GetCurrentOp( ForthCoreState *pCore )
+inline forthop GetCurrentOp( ForthCoreState *pCore )
 {
-    long *pIP = pCore->IP - 1;
+    forthop* pIP = pCore->IP - 1;
     return *pIP;
 }
 

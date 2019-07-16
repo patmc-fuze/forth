@@ -47,7 +47,7 @@ public:
     void                Reset( void );
     void                ResetIP( void );
 
-    inline void         SetOp( long op ) { mOps[0] = op; };
+    inline void         SetOp( forthop op ) { mOps[0] = op; };
 
     inline void         Push( long value ) { *--mCore.SP = value; };
     inline long         Pop() { return *mCore.SP++; };
@@ -64,7 +64,7 @@ public:
 	void				Exit();
     void                Join(ForthThread* pJoiningThread);
 
-	inline void			SetIP( long* newIP ) { mCore.IP = newIP; };
+	inline void			SetIP( forthop* newIP ) { mCore.IP = newIP; };
 	
 	ForthShowContext*	GetShowContext();
 
@@ -92,7 +92,7 @@ protected:
 	ForthAsyncThread	*mpParentThread;
     //ForthThreadState    mState;
     ForthCoreState      mCore;
-    long                mOps[2];
+    forthop             mOps[2];
     ulong				mWakeupTime;
 	eForthThreadRunState mRunState;
     ForthThread*         mpJoinHead;

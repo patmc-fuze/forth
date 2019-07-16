@@ -36,8 +36,8 @@ public:
 
     ForthPipe*      GetPipe();
 
-    virtual long*   GetInputState();
-    virtual bool    SetInputState( long* pState );
+    virtual cell*   GetInputState();
+    virtual bool    SetInputState(cell* pState);
 
 protected:
     ForthPipe*      mpMsgPipe;

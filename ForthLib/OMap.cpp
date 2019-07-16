@@ -29,14 +29,14 @@ namespace OMap
 	typedef std::map<ForthObject, ForthObject> oMap;
 	struct oMapStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		oMap*	        elements;
 	};
 
 	struct oMapIterStruct
 	{
-        long*               pMethods;
+        forthop*            pMethods;
         ulong				refCount;
 		ForthObject			parent;
 		oMap::iterator*		cursor;
@@ -183,7 +183,6 @@ namespace OMap
 		oMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        ForthObject key;
 
         // first, show any key objects that weren't already shown
         std::vector<ForthObject> keysToShow;
@@ -638,14 +637,14 @@ namespace OMap
 	typedef std::map<long, ForthObject> oIntMap;
 	struct oIntMapStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		oIntMap*		elements;
 	};
 
 	struct oIntMapIterStruct
 	{
-        long*               pMethods;
+        forthop*            pMethods;
         ulong				refCount;
 		ForthObject			parent;
 		oIntMap::iterator	*cursor;
@@ -1186,14 +1185,14 @@ namespace OMap
 	typedef std::map<float, ForthObject> oFloatMap;
 	struct oFloatMapStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		oFloatMap*		elements;
 	};
 
 	struct oFloatMapIterStruct
 	{
-        long*               pMethods;
+        forthop*            pMethods;
         ulong				refCount;
 		ForthObject			parent;
 		oFloatMap::iterator	*cursor;
@@ -2060,14 +2059,14 @@ namespace OMap
 	typedef std::map<double, ForthObject> oDoubleMap;
 	struct oDoubleMapStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		oDoubleMap*	    elements;
 	};
 
 	struct oDoubleMapIterStruct
 	{
-        long*               pMethods;
+        forthop*            pMethods;
         ulong				refCount;
 		ForthObject			parent;
 		oDoubleMap::iterator*	cursor;
@@ -2613,14 +2612,14 @@ namespace OMap
 
 	struct oStringIntMapStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		oStringIntMap*	elements;
 	};
 
 	struct oStringIntMapIterStruct
 	{
-        long*               pMethods;
+        forthop*            pMethods;
         ulong				refCount;
 		ForthObject			parent;
 		oStringIntMap::iterator	*cursor;
@@ -3162,18 +3161,18 @@ namespace OMap
 	//                 StringLongMap
 	//
 
-	typedef std::map<std::string, long long> oStringLongMap;
+	typedef std::map<std::string, int64_t> oStringLongMap;
 
 	struct oStringLongMapStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		oStringLongMap*	elements;
 	};
 
 	struct oStringLongMapIterStruct
 	{
-        long*               pMethods;
+        forthop*            pMethods;
         ulong				refCount;
 		ForthObject			parent;
 		oStringLongMap::iterator	*cursor;
@@ -3206,7 +3205,7 @@ namespace OMap
                 reader->getRequiredChar(':');
                 reader->getNumber(number);
                 std::string number;
-                long long value;
+                int64_t value;
                 sscanf(number.c_str(), "%lld", &value);
                 a[key] = *((int *)&value);
             }
@@ -3652,7 +3651,7 @@ namespace OMap
                 std::string number;
                 double value;
                 sscanf(number.c_str(), "%lf", &value);
-                a[key] = *((long long *)&value);
+                a[key] = *((int64_t *)&value);
             }
             return true;
         }

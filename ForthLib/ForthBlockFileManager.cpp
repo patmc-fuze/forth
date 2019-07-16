@@ -320,8 +320,8 @@ namespace OBlockFile
 
     struct oBlockFileStruct
     {
-        long*                   pMethods;
-        ulong                   refCount;
+        forthop*                pMethods;
+        ucell                   refCount;
         ForthBlockFileManager*  pManager;
     };
 

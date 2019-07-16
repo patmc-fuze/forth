@@ -544,15 +544,15 @@ ForthPipe* ForthServerInputStream::GetPipe()
 }
 
 
-long*
+cell*
 ForthServerInputStream::GetInputState()
 {
     // TBD!
-    return (long *) NULL;
+    return nullptr;
 }
 
 bool
-ForthServerInputStream::SetInputState( long* pState )
+ForthServerInputStream::SetInputState(cell* pState)
 {
     // TBD!
     return false;

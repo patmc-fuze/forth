@@ -524,8 +524,7 @@ ForthFileInputStream::GetSourceID()
     return (int) mpInFile;
 }
 
-long*
-ForthFileInputStream::GetInputState()
+cell* ForthFileInputStream::GetInputState()
 {
     // save-input items:
     //  0   5
@@ -535,7 +534,7 @@ ForthFileInputStream::GetInputState()
     //  4   writeOffset (count of valid bytes in buffer)
     //  5   lineStartOffset
 
-    long* pState = &(mState[0]);
+    cell* pState = &(mState[0]);
     pState[0] = 5;
     pState[1] = (int)this;
     pState[2] = mLineNumber;
@@ -547,7 +546,7 @@ ForthFileInputStream::GetInputState()
 }
 
 bool
-ForthFileInputStream::SetInputState( long* pState )
+ForthFileInputStream::SetInputState( cell* pState)
 {
     if ( pState[0] != 5 )
     {
@@ -634,8 +633,7 @@ ForthConsoleInputStream::GetSourceID()
     return 0;
 }
 
-long*
-ForthConsoleInputStream::GetInputState()
+cell* ForthConsoleInputStream::GetInputState()
 {
     // save-input items:
     //  0   4
@@ -644,7 +642,7 @@ ForthConsoleInputStream::GetInputState()
     //  3   readOffset
     //  4   writeOffset (count of valid bytes in buffer)
 
-    long* pState = &(mState[0]);
+    cell* pState = &(mState[0]);
     pState[0] = 4;
     pState[1] = (int)this;
     pState[2] = mLineNumber;
@@ -655,7 +653,7 @@ ForthConsoleInputStream::GetInputState()
 }
 
 bool
-ForthConsoleInputStream::SetInputState( long* pState )
+ForthConsoleInputStream::SetInputState(cell* pState)
 {
     if ( pState[0] != 4 )
     {
@@ -772,8 +770,7 @@ ForthBufferInputStream::GetReportedBufferBasePointer( void )
     return mpSourceBuffer;
 }
 
-long*
-ForthBufferInputStream::GetInputState()
+cell* ForthBufferInputStream::GetInputState()
 {
     // save-input items:
     //  0   4
@@ -782,7 +779,7 @@ ForthBufferInputStream::GetInputState()
     //  3   readOffset
     //  4   writeOffset (count of valid bytes in buffer)
 
-    long* pState = &(mState[0]);
+    cell* pState = &(mState[0]);
     pState[0] = 4;
     pState[1] = (int)this;
     pState[2] = mInstanceNumber;
@@ -793,7 +790,7 @@ ForthBufferInputStream::GetInputState()
 }
 
 bool
-ForthBufferInputStream::SetInputState( long* pState )
+ForthBufferInputStream::SetInputState(cell* pState)
 {
     if ( pState[0] != 4 )
     {
@@ -893,8 +890,7 @@ ForthBlockInputStream::SeekToLineEnd()
 }
 
 
-long*
-ForthBlockInputStream::GetInputState()
+cell* ForthBlockInputStream::GetInputState()
 {
     // save-input items:
     //  0   3
@@ -902,7 +898,7 @@ ForthBlockInputStream::GetInputState()
     //  2   blockNumber
     //  3   readOffset
 
-    long* pState = &(mState[0]);
+    cell* pState = &(mState[0]);
     pState[0] = 3;
     pState[1] = (int)this;
     pState[2] = mCurrentBlock;
@@ -912,7 +908,7 @@ ForthBlockInputStream::GetInputState()
 }
 
 bool
-ForthBlockInputStream::SetInputState( long* pState )
+ForthBlockInputStream::SetInputState(cell* pState)
 {
     if ( pState[0] != 4 )
     {
@@ -1215,15 +1211,14 @@ ForthExpressionInputStream::SeekToLineEnd()
 
 }
 
-long*
-ForthExpressionInputStream::GetInputState()
+cell* ForthExpressionInputStream::GetInputState()
 {
 	// TODO: error!
-	return NULL;
+	return nullptr;
 }
 
 bool
-ForthExpressionInputStream::SetInputState(long* pState)
+ForthExpressionInputStream::SetInputState(cell* pState)
 {
 	// TODO: error!
 	return false;

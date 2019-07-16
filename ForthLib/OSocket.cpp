@@ -39,7 +39,7 @@ namespace OSocket
 
     struct oSocketStruct
     {
-        long*       pMethods;
+        forthop*    pMethods;
         ulong       refCount;
 #ifdef WIN32
         SOCKET      fd;

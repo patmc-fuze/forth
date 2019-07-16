@@ -30,17 +30,17 @@
 
 struct oAsyncThreadStruct
 {
-    long*               pMethods;
-    ulong				refCount;
-	int					id;
+    forthop*            pMethods;
+    ucell               refCount;
+	cell                id;
 	ForthAsyncThread	*pThread;
 };
 
 struct oThreadStruct
 {
-    long*               pMethods;
-    ulong				refCount;
-	int					id;
+    forthop*            pMethods;
+    ucell               refCount;
+    cell                id;
 	ForthThread			*pThread;
 };
 
@@ -65,11 +65,11 @@ ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, 
     mCore.RLen = returnStackLongs;
     // leave a few extra words above top of stacks, so that underflows don't
     //   tromp on the memory allocator info
-    mCore.SB = new long[mCore.SLen + (GAURD_AREA * 2)];
+    mCore.SB = new cell[mCore.SLen + (GAURD_AREA * 2)];
     mCore.SB += GAURD_AREA;
     mCore.ST = mCore.SB + mCore.SLen;
 
-    mCore.RB = new long[mCore.RLen + (GAURD_AREA * 2)];
+    mCore.RB = new cell[mCore.RLen + (GAURD_AREA * 2)];
     mCore.RB += GAURD_AREA;
     mCore.RT = mCore.RB + mCore.RLen;
 
@@ -1067,7 +1067,7 @@ namespace OThread
 		GET_THIS(oThreadStruct, pThreadStruct);
 		ForthThread* pThread = pThreadStruct->pThread;
 		ForthCoreState* pThreadCore = pThread->GetCore();
-		long op = *(pThreadCore->IP)++;
+		forthop op = *(pThreadCore->IP)++;
 		long result;
 #ifdef ASM_INNER_INTERPRETER
         ForthEngine *pEngine = GET_ENGINE;
@@ -1155,9 +1155,9 @@ namespace OLock
 
 	struct oAsyncLockStruct
 	{
-        long*           pMethods;
-        ulong			refCount;
-		int				id;
+        forthop*        pMethods;
+        ucell           refCount;
+		cell            id;
 #ifdef WIN32
 		CRITICAL_SECTION* pLock;
 #else
@@ -1267,10 +1267,10 @@ namespace OLock
 
 	struct oLockStruct
 	{
-        long*           pMethods;
-        ulong			refCount;
-		int				id;
-		int				lockDepth;
+        forthop*        pMethods;
+        ucell           refCount;
+		cell            id;
+		cell            lockDepth;
 #ifdef WIN32
 		CRITICAL_SECTION* pLock;
 #else
@@ -1491,10 +1491,10 @@ namespace OLock
 
     struct oSemaphoreStruct
     {
-        long*           pMethods;
+        forthop*        pMethods;
         ulong			refCount;
-        int				id;
-        int				count;
+        cell            id;
+        cell            count;
 #ifdef WIN32
         CRITICAL_SECTION* pLock;
 #else
@@ -1648,9 +1648,9 @@ namespace OLock
 
     struct oAsyncSemaphoreStruct
     {
-        long*           pMethods;
+        forthop*        pMethods;
         ulong			refCount;
-        int				id;
+        cell            id;
 #ifdef WIN32
         HANDLE pSemaphore;
 #else

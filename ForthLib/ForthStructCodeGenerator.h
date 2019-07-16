@@ -17,7 +17,7 @@ public:
 	ForthStructCodeGenerator( ForthTypesManager* pTypeManager );
 	~ForthStructCodeGenerator();
 	
-	bool Generate( ForthParseInfo *pInfo, long*& pDst, int dstLongs );
+	bool Generate( ForthParseInfo *pInfo, forthop*& pDst, int dstLongs );
 	bool UncompileLastOpcode() { return mCompileVarop != 0; }
 
 protected:
@@ -34,8 +34,8 @@ protected:
     ForthStructVocabulary* mpStructVocab;
     ForthStructVocabulary* mpContainedClassVocab;
     ForthTypesManager* mpTypeManager;
-	long* mpDst;
-	long* mpDstBase;
+    forthop* mpDst;
+    forthop* mpDstBase;
 	int	mDstLongs;
 	char* mpBuffer;
 	int mBufferBytes;

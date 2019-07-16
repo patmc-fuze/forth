@@ -146,6 +146,52 @@ Double and long memory and stack layouts:
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 15 2019
+
+I changed the exception handling by replacing the 2 handler IPs compiled just
+after the _doTry opcode to be relative offsets to their own address.  This
+will work for both 32 and 64 bits.
+
+Forth is compiling, and runs autoload, and runs many of the scripts in test.txt,
+but fails in atc, newadv and helpdeck.
+
+helpdeck - HelpDeck:setFlags can't find NoteDeck:flagMap member
+adv - Game:removeObjectFrom can't find IGame:places member
+atc - atcConsoleDisplay:xyAddr can't find iAtcDisplay:text.base
+
+The problem was that I had changed ForthVocabulary::FindSymbol to use ucell for
+its serial parameter, but I didn't change FortheStructVocabulary::FindSymbol,
+so it wasn't being used, so base classes weren't being searched.
+-> use "override" to insure this doesn't happen again
+
+Forth now compiles and passes all test.txt tests in both assembler and
+non-assembler versions.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 14 2019
+
+I am cleaning up the long/int/ulong datatypes used in the Forth C++ code, there
+is no standard pattern here, as preparation for doing the 64-bit version of Forth.
+For the 64-bit version I am planning to use 32 bits for forth opcodes and 64 bits
+for everything else.
+forthop is always uint32_t.
+cell is int32_t or int64_t.
+ucell is uint32_t or uint64_t.
+
+Things which will be a problem:
+- dictionary pointer
++ shellstack - opcodes and opcode pointers are now different sizes
++ continuation stack - continuation types and pointers are different sizes
+- local variable def stack
+- ForthEngine::FindUserDefinition
++ initStringArrayOp - what size for string current/max length fields?
++ exception handlers try/except/finally - handlers use full size pointers, not forthop sized offsets
+- class vocabulary object pointer at methods[-1] will be 64-bits while methods are 32-bits, so code
+  which gets the class object will need to be size aware
++ input streams input state
+
+Probably the right thing to do for any stacks which can have pointers should be
+declared with their elements the size of pointers.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 7 2019
 
 ARM is still crashing loading helpdeck.txt, when tracing is on it crashes trying
@@ -1381,7 +1427,7 @@ on OSX.  One problem is that OSX requires any calls to system library routines
 to be made on 16 byte boundaries.  The extOp routine was misaligned, so all calls
 to ops defined in C++ were failing.  After I fixed that I ran into other wierd
 problems, for example I get a segfault in this line in CCodeAction:
-        opRoutine = (ForthOp)(pCore->ops[opVal]);
+        opRoutine = (ForthCOp)(pCore->ops[opVal]);
 The segfault happens because the value gotten by pCore-ops is wrong, but I have
 stepped through the disassembly multiple times, and the pCore value is correct,
 but when it fetches the ops field from it at offset 8, it get 0 or 2, even though
@@ -2527,7 +2573,7 @@ aside from the following problems:
 
 I'm not feeling good about the 64-bit integer changes - they require making
 some changes that will make 64-bit float code much more messy and not screwing
-up any code which tries to access a long long in memory directly.  I am not
+up any code which tries to access a int64_t in memory directly.  I am not
 willing to change 64-bit float code to embrace this madness.  The first thing
 I should do is categorize all the situations where 64-bit values occur:
 
@@ -4810,7 +4856,7 @@ InnerInterpreter( ForthCoreState *pCore )
     ulong opVal, numBuiltinOps;
     forthOpType opType;
     long *pIP;
-    long op;
+    forthop op;
     numBuiltinOps = pCore->numBuiltinOps;
 
     SET_STATE( kResultOk );

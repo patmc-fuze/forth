@@ -14,7 +14,8 @@ namespace OSystem
 
 	struct oSystemStruct
 	{
-		ulong			refCount;
+        forthop*        pMethods;
+        ucell           refCount;
         ForthObject     namedObjects;
         ForthObject     args;
         ForthObject     env;

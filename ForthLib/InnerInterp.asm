@@ -203,7 +203,7 @@ entry InitAsmTables
 ;
 ; single step a thread
 ;
-; extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, long op );
+; extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, forthop op );
 entry InterpretOneOpFast
 	push ebp
 	mov	ebp, esp

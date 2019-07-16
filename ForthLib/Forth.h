@@ -12,13 +12,20 @@
 
 struct ForthCoreState;
 
-typedef unsigned int uint32;
-typedef int int32;
-typedef unsigned long long uint64;
-typedef long long int64;
+// forthop is the type of forth opcodes
+// cell/ucell is the type of parameter stack elements
+#ifdef FORTH64
+#define forthop uint32_t
+#define cell int64_t
+#define ucell uint64_t
+#else
+#define forthop uint32_t
+#define cell int32_t
+#define ucell uint32_t
+#endif
 
 #ifndef ulong
-#define ulong   unsigned long
+#define ulong unsigned long
 #endif
 
 #define MAX_STRING_SIZE (8 * 1024)
@@ -173,9 +180,9 @@ typedef enum
 
 // there is an action routine with this signature for each forthOpType
 // user can add new optypes with ForthEngine::AddOpType
-typedef void (*optypeActionRoutine)( ForthCoreState *pCore, ulong theData );
+typedef void (*optypeActionRoutine)( ForthCoreState *pCore, forthop theData );
 
-typedef void  (*ForthOp)( ForthCoreState * );
+typedef void  (*ForthCOp)( ForthCoreState * );
 
 // user will also have to add an external interpreter with ForthEngine::SetInterpreterExtension
 // to compile/interpret these new optypes
@@ -266,18 +273,19 @@ typedef enum
     kForthNumExceptionStates
 } eForthExceptionState;
 
-// exception handler IPs (compiled just after _doTry opcode)
-// 0    exceptIP
-// 1    finallyIP
+// exception handler IP offsets (compiled just after _doTry opcode)
+//  these are offsets from pHandlerOffsets
+// 0    exceptIPOffset
+// 1    finallyIPOffset
 
 // exception frame on rstack:
 struct ForthExceptionFrame
 {
     ForthExceptionFrame*    pNextFrame;
-    long*                   pSavedSP;
-    long**                  pHandlerIPs;
-    long*                   pSavedFP;
-    long                    exceptionNumber;
+    cell*                   pSavedSP;
+    forthop*                pHandlerOffsets;
+    cell*                   pSavedFP;
+    cell                    exceptionNumber;
     eForthExceptionState    exceptionState;
 };
 
@@ -305,9 +313,9 @@ typedef enum {
 
 typedef struct {
     // user dictionary stuff
-    long*               pCurrent;
-    long*               pBase;
-    ulong               len;
+    forthop*            pCurrent;
+    forthop*            pBase;
+    ucell               len;
 } ForthMemorySection;
 
 // this is what is placed on the stack to represent a forth object
@@ -315,8 +323,8 @@ typedef struct {
 // the second longword is the reference count, followed by class dependant data
 struct oObjectStruct
 {
-    long*               pMethods;
-    ulong               refCount;
+    forthop*            pMethods;
+    ucell               refCount;
 };
 
 typedef oObjectStruct* ForthObject;
@@ -326,10 +334,10 @@ typedef oObjectStruct* ForthObject;
 // standard (at least for x86 architectures).
 typedef union
 {
-    int s32[2];
-    unsigned int u32[2];
-    long long s64;
-    unsigned long long u64;
+    int32_t     s32[2];
+    uint32_t    u32[2];
+    int64_t     s64;
+    uint64_t    u64;
 } stackInt64;
 
 
@@ -474,27 +482,27 @@ enum {
 	NUM_COMPILED_OPS
 };
 
-extern long gCompiledOps[];
+extern forthop gCompiledOps[];
 
 typedef struct
 {
    const char       *name;
-   ulong            flags;
-   ulong            value;
+   ucell            flags;
+   ucell            value;
 } baseDictionaryEntry;
 
 // helper macro for built-in op entries in baseDictionary
-#define OP_DEF( func, funcName )  { funcName, kOpCCode, (ulong) func }
+#define OP_DEF( func, funcName )  { funcName, kOpCCode, (ucell) func }
 
 // helper macro for ops which have precedence (execute at compile time)
-#define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate, (ulong) func }
+#define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate, (ucell) func }
 
 
 typedef struct
 {
     const char      *name;
-    ulong           value;
-    ulong           returnType;
+    ucell           value;
+    ucell           returnType;
 } baseMethodEntry;
 
 

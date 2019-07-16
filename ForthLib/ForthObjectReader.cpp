@@ -405,7 +405,7 @@ void ForthObjectReader::processElement(const std::string& name)
         else
         {
             // lookup name in current vocabulary to see how to process
-            long* pEntry = mContext.pVocab->FindSymbol(name.c_str());
+            forthop* pEntry = mContext.pVocab->FindSymbol(name.c_str());
             if (pEntry != nullptr)
             {
                 // TODO - handle number, string, object, array
@@ -428,7 +428,7 @@ void ForthObjectReader::processElement(const std::string& name)
                 float fval;
                 double dval;
                 int ival;
-                long long lval;
+                int64_t lval;
                 std::string str;
                 char *pDst = mContext.pData + byteOffset;
                 int roomLeft = mContext.pVocab->GetSize() - byteOffset;
@@ -508,7 +508,7 @@ void ForthObjectReader::processElement(const std::string& name)
                         {
                             throwError("failed to parse long");
                         }
-                        *(long long *)pDst = lval;
+                        *(int64_t *)pDst = lval;
                         bytesConsumed = 8;
                         break;
                     }

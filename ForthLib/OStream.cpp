@@ -934,7 +934,7 @@ namespace OStream
 		if (pFileInStreamStruct->pInFile != nullptr)
 		{
 #if defined(WIN32)
-			long long oldPos = _ftelli64(pFileInStreamStruct->pInFile);
+			int64_t oldPos = _ftelli64(pFileInStreamStruct->pInFile);
 			_fseeki64(pFileInStreamStruct->pInFile, 0l, SEEK_END);
 			size.s64 = _ftelli64(pFileInStreamStruct->pInFile);
 			_fseeki64(pFileInStreamStruct->pInFile, oldPos, SEEK_SET);
@@ -1391,7 +1391,7 @@ namespace OStream
         if (pFileOutStream->pOutFile != nullptr)
         {
 #if defined(WIN32)
-            long long oldPos = _ftelli64(pFileOutStream->pOutFile);
+            int64_t oldPos = _ftelli64(pFileOutStream->pOutFile);
             _fseeki64(pFileOutStream->pOutFile, 0l, SEEK_END);
             size.s64 = _ftelli64(pFileOutStream->pOutFile);
             _fseeki64(pFileOutStream->pOutFile, oldPos, SEEK_SET);
@@ -1792,7 +1792,7 @@ void ForthConsoleCharOut(ForthCoreState* pCore, char ch)
 	}
 	else
 	{
-		SPUSH(((long)ch));
+		SPUSH(((cell)ch));
 		pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutCharMethod);
 	}
 }
@@ -1807,7 +1807,7 @@ void ForthConsoleBytesOut(ForthCoreState* pCore, const char* pBuffer, int numCha
 	}
 	else
 	{
-		SPUSH(((long)pBuffer));
+		SPUSH(((cell)pBuffer));
 		SPUSH(numChars);
 		pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutBytesMethod);
 	}
@@ -1823,7 +1823,7 @@ void ForthConsoleStringOut(ForthCoreState* pCore, const char* pBuffer)
 	}
 	else
 	{
-		SPUSH(((long)pBuffer));
+		SPUSH(((cell)pBuffer));
 		pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutStringMethod);
 	}
 }

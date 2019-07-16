@@ -782,7 +782,7 @@ namespace OString
         bool tryAgain = true;
         int maxLen = pOStr->maxLen;
 		int curLen = pOStr->curLen;
-        long* oldSP = pCore->SP;
+        cell* oldSP = pCore->SP;
         while (tryAgain)
         {
 			int roomLeft = maxLen - curLen;

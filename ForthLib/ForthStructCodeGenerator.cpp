@@ -54,7 +54,7 @@ ForthStructCodeGenerator::~ForthStructCodeGenerator()
 	__FREE(mpBuffer);
 }
 
-bool ForthStructCodeGenerator::Generate( ForthParseInfo *pInfo, long*& pDst, int dstLongs )
+bool ForthStructCodeGenerator::Generate( ForthParseInfo *pInfo, forthop*& pDst, int dstLongs )
 {
 	mpParseInfo = pInfo;
 	mpStructVocab = nullptr;
@@ -117,7 +117,7 @@ void ForthStructCodeGenerator::HandlePreceedingVarop()
 	mCompileVarop = 0;
     if ( pEngine->IsCompiling() )
     {
-        long *pLastOp = pEngine->GetLastCompiledOpcodePtr();
+        forthop *pLastOp = pEngine->GetLastCompiledOpcodePtr();
         if ( pLastOp && ((pLastOp + 1) == GET_DP)
             && (*pLastOp >= gCompiledOps[OP_FETCH]) && (*pLastOp <= gCompiledOps[OP_OCLEAR]) )
         {
@@ -160,7 +160,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 	mTOSTypeCode = BASE_TYPE_TO_CODE(kBaseTypeVoid);
 
     // see if first token is local or global struct
-    long* pEntry = NULL;
+    forthop* pEntry = NULL;
 
     if ( mpParseInfo->GetFlags() & PARSE_FLAG_HAS_COLON )
     {
@@ -495,7 +495,7 @@ bool ForthStructCodeGenerator::HandleMiddle()
 	bool success = true;
     ForthEngine *pEngine = ForthEngine::GetInstance();
     
-    long* pEntry = mpStructVocab->FindSymbol( mpToken );
+    forthop* pEntry = mpStructVocab->FindSymbol( mpToken );
 			
     SPEW_STRUCTS( "field %s", mpToken );
     if ( pEntry == NULL )
@@ -686,7 +686,7 @@ bool ForthStructCodeGenerator::HandleLast()
 	}
 	bool success = true;
     
-    long* pEntry = mpStructVocab->FindSymbol( mpToken );
+    forthop* pEntry = mpStructVocab->FindSymbol( mpToken );
 		
     SPEW_STRUCTS( "field %s", mpToken );
     if ( pEntry == NULL )

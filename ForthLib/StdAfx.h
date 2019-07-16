@@ -39,6 +39,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include <stdint.h>
 
 #ifdef WIN32
 #include <conio.h>

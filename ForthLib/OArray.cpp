@@ -995,7 +995,7 @@ namespace OArray
     typedef std::vector<bagElement> oBag;
     struct oBagStruct
     {
-        long*    pMethods;
+        forthop* pMethods;
         ulong    refCount;
         oBag*    elements;
     };
@@ -1056,7 +1056,7 @@ namespace OArray
                 tagParts[1] = 0;
                 tagParts[2] = 0;
                 strcpy((char *)(&tagParts[0]), tag.c_str());
-                newElement.tag.s64 = *((long long *)(&tagParts[0]));
+                newElement.tag.s64 = *((int64_t *)(&tagParts[0]));
                 SAFE_KEEP(newElement.obj);
                 dstBag->elements->push_back(newElement);
                 // TODO: release obj here?
@@ -1109,7 +1109,7 @@ namespace OArray
             {
                 bagElement& element = *iter;
                 ForthObject& o = element.obj;
-                *((long long *)&tag[0]) = element.tag.s64;
+                *((int64_t *)&tag[0]) = element.tag.s64;
                 pShowContext->BeginElement(tag);
                 ForthShowObject(o, pCore);
                 pShowContext->EndElement();
@@ -1164,7 +1164,6 @@ namespace OArray
                 found = ~0;
                 pBag->refCount++;
                 TRACK_KEEP;
-                ForthObject obj;
 
                 oArrayIterStruct* pIter = createBagIterator(pCore, pBag);
                 pIter->cursor = i;
@@ -1973,14 +1972,14 @@ namespace OArray
 	typedef std::vector<char> oByteArray;
 	struct oByteArrayStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		oByteArray*    elements;
 	};
 
 	struct oByteArrayIterStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
 		ulong			refCount;
 		ForthObject		parent;
 		ulong			cursor;
@@ -2682,14 +2681,14 @@ namespace OArray
 	typedef std::vector<short> oShortArray;
 	struct oShortArrayStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		oShortArray*    elements;
 	};
 
 	struct oShortArrayIterStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong			refCount;
 		ForthObject		parent;
 		ulong			cursor;
@@ -3377,14 +3376,14 @@ namespace OArray
 	typedef std::vector<int> oIntArray;
 	struct oIntArrayStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		oIntArray*      elements;
 	};
 
 	struct oIntArrayIterStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong			refCount;
 		ForthObject		parent;
 		ulong			cursor;
@@ -4171,17 +4170,17 @@ namespace OArray
 	//                 LongArray
 	//
 
-	typedef std::vector<long long> oLongArray;
+	typedef std::vector<int64_t> oLongArray;
 	struct oLongArrayStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		oLongArray*    elements;
 	};
 
 	struct oLongArrayIterStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong			refCount;
 		ForthObject		parent;
 		ulong			cursor;
@@ -4217,7 +4216,7 @@ namespace OArray
                     reader->ungetChar(ch);
                 }
                 reader->getNumber(number);
-                long long value;
+                int64_t value;
                 if (sscanf(number.c_str(), "%lld", &value) == 1)
                 {
                     dstArray->elements->push_back(value);
@@ -4300,7 +4299,7 @@ namespace OArray
         long found = 0;
         stackInt64 a64;
         LPOP(a64);
-        long long soughtLong = a64.s64;
+        int64_t soughtLong = a64.s64;
         oLongArray::iterator iter;
         oLongArray& a = *(pArray->elements);
         for (unsigned int i = 0; i < a.size(); i++)
@@ -4418,7 +4417,7 @@ namespace OArray
         ulong jx = (ulong)SPOP;
         if ((a.size() > ix) && (a.size() > jx))
         {
-            long long t = a[ix];
+            int64_t t = a[ix];
             a[ix] = a[jx];
             a[jx] = t;
         }
@@ -4439,7 +4438,7 @@ namespace OArray
 		if (oldSize < newSize)
 		{
 			// growing - add zeros to end of array
-			long long* pElement = &(a[oldSize]);
+			int64_t* pElement = &(a[oldSize]);
 			memset(pElement, 0, ((newSize - oldSize) << 3));
 		}
 		METHOD_RETURN;
@@ -4461,7 +4460,7 @@ namespace OArray
             if ((oldSize > 0) && (ix < oldSize))
             {
                 // move old entries up by size of ForthObject
-                memmove(&(a[ix + 1]), &(a[ix]), sizeof(long long) * (oldSize - ix));
+                memmove(&(a[ix + 1]), &(a[ix]), sizeof(int64_t) * (oldSize - ix));
             }
             a[ix] = a64.s64;
         }
@@ -4552,13 +4551,13 @@ namespace OArray
         oLongArray& a = *(pArray->elements);
         int offset = SPOP;
         int numLongs = SPOP;
-        const long long* pSrc = (const long long*)(SPOP);
+        const int64_t* pSrc = (const int64_t*)(SPOP);
         ulong copyEnd = (ulong)(numLongs + offset);
         if (copyEnd != a.size())
         {
             a.resize(copyEnd);
         }
-        long long* pDst = &(a[0]) + offset;
+        int64_t* pDst = &(a[0]) + offset;
         memcpy(pDst, pSrc, numLongs << 3);
         METHOD_RETURN;
     }
@@ -4569,7 +4568,7 @@ namespace OArray
         long found = 0;
         stackInt64 a64;
         LPOP(a64);
-        long long val = a64.s64;
+        int64_t val = a64.s64;
         oLongArray& a = *(pArray->elements);
         for (ulong i = 0; i < a.size(); i++)
         {
@@ -4603,7 +4602,7 @@ namespace OArray
     FORTHOP(oLongArrayUnsignedSortMethod)
     {
         GET_THIS(oShortArrayStruct, pArray);
-        std::vector<unsigned long long>& a = *(((std::vector<unsigned long long> *)(pArray->elements)));
+        std::vector<uint64_t>& a = *(((std::vector<uint64_t> *)(pArray->elements)));
         std::sort(a.begin(), a.end());
         METHOD_RETURN;
     }
@@ -4835,7 +4834,7 @@ namespace OArray
 		long retVal = 0;
 		stackInt64 a64;
 		LPOP(a64);
-		long long soughtLong = a64.s64;
+		int64_t soughtLong = a64.s64;
 		oLongArrayStruct* pArray = reinterpret_cast<oLongArrayStruct *>(pIter->parent);
 		oLongArray& a = *(pArray->elements);
 		unsigned int i = pIter->cursor;
@@ -4889,14 +4888,14 @@ namespace OArray
 	typedef std::vector<double> oDoubleArray;
 	struct oDoubleArrayStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		oDoubleArray*   elements;
 	};
 
 	struct oDoubleArrayIterStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong			refCount;
 		ForthObject		parent;
 		ulong			cursor;
@@ -5224,7 +5223,7 @@ namespace OArray
     typedef std::vector<char> oStructArray;
     struct oStructArrayStruct
     {
-        long*                   pMethods;
+        forthop*                pMethods;
         ulong                   refCount;
         oStructArray*           elements;
         ulong                   elementSize;
@@ -5234,7 +5233,7 @@ namespace OArray
 
     struct oStructArrayIterStruct
     {
-        long*           pMethods;
+        forthop*        pMethods;
         ulong			refCount;
         ForthObject		parent;
         ulong			cursor;
@@ -5918,7 +5917,7 @@ namespace OArray
 
 	struct oPairStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		ForthObject	    a;
 		ForthObject	    b;
@@ -5926,7 +5925,7 @@ namespace OArray
 
 	struct oPairIterStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong			refCount;
 		ForthObject		parent;
 		int				cursor;
@@ -6254,7 +6253,7 @@ namespace OArray
 
 	struct oTripleStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong           refCount;
 		ForthObject	    a;
 		ForthObject	    b;
@@ -6263,7 +6262,7 @@ namespace OArray
 
 	struct oTripleIterStruct
 	{
-        long*           pMethods;
+        forthop*        pMethods;
         ulong			refCount;
 		ForthObject		parent;
 		int				cursor;

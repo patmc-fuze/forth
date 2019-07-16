@@ -17,15 +17,15 @@ namespace OString
     typedef std::map<std::string, ForthObject> oStringMap;
     struct oStringMapStruct
     {
-        long*       pMethods;
-        ulong       refCount;
+        forthop*    pMethods;
+        ucell       refCount;
         oStringMap*	elements;
     };
 
     struct oStringMapIterStruct
     {
-        long*                   pMethods;
-        ulong				    refCount;
+        forthop*                pMethods;
+        ucell                   refCount;
         ForthObject			    parent;
         oStringMap::iterator	*cursor;
     };

@@ -67,7 +67,7 @@ namespace
         nullptr
     };
 
-    void GetTagString( unsigned long tag, char* pMsg )
+    void GetTagString( cell tag, char* pMsg )
     {
         bool foundOne = false;
         int mask = 1;
@@ -1916,7 +1916,7 @@ long ForthShell::FourCharToLong(const char* pFourCC)
 ForthShellStack::ForthShellStack( int numLongs )
 : mSSLen( numLongs )
 {
-   mSSB = new long[mSSLen + (GAURD_AREA * 2)];
+   mSSB = new forthop*[mSSLen + (GAURD_AREA * 2)];
    mSSB += GAURD_AREA;
    mSST = mSSB + mSSLen;
    EmptyStack();
@@ -1934,7 +1934,7 @@ ForthShellStack::PushTag(eShellTag tag)
     char tagString[256];
     if (mSSP > mSSB)
     {
-        *--mSSP = (long) tag;
+        *--mSSP = (forthop*) tag;
         if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell)
         {
             GetTagString(tag, tagString);
@@ -1948,11 +1948,11 @@ ForthShellStack::PushTag(eShellTag tag)
 }
 
 void
-ForthShellStack::Push(long val)
+ForthShellStack::Push(cell val)
 {
     if (mSSP > mSSB)
     {
-        *--mSSP = val;
+        *--mSSP = (forthop*) val;
         SPEW_SHELL("ShellStack: pushed value 0x%08x\n", val);
     }
     else
@@ -1961,8 +1961,23 @@ ForthShellStack::Push(long val)
     }
 }
 
-static bool mayBeAShellTag(unsigned long tag)
+void
+ForthShellStack::PushAddress(forthop* addr)
 {
+    if (mSSP > mSSB)
+    {
+        *--mSSP = addr;
+        SPEW_SHELL("ShellStack: pushed address 0x%08x\n", addr);
+    }
+    else
+    {
+        ForthEngine::GetInstance()->SetError(kForthErrorShellStackOverflow);
+    }
+}
+
+static bool mayBeAShellTag(cell tag)
+{
+    // we assume this is a shell tag if it has exactly one bit set
     bool couldBeATag = false;
     if (tag <= kShellLastTag)
     {
@@ -1973,7 +1988,6 @@ static bool mayBeAShellTag(unsigned long tag)
             {
                 if ((tag & 1) != 0)
                 {
-                    tag >>= 1;
                     couldBeATag = ((tag >> 1) == 0);
                     break;
                 }
@@ -1984,15 +1998,40 @@ static bool mayBeAShellTag(unsigned long tag)
     return couldBeATag;
 }
 
-long
-ForthShellStack::Pop( void )
+forthop* ForthShellStack::PopAddress( void )
 {
     if (mSSP == mSST)
     {
         ForthEngine::GetInstance()->SetError( kForthErrorShellStackUnderflow );
+        return (forthop*)kShellTagNothing;
+    }
+    forthop* pOp = *mSSP++;
+#ifdef TRACE_SHELL
+    char tagString[256];
+    if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell)
+    {
+        if (mayBeAShellTag((cell)pOp))
+        {
+            GetTagString((cell)pOp, tagString);
+            SPEW_SHELL("ShellStack: popped Tag %s\n", tagString);
+        }
+        else
+        {
+            SPEW_SHELL("ShellStack: popped address 0x%08x\n", pOp);
+        }
+    }
+#endif
+    return pOp;
+}
+
+cell ForthShellStack::Pop(void)
+{
+    if (mSSP == mSST)
+    {
+        ForthEngine::GetInstance()->SetError(kForthErrorShellStackUnderflow);
         return kShellTagNothing;
     }
-    long val = *mSSP++;
+    cell val = (cell)*mSSP++;
 #ifdef TRACE_SHELL
     char tagString[256];
     if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell)
@@ -2016,12 +2055,22 @@ eShellTag ForthShellStack::PopTag(void)
     return (eShellTag)Pop();
 }
 
-long
+cell
 ForthShellStack::Peek( int index )
 {
     if ( (mSSP + index) >= mSST )
     {
         return kShellTagNothing;
+    }
+    return (cell)mSSP[index];
+}
+
+forthop*
+ForthShellStack::PeekAddress(int index)
+{
+    if ((mSSP + index) >= mSST)
+    {
+        return nullptr;
     }
     return mSSP[index];
 }
@@ -2032,7 +2081,7 @@ eShellTag ForthShellStack::PeekTag(int index)
     {
         return kShellTagNothing;
     }
-    return (eShellTag) mSSP[index];
+    return (eShellTag) ((cell)mSSP[index]);
 }
 
 void
@@ -2055,7 +2104,8 @@ ForthShellStack::PushString( const char *pString )
 bool
 ForthShellStack::PopString(char *pString, int maxLen)
 {
-    if ( *mSSP != kShellTagString )
+    eShellTag topTag = PeekTag();
+    if (topTag != kShellTagString )
     {
         *pString = '\0';
         SPEW_SHELL( "Failed to pop string\n" );
@@ -2080,14 +2130,14 @@ ForthShellStack::PopString(char *pString, int maxLen)
 void
 ForthShellStack::ShowStack()
 {
-	long* pSP = mSSP;
+	forthop** pSP = mSSP;
     char* buff = (char *)malloc(512);
 
 	ForthEngine::GetInstance()->ConsoleOut("Shell Stack:\n");
 	
 	while (pSP != mSST)
 	{
-		long tag = *pSP++;
+		int32_t tag = (int32_t)*pSP++;
         sprintf(buff, "%08x   ", tag);
         ForthEngine::GetInstance()->ConsoleOut(buff);
         long tagChars = tag;

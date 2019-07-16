@@ -132,7 +132,7 @@ namespace
 
             pShowContext->BeginObject(pClassVocab->GetName(), obj, true);
 
-            long* originalMethods = obj->pMethods;
+            forthop* originalMethods = obj->pMethods;
             while (pClassVocab != nullptr)
             {
                 pEngine->FullyExecuteMethod(pCore, obj, kMethodShowInner);
@@ -428,7 +428,7 @@ void ForthShowObject(ForthObject& obj, ForthCoreState* pCore)
 ///     ForthForgettableGlobalObject - handles forgetting of global forth objects
 //
 // 
-ForthForgettableGlobalObject::ForthForgettableGlobalObject( const char* pName, void* pOpAddress, long op, int numElements )
+ForthForgettableGlobalObject::ForthForgettableGlobalObject( const char* pName, void* pOpAddress, forthop op, int numElements )
 : ForthForgettable( pOpAddress, op )
 ,	mNumElements( numElements )
 {
@@ -454,7 +454,7 @@ ForthForgettableGlobalObject::GetTypeName( void )
     return "globalObject";
 }
 
-void ForthForgettableGlobalObject::ForgetCleanup( void* pForgetLimit, long op )
+void ForthForgettableGlobalObject::ForgetCleanup( void* pForgetLimit, forthop op )
 {
 	// first longword is OP_DO_OBJECT or OP_DO_OBJECT_ARRAY, after that are object elements
 	if ((ulong)mpOpAddress > (ulong)pForgetLimit)
@@ -483,7 +483,7 @@ ForthTypesManager::GetTypeName( void )
 }
 
 // TODO: find a better way to do this
-long gObjectShowInnerOpcode = 0;
+forthop gObjectShowInnerOpcode = 0;
 
 void
 ForthTypesManager::AddBuiltinClasses(ForthEngine* pEngine)
