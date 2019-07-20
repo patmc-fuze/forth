@@ -4451,6 +4451,11 @@ entry d2fBop
 ;========================================
 
 entry doExitBop
+	; check param stack
+	mov	ebx, [ebp + FCore.STPtr]
+	cmp	ebx, edx
+	jl	doExitBop2
+	; check return stack
 	mov	eax, [ebp + FCore.RPtr]
 	mov	ebx, [ebp + FCore.RTPtr]
 	cmp	ebx, eax
@@ -4466,15 +4471,24 @@ doExitBop1:
 	mov	eax, kForthErrorReturnStackUnderflow
 	jmp	interpLoopErrorExit
 	
+doExitBop2:
+	mov	eax, kForthErrorParamStackUnderflow
+	jmp	interpLoopErrorExit
+	
 ;========================================
 
 entry doExitLBop
     ; rstack: local_var_storage oldFP oldIP
     ; FP points to oldFP
+	; check param stack
+	mov	ebx, [ebp + FCore.STPtr]
+	cmp	ebx, edx
+	jl	doExitBop2
 	mov	eax, [ebp + FCore.FPtr]
 	mov	esi, [eax]
 	mov	[ebp + FCore.FPtr], esi
 	add	eax, 4
+	; check return stack
 	mov	ebx, [ebp + FCore.RTPtr]
 	cmp	ebx, eax
 	jle	doExitBop1
@@ -4490,9 +4504,14 @@ entry doExitLBop
 
 entry doExitMBop
     ; rstack: oldIP oldTP
+	; check param stack
+	mov	ebx, [ebp + FCore.STPtr]
+	cmp	ebx, edx
+	jl	doExitBop2
 	mov	eax, [ebp + FCore.RPtr]
 	mov	ebx, [ebp + FCore.RTPtr]
 	add	eax, 8
+	; check return stack
 	cmp	ebx, eax
 	jl	doExitBop1
 	mov	[ebp + FCore.RPtr], eax
@@ -4508,10 +4527,15 @@ entry doExitMBop
 entry doExitMLBop
     ; rstack: local_var_storage oldFP oldIP oldTP
     ; FP points to oldFP
+	; check param stack
+	mov	ebx, [ebp + FCore.STPtr]
+	cmp	ebx, edx
+	jl	doExitBop2
 	mov	eax, [ebp + FCore.FPtr]
 	mov	esi, [eax]
 	mov	[ebp + FCore.FPtr], esi
 	add	eax, 12
+	; check return stack
 	mov	ebx, [ebp + FCore.RTPtr]
 	cmp	ebx, eax
 	jl	doExitBop1
