@@ -22,7 +22,7 @@
 extern "C"
 {
 	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
-	extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
+	extern cell oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 };
 
 namespace OString
@@ -169,7 +169,7 @@ namespace OString
     FORTHOP( oStringGetMethod )
     {
         GET_THIS( oStringStruct, pString );
-		SPUSH( (long) &(pString->str->data[0]) );
+		SPUSH( (cell) &(pString->str->data[0]) );
         METHOD_RETURN;
     }
 
@@ -240,9 +240,10 @@ namespace OString
     FORTHOP(oStringSet4CMethod)
     {
         GET_THIS(oStringStruct, pString);
+        cell val = SPOP;
         int buff[2];
         buff[1] = 0;
-        buff[0] = SPOP;
+        buff[0] = (int)val;
         const char* pChars = (const char*)&buff[0];
         setString(pString, pChars);
         METHOD_RETURN;
@@ -314,7 +315,7 @@ namespace OString
     FORTHOP(oStringGetBytesMethod)
     {
         GET_THIS(oStringStruct, pString);
-        SPUSH((long)&(pString->str->data[0]));
+        SPUSH((cell)&(pString->str->data[0]));
         SPUSH(pString->str->curLen);
         METHOD_RETURN;
     }
@@ -476,7 +477,7 @@ namespace OString
         {
             newLen = str->curLen;
         }
-        SPUSH((long)(&(str->data[0])));
+        SPUSH((cell)(&(str->data[0])));
         SPUSH(newLen);
         METHOD_RETURN;
     }
@@ -501,7 +502,7 @@ namespace OString
         {
             data += (str->curLen - newLen);
         }
-        SPUSH((long)data);
+        SPUSH((cell)data);
         SPUSH(newLen);
         METHOD_RETURN;
     }
@@ -544,7 +545,7 @@ namespace OString
             }
         }
 
-        SPUSH((long)(pBytes));
+        SPUSH((cell)(pBytes));
         SPUSH(newLen);
         METHOD_RETURN;
     }
@@ -640,7 +641,7 @@ namespace OString
 		{
 			pString->hash = SuperFastHash( &(dst->data[0]), dst->curLen, 0 );
 		}
-		SPUSH( (long)(pString->hash) );
+		SPUSH( (cell)(pString->hash) );
         METHOD_RETURN;
     }
 
@@ -786,7 +787,7 @@ namespace OString
         while (tryAgain)
         {
 			int roomLeft = maxLen - curLen;
-			int numChars = oStringFormatSub(pCore, &(pOStr->data[curLen]), roomLeft + 1);
+			cell numChars = oStringFormatSub(pCore, &(pOStr->data[curLen]), roomLeft + 1);
 			if ((numChars >= 0) && (numChars <= roomLeft))
             {
                 tryAgain = false;
@@ -929,8 +930,8 @@ namespace OString
         METHOD(		"toUpper",				oStringToUpperMethod ),
 		METHOD(     "replaceChar",          oStringReplaceCharMethod),
 		
-        MEMBER_VAR( "__hash",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
-        MEMBER_VAR( "__str",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        MEMBER_VAR( "__hash",				NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell) ),
+        MEMBER_VAR( "__str",				NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell) ),
 
         // following must be last in table
         END_MEMBERS
@@ -1113,7 +1114,7 @@ namespace OString
     FORTHOP(oStringMapCountMethod)
     {
         GET_THIS(oStringMapStruct, pMap);
-        SPUSH((long)(pMap->elements->size()));
+        SPUSH((cell)(pMap->elements->size()));
         METHOD_RETURN;
     }
 
@@ -1202,7 +1203,7 @@ namespace OString
 			if (OBJECTS_SAME(o, soughtObj))
 			{
 				found = ~0;
-                SPUSH(((long)(iter->first.c_str())));
+                SPUSH(((cell)(iter->first.c_str())));
                 break;
 			}
 		}
@@ -1264,7 +1265,7 @@ namespace OString
 		METHOD("remove", oStringMapRemoveMethod),
 		METHOD("unref", oStringMapUnrefMethod),
 
-        MEMBER_VAR( "__elements",       NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        MEMBER_VAR( "__elements",       NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt) ),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1425,7 +1426,7 @@ namespace OString
 		{
 			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
-			SPUSH((long)(*(pIter->cursor))->first.c_str());
+			SPUSH((cell)(*(pIter->cursor))->first.c_str());
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -1452,7 +1453,7 @@ namespace OString
 		METHOD_RET("currentPair", oStringMapIterCurrentPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIStringMap)),
-        MEMBER_VAR( "__cursor",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        MEMBER_VAR( "__cursor",			NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt) ),
         
 		// following must be last in table
 		END_MEMBERS
@@ -1474,7 +1475,7 @@ namespace OString
 	void stringStringOut( ForthCoreState* pCore, void *pData, const char *pBuffer )
 	{
 		oStringStruct* pString = reinterpret_cast<oStringStruct*>(static_cast<oStringOutStreamStruct*>(pData)->outString);
-		int numChars = strlen( pBuffer );
+		int numChars = (int)strlen( pBuffer );
 		appendOString( pString, pBuffer, numChars );
 	}
 

@@ -6,19 +6,35 @@ setTrace(0)
 // create the system singleton
 makeObject System system
 
+#if FORTH64
+: cells 8* ;
+: cell+ 8+ ;
+: cell- 8- ;
+: cell/ 8/ ;
+8 constant cellsize
+: p@ 2@ ;
+#else
+: cells 4* ;
+: cell+ 4+ ;
+: cell- 4- ;
+: cell/ 4/ ;
+4 constant cellsize
+: p@ @ ;
+#endif
+
 // initialize the system object
 : _initSystemObject
   new StringMap -> system.namedObjects
 
   makeObject StringMap env
-  getEnvironment   -> int numVars  -> int envValues  -> int envNames
+  getEnvironment   -> int numVars  -> ptrTo int envValues  -> ptrTo int envNames
   ?do(numVars 0)
     makeObject String varValue
-    varValue.set(envValues @)
+    varValue.set(envValues p@)
     //"adding environment variable " %s envNames @ %s " = " %s varValue.get %s %nl
-    4 ->+ envValues
-    env.set(varValue envNames @)
-    4 ->+ envNames
+    cellsize ->+ envValues
+    env.set(varValue envNames p@)
+    cellsize ->+ envNames
     oclear varValue
   loop
   env -> system.env
@@ -53,10 +69,10 @@ $forget("_initSystemObject") drop
 : blword? word?('\ ') ;
 
 : $alias
-  -> int oldSymbol
-  -> int newSymbol
+  -> ptrTo byte oldSymbol
+  -> ptrTo byte newSymbol
   system.getDefinitionsVocab -> Vocabulary vocab
-  vocab.findEntryByName(oldSymbol) -> int oldEntry
+  vocab.findEntryByName(oldSymbol) -> ptrTo int oldEntry
   // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
   makeObject ByteArray valueBuffer
   valueBuffer.fromMemory(oldEntry vocab.getValueLength 0)
@@ -64,7 +80,7 @@ $forget("_initSystemObject") drop
   //newSymbol %s %nl dump(oldEntry 32)
   if(oldEntry)
     vocab.addSymbol(newSymbol 0 0 0)
-    vocab.getNewestEntry -> int newEntry
+    vocab.getNewestEntry -> ptrTo int newEntry
     move(oldEntry  newEntry  vocab.getValueLength)
   else
     "Symbol " %s oldSymbol %s " not found!\n" %s
@@ -84,9 +100,21 @@ alias ds dstack
 0x7FFFFFFF -> int MAXINT
 0x80000000 -> int MININT
 0xFFFFFFFF -> int MAXUINT
-0xFFFFFFFFFFFFFFFFL -> long MAXULONG
 0x7FFFFFFFFFFFFFFFL -> long MAXLONG
 0x8000000000000000L -> long MINLONG
+0xFFFFFFFFFFFFFFFFL -> long MAXULONG
+
+#if FORTH64
+alias Cell Long
+MAXULONG -> long MAXCELL
+MINLONG -> long MINCELL
+MAXULONG -> long MAXUCELL
+#else
+alias Cell Int
+MAXINT -> long MAXCELL
+MININT -> long MINCELL
+MAXUINT -> long MAXUCELL
+#endif
 
 : ' blword $' ;
 : lf blword $load ;
@@ -135,10 +163,11 @@ alias ds dstack
   numStrings ,
   // create array of pointers to strings
   here -> ptrTo int string0
-  numStrings 4* allot
+  numStrings cells allot
   // compile strings and stuff ptrs to them into array
   ?do(numStrings 0) 
     here swap $, 
+    // TODO - 64bit
     numStrings 1- i - string0 int[] !
   loop
 ;
@@ -148,16 +177,25 @@ alias ds dstack
   builds
     _buildConstantArray
   does
-    int[] 4+ @
+    // TODO - 64bit
+    int[] cell+ @
 ;
 
 
 : count dup 1+ swap c@ ;
 : 2, here 8 allot 2! ;
 
+#if(FORTH64)
+alias land and
+alias lor or
+alias lxor xor
+alias ucell ulong
+#else
 : land rot and >r and r> ;
 : lor rot or >r and r> ;
 : lxor rot xor >r and r> ;
+alias ucell uint
+#endif
 
 : time&date splitTime(time) ;
 
@@ -177,9 +215,10 @@ enum: eFeatures
   0x0100  kFFCFloatLiterals
   0x0200  kFFParenIsExpression
   // kFFAnsi and kFFRegular are the most common feature combinations
-  kFFParenIsComment kFFIgnoreCase + kFFDollarHexLiterals + kFFAnsi
+  kFFParenIsComment kFFIgnoreCase + kFFDollarHexLiterals +    kFFAnsi
+  
   kFFCCharacterLiterals kFFMultiCharacterLiterals + kFFCStringLiterals +
-    kFFCHexLiterals + kFFDoubleSlashComment + kFFCFloatLiterals + kFFRegular
+    kFFCHexLiterals + kFFDoubleSlashComment + kFFCFloatLiterals +    kFFRegular
     
 ;enum
 
@@ -270,18 +309,22 @@ int dumpWidth
 
 // ADDR LEN OFFSET _dump
 : _dump
-  -> int offset		// offset is subtracted from the actual data address before display
-  -> int len
-  -> int addr
+  -> cell offset		// offset is subtracted from the actual data address before display
+  -> cell len
+  -> ptrTo byte addr
   int columns
-  int endAddr
+  ptrTo byte endAddr
   int ch
 
   addr len + -> endAddr
   len -> columns
   begin
   while( addr endAddr < )
+#if FORTH64
+    addr offset - "%08llx" 2format %s "   " %s
+#else
     addr offset - "%08x" format %s "   " %s
+#endif
     if( len dumpWidth > )
       dumpWidth -> columns
     endif
@@ -399,8 +442,6 @@ alias fliteral literal
 : dliteral postpone dlit 2, ;
 precedence literal   precedence fliteral   precedence dliteral
 
-: cells 4* ;
-: cell+ 4+ ;
 : chars ;
 : char blword c@ ;
 

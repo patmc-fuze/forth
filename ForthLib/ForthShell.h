@@ -16,7 +16,7 @@ class ForthInputStack;
 class ForthExtension;
 class ForthExpressionInputStream;
 
-#if defined(WIN32)
+#if defined(WINDOWS_BUILD)
 #define PATH_SEPARATOR "\\"
 #else
 #define PATH_SEPARATOR "/"
@@ -80,8 +80,8 @@ public:
 
    inline forthop**    GetSP(void)           { return mSSP; };
    inline void         SetSP(forthop** pNewSP)   { mSSP = pNewSP; };
-   inline long         GetSize(void)         { return mSSLen; };
-   inline long         GetDepth(void)        { return mSST - mSSP; };
+   inline ucell        GetSize(void)         { return mSSLen; };
+   inline cell         GetDepth(void)        { return mSST - mSSP; };
    inline void         EmptyStack(void)      { mSSP = mSST; };
    // push tag telling what control structure we are compiling (if/else/for/...)
    void         PushTag(eShellTag tag);
@@ -105,7 +105,7 @@ protected:
     forthop**           mSSP;       // shell stack pointer
     forthop**           mSSB;       // shell stack base
     forthop**           mSST;       // empty shell stack pointer
-	ulong               mSSLen;      // size of shell stack in longwords
+	ucell               mSSLen;     // size of shell stack in longwords
 	ForthEngine         *mpEngine;
 };
 

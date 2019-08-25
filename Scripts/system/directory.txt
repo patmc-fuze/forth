@@ -3,9 +3,9 @@ autoforget Directory
 
 class: Directory extends Object
 
-  int dirHandle
+  cell dirHandle
   ptrTo dirent pEntry
-  int position
+  cell position
   String path
 
   m: close

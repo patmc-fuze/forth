@@ -351,7 +351,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 					{
 						if ( isPtr )
 						{
-							COMPILE_OP( "object ptr array", kOpMemberIntArray, pEntry[0] );
+							COMPILE_OP( "object ptr array", kOpMemberCellArray, pEntry[0] );
 							COMPILE_SIMPLE_OP( "ifetch", gCompiledOps[OP_IFETCH] );
 						}
 						else
@@ -364,7 +364,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 						// member struct
 						if ( isPtr )
 						{
-							COMPILE_OP( "member struct ptr array", kOpMemberIntArray, pEntry[0] );
+							COMPILE_OP( "member struct ptr array", kOpMemberCellArray, pEntry[0] );
 							COMPILE_SIMPLE_OP( "fetch", gCompiledOps[OP_IFETCH] );
 						}
 						else
@@ -380,7 +380,7 @@ bool ForthStructCodeGenerator::HandleFirst()
 					{
 						if ( isPtr )
 						{
-							COMPILE_OP( "object ptr", kOpMemberInt, pEntry[0] );
+							COMPILE_OP( "object ptr", kOpMemberCell, pEntry[0] );
 							COMPILE_SIMPLE_OP( "ifetch", gCompiledOps[OP_IFETCH] );
 						}
 						else

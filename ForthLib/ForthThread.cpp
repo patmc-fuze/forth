@@ -758,7 +758,7 @@ void ForthAsyncThread::Join()
 #endif
 }
 
-ForthThread* ForthAsyncThread::CreateThread(ForthEngine *pEngine, long threadOp, int paramStackLongs, int returnStackLongs)
+ForthThread* ForthAsyncThread::CreateThread(ForthEngine *pEngine, forthop threadOp, int paramStackLongs, int returnStackLongs)
 {
 	ForthThread* pThread = new ForthThread(pEngine, this, (int)mSoftThreads.size(), paramStackLongs, returnStackLongs);
 	pThread->SetOp(threadOp);
@@ -800,7 +800,7 @@ namespace OThread
 	static ForthClassVocabulary* gpAsyncThreadVocabulary;
 	static ForthClassVocabulary* gpThreadVocabulary;
 
-	void CreateAsyncThreadObject(ForthObject& outAsyncThread, ForthEngine *pEngine, long threadOp, int paramStackLongs, int returnStackLongs)
+	void CreateAsyncThreadObject(ForthObject& outAsyncThread, ForthEngine *pEngine, forthop threadOp, int paramStackLongs, int returnStackLongs)
 	{
 		MALLOCATE_OBJECT(oAsyncThreadStruct, pThreadStruct, gpAsyncThreadVocabulary);
         pThreadStruct->pMethods = gpAsyncThreadVocabulary->GetMethods();
@@ -850,7 +850,11 @@ namespace OThread
 		if (numArgs > 0)
 		{
 			pDstCore->SP -= numArgs;
-			memcpy(pDstCore->SP, pCore->SP, numArgs << 2);
+#if defined(FORTH64)
+            memcpy(pDstCore->SP, pCore->SP, numArgs << 3);
+#else
+            memcpy(pDstCore->SP, pCore->SP, numArgs << 2);
+#endif
 			pCore->SP += numArgs;
 		}
 		long result = pAsyncThread->Start();
@@ -879,9 +883,9 @@ namespace OThread
 		ForthEngine* pEngine = GET_ENGINE;
 		ForthObject thread;
 
-		int returnStackLongs = (int)(SPOP);
-		int paramStackLongs = (int)(SPOP);
-        long threadOp = SPOP;
+		int returnStackLongs = (int)SPOP;
+		int paramStackLongs = (int)SPOP;
+        forthop threadOp = (forthop)SPOP;
         OThread::CreateThreadObject(thread, pThreadStruct->pThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
 
 		PUSH_OBJECT(thread);
@@ -906,8 +910,8 @@ namespace OThread
 		METHOD_RET("createThread", oAsyncThreadCreateThreadMethod, RETURNS_OBJECT(kBCIThread)),
 		METHOD_RET("getRunState", oAsyncThreadGetRunStateMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
-		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -919,7 +923,7 @@ namespace OThread
 	//                 oThread
 	//
 
-	void CreateThreadObject(ForthObject& outThread, ForthAsyncThread *pParentAsyncThread, ForthEngine *pEngine, long threadOp, int paramStackLongs, int returnStackLongs)
+	void CreateThreadObject(ForthObject& outThread, ForthAsyncThread *pParentAsyncThread, ForthEngine *pEngine, forthop threadOp, int paramStackLongs, int returnStackLongs)
 	{
 		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct, gpThreadVocabulary);
         pThreadStruct->pMethods = gpThreadVocabulary->GetMethods();
@@ -984,7 +988,11 @@ namespace OThread
 		if (numArgs > 0)
 		{
 			pDstCore->SP -= numArgs;
-			memcpy(pDstCore->SP, pCore->SP, numArgs << 2);
+#if defined(FORTH64)
+            memcpy(pDstCore->SP, pCore->SP, numArgs << 3);
+#else
+            memcpy(pDstCore->SP, pCore->SP, numArgs << 2);
+#endif
 			pCore->SP += numArgs;
 		}
 		pThread->SetRunState(kFTRSReady);
@@ -1130,8 +1138,8 @@ namespace OThread
         METHOD("getCore", oThreadGetCoreMethod),
 		//METHOD_RET("getParent", oThreadGetParentMethod, RETURNS_NATIVE(kBaseType)),
 
-		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1253,8 +1261,8 @@ namespace OLock
 		METHOD_RET("tryGrab", oAsyncLockTryGrabMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("ungrab", oAsyncLockUngrabMethod),
 
-		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+		MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -1473,11 +1481,11 @@ namespace OLock
 		METHOD_RET("tryGrab", oLockTryGrabMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("ungrab", oLockUngrabMethod),
 
-		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("lockDepth", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__lockHolder", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__blockedThreads", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+		MEMBER_VAR("lockDepth", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+		MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+		MEMBER_VAR("__lockHolder", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+		MEMBER_VAR("__blockedThreads", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1631,10 +1639,10 @@ namespace OLock
         METHOD("wait", oSemaphoreWaitMethod),
         METHOD("post", oSemaphorePostMethod),
 
-        MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("count", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("__blockedThreads", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+        MEMBER_VAR("count", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+        MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+        MEMBER_VAR("__blockedThreads", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
         // following must be last in table
         END_MEMBERS
@@ -1761,8 +1769,8 @@ namespace OLock
         METHOD("wait", oAsyncSemaphoreWaitMethod),
         METHOD("post", oAsyncSemaphorePostMethod),
 
-        MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("__semaphore", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+        MEMBER_VAR("__semaphore", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
         // following must be last in table
         END_MEMBERS

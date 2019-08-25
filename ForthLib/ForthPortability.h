@@ -6,9 +6,9 @@
 //////////////////////////////////////////////////////////////////////
 
 
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
 
-#define SNPRINTF sprintf_s
+#define SNPRINTF StringCchPrintf
 
 #else
 

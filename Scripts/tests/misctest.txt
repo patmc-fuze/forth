@@ -9,7 +9,7 @@ section filetest
 
 : filetest
   mko ByteArray buffer
-  int tfile
+  ptrTo int tfile
   buffer.resize(2000)
   "testOutput" -> ptrTo byte dirName
   if(not(fexists(dirName)))

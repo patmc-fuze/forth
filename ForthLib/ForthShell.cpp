@@ -105,11 +105,11 @@ namespace
         return result;
     }
 
-    int fileGetLength( FILE* pFile )
+    long fileGetLength( FILE* pFile )
     {
-        int oldPos = ftell( pFile );
+        long oldPos = ftell( pFile );
         fseek( pFile, 0, SEEK_END );
-        int result = ftell( pFile );
+        long result = ftell( pFile );
         fseek( pFile, oldPos, SEEK_SET );
         return result;
     }
@@ -521,7 +521,7 @@ char* ForthShell::AddToInputLine(const char* pBuffer)
     if (pBuffer != nullptr)
     {
         // add on continuation lines if necessary
-        int lineLen = strlen(pBuffer);
+        int lineLen = (int)strlen(pBuffer);
         int lenWithoutContinuation = lineLen - CONTINUATION_MARKER_LEN;
         if (lenWithoutContinuation >= 0)
         {
@@ -590,7 +590,7 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
             {
                 if ( mPoundIfDepth == 0 )
                 {
-					long marker = mpStack->Pop();
+					cell marker = mpStack->Pop();
 					if (marker != kShellTagPoundIf)
 					{
 						// error - unexpected else
@@ -624,7 +624,7 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
                 ForthCoreState* pCore = mpEngine->GetCoreState();
                 if ( GET_SDEPTH > 0 )
                 {
-                    long expressionResult = SPOP;
+                    cell expressionResult = SPOP;
                     mpStack->PushTag(kShellTagPoundIf);
                     if (expressionResult == 0)
                     {
@@ -765,7 +765,8 @@ ForthShell::ReportError( void )
 
 	if ( pLastInputToken != NULL )
     {
-        sprintf( errorBuf2, "%s, last input token: <%s> last IP 0x%x", errorBuf1, pLastInputToken, pCore->IP );
+        sprintf( errorBuf2, "%s, last input token: <%s> last IP 0x%p",
+            errorBuf1, pLastInputToken, pCore->IP );
     }
     else
     {
@@ -823,7 +824,8 @@ void ForthShell::ReportWarning(const char* pMessage)
 
     if (pLastInputToken != NULL)
     {
-        sprintf(errorBuf2, "WARNING %s, last input token: <%s> last IP 0x%x", pMessage, pLastInputToken, pCore->IP);
+        sprintf(errorBuf2, "WARNING %s, last input token: <%s> last IP 0x%p",
+            pMessage, pLastInputToken, pCore->IP);
     }
     else
     {
@@ -872,7 +874,7 @@ bool
 ForthShell::ParseString( ForthParseInfo *pInfo )
 {
     const char *pSrc;
-    const char *pEndSrc;
+    const char *pEndSrc = nullptr;
     char *pDst;
     bool gotAToken = false;
     const char* pSrcLimit = mpInput->GetBufferBasePointer() + mpInput->GetWriteOffset();
@@ -966,7 +968,7 @@ bool
 ForthShell::ParseToken( ForthParseInfo *pInfo )
 {
     const char *pSrc;
-    const char *pEndSrc;
+    const char *pEndSrc = nullptr;
     char *pDst;
     bool gotAToken = false;
 
@@ -977,7 +979,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
         mFlags &= ~SHELL_FLAG_POP_NEXT_TOKEN;
         if ( CheckSyntaxError( ")", mpStack->PopTag(), kShellTagParen ) )
         {
-            long tag = mpStack->Peek();
+            cell tag = mpStack->Peek();
             if ( mpStack->PopString( pInfo->GetToken(), pInfo->GetMaxChars() ) )
             {
                  pInfo->SetToken();
@@ -1297,7 +1299,7 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
     mpArgs = new char *[ argc ];
     while ( i < argc )
     {
-        len = strlen( argv[i] ) + 1;
+        len = (int)strlen( argv[i] ) + 1;
         mpArgs[i] = new char [ len ];
         strcpy( mpArgs[i], argv[i] );
         i++;
@@ -1332,7 +1334,7 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
             int token = 0;
             if ( res == 0 )
             {
-                int nItems = fread( &token, sizeof(token), 1, pFile );
+                size_t nItems = fread( &token, sizeof(token), 1, pFile );
                 if ( nItems == 1 )
 #define FORTH_MAGIC_1 0x37313234
 #define FORTH_MAGIC_2 0xDEADBEEF
@@ -1434,7 +1436,7 @@ ForthShell::SetEnvironmentVars( const char ** envp )
     i = 0;
     while ( i < mNumEnvVars )
     {
-        nameLen = strlen( envp[i] ) + 1;
+        nameLen = (int)strlen( envp[i] ) + 1;
         mpEnvVarNames[i] = new char[nameLen];
         strcpy( mpEnvVarNames[i], envp[i] );
         pValue = strchr( mpEnvVarNames[i], '=' );
@@ -1488,6 +1490,7 @@ ForthShell::SetEnvironmentVars( const char ** envp )
         mpEnvVarValues[mNumEnvVars] = mSystemDir;
         mNumEnvVars++;
     }
+
     if (mDLLDir == nullptr)
     {
         mDLLDir = new char[strlen(mSystemDir) + 2];
@@ -1497,6 +1500,7 @@ ForthShell::SetEnvironmentVars( const char ** envp )
         mpEnvVarValues[mNumEnvVars] = mDLLDir;
         mNumEnvVars++;
     }
+
     if (mTempDir == nullptr)
     {
         if (tempDir == nullptr)
@@ -1515,6 +1519,7 @@ ForthShell::SetEnvironmentVars( const char ** envp )
         mpEnvVarValues[mNumEnvVars] = mTempDir;
         mNumEnvVars++;
     }
+
     if (mBlockfilePath == nullptr)
     {
         if (tempDir == NULL)
@@ -1635,7 +1640,7 @@ ForthShell::CheckDefinitionEnd(const char* pDisplayName, const char* pFourCharCo
 
 	if (CheckSyntaxError(pDisplayName, defineTag, kShellTagDefine))
 	{
-		long defineType = mpStack->Pop();
+		cell defineType = mpStack->Pop();
 		long expectedDefineType = FourCharToLong(pFourCharCode);
         char definedSymbol[128];
 		definedSymbol[0] = '\0';
@@ -1696,13 +1701,13 @@ ForthShell::FileSeek( FILE* pFile, int offset, int control )
 int
 ForthShell::FileRead( FILE* pFile, void* pDst, int itemSize, int numItems )
 {
-    return fread( pDst, itemSize, numItems, pFile );
+    return (int)fread( pDst, itemSize, numItems, pFile );
 }
 
 int
 ForthShell::FileWrite( FILE* pFile, const void* pSrc, int itemSize, int numItems ) 
 {
-    return fwrite( pSrc, itemSize, numItems, pFile );
+    return (int)fwrite( pSrc, itemSize, numItems, pFile );
 }
 
 int
@@ -1811,7 +1816,7 @@ void ForthShell::PoundIfdef( bool isDefined )
 
 void ForthShell::PoundElse()
 {
-    long marker = mpStack->Pop();
+    cell marker = mpStack->Pop();
     if ( marker == kShellTagPoundIf )
     {
         mFlags |= SHELL_FLAG_SKIP_SECTION;
@@ -1828,7 +1833,7 @@ void ForthShell::PoundElse()
 
 void ForthShell::PoundEndif()
 {
-    long marker = mpStack->Pop();
+    cell marker = mpStack->Pop();
     if ( marker != kShellTagPoundIf )
     {
         // error - unexpected endif
@@ -2087,8 +2092,8 @@ eShellTag ForthShellStack::PeekTag(int index)
 void
 ForthShellStack::PushString( const char *pString )
 {
-    int len = strlen( pString );
-    mSSP -= (len >> 2) + 1;
+    int len = (int)strlen( pString );
+    mSSP -= (len >> CELL_SHIFT) + 1;
 	if ( mSSP > mSSB )
 	{
 		strcpy( (char *) mSSP, pString );
@@ -2113,7 +2118,7 @@ ForthShellStack::PopString(char *pString, int maxLen)
         return false;
     }
     mSSP++;
-    int len = strlen( (char *) mSSP );
+    int len = (int)strlen( (char *) mSSP );
 	if (len > (maxLen - 1))
 	{
 		// TODO: warn about truncating symbol
@@ -2121,7 +2126,7 @@ ForthShellStack::PopString(char *pString, int maxLen)
 	}
     memcpy( pString, (char *) mSSP, len );
 	pString[len] = '\0';
-    mSSP += (len >> 2) + 1;
+    mSSP += (len >> CELL_SHIFT) + 1;
     SPEW_SHELL( "Popped Tag string\n" );
     SPEW_SHELL( "Popped String \"%s\"\n", pString );
     return true;
@@ -2137,10 +2142,11 @@ ForthShellStack::ShowStack()
 	
 	while (pSP != mSST)
 	{
-		int32_t tag = (int32_t)*pSP++;
-        sprintf(buff, "%08x   ", tag);
+		forthop* tag = *pSP++;
+        sprintf(buff, "%16p   ", tag);
         ForthEngine::GetInstance()->ConsoleOut(buff);
-        long tagChars = tag;
+        // TODO!
+        long tagChars = reinterpret_cast<long>(tag);
         for (int i = 0; i < 4; ++i)
         {
             char ch = (char)(tagChars & 0x7f);
@@ -2155,9 +2161,9 @@ ForthShellStack::ShowStack()
         buff[5] = ' ';
         buff[6] = '\0';
         ForthEngine::GetInstance()->ConsoleOut(buff);
-        if (mayBeAShellTag(tag))
+        if (mayBeAShellTag((cell)tag))
         {
-            GetTagString(tag, buff);
+            GetTagString((cell)tag, buff);
             ForthEngine::GetInstance()->ConsoleOut(buff);
         }
         ForthEngine::GetInstance()->ConsoleOut("\n");

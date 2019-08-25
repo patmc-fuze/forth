@@ -38,7 +38,7 @@ void ForthShowContext::Reset()
 	mDepth = 0;
 }
 
-ulong ForthShowContext::GetDepth()
+ucell ForthShowContext::GetDepth()
 {
 	return mDepth;
 }
@@ -209,7 +209,7 @@ void ForthShowContext::ShowHeader(ForthCoreState* pCore, const char* pTypeName, 
 
 void ForthShowContext::ShowID(const char* pTypeName, const void* pData)
 {
-	char buffer[16];
+	char buffer[32];
 
 	ShowText(pTypeName);
 #ifdef FORTH64
@@ -323,7 +323,7 @@ void ForthShowContext::ShowObjectLink(const ForthObject& obj)
     const char* pTypeName = "Null";
     if (obj != nullptr)
     {
-        const ForthClassObject* pClassObject = (const ForthClassObject *)(*((obj->pMethods) - 1));
+        const ForthClassObject* pClassObject = GET_CLASS_OBJECT(obj);
         pTypeName = pClassObject->pVocab->GetName();
     }
     ShowID(pTypeName, obj);

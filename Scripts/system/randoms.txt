@@ -40,7 +40,12 @@ autoforget randoms
 // park-miller is default generator
 ' _randParkMiller -> op _randomGeneratorOp
 
+#if FORTH64
+time ms@ xor -> int _randomSeed
+#else
 time or ms@ xor -> int _randomSeed
+#endif
+
 
 // _randomSeed 16807 * MAXINT mod
 // doesn't work because of integer overflows turning negative

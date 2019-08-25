@@ -567,8 +567,8 @@ namespace OList
 		METHOD("unrefTail", oListUnrefTailMethod),
 		METHOD("remove", oListRemoveMethod),
 
-		MEMBER_VAR("__head", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__tail", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__head", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+		MEMBER_VAR("__tail", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -926,7 +926,7 @@ namespace OList
 		METHOD("split", oListIterSplitMethod),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIList)),
-		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS

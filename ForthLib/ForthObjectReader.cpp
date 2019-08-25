@@ -422,7 +422,7 @@ void ForthObjectReader::processElement(const std::string& name)
                 bool isArray = CODE_IS_ARRAY(typeCode);
                 if (isPtr)
                 {
-                    baseType = kBaseTypeInt;
+                    baseType = kBaseTypeCell;
                     isArray = false;
                 }
                 float fval;

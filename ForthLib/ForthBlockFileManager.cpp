@@ -214,7 +214,7 @@ ForthBlockFileManager::AssignBuffer( unsigned int blockNum, bool readContents )
         {
             SPEW_IO( "ForthBlockFileManager::AssignBuffer reading block %d into buffer %d\n", blockNum, availableBuffer );
             fseek( pInFile, mBytesPerBlock * blockNum, SEEK_SET );
-            int numRead = fread( &(mpBlocks[mBytesPerBlock * availableBuffer]), mBytesPerBlock, 1, pInFile );
+            size_t numRead = fread( &(mpBlocks[mBytesPerBlock * availableBuffer]), mBytesPerBlock, 1, pInFile );
             if ( numRead != 1 )
             {
                 ReportError( kForthErrorIO, "AssignBuffer - failed to read block file" );
@@ -349,12 +349,12 @@ namespace OBlockFile
     FORTHOP(oBlockFileInitMethod)
     {
         GET_THIS(oBlockFileStruct, pBlockFile);
-        int bytesPerBlock = SPOP;
+        ucell bytesPerBlock = (ucell) SPOP;
         if (bytesPerBlock == 0)
         {
             bytesPerBlock = BYTES_PER_BLOCK;
         }
-        int numBuffers = SPOP;
+        ucell numBuffers = (ucell) SPOP;
         if (numBuffers == 0)
         {
             numBuffers = NUM_BLOCK_BUFFERS;
@@ -367,21 +367,21 @@ namespace OBlockFile
     FORTHOP(oBlockFileBlkMethod)
     {
         GET_THIS(oBlockFileStruct, pBlockFile);
-        SPUSH((long)(pBlockFile->pManager->GetBlockPtr()));
+        SPUSH((cell)(pBlockFile->pManager->GetBlockPtr()));
         METHOD_RETURN;
     }
 
     FORTHOP(oBlockFileBlockMethod)
     {
         GET_THIS(oBlockFileStruct, pBlockFile);
-        SPUSH((long)(pBlockFile->pManager->GetBlock(SPOP, true)));
+        SPUSH((cell)(pBlockFile->pManager->GetBlock((unsigned int)SPOP, true)));
         METHOD_RETURN;
     }
 
     FORTHOP(oBlockFileBufferMethod)
     {
         GET_THIS(oBlockFileStruct, pBlockFile);
-        SPUSH((long)(pBlockFile->pManager->GetBlock(SPOP, false)));
+        SPUSH((cell)(pBlockFile->pManager->GetBlock((unsigned int)SPOP, false)));
         METHOD_RETURN;
     }
 
@@ -469,7 +469,7 @@ namespace OBlockFile
         METHOD("bytesPerBlock", oBlockFileBytesPerBlockMethod),
         METHOD("numBuffers", oBlockFileNumBuffersMethod),
 
-        MEMBER_VAR("__manager", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__manager", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
         // following must be last in table
         END_MEMBERS

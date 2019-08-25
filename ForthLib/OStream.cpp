@@ -20,7 +20,7 @@
 
 extern "C"
 {
-	extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
+	extern cell oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 };
 
 namespace OStream
@@ -293,7 +293,7 @@ namespace OStream
     FORTHOP(oInStreamGetBytesMethod)
     {
         GET_THIS(oInStreamStruct, pInStream);
-        int numBytes = SPOP;
+        int numBytes = (int)SPOP;
         int outBytes = 0;
         char* pBuffer = reinterpret_cast<char *>(SPOP);
 
@@ -311,7 +311,7 @@ namespace OStream
             for (int i = 0; i < numBytes; i++)
             {
                 pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetCharMethod);
-                int ch = SPOP;
+                int ch = (int)SPOP;
                 if (ch == -1)
                 {
                     break;
@@ -327,7 +327,7 @@ namespace OStream
     FORTHOP(oInStreamGetLineMethod)
     {
         GET_THIS(oInStreamStruct, pInStream);
-        int maxBytes = SPOP;
+        int maxBytes = (int)SPOP;
         char* pBuffer = reinterpret_cast<char *>(SPOP);
         int numWritten = 0;
 
@@ -348,7 +348,7 @@ namespace OStream
             for (int i = 0; i < (maxBytes - 1); i++)
             {
                 pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetCharMethod);
-                int ch = SPOP;
+                int ch = (int)SPOP;
                 switch (ch)
                 {
                 case -1:
@@ -378,7 +378,7 @@ namespace OStream
                 }
                 previousChar = ch;
             }
-            numWritten = pDst - pBuffer;
+            numWritten = (int)(pDst - pBuffer);
             *pDst++ = '\0';
         }
 
@@ -422,7 +422,7 @@ namespace OStream
                     pBuffer = &(dst->data[0]);
                 }
                 pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetCharMethod);
-                int ch = SPOP;
+                int ch = (int)SPOP;
                 switch (ch)
                 {
                 case -1:
@@ -498,7 +498,7 @@ namespace OStream
         if ((pInStream->pInFuncs != nullptr)
             && (pInStream->pInFuncs->inBytes != nullptr))
         {
-            int numBytes = SPOP;
+            int numBytes = (int)SPOP;
             char* pBuffer = reinterpret_cast<char *>(SPOP);
             int outBytes = pInStream->pInFuncs->inBytes(pCore, pInStream, pBuffer, numBytes);
             if (outBytes)
@@ -531,12 +531,12 @@ namespace OStream
         long found = 0;
         ForthObject obj = GET_TP;
         pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetLineMethod);
-        int numRead = SPOP;
+        int numRead = (int)SPOP;
         if (numRead == 0)
         {
             // getLine returned 0 chars - is it an empty line or end of file?
             pEngine->FullyExecuteMethod(pCore, obj, kInStreamAtEOFMethod);
-            int atEOF = SPOP;
+            int atEOF = (int)SPOP;
             if (!atEOF)
             {
                 // just an empty line, not the end of file
@@ -565,13 +565,13 @@ namespace OStream
 
         PUSH_OBJECT(dstString);
         pEngine->FullyExecuteMethod(pCore, thisStream, kInStreamGetStringMethod);
-        int numRead = SPOP;
+        int numRead = (int)SPOP;
 
         if (numRead == 0)
         {
             // getString returned 0 chars - is it an empty line or end of file?
             pEngine->FullyExecuteMethod(pCore, thisStream, kInStreamAtEOFMethod);
-            int atEOF = SPOP;
+            int atEOF = (int)SPOP;
             if (!atEOF)
             {
                 // just an empty line, not the end of file
@@ -609,9 +609,9 @@ namespace OStream
         METHOD("setTrimEOL", oInStreamSetTrimEOLMethod),
         METHOD_RET("atEOF", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),  // derived classes must define atEOF
 
-        MEMBER_VAR("userData", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("userData", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
         MEMBER_VAR("trimEOL", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("__inFuncs", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__inFuncs", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
         // following must be last in table
         END_MEMBERS
@@ -648,7 +648,7 @@ namespace OStream
         int numWritten = 0;
         if (pFileInStreamStruct->pInFile != nullptr)
         {
-            numWritten = GET_ENGINE->GetShell()->GetFileInterface()->fileRead(pBuff, 1, numChars, pFileInStreamStruct->pInFile);
+            numWritten = (int)GET_ENGINE->GetShell()->GetFileInterface()->fileRead(pBuff, 1, numChars, pFileInStreamStruct->pInFile);
         }
         return numWritten;
     }
@@ -677,7 +677,7 @@ namespace OStream
                     (FILE *)(pFileInStreamStruct->pInFile));
                 if (pResult != nullptr)
                 {
-                    int writtenThisTime = strlen(pResult);
+                    int writtenThisTime = (int)strlen(pResult);
                     if (writtenThisTime != 0)
                     {
                         if ((writtenThisTime == (roomLeft - 1)) && (pResult[writtenThisTime - 1] != '\n'))
@@ -748,7 +748,7 @@ namespace OStream
                     ++pEOL;
                 }
             }
-            numWritten = strlen(pResult);
+            numWritten = (int)strlen(pResult);
         }
         return numWritten;
     }
@@ -825,12 +825,12 @@ namespace OStream
     FORTHOP(oFileInStreamIterBytesMethod)
     {
         GET_THIS(oFileInStreamStruct, pFileInStreamStruct);
-        int numBytes = SPOP;
+        int numBytes = (int)SPOP;
         char* pBuffer = reinterpret_cast<char *>(SPOP);
         int gotData = 0;
         if (pFileInStreamStruct->pInFile != NULL)
         {
-            int numRead = GET_ENGINE->GetShell()->GetFileInterface()->fileRead(pBuffer, 1, numBytes, (FILE *)(pFileInStreamStruct->pInFile));
+            int numRead = (int)GET_ENGINE->GetShell()->GetFileInterface()->fileRead(pBuffer, 1, numBytes, (FILE *)(pFileInStreamStruct->pInFile));
             if (numRead > 0)
             {
                 SPUSH(numRead);
@@ -844,7 +844,7 @@ namespace OStream
     FORTHOP(oFileInStreamIterLineMethod)
     {
         GET_THIS(oFileInStreamStruct, pFileInStreamStruct);
-        int maxBytes = SPOP;
+        int maxBytes = (int)SPOP;
         char* pBuffer = reinterpret_cast<char *>(SPOP);
         char* pResult = NULL;
         int gotData = 0;
@@ -870,7 +870,7 @@ namespace OStream
                     ++pEOL;
                 }
             }
-            int numRead = strlen(pResult);
+            int numRead = (int)strlen(pResult);
             if (numRead > 0 || !feof(pInFile))
             {
                 SPUSH(numRead);
@@ -921,7 +921,7 @@ namespace OStream
     FORTHOP(oFileInStreamGetFileMethod)
     {
         GET_THIS(oFileInStreamStruct, pFileInStreamStruct);
-        SPUSH(reinterpret_cast<long>(pFileInStreamStruct->pInFile));
+        SPUSH(reinterpret_cast<cell>(pFileInStreamStruct->pInFile));
         METHOD_RETURN;
     }
 
@@ -933,7 +933,7 @@ namespace OStream
 
 		if (pFileInStreamStruct->pInFile != nullptr)
 		{
-#if defined(WIN32)
+#if defined(WINDOWS_BUILD)
 			int64_t oldPos = _ftelli64(pFileInStreamStruct->pInFile);
 			_fseeki64(pFileInStreamStruct->pInFile, 0l, SEEK_END);
 			size.s64 = _ftelli64(pFileInStreamStruct->pInFile);
@@ -962,7 +962,7 @@ namespace OStream
 
         if (pFileInStreamStruct->pInFile != nullptr)
         {
-#if defined(WIN32)
+#if defined(WINDOWS_BUILD)
             pos.s64 = _ftelli64(pFileInStreamStruct->pInFile);
 #elif defined(MACOSX)
             pos.s64 = ftello(pFileInStreamStruct->pInFile);
@@ -977,14 +977,14 @@ namespace OStream
     FORTHOP(oFileInStreamSeekMethod)
 	{
 		GET_THIS(oFileInStreamStruct, pFileInStreamStruct);
-		int seekType = SPOP;
+		int seekType = (int)SPOP;
 		stackInt64 pos;
 		LPOP(pos);
 
 		if (pFileInStreamStruct->pInFile != nullptr)
 		{
-#if defined(WIN32)
-			_fseeki64(pFileInStreamStruct->pInFile, pos.s64, seekType);
+#if defined(WINDOWS_BUILD)
+            _fseeki64(pFileInStreamStruct->pInFile, pos.s64, seekType);
 #elif defined(MACOSX)
             fseeko(pFileInStreamStruct->pInFile, pos.s64, seekType);
 #else
@@ -1012,7 +1012,7 @@ namespace OStream
 		METHOD_RET("tell", oFileInStreamTellMethod, RETURNS_NATIVE(kBaseTypeLong)),
 		METHOD("seek", oFileInStreamSeekMethod),
 
-		MEMBER_VAR("inFile", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("inFile", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1139,7 +1139,7 @@ namespace OStream
 	FORTHOP(oOutStreamPutBytesMethod)
 	{
 		GET_THIS(oOutStreamStruct, pOutStream);
-		int numBytes = SPOP;
+		int numBytes = (int)SPOP;
 		char* pBuffer = reinterpret_cast<char *>(SPOP);
 
 		if (pOutStream->pOutFuncs == NULL)
@@ -1149,7 +1149,7 @@ namespace OStream
 			for (int i = 0; i < numBytes; i++)
 			{
 				char ch = *pBuffer++;
-				SPUSH(((long)ch));
+				SPUSH(((cell)ch));
 				pEngine->FullyExecuteMethod(pCore, obj, kOutStreamPutCharMethod);
 			}
 		}
@@ -1168,7 +1168,7 @@ namespace OStream
 		}
 		else
 		{
-			int numBytes = strlen(pBuffer);
+			int numBytes = (int)strlen(pBuffer);
 			if (pOutStream->pOutFuncs->outBytes != NULL)
 			{
 				pOutStream->pOutFuncs->outBytes(pCore, pOutStream, pBuffer, numBytes);
@@ -1196,7 +1196,7 @@ namespace OStream
 		{
 			ForthEngine *pEngine = ForthEngine::GetInstance();
             ForthObject obj = GET_TP;
-            int numBytes = strlen(pBuffer);
+            int numBytes = (int)strlen(pBuffer);
 			for (int i = 0; i < numBytes; i++)
 			{
 				char ch = *pBuffer++;
@@ -1221,7 +1221,7 @@ namespace OStream
 		{
 			ForthEngine *pEngine = ForthEngine::GetInstance();
             ForthObject obj = GET_TP;
-            int numBytes = strlen(pBuffer);
+            int numBytes = (int)strlen(pBuffer);
 			for (int i = 0; i < numBytes; i++)
 			{
 				char ch = *pBuffer++;
@@ -1249,7 +1249,7 @@ namespace OStream
         if (pOutStream->pOutFuncs == NULL)
         {
             ForthObject obj = GET_TP;
-            int numBytes = strlen(pBuffer);
+            int numBytes = (int)strlen(pBuffer);
             for (int i = 0; i < numBytes; i++)
             {
                 char ch = *pBuffer++;
@@ -1276,8 +1276,8 @@ namespace OStream
 		METHOD("putLine", oOutStreamPutLineMethod),
         METHOD("printf", oOutStreamPrintfMethod),
 
-		MEMBER_VAR("userData", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__outFuncs", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("userData", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+		MEMBER_VAR("__outFuncs", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 		MEMBER_VAR("__eolChars", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
 		// following must be last in table
@@ -1378,7 +1378,7 @@ namespace OStream
     FORTHOP(oFileOutStreamGetFileMethod)
     {
         GET_THIS(oFileOutStreamStruct, pFileOutStream);
-        SPUSH(reinterpret_cast<long>(pFileOutStream->pOutFile));
+        SPUSH(reinterpret_cast<cell>(pFileOutStream->pOutFile));
         METHOD_RETURN;
     }
 
@@ -1390,7 +1390,7 @@ namespace OStream
 
         if (pFileOutStream->pOutFile != nullptr)
         {
-#if defined(WIN32)
+#if defined(WINDOWS_BUILD)
             int64_t oldPos = _ftelli64(pFileOutStream->pOutFile);
             _fseeki64(pFileOutStream->pOutFile, 0l, SEEK_END);
             size.s64 = _ftelli64(pFileOutStream->pOutFile);
@@ -1419,8 +1419,8 @@ namespace OStream
 
 		if (pFileOutStream->pOutFile != nullptr)
 		{
-#if defined(WIN32)
-			pos.s64 = _ftelli64(pFileOutStream->pOutFile);
+#if defined(WINDOWS_BUILD)
+            pos.s64 = _ftelli64(pFileOutStream->pOutFile);
 #elif defined(MACOSX)
             pos.s64 = ftello(pFileOutStream->pOutFile);
 #else
@@ -1434,14 +1434,14 @@ namespace OStream
 	FORTHOP(oFileOutStreamSeekMethod)
 	{
 		GET_THIS(oFileOutStreamStruct, pFileOutStream);
-		int seekType = SPOP;
+		int seekType = (int)SPOP;
 		stackInt64 pos;
 		LPOP(pos);
 
 		if (pFileOutStream->pOutFile != nullptr)
 		{
-#if defined(WIN32)
-			_fseeki64(pFileOutStream->pOutFile, pos.s64, seekType);
+#if defined(WINDOWS_BUILD)
+            _fseeki64(pFileOutStream->pOutFile, pos.s64, seekType);
 #elif defined(MACOSX)
             fseeko(pFileOutStream->pOutFile, pos.s64, seekType);
 #else
@@ -1464,7 +1464,7 @@ namespace OStream
 		METHOD_RET("tell", oFileOutStreamTellMethod, RETURNS_NATIVE(kBaseTypeLong)),
 		METHOD("seek", oFileOutStreamSeekMethod),
 
-		MEMBER_VAR("outFile", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("outFile", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -1611,9 +1611,9 @@ namespace OStream
 
 		METHOD("init", oFunctionOutStreamInitMethod),
 
-		MEMBER_VAR("__outChar", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__outBytes", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__outString", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__outChar", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+		MEMBER_VAR("__outBytes", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+		MEMBER_VAR("__outString", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS

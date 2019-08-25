@@ -18,7 +18,7 @@ public:
 	~ForthShowContext();
 
 	void Reset();
-	ulong GetDepth();
+	ucell GetDepth();
 
 	void BeginIndent();
 	void EndIndent();

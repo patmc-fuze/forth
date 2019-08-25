@@ -1,5 +1,6 @@
 // basic ops not included in the kernel
 
+FORTH64 not [if]
 ARCH_X86 [if]
 
 lf asm_pentium.txt
@@ -10,5 +11,6 @@ ARCH_ARM [if]
 
 lf asm_arm.txt
 
+[endif]
 [endif]
 [endif]

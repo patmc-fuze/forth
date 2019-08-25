@@ -32,25 +32,25 @@ struct ForthFileInterface
     int                 (*fileExists)( const char* pPath );
     int                 (*fileSeek)( FILE* pFile, long offset, int ctrl );
     long                (*fileTell) ( FILE* pFile );
-    int                 (*fileGetLength)( FILE* pFile );
+    long                (*fileGetLength)( FILE* pFile );
     char*               (*fileGetString)( char* buffer, int bufferLength, FILE* pFile );
     int                 (*filePutString)( const char* buffer, FILE* pFile );
-	int					(*fileRemove)( const char* buffer );
-	int					(*fileDup)( int fileHandle );
-	int					(*fileDup2)( int srcFileHandle, int dstFileHandle );
-	int					(*fileNo)( FILE* pFile );
-	int					(*fileFlush)( FILE* pFile );
-	int					(*renameFile)( const char* pOldName, const char* pNewName );
-	int					(*runSystem)( const char* pCmdline );
-	int					(*changeDir)( const char* pPath );
-	int					(*makeDir)( const char* pPath, int mode );
-	int					(*removeDir)( const char* pPath );
+    int                 (*fileRemove)( const char* buffer );
+    int                 (*fileDup)( int fileHandle );
+    int                 (*fileDup2)( int srcFileHandle, int dstFileHandle );
+    int                 (*fileNo)( FILE* pFile );
+    int                 (*fileFlush)( FILE* pFile );
+    int                 (*renameFile)( const char* pOldName, const char* pNewName );
+    int                 (*runSystem)( const char* pCmdline );
+    int                 (*changeDir)( const char* pPath );
+    int                 (*makeDir)( const char* pPath, int mode );
+    int                 (*removeDir)( const char* pPath );
 	FILE*				(*getStdIn)();
 	FILE*				(*getStdOut)();
 	FILE*				(*getStdErr)();
 	void*				(*openDir)( const char* pPath );	// returns DIR*, which is pDir in readDir, closeDir, rewindDir
 	void*				(*readDir)( void* pDir );			// return is a struct dirent*
-	int					(*closeDir)( void* pDir );
+    int                 (*closeDir)( void* pDir );
 	void				(*rewindDir)( void* pDir );
 };
 
@@ -123,7 +123,7 @@ extern eForthResult InterpretOneOpFast( ForthCoreState *pCore, forthop op );
 void InitDispatchTables( ForthCoreState* pCore );
 void CoreSetError( ForthCoreState *pCore, eForthError error, bool isFatal );
 void _doIntVarop(ForthCoreState* pCore, int* pVar);
-void SpewMethodName(forthop* pMethods, forthop opVal);
+void SpewMethodName(ForthObject obj, forthop opVal);
 
 // DLLRoutine is used for any external DLL routine - it can take any number of arguments
 typedef long (*DLLRoutine)();
@@ -166,12 +166,28 @@ inline forthop GetCurrentOp( ForthCoreState *pCore )
 #define FPOP                            (*(float *)pCore->SP++)
 #define FPUSH( A )                      --pCore->SP; *(float *)pCore->SP = A
 
+#if defined(FORTH64)
+#define DPOP                            *((double *)(pCore->SP)); pCore->SP += 1
+#define DPUSH(A)                        pCore->SP -= 1; *((double *)(pCore->SP)) = A
+
+#define POP64                           SPOP
+#define PUSH64(A)                       SPUSH(A)
+
+// LPOP takes a stackInt64
+#define LPOP( _SI64 )                   _SI64.s64 = SPOP
+#define LPUSH( _SI64 )                  SPUSH(_SI64.s64)
+#else
 #define DPOP                            *((double *)(pCore->SP)); pCore->SP += 2
 #define DPUSH( A )                      pCore->SP -= 2; *((double *)(pCore->SP)) = A
+
+#define POP64                            *((int64_t *)(pCore->SP)); pCore->SP += 2
+#define PUSH64(A)                        pCore->SP -= 2; *((int64_t *)(pCore->SP)) = A
 
 // LPOP takes a stackInt64
 #define LPOP( _SI64 )                   _SI64.s32[1] = *(pCore->SP); _SI64.s32[0] = (pCore->SP)[1]; pCore->SP += 2
 #define LPUSH( _SI64 )                  pCore->SP -= 2; pCore->SP[1] = _SI64.s32[0]; pCore->SP[0] = _SI64.s32[1]
+#endif
+
 
 #define RPOP                            (*pCore->RP++)
 #define RPUSH( A )                      (*--pCore->RP = (A))

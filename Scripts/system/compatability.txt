@@ -203,8 +203,6 @@ alias at-xy setConsoleCursor
 : refill
   "refill" fillInBuffer null <>
 ;
- 
-: cell- 4- ;
 
 : -trailing
   -> int numChars

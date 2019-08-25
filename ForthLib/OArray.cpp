@@ -220,7 +220,7 @@ namespace OArray
     FORTHOP(oArrayCountMethod)
     {
         GET_THIS(oArrayStruct, pArray);
-        SPUSH((long)(pArray->elements->size()));
+        SPUSH((cell)(pArray->elements->size()));
         METHOD_RETURN;
     }
 
@@ -282,7 +282,7 @@ namespace OArray
         ulong ix = (ulong)SPOP;
         if (a.size() > ix)
         {
-            SPUSH((long)&(a[ix]));
+            SPUSH((cell)&(a[ix]));
         }
         else
         {
@@ -421,7 +421,7 @@ namespace OArray
     {
         GET_THIS(oArrayStruct, pArray);
         oArray& a = *(pArray->elements);
-        SPUSH(a.size() > 0 ? (long)&(a[0]) : NULL);
+        SPUSH(a.size() > 0 ? (cell)&(a[0]) : NULL);
         METHOD_RETURN;
     }
 
@@ -696,7 +696,7 @@ namespace OArray
         METHOD_RET("toList", oArrayToListMethod, RETURNS_OBJECT(kBCIList)),
         METHOD("unref", oArrayUnrefMethod),
        
-        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -979,7 +979,7 @@ namespace OArray
 		METHOD("insert", oArrayIterInsertMethod),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIArray)),
-		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1210,7 +1210,7 @@ namespace OArray
     FORTHOP(oBagCountMethod)
     {
         GET_THIS(oBagStruct, pBag);
-        SPUSH((long)(pBag->elements->size()));
+        SPUSH((cell)(pBag->elements->size()));
         METHOD_RETURN;
     }
 
@@ -1310,7 +1310,7 @@ namespace OArray
         ulong ix = (ulong)SPOP;
         if (a.size() > ix)
         {
-            SPUSH((long)&(a[ix]));
+            SPUSH((cell)&(a[ix]));
         }
         else
         {
@@ -1456,7 +1456,7 @@ namespace OArray
     {
         GET_THIS(oBagStruct, pBag);
         oBag& a = *(pBag->elements);
-        SPUSH(a.size() > 0 ? (long)&(a[0]) : NULL);
+        SPUSH(a.size() > 0 ? (cell)&(a[0]) : NULL);
         METHOD_RETURN;
     }
 
@@ -1672,7 +1672,7 @@ namespace OArray
         METHOD_RET("toLongMap", oBagToLongMapMethod, RETURNS_OBJECT(kBCILongMap)),
         METHOD("unref", oBagUnrefMethod),
 
-        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
         // following must be last in table
         END_MEMBERS
     };
@@ -1957,7 +1957,7 @@ namespace OArray
         METHOD("insert", oBagIterInsertMethod),
 
         MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIBag)),
-        MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
         // following must be last in table
         END_MEMBERS
@@ -2142,7 +2142,7 @@ namespace OArray
     FORTHOP(oByteArrayCountMethod)
     {
         GET_THIS(oByteArrayStruct, pArray);
-        SPUSH((long)(pArray->elements->size()));
+        SPUSH((cell)(pArray->elements->size()));
         METHOD_RETURN;
     }
 
@@ -2162,7 +2162,7 @@ namespace OArray
         ulong ix = (ulong)SPOP;
         if (a.size() > ix)
         {
-            SPUSH((long)a[ix]);
+            SPUSH((cell)a[ix]);
         }
         else
         {
@@ -2194,7 +2194,7 @@ namespace OArray
         ulong ix = (ulong)SPOP;
         if (a.size() > ix)
         {
-            SPUSH((long)&(a[ix]));
+            SPUSH((cell)&(a[ix]));
         }
         else
         {
@@ -2272,7 +2272,7 @@ namespace OArray
         oByteArray& a = *(pArray->elements);
         if (ix < a.size())
         {
-            SPUSH((long)a[ix]);
+            SPUSH((cell)a[ix]);
             a.erase(a.begin() + ix);
         }
         else
@@ -2299,7 +2299,7 @@ namespace OArray
         {
             char val = a.back();
             a.pop_back();
-            SPUSH((long)val);
+            SPUSH((cell)val);
         }
         else
         {
@@ -2312,7 +2312,7 @@ namespace OArray
     {
         GET_THIS(oByteArrayStruct, pArray);
         oByteArray& a = *(pArray->elements);
-        SPUSH(a.size() > 0 ? (long)&(a[0]) : NULL);
+        SPUSH(a.size() > 0 ? (cell)&(a[0]) : NULL);
         METHOD_RETURN;
     }
 
@@ -2434,7 +2434,7 @@ namespace OArray
         METHOD("usort", oByteArrayUnsignedSortMethod),
 		METHOD("setFromString", oByteArrayFromStringMethod),
 
-		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -2525,7 +2525,7 @@ namespace OArray
 		else
 		{
 			char val = a[pIter->cursor];
-			SPUSH((long)val);
+			SPUSH((cell)val);
 			pIter->cursor++;
 			SPUSH(~0);
 		}
@@ -2545,7 +2545,7 @@ namespace OArray
 		{
 			pIter->cursor--;
 			char val = a[pIter->cursor];
-			SPUSH((long)val);
+			SPUSH((cell)val);
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -2563,7 +2563,7 @@ namespace OArray
 		else
 		{
 			char ch = a[pIter->cursor];
-			SPUSH((long)ch);
+			SPUSH((cell)ch);
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -2665,7 +2665,7 @@ namespace OArray
         METHOD_RET("findNext", oByteArrayIterFindNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIByteArray)),
-		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -2849,7 +2849,7 @@ namespace OArray
     FORTHOP(oShortArrayCountMethod)
     {
         GET_THIS(oShortArrayStruct, pArray);
-        SPUSH((long)(pArray->elements->size()));
+        SPUSH((cell)(pArray->elements->size()));
         METHOD_RETURN;
     }
 
@@ -2869,7 +2869,7 @@ namespace OArray
         ulong ix = (ulong)SPOP;
         if (a.size() > ix)
         {
-            SPUSH((long)a[ix]);
+            SPUSH((cell)a[ix]);
         }
         else
         {
@@ -2901,7 +2901,7 @@ namespace OArray
         ulong ix = (ulong)SPOP;
         if (a.size() > ix)
         {
-            SPUSH((long)&(a[ix]));
+            SPUSH((cell)&(a[ix]));
         }
         else
         {
@@ -2979,7 +2979,7 @@ namespace OArray
         oShortArray& a = *(pArray->elements);
         if (ix < a.size())
         {
-            SPUSH((long)a[ix]);
+            SPUSH((cell)a[ix]);
             a.erase(a.begin() + ix);
         }
         else
@@ -3006,7 +3006,7 @@ namespace OArray
         {
             short val = a.back();
             a.pop_back();
-            SPUSH((long)val);
+            SPUSH((cell)val);
         }
         else
         {
@@ -3019,7 +3019,7 @@ namespace OArray
     {
         GET_THIS(oShortArrayStruct, pArray);
         oShortArray& a = *(pArray->elements);
-        SPUSH((long)&(a[0]));
+        SPUSH((cell)&(a[0]));
         METHOD_RETURN;
     }
 
@@ -3131,7 +3131,7 @@ namespace OArray
         METHOD("sort", oShortArraySortMethod),
         METHOD("usort", oShortArrayUnsignedSortMethod),
 
-        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
         // following must be last in table
 		END_MEMBERS
@@ -3223,7 +3223,7 @@ namespace OArray
 		else
 		{
 			short val = a[pIter->cursor];
-			SPUSH((long)val);
+			SPUSH((cell)val);
 			pIter->cursor++;
 			SPUSH(~0);
 		}
@@ -3243,7 +3243,7 @@ namespace OArray
 		{
 			pIter->cursor--;
 			short val = a[pIter->cursor];
-			SPUSH((long)val);
+			SPUSH((cell)val);
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -3261,7 +3261,7 @@ namespace OArray
 		else
 		{
 			short val = a[pIter->cursor];
-			SPUSH((long)val);
+			SPUSH((cell)val);
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -3362,7 +3362,7 @@ namespace OArray
         METHOD_RET("findNext", oShortArrayIterFindNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIShortArray)),
-		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -3544,7 +3544,7 @@ namespace OArray
     FORTHOP(oIntArrayCountMethod)
     {
         GET_THIS(oIntArrayStruct, pArray);
-        SPUSH((long)(pArray->elements->size()));
+        SPUSH((cell)(pArray->elements->size()));
         METHOD_RETURN;
     }
 
@@ -3596,7 +3596,7 @@ namespace OArray
         ulong ix = (ulong)SPOP;
         if (a.size() > ix)
         {
-            SPUSH((long)&(a[ix]));
+            SPUSH((cell)&(a[ix]));
         }
         else
         {
@@ -3714,7 +3714,7 @@ namespace OArray
     {
         GET_THIS(oIntArrayStruct, pArray);
         oIntArray& a = *(pArray->elements);
-        SPUSH((long)&(a[0]));
+        SPUSH((cell)&(a[0]));
         METHOD_RETURN;
     }
 
@@ -3826,7 +3826,7 @@ namespace OArray
         METHOD("sort", oIntArraySortMethod),
         METHOD("usort", oIntArrayUnsignedSortMethod),
 
-        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
         // following must be last in table
 		END_MEMBERS
@@ -4054,7 +4054,7 @@ namespace OArray
         METHOD_RET("findNext", oIntArrayIterFindNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIIntArray)),
-		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -4158,7 +4158,7 @@ namespace OArray
         METHOD("reverse", oIntArrayReverseMethod),
         METHOD("sort", oFloatArraySortMethod),
 
-        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
         // following must be last in table
 		END_MEMBERS
@@ -4344,7 +4344,7 @@ namespace OArray
     FORTHOP(oLongArrayCountMethod)
     {
         GET_THIS(oLongArrayStruct, pArray);
-        SPUSH((long)(pArray->elements->size()));
+        SPUSH((cell)(pArray->elements->size()));
         METHOD_RETURN;
     }
 
@@ -4400,7 +4400,7 @@ namespace OArray
         ulong ix = (ulong)SPOP;
         if (a.size() > ix)
         {
-            SPUSH((long)&(a[ix]));
+            SPUSH((cell)&(a[ix]));
         }
         else
         {
@@ -4523,7 +4523,7 @@ namespace OArray
     {
         GET_THIS(oLongArrayStruct, pArray);
         oLongArray& a = *(pArray->elements);
-        SPUSH((long)&(a[0]));
+        SPUSH((cell)&(a[0]));
         METHOD_RETURN;
     }
 
@@ -4637,7 +4637,7 @@ namespace OArray
         METHOD("sort", oLongArraySortMethod),
         METHOD("usort", oLongArrayUnsignedSortMethod),
 
-		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -4873,7 +4873,7 @@ namespace OArray
         METHOD_RET("findNext", oLongArrayIterFindNextMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCILongArray)),
-		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -5208,7 +5208,7 @@ namespace OArray
         METHOD("reverse", oLongArrayReverseMethod),
         METHOD("sort", oDoubleArraySortMethod),
 
-        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
         // following must be last in table
 		END_MEMBERS
@@ -5456,7 +5456,7 @@ namespace OArray
         ulong ix = (ulong)SPOP;
         if (pArray->numElements > ix)
         {
-            SPUSH((long)&(a[ix * pArray->elementSize]));
+            SPUSH((cell)&(a[ix * pArray->elementSize]));
         }
         else
         {
@@ -5622,7 +5622,7 @@ namespace OArray
             // TODO: why push anything here?  if needed, why not push pDst?
             char val = a.back();
             a.pop_back();
-            SPUSH((long)val);
+            SPUSH((cell)val);
         }
         else
         {
@@ -5635,7 +5635,7 @@ namespace OArray
     {
         GET_THIS(oStructArrayStruct, pArray);
         oStructArray& a = *(pArray->elements);
-        SPUSH(pArray->numElements > 0 ? (long)&(a[0]) : NULL);
+        SPUSH(pArray->numElements > 0 ? (cell)&(a[0]) : NULL);
         METHOD_RETURN;
     }
 
@@ -5679,10 +5679,10 @@ namespace OArray
         METHOD_RET("base", oStructArrayBaseMethod, RETURNS_NATIVE(kBaseTypeByte | kDTIsPtr)),
         METHOD("setType", oStructArraySetTypeMethod),
         
-        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("elementSize", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("numElements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("__vocab", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+        MEMBER_VAR("elementSize", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
+        MEMBER_VAR("numElements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
+        MEMBER_VAR("__vocab", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
         // following must be last in table
         END_MEMBERS
@@ -5773,7 +5773,7 @@ namespace OArray
         else
         {
             char* pElement = &(a[pIter->cursor * pArray->elementSize]);
-            SPUSH((long)pElement);
+            SPUSH((cell)pElement);
             pIter->cursor++;
             SPUSH(~0);
         }
@@ -5793,7 +5793,7 @@ namespace OArray
         {
             pIter->cursor--;
             char* pElement = &(a[pIter->cursor * pArray->elementSize]);
-            SPUSH((long)pElement);
+            SPUSH((cell)pElement);
             SPUSH(~0);
         }
         METHOD_RETURN;
@@ -5811,7 +5811,7 @@ namespace OArray
         else
         {
             char* pElement = &(a[pIter->cursor * pArray->elementSize]);
-            SPUSH((long)pElement);
+            SPUSH((cell)pElement);
             SPUSH(~0);
         }
         METHOD_RETURN;
@@ -5902,7 +5902,7 @@ namespace OArray
         METHOD_RET("tell", oStructArrayIterTellMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
         MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIStructArray)),
-        MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
         // following must be last in table
         END_MEMBERS

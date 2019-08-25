@@ -62,7 +62,7 @@ public:
     void                Empty( void );
 
     // add symbol to symbol table, return ptr to new symbol entry
-    virtual forthop*    AddSymbol( const char *pSymName, long symType, long symValue, bool addToEngineOps );
+    virtual forthop*    AddSymbol( const char *pSymName, forthop symValue);
 
     // copy a symbol table entry, presumably from another vocabulary
     void                CopyEntry(forthop* pEntry );
@@ -249,16 +249,16 @@ public:
 	void				Push();
 	void				Pop();
 
-	int					GetFrameLongs();
+	int					GetFrameCells();
     forthop*            GetFrameAllocOpPointer();
-    forthop*			AddVariable( const char* pVarName, long fieldType, long varValue, int nLongs );
+    forthop*			AddVariable( const char* pVarName, long fieldType, long varValue, int nCells );
 	void				ClearFrame();
 
 protected:
 	int					mDepth;
 	int					mStack[ MAX_LOCAL_DEPTH * LOCAL_STACK_STRIDE ];
     forthop*            mpAllocOp;
-	int					mFrameLongs;
+	int					mFrameCells;
 };
 
 class ForthDLLVocabulary : public ForthVocabulary
@@ -282,7 +282,7 @@ public:
 protected:
     char *              mpDLLName;
 	unsigned long		mDLLFlags;
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
     HINSTANCE           mhDLL;
 #endif
 #if defined(LINUX) || defined(MACOSX)

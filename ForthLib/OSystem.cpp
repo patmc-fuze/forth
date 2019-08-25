@@ -124,7 +124,7 @@ namespace OSystem
 	FORTHOP(oSystemGetSearchVocabAtMethod)
 	{
 		GET_THIS(oSystemStruct, pSystem);
-		int vocabStackIndex = SPOP;
+		cell vocabStackIndex = SPOP;
 
 		ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
 		ForthVocabulary* pVocab = pVocabStack->GetElement(vocabStackIndex);
@@ -218,14 +218,14 @@ namespace OSystem
     
 	FORTHOP(oSystemGetOpsTableMethod)
 	{
-		SPUSH((long)(pCore->ops));
+		SPUSH((cell)(pCore->ops));
 		METHOD_RETURN;
 	}
 
 
     FORTHOP(oSystemGetClassByIndexMethod)
     {
-        int typeIndex = SPOP;
+        int typeIndex = (int)SPOP;
         ForthObject classObject = nullptr;
         ForthClassVocabulary* pClassVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(typeIndex);
         if (pClassVocab != nullptr)
@@ -248,9 +248,9 @@ namespace OSystem
 	FORTHOP(oSystemCreateAsyncThreadMethod)
 	{
 		ForthObject asyncThread;
-		int returnStackLongs = (int)(SPOP);
-		int paramStackLongs = (int)(SPOP);
-		long threadOp = SPOP;
+		int returnStackLongs = (int)SPOP;
+		int paramStackLongs = (int)SPOP;
+        forthop threadOp = (forthop)SPOP;
 		OThread::CreateAsyncThreadObject(asyncThread, GET_ENGINE, threadOp, paramStackLongs, returnStackLongs);
 
 		PUSH_OBJECT(asyncThread);

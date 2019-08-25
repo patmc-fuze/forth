@@ -13,7 +13,7 @@
 
 #include <ctype.h>
 #include <time.h>
-#if defined(WIN32)
+#if defined(WINDOWS_BUILD)
 #include <sys/timeb.h>
 #endif
 
@@ -72,7 +72,8 @@ extern float log10f(float a);
 // top 8 bits are opcode type (opType)
 // bottom 24 bits are immediate operand
 
-extern void intVarAction( ForthCoreState* pCore, int* pVar );
+extern void intVarAction(ForthCoreState* pCore, int* pVar);
+extern void longVarAction(ForthCoreState* pCore, int* pVar);
 extern GFORTHOP( byteVarActionBop );
 extern GFORTHOP( ubyteVarActionBop );
 extern GFORTHOP( shortVarActionBop );
@@ -85,7 +86,7 @@ extern GFORTHOP( stringVarActionBop );
 extern GFORTHOP( opVarActionBop );
 extern GFORTHOP( objectVarActionBop );
 
-#if defined(WIN32) && !defined(MINGW)
+#if defined(WINDOWS_BUILD) && !defined(MINGW)
 // this madness is here to fix an unexplained link error - single precision float math functions are undefined
 //  even though they are declared extern in InnerInterp.asm
 float maximumBogosity()
@@ -148,18 +149,31 @@ FORTHOP( argcOp )
 
 FORTHOP( ldivideOp )
 {
+#if defined(FORTH64)
+    cell b = SPOP;
+    cell a = SPOP;
+    cell quotient = a / b;
+    SPUSH(quotient);
+#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     stackInt64 quotient;
-    LPOP( b );
-    LPOP( a );
+    LPOP(b);
+    LPOP(a);
     quotient.s64 = a.s64 / b.s64;
-    LPUSH( quotient );
+    LPUSH(quotient);
+#endif
 }
 
 FORTHOP( lmodOp )
 {
+#if defined(FORTH64)
+    cell b = SPOP;
+    cell a = SPOP;
+    cell remainder = a % b;
+    SPUSH(remainder);
+#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
@@ -168,34 +182,53 @@ FORTHOP( lmodOp )
     LPOP( a );
     remainder.s64 = a.s64 % b.s64;
     LPUSH( remainder );
+#endif
 }
 
 FORTHOP( ldivmodOp )
 {
+#if defined(FORTH64)
+    cell b = SPOP;
+    cell a = SPOP;
+    cell remainder = a % b;
+    SPUSH(remainder);
+    cell quotient = a / b;
+    SPUSH(quotient);
+#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     stackInt64 quotient;
     stackInt64 remainder;
-    LPOP( b );
-    LPOP( a );
+    LPOP(b);
+    LPOP(a);
     remainder.s64 = a.s64 % b.s64;
-    LPUSH( remainder );
+    LPUSH(remainder);
     quotient.s64 = a.s64 / b.s64;
-    LPUSH( quotient );
+    LPUSH(quotient);
+#endif
 }
 
 FORTHOP( udivmodOp )
 {
+#if defined(FORTH64)
+    uint32_t b = (uint32_t)SPOP;
+    ucell a = (ucell)SPOP;
+    ucell quotient = a / b;
+    uint32_t remainder = a % b;
+    SPUSH(remainder);
+    SPUSH(quotient);
+#else
     NEEDS(3);
     stackInt64 a;
     stackInt64 quotient;
-    unsigned long b = (unsigned long) SPOP;
-    LPOP( a );
+    unsigned long b = (unsigned long)SPOP;
+    LPOP(a);
     quotient.s64 = a.u64 / b;
-	unsigned long remainder = a.u64 % b;
-    SPUSH( ((long) remainder) );
-    LPUSH( quotient );
+    unsigned long remainder = a.u64 % b;
+    SPUSH(((long)remainder));
+    LPUSH(quotient);
+#endif
 }
 
 #ifdef RASPI
@@ -252,134 +285,217 @@ FORTHOP( smRemOp )
 #ifndef ASM_INNER_INTERPRETER
 FORTHOP(lEqualsBop)
 {
+#if defined(FORTH64)
+    cell b = SPOP;
+    cell a = SPOP;
+    SPUSH(a == b ? -1L : 0);
+#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
-    LPOP( b );
-    LPOP( a );
-    SPUSH( ( a.s64 == b.s64 ) ? -1L : 0 );
+    LPOP(b);
+    LPOP(a);
+    SPUSH((a.s64 == b.s64) ? -1L : 0);
+#endif
 }
 
 FORTHOP(lNotEqualsBop)
 {
+#if defined(FORTH64)
+    cell b = SPOP;
+    cell a = SPOP;
+    SPUSH(a != b ? -1L : 0);
+#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
-    LPOP( b );
-    LPOP( a );
-    SPUSH( ( a.s64 != b.s64 ) ? -1L : 0 );
+    LPOP(b);
+    LPOP(a);
+    SPUSH((a.s64 != b.s64) ? -1L : 0);
+#endif
 }
 
 FORTHOP(lGreaterThanBop)
 {
+#if defined(FORTH64)
+    cell b = SPOP;
+    cell a = SPOP;
+    SPUSH(a > b ? -1L : 0);
+#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     SPUSH( ( a.s64 > b.s64 ) ? -1L : 0 );
+#endif
 }
 
 FORTHOP(lGreaterEqualsBop)
 {
+#if defined(FORTH64)
+    cell b = SPOP;
+    cell a = SPOP;
+    SPUSH(a >= b ? -1L : 0);
+#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     SPUSH( ( a.s64 >= b.s64 ) ? -1L : 0 );
+#endif
 }
 
 FORTHOP(lLessThanBop)
 {
+#if defined(FORTH64)
+    cell b = SPOP;
+    cell a = SPOP;
+    SPUSH(a < b ? -1L : 0);
+#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     SPUSH( ( a.s64 < b.s64 ) ? -1L : 0 );
+#endif
 }
 
 FORTHOP(lLessEqualsBop)
 {
+#if defined(FORTH64)
+    cell b = SPOP;
+    cell a = SPOP;
+    SPUSH(a <= b ? -1L : 0);
+#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     SPUSH( ( a.s64 <= b.s64 ) ? -1L : 0 );
+#endif
 }
 
 FORTHOP(lEquals0Bop)
 {
+#if defined(FORTH64)
+    cell a = SPOP;
+    SPUSH(a == 0 ? -1L : 0);
+#else
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 == 0L ) ? -1L : 0 );
+#endif
 }
 
 FORTHOP(lNotEquals0Bop)
 {
+#if defined(FORTH64)
+    cell a = SPOP;
+    SPUSH(a != 0 ? -1L : 0);
+#else
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 != 0L ) ? -1L : 0 );
+#endif
 }
 
 FORTHOP(lGreaterThan0Bop)
 {
+#if defined(FORTH64)
+    cell a = SPOP;
+    SPUSH(a > 0 ? -1L : 0);
+#else
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 > 0L ) ? -1L : 0 );
+#endif
 }
 
 FORTHOP(lGreaterEquals0Bop)
 {
+#if defined(FORTH64)
+    cell a = SPOP;
+    SPUSH(a >= 0 ? -1L : 0);
+#else
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 >= 0L ) ? -1L : 0 );
+#endif
 }
 
 FORTHOP(lLessThan0Bop)
 {
+#if defined(FORTH64)
+    cell a = SPOP;
+    SPUSH(a < 0 ? -1L : 0);
+#else
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 < 0L ) ? -1L : 0 );
+#endif
 }
 
 FORTHOP(lLessEquals0Bop)
 {
+#if defined(FORTH64)
+    cell a = SPOP;
+    SPUSH(a <= 0 ? -1L : 0);
+#else
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 <= 0L ) ? -1L : 0 );
+#endif
 }
 
 FORTHOP(lcmpBop)
 {
+#if defined(FORTH64)
+    cell b = SPOP;
+    cell a = SPOP;
+    SPUSH(a == b ? 0 : ((a > b) ? 1 : -1L));
+#else
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     SPUSH( ( a.s64 == b.s64 ) ? 0 : ((a.s64 > b.s64) ? 1 : -1L) );
+#endif
 }
     
 FORTHOP(ulcmpBop)
 {
+#if defined(FORTH64)
+    ucell b = SPOP;
+    ucell a = SPOP;
+    SPUSH(a == b ? 0 : ((a > b) ? 1 : -1L));
+#else
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     SPUSH( ( a.u64 == b.u64 ) ? 0 : ((a.u64 > b.u64) ? 1 : -1L) );
+#endif
 }
     
-#endif
 
 FORTHOP(lWithinOp)
 {
+#if defined(FORTH64)
+    cell hiLimit = SPOP;
+    cell loLimit = SPOP;
+    cell val = SPOP;
+    SPUSH( ((loLimit <= val) && (val < hiLimit)) ? -1L : 0);
+#else
     NEEDS(3);
     stackInt64 hiLimit;
     stackInt64 loLimit;
@@ -388,73 +504,116 @@ FORTHOP(lWithinOp)
     LPOP( loLimit );
     LPOP( val );
     SPUSH( ( (loLimit.s64 <= val.s64) && (val.s64 < hiLimit.s64) ) ? -1L : 0 );
+#endif
 }
 
 FORTHOP(lMinOp)
 {
+#if defined(FORTH64)
+    cell b = SPOP;
+    cell a = SPOP;
+    SPUSH(a < b ? a : b);
+#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     LPUSH( (( a.s64 < b.s64 ) ? a : b) );
+#endif
 }
 
 FORTHOP(lMaxOp)
 {
+#if defined(FORTH64)
+    cell b = SPOP;
+    cell a = SPOP;
+    SPUSH(a > b ? a : b);
+#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     LPUSH( (( a.s64 > b.s64 ) ? a : b) );
+#endif
 }
+#endif
 
 
 
 FORTHOP( i2lOp )
 {
+#if defined(FORTH64)
+    int a = SPOP;
+    SPUSH(a);
+#else
     NEEDS(1);
     int a = SPOP;
     stackInt64 b;
     b.s64 = (int64_t) a;
     LPUSH( b );
+#endif
 }
 
 FORTHOP( l2fOp )
 {
+#if defined(FORTH64)
+    cell a = SPOP;
+    float b = (float)a;
+    FPUSH(b);
+#else
     NEEDS(1);
     stackInt64 a;
     LPOP( a );
     float b = (float) a.s64;
     FPUSH( b );
+#endif
 }
 
 FORTHOP( l2dOp )
 {
+#if defined(FORTH64)
+    cell a = SPOP;
+    double b = (double)a;
+    DPUSH(b);
+#else
     NEEDS(1);
     stackInt64 a;
     LPOP( a );
     double b = (double) a.s64;
     DPUSH( b );
+#endif
 }
 
 FORTHOP( f2lOp )
 {
+#if defined(FORTH64)
+    float a = FPOP;
+    cell b = a;
+    SPUSH(b);
+#else
     NEEDS(1);
     float a = FPOP;
     stackInt64 b;
     b.s64 = (int64_t) a;
     LPUSH( b );
+#endif
 }
 
 FORTHOP( d2lOp )
 {
+#if defined(FORTH64)
+    double a = DPOP;
+    cell b = a;
+    SPUSH(b);
+#else
     NEEDS(2);
     double a = DPOP;
     stackInt64 b;
     b.s64 = (int64_t) a;
     LPUSH( b );
+#endif
 }
 
 //##############################
@@ -932,7 +1091,7 @@ FORTHOP( endofOp )
         isLastCase = false;
     }
     // save address for endcase
-    pShellStack->Push((long)pDP);
+    pShellStack->PushAddress(pDP);
     pShellStack->PushTag( kShellTagCase );
 }
 
@@ -1658,7 +1817,7 @@ FORTHOP( vocabularyOp )
                                                    512,
                                                    GET_DP,
                                                    ForthVocabulary::GetEntryValue( pDefinitionsVocab->GetNewestEntry() ) );
-    pEngine->CompileLong( (long) pVocab );
+    pEngine->CompileCell( (cell) pVocab );
 }
 
 FORTHOP( strForgetOp )
@@ -1811,7 +1970,7 @@ FORTHOP( variableOp )
     forthop* pEntry = pEngine->StartOpDefinition();
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_VAR );
-    pEngine->CompileLong( 0 );
+    pEngine->CompileCell( 0 );
 }
 
 FORTHOP( constantOp )
@@ -1820,7 +1979,7 @@ FORTHOP( constantOp )
     forthop* pEntry = pEngine->StartOpDefinition();
     pEntry[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
     pEngine->CompileBuiltinOpcode( OP_DO_CONSTANT );
-    pEngine->CompileLong( SPOP );
+    pEngine->CompileCell( SPOP );
 }
 
 FORTHOP( dconstantOp )
@@ -1957,7 +2116,7 @@ FORTHOP( structOp )
 	const char* pName = pEngine->GetNextSimpleToken();
     ForthStructVocabulary* pVocab = pManager->StartStructDefinition(pName);
     pEngine->CompileBuiltinOpcode( OP_DO_STRUCT_TYPE );
-    pEngine->CompileLong( (long) pVocab );
+    pEngine->CompileCell((cell)pVocab);
 
 	pEngine->GetShell()->StartDefinition(pName, "stru");
 }
@@ -2128,7 +2287,7 @@ FORTHOP( doMethodOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
     long methodIndex = SPOP;
-    RPUSH( ((long) GET_TP) );
+    RPUSH( ((cell) GET_TP) );
     ForthObject obj;
     POP_OBJECT(obj);
     SET_TP( obj );
@@ -2335,9 +2494,14 @@ FORTHOP( processLongConstantOp )
     ForthEngine *pEngine = GET_ENGINE;
 	if (pEngine->IsCompiling())
 	{
-		stackInt64 val;
-		LPOP(val);
-		pEngine->ProcessLongConstant(val.s64);
+#if defined(FORTH64)
+        cell val = SPOP;
+        pEngine->ProcessLongConstant(val);
+#else
+        stackInt64 val;
+        LPOP(val);
+        pEngine->ProcessLongConstant(val.s64);
+#endif
 	}
 }
 
@@ -2377,7 +2541,7 @@ void __newOp(ForthCoreState* pCore, const char* pClassName)
 			}
             else
             {
-                SPUSH( (long) pClassVocab );
+                SPUSH( (cell) pClassVocab );
 				pEngine->FullyExecuteOp(pCore, pClassVocab->GetClassObject()->newOp);
 				if (initOpcode != 0)
 				{
@@ -2424,7 +2588,7 @@ FORTHOP(strNewOp)
 		if (pClassVocab && pClassVocab->IsClass())
 		{
 			long initOpcode = pClassVocab->GetInitOpcode();
-			SPUSH((long)pClassVocab);
+			SPUSH((cell)pClassVocab);
 			pEngine->FullyExecuteOp(pCore, pClassVocab->GetClassObject()->newOp);
 			if (initOpcode != 0)
 			{
@@ -2510,7 +2674,7 @@ FORTHOP(doNewOp)
 		if (pTypeInfo->pVocab->IsClass())
 		{
 			ForthClassVocabulary *pClassVocab = static_cast<ForthClassVocabulary *>(pTypeInfo->pVocab);
-			SPUSH((long)pClassVocab);
+			SPUSH((cell)pClassVocab);
 			pEngine->FullyExecuteOp(pCore, pClassVocab->GetClassObject()->newOp);
 		}
 		else
@@ -2536,7 +2700,7 @@ FORTHOP( allocObjectOp )
         ForthObject newObject = (ForthObject) __MALLOC( nBytes );
 		memset(newObject, 0, nBytes );
         newObject->pMethods = pMethods;
-        SPUSH( (long)newObject);
+        SPUSH( (cell)newObject);
     }
     else
     {
@@ -2625,14 +2789,14 @@ FORTHOP(enumOp)
     forthop* pHere = pEngine->GetDP();
     pEngine->SetNewestEnumInfo((ForthEnumInfo*)pHere);
     // enum info block holds:
-    // 0  enum size in bytes (default to 4)
-    // 1  ptr to vocabulary enum is defined in
+    // 0  ptr to vocabulary enum is defined in
+    // 1  enum size in bytes (default to 4)
     // 2  number of enums defined
     // 3  offset in longs from top of vocabulary to last enum symbol defined
     // 4+ enum name string
-    pEngine->CompileLong(4);	// default enum size is 4 bytes
     ForthVocabulary* pDefinitionVocabulary = pEngine->GetDefinitionVocabulary();
-    pEngine->CompileLong((long)pDefinitionVocabulary);
+    pEngine->CompileCell((cell)pDefinitionVocabulary);
+    pEngine->CompileLong(4);	// default enum size is 4 bytes
     // the actual number of enums and vocabulary offset of last enum are filled in in endenumOp
     pEngine->CompileLong(pDefinitionVocabulary->GetNumEntries());
     pEngine->CompileLong(0);
@@ -2641,6 +2805,7 @@ FORTHOP(enumOp)
     memcpy(pEngine->GetDP(), pName, nameLen);
     pEngine->AllotBytes(nameLen);
     pEngine->AlignDP();
+    ForthEnumInfo* pEnum = (ForthEnumInfo*)pHere;
 
 	pEngine->GetShell()->StartDefinition(pName, "enum");
 }
@@ -2690,7 +2855,7 @@ FORTHOP(findEnumSymbolOp)
             if ((*pEntry & 0xFFFFFF) == enumValue)
             {
                 char* pEnumName = pEngine->AddTempString(pVocab->GetEntryName(pEntry), pVocab->GetEntryNameLength(pEntry));
-                SPUSH((long)pEnumName);
+                SPUSH((cell)pEnumName);
                 SPUSH(~0);
                 return;
             }
@@ -2704,7 +2869,7 @@ FORTHOP(findEnumSymbolOp)
 FORTHOP(doVocabOp)
 {
     // IP points to data field
-    ForthVocabulary* pVocab = (ForthVocabulary *) (*GET_IP);
+    ForthVocabulary* pVocab = (ForthVocabulary *) *((ucell *)GET_IP);
     pVocab->DoOp( pCore );
     SET_IP( (forthop* ) (RPOP) );
 }
@@ -2731,7 +2896,7 @@ FORTHOP(getClassByIndexOp)
 FORTHOP(doStructTypeOp)
 {
 	// IP points to data field
-	ForthStructVocabulary *pVocab = (ForthStructVocabulary *)(*GET_IP);
+	ForthStructVocabulary *pVocab = *(ForthStructVocabulary **)(GET_IP);
 
 	ForthEngine *pEngine = GET_ENGINE;
 	bool doDefineInstance = true;
@@ -2768,7 +2933,7 @@ FORTHOP( doClassTypeOp )
 {
     // IP points to data field
 	// TODO: change this to take class typeIndex on TOS like doNewOp
-    ForthClassVocabulary *pVocab = (ForthClassVocabulary *) (*GET_IP);
+    ForthClassVocabulary *pVocab = *((ForthClassVocabulary **)GET_IP);
 	pVocab->DefineInstance();
     SET_IP( (forthop* ) (RPOP) );
 }
@@ -2801,15 +2966,15 @@ FORTHOP( doEnumOp )
         if (GET_VAR_OPERATION == kVarRef)
         {
             // ref ENUM_DEFINING_OP ... returns ptr to enum info block
-            SPUSH((long)oldIP);
+            SPUSH((cell)oldIP);
             doDefineInstance = false;
         }
     }
 
     if (doDefineInstance)
     {
-        long numBytes = *oldIP;
-        switch (numBytes)
+        ForthEnumInfo* pInfo = (ForthEnumInfo *)oldIP;
+        switch (pInfo->size)
         {
         case 1:
             byteOp(pCore);
@@ -2996,7 +3161,7 @@ FORTHOP( stateCompileOp )
 
 FORTHOP( stateOp )
 {
-    SPUSH( (long) GET_ENGINE->GetCompileStatePtr() );
+    SPUSH( (cell) GET_ENGINE->GetCompileStatePtr() );
 }
 
 FORTHOP( strTickOp )
@@ -3092,7 +3257,7 @@ FORTHOP( bodyOp )
     case kOpUserDef:
         if ( opIndex < GET_NUM_OPS )
         {
-            SPUSH( ((long)(OP_TABLE[ opIndex ])) + 4 );
+            SPUSH( ((cell)(OP_TABLE[ opIndex ])) + 4 );
         }
         else
         {
@@ -3145,7 +3310,7 @@ void
 consoleOutToOp( ForthCoreState   *pCore,
                 const char       *pMessage )
 {
-    SPUSH( (long) pMessage );
+    SPUSH( (cell) pMessage );
     forthop op = GET_CON_OUT_OP;
     ForthEngine* pEngine = GET_ENGINE;
     pEngine->ExecuteOneOp(pCore,  op );
@@ -3210,7 +3375,7 @@ printNumInCurrentBase( ForthCoreState   *pCore,
             }
             while ( val != 0 )
             {
-#if defined(WIN32)
+#if defined(WINDOWS_BUILD)
 #if defined(MSDEV)
                 v = div( val, base );
 #else
@@ -3328,23 +3493,38 @@ printLongNumInCurrentBase( ForthCoreState   *pCore,
 
 FORTHOP( printNumOp )
 {
-    printNumInCurrentBase( pCore, SPOP );
+#if defined(FORTH64)
+    cell val = SPOP;
+    printLongNumInCurrentBase(pCore, val);
+#else
+    printNumInCurrentBase(pCore, SPOP);
+#endif
 }
 
 FORTHOP( printLongNumOp )
 {
+#if defined(FORTH64)
+    cell val = SPOP;
+    printLongNumInCurrentBase(pCore, val);
+#else
     stackInt64 val;
-    LPOP( val );
-    printLongNumInCurrentBase( pCore, val.s64 );
+    LPOP(val);
+    printLongNumInCurrentBase(pCore, val.s64);
+#endif
 }
 
 FORTHOP( printNumDecimalOp )
 {
     NEEDS(1);
-    char buff[36];
+    char buff[40];
 
-    long val = SPOP;
-    SNPRINTF( buff, sizeof(buff), "%d", val );
+    cell val = SPOP;
+#if defined(FORTH64)
+    SNPRINTF(buff, sizeof(buff), "%lld", val);
+#else
+    SNPRINTF(buff, sizeof(buff), "%d", val);
+#endif
+
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -3355,10 +3535,15 @@ FORTHOP( printNumDecimalOp )
 FORTHOP( printNumHexOp )
 {
     NEEDS(1);
-    char buff[12];
+    char buff[20];
 
-    long val = SPOP;
-    SNPRINTF( buff, sizeof(buff), "%x", val );
+    cell val = SPOP;
+#if defined(FORTH64)
+    SNPRINTF(buff, sizeof(buff), "%llx", val);
+#else
+    SNPRINTF(buff, sizeof(buff), "%x", val);
+#endif
+
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
 #endif
@@ -3371,12 +3556,18 @@ FORTHOP( printLongDecimalOp )
     NEEDS(2);
     char buff[40];
 
-    stackInt64 val;
-    LPOP( val );
-#if defined(WIN32)
-    SNPRINTF( buff, sizeof(buff), "%I64d", val.s64 );
+    int64_t val;
+#if defined(FORTH64)
+    val = SPOP;
 #else
-    SNPRINTF( buff, sizeof(buff), "%lld", val.s64 );
+    stackInt64 sval;
+    LPOP(sval);
+    val = sval.s64;
+#endif
+#if defined(WINDOWS_BUILD)
+    SNPRINTF( buff, sizeof(buff), "%I64d", val );
+#else
+    SNPRINTF( buff, sizeof(buff), "%lld", val);
 #endif
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
@@ -3390,10 +3581,16 @@ FORTHOP( printLongHexOp )
     NEEDS(1);
     char buff[20];
 
-    stackInt64 val;
-    LPOP( val );
-#if defined(WIN32)
-    SNPRINTF( buff, sizeof(buff), "%I64x", val.s64 );
+    int64_t val;
+#if defined(FORTH64)
+    val = SPOP;
+#else
+    stackInt64 sval;
+    LPOP(sval);
+    val = sval.s64;
+#endif
+#if defined(WINDOWS_BUILD)
+    SNPRINTF( buff, sizeof(buff), "%I64x", val );
 #else
     SNPRINTF( buff, sizeof(buff), "%llx", val.s64 );
 #endif
@@ -3496,7 +3693,7 @@ FORTHOP(format32Op)
 #ifdef TRACE_PRINTS
 		SPEW_PRINTS( "printed %s\n", pDst );
 #endif
-		SPUSH( (long) pDst );
+		SPUSH( (cell) pDst );
 	}
 }
 
@@ -3527,16 +3724,22 @@ FORTHOP( format64Op )
 			}
 			default:
 			{
-                stackInt64 val;
-                LPOP( val );
-				SNPRINTF( pDst, buffLen, pFmt, val.s64 );
+                int64_t val;
+#if defined(FORTH64)
+                val = SPOP;
+#else
+                stackInt64 sval;
+                LPOP(sval);
+                val = sval.s64;
+#endif
+				SNPRINTF( pDst, buffLen, pFmt, val );
 			}
 		}
 
 #ifdef TRACE_PRINTS
 		SPEW_PRINTS( "printed %s\n", pDst );
 #endif
-		SPUSH( (long) pDst );
+		SPUSH( (cell) pDst );
 	}
 }
 
@@ -3626,8 +3829,7 @@ FORTHOP(scanLongOp)
     {
         numChars = strlen(pToken);
     }
-    stackInt64 value;
-    value.u64 = 0L;
+    uint64_t uvalue = 0L;
 
     int digitsFound = 0;
     int digit;
@@ -3674,7 +3876,7 @@ FORTHOP(scanLongOp)
             isValid = 0;
             break;
         }
-        value.u64 = (value.u64 * base) + digit;
+        uvalue = (uvalue * base) + digit;
     }
 
     if (digitsFound == 0)
@@ -3682,14 +3884,16 @@ FORTHOP(scanLongOp)
         isValid = false;
     }
 
-    if (isNegative)
-    {
-        value.s64 *= -1;
-    }
-
+    int64_t value = isNegative ? (uvalue * -1) : uvalue;
     if (isValid)
     {
-        LPUSH(value);
+#if defined(FORTH64)
+        SPUSH(value);
+#else
+        stackInt64 sval;
+        sval.s64 = value;
+        LPUSH(sval);
+#endif
     }
     SPUSH(isValid);
 }
@@ -3702,7 +3906,7 @@ FORTHOP(addTempStringOp)
     long stringSize = SPOP;
     char* pSrc = (char *)(SPOP);
     char *pDst = pEngine->AddTempString(pSrc, stringSize);
-    SPUSH((long)pDst);
+    SPUSH((cell)pDst);
 }
 
 #ifdef ASM_INNER_INTERPRETER
@@ -3773,17 +3977,17 @@ long sscanfSub( ForthCoreState* pCore )
     return sscanf( inbuff, fmt, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7] );
 }
 
-int oStringFormatSub(ForthCoreState* pCore, char* pBuffer, int bufferSize)
+cell oStringFormatSub(ForthCoreState* pCore, char* pBuffer, int bufferSize)
 {
-	int a[8];
+    cell a[8];
 	// TODO: assert if numArgs > 8
-	long numArgs = SPOP;
-    for (int i = numArgs - 1; i >= 0; --i)
+	cell numArgs = SPOP;
+    for (cell i = numArgs - 1; i >= 0; --i)
 	{
 		a[i] = SPOP;
 	}
 	const char* fmt = (const char *)SPOP;
-    int result = 0;
+    cell result = 0;
     switch (numArgs)
     {
     case 0:
@@ -3926,7 +4130,7 @@ FORTHOP( printNewlineOp )
 
 FORTHOP( baseOp )
 {
-    SPUSH( (long) GET_BASE_REF );
+    SPUSH( (cell) GET_BASE_REF );
 }
 
 FORTHOP( octalOp )
@@ -4204,8 +4408,8 @@ FORTHOP(getCwdOp)
 	int maxChars = (SPOP) - 1;
 	char* pDst = (char *)(SPOP);
 	pDst[maxChars] = '\0';
-#if defined( WIN32 )
-	DWORD result = GetCurrentDirectory(maxChars, pDst);
+#if defined(WINDOWS_BUILD)
+    DWORD result = GetCurrentDirectory(maxChars, pDst);
 	if (result == 0)
 	{
 		pDst[0] = '\0';
@@ -4254,7 +4458,11 @@ FORTHOP( dstackOp )
     for ( i = 0; i < nItems; i++ )
     {
         CONSOLE_CHAR_OUT( ' ' );
-        printNumInCurrentBase( pCore, *pSP++ );
+#if defined(FORTH64)
+        printLongNumInCurrentBase(pCore, *pSP++);
+#else
+        printNumInCurrentBase(pCore, *pSP++);
+#endif
     }
     CONSOLE_CHAR_OUT( '\n' );
 }
@@ -4428,7 +4636,7 @@ FORTHOP( DLLVocabularyOp )
     pEngine->CompileBuiltinOpcode( OP_DO_VOCAB );
     pVocab->UnloadDLL();
     pVocab->LoadDLL();
-    pEngine->CompileLong( (long) pVocab );
+    pEngine->CompileCell( (long) pVocab );
 }
 
 FORTHOP( addDLLEntryOp )
@@ -4523,7 +4731,7 @@ FORTHOP( blwordOp )
 	ForthShell *pShell = pEngine->GetShell();
 	char *pSrc = pShell->GetNextSimpleToken();
 	char *pDst = pEngine->AddTempString(pSrc);
-    SPUSH( (long) pDst );
+    SPUSH( (cell) pDst );
 }
 
 FORTHOP( strWordOp )
@@ -4535,7 +4743,7 @@ FORTHOP( strWordOp )
     // leave an unused byte below string so string len can be stuck there in ANSI compatability mode
 	char *pSrc = pShell->GetToken( delim, false );
 	char *pDst = pEngine->AddTempString(pSrc);
-    SPUSH( (long) pDst );
+    SPUSH( (cell) pDst );
 }
 
 // has precedence!
@@ -4622,7 +4830,7 @@ FORTHOP( featuresOp )
         break;
 
     case kVarRef:
-        SPUSH( (long)(&(pEngine->GetFeatures())) );
+        SPUSH( (cell)(&(pEngine->GetFeatures())) );
         break;
 
     case kVarPlusStore:
@@ -4649,20 +4857,20 @@ FORTHOP( dumpCrashStateOp )
 FORTHOP( sourceOp )
 {
     ForthInputStack* pInput = GET_ENGINE->GetShell()->GetInput();
-    SPUSH( (long) (pInput->InputStream()->GetReportedBufferBasePointer()) );
+    SPUSH( (cell) (pInput->InputStream()->GetReportedBufferBasePointer()) );
     SPUSH( pInput->GetWriteOffset() );
 }
 
 FORTHOP( getInOffsetPointerOp )
 {
     ForthInputStack* pInput = GET_ENGINE->GetShell()->GetInput();
-    SPUSH( (long) (pInput->GetReadOffsetPointer()) );
+    SPUSH( (cell) (pInput->GetReadOffsetPointer()) );
 }
 
 FORTHOP( fillInBufferOp )
 {
     ForthInputStack* pInput = GET_ENGINE->GetShell()->GetInput();
-    SPUSH( (long) (pInput->GetLine( (char *) (SPOP) )) );
+    SPUSH( (cell) (pInput->GetLine( (char *) (SPOP) )) );
 }
 
 FORTHOP( keyOp )
@@ -4679,13 +4887,13 @@ FORTHOP( keyHitOp )
 
 FORTHOP(vocChainHeadOp)
 {
-	SPUSH((long)(ForthVocabulary::GetVocabularyChainHead()));
+	SPUSH((cell)(ForthVocabulary::GetVocabularyChainHead()));
 }
 
 FORTHOP(vocChainNextOp)
 {
 	ForthVocabulary* pVocab = (ForthVocabulary *)(SPOP);
-	SPUSH((long)(pVocab->GetNextChainVocabulary()));
+	SPUSH((cell)(pVocab->GetNextChainVocabulary()));
 }
 
 FORTHOP( turboOp )
@@ -4765,13 +4973,13 @@ FORTHOP(unsplitTimeOp)
 FORTHOP( millitimeOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
-    SPUSH( (long) pEngine->GetElapsedTime() );
+    SPUSH( (cell) pEngine->GetElapsedTime() );
 }
 
 FORTHOP( millisleepOp )
 {
-#ifdef WIN32
-	DWORD dwMilliseconds = (DWORD)(SPOP);
+#if defined(WINDOWS_BUILD)
+    DWORD dwMilliseconds = (DWORD)(SPOP);
     ::Sleep( dwMilliseconds );
 #else
     int milliseconds = SPOP;
@@ -5218,7 +5426,7 @@ FORTHOP(bsearchOp)
     char* pData = (char *)(SPOP);
     char* pKey = (char *)(SPOP);
     long compareSize;
-    int (*compare)( const void* a, const void* b, int );
+    int (*compare)( const void* a, const void* b, int ) = s8Compare;
 
     switch ( CODE_TO_BASE_TYPE(compareType) )
     {
@@ -5367,7 +5575,7 @@ FORTHOP( bracketIfOp )
     ForthInputStack* pInput = pShell->GetInput();
 	const char* pBuffer = pShell->GetInput()->GetBufferPointer();
     int depth = 0;
-    int takeIfBranch = SPOP;
+    cell takeIfBranch = SPOP;
     //SPEW_ENGINE("bracketIf");
 
     if ( !takeIfBranch )
@@ -5538,19 +5746,19 @@ FORTHOP(ssDepthBop)
 FORTHOP( blkOp )
 {
     ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
-    SPUSH((long)(pBlockManager->GetBlockPtr()));
+    SPUSH((cell)(pBlockManager->GetBlockPtr()));
 }
 
 FORTHOP( blockOp )
 {
     ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
-    SPUSH( (long)(pBlockManager->GetBlock(SPOP, true)) );
+    SPUSH( (cell)(pBlockManager->GetBlock(SPOP, true)) );
 }
 
 FORTHOP( bufferOp )
 {
     ForthBlockFileManager*  pBlockManager = GET_ENGINE->GetBlockFileManager();
-    SPUSH( (long)(pBlockManager->GetBlock(SPOP, false)) );
+    SPUSH( (cell)(pBlockManager->GetBlock(SPOP, false)) );
 }
 
 FORTHOP( emptyBuffersOp )
@@ -5636,7 +5844,7 @@ FORTHOP(createThreadOp)
 FORTHOP( threadGetStateOp )
 {
     ForthThread* pThread = (ForthThread*)(SPOP);
-	SPUSH( (long) (pThread->GetCore()) );
+	SPUSH( (cell) (pThread->GetCore()) );
 }
 
 FORTHOP( stepThreadOp )
@@ -5725,41 +5933,41 @@ FORTHOP( createEventOp )
     BOOL bManualReset = (BOOL)(SPOP);
     LPSECURITY_ATTRIBUTES lpEventAttributes = (LPSECURITY_ATTRIBUTES) (SPOP);
     HANDLE result = ::CreateEvent( lpEventAttributes, bManualReset, bInitialState, lpName );
-    SPUSH( (long) result );
+    SPUSH( (cell) result );
 }
 
 FORTHOP( closeHandleOp )
 {
     HANDLE hObject = (HANDLE)(SPOP);
     BOOL result = ::CloseHandle( hObject );
-    SPUSH( (long) result );
+    SPUSH( (cell) result );
 }
 
 FORTHOP( setEventOp )
 {
     HANDLE hObject = (HANDLE)(SPOP);
     BOOL result = ::SetEvent( hObject );
-    SPUSH( (long) result );
+    SPUSH( (cell) result );
 }
 
 FORTHOP( resetEventOp )
 {
     HANDLE hObject = (HANDLE)(SPOP);
     BOOL result = ::ResetEvent( hObject );
-    SPUSH( (long) result );
+    SPUSH( (cell) result );
 }
 
 FORTHOP( pulseEventOp )
 {
     HANDLE hObject = (HANDLE)(SPOP);
     BOOL result = ::PulseEvent( hObject );
-    SPUSH( (long) result );
+    SPUSH( (cell) result );
 }
 
 FORTHOP( getLastErrorOp )
 {
     DWORD result = ::GetLastError();
-    SPUSH( (long) result );
+    SPUSH( (cell) result );
 }
 
 FORTHOP( waitForSingleObjectOp )
@@ -5768,7 +5976,7 @@ FORTHOP( waitForSingleObjectOp )
     HANDLE hHandle = (HANDLE)(SPOP);
 
     DWORD result = ::WaitForSingleObject( hHandle, dwMilliseconds );
-    SPUSH( (long) result );
+    SPUSH( (cell) result );
 }
 
 FORTHOP( waitForMultipleObjectsOp )
@@ -5779,7 +5987,7 @@ FORTHOP( waitForMultipleObjectsOp )
     DWORD nCount = (DWORD)(SPOP);
 
     DWORD result = ::WaitForMultipleObjects( nCount, lpHandles, bWaitAll, dwMilliseconds );
-    SPUSH( (long) result );
+    SPUSH( (cell) result );
 }
 
 FORTHOP( initializeCriticalSectionOp )
@@ -5811,7 +6019,7 @@ FORTHOP( findFirstFileOp )
     LPWIN32_FIND_DATA pOutData = (LPWIN32_FIND_DATA)(SPOP);
     LPCTSTR pPath = (LPCTSTR)(SPOP);
     HANDLE result = ::FindFirstFile( pPath, pOutData );
-    SPUSH( (long) result );
+    SPUSH( (cell) result );
 }
 
 FORTHOP( findNextFileOp )
@@ -5819,14 +6027,14 @@ FORTHOP( findNextFileOp )
     LPWIN32_FIND_DATA pOutData = (LPWIN32_FIND_DATA)(SPOP);
     HANDLE searchHandle = (HANDLE)(SPOP);
     BOOL result = ::FindNextFile( searchHandle, pOutData );
-    SPUSH( (long) result );
+    SPUSH( (cell) result );
 }
 
 FORTHOP( findCloseOp )
 {
     HANDLE searchHandle = (HANDLE)(SPOP);
     BOOL result = ::FindClose( searchHandle );
-    SPUSH( (long) result );
+    SPUSH( (cell) result );
 }
 
 FORTHOP( showConsoleOp )
@@ -5846,7 +6054,7 @@ FORTHOP( windowsConstantsOp )
         sizeof(WIN32_FIND_DATA),
         sizeof(CRITICAL_SECTION)
     };
-    SPUSH( (long) (&(winConstants[0])) );
+    SPUSH( (cell) (&(winConstants[0])) );
 }
 
 #endif
@@ -5878,11 +6086,20 @@ FORTHOP(macosxOp)
 #endif
 }
 
+FORTHOP(forth64Op)
+{
+#ifdef FORTH64
+    SPUSH(~0);
+#else
+    SPUSH(0);
+#endif
+}
+
 FORTHOP(pathSeparatorOp)
 {
     char sep = PATH_SEPARATOR[0];
 
-    SPUSH(((long)sep));
+    SPUSH(((cell)sep));
 }
 
 FORTHOP( setConsoleCursorOp )
@@ -6107,7 +6324,7 @@ FORTHOP( abortBop )
 FORTHOP( doVariableBop )
 {
     // IP points to data field
-    SPUSH( (long) GET_IP );
+    SPUSH( (cell) GET_IP );
     SET_IP( (forthop* ) (RPOP) );
 }
 
@@ -6119,91 +6336,97 @@ FORTHOP( doVariableBop )
 FORTHOP( plusBop )
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( a + b );
 }
 
 FORTHOP( minusBop )
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( a - b );
 }
 
 FORTHOP( timesBop )
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( a * b );
 }
 
 FORTHOP( times2Bop )
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( a << 1 );
 }
 
 FORTHOP( times4Bop )
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( a << 2 );
 }
 
 FORTHOP( times8Bop )
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( a << 3 );
 }
 
 FORTHOP( divideBop )
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( a / b );
 }
 
 FORTHOP( divide2Bop )
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( a >> 1 );
 }
 
 FORTHOP( divide4Bop )
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( a >> 2 );
 }
 
 FORTHOP( divide8Bop )
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( a >> 3 );
 }
 
 FORTHOP( divmodBop )
 {
     NEEDS(2);
-    ldiv_t v;
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
+#if defined(FORTH64)
+    lldiv_t v;
+    v = lldiv(a, b);
+#else
+    div_t v;
+
 #if defined(WIN32)
 #if defined(MSDEV)
-    v = div( a, b );
+    v = div(a, b);
 #else
-    v = ldiv( a, b );
+    v = ldiv(a, b);
 #endif
 #elif defined(LINUX) || defined(MACOSX)
-    v = ldiv( a, b );
+    v = ldiv(a, b);
+#endif
 #endif
     SPUSH( v.rem );
     SPUSH( v.quot );
@@ -6253,23 +6476,23 @@ FORTHOP( smdivremBop )
 
     v = lldiv(a.s64, b);
 
-    SPUSH( (long) v.rem );
-    SPUSH( (long) v.quot );
+    SPUSH( (cell) v.rem );
+    SPUSH( (cell) v.quot );
 }
 #endif
 
 FORTHOP( modBop )
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( a % b );
 }
 
 FORTHOP( negateBop )
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( -a );
 }
 
@@ -6625,51 +6848,74 @@ FORTHOP( ffmodBop )
 
 FORTHOP( lplusBop )
 {
-	NEEDS(4);
-	stackInt64 a;
-	stackInt64 b;
-	stackInt64 result;
-	LPOP( b );
-	LPOP( a );
-	result.s64 = a.s64 + b.s64;
-	LPUSH( result );
+#ifdef FORTH64
+    NEEDS(2);
+    cell b = SPOP;
+    cell a = SPOP;
+    SPUSH(a + b);
+#else
+    NEEDS(4);
+    stackInt64 a;
+    stackInt64 b;
+    stackInt64 result;
+    LPOP(b);
+    LPOP(a);
+    result.s64 = a.s64 + b.s64;
+    LPUSH(result);
+#endif
 }
 
 FORTHOP( lminusBop )
 {
-	NEEDS(4);
-	stackInt64 a;
-	stackInt64 b;
-	stackInt64 result;
-	LPOP( b );
-	LPOP( a );
-	result.s64 = a.s64 - b.s64;
+#ifdef FORTH64
+    NEEDS(2);
+    cell b = SPOP;
+    cell a = SPOP;
+    SPUSH(a - b);
+#else
+    NEEDS(4);
+    stackInt64 a;
+    stackInt64 b;
+    stackInt64 result;
+    LPOP(b);
+    LPOP(a);
+    result.s64 = a.s64 - b.s64;
     LPUSH(result);
+#endif
 }
 
 FORTHOP( ltimesBop )
 {
-	NEEDS(4);
-	stackInt64 a;
-	stackInt64 b;
-	stackInt64 result;
-	LPOP( b );
-	LPOP( a );
-	result.s64 = a.s64 * b.s64;
-	LPUSH( result );
+#ifdef FORTH64
+    NEEDS(2);
+    cell b = SPOP;
+    cell a = SPOP;
+    SPUSH(a * b);
+#else
+    NEEDS(4);
+    stackInt64 a;
+    stackInt64 b;
+    stackInt64 result;
+    LPOP(b);
+    LPOP(a);
+    result.s64 = a.s64 * b.s64;
+    LPUSH(result);
+#endif
 }
 
 FORTHOP( i2fBop )
 {
     NEEDS(1);
-    float a = (float) SPOP;
+    int ii = (int)SPOP;
+    float a = (float) ii;
     FPUSH( a );
 }
 
 FORTHOP( i2dBop )
 {
     NEEDS(1);
-    double a = SPOP;
+    int ii = (int)SPOP;
+    double a = (double) ii;
     DPUSH( a );
 }
 
@@ -6714,6 +6960,10 @@ FORTHOP(doExitBop)
     {
         SET_ERROR( kForthErrorReturnStackUnderflow );
     }
+    else if (GET_SDEPTH < 0)
+    {
+        SET_ERROR(kForthErrorParamStackUnderflow);
+    }
     else
     {
         forthop* newIP = (forthop* )RPOP;
@@ -6736,6 +6986,10 @@ FORTHOP(doExitLBop)
     {
         SET_ERROR( kForthErrorReturnStackUnderflow );
     }
+    else if (GET_SDEPTH < 0)
+    {
+        SET_ERROR(kForthErrorParamStackUnderflow);
+    }
     else
     {
         forthop* newIP = (forthop* )RPOP;
@@ -6754,6 +7008,10 @@ FORTHOP(doExitMBop)
     if ( GET_RDEPTH < 2 )
     {
         SET_ERROR( kForthErrorReturnStackUnderflow );
+    }
+    else if (GET_SDEPTH < 0)
+    {
+        SET_ERROR(kForthErrorParamStackUnderflow);
     }
     else
     {
@@ -6779,6 +7037,10 @@ FORTHOP(doExitMLBop)
     {
         SET_ERROR( kForthErrorReturnStackUnderflow );
     }
+    else if (GET_SDEPTH < 0)
+    {
+        SET_ERROR(kForthErrorParamStackUnderflow);
+    }
     else
     {
         forthop* newIP = (forthop* )RPOP;
@@ -6794,7 +7056,7 @@ FORTHOP(doExitMLBop)
 
 FORTHOP(callBop)
 {
-    RPUSH( (long) GET_IP );
+    RPUSH( (cell) GET_IP );
     SET_IP( (forthop* ) SPOP );
 }
 
@@ -6811,7 +7073,7 @@ FORTHOP(doDoBop)
     forthop* newIP = (GET_IP) + 1;
     SET_IP( newIP );
 
-    RPUSH( (long) newIP );
+    RPUSH( (cell) newIP );
     RPUSH( SPOP );
     RPUSH( startIndex );
     // top of rstack is current index, next is end index,
@@ -6827,7 +7089,7 @@ FORTHOP(doCheckDoBop)
 	if ( startIndex < endIndex)
 	{
 	    forthop* newIP = (GET_IP + 1);
-		RPUSH( (long) newIP );
+		RPUSH( (cell) newIP );
 		RPUSH( endIndex );
 		RPUSH( startIndex );
 		// top of rstack is current index, next is end index,
@@ -6920,76 +7182,90 @@ FORTHOP( leaveBop )
 FORTHOP( orBop )
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( a | b );
 }
 
 FORTHOP( andBop )
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( a & b );
 }
 
 FORTHOP( xorBop )
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( a ^ b );
 }
 
 FORTHOP( invertBop )
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( ~a );
 }
 
 FORTHOP(lshiftBop)
 {
     NEEDS(2);
-    unsigned long b = SPOP;
-    unsigned long a = SPOP;
+    ucell b = SPOP;
+    ucell a = SPOP;
     SPUSH(a << b);
 }
 
 FORTHOP(lshift64Bop)
 {
+#if defined(FORTH64)
+    ucell b = SPOP;
+    ucell a = SPOP;
+    a <<= b;
+    SPUSH(a);
+#else
     NEEDS(3);
     unsigned long b = SPOP;
     stackInt64 a;
     LPOP(a);
     a.u64 <<= b;
     LPUSH(a);
+#endif
 }
 
 FORTHOP( rshiftBop )
 {
     NEEDS(2);
-    unsigned long b = SPOP;
-    unsigned long a = SPOP;
+    ucell b = SPOP;
+    ucell a = SPOP;
     SPUSH( a >> b );
 }
 
 FORTHOP(rshift64Bop)
 {
+#if defined(FORTH64)
+    ucell b = SPOP;
+    ucell a = SPOP;
+    a >>= b;
+    SPUSH(a);
+#else
     NEEDS(3);
     unsigned long b = SPOP;
     stackInt64 a;
     LPOP(a);
     a.u64 >>= b;
     LPUSH(a);
+#endif
 }
 
 
 FORTHOP( arshiftBop )
 {
     NEEDS(2);
-    unsigned long b = SPOP;
-    long a = SPOP;
+    ucell b = SPOP;
+    cell a = SPOP;
     SPUSH( a >> b );
 }
 
@@ -6997,20 +7273,28 @@ FORTHOP( arshiftBop )
 FORTHOP(rotateBop)
 {
     NEEDS(2);
-    unsigned long b = (SPOP) & 31;
-    unsigned long a = SPOP;
-    unsigned long result = (a << b) | (a >> (32 - b));
+    ucell b = (SPOP) & (CELL_BITS - 1);
+    ucell a = SPOP;
+    ucell result = (a << b) | (a >> (CELL_BITS - b));
     SPUSH(result);
 }
 
 FORTHOP(rotate64Bop)
 {
+#if defined(FORTH64)
     NEEDS(2);
-    unsigned long b = (SPOP) & 63;
+    ucell b = (SPOP) & (CELL_BITS - 1);
+    ucell a = SPOP;
+    ucell result = (a << b) | (a >> (CELL_BITS - b));
+    SPUSH(result);
+#else
+    NEEDS(2);
+    ucell b = (SPOP) & 63;
     stackInt64 a;
     LPOP(a);
     a.u64 = (a.u64 << b) | (a.u64 >> (64 - b));
     LPUSH(a);
+#endif
 }
 
 FORTHOP(reverseBop)
@@ -7032,9 +7316,9 @@ FORTHOP(reverseBop)
 FORTHOP(countLeadingZerosBop)
 {
     NEEDS(1);
-    unsigned long a = SPOP;
-    int result = 0;
-    unsigned long mask = 0x80000000;
+    ucell a = SPOP;
+    cell result = 0;
+    ucell mask = 1 << (CELL_BITS - 1);
     while (mask != 0)
     {
         if ((a & mask) != 0)
@@ -7050,9 +7334,9 @@ FORTHOP(countLeadingZerosBop)
 FORTHOP(countTrailingZerosBop)
 {
     NEEDS(1);
-    unsigned long a = SPOP;
-    int result = 0;
-    unsigned long mask = 1;
+    ucell a = SPOP;
+    cell result = 0;
+    ucell mask = 1;
     while (mask != 0)
     {
         if ((a & mask) != 0)
@@ -7071,7 +7355,7 @@ FORTHOP(countTrailingZerosBop)
 FORTHOP( notBop )
 {
     NEEDS(1);
-    long a = SPOP;
+    ucell a = SPOP;
     SPUSH( ~a );
 }
 
@@ -7104,147 +7388,147 @@ FORTHOP( dnullBop )
 FORTHOP(equalsBop)
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( ( a == b ) ? -1L : 0 );
 }
 
 FORTHOP(notEqualsBop)
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( ( a != b ) ? -1L : 0 );
 }
 
 FORTHOP(greaterThanBop)
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( ( a > b ) ? -1L : 0 );
 }
 
 FORTHOP(greaterEqualsBop)
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( ( a >= b ) ? -1L : 0 );
 }
 
 FORTHOP(lessThanBop)
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( ( a < b ) ? -1L : 0 );
 }
 
 FORTHOP(lessEqualsBop)
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( ( a <= b ) ? -1L : 0 );
 }
 
 FORTHOP(equals0Bop)
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( ( a == 0 ) ? -1L : 0 );
 }
 
 FORTHOP(notEquals0Bop)
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( ( a != 0 ) ? -1L : 0 );
 }
 
 FORTHOP(greaterThan0Bop)
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( ( a > 0 ) ? -1L : 0 );
 }
 
 FORTHOP(greaterEquals0Bop)
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( ( a >= 0 ) ? -1L : 0 );
 }
 
 FORTHOP(lessThan0Bop)
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( ( a < 0 ) ? -1L : 0 );
 }
 
 FORTHOP(lessEquals0Bop)
 {
     NEEDS(1);
-    long a = SPOP;
+    cell a = SPOP;
     SPUSH( ( a <= 0 ) ? -1L : 0 );
 }
 
 FORTHOP(unsignedGreaterThanBop)
 {
     NEEDS(2);
-    ulong b = (ulong) SPOP;
-    ulong a = (ulong) SPOP;
+    ucell b = (ucell) SPOP;
+    ucell a = (ucell) SPOP;
     SPUSH( ( a > b ) ? -1L : 0 );
 }
 
 FORTHOP(unsignedLessThanBop)
 {
     NEEDS(2);
-    ulong b = (ulong) SPOP;
-    ulong a = (ulong) SPOP;
+    ucell b = (ucell) SPOP;
+    ucell a = (ucell) SPOP;
     SPUSH( ( a < b ) ? -1L : 0 );
 }
 
 FORTHOP(withinBop)
 {
     NEEDS(3);
-    long hiLimit = SPOP;
-    long loLimit = SPOP;
-    long val = SPOP;
+    cell hiLimit = SPOP;
+    cell loLimit = SPOP;
+    cell val = SPOP;
     SPUSH( ( (loLimit <= val) && (val < hiLimit) ) ? -1L : 0 );
 }
 
 FORTHOP(minBop)
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( ( a < b ) ? a : b );
 }
 
 FORTHOP(maxBop)
 {
     NEEDS(2);
-    long b = SPOP;
-    long a = SPOP;
+    cell b = SPOP;
+    cell a = SPOP;
     SPUSH( ( a > b ) ? a : b );
 }
 
 FORTHOP(icmpBop)
 {
 	NEEDS(2);
-	long b = SPOP;
-	long a = SPOP;
+	cell b = SPOP;
+	cell a = SPOP;
 	SPUSH( (a == b) ? 0 : (( a > b ) ? 1 : -1 ) );
 }
 
 FORTHOP(uicmpBop)
 {
 	NEEDS(2);
-	ulong b = (ulong) SPOP;
-	ulong a = (ulong) SPOP;
+	ucell b = (ucell) SPOP;
+	ucell a = (ucell) SPOP;
 	SPUSH( (a == b) ? 0 : (( a > b ) ? 1 : -1 ) );
 }
 
@@ -7540,21 +7824,21 @@ FORTHOP(rpBop)
 
 FORTHOP(r0Bop)
 {
-    long pR0 = (long) (pCore->RT);
+    cell pR0 = (cell) (pCore->RT);
     SPUSH( pR0 );
 }
 
 FORTHOP(dupBop)
 {
     NEEDS(1);
-    long a = *(GET_SP);
+    cell a = *(GET_SP);
     SPUSH( a );
 }
 
 FORTHOP(checkDupBop)
 {
     NEEDS(1);
-    long a = *(GET_SP);
+    cell a = *(GET_SP);
     if ( a != 0 )
     {
         SPUSH( a );
@@ -7564,7 +7848,7 @@ FORTHOP(checkDupBop)
 FORTHOP(swapBop)
 {
     NEEDS(2);
-    long a = *(GET_SP);
+    cell a = *(GET_SP);
     *(GET_SP) = (GET_SP)[1];
     (GET_SP)[1] = a;
 }
@@ -7578,14 +7862,14 @@ FORTHOP(dropBop)
 FORTHOP(overBop)
 {
     NEEDS(1);
-    long a = (GET_SP)[1];
+    cell a = (GET_SP)[1];
     SPUSH( a );
 }
 
 FORTHOP(rotBop)
 {
     NEEDS(3);
-    int a, b, c;
+    cell a, b, c;
     cell *pSP = GET_SP;
     a = pSP[2];
     b = pSP[1];
@@ -7598,7 +7882,7 @@ FORTHOP(rotBop)
 FORTHOP(reverseRotBop)
 {
     NEEDS(3);
-    int a, b, c;
+    cell a, b, c;
     cell *pSP = GET_SP;
     a = pSP[2];
     b = pSP[1];
@@ -7611,7 +7895,7 @@ FORTHOP(reverseRotBop)
 FORTHOP(nipBop)
 {
     NEEDS(2);
-    long a = SPOP;
+    cell a = SPOP;
     SPOP;
     SPUSH( a );
 }
@@ -7620,19 +7904,19 @@ FORTHOP(tuckBop)
 {
     NEEDS(2);
     cell *pSP = GET_SP;
-    long a = *pSP;
-    long b = pSP[1];
-    SPUSH( a );
-    *pSP = b;
+    cell a = *pSP;
+    cell b = pSP[1];
     pSP[1] = a;
+    *pSP = b;
+    SPUSH( a );
 }
 
 FORTHOP(pickBop)
 {
     NEEDS(1);
     cell *pSP = GET_SP;
-    long n = *pSP;
-    long a = pSP[n + 1];
+    cell n = *pSP;
+    cell a = pSP[n + 1];
     *pSP = a;
 }
 
@@ -7641,9 +7925,9 @@ FORTHOP(rollBop)
     // TODO: moves the Nth element to TOS
     // 1 roll is the same as swap
     // 2 roll is the same as rot
-    long n = (SPOP);
+    cell n = (SPOP);
     cell *pSP = GET_SP;
-    long a;
+    cell a;
 	if ( n != 0 )
 	{
 		if ( n > 0 )
@@ -7670,17 +7954,21 @@ FORTHOP(rollBop)
 
 FORTHOP(spBop)
 {
-    ulong varOp = GET_VAR_OPERATION;
+    ucell varOp = GET_VAR_OPERATION;
+#if defined(FORTH64)
+    longVarAction(pCore, (int *)&(pCore->SP));
+#else
     intVarAction(pCore, (int *)&(pCore->SP));
+#endif
     if ((varOp == kVarDefaultOp) || (varOp == kVarFetch))
     {
-        *(pCore->SP) += sizeof(long);
+        *(pCore->SP) += sizeof(cell);
     }
 }
 
 FORTHOP(s0Bop)
 {
-    long pS0 = (long) (pCore->ST);
+    cell pS0 = (cell) (pCore->ST);
     SPUSH( pS0 );
 }
 
@@ -7697,17 +7985,23 @@ FORTHOP(ipBop)
 FORTHOP(ddupBop)
 {
     NEEDS(2);
-    double *pDsp = (double *)(GET_SP);
-    DPUSH( *pDsp );
+    cell *pSP = GET_SP;
+    cell a = pSP[0];
+    cell b = pSP[1];
+    SPUSH(b);
+    SPUSH(a);
 }
 
 FORTHOP(dswapBop)
 {
     NEEDS(4);
-    double *pDsp = (double *)(GET_SP);
-    double a = *pDsp;
-    *pDsp = pDsp[1];
-    pDsp[1] = a;
+    cell *pSP = GET_SP;
+    cell a = pSP[0];
+    pSP[0] = pSP[2];
+    pSP[2] = a;
+    a = pSP[1];
+    pSP[1] = pSP[3];
+    pSP[3] = a;
 }
 
 FORTHOP(ddropBop)
@@ -7718,64 +8012,75 @@ FORTHOP(ddropBop)
 
 FORTHOP(doverBop)
 {
-    NEEDS(2);
-    double *pDsp = (double *)(GET_SP);
-    DPUSH( pDsp[1] );
+    NEEDS(4);
+    cell *pSP = GET_SP;
+    cell a = pSP[2];
+    cell b = pSP[3];
+    SPUSH(b);
+    SPUSH(a);
 }
 
 FORTHOP(drotBop)
 {
-    NEEDS(3);
-    double *pDsp = (double *)(GET_SP);
-    double a, b, c;
-    a = pDsp[2];
-    b = pDsp[1];
-    c = pDsp[0];
-    pDsp[2] = b;
-    pDsp[1] = c;
-    pDsp[0] = a;
+    NEEDS(6);
+    cell *pSP = GET_SP;
+    cell a = pSP[0];
+    cell b = pSP[1];
+    pSP[0] = pSP[4];
+    pSP[1] = pSP[5];
+    pSP[4] = pSP[2];
+    pSP[5] = pSP[3];
+    pSP[2] = a;
+    pSP[3] = b;
 }
 
-#if 0
+#if defined(FORTH64)
 FORTHOP(dreverseRotBop)
 {
-    NEEDS(3);
-    double *pDsp = (double *)(GET_SP);
-    double a, b, c;
-    a = pDsp[2];
-    b = pDsp[1];
-    c = pDsp[0];
-    pDsp[2] = c;
-    pDsp[1] = a;
-    pDsp[0] = b;
+    NEEDS(6);
+    cell *pSP = GET_SP;
+    cell a = pSP[4];
+    cell b = pSP[5];
+    pSP[4] = pSP[0];
+    pSP[5] = pSP[1];
+    pSP[0] = pSP[2];
+    pSP[1] = pSP[3];
+    pSP[2] = a;
+    pSP[3] = b;
 }
 
 FORTHOP(dnipBop)
 {
-    NEEDS(2);
-    double a = DPOP;
-    DPOP;
-    DPUSH( a );
+    NEEDS(4);
+    cell *pSP = GET_SP;
+    pSP[2] = pSP[0];
+    pSP[3] = pSP[1];
+    SET_SP(pSP + 2);
 }
 
 FORTHOP(dtuckBop)
 {
-    NEEDS(2);
-    double *pDsp = (double *)(GET_SP);
-    double a = *pDsp;
-    double b = pDsp[1];
-    DPUSH( a );
-    *pDsp = b;
-    pDsp[1] = a;
+    NEEDS(4);
+    cell *pSP = GET_SP;
+    cell a = pSP[0];
+    cell b = pSP[1];
+    pSP[0] = pSP[2];
+    pSP[1] = pSP[3];
+    pSP[2] = a;
+    pSP[3] = b;
+    SPUSH(b);
+    SPUSH(a);
 }
 
 FORTHOP(dpickBop)
 {
     NEEDS(1);
-    long n = SPOP;
-    double *pDsp = (double *)(GET_SP);
-    double a = pDsp[n];
-	DPUSH( a );
+    cell n = SPOP;
+    cell *pSP = (GET_SP + (n << 1));
+    cell a = *pSP++;
+    SPUSH(a);
+    a = *pSP++;
+    SPUSH(a);
 }
 
 FORTHOP(drollBop)
@@ -7783,29 +8088,37 @@ FORTHOP(drollBop)
     // TODO: moves the Nth element to TOS
     // 1 droll is the same as dswap
     // 2 droll is the same as drot
-    long n = (SPOP);
-    double *pDsp = (double *)(GET_SP);
-    double a;
+    cell n = SPOP;
+    cell* pSP = GET_SP;
+    cell a;
+    cell b;
 	if ( n != 0 )
 	{
 		if ( n > 0 )
 		{
-			a = pDsp[n];
-			for ( int i = n; i != 0; i-- )
+            n <<= 1;
+            a = pSP[n];
+            b = pSP[n+1];
+            for (int i = n; i != 0; i -= 2)
 			{
-				pDsp[i] = pDsp[i - 1];
+                pSP[i] = pSP[i - 2];
+                pSP[i + 1] = pSP[i - 1];
 			}
-			*pDsp = a;
+            pSP[0] = a;
+            pSP[1] = b;
 		}
 		else
 		{
-			a = *pDsp;
-			n = -n;
-			for ( int i = 0; i < n; i++ )
+			n = (-n) << 1;
+            a = pSP[0];
+            b = pSP[1];
+            for ( int i = 0; i < n; i += 2 )
 			{
-				pDsp[i] = pDsp[i + 1];
-			}
-			pDsp[n] = a;
+                pSP[i] = pSP[i + 2];
+                pSP[i + 1] = pSP[i + 3];
+            }
+            pSP[n] = a;
+            pSP[n + 1] = b;
 		}
 	}
 }
@@ -7825,22 +8138,22 @@ FORTHOP(endTupleBop)
     SPUSH( count );
 }
 
-#if 0
+#if defined(FORTH64)
 FORTHOP(ndropBop)
 {
     NEEDS(1);
-	int n = SPOP;
+    cell n = SPOP;
     SET_SP( GET_SP + n );
 }
 
 FORTHOP(ndupBop)
 {
     NEEDS(1);
-	int n = (SPOP) - 1;
-    long* pSP = (GET_SP) + n;
-	for ( int i = 0; i <= n; i++ )
+    cell n = (SPOP) - 1;
+    cell* pSP = (GET_SP) + n;
+	for (cell i = 0; i <= n; i++ )
 	{
-		long v = *pSP--;
+        cell v = *pSP--;
 		SPUSH( v );
 	}
 }
@@ -7848,12 +8161,12 @@ FORTHOP(ndupBop)
 FORTHOP(npickBop)
 {
     NEEDS(1);
-	int n = (SPOP) - 1;
-	int offset = (SPOP);
-    long* pSP = (GET_SP) + offset + n;
-	for ( int i = 0; i <= n; i++ )
+    cell n = (SPOP) - 1;
+    cell offset = (SPOP);
+    cell* pSP = (GET_SP) + offset + n;
+	for (cell i = 0; i <= n; i++ )
 	{
-		long v = *pSP--;
+        cell v = *pSP--;
 		SPUSH( v );
 	}
 	/*
@@ -7880,7 +8193,7 @@ FORTHOP(odropBop)
     POP_OBJECT(obj);
     if ((obj != nullptr) && (obj->refCount == 0))
     {
-        RPUSH(((long)GET_TP));
+        RPUSH(((cell)GET_TP));
         SET_TP(obj);
         pEngine->ExecuteOp(pCore, obj->pMethods[0]);
     }
@@ -7895,7 +8208,15 @@ FORTHOP(storeBop)
 {
     NEEDS(2);
     cell* pB = (cell* )(SPOP); 
-    long a = SPOP;
+    cell a = SPOP;
+    *pB = a;
+}
+
+FORTHOP(istoreBop)
+{
+    NEEDS(2);
+    int* pB = (int*)(SPOP);
+    int a = (int)SPOP;
     *pB = a;
 }
 
@@ -7909,9 +8230,19 @@ FORTHOP(ifetchBop)
 FORTHOP(storeNextBop)
 {
     NEEDS(2);
+    cell **ppB = (cell **)(SPOP);
+    cell *pB = *ppB;
+    cell a = SPOP;
+    *pB++ = a;
+    *ppB = pB;
+}
+
+FORTHOP(istoreNextBop)
+{
+    NEEDS(2);
     long **ppB = (long **)(SPOP);
     long *pB = *ppB;
-    long a = SPOP;
+    long a = (long)SPOP;
     *pB++ = a;
     *ppB = pB;
 }
@@ -7919,10 +8250,20 @@ FORTHOP(storeNextBop)
 FORTHOP(fetchNextBop)
 {
     NEEDS(1);
-    long **ppA = (long **)(SPOP); 
+    cell **ppA = (cell **)(SPOP);
+    cell *pA = *ppA;
+    cell a = *pA++;
+    SPUSH( a );
+    *ppA = pA;
+}
+
+FORTHOP(ifetchNextBop)
+{
+    NEEDS(1);
+    long **ppA = (long **)(SPOP);
     long *pA = *ppA;
     long a = *pA++;
-    SPUSH( a );
+    SPUSH(a);
     *ppA = pA;
 }
 
@@ -7973,7 +8314,7 @@ FORTHOP(c2iBop)
 {
     NEEDS(1);
     signed char a = (signed char) (SPOP);
-	long b = (long) a;
+	cell b = (cell) a;
     SPUSH( b );
 }
 
@@ -8024,7 +8365,7 @@ FORTHOP(w2iBop)
 {
     NEEDS(1);
     short a = (short) (SPOP);
-	long b = (long) a;
+	cell b = (cell) a;
     SPUSH( b );
 }
 
@@ -8250,14 +8591,14 @@ FORTHOP( strchrBop )
 {
     int c = (int) SPOP;
     char *pStr = (char *) SPOP;
-    SPUSH( (long) strchr( pStr, c ) );
+    SPUSH( (cell) strchr( pStr, c ) );
 }
 
 FORTHOP( strrchrBop )
 {
     int c = (int) SPOP;
     char *pStr = (char *) SPOP;
-    SPUSH( (long) strrchr( pStr, c ) );
+    SPUSH( (cell) strrchr( pStr, c ) );
 }
 
 FORTHOP( strcmpBop )
@@ -8270,7 +8611,7 @@ FORTHOP( strcmpBop )
 	{
 		result = (result > 0) ? 1 : -1;
 	}
-	SPUSH( (long) result );
+	SPUSH( (cell) result );
 }
 
 FORTHOP( stricmpBop )
@@ -8287,7 +8628,7 @@ FORTHOP( stricmpBop )
 	{
 		result = (result > 0) ? 1 : -1;
 	}
-	SPUSH( (long) result );
+	SPUSH( (cell) result );
 }
 
 FORTHOP(strncmpBop)
@@ -8301,7 +8642,7 @@ FORTHOP(strncmpBop)
     {
         result = (result > 0) ? 1 : -1;
     }
-    SPUSH((long)result);
+    SPUSH((cell)result);
 }
 
 
@@ -8309,7 +8650,7 @@ FORTHOP( strstrBop )
 {
     char *pStr2 = (char *) SPOP;
     char *pStr1 = (char *) SPOP;
-    SPUSH( (long) strstr( pStr1, pStr2 ) );
+    SPUSH( (cell) strstr( pStr1, pStr2 ) );
 }
 
 
@@ -8317,7 +8658,7 @@ FORTHOP( strtokBop )
 {
     char *pStr2 = (char *) SPOP;
     char *pStr1 = (char *) SPOP;
-    SPUSH( (long) strtok( pStr1, pStr2 ) );
+    SPUSH( (cell) strtok( pStr1, pStr2 ) );
 }
 
 FORTHOP( initStringBop )
@@ -8392,7 +8733,7 @@ FORTHOP( doDConstantBop )
 
 FORTHOP( thisBop )
 {
-    SPUSH( ((long) GET_TP) );
+    SPUSH( ((cell) GET_TP) );
 }
 
 FORTHOP(unsuperBop)
@@ -8407,7 +8748,7 @@ FORTHOP(unsuperBop)
 FORTHOP( doStructBop )
 {
     // IP points to data field
-    SPUSH( (long) GET_IP );
+    SPUSH( (cell) GET_IP );
     SET_IP( (forthop*) (RPOP) );
 }
 
@@ -8420,7 +8761,7 @@ FORTHOP( doStructArrayBop )
     forthop*pA = GET_IP;
     long nBytes = (*pA++) * SPOP;
 
-    SPUSH( ((long) pA) + nBytes );
+    SPUSH( ((cell) pA) + nBytes );
     SET_IP( (forthop*) (RPOP) );
 }
 
@@ -8454,7 +8795,7 @@ FORTHOP( fopenBop )
     char *pName = (char *) SPOP;
 
     FILE *pFP = pCore->pFileFuncs->fileOpen( pName, pAccess );
-    SPUSH( (long) pFP );
+    SPUSH( (cell) pFP );
 }
 
 FORTHOP( fcloseBop )
@@ -8556,7 +8897,7 @@ FORTHOP( fgetsBop )
     FILE* pFile = (FILE *) SPOP;
     int maxChars = SPOP;
     char* pBuffer = (char *) SPOP;
-    int result = (int) pCore->pFileFuncs->fileGetString( pBuffer, maxChars, pFile );
+    cell result = (cell) pCore->pFileFuncs->fileGetString( pBuffer, maxChars, pFile );
     SPUSH( result );
 }
 
@@ -8565,21 +8906,21 @@ FORTHOP( fputsBop )
     NEEDS( 2 );
     FILE* pFile = (FILE *) SPOP;
     char* pBuffer = (char *) SPOP;
-    int result = pCore->pFileFuncs->filePutString( pBuffer, pFile );
+    cell result = (cell) pCore->pFileFuncs->filePutString( pBuffer, pFile );
     SPUSH( result );
 }
 
 FORTHOP( hereBop )
 {
     ForthEngine *pEngine = GET_ENGINE;
-	SPUSH((int)(pCore->pDictionary->pCurrent));
+	SPUSH((cell)(pCore->pDictionary->pCurrent));
 }
 
 FORTHOP( dpBop )
 {
     ForthEngine *pEngine = GET_ENGINE;
     int *pDP = (int *)&(pCore->pDictionary->pCurrent);
-    SPUSH((int)pDP);
+    SPUSH((cell)pDP);
 }
 
 FORTHOP( archARMBop )
@@ -8819,9 +9160,8 @@ FORTHOP(scEndIndentOp)
 FORTHOP(scShowHeaderOp)
 {
 	ForthShowContext* pShowContext = ((ForthThread *)(pCore->pThread))->GetShowContext();
-    forthop* pMethods = GET_TP->pMethods;
-    ForthClassObject* classObject = (ForthClassObject *)((GET_TP->pMethods)[-1]);
-    pShowContext->ShowHeader(pCore, classObject->pVocab->GetName(), GET_TP);
+    ForthClassObject* pClassObject = GET_CLASS_OBJECT(GET_TP);
+    pShowContext->ShowHeader(pCore, pClassObject->pVocab->GetName(), GET_TP);
 }
 
 FORTHOP(scShowIndentOp)
@@ -8910,23 +9250,23 @@ extern GFORTHOP( doObjectArrayBop );
 typedef struct {
    const char       *name;
    ulong            flags;
-   ulong            value;
-   int				index;
+   void*            value;
+   int              index;
 } baseDictionaryCompiledEntry;
 
 // helper macro for built-in op entries in baseDictionary
-#define OP_DEF( func, funcName )  { funcName, kOpCCode, (ulong) func }
-#define OP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCode, (ulong) func, index }
+#define OP_DEF( func, funcName )  { funcName, kOpCCode, func }
+#define OP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCode, func, index }
 
 // helper macro for ops which have precedence (execute at compile time)
-#define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate, (ulong) func }
-#define PRECOP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCodeImmediate, (ulong) func, index }
+#define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate,func }
+#define PRECOP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCodeImmediate, func, index }
 
 #ifdef ASM_INNER_INTERPRETER
 
 // helper macro for built-in op entries in baseDictionary
-#define NATIVE_DEF( func, funcName )  { funcName, kOpNative, (ulong) func }
-#define NATIVE_COMPILED_DEF( func, funcName, index ) { funcName, kOpNative, (ulong) func, index }
+#define NATIVE_DEF( func, funcName )  { funcName, kOpNative, func }
+#define NATIVE_COMPILED_DEF( func, funcName, index ) { funcName, kOpNative, func, index }
 
 #define OPREF extern GFORTHOP
 
@@ -9052,8 +9392,8 @@ OPREF(dmixBlockBop);
 #else
 
 // helper macro for built-in op entries in baseDictionary
-#define NATIVE_DEF( func, funcName )  { funcName, kOpCCode, (ulong) func }
-#define NATIVE_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCode, (ulong) func, index }
+#define NATIVE_DEF( func, funcName )  { funcName, kOpCCode, (forthop*) func }
+#define NATIVE_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCode, (forthop*) func, index }
 
 #endif
 
@@ -9351,7 +9691,7 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    drotBop,                 "2rot" ),
     NATIVE_DEF(    startTupleBop,           "r[" ),
     NATIVE_DEF(    endTupleBop,             "]r" ),
-#if 0
+#if defined(FORTH64)
     NATIVE_DEF(    dreverseRotBop,          "-2rot" ),
     NATIVE_DEF(    dnipBop,                 "2nip" ),
     NATIVE_DEF(    dtuckBop,                "2tuck" ),
@@ -9380,6 +9720,10 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    wfetchNextBop,           "w@@++" ),
     NATIVE_DEF(    swfetchBop,              "sw@" ),
     NATIVE_DEF(    w2iBop,                  "w2i" ),
+    NATIVE_DEF(    istoreBop,               "i!" ),
+    NATIVE_DEF(    ifetchBop,               "i@" ),
+    NATIVE_DEF(    istoreNextBop,           "i@!++" ),
+    NATIVE_DEF(    ifetchNextBop,           "i@@++" ),
     NATIVE_DEF(    dstoreBop,               "2!" ),
     NATIVE_DEF(    dstoreNextBop,           "2@!++" ),
     NATIVE_DEF(    dfetchNextBop,           "2@@++" ),
@@ -9630,6 +9974,11 @@ baseDictionaryEntry baseDictionary[] =
     PRECOP_DEF(doubleOp,               "double" ),
     PRECOP_DEF(stringOp,               "string" ),
     PRECOP_DEF(opOp,                   "op" ),
+#if defined(FORTH64)
+    PRECOP_DEF(longOp,                 "cell" ),
+#else
+    PRECOP_DEF(intOp,                  "cell" ),
+#endif
     //PRECOP_DEF(objectOp,               "object" ),
     PRECOP_DEF(voidOp,                 "void" ),
     PRECOP_DEF(arrayOfOp,              "arrayOf" ),
@@ -9959,6 +10308,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( windowsOp,					"WINDOWS" ),
     OP_DEF( linuxOp,					"LINUX" ),
     OP_DEF( macosxOp,					"MACOSX" ),
+    OP_DEF( forth64Op,					"FORTH64" ),
 
     OP_DEF( pathSeparatorOp,            "PATH_SEPARATOR"),
 

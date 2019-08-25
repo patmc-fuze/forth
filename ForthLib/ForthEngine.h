@@ -64,7 +64,7 @@ private:
 	char*               mpCurrent;
 	char*               mpBase;
 	char*				mpLimit;
-	ulong               mNumBytes;
+	size_t              mNumBytes;
 };
 
 struct ForthLabelReference
@@ -96,7 +96,7 @@ public:
 
 	void CompileBranch(forthop *inBranchIP, int inBranchType)
 	{
-		int offset = (labelIP - inBranchIP) - 1;
+		cell offset = (labelIP - inBranchIP) - 1;
 		*inBranchIP = COMPILED_OP(inBranchType, offset);
 	}
 
@@ -133,8 +133,8 @@ public:
 // ForthEnumInfo is compiled with each enum defining word
 struct ForthEnumInfo
 {
-    long size;                  // enum size in bytes (default to 4)
     ForthVocabulary* pVocab;    // ptr to vocabulary enum is defined in
+    long size;                  // enum size in bytes (default to 4)
     long numEnums;              // number of enums defined
     long vocabOffset;           // offset in longs from top of vocabulary to last enum symbol defined
     char nameStart;             // enum name string (including null terminator) plus zero padding to next longword
@@ -171,9 +171,9 @@ public:
 	eForthResult		FullyExecuteMethod(ForthCoreState* pCore, ForthObject& obj, int methodNum);
 
     // add an op to the operator dispatch table. returns the assigned opcode (without type field)
-    forthop         AddOp( const forthop *pOp );
+    forthop         AddOp( const void *pOp );
     forthop         AddUserOp( const char *pSymbol, forthop** pEntryOut=NULL, bool smudgeIt=false );
-    forthop*        AddBuiltinOp( const char* name, ulong flags, forthop value );
+    forthop*        AddBuiltinOp( const char* name, ulong flags, void* value );
     void            AddBuiltinOps( baseDictionaryEntry *pEntries );
 
 	ForthClassVocabulary*   StartClassDefinition(const char* pClassName, eBuiltinClassIndex classIndex = kNumBuiltinClasses);
@@ -244,9 +244,11 @@ public:
 #if defined(DEBUG)
     void                    CompileLong(long v);
     void                    CompileDouble(double v);
+    void                    CompileCell(cell v);
 #else
     inline void             CompileLong(long v) { *mDictionary.pCurrent++ = v; };
     inline void             CompileDouble(double v) { *((double *)mDictionary.pCurrent) = v; mDictionary.pCurrent += 2; };
+    inline void             CompileCell(cell v) { *((cell*)mDictionary.pCurrent) = v; mDictionary.pCurrent += CELL_LONGS; };
 #endif
 	void					CompileOpcode( forthOpType opType, forthop opVal );
     void			        PatchOpcode(forthOpType opType, forthop opVal, forthop* pOpcode);
@@ -259,8 +261,8 @@ public:
     void                    ProcessConstant( long value, bool isOffset=false );
     void                    ProcessLongConstant( int64_t value );
     inline void             AllotLongs( int n ) { mDictionary.pCurrent += n; };
-	inline void             AllotBytes( int n )	{ mDictionary.pCurrent = reinterpret_cast<forthop*>(reinterpret_cast<int>(mDictionary.pCurrent) + n); };
-    inline void             AlignDP( void ) { mDictionary.pCurrent = (forthop*)(( ((int)mDictionary.pCurrent) + (sizeof(forthop) - 1))
+	inline void             AllotBytes( int n )	{ mDictionary.pCurrent = reinterpret_cast<forthop*>(reinterpret_cast<cell>(mDictionary.pCurrent) + n); };
+    inline void             AlignDP( void ) { mDictionary.pCurrent = (forthop*)(( ((cell)mDictionary.pCurrent) + (sizeof(forthop) - 1))
                                                                                     & ~(sizeof(forthop) - 1)); };
     inline ForthMemorySection* GetDictionaryMemorySection() { return &mDictionary; };
 
@@ -360,7 +362,7 @@ public:
 	// if inNumChars is null and inText is not null, strlen(inText) is used for temp string size
 	// if both inText and inNumChars are null, an uninitialized space of 255 chars is allocated
 	char*					AddTempString(const char* inText = nullptr, int inNumChars = -1);
-    inline long             UnusedTempStringSpace() { return (mStringBufferASize - (mpStringBufferANext - mpStringBufferA)); }
+    inline cell             UnusedTempStringSpace() { return (mStringBufferASize - (mpStringBufferANext - mpStringBufferA)); }
 
     void                    AddGlobalObjectVariable(ForthObject* pObject);
     void                    CleanupGlobalObjectVariables(forthop* pNewDP);
@@ -399,7 +401,7 @@ protected:
     int         mStringBufferASize;
 
     char        *mpTempBuffer;
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
     CRITICAL_SECTION* mpTempBufferLock;
 #else
     pthread_mutex_t* mpTempBufferLock;
@@ -467,7 +469,7 @@ protected:
 
     ForthEnumInfo*  mpNewestEnum;
 
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
 #ifdef MSDEV
     //struct _timeb   mStartTime;
 	struct __timeb32	mStartTime;

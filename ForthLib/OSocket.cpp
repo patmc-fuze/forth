@@ -8,7 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <map>
-#if defined(WIN32)
+#include "Forth.h"
+#if defined(WINDOWS_BUILD)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
@@ -86,9 +87,9 @@ namespace OSocket
         GET_THIS(oSocketStruct, pSocket);
         startupSockets();
 
-        pSocket->protocol = SPOP;
-        pSocket->type = SPOP;
-        pSocket->domain = SPOP;
+        pSocket->protocol = (int)SPOP;
+        pSocket->type = (int)SPOP;
+        pSocket->domain = (int)SPOP;
         pSocket->fd = socket(pSocket->domain, pSocket->type, pSocket->protocol);
 #ifdef WIN32
         if (pSocket->fd == -1)
@@ -119,9 +120,9 @@ namespace OSocket
     {
         GET_THIS(oSocketStruct, pSocket);
 
-        socklen_t addrLen = SPOP;
-        int addr = SPOP;
-        int result = bind(pSocket->fd, (const struct sockaddr *)addr, addrLen);
+        socklen_t addrLen = (socklen_t)SPOP;
+        int addr = (int)SPOP;
+        cell result = (cell)bind(pSocket->fd, (const struct sockaddr *)addr, addrLen);
 #ifdef WIN32
         if (result < 0)
         {
@@ -136,8 +137,8 @@ namespace OSocket
     {
         GET_THIS(oSocketStruct, pSocket);
 
-        int backlog = SPOP;
-        int result = listen(pSocket->fd, backlog);
+        int backlog = (int)SPOP;
+        cell result = (cell)listen(pSocket->fd, backlog);
 #ifdef WIN32
         if (result < 0)
         {
@@ -155,7 +156,7 @@ namespace OSocket
         //int accept4(int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags);
         socklen_t *addrLen = (socklen_t *)(SPOP);
         struct sockaddr *addr = (struct sockaddr *)(SPOP);
-        int result = accept(pSocket->fd, addr, addrLen);
+        cell result = (cell)accept(pSocket->fd, addr, addrLen);
         if (result != -1)
         {
             ForthClassVocabulary *pClassVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCISocket);
@@ -179,9 +180,9 @@ namespace OSocket
     {
         GET_THIS(oSocketStruct, pSocket);
 
-        socklen_t addrLen = SPOP;
+        socklen_t addrLen = (socklen_t)SPOP;
         const struct sockaddr *addr = (const struct sockaddr *)(SPOP);
-        int result = connect(pSocket->fd, addr, addrLen);
+        cell result = (cell)connect(pSocket->fd, addr, addrLen);
         SPUSH(result);
         METHOD_RETURN;
     }

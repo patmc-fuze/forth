@@ -146,6 +146,24 @@ Double and long memory and stack layouts:
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 24 2019
+
+A lot of test.txt now works in Forth64, directory.txt displays all blank
+entries, forthtest.txt shows 4 errors, and ansitest.txt gets a stack underflow
+at line 86.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 20 2019
+
+Forth64 is beginning to work.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 17 2019
+
+For some reason, when adding a symbol which has an address associated with it,
+instead of first having the engine assign an opcode and then calling
+ForthVocabulary::AddSymbol when you know the opcode, I have code call AddSymbol
+with the address and a flag that says to add the op to the engine.  That is making
+things a little ugly in the 64-bit version, I may just undo that.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 July 15 2019
 
 I changed the exception handling by replacing the 2 handler IPs compiled just
@@ -187,7 +205,13 @@ Things which will be a problem:
 + exception handlers try/except/finally - handlers use full size pointers, not forthop sized offsets
 - class vocabulary object pointer at methods[-1] will be 64-bits while methods are 32-bits, so code
   which gets the class object will need to be size aware
+  - also change anything which allocated methods tables
 + input streams input state
+- ForthVocabulary::AddSymbol - symValue was always 32 bits, now it is sometimes
+  32 bits, sometimes 64 bits
+- structOp - compiles vocabulary address as a longword right after doStruct op
+- look at all CompileLongs to see if they need to be CompileCell
+- enums - the defining vocab ptr is now 64-bits, fields below it have changed offset
 
 Probably the right thing to do for any stacks which can have pointers should be
 declared with their elements the size of pointers.

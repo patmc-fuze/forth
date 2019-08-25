@@ -106,7 +106,7 @@ namespace
         return pShell->FileGetPosition( pFile );
     }
 
-    int fileGetLength( FILE* pFile )
+    long fileGetLength( FILE* pFile )
     {
         ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
         return pShell->FileGetLength( pFile );
@@ -240,7 +240,7 @@ namespace
 		else
 		{
 			TCHAR buffer[1000];
-			wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
+            StringCchVPrintfA(buffer, sizeof(buffer), pFormat, argList);
 
 			OutputDebugString(buffer);
 		}

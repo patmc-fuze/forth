@@ -274,7 +274,7 @@ namespace OMap
     FORTHOP(oMapCountMethod)
     {
         GET_THIS(oMapStruct, pMap);
-        SPUSH((long)(pMap->elements->size()));
+        SPUSH((cell)(pMap->elements->size()));
         METHOD_RETURN;
     }
 
@@ -439,7 +439,7 @@ namespace OMap
 		METHOD("remove", oMapRemoveMethod),
 		METHOD("unref", oMapUnrefMethod),
 
-		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -623,7 +623,7 @@ namespace OMap
         METHOD_RET("currentPair", oMapIterCurrentPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIMap)),
-		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -838,7 +838,7 @@ namespace OMap
     FORTHOP(oIntMapCountMethod)
     {
         GET_THIS(oIntMapStruct, pMap);
-        SPUSH((long)(pMap->elements->size()));
+        SPUSH((cell)(pMap->elements->size()));
         METHOD_RETURN;
     }
 
@@ -989,7 +989,7 @@ namespace OMap
 		METHOD("remove", oIntMapRemoveMethod),
 		METHOD("unref", oIntMapUnrefMethod),
 
-		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1170,7 +1170,7 @@ namespace OMap
         METHOD_RET("currentPair", oIntMapIterCurrentPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIIntMap)),
-		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1495,7 +1495,7 @@ namespace OMap
 		METHOD("remove", oFloatMapRemoveMethod),
 		METHOD("unref", oFloatMapUnrefMethod),
 
-		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1703,7 +1703,7 @@ namespace OMap
     FORTHOP(oLongMapCountMethod)
     {
         GET_THIS(oLongMapStruct, pMap);
-        SPUSH((long)(pMap->elements->size()));
+        SPUSH((cell)(pMap->elements->size()));
         METHOD_RETURN;
     }
 
@@ -1861,7 +1861,7 @@ namespace OMap
 		METHOD("remove", oLongMapRemoveMethod),
 		METHOD("unref", oLongMapUnrefMethod),
 
-		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -2044,7 +2044,7 @@ namespace OMap
         METHOD_RET("currentPair", oLongMapIterCurrentPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
         
         MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCILongMap)),
-		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -2265,7 +2265,7 @@ namespace OMap
     FORTHOP(oDoubleMapCountMethod)
     {
         GET_THIS(oDoubleMapStruct, pMap);
-        SPUSH((long)(pMap->elements->size()));
+        SPUSH((cell)(pMap->elements->size()));
         METHOD_RETURN;
     }
 
@@ -2416,7 +2416,7 @@ namespace OMap
 		METHOD("remove", oDoubleMapRemoveMethod),
 		METHOD("unref", oDoubleMapUnrefMethod),
 
-		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -2596,7 +2596,7 @@ namespace OMap
         METHOD_RET("currentPair", oDoubleMapIterCurrentPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIDoubleMap)),
-		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -2776,7 +2776,7 @@ namespace OMap
     FORTHOP(oStringIntMapCountMethod)
     {
         GET_THIS(oStringIntMapStruct, pMap);
-        SPUSH((long)(pMap->elements->size()));
+        SPUSH((cell)(pMap->elements->size()));
         METHOD_RETURN;
     }
 
@@ -2851,7 +2851,7 @@ namespace OMap
 			if (iter->second == soughtVal)
 			{
 				found = ~0;
-                SPUSH(((long)(iter->first.c_str())));
+                SPUSH(((cell)(iter->first.c_str())));
                 break;
 			}
 		}
@@ -2892,7 +2892,7 @@ namespace OMap
         METHOD_RET("findValue", oStringIntMapFindValueMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oStringIntMapRemoveMethod),
 
-		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -3045,7 +3045,7 @@ namespace OMap
         {
             int val = (*(pIter->cursor))->second;
             SPUSH(val);
-            SPUSH((long)(*(pIter->cursor))->first.c_str());
+            SPUSH((cell)(*(pIter->cursor))->first.c_str());
             SPUSH(~0);
         }
         METHOD_RETURN;
@@ -3070,7 +3070,7 @@ namespace OMap
         METHOD_RET("currentPair", oStringIntMapIterCurrentPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
         
         MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIStringIntMap)),
-		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -3329,7 +3329,7 @@ namespace OMap
     FORTHOP(oStringLongMapCountMethod)
     {
         GET_THIS(oStringLongMapStruct, pMap);
-        SPUSH((long)(pMap->elements->size()));
+        SPUSH((cell)(pMap->elements->size()));
         METHOD_RETURN;
     }
 
@@ -3409,7 +3409,7 @@ namespace OMap
 			if (iter->second == soughtVal.s64)
 			{
 				found = ~0;
-                SPUSH(((long)(iter->first.c_str())));
+                SPUSH(((cell)(iter->first.c_str())));
                 break;
 			}
 		}
@@ -3450,7 +3450,7 @@ namespace OMap
         METHOD_RET("findValue", oStringLongMapFindValueMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("remove", oStringLongMapRemoveMethod),
 
-		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__elements", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -3577,7 +3577,7 @@ namespace OMap
             stackInt64 val;
             val.s64 = (*(pIter->cursor))->second;
             LPUSH(val);
-            SPUSH((long)(*(pIter->cursor))->first.c_str());
+            SPUSH((cell)(*(pIter->cursor))->first.c_str());
             SPUSH(~0);
         }
         METHOD_RETURN;
@@ -3612,7 +3612,7 @@ namespace OMap
         METHOD("remove", oStringLongMapIterRemoveMethod),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIStringLongMap)),
-		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__cursor", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS

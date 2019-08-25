@@ -14,6 +14,7 @@
 #include <afx.h>
 #include <afxwin.h>
 #include <afxtempl.h>
+#include <strsafe.h>
 #else
 #include <windows.h>
 

@@ -8,7 +8,9 @@
 #pragma comment(lib, "wininet.lib")
 
 #include <stdio.h>
-#ifdef WIN32
+#if defined(WIN64)
+#include <ws2tcpip.h>
+#elif defined(WIN32)
 #include <winsock2.h>
 #include <windows.h>
 #else
@@ -33,7 +35,7 @@ namespace
 {
 	void ErrorExit( const char* message )
 	{
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
         shutdownSockets();
 #else
 		// TODO
@@ -44,8 +46,8 @@ namespace
 int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned short portNum )
 {
     char errorMessage[128];
-	unsigned long ipAddress;
-#ifdef WIN32
+	unsigned long ipAddress = 0;
+#if defined(WINDOWS_BUILD)
     startupSockets();
 #else
 		// TODO
@@ -60,7 +62,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
     SOCKET ConnectSocket;
     //ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     ConnectSocket = socket(AF_INET, SOCK_STREAM, 0);
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
     if (ConnectSocket == INVALID_SOCKET)
     {
         sprintf( errorMessage, "Error at socket(): %ld", WSAGetLastError() );
@@ -86,7 +88,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
     //----------------------
     // Connect to server.
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
     if ( connect( ConnectSocket, (SOCKADDR*) &clientService, sizeof(clientService) ) == SOCKET_ERROR) {
         sprintf( errorMessage, "Failed to connect." );
         ErrorExit( errorMessage );
@@ -452,7 +454,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                 {
                     int fileHandle;
                     pMsgPipe->ReadInt( fileHandle );
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
                     int result = _dup( fileHandle );
 #else
                     int result = dup( fileHandle );
@@ -470,7 +472,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                     int dstFileHandle;
                     pMsgPipe->ReadInt( srcFileHandle );
                     pMsgPipe->ReadInt( dstFileHandle );
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
                     int result = _dup2( srcFileHandle, dstFileHandle );
 #else
                     int result = dup2( srcFileHandle, dstFileHandle );
@@ -486,7 +488,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                 {
                     int file;
                     pMsgPipe->ReadInt( file );
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
                     int result = _fileno( (FILE *) file );
 #else
                     int result = fileno( (FILE *) file );
@@ -542,7 +544,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 					int mode;
                     pMsgPipe->ReadString( pString );
                     pMsgPipe->ReadInt( mode );
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
                     int result = mkdir( pString );
 #else
                     int result = mkdir( pString, mode );
@@ -604,7 +606,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
     }   // end     while ( !done )
 
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
     shutdownSockets();
 #else
     // TODO

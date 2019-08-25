@@ -6,7 +6,7 @@
 //////////////////////////////////////////////////////////////////////
 
 
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
 #include <winsock2.h>
 #else
 #include <sys/socket.h>

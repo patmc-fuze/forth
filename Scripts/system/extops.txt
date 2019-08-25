@@ -1,5 +1,35 @@
 // basic ops not included in the kernel
 
+FORTH64 [if]
+
+: abs dup 0< if negate endif ;
+: +! dup @ rot + swap ! ;
+: 1+! dup @ 1+ swap ! ;
+: 1+! dup @ 1- swap ! ;
+
+: lnegate negate ;
+: labs abs ;
+
+: dpi 3.1415928d ;  // TODO: better constant
+: dsq abort ;
+  
+// this requires that caller not have extra junk on return stack
+: tailRecurse abort ;
+
+: 2>r abort ;
+: 2r> abort ;
+: 2r@ abort ;
+: */ abort ;
+: */mod abort ;
+: um/mod abort ;
+: sm/rem abort ;
+: compareMemory abort ;
+
+loaddone
+
+[else]
+
+
 ARCH_X86 [if]
 
 lf extops_x86.txt
@@ -10,6 +40,7 @@ ARCH_ARM [if]
 
 lf extops_arm.txt
 
+[endif]
 [endif]
 [endif]
 

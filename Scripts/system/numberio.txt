@@ -10,11 +10,11 @@ base @ decimal
 250 constant padSize
 variable pad padSize allot
 
-variable holdbuf padSize allot				// permanent base of hold buffer
+variable holdbuf padSize allot				    // permanent base of hold buffer
 align
-holdbuf padSize 1- + -> int holdbuf-end		// permanent end of hold buffer
-int holdptr									// current pos in hold buffer (grows downward)
-int holdend									// current nested end of hold buffer
+holdbuf padSize 1- + -> ptrTo byte holdbuf-end	// permanent end of hold buffer
+ptrTo byte holdptr								// current pos in hold buffer (grows downward)
+ptrTo byte holdend								// current nested end of hold buffer
 
 // hold <# #> sign # #s                                 25jan92py
 
@@ -37,7 +37,14 @@ int holdend									// current nested end of hold buffer
 <#
 
 // finish numeric output and return the address and length of string
-: #> 2drop holdptr holdend over - ;
+: #>
+#if FORTH64
+  drop
+#else
+  2drop
+#endif
+  holdptr holdend over -
+;
 
 // start a nested numeric output
 : <<#
@@ -65,11 +72,15 @@ int holdend									// current nested end of hold buffer
 // generate one digit of numeric output
 // takes unsigned 64-bit on TOS, leaves same after dividing by base
 : #
+#if FORTH64
+  base @ ud/mod swap 9 over
+#else
   base @ ud/mod rot 9 over
+#endif
   if( < )
-    'A' '9' - 1- +
+    14+    // 'A' '9' - 1- +
   endif
-  hold( '0' + )
+  hold(48+)   // '0' +
 ;
 
 // generate all remaining numeric output digits
@@ -77,19 +88,34 @@ int holdend									// current nested end of hold buffer
 : #s      //( ud -- 0 0 ) \ core	number-sign-s
   begin
     #
-  until( 2dup l0= )
+#if FORTH64
+    dup 0=
+#else
+    2dup l0=
+#endif
+  until
 ;
 
-// ( D WIDTH -- )   display signed long number D in a filed WIDTH characters wide
+// ( D WIDTH -- )   display signed long number D in a field WIDTH characters wide
 : d.r
+#if FORTH64
+  >r dup abs    // ps: abs sign    rs: minFieldWidth
+  <<# #s  swap sign #>  // ps: stringLen stringAddrInHold
+  r> over - spaces  type #>>
+#else
   >r dup -rot labs    // ps: abs(long) sign    rs: minFieldWidth
   <<# #s  rot sign #>
   r> over - spaces  type #>>
+#endif
 ;
     
 // (UD WIDTH --)   display unsigned long number UD in a filed WIDTH characters wide
 : ud.r >r <<# #s #> r> over - spaces type #>> ;
 
+#if FORTH64
+alias .r d.r
+alias u.r ud.r
+#else
 : .r // n1 n2 -- ) \ core-ext	dot-r
     // Display n1 right-aligned in a field n2 characters wide. If more than
     // n2 characters are needed to display the number, all digits are displayed.
@@ -100,18 +126,23 @@ int holdend									// current nested end of hold buffer
     // Display @var{u} right-aligned in a field @var{n} characters wide. If more than
     // @var{n} characters are needed to display the number, all digits are displayed.
     0 swap ud.r ;
+#endif
 
 // display unsigned long number in free format followed by space
 : d. 0 d.r %bl ;
 
 // display unsigned long number in free format followed by space
 : ud. 0 ud.r %bl ;
-    
+
+#if FORTH64
+alias . d.
+alias u. ud.
+#else
 // display signed single number in free format followed by space
 : . i2l d. ;
-    
 
 // display unsigned single number in free format followed by space
 : u. 0 ud. ;
+#endif
 
 base !

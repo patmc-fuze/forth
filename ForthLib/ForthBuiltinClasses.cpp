@@ -46,7 +46,7 @@ extern "C" {
 	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
 	extern void unimplementedMethodOp( ForthCoreState *pCore );
 	extern void illegalMethodOp( ForthCoreState *pCore );
-	extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
+	extern cell oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 };
 
 #ifdef WIN32
@@ -118,7 +118,7 @@ namespace
     {
         ForthObject obj = GET_TP;
         ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        ForthClassObject* pClassObject = (ForthClassObject *)(*((obj->pMethods)-1));
+        ForthClassObject* pClassObject = GET_CLASS_OBJECT(obj);
         ForthEngine *pEngine = ForthEngine::GetInstance();
 
         if (pShowContext->ObjectAlreadyShown(obj))
@@ -159,7 +159,7 @@ namespace
     {
         ForthObject obj = GET_TP;
         ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-        ForthClassObject* pClassObject = (ForthClassObject *)(*((obj->pMethods)-1));
+        ForthClassObject* pClassObject = GET_CLASS_OBJECT(obj);
         ForthEngine *pEngine = ForthEngine::GetInstance();
 
         pClassObject->pVocab->ShowDataInner(GET_TP, pCore);
@@ -172,8 +172,7 @@ namespace
 		// we could store it in the slot for method 0, but that would be kind of clunky - also,
 		// would slot 0 of non-primary interfaces also have to hold it?
 		// the class object is stored in the long before method 0
-        ForthObject obj = GET_TP;
-        ForthClassObject* pClassObject = (ForthClassObject *)(*((obj->pMethods) - 1));
+        ForthClassObject* pClassObject = GET_CLASS_OBJECT(GET_TP);
         PUSH_OBJECT(pClassObject);
 		METHOD_RETURN;
 	}
@@ -228,8 +227,8 @@ namespace
 		METHOD_RET("compare", objectCompareMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD("keep", objectKeepMethod),
 		METHOD("release", objectReleaseMethod),
-        MEMBER_VAR("__methods", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("__refCount", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__methods", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+        MEMBER_VAR("__refCount", NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell)),
         // following must be last in table
 		END_MEMBERS
 	};
@@ -259,7 +258,7 @@ namespace
 	FORTHOP(classCreateMethod)
 	{
 		ForthClassObject* pClassObject = (ForthClassObject *)(GET_TP);
-		SPUSH((long)pClassObject->pVocab);
+		SPUSH((cell)pClassObject->pVocab);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
 		METHOD_RETURN;
 		pEngine->ExecuteOp(pCore, pClassObject->newOp);
@@ -284,14 +283,14 @@ namespace
 		ForthClassObject* pClassObject = (ForthClassObject *)(GET_TP);
 		ForthClassVocabulary* pClassVocab = pClassObject->pVocab;
 		const char* pName = pClassVocab->GetName();
-		SPUSH((long)pName);
+		SPUSH((cell)pName);
 		METHOD_RETURN;
 	}
 
 	FORTHOP(classVocabularyMethod)
 	{
 		ForthClassObject* pClassObject = (ForthClassObject *)(GET_TP);
-		SPUSH((long)(pClassObject->pVocab->GetClassObject()));
+		SPUSH((cell)(pClassObject->pVocab->GetClassObject()));
 		METHOD_RETURN;
 	}
 
@@ -326,7 +325,7 @@ namespace
         METHOD_RET("getTypeIndex", classGetTypeIndexMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD("setNew", classSetNewMethod),
 
-		MEMBER_VAR("vocab", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__vocab", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 		MEMBER_VAR("newOp", NATIVE_TYPE_TO_CODE(0, kBaseTypeOp)),
 
 		// following must be last in table
@@ -389,8 +388,8 @@ bool ForthShowAlreadyShownObject(ForthObject obj, ForthCoreState* pCore, bool ad
 	ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
 	if (obj != nullptr)
 	{
-		ForthClassObject* pClassObject = (ForthClassObject *)(obj->pMethods[-1]);
-		if (pShowContext->ObjectAlreadyShown(obj))
+        ForthClassObject* pClassObject = GET_CLASS_OBJECT(obj);
+        if (pShowContext->ObjectAlreadyShown(obj))
 		{
 			pShowContext->ShowObjectLink(obj);
 		}

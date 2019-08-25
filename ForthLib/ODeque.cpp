@@ -252,7 +252,7 @@ namespace ODeque
         METHOD_RET("peekHead", oDequePeekHeadMethod, RETURNS_OBJECT(kBCIContainedType)),
         METHOD_RET("peekTail", oDequePeekTailMethod, RETURNS_OBJECT(kBCIContainedType)),
 
-        MEMBER_VAR("__queue", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__queue", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
         // following must be last in table
         END_MEMBERS
     };

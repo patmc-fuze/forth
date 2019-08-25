@@ -79,7 +79,7 @@ namespace ONumber
     FORTHOP(oIntSetMethod)
     {
         GET_THIS(oIntStruct, pInt);
-        pInt->val = SPOP;
+        pInt->val = (int)SPOP;
         METHOD_RETURN;
     }
 
@@ -396,6 +396,6 @@ namespace ONumber
 		pEngine->AddBuiltinClass("Long", kBCILong, kBCIObject, oLongMembers);
 		pEngine->AddBuiltinClass("Float", kBCIFloat, kBCIObject, oFloatMembers);
 		pEngine->AddBuiltinClass("Double", kBCIDouble, kBCIObject, oDoubleMembers);
-	}
+    }
 
 } // namespace ONumber

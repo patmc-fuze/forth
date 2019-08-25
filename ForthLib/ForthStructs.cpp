@@ -399,8 +399,8 @@ ForthTypesManager::GetFieldInfo( long fieldType, long& fieldBytes, long& alignme
     long subType = CODE_TO_BASE_TYPE(fieldType);
     if ( CODE_IS_PTR( fieldType ) )
     {
-        fieldBytes = 4;
-        alignment = 4;
+        fieldBytes = sizeof(char *);
+        alignment = fieldBytes;
     }
     else if ( CODE_IS_NATIVE( fieldType ) )
     {
@@ -540,7 +540,7 @@ ForthTypesManager::ProcessMemberSymbol( ForthParseInfo *pInfo, eForthResult& exi
                 if ( isPtr )
                 {
                     SPEW_STRUCTS( (isArray) ? " array of pointers\n" : " pointer\n" );
-                    opType = (isArray) ? kOpMemberIntArray : kOpMemberInt;
+                    opType = (isArray) ? kOpMemberCellArray : kOpMemberCell;
                 }
                 else
                 {
@@ -698,7 +698,7 @@ ForthStructVocabulary::DefineInstance( void )
     if ( mpEngine->CheckFlag( kEngineFlagIsPointer ) )
     {
         mpEngine->ClearFlag( kEngineFlagIsPointer );
-        nBytes = 4;
+        nBytes = sizeof(char *);
         typeCode |= kDTIsPtr;
         isPtr = true;
     }
@@ -716,7 +716,8 @@ ForthStructVocabulary::DefineInstance( void )
 			if (!isPtr && (mInitOpcode != 0))
 			{
 				// initialize the local struct array at runtime
-				int offsetLongs = mpEngine->GetLocalVocabulary()->GetFrameLongs();
+				int offsetCells = mpEngine->GetLocalVocabulary()->GetFrameCells();
+                int offsetLongs = (offsetCells << CELL_SHIFT) >> 2;
 				mpEngine->CompileOpcode(kOpLocalRef, offsetLongs);
 				mpEngine->CompileOpcode(kOpConstant, numElements);
 				mpEngine->CompileOpcode(kOpConstant, mTypeIndex);
@@ -743,8 +744,9 @@ ForthStructVocabulary::DefineInstance( void )
 			{
 				if (mInitOpcode != 0)
 				{
-					int offsetLongs = mpEngine->GetLocalVocabulary()->GetFrameLongs();
-					mpEngine->CompileOpcode(kOpLocalRef, offsetLongs);
+                    int offsetCells = mpEngine->GetLocalVocabulary()->GetFrameCells();
+                    int offsetLongs = (offsetCells << CELL_SHIFT) >> 2;
+                    mpEngine->CompileOpcode(kOpLocalRef, offsetLongs);
 					mpEngine->CompileOpcode(mInitOpcode);
 				}
 			}
@@ -784,7 +786,7 @@ ForthStructVocabulary::DefineInstance( void )
 			memset(pHere, 0, (elementSize * numElements));
 			if (!isPtr && (mInitOpcode != 0))
 			{
-				SPUSH((long)pHere);
+				SPUSH((cell)pHere);
 				SPUSH(numElements);
 				SPUSH(mTypeIndex);
 				mpEngine->FullyExecuteOp(pCore, gCompiledOps[OP_INIT_STRUCT_ARRAY]);
@@ -803,7 +805,7 @@ ForthStructVocabulary::DefineInstance( void )
             }
 			if (!isPtr && (mInitOpcode != 0))
 			{
-				SPUSH((long)pHere);
+				SPUSH((cell)pHere);
 				mpEngine->FullyExecuteOp(pCore, mInitOpcode);
 			}
 		}
@@ -846,7 +848,7 @@ ForthStructVocabulary::AddField( const char* pName, long fieldType, int numEleme
         mNumBytes += padding;
     }
 
-    forthop* pEntry = AddSymbol( pName, (forthOpType) 0, mNumBytes, false );
+    forthop* pEntry = AddSymbol(pName, mNumBytes);
     pEntry[1] = fieldType;
     pEntry[2] = fieldBytes;
     if ( numElements != 0 )
@@ -1395,9 +1397,8 @@ ForthClassVocabulary::DefineInstance(const char* pInstanceName, const char* pCon
     // - define a global instance of this class type
     // - define a local instance of this class type
     // - define a field of this class type
-    int nBytes = 4;
-    forthop *pHere;
-    long val = 0;
+    int nBytes = sizeof(ForthObject *);
+    ForthObject* pHere;
     ForthVocabulary *pVocab;
     forthop* pEntry;
     long typeCode;
@@ -1438,7 +1439,7 @@ ForthClassVocabulary::DefineInstance(const char* pInstanceName, const char* pCon
     if ( mpEngine->CheckFlag( kEngineFlagIsPointer ) )
     {
         mpEngine->ClearFlag( kEngineFlagIsPointer );
-        nBytes = 4;
+        nBytes = sizeof(ForthObject **);
         typeCode |= kDTIsPtr;
         isPtr = true;
     }
@@ -1455,7 +1456,7 @@ ForthClassVocabulary::DefineInstance(const char* pInstanceName, const char* pCon
         }
         else
         {
-            pHere = mpEngine->GetDP();
+            pHere = (ForthObject*)mpEngine->GetDP();
             bool bCompileInstanceOp = mpEngine->GetLastCompiledIntoPtr() == (((forthop *)pHere) - 1);
             mpEngine->AddLocalVar( pInstanceName, typeCode, nBytes );
             if (bCompileInstanceOp)
@@ -1485,7 +1486,7 @@ ForthClassVocabulary::DefineInstance(const char* pInstanceName, const char* pCon
         if ( isArray )
         {
             mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_INT_ARRAY : OP_DO_OBJECT_ARRAY );
-            pHere = mpEngine->GetDP();
+            pHere = (ForthObject*)mpEngine->GetDP();
             if (!isPtr)
             {
                 mpEngine->AddGlobalObjectVariable((ForthObject *)pHere);
@@ -1504,30 +1505,29 @@ ForthClassVocabulary::DefineInstance(const char* pInstanceName, const char* pCon
         {
 
             mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_INT : OP_DO_OBJECT );
-            pHere = mpEngine->GetDP();
+            pHere = (ForthObject*)mpEngine->GetDP();
             mpEngine->AllotLongs( nBytes >> 2 );
             memset( pHere, 0, nBytes );
             if ( !isPtr )
             {
-                *pHere = 0;
                 mpEngine->AddGlobalObjectVariable((ForthObject *)pHere);
             }
+
             if ( GET_VAR_OPERATION == kVarStore )
             {
+                ForthObject srcObj = (ForthObject)SPOP;
                 if ( isPtr )
                 {
-                    // TODO: this is wrong, right?
-                    *pHere = SPOP;
+                    *pHere = srcObj;
                 }
                 else
                 {
 					// bump objects refcount
-					ForthObject srcObj = (ForthObject) SPOP;
 					if (srcObj != nullptr)
 					{
                         srcObj->refCount += 1;
 					}
-                    *pHere = (long)srcObj;
+                    *pHere = srcObj;
                 }
                 CLEAR_VAR_OPERATION;
             }
@@ -1888,12 +1888,28 @@ CustomObjectReader ForthClassVocabulary::GetCustomObjectReader()
 //
 //
 
+// INTERFACE_SKIPPED_ENTRIES is the number of longword entries at start of mMethods
+//   which is used to hold the class vocabulary pointer
+#if defined(FORTH64)
+#define INTERFACE_SKIPPED_ENTRIES 2
+#else
+#define INTERFACE_SKIPPED_ENTRIES 1
+#endif
+
 ForthInterface::ForthInterface( ForthClassVocabulary* pDefiningClass )
 : mpDefiningClass( pDefiningClass )
 , mNumAbstractMethods( 0 )
 {
-    forthop classObject = (forthop) pDefiningClass->GetClassObject();
-    mMethods.push_back( classObject );
+    ForthClassObject* classObject = pDefiningClass->GetClassObject();
+#if defined(FORTH64)
+    // TODO: do we need to worry about this not having 64-bit alignment?
+    mMethods.push_back(0);
+    mMethods.push_back(0);
+    ForthClassObject** pDst = (ForthClassObject **)(&mMethods[0]);
+    *pDst = classObject;
+#else
+    mMethods.push_back((forthop)classObject);
+#endif
 }
 
 
@@ -1912,7 +1928,7 @@ ForthInterface::Copy( ForthInterface* pInterface, bool isPrimaryInterface )
     mNumAbstractMethods = pInterface->mNumAbstractMethods;
     int numMethods = pInterface->mMethods.size();
     mMethods.resize( numMethods );
-    for ( int i = 1; i < numMethods; i++ )
+    for ( int i = INTERFACE_SKIPPED_ENTRIES; i < numMethods; i++ )
     {
         mMethods[i] = pInterface->mMethods[i];
     }
@@ -1929,7 +1945,7 @@ ForthInterface::GetDefiningClass()
 forthop*
 ForthInterface::GetMethods( void )
 {
-	return &(mMethods[0]) + 1;
+	return &(mMethods[0]) + INTERFACE_SKIPPED_ENTRIES;
 }
 
 
@@ -1937,7 +1953,7 @@ forthop
 ForthInterface::GetMethod( int index )
 {
     // TBD: check index in bounds
-	return mMethods[index + 1];
+	return mMethods[index + INTERFACE_SKIPPED_ENTRIES];
 }
 
 
@@ -1945,7 +1961,7 @@ void
 ForthInterface::SetMethod( int index, forthop method )
 {
     // TBD: check index in bounds
-    index++;
+    index += INTERFACE_SKIPPED_ENTRIES;
     if ( mMethods[index] != method )
     {
 		if ( method != gCompiledOps[OP_BAD_OP] )
@@ -1964,7 +1980,7 @@ ForthInterface::Implements( ForthClassVocabulary* pVocab )
     ForthInterface* pInterface = pVocab->GetInterface( 0 );
     int numMethods = pInterface->mMethods.size();
     mMethods.resize( numMethods );
-	for ( int i = 1; i < numMethods; i++ )
+	for ( int i = INTERFACE_SKIPPED_ENTRIES; i < numMethods; i++ )
 	{
 		mMethods[i] = gCompiledOps[OP_BAD_OP];	// TBD: make this "unimplemented method" opcode
 	}
@@ -1975,7 +1991,7 @@ ForthInterface::Implements( ForthClassVocabulary* pVocab )
 int
 ForthInterface::AddMethod( forthop method )
 {
-    int methodIndex = mMethods.size() - 1;
+    int methodIndex = mMethods.size() - INTERFACE_SKIPPED_ENTRIES;
 	mMethods.push_back( method );
     if ( method == gCompiledOps[OP_BAD_OP] )
     {
@@ -1988,7 +2004,7 @@ ForthInterface::AddMethod( forthop method )
 int
 ForthInterface::GetNumMethods( void )
 {
-    return static_cast<long>( mMethods.size() - 1 );
+    return static_cast<long>( mMethods.size() - INTERFACE_SKIPPED_ENTRIES);
 }
 
 
@@ -2112,13 +2128,14 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
         typeCode = NATIVE_TYPE_TO_CODE( flags, baseType );
     }
 
-    if ( pEngine->CheckFlag( kEngineFlagIsPointer ) )
+    bool isPointer = pEngine->CheckFlag(kEngineFlagIsPointer);
+    if (isPointer)
     {
         // outside of a struct definition, any native variable or array defined with "ptrTo"
         //  is the same thing as an int variable or array, since native types have no fields
-        pEngine->ClearFlag( kEngineFlagIsPointer );
-        baseType = kBaseTypeInt;
-        nBytes = 4;
+        pEngine->ClearFlag(kEngineFlagIsPointer);
+        baseType = kBaseTypeCell;
+        nBytes = sizeof(char *);
         pInitialVal = &val;
         typeCode |= kDTIsPtr;
         isString = false;
@@ -2164,7 +2181,7 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             if ( numElements )
             {
                 // define global array
-                pEngine->CompileBuiltinOpcode( OP_DO_BYTE_ARRAY + CODE_TO_BASE_TYPE( typeCode ) );
+                pEngine->CompileBuiltinOpcode( OP_DO_BYTE_ARRAY + CODE_TO_BASE_TYPE( baseType ) );
                 pHere = (char *) (pEngine->GetDP());
                 pEngine->AllotLongs( ((nBytes * numElements) + 3) >> 2 );
                 for ( i = 0; i < numElements; i++ )
@@ -2176,14 +2193,14 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             else
             {
                 // define global single variable
-                pEngine->CompileBuiltinOpcode( OP_DO_BYTE + CODE_TO_BASE_TYPE( typeCode ) );
+                pEngine->CompileBuiltinOpcode( OP_DO_BYTE + CODE_TO_BASE_TYPE(baseType) );
                 pHere = (char *) (pEngine->GetDP());
                 pEngine->AllotLongs( (nBytes  + 3) >> 2 );
                 if ( GET_VAR_OPERATION == kVarStore )
                 {
                     // var definition was preceeded by "->", so initialize var
 #if 1
-                    int val = SPOP;
+                    cell val = SPOP;
                     switch (nBytes)
                     {
                     case 1:
@@ -2193,16 +2210,11 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
                         *((short *)pHere) = (short)val;
                         break;
                     case 4:
-                        *((int *)pHere) = val;
+                        *((int *)pHere) = (int)val;
                         break;
                     case 8:
-                    {
-                        stackInt64 val64;
-                        val64.s32[1] = val;
-                        val64.s32[0] = SPOP;
-                        *((int64_t *)pHere) = val64.s64;
+                        *((int64_t *)pHere) = val;
                         break;
-                    }
                     default:
                         // TODO! complain bad int size
                         break;

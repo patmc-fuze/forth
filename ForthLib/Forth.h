@@ -6,11 +6,15 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-//#include "stdafx.h"
+//#include "StdAfx.h"
 
 #include "ForthMemoryManager.h"
 
 struct ForthCoreState;
+
+#if defined(WIN32) || defined(_WIN64)
+#define WINDOWS_BUILD
+#endif
 
 // forthop is the type of forth opcodes
 // cell/ucell is the type of parameter stack elements
@@ -61,7 +65,7 @@ typedef enum
     kOpConstantString,  // low 24 bits is number of longwords to skip over
     kOpOffset,          // low 24 bits is signed offset value, TOS is number to add it to
     kOpArrayOffset,     // low 24 bits is array element size, TOS is array base, NTOS is index
-    kOpAllocLocals,     // low 24 bits is frame size in longs
+    kOpAllocLocals,     // low 24 bits is frame size in cells
     kOpLocalRef,        // low 24 bits is offset in longs
     kOpLocalStringInit,     // bits 0:11 are string length in bytes, bits 12:23 are frame offset in longs
     kOpLocalStructArray,   // bits 0:11 are padded struct size in bytes, bits 12:23 are frame offset in longs
@@ -173,6 +177,18 @@ typedef enum
 
     kOpLocalUserDefined = 123,             // user can add more optypes starting with this one
     kOpMaxLocalUserDefined = 127,    // maximum user defined optype
+
+#if defined(FORTH64)
+    kOpLocalCell = kOpLocalLong,
+    kOpLocalUCell = kOpLocalULong,
+    kOpMemberCell = kOpMemberLong,
+    kOpMemberCellArray = kOpMemberLongArray,
+#else
+    kOpLocalCell = kOpLocalInt,
+    kOpLocalUCell = kOpLocalUInt,
+    kOpMemberCell = kOpMemberInt,
+    kOpMemberCellArray = kOpMemberIntArray,
+#endif
 
     kOpUserMethods  = 128
     // optypes from 128:.255 are used to select class methods    
@@ -488,20 +504,20 @@ typedef struct
 {
    const char       *name;
    ucell            flags;
-   ucell            value;
+   void*            value;
 } baseDictionaryEntry;
 
 // helper macro for built-in op entries in baseDictionary
-#define OP_DEF( func, funcName )  { funcName, kOpCCode, (ucell) func }
+#define OP_DEF( func, funcName )  { funcName, kOpCCode, func }
 
 // helper macro for ops which have precedence (execute at compile time)
-#define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate, (ucell) func }
+#define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate, func }
 
 
 typedef struct
 {
-    const char      *name;
-    ucell           value;
+    const char*     name;
+    void*           value;
     ucell           returnType;
 } baseMethodEntry;
 
@@ -541,7 +557,7 @@ enum
 #endif
 
 #ifdef TRACE_OUTER_INTERPRETER
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
 #define SPEW_OUTER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogOuterInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_OUTER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogOuterInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -551,7 +567,7 @@ enum
 #endif
 
 #ifdef TRACE_INNER_INTERPRETER
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
 #define SPEW_INNER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogInnerInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_INNER_INTERPRETER(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogInnerInterpreter) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -561,7 +577,7 @@ enum
 #endif
 
 #ifdef TRACE_SHELL
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
 #define SPEW_SHELL(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_SHELL(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -571,7 +587,7 @@ enum
 #endif
 
 #ifdef TRACE_VOCABULARY
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
 #define SPEW_VOCABULARY(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogVocabulary) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_VOCABULARY(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogVocabulary) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -581,7 +597,7 @@ enum
 #endif
 
 #ifdef TRACE_STRUCTS
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
 #define SPEW_STRUCTS(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogStructs) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_STRUCTS(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogStructs) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -591,7 +607,7 @@ enum
 #endif
 
 #ifdef TRACE_IO
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
 #define SPEW_IO(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogIO) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_IO(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogIO) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -601,7 +617,7 @@ enum
 #endif
 
 #ifdef TRACE_ENGINE
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
 #define SPEW_ENGINE(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogEngine) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_ENGINE(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogEngine) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -611,7 +627,7 @@ enum
 #endif
 
 #ifdef TRACE_COMPILATION
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
 #define SPEW_COMPILATION(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogCompilation) { ForthEngine::GetInstance()->TraceOut(FORMAT, __VA_ARGS__); }
 #else
 #define SPEW_COMPILATION(FORMAT, ...)  if (ForthEngine::GetInstance()->GetTraceFlags() & kLogCompilation) { ForthEngine::GetInstance()->TraceOut(FORMAT, ##__VA_ARGS__); }
@@ -652,6 +668,26 @@ enum
 //      
 //      
 
+#if defined(FORTH64)
+#define CELL_SHIFT 3
+#define CELL_BYTES 8
+#define CELL_MASK 7
+#define CELL_LONGS 2
+#define CELL_BITS 64
+#else
+#define CELL_SHIFT 2
+#define CELL_BYTES 4
+#define CELL_MASK 3
+#define CELL_LONGS 1
+#define CELL_BITS 32
+#endif
+//#define CELL_BYTES (1 << CELL_SHIFT)
+//#define CELL_BITS (CELL_BYTES << 3)
+//#define CELL_MASK (CELL_BYTES - 1)
+//#define CELL_LONGS (1 << (CELL_SHIFT - 2))
+
+#define BYTES_TO_CELLS(NBYTES)     ((NBYTES + CELL_MASK) & ~CELL_MASK) >> CELL_SHIFT;
+
 // forth native data types
 // NOTE: the order of these have to match the order of forthOpType definitions above which
 //  are related to native types (kOpLocalByte, kOpMemberFloat, kOpLocalIntArray, ...)
@@ -677,6 +713,13 @@ typedef enum
     kBaseTypeVoid,							// 15 - void
     kNumBaseTypes,
     kBaseTypeUnknown = kNumBaseTypes,
+#ifdef FORTH64
+    kBaseTypeCell = kBaseTypeLong,
+    kBaseTypeUCell = kBaseTypeULong,
+#else
+    kBaseTypeCell = kBaseTypeInt,
+    kBaseTypeUCell = kBaseTypeUInt,
+#endif
 } forthBaseType;
 
 typedef enum

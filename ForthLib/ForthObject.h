@@ -7,22 +7,22 @@
 
 #define METHOD_RETURN     SET_TP((ForthObject) (RPOP))
 
-#define RPUSH_OBJECT( _object ) RPUSH( ((long) (_object)))
+#define RPUSH_OBJECT( _object ) RPUSH( ((cell) (_object)))
 #define RPUSH_THIS  RPUSH_OBJECT( GET_TP )
 #define SET_THIS( _object) SET_TP( (_object) )
 
-#define METHOD( NAME, VALUE  )          { NAME, (ulong) VALUE, NATIVE_TYPE_TO_CODE( kDTIsMethod, kBaseTypeVoid ) }
-#define METHOD_RET( NAME, VAL, RVAL )   { NAME, (ulong) VAL, RVAL }
-#define MEMBER_VAR( NAME, TYPE )        { NAME, 0, (ulong) TYPE }
-#define MEMBER_ARRAY( NAME, TYPE, NUM ) { NAME, NUM, (ulong) (TYPE | kDTIsArray) }
-#define CLASS_OP( NAME, VALUE )         { NAME, (ulong) VALUE, NATIVE_TYPE_TO_CODE(0, kBaseTypeUserDefinition) }
-#define CLASS_PRECOP( NAME, VALUE )     { NAME, (ulong) VALUE, NATIVE_TYPE_TO_CODE(kDTIsFunky, kBaseTypeUserDefinition) }
+#define METHOD( NAME, VALUE  )          { NAME, VALUE, NATIVE_TYPE_TO_CODE( kDTIsMethod, kBaseTypeVoid ) }
+#define METHOD_RET( NAME, VAL, RVAL )   { NAME,  VAL, RVAL }
+#define MEMBER_VAR( NAME, TYPE )        { NAME, 0, (ucell) TYPE }
+#define MEMBER_ARRAY( NAME, TYPE, NUM ) { NAME, NUM, (ucell) (TYPE | kDTIsArray) }
+#define CLASS_OP( NAME, VALUE )         { NAME, VALUE, NATIVE_TYPE_TO_CODE(0, kBaseTypeUserDefinition) }
+#define CLASS_PRECOP( NAME, VALUE )     { NAME, VALUE, NATIVE_TYPE_TO_CODE(kDTIsFunky, kBaseTypeUserDefinition) }
 
-#define END_MEMBERS { NULL, 0, 0 }
+#define END_MEMBERS { nullptr, 0, 0 }
 
 #define FULLY_EXECUTE_METHOD( _pCore, _obj, _methodNum ) ForthEngine::GetInstance()->FullyExecuteMethod( _pCore, _obj, _methodNum )
 
-#define PUSH_OBJECT( _obj )             SPUSH((long)(_obj))
+#define PUSH_OBJECT( _obj )             SPUSH((cell)(_obj))
 #define POP_OBJECT( _obj )              _obj = (ForthObject)(SPOP)
 
 #define GET_THIS( THIS_TYPE, THIS_NAME ) THIS_TYPE* THIS_NAME = reinterpret_cast<THIS_TYPE *>(GET_TP);
@@ -40,7 +40,8 @@
 
 #define CLEAR_OBJECT( _obj )             (_obj) = nullptr
 
-#define OBJECT_ASSIGN( _pCore, _dstObj, _srcObj ) if ( (_dstObj) != (_srcObj) ) { SAFE_KEEP( (_srcObj) ); SAFE_RELEASE( (_pCore), (_dstObj) ); }
+#define OBJECT_ASSIGN( _pCore, _dstObj, _srcObj ) \
+    if ( (_dstObj) != (_srcObj) ) { SAFE_KEEP( (_srcObj) ); SAFE_RELEASE( (_pCore), (_dstObj) ); }
 
 enum
 {
