@@ -488,22 +488,24 @@ FORTHOP(ulcmpBop)
 }
     
 
+#endif
+
 FORTHOP(lWithinOp)
 {
 #if defined(FORTH64)
     cell hiLimit = SPOP;
     cell loLimit = SPOP;
     cell val = SPOP;
-    SPUSH( ((loLimit <= val) && (val < hiLimit)) ? -1L : 0);
+    SPUSH(((loLimit <= val) && (val < hiLimit)) ? -1L : 0);
 #else
     NEEDS(3);
     stackInt64 hiLimit;
     stackInt64 loLimit;
     stackInt64 val;
-    LPOP( hiLimit );
-    LPOP( loLimit );
-    LPOP( val );
-    SPUSH( ( (loLimit.s64 <= val.s64) && (val.s64 < hiLimit.s64) ) ? -1L : 0 );
+    LPOP(hiLimit);
+    LPOP(loLimit);
+    LPOP(val);
+    SPUSH(((loLimit.s64 <= val.s64) && (val.s64 < hiLimit.s64)) ? -1L : 0);
 #endif
 }
 
@@ -517,9 +519,9 @@ FORTHOP(lMinOp)
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
-    LPOP( b );
-    LPOP( a );
-    LPUSH( (( a.s64 < b.s64 ) ? a : b) );
+    LPOP(b);
+    LPOP(a);
+    LPUSH(((a.s64 < b.s64) ? a : b));
 #endif
 }
 
@@ -533,13 +535,11 @@ FORTHOP(lMaxOp)
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
-    LPOP( b );
-    LPOP( a );
-    LPUSH( (( a.s64 > b.s64 ) ? a : b) );
+    LPOP(b);
+    LPOP(a);
+    LPUSH(((a.s64 > b.s64) ? a : b));
 #endif
 }
-#endif
-
 
 
 FORTHOP( i2lOp )
@@ -8204,14 +8204,6 @@ FORTHOP(odropBop)
 // loads & stores
 //
 
-FORTHOP(storeBop)
-{
-    NEEDS(2);
-    cell* pB = (cell* )(SPOP); 
-    cell a = SPOP;
-    *pB = a;
-}
-
 FORTHOP(istoreBop)
 {
     NEEDS(2);
@@ -8404,7 +8396,7 @@ FORTHOP(dfetchNextBop)
 	*ppA = pA;
 }
 
-/*FORTHOP(lstoreBop)
+FORTHOP(lstoreBop)
 {
     NEEDS(3);
 	int64_t *pB = (int64_t *) (SPOP);
@@ -8443,7 +8435,6 @@ FORTHOP(lfetchNextBop)
 	LPUSH( a );
     *ppA = pA;
 }
-*/
 
 FORTHOP(ostoreBop)
 {
@@ -8510,27 +8501,27 @@ FORTHOP(fillBop)
     memset( pDst, byteVal, nBytes );
 }
 
-FORTHOP(fetchBop)
+FORTHOP(fetchVaractionBop)
 {
 	SET_VAR_OPERATION( kVarFetch );
 }
 
-FORTHOP(intoBop)
+FORTHOP(intoVaractionBop)
 {
     SET_VAR_OPERATION( kVarStore );
 }
 
-FORTHOP(addToBop)
+FORTHOP(addToVaractionBop)
 {
     SET_VAR_OPERATION( kVarPlusStore );
 }
 
-FORTHOP(subtractFromBop)
+FORTHOP(subtractFromVaractionBop)
 {
     SET_VAR_OPERATION( kVarMinusStore );
 }
 
-FORTHOP(refBop)
+FORTHOP(refVaractionBop)
 {
     SET_VAR_OPERATION( kVarRef );
 }
@@ -8941,7 +8932,7 @@ FORTHOP( archX86Bop )
 #endif
 }
 
-FORTHOP( oclearBop )
+FORTHOP( oclearVaractionBop )
 {
 	SET_VAR_OPERATION( kVarObjectClear );
 }
@@ -9283,7 +9274,7 @@ OPREF( doUShortArrayBop );  OPREF( doIntArrayBop );     OPREF( doIntArrayBop );
 OPREF( doLongArrayBop );    OPREF( doLongArrayBop );    OPREF( doFloatArrayBop );
 OPREF( doDoubleArrayBop );  OPREF( doStringArrayBop );  OPREF( doOpArrayBop );
 OPREF( doObjectArrayBop );  OPREF( initStringBop );     OPREF( plusBop );
-OPREF( strFixupBop );       OPREF( fetchBop );			OPREF( noopBop );
+OPREF( strFixupBop );       OPREF( fetchVaractionBop );	OPREF( noopBop );
 OPREF(odropBop);
 
 OPREF( ifetchBop );          OPREF( doStructBop );       OPREF( doStructArrayBop );
@@ -9293,8 +9284,8 @@ OPREF( dfetchBop );         OPREF( doCheckDoBop );
 OPREF( thisBop );           OPREF( unsuperBop );
 OPREF( executeBop );        OPREF( callBop );           OPREF( gotoBop );
 OPREF( iBop );              OPREF( jBop );              OPREF( unloopBop );
-OPREF( leaveBop );          OPREF( hereBop );           OPREF( refBop );
-OPREF( intoBop );           OPREF( addToBop );          OPREF( subtractFromBop );
+OPREF( leaveBop );          OPREF( hereBop );           OPREF( refVaractionBop );
+OPREF( intoVaractionBop );  OPREF( addToVaractionBop ); OPREF( subtractFromVaractionBop );
 OPREF( minusBop );          OPREF( timesBop );          OPREF( times2Bop );
 OPREF( times4Bop );         OPREF( times8Bop );         OPREF( divideBop );
 OPREF( divide2Bop );        OPREF( divide4Bop );        OPREF( divide8Bop );
@@ -9351,8 +9342,9 @@ OPREF( nipBop );            OPREF( tuckBop );           OPREF( pickBop );
 OPREF( spBop );             OPREF( s0Bop );             OPREF( fpBop );
 OPREF( ipBop );             OPREF( ddupBop );           OPREF( dswapBop );
 OPREF( ddropBop );          OPREF( doverBop );          OPREF( drotBop );
-OPREF( startTupleBop );     OPREF( endTupleBop );       OPREF( storeBop );
-OPREF( storeNextBop );      OPREF( fetchNextBop );      OPREF( cstoreBop );
+OPREF( startTupleBop );     OPREF( endTupleBop );
+OPREF( istoreBop );         OPREF( istoreNextBop);      OPREF( ifetchNextBop);
+OPREF( cstoreBop );
 OPREF( cfetchBop );         OPREF( cstoreNextBop );     OPREF( cfetchNextBop );
 OPREF( scfetchBop );        OPREF( c2iBop );            OPREF( wstoreBop );
 OPREF( wfetchBop );         OPREF( wstoreNextBop );     OPREF( wfetchNextBop );
@@ -9375,7 +9367,7 @@ OPREF( fcloseBop );         OPREF( fseekBop );          OPREF( freadBop );
 OPREF( fwriteBop );         OPREF( fgetcBop );          OPREF( fputcBop );
 OPREF( feofBop );           OPREF( fexistsBop );        OPREF( ftellBop );
 OPREF( flenBop );           OPREF( fgetsBop );          OPREF( fputsBop );
-OPREF( archX86Bop );        OPREF( archARMBop );        OPREF( oclearBop );
+OPREF( archX86Bop );        OPREF( archARMBop );        OPREF( oclearVaractionBop );
 OPREF( fsinBop );           OPREF( fasinBop );          OPREF( fcosBop );
 OPREF( facosBop );          OPREF( ftanBop );           OPREF( fatanBop );
 OPREF( fatan2Bop );         OPREF( fexpBop );           OPREF( flnBop );
@@ -9443,19 +9435,23 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     NATIVE_COMPILED_DEF(    doObjectArrayBop,        "_doObjectArray",	OP_DO_OBJECT_ARRAY ),
 	NATIVE_COMPILED_DEF(    initStringBop,           "initString",		OP_INIT_STRING ),
     NATIVE_COMPILED_DEF(    plusBop,                 "+",				OP_PLUS ),				// 44
+#if defined(FORTH64)
+    NATIVE_COMPILED_DEF(    lfetchBop,               "@",				OP_IFETCH ),
+#else
     NATIVE_COMPILED_DEF(    ifetchBop,               "@",				OP_IFETCH ),
+#endif
     NATIVE_COMPILED_DEF(    doStructBop,             "_doStruct",		OP_DO_STRUCT ),
     NATIVE_COMPILED_DEF(    doStructArrayBop,        "_doStructArray",	OP_DO_STRUCT_ARRAY ),	// 48
     NATIVE_COMPILED_DEF(    doDoBop,                 "_do",				OP_DO_DO ),				// 52
     NATIVE_COMPILED_DEF(    doLoopBop,               "_loop",			OP_DO_LOOP ),
     NATIVE_COMPILED_DEF(    doLoopNBop,              "_+loop",			OP_DO_LOOPN ),
     // the order of the next four opcodes has to match the order of kVarRef...kVarMinusStore
-    NATIVE_COMPILED_DEF(    fetchBop,                "fetch",			OP_FETCH ),				// 56
-    NATIVE_COMPILED_DEF(    refBop,                  "ref",				OP_REF ),
-	NATIVE_COMPILED_DEF(    intoBop,                 "->",				OP_INTO ),				// 59
-    NATIVE_COMPILED_DEF(    addToBop,                "->+",				OP_INTO_PLUS ),
-    NATIVE_COMPILED_DEF(    subtractFromBop,         "->-",				OP_INTO_MINUS ),
-    NATIVE_COMPILED_DEF(    oclearBop,               "oclear",          OP_OCLEAR ),
+    NATIVE_COMPILED_DEF(    fetchVaractionBop,       "fetch",			OP_FETCH ),				// 56
+    NATIVE_COMPILED_DEF(    refVaractionBop,         "ref",				OP_REF ),
+	NATIVE_COMPILED_DEF(    intoVaractionBop,        "->",				OP_INTO ),				// 59
+    NATIVE_COMPILED_DEF(    addToVaractionBop,       "->+",				OP_INTO_PLUS ),
+    NATIVE_COMPILED_DEF(    subtractFromVaractionBop, "->-",			OP_INTO_MINUS ),
+    NATIVE_COMPILED_DEF(oclearVaractionBop,          "oclear",          OP_OCLEAR ),
 	NATIVE_COMPILED_DEF(    doCheckDoBop,            "_?do",			OP_DO_CHECKDO ),
 
 	OP_COMPILED_DEF(		doVocabOp,              "_doVocab",			OP_DO_VOCAB ),
@@ -9497,12 +9493,12 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    leaveBop,                "leave" ),
     NATIVE_DEF(    hereBop,                 "here" ),
     NATIVE_DEF(    dpBop,                   "dp" ),
-    NATIVE_DEF(    fetchBop,                "fetch" ),
+    NATIVE_DEF(    fetchVaractionBop,       "fetch" ),
     NATIVE_DEF(    noopBop,                 "noop" ),
     NATIVE_DEF(    odropBop,                "odrop"),
 
 	// object varActions
-    NATIVE_DEF(    subtractFromBop,         "unref" ),
+    NATIVE_DEF(    subtractFromVaractionBop, "unref" ),
 
     ///////////////////////////////////////////
     //  integer math
@@ -9705,9 +9701,15 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  memory store/fetch
     ///////////////////////////////////////////
-    NATIVE_DEF(    storeBop,                "!" ),
-    NATIVE_DEF(    storeNextBop,            "@!++" ),
-    NATIVE_DEF(    fetchNextBop,            "@@++" ),
+#if defined(FORTH64)
+    NATIVE_DEF(lstoreBop, "!"),
+    NATIVE_DEF(lstoreNextBop, "@!++"),
+    NATIVE_DEF(lfetchNextBop, "@@++"),
+#else
+    NATIVE_DEF(istoreBop, "!"),
+    NATIVE_DEF(istoreNextBop, "@!++"),
+    NATIVE_DEF(ifetchNextBop, "@@++"),
+#endif
     NATIVE_DEF(    cstoreBop,               "c!" ),
     NATIVE_DEF(    cfetchBop,               "c@" ),
     NATIVE_DEF(    cstoreNextBop,           "c@!++" ),
