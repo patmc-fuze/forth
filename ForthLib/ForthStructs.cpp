@@ -2200,24 +2200,42 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
                 {
                     // var definition was preceeded by "->", so initialize var
 #if 1
-                    cell val = SPOP;
-                    switch (nBytes)
+                    if (nBytes == 8)
                     {
-                    case 1:
-                        *pHere = (char)val;
-                        break;
-                    case 2:
-                        *((short *)pHere) = (short)val;
-                        break;
-                    case 4:
-                        *((int *)pHere) = (int)val;
-                        break;
-                    case 8:
+#if defined(FORTH64)
+                        cell val = SPOP;
                         *((int64_t *)pHere) = val;
-                        break;
-                    default:
-                        // TODO! complain bad int size
-                        break;
+#else
+                        if (baseType == kBaseTypeDouble)
+                        {
+                            *((int64_t *)pHere) = DPOP;
+                        }
+                        else
+                        {
+                            stackInt64 sval;
+                            LPOP(sval);
+                            *((int64_t *)pHere) = sval.s64;
+                        }
+#endif
+                    }
+                    else
+                    {
+                        cell val = SPOP;
+                        switch (nBytes)
+                        {
+                        case 1:
+                            *pHere = (char)val;
+                            break;
+                        case 2:
+                            *((short *)pHere) = (short)val;
+                            break;
+                        case 4:
+                            *((int *)pHere) = (int)val;
+                            break;
+                        default:
+                            // TODO! complain bad int size
+                            break;
+                        }
                     }
                     CLEAR_VAR_OPERATION;
 #else
