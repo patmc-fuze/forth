@@ -78,7 +78,7 @@ ptrTo byte holdend								// current nested end of hold buffer
   base @ ud/mod rot 9 over
 #endif
   if( < )
-    14+    // 'A' '9' - 1- +
+    7+    // 'A' '9' - 1- +
   endif
   hold(48+)   // '0' +
 ;
