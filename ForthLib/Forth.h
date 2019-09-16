@@ -181,11 +181,13 @@ typedef enum
 #if defined(FORTH64)
     kOpLocalCell = kOpLocalLong,
     kOpLocalUCell = kOpLocalULong,
+    kOpLocalCellArray = kOpLocalLongArray,
     kOpMemberCell = kOpMemberLong,
     kOpMemberCellArray = kOpMemberLongArray,
 #else
     kOpLocalCell = kOpLocalInt,
     kOpLocalUCell = kOpLocalUInt,
+    kOpLocalCellArray = kOpLocalIntArray,
     kOpMemberCell = kOpMemberInt,
     kOpMemberCellArray = kOpMemberIntArray,
 #endif
@@ -495,7 +497,16 @@ enum {
     OP_UNSUPER,
     OP_RDROP,
 
-	NUM_COMPILED_OPS
+	NUM_COMPILED_OPS,
+
+#ifdef FORTH64
+    OP_DO_CELL = OP_DO_LONG,
+    OP_DO_CELL_ARRAY = OP_DO_LONG_ARRAY,
+#else
+    OP_DO_CELL = OP_DO_INT,
+    OP_DO_CELL_ARRAY = OP_DO_INT_ARRAY,
+#endif
+
 };
 
 extern forthop gCompiledOps[];

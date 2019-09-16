@@ -774,7 +774,7 @@ ForthStructVocabulary::DefineInstance( void )
 			int elementSize = nBytes + padding;
 			if (isPtr)
             {
-                mpEngine->CompileBuiltinOpcode( OP_DO_INT_ARRAY );
+                mpEngine->CompileBuiltinOpcode( OP_DO_CELL_ARRAY );
             }
             else
             {
@@ -794,7 +794,7 @@ ForthStructVocabulary::DefineInstance( void )
         }
         else
         {
-            mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_INT : OP_DO_STRUCT );
+            mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_CELL : OP_DO_STRUCT );
             pHere = (char *) (mpEngine->GetDP());
             mpEngine->AllotLongs( (nBytes  + 3) >> 2 );
             memset( pHere, 0, nBytes );
@@ -1464,7 +1464,7 @@ ForthClassVocabulary::DefineInstance(const char* pInstanceName, const char* pCon
                 // local var definition was preceeded by "->", so compile the op for this local var
                 //  so it will be initialized
                 forthop* pEntry = pVocab->GetNewestEntry();
-                mpEngine->CompileOpcode( (isPtr ? kOpLocalInt : kOpLocalObject), pEntry[0] );
+                mpEngine->CompileOpcode( (isPtr ? kOpLocalCell : kOpLocalObject), pEntry[0] );
             }
         }
     }
@@ -1485,7 +1485,7 @@ ForthClassVocabulary::DefineInstance(const char* pInstanceName, const char* pCon
         pEntry = mpEngine->GetDefinitionVocabulary()->GetNewestEntry();
         if ( isArray )
         {
-            mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_INT_ARRAY : OP_DO_OBJECT_ARRAY );
+            mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_CELL_ARRAY : OP_DO_OBJECT_ARRAY );
             pHere = (ForthObject*)mpEngine->GetDP();
             if (!isPtr)
             {
@@ -1504,7 +1504,7 @@ ForthClassVocabulary::DefineInstance(const char* pInstanceName, const char* pCon
         else
         {
 
-            mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_INT : OP_DO_OBJECT );
+            mpEngine->CompileBuiltinOpcode( isPtr ? OP_DO_CELL : OP_DO_OBJECT );
             pHere = (ForthObject*)mpEngine->GetDP();
             mpEngine->AllotLongs( nBytes >> 2 );
             memset( pHere, 0, nBytes );

@@ -847,14 +847,14 @@ ForthLocalVocabulary::Push()
 	{
 		mStack[mDepth++] = mNumSymbols;
 		mStack[mDepth++] = mFrameCells;
-		mStack[mDepth++] = (long) mpAllocOp;
+		mStack[mDepth++] = (cell) mpAllocOp;
 		mNumSymbols = 0;
         mFrameCells = 0;
 		mpAllocOp = NULL;
 	}
 	else
 	{
-		// TBD: ERROR!
+		// TODO: ERROR!
 	}
 }
 

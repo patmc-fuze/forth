@@ -256,7 +256,7 @@ public:
 
 protected:
 	int					mDepth;
-	int					mStack[ MAX_LOCAL_DEPTH * LOCAL_STACK_STRIDE ];
+	cell				mStack[ MAX_LOCAL_DEPTH * LOCAL_STACK_STRIDE ];
     forthop*            mpAllocOp;
 	int					mFrameCells;
 };

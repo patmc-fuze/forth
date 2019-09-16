@@ -1258,7 +1258,7 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
         // array of non-struct
         long arraySize = elementSize * mNumElements;
         arraySize = BYTES_TO_CELLS(arraySize);
-        long opcode = CODE_IS_PTR(typeCode) ? kOpLocalIntArray : (kOpLocalByteArray + CODE_TO_BASE_TYPE(typeCode));
+        long opcode = CODE_IS_PTR(typeCode) ? kOpLocalCellArray : (kOpLocalByteArray + CODE_TO_BASE_TYPE(typeCode));
         pEntry = mpLocalVocab->AddVariable( pArrayName, opcode, frameCells + arraySize, arraySize );
     }
     else
@@ -1273,7 +1273,7 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
         long arraySize = paddedSize * mNumElements;
         if ( CODE_IS_PTR(typeCode) )
         {
-	        pEntry = mpLocalVocab->AddVariable( pArrayName, kOpLocalIntArray, frameCells + arraySize, arraySize );
+	        pEntry = mpLocalVocab->AddVariable( pArrayName, kOpLocalCellArray, frameCells + arraySize, arraySize );
         }
         else
         {

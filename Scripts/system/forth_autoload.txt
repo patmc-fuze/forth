@@ -106,14 +106,14 @@ alias ds dstack
 
 #if FORTH64
 alias Cell Long
-MAXULONG -> long MAXCELL
-MINLONG -> long MINCELL
-MAXULONG -> long MAXUCELL
+MAXULONG -> cell MAXCELL
+MINLONG -> cell MINCELL
+MAXULONG -> cell MAXUCELL
 #else
 alias Cell Int
-MAXINT -> long MAXCELL
-MININT -> long MINCELL
-MAXUINT -> long MAXUCELL
+MAXINT -> cell MAXCELL
+MININT -> cell MINCELL
+MAXUINT -> cell MAXUCELL
 #endif
 
 : ' blword $' ;
