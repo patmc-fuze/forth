@@ -146,6 +146,15 @@ Double and long memory and stack layouts:
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+September 24 2019
+
+I've been concentrating on work, not a lot of time for Forth.
+In 64-bit forth atc seems to work, there was a silly bug where I was using a
+long to act as two ints that I fixed.
+
+adv still crashes.  I should move adv into its own vocabulary instead of the
+main forth vocabulary.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 24 2019
 
 A lot of test.txt now works in Forth64, directory.txt displays all blank

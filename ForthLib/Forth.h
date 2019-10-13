@@ -184,12 +184,16 @@ typedef enum
     kOpLocalCellArray = kOpLocalLongArray,
     kOpMemberCell = kOpMemberLong,
     kOpMemberCellArray = kOpMemberLongArray,
+    kOpFieldCell = kOpFieldLong,
+    kOpFieldCellArray = kOpFieldLongArray,
 #else
     kOpLocalCell = kOpLocalInt,
     kOpLocalUCell = kOpLocalUInt,
     kOpLocalCellArray = kOpLocalIntArray,
     kOpMemberCell = kOpMemberInt,
     kOpMemberCellArray = kOpMemberIntArray,
+    kOpFieldCell = kOpFieldInt,
+    kOpFieldCellArray = kOpFieldIntArray,
 #endif
 
     kOpUserMethods  = 128
@@ -555,9 +559,10 @@ enum
 	kLogVocabulary				= 32,
 	kLogIO						= 64,
 	kLogEngine					= 128,
-	kLogToConsole				= 256,
-	kLogCompilation				= 512,
-	kLogProfiler				= 1024
+    kLogToFile                  = 256,
+	kLogToConsole				= 512,
+	kLogCompilation				= 1024,
+	kLogProfiler				= 2048
 };
 
 #ifdef TRACE_PRINTS

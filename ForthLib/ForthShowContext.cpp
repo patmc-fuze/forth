@@ -213,7 +213,7 @@ void ForthShowContext::ShowID(const char* pTypeName, const void* pData)
 
 	ShowText(pTypeName);
 #ifdef FORTH64
-	sprintf(buffer, "_%016x", (uint64_t) pData);
+	sprintf(buffer, "_%016llx", (uint64_t) pData);
 #else
     sprintf(buffer, "_%08x", (uint32_t)pData);
 #endif

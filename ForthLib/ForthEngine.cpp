@@ -49,7 +49,8 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 #endif
 
 	ForthEngine* pEngine = ForthEngine::GetInstance();
-	if ((pEngine->GetTraceFlags() & kLogToConsole) != 0)
+    long traceFlags = pEngine->GetTraceFlags();
+	if ((traceFlags & kLogToConsole) != 0)
 	{
 #if defined(LINUX) || defined(MACOSX)
 		vsnprintf(buffer, sizeof(buffer), pFormat, argList);
@@ -61,7 +62,20 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 
 		ForthEngine::GetInstance()->ConsoleOut(buffer);
 	}
-	else
+    else if ((traceFlags & kLogToFile) != 0)
+    {
+#if defined(LINUX) || defined(MACOSX)
+        vsnprintf(buffer, sizeof(buffer), pFormat, argList);
+#elif defined(_WIN64)
+        StringCchVPrintfA(buffer, sizeof(buffer), pFormat, argList);
+#else
+        wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
+#endif
+        FILE* logfile = fopen("_forthlog.txt", "a");
+        fwrite(buffer, strlen(buffer), 1, logfile);
+        fclose(logfile);
+    }
+    else
 	{
 #if defined(LINUX) || defined(MACOSX)
 		vsnprintf(buffer, sizeof(buffer), pFormat, argList);
@@ -1117,7 +1131,11 @@ ForthEngine::DescribeOp( const char* pSymName, forthop op, long auxData )
         {
             while ((curIP < endIP) && notDone)
             {
+#if defined(FORTH64)
+                SNPRINTF(buff, sizeof(buff), "  +%04x  %016llx  ", (curIP - baseIP), curIP);
+#else
                 SNPRINTF(buff, sizeof(buff), "  +%04x  %08x  ", (curIP - baseIP), curIP);
+#endif
                 ConsoleOut(buff);
                 DescribeOp(curIP, buff, sizeof(buff), true);
                 ConsoleOut(buff);
@@ -2783,7 +2801,7 @@ ForthEngine::DumpCrashState()
 	cell* pRP = mpCore->RP;
 	if ( (pRP < mpCore->RT) && (pRP > mpCore->RB) )
 	{
-		int numToShow = 64;
+        int numToShow = 64;
 		int depth = mpCore->RT - pRP;
 		cell* pFP = mpCore->FP;
 		if ( depth < numToShow )
@@ -2792,9 +2810,13 @@ ForthEngine::DumpCrashState()
 		}
 		for ( int i = 0; i < numToShow; i++ )
 		{
-			unsigned long rVal = (unsigned long)(pRP[i]);
+            cell rVal = pRP[i];
 			forthop* pRVal = (forthop *) rVal;
-			SNPRINTF( buff, sizeof(buff), "R[%2d] 0x%08x   ", depth - (i + 1), rVal );
+#if defined(FORTH64)
+            SNPRINTF(buff, sizeof(buff), "R[%2d] 0x%016llx   ", depth - (i + 1), rVal);
+#else
+            SNPRINTF(buff, sizeof(buff), "R[%2d] 0x%08x   ", depth - (i + 1), rVal);
+#endif
 			ConsoleOut( buff );
 			if ( (pRP + i) == pFP )
 			{

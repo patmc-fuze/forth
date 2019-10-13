@@ -2945,6 +2945,7 @@ entry doObjectArrayBop
 	mov	eax, rip
 	mov	ebx, [rpsp]		; ebx = array index
 	add	rpsp, 4
+	; TODO: is this right for 32-bits? shouldn't it be sal 2?
 	sal	ebx, 3
 	add	eax, ebx	
 	; pop rstack
@@ -6136,19 +6137,6 @@ entry odropBop
 
 .odrop1:
 	jmp rnext
-
-	push rnext
-	push eax
-
-	mov	[rnext], eax
-	
-
-	pop eax
-	pop rnext
-	
-	mov	[ecx], eax		; var = newObj
-	add	rpsp, 4
-
 
 ;========================================
 

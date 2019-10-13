@@ -741,7 +741,7 @@ bool ForthStructCodeGenerator::HandleLast()
     else if ( isPtr )
     {
         SPEW_STRUCTS( (isArray) ? " array of pointers\n" : " pointer\n" );
-        opType = (isArray) ? kOpFieldIntArray : kOpFieldInt;
+        opType = (isArray) ? kOpFieldCellArray : kOpFieldCell;
     }
     else
     {

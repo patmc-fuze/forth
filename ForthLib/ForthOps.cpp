@@ -2834,12 +2834,12 @@ FORTHOP( endenumOp )
 FORTHOP(findEnumSymbolOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
-    long* pEnumInfo = (long*)(SPOP);
+    ForthEnumInfo* pEnumInfo = (ForthEnumInfo*)(SPOP);
     long enumValue = SPOP;
-    ForthVocabulary* pVocab = (ForthVocabulary *)(pEnumInfo[1]);
+    ForthVocabulary* pVocab = pEnumInfo->pVocab;
     // NOTE: this will only find enums which are defined as constants with 24 bits or less
-    long numEnums = pEnumInfo[2];
-    long lastEnumOffset = pEnumInfo[3];
+    long numEnums = pEnumInfo->numEnums;
+    long lastEnumOffset = pEnumInfo->vocabOffset;
     long numSymbols = pVocab->GetNumEntries();
     forthop* pFoundEntry = nullptr;
     long currentVocabOffset = pVocab->GetEntriesEnd() - pVocab->GetNewestEntry();
@@ -8215,7 +8215,7 @@ FORTHOP(istoreBop)
 FORTHOP(ifetchBop)
 {
     NEEDS(1);
-    cell* pA = (cell* )(SPOP); 
+    int* pA = (int* )(SPOP); 
     SPUSH( *pA );
 }
 
