@@ -54,7 +54,7 @@ class: atcConsoleDisplay extends iAtcDisplay
     columns 2* 1+ -> rowBytes
     text.resize(rowBytes columns *)
     text.base -> ptrTo byte pBase
-    ref pBase -> int pDst
+    ref pBase -> ptrTo byte pDst
 
     columns 2* 2+ -> statusColumn
     3 -> statusRow      // row of first airplane status
@@ -260,7 +260,7 @@ class: atcConsoleDisplay extends iAtcDisplay
   ;
   
   m: update      // ACTIVE_AIRPLANE_LIST ...
-    getConsoleCursor -> long oldPos
+    //getConsoleCursor -> long oldPos
 
     updatePlaneStatus
     updateStatus
