@@ -227,7 +227,7 @@ spoo before move
     obj.init
     -> ObjectWord t
     _objs.set(obj t MIN_OBJ -)
-    //"new_obj " %s t %d %bl obj.place %d %bl obj.name.get %s %nl ds
+    d[ "new_obj " %s t %d %bl obj.place %d %bl obj.name.get %s %nl ds ]d
     if(is_treasure(t))  -1  else  0  endif -> obj.prop
     NOTHING -> obj.link
     if(obj.place R_LIMBO >)
@@ -241,7 +241,7 @@ spoo before move
   : addObjDesc
     mko String description
     description.set
-    //"addObjDesc " %s description.get %s %nl
+    d[ "addObjDesc " %s description.get %s %nl ]d
     objs ->o ObjectData obj
     obj.desc.push(description)
   ;
