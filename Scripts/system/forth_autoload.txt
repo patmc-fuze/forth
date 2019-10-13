@@ -293,7 +293,7 @@ addHelp immediate    makes most recently defined word have precedence
   vocab.getNewestEntry
   vocab.getValueLength + >r // top of rstack points to length byte of counted string
   move( r@ 1+ _TempStringA r@ c@ )
-  r> c@ dup _TempStringA 4- !
+  r> c@ dup _TempStringA 4- i!
   0 swap _TempStringA + c!
   precedence(pushToken(_TempStringA))
   oclear vocab
@@ -321,7 +321,7 @@ int dumpWidth
   begin
   while( addr endAddr < )
 #if FORTH64
-    addr offset - "%08llx" 2format %s "   " %s
+    addr offset - "%016llx" format %s "   " %s
 #else
     addr offset - "%08x" format %s "   " %s
 #endif
@@ -871,7 +871,12 @@ struct: WIN32_FIND_DATA
 struct: dirent
   int	d_ino
   short	d_reclen
+#if FORTH64
+  short	d_dummy1
+  long	d_namlen
+#else
   int	d_namlen
+#endif
   int	d_type
   MAX_PATH arrayOf byte d_name
 ;struct
@@ -1114,9 +1119,10 @@ enum: eLogFlags
   32    kLogVocabulary
   64    kLogIO
   128   kLogEngine
-  256   kLogToConsole
-  512   kLogCompilation
-  1024  kLogProfiler
+  256   kLogToFile
+  512   kLogToConsole
+  1024  kLogCompilation
+  2048  kLogProfiler
 ;enum
 
 //######################################################################
