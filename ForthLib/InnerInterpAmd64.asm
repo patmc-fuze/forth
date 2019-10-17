@@ -379,7 +379,7 @@ entry traceLoopDebug
 	mov	[rcore + FCore.SPtr], rpsp
 	mov	[rcore + FCore.RPtr], rrp
 	mov	[rcore + FCore.FPtr], rfp
-	mov	rbx, [rip]		; rbx is opcode
+	mov	ebx, [rip]		; rbx is opcode
 	mov	rax, rip		; rax is the IP for trace
 	jmp	traceLoopDebug2
 
@@ -789,17 +789,14 @@ entry constantStringType
 ;
 entry allocLocalsType
 	; rpush old FP
-	mov	rcx, rfp
-	mov	rax, rrp
-	sub	rax, 8
-	mov	[rax], rcx
+	sub	rrp, 8
+	mov	[rrp], rfp
 	; set FP = RP, points at old FP
-	mov	rfp, rax
+	mov	rfp, rrp
 	mov	[rcore + FCore.FPtr], rfp
 	; allocate amount of storage specified by low 24-bits of op on rstack
-    ; TODO: force this to always be even - maybe change it to be specified in quads instead of longs?
 	and	rbx, 00FFFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rrp, rbx
 	; clear out allocated storage
 	mov rcx, rrp
@@ -816,11 +813,12 @@ alt1:
 ; local string init ops
 ;
 entry initLocalStringType
-   ; bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
+   ; bits 0..11 are string length in bytes, bits 12..23 are frame offset in cells
    ; init the current & max length fields of a local string
+   ; TODO: is frame offset in longs or cells?
 	mov	rax, 00FFF000h
 	and	rax, rbx
-	sar	rax, 10							; rax = frame offset in bytes
+	sar	rax, 9							; rax = frame offset in bytes
 	mov	rcx, rfp
 	sub	rcx, rax						; rcx -> max length field
 	and	rbx, 00000FFFh					; rbx = max length
@@ -835,11 +833,11 @@ entry initLocalStringType
 ; local reference ops
 ;
 entry localRefType
-	; push local reference - rbx is frame offset in longs
+	; push local reference - rbx is frame offset in cells
     ; TODO: should offset be in bytes instead?
 	mov	rax, rfp
 	and	rbx, 00FFFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	sub	rpsp, 8
 	mov	[rpsp], rax
@@ -873,7 +871,7 @@ localByteType1:
 	; get ptr to byte var into rax
 	mov	rax, rfp
 	and	rbx, 001FFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	; see if it is a fetch
 byteEntry:
@@ -898,7 +896,7 @@ localUByteType1:
 	; get ptr to byte var into rax
 	mov	rax, rfp
 	and	rbx, 001FFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	; see if it is a fetch
 ubyteEntry:
@@ -1042,7 +1040,7 @@ entry localByteArrayType
 	; get ptr to byte var into rax
 	mov	rax, rfp
 	and	rbx, 00FFFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	add	rax, [rpsp]		; add in array index on TOS
 	add	rpsp, 8
@@ -1052,7 +1050,7 @@ entry localUByteArrayType
 	; get ptr to byte var into rax
 	mov	rax, rfp
 	and	rbx, 00FFFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	add	rax, [rpsp]		; add in array index on TOS
 	add	rpsp, 8
@@ -1117,7 +1115,7 @@ localShortType1:
 	; get ptr to short var into rax
 	mov	rax, rfp
 	and	rbx, 001FFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	; see if it is a fetch
 shortEntry:
@@ -1142,7 +1140,7 @@ localUShortType1:
 	; get ptr to short var into rax
 	mov	rax, rfp
 	and	rbx, 001FFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	; see if it is a fetch
 ushortEntry:
@@ -1284,8 +1282,8 @@ memberUShortType1:
 entry localShortArrayType
 	; get ptr to int var into rax
 	mov	rax, rfp
-	and	rbx, 00FFFFFFh	; rbx is frame offset in longs
-	sal	rbx, 2
+	and	rbx, 00FFFFFFh	; rbx is frame offset in cells
+	sal	rbx, 3
 	sub	rax, rbx
 	mov	rbx, [rpsp]		; add in array index on TOS
 	add	rpsp, 8
@@ -1296,8 +1294,8 @@ entry localShortArrayType
 entry localUShortArrayType
 	; get ptr to int var into rax
 	mov	rax, rfp
-	and	rbx, 00FFFFFFh	; rbx is frame offset in longs
-	sal	rbx, 2
+	and	rbx, 00FFFFFFh	; rbx is frame offset in cells
+	sal	rbx, 3
 	sub	rax, rbx
 	mov	rbx, [rpsp]		; add in array index on TOS
 	add	rpsp, 8
@@ -1369,7 +1367,7 @@ localIntType1:
 	; get ptr to float var into rax
 	mov	rax, rfp
 	and	rbx, 001FFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	; see if it is a fetch
 intEntry:
@@ -1473,7 +1471,7 @@ entry localIntArrayType
 	and	rbx, 00FFFFFFh
 	sub	rbx, [rpsp]		; add in array index on TOS
 	add	rpsp, 8
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	jmp	intEntry
 
@@ -1516,7 +1514,7 @@ localFloatType1:
 	; get ptr to float var into rax
 	mov	rax, rfp
 	and	rbx, 001FFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	; see if it is a fetch
 floatEntry:
@@ -1620,7 +1618,7 @@ entry localFloatArrayType
 	and	rbx, 00FFFFFFh
 	sub	rbx, [rpsp]		; add in array index on TOS
 	add	rpsp, 8
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	jmp	floatEntry
 
@@ -1663,7 +1661,7 @@ localDoubleType1:
 	; get ptr to double var into rax
 	mov	rax, rfp
 	and	rbx, 001FFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	; see if it is a fetch
 doubleEntry:
@@ -1767,7 +1765,7 @@ entry localDoubleArrayType
 	; get ptr to double var into rax
 	mov	rax, rfp
 	and	rbx, 00FFFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	mov	rbx, [rpsp]		; add in array index on TOS
 	add	rpsp, 8
@@ -1815,7 +1813,7 @@ localStringType1:
 	; get ptr to string var into rax
 	mov	rax, rfp
 	and	rbx, 001FFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	; see if it is a fetch
 stringEntry:
@@ -1868,23 +1866,25 @@ lsStore1:
 	; set current length field
 	mov	[rbx + 4], rax
 	
-	; do the copy
+	; setup params for memcpy further down
     lea rcx, [rbx + 8]      ; 1st param - dest pointer
     mov rdx, [rpsp]         ; 2nd param - src pointer
-    add rpsp, 8
     mov r8, rax             ; 3rd param - num chars to copy
+
+    add rpsp, 8
+	mov	[rcore + FCore.SPtr], rpsp
     mov rbx, rcx
     add rbx, rax            ; rbx -> end of dest string
+	; add the terminating null
+	xor	rax, rax
+	mov	[rbx], al
+	; set var operation back to fetch
+	mov	[rcore + FCore.varMode], rax
+
 	sub rsp, 32			; shadow space
 	xcall	memcpy
 	add rsp, 32
 
-	; add the terminating null
-	xor	rax, rax
-	mov	[rbx], al
-		
-	; set var operation back to fetch
-	mov	[rcore + FCore.varMode], rax
 	jmp	interpFuncReenter
 
 localStringAppend:
@@ -1975,7 +1975,7 @@ entry localStringArrayType
 	; get ptr to int var into rax
 	mov	rax, rfp
 	and	rbx, 00FFFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx		; rax -> maxLen field of string[0]
 	mov	rbx, [rax]
 	sar	rbx, 2
@@ -2031,7 +2031,7 @@ localOpType1:
 	; get ptr to op var into rbx
 	mov	rax, rfp
 	and	rbx, 001FFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	; see if it is a fetch (execute for ops)
 opEntry:
@@ -2104,7 +2104,7 @@ entry localOpArrayType
 	and	rbx, 00FFFFFFh
 	sub	rbx, [rpsp]		; add in array index on TOS
 	add	rpsp, 8
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	jmp	opEntry
 
@@ -2147,7 +2147,7 @@ localLongType1:
 	; get ptr to long var into rax
 	mov	rax, rfp
 	and	rbx, 001FFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	; see if it is a fetch
 longEntry:
@@ -2249,7 +2249,7 @@ entry localLongArrayType
 	; get ptr to double var into rax
 	mov	rax, rfp
 	and	rbx, 00FFFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	mov	rbx, [rpsp]		; add in array index on TOS
 	add	rpsp, 8
@@ -2296,7 +2296,7 @@ localObjectType1:
 	; get ptr to Object var into rax
 	mov	rax, rfp
 	and	rbx, 001FFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	; see if it is a fetch
 objectEntry:
@@ -2326,7 +2326,7 @@ localObjectRef:
 	mov	[rcore + FCore.varMode], rax
 	jmp	rnext
 	
-localObjectStore:
+entry localObjectStore
 	; TOS is new object, rax points to destination/old object
 	xor	rbx, rbx			; set var operation back to default/fetch
 los0:
@@ -2341,12 +2341,12 @@ los0:
 	; handle newObj refcount
 	or rax, rax
 	jz los1				; if newObj is null, don't try to increment refcount
-	inc QWORD[rax]	; increment newObj refcount
+	inc QWORD[rax + Object.refCount]	; increment newObj refcount
 	; handle oldObj refcount
 los1:
 	or rbx, rbx
 	jz losx				; if oldObj is null, don't try to decrement refcount
-	dec QWORD[rbx]
+	dec QWORD[rbx + Object.refCount]
 	jz los3
 losx:
 	jmp	rnext
@@ -2465,7 +2465,7 @@ entry localObjectArrayType
 	; get ptr to Object var into rax
 	mov	rax, rfp
 	and	rbx, 00FFFFFFh
-	sal	rbx, 2
+	sal	rbx, 3
 	sub	rax, rbx
 	mov	rbx, [rpsp]		; add in array index on TOS
 	add	rpsp, 8
@@ -2541,9 +2541,9 @@ methodTos1:
 	mov	[rrp], rcx
 	mov	[rcore + FCore.TPtr], rax
 	and	rbx, 00FFFFFFh
-	sal	rbx, 3
+	sal	rbx, 2
 	add	rbx, [rax]
-	mov	rbx, [rbx]	; rbx = method opcode
+	mov	ebx, [rbx]	; ebx = method opcode
 	mov	rax, [rcore + FCore.innerExecute]
 	jmp rax
 	
@@ -2562,6 +2562,9 @@ entry methodWithSuperType
 	mov	rcx, [rcx + 16]		; 1st param rcx -> class vocabulary
 	sub rsp, 32			; shadow space
 	xcall getSuperClassMethods
+	mov roptab, [rcore + FCore.ops]
+	mov rnumops, [rcore + FCore.numOps]
+	mov racttab, [rcore + FCore.optypeAction]
 	add rsp, 32
 	; rax -> super class methods table
 	mov	rcx, [rcore + FCore.TPtr]
@@ -4100,7 +4103,7 @@ entry gotoBop
 entry doDoBop
 	sub	rrp, 24
 	; @RP-2 holds top-of-loop-IP
-	add	rip, 8    ; skip over loop exit branch right after this op
+	add	rip, 4    ; skip over loop exit branch right after this op
 	mov	[rrp + 16], rip
 	; @RP-1 holds end-index
 	mov	rax, [rpsp + 8]
@@ -4147,7 +4150,7 @@ entry doLoopBop
 	jmp	rnext
 
 doLoopBop1:
-	add	rrp,12
+	add	rrp, 24
 	jmp	rnext
 	
 ;========================================
@@ -4168,7 +4171,7 @@ doLoopNBop1:
 	add	rax, [rrp]
 	cmp	rax, [rrp + 8]
 	jl	doLoopBop1		; jump if done
-	mov	[rrp], rax		; ipdate i
+	mov	[rrp], rax		; update i
 	mov	rip, [rrp + 16]		; branch to top of loop
 	jmp	rnext
 	
@@ -5144,13 +5147,13 @@ entry w2iBop
 entry moveBop
 	;	TOS: nBytes dstPtr srcPtr
 	mov	r8, [rpsp]
-	mov	rdx, [rpsp + 8]
-	mov	rcx, [rpsp + 16]
+	mov	rdx, [rpsp + 16]
+	mov	rcx, [rpsp + 8]
 	sub rsp, 32			; shadow space
 	xcall	memmove
 	add rsp, 32
 	add	rpsp, 24
-	jmp	rnext
+	jmp	restoreNext
 
 ;========================================
 
@@ -5164,7 +5167,7 @@ entry memcmpBop
 	add rsp, 32
 	add	rpsp, 16
     mov [rpsp], rax
-	jmp	rnext
+	jmp	restoreNext
 
 ;========================================
 
@@ -5177,7 +5180,7 @@ entry fillBop
 	xcall	memset
 	add rsp, 32
 	add	rpsp, 24
-	jmp	rnext
+	jmp	restoreNext
 
 ;========================================
 
@@ -5354,7 +5357,7 @@ entry strcpyBop
 	xcall	strcpy
 	add rsp, 32
 	add	rpsp, 16
-	jmp	rnext
+	jmp	restoreNext
 
 ;========================================
 
@@ -5367,7 +5370,7 @@ entry strncpyBop
 	xcall	strncpy
 	add rsp, 32
 	add	rpsp, 24
-	jmp	rnext
+	jmp	restoreNext
 
 ;========================================
 
@@ -5397,7 +5400,7 @@ entry strcatBop
 	xcall	strcat
 	add rsp, 32
 	add	rpsp, 16
-	jmp	rnext
+	jmp	restoreNext
 
 ;========================================
 
@@ -5410,7 +5413,7 @@ entry strncatBop
 	xcall	strncat
 	add rsp, 32
 	add	rpsp, 24
-	jmp	rnext
+	jmp	restoreNext
 
 ;========================================
 
@@ -5423,7 +5426,7 @@ entry strchrBop
 	add rsp, 32
 	add	rpsp, 8
 	mov	[rpsp], rax
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5436,7 +5439,7 @@ entry strrchrBop
 	add rsp, 32
 	add	rpsp, 8
 	mov	[rpsp], rax
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5458,7 +5461,7 @@ strcmp2:
 strcmp3:
 	add	rpsp, 8
 	mov	[rpsp], rbx
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5496,7 +5499,7 @@ strncmp2:
 strncmp3:
 	add	rpsp, 16
 	mov	[rpsp], rbx
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5509,7 +5512,7 @@ entry strstrBop
 	add rsp, 32
 	add	rpsp, 8
 	mov	[rpsp], rax
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5522,7 +5525,7 @@ entry strtokBop
 	add rsp, 32
 	add	rpsp, 8
 	mov	[rpsp], rax
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5685,9 +5688,9 @@ entry	fopenBop
 	sub rsp, 32			; shadow space
 	call rax
 	add rsp, 32
-	add		rpsp, 8
+	add	rpsp, 8
 	mov	[rpsp], rax	; push fopen result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5699,7 +5702,7 @@ entry	fcloseBop
 	call rax
 	add rsp, 32
 	mov	[rpsp], rax	; push fclose result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5714,7 +5717,7 @@ entry	fseekBop
 	add rsp, 32
 	add	rpsp, 16
 	mov	[rpsp], rax	; push fseek result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5729,7 +5732,7 @@ entry	freadBop
 	add rsp, 32
 	add	rpsp, 16
 	mov	[rpsp], rax	; push fread result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5744,7 +5747,7 @@ entry	fwriteBop
 	add rsp, 32
 	add	rpsp, 16
 	mov	[rpsp], rax	; push fwrite result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5756,7 +5759,7 @@ entry	fgetcBop
 	call rax
 	add rsp, 32
 	mov	[rpsp], rax	; push fgetc result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5770,7 +5773,7 @@ entry	fputcBop
 	add rsp, 32
 	add rpsp, 8
 	mov	[rpsp], rax	; push fputc result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5782,7 +5785,7 @@ entry	feofBop
 	call rax
 	add rsp, 32
 	mov	[rpsp], rax	; push feof result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5794,7 +5797,7 @@ entry	fexistsBop
 	call rax
 	add rsp, 32
 	mov	[rpsp], rax	; push fexists result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5806,7 +5809,7 @@ entry	ftellBop
 	call rax
 	add rsp, 32
 	mov	[rpsp], rax	; push ftell result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5818,7 +5821,7 @@ entry	flenBop
 	call rax
 	add rsp, 32
 	mov	[rpsp], rax	; push flen result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5833,7 +5836,7 @@ entry	fgetsBop
 	add rsp, 32
 	add	rpsp, 16
 	mov	[rpsp], rax	; push fgets result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 
@@ -5847,7 +5850,7 @@ entry	fputsBop
 	add rsp, 32
 	add	rpsp, 8
 	mov	[rpsp], rax	; push fputs result
-	jmp	rnext
+	jmp	restoreNext
 	
 ;========================================
 entry	setTraceBop
@@ -5877,18 +5880,23 @@ entry	setTraceBop
 entry fprintfSubCore
     ; TOS: N argN ... arg1 formatStr filePtr       (arg1 to argN are optional)
     mov rax, [rpsp]     ; rax is number of arguments
+	mov	[rcore + FCore.RPtr], rrp
+	mov rrp, rsp
+
     ; if there are less than 3 arguments, none will be on stack
     cmp rax, 3
     jl .fpsc1
     ; if number of args is odd, do a dummy push to fix stack alignment
     or rax, rax
-    jpe .fpsc1
+    jpo .fpsc1
     push rax
 .fpsc1:
+    lea rcx, [rpsp + rax*8]
+	mov rnumops, rcx
+	mov rdx, [rcx + 8]			; 2nd argument - format string
     dec rax
     jl .fpsc9
     ; rcx -> arg1
-    lea rcx, [rpsp + rax*8]
     ; deal with args 1 and 2
     ; stick them in both r8/r9 and xmm2/xmm3, since they may be floating point
     mov r8, [rcx]
@@ -5902,27 +5910,30 @@ entry fprintfSubCore
     dec rax
     jl .fpsc8
     ; push args 3..N on system stack
+    lea rcx, [rpsp + 8]
 .fpscLoop:
-    mov rdx, [rcx]
-    push rdx
-    sub rcx, 8
+    mov rbx, [rcx]
+    push rbx
+    add rcx, 8
     dec rax
     jge .fpscLoop
 .fpsc8:
     mov rpsp, rcx
 .fpsc9:
     ; all args have been fetched except format and file
-    mov rdx, [rpsp]  ; rdx is param 1 - format
-    add rpsp, 8
+	lea rpsp, [rnumops + 16]
     mov rcx, [rpsp]  ; rcx is param 0 - file
+    mov rdx, [rnumops + 8]   ; rdx is param 1 - format
     ; rcx - FILE
     ; rdx - FORMAT
     ; r8 & xmm2 - arg1
     ; r9 & xmm3 - arg2
     ; rest of arguments are on system stack
-; ugh, do shadow space
+	sub rsp, 32			; shadow space
     xcall fprintf
-; and do stack cleanup too
+	; do stack cleanup
+	mov rsp, rrp
+	mov	rrp, [rcore + FCore.RPtr]
     mov [rpsp], rax
     jmp restoreNext
     
@@ -5930,7 +5941,6 @@ entry fprintfSubCore
 entry fprintfSub
     ; called from C++
     ; rcx is pCore
-    sub sp, 8   ; align stack
     push rcore
     push rpsp
     push rnext
@@ -5947,7 +5957,6 @@ fprintfSubExit:		; this is exit for state == OK - discard the unused return addr
     pop rnext
     pop rpsp
     pop rcore
-    add sp, 8
 	ret
 
 ;========================================

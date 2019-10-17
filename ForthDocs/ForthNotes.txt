@@ -146,6 +146,43 @@ Double and long memory and stack layouts:
 
 Double has consistent layout, long is reversed on param stack.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 16 2019
+
+I finally got the amd64 inner interpreter coded up.  A fair amount of it is
+working, there are several things which aren't done at all:
+o most combo ops
+o all the printf/scanf variants, and String format methods
+o DLL support
+It can successfully run forth_autoload, which is not well setup for
+bringing up a new version of Forth.
+There are a ton of untested things, I can't even run forthtest yet.
+
+The hardest puzzles for the port were:
+o "shadow" register storage - almost nothing mentions this, but the 64-bit
+  ABI allows called routines to stomp the 32 bytes right below the return
+  address.  I found one example in a blog that had it in the listing, and
+  it didn't explain what it was.  I couldn't have figured it out from looking
+  at disassembly of compiled code because it does a ton of strange stuff on
+  entry and exit that the shadow space gets lost in.
+o there are some errors that don't show up until the link phase, and they don't
+  include any information about where the error occured, just messages like:
+	"error: Relocation type ADDR32 is invalid without /LARGEADDRESSAWARE:NO"
+  that one was because in a few places I had ported code like:
+  	mov	ebx, [localObjectActionTable + ebx*4]
+  and the table address in that location causes relocation problems.
+  I had to use the dumpbin utility to find ADDR32 relocations in the obj file,
+  then figure out their offsets and what symbol was near that offset.
+
+I still need to make a real decision about things like l!/l@/d!/d@/2!/2@,
+and I need to commit one way or the other to throw out ANSI double compatability,
+or leave it as in with longs word swapped on the stack in the 32-bit version.
+
+There were some changes I made to get running that I might not want to keep in
+the 32-bit version, in particular I moved some float/double functions to just
+be in C++ because I didn't know how to do them in new xmm register style code.
+
+End of the night - fprintf works!  even with floating point!
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 September 24 2019
 
 I've been concentrating on work, not a lot of time for Forth.
