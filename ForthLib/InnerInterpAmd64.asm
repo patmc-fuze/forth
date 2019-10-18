@@ -2,7 +2,7 @@
 DEFAULT REL
 BITS 64
 
-%include "core.inc"
+%include "core64.inc"
 
 ;
 ; first four non-FP args are in rcx, rdx, r8, r9, rest are on stack
@@ -55,7 +55,6 @@ EXTERN CallDLLRoutine
 
 SECTION .text
 
-
 ; register usage in a forthOp:
 ;
 ;	EAX		free
@@ -70,16 +69,6 @@ SECTION .text
 ;   R13     FP frame pointer
 ;	R14		SP paramater stack pointer
 ;   R15     RP return stack pointer
-
-%define rip rsi
-%define rnext rdi
-%define roptab r9
-%define rnumops r10
-%define racttab r11
-%define rcore r12
-%define rfp r13
-%define rpsp r14
-%define rrp r15
 
 ; when in a opType routine:
 ;	AL		8-bit opType
@@ -1872,7 +1861,6 @@ lsStore1:
     mov r8, rax             ; 3rd param - num chars to copy
 
     add rpsp, 8
-	mov	[rcore + FCore.SPtr], rpsp
     mov rbx, rcx
     add rbx, rax            ; rbx -> end of dest string
 	; add the terminating null
@@ -1885,7 +1873,7 @@ lsStore1:
 	xcall	memcpy
 	add rsp, 32
 
-	jmp	interpFuncReenter
+	jmp	restoreNext
 
 localStringAppend:
 	; rax -> dest string maxLen field
@@ -1931,7 +1919,7 @@ lsAppend1:
 		
 	; set var operation back to fetch
 	mov	[rcore + FCore.varMode], rax
-	jmp	interpFuncReenter
+	jmp	restoreNext
 
 localStringActionTable:
 	DQ	localStringFetch
@@ -5863,7 +5851,6 @@ entry	setTraceBop
 
 ;========================================
 
-;extern void fprintfSub( ForthCoreState* pCore );
 ;extern void snprintfSub( ForthCoreState* pCore );
 ;extern void fscanfSub( ForthCoreState* pCore );
 ;extern void sscanfSub( ForthCoreState* pCore );
@@ -5877,82 +5864,72 @@ entry	setTraceBop
 ; fprintfOp (assembler version)
 ;  fprintfSubCore
 
-entry fprintfSubCore
-    ; TOS: N argN ... arg1 formatStr filePtr       (arg1 to argN are optional)
-    mov rax, [rpsp]     ; rax is number of arguments
-	mov	[rcore + FCore.RPtr], rrp
-	mov rrp, rsp
-
-    ; if there are less than 3 arguments, none will be on stack
-    cmp rax, 3
-    jl .fpsc1
-    ; if number of args is odd, do a dummy push to fix stack alignment
-    or rax, rax
-    jpo .fpsc1
-    push rax
-.fpsc1:
-    lea rcx, [rpsp + rax*8]
-	mov rnumops, rcx
-	mov rdx, [rcx + 8]			; 2nd argument - format string
-    dec rax
-    jl .fpsc9
-    ; rcx -> arg1
-    ; deal with args 1 and 2
-    ; stick them in both r8/r9 and xmm2/xmm3, since they may be floating point
-    mov r8, [rcx]
-    movq xmm2, r8
-    sub rcx, 8
-    dec rax
-    jl .fpsc8
-    mov r9, [rcx]
-    movq xmm3, r9
-    sub rcx, 8
-    dec rax
-    jl .fpsc8
-    ; push args 3..N on system stack
-    lea rcx, [rpsp + 8]
-.fpscLoop:
-    mov rbx, [rcx]
-    push rbx
-    add rcx, 8
-    dec rax
-    jge .fpscLoop
-.fpsc8:
-    mov rpsp, rcx
-.fpsc9:
-    ; all args have been fetched except format and file
-	lea rpsp, [rnumops + 16]
-    mov rcx, [rpsp]  ; rcx is param 0 - file
-    mov rdx, [rnumops + 8]   ; rdx is param 1 - format
-    ; rcx - FILE
-    ; rdx - FORMAT
-    ; r8 & xmm2 - arg1
-    ; r9 & xmm3 - arg2
-    ; rest of arguments are on system stack
-	sub rsp, 32			; shadow space
-    xcall fprintf
-	; do stack cleanup
-	mov rsp, rrp
-	mov	rrp, [rcore + FCore.RPtr]
-    mov [rpsp], rax
-    jmp restoreNext
-    
 ; extern void fprintfSub( ForthCoreState* pCore );
 entry fprintfSub
     ; called from C++
     ; rcx is pCore
     push rcore
     push rpsp
-    push rnext
+    push rfp
 	; stack should be 16-byte aligned at this point
+    ; params refer to parameters passed to fprintf: formatStr filePtr arg1..argN
+    ; arguments refer to things which are to be printed: arg1..argN
+    
     mov rcore, rcx                        ; rcore -> ForthCoreState
 	mov	rpsp, [rcore + FCore.SPtr]
-	mov	rnext, fprintfSubExit
-	jmp	fprintfSubCore
 
-fprintfSubExit:		; this is exit for state == OK - discard the unused return address from call above
-    mov rax, [rpsp]
-    add rpsp, 8
+    ; TOS: N argN..arg1 formatStr filePtr       (arg1 to argN are optional)
+    mov rax, [rpsp]     ; rax is number of arguments
+	mov rfp, rsp        ; rfp is saved system stack pointer
+
+    ; if there are less than 3 arguments, none will be passed on system stack
+    cmp rax, 3
+    jl .fprint1
+    ; if number of args is odd, do a dummy push to fix stack alignment
+    or rax, rax
+    jpo .fprint1
+    push rax
+.fprint1:
+    lea rcx, [rpsp + rax*8]     ; rcx -> arg1
+	mov r10, rcx
+	mov rdx, [rcx + 8]			; rdx = formatStr (2nd param)
+    dec rax
+    jl .fprint9
+    ; deal with arg1 and arg2
+    ; stick them in both r8/r9 and xmm2/xmm3, since they may be floating point
+    mov r8, [rcx]
+    movq xmm2, r8
+    sub rcx, 8
+    dec rax
+    jl .fprint9
+    mov r9, [rcx]
+    movq xmm3, r9
+    sub rcx, 8
+    dec rax
+    jl .fprint9
+
+    ; push args 3..N on system stack
+    lea rcx, [rpsp + 8]     ; rcx -> argN
+.fprintLoop:
+    mov r11, [rcx]
+    push r11
+    add rcx, 8
+    dec rax
+    jge .fprintLoop
+.fprint9:
+    ; all args have been fetched except format and file
+	lea rpsp, [r10 + 16]    ; rpsp -> filePtr on TOS
+    mov rcx, [rpsp]         ; rcx = filePtr (1st param)
+    ; rcx - filePtr
+    ; rdx - formatStr
+    ; r8 & xmm2 - arg1
+    ; r9 & xmm3 - arg2
+    ; rest of arguments are on system stack
+	sub rsp, 32			; shadow space
+    xcall fprintf
+    mov [rpsp], rax
+	; do stack cleanup
+	mov rsp, rfp
 	mov	[rcore + FCore.SPtr], rpsp
     pop rnext
     pop rpsp
@@ -5961,152 +5938,323 @@ fprintfSubExit:		; this is exit for state == OK - discard the unused return addr
 
 ;========================================
 
-entry snprintfSubCore
+entry snprintfSub
+    ; called from C++
+    ; rcx is pCore
+    push rcore
+    push rpsp
+    push rfp
+	; stack should be 16-byte aligned at this point
+    ; params refer to parameters passed to snprintf: bufferPtr bufferSize formatStr arg1..argN
+    ; arguments refer to things which are to be printed: arg1..argN
+    
+    mov rcore, rcx                        ; rcore -> ForthCoreState
+	mov	rpsp, [rcore + FCore.SPtr]
+
     ; TOS: N argN ... arg1 formatStr bufferSize bufferPtr       (arg1 to argN are optional)
     mov rax, [rpsp]     ; rax is number of arguments
-    ; if there are less than 2 arguments, none will be on stack
+	mov rfp, rsp        ; rfp is saved system stack pointer
+    
+    ; if there are less than 2 arguments, none will be passed on system stack
     cmp rax, 2
-    jle .snpsc1          
+    jl .snprint1          
     ; if number of args is even, do a dummy push to fix stack alignment
     or rax, rax
-    jpo .snpsc1
+    jpo .snprint1
     push rax
-.snpsc1:
+.snprint1:
+    lea rcx, [rpsp + rax*8]     ; rcx -> arg1
+	mov r10, rcx
     dec rax
-    jl .snpsc9
+    jl .snprint9
     ; rcx -> arg1
-    lea rcx, [rpsp + rax*8]
     ; deal with arg1
     ; stick it in both r9 and xmm3, since it may be floating point
     mov r9, [rcx]
     movq xmm3, r9
     sub rcx, 8
     dec rax
-    jl .snpsc8
+    jl .snprint9
+    
     ; push args 2..N on system stack
-.snpscLoop:
-    mov rdx, [rcx]
-    push rdx
-    sub rcx, 8
+    lea rcx, [rpsp + 8]
+.snprintLoop:
+    mov r11, [rcx]
+    push r11
+    add rcx, 8
     dec rax
-    jge .snpscLoop
-.snpsc8:
-    mov rpsp, rcx
-.snpsc9:
+    jge .snprintLoop
+.snprint9:
     ; TOS: N argN ... arg1 formatStr bufferSize bufferPtr       (arg1 to argN are optional)
     ; all args have been fetched except formatStr, bufferSize and bufferPtr
-    mov r8, [rpsp]
-    add rpsp, 8
-    mov rdx, [rpsp]
-    add rpsp, 8
-    mov rcx, [rpsp]
+	lea rpsp, [r10 + 24]        ; rpsp -> bufferPtr on TOS
+    mov rcx, [rpsp]             ; rcx = bufferPtr (1st param)
+	mov rdx, [r10 + 16]			; rdx = bufferSize (2nd param)
+	mov r8, [r10 + 8]			; r8 =  formatStr (3rd param)
     ; rcx - bufferPtr
     ; rdx - bufferSize
     ; r8 - formatStr
     ; r9 & xmm3 - arg1
     ; rest of arguments are on system stack
-    xcall fprintf
+	sub rsp, 32			; shadow space
+    xcall snprintf
     mov [rpsp], rax
-    jmp restoreNext
-    
-; extern long snprintfSub( ForthCoreState* pCore );
-entry snprintfSub
-    ; called from C++
-    ; rcx is pCore
-    sub sp, 8   ; align stack
-    push rcore
-    push rpsp
-    push rnext
-	; stack should be 16-byte aligned at this point
-    mov rcore, rcx                        ; rcore -> ForthCoreState
-	mov	rpsp, [rcore + FCore.SPtr]
-	mov	rnext, snprintfSubExit
-	jmp	fprintfSubCore
-
-snprintfSubExit:
-    mov rax, [rpsp]
-    add rpsp, 8
+	; do stack cleanup
+	mov rsp, rfp
 	mov	[rcore + FCore.SPtr], rpsp
     pop rnext
     pop rpsp
     pop rcore
-    add sp, 8
 	ret
 
 ;========================================
 
 ; extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 entry oStringFormatSub
-;oStringFormatSub PROC near C public uses rbx rip rpsp rcx rnext rcore,
-;	core:PTR,
-;	pBuffer:PTR,
-;	bufferSize:DWORD
-    ; TOS: numArgs argN ... arg1 formatStr (arg1 to argN are optional)
-    ; rcx - pCore
-    ; rdx - pBuffer
-    ; r9 - bufferSize
+    ; called from C++
+    ; rcx is pCore
+    ; rdx is bufferPtr
+    ; r8 is bufferSize
+    
+    push rcore
+    push rpsp
+    push rfp
+	; stack should be 16-byte aligned at this point
+    ; params refer to parameters passed to snprintf: bufferPtr bufferSize formatStr arg1..argN
+    ; arguments refer to things which are to be printed: arg1..argN
+    
+    mov rcore, rcx                        ; rcore -> ForthCoreState
+	mov	rpsp, [rcore + FCore.SPtr]
+
+    ; TOS: N argN ... arg1 formatStr bufferSize bufferPtr       (arg1 to argN are optional)
     mov rax, [rpsp]     ; rax is number of arguments
-
-%ifdef WIN32
-    xcall	snprintf
-%else
-    xcall	snprintf
-%endif
-
+	mov rfp, rsp        ; rfp is saved system stack pointer
+    
+    ; if there are less than 2 arguments, none will be passed on system stack
+    cmp rax, 2
+    jl .sformat1          
+    ; if number of args is even, do a dummy push to fix stack alignment
+    or rax, rax
+    jpo .sformat1
+    push rax
+.sformat1:
+    lea rcx, [rpsp + rax*8]     ; rcx -> arg1
+	mov r10, rcx
+    dec rax
+    jl .sformat9
+    ; rcx -> arg1
+    ; deal with arg1
+    ; stick it in both r9 and xmm3, since it may be floating point
+    mov r9, [rcx]
+    movq xmm3, r9
+    sub rcx, 8
+    dec rax
+    jl .sformat9
+    
+    ; push args 2..N on system stack
+    lea rcx, [rpsp + 8]
+.sformatLoop:
+    mov r11, [rcx]
+    push r11
+    add rcx, 8
+    dec rax
+    jge .sformatLoop
+.sformat9:
+    ; TOS: N argN ... arg1 formatStr bufferSize bufferPtr       (arg1 to argN are optional)
+    ; all args have been fetched except formatStr, bufferSize and bufferPtr
+	lea rpsp, [r10 + 8]         ; rpsp -> bufferPtr on TOS
+    mov rcx, rdx                ; rcx = bufferPtr (1st param)
+	mov rdx, r8                 ; rdx = bufferSize (2nd param)
+	mov r8, [rpsp]				; r8 =  formatStr (3rd param)
+    ; rcx - bufferPtr
+    ; rdx - bufferSize
+    ; r8 - formatStr
+    ; r9 & xmm3 - arg1
+    ; rest of arguments are on system stack
+	sub rsp, 32			; shadow space
+    xcall snprintf
+    add rpsp, 8
+	; do stack cleanup
+	mov rsp, rfp
+	mov	[rcore + FCore.SPtr], rpsp
+    pop rnext
+    pop rpsp
+    pop rcore
 	ret
 
 ;========================================
-
-entry fscanfSubCore
-	ret
-	
-; extern long fscanfSub( ForthCoreState* pCore );
 
 entry fscanfSub
-;fscanfSub PROC near C public uses rbx rip rpsp rcx rnext rcore,
-;	core:PTR
+    ; called from C++
+    ; rcx is pCore
+    push rcore
+    push rpsp
+    push rfp
+	; stack should be 16-byte aligned at this point
+    ; params refer to parameters passed to fscanf: formatStr filePtr arg1..argN
+    ; arguments refer to things which are to be printed: arg1..argN
+    
+    mov rcore, rcx                        ; rcore -> ForthCoreState
+	mov	rpsp, [rcore + FCore.SPtr]
+
+    ; TOS: N argN..arg1 formatStr filePtr       (arg1 to argN are optional)
+    mov rax, [rpsp]     ; rax is number of arguments
+	mov rfp, rsp        ; rfp is saved system stack pointer
+
+    ; if there are less than 3 arguments, none will be passed on system stack
+    cmp rax, 3
+    jl .fscan1
+    ; if number of args is odd, do a dummy push to fix stack alignment
+    or rax, rax
+    jpo .fscan1
+    push rax
+.fscan1:
+    lea rcx, [rpsp + rax*8]     ; rcx -> arg1
+	mov r10, rcx
+	mov rdx, [rcx + 8]          ; rdx = formatStr (2nd param)
+    dec rax
+    jl .fscan9
+    ; deal with arg1 and arg2
+    mov r8, [rcx]
+    sub rcx, 8
+    dec rax
+    jl .fscan9
+    mov r9, [rcx]
+    sub rcx, 8
+    dec rax
+    jl .fscan9
+
+    ; push args 3..N on system stack
+    lea rcx, [rpsp + 8]     ; rcx -> argN
+.fscanLoop:
+    mov r11, [rcx]
+    push r11
+    add rcx, 8
+    dec rax
+    jge .fscanLoop
+.fscan9:
+    ; all args have been fetched except format and file
+	lea rpsp, [r10 + 16]    ; rpsp -> filePtr on TOS
+    mov rcx, [rpsp]         ; rcx = filePtr (1st param)
+    ; rcx - filePtr
+    ; rdx - formatStr
+    ; r8 - arg1 ptr
+    ; r9 - arg2 ptr
+    ; rest of arguments are on system stack
+	sub rsp, 32			; shadow space
+    xcall fscanf
+    mov [rpsp], rax
+	; do stack cleanup
+	mov rsp, rfp
+	mov	[rcore + FCore.SPtr], rpsp
+    pop rnext
+    pop rpsp
+    pop rcore
 	ret
 
 ;========================================
 
-entry sscanfSubCore
-	ret
-
-; extern long sscanfSub( ForthCoreState* pCore );
-
 entry sscanfSub
-;sscanfSub PROC near C public uses rbx rip rpsp rcx rnext rcore,
-;	core:PTR
+    ; called from C++
+    ; rcx is pCore
+    push rcore
+    push rpsp
+    push rfp
+	; stack should be 16-byte aligned at this point
+    ; params refer to parameters passed to sscanf: formatStr bufferPtr arg1..argN
+    ; arguments refer to things which are to be printed: arg1..argN
+    
+    mov rcore, rcx                        ; rcore -> ForthCoreState
+	mov	rpsp, [rcore + FCore.SPtr]
+
+    ; TOS: N argN..arg1 formatStr filePtr       (arg1 to argN are optional)
+    mov rax, [rpsp]     ; rax is number of arguments
+	mov rfp, rsp        ; rfp is saved system stack pointer
+
+    ; if there are less than 3 arguments, none will be passed on system stack
+    cmp rax, 3
+    jl .sscan1
+    ; if number of args is odd, do a dummy push to fix stack alignment
+    or rax, rax
+    jpo .sscan1
+    push rax
+.sscan1:
+    lea rcx, [rpsp + rax*8]     ; rcx -> arg1
+	mov r10, rcx
+	mov rdx, [rcx + 8]			; rdx = formatStr (2nd param)
+    dec rax
+    jl .sscan9
+    ; deal with arg1 and arg2
+    mov r8, [rcx]
+    sub rcx, 8
+    dec rax
+    jl .sscan9
+    mov r9, [rcx]
+    sub rcx, 8
+    dec rax
+    jl .sscan9
+
+    ; push args 3..N on system stack
+    lea rcx, [rpsp + 8]     ; rcx -> argN
+.sscanLoop:
+    mov r11, [rcx]
+    push r11
+    add rcx, 8
+    dec rax
+    jge .sscanLoop
+.sscan9:
+    ; all args have been fetched except format and bufferPtr
+	lea rpsp, [r10 + 16]    ; rpsp -> bufferPtr on TOS
+    mov rcx, [rpsp]         ; rcx = bufferPtr (1st param)
+    ; rcx - bufferPtr
+    ; rdx - formatStr
+    ; r8 - arg1 ptr
+    ; r9 - arg2 ptr
+    ; rest of arguments are on system stack
+	sub rsp, 32			; shadow space
+    xcall sscanf
+    mov [rpsp], rax
+	; do stack cleanup
+	mov rsp, rfp
+	mov	[rcore + FCore.SPtr], rpsp
+    pop rnext
+    pop rpsp
+    pop rcore
 	ret
 
 ;========================================
 entry dllEntryPointType
-	mov	[rcore + FCore.IPtr], rip
-	mov	[rcore + FCore.SPtr], rpsp
+	; rbx is opcode:
+	; bits 0..15 are index into ForthCoreState userOps table
+	; 16..18 are flags
+	; 19..23 are arg count
+	; args are on TOS
 	mov	rax, rbx
-	and	rax, 0000FFFFh
+	and	rax, 0000FFFFh		; rax is userOps table index for this dll routine
 	cmp	rax, rnumops
 	jge	badUserDef
-	; push core ptr
-	push	rcore
-	; push flags
-	mov	rip, rbx
-	shr	rip, 16
-	and	rip, 7
-	push	rip
-	; push arg count
-	mov	rip, rbx
-	shr	rip, 19
-	and	rip, 1Fh
-	push	rip
-	; push entry point address
-	mov	rip, [rcore + FCore.ops]
-	mov	rpsp, [rip+rax*4]
-	push	rpsp
+
+	mov r9, rcore
+
+	mov r8, rbx
+	shr r8, 16
+	and r8, 7
+
+	mov	rdx, rbx
+	shr	rdx, 19
+	and	rdx, 1Fh
+
+	mov	rbx, [rcore + FCore.ops]
+	mov	rcx, [rbx + rax*4]
+
+	; rcx - dll routine address
+	; rdx - arg count
+	; r8 - flags
+	; r9 - pCore
+	sub rsp, 32
 	xcall	CallDLLRoutine
-	add	esp, 12
-	pop	rcore
-	jmp	interpFuncReenter
+	add rsp, 32
+	jmp	restoreNext
 
 
 ;-----------------------------------------------
