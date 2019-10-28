@@ -24,12 +24,7 @@ extern "C"
 {
 
 // NativeAction is used to execute user ops which are defined in assembler
-#if defined(FORTH64)
-void NativeAction(ForthCoreState *pCore, forthop opVal) {}
-void CallDLLRoutine(DLLRoutine function, long argCount, unsigned long flags, ForthCoreState *pCore) {}
-#else
 extern void NativeAction( ForthCoreState *pCore, forthop opVal );
-#endif
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -1951,7 +1946,7 @@ OPTYPE_ACTION( AllocLocalsAction )
 
 OPTYPE_ACTION( InitLocalStringAction )
 {
-    // bits 0..11 are string length in bytes, bits 12..23 are frame offset in longs
+    // bits 0..11 are string length in bytes, bits 12..23 are frame offset in cells
     // init the current & max length fields of a local string
     cell* pFP = GET_FP;
     cell* pStr = pFP - (opVal >> 12);

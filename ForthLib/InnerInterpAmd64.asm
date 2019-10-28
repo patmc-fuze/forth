@@ -246,7 +246,8 @@ entry InterpretOneOpFast
 	mov	[rcore + FCore.state], rax
 	; instead of jumping directly to the inner loop, do a call so that
 	; error exits which do a return instead of branching to inner loop will work
-    ; TODO - which register should opcode (rdx) be in here?
+    ; interpLoopExecuteEntry expects opcode in rbx
+    mov rbx, rdx
 	sub rsp, 32			; shadow space
 	call	interpLoopExecuteEntry
 	jmp	InterpretOneOpFastExit2
@@ -733,7 +734,7 @@ entry arrayOffsetType
 	and	rbx, 00FFFFFFh		; rbx is size of one element
 	; TOS is array base, tos-1 is index
     ; TODO: this probably isn't right for 64-bit
-	imul	rbx, [rpsp+4]	; multiply index by element size
+	imul	rbx, [rpsp+8]	; multiply index by element size
 	add	rbx, [rpsp]			; add array base addr
 	add	rpsp, 8
 	mov	[rpsp], rbx
@@ -1513,7 +1514,8 @@ floatEntry:
 	; fetch local float
 localFloatFetch:
 	sub	rpsp, 8
-	mov	rbx, [rax]
+    xor rbx, rbx
+	mov	ebx, [rax]
 	mov	[rpsp], rbx
 	jmp	rnext
 
@@ -1527,7 +1529,7 @@ localFloatRef:
 	
 localFloatStore:
 	mov	rbx, [rpsp]
-	mov	[rax], rbx
+	mov	[rax], ebx
 	add	rpsp, 8
 	; set var operation back to fetch
 	xor	rax, rax
@@ -1567,7 +1569,7 @@ localFloat1:
 	jg	badVarOperation
 	; dispatch based on value in rbx
 	mov rcx, localFloatActionTable
-	mov	rbx, [rcx + rbx*4]
+	mov	rbx, [rcx + rbx*8]
 	jmp	rbx
 
 entry fieldFloatType
@@ -1659,11 +1661,9 @@ doubleEntry:
 	jnz	localDouble1
 	; fetch local double
 localDoubleFetch:
-	sub	rpsp, 16
+	sub	rpsp, 8
 	mov	rbx, [rax]
 	mov	[rpsp], rbx
-	mov	rbx, [rax+4]
-	mov	[rpsp+4], rbx
 	jmp	rnext
 
 localDoubleRef:
@@ -1677,8 +1677,6 @@ localDoubleRef:
 localDoubleStore:
 	mov	rbx, [rpsp]
 	mov	[rax], rbx
-	mov	rbx, [rpsp+4]
-	mov	[rax+4], rbx
 	add	rpsp, 8
 	; set var operation back to fetch
 	xor	rax, rax
@@ -1688,6 +1686,7 @@ localDoubleStore:
 localDoublePlusStore:
 	movsd   xmm0, QWORD[rax]
     addsd   xmm0, QWORD[rpsp]
+    movsd QWORD[rax], xmm0
 	add	rpsp, 8
 	; set var operation back to fetch
 	xor	rbx, rbx
@@ -1697,6 +1696,7 @@ localDoublePlusStore:
 localDoubleMinusStore:
 	movsd xmm0, QWORD[rax]
     subsd xmm0, [rpsp]
+    movsd QWORD[rax], xmm0
 	add	rpsp, 8
 	; set var operation back to fetch
 	xor	rbx, rbx
@@ -1848,12 +1848,12 @@ localStringStore:
 	; rbx -> dest string maxLen field
     ; TOS -> src string
 	; figure how many chars to copy
-	cmp	rax, [rbx]
+	cmp	eax, [rbx]
 	jle lsStore1
     mov rax, rbx
 lsStore1:
 	; set current length field
-	mov	[rbx + 4], rax
+	mov	[rbx + 4], eax
 	
 	; setup params for memcpy further down
     lea rcx, [rbx + 8]      ; 1st param - dest pointer
@@ -1965,7 +1965,7 @@ entry localStringArrayType
 	and	rbx, 00FFFFFFh
 	sal	rbx, 3
 	sub	rax, rbx		; rax -> maxLen field of string[0]
-	mov	rbx, [rax]
+	mov	ebx, [rax]
 	sar	rbx, 2
 	add	rbx, 3			; rbx is element length in longs
 	imul	rbx, [rpsp]	; mult index * element length
@@ -1980,13 +1980,13 @@ entry fieldStringArrayType
 	; rbx is field offset in bytes
 	and	rbx, 00FFFFFFh
 	add	rbx, [rpsp]		; rbx -> maxLen field of string[0]
-	mov	rax, [rbx]		; rax = maxLen
+	mov	eax, [rbx]		; rax = maxLen
 	sar	rax, 2
 	add	rax, 3			; rax is element length in longs
-	imul	rax, [rpsp+4]	; mult index * element length
+	imul	rax, [rpsp+8]	; mult index * element length
 	sal	rax, 2
 	add	rax, rbx		; rax -> maxLen field of string[N]
-	add	rpsp, 8
+	add	rpsp, 16
 	jmp	stringEntry
 
 entry memberStringArrayType
@@ -1995,7 +1995,7 @@ entry memberStringArrayType
 	; rbx is field offset in bytes
 	and	rbx, 00FFFFFFh
 	add	rbx, [rcore + FCore.TPtr]	; rbx -> maxLen field of string[0]
-	mov	rax, [rbx]		; rax = maxLen
+	mov	eax, [rbx]		; rax = maxLen
 	sar	rax, 2
 	add	rax, 3			; rax is element length in longs
 	imul	rax, [rpsp]	; mult index * element length
@@ -2028,7 +2028,7 @@ opEntry:
 	jnz	localOp1
 	; execute local op
 localOpExecute:
-	mov	rbx, [rax]
+	mov	ebx, [rax]
 	mov	rax, [rcore + FCore.innerExecute]
 	jmp rax
 
@@ -2052,7 +2052,7 @@ localOp1:
 	jg	badVarOperation
 	; dispatch based on value in rbx
 	mov rcx, localOpActionTable
-	mov	rbx, [rcx + rbx*4]
+	mov	rbx, [rcx + rbx*8]
 	jmp	rbx
 
 entry fieldOpType
@@ -2351,10 +2351,8 @@ los3:
 	; set this to oldObj
 	mov	[rcore + FCore.TPtr], rbx
 	mov	rbx, [rbx]	; rbx = oldObj methods pointer
-	mov	rbx, [rbx]	; rbx = oldObj method 0 (delete)
+	mov	ebx, [rbx]	; rbx = oldObj method 0 (delete)
 	
-	add	rpsp, 8
-
 	; execute the delete method opcode which is in rbx
 	mov	rax, [rcore + FCore.innerExecute]
 	jmp rax
@@ -2504,9 +2502,9 @@ methodThis1:
 	mov	[rrp], rax
 	
 	and	rbx, 00FFFFFFh
-	sal	rbx, 3
+	sal	rbx, 2
 	add	rbx, [rax]
-	mov	rbx, [rbx]	; rbx = method opcode
+	mov	ebx, [rbx]	; rbx = method opcode
 	mov	rax, [rcore + FCore.innerExecute]
 	jmp rax
 	
@@ -2550,18 +2548,18 @@ entry methodWithSuperType
 	mov	rcx, [rcx + 16]		; 1st param rcx -> class vocabulary
 	sub rsp, 32			; shadow space
 	xcall getSuperClassMethods
+	add rsp, 32
 	mov roptab, [rcore + FCore.ops]
 	mov rnumops, [rcore + FCore.numOps]
 	mov racttab, [rcore + FCore.optypeAction]
-	add rsp, 32
 	; rax -> super class methods table
 	mov	rcx, [rcore + FCore.TPtr]
 	mov	[rcx], rax		; set this methods ptr to super class methods
 	; rbx is method number
 	and	rbx, 00FFFFFFh
-	sal	rbx, 3
+	sal	rbx, 2
 	add	rbx, rax
-	mov	rbx, [rbx]	; rbx = method opcode
+	mov	ebx, [rbx]	; rbx = method opcode
 	mov	rax, [rcore + FCore.innerExecute]
 	jmp rax
 	
@@ -3027,8 +3025,8 @@ entry times8Bop
 entry divideBop
 	; idiv takes 128-bit numerator in rdx:rax
 	mov	rax, [rpsp+8]	; get numerator
-	cdq					; convert into 128-bit in rdx:rax
-	idiv	DWORD[rpsp]		; rax is quotient, rdx is remainder
+	cqo					; convert into 128-bit in rdx:rax
+	idiv	QWORD[rpsp]		; rax is quotient, rdx is remainder
 	add	rpsp, 8
 	mov	[rpsp], rax
 	jmp	rnext
@@ -3062,8 +3060,8 @@ entry divide8Bop
 entry divmodBop
 	; idiv takes 128-bit numerator in rdx:rax
 	mov	rax, [rpsp+8]	; get numerator
-	cdq					; convert into 128-bit in rdx:rax
-	idiv	DWORD[rpsp]		; rax is quotient, rdx is remainder
+	cqo					; convert into 128-bit in rdx:rax
+	idiv	QWORD[rpsp]		; rax is quotient, rdx is remainder
 	mov	[rpsp+8], rdx
 	mov	[rpsp], rax
 	jmp	rnext
@@ -3073,8 +3071,8 @@ entry divmodBop
 entry modBop
 	; idiv takes 128-bit numerator in rdx:rax
 	mov	rax, [rpsp+8]	; get numerator
-	cdq					; convert into 128-bit in rdx:rax
-	idiv	DWORD[rpsp]		; rax is quotient, rdx is remainder
+	cqo					; convert into 128-bit in rdx:rax
+	idiv	QWORD[rpsp]		; rax is quotient, rdx is remainder
 	add	rpsp, 8
 	mov	[rpsp], rdx
 	jmp	rnext
@@ -3122,8 +3120,8 @@ entry ftimesBop
 	
 entry fdivideBop
 	movss xmm0, DWORD[rpsp+8]
-    movss xmm1, DWORD[rpsp]
-    divss xmm0, xmm1
+    divss xmm0, DWORD[rpsp]
+    add rpsp, 8
     movd eax, xmm0
     mov [rpsp], rax
 	jmp	rnext
@@ -3448,38 +3446,37 @@ fNotEqualsBop2:
 	
 entry fGreaterThan0Bop
     xor rax, rax
-    movd xmm0, eax
+    movd xmm1, eax
 	jmp	fGreaterThanBop1
 	
 entry fGreaterThanBop
-    movss xmm0, DWORD[rpsp]
+    movss xmm1, DWORD[rpsp]
 	add	rpsp, 8
     xor rax, rax
 fGreaterThanBop1:
-    movss xmm1, DWORD[rpsp]
+    movss xmm0, DWORD[rpsp]
     comiss xmm0, xmm1
-	jle	fGreaterThanBop2
+	jbe fGreaterThanBop2
 	dec	rax
 fGreaterThanBop2:
 	mov	[rpsp], rax
 	jmp	rnext
-    
 	
 ;========================================
 	
 entry fGreaterEquals0Bop
     xor rax, rax
-    movd xmm0, eax
+    movd xmm1, eax
 	jmp	fGreaterEqualsBop1
 	
 entry fGreaterEqualsBop
-    movss xmm0, DWORD[rpsp]
+    movss xmm1, DWORD[rpsp]
 	add	rpsp, 8
     xor rax, rax
 fGreaterEqualsBop1:
-    movss xmm1, DWORD[rpsp]
+    movss xmm0, DWORD[rpsp]
     comiss xmm0, xmm1
-	jl	fGreaterEqualsBop2
+	jb fGreaterEqualsBop2
 	dec	rax
 fGreaterEqualsBop2:
 	mov	[rpsp], rax
@@ -3490,17 +3487,17 @@ fGreaterEqualsBop2:
 	
 entry fLessThan0Bop
     xor rax, rax
-    movd xmm0, eax
+    movd xmm1, eax
 	jmp	fLessThanBop1
 	
 entry fLessThanBop
-    movss xmm0, DWORD[rpsp]
+    movss xmm1, DWORD[rpsp]
 	add	rpsp, 8
     xor rax, rax
 fLessThanBop1:
-    movss xmm1, DWORD[rpsp]
+    movss xmm0, DWORD[rpsp]
     comiss xmm0, xmm1
-	jge	fLessThanBop2
+	jae	fLessThanBop2
 	dec	rax
 fLessThanBop2:
 	mov	[rpsp], rax
@@ -3511,17 +3508,17 @@ fLessThanBop2:
 	
 entry fLessEquals0Bop
     xor rax, rax
-    movd xmm0, eax
+    movd xmm1, eax
 	jmp	fLessEqualsBop1
 	
 entry fLessEqualsBop
-    movss xmm0, DWORD[rpsp]
+    movss xmm1, DWORD[rpsp]
 	add	rpsp, 8
     xor rax, rax
 fLessEqualsBop1:
-    movss xmm1, DWORD[rpsp]
+    movss xmm0, DWORD[rpsp]
     comiss xmm0, xmm1
-	jg	fLessEqualsBop2
+	ja	fLessEqualsBop2
 	dec	rax
 fLessEqualsBop2:
 	mov	[rpsp], rax
@@ -3535,10 +3532,10 @@ entry fWithinBop
 	movss xmm1, DWORD[rpsp + 16]      ; check value
 	xor	rbx, rbx
     comiss xmm0, xmm1
-	jg	fWithinBop2
+	ja fWithinBop2
     movss xmm0, DWORD[rpsp]           ; hi bound
     comiss xmm0, xmm1
-	jl	fWithinBop2
+	jb fWithinBop2
 	dec	rbx
 fWithinBop2:
 	add	rpsp, 16
@@ -3550,12 +3547,10 @@ fWithinBop2:
 entry fMinBop
     movss xmm0, DWORD[rpsp]
 	add	rpsp, 8
-    movss xmm1, DWORD[rpsp]
-    comiss xmm0, xmm1
-    jl fMinBop2
-    movss xmm0, xmm1
-fMinBop2:
+    comiss xmm0, DWORD[rpsp]
+    jae fMinBop2
     movss DWORD[rpsp], xmm0
+fMinBop2:
 	jmp	rnext
 	
 ;========================================
@@ -3563,12 +3558,10 @@ fMinBop2:
 entry fMaxBop
     movss xmm0, DWORD[rpsp]
 	add	rpsp, 8
-    movss xmm1, DWORD[rpsp]
-    comiss xmm0, xmm1
-    jg fMaxBop2
-    movss xmm0, xmm1
-fMaxBop2:
+    comiss xmm0, DWORD[rpsp]
+    jbe fMaxBop2
     movss DWORD[rpsp], xmm0
+fMaxBop2:
 	jmp	rnext
 	
 ;========================================
@@ -3621,7 +3614,7 @@ entry dminusBop
 	movsd xmm0, QWORD[rpsp+8]
     movsd xmm1, QWORD[rpsp]
     subsd xmm0, xmm1
-    movd eax, xmm0
+    movq rax, xmm0
 	add	rpsp,8
     mov [rpsp], rax
 	jmp	rnext
@@ -3691,17 +3684,17 @@ dNotEqualsBop2:
 	
 entry dGreaterThan0Bop
     xor rax, rax
-    movq xmm0, rax
+    movq xmm1, rax
 	jmp	dGreaterThanBop1
 	
 entry dGreaterThanBop
-    movsd xmm0, QWORD[rpsp]
+    movsd xmm1, QWORD[rpsp]
 	add	rpsp, 8
     xor rax, rax
 dGreaterThanBop1:
-    movsd xmm1, QWORD[rpsp]
+    movsd xmm0, QWORD[rpsp]
     comisd xmm0, xmm1
-	jle	dGreaterThanBop2
+	jbe dGreaterThanBop2
 	dec	rax
 dGreaterThanBop2:
 	mov	[rpsp], rax
@@ -3712,17 +3705,17 @@ dGreaterThanBop2:
 	
 entry dGreaterEquals0Bop
     xor rax, rax
-    movq xmm0, rax
+    movq xmm1, rax
 	jmp	dGreaterEqualsBop1
 	
 entry dGreaterEqualsBop
-    movsd xmm0, QWORD[rpsp]
+    movsd xmm1, QWORD[rpsp]
 	add	rpsp, 8
     xor rax, rax
 dGreaterEqualsBop1:
-    movsd xmm1, QWORD[rpsp]
+    movsd xmm0, QWORD[rpsp]
     comisd xmm0, xmm1
-	jl	dGreaterEqualsBop2
+	jb dGreaterEqualsBop2
 	dec	rax
 dGreaterEqualsBop2:
 	mov	[rpsp], rax
@@ -3733,17 +3726,17 @@ dGreaterEqualsBop2:
 	
 entry dLessThan0Bop
     xor rax, rax
-    movq xmm0, rax
+    movq xmm1, rax
 	jmp	dLessThanBop1
 	
 entry dLessThanBop
-    movsd xmm0, QWORD[rpsp]
+    movsd xmm1, QWORD[rpsp]
 	add	rpsp, 8
     xor rax, rax
 dLessThanBop1:
-    movsd xmm1, QWORD[rpsp]
+    movsd xmm0, QWORD[rpsp]
     comisd xmm0, xmm1
-	jge	dLessThanBop2
+	jae dLessThanBop2
 	dec	rax
 dLessThanBop2:
 	mov	[rpsp], rax
@@ -3754,17 +3747,17 @@ dLessThanBop2:
 	
 entry dLessEquals0Bop
     xor rax, rax
-    movq xmm0, rax
+    movq xmm1, rax
 	jmp	dLessEqualsBop1
 	
 entry dLessEqualsBop
-    movsd xmm0, QWORD[rpsp]
+    movsd xmm1, QWORD[rpsp]
 	add	rpsp, 8
     xor rax, rax
 dLessEqualsBop1:
-    movsd xmm1, QWORD[rpsp]
+    movsd xmm0, QWORD[rpsp]
     comisd xmm0, xmm1
-	jg	dLessEqualsBop2
+	ja dLessEqualsBop2
 	dec	rax
 dLessEqualsBop2:
 	mov	[rpsp], rax
@@ -3778,10 +3771,10 @@ entry dWithinBop
 	movsd xmm1, QWORD[rpsp + 16]      ; check value
 	xor	rbx, rbx
     comisd xmm0, xmm1
-	jg	dWithinBop2
+	ja dWithinBop2
     movsd xmm0, QWORD[rpsp]           ; hi bound
     comisd xmm0, xmm1
-	jl	dWithinBop2
+	jb dWithinBop2
 	dec	rbx
 dWithinBop2:
 	add	rpsp, 16
@@ -3794,25 +3787,21 @@ dWithinBop2:
 entry dMinBop
     movsd xmm0, QWORD[rpsp]
 	add	rpsp, 8
-    movsd xmm1, QWORD[rpsp]
-    comisd xmm0, xmm1
-    jl dMinBop2
-    movsd xmm0, xmm1
-dMinBop2:
+    comisd xmm0, [rpsp]
+    jae dMinBop2
     movsd QWORD[rpsp], xmm0
+dMinBop2:
 	jmp	rnext
-	
+
 ;========================================
 	
 entry dMaxBop
     movsd xmm0, QWORD[rpsp]
 	add	rpsp, 8
-    movsd xmm1, QWORD[rpsp]
-    comisd xmm0, xmm1
-    jg dMaxBop2
-    movsd xmm0, xmm1
-dMaxBop2:
+    comisd xmm0, [rpsp]
+    jbe dMaxBop2
     movsd QWORD[rpsp], xmm0
+dMaxBop2:
 	jmp	rnext
 	
 ;========================================
@@ -3829,7 +3818,6 @@ unaryDoubleFunc	dlnBop, log
 unaryDoubleFunc	dlog10Bop, log10
 unaryDoubleFunc	dceilBop, ceil
 unaryDoubleFunc	dfloorBop, floor
-unaryDoubleFunc	dabsBop, fabs
 
 ;========================================
 
@@ -3898,6 +3886,159 @@ entry fpowBop
     mov [rpsp], rax
 	jmp	restoreNext
 	
+;========================================
+
+entry dabsBop
+	fld	QWORD[rpsp]
+	fabs
+	fstp QWORD[rpsp]
+	jmp	rnext
+	
+;========================================
+
+entry fabsBop
+	fld	DWORD[rpsp]
+	fabs
+    ; the highword of TOS should already be 0, since it was our float input
+	fstp DWORD[rpsp]
+	jmp	rnext
+	
+;========================================
+
+entry dldexpBop
+	; ldexp( a, n )
+	; TOS is n (int), a (double)
+	; get arg a
+    movsd xmm0, QWORD[rpsp + 8]
+	; get arg n
+    mov rdx, [rpsp]
+	sub rsp, 32			; shadow space
+	xcall ldexp
+	add rsp, 32
+	add	rpsp, 8
+    movsd QWORD[rpsp], xmm0
+	jmp	restoreNext
+	
+;========================================
+
+entry fldexpBop
+	; ldexpf( a, n )
+	; TOS is n (int), a (float)
+	; get arg a
+    movss xmm0, DWORD[rpsp + 8]
+	; get arg n
+    mov rdx, [rpsp]
+	sub rsp, 32			; shadow space
+	xcall ldexpf
+	add rsp, 32
+	add	rpsp, 8
+    xor rax, rax
+    movd eax, xmm0
+    mov [rpsp], rax
+	jmp	restoreNext
+	
+;========================================
+
+entry dfrexpBop
+	; frexp( a, ptrToIntExponentReturn )
+	; get arg a
+    movsd xmm0, QWORD[rpsp]
+	; get arg ptrToIntExponentReturn
+    xor rax, rax
+    sub rpsp, 8
+    mov [rpsp], rax
+    mov rdx, rpsp
+	sub rsp, 32			; shadow space
+	xcall frexp
+	add rsp, 32
+    movsd QWORD[rpsp + 8], xmm0
+	jmp	restoreNext
+	
+;========================================
+
+entry ffrexpBop
+	; frexpf( a, ptrToIntExponentReturn )
+	; get arg a
+    movss xmm0, DWORD[rpsp]
+	; get arg ptrToIntExponentReturn
+    xor rax, rax
+    sub rpsp, 8
+    mov [rpsp], rax
+    mov rdx, rpsp
+	sub rsp, 32			; shadow space
+	xcall frexpf
+	add rsp, 32
+    xor rax, rax
+    movd eax, xmm0
+    mov [rpsp + 8], rax
+	jmp	restoreNext
+	
+;========================================
+
+entry dmodfBop
+	; modf( a, ptrToDoubleWholeReturn )
+	; get arg a
+    movsd xmm0, QWORD[rpsp]
+	; get arg ptrToDoubleWholeReturn
+    mov rdx, rpsp
+	sub rsp, 32			; shadow space
+	xcall modf
+	add rsp, 32
+    sub rpsp, 8
+    movsd QWORD[rpsp], xmm0
+	jmp	restoreNext
+	
+;========================================
+
+entry fmodfBop
+	; modf( a, ptrToFloatWholeReturn )
+	; get arg a
+    movss xmm0, DWORD[rpsp]
+	; get arg ptrToIntExponentReturn
+    mov rdx, rpsp
+    xor rax, rax
+    mov [rpsp], rax
+	sub rsp, 32			; shadow space
+	xcall modff
+	add rsp, 32
+    sub rpsp, 8
+    xor rax, rax
+    movd eax, xmm0
+    mov [rpsp], rax
+	jmp	restoreNext
+	
+;========================================
+
+entry dfmodBop
+    ; fmod(numerator denominator)
+    ; get arg denominator
+    movsd xmm1, QWORD[rpsp]
+    add rpsp, 8
+    ; get arg numerator
+    movsd xmm0, QWORD[rpsp]
+	sub rsp, 32			; shadow space
+	xcall fmod
+	add rsp, 32
+    movsd QWORD[rpsp], xmm0
+	jmp	restoreNext
+	
+;========================================
+
+entry ffmodBop
+    ; fmodf(numerator denominator)
+    ; get arg denominator
+    movss xmm1, DWORD[rpsp]
+    add rpsp, 8
+    ; get arg numerator
+    movss xmm0, DWORD[rpsp]
+	sub rsp, 32			; shadow space
+	xcall fmodf
+	add rsp, 32
+    xor rax, rax
+    movd eax, xmm0
+    mov [rpsp], rax
+	jmp	restoreNext
+
 ;========================================
 
 entry umtimesBop
@@ -4262,7 +4403,7 @@ entry rotateBop
 	mov	rcx, [rpsp]
 	add	rpsp, 8
 	mov	rbx, [rpsp]
-	and	cl, 01Fh
+	and	cl, 03Fh
 	rol	rbx, cl
 	mov	[rpsp], rbx
 	jmp	rnext
@@ -4585,7 +4726,7 @@ maxBop1:
 	
 ;========================================
 
-entry cmpBop
+entry icmpBop
 	mov	rbx, [rpsp]		; rbx = b
 	add	rpsp, 8
 	xor	rax, rax
@@ -4601,7 +4742,7 @@ cmpBop3:
 
 ;========================================
 
-entry ucmpBop
+entry uicmpBop
 	mov	rbx, [rpsp]
 	add	rpsp, 8
 	xor	rax, rax
@@ -5226,7 +5367,7 @@ entry odropBop
 	mov	[rcore + FCore.TPtr], rax
 
 	mov	rbx, [rax]	; rbx = methods pointer
-	mov	rbx, [rbx]	; rbx = method 0 (delete)
+	mov	ebx, [rbx]	; rbx = method 0 (delete)
 
 	; execute the delete method opcode which is in rbx
 	mov	rax, [rcore + FCore.innerExecute]
@@ -5586,7 +5727,7 @@ entry doDoesBop
 	mov	rbx, [rrp]	; rbx points at param field
 	sub	rpsp, 8
 	mov	[rpsp], rbx
-	add	rrp, 4
+	add	rrp, 8
 	jmp	rnext
 	
 ;========================================
@@ -5661,7 +5802,7 @@ entry unsuperBop
 ;========================================
 
 entry executeBop
-	mov	rbx, [rpsp]
+	mov	ebx, [rpsp]
 	add	rpsp, 8
 	mov	rax, [rcore + FCore.innerExecute]
 	jmp rax
@@ -5710,30 +5851,32 @@ entry	fseekBop
 ;========================================
 
 entry	freadBop
-	mov	r8, [rpsp]
-	mov	rdx, [rpsp + 8]
-	mov	rcx, [rpsp + 16]
+	mov	r9, [rpsp]
+	mov	r8, [rpsp + 8]
+	mov	rdx, [rpsp + 16]
+	mov	rcx, [rpsp + 24]
 	mov	rax, [rcore + FCore.FileFuncs]
 	mov	rax, [rax + FileFunc.fileRead]
 	sub rsp, 32			; shadow space
 	call rax
 	add rsp, 32
-	add	rpsp, 16
+	add	rpsp, 24
 	mov	[rpsp], rax	; push fread result
 	jmp	restoreNext
 	
 ;========================================
 
 entry	fwriteBop
-	mov	r8, [rpsp]
-	mov	rdx, [rpsp + 8]
-	mov	rcx, [rpsp + 16]
+	mov	r9, [rpsp]
+	mov	r8, [rpsp + 8]
+	mov	rdx, [rpsp + 16]
+	mov	rcx, [rpsp + 24]
 	mov	rax, [rcore + FCore.FileFuncs]
 	mov	rax, [rax + FileFunc.fileWrite]
 	sub rsp, 32			; shadow space
 	call rax
 	add rsp, 32
-	add	rpsp, 16
+	add	rpsp, 24
 	mov	[rpsp], rax	; push fwrite result
 	jmp	restoreNext
 	
@@ -6482,29 +6625,25 @@ entry squishedDoubleType
 	;   exponent = (((inVal >> 18) & 0x1f) + (1023 - 15)) << 20
 	;   mantissa = (inVal & 0x3ffff) << 2
 	;   outVal = (sign | exponent | mantissa) << 32
-	push	rip
 	mov	rax, rbx
 	and	rax, 00800000h
 	shl	rax, 8			; sign bit
 	
-	mov	rip, rbx
+	mov	rcx, rbx
 	shr	rbx, 18
 	and	rbx, 1Fh
 	add	rbx, 1008
 	shl	rbx, 20			; rbx is exponent
 	or	rax, rbx
 	
-	and	rip, 03FFFFh
-	shl	rip, 2
-	or	rax, rip
+	and	rcx, 03FFFFh
+	shl	rcx, 2
+	or	rax, rcx
 	
-	sub	rpsp, 8
-	mov	[rpsp], rax
-	sub	rpsp, 8
 	; loword of double is all zeros
-	xor	rax, rax
+	shl rax, 32
+	sub	rpsp, 8
 	mov	[rpsp], rax
-	pop	rip
 	jmp	rnext
 	
 
@@ -6515,22 +6654,17 @@ entry squishedDoubleType
 entry squishedLongType
 	; get low-24 bits of opcode
 	mov	rax, rbx
-	sub	rpsp, 16
+	sub	rpsp, 8
 	and	rax,00800000h
 	jnz	longConstantNegative
 	; positive constant
 	and	rbx,00FFFFFFh
-	mov	[rpsp+4], rbx
-	xor	rbx, rbx
 	mov	[rpsp], rbx
 	jmp	rnext
 
 longConstantNegative:
 	mov rax, 0xFFFFFFFFFF000000
 	or	rbx, rax
-	mov	[rpsp+4], rbx
-	xor	rbx, rbx
-	sub	rbx, 1
 	mov	[rpsp], rbx
 	jmp	rnext
 	

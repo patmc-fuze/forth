@@ -162,8 +162,13 @@ test[ testLocalVars4 checkResult( "22.5 22.375 21.625 22.5 22.375 21.625 " ) ]
 20 buffer tb
 
 0xDEADBEEF tb !
+#if(FORTH64)
+test[ startTest tb c@ %x %bl tb w@ %x %bl tb sc@ %d checkResult( "ef beef -17" ) ]
+test[ startTest tb sw@ %d %bl tb c@ c2i %d %bl tb w@ w2i %d checkResult( "-16657 -17 -16657" ) ]
+#else
 test[ startTest tb c@ %x %bl tb w@ %x %bl tb sc@ %x checkResult( "ef beef ffffffef" ) ]
 test[ startTest tb sw@ %x %bl tb c@ c2i %x %bl tb w@ w2i %x checkResult( "ffffbeef ffffffef ffffbeef" ) ]
+#endif
 
 ///////////////////////////////////////////////////////////
 
@@ -261,8 +266,14 @@ test[ -10.0d 4.3d dmax 4.3d d= ]
    
 // lshift arshift rshift rotate
 test[ 1 8 lshift 256 = ] test[ 17 2 lshift 68 = ] test[ -80 3 arshift -10 = ] test[ 19 2 arshift 4 = ]
-test[ 0xF1234567 4 arshift 0xFF123456 = ] test[ 0xF1234567 4 rshift 0xF123456 = ]
+test[ 0xF1234567 4 rshift 0xF123456 = ]
+#if(FORTH64)
+test[ 0xFFFFFFFFF1234567 4 arshift 0xFFFFFFFFFF123456 = ]
+test[ 0x12345678 8 rotate 0x1234567800 = ] test[ 0x12345678 -8 rotate 0x7800000000123456 = ]
+#else
+test[ 0xF1234567 4 arshift 0xFF123456 = ]
 test[ 0x12345678 8 rotate 0x34567812 = ]
+#endif
 test[ 0x1234567876543210L 8 2lshift 0x3456787654321000L l= ] test[ 0x1234567876543210L 8 2rshift 0x0012345678765432L l= ]
 test[ 0x1234567876543210L 8 2rotate 0x3456787654321012L l= ] test[ 0x1234567876543210L -8 2rotate 0x1012345678765432L l= ]
 
@@ -272,6 +283,14 @@ test[ 87 5 ?dup 0 ?dup 0= rot 5 = rot 5 = and and over 87 = rot 87 = ]
 
 // -rot nip tuck 
 test[ 43 27 88 -rot 27 = -rot 43 = -rot 88 = and and and 1 4 5 nip 5 = swap 1 = and 11 22 tuck 22 = swap 11 = and swap 22 = and ]
+
+test[ fabs(-56.75) 56.75 f= fabs(56.75) 56.75 f= ]
+test[ dabs(-56.75l) 56.75L d= dabs(56.75l) 56.75L d= ]
+test[ fldexp(0.875 8) 224.0 f= dldexp(-0.875l 8) -224.0L d= ]
+test[ ffrexp(-224.0) 8 = swap -0.875 f= dfrexp(224.0l) 8 = >r 0.875L d= r> ]
+test[ fmodf(12345.625) 0.625 f= swap 12345.0 f= dmodf(-12345.625l) -0.625L d= >r -12345.0L d= r> ]
+test[ ffmod(-27.375 4.0) -3.375 f= dfmod(27.375l 4.0l) 3.375L d= ]
+
 // 2dup 2swap 2drop 2over 2rot r[ ]r
 // c! c@ sc@ w! w@ sw@ ! @ 2! 2@ 
 // move fill varAction! varAction@

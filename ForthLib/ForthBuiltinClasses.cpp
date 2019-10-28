@@ -66,7 +66,7 @@ float boohoo(int aa, int bb, int cc)
 }
 #endif
 
-#if defined(LINUX) || defined(MACOSX)
+#if defined(LINUX) || defined(MACOSX) || defined(FORTH64)
 #define SNPRINTF snprintf
 #else
 #define SNPRINTF _snprintf
@@ -260,9 +260,11 @@ namespace
 		ForthClassObject* pClassObject = (ForthClassObject *)(GET_TP);
 		SPUSH((cell)pClassObject->pVocab);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		METHOD_RETURN;
-		pEngine->ExecuteOp(pCore, pClassObject->newOp);
-	}
+        // METHOD_RETURN before ExecuteOp so that op is not executed with
+        //   this still pointing to class object
+        METHOD_RETURN;
+        pEngine->ExecuteOp(pCore, pClassObject->newOp);
+    }
 
 	FORTHOP(classSuperMethod)
 	{

@@ -183,14 +183,22 @@ MAXUINT -> cell MAXUCELL
 
 
 : count dup 1+ swap c@ ;
-: 2, here 8 allot 2! ;
 
 #if(FORTH64)
+: 2, here 8 allot ! ;
 alias land and
 alias lor or
 alias lxor xor
 alias ucell ulong
+alias l* *
+alias 2lshift lshift
+alias 2rshift rshift
+alias l= =
+alias 2rotate rotate
+alias l+ +
+alias l0<> 0<>
 #else
+: 2, here 8 allot 2! ;
 : land rot and >r and r> ;
 : lor rot or >r and r> ;
 : lxor rot xor >r and r> ;
@@ -1002,6 +1010,21 @@ precedence assert[
 addHelp oshow   OBJECT oshow ...    like OBJECT.show, but doesn't crash if OBJECT is NULL
 
 : ss system.stats ;
+
+//######################################################################
+// floating point constants
+
+0x400921fb54442d18L 2constant dpi
+0x400a934f0979a371L 2constant dlog2ten
+0x3ff71547652b82feL 2constant dlog2e
+0x3fd34413509f79ffL 2constant dlog10two
+0x3fe62e42fefa39efL 2constant dlntwo
+
+0x40490fdb constant fpi
+0x40549a78 constant flog2ten
+0x3fb8aa3b constant flog2e
+0x3e9a209b constant flog10two
+0x3f317218 constant flntwo
 
 //######################################################################
 // automated test support

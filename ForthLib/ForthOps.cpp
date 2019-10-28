@@ -55,6 +55,7 @@ extern "C"
 
 
 #include <math.h>
+#if !defined(ASM_INNER_INTERPRETER)
 extern float sinf(float a);
 extern float cosf(float a);
 extern float tanf(float a);
@@ -67,6 +68,7 @@ extern float sqrtf(float a);
 extern float expf(float a);
 extern float logf(float a);
 extern float log10f(float a);
+#endif
 
 // compiled token is 32-bits,
 // top 8 bits are opcode type (opType)
@@ -277,6 +279,7 @@ FORTHOP( smRemOp )
 }
 #endif
 
+#if !defined(FORTH64)
 //##############################
 //
 // 64-bit integer comparison ops
@@ -285,219 +288,134 @@ FORTHOP( smRemOp )
 #ifndef ASM_INNER_INTERPRETER
 FORTHOP(lEqualsBop)
 {
-#if defined(FORTH64)
-    cell b = SPOP;
-    cell a = SPOP;
-    SPUSH(a == b ? -1L : 0);
-#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP(b);
     LPOP(a);
     SPUSH((a.s64 == b.s64) ? -1L : 0);
-#endif
 }
 
 FORTHOP(lNotEqualsBop)
 {
-#if defined(FORTH64)
-    cell b = SPOP;
-    cell a = SPOP;
-    SPUSH(a != b ? -1L : 0);
-#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP(b);
     LPOP(a);
     SPUSH((a.s64 != b.s64) ? -1L : 0);
-#endif
 }
 
 FORTHOP(lGreaterThanBop)
 {
-#if defined(FORTH64)
-    cell b = SPOP;
-    cell a = SPOP;
-    SPUSH(a > b ? -1L : 0);
-#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     SPUSH( ( a.s64 > b.s64 ) ? -1L : 0 );
-#endif
 }
 
 FORTHOP(lGreaterEqualsBop)
 {
-#if defined(FORTH64)
-    cell b = SPOP;
-    cell a = SPOP;
-    SPUSH(a >= b ? -1L : 0);
-#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     SPUSH( ( a.s64 >= b.s64 ) ? -1L : 0 );
-#endif
 }
 
 FORTHOP(lLessThanBop)
 {
-#if defined(FORTH64)
-    cell b = SPOP;
-    cell a = SPOP;
-    SPUSH(a < b ? -1L : 0);
-#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     SPUSH( ( a.s64 < b.s64 ) ? -1L : 0 );
-#endif
 }
 
 FORTHOP(lLessEqualsBop)
 {
-#if defined(FORTH64)
-    cell b = SPOP;
-    cell a = SPOP;
-    SPUSH(a <= b ? -1L : 0);
-#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     SPUSH( ( a.s64 <= b.s64 ) ? -1L : 0 );
-#endif
 }
 
 FORTHOP(lEquals0Bop)
 {
-#if defined(FORTH64)
-    cell a = SPOP;
-    SPUSH(a == 0 ? -1L : 0);
-#else
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 == 0L ) ? -1L : 0 );
-#endif
 }
 
 FORTHOP(lNotEquals0Bop)
 {
-#if defined(FORTH64)
-    cell a = SPOP;
-    SPUSH(a != 0 ? -1L : 0);
-#else
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 != 0L ) ? -1L : 0 );
-#endif
 }
 
 FORTHOP(lGreaterThan0Bop)
 {
-#if defined(FORTH64)
-    cell a = SPOP;
-    SPUSH(a > 0 ? -1L : 0);
-#else
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 > 0L ) ? -1L : 0 );
-#endif
 }
 
 FORTHOP(lGreaterEquals0Bop)
 {
-#if defined(FORTH64)
-    cell a = SPOP;
-    SPUSH(a >= 0 ? -1L : 0);
-#else
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 >= 0L ) ? -1L : 0 );
-#endif
 }
 
 FORTHOP(lLessThan0Bop)
 {
-#if defined(FORTH64)
-    cell a = SPOP;
-    SPUSH(a < 0 ? -1L : 0);
-#else
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 < 0L ) ? -1L : 0 );
-#endif
 }
 
 FORTHOP(lLessEquals0Bop)
 {
-#if defined(FORTH64)
-    cell a = SPOP;
-    SPUSH(a <= 0 ? -1L : 0);
-#else
     NEEDS(2);
     stackInt64 a;
     LPOP( a );
     SPUSH( ( a.s64 <= 0L ) ? -1L : 0 );
-#endif
 }
 
 FORTHOP(lcmpBop)
 {
-#if defined(FORTH64)
-    cell b = SPOP;
-    cell a = SPOP;
-    SPUSH(a == b ? 0 : ((a > b) ? 1 : -1L));
-#else
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     SPUSH( ( a.s64 == b.s64 ) ? 0 : ((a.s64 > b.s64) ? 1 : -1L) );
-#endif
 }
     
 FORTHOP(ulcmpBop)
 {
-#if defined(FORTH64)
-    ucell b = SPOP;
-    ucell a = SPOP;
-    SPUSH(a == b ? 0 : ((a > b) ? 1 : -1L));
-#else
     stackInt64 a;
     stackInt64 b;
     LPOP( b );
     LPOP( a );
     SPUSH( ( a.u64 == b.u64 ) ? 0 : ((a.u64 > b.u64) ? 1 : -1L) );
-#endif
 }
-    
-
 #endif
+
 
 FORTHOP(lWithinOp)
 {
-#if defined(FORTH64)
-    cell hiLimit = SPOP;
-    cell loLimit = SPOP;
-    cell val = SPOP;
-    SPUSH(((loLimit <= val) && (val < hiLimit)) ? -1L : 0);
-#else
     NEEDS(3);
     stackInt64 hiLimit;
     stackInt64 loLimit;
@@ -506,40 +424,28 @@ FORTHOP(lWithinOp)
     LPOP(loLimit);
     LPOP(val);
     SPUSH(((loLimit.s64 <= val.s64) && (val.s64 < hiLimit.s64)) ? -1L : 0);
-#endif
 }
 
 FORTHOP(lMinOp)
 {
-#if defined(FORTH64)
-    cell b = SPOP;
-    cell a = SPOP;
-    SPUSH(a < b ? a : b);
-#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP(b);
     LPOP(a);
     LPUSH(((a.s64 < b.s64) ? a : b));
-#endif
 }
 
 FORTHOP(lMaxOp)
 {
-#if defined(FORTH64)
-    cell b = SPOP;
-    cell a = SPOP;
-    SPUSH(a > b ? a : b);
-#else
     NEEDS(4);
     stackInt64 a;
     stackInt64 b;
     LPOP(b);
     LPOP(a);
     LPUSH(((a.s64 > b.s64) ? a : b));
-#endif
 }
+#endif
 
 
 FORTHOP( i2lOp )
@@ -2482,8 +2388,8 @@ FORTHOP( processConstantOp )
     ForthEngine *pEngine = GET_ENGINE;
 	if (pEngine->IsCompiling())
 	{
-		int constantValue = (SPOP);
-		pEngine->ProcessConstant(constantValue);
+		cell constantValue = (SPOP);
+		pEngine->ProcessConstant(constantValue, false, true);
 	}
 }
 
@@ -2496,11 +2402,11 @@ FORTHOP( processLongConstantOp )
 	{
 #if defined(FORTH64)
         cell val = SPOP;
-        pEngine->ProcessLongConstant(val);
+        pEngine->ProcessConstant(val, false, false);
 #else
         stackInt64 val;
         LPOP(val);
-        pEngine->ProcessLongConstant(val.s64);
+        pEngine->ProcessConstant(val.s64, false, false);
 #endif
 	}
 }
@@ -6669,39 +6575,39 @@ FORTHOP( dabsBop )
     DPUSH( fabs(a) );
 }
 
-FORTHOP( dldexpBop )
+FORTHOP(dldexpBop)
 {
     NEEDS(3);
     int n = SPOP;
     double a = DPOP;
-    DPUSH( ldexp(a, n) );
+    DPUSH(ldexp(a, n));
 }
 
-FORTHOP( dfrexpBop )
+FORTHOP(dfrexpBop)
 {
     NEEDS(2);
     int n;
     double a = DPOP;
-    DPUSH( frexp( a, &n ) );
-    SPUSH( n );
+    DPUSH(frexp(a, &n));
+    SPUSH(n);
 }
 
-FORTHOP( dmodfBop )
+FORTHOP(dmodfBop)
 {
     NEEDS(2);
     double b;
     double a = DPOP;
-    a = modf( a, &b );
-    DPUSH( b );
-    DPUSH( a );
+    a = modf(a, &b);
+    DPUSH(b);
+    DPUSH(a);
 }
 
-FORTHOP( dfmodBop )
+FORTHOP(dfmodBop)
 {
     NEEDS(4);
     double b = DPOP;
     double a = DPOP;
-    DPUSH( fmod( a, b ) );
+    DPUSH(fmod(a, b));
 }
 
 FORTHOP( fsinBop )
@@ -6804,46 +6710,46 @@ FORTHOP( ffloorBop )
     FPUSH( floorf(a) );
 }
 
-FORTHOP( fabsBop )
+FORTHOP(fabsBop)
 {
     NEEDS(1);
     float a = FPOP;
-    FPUSH( fabs(a) );
+    FPUSH(fabs(a));
 }
 
-FORTHOP( fldexpBop )
+FORTHOP(fldexpBop)
 {
     NEEDS(3);
     int n = SPOP;
     float a = FPOP;
-    FPUSH( ldexpf(a, n) );
+    FPUSH(ldexpf(a, n));
 }
 
-FORTHOP( ffrexpBop )
+FORTHOP(ffrexpBop)
 {
     NEEDS(1);
     int n;
     float a = FPOP;
-    FPUSH( frexpf( a, &n ) );
-    SPUSH( n );
+    FPUSH(frexpf(a, &n));
+    SPUSH(n);
 }
 
-FORTHOP( fmodfBop )
+FORTHOP(fmodfBop)
 {
     NEEDS(1);
     float b;
     float a = FPOP;
-    a = modff( a, &b );
-    FPUSH( b );
-    FPUSH( a );
+    a = modff(a, &b);
+    FPUSH(b);
+    FPUSH(a);
 }
 
-FORTHOP( ffmodBop )
+FORTHOP(ffmodBop)
 {
     NEEDS(2);
     float b = FPOP;
     float a = FPOP;
-    FPUSH( fmodf( a, b ) );
+    FPUSH(fmodf(a, b));
 }
 
 FORTHOP( lplusBop )
@@ -8033,6 +7939,7 @@ FORTHOP(drotBop)
     pSP[2] = a;
     pSP[3] = b;
 }
+#endif
 
 #if defined(FORTH64)
 FORTHOP(dreverseRotBop)
@@ -8122,23 +8029,7 @@ FORTHOP(drollBop)
 		}
 	}
 }
-#endif
 
-FORTHOP(startTupleBop)
-{
-    cell pSP = (cell) (GET_SP);
-    RPUSH( pSP );
-}
-
-FORTHOP(endTupleBop)
-{
-    cell* pSP = (GET_SP);
-    cell* pOldSP = (cell *) (RPOP);
-    cell count = pOldSP - pSP;
-    SPUSH( count );
-}
-
-#if defined(FORTH64)
 FORTHOP(ndropBop)
 {
     NEEDS(1);
@@ -8178,6 +8069,21 @@ FORTHOP(npickBop)
 	*/
 }
 #endif
+
+#ifndef ASM_INNER_INTERPRETER
+FORTHOP(startTupleBop)
+{
+    cell pSP = (cell)(GET_SP);
+    RPUSH(pSP);
+}
+
+FORTHOP(endTupleBop)
+{
+    cell* pSP = (GET_SP);
+    cell* pOldSP = (cell *)(RPOP);
+    cell count = pOldSP - pSP;
+    SPUSH(count);
+}
 
 FORTHOP( noopBop )
 {
@@ -9263,7 +9169,7 @@ typedef struct {
 
 OPREF( abortBop );          OPREF( dropBop );           OPREF( doDoesBop );
 OPREF( litBop );            OPREF( dlitBop );           OPREF( doVariableBop );
-OPREF( doConstantBop );     OPREF( doDConstantBop );    OPREF( doneBop );
+OPREF( doConstantBop );     OPREF( doneBop );
 OPREF( doByteBop );         OPREF( doUByteBop );        OPREF( doShortBop );
 OPREF( doUShortBop );       OPREF( doIntBop );          OPREF( doLongBop );
 OPREF( doFloatBop );        OPREF( doDoubleBop );       OPREF( doStringBop );
@@ -9279,9 +9185,8 @@ OPREF(odropBop);
 
 OPREF( ifetchBop );          OPREF( doStructBop );       OPREF( doStructArrayBop );
 OPREF( doDoBop );           OPREF( doLoopBop );         OPREF( doLoopNBop );
-//OPREF( ofetchBop );          OPREF( doCheckDoBop );
 OPREF( dfetchBop );         OPREF( doCheckDoBop );
-OPREF( thisBop );           OPREF( unsuperBop );
+OPREF( thisBop );           OPREF( unsuperBop );        OPREF( dpBop );
 OPREF( executeBop );        OPREF( callBop );           OPREF( gotoBop );
 OPREF( iBop );              OPREF( jBop );              OPREF( unloopBop );
 OPREF( leaveBop );          OPREF( hereBop );           OPREF( refVaractionBop );
@@ -9309,13 +9214,17 @@ OPREF( dexpBop );           OPREF( dlnBop );            OPREF( dlog10Bop );
 OPREF( dpowBop );           OPREF( dsqrtBop );          OPREF( dceilBop );
 OPREF( dfloorBop );         OPREF( dabsBop );           OPREF( dldexpBop );
 OPREF( dfrexpBop );         OPREF( dmodfBop );          OPREF( dfmodBop );
-OPREF( lplusBop );          OPREF( lminusBop );         OPREF( ltimesBop );
 OPREF( mtimesBop );         OPREF( umtimesBop);
 OPREF( i2fBop );            OPREF( i2dBop );            OPREF( f2iBop );
 OPREF( f2dBop );            OPREF( d2iBop );            OPREF( d2fBop );
 OPREF( orBop );             OPREF( andBop );            OPREF( xorBop );
-OPREF( invertBop );         OPREF( lshiftBop );         OPREF( lshift64Bop );
-OPREF( rshiftBop );         OPREF( rshift64Bop );       OPREF( rotate64Bop );
+OPREF( invertBop );         OPREF( lshiftBop );         OPREF( rshiftBop );
+#if !defined(FORTH64)
+OPREF(lplusBop);            OPREF(lminusBop);           OPREF(ltimesBop);
+OPREF(lshift64Bop);         OPREF(rshift64Bop);         OPREF(rotate64Bop);
+OPREF(lcmpBop);			    OPREF(ulcmpBop);
+#endif
+OPREF(icmpBop);             OPREF(uicmpBop);
 OPREF( arshiftBop );        OPREF( rotateBop );         OPREF( trueBop );
 OPREF( falseBop );          OPREF( nullBop );           OPREF( dnullBop );
 OPREF( equalsBop );         OPREF( notEqualsBop );      OPREF( greaterThanBop );
@@ -9324,15 +9233,20 @@ OPREF( equals0Bop );        OPREF( notEquals0Bop );     OPREF( greaterThan0Bop )
 OPREF( greaterEquals0Bop ); OPREF( lessThan0Bop );      OPREF( lessEquals0Bop );
 OPREF( unsignedGreaterThanBop );                        OPREF( unsignedLessThanBop );
 OPREF( withinBop );         OPREF( minBop );            OPREF( maxBop );
-OPREF( icmpBop );           OPREF( uicmpBop );          OPREF( fcmpBop );
-OPREF( dcmpBop );			OPREF( lcmpBop );			OPREF( ulcmpBop );
+OPREF( fcmpBop );           OPREF( dcmpBop );
 OPREF(reverseBop);          OPREF(countLeadingZerosBop); OPREF(countTrailingZerosBop);
 
+#if !defined(FORTH64)
 OPREF( lEqualsBop );        OPREF( lNotEqualsBop );     OPREF( lEquals0Bop );
 OPREF( lNotEquals0Bop );    OPREF( lGreaterThanBop );   OPREF( lGreaterThan0Bop );
 OPREF( lLessThanBop );      OPREF( lLessThan0Bop );     OPREF( fcmpBop );
 OPREF( lGreaterEqualsBop ); OPREF( lGreaterEquals0Bop ); OPREF( lLessEqualsBop );
-OPREF( lLessEquals0Bop );   OPREF( dpBop );
+OPREF( lLessEquals0Bop );   OPREF(doDConstantBop);
+OPREF(dstoreBop);
+OPREF(dstoreNextBop);     OPREF(dfetchNextBop);     
+#endif
+OPREF(lfetchBop);
+OPREF(lstoreBop);         OPREF(lstoreNextBop);     OPREF(lfetchNextBop);
 
 OPREF( rpushBop );          OPREF( rpopBop );           OPREF( rpeekBop );
 OPREF( rdropBop );          OPREF( rpBop );             OPREF( r0Bop );
@@ -9348,11 +9262,8 @@ OPREF( cstoreBop );
 OPREF( cfetchBop );         OPREF( cstoreNextBop );     OPREF( cfetchNextBop );
 OPREF( scfetchBop );        OPREF( c2iBop );            OPREF( wstoreBop );
 OPREF( wfetchBop );         OPREF( wstoreNextBop );     OPREF( wfetchNextBop );
-//OPREF( swfetchBop );        OPREF( w2iBop );            OPREF( ostoreBop );
-//OPREF( ostoreNextBop );     OPREF( ofetchNextBop );     OPREF( lfetchBop );
-OPREF( swfetchBop );        OPREF( w2iBop );            OPREF( dstoreBop );
-OPREF( dstoreNextBop );     OPREF( dfetchNextBop );     OPREF( lfetchBop );
-OPREF( lstoreBop );         OPREF( lstoreNextBop );     OPREF( lfetchNextBop );
+OPREF( swfetchBop );        OPREF( w2iBop );
+
 OPREF( moveBop );           OPREF( fillBop );           OPREF( setVarActionBop );
 OPREF(memcmpBop);
 OPREF( getVarActionBop );   OPREF( byteVarActionBop );  OPREF( ubyteVarActionBop );
@@ -9401,7 +9312,11 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     NATIVE_COMPILED_DEF(    dlitBop,                 "2lit",			OP_LONG_VAL ),
     NATIVE_COMPILED_DEF(    doVariableBop,           "_doVariable",		OP_DO_VAR ),
     NATIVE_COMPILED_DEF(    doConstantBop,           "_doConstant",		OP_DO_CONSTANT ),
+#if defined(FORTH64)
+    NATIVE_COMPILED_DEF(    doConstantBop,           "_doDConstant",	OP_DO_DCONSTANT ),
+#else
     NATIVE_COMPILED_DEF(    doDConstantBop,          "_doDConstant",	OP_DO_DCONSTANT ),
+#endif
     NATIVE_COMPILED_DEF(    doneBop,                 "done",			OP_DONE ),
     NATIVE_COMPILED_DEF(    doByteBop,               "_doByte",			OP_DO_BYTE ),
     NATIVE_COMPILED_DEF(    doUByteBop,              "_doUByte",		OP_DO_UBYTE ),
@@ -9597,15 +9512,17 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    xorBop,                  "xor" ),
     NATIVE_DEF(    invertBop,               "invert" ),
     NATIVE_DEF(    lshiftBop,               "lshift" ),
-    NATIVE_DEF(    lshift64Bop,             "2lshift" ),
     NATIVE_DEF(    rshiftBop,               "rshift" ),
-    NATIVE_DEF(    rshift64Bop,             "2rshift" ),
     NATIVE_DEF(    arshiftBop,              "arshift" ),
     NATIVE_DEF(    rotateBop,               "rotate" ),
-    NATIVE_DEF(    rotate64Bop,             "2rotate" ),
     NATIVE_DEF(    reverseBop,              "reverse" ),
     NATIVE_DEF(    countLeadingZerosBop,    "clz" ),
     NATIVE_DEF(    countTrailingZerosBop,   "ctz" ),
+#if !defined(FORTH64)
+    NATIVE_DEF(    lshift64Bop,             "2lshift" ),
+    NATIVE_DEF(    rshift64Bop,             "2rshift" ),
+    NATIVE_DEF(    rotate64Bop,             "2rotate" ),
+#endif
 
     ///////////////////////////////////////////
     //  boolean logic
@@ -9642,6 +9559,7 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  64-bit integer comparisons
     ///////////////////////////////////////////
+#if !defined(FORTH64)
 	NATIVE_DEF(lEqualsBop,				"l="),
 	NATIVE_DEF(lNotEqualsBop,			"l<>"),
 	NATIVE_DEF(lGreaterThanBop,			"l>"),
@@ -9659,6 +9577,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    lMaxOp,                  "lmax" ),
 	NATIVE_DEF(lcmpBop, "lcmp"),
 	NATIVE_DEF(ulcmpBop, "ulcmp"),
+#endif
 
     ///////////////////////////////////////////
     //  stack manipulation
@@ -9726,9 +9645,11 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    ifetchBop,               "i@" ),
     NATIVE_DEF(    istoreNextBop,           "i@!++" ),
     NATIVE_DEF(    ifetchNextBop,           "i@@++" ),
+#if !defined(FORTH64)
     NATIVE_DEF(    dstoreBop,               "2!" ),
     NATIVE_DEF(    dstoreNextBop,           "2@!++" ),
     NATIVE_DEF(    dfetchNextBop,           "2@@++" ),
+#endif
 	/*
 	NATIVE_DEF(    lfetchBop,               "l@" ),
     NATIVE_DEF(    lstoreBop,               "2!" ),
@@ -9857,10 +9778,11 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    flenBop,                 "flen" ),
     NATIVE_DEF(    fgetsBop,                "fgets" ),
     NATIVE_DEF(    fputsBop,                "fputs" ),
-
+#if !defined(FORTH64)
     NATIVE_DEF(    lplusBop,                "l+" ),
     NATIVE_DEF(    lminusBop,               "l-" ),
     NATIVE_DEF(    ltimesBop,               "l*" ),
+#endif
     NATIVE_DEF(    mtimesBop,               "m*" ),
     NATIVE_DEF(    umtimesBop,              "um*" ),
 

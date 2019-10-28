@@ -258,8 +258,7 @@ public:
     void                    UncompileLastOpcode( void );
     forthop*				GetLastCompiledOpcodePtr( void );
     forthop*				GetLastCompiledIntoPtr( void );
-    void                    ProcessConstant( long value, bool isOffset=false );
-    void                    ProcessLongConstant( int64_t value );
+    void                    ProcessConstant( int64_t value, bool isOffset=false, bool isSingle=true );
     inline void             AllotLongs( int n ) { mDictionary.pCurrent += n; };
 	inline void             AllotBytes( int n )	{ mDictionary.pCurrent = reinterpret_cast<forthop*>(reinterpret_cast<cell>(mDictionary.pCurrent) + n); };
     inline void             AlignDP( void ) { mDictionary.pCurrent = (forthop*)(( ((cell)mDictionary.pCurrent) + (sizeof(forthop) - 1))
@@ -371,7 +370,7 @@ public:
 
 protected:
     // NOTE: temporarily modifies string @pToken
-    bool                    ScanIntegerToken( char* pToken, int32_t& value, int64_t& lvalue, int base, bool& isOffset, bool& isSingle );
+    bool                    ScanIntegerToken( char* pToken, int64_t& value, int base, bool& isOffset, bool& isSingle );
     // NOTE: temporarily modifies string @pToken
     bool                    ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle, bool& isApproximate );
 

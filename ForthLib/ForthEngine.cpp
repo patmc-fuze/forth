@@ -1537,6 +1537,17 @@ ForthEngine::DescribeOp(forthop *pOp, char *pBuffer, int buffSize, bool lookupUs
             case kOpMemberObject:        case kOpMemberObjectArray:
             case kOpMemberUByte:         case kOpMemberUByteArray:
             case kOpMemberUShort:        case kOpMemberUShortArray:
+            case kOpFieldByte:          case kOpFieldByteArray:
+            case kOpFieldShort:         case kOpFieldShortArray:
+            case kOpFieldInt:           case kOpFieldIntArray:
+            case kOpFieldFloat:         case kOpFieldFloatArray:
+            case kOpFieldDouble:        case kOpFieldDoubleArray:
+            case kOpFieldString:        case kOpFieldStringArray:
+            case kOpFieldOp:            case kOpFieldOpArray:
+            case kOpFieldLong:          case kOpFieldLongArray:
+            case kOpFieldObject:        case kOpFieldObjectArray:
+            case kOpFieldUByte:         case kOpFieldUByteArray:
+            case kOpFieldUShort:        case kOpFieldUShortArray:
             {
                 if ((opVal & 0xE00000) != 0)
                 {
@@ -1932,8 +1943,7 @@ ForthEngine::GetLastInputToken( void )
 // NOTE: temporarily modifies string @pToken
 bool
 ForthEngine::ScanIntegerToken( char         *pToken,
-                               int32_t      &value,
-                               int64_t      &lvalue,
+                               int64_t      &value,
                                int          base,
                                bool         &isOffset,
                                bool&        isSingle )
@@ -1984,14 +1994,14 @@ ForthEngine::ScanIntegerToken( char         *pToken,
     }
 
     // see if this is ANSI style double precision int
-    if ( periodMeansDoubleInt )
+    if (periodMeansDoubleInt)
     {
-        isSingle = (strchr( pToken, '.' ) == NULL);
+        isSingle = (strchr(pToken, '.') == NULL);
     }
 
     if ( (pToken[0] == '$') && CheckFeature(kFFDollarHexLiterals) )
     {
-        if ( sscanf( pToken + 1, "%x", &value ) == 1 )
+        if ( sscanf( pToken + 1, "%llx", &value) == 1 )
         {
             if ( isNegative )
             {
@@ -2000,33 +2010,20 @@ ForthEngine::ScanIntegerToken( char         *pToken,
             isValid = true;
         }
     }
+	
     if ( !isValid && ((pToken[0] == '0') && (pToken[1] == 'x')) && CheckFeature(kFFCHexLiterals) )
     {
-        if ( isSingle )
-        {
-            if ( sscanf( pToken + 2, "%x", &value ) == 1 )
-            {
-                if ( isNegative )
-                {
-                    value = 0 - value;
-                }
-                isValid = true;
-            }
-        }
-        else
-        {
 #if defined(WIN32)
-            if ( sscanf( pToken + 2, "%I64x", &lvalue ) == 1 )
+        if (sscanf(pToken + 2, "%I64x", &value) == 1)
 #else
-            if ( sscanf( pToken + 2, "%llx", &lvalue ) == 1 )
+        if (sscanf(pToken + 2, "%llx", &value) == 1)
 #endif
+        {
+            if (isNegative)
             {
-                if ( isNegative )
-                {
-                    lvalue = 0 - lvalue;
-                }
-                isValid = true;
+                value = 0 - value;
             }
+            isValid = true;
         }
     }
 
@@ -2035,7 +2032,6 @@ ForthEngine::ScanIntegerToken( char         *pToken,
 
         isValid = true;
         value = 0;
-        lvalue = 0;
         while ( (c = *pToken++) != 0 )
         {
 
@@ -2072,14 +2068,7 @@ ForthEngine::ScanIntegerToken( char         *pToken,
                 isValid = false;
                 break;
             }
-            if ( isSingle )
-            {
-                value = (value * base) + digit;
-            }
-            else
-            {
-                lvalue = (lvalue * base) + digit;
-            }
+            value = (value * base) + digit;
         }
 
         if ( digitsFound == 0 )
@@ -2090,14 +2079,7 @@ ForthEngine::ScanIntegerToken( char         *pToken,
         // all chars were valid digits
         if ( isNegative )
         {
-            if ( isSingle )
-            {
-                value = 0 - value;
-            }
-            else
-            {
-                lvalue = 0 - lvalue;
-            }
+            value = 0 - value;
         }
     }
 
@@ -2106,6 +2088,7 @@ ForthEngine::ScanIntegerToken( char         *pToken,
     {
         *pLastChar = lastChar;
     }
+
     return isValid;
 }
 
@@ -2116,6 +2099,7 @@ ForthEngine::ScanIntegerToken( char         *pToken,
 bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle, bool& isApproximate )
 {
    bool retVal = false;
+   double dtemp;
 
    isApproximate = false;
    // a leading tilde means that value may be approximated with lowest precision 
@@ -2155,17 +2139,20 @@ bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, b
       *pLastChar = lastChar;
       break;
    case 'f':
-	   *pLastChar = 0;
-      if ( sscanf( pToken, "%f", &fvalue ) == 1)
+	  *pLastChar = 0;
+
+      if ( sscanf( pToken, "%lf", &dtemp) == 1)
       {
-         retVal = true;
-         isSingle = true;
+          fvalue = dtemp;
+          retVal = true;
+          isSingle = true;
       }
       *pLastChar = lastChar;
       break;
    default:
-       if ( sscanf( pToken, "%f", &fvalue ) == 1)
+       if ( sscanf( pToken, "%lf", &dtemp) == 1)
         {
+            fvalue = dtemp;
             retVal = true;
             isSingle = true;
         }
@@ -2395,29 +2382,58 @@ ForthEngine::GetLastCompiledIntoPtr( void )
 
 // interpret/compile a constant value/offset
 void
-ForthEngine::ProcessConstant( long value, bool isOffset )
+ForthEngine::ProcessConstant(int64_t value, bool isOffset, bool isSingle)
 {
     if ( mCompileState )
     {
         // compile the literal value
-        if ( (value < (1 << 23)) && (value >= -(1 << 23)) )
+        if (isSingle)
         {
-            // value fits in opcode immediate field
-			CompileOpcode( (isOffset ? kOpOffset : kOpConstant), value & 0xFFFFFF );
-        }
-        else
-        {
-            // value too big, must go in next longword
-            if ( isOffset )
+            long lvalue = value;
+            if ((lvalue < (1 << 23)) && (lvalue >= -(1 << 23)))
             {
-                CompileBuiltinOpcode( OP_INT_VAL );
-                *mDictionary.pCurrent++ = value;
-                CompileBuiltinOpcode( OP_PLUS );
+                // value fits in opcode immediate field
+                CompileOpcode((isOffset ? kOpOffset : kOpConstant), lvalue & 0xFFFFFF);
             }
             else
             {
-                CompileBuiltinOpcode( OP_INT_VAL );
-                *mDictionary.pCurrent++ = value;
+                // value too big, must go in next longword
+                if (isOffset)
+                {
+                    CompileBuiltinOpcode(OP_INT_VAL);
+                    *mDictionary.pCurrent++ = lvalue;
+                    CompileBuiltinOpcode(OP_PLUS);
+                }
+                else
+                {
+                    CompileBuiltinOpcode(OP_INT_VAL);
+                    *mDictionary.pCurrent++ = lvalue;
+                }
+            }
+        }
+        else
+        {
+            // compile the literal value
+            // TODO: support 64-bit offsets?
+            ulong squishedLong;
+            if (SquishLong(value, squishedLong))
+            {
+                CompileOpcode(kOpSquishedLong, squishedLong);
+            }
+            else
+            {
+                CompileBuiltinOpcode(OP_DOUBLE_VAL);
+                forthop* pDP = mDictionary.pCurrent;
+#if defined(FORTH64)
+                *(int64_t*)pDP = value;
+                pDP += 2;
+#else
+                stackInt64 val;
+                val.s64 = value;
+                *pDP++ = val.s32[1];
+                *pDP++ = val.s32[0];
+#endif
+                mDictionary.pCurrent = pDP;
             }
         }
     }
@@ -2431,51 +2447,22 @@ ForthEngine::ProcessConstant( long value, bool isOffset )
         else
         {
             // leave value on param stack
+#if defined(FORTH64)
             *--mpCore->SP = value;
+#else
+            if (isSingle)
+            {
+                *--mpCore->SP = (int32_t) value;
+            }
+            else
+            {
+                stackInt64 val;
+                val.s64 = value;
+                *--mpCore->SP = val.s32[0];
+                *--mpCore->SP = val.s32[1];
+            }
+#endif
         }
-    }
-}
-
-// interpret/compile a 64-bit constant
-void
-ForthEngine::ProcessLongConstant( int64_t value )
-{
-    if ( mCompileState )
-    {
-        // compile the literal value
-		ulong squishedLong;
-		if ( SquishLong( value, squishedLong ) )
-		{
-            CompileOpcode( kOpSquishedLong, squishedLong );
-		}
-		else
-		{
-			CompileBuiltinOpcode( OP_DOUBLE_VAL );
-            forthop* pDP = mDictionary.pCurrent;
-#if defined(FORTH64)
-            *(int64_t*)pDP = value;
-            pDP += 2;
-#else
-            stackInt64 val;
-            val.s64 = value;
-			*pDP++ = val.s32[1];
-			*pDP++ = val.s32[0];
-#endif
-			mDictionary.pCurrent = pDP;
-		}
-    }
-    else
-    {
-        // leave value on param stack
-#if defined(FORTH64)
-        mpCore->SP--;
-        *(int64_t*)mpCore->SP = value;
-#else
-        stackInt64 val;
-        val.s64 = value;
-        *--mpCore->SP = val.s32[0];
-        *--mpCore->SP = val.s32[1];
-#endif
     }
 }
 
@@ -2524,7 +2511,11 @@ ForthEngine::FullyExecuteOp(ForthCoreState* pCore, forthop opCode)
 eForthResult
 ForthEngine::ExecuteOp(ForthCoreState* pCore, forthop opCode)
 {
-	eForthResult exitStatus = InterpretOneOp(pCore, opCode);
+#ifdef ASM_INNER_INTERPRETER
+    eForthResult exitStatus = InterpretOneOpFast(pCore, opCode);
+#else
+    eForthResult exitStatus = InterpretOneOp(pCore, opCode);
+#endif
 	return exitStatus;
 }
 
@@ -3337,26 +3328,18 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         SPEW_OUTER_INTERPRETER( "Character{%s} flags[%x]\n", pToken, pInfo->GetFlags() );
 		bool isALongQuotedCharacter = (pInfo->GetFlags() & PARSE_FLAG_FORCE_LONG) != 0;
 		int tokenLen = strlen(pToken);
-		if (isALongQuotedCharacter || (tokenLen > 4))
-		{
-			lvalue = 0;
-			char* cval = (char *)&lvalue;
-			for (int i = 0; i < len; i++)
-			{
-				cval[i] = pToken[i];
-			}
-			ProcessLongConstant(lvalue);
-		}
-		else
-		{
-			value = 0;
-			char* cval = (char *)&value;
-			for (int i = 0; i < len; i++)
-			{
-				cval[i] = pToken[i];
-			}
-			ProcessConstant(value, false);
-		}
+        lvalue = 0;
+        char* cval = (char *)&lvalue;
+        for (int i = 0; i < len; i++)
+        {
+            cval[i] = pToken[i];
+        }
+#if defined(FORTH64)
+        isSingle = (tokenLen > 3);
+#else
+        isSingle = !(isALongQuotedCharacter || (tokenLen > 4));
+#endif
+        ProcessConstant(lvalue, false, isSingle);
 		return kResultOk;
     }
     
@@ -3514,9 +3497,9 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 					elementSize = pNative->GetSize();
 				}
 			}
-			else if ( ScanIntegerToken( pToken, value, lvalue, mpCore->base, isOffset, isSingle ) && isSingle )
+			else if ( ScanIntegerToken( pToken, lvalue, mpCore->base, isOffset, isSingle ) && isSingle )
 			{
-				elementSize = value;
+				elementSize = (int)lvalue;
 			}
 		}
 		pToken[len - 2] = '[';
@@ -3570,6 +3553,9 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
           else
           {
               --mpCore->SP;
+#if defined(FORTH64)
+              *mpCore->SP = 0;
+#endif
               *(float *) mpCore->SP = fvalue;
           }
        }
@@ -3609,7 +3595,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
        }
         
     }
-    else if ( ScanIntegerToken( pToken, value, lvalue, mpCore->base, isOffset, isSingle ) )
+    else if ( ScanIntegerToken( pToken, lvalue, mpCore->base, isOffset, isSingle ) )
     {
 
         ////////////////////////////////////
@@ -3617,15 +3603,8 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         // symbol is an integer literal
         //
         ////////////////////////////////////
-        SPEW_OUTER_INTERPRETER( "Integer literal %d\n", value );
-        if ( isSingle )
-        {
-            ProcessConstant( value, isOffset );
-        }
-        else
-        {
-            ProcessLongConstant( lvalue );
-        }
+        SPEW_OUTER_INTERPRETER( "Integer literal %lld\n", lvalue );
+        ProcessConstant(lvalue, isOffset, isSingle);
     }
     else if ( CheckFlag( kEngineFlagInEnumDefinition ) )
     {
