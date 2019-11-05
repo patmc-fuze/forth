@@ -5,7 +5,7 @@ FORTH64 [if]
 : abs dup 0< if negate endif ;
 : +! dup @ rot + swap ! ;
 : 1+! dup @ 1+ swap ! ;
-: 1+! dup @ 1- swap ! ;
+: 1-! dup @ 1- swap ! ;
 
 : lnegate negate ;
 : labs abs ;

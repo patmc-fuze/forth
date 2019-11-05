@@ -327,6 +327,8 @@ ForthEngine::ForthEngine()
 , mContinueDestination(nullptr)
 , mContinueCount(0)
 , mpNewestEnum(nullptr)
+, mDefaultConsoleOutStream(nullptr)
+, mAuxOutStream(nullptr)
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -346,8 +348,6 @@ ForthEngine::ForthEngine()
 #else
     ftime( &mStartTime );
 #endif
-
-	mDefaultConsoleOutStream = nullptr;
 
 	mDictionary.pBase = nullptr;
 
@@ -2660,15 +2660,24 @@ ForthEngine::CheckStacks( void )
 void ForthEngine::SetDefaultConsoleOut( ForthObject& newOutStream )
 {
 	SPEW_SHELL("SetDefaultConsoleOut pCore=%p  pMethods=%p  pData=%p\n", mpCore, newOutStream->pMethods, newOutStream);
-	OBJECT_ASSIGN(mpCore, mDefaultConsoleOutStream, newOutStream);
-	mDefaultConsoleOutStream = newOutStream;
+    OBJECT_ASSIGN(mpCore, mDefaultConsoleOutStream, newOutStream);
+    mDefaultConsoleOutStream = newOutStream;
+    OBJECT_ASSIGN(mpCore, mAuxOutStream, newOutStream);
+    mAuxOutStream = newOutStream;
 }
 
-void ForthEngine::SetConsoleOut( ForthCoreState* pCore, ForthObject& newOutStream )
+void ForthEngine::SetConsoleOut(ForthCoreState* pCore, ForthObject& newOutStream)
 {
-	SPEW_SHELL("SetConsoleOut pCore=%p  pMethods=%p  pData=%p\n", pCore, newOutStream->pMethods, newOutStream);
-	OBJECT_ASSIGN( pCore, pCore->consoleOutStream, newOutStream );
-	pCore->consoleOutStream = newOutStream;
+    SPEW_SHELL("SetConsoleOut pCore=%p  pMethods=%p  pData=%p\n", pCore, newOutStream->pMethods, newOutStream);
+    OBJECT_ASSIGN(pCore, pCore->consoleOutStream, newOutStream);
+    pCore->consoleOutStream = newOutStream;
+}
+
+void ForthEngine::SetAuxOut(ForthCoreState* pCore, ForthObject& newOutStream)
+{
+    SPEW_SHELL("SetAuxOut pCore=%p  pMethods=%p  pData=%p\n", pCore, newOutStream->pMethods, newOutStream);
+    OBJECT_ASSIGN(pCore, mAuxOutStream, newOutStream);
+    mAuxOutStream = newOutStream;
 }
 
 void ForthEngine::PushConsoleOut( ForthCoreState* pCore )
@@ -2681,6 +2690,11 @@ void ForthEngine::PushDefaultConsoleOut( ForthCoreState* pCore )
 	PUSH_OBJECT( mDefaultConsoleOutStream );
 }
 
+void ForthEngine::PushAuxOut(ForthCoreState* pCore)
+{
+    PUSH_OBJECT(mAuxOutStream);
+}
+
 void ForthEngine::ResetConsoleOut( ForthCoreState* pCore )
 {
 	// TODO: there is a dilemma here - either we just replace the current output stream
@@ -2688,8 +2702,12 @@ void ForthEngine::ResetConsoleOut( ForthCoreState* pCore )
 	//  and risk a crash, since ResetConsoleOut is called when an error is detected,
 	//  so the object we are releasing may already be deleted or otherwise corrupted.
 	CLEAR_OBJECT(pCore->consoleOutStream);
-	OBJECT_ASSIGN(pCore, pCore->consoleOutStream, mDefaultConsoleOutStream);
-	pCore->consoleOutStream = mDefaultConsoleOutStream;
+
+    OBJECT_ASSIGN(pCore, pCore->consoleOutStream, mDefaultConsoleOutStream);
+    pCore->consoleOutStream = mDefaultConsoleOutStream;
+
+    OBJECT_ASSIGN(pCore, mAuxOutStream, mDefaultConsoleOutStream);
+    mAuxOutStream = mDefaultConsoleOutStream;
 }
 
 

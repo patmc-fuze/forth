@@ -1686,7 +1686,180 @@ namespace OStream
 	};
 
 
-	void AddClasses(ForthEngine* pEngine)
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oSplitOutStream
+    //
+
+    struct oSplitOutStreamStruct
+    {
+        oOutStreamStruct		ostream;
+        ForthObject             streamA;
+        ForthObject             streamB;
+    };
+
+    
+    FORTHOP(oSplitOutStreamInitMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+        ForthObject obj;
+
+        POP_OBJECT(obj);
+        OBJECT_ASSIGN(pCore, pOutStream->streamB, obj);
+        pOutStream->streamB = obj;
+
+        POP_OBJECT(obj);
+        OBJECT_ASSIGN(pCore, pOutStream->streamA, obj);
+        pOutStream->streamA = obj;
+
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSplitOutStreamPutCharMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+
+        cell ch = SPOP;
+
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        
+        if (pOutStream->streamA)
+        {
+            SPUSH(ch);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamA, kOutStreamPutCharMethod);
+        }
+
+        if (pOutStream->streamB)
+        {
+            SPUSH(ch);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamB, kOutStreamPutCharMethod);
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSplitOutStreamPutBytesMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+
+        cell numBytes = SPOP;
+        cell pBuffer = SPOP;
+
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+
+        if (pOutStream->streamA)
+        {
+            SPUSH(pBuffer);
+            SPUSH(numBytes);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamA, kOutStreamPutBytesMethod);
+        }
+
+        if (pOutStream->streamB)
+        {
+            SPUSH(pBuffer);
+            SPUSH(numBytes);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamB, kOutStreamPutBytesMethod);
+        }
+
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSplitOutStreamPutStringMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+        cell pBuffer = SPOP;
+
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+
+        if (pOutStream->streamA)
+        {
+            SPUSH(pBuffer);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamA, kOutStreamPutStringMethod);
+        }
+
+        if (pOutStream->streamB)
+        {
+            SPUSH(pBuffer);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamB, kOutStreamPutStringMethod);
+        }
+
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSplitOutStreamPutLineMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+        cell pBuffer = SPOP;
+
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+
+        if (pOutStream->streamA)
+        {
+            SPUSH(pBuffer);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamA, kOutStreamPutLineMethod);
+        }
+
+        if (pOutStream->streamB)
+        {
+            SPUSH(pBuffer);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamB, kOutStreamPutLineMethod);
+        }
+
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSplitOutStreamPrintfMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+        ForthEngine* pEngine = GET_ENGINE;
+        // NOTE: this could lock your thread until temp buffer is available
+        char* pBuffer = pEngine->GrabTempBuffer();
+        int numChars = oStringFormatSub(pCore, pBuffer, pEngine->GetTempBufferSize() - 1);
+
+        if (pOutStream->streamA)
+        {
+            SPUSH((cell)pBuffer);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamA, kOutStreamPutStringMethod);
+        }
+
+        if (pOutStream->streamB)
+        {
+            SPUSH((cell)pBuffer);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamB, kOutStreamPutStringMethod);
+        }
+
+        pEngine->UngrabTempBuffer();
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSplitOutStreamDeleteMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+        SAFE_RELEASE(pCore, pOutStream->streamA);
+        SAFE_RELEASE(pCore, pOutStream->streamB);
+        FREE_OBJECT(pOutStream);
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oSplitOutStreamMembers[] =
+    {
+        // putChar, putBytes and putString must be first 3 methods and in this order
+        METHOD("init", oSplitOutStreamInitMethod),
+        METHOD("putChar", oSplitOutStreamPutCharMethod),
+        METHOD("putBytes", oSplitOutStreamPutBytesMethod),
+        METHOD("putString", oSplitOutStreamPutStringMethod),
+        METHOD("putLine", oSplitOutStreamPutLineMethod),
+        METHOD("printf", oSplitOutStreamPrintfMethod),
+        METHOD("delete", oSplitOutStreamDeleteMethod),
+
+        MEMBER_VAR("streamA", OBJECT_TYPE_TO_CODE(0, kBCIOutStream)),
+        MEMBER_VAR("streamB", OBJECT_TYPE_TO_CODE(0, kBCIOutStream)),
+
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    void AddClasses(ForthEngine* pEngine)
 	{
 		pEngine->AddBuiltinClass("InStream", kBCIInStream, kBCIObject, oInStreamMembers);
 		pEngine->AddBuiltinClass("FileInStream", kBCIFileInStream, kBCIInStream, oFileInStreamMembers);
@@ -1698,7 +1871,8 @@ namespace OStream
 		pEngine->AddBuiltinClass("ConsoleOutStream", kBCIConsoleOutStream, kBCIFileOutStream, oConsoleOutStreamMembers);
 		pEngine->AddBuiltinClass("FunctionOutStream", kBCIFunctionOutStream, kBCIOutStream, oFunctionOutStreamMembers);
 		pEngine->AddBuiltinClass("TraceOutStream", kBCITraceOutStream, kBCIOutStream, oTraceOutStreamMembers);
-	}
+        pEngine->AddBuiltinClass("SplitOutStream", kBCISplitOutStream, kBCIOutStream, oSplitOutStreamMembers);
+    }
 } // namespace OStream
 
 void GetForthConsoleOutStream(ForthCoreState* pCore, ForthObject& outObject)

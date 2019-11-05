@@ -74,8 +74,6 @@ namespace OSystem
 
 	FORTHOP(oSystemGetDefinitionsVocabMethod)
 	{
-		GET_THIS(oSystemStruct, pSystem);
-
 		ForthVocabulary* pVocab = GET_ENGINE->GetDefinitionVocabulary();
 		if (pVocab != NULL)
 		{
@@ -90,7 +88,6 @@ namespace OSystem
 
 	FORTHOP(oSystemSetDefinitionsVocabMethod)
 	{
-		GET_THIS(oSystemStruct, pSystem);
 		ForthObject vocabObj;
 		POP_OBJECT(vocabObj);
 		oVocabularyStruct* pVocabStruct = reinterpret_cast<oVocabularyStruct *>(vocabObj);
@@ -105,7 +102,6 @@ namespace OSystem
 
     FORTHOP(oSystemClearSearchVocabMethod)
     {
-        GET_THIS(oSystemStruct, pSystem);
         ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
         pVocabStack->Clear();
 
@@ -114,7 +110,6 @@ namespace OSystem
 
     FORTHOP(oSystemGetSearchVocabDepthMethod)
 	{
-		GET_THIS(oSystemStruct, pSystem);
 		ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
 		SPUSH(pVocabStack->GetDepth());
 
@@ -123,7 +118,6 @@ namespace OSystem
 
 	FORTHOP(oSystemGetSearchVocabAtMethod)
 	{
-		GET_THIS(oSystemStruct, pSystem);
 		cell vocabStackIndex = SPOP;
 
 		ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
@@ -141,8 +135,6 @@ namespace OSystem
 
 	FORTHOP(oSystemGetSearchVocabTopMethod)
 	{
-		GET_THIS(oSystemStruct, pSystem);
-
 		ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
 		ForthVocabulary* pVocab = pVocabStack->GetTop();
 		if (pVocab != NULL)
@@ -190,8 +182,6 @@ namespace OSystem
 
 	FORTHOP(oSystemGetVocabByNameMethod)
 	{
-		GET_THIS(oSystemStruct, pSystem);
-
 		const char* pVocabName = reinterpret_cast<const char*>(SPOP);
 		ForthVocabulary* pVocab = ForthVocabulary::FindVocabulary(pVocabName);
 		if (pVocab != NULL)
@@ -207,8 +197,6 @@ namespace OSystem
 	
     FORTHOP(oSystemGetVocabChainHeadMethod)
     {
-        GET_THIS(oSystemStruct, pSystem);
-
         const char* pVocabName = reinterpret_cast<const char*>(SPOP);
         ForthVocabulary* pVocab = ForthVocabulary::GetVocabularyChainHead();
         PUSH_OBJECT(pVocab->GetVocabularyObject());
@@ -275,6 +263,41 @@ namespace OSystem
         METHOD_RETURN;
     }
 
+    FORTHOP(oSystemSetAuxOutMethod)
+    {
+        ForthEngine* pEngine = GET_ENGINE;
+        ForthObject obj;
+        POP_OBJECT(obj);
+
+        pEngine->SetAuxOut(pCore, obj);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSystemGetAuxOutMethod)
+    {
+        ForthEngine* pEngine = GET_ENGINE;
+        pEngine->PushAuxOut(pCore);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSystemGetInputInfoMethod)
+    {
+        ForthEngine* pEngine = GET_ENGINE;
+        ForthInputStack* inputStack = pEngine->GetShell()->GetInput();
+
+        int lineNumber;
+        const char* filename = inputStack->GetFilenameAndLineNumber(lineNumber);
+        int lineOffset = inputStack->GetReadOffset();
+        const char* line = inputStack->GetBufferBasePointer();
+
+        SPUSH((cell)line);
+        SPUSH((cell)filename);
+        SPUSH((cell)lineNumber);
+        SPUSH((cell)lineOffset);
+
+        METHOD_RETURN;
+    }
+
     baseMethodEntry oSystemMembers[] =
 	{
 		METHOD("__newOp", oSystemNew),
@@ -290,12 +313,15 @@ namespace OSystem
 		METHOD("pushSearchVocab", oSystemPushSearchVocabMethod),
 		METHOD_RET("getVocabByName", oSystemGetVocabByNameMethod, RETURNS_OBJECT(kBCIVocabulary)),
         METHOD_RET("getVocabChainHead", oSystemGetVocabChainHeadMethod, RETURNS_OBJECT(kBCIVocabulary)),
-        METHOD_RET("getOpsTable", oSystemGetOpsTableMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("getOpsTable", oSystemGetOpsTableMethod, RETURNS_NATIVE(kBaseTypeCell)),
         METHOD_RET("getClassByIndex", oSystemGetClassByIndexMethod, RETURNS_OBJECT(kBCIObject)),
-        METHOD_RET("getNumClasses", oSystemGetNumClassesMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("getNumClasses", oSystemGetNumClassesMethod, RETURNS_NATIVE(kBaseTypeCell)),
         METHOD_RET("createAsyncThread", oSystemCreateAsyncThreadMethod, RETURNS_OBJECT(kBCIAsyncThread)),
         METHOD_RET("createAsyncLock", oSystemCreateAsyncLockMethod, RETURNS_OBJECT(kBCIAsyncLock)),
         METHOD_RET("createAsyncSemaphore", oSystemCreateAsyncSemaphoreMethod, RETURNS_OBJECT(kBCIAsyncSemaphore)),
+        METHOD("setAuxOut", oSystemSetAuxOutMethod),
+        METHOD_RET("getAuxOut", oSystemGetAuxOutMethod, RETURNS_OBJECT(kBCIOutStream)),
+        METHOD_RET("getInputInfo", oSystemGetInputInfoMethod, RETURNS_NATIVE(kBaseTypeCell)),
 
         MEMBER_VAR("namedObjects", OBJECT_TYPE_TO_CODE(0, kBCIStringMap)),
         MEMBER_VAR("args", OBJECT_TYPE_TO_CODE(0, kBCIArray)),

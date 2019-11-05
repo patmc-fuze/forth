@@ -464,7 +464,7 @@ class: atcInputHandler extends iAtcInputHandler
     setIdle
     // process commandString chars one at a times
     begin
-      c@@++(ref pSrc) -> byte ch
+      b@@++(ref pSrc) -> byte ch
     while( ch 0<> )
       setCommandCharacter( ch )
       inputStateOps( commandState )

@@ -125,10 +125,6 @@ _%1:
 
 ;SEH_handler   ENDP
 
-; for some reason, this is always true, you need to change the name,
-; changing the build rule to not define it isn't enough	
-%ifdef	ASM_INNER_INTERPRETER
-
 ;-----------------------------------------------
 ;
 ; extOpType is used to handle optypes which are only defined in C++
@@ -5796,7 +5792,16 @@ entry ifetchNextBop
 	
 ;========================================
 
-entry cstoreBop
+entry ubfetchBop
+	mov	eax, [rpsp]
+	xor ebx, ebx
+    mov bl, BYTE[eax]
+	mov	[rpsp], ebx
+	jmp	rnext
+	
+;========================================
+
+entry bstoreBop
 	mov	eax, [rpsp]
 	mov	ebx, [rpsp+4]
 	add	rpsp, 8
@@ -5805,16 +5810,15 @@ entry cstoreBop
 	
 ;========================================
 
-entry cfetchBop
+entry bfetchBop
 	mov	eax, [rpsp]
-	xor	ebx, ebx
-	mov	bl, [eax]
+	movsx ebx, BYTE[eax]
 	mov	[rpsp], ebx
 	jmp	rnext
 	
 ;========================================
 
-entry cstoreNextBop
+entry bstoreNextBop
 	mov	eax, [rpsp]		; eax -> dst ptr
 	mov	ecx, [eax]
 	mov	ebx, [rpsp+4]
@@ -5826,11 +5830,10 @@ entry cstoreNextBop
 	
 ;========================================
 
-entry cfetchNextBop
+entry bfetchNextBop
 	mov	eax, [rpsp]
 	mov	ecx, [eax]
-	xor	ebx, ebx
-	mov	bl, [ecx]
+	movsx ebx, BYTE[ecx]
 	mov	[rpsp], ebx
 	add	ecx, 1
 	mov	[eax], ecx
@@ -5838,23 +5841,7 @@ entry cfetchNextBop
 	
 ;========================================
 
-entry scfetchBop
-	mov	eax, [rpsp]
-	movsx	ebx, BYTE[eax]
-	mov	[rpsp], ebx
-	jmp	rnext
-	
-;========================================
-
-entry c2iBop
-	mov	eax, [rpsp]
-	movsx	ebx, al
-	mov	[rpsp], ebx
-	jmp	rnext
-	
-;========================================
-
-entry wstoreBop
+entry sstoreBop
 	mov	eax, [rpsp]
 	mov	bx, [rpsp+4]
 	add	rpsp, 8
@@ -5863,7 +5850,7 @@ entry wstoreBop
 	
 ;========================================
 
-entry wstoreNextBop
+entry sstoreNextBop
 	mov	eax, [rpsp]		; eax -> dst ptr
 	mov	ecx, [eax]
 	mov	ebx, [rpsp+4]
@@ -5875,39 +5862,21 @@ entry wstoreNextBop
 	
 ;========================================
 
-entry wfetchBop
+entry sfetchBop
 	mov	eax, [rpsp]
-	xor	ebx, ebx
-	mov	bx, [eax]
+	movsx ebx, WORD[eax]
 	mov	[rpsp], ebx
 	jmp	rnext
 	
 ;========================================
 
-entry wfetchNextBop
+entry sfetchNextBop
 	mov	eax, [rpsp]
 	mov	ecx, [eax]
-	xor	ebx, ebx
-	mov	bx, [ecx]
+	movsx ebx, WORD[ecx]
 	mov	[rpsp], ebx
 	add	ecx, 2
 	mov	[eax], ecx
-	jmp	rnext
-	
-;========================================
-
-entry swfetchBop
-	mov	eax, [rpsp]
-	movsx	ebx, WORD[eax]
-	mov	[rpsp], ebx
-	jmp	rnext
-	
-;========================================
-
-entry w2iBop
-	mov	eax, [rpsp]
-	movsx	ebx, ax
-	mov	[rpsp], ebx
 	jmp	rnext
 	
 ;========================================
@@ -7739,5 +7708,3 @@ entry opTypesTable
 endOpTypesTable:
 	DD	0
 	
-%endif
-

@@ -68,30 +68,30 @@ class: atcConsoleDisplay extends iAtcDisplay
     
     // draw the top line of dashes   ------
     do( rowBytes 2- 0 )
-      '-' pDst c@!++
+      '-' pDst b@!++
     loop
-    bl pDst c@!++
-    0 pDst c@!++
+    bl pDst b@!++
+    0 pDst b@!++
 
     // draw the lines below top line | . . . |
     do( rows 2- 0 )
-      '|' pDst c@!++
-      bl pDst c@!++
+      '|' pDst b@!++
+      bl pDst b@!++
       do( columns 2- 0)
-        '.' pDst c@!++
-        bl pDst c@!++
+        '.' pDst b@!++
+        bl pDst b@!++
       loop
-      '|' pDst c@!++
-      bl pDst c@!++
-      0 pDst c@!++
+      '|' pDst b@!++
+      bl pDst b@!++
+      0 pDst b@!++
     loop
     
     // draw the bottom line of dashes   ------
     do( rowBytes 2- 0 )
-      '-' pDst c@!++
+      '-' pDst b@!++
     loop
-    bl pDst c@!++
-    0 pDst c@!++
+    bl pDst b@!++
+    0 pDst b@!++
 
     // draw the lines
     region.lines.headIter -> Iter iter

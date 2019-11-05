@@ -9,17 +9,48 @@ String testBuff2
 StringOutStream testOut
 Array testStreamStack
 
+SplitOutStream splitAuxOut
+StringOutStream testSummaryOut
+String summaryBuffer
+Object oldAuxOut
+
 : setupTestBase
   new String -> testBuff
   new String -> testBuff2
   new StringOutStream -> testOut
   new Array -> testStreamStack
+
+  // turn aux out into a split that writes to both console and testSummaryOut
+  //  so we can dump testSummaryOut at end of all tests so failures don't get
+  //  lost in all the noise
+  new SplitOutStream -> splitAuxOut
+
+  new StringOutStream -> testSummaryOut
+  new String -> summaryBuffer
+  testSummaryOut.setString(summaryBuffer)
+
+  splitAuxOut.init(getConsoleOut testSummaryOut)
+
+  getAuxOut -> oldAuxOut
+  setAuxOut(splitAuxOut)
 ;
 
 : cleanupTestBase
   oclear testBuff  oclear testBuff2
   oclear testOut
   oclear testStreamStack
+
+  setAuxOut(oldAuxOut)
+  oclear oldAuxOut
+
+  oclear testSummaryOut
+  //oclear summaryBuffer
+  oclear splitAuxOut
+;
+
+: dumpTestSummary
+  "\nSUMMARY:\n" %s
+  summaryBuffer.get %s %nl
 ;
 
 : clearBuff testBuff.clear ;
@@ -64,11 +95,22 @@ Array testStreamStack
       true -> failed
     endif
   loop
+
   if( failed )
-    "FAILED: { " %s ops %s " } => " %s
+    ptrTo byte inputLine
+    ptrTo byte inputPath
+    cell lineNumber
+    cell lineOffset
+    system.getInputInfo -> lineOffset -> lineNumber -> inputPath -> inputLine
+    
+    pushAuxOut
+    "FAILED: " %s inputPath %s ':' %c lineNumber %d " { " %s
+    ops %s " } => " %s
     do( numItems 0 )
       i %d "=" %s pick( numItems 1- i - ) . %bl %nl
     loop
+    popConsoleOut odrop
+    
     true -> testFailed
   else
     if( beNoisy )
@@ -115,6 +157,8 @@ Array testStreamStack
   endif
   oclear outFile
 ;
+
+setupTestBase
 
 
 loaddone

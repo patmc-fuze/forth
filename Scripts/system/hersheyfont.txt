@@ -115,15 +115,15 @@ class: HersheyFont
             new HersheyGlyph -> HersheyGlyph glyph
             mGlyphs.set(glyph glyphIndex)
             // set leftPos and rightPos
-            glyph.init(pSrc c@@++ 'R' -   pSrc c@@++ 'R' -)
+            glyph.init(pSrc b@@++ 'R' -   pSrc b@@++ 'R' -)
             glyph.mRightPos glyph.mLeftPos - -> int glyphWidth
             if(glyphWidth mMaxWidth >)
               glyphWidth -> mMaxWidth
             endif
             fprintf(stdout "glyph %d with %d verts  l:%d r:%d w:%d\n" r[ glyphIndex numVerts glyph.mLeftPos glyph.mRightPos glyphWidth ]r) drop
             ?do(numVerts 0)
-              pSrc c@@++ -> byte cx
-              pSrc c@@++ -> byte cy
+              pSrc b@@++ -> byte cx
+              pSrc b@@++ -> byte cy
               if(and(cx '\ ' = cy 'R' =))
                 true -> isMove
               else

@@ -8,6 +8,10 @@ decimal
 
 scSetShowID(false)
 
+cd tests
+lf testbase.txt
+cd ..
+
 : runtest
   depth -> int oldDepth
   mko String testName
@@ -17,8 +21,10 @@ scSetShowID(false)
   "##################### run " %s testScriptName.get %s " #####################\n" %s
   $load(testScriptName.get)
   if(depth oldDepth <>)
+    pushAuxOut
     "!!!!!!!!!!!!!!!!!!!!!! stack depth changed !!!!!!!!!!!!!!!!!!!!!!\n" %s
     ds
+    popConsoleOut odrop
   endif
   oclear testName
   oclear testScriptName
@@ -97,7 +103,9 @@ runtest forthtest
 
 runtest ansitest
 
+dumpTestSummary
+cleanupTestBase
+
 forget TEST
 cd ..
-
 

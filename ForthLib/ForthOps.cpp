@@ -5,7 +5,7 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "StdAfx.h"
-
+#include <math.h>
 
 #ifdef ARM9
 #include <nds.h>
@@ -53,9 +53,6 @@ forthop gCompiledOps[NUM_COMPILED_OPS];
 extern "C"
 {
 
-
-#include <math.h>
-#if !defined(ASM_INNER_INTERPRETER)
 extern float sinf(float a);
 extern float cosf(float a);
 extern float tanf(float a);
@@ -68,7 +65,11 @@ extern float sqrtf(float a);
 extern float expf(float a);
 extern float logf(float a);
 extern float log10f(float a);
-#endif
+extern float atan2f(float a, float b);
+extern float ldexpf(float a, int b);
+extern float frexpf(float a, int* b);
+extern float modff(float a, float* b);
+extern float fmodf(float a, float b);
 
 // compiled token is 32-bits,
 // top 8 bits are opcode type (opType)
@@ -4090,6 +4091,22 @@ FORTHOP( setConsoleOutOp )
 	ForthObject conoutObject;
 	POP_OBJECT( conoutObject );
 	pEngine->SetConsoleOut( pCore, conoutObject );
+}
+
+FORTHOP(getAuxOutOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+    pEngine->PushAuxOut(pCore);
+}
+
+FORTHOP(setAuxOutOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+
+    ForthObject conoutObject;
+    POP_OBJECT(conoutObject);
+    pEngine->SetAuxOut(pCore, conoutObject);
 }
 
 FORTHOP( resetConsoleOutOp )
@@ -8125,16 +8142,6 @@ FORTHOP(ifetchBop)
     SPUSH( *pA );
 }
 
-FORTHOP(storeNextBop)
-{
-    NEEDS(2);
-    cell **ppB = (cell **)(SPOP);
-    cell *pB = *ppB;
-    cell a = SPOP;
-    *pB++ = a;
-    *ppB = pB;
-}
-
 FORTHOP(istoreNextBop)
 {
     NEEDS(2);
@@ -8143,16 +8150,6 @@ FORTHOP(istoreNextBop)
     long a = (long)SPOP;
     *pB++ = a;
     *ppB = pB;
-}
-
-FORTHOP(fetchNextBop)
-{
-    NEEDS(1);
-    cell **ppA = (cell **)(SPOP);
-    cell *pA = *ppA;
-    cell a = *pA++;
-    SPUSH( a );
-    *ppA = pA;
 }
 
 FORTHOP(ifetchNextBop)
@@ -8165,7 +8162,14 @@ FORTHOP(ifetchNextBop)
     *ppA = pA;
 }
 
-FORTHOP(cstoreBop)
+FORTHOP(ubfetchBop)
+{
+    NEEDS(1);
+    unsigned char *pA = (unsigned char *)(SPOP);
+    SPUSH((*pA));
+}
+
+FORTHOP(bstoreBop)
 {
     NEEDS(2);
     char *pB = (char *) (SPOP);
@@ -8173,14 +8177,14 @@ FORTHOP(cstoreBop)
     *pB = (char) a;
 }
 
-FORTHOP(cfetchBop)
+FORTHOP(bfetchBop)
 {
     NEEDS(1);
-    unsigned char *pA = (unsigned char *) (SPOP);
-    SPUSH( (*pA) );
+    signed char *pA = (signed char *)(SPOP);
+    SPUSH((*pA));
 }
 
-FORTHOP(cstoreNextBop)
+FORTHOP(bstoreNextBop)
 {
     NEEDS(2);
     char **ppB = (char **)(SPOP);
@@ -8190,33 +8194,17 @@ FORTHOP(cstoreNextBop)
     *ppB = pB;
 }
 
-FORTHOP(cfetchNextBop)
+FORTHOP(bfetchNextBop)
 {
     NEEDS(1);
-    unsigned char **ppA = (unsigned char **)(SPOP); 
-    unsigned char *pA = *ppA;
-    unsigned char a = *pA++;
+    signed char **ppA = (signed char **)(SPOP); 
+    signed char *pA = *ppA;
+    signed char a = *pA++;
     SPUSH( a );
     *ppA = pA;
 }
 
-// signed char fetch
-FORTHOP(scfetchBop)
-{
-    NEEDS(1);
-    signed char *pA = (signed char *) (SPOP);
-    SPUSH( (*pA) );
-}
-
-FORTHOP(c2iBop)
-{
-    NEEDS(1);
-    signed char a = (signed char) (SPOP);
-	cell b = (cell) a;
-    SPUSH( b );
-}
-
-FORTHOP(wstoreBop)
+FORTHOP(sstoreBop)
 {
     NEEDS(2);
     short *pB = (short *) (SPOP);
@@ -8224,14 +8212,14 @@ FORTHOP(wstoreBop)
     *pB = (short) a;
 }
 
-FORTHOP(wfetchBop)
+FORTHOP(sfetchBop)
 {
     NEEDS(1);
-    unsigned short *pA = (unsigned short *) (SPOP);
+    short *pA = (short *) (SPOP);
     SPUSH( *pA );
 }
 
-FORTHOP(wstoreNextBop)
+FORTHOP(sstoreNextBop)
 {
     NEEDS(2);
     short **ppB = (short **)(SPOP);
@@ -8241,30 +8229,14 @@ FORTHOP(wstoreNextBop)
     *ppB = pB;
 }
 
-FORTHOP(wfetchNextBop)
+FORTHOP(sfetchNextBop)
 {
     NEEDS(1);
-    unsigned short **ppA = (unsigned short **)(SPOP); 
-    unsigned short *pA = *ppA;
-    unsigned short a = *pA++;
+    short **ppA = (short **)(SPOP); 
+    short *pA = *ppA;
+    short a = *pA++;
     SPUSH( a );
     *ppA = pA;
-}
-
-// signed word fetch
-FORTHOP(swfetchBop)
-{
-    NEEDS(1);
-    signed short *pA = (signed short *) (SPOP);
-    SPUSH( *pA );
-}
-
-FORTHOP(w2iBop)
-{
-    NEEDS(1);
-    short a = (short) (SPOP);
-	cell b = (cell) a;
-    SPUSH( b );
 }
 
 FORTHOP(dstoreBop)
@@ -8280,26 +8252,6 @@ FORTHOP(dfetchBop)
 	NEEDS(1);
 	double *pA = (double *) (SPOP);
 	DPUSH( *pA );
-}
-
-FORTHOP(dstoreNextBop)
-{
-	NEEDS(2);
-	double **ppB = (double **)(SPOP);
-	double *pB = *ppB;
-	double a = DPOP;
-	*pB++ = a;
-	*ppB = pB;
-}
-
-FORTHOP(dfetchNextBop)
-{
-	NEEDS(1);
-	double **ppA = (double **)(SPOP); 
-	double *pA = *ppA;
-	double a = *pA++;
-	DPUSH( a );
-	*ppA = pA;
 }
 
 FORTHOP(lstoreBop)
@@ -8340,43 +8292,6 @@ FORTHOP(lfetchNextBop)
 	a.s64 = *pA++;
 	LPUSH( a );
     *ppA = pA;
-}
-
-FORTHOP(ostoreBop)
-{
-	NEEDS(3);
-	ForthObject *pB = (ForthObject *) (SPOP); 
-	ForthObject a;
-	POP_OBJECT(a);
-	*pB = a;
-}
-
-FORTHOP(ofetchBop)
-{
-	NEEDS(1);
-	ForthObject *pA = (ForthObject *) (SPOP); 
-	PUSH_OBJECT(*pA);
-}
-
-FORTHOP(ostoreNextBop)
-{
-	NEEDS(2);
-	ForthObject **ppB = (ForthObject **) (SPOP); 
-	ForthObject *pB = *ppB;
-	ForthObject a;
-	POP_OBJECT(a);
-	*pB++ = a;
-	*ppB = pB;
-}
-
-FORTHOP(ofetchNextBop)
-{
-	NEEDS(1);
-	ForthObject **ppA = (ForthObject **) (SPOP); 
-	ForthObject *pA = *ppA;
-	ForthObject a = *pA++;
-	PUSH_OBJECT(a);
-	*ppA = pA;
 }
 
 FORTHOP(memcmpBop)
@@ -9243,7 +9158,6 @@ OPREF( lLessThanBop );      OPREF( lLessThan0Bop );     OPREF( fcmpBop );
 OPREF( lGreaterEqualsBop ); OPREF( lGreaterEquals0Bop ); OPREF( lLessEqualsBop );
 OPREF( lLessEquals0Bop );   OPREF(doDConstantBop);
 OPREF(dstoreBop);
-OPREF(dstoreNextBop);     OPREF(dfetchNextBop);     
 #endif
 OPREF(lfetchBop);
 OPREF(lstoreBop);         OPREF(lstoreNextBop);     OPREF(lfetchNextBop);
@@ -9258,11 +9172,10 @@ OPREF( ipBop );             OPREF( ddupBop );           OPREF( dswapBop );
 OPREF( ddropBop );          OPREF( doverBop );          OPREF( drotBop );
 OPREF( startTupleBop );     OPREF( endTupleBop );
 OPREF( istoreBop );         OPREF( istoreNextBop);      OPREF( ifetchNextBop);
-OPREF( cstoreBop );
-OPREF( cfetchBop );         OPREF( cstoreNextBop );     OPREF( cfetchNextBop );
-OPREF( scfetchBop );        OPREF( c2iBop );            OPREF( wstoreBop );
-OPREF( wfetchBop );         OPREF( wstoreNextBop );     OPREF( wfetchNextBop );
-OPREF( swfetchBop );        OPREF( w2iBop );
+OPREF(bstoreBop);           OPREF(ubfetchBop);
+OPREF( bfetchBop );         OPREF( bstoreNextBop );     OPREF( bfetchNextBop );
+OPREF( sbfetchBop );        OPREF( sstoreBop );
+OPREF( sfetchBop );         OPREF( sstoreNextBop );     OPREF( sfetchNextBop );
 
 OPREF( moveBop );           OPREF( fillBop );           OPREF( setVarActionBop );
 OPREF(memcmpBop);
@@ -9622,44 +9535,26 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
 #if defined(FORTH64)
     NATIVE_DEF(lstoreBop, "!"),
-    NATIVE_DEF(lstoreNextBop, "@!++"),
-    NATIVE_DEF(lfetchNextBop, "@@++"),
 #else
     NATIVE_DEF(istoreBop, "!"),
-    NATIVE_DEF(istoreNextBop, "@!++"),
-    NATIVE_DEF(ifetchNextBop, "@@++"),
 #endif
-    NATIVE_DEF(    cstoreBop,               "c!" ),
-    NATIVE_DEF(    cfetchBop,               "c@" ),
-    NATIVE_DEF(    cstoreNextBop,           "c@!++" ),
-    NATIVE_DEF(    cfetchNextBop,           "c@@++" ),
-    NATIVE_DEF(    scfetchBop,              "sc@" ),
-    NATIVE_DEF(    c2iBop,                  "c2i" ),
-    NATIVE_DEF(    wstoreBop,               "w!" ),
-    NATIVE_DEF(    wfetchBop,               "w@" ),
-    NATIVE_DEF(    wstoreNextBop,           "w@!++" ),
-    NATIVE_DEF(    wfetchNextBop,           "w@@++" ),
-    NATIVE_DEF(    swfetchBop,              "sw@" ),
-    NATIVE_DEF(    w2iBop,                  "w2i" ),
+    NATIVE_DEF(    ubfetchBop,              "ub@" ),
+    NATIVE_DEF(    bstoreBop,               "b!" ),
+    NATIVE_DEF(    bfetchBop,               "b@" ),
+    NATIVE_DEF(    bstoreNextBop,           "b@!++" ),
+    NATIVE_DEF(    bfetchNextBop,           "b@@++" ),
+    NATIVE_DEF(    sstoreBop,               "s!" ),
+    NATIVE_DEF(    sfetchBop,               "s@" ),
+    NATIVE_DEF(    sstoreNextBop,           "s@!++" ),
+    NATIVE_DEF(    sfetchNextBop,           "s@@++" ),
     NATIVE_DEF(    istoreBop,               "i!" ),
     NATIVE_DEF(    ifetchBop,               "i@" ),
     NATIVE_DEF(    istoreNextBop,           "i@!++" ),
     NATIVE_DEF(    ifetchNextBop,           "i@@++" ),
-#if !defined(FORTH64)
-    NATIVE_DEF(    dstoreBop,               "2!" ),
-    NATIVE_DEF(    dstoreNextBop,           "2@!++" ),
-    NATIVE_DEF(    dfetchNextBop,           "2@@++" ),
-#endif
-	/*
-	NATIVE_DEF(    lfetchBop,               "l@" ),
-    NATIVE_DEF(    lstoreBop,               "2!" ),
-    NATIVE_DEF(    lstoreNextBop,           "2@!++" ),
-    NATIVE_DEF(    lfetchNextBop,           "2@@++" ),
-    NATIVE_DEF(    ofetchBop,               "o@" ),
-    NATIVE_DEF(    ostoreBop,               "o!" ),
-    NATIVE_DEF(    ostoreNextBop,           "o@!++" ),
-    NATIVE_DEF(    ofetchNextBop,           "o@@++" ),
-	*/
+    NATIVE_DEF(    lstoreBop,               "l!"),
+    NATIVE_DEF(    lfetchBop,               "l@"),
+    NATIVE_DEF(    lstoreNextBop,           "l@!++"),
+    NATIVE_DEF(    lfetchNextBop,           "l@@++"),
     NATIVE_DEF(    moveBop,                 "move" ),
     NATIVE_DEF(    memcmpBop,               "memcmp"),
     NATIVE_DEF(    fillBop,                 "fill" ),
@@ -10020,6 +9915,10 @@ baseDictionaryEntry baseDictionary[] =
 	OP_DEF(    getDefaultConsoleOutOp, "getDefaultConsoleOut" ),
 	OP_DEF(    setConsoleOutOp,        "setConsoleOut" ),
 	OP_DEF(    resetConsoleOutOp,      "resetConsoleOut" ),
+    OP_DEF(    getAuxOutOp,            "getAuxOut"),
+    OP_DEF(    setAuxOutOp,            "setAuxOut"),
+        
+    OP_DEF(    toupperOp,              "toupper" ),
     OP_DEF(    toupperOp,              "toupper" ),
     OP_DEF(    isupperOp,              "isupper" ),
     OP_DEF(    isspaceOp,              "isspace" ),

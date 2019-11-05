@@ -145,6 +145,62 @@ Double and long memory and stack layouts:
 0xfedcba9876543210L    10 32 54 76  98 ba dc fe     98 ba dc fe  10 32 54 76  
 
 Double has consistent layout, long is reversed on param stack.
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 4 2019
+
+I finally found the amd64 crash in helpdeck, exitML was updating the frame pointer
+shadow copy in pCore, but it wasn't updating register rfp.  I am surprised at
+how many things worked with this bug, maybe there are too many things that are
+redundantly setting rfp from the shadow copy.
+
+The remaining problems I know of:
+- amd64 assembler isn't done
+- tree_examples fails because it uses numberio which uses extops which uses assembler
+- there is a memory corruption crash on exit
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 3 2019
+
+I changed how the asm inner interpreter build is controlled, I changed it into
+a different build configuration instead of needing to manually change the preprocessor
+symbols to have ASM_INNER_INTERPRETER.
+
+I also ran a quick benchmark on the various configurations, which just runs an
+empty do loop a billion times:
+
+: moo
+  ms@ 
+  1000000000 0 do loop
+  ms@ swap - %d
+;
+
+win32:
+Debug 47384
+DbgAsm 1718
+Release 4839
+RelAsm 1605
+
+amd64:
+Debug 57673
+DbgAsm 1868
+Release 2708
+RelAsm 1856
+
+win32 is slightly faster than amd64 in general, and for the assembler inner
+interpreter versions there is very little difference in speed for release and
+debug.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 1 2019
+
+I added an auxiliary output stream, shared by all threads, which by default points
+to the default console stream.
+I also added a SplitOutStream type that sends output to 2 streams.
+The reason for this was to add a summary to the tests, where summary output is
+written to the aux stream, and then it appears in the immediate output stream,
+and if the console out has been changed to use a splitter, that output will also
+appear in the summary output which is dumped after all tests have run.  The intent
+is to prevent not seeing error output which appears early in the test run.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 16 2019
 

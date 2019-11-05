@@ -53,6 +53,7 @@ makeObject System system
   args -> system.args
   oclear args
 ;
+
 _initSystemObject
 $forget("_initSystemObject") drop
 
@@ -181,7 +182,8 @@ MAXUINT -> cell MAXUCELL
     int[] cell+ @
 ;
 
-
+alias c@ ub@
+alias c! b!
 : count dup 1+ swap c@ ;
 
 #if(FORTH64)
@@ -198,7 +200,7 @@ alias 2rotate rotate
 alias l+ +
 alias l0<> 0<>
 #else
-: 2, here 8 allot 2! ;
+: 2, , , ;
 : land rot and >r and r> ;
 : lor rot or >r and r> ;
 : lxor rot xor >r and r> ;
@@ -800,11 +802,11 @@ addHelp numLocals	returns number of longwords of local variables in current stac
 
 : dlocals
   fp if
-    rp 4+
-    fp 4-
+    rp cell+
+    fp cell-
     do
       i @ %x %nl
-    -4 +loop
+    cellsize negate +loop
   else
     "no locals defined\n" %s
   endif
@@ -1066,8 +1068,8 @@ addHelp pushConsoleOut   OUTPUT_STREAM pushConsoleOut ...   save current console
   setConsoleOut
 ;
 
-addHelp pushOutputFile   OUTPUT_FILENAME pushOutputFile ...   redirect output stream to named file
-: pushOutputFile
+addHelp pushFileOut   OUTPUT_FILENAME pushFileOut ...   redirect output stream to named file
+: pushFileOut
   -> ptrTo byte outFileName
   mko FileOutStream outFile
   
@@ -1078,6 +1080,11 @@ addHelp pushOutputFile   OUTPUT_FILENAME pushOutputFile ...   redirect output st
     error("pushOutputFile: failed to open ")
   endif
   oclear outFile
+;
+
+addHelp pushAuxOut ... redirect output stream to aux out stream
+: pushAuxOut
+  system.getAuxOut pushConsoleOut
 ;
 
 addHelp popConsoleOut   popConsoleOut ... OLD_CONSOLE_OUTSTREAM      restore previous console output stream

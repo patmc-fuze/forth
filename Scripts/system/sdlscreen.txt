@@ -752,6 +752,22 @@ SDLScreen screenInstance
 : endFrame screenInstance.endFrame ;
 : dt screenInstance.drawText ;
 
+: munch
+  int v  int x  int y
+  
+  beginFrame
+  do(256 0)
+    do(256 0)
+      //screenInstance.getPixel(i j) -> v
+      //xor(i j) 0x10101 * -> v
+      xor(i j) 0x10101 * -> v
+      sc(v)
+      dp(i j)
+    loop
+  loop
+  endFrame
+;
+
 : test
   sc( 0xFFFF00 )
   de( 100 200 )

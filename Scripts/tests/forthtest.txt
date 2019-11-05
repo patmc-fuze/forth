@@ -11,8 +11,6 @@ decimal
 
 //: showsection " ================== " dup %s swap %s %s %nl ;
 
-setupTestBase
-
 testBuff.set( "aba" )
 //turbo 255 setTrace
 //vd checkResult
@@ -162,13 +160,8 @@ test[ testLocalVars4 checkResult( "22.5 22.375 21.625 22.5 22.375 21.625 " ) ]
 20 buffer tb
 
 0xDEADBEEF tb !
-#if(FORTH64)
-test[ startTest tb c@ %x %bl tb w@ %x %bl tb sc@ %d checkResult( "ef beef -17" ) ]
-test[ startTest tb sw@ %d %bl tb c@ c2i %d %bl tb w@ w2i %d checkResult( "-16657 -17 -16657" ) ]
-#else
-test[ startTest tb c@ %x %bl tb w@ %x %bl tb sc@ %x checkResult( "ef beef ffffffef" ) ]
-test[ startTest tb sw@ %x %bl tb c@ c2i %x %bl tb w@ w2i %x checkResult( "ffffbeef ffffffef ffffbeef" ) ]
-#endif
+test[ startTest tb b@ %d %bl tb s@ 0xffff and %x checkResult( "-17 beef" ) ]
+test[ startTest tb s@ %d %bl tb b@ %d checkResult( "-16657 -17" ) ]
 
 ///////////////////////////////////////////////////////////
 
@@ -292,7 +285,7 @@ test[ fmodf(12345.625) 0.625 f= swap 12345.0 f= dmodf(-12345.625l) -0.625L d= >r
 test[ ffmod(-27.375 4.0) -3.375 f= dfmod(27.375l 4.0l) 3.375L d= ]
 
 // 2dup 2swap 2drop 2over 2rot r[ ]r
-// c! c@ sc@ w! w@ sw@ ! @ 2! 2@ 
+// b! b@ sb@ s! s@ ss@ ! @ 2! 2@ 
 // move fill varAction! varAction@
 // l+ l- l* l/ lmod l/mod lnegate i2l i2f i2d f2l f2i f2d d2l d2i d2f l2f l2d
 // l= l<> l> l>= l< l<= l0= l0> l0>= l0< l0<= lwithin lmin lmax
@@ -447,15 +440,15 @@ testBuff2.get -> ptrTo byte pSrc
 ref pSrc -> ptrTo int src
 testBuff.get -> ptrTo cell pDst
 ref pDst -> ptrTo cell dst
-src 2@@++ dst 2@!++ 
-src c@@++ dst c@!++ 
-src c@@++ dst c@!++ 
-src w@@++ dst w@!++ 
-src @@++ dst @!++ 
-src w@@++ dst w@!++ 
-src c@@++ dst c@!++ 
-src c@@++ dst c@!++ 
-src w@@++ dst w@!++ 
+src l@@++ dst l@!++ 
+src b@@++ dst b@!++ 
+src b@@++ dst b@!++ 
+src s@@++ dst s@!++ 
+src i@@++ dst i@!++ 
+src s@@++ dst s@!++ 
+src b@@++ dst b@!++ 
+src b@@++ dst b@!++ 
+src s@@++ dst s@!++ 
 test[ checkResult( testBuff2.get ) ]
 
 test[ 0xDEADBEEF 123456789 2= ]	// check for stack underflow or extra items
@@ -477,12 +470,12 @@ test[ 0xDEADBEEF 123456789 2= ]	// check for stack underflow or extra items
 //stdin fgetc
 : finalCheck
   if( testFailed not )
+    pushAuxOut
     "All tests succeeded\n" %s
+    popConsoleOut odrop
   endif
 ;
 finalCheck
-
-cleanupTestBase
 
 loaddone
 

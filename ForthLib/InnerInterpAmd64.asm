@@ -155,10 +155,6 @@ EXTERN %2
 
 ;SEH_handler   ENDP
 
-; for some reason, this is always true, you need to change the name,
-; changing the build rule to not define it isn't enough	
-%ifdef	ASM_INNER_INTERPRETER
-
 ;-----------------------------------------------
 ;
 ; extOpType is used to handle optypes which are only defined in C++
@@ -1354,7 +1350,7 @@ entry localIntType
 	shr	rax, 21
 	mov	[rcore + FCore.varMode], rax
 localIntType1:
-	; get ptr to float var into rax
+	; get ptr to int var into rax
 	mov	rax, rfp
 	and	rbx, 001FFFFFh
 	sal	rbx, 3
@@ -4187,8 +4183,8 @@ entry doExitMLBop
 	cmp	rbx, rpsp
 	jl	doExitBop2
 	mov	rax, rfp
-	mov	rip, [rax]
-	mov	[rcore + FCore.FPtr], rip
+	mov	rfp, [rax]
+	mov	[rcore + FCore.FPtr], rfp
 	add	rax, 24
 	; check return stack
 	mov	rbx, [rcore + FCore.RTPtr]
@@ -4792,7 +4788,7 @@ entry rdropBop
 
 entry rpBop
 	lea	rax, [rcore + FCore.RPtr]
-	jmp	intEntry
+	jmp	longEntry
 	
 ;========================================
 
@@ -4960,7 +4956,7 @@ entry s0Bop
 
 entry fpBop
 	lea	rax, [rcore + FCore.FPtr]
-	jmp	intEntry
+	jmp	longEntry
 	
 ;========================================
 
@@ -4971,7 +4967,7 @@ entry ipBop
 	mov	[rcore + FCore.IPtr], rip
 	lea	rax, [rcore + FCore.IPtr]
 	mov	rnext, ipFixup
-	jmp	intEntry
+	jmp	longEntry
 	
 entry	ipFixup	
 	mov	rip, [rcore + FCore.IPtr]
@@ -5124,8 +5120,7 @@ entry istoreBop
 
 entry ifetchBop
 	mov	rax, [rpsp]
-    xor rbx, rbx
-	mov	ebx, DWORD[rax]
+	movsx rbx, DWORD[rax]
 	mov	[rpsp], rbx
 	jmp	rnext
 	
@@ -5146,8 +5141,7 @@ entry istoreNextBop
 entry ifetchNextBop
 	mov	rax, [rpsp]
 	mov	rcx, [rax]
-    xor rbx, rbx
-	mov	ebx, DWORD[rcx]
+	movsx rbx, DWORD[rcx]
 	mov	[rpsp], rbx
 	add	rcx, 4
 	mov	[rax], rcx
@@ -5155,7 +5149,16 @@ entry ifetchNextBop
 	
 ;========================================
 
-entry cstoreBop
+entry ubfetchBop
+	mov	rax, [rpsp]
+	xor rbx, rbx
+    mov bl, BYTE[rax]
+	mov	[rpsp], rbx
+	jmp	rnext
+	
+;========================================
+
+entry bstoreBop
 	mov	rax, [rpsp]
     xor rbx, rbx
 	mov	bl, BYTE[rpsp + 8]
@@ -5165,16 +5168,15 @@ entry cstoreBop
 	
 ;========================================
 
-entry cfetchBop
+entry bfetchBop
 	mov	rax, [rpsp]
-	xor	rbx, rbx
-	mov	bl, BYTE[rax]
+	movsx rbx, BYTE[rax]
 	mov	[rpsp], rbx
 	jmp	rnext
 	
 ;========================================
 
-entry cstoreNextBop
+entry bstoreNextBop
 	mov	rax, [rpsp]		; rax -> dst ptr
 	mov	rcx, [rax]
 	xor rbx, rbx
@@ -5187,11 +5189,10 @@ entry cstoreNextBop
 	
 ;========================================
 
-entry cfetchNextBop
+entry bfetchNextBop
 	mov	rax, [rpsp]
 	mov	rcx, [rax]
-	xor	rbx, rbx
-	mov	bl, BYTE[rcx]
+	movsx rbx, BYTE[rcx]
 	mov	[rpsp], rbx
 	add	rcx, 1
 	mov	[rax], rcx
@@ -5199,23 +5200,7 @@ entry cfetchNextBop
 	
 ;========================================
 
-entry scfetchBop
-	mov	rax, [rpsp]
-	movsx rbx, BYTE[rax]
-	mov	[rpsp], rbx
-	jmp	rnext
-	
-;========================================
-
-entry c2iBop
-	mov	rax, [rpsp]
-	movsx rbx, al
-	mov	[rpsp], rbx
-	jmp	rnext
-	
-;========================================
-
-entry wstoreBop
+entry sstoreBop
 	mov	rax, [rpsp]
 	mov	bx, [rpsp + 8]
 	add	rpsp, 8
@@ -5224,7 +5209,7 @@ entry wstoreBop
 	
 ;========================================
 
-entry wstoreNextBop
+entry sstoreNextBop
 	mov	rax, [rpsp]		; rax -> dst ptr
 	mov	rcx, [rax]
 	mov	rbx, [rpsp + 8]
@@ -5236,28 +5221,7 @@ entry wstoreNextBop
 	
 ;========================================
 
-entry wfetchBop
-	mov	rax, [rpsp]
-	xor	rbx, rbx
-	mov	bx, WORD[rax]
-	mov	[rpsp], rbx
-	jmp	rnext
-	
-;========================================
-
-entry wfetchNextBop
-	mov	rax, [rpsp]
-	mov	rcx, [rax]
-	xor	rbx, rbx
-	mov	bx, WORD[rcx]
-	mov	[rpsp], rbx
-	add	rcx, 2
-	mov	[rax], rcx
-	jmp	rnext
-	
-;========================================
-
-entry swfetchBop
+entry sfetchBop
 	mov	rax, [rpsp]
 	movsx rbx, WORD[rax]
 	mov	[rpsp], rbx
@@ -5265,10 +5229,13 @@ entry swfetchBop
 	
 ;========================================
 
-entry w2iBop
+entry sfetchNextBop
 	mov	rax, [rpsp]
-	movsx rbx, ax
+	mov	rcx, [rax]
+	movsx rbx, WORD[rcx]
 	mov	[rpsp], rbx
+	add	rcx, 2
+	mov	[rax], rcx
 	jmp	rnext
 	
 ;========================================
@@ -6889,5 +6856,3 @@ entry opTypesTable
 endOpTypesTable:
 	DQ	0
 	
-%endif
-
