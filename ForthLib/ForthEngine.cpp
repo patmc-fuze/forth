@@ -414,6 +414,7 @@ ForthEngine::~ForthEngine()
     {
 		__FREE(mpCore->optypeAction);
     }
+
     if ( mpCore->ops )
     {
 		__FREE(mpCore->ops);

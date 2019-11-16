@@ -490,6 +490,7 @@ ForthFileInputStream::GetLine( const char *pPrompt )
     pBuffer = fgets( mpBufferBase, mBufferLen, mpInFile );
 
     mReadOffset = 0;
+    //printf("%s\n", pBuffer);
     mpBufferBase[ mBufferLen - 1 ] = '\0';
     mWriteOffset = strlen( mpBufferBase );
     if ( mWriteOffset > 0 )

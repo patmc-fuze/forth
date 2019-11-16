@@ -275,7 +275,7 @@ public:
     // return a string telling the type of library
     virtual const char* GetType( void );
 
-    long                LoadDLL( void );
+    void *              LoadDLL( void );
     void                UnloadDLL( void );
 	forthop*            AddEntry(const char* pFuncName, const char* pEntryName, long numArgs);
 	void				SetFlag( unsigned long flag );

@@ -1,15 +1,20 @@
 // basic ops not included in the kernel
 
-FORTH64 not [if]
+FORTH64 [if]
+
+requires asm_amd64
+
+[else]
+
 ARCH_X86 [if]
 
-lf asm_pentium.txt
+requires asm_pentium
 
 [else]
 
 ARCH_ARM [if]
 
-lf asm_arm.txt
+requires asm_arm
 
 [endif]
 [endif]

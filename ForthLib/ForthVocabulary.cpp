@@ -716,7 +716,11 @@ ForthVocabulary::PrintEntry( forthop*   pEntry )
         // for user defined ops the second entry field is meaningless, just show code address
         if ( entryValue < GET_NUM_OPS )
         {
-            sprintf( buff, "%08x *%c  ", OP_TABLE[entryValue], immediateChar );
+#if defined(FORTH64)
+            sprintf(buff, "%016llx *%c  ", OP_TABLE[entryValue], immediateChar);
+#else
+            sprintf(buff, "%08x *%c  ", OP_TABLE[entryValue], immediateChar);
+#endif
             CONSOLE_STRING_OUT( buff );
         }
         else
@@ -905,7 +909,7 @@ ForthDLLVocabulary::~ForthDLLVocabulary()
     delete [] mpDLLName;
 }
 
-long ForthDLLVocabulary::LoadDLL( void )
+void* ForthDLLVocabulary::LoadDLL( void )
 {
 
     ForthEngine* pEngine = ForthEngine::GetInstance();
@@ -929,7 +933,7 @@ long ForthDLLVocabulary::LoadDLL( void )
         pEngine->AddErrorText(pDLLSrc);
     }
     delete[] pDLLPath;
-    return (long)mhDLL;
+    return mhDLL;
 #elif defined(LINUX) || defined(MACOSX)
     mLibHandle = dlopen(pDLLSrc, RTLD_LAZY);
     if (mLibHandle == nullptr)
@@ -938,7 +942,7 @@ long ForthDLLVocabulary::LoadDLL( void )
         pEngine->AddErrorText(pDLLSrc);
     }
     delete[] pDLLPath;
-    return (long)mLibHandle;
+    return mLibHandle;
 #endif
 }
 

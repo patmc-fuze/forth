@@ -207,8 +207,17 @@ entry InitAsmTables
 	mov	[rcx + FCore.innerLoop], rdx
 	mov	rdx, interpLoopExecuteEntry
 	mov	[rcx + FCore.innerExecute], rdx
+    ; copy opTypesTable
+	mov rax, [rcx + FCore.optypeAction]
 	mov rdx, opTypesTable
-	mov [rcx + FCore.optypeAction], rdx
+    mov rcx, 256
+.initAsmTables1:
+    mov r8, [rdx]
+    mov [rax], r8
+    add rdx, 8
+    add rax, 8
+    dec rcx
+    jnz .initAsmTables1
 	ret
 
 ;-----------------------------------------------
@@ -4264,6 +4273,22 @@ doCheckDoBop1:
 	jmp	rnext
 	
 ;========================================
+;
+; TOS is start-index
+; the op right after this one should be a branch just past end of loop (used by leave)
+; 
+entry doForBop
+	sub	rrp, 24
+	; @RP-2 holds top-of-loop-IP
+	add	rip, 4    ; skip over loop exit branch right after this op
+	mov	[rrp + 16], rip
+	; @RP holds current-index
+	mov	rax, [rpsp]
+	mov	[rrp], rax
+	add	rpsp, 8
+	jmp	rnext
+	
+;========================================
 
 entry doLoopBop
 	mov	rax, [rrp]
@@ -4298,6 +4323,20 @@ doLoopNBop1:
 	jl	doLoopBop1		; jump if done
 	mov	[rrp], rax		; update i
 	mov	rip, [rrp + 16]		; branch to top of loop
+	jmp	rnext
+	
+;========================================
+
+entry doNextBop
+	mov	rax, [rrp]
+	dec	rax
+	jl	doNextBop1	; jump if done
+	mov	[rrp], rax
+	mov	rip, [rrp + 16]
+	jmp	rnext
+
+doNextBop1:
+	add	rrp, 24
 	jmp	rnext
 	
 ;========================================
@@ -5112,7 +5151,7 @@ entry lfetchNextBop
 entry istoreBop
 	mov	rax, [rpsp]
 	mov	rbx, [rpsp + 8]
-	add	rpsp, 8
+	add	rpsp, 16
 	mov	DWORD[rax], ebx
 	jmp	rnext
 	
@@ -5162,7 +5201,7 @@ entry bstoreBop
 	mov	rax, [rpsp]
     xor rbx, rbx
 	mov	bl, BYTE[rpsp + 8]
-	add	rpsp, 8
+	add	rpsp, 16
 	mov	[rax], bl
 	jmp	rnext
 	
@@ -5203,7 +5242,7 @@ entry bfetchNextBop
 entry sstoreBop
 	mov	rax, [rpsp]
 	mov	bx, [rpsp + 8]
-	add	rpsp, 8
+	add	rpsp, 16
 	mov	WORD[rax], bx
 	jmp	rnext
 	
@@ -6344,18 +6383,17 @@ entry dllEntryPointType
 	cmp	rax, rnumops
 	jge	badUserDef
 
-	mov r9, rcore
-
-	mov r8, rbx
-	shr r8, 16
-	and r8, 7
+	mov	rcx, [roptab + rax*8]
 
 	mov	rdx, rbx
 	shr	rdx, 19
 	and	rdx, 1Fh
 
-	mov	rbx, [rcore + FCore.ops]
-	mov	rcx, [rbx + rax*4]
+	mov r8, rbx
+	shr r8, 16
+	and r8, 7
+
+	mov r9, rcore
 
 	; rcx - dll routine address
 	; rdx - arg count
@@ -6364,6 +6402,7 @@ entry dllEntryPointType
 	sub rsp, 32
 	xcall	CallDLLRoutine
 	add rsp, 32
+    mov rpsp, [rcore + FCore.SPtr]
 	jmp	restoreNext
 
 

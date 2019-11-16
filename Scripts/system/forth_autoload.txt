@@ -74,20 +74,20 @@ $forget("_initSystemObject") drop
   -> ptrTo byte newSymbol
   system.getDefinitionsVocab -> Vocabulary vocab
   vocab.findEntryByName(oldSymbol) -> ptrTo int oldEntry
-  // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
-  makeObject ByteArray valueBuffer
-  valueBuffer.fromMemory(oldEntry vocab.getValueLength 0)
-  valueBuffer.base -> oldEntry
-  //newSymbol %s %nl dump(oldEntry 32)
   if(oldEntry)
     vocab.addSymbol(newSymbol 0 0 0)
     vocab.getNewestEntry -> ptrTo int newEntry
     move(oldEntry  newEntry  vocab.getValueLength)
+    // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
+    makeObject ByteArray valueBuffer
+    valueBuffer.fromMemory(oldEntry vocab.getValueLength 0)
+    valueBuffer.base -> oldEntry
+    //newSymbol %s %nl dump(oldEntry 32)
+    oclear valueBuffer
   else
     "Symbol " %s oldSymbol %s " not found!\n" %s
   endif
   oclear vocab
-  oclear valueBuffer
 ;
 
 : alias blword -> 250 string aa  aa blword $alias ;
@@ -185,9 +185,9 @@ MAXUINT -> cell MAXUCELL
 alias c@ ub@
 alias c! b!
 : count dup 1+ swap c@ ;
+: 2, , , ;
 
 #if(FORTH64)
-: 2, here 8 allot ! ;
 alias land and
 alias lor or
 alias lxor xor
@@ -200,7 +200,6 @@ alias 2rotate rotate
 alias l+ +
 alias l0<> 0<>
 #else
-: 2, , , ;
 : land rot and >r and r> ;
 : lor rot or >r and r> ;
 : lxor rot xor >r and r> ;

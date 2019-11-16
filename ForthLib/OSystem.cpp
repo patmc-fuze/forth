@@ -21,6 +21,8 @@
 
 namespace OSystem
 {
+    static ForthClassVocabulary *gpShellStackVocab = nullptr;
+
 	//////////////////////////////////////////////////////////////////////
 	///
 	//                 OSystem
@@ -38,6 +40,12 @@ namespace OSystem
         CLEAR_OBJECT(gSystemSingleton.env);
         obj = reinterpret_cast<ForthObject>(&gSystemSingleton);
         obj->pMethods = pClassVocab->GetMethods();
+
+        MALLOCATE_OBJECT(oObjectStruct, pShellStack, gpShellStackVocab);
+        gSystemSingleton.shellStack = pShellStack;
+        pShellStack->pMethods = gpShellStackVocab->GetMethods();
+        pShellStack->refCount = 2000000000;
+
         PUSH_OBJECT(obj);
 	}
 
@@ -299,19 +307,19 @@ namespace OSystem
     }
 
     baseMethodEntry oSystemMembers[] =
-	{
-		METHOD("__newOp", oSystemNew),
-		METHOD("delete", oSystemDeleteMethod),
-		METHOD("stats", oSystemStatsMethod),
-		METHOD_RET("getDefinitionsVocab", oSystemGetDefinitionsVocabMethod, RETURNS_OBJECT(kBCIVocabulary)),
-		METHOD("setDefinitionsVocab", oSystemSetDefinitionsVocabMethod),
-		METHOD("clearSearchVocab", oSystemClearSearchVocabMethod),
-		METHOD("getSearchVocabDepth", oSystemGetSearchVocabDepthMethod),
-		METHOD_RET("getSearchVocabAt", oSystemGetSearchVocabAtMethod, RETURNS_OBJECT(kBCIVocabulary)),
-		METHOD_RET("getSearchVocabTop", oSystemGetSearchVocabTopMethod, RETURNS_OBJECT(kBCIVocabulary)),
-		METHOD("setSearchVocabTop", oSystemSetSearchVocabTopMethod),
-		METHOD("pushSearchVocab", oSystemPushSearchVocabMethod),
-		METHOD_RET("getVocabByName", oSystemGetVocabByNameMethod, RETURNS_OBJECT(kBCIVocabulary)),
+    {
+        METHOD("__newOp", oSystemNew),
+        METHOD("delete", oSystemDeleteMethod),
+        METHOD("stats", oSystemStatsMethod),
+        METHOD_RET("getDefinitionsVocab", oSystemGetDefinitionsVocabMethod, RETURNS_OBJECT(kBCIVocabulary)),
+        METHOD("setDefinitionsVocab", oSystemSetDefinitionsVocabMethod),
+        METHOD("clearSearchVocab", oSystemClearSearchVocabMethod),
+        METHOD("getSearchVocabDepth", oSystemGetSearchVocabDepthMethod),
+        METHOD_RET("getSearchVocabAt", oSystemGetSearchVocabAtMethod, RETURNS_OBJECT(kBCIVocabulary)),
+        METHOD_RET("getSearchVocabTop", oSystemGetSearchVocabTopMethod, RETURNS_OBJECT(kBCIVocabulary)),
+        METHOD("setSearchVocabTop", oSystemSetSearchVocabTopMethod),
+        METHOD("pushSearchVocab", oSystemPushSearchVocabMethod),
+        METHOD_RET("getVocabByName", oSystemGetVocabByNameMethod, RETURNS_OBJECT(kBCIVocabulary)),
         METHOD_RET("getVocabChainHead", oSystemGetVocabChainHeadMethod, RETURNS_OBJECT(kBCIVocabulary)),
         METHOD_RET("getOpsTable", oSystemGetOpsTableMethod, RETURNS_NATIVE(kBaseTypeCell)),
         METHOD_RET("getClassByIndex", oSystemGetClassByIndexMethod, RETURNS_OBJECT(kBCIObject)),
@@ -326,15 +334,168 @@ namespace OSystem
         MEMBER_VAR("namedObjects", OBJECT_TYPE_TO_CODE(0, kBCIStringMap)),
         MEMBER_VAR("args", OBJECT_TYPE_TO_CODE(0, kBCIArray)),
         MEMBER_VAR("env", OBJECT_TYPE_TO_CODE(0, kBCIStringMap)),
+        MEMBER_VAR("shellStack", OBJECT_TYPE_TO_CODE(0, kBCIShellStack)),
 
 		// following must be last in table
 		END_MEMBERS
 	};
 
 
-	void AddClasses(ForthEngine* pEngine)
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 OShellStack
+    //
+
+    FORTHOP(oShellStackDeleteMethod)
+    {
+        GET_THIS(oObjectStruct, obj);
+        obj->refCount = 2000000000;
+        // TODO: warn that something tried to delete system
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackSizeMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        SPUSH(stack->GetSize());
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackDepthMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        SPUSH(stack->GetDepth());
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackPushMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        cell v = SPOP;
+        stack->Push(v);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackPushTagMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        cell v = SPOP;
+        stack->PushTag((eShellTag) v);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackPushAddressMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        cell v = SPOP;
+        stack->PushAddress((forthop *)v);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackPushStringMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        cell v = SPOP;
+        stack->PushString((const char *)v);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackPopMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        cell v = stack->Pop();
+        SPUSH(v);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackPopTagMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        cell v = (cell) stack->PopTag();
+        SPUSH(v);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackPopAddressMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        cell v = (cell)stack->PopAddress();
+        SPUSH(v);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackPopStringMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        int maxLen = (int)SPOP;
+        char* pDstString = (char *)SPOP;
+        bool isString = stack->PopString(pDstString, maxLen);
+        SPUSH(isString ? -1 : 0);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackPeekMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        cell i = SPOP;
+        cell v = stack->Peek(i);
+        SPUSH(v);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackPeekTagMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        cell i = SPOP;
+        cell v = (cell)stack->PeekTag(i);
+        SPUSH(v);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackPeekAddressMethod)
+    {
+        ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
+        cell i = SPOP;
+        cell v = (cell)stack->PeekAddress(i);
+        SPUSH(v);
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oShellStackLastUsedTagMethod)
+    {
+        cell v = (cell)kShellLastTag;
+        SPUSH(v);
+        METHOD_RETURN;
+    }
+    
+    baseMethodEntry oShellStackMembers[] =
+    {
+        METHOD("delete", oShellStackDeleteMethod),
+        METHOD_RET("size", oShellStackSizeMethod, RETURNS_NATIVE(kBaseTypeCell)),
+        METHOD_RET("depth", oShellStackDepthMethod, RETURNS_NATIVE(kBaseTypeCell)),
+        METHOD("push", oShellStackPushMethod),
+        METHOD("pushTag", oShellStackPushTagMethod),
+        METHOD("pushAddress", oShellStackPushAddressMethod),
+        METHOD("pushString", oShellStackPushStringMethod),
+        METHOD_RET("pop", oShellStackPopMethod, RETURNS_NATIVE(kBaseTypeCell)),
+        METHOD_RET("popTag", oShellStackPopTagMethod, RETURNS_NATIVE(kBaseTypeCell)),
+        METHOD_RET("popAddress", oShellStackPopAddressMethod, RETURNS_NATIVE(kBaseTypeCell)),
+        METHOD_RET("popString", oShellStackPopStringMethod, RETURNS_NATIVE(kBaseTypeCell)),
+        METHOD_RET("peek", oShellStackPopMethod, RETURNS_NATIVE(kBaseTypeCell)),
+        METHOD_RET("peekTag", oShellStackPopTagMethod, RETURNS_NATIVE(kBaseTypeCell)),
+        METHOD_RET("peekAddress", oShellStackPopAddressMethod, RETURNS_NATIVE(kBaseTypeCell)),
+        METHOD_RET("peekString", oShellStackPopStringMethod, RETURNS_NATIVE(kBaseTypeCell)),
+        METHOD_RET("lastUsedTag", oShellStackLastUsedTagMethod, RETURNS_NATIVE(kBaseTypeCell)),
+
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    void AddClasses(ForthEngine* pEngine)
 	{
-		pEngine->AddBuiltinClass("System", kBCISystem, kBCIObject, oSystemMembers);
+        gpShellStackVocab = pEngine->AddBuiltinClass("ShellStack", kBCIShellStack, kBCIObject, oShellStackMembers);
+        pEngine->AddBuiltinClass("System", kBCISystem, kBCIObject, oSystemMembers);
 	}
 
     void Shutdown(ForthEngine* pEngine)

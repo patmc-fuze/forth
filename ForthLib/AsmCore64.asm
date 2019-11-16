@@ -16,23 +16,26 @@ SECTION .text
 	; rdx - arg count
 	; r8 - flags
 	; r9 - pCore
+    ; rax, rcx, rdx, r8, r9, r10, r11, xmm0-xmm5 are volatile and can be stomped.
 
-    push rcore
-    push rpsp
-    push rfp
+    push r12        ; forth core state ptr
+    push r13        ; system stack ptr
+    push r14        ; forth stack ptr
+    push r15
     push rsi
     push rdi
+    push rbx
 	; stack should be 16-byte aligned at this point
 
-	mov rax, rdx		    ; rax = arg count
-	mov r10, rcx		    ; r10 = routine address
-    mov rdi, r8             ; rdi = flags
+	mov rax, rdx		            ; rax = arg count
+	mov r10, rcx		            ; r10 = routine address
+    mov rdi, r8                     ; rdi = flags
     
-    mov rcore, r9           ; rcore -> ForthCoreState
-	mov	rpsp, [rcore + FCore.SPtr]
+    mov r12, r9                     ; r12 -> ForthCoreState
+	mov	r14, [r12 + FCore.SPtr]
 
     ; TOS: argN..arg1
-	mov rfp, rsp        ; rfp is saved system stack pointer
+	mov r13, rsp                    ; r13 is saved system stack pointer
 
     ; if there are less than 5 arguments, none will be passed on system stack
     cmp rax, 5
@@ -43,11 +46,11 @@ SECTION .text
     push rax
 
 .calldll1:
-    lea r11, [rpsp + rax*8]
-    mov rsi, r11                ; rsi is param stack with all DLL args removed
+    lea r11, [r14 + rax*8]
+    mov rsi, r11                    ; rsi is forth stack with all DLL args removed
     dec rax
     jl .calldll9
-    sub r11, 8                  ; r11 -> arg1
+    sub r11, 8                      ; r11 -> arg1
 
     ; arg1
     mov rcx, [r11]
@@ -75,11 +78,11 @@ SECTION .text
 
 
     ; push args 5..N on system stack
-    mov r11, rpsp     ; r11 -> argN
+    mov r11, r14     ; r11 -> argN
 .calldllLoop:
-    mov r11, [rcx]
-    push r11
-    add rcx, 8
+    mov rbx, [r11]
+    push rbx
+    add r11, 8
     dec rax
     jge .calldllLoop
 
@@ -88,18 +91,18 @@ SECTION .text
 
     sub rsp, 32         ; shadow space
     call r10            ; call DLL entry point
-    mov rsp, rfp
-    mov rpsp, rsi       ; remove DLL function args from TOS
+    mov rsp, r13
+    mov r14, rsi       ; remove DLL function args from TOS
     
 	; handle void return flag
 	and	rdi, 0001h
 	jnz CallDLL4
 			
-    sub rpsp, 8
-    mov [rpsp], rax
+    sub r14, 8
+    mov [r14], rax
 	
 CallDLL4:
-    mov [rcore + FCore.SPtr], rpsp
+    mov [r12 + FCore.SPtr], r14
 
     ; TODO: handle stdcall?
 	;and	rdi, 0004h	; stdcall calling convention flag
@@ -108,11 +111,13 @@ CallDLL4:
 	;sal	ebx, 2
 	;add	esp, ebx
 ;CallDLL5:
+    pop rbx
     pop rdi
     pop rsi
-    pop rfp
-    pop rpsp
-    pop rcore
+    pop r15
+    pop r14
+    pop r13
+    pop r12
 	ret
 
 

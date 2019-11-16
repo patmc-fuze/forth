@@ -19,6 +19,7 @@ namespace OSystem
         ForthObject     namedObjects;
         ForthObject     args;
         ForthObject     env;
+        ForthObject     shellStack;
     };
 
     void AddClasses(ForthEngine* pEngine);

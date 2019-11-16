@@ -148,6 +148,29 @@ Double has consistent layout, long is reversed on param stack.
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 15 2019
+
+64-bit DLL loading is working well enough to run the sdlcreen test!
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 13 2019
+
+Amd64 assembler is working well enough to implement all the extended ops I
+tested, I didn't do doescode or tailRecurse yet.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+November 11 2019
+
+I got the amd64 assembler to work, at least enough to define an "add" op.
+One problem I had was the gforth amd64 assembler used d= and was expecting to
+compare 2 pairs of elements, in my 64-bit version it just compares 2 elements,
+I wonder if there are more things like this I will run into.
+One thing I should check is "2," - what does it do in gforth, do I need to
+swap items?
+
+I fixed the memory corruption crash on exit - I was just setting the optypes
+table to the static table in the assembler version, freeing that is a no-no.
+
+The next big thing is DLL support.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 4 2019
 
 I finally found the amd64 crash in helpdeck, exitML was updating the frame pointer

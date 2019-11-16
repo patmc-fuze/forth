@@ -589,7 +589,7 @@ FORTHOP(loopNOp)
     ForthEngine *pEngine = GET_ENGINE;
     ForthShell *pShell = pEngine->GetShell();
     ForthShellStack *pShellStack = pShell->GetShellStack();
-    if ( !pShell->CheckSyntaxError( "loop+", pShellStack->PopTag(), kShellTagDo ) )
+    if ( !pShell->CheckSyntaxError( "+loop", pShellStack->PopTag(), kShellTagDo ) )
     {
         return;
     }
@@ -4559,7 +4559,7 @@ FORTHOP( DLLVocabularyOp )
     pEngine->CompileBuiltinOpcode( OP_DO_VOCAB );
     pVocab->UnloadDLL();
     pVocab->LoadDLL();
-    pEngine->CompileCell( (long) pVocab );
+    pEngine->CompileCell((cell) pVocab);
 }
 
 FORTHOP( addDLLEntryOp )
