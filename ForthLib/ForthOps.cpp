@@ -541,7 +541,7 @@ FORTHOP(doOp)
     pShellStack->PushTag( kShellTagDo );
     // this will be fixed by loop/+loop
     pEngine->CompileBuiltinOpcode( OP_ABORT );
-    pEngine->CompileLong( 0 );
+    pEngine->CompileInt( 0 );
     pEngine->StartLoopContinuations();
 }
 
@@ -557,7 +557,7 @@ FORTHOP(checkDoOp)
     pShellStack->PushTag( kShellTagDo );
     // this will be fixed by loop/+loop
     pEngine->CompileBuiltinOpcode( OP_ABORT );
-    pEngine->CompileLong( 0 );
+    pEngine->CompileInt( 0 );
     pEngine->StartLoopContinuations();
 }
 
@@ -1141,10 +1141,22 @@ FORTHOP( allotOp )
     pEngine->ClearPeephole();
 }
 
-FORTHOP( commaOp )
+FORTHOP(iCommaOp)
 {
     ForthEngine *pEngine = GET_ENGINE;
-    pEngine->CompileLong( SPOP );
+    pEngine->CompileInt(SPOP);
+    pEngine->ClearPeephole();
+}
+
+FORTHOP(lCommaOp)
+{
+    ForthEngine *pEngine = GET_ENGINE;
+#if defined(FORTH64)
+    pEngine->CompileCell(SPOP);
+#else
+    double d = DPOP;
+    pEngine->CompileDouble(d);
+#endif
     pEngine->ClearPeephole();
 }
 
@@ -1288,8 +1300,8 @@ FORTHOP(tryOp)
     pEngine->CompileBuiltinOpcode(OP_DO_TRY);
     pShellStack->PushAddress(GET_DP);
     pShellStack->PushTag(kShellTagTry);
-    pEngine->CompileLong(0);
-    pEngine->CompileLong(0);
+    pEngine->CompileInt(0);
+    pEngine->CompileInt(0);
 }
 
 FORTHOP(exceptOp)
@@ -1304,7 +1316,7 @@ FORTHOP(exceptOp)
         return;
     }
     forthop* pHandlerOffsets = pShellStack->PopAddress();
-    pEngine->CompileLong(0);        // this will be a branch to the finally section
+    pEngine->CompileInt(0);        // this will be a branch to the finally section
     *pHandlerOffsets = GET_DP - pHandlerOffsets;
     pShellStack->PushAddress(pHandlerOffsets);
     pShellStack->PushTag(kShellTagExcept);
@@ -1334,7 +1346,7 @@ FORTHOP(finallyOp)
         return;
     }
     // compile raise(0) to clear the exception
-    pEngine->CompileLong(COMPILED_OP(kOpConstant, 0));
+    pEngine->CompileInt(COMPILED_OP(kOpConstant, 0));
     pEngine->CompileBuiltinOpcode(OP_RAISE);
     forthop* pHandlerOffsets = pShellStack->PopAddress();
     forthop* dp = GET_DP;
@@ -1361,7 +1373,7 @@ FORTHOP(endtryOp)
     if (tag == kShellTagExcept)
     {
         // compile raise(0) to clear the exception
-        pEngine->CompileLong(COMPILED_OP(kOpConstant, 0));
+        pEngine->CompileInt(COMPILED_OP(kOpConstant, 0));
         pEngine->CompileBuiltinOpcode(OP_RAISE);
         // set finallyIP to here
         forthop* pHandlerOffsets = pShellStack->PopAddress();
@@ -1428,7 +1440,7 @@ FORTHOP(buildsOp)
     // remember current DP (for does)
     gpSavedDP = GET_DP;
     // compile dummy word at DP, will be filled in by does
-    pEngine->CompileLong( 0 );
+    pEngine->CompileInt( 0 );
 }
 
 // does
@@ -1446,7 +1458,7 @@ FORTHOP( doesOp )
     {
         // compile dodoes opcode & dummy word
         pEngine->CompileBuiltinOpcode( OP_END_BUILDS );
-        pEngine->CompileLong( 0 );
+        pEngine->CompileInt( 0 );
         // create a nameless vocabulary entry for does-body opcode
         newUserOp = pEngine->AddOp( GET_DP );
         newUserOp = COMPILED_OP( kOpUserDef, newUserOp );
@@ -2703,10 +2715,10 @@ FORTHOP(enumOp)
     // 4+ enum name string
     ForthVocabulary* pDefinitionVocabulary = pEngine->GetDefinitionVocabulary();
     pEngine->CompileCell((cell)pDefinitionVocabulary);
-    pEngine->CompileLong(4);	// default enum size is 4 bytes
+    pEngine->CompileInt(4);	// default enum size is 4 bytes
     // the actual number of enums and vocabulary offset of last enum are filled in in endenumOp
-    pEngine->CompileLong(pDefinitionVocabulary->GetNumEntries());
-    pEngine->CompileLong(0);
+    pEngine->CompileInt(pDefinitionVocabulary->GetNumEntries());
+    pEngine->CompileInt(0);
     // stick enum name string on the end
     int nameLen = strlen(pName) + 1;
     memcpy(pEngine->GetDP(), pName, nameLen);
@@ -3141,7 +3153,7 @@ FORTHOP( bracketTickOp )
     if ( pSymbol != NULL )
     {
         pEngine->CompileBuiltinOpcode( OP_INT_VAL );
-        pEngine->CompileLong( *pSymbol );
+        pEngine->CompileInt( *pSymbol );
     }
     else
     {
@@ -9864,8 +9876,9 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     OP_DEF(    alignOp,                "align" ),
     OP_DEF(    allotOp,                "allot" ),
-    OP_DEF(    commaOp,                "," ),
-    OP_DEF(    cCommaOp,               "c," ),
+    OP_DEF(    cCommaOp,               "c,"),
+    OP_DEF(    iCommaOp,               "i,"),
+    OP_DEF(    lCommaOp,               "l," ),
     OP_DEF(    here0Op,                "here0" ),
     OP_DEF(    unusedOp,               "unused" ),
     OP_DEF(    mallocOp,               "malloc" ),

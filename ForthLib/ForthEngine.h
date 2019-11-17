@@ -242,11 +242,11 @@ public:
     inline forthop*         GetDP() { return mDictionary.pCurrent; };
     inline void             SetDP( forthop* pNewDP ) { mDictionary.pCurrent = pNewDP; };
 #if defined(DEBUG)
-    void                    CompileLong(long v);
+    void                    CompileInt(long v);
     void                    CompileDouble(double v);
     void                    CompileCell(cell v);
 #else
-    inline void             CompileLong(long v) { *mDictionary.pCurrent++ = v; };
+    inline void             CompileInt(long v) { *mDictionary.pCurrent++ = v; };
     inline void             CompileDouble(double v) { *((double *)mDictionary.pCurrent) = v; mDictionary.pCurrent += 2; };
     inline void             CompileCell(cell v) { *((cell*)mDictionary.pCurrent) = v; mDictionary.pCurrent += CELL_LONGS; };
 #endif

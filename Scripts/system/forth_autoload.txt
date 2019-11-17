@@ -75,14 +75,16 @@ $forget("_initSystemObject") drop
   system.getDefinitionsVocab -> Vocabulary vocab
   vocab.findEntryByName(oldSymbol) -> ptrTo int oldEntry
   if(oldEntry)
-    vocab.addSymbol(newSymbol 0 0 0)
-    vocab.getNewestEntry -> ptrTo int newEntry
-    move(oldEntry  newEntry  vocab.getValueLength)
     // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
     makeObject ByteArray valueBuffer
     valueBuffer.fromMemory(oldEntry vocab.getValueLength 0)
     valueBuffer.base -> oldEntry
-    //newSymbol %s %nl dump(oldEntry 32)
+    
+    vocab.addSymbol(newSymbol 0 0 0)
+    vocab.getNewestEntry -> ptrTo int newEntry
+    move(valueBuffer.base  newEntry  vocab.getValueLength)
+    //newSymbol %s %nl dump(valueBuffer.base 32)
+    //newSymbol %s %nl dump(newEntry 32)
     oclear valueBuffer
   else
     "Symbol " %s oldSymbol %s " not found!\n" %s
@@ -97,6 +99,7 @@ alias bool int
 alias objIsNull 0=
 alias objNotNull 0<>
 alias ds dstack
+alias , i,
 
 0x7FFFFFFF -> int MAXINT
 0x80000000 -> int MININT

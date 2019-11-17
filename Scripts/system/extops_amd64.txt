@@ -17,18 +17,17 @@ requires forth_internals
 
 // scratch: rax rcx rdx r9
 
-#if( 0 )
-
 code _doDoesCode
   // TODO!
   // RTOS is data ptr, RTOS+1 is IP, IP points to asm code for does action
   rip rcx mov,				// rcx is does action code
   rrp ] rax mov,			// rax is data ptr
-  4 rbx d] rcx mov,
+  8 rrp d] rip mov,
   0x10 # rrp add,				// cleanup rstack
-  esi jmp,
+  rcx jmp,
   endcode
   
+#if(0)
 // sample usage
 : adder
   builds

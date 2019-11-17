@@ -1255,7 +1255,7 @@ ForthEngine::AddLocalVar( const char        *pVarName,
         else
         {
             // this is first local var definition, leave space for local alloc op
-            CompileLong(0);
+            CompileInt(0);
             ClearPeephole();
         }
     }
@@ -1303,7 +1303,7 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
     if ( frameCells == 0 )
     {
         // this is first local var definition, leave space for local alloc op
-        CompileLong( 0 );
+        CompileInt( 0 );
     }
 
 	pEntry[1] = typeCode;
@@ -2307,7 +2307,7 @@ ForthEngine::CompileOpcode(forthOpType opType, forthop opVal)
 }
 
 #if defined(DEBUG)
-void ForthEngine::CompileLong(long v)
+void ForthEngine::CompileInt(long v)
 {
     SPEW_COMPILATION("Compiling 0x%08x @ 0x%08x\n", v, mDictionary.pCurrent);
     *mDictionary.pCurrent++ = v;

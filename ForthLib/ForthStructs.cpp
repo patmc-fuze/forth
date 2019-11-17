@@ -779,7 +779,7 @@ ForthStructVocabulary::DefineInstance( void )
             else
             {
                 mpEngine->CompileBuiltinOpcode( OP_DO_STRUCT_ARRAY );
-				mpEngine->CompileLong(elementSize);
+				mpEngine->CompileInt(elementSize);
             }
             pHere = (char *) (mpEngine->GetDP());
 			mpEngine->AllotLongs(((elementSize * (numElements - 1)) + nBytes + 3) >> 2);
@@ -2300,8 +2300,8 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
                 pEngine->CompileBuiltinOpcode( OP_DO_STRING_ARRAY );
                 for ( i = 0; i < numElements; i++ )
                 {
-                    pEngine->CompileLong( len );
-                    pEngine->CompileLong( 0 );
+                    pEngine->CompileInt( len );
+                    pEngine->CompileInt( 0 );
                     pStr = (char *) (pEngine->GetDP());
                     // a length of 4 means room for 4 chars plus a terminating null
                     pEngine->AllotLongs( ((len  + 4) & ~3) >> 2 );
@@ -2312,8 +2312,8 @@ ForthNativeType::DefineInstance( ForthEngine *pEngine, void *pInitialVal, long f
             {
                 // define global string variable
                 pEngine->CompileBuiltinOpcode( OP_DO_STRING );
-                pEngine->CompileLong( len );
-                pEngine->CompileLong( 0 );
+                pEngine->CompileInt( len );
+                pEngine->CompileInt( 0 );
                 pStr = (char *) (pEngine->GetDP());
                 // a length of 4 means room for 4 chars plus a terminating null
                 pEngine->AllotLongs( ((len  + 4) & ~3) >> 2 );

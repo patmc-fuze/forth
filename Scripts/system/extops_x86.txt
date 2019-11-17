@@ -10,14 +10,14 @@ requires forth_internals
 : extops ;
 
 code _doDoesCode
-  // RTOS is data ptr, RTOS+1 is IP, esi points to asm code for does action
+  // RTOS is data ptr, RTOS+1 is IP, esi (IP) points to asm code for does action
   esi ecx mov,				// ecx is does action code
   _RP ebp d] ebx mov,
   ebx ] eax mov,			// eax is data ptr
-  4 ebx d] ecx mov,
+  4 ebx d] esi mov,
   8 # ebx add,				// cleanup rstack
   ebx _RP ebp d] mov,
-  esi jmp,
+  ecx jmp,
   endcode
   
 #if( 0 )
