@@ -330,11 +330,11 @@ test[ fMixBlock(srcA dst 1.0 4)    35.0 17.0 1.125 100.0 fcheck4 ]
 test[ fMixBlock(srcB dst 0.5 4)    37.5 18.0 5.125 102.0 fcheck4 ]
 
 create dsrcA
-  35.0d 2, 17.0d 2, 1.125d 2, 100.0d 2,
+  35.0d l, 17.0d l, 1.125d l, 100.0d l,
 create dsrcB
-  5.0d 2, 2.0d 2, 8.0d 2, 4.0d 2,
+  5.0d l, 2.0d l, 8.0d l, 4.0d l,
 create ddst
-  0.0d 2, 0.0d 2, 0.0d 2, 0.0d 2, 17.0d 2,
+  0.0d l, 0.0d l, 0.0d l, 0.0d l, 17.0d l,
 
 : dcheck4
   ddst 32+ -> ptrTo double pd
