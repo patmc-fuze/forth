@@ -73,14 +73,15 @@ runtest atc
 forget ATC
 cd ..
 
-cd system
 : _TEST_ ;
+cd system
+runtest maze
 runtest hersheyfont
 runtest file
 runtest rbtree
+cd ..
 runtest maze
 forget _TEST_
-cd ..
 
 cd tests
 
