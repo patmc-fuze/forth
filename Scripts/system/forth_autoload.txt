@@ -67,7 +67,7 @@ $forget("_initSystemObject") drop
     drop false
   endif
 ;
-: blword? word?('\ ') ;
+: blword? word?(` `) ;
 
 : $alias
   -> ptrTo byte oldSymbol
@@ -354,7 +354,7 @@ int dumpWidth
       if( ch bl >  ch 127 < and )
         ch
       else
-        '.'
+        `.`
       endif
       %c
     loop
@@ -392,7 +392,7 @@ int dumpWidth
       if( ch bl >  ch 127 < and )
         ch
       else
-        '.'
+        `.`
       endif
       %c
     loop
@@ -471,7 +471,7 @@ precedence literal   precedence fliteral   precedence dliteral
 : cmove 0 do over i + c@ over i + c! loop 2drop ;
 : cmove> 0 swap 1- do over i + c@ over i + c! -1 +loop 2drop ;
 : ."
-  '"' $word
+  `"` $word
   if( state @ )
     compileStringLiteral
     postpone %s
@@ -482,7 +482,7 @@ precedence literal   precedence fliteral   precedence dliteral
 precedence ."
 
 : s"
-  '"' $word
+  `"` $word
   if( state @ )
     compileStringLiteral( dup )
     strlen postpone literal
@@ -505,7 +505,7 @@ alias space %bl
   stdin fgets dup -> ptrTo byte buffer
   strlen -> int bytesRead
   if( bytesRead )
-    if( buffer bytesRead + 1- c@ '\n' = )
+    if( buffer bytesRead + 1- c@ `\n` = )
       // trim trailing linefeed from count
       1 ->- bytesRead
     endif
@@ -722,7 +722,7 @@ addHelp pwd	pwd			display working directory
 
 addHelp ls	ls BLAH		display directory (BLAH is optional filespec)
 : ls
-  '\n' $word -> _TempStringA
+  `\n` $word -> _TempStringA
 #if WINDOWS
   "dir" -> _TempStringB
 #else
@@ -779,7 +779,7 @@ addHelp more more FILENAME	display FILENAME on screen
         0 -> lineCounter
         "Hit q to quit, any other key to continue\n" %s
         fgetc( stdin ) dup
-        if( 'q' = swap 'Q' = or )
+        if( `q` = swap `Q` = or )
           true -> done
         endif
       endif
@@ -823,7 +823,7 @@ precedence demo
 addHelp list     BLOCK_NUM ...     display specified block
 variable scr  0 scr !
 : list dup scr ! block 16 0 do dup 64 type %nl 64+ loop drop ;
-: lb dup scr ! block 16 0 do i %d '\t' %c '|' %c dup 64 type '|' %c %nl 64+ loop drop ;
+: lb dup scr ! block 16 0 do i %d `\t` %c `|` %c dup 64 type `|` %c %nl 64+ loop drop ;
 : load dup thru ;
 
 enum: threadRunStates
@@ -924,7 +924,7 @@ enum: DIRENT_TYPE_BITS
       readdir(dirHandle) -> pEntry
     while( pEntry )
       pEntry.d_name(0 ref) -> pName
-      if(pName c@ '.' <>)
+      if(pName c@ `.` <>)
         new String -> String filename
         filename.set(pName)
         filenames.push(filename)
@@ -995,7 +995,7 @@ precedence ]t
 ;
 
 : assert[
-  $word( ']' )
+  $word( `]` )
   if( compileAsserts )
     $evaluate postpone _assert
   else
@@ -1117,13 +1117,13 @@ addHelp pushContext save the current base, search vocabularies and definitions v
   system.getSearchVocabDepth
   system.getDefinitionsVocab
   base @
-  'fctx'
+  `fctx`
 ;
 
 addHelp popContext restore the current base, search vocabularies and definitions vocabulary from stack
 : popContext
   int numSearchVocabs
-  if('fctx' <>)
+  if(`fctx` <>)
     error("popContext - wrong stuff on stack")
   else
     base !

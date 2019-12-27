@@ -95,13 +95,13 @@ class: HelpDeck extends NoteDeck
     ptrTo byte opName
     ptrTo byte flagName
   
-    if(word?('|'))
+    if(word?(`|`))
       -> opName
       //opName %s %nl
       addChild(opName "" opsNote) -> newNote
       
       // look for stack behavior
-      if(word?('|'))
+      if(word?(`|`))
         mko NoteParam newParam
         new String -> newParam.sval
         newParam.sval.set
@@ -110,7 +110,7 @@ class: HelpDeck extends NoteDeck
       endif
       
       // look for description
-      if(word?('|'))
+      if(word?(`|`))
         newNote.body.set
       endif
       
@@ -140,19 +140,19 @@ class: HelpDeck extends NoteDeck
     ptrTo byte className
     ptrTo byte flagName
   
-    if(word?('|'))
+    if(word?(`|`))
       -> className
       //className %s %nl
       addChild(className "" classesNote) -> newestClassNote
       
       // look for baseClass
-      if(word?('|'))
+      if(word?(`|`))
         // TODO!
         drop
       endif
       
       // look for description
-      if(word?('|'))
+      if(word?(`|`))
         newestClassNote.body.set
       endif
       
@@ -181,14 +181,14 @@ class: HelpDeck extends NoteDeck
     ptrTo byte methodName
     ptrTo byte flagName
   
-    if(word?('|'))
+    if(word?(`|`))
       -> methodName
       //methodName %s %nl
       addChild(methodName "" newestClassNote) -> newMethodNote
       newestClassNote.id -> newMethodNote.parent
       
       // look for stack behavior
-      if(word?('|'))
+      if(word?(`|`))
         mko NoteParam newParam
         new String -> newParam.sval
         newParam.sval.set
@@ -197,7 +197,7 @@ class: HelpDeck extends NoteDeck
       endif
       
       // look for description
-      if(word?('|'))
+      if(word?(`|`))
         newMethodNote.body.set
       endif
       
@@ -228,19 +228,19 @@ class: HelpDeck extends NoteDeck
     ptrTo byte memberName
     ptrTo byte flagName
   
-    if(word?('|'))
+    if(word?(`|`))
       -> memberName
       //memberName %s %nl
       addChild(memberName "" newestClassNote) -> newMemberNote
       newestClassNote.id -> newMemberNote.parent
       
       // look for type
-      if(word?('|'))
+      if(word?(`|`))
         drop // TODO!
       endif
       
       // look for description
-      if(word?('|'))
+      if(word?(`|`))
         newMemberNote.body.set
       endif
       
@@ -375,7 +375,7 @@ helpDeck.init
 ;
 
 : mkf
-  helpDeck.addFlagDef(blword $word('|') $word(0)) drop
+  helpDeck.addFlagDef(blword $word(`|`) $word(0)) drop
 ;
 
 // op, method and class must be first three flags to match with kHFOp, kHFMethod and kHFClass

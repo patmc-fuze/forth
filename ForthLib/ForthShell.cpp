@@ -1057,8 +1057,8 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
               }
               break;
 
-           case '\'':
-              // support C-style quoted characters like 'a' or '\n'
+           case '`':
+              // support C-style quoted characters like `a` or `\n`
               if ( mpEngine->CheckFeature( kFFCCharacterLiterals ) )
               {
 				  pEndSrc = pInfo->ParseSingleQuote(pSrc, pSrcLimit, mpEngine);

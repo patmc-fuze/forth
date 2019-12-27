@@ -1095,7 +1095,7 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 					}
 					break;
 
-				case '\'':
+				case '`':
 					if (mpRightCursor != mpRightBase)
 					{
 						CombineRightIntoLeft();

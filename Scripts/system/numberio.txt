@@ -65,7 +65,7 @@ ptrTo byte holdend								// current nested end of hold buffer
 
 : sign
   if( 0< )
-    hold( '-' )
+    hold( `-` )
   endif
 ;
 

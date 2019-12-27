@@ -61,12 +61,12 @@ precedence doescode
   base @ i2l -> long lbase
   begin
     pSrc @ -> byte ch
-    if( ch '0' >= ch '9' <= and )
-      '0' ->- ch
+    if( ch `0` >= ch `9` <= and )
+      `0` ->- ch
     else
-      if( ch 'A' >= ch 'Z' <= and  ch 'a' >= ch 'z' <= and  or )
+      if( ch `A` >= ch `Z` <= and  ch `a` >= ch `z` <= and  or )
         ch 0x20 or -> ch  // lowercase it
-        'a' 0xa - ->- ch
+        `a` 0xa - ->- ch
       else
         // force exit
         base @ -> ch
