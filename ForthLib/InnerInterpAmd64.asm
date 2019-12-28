@@ -5307,9 +5307,9 @@ entry memcmpBop
 ;========================================
 
 entry fillBop
-	;	TOS: nBytes byteVal dstPtr
-	mov	r8, [rpsp]
-	mov	rdx, [rpsp + 8]
+	;	TOS: byteVal nBytes dstPtr
+	mov	rdx, [rpsp]
+	mov	r8, [rpsp + 8]
 	mov	rcx, [rpsp + 16]
 	sub rsp, 32			; shadow space
 	xcall	memset
