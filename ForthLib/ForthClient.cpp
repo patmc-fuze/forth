@@ -6,6 +6,9 @@
 #include "StdAfx.h"
 
 #pragma comment(lib, "wininet.lib")
+#if defined(WIN64)
+#pragma comment(lib, "Ws2_32.lib")
+#endif
 
 #include <stdio.h>
 #if defined(WIN64)
@@ -53,8 +56,43 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 		// TODO
 #endif
 
+#if defined(WIN64)
+    addrinfo* pAddrInfo = nullptr;
+    int res = getaddrinfo(pServerStr, nullptr, nullptr, &pAddrInfo);
+	//struct hostent *host = gethostbyname(pServerStr);
+    if (res != 0)
+    {
+        sprintf(errorMessage, "Error at getaddrinfo(): %ld", WSAGetLastError());
+        ErrorExit(errorMessage);
+        return -1;
+    }
+
+    for (addrinfo* ptr = pAddrInfo; ptr != nullptr; ptr = ptr->ai_next)
+    {
+        if (ptr->ai_family == AF_INET)
+        {
+            struct sockaddr_in *sockaddr_ipv4 = (struct sockaddr_in *) ptr->ai_addr;
+#if 0
+            TODO!!!
+            WSAStringToAddress(sockaddr_ipv4->sin_addr, AF_INET, protoInfo, addrOut, addrOutLen);
+            ipAddress = sockaddr_ipv4->sin_addr;
+#endif
+            break;
+        }
+    }
+
+    if (ipAddress == 0)
+    {
+        sprintf(errorMessage, "host %s not found", pServerStr);
+        ErrorExit(errorMessage);
+        return -1;
+    }
+
+    //*((unsigned long *)(host->h_addr_list[0]));
+#else
 	struct hostent *host = gethostbyname(pServerStr);
 	ipAddress = *((unsigned long *)(host->h_addr_list[0]));
+#endif
 	printf( "Connecting to host %s (%d) on port %d\n", pServerStr, ipAddress, portNum );
 
     //----------------------

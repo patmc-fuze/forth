@@ -61,10 +61,13 @@ ForthLib/MakefileProject
 ForthLib/NewFolder
 ForthLib/dep
 ForthLib/obj
+ForthLib/x64
 ForthLinux/forth
 ForthLinux/logger
 ForthLinux/dep
 ForthLinux/obj
+Forth*/Win32
+Forth*/x64
 ForthRelease
 ForthND
 ipch
@@ -114,3 +117,6 @@ master.log
 Scripts/tests/goodOutput/*.txt
 *.ipdb
 *.iobj
+ForthLib/x64/Debug Asm/ForthLib.log
+Win32
+x64

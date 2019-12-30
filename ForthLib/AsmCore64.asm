@@ -130,8 +130,8 @@ CallDLL4:
 	; rcx - pCore
 	; rdx - opVal
 
-	mov rnumops, [rcore + FCore.numOps]
-    cmp rdx, rnumops
+	mov rax, [rcx + FCore.numOps]
+    cmp rdx, rax
     jle .nativeAction1
 	mov	rax, kForthErrorBadOpcode
 	mov	[rcx + FCore.state], rax

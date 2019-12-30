@@ -148,6 +148,35 @@ Double has consistent layout, long is reversed on param stack.
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 29 2019
+
+The Forth/Forth64 merge is complete.
+Platforms: Win32 x64
+Configurations: Debug Release DbgAsm RelAsm
+There is still more testing to do, but everything looks good.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 28 2019
+
+I am working on merging the Forth and Forth64 solutions.
++ standardize the preprocessor symbols
+x renamed Win32 platform to x32
+  -> could not persuade visual studio to do this
++ add x64 platform
+- ForthLib
+  + add x64 platform
+  + StdAfx.h
+  + add InnerInterpAmd64.asm
+  + make inner interp asm targets be ignored in opposite platforms
+- ForthMain
+  + add x64 platform
+  + ForthMain.cpp
+  + StdAfx.h
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 26 2019
+
+I switched character constants from using single quote "'" to using accent grave "`"
+to avoid collisions with the tick operator.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 November 15 2019
 
 64-bit DLL loading is working well enough to run the sdlcreen test!

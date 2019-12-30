@@ -1,8 +1,36 @@
 #pragma once
-// stdafx.h : include file for standard system include files,
-//  or project specific include files that are used frequently, but
-//      are changed infrequently
+// StdAfx.h : include file for standard system include files,
+// or project specific include files that are used frequently, but
+// are changed infrequently
 //
+
+#if defined(WIN64)
+
+#include "targetver.h"
+
+// TODO: reference additional headers your program requires here
+
+#include <windows.h>
+#include <winnt.h>
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <strsafe.h>
+#include <tchar.h>
+
+#include <math.h>
+#include <stdint.h>
+
+#include <conio.h>
+#include <direct.h>
+#include <io.h>
+#include <ctype.h>
+
+#include <cassert>
+
+#define ASSERT assert
+#else
 
 // compile for WinVista or newer
 #define WINVER 0x0600
@@ -19,8 +47,4 @@
 
 #include <iostream>
 
-// TODO: reference additional headers your program requires here
-
-//{{AFX_INSERT_LOCATION}}
-// Microsoft Visual C++ will insert additional declarations immediately before the previous line.
-
+#endif

@@ -71,6 +71,11 @@ void myInvalidParameterHandler(const wchar_t* expression,
 
 static bool InitSystem()
 {
+#if defined(FORTH64)
+    _set_invalid_parameter_handler(myInvalidParameterHandler);
+    //set_constraint_handler(ignore_handler_s);
+#endif
+
 #if AFX_BUILD
 
     // initialize MFC and print an error on failure
@@ -81,7 +86,9 @@ static bool InitSystem()
 		return false;
 	}
 
+#if !defined(FORTH64)
 	_set_invalid_parameter_handler(myInvalidParameterHandler);
+#endif
 	_CrtSetReportMode(_CRT_ASSERT, 0);
 #if 0
 	// Set output mode to handle virtual terminal sequences

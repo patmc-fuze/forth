@@ -5605,7 +5605,7 @@ entry stricmpBop
 	mov	rdx, [rpsp]
 	mov	rcx, [rpsp + 8]
 	sub rsp, 32			; shadow space
-%ifdef WIN32
+%ifdef WIN64
     xcall	stricmp
 %else
 	xcall	strcasecmp
