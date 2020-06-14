@@ -7,7 +7,7 @@ autoforget notedeck
 // params are properties of a note, the params a note can have are defined by its schema
 
 // ----------------------------------------------
-class: NoteDef
+class: NoteDef  // just a base class for flags, tags and schemas
   int id
   String name
   String description
@@ -80,17 +80,17 @@ class: NoteSchema extends NoteDef
   IntArray requiredParams
   IntArray optionalParams
   
-  m: init
+  m: init   // NAME DISPLAY_NAME DESCRIPTION ID ...
     new IntArray -> requiredParams
     new IntArray -> optionalParams
     super.init
   ;m
   
-  m: addOptionalParam
+  m: addOptionalParam   // ID ...
     optionalParams.push(<NoteDef>.id)
   ;m
   
-  m: addRequiredParam
+  m: addRequiredParam   // ID ...
     requiredParams.push(<NoteDef>.id)
   ;m
   
@@ -114,38 +114,17 @@ class: NoteParam
     super.delete
   ;m
   
-  m: getInt
-    ref nval @
-  ;m
-
-  m: setInt
-    ref nval !
-  ;m
+  m: getInt     ref nval @      ;m
+  m: setInt     ref nval !      ;m
+  m: getFloat   ref nval @      ;m
+  m: setFloat   ref nval !      ;m
+  m: getLong    nval            ;m
+  m: setLong    -> nval         ;m
+  m: getDouble  nval            ;m
+  m: setDouble  swap -> nval    ;m
+  m: getString  sval            ;m
+  m: setString  sval.set        ;m
   
-  m: getFloat
-    ref nval @
-  ;m
-  
-  m: setFloat
-    ref nval !
-  ;m
-  
-  m: getLong
-    nval
-  ;m
-  
-  m: setLong
-    -> nval
-  ;m
-  
-  m: getDouble
-    nval
-  ;m
-  
-  m: setDouble
-    swap -> nval
-  ;m
-   
 ;class
 
 
@@ -347,7 +326,35 @@ class: NoteDeck
 
 loaddone
 
+=============================================
+TODOs for Notes:
 
+  int id            // index into containing Notebook notes array
+  int schema        // 0 for default schema
+  int parent        // -1 for none
+  String name
+  String body
+  StringMap of Note children
+  IntMap of NoteParam params
+  long flags
+  Object obj        // optional associated object
+
+- replace children StringMap with links IntArray, where the elements are a combination of
+  24-bit note id and 8-bit link type
+  -> make the noteId/linkType specified per notebook
+  o link types are specified by the notebook, but some are predefined
+    like 'parent' and 'tag'
+  o tags just become notes which describe the tag
+  o replace params with a StructArray, the param struct is an 8-char name
+    and an 8-byte body, 
+=============================================
+There is always a default 'incoming' notebook
+other notebooks are projects/interestAreas for user
+forth
+music
+bass
+media
+=============================================
 addtags dailyWorkLog forth python c++ math reddit metafilter torrents arm
 
 add a tagged note object/file/db

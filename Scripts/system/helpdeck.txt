@@ -9,11 +9,15 @@ class: HelpDeck extends NoteDeck
   NoteSchema opSchema
   NoteDef stackParamDef
   NoteDef memberTypeParamDef
+  
   NoteSchema classSchema
+  
   NoteSchema methodSchema
+  
   NoteSchema memberSchema
-  Note opsNote
-  Note classesNote
+  
+  Note opsNote                          // note for "help ops"
+  Note classesNote                      // note for "help classes"
   Note newestClassNote
   long curFlags
 
@@ -21,6 +25,8 @@ class: HelpDeck extends NoteDeck
   long kHFMethod
   long kHFClass
   long kHFMember
+  
+  byte separator
 
   m: init
     super.init("help")
@@ -46,6 +52,8 @@ class: HelpDeck extends NoteDeck
     
     addNote("ops" "forth operators") -> opsNote
     addNote("classes" "builtin classes") -> classesNote
+    
+    `|` -> separator
   ;m
   
   m: delete
@@ -95,13 +103,13 @@ class: HelpDeck extends NoteDeck
     ptrTo byte opName
     ptrTo byte flagName
   
-    if(word?(`|`))
+    if(word?(separator))
       -> opName
       //opName %s %nl
       addChild(opName "" opsNote) -> newNote
       
       // look for stack behavior
-      if(word?(`|`))
+      if(word?(separator))
         mko NoteParam newParam
         new String -> newParam.sval
         newParam.sval.set
@@ -110,7 +118,7 @@ class: HelpDeck extends NoteDeck
       endif
       
       // look for description
-      if(word?(`|`))
+      if(word?(separator))
         newNote.body.set
       endif
       
@@ -140,19 +148,19 @@ class: HelpDeck extends NoteDeck
     ptrTo byte className
     ptrTo byte flagName
   
-    if(word?(`|`))
+    if(word?(separator))
       -> className
       //className %s %nl
       addChild(className "" classesNote) -> newestClassNote
       
       // look for baseClass
-      if(word?(`|`))
+      if(word?(separator))
         // TODO!
         drop
       endif
       
       // look for description
-      if(word?(`|`))
+      if(word?(separator))
         newestClassNote.body.set
       endif
       
@@ -181,14 +189,14 @@ class: HelpDeck extends NoteDeck
     ptrTo byte methodName
     ptrTo byte flagName
   
-    if(word?(`|`))
+    if(word?(separator))
       -> methodName
       //methodName %s %nl
       addChild(methodName "" newestClassNote) -> newMethodNote
       newestClassNote.id -> newMethodNote.parent
       
       // look for stack behavior
-      if(word?(`|`))
+      if(word?(separator))
         mko NoteParam newParam
         new String -> newParam.sval
         newParam.sval.set
@@ -197,7 +205,7 @@ class: HelpDeck extends NoteDeck
       endif
       
       // look for description
-      if(word?(`|`))
+      if(word?(separator))
         newMethodNote.body.set
       endif
       
@@ -228,19 +236,19 @@ class: HelpDeck extends NoteDeck
     ptrTo byte memberName
     ptrTo byte flagName
   
-    if(word?(`|`))
+    if(word?(separator))
       -> memberName
       //memberName %s %nl
       addChild(memberName "" newestClassNote) -> newMemberNote
       newestClassNote.id -> newMemberNote.parent
       
       // look for type
-      if(word?(`|`))
+      if(word?(separator))
         drop // TODO!
       endif
       
       // look for description
-      if(word?(`|`))
+      if(word?(separator))
         newMemberNote.body.set
       endif
       
@@ -309,16 +317,18 @@ class: HelpDeck extends NoteDeck
           ->o foundNote
           helpTarget %s " - " %s foundNote.body.get %s %nl
          
-          foundNote.children.headIter -> StringMapIter mapIter
-          begin
-          while(mapIter.next)
-            ->o Note methodNote
-            "   " %s methodNote.name.get %s " - " %s methodNote.body.get %s %nl
-            if(methodNote.getParam(stackParamDef.id))
-              ->o stackBehavior
-              "      " %s stackBehavior.sval.get %s %nl
-            endif
-          repeat
+          if(objNotNull(foundNote.children))
+            foundNote.children.headIter -> StringMapIter mapIter
+            begin
+            while(mapIter.next)
+              ->o Note methodNote
+              "   " %s methodNote.name.get %s " - " %s methodNote.body.get %s %nl
+              if(methodNote.getParam(stackParamDef.id))
+                ->o stackBehavior
+                "      " %s stackBehavior.sval.get %s %nl
+              endif
+            repeat
+          endif
         else
           if(opsNote.getChild(helpTarget))
             ->o foundNote
@@ -375,7 +385,7 @@ helpDeck.init
 ;
 
 : mkf
-  helpDeck.addFlagDef(blword $word(`|`) $word(0)) drop
+  helpDeck.addFlagDef(blword $word(helpDeck.separator) $word(0)) drop
 ;
 
 // op, method and class must be first three flags to match with kHFOp, kHFMethod and kHFClass
@@ -1713,6 +1723,116 @@ addMember fd|uint|socket file descriptor
 addMember domain|uint|socket domain
 addMember type|uint|socket type
 addMember protocol|uint|socket protocol
+
+// NoteDeck, Note and supporting classes
+addClass NoteDef|Object|just a base class for flags, tags and schemas
+addMember id|int|index into tags/flags/schemas/params arrays
+addMember name|String|name of this definition (for searching)
+addMember description|String|text for this definition
+addMethod init|NAME DESCRIPTION ID ...|initialize this definition
+
+addClass NoteFlagDef|NoteDef|defines a binary attribute for Notes
+addMember displayName|String|title of this flag definition for display
+addMember mask|long|bitmask for this attribute
+addMethod init|NAME DISPLAY_NAME DESCRIPTION ID ...|initialize a flag definition
+
+addClass NoteTagDef|NoteDef|defines a tag for notes
+addMember displayName|String|title of this definition for display
+addMethod init|NAME DISPLAY_NAME DESCRIPTION ID ...|initialize a tag definition
+
+addClass NoteSchema|NoteDef|define a schema for notes
+addMember requiredParams|IntArray|array of required param ids for a note with this schema
+addMember optionalParams|IntArray|array of optional param ids for a note with this schema
+addMethod init|NAME DISPLAY_NAME DESCRIPTION ID ...|initialize a schema definition
+addMethod addOptionalParam|ID ...|add an optional param to this schema
+addMethod addRequiredParam|ID ...|add a required param to this schema
+
+addClass NoteParam|Object|parameter values for a note
+addMethod getInt|... INT_VALUE|get integer param value
+addMethod setInt|INT_VALUE ...|set integer param value
+addMethod getFloat|... INT_VALUE|get float param value
+addMethod setFloat|INT_VALUE ...|set float param value
+addMethod getLong|... INT_VALUE|get long param value
+addMethod setLong|INT_VALUE ...|set long param value
+addMethod getDouble|... INT_VALUE|get double param value
+addMethod setDouble|INT_VALUE ...|set double param value
+addMethod getString|... STRING_OBJ|get string param value
+addMethod setString|STRING_OBJ ...|set string param value
+
+addClass Note|Object|virtual notecard
+addMember id|int|index into containing NoteDeck notes array
+addMember schema|int|index into containing NoteDeck schemas array, 0 for default schema
+addMember parent|int|id of this notes parent, -1 for none
+addMember name|String|name of this note
+addMember body|String|text of this note
+addMember children|StringMap of Note|map from note names to children notes of this note
+addMember params|IntMap of NoteParam|
+addMember flags|long|binary attributes of this note
+addMember obj|Object|optional associated object for this note
+addMethod init|NAME BODY ID ...|initialize this note
+addMethod getParam|PARAM_ID ...   false   OR   PARAM_OBJ true|get a parameter for this note
+addMethod getChild|NAME ...   false   OR   NOTE_OBJ true|get a named child of this note
+
+addClass NoteDeck|Object|Collection of Notes
+addMember name|String|name of the note deck
+addMember notes|Array of Note|notes in this deck
+addMember noteMap|StringMap|map from a notes name to the Note
+addMember flags|Array of NoteFlagDef|flag definitions for this deck
+addMember flagMap|StringMap|map from name to flag definition
+addMember tags|Array of NoteTagDef|tag definitions for this deck
+addMember tagMap|StringMap|map from name to tag definition
+addMember schemas|Array of NoteSchema|schemas for this deck
+addMember schemaMap|StringMap|map from name to schema
+addMember params|Array of NoteDef|parameter definitions for this deck
+addMember paramMap|StringMap|map from name to parameter definition
+addMethod clearAll||
+addMethod addTagDef|NAME DISPLAY_NAME DESCRIPTION ... NEW_TAG_DEF|
+addMethod getTag|NAME ...    false   OR   TAG_DEF_OBJ true|
+addMethod addFlagDef|NAME DISPLAY_NAME DESCRIPTION ... NEW_FLAG_DEF|
+addMethod getFlag|NAME ...    false   OR   FLAG_DEF_OBJ true|
+addMethod addSchema|NAME DESCRIPTION ... NEW_SCHEMA|
+addMethod getSchema|NAME ...    false   OR   SCHEMA_OBJ true|
+addMethod addParamDef|NAME DESCRIPTION ... NEW_PARAM_DEF|
+addMethod getParam|NAME ...    false   OR   PARAM_DEF_OBJ true|
+addMethod addNote|NAME BODY ... NEW_NOTE|
+addMethod addChild|NAME BODY PARENT_NOTE ... NEW_NOTE|
+addMethod getNote|NAME ...   false   OR   NOTE_OBJ true|
+addMethod init|NOTEBOOK_NAME ...|
+addMethod newestNote|... NOTE_OBJ|
+
+addClass HelpDeck|NoteDeck|help system deck
+addMember opSchema|NoteSchema|
+addMember stackParamDef|NoteDef|
+addMember memberTypeParamDef|NoteDef|
+addMember classSchema|NoteSchema|
+addMember methodSchema|NoteSchema|
+addMember memberSchema|NoteSchema|
+addMember opsNote|Note|note for "help ops"
+addMember classesNote|Note|note for "help classes"
+addMember newestClassNote|Note|
+addMember curFlags|long|
+addMember kHFOp|long|
+addMember kHFMethod|long|
+addMember kHFClass|long|
+addMember kHFMember|long|
+addMethod init||initialize help deck
+addMethod setFlags||set current flags to immediately following names
+addMethod getOpNote|NAME ...   false   OR   NOTE_OBJ true|get op selected by name
+addMethod getClassNote|NAME ...   false   OR   NOTE_OBJ true|get class selected by name
+
+// use slash for separator so description can have '|' in it
+helpDeck.separator
+`/` -> helpDeck.separator
+addMethod addOp//add help for op, immediately followed by name|stack behavior|description|extra flags
+addMethod addClass//add help for class, immediately followed by className|baseClass|description|flags
+addMethod addMethod//add help for class method, immediately followed by methodName|stack behavior|description|extra flags
+addMethod addMember//add help for class member, immediately followed by memberName|type|description|extra flags
+-> helpDeck.separator
+
+addMethod listOperators||list all operators
+addMethod listClasses||list all classes
+addMethod help||show help for immediately following symbol
+addMethod check||show forth symbols which there is no help defined
 
 loaddone
 

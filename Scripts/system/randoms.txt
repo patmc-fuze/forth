@@ -82,7 +82,12 @@ class: RandomIntGenerator
   ;m
   
   m: randomize
-    time or ms@ xor -> seed
+#if FORTH64
+    time
+#else
+    time or
+#endif
+    setSeed(ms@ xor)
   ;m
   
   m: init
@@ -107,7 +112,159 @@ class: RandomIntGenerator
     generatorOp(seed) -> seed
   ;m
   
+  m: shuffle
+    -> Array a
+    a.count dup -> cell ii
+  
+    begin
+      mod(generate ii) -> cell jj
+      1 ->- ii
+      //"swap " %s ii %d " with " %s jj %d %nl
+      a.swap(ii jj)
+    until(ii 1 =)
+    oclear a
+  ;m
+  
 ;class
+
+
+class: XorWowIntRandom extends RandomIntGenerator
+  // by Marsaglia
+  uint seedB  uint seedC  uint seedD
+  uint counter
+  
+  m: setSeed
+    dup -> seed
+    dup 0x12345678 xor -> seedB
+    dup dup * -> seedC
+    42 * 17 / -> seedD
+    0 -> counter
+  ;m
+  
+  m: init
+    randomize
+  ;m
+  
+  m: generate
+    if(fetch generatorOp 0=)
+      // first time only
+      init
+    endif
+    
+    generatorOp(seed) -> seed
+  ;m
+  : _randXorWow
+    seedD -> uint temp
+    
+  // seed 16807 * MAXINT mod     (doesn't work because of integer overflows turning negative)
+    127773 /mod
+    swap 16807 * swap 2836 * -
+  dup 0<= if
+    MAXINT +
+  endif
+  dup
+;
+
+  
+;class
+
+loaddone
+
+
+struct xorwow_state {
+  uint32_t a, b, c, d;
+  uint32_t counter;
+};
+
+/* The state array must be initialized to not be all zero in the first four words */
+uint32_t xorwow(struct xorwow_state *state)
+{
+	/* Algorithm "xorwow" from p. 5 of Marsaglia, "Xorshift RNGs" */
+	uint32_t t = state->d;
+
+	uint32_t const s = state->a;
+	state->d = state->c;
+	state->c = state->b;
+	state->b = s;
+
+	t ^= t >> 2;
+	t ^= t << 1;
+	t ^= s ^ (s << 4);
+	state->a = t;
+
+	state->counter += 362437;
+	return t + state->counter;
+}
+
+class: MarsagliaRandomIntGenerator extends RandomIntGenerator
+
+  m: init
+    0x7A3B5CFE -> seed
+  ;m
+;class
+
+long
+MarsagliaRandomGenerator::NextLong(void)
+{
+    mZ = 36969 * (mZ & 65535) + (mZ >> 16);
+    mW = 18000 * (mW & 65535) + (mW >> 16);
+    return (mZ << 16) + mW;
+}
+
+
+void
+MarsagliaRandomGenerator::SetSeed(long seedVal)
+{
+    mW = seedVal;
+    mZ = mW * 2654435769;
+}
+
+
+
+https://en.wikipedia.org/wiki/Xorshift
+
+/* The state word must be initialized to non-zero */
+uint32_t xorshift32(struct xorshift32_state *state)
+{
+	/* Algorithm "xor" from p. 4 of Marsaglia, "Xorshift RNGs" */
+	uint32_t x = state->a;
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	return state->a = x;
+}
+
+struct xorshift64_state {
+  uint64_t a;
+};
+
+uint64_t xorshift64(struct xorshift64_state *state)
+{
+	uint64_t x = state->a;
+	x ^= x << 13;
+	x ^= x >> 7;
+	x ^= x << 17;
+	return state->a = x;
+}
+
+// https://en.wikipedia.org/wiki/Xorshift#xoshiro_and_xoroshiro
+
+struct xorshift128p_state {
+  uint64_t a, b;
+};
+
+/* The state must be seeded so that it is not all zero */
+uint64_t xorshift128p(struct xorshift128p_state *state)
+{
+	uint64_t t = state->a;
+	uint64_t const s = state->b;
+	state->a = s;
+	t ^= t << 23;		// a
+	t ^= t >> 17;		// b
+	t ^= s ^ (s >> 26);	// c
+	state->b = t;
+	return t + s;
+}
 
 loaddone
 

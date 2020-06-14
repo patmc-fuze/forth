@@ -110,11 +110,13 @@ alias , i,
 
 #if FORTH64
 alias Cell Long
+alias CellArray LongArray
 MAXULONG -> cell MAXCELL
 MINLONG -> cell MINCELL
 MAXULONG -> cell MAXUCELL
 #else
 alias Cell Int
+alias CellArray IntArray
 MAXINT -> cell MAXCELL
 MININT -> cell MINCELL
 MAXUINT -> cell MAXUCELL
