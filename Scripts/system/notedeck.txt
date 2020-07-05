@@ -3,11 +3,11 @@ autoforget notedeck
 
 : notedeck ;
 
-// flags are binary properties any note can have, a notedeck can have up to 64 defined
+// tags are binary properties any note can have
 // params are properties of a note, the params a note can have are defined by its schema
 
 // ----------------------------------------------
-class: NoteDef  // just a base class for flags, tags and schemas
+class: NoteDef  // just a base class for tags and schemas
   int id
   String name
   String description
@@ -31,7 +31,7 @@ class: NoteDef  // just a base class for flags, tags and schemas
 
 
 // ----------------------------------------------
-class: NoteFlagDef extends NoteDef
+class: NoteTagDef extends NoteDef
   String displayName
   long mask
   
@@ -46,30 +46,8 @@ class: NoteFlagDef extends NoteDef
     super.init
     
     if(id 64 <)
-      2lshift(1L id)
-    else
-      // TODO: report error, too many flags
-      error("too many flag definitions")
+      2lshift(1L id) -> mask
     endif
-    -> mask
-  ;m
-  
-;class
-
-
-// ----------------------------------------------
-class: NoteTagDef extends NoteDef
-  String displayName
-  
-  m: delete
-    oclear displayName
-    super.delete
-  ;m
-  
-  m: init  // NAME DISPLAY_NAME DESCRIPTION ID ...
-    new String -> displayName
-    displayName.set(rot)
-    super.init
   ;m
   
 ;class
@@ -137,8 +115,7 @@ class: Note
   String body
   StringMap of Note children
   IntMap of NoteParam params
-  long flags
-  Object obj        // optional associated object
+  long tags
 
   m: init           // NAME BODY ID ...
     -> id
@@ -156,7 +133,6 @@ class: Note
     oclear body
     oclear children
     oclear params
-    oclear obj
     super.delete
   ;m
 
@@ -171,6 +147,27 @@ class: Note
       false
     endif
   ;m
+
+  m: addTag             // TAG_ID ...
+    -> int tagId
+    if(tagId 64 <)
+      lshift(1 tagId) tags l+ -> tags
+    else
+      // TODO: deal with when extended tags are added
+    endif
+  ;m
+  
+  m: hasTag             // TAG_ID ... true/false
+    -> int tagId
+    if(tagId 64 <)
+      0
+      if(lshift(1 tagId) tags and)
+        1-
+      endif
+    else
+      // TODO: deal with when extended tags are added
+    endif
+  ;m
   
 ;class
 
@@ -182,9 +179,6 @@ class: NoteDeck
   
   Array of Note notes
   StringMap noteMap
-  
-  Array of NoteFlagDef flags
-  StringMap flagMap
   
   Array of NoteTagDef tags
   StringMap tagMap
@@ -200,8 +194,6 @@ class: NoteDeck
     oclear name
     oclear notes
     oclear noteMap
-    oclear flags
-    oclear flagMap
     oclear tags
     oclear tagMap
     oclear schemas
@@ -225,19 +217,6 @@ class: NoteDeck
 
   m: getTag         // NAME ...    false   OR   TAG_DEF_OBJ true
     tagMap.grab
-  ;m
-  
-  m: addFlagDef returns NoteFlagDef      // NAME DISPLAY_NAME DESCRIPTION ... NEW_FLAG_DEF
-    mko NoteFlagDef def
-    def.init(flags.count)
-    flags.push(def)
-    flagMap.set(def def.name.get)
-    //def.name.get %s %bl def.mask %x %nl
-    unref def
-  ;m
-  
-  m: getFlag         // NAME ...    false   OR   FLAG_DEF_OBJ true
-    flagMap.grab
   ;m
   
   m: addSchema returns NoteSchema     // NAME DESCRIPTION ... NEW_SCHEMA
@@ -299,9 +278,6 @@ class: NoteDeck
     new Array -> notes
     new StringMap -> noteMap
 
-    new Array -> flags
-    new StringMap -> flagMap
-
     new Array -> tags
     new StringMap -> tagMap
 
@@ -331,22 +307,36 @@ TODOs for Notes:
 
   int id            // index into containing Notebook notes array
   int schema        // 0 for default schema
-  int parent        // -1 for none
+x  int parent        // -1 for none
   String name
   String body
-  StringMap of Note children
+x  StringMap of Note children
   IntMap of NoteParam params
   long flags
-  Object obj        // optional associated object
+x Object obj        // optional associated object
 
 - replace children StringMap with links IntArray, where the elements are a combination of
-  24-bit note id and 8-bit link type
+  26-bit note id and 6-bit link type
   -> make the noteId/linkType specified per notebook
   o link types are specified by the notebook, but some are predefined
-    like 'parent' and 'tag'
+    like 'parent' and 'child'
   o tags just become notes which describe the tag
-  o replace params with a StructArray, the param struct is an 8-char name
-    and an 8-byte body, 
+  o replace params with a StructArray, the param struct is an 7-char name,
+    1 byte type code and an 8-byte body
+  o not all Notes have names, change NoteDeck:addNote to addNamedNote,
+    add an addNote member that doesn't set a name
+  ? remove parent member, replace with parent link
+  o remove obj member, use params instead
+  
+Hmm, helpdeck uses multiple levels of name maps, which can have the same
+symbol used multiple times, in particular for method names.  I guess the
+change to one global name map will still work, but then there needs to be
+a way for a Note to have a name without appearing in the global name map,
+method names don't need to be in the global map, but the code uses the Note
+name field for the method name.
+? is there a general 'index' needed to replace Note:children StringMap?
+? maybe NoteDeck has StringMap of StringIntMap indices, which is map of named indices?
+? replace Note:params with a Bag?
 =============================================
 There is always a default 'incoming' notebook
 other notebooks are projects/interestAreas for user
