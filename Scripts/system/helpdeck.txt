@@ -299,6 +299,18 @@ class: HelpDeck extends NoteDeck
     oclear iter
   ;m
   
+  m: listSections
+    NoteTagDef tagDef
+    tags.headIter -> ArrayIter iter
+    
+    begin
+    while(iter.next)
+      ->o tagDef
+      tagDef.name.get %s " - " %s tagDef.description.get %s %nl
+    repeat
+    oclear iter
+  ;m
+  
   m: help
     Note foundNote
     NoteParam stackBehavior
@@ -312,13 +324,13 @@ class: HelpDeck extends NoteDeck
       else
       
         if(getChild(helpTarget classesNote))
+          // help CLASSNAME
           ->o foundNote
           helpTarget %s " - " %s foundNote.body.get %s %nl
          
-          0 -> int childIndex
+          getLinkIter(foundNote) -> NoteLinkIter linkIter
           begin
-          while(foundNote.findNextLink(childIndex kLTChild))
-            -> childIndex
+          while(linkIter.next(kLTChild))
             -> int childNodeId
             notes.get(childNodeId) ->o Note methodNote
             "   " %s methodNote.name.get %s " - " %s methodNote.body.get %s %nl
@@ -327,20 +339,33 @@ class: HelpDeck extends NoteDeck
               "      " %s stackBehavior.sval.get %s %nl
             endif
           repeat
-        else
-          if(getChild(helpTarget opsNote))
+          oclear linkIter
+        elseif(tagMap.grab(helpTarget))
+          // help SECTIONNAME
+          -> NoteTagDef tagDef
+          notes.headIter -> ArrayIter noteIter
+          begin
+          while(noteIter.next)
             ->o foundNote
-            helpTarget %s " - " %s foundNote.body.get %s %nl
-            if(foundNote.getParam(stackParamDef.id))
+            if(and(foundNote.tags tagDef.mask))
+              foundNote.name.get %s " - " %s foundNote.body.get %s %nl
+            endif
+          repeat
+        elseif(getChild(helpTarget opsNote))
+          // help OPNAME
+          ->o foundNote
+          helpTarget %s " - " %s foundNote.body.get %s %nl
+          if(foundNote.getParam(stackParamDef.id))
               ->o stackBehavior
               stackBehavior.sval.get %s %nl
-            endif
-          else
-            "help - " %s helpTarget %s " not found\n" %s
           endif
+        else
+            "help - " %s helpTarget %s " not found\n" %s
         endif
       endif
     else
+      "=========== Sections ===========\n" %s
+      listSections
       "=========== Operators ===========\n" %s
       listOperators
       "=========== Classes ===========\n" %s
@@ -450,6 +475,7 @@ addOp if|BOOL ...|start if statement|if
 addOp andif|BOOL ...|add andif clause|if
 addOp orif|BOOL ...|add orif clause|if
 addOp else||start else branch of if statement|if
+addOp elseif||start elseif branch of if statement|if
 addOp endif||end if statement|if
 addOp begin||begin loop statement|loop
 addOp until|BOOL ...|loop back to "begin" if BOOL is false|loop
@@ -1755,6 +1781,7 @@ addMember id|int|index into containing NoteDeck notes array
 addMember schema|int|index into containing NoteDeck schemas array, 0 for default schema
 addMember name|String|name of this note
 addMember body|String|text of this note
+addMember children|StringMap of Note|map from note names to children notes of this note
 addMember params|IntMap of NoteParam|
 addMember tags|long|binary attributes of this note
 addMember links|IntArray|array of links for this note
