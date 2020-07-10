@@ -21,10 +21,10 @@ class: HelpDeck extends NoteDeck
   Note newestClassNote
   long curTags
 
-  long kHFOp
-  long kHFMethod
-  long kHFClass
-  long kHFMember
+  long kTagOp
+  long kTagMethod
+  long kTagClass
+  long kTagMember
   
   byte separator
 
@@ -45,10 +45,10 @@ class: HelpDeck extends NoteDeck
     addParamDef("type" "member type") -> memberTypeParamDef
     memberSchema.addOptionalParam(memberTypeParamDef)
     
-    addTagDef("op" "Operator" "An executable forth operation").mask -> kHFOp
-    addTagDef("method" "Methods" "Class methods").mask -> kHFMethod
-    addTagDef("class" "Builtin classes" "Convenience classes - arrays, lists, maps, strings, threads, etc.").mask -> kHFClass
-    addTagDef("member" "Member" "Class member").mask -> kHFMember
+    addTagDef("op" "Operator" "An executable forth operation").mask -> kTagOp
+    addTagDef("method" "Methods" "Class methods").mask -> kTagMethod
+    addTagDef("class" "Builtin classes" "Convenience classes - arrays, lists, maps, strings, threads, etc.").mask -> kTagClass
+    addTagDef("member" "Member" "Class member").mask -> kTagMember
     
     addNote("ops" "forth operators") -> opsNote
     addNote("classes" "builtin classes") -> classesNote
@@ -89,17 +89,17 @@ class: HelpDeck extends NoteDeck
   ;m
   
   m: getOpNote            // NAME ...   false   OR   NOTE_OBJ true
-    opsNote.getChild
+    opsNote getChild
   ;m
   
   m: getClassNote            // NAME ...   false   OR   NOTE_OBJ true
-    classesNote.getChild
+    classesNote getChild
   ;m
   
   // addOp opName|stack behavior|description|extra tags
   m: addOp
     Note newNote
-    curTags kHFOp l+ -> long tagMask
+    curTags kTagOp l+ -> long tagMask
     ptrTo byte opName
     ptrTo byte tagName
   
@@ -144,7 +144,7 @@ class: HelpDeck extends NoteDeck
   
   // addClass className|baseClass|description|tags
   m: addClass
-    kHFClass -> long tags
+    kTagClass -> long tags
     ptrTo byte className
     ptrTo byte tagName
   
@@ -185,7 +185,7 @@ class: HelpDeck extends NoteDeck
   // addMethod methodName|stack behavior|description|extra tags
   m: addMethod
     Note newMethodNote
-    curTags kHFMethod l+ -> long tags
+    curTags kTagMethod l+ -> long tags
     ptrTo byte methodName
     ptrTo byte tagName
   
@@ -193,7 +193,6 @@ class: HelpDeck extends NoteDeck
       -> methodName
       //methodName %s %nl
       addChild(methodName "" newestClassNote) -> newMethodNote
-      newestClassNote.id -> newMethodNote.parent
       
       // look for stack behavior
       if(word?(separator))
@@ -232,7 +231,7 @@ class: HelpDeck extends NoteDeck
   // addMember memberName|type|description|extra tags
   m: addMember
     Note newMemberNote
-    kHFMember -> long tags
+    kTagMember -> long tags
     ptrTo byte memberName
     ptrTo byte tagName
   
@@ -240,7 +239,6 @@ class: HelpDeck extends NoteDeck
       -> memberName
       //memberName %s %nl
       addChild(memberName "" newestClassNote) -> newMemberNote
-      newestClassNote.id -> newMemberNote.parent
       
       // look for type
       if(word?(separator))
@@ -279,7 +277,7 @@ class: HelpDeck extends NoteDeck
     begin
     while(iter.next)
       ->o foundNote
-      if(foundNote.tags kHFOp land l0<>)
+      if(foundNote.tags kTagOp land l0<>)
         foundNote.name.get %s " - " %s foundNote.body.get %s %nl
         //foundNote.name.get %s %bl foundNote.tags %2x " - " %s foundNote.body.get %s %nl
       endif
@@ -294,7 +292,7 @@ class: HelpDeck extends NoteDeck
     begin
     while(iter.next)
       ->o foundNote
-      if(foundNote.tags kHFClass land l0<>)
+      if(foundNote.tags kTagClass land l0<>)
         foundNote.name.get %s " - " %s foundNote.body.get %s %nl
       endif
     repeat
@@ -313,24 +311,24 @@ class: HelpDeck extends NoteDeck
         
       else
       
-        if(classesNote.getChild(helpTarget))
+        if(getChild(helpTarget classesNote))
           ->o foundNote
           helpTarget %s " - " %s foundNote.body.get %s %nl
          
-          if(objNotNull(foundNote.children))
-            foundNote.children.headIter -> StringMapIter mapIter
-            begin
-            while(mapIter.next)
-              ->o Note methodNote
-              "   " %s methodNote.name.get %s " - " %s methodNote.body.get %s %nl
-              if(methodNote.getParam(stackParamDef.id))
-                ->o stackBehavior
-                "      " %s stackBehavior.sval.get %s %nl
-              endif
-            repeat
-          endif
+          0 -> int childIndex
+          begin
+          while(foundNote.findNextLink(childIndex kLTChild))
+            -> childIndex
+            -> int childNodeId
+            notes.get(childNodeId) ->o Note methodNote
+            "   " %s methodNote.name.get %s " - " %s methodNote.body.get %s %nl
+            if(methodNote.getParam(stackParamDef.id))
+              ->o stackBehavior
+              "      " %s stackBehavior.sval.get %s %nl
+            endif
+          repeat
         else
-          if(opsNote.getChild(helpTarget))
+          if(getChild(helpTarget opsNote))
             ->o foundNote
             helpTarget %s " - " %s foundNote.body.get %s %nl
             if(foundNote.getParam(stackParamDef.id))
@@ -359,7 +357,7 @@ class: HelpDeck extends NoteDeck
     while(iter.next)
       valueLength + -> ptrTo byte pEntry
       opName.setBytes(pEntry 1+ pEntry c@)
-      if(opsNote.getChild(opName.get))
+      if(getChild(opName.get opsNote))
         drop
       else
         opName.get %s " not found in help.\n" %s
@@ -384,41 +382,41 @@ helpDeck.init
   helpDeck.check
 ;
 
-: mkf
+: mkTag
   helpDeck.addTagDef(blword $word(helpDeck.separator) $word(0)) drop
 ;
 
 // op, method, class and member tags are defined in HelpDeck:init
 
-mkf control Control|Ops which change the flow of execution
-mkf immediate Immediate|Ops which are executed at compile time
-mkf classdef Class defining|Ops which are used to define classes or class instances
-mkf method Methods|Class methods
-mkf struct Structure defining|Ops which are used to define structures
-mkf stack Parameter stack manipulation|Ops which manipulate the parameter stack
-mkf logic Logical|Ops which do logic operations
-mkf math Arithmetic|Ops which do math
+mkTag control Control|Ops which change the flow of execution
+mkTag immediate Immediate|Ops which are executed at compile time
+mkTag classdef Class defining|Ops which are used to define classes or class instances
+mkTag method Methods|Class methods
+mkTag struct Structure defining|Ops which are used to define structures
+mkTag stack Parameter stack manipulation|Ops which manipulate the parameter stack
+mkTag logic Logical|Ops which do logic operations
+mkTag math Arithmetic|Ops which do math
 
-mkf int 32-bit integer|Ops for 32-bit integers
-mkf float Single-precision floating-point|Ops for single-precision floating point numbers
-mkf double Double-precision floating-point|Ops for double-precision floating point numbers
-mkf long 64-bit integer|Ops for 64-bit integers
-mkf string String|Ops for strings
+mkTag int 32-bit integer|Ops for 32-bit integers
+mkTag float Single-precision floating-point|Ops for single-precision floating point numbers
+mkTag double Double-precision floating-point|Ops for double-precision floating point numbers
+mkTag long 64-bit integer|Ops for 64-bit integers
+mkTag string String|Ops for strings
 
-mkf print Printing|Ops which output to the console
-mkf format Formatting|Ops which format text
-mkf internal Internal|Forth compilation internals
-mkf defining Defining words|Ops for defining ops and functions
-mkf native Native type defining words|Ops for defining variables or fields of native types - int, float, double, etc.
-mkf compare Comparison|Compare numeric values
-mkf convert Conversion|Conversion between numeric types
-mkf memory Memory|Memory fetch and store
-mkf file File|Ops for files
-mkf dir Directory|Ops for directories
-mkf system System|System ops
-mkf if If|Part of if statement
-mkf case Case|Part of case statement
-mkf loop Loop|Part of do or begin loops
+mkTag print Printing|Ops which output to the console
+mkTag format Formatting|Ops which format text
+mkTag internal Internal|Forth compilation internals
+mkTag defining Defining words|Ops for defining ops and functions
+mkTag native Native type defining words|Ops for defining variables or fields of native types - int, float, double, etc.
+mkTag compare Comparison|Compare numeric values
+mkTag convert Conversion|Conversion between numeric types
+mkTag memory Memory|Memory fetch and store
+mkTag file File|Ops for files
+mkTag dir Directory|Ops for directories
+mkTag system System|System ops
+mkTag if If|Part of if statement
+mkTag case Case|Part of case statement
+mkTag loop Loop|Part of do or begin loops
 
 // add string compile if loop case except
 // ? short byte unsigned
@@ -1755,21 +1753,18 @@ addMethod setString|STRING_OBJ ...|set string param value
 addClass Note|Object|virtual notecard
 addMember id|int|index into containing NoteDeck notes array
 addMember schema|int|index into containing NoteDeck schemas array, 0 for default schema
-addMember parent|int|id of this notes parent, -1 for none
 addMember name|String|name of this note
 addMember body|String|text of this note
-addMember children|StringMap of Note|map from note names to children notes of this note
 addMember params|IntMap of NoteParam|
 addMember tags|long|binary attributes of this note
-addMember obj|Object|optional associated object for this note
+addMember links|IntArray|array of links for this note
 addMethod init|NAME BODY ID ...|initialize this note
 addMethod getParam|PARAM_ID ...   false   OR   PARAM_OBJ true|get a parameter for this note
-addMethod getChild|NAME ...   false   OR   NOTE_OBJ true|get a named child of this note
 
 addClass NoteDeck|Object|Collection of Notes
 addMember name|String|name of the note deck
 addMember notes|Array of Note|notes in this deck
-addMember noteMap|StringMap|map from a notes name to the Note
+addMember noteMap|StringMap|map from a global notes name to the Note
 addMember tags|Array of NoteTagDef|tag definitions for this deck
 addMember tagMap|StringMap|map from name to tag definition
 addMember schemas|Array of NoteSchema|schemas for this deck
@@ -1784,6 +1779,7 @@ addMethod getSchema|NAME ...    false   OR   SCHEMA_OBJ true|
 addMethod addParamDef|NAME DESCRIPTION ... NEW_PARAM_DEF|
 addMethod getParam|NAME ...    false   OR   PARAM_DEF_OBJ true|
 addMethod addNote|NAME BODY ... NEW_NOTE|
+addMethod getChild|NAME NOTE ...   false   OR   NOTE_OBJ true|get a named child of this note
 addMethod addChild|NAME BODY PARENT_NOTE ... NEW_NOTE|
 addMethod getNote|NAME ...   false   OR   NOTE_OBJ true|
 addMethod init|NOTEBOOK_NAME ...|
@@ -1800,10 +1796,10 @@ addMember opsNote|Note|note for "help ops"
 addMember classesNote|Note|note for "help classes"
 addMember newestClassNote|Note|
 addMember curTags|long|
-addMember kHFOp|long|
-addMember kHFMethod|long|
-addMember kHFClass|long|
-addMember kHFMember|long|
+addMember kTagOp|long|
+addMember kTagMethod|long|
+addMember kTagClass|long|
+addMember kTagMember|long|
 addMethod init||initialize help deck
 addMethod setTags||set current flags to immediately following names
 addMethod getOpNote|NAME ...   false   OR   NOTE_OBJ true|get op selected by name

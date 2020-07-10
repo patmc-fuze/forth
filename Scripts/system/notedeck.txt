@@ -110,12 +110,11 @@ class: NoteParam
 class: Note
   int id            // index into containing Notebook notes array
   int schema        // 0 for default schema
-  int parent        // -1 for none
   String name
   String body
-  StringMap of Note children
   IntMap of NoteParam params
   long tags
+  IntArray links
 
   m: init           // NAME BODY ID ...
     -> id
@@ -124,15 +123,15 @@ class: Note
     new String -> name
     name.set
     0 -> schema
-    -1 -> parent
     new IntMap -> params
+    new IntArray -> links
   ;m
   
   m: delete
     oclear name
     oclear body
-    oclear children
     oclear params
+    oclear links
     super.delete
   ;m
 
@@ -140,14 +139,6 @@ class: Note
     params.grab
   ;m
   
-  m: getChild            // NAME ...   false   OR   NOTE_OBJ true
-    if(objNotNull(children))
-      children.grab
-    else
-      false
-    endif
-  ;m
-
   m: addTag             // TAG_ID ...
     -> int tagId
     if(tagId 64 <)
@@ -169,7 +160,101 @@ class: Note
     endif
   ;m
   
+  m: isNamed        // NAME ... true/false
+    if(name)
+      name.equals
+    else
+      0
+    endif
+  ;m
+  
+  : link2type
+    26 rshift
+  ;
+  
+  : linkSplit           // LINK ... NODE_ID LINK_TYPE
+    dup 0x3FFFFFF and
+    swap 26 rshift
+  ;
+  
+  m: addLink            // NODE_ID LINK_TYPE ...
+    links.push(26 lshift or)
+  ;m
+  
+  m: findNextLink       // START_INDEX LINK_TYPE ...    false   OR    NODE_ID NEXT_INDEX true
+    -> int linkType
+    -> int index
+    //"looking for type " %s linkType %d " starting at " %s index %d %nl
+    begin
+    while(index links.count <)
+      //index %d %bl %bl links.get(index) dup %x %bl %bl linkSplit "type:" %s %x " value:" %s %x %nl
+      if(links.get(index) linkSplit linkType =)
+        //"bailing at index " %s index %d " returning nodeId " %s dup %x %nl
+        index 1+ -1
+        exit
+      else
+        drop
+      endif
+      1 ->+ index
+    repeat
+    0
+  ;m
+
 ;class
+
+class: NoteLinkIter
+
+  Note note
+  int index
+  int limit
+  
+  m: init   // NOTE ...
+    -> note
+    note.links.count -> limit
+    0 -> index
+  ;m
+
+  m: next  // LINK_TYPE ... NOTE_ID true  OR   false
+    index swap note.findNextLink
+    if
+      -> index
+      -1
+    else
+      limit -> index
+      0
+    endif
+  ;m
+  
+  m: delete
+    oclear note
+  ;m
+
+  m: seek  // INDEX ...
+    if(dup 0>)
+      if(dup limit <)
+        -> index
+      else
+        drop
+      endif
+    else
+      drop
+    endif
+  ;m
+
+  m: tell  // ... INDEX
+    index
+  ;m
+
+  m: current // ... NODE_ID
+    note.links.get(index) Note:linkSplit drop
+  ;m
+
+  m: atTail // ... TRUE/FALSE
+    index limit =
+  ;m
+
+;class
+
 
 
 // ----------------------------------------------
@@ -188,7 +273,15 @@ class: NoteDeck
   
   Array of NoteDef params
   StringMap paramMap
-  
+
+  Array of NoteDef linkTypes
+  StringMap linkTypeMap
+
+  // predefined link types
+  long kLTParent
+  long kLTChild
+  long kLTTag
+  long kLTLink
   
   m: clearAll
     oclear name
@@ -243,26 +336,73 @@ class: NoteDeck
     paramMap.grab
   ;m
   
+  m: addLinkType returns NoteDef     // NAME DESCRIPTION ... NEW_LINKTYPE
+    mko NoteDef def
+    def.init(linkTypes.count)
+    linkTypes.push(def)
+    linkTypeMap.set(def def.name.get)
+    def.id
+    oclear def
+  ;m
+  
+  m: getLinkType        // NAME ...    false   OR   LINKTYPE_OBJ true
+    linkTypeMap.grab
+  ;m
+
+  // creates a parentless note, doesn't add it to global named note map  
   m: addNote returns Note      // NAME BODY ... NEW_NOTE
     mko Note note
     note.init(notes.count)
     notes.push(note)
+    unref note
+  ;m
+  
+  // creates a parentless note and adds it to global named note map  
+  m: addGlobalNote returns Note      // NAME BODY ... NEW_NOTE
+    addNote ->o Note note
     // TODO: check for note name already in map
     noteMap.set(note note.name.get)
-    unref note
+    note
+  ;m
+  
+  m: getNamedLink   // NAME LINK_TYPE NOTE ...    false   OR    INDEX true
+    ->o Note note
+    -> int linkType
+    -> ptrTo byte name
+    note.links.headIter -> IntArrayIter iter
+    begin
+    while(iter.next)
+      Note:linkSplit
+      if(linkType =)
+        -> int childId
+        if(notes.get(childId).isNamed(name))
+          childId -1
+          oclear iter
+          exit
+        endif
+      else
+        drop
+      endif
+    repeat
+    oclear iter
+
+    0
+  ;m
+  
+  m: getChild            // NAME NOTE ...   false   OR   NOTE_OBJ true
+    kLTChild swap getNamedLink
+    if
+      notes.get -1
+    else
+      0
+    endif
   ;m
   
   m: addChild returns Note     // NAME BODY PARENT_NOTE ... NEW_NOTE
     ->o Note parent
-    mko Note note
-    note.init(notes.count)
-    note.id -> note.parent
-    if(objIsNull(parent.children))
-      new StringMap -> parent.children
-    endif
-    notes.push(note)
-    // TODO: check for note name already in map
-    parent.children.set(note note.name.get)
+    addNote -> Note note
+    note.addLink(parent.id kLTParent)
+    parent.addLink(note.id kLTChild)
     unref note
   ;m
   
@@ -286,6 +426,14 @@ class: NoteDeck
 
     new Array -> params
     new StringMap -> paramMap
+
+    new Array -> linkTypes
+    new StringMap -> linkTypeMap
+    
+    addLinkType("parent" "Parent Note") -> kLTParent
+    addLinkType("child" "Child Note") -> kLTChild
+    addLinkType("tag" "Extended Tag") -> kLTTag
+    addLinkType("link" "Generic Link") -> kLTLink
 
     addSchema("defaultSchema" "Default Schema - notecard with no params") drop
   ;m
