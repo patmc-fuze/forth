@@ -279,9 +279,9 @@ public:
     inline ForthVocabulary  *GetLiteralsVocabulary(void) { return mpLiteralsVocab; };
     inline ForthThread      *GetMainThread( void )  { return mpMainThread->GetThread(0); };
 
-    inline long             *GetCompileStatePtr( void ) { return &mCompileState; };
-    inline void             SetCompileState( long v ) { mCompileState = v; };
-    inline long             IsCompiling( void ) { return mCompileState; };
+    inline cell             *GetCompileStatePtr( void ) { return &mCompileState; };
+    inline void             SetCompileState( cell v ) { mCompileState = v; };
+    inline cell             IsCompiling( void ) { return mCompileState; };
     inline bool             InStructDefinition( void ) { return ((mCompileFlags & kEngineFlagInStructDefinition) != 0); };
     inline bool             HasLocalVars( void ) { return (mpLocalAllocOp != NULL); };
     inline long             GetFlags( void ) { return mCompileFlags; };
@@ -408,7 +408,7 @@ protected:
     pthread_mutex_t* mpTempBufferLock;
 #endif
 
-    long        mCompileState;          // true iff compiling
+    cell        mCompileState;          // true iff compiling
 
 	ForthAsyncThread * mpThreads;
 	ForthAsyncThread * mpMainThread;
