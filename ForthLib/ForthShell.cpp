@@ -1886,8 +1886,8 @@ FILE* ForthShell::OpenForthFile( const char* pPath )
 #endif
     if ( (pFile == NULL) && pathIsRelative )
     {
-		char* pSysPath = new char[ strlen(mWorkingDirPath) + strlen(pPath) + 16 ];
-		strcpy( pSysPath, mWorkingDirPath );
+		char* pSysPath = new char[ strlen(mSystemDir) + strlen(pPath) + 16 ];
+		strcpy(pSysPath, mSystemDir);
 #if defined( WIN32 )
 		strcat( pSysPath, "\\system\\" );
 #elif defined(LINUX) || defined(MACOSX)

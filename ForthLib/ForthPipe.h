@@ -32,7 +32,8 @@ public:
     void StartMessage( int messageType );
     // use this to add a fixed size piece of data to a message
     void WriteData( const void* pData, int numBytes );
-    void WriteInt( int val );
+    void WriteInt(int val);
+    void WriteCell(cell val);
     // use this to add a variable sized piece of data to a message
     void WriteCountedData( const void* pSrc, int numBytes );
     // use this to add a string to a message
@@ -44,7 +45,9 @@ public:
     bool GetMessage( int& msgTypeOut, int& msgLenOut );
 
     // return true IFF an int was available
-    bool ReadInt( int& intOut );
+    bool ReadInt(int& intOut);
+    // return true IFF a cell was available
+    bool ReadCell(cell& cellOut);
     // return true IFF a variable sized piece of data was avaialable
     bool ReadCountedData( const char*& pDataOut, int& numBytesOut );
     // return true IFF a variable sized piece of data was avaialable

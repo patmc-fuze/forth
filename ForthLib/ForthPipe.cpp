@@ -6,6 +6,7 @@
 
 #include "StdAfx.h"
 
+//#define PIPE_SPEW
 #include "Forth.h"
 #include "ForthPipe.h"
 
@@ -194,6 +195,19 @@ ForthPipe::WriteInt( int val )
 }
 
 void
+ForthPipe::WriteCell(cell val)
+{
+#ifdef PIPE_SPEW
+#ifdef FORTH64
+    printf("   WriteCell %lld\n", val);
+#else
+    printf("   WriteCell %d\n", val);
+#endif
+#endif
+    WriteData(&val, sizeof(val));
+}
+
+void
 ForthPipe::WriteCountedData( const void* pSrc, int numBytes )
 {
 #ifdef PIPE_SPEW
@@ -264,7 +278,7 @@ ForthPipe::ReceiveBytes( int numBytes )
 #ifdef PIPE_SPEW
     for ( int i = 0; i < numBytes; i++ )
     {
-        printf( " %02x", (int)(pDst[i]) );
+        printf( " %02x", (int)(pDst[i] & 0xFF) );
     }
     printf( "\n" );
 #endif
@@ -317,14 +331,29 @@ ForthPipe::GetMessage( int& msgTypeOut, int& msgLenOut )
 
 // return true IFF an int was available
 bool
-ForthPipe::ReadInt( int& intOut )
+ForthPipe::ReadInt(int& intOut)
 {
-    if ( mInAvailable >= sizeof(int) )
+    if (mInAvailable >= sizeof(int))
     {
-        char* pSrc = &(mInBuffer[ mInOffset ]);
-        memcpy( &intOut, pSrc, sizeof(int) );
+        char* pSrc = &(mInBuffer[mInOffset]);
+        memcpy(&intOut, pSrc, sizeof(int));
         mInOffset += sizeof(int);
         mInAvailable -= sizeof(int);
+        return true;
+    }
+    return false;
+}
+
+// return true IFF an int was available
+bool
+ForthPipe::ReadCell(cell& cellOut)
+{
+    if (mInAvailable >= sizeof(cell))
+    {
+        char* pSrc = &(mInBuffer[mInOffset]);
+        memcpy(&cellOut, pSrc, sizeof(cell));
+        mInOffset += sizeof(cell);
+        mInAvailable -= sizeof(cell);
         return true;
     }
     return false;

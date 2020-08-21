@@ -12,7 +12,8 @@ TBDs:
 
 - optimize object field reference code, there is a lot of code like LocalObject,drop
 - also optimize stuff like offset,2@,drop
-
+  -> these drops don't exist anymore, right?
+  
 + add unref op, same op as ->-, it makes object variable:
   o leave object on TOS
   o zeros object variable
@@ -147,6 +148,150 @@ Double and long memory and stack layouts:
 Double has consistent layout, long is reversed on param stack.
 
 
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 20 2020
+
+I decided to try to make an Electron front for Forth.  I couldn't find any
+examples of node.js native modules made that included assembly language, so
+I decided maybe I could do this with client-server Forth, just building the
+client side as an Electron native module.
+
+Client-server hasn't been tested in a very long time.  The first problem I had
+was that the protocol passes FILE pointers back and forth as 4 bytes, I changed
+just the protocol fields that were pointers to use cells instead of ints, in
+the long run I'll change all the protocol fields to be cells, but for now it
+looks like clib file calls only use 32-bits for sizes and offsets.
+
+The next problem I had was that forth_autoload.txt wasn't loaded at startup.
+That is because forth_autoload.txt isn't in Sandbox currently, it is only
+in system.  The retry-loading of scripts from the system directory is currently
+broken in ForthServerShell.  It should be easy to fix once I remember how I
+implmented it in the regular shell.
+-> fixed, look at openForthFile
+
+My current problem is that script loading is broken, a script stops loading as
+soon as you interpret any parenthesized expressions, because at the end of
+processing the expression the input stack is popped, ForthServerShell does both
+popping the input stack and sends a PopStream protocol message to the client
+which doesn't know about the expression input stream, and so pops the script
+file input stream.  It would be good if my solution for this works for both
+normal scripts and block file scripts.
+-> I changed ForthServerShell::PopInputStream to not send the PopStream message
+   if the input stream is a generated stream.
+I might also want to rethink the whole idea of having file IO done on the client
+side, that was originally intended to support working on a minimal device like
+the Nintendo DS.  For cases where client and server are on the same machine passing
+all file IO through the network is a major performance loss.  Being able to
+support both local and network file IO would be best.
+
+Another thing to think about - maybe the size of file protocol members should
+be settable, so the client would tell the size of its pointers to the server
+at connect time.  This would only be used for network file IO.
+
+End of the day: client-server is partially working, it does crash when I do "dir".
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+July 2 2020
+
+I've done some more thinking about the problem with non-atomic refcounting and
+async threads.  Instead of changing all refcounting to be atomic, maybe a better
+way would be to leave refcounting as it is, and instead adopt a philosophy of
+limiting how objects are shared between async threads.
+
+*** athread means async thread in this discussion
+
+Pros and cons:
++ less changes needed
++ not paying for atomic refcounting everywhere
++ almost all refcounts are on objects in a single athread
+- easier for somebody to screw up if they don't follow the rules and get mysterious bugs
+
+The new rules:
+1 Don't share objects between athreads whenever possible
+2 When sharing objects between athreads do it in a way where you know that
+  refcounts won't be touched simultaneously by multiple athreads
+  o when athreadA sticks objectZ in an event queue for athreadB, it clears
+    any references it has to objectZ (make this part of atomic eventQueue add)
+Things like event queues which communicate between athreads will need to enforce
+atomicity, like having a real mutex on adding/removing events.
+
+? maybe have special sharedAddref and sharedRelease ops which are atomic?
+
+Another possible way of doing things is where the main athread creates and owns
+all objects shared between athreads, athreads never addref/release on shared
+objects.  This can work for simple situations, but it just puts you back in
+the situation we had before refcounting, where you have to do manual lifetime
+management and it is easy to get dangling references.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 17 2020
+
+Should Bags be allowed to have duplicate tags?  If they are, should the json
+for a Bag be an array of 2 element arrays instead of a map?  Is it legal in
+json for one element of an array to be a string and the second element be something
+else?
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 14 2020
+
+I need to add atomic locks around all reference count changes.  C++ has std::atomic,
+x86 assembler has the lock prefix, ARM assembler has ldrex/strex.  I'm not sure
+how ldrex/strex are used to do atomic operations.
+
+Even with atomic refcount decrement, could I have 2 (or more) threads that both
+think they should invoke the destructor?  If all threads just check the refcount
+after an atomic decrement, they could all see a 0 and think they should invoke
+the destructor.
+
+Thread has an Array of EventListener
+Thread::waitForEvent blocks the thread until an event arrives for any of its EventListeners
+each EventListener has an event source and a handlerIP
+
+? what happens to current pstack and rstack when you call waitForEvent, and what are they
+  when you come back from waitForEvent?
+Other things which suspend a thread leave the thread in the same state after
+it resumes as before, this doesn't - what are the rules?
+Or should it be the same as other types of suspend, and require you to dispatch
+to your event handler?
+
+I was just thinking about a very different problem - thread join.  If a thread
+is blocked grabbing a lock, or waiting for an event, what happens when another
+thread does a join on it - I guess it is okay, because nothing happens to the
+joined thread, it just continues waiting until it wakes up and eventually exits.
+The only case where joining a thread would cause it to wake is when the thread
+wasn't actually blocked, it was just idle.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 14 2020
+
+I did a bunch of work on the Forth DLL project.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+December 26 2019
+
+I am adding Event objects now.
+
+Event
+o has an event type member
+o has an object member, may be null
+? anything else
+
+EventListener
+o events are sent to this
+o has an owner member - thread which owns this listener
+? has a queue of events
+
+EventChannel
+o events are sent to this
+o has an array of EventListener
+o this sends the event to each of its listeners
+? is this derived from EventListener
+? should this really be in the kernel
+
+What methods need locking?
+o adding an event to a queue
+o adding a listener to a channel (or removing a listener)
+
+How should a Thread be told it has an event?  Maybe a new Thread method which takes
+the EventListener as a parameter.
+How can I implement something that lets a thread sleep until one of multiple
+things happen, like WaitForMultipleObjects?  I guess a semaphore would work
+for that, but the thread would need to poll to check what woke it.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 December 29 2019
 
