@@ -53,7 +53,6 @@ ForthOSX/ForthLogger.xcodeproj/xcuserdata/patmcelhatton.xcuserdatad/xcdebugger/
 ForthOSX/Forth.xcodeproj/xcuserdata/pmcelhatton.xcuserdatad/
 ForthOSX/ForthLogger.xcodeproj/xcuserdata/pmcelhatton.xcuserdatad/
 ForthCalc
-ForthDLL
 ForthGenericDialogApp
 ForthGuiApp
 ForthLib/ForthNDRelease
@@ -120,3 +119,6 @@ Scripts/tests/goodOutput/*.txt
 ForthLib/x64/Debug Asm/ForthLib.log
 Win32
 x64
+*.log
+ForthDLL/ReadMe.txt
+ForthDLL/res/ForthDLL.rc2

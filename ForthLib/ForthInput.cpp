@@ -235,6 +235,7 @@ ForthInputStream::ForthInputStream( int bufferLen )
 , mBufferLen(bufferLen)
 , mReadOffset(0)
 , mWriteOffset(0)
+, mbDeleteWhenEmpty(true)
 {
     mpBufferBase = (char *)__MALLOC(bufferLen);
     mpBufferBase[0] = '\0';
@@ -429,8 +430,13 @@ void ForthInputStream::CropCharacters(int numCharacters)
 bool
 ForthInputStream::DeleteWhenEmpty()
 {
-	// default behavior is to delete stream when empty
-	return true;
+	return mbDeleteWhenEmpty;
+}
+
+void
+ForthInputStream::SetDeleteWhenEmpty(bool deleteIt)
+{
+    mbDeleteWhenEmpty = deleteIt;
 }
 
 bool
@@ -972,6 +978,10 @@ ForthExpressionInputStream::ForthExpressionInputStream()
 	: ForthInputStream(INITIAL_EXPRESSION_STACK_SIZE)
 	, mStackSize(INITIAL_EXPRESSION_STACK_SIZE)
 {
+    // expression input streams shouldn't be deleted when empty since they are
+    //  used multiple times
+    mbDeleteWhenEmpty = false;
+
 	mpStackBase = static_cast<char *>(__MALLOC(mStackSize));
 	mpLeftBase = static_cast<char *>(__MALLOC(mStackSize + 1));
 	mpRightBase = static_cast<char *>(__MALLOC(mStackSize + 1));
@@ -1364,14 +1374,6 @@ ForthExpressionInputStream::CombineRightIntoLeft()
 	*mpRightCursor = '\0';
 	LOG_EXPRESSION("CombineRightIntoLeft");
 	//SPEW_SHELL("ForthExpressionInputStream::CombineRightIntoLeft  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
-}
-
-
-bool
-ForthExpressionInputStream::DeleteWhenEmpty()
-{
-	// don't delete when empty
-	return false;
 }
 
 

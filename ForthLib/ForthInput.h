@@ -64,6 +64,7 @@ public:
     virtual void    CropCharacters(int numCharacters);
 
 	virtual bool	DeleteWhenEmpty();
+    virtual void    SetDeleteWhenEmpty(bool deleteIt);
 
     friend class ForthInputStack;
 
@@ -73,6 +74,7 @@ protected:
     int                 mWriteOffset;
     char                *mpBufferBase;
     int                 mBufferLen;
+    bool                mbDeleteWhenEmpty;
 };
 
 
@@ -228,7 +230,6 @@ public:
 	virtual cell*   GetInputState();
 	virtual bool    SetInputState(cell* pState);
 
-	virtual bool	DeleteWhenEmpty();
 	virtual bool	IsGenerated();
 
 protected:

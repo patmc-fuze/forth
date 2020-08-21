@@ -1,0 +1,6 @@
+; ForthDLL.def : Declares the module parameters for the DLL.
+
+LIBRARY      "ForthDLL"
+
+EXPORTS
+    ; Explicit exports can go here
