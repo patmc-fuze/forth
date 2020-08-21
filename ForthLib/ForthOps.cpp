@@ -7253,7 +7253,13 @@ FORTHOP(countLeadingZerosBop)
     NEEDS(1);
     ucell a = SPOP;
     cell result = 0;
-    ucell mask = 1 << (CELL_BITS - 1);
+    // for some reason, the following line doesn't work in 64-bit mode:
+    //ucell mask = 1L << (CELL_BITS - 1);
+#if defined(FORTH64)
+    ucell mask = 0x8000000000000000L;
+#else
+    ucell mask = 0x80000000;
+#endif
     while (mask != 0)
     {
         if ((a & mask) != 0)
