@@ -6680,10 +6680,10 @@ longConstantNegative:
 ; LOCALREF OP combo ops
 ;
 entry lroComboType
-	; rbx: bits 0..11 are frame offset in longs, bits 12-23 are op
+	; rbx: bits 0..11 are frame offset in cells, bits 12-23 are op
 	push	rbx
 	and	rbx, 0FFFH
-	sal	rbx, 2
+	sal	rbx, 3
 	mov	rax, rfp
 	sub	rax, rbx
 	sub	rpsp, 8
