@@ -34,22 +34,23 @@ struct ForthTypeInfo
 		, typeIndex(static_cast<int>(kBCIInvalid))
 	{}
 
-	ForthTypeInfo(ForthStructVocabulary* inVocab, long inOp, int inTypeIndex)
+	ForthTypeInfo(ForthStructVocabulary* inVocab, forthop inOp, int inTypeIndex)
 		: pVocab(inVocab)
 		, op(inOp)
 		, typeIndex(inTypeIndex)
 	{}
 
-    ForthStructVocabulary*      pVocab;
-    long                        op;
-	int						typeIndex;
+    ForthStructVocabulary*  pVocab;
+    forthop                 op;
+	int                     typeIndex;
 };
 
 typedef struct
 {
-	ulong						refCount;
+    forthop*                    pMethods;
+    ucell                       refCount;
 	ForthClassVocabulary*       pVocab;
-    long                        newOp;
+    forthop                     newOp;
 } ForthClassObject;
 
 typedef bool(*CustomObjectReader)(const std::string& elementName, ForthObjectReader* reader);
@@ -84,17 +85,17 @@ public:
 	void					Copy( ForthInterface* pInterface, bool isPrimaryInterface );
 	void					Implements( ForthClassVocabulary* pClass );
 	ForthClassVocabulary*	GetDefiningClass();
-	long*					GetMethods();
-	long					GetMethod( long index );
-	void					SetMethod( long index, long method );
-	long					AddMethod( long method );
-    long                    GetMethodIndex( const char* pName );
-	long					GetNumMethods();
-	long					GetNumAbstractMethods();
+	forthop*				GetMethods();
+    forthop					GetMethod( int index );
+	void					SetMethod(int index, forthop method );
+    int					    AddMethod(forthop method );
+    int                     GetMethodIndex( const char* pName );
+    int					    GetNumMethods();
+    int					    GetNumAbstractMethods();
 protected:
-	ForthClassVocabulary*	mpDefiningClass;
-    std::vector<long>		mMethods;
-	long					mNumAbstractMethods;
+	ForthClassVocabulary*   mpDefiningClass;
+    std::vector<forthop>    mMethods;
+	int                     mNumAbstractMethods;
 };
 
 // a struct accessor compound operation must be less than this length in longs
@@ -106,7 +107,7 @@ public:
     ForthTypesManager();
     ~ForthTypesManager();
 
-    virtual void    ForgetCleanup( void *pForgetLimit, long op );
+    virtual void    ForgetCleanup( void *pForgetLimit, forthop op );
 
     // compile/interpret symbol if it is a valid structure accessor
     virtual bool    ProcessSymbol( ForthParseInfo *pInfo, eForthResult& exitStatus );
@@ -131,7 +132,7 @@ public:
 	ForthInterface* GetClassInterface(int typeIndex, int interfaceIndex) const;
 
     // return vocabulary for a struct type given its opcode or name
-    ForthStructVocabulary*  GetStructVocabulary( long op );
+    ForthStructVocabulary*  GetStructVocabulary( forthop op );
 	ForthStructVocabulary*	GetStructVocabulary( const char* pName );
 
     void GetFieldInfo( long fieldType, long& fieldBytes, long& alignment );
@@ -141,7 +142,7 @@ public:
     forthBaseType           GetBaseTypeFromName( const char* typeName );
     ForthNativeType*        GetNativeTypeFromName( const char* typeName );
     long                    GetBaseTypeSizeFromName( const char* typeName );
-    long*                   GetClassMethods();
+    forthop*                GetClassMethods();
 
     virtual const char* GetTypeName();
     virtual const char* GetName();
@@ -156,11 +157,11 @@ protected:
     static ForthTypesManager*       mpInstance;
     ForthVocabulary*                mpSavedDefinitionVocab;
     char                            mToken[ DEFAULT_INPUT_BUFFER_LEN ];
-    long                            mCode[ MAX_ACCESSOR_LONGS ];
-    long*                           mpClassMethods;
+    forthop                         mCode[ MAX_ACCESSOR_LONGS ];
+    forthop*                        mpClassMethods;
 	ForthStructCodeGenerator*		mpCodeGenerator;
 	std::vector<ForthFieldInitInfo>	mFieldInitInfos;
-	int								mNewestTypeIndex;
+	cell							mNewestTypeIndex;
 };
 
 class ForthStructVocabulary : public ForthVocabulary
@@ -170,20 +171,20 @@ public:
     virtual ~ForthStructVocabulary();
 
     // return pointer to symbol entry, NULL if not found
-    virtual long *      FindSymbol( const char *pSymName, ulong serial=0 );
+    virtual forthop*    FindSymbol( const char *pSymName, ucell serial=0 );
 
     // delete symbol entry and all newer entries
     // return true IFF symbol was forgotten
     virtual bool        ForgetSymbol( const char   *pSymName );
 
     // forget all ops with a greater op#
-    virtual void        ForgetOp( long op );
+    virtual void        ForgetOp( forthop op );
 
     virtual const char* GetTypeName();
 
     virtual const char* GetType( void );
 
-    virtual void        PrintEntry( long*   pEntry );
+    virtual void        PrintEntry(forthop*   pEntry);
     static void         TypecodeToString( long typeCode, char* outBuff, size_t outBuffSize );
 
     // handle invocation of a struct op - define a local/global struct or struct array, or define a field
@@ -192,8 +193,8 @@ public:
 	virtual bool		IsStruct( void );
 
     void                AddField( const char* pName, long fieldType, int numElements );
-    long                GetAlignment( void );
-    long                GetSize( void );
+    int                 GetAlignment( void );
+    int                 GetSize( void );
     void                StartUnion( void );
     virtual void        Extends( ForthStructVocabulary *pParentStruct );
 
@@ -209,16 +210,16 @@ public:
     virtual int		    ShowDataInner(const void* pData, ForthCoreState* pCore,
         ForthStructVocabulary* pEndVocab = nullptr);
 
-	inline long			GetInitOpcode() { return mInitOpcode;  }
-	void				SetInitOpcode(long op);
+	inline forthop			GetInitOpcode() { return mInitOpcode;  }
+	void				SetInitOpcode(forthop op);
 
 protected:
-    long                    mNumBytes;
-    long                    mMaxNumBytes;
-    long                    mTypeIndex;
-    long                    mAlignment;
+    int                     mNumBytes;
+    int                     mMaxNumBytes;
+    int                     mTypeIndex;
+    int                     mAlignment;
     ForthStructVocabulary   *mpSearchNext;
-	long					mInitOpcode;
+	forthop					mInitOpcode;
 };
 
 class ForthClassVocabulary : public ForthStructVocabulary
@@ -233,21 +234,23 @@ public:
 
     virtual const char* GetTypeName();
 
-	long				AddMethod( const char* pName, long methodIndex, long op );
-	long				FindMethod( const char* pName );
+	int                 AddMethod( const char* pName, int methodIndex, forthop op );
+	int 				FindMethod( const char* pName );
 	void				Implements( const char* pName );
 	void				EndImplements( void );
 	long				GetClassId( void )		{ return mTypeIndex; }
 
 	ForthInterface*		GetInterface( long index );
+    forthop*            GetMethods();
     long                FindInterfaceIndex( long classId );
 	virtual bool		IsClass( void );
 	long				GetNumInterfaces( void );
     virtual void        Extends( ForthClassVocabulary *pParentClass );
-    ForthClassObject*   GetClassObject( void );
+    ForthClassObject*   GetClassObject(void);
+    void                FixClassObjectMethods(void);
     ForthClassVocabulary* ParentClass( void );
 
-    virtual void        PrintEntry( long*   pEntry );
+    virtual void        PrintEntry(forthop*   pEntry);
     void                SetCustomObjectReader(CustomObjectReader reader);
     CustomObjectReader  GetCustomObjectReader();
 

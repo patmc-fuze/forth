@@ -2,7 +2,10 @@ requires randoms
 
 //true -> compileDebug
 
-autoforget ADV
+autoforget collosalCaveAdventure
+vocabulary collosalCaveAdventure
+also collosalCaveAdventure definitions
+
 : ADV ;
 
 : sp!
@@ -125,7 +128,7 @@ class: Dwarf
   
   m: setLoc
     -> loc
-    //">>> Moving dwarf " %s index %d " to " %s loc ref Location findEnumSymbol if(0=) "???" endif %s %nl
+    d[ ">>> Moving dwarf " %s index %d " to " %s loc ref Location findEnumSymbol if(0=) "???" endif %s %nl ]d
   ;m
   
   m: setIndex -> index ;m
@@ -358,12 +361,13 @@ class: IGame
     -> ObjectWord t
     places.get(loc) ->o Place place
     ref place.objects -> ptrTo ObjectWord p
+    d[ "adding obj " %s t %d " to loc " %s loc %d  %bl place %x %nl ]d
     begin
-    while(p @ NOTHING <>)
-      objs(p @) ->o ObjectData obj
+    while(p i@ NOTHING <>)
+      objs(p i@) ->o ObjectData obj
       ref obj.link -> p
     repeat
-    t p !
+    t p i!
   ;m
 
 ;class
@@ -430,17 +434,17 @@ requires words
 spoo after words
 
 : goBody
-  // ." before build_vocabulary" cr   ds 
+  d[ ." before build_vocabulary" cr   ds ]d
   build_vocabulary
-  // ." before build_travel_table" cr  ds 
+  d[ ." before build_travel_table" cr  ds ]d
   build_travel_table
-  // ." before build_hints" cr  ds 
+  d[ ." before build_hints" cr  ds ]d
   build_hints
-  // ." before build_object_table" cr  ds 
+  d[ ." before build_object_table" cr  ds ]d
   game.build_object_table
-  // ." before initialSetup" cr  ds 
+  d[ ." before initialSetup" cr  ds ]d
   game.initialSetup
-  // ." before simulate_an_adventure" cr  ds 
+  d[ ." before simulate_an_adventure" cr  ds ]d
   game.simulate_an_adventure
 ;
 
@@ -465,6 +469,11 @@ spoo after words
   game.restoreStream.open(game.restoreFileName.get "r") drop
   goBody
 ;
+
+previous definitions
+
+: go collosalCaveAdventure:go ;
+: restore collosalCaveAdventure:restore ;
 
 "Type:\n\+
   go            to start a new adventure\n\+

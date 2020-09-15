@@ -1,3 +1,4 @@
+: HELPDECK ;
 
 lf notedeck.txt
 
@@ -8,18 +9,24 @@ class: HelpDeck extends NoteDeck
   NoteSchema opSchema
   NoteDef stackParamDef
   NoteDef memberTypeParamDef
+  
   NoteSchema classSchema
+  
   NoteSchema methodSchema
+  
   NoteSchema memberSchema
-  Note opsNote
-  Note classesNote
+  
+  Note opsNote                          // note for "help ops"
+  Note classesNote                      // note for "help classes"
   Note newestClassNote
-  long curFlags
+  long curTags
 
-  long kHFOp
-  long kHFMethod
-  long kHFClass
-  long kHFMember
+  long kTagOp
+  long kTagMethod
+  long kTagClass
+  long kTagMember
+  
+  byte separator
 
   m: init
     super.init("help")
@@ -38,13 +45,15 @@ class: HelpDeck extends NoteDeck
     addParamDef("type" "member type") -> memberTypeParamDef
     memberSchema.addOptionalParam(memberTypeParamDef)
     
-    1L -> kHFOp
-    2L -> kHFMethod
-    4L -> kHFClass
-    8L -> kHFMember
+    addTagDef("op" "Operator" "An executable forth operation").mask -> kTagOp
+    addTagDef("method" "Methods" "Class methods").mask -> kTagMethod
+    addTagDef("class" "Builtin classes" "Convenience classes - arrays, lists, maps, strings, threads, etc.").mask -> kTagClass
+    addTagDef("member" "Member" "Class member").mask -> kTagMember
     
     addNote("ops" "forth operators") -> opsNote
     addNote("classes" "builtin classes") -> classesNote
+    
+    `|` -> separator
   ;m
   
   m: delete
@@ -60,47 +69,47 @@ class: HelpDeck extends NoteDeck
     super.delete
   ;m
   
-  m: setFlags
-    ptrTo byte flagName
-    NoteFlagDef flagDef
+  m: setTags
+    ptrTo byte tagName
+    NoteTagDef tagDef
     
-    0l -> curFlags
+    0l -> curTags
     begin
     while(blword?)
-      -> flagName
-      if(flagMap.grab(flagName))
-        ->o flagDef
-        flagDef.mask ->+ curFlags  // note: this assumes no duplicate flag values
-        //flagName %s %bl flagDef.mask %2x %bl
+      -> tagName
+      if(tagMap.grab(tagName))
+        ->o tagDef
+        tagDef.mask ->+ curTags  // note: this assumes no duplicate tag values
+        //tagName %s %bl tagDef.mask %2x %bl
       else
-        // TODO: report error, flag not found
+        // TODO: report error, tag not found
       endif
     repeat
-    //"flags set to " %s curFlags %x %nl
+    //"tags set to " %s curTags %x %nl
   ;m
   
   m: getOpNote            // NAME ...   false   OR   NOTE_OBJ true
-    opsNote.getChild
+    opsNote getChild
   ;m
   
   m: getClassNote            // NAME ...   false   OR   NOTE_OBJ true
-    classesNote.getChild
+    classesNote getChild
   ;m
   
-  // addOp opName|stack behavior|description|extra flags
+  // addOp opName|stack behavior|description|extra tags
   m: addOp
     Note newNote
-    curFlags kHFOp l+ -> long flags
+    curTags kTagOp l+ -> long tagMask
     ptrTo byte opName
-    ptrTo byte flagName
+    ptrTo byte tagName
   
-    if(word?('|'))
+    if(word?(separator))
       -> opName
       //opName %s %nl
       addChild(opName "" opsNote) -> newNote
       
       // look for stack behavior
-      if(word?('|'))
+      if(word?(separator))
         mko NoteParam newParam
         new String -> newParam.sval
         newParam.sval.set
@@ -109,23 +118,23 @@ class: HelpDeck extends NoteDeck
       endif
       
       // look for description
-      if(word?('|'))
+      if(word?(separator))
         newNote.body.set
       endif
       
-      // look for extra flags
+      // look for extra tags
       begin
       while(blword?)
-        -> flagName
-        if(getFlag(flagName))
-          <NoteFlagDef>.mask ->+ flags  // note: this assumes no duplicate flag values
+        -> tagName
+        if(getTag(tagName))
+          <NoteTagDef>.mask ->+ tagMask  // note: this assumes no duplicate tag values
         else
-          error("addOp - extra flag not found")
+          error("addOp - extra tag not found")
         endif
         
       repeat
       
-      flags -> newNote.flags
+      tagMask -> newNote.tags
     else
       error("addOp - op name missing")
     endif
@@ -133,61 +142,60 @@ class: HelpDeck extends NoteDeck
     oclear newNote  
   ;m
   
-  // addClass className|baseClass|description|flags
+  // addClass className|baseClass|description|tags
   m: addClass
-    kHFClass -> long flags
+    kTagClass -> long tags
     ptrTo byte className
-    ptrTo byte flagName
+    ptrTo byte tagName
   
-    if(word?('|'))
+    if(word?(separator))
       -> className
       //className %s %nl
       addChild(className "" classesNote) -> newestClassNote
       
       // look for baseClass
-      if(word?('|'))
+      if(word?(separator))
         // TODO!
         drop
       endif
       
       // look for description
-      if(word?('|'))
+      if(word?(separator))
         newestClassNote.body.set
       endif
       
-      // look for flags
+      // look for tags
       begin
       while(blword?)
-        -> flagName
-        if(getFlag(flagName))
-          <NoteFlagDef>.mask ->+ flags  // note: this assumes no duplicate flag values
+        -> tagName
+        if(getTag(tagName))
+          <NoteTagDef>.mask ->+ tags  // note: this assumes no duplicate tag values
         else
-          error("addOp - extra flag not found")
+          error("addOp - extra tag not found")
         endif
         
       repeat
       
-      flags -> newestClassNote.flags
+      tags -> newestClassNote.tags
     else
       error("addClass - class name missing")
     endif
   ;m
   
-  // addMethod methodName|stack behavior|description|extra flags
+  // addMethod methodName|stack behavior|description|extra tags
   m: addMethod
     Note newMethodNote
-    curFlags kHFMethod l+ -> long flags
+    curTags kTagMethod l+ -> long tags
     ptrTo byte methodName
-    ptrTo byte flagName
+    ptrTo byte tagName
   
-    if(word?('|'))
+    if(word?(separator))
       -> methodName
       //methodName %s %nl
       addChild(methodName "" newestClassNote) -> newMethodNote
-      newestClassNote.id -> newMethodNote.parent
       
       // look for stack behavior
-      if(word?('|'))
+      if(word?(separator))
         mko NoteParam newParam
         new String -> newParam.sval
         newParam.sval.set
@@ -196,23 +204,23 @@ class: HelpDeck extends NoteDeck
       endif
       
       // look for description
-      if(word?('|'))
+      if(word?(separator))
         newMethodNote.body.set
       endif
       
-      // look for extra flags
+      // look for extra tags
       begin
       while(blword?)
-        -> flagName
-        if(getFlag(flagName))
-          <NoteFlagDef>.mask ->+ flags  // note: this assumes no duplicate flag values
+        -> tagName
+        if(getTag(tagName))
+          <NoteTagDef>.mask ->+ tags  // note: this assumes no duplicate tag values
         else
-          error("addOp - extra flag not found")
+          error("addOp - extra tag not found")
         endif
         
       repeat
       
-      flags -> newMethodNote.flags
+      tags -> newMethodNote.tags
     else
       error("addMethod - method name missing")
     endif
@@ -220,42 +228,41 @@ class: HelpDeck extends NoteDeck
     oclear newMethodNote  
   ;m
   
-  // addMember memberName|type|description|extra flags
+  // addMember memberName|type|description|extra tags
   m: addMember
     Note newMemberNote
-    kHFMember -> long flags
+    kTagMember -> long tags
     ptrTo byte memberName
-    ptrTo byte flagName
+    ptrTo byte tagName
   
-    if(word?('|'))
+    if(word?(separator))
       -> memberName
       //memberName %s %nl
       addChild(memberName "" newestClassNote) -> newMemberNote
-      newestClassNote.id -> newMemberNote.parent
       
       // look for type
-      if(word?('|'))
+      if(word?(separator))
         drop // TODO!
       endif
       
       // look for description
-      if(word?('|'))
+      if(word?(separator))
         newMemberNote.body.set
       endif
       
-      // look for extra flags
+      // look for extra tags
       begin
       while(blword?)
-        -> flagName
-        if(getFlag(flagName))
-          <NoteFlagDef>.mask ->+ flags  // note: this assumes no duplicate flag values
+        -> tagName
+        if(getTag(tagName))
+          <NoteTagDef>.mask ->+ tags  // note: this assumes no duplicate tag values
         else
-          error("addOp - extra flag not found")
+          error("addOp - extra tag not found")
         endif
         
       repeat
       
-      flags -> newMemberNote.flags
+      tags -> newMemberNote.tags
     else
       error("addMember - member name missing")
     endif
@@ -270,9 +277,9 @@ class: HelpDeck extends NoteDeck
     begin
     while(iter.next)
       ->o foundNote
-      if(foundNote.flags kHFOp land l0<>)
+      if(foundNote.tags kTagOp land l0<>)
         foundNote.name.get %s " - " %s foundNote.body.get %s %nl
-        //foundNote.name.get %s %bl foundNote.flags %2x " - " %s foundNote.body.get %s %nl
+        //foundNote.name.get %s %bl foundNote.tags %2x " - " %s foundNote.body.get %s %nl
       endif
     repeat
     oclear iter
@@ -285,9 +292,21 @@ class: HelpDeck extends NoteDeck
     begin
     while(iter.next)
       ->o foundNote
-      if(foundNote.flags kHFClass land l0<>)
+      if(foundNote.tags kTagClass land l0<>)
         foundNote.name.get %s " - " %s foundNote.body.get %s %nl
       endif
+    repeat
+    oclear iter
+  ;m
+  
+  m: listSections
+    NoteTagDef tagDef
+    tags.headIter -> ArrayIter iter
+    
+    begin
+    while(iter.next)
+      ->o tagDef
+      tagDef.name.get %s " - " %s tagDef.description.get %s %nl
     repeat
     oclear iter
   ;m
@@ -304,34 +323,49 @@ class: HelpDeck extends NoteDeck
         
       else
       
-        if(classesNote.getChild(helpTarget))
+        if(getChild(helpTarget classesNote))
+          // help CLASSNAME
           ->o foundNote
           helpTarget %s " - " %s foundNote.body.get %s %nl
          
-          foundNote.children.headIter -> StringMapIter mapIter
+          getLinkIter(foundNote) -> NoteLinkIter linkIter
           begin
-          while(mapIter.next)
-            ->o Note methodNote
+          while(linkIter.next(kLTChild))
+            -> int childNodeId
+            notes.get(childNodeId) ->o Note methodNote
             "   " %s methodNote.name.get %s " - " %s methodNote.body.get %s %nl
             if(methodNote.getParam(stackParamDef.id))
               ->o stackBehavior
               "      " %s stackBehavior.sval.get %s %nl
             endif
           repeat
-        else
-          if(opsNote.getChild(helpTarget))
+          oclear linkIter
+        elseif(tagMap.grab(helpTarget))
+          // help SECTIONNAME
+          -> NoteTagDef tagDef
+          notes.headIter -> ArrayIter noteIter
+          begin
+          while(noteIter.next)
             ->o foundNote
-            helpTarget %s " - " %s foundNote.body.get %s %nl
-            if(foundNote.getParam(stackParamDef.id))
+            if(and(foundNote.tags tagDef.mask))
+              foundNote.name.get %s " - " %s foundNote.body.get %s %nl
+            endif
+          repeat
+        elseif(getChild(helpTarget opsNote))
+          // help OPNAME
+          ->o foundNote
+          helpTarget %s " - " %s foundNote.body.get %s %nl
+          if(foundNote.getParam(stackParamDef.id))
               ->o stackBehavior
               stackBehavior.sval.get %s %nl
-            endif
-          else
-            "help - " %s helpTarget %s " not found\n" %s
           endif
+        else
+            "help - " %s helpTarget %s " not found\n" %s
         endif
       endif
     else
+      "=========== Sections ===========\n" %s
+      listSections
       "=========== Operators ===========\n" %s
       listOperators
       "=========== Classes ===========\n" %s
@@ -348,8 +382,8 @@ class: HelpDeck extends NoteDeck
     while(iter.next)
       valueLength + -> ptrTo byte pEntry
       opName.setBytes(pEntry 1+ pEntry c@)
-      if(opsNote.getChild(opName.get))
-        2drop
+      if(getChild(opName.get opsNote))
+        drop
       else
         opName.get %s " not found in help.\n" %s
       endif
@@ -373,50 +407,47 @@ helpDeck.init
   helpDeck.check
 ;
 
-: mkf
-  helpDeck.addFlagDef(blword $word('|') $word(0)) 2drop
+: mkTag
+  helpDeck.addTagDef(blword $word(helpDeck.separator) $word(0)) drop
 ;
 
-// op, method and class must be first three flags to match with kHFOp, kHFMethod and kHFClass
-mkf op Operator|An executable forth operation
-mkf method Methods|Class methods
-mkf class Builtin classes|Convenience classes - arrays, lists, maps, strings, threads, etc.
+// op, method, class and member tags are defined in HelpDeck:init
 
-mkf control Control|Ops which change the flow of execution
-mkf immediate Immediate|Ops which are executed at compile time
-mkf classdef Class defining|Ops which are used to define classes or class instances
-mkf method Methods|Class methods
-mkf struct Structure defining|Ops which are used to define structures
-mkf stack Parameter stack manipulation|Ops which manipulate the parameter stack
-mkf logic Logical|Ops which do logic operations
-mkf math Arithmetic|Ops which do math
+mkTag control Control|Ops which change the flow of execution
+mkTag immediate Immediate|Ops which are executed at compile time
+mkTag classdef Class defining|Ops which are used to define classes or class instances
+mkTag method Methods|Class methods
+mkTag struct Structure defining|Ops which are used to define structures
+mkTag stack Parameter stack manipulation|Ops which manipulate the parameter stack
+mkTag logic Logical|Ops which do logic operations
+mkTag math Arithmetic|Ops which do math
 
-mkf int 32-bit integer|Ops for 32-bit integers
-mkf float Single-precision floating-point|Ops for single-precision floating point numbers
-mkf double Double-precision floating-point|Ops for double-precision floating point numbers
-mkf long 64-bit integer|Ops for 64-bit integers
-mkf string String|Ops for strings
+mkTag int 32-bit integer|Ops for 32-bit integers
+mkTag float Single-precision floating-point|Ops for single-precision floating point numbers
+mkTag double Double-precision floating-point|Ops for double-precision floating point numbers
+mkTag long 64-bit integer|Ops for 64-bit integers
+mkTag string String|Ops for strings
 
-mkf print Printing|Ops which output to the console
-mkf format Formatting|Ops which format text
-mkf internal Internal|Forth compilation internals
-mkf defining Defining words|Ops for defining ops and functions
-mkf native Native type defining words|Ops for defining variables or fields of native types - int, float, double, etc.
-mkf compare Comparison|Compare numeric values
-mkf convert Conversion|Conversion between numeric types
-mkf memory Memory|Memory fetch and store
-mkf file File|Ops for files
-mkf dir Directory|Ops for directories
-mkf system System|System ops
-mkf if If|Part of if statement
-mkf case Case|Part of case statement
-mkf loop Loop|Part of do or begin loops
+mkTag print Printing|Ops which output to the console
+mkTag format Formatting|Ops which format text
+mkTag internal Internal|Forth compilation internals
+mkTag defining Defining words|Ops for defining ops and functions
+mkTag native Native type defining words|Ops for defining variables or fields of native types - int, float, double, etc.
+mkTag compare Comparison|Compare numeric values
+mkTag convert Conversion|Conversion between numeric types
+mkTag memory Memory|Memory fetch and store
+mkTag file File|Ops for files
+mkTag dir Directory|Ops for directories
+mkTag system System|System ops
+mkTag if If|Part of if statement
+mkTag case Case|Part of case statement
+mkTag loop Loop|Part of do or begin loops
 
 // add string compile if loop case except
 // ? short byte unsigned
 
-: flags:
-  helpDeck.setFlags
+: tags:
+  helpDeck.setTags
 ;
 
 : addOp
@@ -439,11 +470,12 @@ mkf loop Loop|Part of do or begin loops
   helpDeck.help
 ;
 
-flags: control
+tags: control
 addOp if|BOOL ...|start if statement|if
 addOp andif|BOOL ...|add andif clause|if
 addOp orif|BOOL ...|add orif clause|if
 addOp else||start else branch of if statement|if
+addOp elseif||start elseif branch of if statement|if
 addOp endif||end if statement|if
 addOp begin||begin loop statement|loop
 addOp until|BOOL ...|loop back to "begin" if BOOL is false|loop
@@ -459,7 +491,7 @@ addOp endof||end case branch|case
 addOp endcase|TESTVAL ...|end all cases - drops TESTVAL|case
 addOp abort||terminate execution with fatal error
 
-flags: stack
+tags: stack
 addOp drop|VAL ...|drop top element of param stack
 addOp dup|A ... A A|duplicate top of stack
 addOp ?dup|VARIABLE|duplicate TOS if non 0
@@ -482,7 +514,7 @@ addOp 2rot|DA DB DC ... DB DC DA|
 addOp r[||push SP on rstack, used with ]r to count a variable number of arguments
 addOp ]r||remove old SP from rstack, push count of elements since r[ on TOS
 
-flags: internal
+tags: internal
 addOp _doDoes||compiled at start of "does" section of words created by a builds...does word
 addOp _doVariable||compiled at start of words defined by "variable"
 addOp _doConstant||compiled at start of words defined by "constant"
@@ -529,9 +561,8 @@ addOp _loop||compiled at end of do loop
 addOp _+loop||compiled at end of do +loop
 addOp _doNew|CLASS_TYPE_INDEX ... NEW_OBJECT|compiled by 'new', takes class type index, executes class 'new' operator|classdef
 addOp _allocObject|CLASS_VOCAB_PTR...NEW_OBJECT|default class 'new' operator, mallocs spaces for a new object instance and pushes new object|classdef
-addOp vocabToClass||varop setter, putting this before a vocab op makes it return vocabs class object
 
-flags: int math
+tags: int math
 addOp +|A B ... (A+B)|add top two items
 addOp -|A B ... (A-B)|subtract top two items
 addOp *|A B ... (A*B)|mutliply top two items
@@ -546,7 +577,7 @@ addOp /mod|A B ... (A/B) (A mod B)|divide top two items, return quotient & remai
 addOp mod|A B ... (A mod B)|take modulus of top two items
 addOp negate|A ... (-A)|negate top item
 
-flags: int compare
+tags: int compare
 addOp =|A B ... A=B|
 addOp <>|A B ... A<>B|
 addOp >|A B ... A>B|
@@ -565,7 +596,7 @@ addOp within|VAL LO HI ... (LO<=VAL<HI)|
 addOp min|A B ... min(A,B)|
 addOp max|A B ... max(A,B)|
 
-flags: float math
+tags: float math
 addOp f+|FA FB ... (FA+FB)|add top two floating point items
 addOp f-|FA FB ... (FA-FB)|subtract top two floating point items
 addOp f*|FA FB ... (FA*FB)|multiply top two floating point items
@@ -590,7 +621,7 @@ addOp ffrexp|FA ... frac(FA) exponent(FA)|
 addOp fmodf|FA ... frac(FA) whole(FA)|
 addOp ffmod|FA FB ... fmod(FA,FB)|
 
-flags: float compare
+tags: float compare
 addOp f=|FA FB ... FA=FB|
 addOp f<>|FA FB ... FA<>FB|
 addOp f>|FA FB ... FA>FB|
@@ -607,7 +638,7 @@ addOp fwithin|FVAL FLO FHI ... (FLO<=FVAL<FHI)|
 addOp fmin|FA FB... min(FA,FB)|
 addOp fmax|FA FB... max(FA,FB)|
 
-flags: float block
+tags: float block
 addOp fAddBlock|SRCA SRCB DST NUM ...|add blocks of NUM floats at SRCA and SRCB and store results in DST
 addOp fSubBlock|SRCA SRCB DST NUM ...|subtract blocks of NUM floats at SRCA and SRCB and store results in DST
 addOp fMulBlock|SRCA SRCB DST NUM ...|multiply blocks of NUM floats at SRCA and SRCB and store results in DST
@@ -616,7 +647,7 @@ addOp fScaleBlock|SRC DST SCALE NUM ...|multiply block of NUM floats at SRC by S
 addOp fOffsetBlock|SRC DST OFFSET NUM ...|add OFFSET to block of NUM floats at SRC and store results in DST
 addOp fMixBlock|SRC DST SCALE NUM ...|multiply block of NUM floats at SRC by SCALE and add results into DST
 
-flags: double math
+tags: double math
 addOp d+|DA DB ... (DA+DB)|add top two double floating point items
 addOp d-|DA DB ... (DA-DB)|subtract top two double floating point items
 addOp d*|DA DB ... (DA*DB)|multiply top two double floating point items
@@ -641,7 +672,7 @@ addOp dfrexp|DA ... frac(DA) exponent(DA)|
 addOp dmodf|DA ... frac(DA) whole(DA)|
 addOp dfmod|DA DB ... fmod(DA,DB)|
 
-flags: double compare
+tags: double compare
 addOp d=|DA DB ... DA=DB|double
 addOp d<>|DA DB ... DA<>DB|
 addOp d>|DA DB ... DA>DB|
@@ -658,7 +689,7 @@ addOp dwithin|DVAL DLO DHI ... (DLO<=DVAL<DHI)|
 addOp dmin|DA DB ... min(DA,DB)|
 addOp dmax|DA DB ... max(DA,DB)|
 
-flags: double block
+tags: double block
 addOp dAddBlock|SRCA SRCB DST NUM ...|add blocks of NUM doubles at SRCA and SRCB and store results in DST
 addOp dSubBlock|SRCA SRCB DST NUM ...|subtract blocks of NUM doubles at SRCA and SRCB and store results in DST
 addOp dMulBlock|SRCA SRCB DST NUM ...|multiply blocks of NUM doubles at SRCA and SRCB and store results in DST
@@ -667,7 +698,7 @@ addOp dScaleBlock|SRC DST SCALE NUM ...|multiply block of NUM doubles at SRC by 
 addOp dOffsetBlock|SRC DST OFFSET NUM ...|add OFFSET to block of NUM doubles at SRC and store results in DST
 addOp dMixBlock|SRC DST SCALE NUM ...|multiply block of NUM doubles at SRC by SCALE and add results into DST
 
-flags: convert
+tags: convert
 addOp i2f|A ... float(A)|convert int to float|int float
 addOp i2d|A ... double(A)|convert int to double|int double
 addOp f2i|A ... int(A)|convert float to int|int float
@@ -680,7 +711,7 @@ addOp l2d|LONGA ... DOUBLEA|convert signed 64-bit int to 64-bit float|long doubl
 addOp f2l|FLOATA ... LONGA|convert 32-bit float to signed 64-bit int|float long
 addOp d2l|DOUBLEA ... LONGA|convert 64-bit float to signed 64-bit int|double long
 
-flags: logic
+tags: logic
 addOp or|A B ... or(A,B)|
 addOp and|A B ... and(A,B)|
 addOp xor|A B ... xor(A,B)|
@@ -693,14 +724,14 @@ addOp true|... -1|
 addOp false|... 0|
 addOp null|... 0|
 
-flags: rstack
+tags: rstack
 addOp >r|A ...|pushes top of param stack on top of return stack
 addOp r>|... A|pops top of return stack to top of param stack
 addOp rdrop||drops top of return stack
 addOp rp|... RETURN_STACK_PTR|return pointer to top of return stack
 addOp r0|... EMPTY_RETURN_STACK_PTR|return pointer to bottom of return stack (top if empty)
 
-flags: memory
+tags: memory
 addOp @|PTR ... A|fetches longword from address PTR
 addOp 2@|PTR ... DA|fetch double from address PTR
 addOp ref|ref VAR ... PTR|return address of VAR
@@ -719,7 +750,7 @@ addOp fill|DST N A ...|fill N bytes at DST with byte value A
 addOp varAction!|A varAction! ...|set varAction to A (use not recommended)
 addOp varAction@|varAction@ ... A|fetch varAction (use not recommended)
 
-flags: string
+tags: string
 addOp strcpy|STRA STRB ...|copies string from STRB to STRA
 addOp strncpy|STRA STRB N ...|copies up to N chars from STRB to STRA
 addOp strlen|STR ... LEN|returns length of string at STR
@@ -733,7 +764,7 @@ addOp strncmp|STRA STRB N ... V|returns 0 iff STRA = STRB ignoring case, else re
 addOp strstr|STRA STRB ... PTR|returns ptr to first occurence of STRB in string STRA
 addOp strtok|STRA STRB ... PTR|returns ptr to next token in STRA, delimited by a char in STRB, modifies STRA, pass 0 for STRA after first call
 
-flags: file
+tags: file
 addOp fopen|PATH_STR ATTRIB_STR ... FILE|open file
 addOp fclose|FILE ... RESULT|close file
 addOp fseek|FILE OFFSET CTRL ... RESULT|seek in file, CTRL: 0 from start, 1 from current, 2 from end 
@@ -751,7 +782,7 @@ addOp stdin|... FILE|get standard in file
 addOp stdout|... FILE|get standard out file
 addOp stderr|... FILE|get standard error file
 
-flags: long math
+tags: long math
 addOp l+|LA LB ... (LA+LB)|
 addOp l-|LA LB ... (LA-LB)|
 addOp l*|LA LB ... (LA*LB)|
@@ -760,7 +791,7 @@ addOp lmod|LA LB ... (LA mod LB)|
 addOp l/mod|A B ... (LA/LB) (LA mod LB)|divide top two items, return quotient & remainder
 addOp lnegate|A ... (-LA)|negate top item
 
-flags: long compare
+tags: long compare
 addOp l=|LA LB ... LA=LB|
 addOp l<>|LA LB ... LA<>LB|
 addOp l>|LA LB ... LA>LB|
@@ -777,14 +808,14 @@ addOp lwithin|LVAL LLO LHI ... (LLO<=LVAL<LHI)|
 addOp lmin|LA LB ... min(LA,LB)|
 addOp lmax|LA LB ... max(LA,LB)|
 
-flags: except
+tags: except
 addOp try||start of code section protected by exception handler
 addOp except||start of exception handler code
 addOp finally||defines code run after exception handler
 addOp endtry||end of exception handler
 addOp raise|EXCEPTION_NUM ...|raise an exception
 
-flags: defining
+tags: defining
 addOp builds||starts a builds...does definition
 addOp does||starts the runtime part of a builds...does definition
 addOp exit||exit current hi-level op
@@ -847,7 +878,7 @@ addOp postpone|postpone NAME|compile opcode of NAME, including ops which have pr
 addOp compile|compile OPCODE|compile immediately following opcode (opcode must not have precedence)
 addOp [']|['] NAME|push opcode of NAME (has precedence)
 
-flags: print
+tags: print
 addOp .|NUM ...|prints number in current base followed by space
 addOp .2|LNUM ...|prints 64-bit number in current base followed by space
 addOp %d|NUM ...|prints number in decimal
@@ -884,7 +915,7 @@ addOp printDecimalSigned|makes all decimal printing signed, printing in any othe
 addOp printAllSigned|makes printing in any base signed
 addOp printAllUnsigned|makes printing in any base unsigned
 
-flags: dll
+tags: dll
 addOp DLLVocabulary|DLLVocabulary VOCAB_NAME DLL_FILEPATH|creates a new DLL vocabulary, also loads the dll
 addOp addDLLEntry|NUM_ARGS "ENTRY_NAME" ...|adds a new entry point to current definitions DLL vocabulary
 addOp addDLLEntryEx|NUM_ARGS "OP_NAME" "ENTRY_NAME" ...|adds a new entry point to current definitions DLL vocabulary
@@ -1029,8 +1060,8 @@ addClass Class|Object|Class object
 addMethod create|... OBJECT|create a new instance of this class
 addMethod getParent|... SUPERCLASS_OBJECT|get the class object for the parent of this class
 addMethod getName|... CLASSNAME|get the class name string
-addMethod getVocabulary|... VOCAB_PTR|get the class vocabulary pointer
-addMethod getInterface|INTERFACE_NAME ... OBJECT|get named interface methods
+addMethod getVocabulary|... VOCAB_OBJECT|get the class vocabulary object
+addMethod getTypeIndex|... INT_TYPE_INDEX|get the class type index
 addMethod setNew|OP ...|set 'new' operator for this class
 
 addClass Iter|Object|Abstract iterator
@@ -1311,6 +1342,16 @@ addMethod current|... OBJECT true   OR   false|return item at iterator cursor an
 addMethod seek|INDEX ...|set iterator to position specified by INDEX
 addMethod tell|... INDEX|return position of iterator
 addMember parent|Triple|Triple object this iter is associated with
+
+addClass Deque|Object|double ended queue of objects
+addMethod count|... count|return number of objects in this queue
+addMethod clear|...|empty queue
+addMethod pushHead|OBJ ...|add object to head of queue
+addMethod pushTail|OBJ ...|add object to tail of queue
+addMethod popHead|... OBJ|remove object from head of queue
+addMethod popTail|... OBJ|remove object from tail of queue
+addMethod peekHead|... OBJ|copy object from head of queue
+addMethod peekTail|... OBJ|copy object from tail of queue
 
 addClass List|Iterable|linked list of objects
 addMethod find|OBJECT ... ITER true   OR   false|return list iterator at position of found object
@@ -1666,8 +1707,11 @@ addMethod getSearchVocabAt|INT_DEPTH ... VOCAB_OBJECT|return the vocabulary at s
 addMethod getSearchVocabTop|... VOCAB_OBJECT|return the vocabulary on top of forth search stack
 addMethod setSearchVocabTop|VOCAB_OBJECT ...|replace the top of search vocabulary with specified vocabulary
 addMethod pushSearchVocab|VOCAB_OBJECT ...|push VOCAB_OBJECT on top of forth search vocabulary
-addMethod getVocabByName|NAME_PTR ... VOCAB_OBJECT|return named vocabulary object, dnull if not found
+addMethod getVocabByName|NAME_PTR ... VOCAB_OBJECT|return named vocabulary object, null if not found
 addMethod getOpsTable|... OPTABLE_PTR|
+addMethod getClassByIndex|INT_TYPE_INDEX ... CLASS_OBJECT|return class object for specified type index, null if index out of range or not a class
+addMethod getNumClasses|... INT_TYPE_INDEX|return 1 more than highest class index
+
 addMethod createAsyncThread|MAINLOOP_OP INT_PSTACK_SIZE INT_RSTACK_SIZE ... SYNC_THREAD_OBJECT|create an asynchronous thread with specified stacks and main loop op
 addMethod createAsyncLock|... ASYNC_LOCK_OBJECT|create an asynchronous lock object
 addMethod createAsyncSemaphore|... ASYNC_SEMAPHORE_OBJECT|create an asynchronous semaphore object
@@ -1700,6 +1744,107 @@ addMember fd|uint|socket file descriptor
 addMember domain|uint|socket domain
 addMember type|uint|socket type
 addMember protocol|uint|socket protocol
+
+// NoteDeck, Note and supporting classes
+addClass NoteDef|Object|just a base class for flags, tags and schemas
+addMember id|int|index into tags/flags/schemas/params arrays
+addMember name|String|name of this definition (for searching)
+addMember description|String|text for this definition
+addMethod init|NAME DESCRIPTION ID ...|initialize this definition
+
+addClass NoteTagDef|NoteDef|defines a binary attribute for Notes
+addMember displayName|String|title of this tag definition for display
+addMember mask|long|bitmask for this attribute
+addMethod init|NAME DISPLAY_NAME DESCRIPTION ID ...|initialize a tag definition
+
+addClass NoteSchema|NoteDef|define a schema for notes
+addMember requiredParams|IntArray|array of required param ids for a note with this schema
+addMember optionalParams|IntArray|array of optional param ids for a note with this schema
+addMethod init|NAME DISPLAY_NAME DESCRIPTION ID ...|initialize a schema definition
+addMethod addOptionalParam|ID ...|add an optional param to this schema
+addMethod addRequiredParam|ID ...|add a required param to this schema
+
+addClass NoteParam|Object|parameter values for a note
+addMethod getInt|... INT_VALUE|get integer param value
+addMethod setInt|INT_VALUE ...|set integer param value
+addMethod getFloat|... INT_VALUE|get float param value
+addMethod setFloat|INT_VALUE ...|set float param value
+addMethod getLong|... INT_VALUE|get long param value
+addMethod setLong|INT_VALUE ...|set long param value
+addMethod getDouble|... INT_VALUE|get double param value
+addMethod setDouble|INT_VALUE ...|set double param value
+addMethod getString|... STRING_OBJ|get string param value
+addMethod setString|STRING_OBJ ...|set string param value
+
+addClass Note|Object|virtual notecard
+addMember id|int|index into containing NoteDeck notes array
+addMember schema|int|index into containing NoteDeck schemas array, 0 for default schema
+addMember name|String|name of this note
+addMember body|String|text of this note
+addMember children|StringMap of Note|map from note names to children notes of this note
+addMember params|IntMap of NoteParam|
+addMember tags|long|binary attributes of this note
+addMember links|IntArray|array of links for this note
+addMethod init|NAME BODY ID ...|initialize this note
+addMethod getParam|PARAM_ID ...   false   OR   PARAM_OBJ true|get a parameter for this note
+
+addClass NoteDeck|Object|Collection of Notes
+addMember name|String|name of the note deck
+addMember notes|Array of Note|notes in this deck
+addMember noteMap|StringMap|map from a global notes name to the Note
+addMember tags|Array of NoteTagDef|tag definitions for this deck
+addMember tagMap|StringMap|map from name to tag definition
+addMember schemas|Array of NoteSchema|schemas for this deck
+addMember schemaMap|StringMap|map from name to schema
+addMember params|Array of NoteDef|parameter definitions for this deck
+addMember paramMap|StringMap|map from name to parameter definition
+addMethod clearAll||
+addMethod addTagDef|NAME DISPLAY_NAME DESCRIPTION ... NEW_TAG_DEF|
+addMethod getTag|NAME ...    false   OR   TAG_DEF_OBJ true|
+addMethod addSchema|NAME DESCRIPTION ... NEW_SCHEMA|
+addMethod getSchema|NAME ...    false   OR   SCHEMA_OBJ true|
+addMethod addParamDef|NAME DESCRIPTION ... NEW_PARAM_DEF|
+addMethod getParam|NAME ...    false   OR   PARAM_DEF_OBJ true|
+addMethod addNote|NAME BODY ... NEW_NOTE|
+addMethod getChild|NAME NOTE ...   false   OR   NOTE_OBJ true|get a named child of this note
+addMethod addChild|NAME BODY PARENT_NOTE ... NEW_NOTE|
+addMethod getNote|NAME ...   false   OR   NOTE_OBJ true|
+addMethod init|NOTEBOOK_NAME ...|
+addMethod newestNote|... NOTE_OBJ|
+
+addClass HelpDeck|NoteDeck|help system deck
+addMember opSchema|NoteSchema|
+addMember stackParamDef|NoteDef|
+addMember memberTypeParamDef|NoteDef|
+addMember classSchema|NoteSchema|
+addMember methodSchema|NoteSchema|
+addMember memberSchema|NoteSchema|
+addMember opsNote|Note|note for "help ops"
+addMember classesNote|Note|note for "help classes"
+addMember newestClassNote|Note|
+addMember curTags|long|
+addMember kTagOp|long|
+addMember kTagMethod|long|
+addMember kTagClass|long|
+addMember kTagMember|long|
+addMethod init||initialize help deck
+addMethod setTags||set current flags to immediately following names
+addMethod getOpNote|NAME ...   false   OR   NOTE_OBJ true|get op selected by name
+addMethod getClassNote|NAME ...   false   OR   NOTE_OBJ true|get class selected by name
+
+// use slash for separator so description can have '|' in it
+helpDeck.separator
+`/` -> helpDeck.separator
+addMethod addOp//add help for op, immediately followed by name|stack behavior|description|extra flags
+addMethod addClass//add help for class, immediately followed by className|baseClass|description|flags
+addMethod addMethod//add help for class method, immediately followed by methodName|stack behavior|description|extra flags
+addMethod addMember//add help for class member, immediately followed by memberName|type|description|extra flags
+-> helpDeck.separator
+
+addMethod listOperators||list all operators
+addMethod listClasses||list all classes
+addMethod help||show help for immediately following symbol
+addMethod check||show forth symbols which there is no help defined
 
 loaddone
 

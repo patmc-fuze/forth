@@ -55,9 +55,9 @@ enum: SDLScreenOriginMode
 
 class: SDLScreen extends SDLSurface
 
-  int window           // SDL_Window
-  int renderer         // SDL_Renderer
-  int windowTexture    // SDL_Texture
+  cell window           // SDL_Window
+  cell renderer         // SDL_Renderer
+  cell windowTexture    // SDL_Texture
 
   int width
   int height
@@ -71,9 +71,9 @@ class: SDLScreen extends SDLSurface
   int pixelColor
   int centerX 
   int centerY
-  int centerPixelAddr
-  int minPixelAddr
-  int maxPixelAddr
+  cell centerPixelAddr
+  cell minPixelAddr
+  cell maxPixelAddr
   int drawDepth
   SDL_Rect srcPos
   SDL_Rect dstPos
@@ -85,7 +85,7 @@ class: SDLScreen extends SDLSurface
   SDLScreenOriginMode originMode  // must be set before init or initWithSize
   int xPitch        // like bytesPerPixel, but takes x axis orientation into account
   int yPitch        // like bytesPerRow, but takes y axis orientation into account
-  int mFont
+  cell mFont
   String mFontFile
   int mFontSize
 
@@ -229,13 +229,13 @@ class: SDLScreen extends SDLSurface
           0x55 -> pixelColor
         endof
         of( 2 )
-          lit w@ -> pixel@
-          lit w! dup -> pixel! -> rawPixel!
+          lit s@ -> pixel@
+          lit s! dup -> pixel! -> rawPixel!
           0x5555 -> pixelColor
         endof
         of( 4 )
-          lit @ -> pixel@
-          lit ! dup -> pixel! -> rawPixel!
+          lit i@ -> pixel@
+          lit i! dup -> pixel! -> rawPixel!
           0x00FFFF00 -> pixelColor
         endof
         // unhandled pixel size
@@ -726,7 +726,7 @@ SDLScreen screenInstance
 ;
 
 : endSDL
-  if( screenInstance l0<> )
+  if( screenInstance objNotNull )
     screenInstance.end
     oclear screenInstance
   endif
@@ -751,6 +751,22 @@ SDLScreen screenInstance
 : beginFrame screenInstance.beginFrame ;
 : endFrame screenInstance.endFrame ;
 : dt screenInstance.drawText ;
+
+: munch
+  int v  int x  int y
+  
+  beginFrame
+  do(256 0)
+    do(256 0)
+      //screenInstance.getPixel(i j) -> v
+      //xor(i j) 0x10101 * -> v
+      xor(i j) 0x10101 * -> v
+      sc(v)
+      dp(i j)
+    loop
+  loop
+  endFrame
+;
 
 : test
   sc( 0xFFFF00 )

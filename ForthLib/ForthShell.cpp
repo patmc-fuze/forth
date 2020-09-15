@@ -67,7 +67,7 @@ namespace
         nullptr
     };
 
-    void GetTagString( unsigned long tag, char* pMsg )
+    void GetTagString( cell tag, char* pMsg )
     {
         bool foundOne = false;
         int mask = 1;
@@ -105,11 +105,11 @@ namespace
         return result;
     }
 
-    int fileGetLength( FILE* pFile )
+    long fileGetLength( FILE* pFile )
     {
-        int oldPos = ftell( pFile );
+        long oldPos = ftell( pFile );
         fseek( pFile, 0, SEEK_END );
-        int result = ftell( pFile );
+        long result = ftell( pFile );
         fseek( pFile, oldPos, SEEK_SET );
         return result;
     }
@@ -138,28 +138,34 @@ namespace
 #endif
 	}
 
-}
+    // return is a DIR*
+    void* openDir(const char* pPath)
+    {
+        return opendir(pPath);
+    }
 
-// return is a DIR*
-void* openDir( const char* pPath )
-{
-	return opendir( pPath );
-}
+    // return is a struct dirent*
+    void* readDir(void* pDir, void* pEntry)
+    {
+        struct dirent* pResult = readdir((DIR*)pDir);
+        if (pResult)
+        {
+            memcpy(pEntry, pResult, sizeof(struct dirent));
+        }
 
-// return is a struct dirent*
-void* readDir( void* pDir )
-{
-	return readdir( (DIR*) pDir );
-}
+        return pResult;
+    }
 
-int closeDir( void* pDir )
-{
-	return closedir( (DIR*) pDir );
-}
+    int closeDir(void* pDir)
+    {
+        return closedir((DIR*)pDir);
+    }
 
-void rewindDir( void* pDir )
-{
-	rewinddir( (DIR*) pDir );
+    void rewindDir(void* pDir)
+    {
+        rewinddir((DIR*)pDir);
+    }
+
 }
 
 #if defined(WIN32)
@@ -521,7 +527,7 @@ char* ForthShell::AddToInputLine(const char* pBuffer)
     if (pBuffer != nullptr)
     {
         // add on continuation lines if necessary
-        int lineLen = strlen(pBuffer);
+        int lineLen = (int)strlen(pBuffer);
         int lenWithoutContinuation = lineLen - CONTINUATION_MARKER_LEN;
         if (lenWithoutContinuation >= 0)
         {
@@ -590,7 +596,7 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
             {
                 if ( mPoundIfDepth == 0 )
                 {
-					long marker = mpStack->Pop();
+					cell marker = mpStack->Pop();
 					if (marker != kShellTagPoundIf)
 					{
 						// error - unexpected else
@@ -624,7 +630,7 @@ eForthResult ForthShell::ProcessLine( const char *pSrcLine )
                 ForthCoreState* pCore = mpEngine->GetCoreState();
                 if ( GET_SDEPTH > 0 )
                 {
-                    long expressionResult = SPOP;
+                    cell expressionResult = SPOP;
                     mpStack->PushTag(kShellTagPoundIf);
                     if (expressionResult == 0)
                     {
@@ -765,7 +771,8 @@ ForthShell::ReportError( void )
 
 	if ( pLastInputToken != NULL )
     {
-        sprintf( errorBuf2, "%s, last input token: <%s> last IP 0x%x", errorBuf1, pLastInputToken, pCore->IP );
+        sprintf( errorBuf2, "%s, last input token: <%s> last IP 0x%p",
+            errorBuf1, pLastInputToken, pCore->IP );
     }
     else
     {
@@ -823,7 +830,8 @@ void ForthShell::ReportWarning(const char* pMessage)
 
     if (pLastInputToken != NULL)
     {
-        sprintf(errorBuf2, "WARNING %s, last input token: <%s> last IP 0x%x", pMessage, pLastInputToken, pCore->IP);
+        sprintf(errorBuf2, "WARNING %s, last input token: <%s> last IP 0x%p",
+            pMessage, pLastInputToken, pCore->IP);
     }
     else
     {
@@ -872,7 +880,7 @@ bool
 ForthShell::ParseString( ForthParseInfo *pInfo )
 {
     const char *pSrc;
-    const char *pEndSrc;
+    const char *pEndSrc = nullptr;
     char *pDst;
     bool gotAToken = false;
     const char* pSrcLimit = mpInput->GetBufferBasePointer() + mpInput->GetWriteOffset();
@@ -966,7 +974,7 @@ bool
 ForthShell::ParseToken( ForthParseInfo *pInfo )
 {
     const char *pSrc;
-    const char *pEndSrc;
+    const char *pEndSrc = nullptr;
     char *pDst;
     bool gotAToken = false;
 
@@ -977,7 +985,7 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
         mFlags &= ~SHELL_FLAG_POP_NEXT_TOKEN;
         if ( CheckSyntaxError( ")", mpStack->PopTag(), kShellTagParen ) )
         {
-            long tag = mpStack->Peek();
+            cell tag = mpStack->Peek();
             if ( mpStack->PopString( pInfo->GetToken(), pInfo->GetMaxChars() ) )
             {
                  pInfo->SetToken();
@@ -1055,8 +1063,8 @@ ForthShell::ParseToken( ForthParseInfo *pInfo )
               }
               break;
 
-           case '\'':
-              // support C-style quoted characters like 'a' or '\n'
+           case '`':
+              // support C-style quoted characters like `a` or `\n`
               if ( mpEngine->CheckFeature( kFFCCharacterLiterals ) )
               {
 				  pEndSrc = pInfo->ParseSingleQuote(pSrc, pSrcLimit, mpEngine);
@@ -1297,7 +1305,7 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
     mpArgs = new char *[ argc ];
     while ( i < argc )
     {
-        len = strlen( argv[i] ) + 1;
+        len = (int)strlen( argv[i] ) + 1;
         mpArgs[i] = new char [ len ];
         strcpy( mpArgs[i], argv[i] );
         i++;
@@ -1332,7 +1340,7 @@ ForthShell::SetCommandLine( int argc, const char ** argv )
             int token = 0;
             if ( res == 0 )
             {
-                int nItems = fread( &token, sizeof(token), 1, pFile );
+                size_t nItems = fread( &token, sizeof(token), 1, pFile );
                 if ( nItems == 1 )
 #define FORTH_MAGIC_1 0x37313234
 #define FORTH_MAGIC_2 0xDEADBEEF
@@ -1434,7 +1442,7 @@ ForthShell::SetEnvironmentVars( const char ** envp )
     i = 0;
     while ( i < mNumEnvVars )
     {
-        nameLen = strlen( envp[i] ) + 1;
+        nameLen = (int)strlen( envp[i] ) + 1;
         mpEnvVarNames[i] = new char[nameLen];
         strcpy( mpEnvVarNames[i], envp[i] );
         pValue = strchr( mpEnvVarNames[i], '=' );
@@ -1488,6 +1496,7 @@ ForthShell::SetEnvironmentVars( const char ** envp )
         mpEnvVarValues[mNumEnvVars] = mSystemDir;
         mNumEnvVars++;
     }
+
     if (mDLLDir == nullptr)
     {
         mDLLDir = new char[strlen(mSystemDir) + 2];
@@ -1497,6 +1506,7 @@ ForthShell::SetEnvironmentVars( const char ** envp )
         mpEnvVarValues[mNumEnvVars] = mDLLDir;
         mNumEnvVars++;
     }
+
     if (mTempDir == nullptr)
     {
         if (tempDir == nullptr)
@@ -1515,6 +1525,7 @@ ForthShell::SetEnvironmentVars( const char ** envp )
         mpEnvVarValues[mNumEnvVars] = mTempDir;
         mNumEnvVars++;
     }
+
     if (mBlockfilePath == nullptr)
     {
         if (tempDir == NULL)
@@ -1635,7 +1646,7 @@ ForthShell::CheckDefinitionEnd(const char* pDisplayName, const char* pFourCharCo
 
 	if (CheckSyntaxError(pDisplayName, defineTag, kShellTagDefine))
 	{
-		long defineType = mpStack->Pop();
+		cell defineType = mpStack->Pop();
 		long expectedDefineType = FourCharToLong(pFourCharCode);
         char definedSymbol[128];
 		definedSymbol[0] = '\0';
@@ -1696,13 +1707,13 @@ ForthShell::FileSeek( FILE* pFile, int offset, int control )
 int
 ForthShell::FileRead( FILE* pFile, void* pDst, int itemSize, int numItems )
 {
-    return fread( pDst, itemSize, numItems, pFile );
+    return (int)fread( pDst, itemSize, numItems, pFile );
 }
 
 int
 ForthShell::FileWrite( FILE* pFile, const void* pSrc, int itemSize, int numItems ) 
 {
-    return fwrite( pSrc, itemSize, numItems, pFile );
+    return (int)fwrite( pSrc, itemSize, numItems, pFile );
 }
 
 int
@@ -1764,6 +1775,12 @@ ForthShell::FilePutString( FILE* pFile, const char* pBuffer )
     return fputs( pBuffer, pFile );
 }
 
+void*
+ForthShell::ReadDir(void* pDir, void* pEntry)
+{
+    return readDir(pDir, pEntry);
+}
+
 /*int
 ForthShell::FileRemove( Fonst char* pFilename )
 {
@@ -1811,7 +1828,7 @@ void ForthShell::PoundIfdef( bool isDefined )
 
 void ForthShell::PoundElse()
 {
-    long marker = mpStack->Pop();
+    cell marker = mpStack->Pop();
     if ( marker == kShellTagPoundIf )
     {
         mFlags |= SHELL_FLAG_SKIP_SECTION;
@@ -1828,7 +1845,7 @@ void ForthShell::PoundElse()
 
 void ForthShell::PoundEndif()
 {
-    long marker = mpStack->Pop();
+    cell marker = mpStack->Pop();
     if ( marker != kShellTagPoundIf )
     {
         // error - unexpected endif
@@ -1881,8 +1898,8 @@ FILE* ForthShell::OpenForthFile( const char* pPath )
 #endif
     if ( (pFile == NULL) && pathIsRelative )
     {
-		char* pSysPath = new char[ strlen(mWorkingDirPath) + strlen(pPath) + 16 ];
-		strcpy( pSysPath, mWorkingDirPath );
+		char* pSysPath = new char[ strlen(mSystemDir) + strlen(pPath) + 16 ];
+		strcpy(pSysPath, mSystemDir);
 #if defined( WIN32 )
 		strcat( pSysPath, "\\system\\" );
 #elif defined(LINUX) || defined(MACOSX)
@@ -1916,7 +1933,7 @@ long ForthShell::FourCharToLong(const char* pFourCC)
 ForthShellStack::ForthShellStack( int numLongs )
 : mSSLen( numLongs )
 {
-   mSSB = new long[mSSLen + (GAURD_AREA * 2)];
+   mSSB = new forthop*[mSSLen + (GAURD_AREA * 2)];
    mSSB += GAURD_AREA;
    mSST = mSSB + mSSLen;
    EmptyStack();
@@ -1934,7 +1951,7 @@ ForthShellStack::PushTag(eShellTag tag)
     char tagString[256];
     if (mSSP > mSSB)
     {
-        *--mSSP = (long) tag;
+        *--mSSP = (forthop*) tag;
         if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell)
         {
             GetTagString(tag, tagString);
@@ -1948,11 +1965,11 @@ ForthShellStack::PushTag(eShellTag tag)
 }
 
 void
-ForthShellStack::Push(long val)
+ForthShellStack::Push(cell val)
 {
     if (mSSP > mSSB)
     {
-        *--mSSP = val;
+        *--mSSP = (forthop*) val;
         SPEW_SHELL("ShellStack: pushed value 0x%08x\n", val);
     }
     else
@@ -1961,8 +1978,23 @@ ForthShellStack::Push(long val)
     }
 }
 
-static bool mayBeAShellTag(unsigned long tag)
+void
+ForthShellStack::PushAddress(forthop* addr)
 {
+    if (mSSP > mSSB)
+    {
+        *--mSSP = addr;
+        SPEW_SHELL("ShellStack: pushed address 0x%08x\n", addr);
+    }
+    else
+    {
+        ForthEngine::GetInstance()->SetError(kForthErrorShellStackOverflow);
+    }
+}
+
+static bool mayBeAShellTag(cell tag)
+{
+    // we assume this is a shell tag if it has exactly one bit set
     bool couldBeATag = false;
     if (tag <= kShellLastTag)
     {
@@ -1973,7 +2005,6 @@ static bool mayBeAShellTag(unsigned long tag)
             {
                 if ((tag & 1) != 0)
                 {
-                    tag >>= 1;
                     couldBeATag = ((tag >> 1) == 0);
                     break;
                 }
@@ -1984,15 +2015,40 @@ static bool mayBeAShellTag(unsigned long tag)
     return couldBeATag;
 }
 
-long
-ForthShellStack::Pop( void )
+forthop* ForthShellStack::PopAddress( void )
 {
     if (mSSP == mSST)
     {
         ForthEngine::GetInstance()->SetError( kForthErrorShellStackUnderflow );
+        return (forthop*)kShellTagNothing;
+    }
+    forthop* pOp = *mSSP++;
+#ifdef TRACE_SHELL
+    char tagString[256];
+    if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell)
+    {
+        if (mayBeAShellTag((cell)pOp))
+        {
+            GetTagString((cell)pOp, tagString);
+            SPEW_SHELL("ShellStack: popped Tag %s\n", tagString);
+        }
+        else
+        {
+            SPEW_SHELL("ShellStack: popped address 0x%08x\n", pOp);
+        }
+    }
+#endif
+    return pOp;
+}
+
+cell ForthShellStack::Pop(void)
+{
+    if (mSSP == mSST)
+    {
+        ForthEngine::GetInstance()->SetError(kForthErrorShellStackUnderflow);
         return kShellTagNothing;
     }
-    long val = *mSSP++;
+    cell val = (cell)*mSSP++;
 #ifdef TRACE_SHELL
     char tagString[256];
     if (ForthEngine::GetInstance()->GetTraceFlags() & kLogShell)
@@ -2016,12 +2072,22 @@ eShellTag ForthShellStack::PopTag(void)
     return (eShellTag)Pop();
 }
 
-long
+cell
 ForthShellStack::Peek( int index )
 {
     if ( (mSSP + index) >= mSST )
     {
         return kShellTagNothing;
+    }
+    return (cell)mSSP[index];
+}
+
+forthop*
+ForthShellStack::PeekAddress(int index)
+{
+    if ((mSSP + index) >= mSST)
+    {
+        return nullptr;
     }
     return mSSP[index];
 }
@@ -2032,14 +2098,14 @@ eShellTag ForthShellStack::PeekTag(int index)
     {
         return kShellTagNothing;
     }
-    return (eShellTag) mSSP[index];
+    return (eShellTag) ((cell)mSSP[index]);
 }
 
 void
 ForthShellStack::PushString( const char *pString )
 {
-    int len = strlen( pString );
-    mSSP -= (len >> 2) + 1;
+    int len = (int)strlen( pString );
+    mSSP -= (len >> CELL_SHIFT) + 1;
 	if ( mSSP > mSSB )
 	{
 		strcpy( (char *) mSSP, pString );
@@ -2055,7 +2121,8 @@ ForthShellStack::PushString( const char *pString )
 bool
 ForthShellStack::PopString(char *pString, int maxLen)
 {
-    if ( *mSSP != kShellTagString )
+    eShellTag topTag = PeekTag();
+    if (topTag != kShellTagString )
     {
         *pString = '\0';
         SPEW_SHELL( "Failed to pop string\n" );
@@ -2063,7 +2130,7 @@ ForthShellStack::PopString(char *pString, int maxLen)
         return false;
     }
     mSSP++;
-    int len = strlen( (char *) mSSP );
+    int len = (int)strlen( (char *) mSSP );
 	if (len > (maxLen - 1))
 	{
 		// TODO: warn about truncating symbol
@@ -2071,7 +2138,7 @@ ForthShellStack::PopString(char *pString, int maxLen)
 	}
     memcpy( pString, (char *) mSSP, len );
 	pString[len] = '\0';
-    mSSP += (len >> 2) + 1;
+    mSSP += (len >> CELL_SHIFT) + 1;
     SPEW_SHELL( "Popped Tag string\n" );
     SPEW_SHELL( "Popped String \"%s\"\n", pString );
     return true;
@@ -2080,17 +2147,18 @@ ForthShellStack::PopString(char *pString, int maxLen)
 void
 ForthShellStack::ShowStack()
 {
-	long* pSP = mSSP;
+	forthop** pSP = mSSP;
     char* buff = (char *)malloc(512);
 
 	ForthEngine::GetInstance()->ConsoleOut("Shell Stack:\n");
 	
 	while (pSP != mSST)
 	{
-		long tag = *pSP++;
-        sprintf(buff, "%08x   ", tag);
+		forthop* tag = *pSP++;
+        sprintf(buff, "%16p   ", tag);
         ForthEngine::GetInstance()->ConsoleOut(buff);
-        long tagChars = tag;
+        // TODO!
+        long tagChars = reinterpret_cast<long>(tag);
         for (int i = 0; i < 4; ++i)
         {
             char ch = (char)(tagChars & 0x7f);
@@ -2105,9 +2173,9 @@ ForthShellStack::ShowStack()
         buff[5] = ' ';
         buff[6] = '\0';
         ForthEngine::GetInstance()->ConsoleOut(buff);
-        if (mayBeAShellTag(tag))
+        if (mayBeAShellTag((cell)tag))
         {
-            GetTagString(tag, buff);
+            GetTagString((cell)tag, buff);
             ForthEngine::GetInstance()->ConsoleOut(buff);
         }
         ForthEngine::GetInstance()->ConsoleOut("\n");

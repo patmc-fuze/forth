@@ -20,7 +20,7 @@
 
 extern "C"
 {
-	extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
+	extern cell oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 };
 
 namespace OStream
@@ -293,7 +293,7 @@ namespace OStream
     FORTHOP(oInStreamGetBytesMethod)
     {
         GET_THIS(oInStreamStruct, pInStream);
-        int numBytes = SPOP;
+        int numBytes = (int)SPOP;
         int outBytes = 0;
         char* pBuffer = reinterpret_cast<char *>(SPOP);
 
@@ -307,13 +307,11 @@ namespace OStream
             char* pDst = pBuffer;
 
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            ForthObject obj;
-            obj.pData = pCore->TPD;
-            obj.pMethodOps = pCore->TPM;
+            ForthObject obj = GET_TP;
             for (int i = 0; i < numBytes; i++)
             {
                 pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetCharMethod);
-                int ch = SPOP;
+                int ch = (int)SPOP;
                 if (ch == -1)
                 {
                     break;
@@ -329,7 +327,7 @@ namespace OStream
     FORTHOP(oInStreamGetLineMethod)
     {
         GET_THIS(oInStreamStruct, pInStream);
-        int maxBytes = SPOP;
+        int maxBytes = (int)SPOP;
         char* pBuffer = reinterpret_cast<char *>(SPOP);
         int numWritten = 0;
 
@@ -341,9 +339,7 @@ namespace OStream
         else
         {
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            ForthObject obj;
-            obj.pData = pCore->TPD;
-            obj.pMethodOps = pCore->TPM;
+            ForthObject obj = GET_TP;
             char* pDst = pBuffer;
 
             bool atEOF = false;
@@ -352,7 +348,7 @@ namespace OStream
             for (int i = 0; i < (maxBytes - 1); i++)
             {
                 pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetCharMethod);
-                int ch = SPOP;
+                int ch = (int)SPOP;
                 switch (ch)
                 {
                 case -1:
@@ -382,7 +378,7 @@ namespace OStream
                 }
                 previousChar = ch;
             }
-            numWritten = pDst - pBuffer;
+            numWritten = (int)(pDst - pBuffer);
             *pDst++ = '\0';
         }
 
@@ -404,15 +400,13 @@ namespace OStream
         }
         else
         {
-            oStringStruct* pString = (oStringStruct *)(dstString.pData);
+            oStringStruct* pString = (oStringStruct *)(dstString);
             oString* dst = pString->str;
             int maxBytes = dst->maxLen;
             char* pBuffer = &(dst->data[0]);
 
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            ForthObject obj;
-            obj.pData = pCore->TPD;
-            obj.pMethodOps = pCore->TPM;
+            ForthObject obj = GET_TP;
 
             bool atEOF = false;
             bool done = false;
@@ -428,7 +422,7 @@ namespace OStream
                     pBuffer = &(dst->data[0]);
                 }
                 pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetCharMethod);
-                int ch = SPOP;
+                int ch = (int)SPOP;
                 switch (ch)
                 {
                 case -1:
@@ -482,9 +476,7 @@ namespace OStream
         else
         {
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            ForthObject obj;
-            obj.pData = pCore->TPD;
-            obj.pMethodOps = pCore->TPM;
+            ForthObject obj = GET_TP;
             pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetCharMethod);
             if (*(pCore->SP) == -1)
             {
@@ -506,7 +498,7 @@ namespace OStream
         if ((pInStream->pInFuncs != nullptr)
             && (pInStream->pInFuncs->inBytes != nullptr))
         {
-            int numBytes = SPOP;
+            int numBytes = (int)SPOP;
             char* pBuffer = reinterpret_cast<char *>(SPOP);
             int outBytes = pInStream->pInFuncs->inBytes(pCore, pInStream, pBuffer, numBytes);
             if (outBytes)
@@ -518,9 +510,7 @@ namespace OStream
         else
         {
             ForthEngine *pEngine = ForthEngine::GetInstance();
-            ForthObject obj;
-            obj.pData = pCore->TPD;
-            obj.pMethodOps = pCore->TPM;
+            ForthObject obj = GET_TP;
             pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetBytesMethod);
             if (*(pCore->SP) == 0)
             {
@@ -538,17 +528,15 @@ namespace OStream
     FORTHOP(oInStreamIterLineMethod)
     {
         ForthEngine *pEngine = ForthEngine::GetInstance();
-        ForthObject obj;
         long found = 0;
-        obj.pData = pCore->TPD;
-        obj.pMethodOps = pCore->TPM;
+        ForthObject obj = GET_TP;
         pEngine->FullyExecuteMethod(pCore, obj, kInStreamGetLineMethod);
-        int numRead = SPOP;
+        int numRead = (int)SPOP;
         if (numRead == 0)
         {
             // getLine returned 0 chars - is it an empty line or end of file?
             pEngine->FullyExecuteMethod(pCore, obj, kInStreamAtEOFMethod);
-            int atEOF = SPOP;
+            int atEOF = (int)SPOP;
             if (!atEOF)
             {
                 // just an empty line, not the end of file
@@ -570,22 +558,20 @@ namespace OStream
         ForthEngine *pEngine = ForthEngine::GetInstance();
         long found = 0;
 
-        ForthObject thisStream;
-        thisStream.pData = pCore->TPD;
-        thisStream.pMethodOps = pCore->TPM;
+        ForthObject thisStream = GET_TP;
 
         ForthObject dstString;
         POP_OBJECT(dstString);
 
         PUSH_OBJECT(dstString);
         pEngine->FullyExecuteMethod(pCore, thisStream, kInStreamGetStringMethod);
-        int numRead = SPOP;
+        int numRead = (int)SPOP;
 
         if (numRead == 0)
         {
             // getString returned 0 chars - is it an empty line or end of file?
             pEngine->FullyExecuteMethod(pCore, thisStream, kInStreamAtEOFMethod);
-            int atEOF = SPOP;
+            int atEOF = (int)SPOP;
             if (!atEOF)
             {
                 // just an empty line, not the end of file
@@ -623,9 +609,9 @@ namespace OStream
         METHOD("setTrimEOL", oInStreamSetTrimEOLMethod),
         METHOD_RET("atEOF", unimplementedMethodOp, RETURNS_NATIVE(kBaseTypeInt)),  // derived classes must define atEOF
 
-        MEMBER_VAR("userData", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("userData", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
         MEMBER_VAR("trimEOL", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("__inFuncs", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("__inFuncs", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
         // following must be last in table
         END_MEMBERS
@@ -639,8 +625,8 @@ namespace OStream
 
     struct oFileInStreamStruct
     {
-        oInStreamStruct istream;
-        FILE* pInFile;
+        oInStreamStruct     istream;
+        FILE*               pInFile;
     };
 
     int fileCharIn(ForthCoreState* pCore, void *pData, int& ch)
@@ -662,7 +648,7 @@ namespace OStream
         int numWritten = 0;
         if (pFileInStreamStruct->pInFile != nullptr)
         {
-            numWritten = GET_ENGINE->GetShell()->GetFileInterface()->fileRead(pBuff, 1, numChars, pFileInStreamStruct->pInFile);
+            numWritten = (int)GET_ENGINE->GetShell()->GetFileInterface()->fileRead(pBuff, 1, numChars, pFileInStreamStruct->pInFile);
         }
         return numWritten;
     }
@@ -670,7 +656,7 @@ namespace OStream
     int fileStringIn(ForthCoreState* pCore, void *pData, ForthObject& dstString)
     {
         oFileInStreamStruct* pFileInStreamStruct = static_cast<oFileInStreamStruct*>(pData);
-        oStringStruct* pString = (oStringStruct *)(dstString.pData);
+        oStringStruct* pString = (oStringStruct *)(dstString);
         oString* dst = pString->str;
         // maxBytes is always ((N * 4) - 1), leaving a byte at end of string for terminating null
         int maxBytes = dst->maxLen + 1;
@@ -691,7 +677,7 @@ namespace OStream
                     (FILE *)(pFileInStreamStruct->pInFile));
                 if (pResult != nullptr)
                 {
-                    int writtenThisTime = strlen(pResult);
+                    int writtenThisTime = (int)strlen(pResult);
                     if (writtenThisTime != 0)
                     {
                         if ((writtenThisTime == (roomLeft - 1)) && (pResult[writtenThisTime - 1] != '\n'))
@@ -762,7 +748,7 @@ namespace OStream
                     ++pEOL;
                 }
             }
-            numWritten = strlen(pResult);
+            numWritten = (int)strlen(pResult);
         }
         return numWritten;
     }
@@ -778,15 +764,15 @@ namespace OStream
     FORTHOP(oFileInStreamNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
 		MALLOCATE_OBJECT(oFileInStreamStruct, pFileInStreamStruct, pClassVocab);
-		pFileInStreamStruct->istream.refCount = 0;
+        pFileInStreamStruct->istream.pMethods = pClassVocab->GetMethods();
+        pFileInStreamStruct->istream.refCount = 0;
 		pFileInStreamStruct->istream.pUserData = NULL;
         pFileInStreamStruct->istream.pInFuncs = &fileInFuncs;
         pFileInStreamStruct->istream.bTrimEOL = true;
 		pFileInStreamStruct->pInFile = NULL;
         printf("new fileInStream %p\n", pFileInStreamStruct);
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pFileInStreamStruct);
+		PUSH_OBJECT(pFileInStreamStruct);
 	}
 
 	FORTHOP(oFileInStreamDeleteMethod)
@@ -839,12 +825,12 @@ namespace OStream
     FORTHOP(oFileInStreamIterBytesMethod)
     {
         GET_THIS(oFileInStreamStruct, pFileInStreamStruct);
-        int numBytes = SPOP;
+        int numBytes = (int)SPOP;
         char* pBuffer = reinterpret_cast<char *>(SPOP);
         int gotData = 0;
         if (pFileInStreamStruct->pInFile != NULL)
         {
-            int numRead = GET_ENGINE->GetShell()->GetFileInterface()->fileRead(pBuffer, 1, numBytes, (FILE *)(pFileInStreamStruct->pInFile));
+            int numRead = (int)GET_ENGINE->GetShell()->GetFileInterface()->fileRead(pBuffer, 1, numBytes, (FILE *)(pFileInStreamStruct->pInFile));
             if (numRead > 0)
             {
                 SPUSH(numRead);
@@ -858,7 +844,7 @@ namespace OStream
     FORTHOP(oFileInStreamIterLineMethod)
     {
         GET_THIS(oFileInStreamStruct, pFileInStreamStruct);
-        int maxBytes = SPOP;
+        int maxBytes = (int)SPOP;
         char* pBuffer = reinterpret_cast<char *>(SPOP);
         char* pResult = NULL;
         int gotData = 0;
@@ -884,7 +870,7 @@ namespace OStream
                     ++pEOL;
                 }
             }
-            int numRead = strlen(pResult);
+            int numRead = (int)strlen(pResult);
             if (numRead > 0 || !feof(pInFile))
             {
                 SPUSH(numRead);
@@ -935,7 +921,7 @@ namespace OStream
     FORTHOP(oFileInStreamGetFileMethod)
     {
         GET_THIS(oFileInStreamStruct, pFileInStreamStruct);
-        SPUSH(reinterpret_cast<long>(pFileInStreamStruct->pInFile));
+        SPUSH(reinterpret_cast<cell>(pFileInStreamStruct->pInFile));
         METHOD_RETURN;
     }
 
@@ -947,8 +933,8 @@ namespace OStream
 
 		if (pFileInStreamStruct->pInFile != nullptr)
 		{
-#if defined(WIN32)
-			long long oldPos = _ftelli64(pFileInStreamStruct->pInFile);
+#if defined(WINDOWS_BUILD)
+			int64_t oldPos = _ftelli64(pFileInStreamStruct->pInFile);
 			_fseeki64(pFileInStreamStruct->pInFile, 0l, SEEK_END);
 			size.s64 = _ftelli64(pFileInStreamStruct->pInFile);
 			_fseeki64(pFileInStreamStruct->pInFile, oldPos, SEEK_SET);
@@ -976,7 +962,7 @@ namespace OStream
 
         if (pFileInStreamStruct->pInFile != nullptr)
         {
-#if defined(WIN32)
+#if defined(WINDOWS_BUILD)
             pos.s64 = _ftelli64(pFileInStreamStruct->pInFile);
 #elif defined(MACOSX)
             pos.s64 = ftello(pFileInStreamStruct->pInFile);
@@ -991,14 +977,14 @@ namespace OStream
     FORTHOP(oFileInStreamSeekMethod)
 	{
 		GET_THIS(oFileInStreamStruct, pFileInStreamStruct);
-		int seekType = SPOP;
+		int seekType = (int)SPOP;
 		stackInt64 pos;
 		LPOP(pos);
 
 		if (pFileInStreamStruct->pInFile != nullptr)
 		{
-#if defined(WIN32)
-			_fseeki64(pFileInStreamStruct->pInFile, pos.s64, seekType);
+#if defined(WINDOWS_BUILD)
+            _fseeki64(pFileInStreamStruct->pInFile, pos.s64, seekType);
 #elif defined(MACOSX)
             fseeko(pFileInStreamStruct->pInFile, pos.s64, seekType);
 #else
@@ -1026,7 +1012,7 @@ namespace OStream
 		METHOD_RET("tell", oFileInStreamTellMethod, RETURNS_NATIVE(kBaseTypeLong)),
 		METHOD("seek", oFileInStreamSeekMethod),
 
-		MEMBER_VAR("inFile", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("inFile", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1041,14 +1027,14 @@ namespace OStream
 	FORTHOP(oConsoleInStreamNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
 		MALLOCATE_OBJECT(oFileInStreamStruct, pConsoleInStreamStruct, pClassVocab);
-		pConsoleInStreamStruct->istream.refCount = 0;
+        pConsoleInStreamStruct->istream.pMethods = pClassVocab->GetMethods();
+        pConsoleInStreamStruct->istream.refCount = 0;
 		pConsoleInStreamStruct->istream.pUserData = NULL;
         pConsoleInStreamStruct->istream.pInFuncs = &fileInFuncs;
         pConsoleInStreamStruct->istream.bTrimEOL = true;
 		pConsoleInStreamStruct->pInFile = GET_ENGINE->GetShell()->GetFileInterface()->getStdIn();
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pConsoleInStreamStruct);
+		PUSH_OBJECT(pConsoleInStreamStruct);
 	}
 
 	FORTHOP(oConsoleInStreamDeleteMethod)
@@ -1153,19 +1139,17 @@ namespace OStream
 	FORTHOP(oOutStreamPutBytesMethod)
 	{
 		GET_THIS(oOutStreamStruct, pOutStream);
-		int numBytes = SPOP;
+		int numBytes = (int)SPOP;
 		char* pBuffer = reinterpret_cast<char *>(SPOP);
 
 		if (pOutStream->pOutFuncs == NULL)
 		{
 			ForthEngine *pEngine = ForthEngine::GetInstance();
-			ForthObject obj;
-			obj.pData = pCore->TPD;
-			obj.pMethodOps = pCore->TPM;
+            ForthObject obj = GET_TP;
 			for (int i = 0; i < numBytes; i++)
 			{
 				char ch = *pBuffer++;
-				SPUSH(((long)ch));
+				SPUSH(((cell)ch));
 				pEngine->FullyExecuteMethod(pCore, obj, kOutStreamPutCharMethod);
 			}
 		}
@@ -1184,7 +1168,7 @@ namespace OStream
 		}
 		else
 		{
-			int numBytes = strlen(pBuffer);
+			int numBytes = (int)strlen(pBuffer);
 			if (pOutStream->pOutFuncs->outBytes != NULL)
 			{
 				pOutStream->pOutFuncs->outBytes(pCore, pOutStream, pBuffer, numBytes);
@@ -1211,10 +1195,8 @@ namespace OStream
 		if (pOutStream->pOutFuncs == NULL)
 		{
 			ForthEngine *pEngine = ForthEngine::GetInstance();
-			ForthObject obj;
-			obj.pData = pCore->TPD;
-			obj.pMethodOps = pCore->TPM;
-			int numBytes = strlen(pBuffer);
+            ForthObject obj = GET_TP;
+            int numBytes = (int)strlen(pBuffer);
 			for (int i = 0; i < numBytes; i++)
 			{
 				char ch = *pBuffer++;
@@ -1238,10 +1220,8 @@ namespace OStream
 		if (pOutStream->pOutFuncs == NULL)
 		{
 			ForthEngine *pEngine = ForthEngine::GetInstance();
-			ForthObject obj;
-			obj.pData = pCore->TPD;
-			obj.pMethodOps = pCore->TPM;
-			int numBytes = strlen(pBuffer);
+            ForthObject obj = GET_TP;
+            int numBytes = (int)strlen(pBuffer);
 			for (int i = 0; i < numBytes; i++)
 			{
 				char ch = *pBuffer++;
@@ -1268,10 +1248,8 @@ namespace OStream
         int numChars = oStringFormatSub(pCore, pBuffer, pEngine->GetTempBufferSize() - 1);
         if (pOutStream->pOutFuncs == NULL)
         {
-            ForthObject obj;
-            obj.pData = pCore->TPD;
-            obj.pMethodOps = pCore->TPM;
-            int numBytes = strlen(pBuffer);
+            ForthObject obj = GET_TP;
+            int numBytes = (int)strlen(pBuffer);
             for (int i = 0; i < numBytes; i++)
             {
                 char ch = *pBuffer++;
@@ -1298,8 +1276,8 @@ namespace OStream
 		METHOD("putLine", oOutStreamPutLineMethod),
         METHOD("printf", oOutStreamPrintfMethod),
 
-		MEMBER_VAR("userData", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__outFuncs", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("userData", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+		MEMBER_VAR("__outFuncs", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 		MEMBER_VAR("__eolChars", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
 
 		// following must be last in table
@@ -1314,7 +1292,7 @@ namespace OStream
 
 	struct oFileOutStreamStruct
 	{
-		oOutStreamStruct		ostream;
+        oOutStreamStruct		ostream;
 		FILE*					pOutFile;
 	};
 
@@ -1343,13 +1321,13 @@ namespace OStream
 	FORTHOP(oFileOutStreamNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
 		MALLOCATE_OBJECT(oFileOutStreamStruct, pFileOutStream, pClassVocab);
-		pFileOutStream->ostream.refCount = 0;
+        pFileOutStream->ostream.pMethods = pClassVocab->GetMethods();
+        pFileOutStream->ostream.refCount = 0;
 		pFileOutStream->ostream.pOutFuncs = &fileOutFuncs;
 		pFileOutStream->ostream.pUserData = NULL;
 		pFileOutStream->pOutFile = nullptr;
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pFileOutStream);
+		PUSH_OBJECT(pFileOutStream);
 	}
 
 	FORTHOP(oFileOutStreamDeleteMethod)
@@ -1400,7 +1378,7 @@ namespace OStream
     FORTHOP(oFileOutStreamGetFileMethod)
     {
         GET_THIS(oFileOutStreamStruct, pFileOutStream);
-        SPUSH(reinterpret_cast<long>(pFileOutStream->pOutFile));
+        SPUSH(reinterpret_cast<cell>(pFileOutStream->pOutFile));
         METHOD_RETURN;
     }
 
@@ -1412,8 +1390,8 @@ namespace OStream
 
         if (pFileOutStream->pOutFile != nullptr)
         {
-#if defined(WIN32)
-            long long oldPos = _ftelli64(pFileOutStream->pOutFile);
+#if defined(WINDOWS_BUILD)
+            int64_t oldPos = _ftelli64(pFileOutStream->pOutFile);
             _fseeki64(pFileOutStream->pOutFile, 0l, SEEK_END);
             size.s64 = _ftelli64(pFileOutStream->pOutFile);
             _fseeki64(pFileOutStream->pOutFile, oldPos, SEEK_SET);
@@ -1441,8 +1419,8 @@ namespace OStream
 
 		if (pFileOutStream->pOutFile != nullptr)
 		{
-#if defined(WIN32)
-			pos.s64 = _ftelli64(pFileOutStream->pOutFile);
+#if defined(WINDOWS_BUILD)
+            pos.s64 = _ftelli64(pFileOutStream->pOutFile);
 #elif defined(MACOSX)
             pos.s64 = ftello(pFileOutStream->pOutFile);
 #else
@@ -1456,14 +1434,14 @@ namespace OStream
 	FORTHOP(oFileOutStreamSeekMethod)
 	{
 		GET_THIS(oFileOutStreamStruct, pFileOutStream);
-		int seekType = SPOP;
+		int seekType = (int)SPOP;
 		stackInt64 pos;
 		LPOP(pos);
 
 		if (pFileOutStream->pOutFile != nullptr)
 		{
-#if defined(WIN32)
-			_fseeki64(pFileOutStream->pOutFile, pos.s64, seekType);
+#if defined(WINDOWS_BUILD)
+            _fseeki64(pFileOutStream->pOutFile, pos.s64, seekType);
 #elif defined(MACOSX)
             fseeko(pFileOutStream->pOutFile, pos.s64, seekType);
 #else
@@ -1486,7 +1464,7 @@ namespace OStream
 		METHOD_RET("tell", oFileOutStreamTellMethod, RETURNS_NATIVE(kBaseTypeLong)),
 		METHOD("seek", oFileOutStreamSeekMethod),
 
-		MEMBER_VAR("outFile", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("outFile", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -1496,12 +1474,6 @@ namespace OStream
 	///
 	//                 oStringOutStream
 	//
-
-	struct oStringOutStreamStruct
-	{
-		oOutStreamStruct		ostream;
-		ForthObject				outString;
-	};
 
 	OutStreamFuncs stringOutFuncs =
 	{
@@ -1513,13 +1485,13 @@ namespace OStream
 	FORTHOP(oStringOutStreamNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
 		MALLOCATE_OBJECT(oStringOutStreamStruct, pStringOutStream, pClassVocab);
-		pStringOutStream->ostream.refCount = 0;
+        pStringOutStream->ostream.pMethods = pClassVocab->GetMethods();
+        pStringOutStream->ostream.refCount = 0;
 		pStringOutStream->ostream.pOutFuncs = &stringOutFuncs;
 		pStringOutStream->ostream.pUserData = &(pStringOutStream->outString);
 		CLEAR_OBJECT(pStringOutStream->outString);
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pStringOutStream);
+		PUSH_OBJECT(pStringOutStream);
 	}
 
 	FORTHOP(oStringOutStreamDeleteMethod)
@@ -1572,12 +1544,12 @@ namespace OStream
 	FORTHOP(oConsoleOutStreamNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
+        consoleOutSingleton.ostream.pMethods = pClassVocab->GetMethods();
 		consoleOutSingleton.ostream.refCount = 1000;
 		consoleOutSingleton.ostream.pOutFuncs = &fileOutFuncs;
 		consoleOutSingleton.ostream.pUserData = nullptr;
 		consoleOutSingleton.pOutFile = GET_ENGINE->GetShell()->GetFileInterface()->getStdOut();
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), &consoleOutSingleton);
+		PUSH_OBJECT(&consoleOutSingleton);
 	}
 
 	FORTHOP(oConsoleOutStreamDeleteMethod)
@@ -1605,22 +1577,22 @@ namespace OStream
 
 	struct oFunctionOutStreamStruct
 	{
-		oOutStreamStruct			ostream;
+        oOutStreamStruct	    ostream;
 		OutStreamFuncs			outFuncs;
 	};
 
 	FORTHOP(oFunctionOutStreamNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
 		MALLOCATE_OBJECT(oFunctionOutStreamStruct, pFunctionOutStream, pClassVocab);
-		pFunctionOutStream->ostream.refCount = 0;
+        pFunctionOutStream->ostream.pMethods = pClassVocab->GetMethods();
+        pFunctionOutStream->ostream.refCount = 0;
 		pFunctionOutStream->ostream.pOutFuncs = &(pFunctionOutStream->outFuncs);
 		pFunctionOutStream->ostream.pUserData = NULL;
 		pFunctionOutStream->outFuncs.outChar = NULL;
 		pFunctionOutStream->outFuncs.outBytes = NULL;
 		pFunctionOutStream->outFuncs.outString = NULL;
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pFunctionOutStream);
+		PUSH_OBJECT(pFunctionOutStream);
 	}
 
 	FORTHOP(oFunctionOutStreamInitMethod)
@@ -1639,9 +1611,9 @@ namespace OStream
 
 		METHOD("init", oFunctionOutStreamInitMethod),
 
-		MEMBER_VAR("__outChar", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__outBytes", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__outString", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("__outChar", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+		MEMBER_VAR("__outBytes", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+		MEMBER_VAR("__outString", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1655,7 +1627,7 @@ namespace OStream
 
 	struct oTraceOutStreamStruct
 	{
-		oOutStreamStruct		ostream;
+        oOutStreamStruct		ostream;
 	};
 
 	void traceCharOut(ForthCoreState* pCore, void *pData, char ch)
@@ -1689,12 +1661,12 @@ namespace OStream
 	FORTHOP(oTraceOutStreamNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
 		MALLOCATE_OBJECT(oOutStreamStruct, pTraceOutStream, pClassVocab);
-		pTraceOutStream->refCount = 0;
+        pTraceOutStream->pMethods = pClassVocab->GetMethods();
+        pTraceOutStream->refCount = 0;
 		pTraceOutStream->pOutFuncs = &traceOutFuncs;
 		pTraceOutStream->pUserData = NULL;
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pTraceOutStream);
+		PUSH_OBJECT(pTraceOutStream);
 	}
 
 	FORTHOP(oTraceOutStreamDeleteMethod)
@@ -1714,7 +1686,180 @@ namespace OStream
 	};
 
 
-	void AddClasses(ForthEngine* pEngine)
+    //////////////////////////////////////////////////////////////////////
+    ///
+    //                 oSplitOutStream
+    //
+
+    struct oSplitOutStreamStruct
+    {
+        oOutStreamStruct		ostream;
+        ForthObject             streamA;
+        ForthObject             streamB;
+    };
+
+    
+    FORTHOP(oSplitOutStreamInitMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+        ForthObject obj;
+
+        POP_OBJECT(obj);
+        OBJECT_ASSIGN(pCore, pOutStream->streamB, obj);
+        pOutStream->streamB = obj;
+
+        POP_OBJECT(obj);
+        OBJECT_ASSIGN(pCore, pOutStream->streamA, obj);
+        pOutStream->streamA = obj;
+
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSplitOutStreamPutCharMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+
+        cell ch = SPOP;
+
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+        
+        if (pOutStream->streamA)
+        {
+            SPUSH(ch);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamA, kOutStreamPutCharMethod);
+        }
+
+        if (pOutStream->streamB)
+        {
+            SPUSH(ch);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamB, kOutStreamPutCharMethod);
+        }
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSplitOutStreamPutBytesMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+
+        cell numBytes = SPOP;
+        cell pBuffer = SPOP;
+
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+
+        if (pOutStream->streamA)
+        {
+            SPUSH(pBuffer);
+            SPUSH(numBytes);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamA, kOutStreamPutBytesMethod);
+        }
+
+        if (pOutStream->streamB)
+        {
+            SPUSH(pBuffer);
+            SPUSH(numBytes);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamB, kOutStreamPutBytesMethod);
+        }
+
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSplitOutStreamPutStringMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+        cell pBuffer = SPOP;
+
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+
+        if (pOutStream->streamA)
+        {
+            SPUSH(pBuffer);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamA, kOutStreamPutStringMethod);
+        }
+
+        if (pOutStream->streamB)
+        {
+            SPUSH(pBuffer);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamB, kOutStreamPutStringMethod);
+        }
+
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSplitOutStreamPutLineMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+        cell pBuffer = SPOP;
+
+        ForthEngine *pEngine = ForthEngine::GetInstance();
+
+        if (pOutStream->streamA)
+        {
+            SPUSH(pBuffer);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamA, kOutStreamPutLineMethod);
+        }
+
+        if (pOutStream->streamB)
+        {
+            SPUSH(pBuffer);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamB, kOutStreamPutLineMethod);
+        }
+
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSplitOutStreamPrintfMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+        ForthEngine* pEngine = GET_ENGINE;
+        // NOTE: this could lock your thread until temp buffer is available
+        char* pBuffer = pEngine->GrabTempBuffer();
+        int numChars = oStringFormatSub(pCore, pBuffer, pEngine->GetTempBufferSize() - 1);
+
+        if (pOutStream->streamA)
+        {
+            SPUSH((cell)pBuffer);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamA, kOutStreamPutStringMethod);
+        }
+
+        if (pOutStream->streamB)
+        {
+            SPUSH((cell)pBuffer);
+            pEngine->FullyExecuteMethod(pCore, pOutStream->streamB, kOutStreamPutStringMethod);
+        }
+
+        pEngine->UngrabTempBuffer();
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oSplitOutStreamDeleteMethod)
+    {
+        GET_THIS(oSplitOutStreamStruct, pOutStream);
+        SAFE_RELEASE(pCore, pOutStream->streamA);
+        SAFE_RELEASE(pCore, pOutStream->streamB);
+        FREE_OBJECT(pOutStream);
+        METHOD_RETURN;
+    }
+
+    baseMethodEntry oSplitOutStreamMembers[] =
+    {
+        // putChar, putBytes and putString must be first 3 methods and in this order
+        METHOD("init", oSplitOutStreamInitMethod),
+        METHOD("putChar", oSplitOutStreamPutCharMethod),
+        METHOD("putBytes", oSplitOutStreamPutBytesMethod),
+        METHOD("putString", oSplitOutStreamPutStringMethod),
+        METHOD("putLine", oSplitOutStreamPutLineMethod),
+        METHOD("printf", oSplitOutStreamPrintfMethod),
+        METHOD("delete", oSplitOutStreamDeleteMethod),
+
+        MEMBER_VAR("streamA", OBJECT_TYPE_TO_CODE(0, kBCIOutStream)),
+        MEMBER_VAR("streamB", OBJECT_TYPE_TO_CODE(0, kBCIOutStream)),
+
+        // following must be last in table
+        END_MEMBERS
+    };
+
+
+    void AddClasses(ForthEngine* pEngine)
 	{
 		pEngine->AddBuiltinClass("InStream", kBCIInStream, kBCIObject, oInStreamMembers);
 		pEngine->AddBuiltinClass("FileInStream", kBCIFileInStream, kBCIInStream, oFileInStreamMembers);
@@ -1726,81 +1871,77 @@ namespace OStream
 		pEngine->AddBuiltinClass("ConsoleOutStream", kBCIConsoleOutStream, kBCIFileOutStream, oConsoleOutStreamMembers);
 		pEngine->AddBuiltinClass("FunctionOutStream", kBCIFunctionOutStream, kBCIOutStream, oFunctionOutStreamMembers);
 		pEngine->AddBuiltinClass("TraceOutStream", kBCITraceOutStream, kBCIOutStream, oTraceOutStreamMembers);
-	}
+        pEngine->AddBuiltinClass("SplitOutStream", kBCISplitOutStream, kBCIOutStream, oSplitOutStreamMembers);
+    }
 } // namespace OStream
 
 void GetForthConsoleOutStream(ForthCoreState* pCore, ForthObject& outObject)
 {
-	OStream::consoleOutSingleton.ostream.refCount = 1000;
-	OStream::consoleOutSingleton.ostream.pOutFuncs = &OStream::fileOutFuncs;
+    ForthClassVocabulary *pClassVocab = GET_CLASS_VOCABULARY(kBCIFileOutStream);
+    OStream::consoleOutSingleton.ostream.pMethods = pClassVocab->GetMethods();
+    OStream::consoleOutSingleton.ostream.refCount = 1000;
+    OStream::consoleOutSingleton.ostream.pOutFuncs = &OStream::fileOutFuncs;
 	OStream::consoleOutSingleton.ostream.pUserData = nullptr;
 	OStream::consoleOutSingleton.pOutFile = GET_ENGINE->GetShell()->GetFileInterface()->getStdOut();
-
-	ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIOutStream, 0);
-	outObject.pMethodOps = pPrimaryInterface->GetMethods();
-	outObject.pData = reinterpret_cast<long *>(&OStream::consoleOutSingleton);
+	outObject = reinterpret_cast<ForthObject>(&OStream::consoleOutSingleton);
 }
 
 void CreateForthFileOutStream(ForthCoreState* pCore, ForthObject& outObject, FILE* pOutFile)
 {
-	ForthClassVocabulary *pStreamVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIFileOutStream);
-	MALLOCATE_OBJECT(oOutStreamStruct, pFileOutStream, pStreamVocab);
-	pFileOutStream->refCount = 1;
+    ForthClassVocabulary *pClassVocab = GET_CLASS_VOCABULARY(kBCIFileOutStream);
+	MALLOCATE_OBJECT(oOutStreamStruct, pFileOutStream, pClassVocab);
+    pFileOutStream->pMethods = pClassVocab->GetMethods();
+    pFileOutStream->refCount = 1;
 	pFileOutStream->pOutFuncs = &OStream::fileOutFuncs;
 	pFileOutStream->pUserData = pOutFile;
-	ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIFileOutStream, 0);
-	outObject.pMethodOps = pPrimaryInterface->GetMethods();
-	outObject.pData = reinterpret_cast<long *>(pFileOutStream);
+    outObject = reinterpret_cast<ForthObject>(pFileOutStream);
 }
 
 void CreateForthStringOutStream(ForthCoreState* pCore, ForthObject& outObject)
 {
-	ForthClassVocabulary *pStreamVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIStringOutStream);
-	MALLOCATE_OBJECT(OStream::oStringOutStreamStruct, pStringOutStream, pStreamVocab);
-	pStringOutStream->ostream.refCount = 1;
+    // create the internal string object
+    ForthClassVocabulary* pClassVocab = GET_CLASS_VOCABULARY(kBCIString);
+    MALLOCATE_OBJECT(oStringStruct, pString, pClassVocab);
+    pString->pMethods = pClassVocab->GetMethods();
+    pString->refCount = 0;
+    pString->hash = 0;
+    pString->str = OString::createOString(OString::gDefaultOStringSize);
+
+    pClassVocab = GET_CLASS_VOCABULARY(kBCIStringOutStream);
+    MALLOCATE_OBJECT(oStringOutStreamStruct, pStringOutStream, pClassVocab);
+    pStringOutStream->ostream.pMethods = pClassVocab->GetMethods();
+    pStringOutStream->ostream.refCount = 1;
 	pStringOutStream->ostream.pOutFuncs = &OStream::stringOutFuncs;
 	pStringOutStream->ostream.pUserData = &(pStringOutStream->outString);
-	ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringOutStream, 0);
-	outObject.pMethodOps = pPrimaryInterface->GetMethods();
-	outObject.pData = reinterpret_cast<long *>(pStringOutStream);
-
-	// create the internal string object
-	ForthClassVocabulary *pStringVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIString);
-	MALLOCATE_OBJECT(oStringStruct, pString, pStringVocab);
-	pString->refCount = 0;
-	pString->hash = 0;
-	pString->str = OString::createOString(OString::gDefaultOStringSize);
-	ForthInterface* pStringInterface = GET_BUILTIN_INTERFACE(kBCIString, 0);
-	pStringOutStream->outString.pData = reinterpret_cast<long *>(pString);
-	pStringOutStream->outString.pMethodOps = pStringInterface->GetMethods();
+    pStringOutStream->outString = (ForthObject)pString;
+    outObject = reinterpret_cast<ForthObject>(pStringOutStream);
 }
 
 const char* GetForthStringOutStreamData(ForthCoreState* pCore, ForthObject& streamObject)
 {
-	OStream::oStringOutStreamStruct* pStream = reinterpret_cast<OStream::oStringOutStreamStruct *>(streamObject.pData);
-	oStringStruct* pString = reinterpret_cast<oStringStruct *>(pStream->outString.pData);
+	oStringOutStreamStruct* pStream = reinterpret_cast<oStringOutStreamStruct *>(streamObject);
+	oStringStruct* pString = reinterpret_cast<oStringStruct *>(pStream->outString);
 	return pString->str->data;
 }
 
 void CreateForthFunctionOutStream(ForthCoreState* pCore, ForthObject& outObject, streamCharOutRoutine outChar,
 	streamBytesOutRoutine outBytes, streamStringOutRoutine outString, void* pUserData)
 {
-	ForthClassVocabulary *pStreamVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIFunctionOutStream);
-	MALLOCATE_OBJECT(OStream::oFunctionOutStreamStruct, pFunctionOutStream, pStreamVocab);
-	pFunctionOutStream->ostream.refCount = 1;
+    ForthClassVocabulary *pClassVocab = GET_CLASS_VOCABULARY(kBCIFunctionOutStream);
+	MALLOCATE_OBJECT(OStream::oFunctionOutStreamStruct, pFunctionOutStream, pClassVocab);
+    pFunctionOutStream->ostream.pMethods = pClassVocab->GetMethods();
+    pFunctionOutStream->ostream.refCount = 1;
 	pFunctionOutStream->ostream.pOutFuncs = &(pFunctionOutStream->outFuncs);
 	pFunctionOutStream->ostream.pUserData = pUserData;
 	pFunctionOutStream->outFuncs.outChar = outChar;
 	pFunctionOutStream->outFuncs.outBytes = outBytes;
 	pFunctionOutStream->outFuncs.outString = outString;
-	ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIFunctionOutStream, 0);
-	outObject.pMethodOps = pPrimaryInterface->GetMethods();
-	outObject.pData = reinterpret_cast<long *>(pFunctionOutStream);
+    outObject = reinterpret_cast<ForthObject>(pFunctionOutStream);
 }
 
 void ReleaseForthObject(ForthCoreState* pCore, ForthObject& inObject)
 {
-	oOutStreamStruct* pObjData = reinterpret_cast<oOutStreamStruct *>(inObject.pData);
+	oOutStreamStruct* pObjData = reinterpret_cast<oOutStreamStruct *>(inObject);
 	if (pObjData->refCount > 1)
 	{
 		--pObjData->refCount;
@@ -1808,8 +1949,7 @@ void ReleaseForthObject(ForthCoreState* pCore, ForthObject& inObject)
 	else
 	{
 		FREE_OBJECT(pObjData);
-		inObject.pData = NULL;
-		inObject.pMethodOps = NULL;
+        inObject = nullptr;
 	}
 }
 
@@ -1819,14 +1959,14 @@ void ReleaseForthObject(ForthCoreState* pCore, ForthObject& inObject)
 void ForthConsoleCharOut(ForthCoreState* pCore, char ch)
 {
 	ForthEngine *pEngine = GET_ENGINE;
-	oOutStreamStruct* pOutStream = reinterpret_cast<oOutStreamStruct*>(pCore->consoleOutStream.pData);
+	oOutStreamStruct* pOutStream = reinterpret_cast<oOutStreamStruct*>(pCore->consoleOutStream);
 	if (pOutStream->pOutFuncs != NULL)
 	{
 		OStream::streamCharOut(pCore, pOutStream, ch);
 	}
 	else
 	{
-		SPUSH(((long)ch));
+		SPUSH(((cell)ch));
 		pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutCharMethod);
 	}
 }
@@ -1834,14 +1974,14 @@ void ForthConsoleCharOut(ForthCoreState* pCore, char ch)
 void ForthConsoleBytesOut(ForthCoreState* pCore, const char* pBuffer, int numChars)
 {
 	ForthEngine *pEngine = GET_ENGINE;
-	oOutStreamStruct* pOutStream = reinterpret_cast<oOutStreamStruct*>(pCore->consoleOutStream.pData);
+	oOutStreamStruct* pOutStream = reinterpret_cast<oOutStreamStruct*>(pCore->consoleOutStream);
 	if (pOutStream->pOutFuncs != NULL)
 	{
 		OStream::streamBytesOut(pCore, pOutStream, pBuffer, numChars);
 	}
 	else
 	{
-		SPUSH(((long)pBuffer));
+		SPUSH(((cell)pBuffer));
 		SPUSH(numChars);
 		pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutBytesMethod);
 	}
@@ -1850,17 +1990,15 @@ void ForthConsoleBytesOut(ForthCoreState* pCore, const char* pBuffer, int numCha
 void ForthConsoleStringOut(ForthCoreState* pCore, const char* pBuffer)
 {
 	ForthEngine *pEngine = GET_ENGINE;
-	oOutStreamStruct* pOutStream = reinterpret_cast<oOutStreamStruct*>(pCore->consoleOutStream.pData);
+	oOutStreamStruct* pOutStream = reinterpret_cast<oOutStreamStruct*>(pCore->consoleOutStream);
 	if (pOutStream->pOutFuncs != NULL)
 	{
 		OStream::streamStringOut(pCore, pOutStream, pBuffer);
 	}
 	else
 	{
-		SPUSH(((long)pBuffer));
+		SPUSH(((cell)pBuffer));
 		pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutStringMethod);
 	}
 }
-
-
 

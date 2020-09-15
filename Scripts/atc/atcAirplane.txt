@@ -87,7 +87,7 @@ class: atcAirplane extends iAtcAirplane
   ;
   
   m: init   // REGION ID
-    'plan' -> tag
+    `plan` -> tag
     -> id
     ->o region  // break circular reference  region->tile->airplane->region
   ;m
@@ -110,10 +110,10 @@ class: atcAirplane extends iAtcAirplane
     name.clear
     if
       1 -> updateInterval
-      name.appendChar( 'a' id +)
+      name.appendChar( `a` id +)
     else
       2 -> updateInterval
-      name.appendChar( 'A' id +)
+      name.appendChar( `A` id +)
     endif
   
     -> nextUpdateTime

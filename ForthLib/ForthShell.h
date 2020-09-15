@@ -16,7 +16,7 @@ class ForthInputStack;
 class ForthExtension;
 class ForthExpressionInputStream;
 
-#if defined(WIN32)
+#if defined(WINDOWS_BUILD)
 #define PATH_SEPARATOR "\\"
 #else
 #define PATH_SEPARATOR "/"
@@ -74,22 +74,25 @@ typedef enum
 class ForthShellStack
 {
 public:
-   ForthShellStack( int stackLongs = 1024 );
+   ForthShellStack( int stackEntries = 1024 );
    virtual ~ForthShellStack();
 
 
-   inline long *       GetSP(void)           { return mSSP; };
-   inline void         SetSP(long *pNewSP)   { mSSP = pNewSP; };
-   inline long         GetSize(void)         { return mSSLen; };
-   inline long         GetDepth(void)        { return mSST - mSSP; };
+   inline forthop**    GetSP(void)           { return mSSP; };
+   inline void         SetSP(forthop** pNewSP)   { mSSP = pNewSP; };
+   inline ucell        GetSize(void)         { return mSSLen; };
+   inline cell         GetDepth(void)        { return mSST - mSSP; };
    inline void         EmptyStack(void)      { mSSP = mSST; };
    // push tag telling what control structure we are compiling (if/else/for/...)
    void         PushTag(eShellTag tag);
-   void         Push(long val);
-   long         Pop(void);
+   void         PushAddress(forthop* val);
+   void         Push(cell val);
    eShellTag    PopTag(void);
-   long         Peek(int index = 0);
+   forthop*     PopAddress(void);
+   cell         Pop(void);
    eShellTag    PeekTag(int index = 0);
+   forthop*     PeekAddress(int index = 0);
+   cell         Peek(int index = 0);
 
    // push a string, this should be followed by a PushTag of a tag which uses this string (such as paren)
    void                PushString(const char *pString);
@@ -99,10 +102,10 @@ public:
    void					ShowStack();
 
 protected:
-	long                *mSSP;       // shell stack pointer
-	long                *mSSB;       // shell stack base
-	long                *mSST;       // empty shell stack pointer
-	ulong               mSSLen;      // size of shell stack in longwords
+    forthop**           mSSP;       // shell stack pointer
+    forthop**           mSSB;       // shell stack base
+    forthop**           mSST;       // empty shell stack pointer
+	ucell               mSSLen;     // size of shell stack in longwords
 	ForthEngine         *mpEngine;
 };
 
@@ -177,6 +180,7 @@ public:
     virtual int             FileGetPosition( FILE* pFile );
     virtual char*           FileGetString( FILE* pFile, char* dstBuffer, int maxChars );
     virtual int             FilePutString( FILE* pFile, const char* pBuffer );
+    virtual void*			ReadDir(void* pDir, void* pEntry);
 
     virtual void            PoundIf();
     virtual void            PoundIfdef( bool isDefined );

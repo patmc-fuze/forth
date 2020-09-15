@@ -10,10 +10,10 @@
 class ForthForgettable
 {
 public:
-    ForthForgettable( void *pOpAddress, long op );
+    ForthForgettable( void *pOpAddress, forthop op );
     virtual ~ForthForgettable();
 
-    static void     ForgetPropagate( void *pForgetLimit, long op );
+    static void     ForgetPropagate( void *pForgetLimit, forthop op );
 
     static inline ForthForgettable *GetForgettableChainHead( void ) {
         return mpChainHead;
@@ -33,7 +33,7 @@ public:
     virtual bool Restore( const char* pBuffer, unsigned int numBytes );
 
 protected:
-    virtual void    ForgetCleanup( void *pForgetLimit, long op ) = 0;
+    virtual void    ForgetCleanup( void *pForgetLimit, forthop op ) = 0;
 
     void*                       mpOpAddress;
     long                        mOp;

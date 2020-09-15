@@ -11,8 +11,6 @@ decimal
 
 //: showsection " ================== " dup %s swap %s %s %nl ;
 
-setupTestBase
-
 testBuff.set( "aba" )
 //turbo 255 setTrace
 //vd checkResult
@@ -23,18 +21,18 @@ test[ checkResult( "aba" ) ]
 
 // test special characters in strings and characters
 
-test[ '\0' 0= ] test[ '\a' 7 = ] test[ '\b' 8 = ] test[ '\t' 9 = ] test[ '\n' 0x0a = ] test[ '\v' 0x0b = ]
-test[ '\f' 0x0c = ] test[ '\r' 0x0d = ] test[ '\"' 0x22 = ] test[ '\'' 0x27 = ] test[ '\\' 0x5c = ]
+test[ `\0` 0= ] test[ `\a` 7 = ] test[ `\b` 8 = ] test[ `\t` 9 = ] test[ `\n` 0x0a = ] test[ `\v` 0x0b = ]
+test[ `\f` 0x0c = ] test[ `\r` 0x0d = ] test[ `"` 0x22 = ] test[ `'` 0x27 = ] test[ `\\` 0x5c = ]
 
 startTest
-'\a' %c '\b' %c '\t' %c '\n' %c '\v' %c '\f' %c '\r' %c '\"' %c '\'' %c  '\\' %c outToScreen
+`\a` %c `\b` %c `\t` %c `\n` %c `\v` %c `\f` %c `\r` %c `"` %c `'` %c  `\\` %c outToScreen
 
 test[ checkResult( "\a\b\t\n\v\f\r\"\'\\" ) ]
 
 // verify that character constants work
-: testCharacterConstants startTest 'a' %c '\ ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl ;
+: testCharacterConstants startTest `a` %c ` ` %c `b` %c `\t` %c `c` %c `\n` %c `z` %c %nl ;
 outToTestBuffer( testBuff2 )
-'a' %c '\ ' %c 'b' %c '\t' %c 'c' %c '\n' %c 'z' %c %nl
+`a` %c ` ` %c `b` %c `\t` %c `c` %c `\n` %c `z` %c %nl
 test[ testCharacterConstants checkResult( testBuff2.get ) ]
 
 ///////////////////////////////////////////////////////////
@@ -44,8 +42,8 @@ test[ testCharacterConstants checkResult( testBuff2.get ) ]
 : testIf if "t" addBuff endif ;
 test[ startTest "A" addBuff 1 testIf "B" addBuff 0 testIf "C" addBuff checkResult( "AtBC" ) ]
 
-: testIfElse if 't' else 'f' endif ;
-test[ 1 testIfElse 't' = ]  test[ 0 testIfElse 'f' = ]
+: testIfElse if `t` else `f` endif ;
+test[ 1 testIfElse `t` = ]  test[ 0 testIfElse `f` = ]
 
 : testBeginUntil
   startTest
@@ -69,7 +67,7 @@ test[ testBeginWhile checkResult( "5 4 3 2 1 " ) ]
 ;
 test[ testDoLoop checkResult( "0 1 2 3 4 0 -1 -2 -3 -4 -5 0 0 1 2 " ) ]
 
-//testBuff.get %s '|' %c %nl
+//testBuff.get %s `|` %c %nl
 
 : casetest
   case
@@ -162,8 +160,8 @@ test[ testLocalVars4 checkResult( "22.5 22.375 21.625 22.5 22.375 21.625 " ) ]
 20 buffer tb
 
 0xDEADBEEF tb !
-test[ startTest tb c@ %x %bl tb w@ %x %bl tb sc@ %x checkResult( "ef beef ffffffef" ) ]
-test[ startTest tb sw@ %x %bl tb c@ c2i %x %bl tb w@ w2i %x checkResult( "ffffbeef ffffffef ffffbeef" ) ]
+test[ startTest tb b@ %d %bl tb s@ 0xffff and %x checkResult( "-17 beef" ) ]
+test[ startTest tb s@ %d %bl tb b@ %d checkResult( "-16657 -17" ) ]
 
 ///////////////////////////////////////////////////////////
 
@@ -178,9 +176,9 @@ test[ "blahblah" -> aaa  strncpy( aaa bbb 2 ) strcmp( aaa "boahblah" ) 0= ]
 test[ "head" -> aaa "tail" -> bbb strcat( aaa bbb ) strcmp( aaa "headtail" ) 0= ]
 test[ "head" -> aaa "tail" -> bbb strncat( aaa bbb 3 ) strcmp( aaa "headtai" ) 0= ]
 
-test[ "blahblah" -> aaa  strcmp( strchr( aaa 'l' ) "lahblah" ) 0= ]
-test[ "blahblah" -> aaa  strcmp( strrchr( aaa 'l' ) "lah" ) 0= ]
-test[ "blahblah" -> aaa  strchr( aaa 'q' ) 0= ]
+test[ "blahblah" -> aaa  strcmp( strchr( aaa `l` ) "lahblah" ) 0= ]
+test[ "blahblah" -> aaa  strcmp( strrchr( aaa `l` ) "lah" ) 0= ]
+test[ "blahblah" -> aaa  strchr( aaa `q` ) 0= ]
 
 test[ strcmp( aaa "blahblah" ) 0= ]
 test[ strcmp( aaa "BlahblaH" ) 1 = ]
@@ -210,6 +208,14 @@ decimal
 
 //loaddone
 
+: 2=
+  rot = if
+    =
+  else
+    2drop false
+  endif
+;
+
 // < <= = <> > >= u< u> 0< 0<= 0= 0<> 0> 0>=
 test[ 1 5 < -1 -5 < not 7 7 < not ] test[ 22 11 <= not -134 77 <= 99 99 <= ] test[ 11 18 = not -11214 -11214 = ]
 test[ 14 24 <> 83 83 <> not ] test[ 1243 987 > 3775 783475 > not 88 88 > not ] test[ 7837 11 >= 27384 273855 >= not 71 71 >= ]
@@ -226,9 +232,9 @@ test[ true false and not ] test[ 33 7 and 1 = ] test[ 0xf0f 0x0f0 and 0= ] test[
 test[ 0xf0f 0x0f0 xor 0xfff = ] test[ 0x505 0x141 xor 0x444 = ]
 
 // 2* 4* 8* 2/ 4/ 8/ /mod mod negate
-//test[ -5 -7 u* -12 35 l= ]
+//test[ -5 -7 u* -12 35 2= ]
 test[ 243 2* 486 = ] test[ 243 4* 972 = ] test[ 243 8* 1944 = ] test[ 744 2/ 372 = ]
-test[ 744 4/ 186 = ] test[ 744 8/ 93 = ] test[ 4183 23 /mod 20 181 l= ] test[ 193747 39 mod 34 = ] test[ -34 negate 34 = ]
+test[ 744 4/ 186 = ] test[ 744 8/ 93 = ] test[ 4183 23 /mod 20 181 2= ] test[ 193747 39 mod 34 = ] test[ -34 negate 34 = ]
 
 // f+ f- f* f/ f= f<> f> f>= f< f<= 
 test[ 3.5 4.25 f+ 7.75 f= ] test[ 8.5 3.25 f- 5.25 f= ] test[ 3.5 4.5 f* 63.0 4.0 f/ f= ] test[ 5.0 4.0 f<> ]
@@ -253,8 +259,14 @@ test[ -10.0d 4.3d dmax 4.3d d= ]
    
 // lshift arshift rshift rotate
 test[ 1 8 lshift 256 = ] test[ 17 2 lshift 68 = ] test[ -80 3 arshift -10 = ] test[ 19 2 arshift 4 = ]
-test[ 0xF1234567 4 arshift 0xFF123456 = ] test[ 0xF1234567 4 rshift 0xF123456 = ]
+test[ 0xF1234567 4 rshift 0xF123456 = ]
+#if(FORTH64)
+test[ 0xFFFFFFFFF1234567 4 arshift 0xFFFFFFFFFF123456 = ]
+test[ 0x12345678 8 rotate 0x1234567800 = ] test[ 0x12345678 -8 rotate 0x7800000000123456 = ]
+#else
+test[ 0xF1234567 4 arshift 0xFF123456 = ]
 test[ 0x12345678 8 rotate 0x34567812 = ]
+#endif
 test[ 0x1234567876543210L 8 2lshift 0x3456787654321000L l= ] test[ 0x1234567876543210L 8 2rshift 0x0012345678765432L l= ]
 test[ 0x1234567876543210L 8 2rotate 0x3456787654321012L l= ] test[ 0x1234567876543210L -8 2rotate 0x1012345678765432L l= ]
 
@@ -264,8 +276,16 @@ test[ 87 5 ?dup 0 ?dup 0= rot 5 = rot 5 = and and over 87 = rot 87 = ]
 
 // -rot nip tuck 
 test[ 43 27 88 -rot 27 = -rot 43 = -rot 88 = and and and 1 4 5 nip 5 = swap 1 = and 11 22 tuck 22 = swap 11 = and swap 22 = and ]
+
+test[ fabs(-56.75) 56.75 f= fabs(56.75) 56.75 f= ]
+test[ dabs(-56.75l) 56.75L d= dabs(56.75l) 56.75L d= ]
+test[ fldexp(0.875 8) 224.0 f= dldexp(-0.875l 8) -224.0L d= ]
+test[ ffrexp(-224.0) 8 = swap -0.875 f= dfrexp(224.0l) 8 = >r 0.875L d= r> ]
+test[ fmodf(12345.625) 0.625 f= swap 12345.0 f= dmodf(-12345.625l) -0.625L d= >r -12345.0L d= r> ]
+test[ ffmod(-27.375 4.0) -3.375 f= dfmod(27.375l 4.0l) 3.375L d= ]
+
 // 2dup 2swap 2drop 2over 2rot r[ ]r
-// c! c@ sc@ w! w@ sw@ ! @ 2! 2@ 
+// b! b@ sb@ s! s@ ss@ ! @ 2! 2@ 
 // move fill varAction! varAction@
 // l+ l- l* l/ lmod l/mod lnegate i2l i2f i2d f2l f2i f2d d2l d2i d2f l2f l2d
 // l= l<> l> l>= l< l<= l0= l0> l0>= l0< l0<= lwithin lmin lmax
@@ -310,11 +330,11 @@ test[ fMixBlock(srcA dst 1.0 4)    35.0 17.0 1.125 100.0 fcheck4 ]
 test[ fMixBlock(srcB dst 0.5 4)    37.5 18.0 5.125 102.0 fcheck4 ]
 
 create dsrcA
-  35.0d 2, 17.0d 2, 1.125d 2, 100.0d 2,
+  35.0d l, 17.0d l, 1.125d l, 100.0d l,
 create dsrcB
-  5.0d 2, 2.0d 2, 8.0d 2, 4.0d 2,
+  5.0d l, 2.0d l, 8.0d l, 4.0d l,
 create ddst
-  0.0d 2, 0.0d 2, 0.0d 2, 0.0d 2, 17.0d 2,
+  0.0d l, 0.0d l, 0.0d l, 0.0d l, 17.0d l,
 
 : dcheck4
   ddst 32+ -> ptrTo double pd
@@ -416,31 +436,31 @@ test[ mod11catcher(36) 17 = caughtVal 3 = finallyVal 3 = ]
 
 //0123456789abcdef012345 
 testBuff2.set( "This is a test string" )
-testBuff2.get -> int pSrc
-ref pSrc -> int src
-testBuff.get -> int pDst
-ref pDst -> int dst
-src 2@@++ dst 2@!++ 
-src c@@++ dst c@!++ 
-src c@@++ dst c@!++ 
-src w@@++ dst w@!++ 
-src @@++ dst @!++ 
-src w@@++ dst w@!++ 
-src c@@++ dst c@!++ 
-src c@@++ dst c@!++ 
-src w@@++ dst w@!++ 
+testBuff2.get -> ptrTo byte pSrc
+ref pSrc -> ptrTo int src
+testBuff.get -> ptrTo cell pDst
+ref pDst -> ptrTo cell dst
+src l@@++ dst l@!++ 
+src b@@++ dst b@!++ 
+src b@@++ dst b@!++ 
+src s@@++ dst s@!++ 
+src i@@++ dst i@!++ 
+src s@@++ dst s@!++ 
+src b@@++ dst b@!++ 
+src b@@++ dst b@!++ 
+src s@@++ dst s@!++ 
 test[ checkResult( testBuff2.get ) ]
 
-test[ 0xDEADBEEF 123456789 l= ]	// check for stack underflow or extra items
+test[ 0xDEADBEEF 123456789 2= ]	// check for stack underflow or extra items
 
 
 ///////////////////////////////////////////////////////////
 // test $evaluate
 
-: ee $evaluate( "'e' %c 'y' %c" );
-: cc $evaluate( "'c' %c" );
-: bb $evaluate( "'b' %c" ) cc $evaluate( "'d' %c" ) ;
-: aa $evaluate( "'a' %c" ) bb ee $evaluate( "'z' %c" ) ;
+: ee $evaluate( "`e` %c `y` %c" );
+: cc $evaluate( "`c` %c" );
+: bb $evaluate( "`b` %c" ) cc $evaluate( "`d` %c" ) ;
+: aa $evaluate( "`a` %c" ) bb ee $evaluate( "`z` %c" ) ;
 
 //test[ strcmp( aa "abcdeyz" ) 0= ]
 
@@ -450,12 +470,12 @@ test[ 0xDEADBEEF 123456789 l= ]	// check for stack underflow or extra items
 //stdin fgetc
 : finalCheck
   if( testFailed not )
+    pushAuxOut
     "All tests succeeded\n" %s
+    popConsoleOut odrop
   endif
 ;
 finalCheck
-
-cleanupTestBase
 
 loaddone
 

@@ -8,6 +8,10 @@ decimal
 
 scSetShowID(false)
 
+cd tests
+lf testbase.txt
+cd ..
+
 : runtest
   depth -> int oldDepth
   mko String testName
@@ -17,8 +21,10 @@ scSetShowID(false)
   "##################### run " %s testScriptName.get %s " #####################\n" %s
   $load(testScriptName.get)
   if(depth oldDepth <>)
+    pushAuxOut
     "!!!!!!!!!!!!!!!!!!!!!! stack depth changed !!!!!!!!!!!!!!!!!!!!!!\n" %s
     ds
+    popConsoleOut odrop
   endif
   oclear testName
   oclear testScriptName
@@ -50,6 +56,13 @@ runtest tree_examples
 go
 forget TREE_EXAMPLES
 
+runtest directory
+mko Directory dd
+dd.openHere
+dd.listFilenames
+oclear dd
+forget Directory
+
 cd newadv
 runtest adv
 forget ADV
@@ -60,13 +73,15 @@ runtest atc
 forget ATC
 cd ..
 
-cd system
 : _TEST_ ;
+cd system
+runtest maze
 runtest hersheyfont
 runtest file
 runtest rbtree
-forget _TEST_
 cd ..
+runtest maze
+forget _TEST_
 
 cd tests
 
@@ -89,7 +104,9 @@ runtest forthtest
 
 runtest ansitest
 
+dumpTestSummary
+cleanupTestBase
+
 forget TEST
 cd ..
-
 

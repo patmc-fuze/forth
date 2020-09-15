@@ -6,19 +6,35 @@ setTrace(0)
 // create the system singleton
 makeObject System system
 
+#if FORTH64
+: cells 8* ;
+: cell+ 8+ ;
+: cell- 8- ;
+: cell/ 8/ ;
+8 constant cellsize
+: p@ 2@ ;
+#else
+: cells 4* ;
+: cell+ 4+ ;
+: cell- 4- ;
+: cell/ 4/ ;
+4 constant cellsize
+: p@ @ ;
+#endif
+
 // initialize the system object
 : _initSystemObject
   new StringMap -> system.namedObjects
 
   makeObject StringMap env
-  getEnvironment   -> int numVars  -> int envValues  -> int envNames
+  getEnvironment   -> int numVars  -> ptrTo int envValues  -> ptrTo int envNames
   ?do(numVars 0)
     makeObject String varValue
-    varValue.set(envValues @)
+    varValue.set(envValues p@)
     //"adding environment variable " %s envNames @ %s " = " %s varValue.get %s %nl
-    4 ->+ envValues
-    env.set(varValue envNames @)
-    4 ->+ envNames
+    cellsize ->+ envValues
+    env.set(varValue envNames p@)
+    cellsize ->+ envNames
     oclear varValue
   loop
   env -> system.env
@@ -37,6 +53,7 @@ makeObject System system
   args -> system.args
   oclear args
 ;
+
 _initSystemObject
 $forget("_initSystemObject") drop
 
@@ -50,43 +67,60 @@ $forget("_initSystemObject") drop
     drop false
   endif
 ;
-: blword? word?('\ ') ;
+: blword? word?(` `) ;
 
 : $alias
-  -> int oldSymbol
-  -> int newSymbol
+  -> ptrTo byte oldSymbol
+  -> ptrTo byte newSymbol
   system.getDefinitionsVocab -> Vocabulary vocab
-  vocab.findEntryByName(oldSymbol) -> int oldEntry
-  // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
-  makeObject ByteArray valueBuffer
-  valueBuffer.fromMemory(oldEntry vocab.getValueLength 0)
-  valueBuffer.base -> oldEntry
-  //newSymbol %s %nl dump(oldEntry 32)
+  vocab.findEntryByName(oldSymbol) -> ptrTo int oldEntry
   if(oldEntry)
+    // need to copy value, since addSymbol below could cause vocabulary memory to be realloced at a different address
+    makeObject ByteArray valueBuffer
+    valueBuffer.fromMemory(oldEntry vocab.getValueLength 0)
+    valueBuffer.base -> oldEntry
+    
     vocab.addSymbol(newSymbol 0 0 0)
-    vocab.getNewestEntry -> int newEntry
-    move(oldEntry  newEntry  vocab.getValueLength)
+    vocab.getNewestEntry -> ptrTo int newEntry
+    move(valueBuffer.base  newEntry  vocab.getValueLength)
+    //newSymbol %s %nl dump(valueBuffer.base 32)
+    //newSymbol %s %nl dump(newEntry 32)
+    oclear valueBuffer
   else
     "Symbol " %s oldSymbol %s " not found!\n" %s
   endif
   oclear vocab
-  oclear valueBuffer
 ;
 
 : alias blword -> 250 string aa  aa blword $alias ;
 alias ->o ->+    // ->o stores to an object variable without changing refcounts
 alias mko makeObject
 alias bool int
-alias objIsNull l0=
-alias objNotNull l0<>
+alias objIsNull 0=
+alias objNotNull 0<>
 alias ds dstack
+alias , i,
 
 0x7FFFFFFF -> int MAXINT
 0x80000000 -> int MININT
 0xFFFFFFFF -> int MAXUINT
-0xFFFFFFFFFFFFFFFFL -> long MAXULONG
 0x7FFFFFFFFFFFFFFFL -> long MAXLONG
 0x8000000000000000L -> long MINLONG
+0xFFFFFFFFFFFFFFFFL -> long MAXULONG
+
+#if FORTH64
+alias Cell Long
+alias CellArray LongArray
+MAXULONG -> cell MAXCELL
+MINLONG -> cell MINCELL
+MAXULONG -> cell MAXUCELL
+#else
+alias Cell Int
+alias CellArray IntArray
+MAXINT -> cell MAXCELL
+MININT -> cell MINCELL
+MAXUINT -> cell MAXUCELL
+#endif
 
 : ' blword $' ;
 : lf blword $load ;
@@ -135,10 +169,11 @@ alias ds dstack
   numStrings ,
   // create array of pointers to strings
   here -> ptrTo int string0
-  numStrings 4* allot
+  numStrings cells allot
   // compile strings and stuff ptrs to them into array
   ?do(numStrings 0) 
     here swap $, 
+    // TODO - 64bit
     numStrings 1- i - string0 int[] !
   loop
 ;
@@ -148,16 +183,33 @@ alias ds dstack
   builds
     _buildConstantArray
   does
-    int[] 4+ @
+    // TODO - 64bit
+    int[] cell+ @
 ;
 
-
+alias c@ ub@
+alias c! b!
 : count dup 1+ swap c@ ;
-: 2, here 8 allot 2! ;
+: 2, , , ;
 
+#if(FORTH64)
+alias land and
+alias lor or
+alias lxor xor
+alias ucell ulong
+alias l* *
+alias 2lshift lshift
+alias 2rshift rshift
+alias l= =
+alias 2rotate rotate
+alias l+ +
+alias l0<> 0<>
+#else
 : land rot and >r and r> ;
 : lor rot or >r and r> ;
 : lxor rot xor >r and r> ;
+alias ucell uint
+#endif
 
 : time&date splitTime(time) ;
 
@@ -177,9 +229,10 @@ enum: eFeatures
   0x0100  kFFCFloatLiterals
   0x0200  kFFParenIsExpression
   // kFFAnsi and kFFRegular are the most common feature combinations
-  kFFParenIsComment kFFIgnoreCase + kFFDollarHexLiterals + kFFAnsi
+  kFFParenIsComment kFFIgnoreCase + kFFDollarHexLiterals +    kFFAnsi
+  
   kFFCCharacterLiterals kFFMultiCharacterLiterals + kFFCStringLiterals +
-    kFFCHexLiterals + kFFDoubleSlashComment + kFFCFloatLiterals + kFFRegular
+    kFFCHexLiterals + kFFDoubleSlashComment + kFFCFloatLiterals +    kFFRegular
     
 ;enum
 
@@ -254,7 +307,7 @@ addHelp immediate    makes most recently defined word have precedence
   vocab.getNewestEntry
   vocab.getValueLength + >r // top of rstack points to length byte of counted string
   move( r@ 1+ _TempStringA r@ c@ )
-  r> c@ dup _TempStringA 4- !
+  r> c@ dup _TempStringA 4- i!
   0 swap _TempStringA + c!
   precedence(pushToken(_TempStringA))
   oclear vocab
@@ -270,18 +323,22 @@ int dumpWidth
 
 // ADDR LEN OFFSET _dump
 : _dump
-  -> int offset		// offset is subtracted from the actual data address before display
-  -> int len
-  -> int addr
+  -> cell offset		// offset is subtracted from the actual data address before display
+  -> cell len
+  -> ptrTo byte addr
   int columns
-  int endAddr
+  ptrTo byte endAddr
   int ch
 
   addr len + -> endAddr
   len -> columns
   begin
   while( addr endAddr < )
+#if FORTH64
+    addr offset - "%016llx" format %s "   " %s
+#else
     addr offset - "%08x" format %s "   " %s
+#endif
     if( len dumpWidth > )
       dumpWidth -> columns
     endif
@@ -299,7 +356,7 @@ int dumpWidth
       if( ch bl >  ch 127 < and )
         ch
       else
-        '.'
+        `.`
       endif
       %c
     loop
@@ -337,7 +394,7 @@ int dumpWidth
       if( ch bl >  ch 127 < and )
         ch
       else
-        '.'
+        `.`
       endif
       %c
     loop
@@ -399,8 +456,6 @@ alias fliteral literal
 : dliteral postpone dlit 2, ;
 precedence literal   precedence fliteral   precedence dliteral
 
-: cells 4* ;
-: cell+ 4+ ;
 : chars ;
 : char blword c@ ;
 
@@ -412,13 +467,13 @@ precedence literal   precedence fliteral   precedence dliteral
   //opType:makeOpcode( opType:litString lenInts ) ,		// compile literal string opcode
   or(0x15000000 lenInts) ,		// compile literal string opcode
   strcpy( here src )
-  allot( lenInts cells )
+  allot( lenInts 4* )
 ;
 
 : cmove 0 do over i + c@ over i + c! loop 2drop ;
 : cmove> 0 swap 1- do over i + c@ over i + c! -1 +loop 2drop ;
 : ."
-  '"' $word
+  `"` $word
   if( state @ )
     compileStringLiteral
     postpone %s
@@ -429,7 +484,7 @@ precedence literal   precedence fliteral   precedence dliteral
 precedence ."
 
 : s"
-  '"' $word
+  `"` $word
   if( state @ )
     compileStringLiteral( dup )
     strlen postpone literal
@@ -452,7 +507,7 @@ alias space %bl
   stdin fgets dup -> ptrTo byte buffer
   strlen -> int bytesRead
   if( bytesRead )
-    if( buffer bytesRead + 1- c@ '\n' = )
+    if( buffer bytesRead + 1- c@ `\n` = )
       // trim trailing linefeed from count
       1 ->- bytesRead
     endif
@@ -669,7 +724,7 @@ addHelp pwd	pwd			display working directory
 
 addHelp ls	ls BLAH		display directory (BLAH is optional filespec)
 : ls
-  '\n' $word -> _TempStringA
+  `\n` $word -> _TempStringA
 #if WINDOWS
   "dir" -> _TempStringB
 #else
@@ -726,7 +781,7 @@ addHelp more more FILENAME	display FILENAME on screen
         0 -> lineCounter
         "Hit q to quit, any other key to continue\n" %s
         fgetc( stdin ) dup
-        if( 'q' = swap 'Q' = or )
+        if( `q` = swap `Q` = or )
           true -> done
         endif
       endif
@@ -751,11 +806,11 @@ addHelp numLocals	returns number of longwords of local variables in current stac
 
 : dlocals
   fp if
-    rp 4+
-    fp 4-
+    rp cell+
+    fp cell-
     do
       i @ %x %nl
-    -4 +loop
+    cellsize negate +loop
   else
     "no locals defined\n" %s
   endif
@@ -770,7 +825,7 @@ precedence demo
 addHelp list     BLOCK_NUM ...     display specified block
 variable scr  0 scr !
 : list dup scr ! block 16 0 do dup 64 type %nl 64+ loop drop ;
-: lb dup scr ! block 16 0 do i %d '\t' %c '|' %c dup 64 type '|' %c %nl 64+ loop drop ;
+: lb dup scr ! block 16 0 do i %d `\t` %c `|` %c dup 64 type `|` %c %nl 64+ loop drop ;
 : load dup thru ;
 
 enum: threadRunStates
@@ -830,9 +885,16 @@ struct: WIN32_FIND_DATA
 struct: dirent
   int	d_ino
   short	d_reclen
+#if FORTH64
+  short	d_dummy1
+  long	d_namlen
+#else
   int	d_namlen
+#endif
   int	d_type
-  MAX_PATH arrayOf byte d_name
+  // for some reason bytes beyond end of dirent struct get overwritten,
+  //   add 8 bytes of padding for now
+  MAX_PATH 8+ arrayOf byte d_name
 ;struct
 
 #else
@@ -840,7 +902,7 @@ struct: dirent
 struct: dirent
   int	d_ino
   short	d_reclen
-  int	d_namlen
+  cell	d_namlen
   int	d_type
   256 arrayOf byte d_name
 ;struct
@@ -855,18 +917,18 @@ enum: DIRENT_TYPE_BITS
 
 // "DIRECTORY_PATH" ... Array of String
 : getFilesInDirectory
-  int dirHandle
-  ptrTo dirent pEntry
-  int pName
+  cell dirHandle
+  dirent entry
+  ptrTo byte pName
   new Array -> Array of String filenames
+  ref dirHandle %x %bl entry %x %nl
   
   opendir -> dirHandle
   if( dirHandle )
     begin
-      readdir(dirHandle) -> pEntry
-    while( pEntry )
-      pEntry.d_name(0 ref) -> pName
-      if(pName c@ '.' <>)
+    while( readdir(dirHandle entry) )
+      entry.d_name(0 ref) -> pName
+      if(pName c@ `.` <>)
         new String -> String filename
         filename.set(pName)
         filenames.push(filename)
@@ -937,7 +999,7 @@ precedence ]t
 ;
 
 : assert[
-  $word( ']' )
+  $word( `]` )
   if( compileAsserts )
     $evaluate postpone _assert
   else
@@ -947,8 +1009,8 @@ precedence ]t
 precedence assert[
 
 : oshow
-  if( 2dup l0= )
-    "NULLObj" %s 2drop
+  if( dup 0= )
+    "NULLObj" %s drop
   else
     <Object>.show
   endif
@@ -956,6 +1018,21 @@ precedence assert[
 addHelp oshow   OBJECT oshow ...    like OBJECT.show, but doesn't crash if OBJECT is NULL
 
 : ss system.stats ;
+
+//######################################################################
+// floating point constants
+
+0x400921fb54442d18L 2constant dpi
+0x400a934f0979a371L 2constant dlog2ten
+0x3ff71547652b82feL 2constant dlog2e
+0x3fd34413509f79ffL 2constant dlog10two
+0x3fe62e42fefa39efL 2constant dlntwo
+
+0x40490fdb constant fpi
+0x40549a78 constant flog2ten
+0x3fb8aa3b constant flog2e
+0x3e9a209b constant flog10two
+0x3f317218 constant flntwo
 
 //######################################################################
 // automated test support
@@ -997,8 +1074,8 @@ addHelp pushConsoleOut   OUTPUT_STREAM pushConsoleOut ...   save current console
   setConsoleOut
 ;
 
-addHelp pushOutputFile   OUTPUT_FILENAME pushOutputFile ...   redirect output stream to named file
-: pushOutputFile
+addHelp pushFileOut   OUTPUT_FILENAME pushFileOut ...   redirect output stream to named file
+: pushFileOut
   -> ptrTo byte outFileName
   mko FileOutStream outFile
   
@@ -1009,6 +1086,11 @@ addHelp pushOutputFile   OUTPUT_FILENAME pushOutputFile ...   redirect output st
     error("pushOutputFile: failed to open ")
   endif
   oclear outFile
+;
+
+addHelp pushAuxOut ... redirect output stream to aux out stream
+: pushAuxOut
+  system.getAuxOut pushConsoleOut
 ;
 
 addHelp popConsoleOut   popConsoleOut ... OLD_CONSOLE_OUTSTREAM      restore previous console output stream
@@ -1024,7 +1106,7 @@ addHelp popConsoleOut   popConsoleOut ... OLD_CONSOLE_OUTSTREAM      restore pre
 // use t{ ... }t to quickly redirect all print output to the trace stream (usually an external logger program)
 mko TraceOutStream traceOut
 : t{ pushConsoleOut(traceOut) ;
-: }t popConsoleOut 2drop ;
+: }t popConsoleOut drop ;
 
 addHelp outToScreen   restore output to the normal console
 : outToScreen getDefaultConsoleOut setConsoleOut ;
@@ -1039,13 +1121,13 @@ addHelp pushContext save the current base, search vocabularies and definitions v
   system.getSearchVocabDepth
   system.getDefinitionsVocab
   base @
-  'fctx'
+  `fctx`
 ;
 
 addHelp popContext restore the current base, search vocabularies and definitions vocabulary from stack
 : popContext
   int numSearchVocabs
-  if('fctx' <>)
+  if(`fctx` <>)
     error("popContext - wrong stuff on stack")
   else
     base !
@@ -1073,9 +1155,10 @@ enum: eLogFlags
   32    kLogVocabulary
   64    kLogIO
   128   kLogEngine
-  256   kLogToConsole
-  512   kLogCompilation
-  1024  kLogProfiler
+  256   kLogToFile
+  512   kLogToConsole
+  1024  kLogCompilation
+  2048  kLogProfiler
 ;enum
 
 //######################################################################

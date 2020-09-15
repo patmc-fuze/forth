@@ -38,7 +38,7 @@ void ForthShowContext::Reset()
 	mDepth = 0;
 }
 
-ulong ForthShowContext::GetDepth()
+ucell ForthShowContext::GetDepth()
 {
 	return mDepth;
 }
@@ -72,7 +72,7 @@ void ForthShowContext::ShowIndent(const char* pText)
 {
     if (mShowSpaces)
     {
-        for (int32 i = 0; i < mDepth; i++)
+        for (ucell i = 0; i < mDepth; i++)
         {
             ShowText("  ");
         }
@@ -166,7 +166,7 @@ void ForthShowContext::EndElement(const char* pEndText)
 
 void ForthShowContext::AddObject(ForthObject& obj)
 {
-	if (mShownObjects.insert(obj.pData).second)
+	if (mShownObjects.insert(obj).second)
 	{
 		mObjects.push_back(obj);
 	}
@@ -174,9 +174,8 @@ void ForthShowContext::AddObject(ForthObject& obj)
 
 bool ForthShowContext::ObjectAlreadyShown(ForthObject& obj)
 {
-	return obj.pMethodOps == nullptr
-        || obj.pData == nullptr
-        || mShownObjects.find(obj.pData) != mShownObjects.end();
+	return obj == nullptr
+        || mShownObjects.find(obj) != mShownObjects.end();
 }
 
 std::vector<ForthObject>& ForthShowContext::GetObjects()
@@ -210,10 +209,14 @@ void ForthShowContext::ShowHeader(ForthCoreState* pCore, const char* pTypeName, 
 
 void ForthShowContext::ShowID(const char* pTypeName, const void* pData)
 {
-	char buffer[16];
+	char buffer[32];
 
 	ShowText(pTypeName);
-	sprintf(buffer, "_%08x", (uint32) pData);
+#ifdef FORTH64
+	sprintf(buffer, "_%016llx", (uint64_t) pData);
+#else
+    sprintf(buffer, "_%08x", (uint32_t)pData);
+#endif
 	ShowText(buffer);
 }
 
@@ -318,12 +321,12 @@ void ForthShowContext::ShowObjectLink(const ForthObject& obj)
     ShowText("\"@");
 
     const char* pTypeName = "Null";
-    if (obj.pMethodOps != nullptr)
+    if (obj != nullptr)
     {
-        const ForthClassObject* pClassObject = (const ForthClassObject *)(*((obj.pMethodOps) - 1));
+        const ForthClassObject* pClassObject = GET_CLASS_OBJECT(obj);
         pTypeName = pClassObject->pVocab->GetName();
     }
-    ShowID(pTypeName, obj.pData);
+    ShowID(pTypeName, obj);
 
     ShowText("\"");
 }

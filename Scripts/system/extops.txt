@@ -1,5 +1,11 @@
 // basic ops not included in the kernel
 
+FORTH64 [if]
+
+lf extops_amd64.txt
+
+[else]
+
 ARCH_X86 [if]
 
 lf extops_x86.txt
@@ -10,6 +16,7 @@ ARCH_ARM [if]
 
 lf extops_arm.txt
 
+[endif]
 [endif]
 [endif]
 
@@ -54,12 +61,12 @@ precedence doescode
   base @ i2l -> long lbase
   begin
     pSrc @ -> byte ch
-    if( ch '0' >= ch '9' <= and )
-      '0' ->- ch
+    if( ch `0` >= ch `9` <= and )
+      `0` ->- ch
     else
-      if( ch 'A' >= ch 'Z' <= and  ch 'a' >= ch 'z' <= and  or )
+      if( ch `A` >= ch `Z` <= and  ch `a` >= ch `z` <= and  or )
         ch 0x20 or -> ch  // lowercase it
-        'a' 0xa - ->- ch
+        `a` 0xa - ->- ch
       else
         // force exit
         base @ -> ch

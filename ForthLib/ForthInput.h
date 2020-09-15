@@ -42,7 +42,8 @@ public:
     virtual int     GetWriteOffset( void );
     virtual void    SetWriteOffset( int offset );
 	virtual bool	IsEmpty();
-	virtual bool	IsGenerated();
+    virtual bool	IsGenerated();
+    virtual bool	IsFile();
 
     virtual int     GetBufferLength( void );
     virtual void    SetBufferPointer( const char *pBuff );
@@ -55,8 +56,8 @@ public:
     virtual void    SeekToLineEnd();
     virtual long    GetBlockNumber();
 
-    virtual long*   GetInputState() = 0;
-    virtual bool    SetInputState( long* pState ) = 0;
+    virtual cell*   GetInputState() = 0;
+    virtual bool    SetInputState(cell* pState) = 0;
 
     virtual void    StuffBuffer(const char* pSrc);
     virtual void    PrependString(const char* pSrc);
@@ -64,6 +65,7 @@ public:
     virtual void    CropCharacters(int numCharacters);
 
 	virtual bool	DeleteWhenEmpty();
+    virtual void    SetDeleteWhenEmpty(bool deleteIt);
 
     friend class ForthInputStack;
 
@@ -73,6 +75,7 @@ protected:
     int                 mWriteOffset;
     char                *mpBufferBase;
     int                 mBufferLen;
+    bool                mbDeleteWhenEmpty;
 };
 
 
@@ -97,15 +100,16 @@ public:
 	virtual const char* GetName( void );
     virtual int     GetSourceID();
 
-    virtual long*   GetInputState();
-    virtual bool    SetInputState( long* pState );
+    virtual cell*   GetInputState();
+    virtual bool    SetInputState(cell* pState);
+    virtual bool	IsFile();
 
 protected:
     FILE            *mpInFile;
     char*           mpName;
     int             mLineNumber;
     unsigned int    mLineStartOffset;
-    long            mState[8];
+    cell            mState[8];
 };
 
 // save-input items:
@@ -127,12 +131,12 @@ public:
 	virtual const char* GetName( void );
     virtual int     GetSourceID();
 
-    virtual long*   GetInputState();
-    virtual bool    SetInputState( long* pState );
+    virtual cell*   GetInputState();
+    virtual bool    SetInputState(cell* pState);
 
 protected:
     int             mLineNumber;    // number of times GetLine has been called
-    long            mState[8];
+    cell            mState[8];
 };
 
 
@@ -155,8 +159,8 @@ public:
 	virtual const char* GetType( void );
     virtual const char* GetReportedBufferBasePointer( void );
  
-    virtual long*   GetInputState();
-    virtual bool    SetInputState( long* pState );
+    virtual cell*   GetInputState();
+    virtual bool    SetInputState(cell* pState);
 
 	// TODO: should this return true?
 	//virtual bool	IsGenerated();
@@ -169,7 +173,7 @@ protected:
     char			*mpDataBuffer;
     char			*mpDataBufferBase;
     char			*mpDataBufferLimit;
-    long            mState[8];
+    cell            mState[8];
 	bool			mIsInteractive;
 };
 
@@ -194,8 +198,10 @@ public:
     virtual void    SeekToLineEnd();
     virtual long    GetBlockNumber();
 
-    virtual long*   GetInputState();
-    virtual bool    SetInputState( long* pState );
+    virtual cell*   GetInputState();
+    virtual bool    SetInputState(cell* pState);
+
+    virtual bool	IsFile();
 
 
 protected:
@@ -205,7 +211,7 @@ protected:
     unsigned int    mCurrentBlock;
     unsigned int    mLastBlock;
     char			*mpDataBuffer;
-    long            mState[8];
+    cell            mState[8];
 };
 
 
@@ -225,10 +231,9 @@ public:
 
 	virtual void    SeekToLineEnd();
 
-	virtual long*   GetInputState();
-	virtual bool    SetInputState(long* pState);
+	virtual cell*   GetInputState();
+	virtual bool    SetInputState(cell* pState);
 
-	virtual bool	DeleteWhenEmpty();
 	virtual bool	IsGenerated();
 
 protected:

@@ -8,6 +8,23 @@ startx
   -> this required removing InnerInterp.asm, but this includes the CallDLL routine
 ? get linux version working under cygwin
 =============================================================================
+July 7 2019
+
+I ran into the problem (again) where pushing arm2016 from raspi would fail
+with an apparent permissions problem - the problem (I don't know why) is that
+on windows I was in the arm2016 branch, after I switched to the master branch
+I was able to push from raspi to arm2016.
+=============================================================================
+July 6 2019
+
+When I run Ubuntu-mate, I keep seeing an install-updates popup, but it fails
+saying that it needs 48M on the boot partition, and there is only 43M free.
+Apparently this is an installer bug, it really doesn't need space on boot.
+I guess resizing the boot partition is a pain, so the recommended workaround
+is to do updating from the console with:
+
+sudo apt dist-upgrade
+=============================================================================
 FP instruction debug
 
 + vadd, vsub, vmul, vdiv

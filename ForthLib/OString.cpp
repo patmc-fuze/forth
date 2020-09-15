@@ -22,7 +22,7 @@
 extern "C"
 {
 	unsigned long SuperFastHash (const char * data, int len, unsigned long hash);
-	extern int oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
+	extern cell oStringFormatSub( ForthCoreState* pCore, char* pBuffer, int bufferSize );
 };
 
 namespace OString
@@ -99,12 +99,12 @@ namespace OString
     FORTHOP( oStringNew )
     {
         ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *) (SPOP);
-        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface( 0 );
         MALLOCATE_OBJECT( oStringStruct, pString, pClassVocab );
+        pString->pMethods = pClassVocab->GetMethods();
         pString->refCount = 0;
         pString->hash = 0;
 		pString->str = createOString( gDefaultOStringSize );
-        PUSH_PAIR( pPrimaryInterface->GetMethods(), pString );
+        PUSH_OBJECT(pString);
     }
 
     FORTHOP( oStringDeleteMethod )
@@ -146,7 +146,7 @@ namespace OString
         GET_THIS( oStringStruct, pString );
         ForthObject compObj;
         POP_OBJECT( compObj );
-		oStringStruct* pComp = (oStringStruct *) compObj.pData;
+		oStringStruct* pComp = (oStringStruct *) compObj;
 		int retVal = strcmp( &(pString->str->data[0]), &(pComp->str->data[0]) );
 		SPUSH( retVal );
         METHOD_RETURN;
@@ -169,7 +169,7 @@ namespace OString
     FORTHOP( oStringGetMethod )
     {
         GET_THIS( oStringStruct, pString );
-		SPUSH( (long) &(pString->str->data[0]) );
+		SPUSH( (cell) &(pString->str->data[0]) );
         METHOD_RETURN;
     }
 
@@ -240,9 +240,10 @@ namespace OString
     FORTHOP(oStringSet4CMethod)
     {
         GET_THIS(oStringStruct, pString);
+        cell val = SPOP;
         int buff[2];
         buff[1] = 0;
-        buff[0] = SPOP;
+        buff[0] = (int)val;
         const char* pChars = (const char*)&buff[0];
         setString(pString, pChars);
         METHOD_RETURN;
@@ -266,9 +267,9 @@ namespace OString
 		POP_OBJECT(srcObj);
 		long srcLen = 0;
 		oStringStruct* srcStr = nullptr;
-		if (srcObj.pData != nullptr)
+		if (srcObj != nullptr)
 		{
-			srcStr = (oStringStruct *)srcObj.pData;
+			srcStr = (oStringStruct *)srcObj;
 			srcLen = srcStr->str->curLen;
 		}
 		
@@ -314,7 +315,7 @@ namespace OString
     FORTHOP(oStringGetBytesMethod)
     {
         GET_THIS(oStringStruct, pString);
-        SPUSH((long)&(pString->str->data[0]));
+        SPUSH((cell)&(pString->str->data[0]));
         SPUSH(pString->str->curLen);
         METHOD_RETURN;
     }
@@ -363,7 +364,8 @@ namespace OString
 		long newLen = SPOP;
 		oString* dst = resizeOString(pString, newLen);
 		dst->data[newLen] = '\0';
-        dst->curLen = newLen;
+        pString->hash = 0;
+        dst->curLen = strlen(&(dst->data[0]));
         METHOD_RETURN;
     }
 
@@ -475,7 +477,7 @@ namespace OString
         {
             newLen = str->curLen;
         }
-        SPUSH((long)(&(str->data[0])));
+        SPUSH((cell)(&(str->data[0])));
         SPUSH(newLen);
         METHOD_RETURN;
     }
@@ -500,7 +502,7 @@ namespace OString
         {
             data += (str->curLen - newLen);
         }
-        SPUSH((long)data);
+        SPUSH((cell)data);
         SPUSH(newLen);
         METHOD_RETURN;
     }
@@ -543,7 +545,7 @@ namespace OString
             }
         }
 
-        SPUSH((long)(pBytes));
+        SPUSH((cell)(pBytes));
         SPUSH(newLen);
         METHOD_RETURN;
     }
@@ -639,7 +641,7 @@ namespace OString
 		{
 			pString->hash = SuperFastHash( &(dst->data[0]), dst->curLen, 0 );
 		}
-		SPUSH( (long)(pString->hash) );
+		SPUSH( (cell)(pString->hash) );
         METHOD_RETURN;
     }
 
@@ -698,19 +700,17 @@ namespace OString
 
         ForthObject dstArrayObj;
 		POP_OBJECT(dstArrayObj);
-		oArrayStruct* pArray = (oArrayStruct *)(dstArrayObj.pData);
+		oArrayStruct* pArray = (oArrayStruct *)(dstArrayObj);
 
 		if ((pArray != nullptr) && (pString->str->curLen != 0))
 		{
 			ForthObject obj;
-			ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIString, 0);
-			obj.pMethodOps = pPrimaryInterface->GetMethods();
 
 			const char* pSrc = pString->str->data;
 			int substringSize;
 			bool notDone = true;
 
-			ForthClassVocabulary *pStringVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIString);
+			ForthClassVocabulary *pClassVocab = ForthTypesManager::GetInstance()->GetClassVocabulary(kBCIString);
 			while (notDone)
 			{
 				substringSize = 0;
@@ -725,14 +725,15 @@ namespace OString
 					notDone = false;
 				}
 				oString* str = createOString(substringSize);
-				MALLOCATE_OBJECT(oStringStruct, pSubString, pStringVocab);
+				MALLOCATE_OBJECT(oStringStruct, pSubString, pClassVocab);
+                pSubString->pMethods = pClassVocab->GetMethods();
 				pSubString->refCount = 1;
 				pSubString->hash = 0;
 				pSubString->str = str;
 				memcpy(str->data, pSrc, substringSize);
 				str->data[substringSize] = '\0';
 				str->curLen = substringSize;
-				obj.pData = (long *) pSubString;
+				obj = (ForthObject) pSubString;
 				pArray->elements->push_back(obj);
 				pSrc = pEnd + 1;
 			}
@@ -751,7 +752,7 @@ namespace OString
 		
 		POP_OBJECT(obj);
 		
-		oArrayStruct* pArray = reinterpret_cast<oArrayStruct *>(obj.pData);
+		oArrayStruct* pArray = reinterpret_cast<oArrayStruct *>(obj);
 		oArray::iterator iter;
 		oArray& a = *(pArray->elements);
 		bool firstTime = true;
@@ -760,7 +761,7 @@ namespace OString
         for (iter = a.begin(); iter != a.end(); ++iter)
 		{
 			ForthObject& o = *iter;
-			oStringStruct* pStr = (oStringStruct *)o.pData;
+			oStringStruct* pStr = (oStringStruct *)o;
 
 			if (!firstTime && (delimLen != 0))
 			{
@@ -782,11 +783,11 @@ namespace OString
         bool tryAgain = true;
         int maxLen = pOStr->maxLen;
 		int curLen = pOStr->curLen;
-        long* oldSP = pCore->SP;
+        cell* oldSP = pCore->SP;
         while (tryAgain)
         {
 			int roomLeft = maxLen - curLen;
-			int numChars = oStringFormatSub(pCore, &(pOStr->data[curLen]), roomLeft + 1);
+			cell numChars = oStringFormatSub(pCore, &(pOStr->data[curLen]), roomLeft + 1);
 			if ((numChars >= 0) && (numChars <= roomLeft))
             {
                 tryAgain = false;
@@ -929,8 +930,8 @@ namespace OString
         METHOD(		"toUpper",				oStringToUpperMethod ),
 		METHOD(     "replaceChar",          oStringReplaceCharMethod),
 		
-        MEMBER_VAR( "__hash",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
-        MEMBER_VAR( "__str",				NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        MEMBER_VAR( "__hash",				NATIVE_TYPE_TO_CODE(0, kBaseTypeUCell) ),
+        MEMBER_VAR( "__str",				NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell) ),
 
         // following must be last in table
         END_MEMBERS
@@ -941,26 +942,12 @@ namespace OString
 	//                 StringMap
 	//
 
-	typedef std::map<std::string, ForthObject> oStringMap;
-	struct oStringMapStruct
-	{
-		ulong       refCount;
-		oStringMap*	elements;
-	};
-
-	struct oStringMapIterStruct
-	{
-		ulong				refCount;
-		ForthObject			parent;
-		oStringMap::iterator	*cursor;
-	};
-
 
     void setStringMap(oStringMapStruct* pMap, std::string& key, ForthObject& obj, ForthCoreState* pCore)
     {
         oStringMap& a = *(pMap->elements);
         oStringMap::iterator iter = a.find(key);
-        if (obj.pMethodOps != NULL)
+        if (obj != nullptr)
         {
             if (iter != a.end())
             {
@@ -990,21 +977,20 @@ namespace OString
 
     }
 
-    void createStringMapObject(ForthObject& destObj, ForthClassVocabulary *pClassVocab)
+    oStringMapStruct* createStringMapObject(ForthClassVocabulary *pClassVocab)
     {
-        destObj.pMethodOps = pClassVocab->GetInterface(0)->GetMethods();
 
         MALLOCATE_OBJECT(oStringMapStruct, pMap, pClassVocab);
+        pMap->pMethods = pClassVocab->GetMethods();
         pMap->refCount = 0;
         pMap->elements = new oStringMap;
-        destObj.pData = (long *) pMap;
+        return pMap;
     }
 
     FORTHOP(oStringMapNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-        ForthObject newMap;
-        createStringMapObject(newMap, pClassVocab);
+        ForthObject newMap = (ForthObject) createStringMapObject(pClassVocab);
         PUSH_OBJECT(newMap);
 	}
 
@@ -1062,13 +1048,13 @@ namespace OString
         //   a crash happens when you assign to it
         oStringMapIterStruct* pIter = new oStringMapIterStruct;
         TRACK_ITER_NEW;
+        ForthClassVocabulary *pClassVocab = GET_CLASS_VOCABULARY(kBCIStringMapIter);
+        pIter->pMethods = pClassVocab->GetMethods();
         pIter->refCount = 0;
-        pIter->parent.pMethodOps = GET_TPM;
-        pIter->parent.pData = reinterpret_cast<long *>(pMap);
+        pIter->parent = reinterpret_cast<ForthObject>(pMap);
         pIter->cursor = new oStringMap::iterator;
         *(pIter->cursor) = pMap->elements->begin();
-        ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
-        PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+        PUSH_OBJECT(pIter);
         METHOD_RETURN;
     }
 
@@ -1081,13 +1067,13 @@ namespace OString
         //   a crash happens when you assign to it
         oStringMapIterStruct* pIter = new oStringMapIterStruct;
         TRACK_ITER_NEW;
+        ForthClassVocabulary *pClassVocab = GET_CLASS_VOCABULARY(kBCIStringMapIter);
+        pIter->pMethods = pClassVocab->GetMethods();
         pIter->refCount = 0;
-        pIter->parent.pMethodOps = GET_TPM;
-        pIter->parent.pData = reinterpret_cast<long *>(pMap);
+        pIter->parent = reinterpret_cast<ForthObject>(pMap);
         pIter->cursor = new oStringMap::iterator;
         *(pIter->cursor) = pMap->elements->end();
-        ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
-        PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+        PUSH_OBJECT(pIter);
         METHOD_RETURN;
     }
 
@@ -1111,13 +1097,13 @@ namespace OString
                 //   a crash happens when you assign to it
                 oStringMapIterStruct* pIter = new oStringMapIterStruct;
                 TRACK_ITER_NEW;
+                ForthClassVocabulary *pClassVocab = GET_CLASS_VOCABULARY(kBCIStringMapIter);
+                pIter->pMethods = pClassVocab->GetMethods();
                 pIter->refCount = 0;
-                pIter->parent.pMethodOps = GET_TPM;
-                pIter->parent.pData = reinterpret_cast<long *>(pMap);
+                pIter->parent = reinterpret_cast<ForthObject>(pMap);
                 pIter->cursor = new oStringMap::iterator;
                 *(pIter->cursor) = iter;
-                ForthInterface* pPrimaryInterface = GET_BUILTIN_INTERFACE(kBCIStringMapIter, 0);
-                PUSH_PAIR(pPrimaryInterface->GetMethods(), pIter);
+                PUSH_OBJECT(pIter);
                 break;
             }
         }
@@ -1128,7 +1114,7 @@ namespace OString
     FORTHOP(oStringMapCountMethod)
     {
         GET_THIS(oStringMapStruct, pMap);
-        SPUSH((long)(pMap->elements->size()));
+        SPUSH((cell)(pMap->elements->size()));
         METHOD_RETURN;
     }
 
@@ -1197,10 +1183,7 @@ namespace OString
             key = (const char*)(SPOP);
             ForthObject newObj;
             POP_OBJECT(newObj);
-            if (newObj.pMethodOps != NULL)
-            {
-                SAFE_KEEP(newObj);
-            }
+            SAFE_KEEP(newObj);
             a[key] = newObj;
         }
         METHOD_RETURN;
@@ -1220,7 +1203,7 @@ namespace OString
 			if (OBJECTS_SAME(o, soughtObj))
 			{
 				found = ~0;
-                SPUSH(((long)(iter->first.c_str())));
+                SPUSH(((cell)(iter->first.c_str())));
                 break;
 			}
 		}
@@ -1282,7 +1265,7 @@ namespace OString
 		METHOD("remove", oStringMapRemoveMethod),
 		METHOD("unref", oStringMapUnrefMethod),
 
-        MEMBER_VAR( "__elements",       NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        MEMBER_VAR( "__elements",       NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt) ),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1327,7 +1310,7 @@ namespace OString
 	FORTHOP(oStringMapIterSeekHeadMethod)
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
-		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
+		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent);
 		*(pIter->cursor) = pMap->elements->begin();
 		METHOD_RETURN;
 	}
@@ -1335,7 +1318,7 @@ namespace OString
 	FORTHOP(oStringMapIterSeekTailMethod)
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
-		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
+		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent);
 		*(pIter->cursor) = pMap->elements->end();
 		METHOD_RETURN;
 	}
@@ -1343,7 +1326,7 @@ namespace OString
     FORTHOP(oStringMapIterAtHeadMethod)
     {
         GET_THIS(oStringMapIterStruct, pIter);
-        oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
+        oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent);
         long retVal = (*(pIter->cursor) == pMap->elements->begin()) ? ~0 : 0;
         SPUSH(retVal);
         METHOD_RETURN;
@@ -1352,7 +1335,7 @@ namespace OString
     FORTHOP(oStringMapIterAtTailMethod)
     {
         GET_THIS(oStringMapIterStruct, pIter);
-        oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
+        oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent);
         long retVal = (*(pIter->cursor) == pMap->elements->end()) ? ~0 : 0;
         SPUSH(retVal);
         METHOD_RETURN;
@@ -1361,7 +1344,7 @@ namespace OString
     FORTHOP(oStringMapIterNextMethod)
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
-		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
+		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent);
 		if (*(pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH(0);
@@ -1379,7 +1362,7 @@ namespace OString
 	FORTHOP(oStringMapIterPrevMethod)
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
-		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
+		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent);
 		if (*(pIter->cursor) == pMap->elements->begin())
 		{
 			SPUSH(0);
@@ -1397,7 +1380,7 @@ namespace OString
 	FORTHOP(oStringMapIterCurrentMethod)
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
-		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
+		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent);
 		if (*(pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH(0);
@@ -1414,7 +1397,7 @@ namespace OString
 	FORTHOP(oStringMapIterRemoveMethod)
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
-		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
+		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent);
 		if (*(pIter->cursor) != pMap->elements->end())
 		{
 			ForthObject& o = (*(pIter->cursor))->second;
@@ -1434,7 +1417,7 @@ namespace OString
 	FORTHOP(oStringMapIterCurrentPairMethod)
 	{
 		GET_THIS(oStringMapIterStruct, pIter);
-		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent.pData);
+		oStringMapStruct* pMap = reinterpret_cast<oStringMapStruct *>(pIter->parent);
 		if (*(pIter->cursor) == pMap->elements->end())
 		{
 			SPUSH(0);
@@ -1443,7 +1426,7 @@ namespace OString
 		{
 			ForthObject& o = (*(pIter->cursor))->second;
 			PUSH_OBJECT(o);
-			SPUSH((long)(*(pIter->cursor))->first.c_str());
+			SPUSH((cell)(*(pIter->cursor))->first.c_str());
 			SPUSH(~0);
 		}
 		METHOD_RETURN;
@@ -1470,7 +1453,7 @@ namespace OString
 		METHOD_RET("currentPair", oStringMapIterCurrentPairMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
 		MEMBER_VAR("parent", OBJECT_TYPE_TO_CODE(0, kBCIStringMap)),
-        MEMBER_VAR( "__cursor",			NATIVE_TYPE_TO_CODE(0, kBaseTypeInt) ),
+        MEMBER_VAR( "__cursor",			NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeInt) ),
         
 		// following must be last in table
 		END_MEMBERS
@@ -1479,20 +1462,20 @@ namespace OString
     // functions for string output streams
 	void stringCharOut( ForthCoreState* pCore, void *pData, char ch )
 	{
-		oStringStruct* pString = reinterpret_cast<oStringStruct*>( static_cast<ForthObject*>(static_cast<oOutStreamStruct*>(pData)->pUserData)->pData );
-		appendOString( pString, &ch, 1 );
+        oStringStruct* pString = reinterpret_cast<oStringStruct*>(static_cast<oStringOutStreamStruct*>(pData)->outString);
+        appendOString( pString, &ch, 1 );
 	}
 
 	void stringBlockOut( ForthCoreState* pCore, void *pData, const char *pBuffer, int numChars )
 	{
-		oStringStruct* pString = reinterpret_cast<oStringStruct*>( static_cast<ForthObject*>(static_cast<oOutStreamStruct*>(pData)->pUserData)->pData );
-		appendOString( pString, pBuffer, numChars );
+        oStringStruct* pString = reinterpret_cast<oStringStruct*>(static_cast<oStringOutStreamStruct*>(pData)->outString);
+        appendOString( pString, pBuffer, numChars );
 	}
 
 	void stringStringOut( ForthCoreState* pCore, void *pData, const char *pBuffer )
 	{
-		oStringStruct* pString = reinterpret_cast<oStringStruct*>( static_cast<ForthObject*>(static_cast<oOutStreamStruct*>(pData)->pUserData)->pData );
-		int numChars = strlen( pBuffer );
+		oStringStruct* pString = reinterpret_cast<oStringStruct*>(static_cast<oStringOutStreamStruct*>(pData)->outString);
+		int numChars = (int)strlen( pBuffer );
 		appendOString( pString, pBuffer, numChars );
 	}
 

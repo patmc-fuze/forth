@@ -151,13 +151,13 @@ typedef enum {
 // user can add new optypes with ForthEngine::AddOpType
 typedef void (*optypeActionRoutine)( void *pCore, ulong theData );
 
-typedef void  (*ForthOp)(void *);
+typedef void  (*ForthCOp)(void *);
 
 struct ForthCoreState
 {
     optypeActionRoutine  optypeAction[ 256 ];
 
-    //ForthOp             *builtinOps;
+    //ForthCOp             *builtinOps;
     ulong               numBuiltinOps;
 
     long                **ops;

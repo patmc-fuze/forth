@@ -11,7 +11,7 @@
 
 enum
 {
-	// server -> client
+    // server -> client
     kClientMsgDisplayText = 10000,
     kClientMsgSendLine,
     kClientMsgStartLoad,
@@ -31,20 +31,30 @@ enum
     kClientMsgFileGetPosition,
     kClientMsgFileGetString,
     kClientMsgFilePutString,
-	kClientMsgRemoveFile,
-	kClientMsgDupHandle,
-	kClientMsgDupHandle2,
-	kClientMsgFileToHandle,
-	kClientMsgFileFlush,
-	kClientMsgGetTempFilename,
-	kClientMsgRenameFile,
-	kClientMsgRunSystem,
-	kClientMsgChangeDir,
-	kClientMsgMakeDir,
-	kClientMsgRemoveDir,
-	kClientMsgGetStdIn,
-	kClientMsgGetStdOut,
-	kClientMsgGetStdErr,
+    kClientMsgRemoveFile,
+    kClientMsgDupHandle,
+    kClientMsgDupHandle2,
+    kClientMsgFileToHandle,
+    kClientMsgFileFlush,
+    kClientMsgGetTempFilename,
+    kClientMsgRenameFile,
+    kClientMsgRunSystem,
+    kClientMsgChangeDir,
+    kClientMsgMakeDir,
+    kClientMsgRemoveDir,
+    kClientMsgGetStdIn,
+    kClientMsgGetStdOut,
+    kClientMsgGetStdErr,
+    kClientMsgOpenDir,
+    kClientMsgReadDir,
+    kClientMsgCloseDir,
+    kClientMsgRewindDir,
+    kClientMsgOpen,
+    kClientMsgRead,
+    kClientMsgWrite,
+    kClientMsgClose,
+    kClientMsgStat,
+    kClientMsgFstat,
 
     kClientMsgLimit,
 
@@ -52,9 +62,12 @@ enum
     kServerMsgProcessLine = 20000,
     kServerMsgProcessChar,
     kServerMsgPopStream,         // sent when file is empty
-    kServerMsgFileOpResult,
+    kServerMsgHandleResult,      // used for things which return a handle/pointer (fileOpen, dirOpen, etc.)
+    kServerMsgFileOpResult,      // used for things which return an int status
     kServerMsgFileReadResult,
     kServerMsgFileGetStringResult,
+    kServerMsgFileStatResult,
+    kServerMsgReadDirResult,
     kServerMsgStartLoadResult,      // sent in response to kClientMsgStartLoad
     kServerMsgLimit
 };

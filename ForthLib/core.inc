@@ -138,38 +138,42 @@ ENDSTRUC
 
 ; STRUC ForthCoreState
 STRUC FCore
-    .optypeAction		RESD 1
-    .numBuiltinOps		RESD 1
-    .ops					RESD 1
-    .numOps				RESD 1
-    .maxOps				RESD 1
-    .pEngine				RESD 1
-    .IPtr				RESD 1
-    .SPtr				RESD 1
-    .RPtr				RESD 1
-    .FPtr				RESD 1
-    .TMPtr				RESD 1
-    .TDPtr				RESD 1
-    .varMode				RESD 1
-    .state				RESD 1
-    .error				RESD 1
-    .SBPtr				RESD 1
-    .STPtr				RESD 1
-    .SLen				RESD 1
-    .RBPtr				RESD 1
-    .RTPtr				RESD 1
-    .RLen				RESD 1
-    .ThreadPtr			RESD 1
-    .DictionaryPtr		RESD 1
-    .FileFuncs			RESD 1
-    .innerLoop			RESD 1
-    .innerExecute		RESD 1
-    .consoleOutStream	RESD 2
-    .base				RESD 1
-    .signedPrintMode	RESD 1
-    .traceFlags			RESD 1
-	.ExceptionPtr		RESD 1
-    .scratch            RESD 4
+    .optypeAction		RESD 1  ; 0
+    .numBuiltinOps		RESD 1  ; 4
+    .ops				RESD 1  ; 8
+    .numOps				RESD 1  ; 12
+    .maxOps				RESD 1  ; 16
+    .pEngine			RESD 1  ; 20
+    .IPtr				RESD 1  ; 24
+    .SPtr				RESD 1  ; 28
+    .RPtr				RESD 1  ; 32
+    .FPtr				RESD 1  ; 36
+    .TPtr				RESD 1  ; 40
+    .varMode			RESD 1  ; 44
+    .state				RESD 1  ; 48
+    .error				RESD 1  ; 52
+    .SBPtr				RESD 1  ; 56
+    .STPtr				RESD 1  ; 60
+    .SLen				RESD 1  ; 64
+    .RBPtr				RESD 1  ; 68
+    .RTPtr				RESD 1  ; 72
+    .RLen				RESD 1  ; 76
+    .ThreadPtr			RESD 1  ; 80
+    .DictionaryPtr		RESD 1  ; 84
+    .FileFuncs			RESD 1  ; 88
+    .innerLoop			RESD 1  ; 92
+    .innerExecute		RESD 1  ; 96
+    .consoleOutStream	RESD 1  ; 100
+    .base				RESD 1  ; 104
+    .signedPrintMode	RESD 1  ; 108
+    .traceFlags			RESD 1  ; 112
+	.ExceptionPtr		RESD 1  ; 116
+    .scratch            RESD 4  ; 120
+ENDSTRUC 
+
+STRUC Object
+	.pMethods		RESD 1
+	.refCount		RESD 1
 ENDSTRUC 
 
 ;STRUC ForthFileInterface

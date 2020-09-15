@@ -47,12 +47,12 @@ public:
     void                Reset( void );
     void                ResetIP( void );
 
-    inline void         SetOp( long op ) { mOps[0] = op; };
+    inline void         SetOp( forthop op ) { mOps[0] = op; };
 
-    inline void         Push( long value ) { *--mCore.SP = value; };
-    inline long         Pop() { return *mCore.SP++; };
-    inline void         RPush( long value ) { *--mCore.RP = value; };
-    inline long         RPop() { return *mCore.RP++; };
+    inline void         Push(cell value ) { *--mCore.SP = value; };
+    inline cell         Pop() { return *mCore.SP++; };
+    inline void         RPush(cell value ) { *--mCore.RP = value; };
+    inline cell         RPop() { return *mCore.RP++; };
 
 	void				Run();
 	void				Block();
@@ -64,7 +64,7 @@ public:
 	void				Exit();
     void                Join(ForthThread* pJoiningThread);
 
-	inline void			SetIP( long* newIP ) { mCore.IP = newIP; };
+	inline void			SetIP( forthop* newIP ) { mCore.IP = newIP; };
 	
 	ForthShowContext*	GetShowContext();
 
@@ -92,7 +92,7 @@ protected:
 	ForthAsyncThread	*mpParentThread;
     //ForthThreadState    mState;
     ForthCoreState      mCore;
-    long                mOps[2];
+    forthop             mOps[2];
     ulong				mWakeupTime;
 	eForthThreadRunState mRunState;
     ForthThread*         mpJoinHead;
@@ -122,7 +122,7 @@ public:
 
     void                InnerLoop();
 
-	ForthThread*		CreateThread(ForthEngine *pEngine, long threadOp, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_RSTACK_SIZE);
+	ForthThread*		CreateThread(ForthEngine *pEngine, forthop threadOp, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_RSTACK_SIZE);
 	void				DeleteThread(ForthThread* pThread);
 
 	inline ForthObject& GetAsyncThreadObject() { return mObject; }
@@ -159,9 +159,9 @@ namespace OThread
 {
 	void AddClasses(ForthEngine* pEngine);
 
-	void CreateAsyncThreadObject(ForthObject& outAsyncThread, ForthEngine *pEngine, long threadOp, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_RSTACK_SIZE);
+	void CreateAsyncThreadObject(ForthObject& outAsyncThread, ForthEngine *pEngine, forthop threadOp, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_RSTACK_SIZE);
 	void FixupAsyncThread(ForthAsyncThread* pAsyncThread);
-	void CreateThreadObject(ForthObject& outThread, ForthAsyncThread *pParentAsyncThread, ForthEngine *pEngine, long threadOp, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_RSTACK_SIZE);
+	void CreateThreadObject(ForthObject& outThread, ForthAsyncThread *pParentAsyncThread, ForthEngine *pEngine, forthop threadOp, int paramStackLongs = DEFAULT_PSTACK_SIZE, int returnStackLongs = DEFAULT_RSTACK_SIZE);
 	void FixupThread(ForthThread* pThread);
 }
 

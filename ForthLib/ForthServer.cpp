@@ -8,6 +8,8 @@
 //#include <winsock2.h>
 //#include <windows.h>
 #include <ws2tcpip.h>
+#include <io.h>
+#include "dirent.h"
 #else
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -16,7 +18,14 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <netdb.h>
+#if defined(MACOSX)
+#include <sys/uio.h>
+#else
+#include <sys/io.h>
 #endif
+#include <dirent.h>
+#endif
+
 #include "ForthServer.h"
 #include "ForthPipe.h"
 #include "ForthMessages.h"
@@ -106,7 +115,7 @@ namespace
         return pShell->FileGetPosition( pFile );
     }
 
-    int fileGetLength( FILE* pFile )
+    long fileGetLength( FILE* pFile )
     {
         ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
         return pShell->FileGetLength( pFile );
@@ -208,10 +217,10 @@ namespace
         return pShell->OpenDir( pPath );
 	}
 
-	void* serverReadDir( void* pDir )
+	void* serverReadDir( void* pDir, void* pEntry )
 	{
         ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
-        return pShell->ReadDir( pDir );
+        return pShell->ReadDir( pDir, pEntry );
 	}
 
 	int serverCloseDir( void* pDir )
@@ -240,7 +249,7 @@ namespace
 		else
 		{
 			TCHAR buffer[1000];
-			wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
+            StringCchVPrintfA(buffer, sizeof(buffer), pFormat, argList);
 
 			OutputDebugString(buffer);
 		}
@@ -544,18 +553,31 @@ ForthPipe* ForthServerInputStream::GetPipe()
 }
 
 
-long*
+cell*
 ForthServerInputStream::GetInputState()
 {
     // TBD!
-    return (long *) NULL;
+    return nullptr;
 }
 
 bool
-ForthServerInputStream::SetInputState( long* pState )
+ForthServerInputStream::SetInputState(cell* pState)
 {
     // TBD!
     return false;
+}
+
+bool
+ForthServerInputStream::IsFile()
+{
+    // TBD!
+    return mIsFile;
+}
+
+const char*
+ForthServerInputStream::GetType(void)
+{
+    return "Server";
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -567,6 +589,7 @@ ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, Forth
 ,   mDoAutoload( doAutoload )
 ,   mpMsgPipe( NULL )
 ,	mClientSocket( -1 )
+,   mUseLocalFiles(false)
 {
     mFileInterface.fileOpen = fileOpen;
     mFileInterface.fileClose = fileClose;
@@ -599,12 +622,85 @@ ForthServerShell::ForthServerShell( bool doAutoload, ForthEngine *pEngine, Forth
 	mFileInterface.closeDir = serverCloseDir;
 	mFileInterface.rewindDir = serverRewindDir;
 
-	mConsoleOutObject.pData = NULL;
-	mConsoleOutObject.pMethodOps = NULL;
+	mConsoleOutObject = nullptr;
 }
 
 ForthServerShell::~ForthServerShell()
 {
+}
+
+void ForthServerShell::setupFileInterface(bool useLocalFiles)
+{
+    mUseLocalFiles = useLocalFiles;
+
+    mFileInterface.fileExists = fileExists;
+    mFileInterface.fileGetLength = fileGetLength;
+    mFileInterface.makeDir = makeDir;
+    mFileInterface.getStdIn = getStdIn;
+    mFileInterface.getStdOut = getStdOut;
+    mFileInterface.getStdErr = getStdErr;
+    mFileInterface.openDir = serverOpenDir;
+    mFileInterface.readDir = serverReadDir;
+    mFileInterface.closeDir = serverCloseDir;
+    mFileInterface.rewindDir = serverRewindDir;
+
+    if (mUseLocalFiles)
+    {
+        mFileInterface.fileOpen = fopen;
+        mFileInterface.fileClose = fclose;
+        mFileInterface.fileRead = fread;
+        mFileInterface.fileWrite = fwrite;
+        mFileInterface.fileGetChar = fgetc;
+        mFileInterface.filePutChar = fputc;
+        mFileInterface.fileAtEnd = feof;
+        mFileInterface.fileSeek = fseek;
+        mFileInterface.fileTell = ftell;
+        mFileInterface.fileGetString = fgets;
+        mFileInterface.filePutString = fputs;
+        mFileInterface.fileRemove = remove;
+#if defined( WIN32 )
+        mFileInterface.fileDup = _dup;
+        mFileInterface.fileDup2 = _dup2;
+        mFileInterface.fileNo = _fileno;
+#else
+        mFileInterface.fileDup = dup;
+        mFileInterface.fileDup2 = dup2;
+        mFileInterface.fileNo = fileno;
+#endif
+        mFileInterface.fileFlush = fflush;
+        mFileInterface.renameFile = rename;
+        mFileInterface.runSystem = system;
+#ifdef WIN32
+        mFileInterface.changeDir = _chdir;
+        mFileInterface.removeDir = _rmdir;
+#else
+        mFileInterface.changeDir = chdir;
+        mFileInterface.removeDir = rmdir;
+#endif
+    }
+    else
+    {
+        mFileInterface.fileOpen = fileOpen;
+        mFileInterface.fileClose = fileClose;
+        mFileInterface.fileRead = fileRead;
+        mFileInterface.fileWrite = fileWrite;
+        mFileInterface.fileGetChar = fileGetChar;
+        mFileInterface.filePutChar = filePutChar;
+        mFileInterface.fileAtEnd = fileAtEnd;
+        mFileInterface.fileSeek = fileSeek;
+        mFileInterface.fileTell = fileTell;
+        mFileInterface.fileGetString = fileGetString;
+        mFileInterface.filePutString = filePutString;
+        mFileInterface.fileRemove = fileRemove;
+        mFileInterface.fileDup = fileDup;
+        mFileInterface.fileDup2 = fileDup2;
+        mFileInterface.fileNo = fileNo;
+        mFileInterface.fileFlush = fileFlush;
+        mFileInterface.renameFile = renameFile;
+        mFileInterface.runSystem = runSystem;
+        mFileInterface.changeDir = changeDir;
+        mFileInterface.removeDir = removeDir;
+    }
 }
 
 int ForthServerShell::Run( ForthInputStream *pInputStream )
@@ -681,6 +777,7 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
 
         }
     }
+
 	if ( result == kResultShutdown )
 	{
 		exit( 0 );
@@ -719,8 +816,13 @@ bool ForthServerShell::PushInputFile( const char *pFileName )
 bool
 ForthServerShell::PopInputStream( void )
 {
-    mpMsgPipe->StartMessage( kClientMsgPopStream );
-    mpMsgPipe->SendMessage();
+    //printf("ForthServerShell::PopInputStream %s  gen:%d   file:%d\n", mpInput->InputStream()->GetType(),
+    //    mpInput->InputStream()->IsGenerated(), mpInput->InputStream()->IsFile());
+    if (mpInput->InputStream()->IsFile())
+    {
+        mpMsgPipe->StartMessage(kClientMsgPopStream);
+        mpMsgPipe->SendMessage();
+    }
 
     return mpInput->PopInputStream();
 }
@@ -758,7 +860,7 @@ FILE*
 ForthServerShell::FileOpen( const char* filePath, const char* openMode )
 {
     FILE* pFile = NULL;
-    int c;
+    cell c;
     int msgType, msgLen;
 
     mpMsgPipe->StartMessage( kClientMsgFileOpen );
@@ -767,9 +869,9 @@ ForthServerShell::FileOpen( const char* filePath, const char* openMode )
     mpMsgPipe->SendMessage();
 
     mpMsgPipe->GetMessage( msgType, msgLen );
-    if ( msgType == kServerMsgFileOpResult )
+    if ( msgType == kServerMsgHandleResult)
     {
-        mpMsgPipe->ReadInt( c );
+        mpMsgPipe->ReadCell( c );
         pFile = (FILE *) c;
     }
     else
@@ -787,7 +889,7 @@ ForthServerShell::FileClose( FILE* pFile )
     int result = -1;
 
     mpMsgPipe->StartMessage( kClientMsgFileClose );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->SendMessage();
 
     mpMsgPipe->GetMessage( msgType, msgLen );
@@ -810,7 +912,7 @@ ForthServerShell::FileSeek( FILE* pFile, int offset, int control )
     int result = -1;
 
     mpMsgPipe->StartMessage( kClientMsgFileSetPosition );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->WriteInt( offset );
     mpMsgPipe->WriteInt( control );
     mpMsgPipe->SendMessage();
@@ -835,7 +937,7 @@ ForthServerShell::FileRead( FILE* pFile, void* pDst, int itemSize, int numItems 
     int result = -1;
 
     mpMsgPipe->StartMessage( kClientMsgFileRead );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->WriteInt( itemSize );
     mpMsgPipe->WriteInt( numItems );
     mpMsgPipe->SendMessage();
@@ -881,7 +983,7 @@ ForthServerShell::FileWrite( FILE* pFile, const void* pSrc, int itemSize, int nu
     int result = -1;
 
     mpMsgPipe->StartMessage( kClientMsgFileWrite );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->WriteInt( itemSize );
     mpMsgPipe->WriteInt( numItems );
     int numBytes = numItems * itemSize;
@@ -908,7 +1010,7 @@ ForthServerShell::FileGetChar( FILE* pFile )
     int result = -1;
 
     mpMsgPipe->StartMessage( kClientMsgFileGetChar );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->SendMessage();
 
     mpMsgPipe->GetMessage( msgType, msgLen );
@@ -931,7 +1033,7 @@ ForthServerShell::FilePutChar( FILE* pFile, int outChar )
     int result = -1;
 
     mpMsgPipe->StartMessage( kClientMsgFilePutChar );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->WriteInt( outChar );
     mpMsgPipe->SendMessage();
 
@@ -955,7 +1057,7 @@ ForthServerShell::FileAtEOF( FILE* pFile )
     int result = -1;
 
     mpMsgPipe->StartMessage( kClientMsgFileCheckEOF );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->SendMessage();
 
     mpMsgPipe->GetMessage( msgType, msgLen );
@@ -974,11 +1076,16 @@ ForthServerShell::FileAtEOF( FILE* pFile )
 int
 ForthServerShell::FileGetLength( FILE* pFile )
 {
+    if (mUseLocalFiles)
+    {
+        return ForthShell::FileGetLength(pFile);
+    }
+
     int msgType, msgLen;
     int result = -1;
 
     mpMsgPipe->StartMessage( kClientMsgFileGetLength );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->SendMessage();
 
     mpMsgPipe->GetMessage( msgType, msgLen );
@@ -997,6 +1104,11 @@ ForthServerShell::FileGetLength( FILE* pFile )
 int
 ForthServerShell::FileCheckExists( const char* pFilename )
 {
+    if (mUseLocalFiles)
+    {
+        return ForthShell::FileCheckExists(pFilename);
+    }
+
     int msgType, msgLen;
     int result = -1;
 
@@ -1024,7 +1136,7 @@ ForthServerShell::FileGetPosition( FILE* pFile )
     int result = -1;
 
     mpMsgPipe->StartMessage( kClientMsgFileGetPosition );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->SendMessage();
 
     mpMsgPipe->GetMessage( msgType, msgLen );
@@ -1051,7 +1163,7 @@ ForthServerShell::FileGetString( FILE* pFile, char* pBuffer, int maxChars )
         return NULL;
     }
     mpMsgPipe->StartMessage( kClientMsgFileGetString );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->WriteInt( maxChars );
     mpMsgPipe->SendMessage();
 
@@ -1088,7 +1200,7 @@ ForthServerShell::FilePutString( FILE* pFile, const char* pBuffer )
     int result = -1;
 
     mpMsgPipe->StartMessage( kClientMsgFilePutString );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->WriteString( pBuffer );
     mpMsgPipe->SendMessage();
 
@@ -1182,7 +1294,7 @@ ForthServerShell::FileNo( FILE* pFile )
     int result = -1;
 
     mpMsgPipe->StartMessage( kClientMsgFileToHandle );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->SendMessage();
 
     mpMsgPipe->GetMessage( msgType, msgLen );
@@ -1205,7 +1317,7 @@ ForthServerShell::FileFlush( FILE* pFile )
     int result = -1;
 
     mpMsgPipe->StartMessage( kClientMsgFileFlush );
-    mpMsgPipe->WriteInt( (int) pFile );
+    mpMsgPipe->WriteCell((cell)pFile);
     mpMsgPipe->SendMessage();
 
     mpMsgPipe->GetMessage( msgType, msgLen );
@@ -1294,6 +1406,15 @@ ForthServerShell::ChangeDir( const char* pPath )
 int
 ForthServerShell::MakeDir( const char* pPath, int mode )
 {
+    if (mUseLocalFiles)
+    {
+#ifdef WIN32
+        return _mkdir(pPath);
+#else
+        return mkdir(pPath, mode);
+#endif
+    }
+
     int msgType, msgLen;
     int result = -1;
 
@@ -1335,102 +1456,214 @@ ForthServerShell::RemoveDir( const char* pPath )
         // TODO: report error
         printf( "ForthServerShell::RemoveDir unexpected message type %d\n", msgType );
     }
+
     return result;
 }
 
 FILE*
 ForthServerShell::GetStdIn()
 {
+    if (mUseLocalFiles)
+    {
+        return stdin;
+    }
+
     int msgType, msgLen;
-    int result = -1;
+    cell result = -1;
     FILE* pFile = NULL;
 
     mpMsgPipe->StartMessage( kClientMsgGetStdIn );
     mpMsgPipe->SendMessage();
 
     mpMsgPipe->GetMessage( msgType, msgLen );
-    if ( msgType == kServerMsgFileOpResult )
+    if ( msgType == kServerMsgHandleResult)
     {
-        mpMsgPipe->ReadInt( result );
-		pFile = (FILE *) result;
+        mpMsgPipe->ReadCell(result);
+        pFile = (FILE *) result;
     }
     else
     {
         // TODO: report error
         printf( "ForthServerShell::kClientMsgStdIn unexpected message type %d\n", msgType );
     }
+
     return pFile;
 }
 
 FILE*
 ForthServerShell::GetStdOut()
 {
+    if (mUseLocalFiles)
+    {
+        return stdout;
+    }
+
     int msgType, msgLen;
-    int result = -1;
+    cell result = -1;
     FILE* pFile = NULL;
 
     mpMsgPipe->StartMessage( kClientMsgGetStdOut );
     mpMsgPipe->SendMessage();
 
     mpMsgPipe->GetMessage( msgType, msgLen );
-    if ( msgType == kServerMsgFileOpResult )
+    if ( msgType == kServerMsgHandleResult)
     {
-        mpMsgPipe->ReadInt( result );
-		pFile = (FILE *) result;
+        mpMsgPipe->ReadCell(result);
+        pFile = (FILE *) result;
     }
     else
     {
         // TODO: report error
         printf( "ForthServerShell::kClientMsgStdOut unexpected message type %d\n", msgType );
     }
+
     return pFile;
 }
 
 FILE*
 ForthServerShell::GetStdErr()
 {
+    if (mUseLocalFiles)
+    {
+        return stderr;
+    }
+
     int msgType, msgLen;
-    int result = -1;
+    cell result = -1;
     FILE* pFile = NULL;
 
     mpMsgPipe->StartMessage( kClientMsgGetStdErr );
     mpMsgPipe->SendMessage();
 
     mpMsgPipe->GetMessage( msgType, msgLen );
-    if ( msgType == kServerMsgFileOpResult )
+    if ( msgType == kServerMsgHandleResult)
     {
-        mpMsgPipe->ReadInt( result );
-		pFile = (FILE *) result;
+        mpMsgPipe->ReadCell(result);
+        pFile = (FILE *) result;
     }
     else
     {
         // TODO: report error
         printf( "ForthServerShell::GetStdErr unexpected message type %d\n", msgType );
     }
+
     return pFile;
 }
 
 void *
 ForthServerShell::OpenDir( const char* pPath )
 {
-	return NULL;
+    if (mUseLocalFiles)
+    {
+        return opendir(pPath);
+    }
+
+    int msgType, msgLen;
+    cell result = 0;
+
+    mpMsgPipe->StartMessage(kClientMsgOpenDir);
+    mpMsgPipe->WriteString(pPath);
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage(msgType, msgLen);
+    if (msgType == kServerMsgHandleResult)
+    {
+        mpMsgPipe->ReadCell(result);
+    }
+    else
+    {
+        // TODO: report error
+        printf("ForthServerShell::OpenDir unexpected message type %d\n", msgType);
+    }
+    return (void *)(result);
 }
 
 void *
-ForthServerShell::ReadDir( void* pDir )
+ForthServerShell::ReadDir(void* pDir, void* pDstEntry)
 {
-	return NULL;
+    if (mUseLocalFiles)
+    {
+        return ForthShell::ReadDir(pDir, pDstEntry);
+    }
+
+    int msgType, msgLen;
+    cell result = 0;
+
+    mpMsgPipe->StartMessage(kClientMsgReadDir);
+    mpMsgPipe->WriteCell((cell)pDir);
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage(msgType, msgLen);
+    if (msgType == kServerMsgReadDirResult)
+    {
+        const char* pSrcBytes;
+        int srcLen = 0;
+        int expectedSize = (int)sizeof(struct dirent);
+        if (mpMsgPipe->ReadCountedData(pSrcBytes, srcLen))
+        {
+            if (srcLen == expectedSize)
+            {
+#ifdef PIPE_SPEW
+                printf("read direntry\n");
+#endif
+                memcpy(pDstEntry, pSrcBytes, srcLen);
+                result = -1;
+            }
+        }
+        else
+        {
+            printf("ForthServerShell::ReadDir unexpected direntry size, expected %d but got %d\n",
+                expectedSize, srcLen);
+            // TODO: throw exception?
+        }
+    }
+    else
+    {
+        // TODO: report error
+        printf("ForthServerShell::ReadDir unexpected message type %d\n", msgType);
+    }
+    return (void *)(result);
 }
 
 int
 ForthServerShell::CloseDir( void* pDir )
 {
-	return -1;
+    if (mUseLocalFiles)
+    {
+        return closedir((DIR*)pDir);
+    }
+
+    int msgType, msgLen;
+    int result = 0;
+
+    mpMsgPipe->StartMessage(kClientMsgCloseDir);
+    mpMsgPipe->WriteCell((cell) pDir);
+    mpMsgPipe->SendMessage();
+
+    mpMsgPipe->GetMessage(msgType, msgLen);
+    if (msgType == kServerMsgFileOpResult)
+    {
+        mpMsgPipe->ReadInt(result);
+    }
+    else
+    {
+        // TODO: report error
+        printf("ForthServerShell::CloseDir unexpected message type %d\n", msgType);
+    }
+    return result;
 }
 
 void
 ForthServerShell::RewindDir( void* pDir )
 {
+    if (mUseLocalFiles)
+    {
+        return rewinddir((DIR*)pDir);
+    }
+
+    mpMsgPipe->StartMessage(kClientMsgRewindDir);
+    mpMsgPipe->WriteCell((cell)pDir);
+    mpMsgPipe->SendMessage();
 }
 
 int

@@ -49,20 +49,38 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 #endif
 
 	ForthEngine* pEngine = ForthEngine::GetInstance();
-	if ((pEngine->GetTraceFlags() & kLogToConsole) != 0)
+    long traceFlags = pEngine->GetTraceFlags();
+	if ((traceFlags & kLogToConsole) != 0)
 	{
 #if defined(LINUX) || defined(MACOSX)
 		vsnprintf(buffer, sizeof(buffer), pFormat, argList);
+#elif defined(_WIN64)
+        StringCchVPrintfA(buffer, sizeof(buffer), pFormat, argList);
 #else
 		wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
 #endif
 
 		ForthEngine::GetInstance()->ConsoleOut(buffer);
 	}
-	else
+    else if ((traceFlags & kLogToFile) != 0)
+    {
+#if defined(LINUX) || defined(MACOSX)
+        vsnprintf(buffer, sizeof(buffer), pFormat, argList);
+#elif defined(_WIN64)
+        StringCchVPrintfA(buffer, sizeof(buffer), pFormat, argList);
+#else
+        wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
+#endif
+        FILE* logfile = fopen("_forthlog.txt", "a");
+        fwrite(buffer, strlen(buffer), 1, logfile);
+        fclose(logfile);
+    }
+    else
 	{
 #if defined(LINUX) || defined(MACOSX)
 		vsnprintf(buffer, sizeof(buffer), pFormat, argList);
+#elif defined(_WIN64)
+        StringCchVPrintfA(buffer, sizeof(buffer), pFormat, argList);
 #else
 		wvnsprintf(buffer, sizeof(buffer), pFormat, argList);
 #endif
@@ -72,7 +90,7 @@ void defaultTraceOutRoutine(void *pData, const char* pFormat, va_list argList)
 
 extern "C"
 {
-	void traceOp(ForthCoreState* pCore, long* pIP, long op)
+	void traceOp(ForthCoreState* pCore, forthop* pIP, forthop op)
 	{
 		if (pCore->traceFlags != 0)
 		{
@@ -91,11 +109,23 @@ extern "C"
             {
                 pEngine->TraceOp(pIP, op);
                 forthOpType opType = FORTH_OP_TYPE(op);
-                if ((opType == kOpMethodWithThis) || (opType == kOpMethodWithTOS) || (opType == kOpMethodWithSuper))
+                if (opType == kOpMethodWithThis)
                 {
-                    long* pMethods = (opType == kOpMethodWithTOS) ? ((long *)*(pCore->SP)) : pCore->TPM;
+                    ForthObject thisObject = GET_TP;
                     long opVal = FORTH_OP_VALUE(op);
-                    SpewMethodName(pMethods, opVal);
+                    SpewMethodName(thisObject, opVal);
+                }
+                else if (opType == kOpMethodWithTOS)
+                {
+                    ForthObject thisObject = (ForthObject)*(pCore->SP);
+                    long opVal = FORTH_OP_VALUE(op);
+                    SpewMethodName(thisObject, opVal);
+                }
+                else if (opType == kOpMethodWithSuper)
+                {
+                    ForthObject thisObject = GET_TP;
+                    long opVal = FORTH_OP_VALUE(op);
+                    SpewMethodName(thisObject, opVal);
                 }
             }
 
@@ -212,7 +242,7 @@ void ForthEngineTokenStack::Initialize(ulong numBytes)
 
 void ForthEngineTokenStack::Push(const char* pToken)
 {
-	ulong newTokenBytes = strlen(pToken) + 1;
+	size_t newTokenBytes = strlen(pToken) + 1;
 	char* newCurrent = mpCurrent - newTokenBytes;
 	if (newCurrent >= mpBase)
 	{
@@ -221,7 +251,7 @@ void ForthEngineTokenStack::Push(const char* pToken)
 	else
 	{
 		// resize stack to fit pushed token plus a little bit
-		ulong currentBytes = mpLimit - mpCurrent;
+		size_t currentBytes = mpLimit - mpCurrent;
 		mNumBytes = newTokenBytes + 64 + (mNumBytes - currentBytes);
 		mpBase = (char *)__REALLOC(mpBase, mNumBytes);
 		mpLimit = mpBase + mNumBytes;
@@ -236,7 +266,7 @@ char* ForthEngineTokenStack::Pop()
 	if (mpCurrent != mpLimit)
 	{
 		pResult = mpCurrent;
-		ulong bytesToRemove = strlen(mpCurrent) + 1;
+		size_t bytesToRemove = strlen(mpCurrent) + 1;
 		mpCurrent += bytesToRemove;
 	}
 
@@ -297,6 +327,8 @@ ForthEngine::ForthEngine()
 , mContinueDestination(nullptr)
 , mContinueCount(0)
 , mpNewestEnum(nullptr)
+, mDefaultConsoleOutStream(nullptr)
+, mAuxOutStream(nullptr)
 {
     // scratch area for temporary definitions
     ASSERT( mpInstance == NULL );
@@ -317,10 +349,7 @@ ForthEngine::ForthEngine()
     ftime( &mStartTime );
 #endif
 
-	mDefaultConsoleOutStream.pMethodOps = NULL;
-	mDefaultConsoleOutStream.pData = NULL;
-
-	mDictionary.pBase = NULL;
+	mDictionary.pBase = nullptr;
 
     // At this point, the main thread does not exist, it will be created later in Initialize, this
     // is fairly screwed up, it is becauses originally ForthEngine was the center of the universe,
@@ -334,7 +363,7 @@ ForthEngine::~ForthEngine()
 {
     CleanupGlobalObjectVariables(nullptr);
 
-    if ( mpExtension != NULL )
+    if ( mpExtension != nullptr)
     {
         mpExtension->Shutdown();
     }
@@ -385,6 +414,7 @@ ForthEngine::~ForthEngine()
     {
 		__FREE(mpCore->optypeAction);
     }
+
     if ( mpCore->ops )
     {
 		__FREE(mpCore->ops);
@@ -411,7 +441,7 @@ ForthEngine::~ForthEngine()
 ForthEngine*
 ForthEngine::GetInstance( void )
 {
-    ASSERT( mpInstance != NULL );
+    ASSERT( mpInstance != nullptr);
     return mpInstance;
 }
 
@@ -431,15 +461,15 @@ ForthEngine::Initialize( ForthShell*        pShell,
 
     mBlockFileManager = new ForthBlockFileManager(mpShell->GetBlockfilePath());
 
-    size_t dictionarySize = totalLongs * sizeof(long);
+    size_t dictionarySize = totalLongs * sizeof(forthop);
 #ifdef WIN32
 	void* dictionaryAddress = NULL;
 	// we need to allocate memory that is immune to Data Execution Prevention
-	mDictionary.pBase = (long *) VirtualAlloc( dictionaryAddress, dictionarySize, (MEM_COMMIT | MEM_RESERVE), PAGE_EXECUTE_READWRITE );
+	mDictionary.pBase = (forthop *) VirtualAlloc( dictionaryAddress, dictionarySize, (MEM_COMMIT | MEM_RESERVE), PAGE_EXECUTE_READWRITE );
 #elif MACOSX
-    mDictionary.pBase = (long *) mmap(NULL, dictionarySize, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_PRIVATE, -1, 0);
+    mDictionary.pBase = (forthop *) mmap(NULL, dictionarySize, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_PRIVATE, -1, 0);
 #else
-	 mDictionary.pBase = (long *) __MALLOC( dictionarySize );
+	 mDictionary.pBase = (forthop *) __MALLOC( dictionarySize );
 #endif
     mDictionary.pCurrent = mDictionary.pBase;
     mDictionary.len = totalLongs;
@@ -448,7 +478,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
 	
 	mpOpcodeCompiler = new ForthOpcodeCompiler( &mDictionary );
 
-	if (mpTypesManager == NULL)
+	if (mpTypesManager == nullptr)
 	{
 		mpTypesManager = new ForthTypesManager();
 	}
@@ -466,7 +496,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
     mpCore->numBuiltinOps = 0;
     mpCore->numOps = 0;
     mpCore->maxOps = MAX_BUILTIN_OPS;
-	mpCore->ops = (long **) __MALLOC(sizeof(long *) * mpCore->maxOps);
+	mpCore->ops = (forthop **) __MALLOC(sizeof(forthop *) * mpCore->maxOps);
 
     mpVocabStack = new ForthVocabularyStack;
     mpVocabStack->Initialize();
@@ -576,53 +606,52 @@ ForthEngine::ErrorReset( void )
 
 
 // add an op to engine dispatch table
-long
-ForthEngine::AddOp( const long *pOp )
+forthop ForthEngine::AddOp( const void *pOp )
 {
-    long newOp;
+    forthop newOp = mpCore->numOps;
 
     if ( mpCore->numOps == mpCore->maxOps )
     {
         mpCore->maxOps += 128;
-        mpCore->ops = (long **) realloc( mpCore->ops, sizeof(long *) * mpCore->maxOps );
+        mpCore->ops = (forthop **) realloc( mpCore->ops, sizeof(forthop *) * mpCore->maxOps );
     }
-    mpCore->ops[ mpCore->numOps++ ] = (long *) pOp;
-
-    newOp = mpCore->numOps - 1;
+    mpCore->ops[ mpCore->numOps++ ] = (forthop *) pOp;
 
 	return newOp;
 }
 
 
 // add an op to dictionary and corresponding symbol to current vocabulary
-long
-ForthEngine::AddUserOp( const char *pSymbol, long** pEntryOut, bool smudgeIt )
+forthop ForthEngine::AddUserOp( const char *pSymbol, forthop** pEntryOut, bool smudgeIt )
 {
     AlignDP();
-    long* pEntry = mpDefinitionVocab->AddSymbol( pSymbol, kOpUserDef, (long) mDictionary.pCurrent, true );
-	if ( pEntryOut != NULL )
+    forthop newestOp = AddOp(mDictionary.pCurrent);
+    newestOp = COMPILED_OP(kOpUserDef, newestOp);
+    forthop* pEntry = mpDefinitionVocab->AddSymbol(pSymbol, newestOp);
+	if (pEntryOut != NULL)
 	{
 		*pEntryOut = pEntry;
 	}
-    if ( smudgeIt )
+
+    if (smudgeIt)
     {
         mpDefinitionVocab->SmudgeNewestSymbol();
     }
 
-    return mpCore->numOps - 1;
+    return newestOp;
 }
 
-
-long*
-ForthEngine::AddBuiltinOp( const char* name, ulong flags, ulong value )
+forthop* ForthEngine::AddBuiltinOp(const char* name, ulong flags, void* value)
 {
+    forthop newestOp = AddOp(value);
+    newestOp = COMPILED_OP(flags, newestOp);
     // AddSymbol will call ForthEngine::AddOp to add the operators to op table
-    long *pEntry = mpDefinitionVocab->AddSymbol( name, flags, value, true );
+    forthop *pEntry = mpDefinitionVocab->AddSymbol(name, newestOp);
 
 //#ifdef TRACE_INNER_INTERPRETER
     // add built-in op names to table for TraceOp
 	int index = mpCore->numOps - 1;
-    if ( index < NUM_TRACEABLE_OPS )
+    if (index < NUM_TRACEABLE_OPS)
     {
         gOpNames[index] = name;
     }
@@ -663,7 +692,7 @@ ForthEngine::StartClassDefinition(const char* pClassName, eBuiltinClassIndex cla
 	mpVocabStack->SetTop( pVocab );
 
     CompileBuiltinOpcode( OP_DO_CLASS_TYPE );
-    CompileLong( (long) pVocab );
+    CompileCell((cell) pVocab);
 
     return pVocab;
 }
@@ -703,7 +732,7 @@ ForthEngine::AddBuiltinClass(const char* pClassName, eBuiltinClassIndex classInd
             if ( !strcmp( pMemberName, "__newOp" ) )
             {
                 // this isn't a new method, it is the class constructor op
-                long* pEntry = AddBuiltinOp( pMemberName, kOpCCode, pEntries->value );
+                forthop* pEntry = AddBuiltinOp( pMemberName, kOpCCode, pEntries->value );
 				pEntry[1] = kBaseTypeUserDefinition;
                 pVocab->GetClassObject()->newOp = *pEntry;
             }
@@ -715,7 +744,7 @@ ForthEngine::AddBuiltinClass(const char* pClassName, eBuiltinClassIndex classInd
                 // do "method:"
                 long methodIndex = pVocab->FindMethod( pMemberName );
                 StartOpDefinition( pMemberName, false );
-                long* pEntry = pVocab->GetNewestEntry();
+                forthop* pEntry = pVocab->GetNewestEntry();
                 methodOp = FORTH_OP_VALUE(*pEntry);
                 methodOp = COMPILED_OP(kOpCCode, methodOp);
                 if (pEntries->value != NULL)
@@ -730,7 +759,7 @@ ForthEngine::AddBuiltinClass(const char* pClassName, eBuiltinClassIndex classInd
 				methodIndex = pVocab->AddMethod( pMemberName, methodIndex, methodOp );
                 pEntry[0] = methodIndex;
                 pEntry[1] = pEntries->returnType;
-                mpCore->ops[mpCore->numOps - 1] = (long *)(pEntries->value);
+                mpCore->ops[mpCore->numOps - 1] = (forthop *)(pEntries->value);
 
                 SPEW_ENGINE( "Method %s op is 0x%x\n", pMemberName, methodOp );
 
@@ -747,13 +776,13 @@ ForthEngine::AddBuiltinClass(const char* pClassName, eBuiltinClassIndex classInd
                 if (CODE_IS_FUNKY(entryType))
                 {
                     // class op with precedence
-                    long* pEntry = AddBuiltinOp(pMemberName, kOpCCodeImmediate, pEntries->value);
+                    forthop* pEntry = AddBuiltinOp(pMemberName, kOpCCodeImmediate, pEntries->value);
                     pEntry[1] = kBaseTypeUserDefinition;
                 }
                 else
                 {
                     // class op
-                    long* pEntry = AddBuiltinOp(pMemberName, kOpCCode, pEntries->value);
+                    forthop* pEntry = AddBuiltinOp(pMemberName, kOpCCode, pEntries->value);
                     pEntry[1] = kBaseTypeUserDefinition;
                 }
             }
@@ -784,11 +813,11 @@ ForthEngine::AddBuiltinClass(const char* pClassName, eBuiltinClassIndex classInd
 
 // forget the specified op and all higher numbered ops, and free the memory where those ops were stored
 void
-ForthEngine::ForgetOp( ulong opNumber, bool quietMode )
+ForthEngine::ForgetOp(forthop opNumber, bool quietMode )
 {
     if ( opNumber < mpCore->numOps )
     {
-        long* pNewDP = mpCore->ops[opNumber];
+        forthop* pNewDP = mpCore->ops[opNumber];
         CleanupGlobalObjectVariables(pNewDP);
         mDictionary.pCurrent = pNewDP;
         mpCore->numOps = opNumber;
@@ -811,8 +840,8 @@ ForthEngine::ForgetOp( ulong opNumber, bool quietMode )
 bool
 ForthEngine::ForgetSymbol( const char *pSym, bool quietMode )
 {
-    long *pEntry = NULL;
-    long op;
+    forthop *pEntry = NULL;
+    forthop op;
     forthOpType opType;
     bool forgotIt = false;
     char buff[256];
@@ -893,7 +922,7 @@ ForthEngine::ShowSearchInfo()
 }
 
 ForthAsyncThread *
-ForthEngine::CreateAsyncThread( long threadOp, int paramStackSize, int returnStackSize )
+ForthEngine::CreateAsyncThread(forthop threadOp, int paramStackSize, int returnStackSize )
 {
 	ForthAsyncThread *pAsyncThread = new ForthAsyncThread(this, paramStackSize, returnStackSize);
 	ForthThread *pNewThread = pAsyncThread->GetThread(0);
@@ -994,7 +1023,7 @@ ForthEngine::PopInputStream( void )
 
 
 
-long *
+forthop *
 ForthEngine::StartOpDefinition(const char *pName, bool smudgeIt, forthOpType opType, ForthVocabulary* pDefinitionVocab)
 {
     mpLocalVocab->Empty();
@@ -1013,7 +1042,10 @@ ForthEngine::StartOpDefinition(const char *pName, bool smudgeIt, forthOpType opT
     {
         pName = GetNextSimpleToken();
     }
-    long* pEntry = pDefinitionVocab->AddSymbol(pName, opType, (long)mDictionary.pCurrent, true);
+
+    forthop newestOp = AddOp(mDictionary.pCurrent);
+    newestOp = COMPILED_OP(opType, newestOp);
+    forthop* pEntry = pDefinitionVocab->AddSymbol(pName, newestOp);
     if ( smudgeIt )
     {
         pDefinitionVocab->SmudgeNewestSymbol();
@@ -1027,11 +1059,11 @@ ForthEngine::StartOpDefinition(const char *pName, bool smudgeIt, forthOpType opT
 void
 ForthEngine::EndOpDefinition( bool unsmudgeIt )
 {
-	long* pLocalAllocOp = mpLocalVocab->GetFrameAllocOpPointer();
+    forthop* pLocalAllocOp = mpLocalVocab->GetFrameAllocOpPointer();
     if ( pLocalAllocOp != NULL )
     {
-        int nLongs = mpLocalVocab->GetFrameLongs();
-	    long op = COMPILED_OP( kOpAllocLocals, nLongs );
+        int nCells = mpLocalVocab->GetFrameCells();
+        forthop op = COMPILED_OP( kOpAllocLocals, nCells);
         *pLocalAllocOp = op;
 		SPEW_COMPILATION("Backpatching allocLocals 0x%08x @ 0x%08x\n", op, pLocalAllocOp);
 		mpLocalVocab->ClearFrame();
@@ -1044,7 +1076,7 @@ ForthEngine::EndOpDefinition( bool unsmudgeIt )
 }
 
 
-long *
+forthop*
 ForthEngine::FindSymbol( const char *pSymName )
 {
     ForthVocabulary* pFoundVocab = NULL;
@@ -1052,7 +1084,7 @@ ForthEngine::FindSymbol( const char *pSymName )
 }
 
 void
-ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
+ForthEngine::DescribeOp( const char* pSymName, forthop op, long auxData )
 {
     char buff[256];
     char buff2[128];
@@ -1077,15 +1109,15 @@ ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
     if ( isUserOp )
     {
         // disassemble the op until IP reaches next newer op
-        long* curIP = mpCore->ops[ opValue ];
-		long* baseIP = curIP;
-        long* endIP = (opValue == (mpCore->numOps - 1)) ? GetDP() : mpCore->ops[ opValue + 1 ];
+        forthop* curIP = mpCore->ops[ opValue ];
+        forthop* baseIP = curIP;
+        forthop* endIP = (opValue == (mpCore->numOps - 1)) ? GetDP() : mpCore->ops[ opValue + 1 ];
         if (*curIP == gCompiledOps[OP_DO_ENUM])
         {
             ForthEnumInfo* pEnumInfo = (ForthEnumInfo *)(curIP + 1);
             ForthVocabulary* pVocab = pEnumInfo->pVocab;
             long numEnums = pEnumInfo->numEnums;
-            long* pEntry = pVocab->GetEntriesEnd() - pEnumInfo->vocabOffset;
+            forthop* pEntry = pVocab->GetEntriesEnd() - pEnumInfo->vocabOffset;
             SNPRINTF(buff, sizeof(buff), "Enum size %d entries %d\n", pEnumInfo->size, numEnums);
             ConsoleOut(buff);
             for (int i = 0; i < numEnums; ++i)
@@ -1100,7 +1132,11 @@ ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
         {
             while ((curIP < endIP) && notDone)
             {
+#if defined(FORTH64)
+                SNPRINTF(buff, sizeof(buff), "  +%04x  %016llx  ", (curIP - baseIP), curIP);
+#else
                 SNPRINTF(buff, sizeof(buff), "  +%04x  %08x  ", (curIP - baseIP), curIP);
+#endif
                 ConsoleOut(buff);
                 DescribeOp(curIP, buff, sizeof(buff), true);
                 ConsoleOut(buff);
@@ -1127,7 +1163,7 @@ ForthEngine::DescribeOp( const char* pSymName, long op, long auxData )
 void
 ForthEngine::DescribeSymbol( const char *pSymName )
 {
-    long *pEntry = NULL;
+    forthop *pEntry = NULL;
     char buff[256];
 
     ForthVocabulary* pFoundVocab = NULL;
@@ -1144,10 +1180,10 @@ ForthEngine::DescribeSymbol( const char *pSymName )
     }
 }
 
-long *
-ForthEngine::NextOp( long *pOp )
+forthop*
+ForthEngine::NextOp(forthop *pOp )
 {
-    long op = *pOp++;
+    forthop op = *pOp++;
     long opType = FORTH_OP_TYPE( op );
     long opVal = FORTH_OP_VALUE( op );
 
@@ -1192,11 +1228,11 @@ ForthEngine::AddLocalVar( const char        *pVarName,
                           long              typeCode,
                           long              varSize )
 {
-    long *pEntry;
-	int frameLongs = mpLocalVocab->GetFrameLongs();
-    varSize = ((varSize + 3) & ~3) >> 2;
+    forthop *pEntry;
+	int frameCells = mpLocalVocab->GetFrameCells();
+    varSize = BYTES_TO_CELLS(varSize);
     long baseType = CODE_TO_BASE_TYPE( typeCode );
-    long fieldType = kOpLocalInt;
+    long fieldType = kOpLocalCell;
     if ( !CODE_IS_PTR( typeCode ) )
     {
         if ( baseType <= kBaseTypeObject )
@@ -1208,9 +1244,9 @@ ForthEngine::AddLocalVar( const char        *pVarName,
             fieldType = kOpLocalRef;
         }
     }
-    pEntry = mpLocalVocab->AddVariable( pVarName, fieldType, frameLongs + varSize, varSize );
+    pEntry = mpLocalVocab->AddVariable( pVarName, fieldType, frameCells + varSize, varSize );
     pEntry[1] = typeCode;
-    if (frameLongs == 0)
+    if (frameCells == 0)
     {
         if (mpShell->GetShellStack()->PeekTag() != kShellTagDefine)
         {
@@ -1219,12 +1255,12 @@ ForthEngine::AddLocalVar( const char        *pVarName,
         else
         {
             // this is first local var definition, leave space for local alloc op
-            CompileLong(0);
+            CompileInt(0);
             ClearPeephole();
         }
     }
 
-    return mpLocalVocab->GetFrameLongs();
+    return mpLocalVocab->GetFrameCells();
 }
 
 long
@@ -1232,17 +1268,17 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
                             long                typeCode,
                             long                elementSize )
 {
-    long *pEntry;
-	int frameLongs = mpLocalVocab->GetFrameLongs();
+    forthop *pEntry;
+	int frameCells = mpLocalVocab->GetFrameCells();
 
     long elementType = CODE_TO_BASE_TYPE( typeCode );
     if ( elementType != kBaseTypeStruct )
     {
         // array of non-struct
         long arraySize = elementSize * mNumElements;
-        arraySize = ((arraySize + 3) & ~3) >> 2;
-        long opcode = CODE_IS_PTR(typeCode) ? kOpLocalIntArray : (kOpLocalByteArray + CODE_TO_BASE_TYPE(typeCode));
-        pEntry = mpLocalVocab->AddVariable( pArrayName, opcode, frameLongs + arraySize, arraySize );
+        arraySize = BYTES_TO_CELLS(arraySize);
+        long opcode = CODE_IS_PTR(typeCode) ? kOpLocalCellArray : (kOpLocalByteArray + CODE_TO_BASE_TYPE(typeCode));
+        pEntry = mpLocalVocab->AddVariable( pArrayName, opcode, frameCells + arraySize, arraySize );
     }
     else
     {
@@ -1256,29 +1292,30 @@ ForthEngine::AddLocalArray( const char          *pArrayName,
         long arraySize = paddedSize * mNumElements;
         if ( CODE_IS_PTR(typeCode) )
         {
-	        pEntry = mpLocalVocab->AddVariable( pArrayName, kOpLocalIntArray, frameLongs + arraySize, arraySize );
+	        pEntry = mpLocalVocab->AddVariable( pArrayName, kOpLocalCellArray, frameCells + arraySize, arraySize );
         }
         else
         {
-	        pEntry = mpLocalVocab->AddVariable( pArrayName, kOpLocalStructArray, ((frameLongs + arraySize) << 12) + paddedSize, arraySize );
+	        pEntry = mpLocalVocab->AddVariable( pArrayName, kOpLocalStructArray, ((frameCells + arraySize) << 12) + paddedSize, arraySize );
         }
     }
-    if ( frameLongs == 0 )
+
+    if ( frameCells == 0 )
     {
         // this is first local var definition, leave space for local alloc op
-        CompileLong( 0 );
+        CompileInt( 0 );
     }
 
 	pEntry[1] = typeCode;
 
     mNumElements = 0;
-    return mpLocalVocab->GetFrameLongs();
+    return mpLocalVocab->GetFrameCells();
 }
 
 bool
 ForthEngine::HasLocalVariables()
 {
-	return mpLocalVocab->GetFrameLongs() != 0;
+	return mpLocalVocab->GetFrameCells() != 0;
 }
 
 // TODO: tracing of built-in ops won't work for user-added builtins...
@@ -1321,7 +1358,7 @@ ForthEngine::GetTraceOutRoutine(traceOutRoutine& traceRoutine, void*& pTraceData
 }
 
 void
-ForthEngine::TraceOp(long* pOp, long op)
+ForthEngine::TraceOp(forthop* pOp, forthop op)
 {
 #ifdef TRACE_INNER_INTERPRETER
     char buff[ 512 ];
@@ -1341,7 +1378,7 @@ ForthEngine::TraceOp(long* pOp, long op)
 		TraceOut("%s%s # ", pIndent, buff);
 	}
 #else
-    long opIn;
+    forthop opIn;
     if (pOp == nullptr)
     {
         // this is used for indirect op execution, where the op to be executed
@@ -1350,7 +1387,7 @@ ForthEngine::TraceOp(long* pOp, long op)
         pOp = &opIn;
     }
     DescribeOp(pOp, buff, sizeof(buff), lookupUserTraces);
-    TraceOut("# 0x%08x # %s # ", pOp, buff);
+    TraceOut("# 0x%16p # %s # ", pOp, buff);
 #endif
 #endif
 }
@@ -1360,7 +1397,7 @@ ForthEngine::TraceStack( ForthCoreState* pCore )
 {
 	int i;
 
-    long *pSP = GET_SP;
+    cell *pSP = GET_SP;
     int nItems = GET_SDEPTH;
     TraceOut("  stack[%d]:", nItems);
 #define MAX_TRACE_STACK_ITEMS 8
@@ -1371,14 +1408,18 @@ ForthEngine::TraceStack( ForthCoreState* pCore )
 #endif
 	for (i = 0; i < numToDisplay; i++)
 	{
-		TraceOut( " %x", *pSP++ );
+#if defined(FORTH64)
+        TraceOut(" %llx", *pSP++);
+#else
+        TraceOut( " %x", *pSP++ );
+#endif
 	}
 	if (nItems > numToDisplay)
 	{
 		TraceOut(" <%d more>", nItems - numToDisplay);
 	}
 
-    long *pRP = GET_RP;
+    cell *pRP = GET_RP;
     nItems = pCore->RT - pRP;
     TraceOut("  rstack[%d]", nItems);
 #define MAX_TRACE_RSTACK_ITEMS 8
@@ -1389,7 +1430,11 @@ ForthEngine::TraceStack( ForthCoreState* pCore )
 #endif
     for (i = 0; i < numToDisplay; i++)
     {
+#if defined(FORTH64)
+        TraceOut(" %llx", *pRP++);
+#else
         TraceOut(" %x", *pRP++);
+#endif
     }
     if (nItems > numToDisplay)
     {
@@ -1398,13 +1443,13 @@ ForthEngine::TraceStack( ForthCoreState* pCore )
 }
 
 void
-ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUserDefs )
+ForthEngine::DescribeOp(forthop *pOp, char *pBuffer, int buffSize, bool lookupUserDefs )
 {
-    long op = *pOp;
+    forthop op = *pOp;
     forthOpType opType = FORTH_OP_TYPE( op );
     ulong opVal = FORTH_OP_VALUE( op );
     ForthVocabulary *pFoundVocab = NULL;
-    long *pEntry = NULL;
+    forthop *pEntry = NULL;
 
 	const char* preamble = "%02x:%06x    ";
 	int preambleSize = strlen( preamble );
@@ -1423,6 +1468,8 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
     else
     {
         const char *opTypeName = opTypeNames[opType];
+
+        bool searchVocabsForOp = false;
 
         switch( opType )
         {
@@ -1447,7 +1494,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
 					}
 					else if ( opVal == gCompiledOps[OP_LONG_VAL] )
 					{
-						SNPRINTF( pBuffer, buffSize, "%s 0x%llx", gOpNames[opVal], *((long long *)(&(pOp[1]))) );
+						SNPRINTF( pBuffer, buffSize, "%s 0x%llx", gOpNames[opVal], *((int64_t *)(&(pOp[1]))) );
 					}
 					else
 					{
@@ -1456,52 +1503,16 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 }
                 else
                 {
-                    // op we don't have name pointer for
-                    SNPRINTF( pBuffer, buffSize, "%s(%d)", opTypeName, opVal );
+                    searchVocabsForOp = true;
                 }
                 break;
             
             case kOpUserDef:
             case kOpUserDefImmediate:
             case kOpDLLEntryPoint:
-                if ( lookupUserDefs )
+                if (lookupUserDefs)
                 {
-                    pEntry = GetVocabularyStack()->FindSymbolByValue( op, &pFoundVocab );
-					if ( pEntry == NULL )
-					{
-						ForthVocabulary* pVocab = ForthVocabulary::GetVocabularyChainHead();
-						while ( pVocab != NULL )
-						{
-							pEntry = pVocab->FindSymbolByValue( op );
-							if ( pEntry != NULL )
-							{
-								pFoundVocab = pVocab;
-								break;
-							}
-							pVocab = pVocab->GetNextChainVocabulary();
-						}
-					}
-                }
-                if ( pEntry )
-                {
-                    // the symbol name in the vocabulary doesn't always have a terminating null
-                    int len = pFoundVocab->GetEntryNameLength( pEntry );
-                    const char* pVocabName = pFoundVocab->GetName();
-                    while ( *pVocabName != '\0' )
-                    {
-                        *pBuffer++ = *pVocabName++;
-                    }
-					*pBuffer++ = ':';
-                    const char* pName = pFoundVocab->GetEntryName( pEntry );
-                    for ( int i = 0; i < len; i++ )
-                    {
-                        *pBuffer++ = *pName++;
-                    }
-                    *pBuffer = '\0';
-                }
-                else
-                {
-                    SNPRINTF( pBuffer, buffSize, "%s", opTypeName );
+                    searchVocabsForOp = true;
                 }
                 break;
 
@@ -1527,6 +1538,17 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
             case kOpMemberObject:        case kOpMemberObjectArray:
             case kOpMemberUByte:         case kOpMemberUByteArray:
             case kOpMemberUShort:        case kOpMemberUShortArray:
+            case kOpFieldByte:          case kOpFieldByteArray:
+            case kOpFieldShort:         case kOpFieldShortArray:
+            case kOpFieldInt:           case kOpFieldIntArray:
+            case kOpFieldFloat:         case kOpFieldFloatArray:
+            case kOpFieldDouble:        case kOpFieldDoubleArray:
+            case kOpFieldString:        case kOpFieldStringArray:
+            case kOpFieldOp:            case kOpFieldOpArray:
+            case kOpFieldLong:          case kOpFieldLongArray:
+            case kOpFieldObject:        case kOpFieldObjectArray:
+            case kOpFieldUByte:         case kOpFieldUByteArray:
+            case kOpFieldUShort:        case kOpFieldUShortArray:
             {
                 if ((opVal & 0xE00000) != 0)
                 {
@@ -1570,7 +1592,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 {
                     opVal |= 0xFF000000;
                 }
-                SNPRINTF( pBuffer, buffSize, "%s    0x%08x", opTypeName, opVal + 1 + pOp );
+                SNPRINTF( pBuffer, buffSize, "%s    0x%16p", opTypeName, opVal + 1 + pOp );
                 break;
 
             case kOpOZBCombo:  case kOpONZBCombo:
@@ -1582,7 +1604,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 {
                     branchOffset |= 0xFFFFF000;
                 }
-                SNPRINTF(pBuffer, buffSize, "%s   %s   %s 0x%08x", opTypeName,
+                SNPRINTF(pBuffer, buffSize, "%s   %s   %s 0x%16p", opTypeName,
                     gOpNames[embeddedOp], pBranchType, branchOffset + 1 + pOp);
                 break;
             }
@@ -1607,7 +1629,7 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 break;
             
             case kOpAllocLocals:
-                SNPRINTF( pBuffer, buffSize, "%s    longs %d", opTypeName, opVal );
+                SNPRINTF( pBuffer, buffSize, "%s    cells %d", opTypeName, opVal );
                 break;
             
             case kOpArrayOffset:
@@ -1643,10 +1665,51 @@ ForthEngine::DescribeOp( long *pOp, char *pBuffer, int buffSize, bool lookupUser
                 }
                 break;
         }
+
+        if (searchVocabsForOp)
+        {
+            pEntry = GetVocabularyStack()->FindSymbolByValue(op, &pFoundVocab);
+            if (pEntry == NULL)
+            {
+                ForthVocabulary* pVocab = ForthVocabulary::GetVocabularyChainHead();
+                while (pVocab != NULL)
+                {
+                    pEntry = pVocab->FindSymbolByValue(op);
+                    if (pEntry != NULL)
+                    {
+                        pFoundVocab = pVocab;
+                        break;
+                    }
+                    pVocab = pVocab->GetNextChainVocabulary();
+                }
+            }
+
+            if (pEntry)
+            {
+                // the symbol name in the vocabulary doesn't always have a terminating null
+                int len = pFoundVocab->GetEntryNameLength(pEntry);
+                const char* pVocabName = pFoundVocab->GetName();
+                while (*pVocabName != '\0')
+                {
+                    *pBuffer++ = *pVocabName++;
+                }
+                *pBuffer++ = ':';
+                const char* pName = pFoundVocab->GetEntryName(pEntry);
+                for (int i = 0; i < len; i++)
+                {
+                    *pBuffer++ = *pName++;
+                }
+                *pBuffer = '\0';
+            }
+            else
+            {
+                SNPRINTF(pBuffer, buffSize, "%s(%d)", opTypeName, opVal);
+            }
+        }
     }
 }
 
-void ForthEngine::AddOpExecutionToProfile(long op)
+void ForthEngine::AddOpExecutionToProfile(forthop op)
 {
     forthOpType opType = FORTH_OP_TYPE(op);
     ulong opVal = FORTH_OP_VALUE(op);
@@ -1694,19 +1757,19 @@ void ForthEngine::DumpExecutionProfile()
     ForthVocabulary* pVocab = ForthVocabulary::GetVocabularyChainHead();
     while (pVocab != NULL)
     {
-        long *pEntry = pVocab->GetNewestEntry();
+        forthop *pEntry = pVocab->GetNewestEntry();
         if (pVocab->IsClass())
         {
 
-            ForthInterface* pPrimaryInterface = ((ForthClassVocabulary *)pVocab)->GetInterface(0);
+            forthop* pMethods = ((ForthClassVocabulary *)pVocab)->GetMethods();
             while (pEntry != nullptr)
             {
-                long op = *pEntry;
+                forthop op = *pEntry;
                 long typeCode = pEntry[1];
                 if (CODE_IS_METHOD(typeCode))
                 {
                     ulong opVal = FORTH_OP_VALUE(op);
-                    long methodOp = pPrimaryInterface->GetMethods()[opVal];
+                    long methodOp = pMethods[opVal];
                     forthOpType opType = FORTH_OP_TYPE(methodOp);
                     opVal = FORTH_OP_VALUE(methodOp);
                     switch (opType)
@@ -1745,7 +1808,7 @@ void ForthEngine::DumpExecutionProfile()
         {
             while (pEntry != nullptr)
             {
-                long op = *pEntry;
+                forthop op = *pEntry;
                 forthOpType opType = FORTH_OP_TYPE(op);
                 ulong opVal = FORTH_OP_VALUE(op);
 
@@ -1785,7 +1848,7 @@ void ForthEngine::DumpExecutionProfile()
     for (int i = 0; i < mProfileOpcodeCounts.size(); ++i)
     {
         opcodeProfileInfo& opInfo = mProfileOpcodeCounts[i];
-        long op = opInfo.op;
+        forthop op = opInfo.op;
         if (op == 0)
         {
             op = i;
@@ -1795,7 +1858,7 @@ void ForthEngine::DumpExecutionProfile()
         const char* pVocabName = (pVocab != nullptr) ? pVocab->GetName() : "UNKNOWN_VOCABULARY";
 
         const char* pOpName = "UNKNOWN_OP";
-        long *pEntry = opInfo.pEntry;
+        forthop* pEntry = opInfo.pEntry;
         if ((pEntry != nullptr) && (pVocab != nullptr))
         {
             // the symbol name in the vocabulary doesn't always have a terminating null
@@ -1881,8 +1944,7 @@ ForthEngine::GetLastInputToken( void )
 // NOTE: temporarily modifies string @pToken
 bool
 ForthEngine::ScanIntegerToken( char         *pToken,
-                               long         &value,
-                               long long    &lvalue,
+                               int64_t      &value,
                                int          base,
                                bool         &isOffset,
                                bool&        isSingle )
@@ -1933,14 +1995,14 @@ ForthEngine::ScanIntegerToken( char         *pToken,
     }
 
     // see if this is ANSI style double precision int
-    if ( periodMeansDoubleInt )
+    if (periodMeansDoubleInt)
     {
-        isSingle = (strchr( pToken, '.' ) == NULL);
+        isSingle = (strchr(pToken, '.') == NULL);
     }
 
     if ( (pToken[0] == '$') && CheckFeature(kFFDollarHexLiterals) )
     {
-        if ( sscanf( pToken + 1, "%x", &value ) == 1 )
+        if ( sscanf( pToken + 1, "%llx", &value) == 1 )
         {
             if ( isNegative )
             {
@@ -1949,33 +2011,20 @@ ForthEngine::ScanIntegerToken( char         *pToken,
             isValid = true;
         }
     }
+	
     if ( !isValid && ((pToken[0] == '0') && (pToken[1] == 'x')) && CheckFeature(kFFCHexLiterals) )
     {
-        if ( isSingle )
-        {
-            if ( sscanf( pToken + 2, "%x", &value ) == 1 )
-            {
-                if ( isNegative )
-                {
-                    value = 0 - value;
-                }
-                isValid = true;
-            }
-        }
-        else
-        {
 #if defined(WIN32)
-            if ( sscanf( pToken + 2, "%I64x", &lvalue ) == 1 )
+        if (sscanf(pToken + 2, "%I64x", &value) == 1)
 #else
-            if ( sscanf( pToken + 2, "%llx", &lvalue ) == 1 )
+        if (sscanf(pToken + 2, "%llx", &value) == 1)
 #endif
+        {
+            if (isNegative)
             {
-                if ( isNegative )
-                {
-                    lvalue = 0 - lvalue;
-                }
-                isValid = true;
+                value = 0 - value;
             }
+            isValid = true;
         }
     }
 
@@ -1984,7 +2033,6 @@ ForthEngine::ScanIntegerToken( char         *pToken,
 
         isValid = true;
         value = 0;
-        lvalue = 0;
         while ( (c = *pToken++) != 0 )
         {
 
@@ -2021,14 +2069,7 @@ ForthEngine::ScanIntegerToken( char         *pToken,
                 isValid = false;
                 break;
             }
-            if ( isSingle )
-            {
-                value = (value * base) + digit;
-            }
-            else
-            {
-                lvalue = (lvalue * base) + digit;
-            }
+            value = (value * base) + digit;
         }
 
         if ( digitsFound == 0 )
@@ -2039,14 +2080,7 @@ ForthEngine::ScanIntegerToken( char         *pToken,
         // all chars were valid digits
         if ( isNegative )
         {
-            if ( isSingle )
-            {
-                value = 0 - value;
-            }
-            else
-            {
-                lvalue = 0 - lvalue;
-            }
+            value = 0 - value;
         }
     }
 
@@ -2055,6 +2089,7 @@ ForthEngine::ScanIntegerToken( char         *pToken,
     {
         *pLastChar = lastChar;
     }
+
     return isValid;
 }
 
@@ -2065,6 +2100,7 @@ ForthEngine::ScanIntegerToken( char         *pToken,
 bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, bool& isSingle, bool& isApproximate )
 {
    bool retVal = false;
+   double dtemp;
 
    isApproximate = false;
    // a leading tilde means that value may be approximated with lowest precision 
@@ -2104,17 +2140,20 @@ bool ForthEngine::ScanFloatToken( char *pToken, float& fvalue, double& dvalue, b
       *pLastChar = lastChar;
       break;
    case 'f':
-	   *pLastChar = 0;
-      if ( sscanf( pToken, "%f", &fvalue ) == 1)
+	  *pLastChar = 0;
+
+      if ( sscanf( pToken, "%lf", &dtemp) == 1)
       {
-         retVal = true;
-         isSingle = true;
+          fvalue = dtemp;
+          retVal = true;
+          isSingle = true;
       }
       *pLastChar = lastChar;
       break;
    default:
-       if ( sscanf( pToken, "%f", &fvalue ) == 1)
+       if ( sscanf( pToken, "%lf", &dtemp) == 1)
         {
+            fvalue = dtemp;
             retVal = true;
             isSingle = true;
         }
@@ -2208,7 +2247,7 @@ ForthEngine::UnsquishDouble( ulong squishedDouble )
 }
 
 bool
-ForthEngine::SquishLong( long long lvalue, ulong& squishedLong )
+ForthEngine::SquishLong( int64_t lvalue, ulong& squishedLong )
 {
 	bool isValid = false;
 	long* pLValue = reinterpret_cast<long*>( &lvalue );
@@ -2238,7 +2277,7 @@ ForthEngine::SquishLong( long long lvalue, ulong& squishedLong )
 	return isValid;
 }
 
-long long
+int64_t
 ForthEngine::UnsquishLong( ulong squishedLong )
 {
 	long unsquishedLong[2];
@@ -2254,21 +2293,21 @@ ForthEngine::UnsquishLong( ulong squishedLong )
 		unsquishedLong[0] = squishedLong;
 		unsquishedLong[1] = 0;
 	}
-	return *(reinterpret_cast<long long *>( &unsquishedLong[0] ));
+	return *(reinterpret_cast<int64_t *>( &unsquishedLong[0] ));
 }
 
 // compile an opcode
 // remember the last opcode compiled so someday we can do optimizations
 //   like combining "->" followed by a local var name into one opcode
 void
-ForthEngine::CompileOpcode(forthOpType opType, long opVal)
+ForthEngine::CompileOpcode(forthOpType opType, forthop opVal)
 {
     SPEW_COMPILATION("Compiling 0x%08x @ 0x%08x\n", COMPILED_OP(opType, opVal), mDictionary.pCurrent);
     mpOpcodeCompiler->CompileOpcode(opType, opVal);
 }
 
 #if defined(DEBUG)
-void ForthEngine::CompileLong(long v)
+void ForthEngine::CompileInt(long v)
 {
     SPEW_COMPILATION("Compiling 0x%08x @ 0x%08x\n", v, mDictionary.pCurrent);
     *mDictionary.pCurrent++ = v;
@@ -2279,10 +2318,16 @@ void ForthEngine::CompileDouble(double v)
     SPEW_COMPILATION("Compiling double %g @ 0x%08x\n", v, mDictionary.pCurrent);
     *((double *)mDictionary.pCurrent) = v; mDictionary.pCurrent += 2;
 }
-#endif
+
+void ForthEngine::CompileCell(cell v)
+{
+    SPEW_COMPILATION("Compiling cell 0x%p @ 0x%p\n", v, mDictionary.pCurrent);
+    *((cell*)mDictionary.pCurrent) = v; mDictionary.pCurrent += CELL_LONGS;
+}
+#endif#endif
 
 // patch an opcode - fill in the branch destination offset
-void ForthEngine::PatchOpcode(forthOpType opType, long opVal, long* pOpcode)
+void ForthEngine::PatchOpcode(forthOpType opType, forthop opVal, forthop* pOpcode)
 {
     SPEW_COMPILATION("Patching 0x%08x @ 0x%08x\n", COMPILED_OP(opType, opVal), pOpcode);
     mpOpcodeCompiler->PatchOpcode(opType, opVal, pOpcode);
@@ -2294,13 +2339,13 @@ void ForthEngine::ClearPeephole()
 }
 
 void
-ForthEngine::CompileOpcode(long op )
+ForthEngine::CompileOpcode(forthop op )
 {
 	CompileOpcode( FORTH_OP_TYPE( op ), FORTH_OP_VALUE( op ) );
 }
 
 void
-ForthEngine::CompileBuiltinOpcode( long op )
+ForthEngine::CompileBuiltinOpcode(forthop op )
 {
 	if ( op < NUM_COMPILED_OPS )
 	{
@@ -2311,7 +2356,7 @@ ForthEngine::CompileBuiltinOpcode( long op )
 void
 ForthEngine::UncompileLastOpcode( void )
 {
-	long *pLastCompiledOpcode = mpOpcodeCompiler->GetLastCompiledOpcodePtr();
+    forthop *pLastCompiledOpcode = mpOpcodeCompiler->GetLastCompiledOpcodePtr();
     if ( pLastCompiledOpcode != NULL )
     {
 		SPEW_COMPILATION("Uncompiling from 0x%08x to 0x%08x\n", mDictionary.pCurrent, pLastCompiledOpcode);
@@ -2324,13 +2369,13 @@ ForthEngine::UncompileLastOpcode( void )
     }
 }
 
-long*
+forthop*
 ForthEngine::GetLastCompiledOpcodePtr( void )
 {
 	return mpOpcodeCompiler->GetLastCompiledOpcodePtr();
 }
 
-long*
+forthop*
 ForthEngine::GetLastCompiledIntoPtr( void )
 {
 	return mpOpcodeCompiler->GetLastCompiledIntoPtr();
@@ -2338,29 +2383,58 @@ ForthEngine::GetLastCompiledIntoPtr( void )
 
 // interpret/compile a constant value/offset
 void
-ForthEngine::ProcessConstant( long value, bool isOffset )
+ForthEngine::ProcessConstant(int64_t value, bool isOffset, bool isSingle)
 {
     if ( mCompileState )
     {
         // compile the literal value
-        if ( (value < (1 << 23)) && (value >= -(1 << 23)) )
+        if (isSingle)
         {
-            // value fits in opcode immediate field
-			CompileOpcode( (isOffset ? kOpOffset : kOpConstant), value & 0xFFFFFF );
-        }
-        else
-        {
-            // value too big, must go in next longword
-            if ( isOffset )
+            long lvalue = value;
+            if ((lvalue < (1 << 23)) && (lvalue >= -(1 << 23)))
             {
-                CompileBuiltinOpcode( OP_INT_VAL );
-                *mDictionary.pCurrent++ = value;
-                CompileBuiltinOpcode( OP_PLUS );
+                // value fits in opcode immediate field
+                CompileOpcode((isOffset ? kOpOffset : kOpConstant), lvalue & 0xFFFFFF);
             }
             else
             {
-                CompileBuiltinOpcode( OP_INT_VAL );
-                *mDictionary.pCurrent++ = value;
+                // value too big, must go in next longword
+                if (isOffset)
+                {
+                    CompileBuiltinOpcode(OP_INT_VAL);
+                    *mDictionary.pCurrent++ = lvalue;
+                    CompileBuiltinOpcode(OP_PLUS);
+                }
+                else
+                {
+                    CompileBuiltinOpcode(OP_INT_VAL);
+                    *mDictionary.pCurrent++ = lvalue;
+                }
+            }
+        }
+        else
+        {
+            // compile the literal value
+            // TODO: support 64-bit offsets?
+            ulong squishedLong;
+            if (SquishLong(value, squishedLong))
+            {
+                CompileOpcode(kOpSquishedLong, squishedLong);
+            }
+            else
+            {
+                CompileBuiltinOpcode(OP_DOUBLE_VAL);
+                forthop* pDP = mDictionary.pCurrent;
+#if defined(FORTH64)
+                *(int64_t*)pDP = value;
+                pDP += 2;
+#else
+                stackInt64 val;
+                val.s64 = value;
+                *pDP++ = val.s32[1];
+                *pDP++ = val.s32[0];
+#endif
+                mDictionary.pCurrent = pDP;
             }
         }
     }
@@ -2374,41 +2448,22 @@ ForthEngine::ProcessConstant( long value, bool isOffset )
         else
         {
             // leave value on param stack
+#if defined(FORTH64)
             *--mpCore->SP = value;
+#else
+            if (isSingle)
+            {
+                *--mpCore->SP = (int32_t) value;
+            }
+            else
+            {
+                stackInt64 val;
+                val.s64 = value;
+                *--mpCore->SP = val.s32[0];
+                *--mpCore->SP = val.s32[1];
+            }
+#endif
         }
-    }
-}
-
-// interpret/compile a 64-bit constant
-void
-ForthEngine::ProcessLongConstant( long long value )
-{
-    if ( mCompileState )
-    {
-        // compile the literal value
-		ulong squishedLong;
-		if ( SquishLong( value, squishedLong ) )
-		{
-            CompileOpcode( kOpSquishedLong, squishedLong );
-		}
-		else
-		{
-			CompileBuiltinOpcode( OP_DOUBLE_VAL );
-			long* pDP = mDictionary.pCurrent;
-            stackInt64 val;
-            val.s64 = value;
-			*pDP++ = val.s32[1];
-			*pDP++ = val.s32[0];
-			mDictionary.pCurrent = pDP;
-		}
-    }
-    else
-    {
-        // leave value on param stack
-        stackInt64 val;
-        val.s64 = value;
-        *--mpCore->SP = val.s32[0];
-        *--mpCore->SP = val.s32[1];
     }
 }
 
@@ -2416,10 +2471,10 @@ ForthEngine::ProcessLongConstant( long long value )
 bool
 ForthEngine::GetLastConstant( long& constantValue )
 {
-	long *pLastCompiledOpcode = mpOpcodeCompiler->GetLastCompiledOpcodePtr();
+    forthop *pLastCompiledOpcode = mpOpcodeCompiler->GetLastCompiledOpcodePtr();
     if ( pLastCompiledOpcode != NULL )
 	{
-        long op = *pLastCompiledOpcode;
+        forthop op = *pLastCompiledOpcode;
         if ( ((pLastCompiledOpcode + 1) == mDictionary.pCurrent)
             && (FORTH_OP_TYPE( op ) == kOpConstant) )
         {
@@ -2435,9 +2490,9 @@ ForthEngine::GetLastConstant( long& constantValue )
 // execute forth ops, and is also how systems external to forth execute ops
 //
 eForthResult
-ForthEngine::FullyExecuteOp(ForthCoreState* pCore, long opCode)
+ForthEngine::FullyExecuteOp(ForthCoreState* pCore, forthop opCode)
 {
-	long opScratch[2];
+    forthop opScratch[2];
 
 	opScratch[0] = opCode;
 	opScratch[1] = gCompiledOps[OP_DONE];
@@ -2455,9 +2510,13 @@ ForthEngine::FullyExecuteOp(ForthCoreState* pCore, long opCode)
 //   very first op is executed before returning.
 //
 eForthResult
-ForthEngine::ExecuteOp(ForthCoreState* pCore, long opCode)
+ForthEngine::ExecuteOp(ForthCoreState* pCore, forthop opCode)
 {
-	eForthResult exitStatus = InterpretOneOp(pCore, opCode);
+#ifdef ASM_INNER_INTERPRETER
+    eForthResult exitStatus = InterpretOneOpFast(pCore, opCode);
+#else
+    eForthResult exitStatus = InterpretOneOp(pCore, opCode);
+#endif
 	return exitStatus;
 }
 
@@ -2466,9 +2525,9 @@ ForthEngine::ExecuteOp(ForthCoreState* pCore, long opCode)
 // code at pOps must be terminated with OP_DONE
 //
 eForthResult
-ForthEngine::ExecuteOps(ForthCoreState* pCore, long *pOps)
+ForthEngine::ExecuteOps(ForthCoreState* pCore, forthop *pOps)
 {
-    long *savedIP;
+    forthop *savedIP;
 
     savedIP = pCore->IP;
     pCore->IP = pOps;
@@ -2485,15 +2544,13 @@ ForthEngine::ExecuteOps(ForthCoreState* pCore, long *pOps)
 }
 
 eForthResult
-ForthEngine::FullyExecuteMethod(ForthCoreState* pCore, ForthObject& obj, long methodNum)
+ForthEngine::FullyExecuteMethod(ForthCoreState* pCore, ForthObject& obj, int methodNum)
 {
-	long opScratch[2];
-	long opCode = obj.pMethodOps[methodNum];
+    forthop opScratch[2];
+    forthop opCode = obj->pMethods[methodNum];
 
-	RPUSH(((long)GET_TPD));
-	RPUSH(((long)GET_TPM));
-	SET_TPM(obj.pMethodOps);
-	SET_TPD(obj.pData);
+	RPUSH(((cell)GET_TP));
+	SET_THIS(obj);
 
 	opScratch[0] = opCode;
 	opScratch[1] = gCompiledOps[OP_DONE];
@@ -2603,16 +2660,25 @@ ForthEngine::CheckStacks( void )
 
 void ForthEngine::SetDefaultConsoleOut( ForthObject& newOutStream )
 {
-	SPEW_SHELL("SetDefaultConsoleOut pCore=%p  pMethods=%p  pData=%p\n", mpCore, newOutStream.pMethodOps, newOutStream.pData);
-	OBJECT_ASSIGN(mpCore, mDefaultConsoleOutStream, newOutStream);
-	mDefaultConsoleOutStream = newOutStream;
+	SPEW_SHELL("SetDefaultConsoleOut pCore=%p  pMethods=%p  pData=%p\n", mpCore, newOutStream->pMethods, newOutStream);
+    OBJECT_ASSIGN(mpCore, mDefaultConsoleOutStream, newOutStream);
+    mDefaultConsoleOutStream = newOutStream;
+    OBJECT_ASSIGN(mpCore, mAuxOutStream, newOutStream);
+    mAuxOutStream = newOutStream;
 }
 
-void ForthEngine::SetConsoleOut( ForthCoreState* pCore, ForthObject& newOutStream )
+void ForthEngine::SetConsoleOut(ForthCoreState* pCore, ForthObject& newOutStream)
 {
-	SPEW_SHELL("SetConsoleOut pCore=%p  pMethods=%p  pData=%p\n", pCore, newOutStream.pMethodOps, newOutStream.pData);
-	OBJECT_ASSIGN( pCore, pCore->consoleOutStream, newOutStream );
-	pCore->consoleOutStream = newOutStream;
+    SPEW_SHELL("SetConsoleOut pCore=%p  pMethods=%p  pData=%p\n", pCore, newOutStream->pMethods, newOutStream);
+    OBJECT_ASSIGN(pCore, pCore->consoleOutStream, newOutStream);
+    pCore->consoleOutStream = newOutStream;
+}
+
+void ForthEngine::SetAuxOut(ForthCoreState* pCore, ForthObject& newOutStream)
+{
+    SPEW_SHELL("SetAuxOut pCore=%p  pMethods=%p  pData=%p\n", pCore, newOutStream->pMethods, newOutStream);
+    OBJECT_ASSIGN(pCore, mAuxOutStream, newOutStream);
+    mAuxOutStream = newOutStream;
 }
 
 void ForthEngine::PushConsoleOut( ForthCoreState* pCore )
@@ -2625,6 +2691,11 @@ void ForthEngine::PushDefaultConsoleOut( ForthCoreState* pCore )
 	PUSH_OBJECT( mDefaultConsoleOutStream );
 }
 
+void ForthEngine::PushAuxOut(ForthCoreState* pCore)
+{
+    PUSH_OBJECT(mAuxOutStream);
+}
+
 void ForthEngine::ResetConsoleOut( ForthCoreState* pCore )
 {
 	// TODO: there is a dilemma here - either we just replace the current output stream
@@ -2632,8 +2703,12 @@ void ForthEngine::ResetConsoleOut( ForthCoreState* pCore )
 	//  and risk a crash, since ResetConsoleOut is called when an error is detected,
 	//  so the object we are releasing may already be deleted or otherwise corrupted.
 	CLEAR_OBJECT(pCore->consoleOutStream);
-	OBJECT_ASSIGN(pCore, pCore->consoleOutStream, mDefaultConsoleOutStream);
-	pCore->consoleOutStream = mDefaultConsoleOutStream;
+
+    OBJECT_ASSIGN(pCore, pCore->consoleOutStream, mDefaultConsoleOutStream);
+    pCore->consoleOutStream = mDefaultConsoleOutStream;
+
+    OBJECT_ASSIGN(pCore, mAuxOutStream, mDefaultConsoleOutStream);
+    mAuxOutStream = mDefaultConsoleOutStream;
 }
 
 
@@ -2712,7 +2787,7 @@ ForthEngine::DumpCrashState()
 {
 	char buff[256];
 
-	long* pSP = mpCore->SP;
+    cell* pSP = mpCore->SP;
 	if ( (pSP < mpCore->ST) && (pSP > mpCore->SB) )
 	{
 		int numToShow = 64;
@@ -2733,26 +2808,30 @@ ForthEngine::DumpCrashState()
 	DisplayUserDefCrash( mpCore->IP, buff, sizeof(buff) );
 	ConsoleOut( "\n" );
 
-	long* pRP = mpCore->RP;
+	cell* pRP = mpCore->RP;
 	if ( (pRP < mpCore->RT) && (pRP > mpCore->RB) )
 	{
-		int numToShow = 64;
+        int numToShow = 64;
 		int depth = mpCore->RT - pRP;
-		long* pFP = mpCore->FP;
+		cell* pFP = mpCore->FP;
 		if ( depth < numToShow )
 		{
 			numToShow = depth;
 		}
 		for ( int i = 0; i < numToShow; i++ )
 		{
-			unsigned long rVal = (unsigned long)(pRP[i]);
-			long* pRVal = (long *) rVal;
-			SNPRINTF( buff, sizeof(buff), "R[%2d] 0x%08x   ", depth - (i + 1), rVal );
+            cell rVal = pRP[i];
+			forthop* pRVal = (forthop *) rVal;
+#if defined(FORTH64)
+            SNPRINTF(buff, sizeof(buff), "R[%2d] 0x%016llx   ", depth - (i + 1), rVal);
+#else
+            SNPRINTF(buff, sizeof(buff), "R[%2d] 0x%08x   ", depth - (i + 1), rVal);
+#endif
 			ConsoleOut( buff );
 			if ( (pRP + i) == pFP )
 			{
 				ConsoleOut( "<FP>" );
-				pFP = (long *)pRVal;
+				pFP = (cell *)pRVal;
 			}
 			else
 			{
@@ -2764,26 +2843,27 @@ ForthEngine::DumpCrashState()
 
 }
 
-void ForthEngine::DisplayUserDefCrash( long *pRVal, char* buff, int buffSize )
+void ForthEngine::DisplayUserDefCrash( forthop *pRVal, char* buff, int buffSize )
 {
 	if ( (pRVal >= mDictionary.pBase) && (pRVal < mDictionary.pCurrent) )
 	{
-		long* pDefBase;
+        forthop* pDefBase = nullptr;
 		ForthVocabulary* pVocab = ForthVocabulary::GetVocabularyChainHead();
-		long* pClosestIP = NULL;
-		long* pFoundClosest = NULL;
-		ForthVocabulary* pFoundVocab = NULL;
-		while ( pVocab != NULL )
+        forthop* pClosestIP = nullptr;
+        forthop* pFoundClosest = nullptr;
+		ForthVocabulary* pFoundVocab = nullptr;
+		while ( pVocab != nullptr)
 		{
-			long* pClosest = FindUserDefinition( pVocab, pClosestIP, pRVal, pDefBase );
-			if ( pClosest != NULL )
+            forthop* pClosest = FindUserDefinition( pVocab, pClosestIP, pRVal, pDefBase );
+			if ( pClosest != nullptr)
 			{
 				pFoundClosest = pClosest;
 				pFoundVocab = pVocab;
 			}
 			pVocab = pVocab->GetNextChainVocabulary();
 		}
-		if ( pFoundClosest != NULL )
+
+		if ( pFoundClosest != nullptr)
 		{
 			SNPRINTF( buff, buffSize, "%s:", pFoundVocab->GetName() );
 			ConsoleOut( buff );
@@ -2804,15 +2884,15 @@ void ForthEngine::DisplayUserDefCrash( long *pRVal, char* buff, int buffSize )
 	}
 	else
 	{
-		SNPRINTF( buff, buffSize, "%d", (long) pRVal );
+		SNPRINTF( buff, buffSize, "%p", pRVal );
 	}
 	ConsoleOut( buff );
 }
 
-long * ForthEngine::FindUserDefinition( ForthVocabulary* pVocab, long*& pClosestIP, long* pIP, long*& pBase  )
+forthop * ForthEngine::FindUserDefinition( ForthVocabulary* pVocab, forthop*& pClosestIP, forthop* pIP, forthop*& pBase  )
 {
-	long* pClosest = NULL;
-	long* pEntry = pVocab->GetNewestEntry();
+    forthop* pClosest = NULL;
+	forthop* pEntry = pVocab->GetNewestEntry();
 
 	for ( int i = 0; i < pVocab->GetNumEntries(); i++ )
 	{
@@ -2843,7 +2923,7 @@ long * ForthEngine::FindUserDefinition( ForthVocabulary* pVocab, long*& pClosest
 		}
 		if ( (opcode > 0) && (opcode < mpCore->numOps) )
 		{
-			long* pDef = mpCore->ops[opcode];
+            forthop* pDef = mpCore->ops[opcode];
 			if ( (pDef > pClosestIP) && (pDef <= pIP) )
 			{
 				pClosestIP = pDef;
@@ -2883,7 +2963,7 @@ ForthEngine::SetIsServer(bool isServer)
 	mIsServer = isServer;
 }
 
-void ForthEngine::DefineLabel(const char* inLabelName, long* inLabelIP)
+void ForthEngine::DefineLabel(const char* inLabelName, forthop* inLabelIP)
 {
 	for (ForthLabel& label : mLabels)
 	{
@@ -2896,7 +2976,7 @@ void ForthEngine::DefineLabel(const char* inLabelName, long* inLabelIP)
 	mLabels.emplace_back(ForthLabel(inLabelName, inLabelIP));
 }
 
-void ForthEngine::AddGoto(const char* inLabelName, int inBranchType, long* inBranchIP)
+void ForthEngine::AddGoto(const char* inLabelName, int inBranchType, forthop* inBranchIP)
 {
 	for (ForthLabel& label : mLabels)
 	{
@@ -2948,18 +3028,23 @@ char* ForthEngine::AddTempString(const char* inText, int inNumChars)
 //          Continue statement support
 //
 //############################################################################
-void ForthEngine::PushContinuation(long val)
+void ForthEngine::PushContinuationType(cell val)
+{
+    PushContinuationAddress((forthop*)val);
+}
+
+void ForthEngine::PushContinuationAddress(forthop* pOp)
 {
     if ((size_t)mContinuationIx >= mContinuations.size())
     {
         mContinuations.resize(mContinuationIx + 32);
     }
-    mContinuations[mContinuationIx++] = val;
+    mContinuations[mContinuationIx++] = pOp;
 }
 
-long ForthEngine::PopContinuation()
+forthop* ForthEngine::PopContinuationAddress()
 {
-    long result = 0;
+    forthop* result = nullptr;
     if (mContinuationIx > 0)
     {
         mContinuationIx--;
@@ -2972,6 +3057,11 @@ long ForthEngine::PopContinuation()
     return result;
 }
 
+cell ForthEngine::PopContinuationType()
+{
+    return (cell) PopContinuationAddress();
+}
+
 void ForthEngine::ResetContinuations()
 {
     mContinuations.clear();
@@ -2980,34 +3070,35 @@ void ForthEngine::ResetContinuations()
     mContinueCount = 0;
 }
 
-long* ForthEngine::GetContinuationDestination()
+forthop* ForthEngine::GetContinuationDestination()
 {
     return mContinueDestination;
 }
 
-void ForthEngine::SetContinuationDestination(long* pDest)
+void ForthEngine::SetContinuationDestination(forthop* pDest)
 {
     mContinueDestination = pDest;
 }
 
-void ForthEngine::AddContinuationBranch(long* pAddr, long opType)
+void ForthEngine::AddContinuationBranch(forthop* pAddr, cell opType)
 {
-    PushContinuation((long) pAddr);
-    PushContinuation(opType);
+    PushContinuationAddress(pAddr);
+    PushContinuationType(opType);
     ++mContinueCount;
 }
 
-void ForthEngine::AddBreakBranch(long* pAddr, long opType)
+void ForthEngine::AddBreakBranch(forthop* pAddr, cell opType)
 {
-    PushContinuation(((long)pAddr) + 1);
-    PushContinuation(opType);
+    // set low bit of address to flag that this is a break branch
+    PushContinuationAddress((forthop *)(((cell)pAddr) + 1));
+    PushContinuationType(opType);
     ++mContinueCount;
 }
 
 void ForthEngine::StartLoopContinuations()
 {
-    PushContinuation((long) mContinueDestination);
-    PushContinuation(mContinueCount);
+    PushContinuationAddress(mContinueDestination);
+    PushContinuationType(mContinueCount);
     mContinueDestination = nullptr;
     mContinueCount = 0;
 }
@@ -3017,20 +3108,20 @@ void ForthEngine::EndLoopContinuations(int controlFlowType)  // actually takes a
     // fixup pending continue branches for current loop
     if (mContinueCount > 0)
     {
-        long *pDP = GetDP();
+        forthop *pDP = GetDP();
 
         for (int i = 0; i < mContinueCount; ++i)
         {
             if (mContinuationIx >= 2)
             {
-                long opType = PopContinuation();
-                long target = PopContinuation();
-                if ((target & 1) != 0)
+                long opType = PopContinuationType();
+                forthop* target = PopContinuationAddress();
+                if (((cell)target & 1) != 0)
                 {
                     // this is actually a break
                     if (controlFlowType != kShellTagDo)
                     {
-                        long *pBreak = (long *)(target & ~1);
+                        forthop *pBreak = (forthop *)((cell)target & ~1);
                         *pBreak = COMPILED_OP(opType, (pDP - pBreak) - 1);
                     }
                     else
@@ -3045,7 +3136,7 @@ void ForthEngine::EndLoopContinuations(int controlFlowType)  // actually takes a
                     {
                         if (mContinueDestination != nullptr)
                         {
-                            long *pContinue = (long *)target;
+                            forthop *pContinue = target;
                             *pContinue = COMPILED_OP(opType, (mContinueDestination - pContinue) - 1);
                         }
                         else
@@ -3069,8 +3160,8 @@ void ForthEngine::EndLoopContinuations(int controlFlowType)  // actually takes a
             }
         }
     }
-    mContinueCount = PopContinuation();
-    mContinueDestination = (long *)PopContinuation();
+    mContinueCount = PopContinuationType();
+    mContinueDestination = PopContinuationAddress();
 }
 
 bool ForthEngine::HasPendingContinuations()
@@ -3084,7 +3175,7 @@ void ForthEngine::AddGlobalObjectVariable(ForthObject* pObject)
     mGlobalObjectVariables.push_back(pObject);
 }
 
-void ForthEngine::CleanupGlobalObjectVariables(long* pNewDP)
+void ForthEngine::CleanupGlobalObjectVariables(forthop* pNewDP)
 {
     int objectIndex = mGlobalObjectVariables.size() - 1;
     while (objectIndex >= 0)
@@ -3094,12 +3185,12 @@ void ForthEngine::CleanupGlobalObjectVariables(long* pNewDP)
             // we are done releasing objects, all remaining objects are below new DP
             break;
         }
-        ForthObject& o = *(mGlobalObjectVariables[objectIndex]);
-        if (o.pMethodOps != nullptr)
+        ForthObject& obj = *(mGlobalObjectVariables[objectIndex]);
+        if (obj != nullptr)
         {
-            ForthClassObject* pClassObj = (ForthClassObject *)(o.pMethodOps[-1]);
-            TraceOut("Releasing object of class %s, refcount %d\n", pClassObj->pVocab->GetName(), o.pData[0]);
-            SAFE_RELEASE(mpCore, o);
+            ForthClassObject* pClassObject = GET_CLASS_OBJECT(obj);
+            TraceOut("Releasing object of class %s, refcount %d\n", pClassObject->pVocab->GetName(), obj->refCount);
+            SAFE_RELEASE(mpCore, obj);
         }
         objectIndex--;
     }
@@ -3126,22 +3217,23 @@ void ForthEngine::UngrabTempBuffer()
 #endif
 }
 
-void ForthEngine::RaiseException(ForthCoreState *pCore, long newExceptionNum)
+void ForthEngine::RaiseException(ForthCoreState *pCore, cell newExceptionNum)
 {
     char errorMsg[64];
     ForthExceptionFrame *pExceptionFrame = pCore->pExceptionFrame;
+    forthop* pHandlerOffsets = pExceptionFrame->pHandlerOffsets;
     if (pExceptionFrame != nullptr)
     {
         // exception frame:
         //  0   old exception frame ptr
         //  1   saved pstack ptr
-        //  2   ptr to catchIP,finallyIP
+        //  2   ptr to catchIPOffset,finallyIPOffset
         //  3   saved frame ptr
         //  4   exception number
         //  5   exception state
         if (newExceptionNum)
         {
-            long oldExceptionNum = pExceptionFrame->exceptionNumber;
+            cell oldExceptionNum = pExceptionFrame->exceptionNumber;
             pExceptionFrame->exceptionNumber = newExceptionNum;
             if (oldExceptionNum)
             {
@@ -3156,7 +3248,7 @@ void ForthEngine::RaiseException(ForthCoreState *pCore, long newExceptionNum)
                 {
                     // re-raise inside an exception handler - transfer control to finally body
                     SET_SP(pExceptionFrame->pSavedSP);
-                    SET_IP(pExceptionFrame->pHandlerIPs[1]);
+                    SET_IP(pHandlerOffsets + pHandlerOffsets[1]);
                 }
             }
             else
@@ -3164,7 +3256,7 @@ void ForthEngine::RaiseException(ForthCoreState *pCore, long newExceptionNum)
                 // raise in try body
                 SET_SP(pExceptionFrame->pSavedSP);
                 SPUSH(newExceptionNum);
-                SET_IP(pExceptionFrame->pHandlerIPs[0]);
+                SET_IP(pHandlerOffsets + pHandlerOffsets[0]);
                 pExceptionFrame->exceptionState = kForthExceptionStateExcept;
             }
         }
@@ -3191,8 +3283,9 @@ void ForthEngine::RaiseException(ForthCoreState *pCore, long newExceptionNum)
 eForthResult
 ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 {
-    long *pEntry, value;
-    long long lvalue;
+    forthop* pEntry;
+    int32_t value;
+    int64_t lvalue;
     eForthResult exitStatus = kResultOk;
     float fvalue;
     double dvalue;
@@ -3219,6 +3312,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
     {
         SPEW_OUTER_INTERPRETER("Interpret {%s} flags[%x]\t", pToken, pInfo->GetFlags());
     }
+
     if ( isAString )
     {
         ////////////////////////////////////
@@ -3238,7 +3332,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         {
             // in interpret mode, stick the string in string buffer A
             //   and leave the address on param stack
-            *--mpCore->SP = (long) AddTempString(pToken, len);
+            *--mpCore->SP = (cell) AddTempString(pToken, len);
         }
         return kResultOk;
         
@@ -3253,26 +3347,18 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         SPEW_OUTER_INTERPRETER( "Character{%s} flags[%x]\n", pToken, pInfo->GetFlags() );
 		bool isALongQuotedCharacter = (pInfo->GetFlags() & PARSE_FLAG_FORCE_LONG) != 0;
 		int tokenLen = strlen(pToken);
-		if (isALongQuotedCharacter || (tokenLen > 4))
-		{
-			lvalue = 0;
-			char* cval = (char *)&lvalue;
-			for (int i = 0; i < len; i++)
-			{
-				cval[i] = pToken[i];
-			}
-			ProcessLongConstant(lvalue);
-		}
-		else
-		{
-			value = 0;
-			char* cval = (char *)&value;
-			for (int i = 0; i < len; i++)
-			{
-				cval[i] = pToken[i];
-			}
-			ProcessConstant(value, false);
-		}
+        lvalue = 0;
+        char* cval = (char *)&lvalue;
+        for (int i = 0; i < len; i++)
+        {
+            cval[i] = pToken[i];
+        }
+#if defined(FORTH64)
+        isSingle = (tokenLen > 3);
+#else
+        isSingle = !(isALongQuotedCharacter || (tokenLen > 4));
+#endif
+        ProcessConstant(lvalue, false, isSingle);
 		return kResultOk;
     }
     
@@ -3304,6 +3390,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             CompileOpcode( *pEntry );
             return kResultOk;
         }
+
         if ( (pToken[0] == '&') && (pToken[1] != '\0') )
         {
             pEntry = mpLocalVocab->FindSymbol( pToken + 1 );
@@ -3357,13 +3444,14 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
                     pFoundVocab = pVocab;
                 }
             }
+
             if (pEntry == nullptr)
             {
                 pEntry = mpLiteralsVocab->FindSymbol(pToken);
                 if (pEntry != nullptr)
                 {
                     // push ptr to string after colon and invoke literal processing op
-                    *--mpCore->SP = (long)(pColon + 1);
+                    *--mpCore->SP = (cell)(pColon + 1);
                     exitStatus = FullyExecuteOp(mpCore, *pEntry);
                     return exitStatus;
                 }
@@ -3371,6 +3459,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             *pColon = ':';
         }
     }
+
     if ( pEntry == NULL )
     {
 #ifdef MAP_LOOKUP
@@ -3379,6 +3468,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         pEntry = mpVocabStack->FindSymbol( pInfo, &pFoundVocab );
 #endif
     }
+
     if ( pEntry != NULL )
     {
         ////////////////////////////////////
@@ -3426,9 +3516,9 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 					elementSize = pNative->GetSize();
 				}
 			}
-			else if ( ScanIntegerToken( pToken, value, lvalue, mpCore->base, isOffset, isSingle ) && isSingle )
+			else if ( ScanIntegerToken( pToken, lvalue, mpCore->base, isOffset, isSingle ) && isSingle )
 			{
-				elementSize = value;
+				elementSize = (int)lvalue;
 			}
 		}
 		pToken[len - 2] = '[';
@@ -3482,6 +3572,9 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
           else
           {
               --mpCore->SP;
+#if defined(FORTH64)
+              *mpCore->SP = 0;
+#endif
               *(float *) mpCore->SP = fvalue;
           }
        }
@@ -3506,18 +3599,22 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
 				  CompileBuiltinOpcode( OP_DOUBLE_VAL );
 				  pDPD = (double *) mDictionary.pCurrent;
 				  *pDPD++ = dvalue;
-				  mDictionary.pCurrent = (long *) pDPD;
+				  mDictionary.pCurrent = (forthop *) pDPD;
 			  }
           }
           else
           {
+#if defined(FORTH64)
+              mpCore->SP -= 1;
+#else
               mpCore->SP -= 2;
+#endif
               *(double *) mpCore->SP = dvalue;
           }
        }
         
     }
-    else if ( ScanIntegerToken( pToken, value, lvalue, mpCore->base, isOffset, isSingle ) )
+    else if ( ScanIntegerToken( pToken, lvalue, mpCore->base, isOffset, isSingle ) )
     {
 
         ////////////////////////////////////
@@ -3525,15 +3622,8 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
         // symbol is an integer literal
         //
         ////////////////////////////////////
-        SPEW_OUTER_INTERPRETER( "Integer literal %d\n", value );
-        if ( isSingle )
-        {
-            ProcessConstant( value, isOffset );
-        }
-        else
-        {
-            ProcessLongConstant( lvalue );
-        }
+        SPEW_OUTER_INTERPRETER( "Integer literal %lld\n", lvalue );
+        ProcessConstant(lvalue, isOffset, isSingle);
     }
     else if ( CheckFlag( kEngineFlagInEnumDefinition ) )
     {
@@ -3543,11 +3633,13 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             // pop enum value off stack
             mNextEnum = *mpCore->SP++;
         }
+
         if ( (mNextEnum < (1 << 23)) && (mNextEnum >= -(1 << 23)) )
         {
             // number is in range supported by kOpConstant, just add it to vocabulary
-            mpDefinitionVocab->AddSymbol( pToken, kOpConstant, mNextEnum & 0x00FFFFFF, false );
-			long* pNewEnum = mpDefinitionVocab->GetNewestEntry();
+            forthop enumOp = COMPILED_OP(kOpConstant, mNextEnum & 0x00FFFFFF);
+            mpDefinitionVocab->AddSymbol(pToken, enumOp);
+			forthop* pNewEnum = mpDefinitionVocab->GetNewestEntry();
 		    pNewEnum[1] = BASE_TYPE_TO_CODE( kBaseTypeUserDefinition );
         }
         else
@@ -3555,7 +3647,7 @@ ForthEngine::ProcessToken( ForthParseInfo   *pInfo )
             // number is out of range of kOpConstant, need to define a user op
             StartOpDefinition( pToken );
             CompileBuiltinOpcode( OP_DO_CONSTANT );
-            CompileLong( mNextEnum );
+            CompileCell( mNextEnum );
         }
         mNextEnum++;
     }

@@ -9,7 +9,7 @@
 #include "ForthShell.h"
 #include "ForthInput.h"
 #include <string.h>
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
 #include <winsock2.h>
 #else
 #include <sys/socket.h>
@@ -36,8 +36,11 @@ public:
 
     ForthPipe*      GetPipe();
 
-    virtual long*   GetInputState();
-    virtual bool    SetInputState( long* pState );
+    virtual cell*   GetInputState();
+    virtual bool    SetInputState(cell* pState);
+
+    virtual bool	IsFile();
+    virtual const char* GetType(void);
 
 protected:
     ForthPipe*      mpMsgPipe;
@@ -88,7 +91,7 @@ public:
 	virtual FILE*			GetStdOut();
 	virtual FILE*			GetStdErr();
 	virtual void*			OpenDir( const char* pPath );
-	virtual void*			ReadDir( void* pDir );
+	virtual void*			ReadDir( void* pDir, void* pEntry );
 	virtual int				CloseDir( void* pDir );
 	virtual void			RewindDir( void* pDir );
 
@@ -96,9 +99,12 @@ public:
 	void					CloseConnection();
 
 protected:
+    void    setupFileInterface(bool useLocalFiles);
 
     ForthPipe*              mpMsgPipe;
     bool                    mDoAutoload;
+    
+    bool                    mUseLocalFiles;
 
     // mSendLinePending is true IFF server is waiting for a reply to kClientMsgSendLine
     bool                    mSendLinePending;

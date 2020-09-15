@@ -178,9 +178,6 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 	bool isQuotedChar = false;
 	bool isLongConstant = false;
 
-	// in order to not break the standard forth word tick ('), don't allow character constants
-	//  to contain space or tab characters
-	// to have a space or tab in a char constant use a backslash
 	if ((pSrcIn[1] != 0) && (pSrcIn[2] != 0))      // there must be at least 2 more chars on line
 	{
 		const char *pSrc = pSrcIn + 1;
@@ -189,7 +186,7 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 		while ((iDst < maxChars) && (pSrc < pSrcLimit))
 		{
 			char ch = *pSrc++;
-			if ((ch == '\0') || (ch == ' ') || (ch == '\t'))
+			if (ch == '\0')
 			{
 				break;
 			}
@@ -199,6 +196,7 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 				{
 					cc[iDst++] = ch;
 				}
+
 				if (*pSrc == '\0')
 				{
 					break;
@@ -206,7 +204,7 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
                 ch = BackslashChar(pSrc);
                 cc[iDst++] = ch;
 			}
-			else if (ch == '\'')
+			else if (ch == '`')
 			{
 				cc[iDst++] = '\0';
 				isQuotedChar = true;
@@ -218,6 +216,7 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 						isLongConstant = true;
 						ch = *++pSrc;
 					}
+
 					if (pSrc < pSrcLimit)
 					{
 						// if there are still more chars after closing quote, next char must be a delimiter
@@ -235,15 +234,17 @@ ForthParseInfo::ParseSingleQuote(const char *pSrcIn, const char *pSrcLimit, Fort
 				cc[iDst++] = ch;
 			}
 		}
+
 		if (iDst == maxChars)
 		{
-			if (*pSrc == '\'')
+			if (*pSrc == '`')
 			{
 				pSrc++;
 				cc[iDst++] = '\0';
 				isQuotedChar = true;
 			}
 		}
+
 		if (isQuotedChar)
 		{
 			SetFlag(PARSE_FLAG_QUOTED_CHARACTER);

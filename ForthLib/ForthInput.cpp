@@ -47,6 +47,8 @@ ForthInputStack::PushInputStream( ForthInputStream *pNewStream )
     mpHead = pNewStream;
     mpHead->mpNext = pOldStream;
 
+    //printf("ForthInputStack::PushInputStream %s  gen:%d   file:%d\n", mpHead->GetType(),
+    //    mpHead->IsGenerated(), mpHead->IsFile());
     *(ForthEngine::GetInstance()->GetBlockFileManager()->GetBlockPtr()) = mpHead->GetBlockNumber();
 
 	SPEW_SHELL("PushInputStream %s:%s\n", pNewStream->GetType(), pNewStream->GetName());
@@ -60,10 +62,13 @@ ForthInputStack::PopInputStream( void )
 
     if ( (mpHead == NULL) || (mpHead->mpNext == NULL) )
     {
+        //printf("ForthInputStack::PopInputStream NO MORE STREAMS\n");
         // all done!
         return true;
     }
 
+    //printf("ForthInputStack::PopInputStream %s  gen:%d   file:%d\n", mpHead->GetType(),
+    //    mpHead->IsGenerated(), mpHead->IsFile());
     pNext = mpHead->mpNext;
 	if (mpHead->DeleteWhenEmpty())
 	{
@@ -235,6 +240,7 @@ ForthInputStream::ForthInputStream( int bufferLen )
 , mBufferLen(bufferLen)
 , mReadOffset(0)
 , mWriteOffset(0)
+, mbDeleteWhenEmpty(true)
 {
     mpBufferBase = (char *)__MALLOC(bufferLen);
     mpBufferBase[0] = '\0';
@@ -429,8 +435,13 @@ void ForthInputStream::CropCharacters(int numCharacters)
 bool
 ForthInputStream::DeleteWhenEmpty()
 {
-	// default behavior is to delete stream when empty
-	return true;
+	return mbDeleteWhenEmpty;
+}
+
+void
+ForthInputStream::SetDeleteWhenEmpty(bool deleteIt)
+{
+    mbDeleteWhenEmpty = deleteIt;
 }
 
 bool
@@ -444,6 +455,13 @@ bool
 ForthInputStream::IsGenerated(void)
 {
 	return false;
+}
+
+
+bool
+ForthInputStream::IsFile(void)
+{
+    return false;
 }
 
 
@@ -490,6 +508,7 @@ ForthFileInputStream::GetLine( const char *pPrompt )
     pBuffer = fgets( mpBufferBase, mBufferLen, mpInFile );
 
     mReadOffset = 0;
+    //printf("%s\n", pBuffer);
     mpBufferBase[ mBufferLen - 1 ] = '\0';
     mWriteOffset = strlen( mpBufferBase );
     if ( mWriteOffset > 0 )
@@ -524,8 +543,7 @@ ForthFileInputStream::GetSourceID()
     return (int) mpInFile;
 }
 
-long*
-ForthFileInputStream::GetInputState()
+cell* ForthFileInputStream::GetInputState()
 {
     // save-input items:
     //  0   5
@@ -535,7 +553,7 @@ ForthFileInputStream::GetInputState()
     //  4   writeOffset (count of valid bytes in buffer)
     //  5   lineStartOffset
 
-    long* pState = &(mState[0]);
+    cell* pState = &(mState[0]);
     pState[0] = 5;
     pState[1] = (int)this;
     pState[2] = mLineNumber;
@@ -547,7 +565,7 @@ ForthFileInputStream::GetInputState()
 }
 
 bool
-ForthFileInputStream::SetInputState( long* pState )
+ForthFileInputStream::SetInputState( cell* pState)
 {
     if ( pState[0] != 5 )
     {
@@ -572,6 +590,12 @@ ForthFileInputStream::SetInputState( long* pState )
     }
     mLineNumber = pState[2];
     mReadOffset = pState[3];
+    return true;
+}
+
+bool
+ForthFileInputStream::IsFile(void)
+{
     return true;
 }
 
@@ -634,8 +658,7 @@ ForthConsoleInputStream::GetSourceID()
     return 0;
 }
 
-long*
-ForthConsoleInputStream::GetInputState()
+cell* ForthConsoleInputStream::GetInputState()
 {
     // save-input items:
     //  0   4
@@ -644,7 +667,7 @@ ForthConsoleInputStream::GetInputState()
     //  3   readOffset
     //  4   writeOffset (count of valid bytes in buffer)
 
-    long* pState = &(mState[0]);
+    cell* pState = &(mState[0]);
     pState[0] = 4;
     pState[1] = (int)this;
     pState[2] = mLineNumber;
@@ -655,7 +678,7 @@ ForthConsoleInputStream::GetInputState()
 }
 
 bool
-ForthConsoleInputStream::SetInputState( long* pState )
+ForthConsoleInputStream::SetInputState(cell* pState)
 {
     if ( pState[0] != 4 )
     {
@@ -772,8 +795,7 @@ ForthBufferInputStream::GetReportedBufferBasePointer( void )
     return mpSourceBuffer;
 }
 
-long*
-ForthBufferInputStream::GetInputState()
+cell* ForthBufferInputStream::GetInputState()
 {
     // save-input items:
     //  0   4
@@ -782,7 +804,7 @@ ForthBufferInputStream::GetInputState()
     //  3   readOffset
     //  4   writeOffset (count of valid bytes in buffer)
 
-    long* pState = &(mState[0]);
+    cell* pState = &(mState[0]);
     pState[0] = 4;
     pState[1] = (int)this;
     pState[2] = mInstanceNumber;
@@ -793,7 +815,7 @@ ForthBufferInputStream::GetInputState()
 }
 
 bool
-ForthBufferInputStream::SetInputState( long* pState )
+ForthBufferInputStream::SetInputState(cell* pState)
 {
     if ( pState[0] != 4 )
     {
@@ -893,8 +915,7 @@ ForthBlockInputStream::SeekToLineEnd()
 }
 
 
-long*
-ForthBlockInputStream::GetInputState()
+cell* ForthBlockInputStream::GetInputState()
 {
     // save-input items:
     //  0   3
@@ -902,7 +923,7 @@ ForthBlockInputStream::GetInputState()
     //  2   blockNumber
     //  3   readOffset
 
-    long* pState = &(mState[0]);
+    cell* pState = &(mState[0]);
     pState[0] = 3;
     pState[1] = (int)this;
     pState[2] = mCurrentBlock;
@@ -912,7 +933,7 @@ ForthBlockInputStream::GetInputState()
 }
 
 bool
-ForthBlockInputStream::SetInputState( long* pState )
+ForthBlockInputStream::SetInputState(cell* pState)
 {
     if ( pState[0] != 4 )
     {
@@ -964,6 +985,12 @@ ForthBlockInputStream::ReadBlock()
     return success;
 }
 
+bool
+ForthBlockInputStream::IsFile(void)
+{
+    return true;
+}
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -975,6 +1002,10 @@ ForthExpressionInputStream::ForthExpressionInputStream()
 	: ForthInputStream(INITIAL_EXPRESSION_STACK_SIZE)
 	, mStackSize(INITIAL_EXPRESSION_STACK_SIZE)
 {
+    // expression input streams shouldn't be deleted when empty since they are
+    //  used multiple times
+    mbDeleteWhenEmpty = false;
+
 	mpStackBase = static_cast<char *>(__MALLOC(mStackSize));
 	mpLeftBase = static_cast<char *>(__MALLOC(mStackSize + 1));
 	mpRightBase = static_cast<char *>(__MALLOC(mStackSize + 1));
@@ -1098,7 +1129,7 @@ ForthExpressionInputStream::ProcessExpression(ForthInputStream* pInputStream)
 					}
 					break;
 
-				case '\'':
+				case '`':
 					if (mpRightCursor != mpRightBase)
 					{
 						CombineRightIntoLeft();
@@ -1215,15 +1246,14 @@ ForthExpressionInputStream::SeekToLineEnd()
 
 }
 
-long*
-ForthExpressionInputStream::GetInputState()
+cell* ForthExpressionInputStream::GetInputState()
 {
 	// TODO: error!
-	return NULL;
+	return nullptr;
 }
 
 bool
-ForthExpressionInputStream::SetInputState(long* pState)
+ForthExpressionInputStream::SetInputState(cell* pState)
 {
 	// TODO: error!
 	return false;
@@ -1368,14 +1398,6 @@ ForthExpressionInputStream::CombineRightIntoLeft()
 	*mpRightCursor = '\0';
 	LOG_EXPRESSION("CombineRightIntoLeft");
 	//SPEW_SHELL("ForthExpressionInputStream::CombineRightIntoLeft  left:{%s}  right:{%s}\n", mpLeftBase, mpRightBase);
-}
-
-
-bool
-ForthExpressionInputStream::DeleteWhenEmpty()
-{
-	// don't delete when empty
-	return false;
 }
 
 

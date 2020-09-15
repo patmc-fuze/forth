@@ -6,9 +6,14 @@
 #include "StdAfx.h"
 
 #pragma comment(lib, "wininet.lib")
+#if defined(WIN64)
+#pragma comment(lib, "Ws2_32.lib")
+#endif
 
 #include <stdio.h>
-#ifdef WIN32
+#if defined(WIN64)
+#include <ws2tcpip.h>
+#elif defined(WIN32)
 #include <winsock2.h>
 #include <windows.h>
 #else
@@ -24,6 +29,7 @@
 #include "ForthPipe.h"
 #include "ForthClient.h"
 #include "ForthMessages.h"
+#include "dirent.h"
 
 #ifndef SOCKADDR
 #define SOCKADDR struct sockaddr
@@ -33,7 +39,7 @@ namespace
 {
 	void ErrorExit( const char* message )
 	{
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
         shutdownSockets();
 #else
 		// TODO
@@ -41,18 +47,100 @@ namespace
 	}
 }
 
+static FILE* openForthFile(const char* pPath, const char* pSystemPath)
+{
+    // it would be good if this could be combined with ForthShell::OpenForthFile
+    // see if file is an internal file, and if so use it
+    FILE *pFile = fopen(pPath, "r");
+    bool pathIsRelative = true;
+
+#if defined( WIN32 )
+    if (strchr(pPath, ':') != NULL)
+    {
+        pathIsRelative = false;
+    }
+#elif defined(LINUX) || defined(MACOSX)
+    if (*pPath == '/')
+    {
+        pathIsRelative = false;
+    }
+#endif
+    if ((pFile == NULL) && pathIsRelative)
+    {
+        char* pAltPath = new char[strlen(pSystemPath) + strlen(pPath) + 16];
+        strcpy(pAltPath, pSystemPath);
+#if defined( WIN32 )
+        strcat(pAltPath, "\\system\\");
+#elif defined(LINUX) || defined(MACOSX)
+        strcat(pAltPath, "/system/");
+#endif
+        strcat(pAltPath, pPath);
+        pFile = fopen(pAltPath, "r");
+        delete[] pAltPath;
+    }
+    return pFile;
+}
+
+
 int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned short portNum )
 {
+    char workingDirPath[MAX_PATH + 1];
     char errorMessage[128];
-	unsigned long ipAddress;
-#ifdef WIN32
+	unsigned long ipAddress = 0;
+#if defined(WINDOWS_BUILD)
     startupSockets();
 #else
 		// TODO
 #endif
 
+#if defined(WINDOWS_BUILD)
+    DWORD result = GetCurrentDirectoryA(MAX_PATH, workingDirPath);
+    if (result == 0)
+    {
+        workingDirPath[0] = '\0';
+    }
+#elif defined(LINUX) || defined(MACOSX)
+    if (getcwd(workingDirPath, MAX_PATH) == NULL)
+    {
+        // failed to get current directory
+        strcpy(workingDirPath, ".");
+    }
+#endif
+
+#if defined(WIN64)
+    addrinfo* pAddrInfo = nullptr;
+    int res = getaddrinfo(pServerStr, nullptr, nullptr, &pAddrInfo);
+	//struct hostent *host = gethostbyname(pServerStr);
+    if (res != 0)
+    {
+        sprintf(errorMessage, "Error at getaddrinfo(): %ld", WSAGetLastError());
+        ErrorExit(errorMessage);
+        return -1;
+    }
+
+    for (addrinfo* ptr = pAddrInfo; ptr != nullptr; ptr = ptr->ai_next)
+    {
+        if (ptr->ai_family == AF_INET)
+        {
+            struct sockaddr_in *sockaddr_ipv4 = (struct sockaddr_in *) ptr->ai_addr;
+            ipAddress = *( (unsigned long *) &(sockaddr_ipv4->sin_addr));
+            //WSAStringToAddress(sockaddr_ipv4->sin_addr, AF_INET, protoInfo, addrOut, addrOutLen);
+            break;
+        }
+    }
+
+    if (ipAddress == 0)
+    {
+        sprintf(errorMessage, "host %s not found", pServerStr);
+        ErrorExit(errorMessage);
+        return -1;
+    }
+
+    //*((unsigned long *)(host->h_addr_list[0]));
+#else
 	struct hostent *host = gethostbyname(pServerStr);
 	ipAddress = *((unsigned long *)(host->h_addr_list[0]));
+#endif
 	printf( "Connecting to host %s (%d) on port %d\n", pServerStr, ipAddress, portNum );
 
     //----------------------
@@ -60,7 +148,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
     SOCKET ConnectSocket;
     //ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     ConnectSocket = socket(AF_INET, SOCK_STREAM, 0);
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
     if (ConnectSocket == INVALID_SOCKET)
     {
         sprintf( errorMessage, "Error at socket(): %ld", WSAGetLastError() );
@@ -86,7 +174,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
     //----------------------
     // Connect to server.
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
     if ( connect( ConnectSocket, (SOCKADDR*) &clientService, sizeof(clientService) ) == SOCKET_ERROR) {
         sprintf( errorMessage, "Failed to connect." );
         ErrorExit( errorMessage );
@@ -163,7 +251,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                 {
                     const char* pFilename;
                     pMsgPipe->ReadString( pFilename );
-                    FILE* newInputFile = fopen( pFilename, "r" );
+                    FILE* newInputFile = openForthFile( pFilename, workingDirPath );
                     int itWorked = 0;
                     if ( newInputFile != NULL )
                     {
@@ -232,16 +320,16 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                     pMsgPipe->ReadString( accessMode );
                     FILE* pFile = fopen( pFilename, accessMode );
 
-                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
-                    pMsgPipe->WriteInt( (int) pFile );
+                    pMsgPipe->StartMessage(kServerMsgHandleResult);
+                    pMsgPipe->WriteCell( (cell) pFile );
                     pMsgPipe->SendMessage();
                 }
                 break;
 
             case kClientMsgFileClose:
                 {
-                    int file;
-                    pMsgPipe->ReadInt( file );
+                    cell file;
+                    pMsgPipe->ReadCell( file );
                     int result = fclose( (FILE *) file );
 
                     pMsgPipe->StartMessage( kServerMsgFileOpResult );
@@ -252,8 +340,9 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgFileSetPosition:
                 {
-                    int file, offset, control;
-                    pMsgPipe->ReadInt( file );
+                    cell file;
+                    int offset, control;
+                    pMsgPipe->ReadCell( file );
                     pMsgPipe->ReadInt( offset );
                     pMsgPipe->ReadInt( control );
                     int result = fseek( (FILE *) file, offset, control );
@@ -266,8 +355,9 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgFileRead:
                 {
-                    int file, numItems, itemSize;
-                    pMsgPipe->ReadInt( file );
+                    cell file;
+                    int numItems, itemSize;
+                    pMsgPipe->ReadCell( file );
                     pMsgPipe->ReadInt( itemSize );
                     pMsgPipe->ReadInt( numItems );
                     int numBytes = numItems * itemSize;
@@ -285,19 +375,16 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                         numBytes = result * itemSize;
                         pMsgPipe->WriteCountedData( pReadBuffer, numBytes );
                     }
-                    else
-                    {
-                        printf( "fread returned %d\n", result );
-                    }
                     pMsgPipe->SendMessage();
                 }
                 break;
 
             case kClientMsgFileWrite:
                 {
-                    int file, numItems, itemSize, numBytes;
+                    cell file;
+                    int numItems, itemSize, numBytes;
                     const char* pData;
-                    pMsgPipe->ReadInt( file );
+                    pMsgPipe->ReadCell( file );
                     pMsgPipe->ReadInt( itemSize );
                     pMsgPipe->ReadInt( numItems );
                     pMsgPipe->ReadCountedData( pData, numBytes );
@@ -311,8 +398,8 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgFileGetChar:
                 {
-                    int file;
-                    pMsgPipe->ReadInt( file );
+                    cell file;
+                    pMsgPipe->ReadCell( file );
                     int result = fgetc( (FILE *) file );
 
                     pMsgPipe->StartMessage( kServerMsgFileOpResult );
@@ -323,8 +410,8 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgFileCheckEOF:
                 {
-                    int file;
-                    pMsgPipe->ReadInt( file );
+                    cell file;
+                    pMsgPipe->ReadCell( file );
                     int result = feof( (FILE *) file );
 
                     pMsgPipe->StartMessage( kServerMsgFileOpResult );
@@ -335,8 +422,8 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgFileGetLength:
                 {
-                    int file;
-                    pMsgPipe->ReadInt( file );
+                    cell file;
+                    pMsgPipe->ReadCell( file );
                     FILE* pFile = (FILE *) file;
                     int oldPos = ftell( pFile );
                     fseek( pFile, 0, SEEK_END );
@@ -368,8 +455,8 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgFileGetPosition:
                 {
-                    int file;
-                    pMsgPipe->ReadInt( file );
+                    cell file;
+                    pMsgPipe->ReadCell( file );
                     int result = ftell( (FILE *) file );
 
                     pMsgPipe->StartMessage( kServerMsgFileOpResult );
@@ -380,8 +467,9 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgFileGetString:
                 {
-                    int file, maxChars;
-                    pMsgPipe->ReadInt( file );
+                    cell file;
+                    int maxChars;
+                    pMsgPipe->ReadCell( file );
                     pMsgPipe->ReadInt( maxChars );
                     if ( maxChars > readBufferSize )
                     {
@@ -398,9 +486,9 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgFilePutString:
                 {
-                    int file;
+                    cell file;
                     const char* pString;
-                    pMsgPipe->ReadInt( file );
+                    pMsgPipe->ReadCell( file );
                     pMsgPipe->ReadString( pString );
                     int result = fputs( pString, (FILE *) file );
 
@@ -412,9 +500,9 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
 			case kClientMsgFilePutChar:
 			{
-				int file;
+				cell file;
 				int ch;
-				pMsgPipe->ReadInt(file);
+				pMsgPipe->ReadCell(file);
 				pMsgPipe->ReadInt(ch);
 				int result = fputc(ch, (FILE *)file);
 
@@ -426,8 +514,8 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
 			case kClientMsgFileFlush:
                 {
-                    int file;
-                    pMsgPipe->ReadInt( file );
+                    cell file;
+                    pMsgPipe->ReadCell( file );
                     int result = fflush( (FILE *) file );
 
                     pMsgPipe->StartMessage( kServerMsgFileOpResult );
@@ -452,7 +540,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                 {
                     int fileHandle;
                     pMsgPipe->ReadInt( fileHandle );
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
                     int result = _dup( fileHandle );
 #else
                     int result = dup( fileHandle );
@@ -470,7 +558,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                     int dstFileHandle;
                     pMsgPipe->ReadInt( srcFileHandle );
                     pMsgPipe->ReadInt( dstFileHandle );
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
                     int result = _dup2( srcFileHandle, dstFileHandle );
 #else
                     int result = dup2( srcFileHandle, dstFileHandle );
@@ -484,9 +572,9 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgFileToHandle:
                 {
-                    int file;
-                    pMsgPipe->ReadInt( file );
-#ifdef WIN32
+                    cell file;
+                    pMsgPipe->ReadCell( file );
+#if defined(WINDOWS_BUILD)
                     int result = _fileno( (FILE *) file );
 #else
                     int result = fileno( (FILE *) file );
@@ -542,7 +630,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 					int mode;
                     pMsgPipe->ReadString( pString );
                     pMsgPipe->ReadInt( mode );
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
                     int result = mkdir( pString );
 #else
                     int result = mkdir( pString, mode );
@@ -568,25 +656,73 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgGetStdIn:
 				{
-                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
-                    pMsgPipe->WriteInt( (int) stdin );
+                    pMsgPipe->StartMessage(kServerMsgHandleResult);
+                    pMsgPipe->WriteCell((cell)stdin);
                     pMsgPipe->SendMessage();
                 }
                 break;
 
             case kClientMsgGetStdOut:
 				{
-                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
-                    pMsgPipe->WriteInt( (int) stdout );
+                    pMsgPipe->StartMessage(kServerMsgHandleResult);
+                    pMsgPipe->WriteCell((cell)stdout);
                     pMsgPipe->SendMessage();
                 }
                 break;
 
             case kClientMsgGetStdErr:
 				{
-                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
-                    pMsgPipe->WriteInt( (int) stderr );
+                    pMsgPipe->StartMessage(kServerMsgHandleResult);
+                    pMsgPipe->WriteCell((cell)stderr);
                     pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgOpenDir:
+                {
+                    const char* pString;
+                    pMsgPipe->ReadString(pString);
+                    cell result = (cell) opendir(pString);
+
+                    pMsgPipe->StartMessage(kServerMsgHandleResult);
+                    pMsgPipe->WriteCell((cell)result);
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgReadDir:
+                {
+                    cell pDir;
+                    struct dirent* pEntry = nullptr;
+                    pMsgPipe->ReadCell(pDir);
+                    if (pDir)
+                    {
+                        pEntry = readdir((DIR *)pDir);
+                    }
+
+                    pMsgPipe->StartMessage(kServerMsgReadDirResult);
+                    pMsgPipe->WriteCountedData(pEntry, (pEntry == nullptr) ? 0 : (int)sizeof(struct dirent));
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgCloseDir:
+                {
+                    cell pDir;
+                    pMsgPipe->ReadCell(pDir);
+                    int result = closedir((DIR *)pDir);
+
+                    pMsgPipe->StartMessage(kServerMsgFileOpResult);
+                    pMsgPipe->WriteInt(result);
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgRewindDir:
+                {
+                    cell pDir;
+                    pMsgPipe->ReadCell(pDir);
+                    rewinddir((DIR *)pDir);
                 }
                 break;
 
@@ -604,7 +740,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
     }   // end     while ( !done )
 
-#ifdef WIN32
+#if defined(WINDOWS_BUILD)
     shutdownSockets();
 #else
     // TODO

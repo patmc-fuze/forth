@@ -30,15 +30,17 @@
 
 struct oAsyncThreadStruct
 {
-	ulong				refCount;
-	int					id;
+    forthop*            pMethods;
+    ucell               refCount;
+	cell                id;
 	ForthAsyncThread	*pThread;
 };
 
 struct oThreadStruct
 {
-	ulong				refCount;
-	int					id;
+    forthop*            pMethods;
+    ucell               refCount;
+    cell                id;
 	ForthThread			*pThread;
 };
 
@@ -63,11 +65,11 @@ ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, 
     mCore.RLen = returnStackLongs;
     // leave a few extra words above top of stacks, so that underflows don't
     //   tromp on the memory allocator info
-    mCore.SB = new long[mCore.SLen + (GAURD_AREA * 2)];
+    mCore.SB = new cell[mCore.SLen + (GAURD_AREA * 2)];
     mCore.SB += GAURD_AREA;
     mCore.ST = mCore.SB + mCore.SLen;
 
-    mCore.RB = new long[mCore.RLen + (GAURD_AREA * 2)];
+    mCore.RB = new cell[mCore.RLen + (GAURD_AREA * 2)];
     mCore.RB += GAURD_AREA;
     mCore.RT = mCore.RB + mCore.RLen;
 
@@ -92,8 +94,7 @@ ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, 
 
     mCore.pDictionary = NULL;
 
-	mCore.consoleOutStream.pData = NULL;
-	mCore.consoleOutStream.pMethodOps = NULL;
+	mCore.consoleOutStream = nullptr;
 
     pEngine->ResetConsoleOut( &mCore );
 
@@ -119,7 +120,7 @@ ForthThread::~ForthThread()
 	{
 		delete mpShowContext;
 	}
-	oThreadStruct* pThreadStruct = (oThreadStruct *)mObject.pData;
+	oThreadStruct* pThreadStruct = (oThreadStruct *)mObject;
 	if (pThreadStruct->pThread != NULL)
 	{
 		FREE_OBJECT(pThreadStruct);
@@ -185,9 +186,8 @@ ForthThread::Reset( void )
 {
     mCore.SP = mCore.ST;
     mCore.RP = mCore.RT;
-    mCore.FP = NULL;
-    mCore.TPM = NULL;
-    mCore.TPD = NULL;
+    mCore.FP = nullptr;
+    mCore.TP = nullptr;
 
     mCore.error = kForthErrorNone;
     mCore.state = kResultDone;
@@ -199,7 +199,7 @@ ForthThread::Reset( void )
     mCore.pExceptionFrame = nullptr;
 	//mCore.IP = nullptr;
 
-	if (mpShowContext != NULL)
+	if (mpShowContext != nullptr)
 	{
 		mpShowContext->Reset();
 	}
@@ -373,7 +373,7 @@ ForthAsyncThread::~ForthAsyncThread()
 			delete pThread;
 		}
 	}
-	oAsyncThreadStruct* pThreadStruct = (oAsyncThreadStruct *)mObject.pData;
+	oAsyncThreadStruct* pThreadStruct = (oAsyncThreadStruct *)mObject;
 	if (pThreadStruct->pThread != NULL)
 	{
 		FREE_OBJECT(pThreadStruct);
@@ -758,7 +758,7 @@ void ForthAsyncThread::Join()
 #endif
 }
 
-ForthThread* ForthAsyncThread::CreateThread(ForthEngine *pEngine, long threadOp, int paramStackLongs, int returnStackLongs)
+ForthThread* ForthAsyncThread::CreateThread(ForthEngine *pEngine, forthop threadOp, int paramStackLongs, int returnStackLongs)
 {
 	ForthThread* pThread = new ForthThread(pEngine, this, (int)mSoftThreads.size(), paramStackLongs, returnStackLongs);
 	pThread->SetOp(threadOp);
@@ -800,17 +800,15 @@ namespace OThread
 	static ForthClassVocabulary* gpAsyncThreadVocabulary;
 	static ForthClassVocabulary* gpThreadVocabulary;
 
-	void CreateAsyncThreadObject(ForthObject& outAsyncThread, ForthEngine *pEngine, long threadOp, int paramStackLongs, int returnStackLongs)
+	void CreateAsyncThreadObject(ForthObject& outAsyncThread, ForthEngine *pEngine, forthop threadOp, int paramStackLongs, int returnStackLongs)
 	{
-		ForthInterface* pPrimaryInterface = gpAsyncThreadVocabulary->GetInterface(0);
-
 		MALLOCATE_OBJECT(oAsyncThreadStruct, pThreadStruct, gpAsyncThreadVocabulary);
-		pThreadStruct->refCount = 1;
+        pThreadStruct->pMethods = gpAsyncThreadVocabulary->GetMethods();
+        pThreadStruct->refCount = 1;
 		ForthAsyncThread* pAsyncThread = pEngine->CreateAsyncThread(threadOp, paramStackLongs, returnStackLongs);
 		pThreadStruct->pThread = pAsyncThread;
 		pAsyncThread->Reset();
-		outAsyncThread.pMethodOps = pPrimaryInterface->GetMethods();
-		outAsyncThread.pData = (long *) pThreadStruct;
+		outAsyncThread = (ForthObject) pThreadStruct;
 		pAsyncThread->SetAsyncThreadObject(outAsyncThread);
 		OThread::FixupThread(pAsyncThread->GetThread(0));
 	}
@@ -852,7 +850,11 @@ namespace OThread
 		if (numArgs > 0)
 		{
 			pDstCore->SP -= numArgs;
-			memcpy(pDstCore->SP, pCore->SP, numArgs << 2);
+#if defined(FORTH64)
+            memcpy(pDstCore->SP, pCore->SP, numArgs << 3);
+#else
+            memcpy(pDstCore->SP, pCore->SP, numArgs << 2);
+#endif
 			pCore->SP += numArgs;
 		}
 		long result = pAsyncThread->Start();
@@ -881,9 +883,9 @@ namespace OThread
 		ForthEngine* pEngine = GET_ENGINE;
 		ForthObject thread;
 
-		int returnStackLongs = (int)(SPOP);
-		int paramStackLongs = (int)(SPOP);
-        long threadOp = SPOP;
+		int returnStackLongs = (int)SPOP;
+		int paramStackLongs = (int)SPOP;
+        forthop threadOp = (forthop)SPOP;
         OThread::CreateThreadObject(thread, pThreadStruct->pThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
 
 		PUSH_OBJECT(thread);
@@ -908,8 +910,8 @@ namespace OThread
 		METHOD_RET("createThread", oAsyncThreadCreateThreadMethod, RETURNS_OBJECT(kBCIThread)),
 		METHOD_RET("getRunState", oAsyncThreadGetRunStateMethod, RETURNS_NATIVE(kBaseTypeInt)),
 
-		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -921,42 +923,36 @@ namespace OThread
 	//                 oThread
 	//
 
-	void CreateThreadObject(ForthObject& outThread, ForthAsyncThread *pParentAsyncThread, ForthEngine *pEngine, long threadOp, int paramStackLongs, int returnStackLongs)
+	void CreateThreadObject(ForthObject& outThread, ForthAsyncThread *pParentAsyncThread, ForthEngine *pEngine, forthop threadOp, int paramStackLongs, int returnStackLongs)
 	{
-		ForthInterface* pPrimaryInterface = gpThreadVocabulary->GetInterface(0);
-
 		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct, gpThreadVocabulary);
-		pThreadStruct->refCount = 1;
+        pThreadStruct->pMethods = gpThreadVocabulary->GetMethods();
+        pThreadStruct->refCount = 1;
 		pThreadStruct->pThread = pParentAsyncThread->CreateThread(pEngine, threadOp, paramStackLongs, returnStackLongs);
 		pThreadStruct->pThread->Reset();
 
-		outThread.pMethodOps = pPrimaryInterface->GetMethods();
-		outThread.pData = (long *)pThreadStruct;
-		pThreadStruct->pThread->SetThreadObject(outThread);
+        outThread = (ForthObject)pThreadStruct;
+        pThreadStruct->pThread->SetThreadObject(outThread);
 	}
 
 	void FixupThread(ForthThread* pThread)
 	{
-		ForthInterface* pPrimaryInterface = gpThreadVocabulary->GetInterface(0);
-
 		MALLOCATE_OBJECT(oThreadStruct, pThreadStruct, gpThreadVocabulary);
 		ForthObject& primaryThread = pThread->GetThreadObject();
-		pThreadStruct->refCount = 1;
+        pThreadStruct->pMethods = gpThreadVocabulary->GetMethods();
+        pThreadStruct->refCount = 1;
 		pThreadStruct->pThread = pThread;
-		primaryThread.pMethodOps = pPrimaryInterface->GetMethods();
-		primaryThread.pData = (long *)pThreadStruct;
+		primaryThread = (ForthObject)pThreadStruct;
 	}
 
 	void FixupAsyncThread(ForthAsyncThread* pAsyncThread)
 	{
-		ForthInterface* pPrimaryInterface = gpAsyncThreadVocabulary->GetInterface(0);
-
 		MALLOCATE_OBJECT(oAsyncThreadStruct, pAsyncThreadStruct, gpAsyncThreadVocabulary);
-		pAsyncThreadStruct->refCount = 1;
+        pAsyncThreadStruct->pMethods = gpAsyncThreadVocabulary->GetMethods();
+        pAsyncThreadStruct->refCount = 1;
 		pAsyncThreadStruct->pThread = pAsyncThread;
 		ForthObject& primaryAsyncThread = pAsyncThread->GetAsyncThreadObject();
-		primaryAsyncThread.pMethodOps = pPrimaryInterface->GetMethods();
-		primaryAsyncThread.pData = (long *)pAsyncThreadStruct;
+        primaryAsyncThread = (ForthObject)pAsyncThreadStruct;
 
         OThread::FixupThread(pAsyncThread->GetThread(0));
 	}
@@ -992,7 +988,11 @@ namespace OThread
 		if (numArgs > 0)
 		{
 			pDstCore->SP -= numArgs;
-			memcpy(pDstCore->SP, pCore->SP, numArgs << 2);
+#if defined(FORTH64)
+            memcpy(pDstCore->SP, pCore->SP, numArgs << 3);
+#else
+            memcpy(pDstCore->SP, pCore->SP, numArgs << 2);
+#endif
 			pCore->SP += numArgs;
 		}
 		pThread->SetRunState(kFTRSReady);
@@ -1075,7 +1075,7 @@ namespace OThread
 		GET_THIS(oThreadStruct, pThreadStruct);
 		ForthThread* pThread = pThreadStruct->pThread;
 		ForthCoreState* pThreadCore = pThread->GetCore();
-		long op = *(pThreadCore->IP)++;
+		forthop op = *(pThreadCore->IP)++;
 		long result;
 #ifdef ASM_INNER_INTERPRETER
         ForthEngine *pEngine = GET_ENGINE;
@@ -1138,8 +1138,8 @@ namespace OThread
         METHOD("getCore", oThreadGetCoreMethod),
 		//METHOD_RET("getParent", oThreadGetParentMethod, RETURNS_NATIVE(kBaseType)),
 
-		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1163,8 +1163,9 @@ namespace OLock
 
 	struct oAsyncLockStruct
 	{
-		ulong			refCount;
-		int				id;
+        forthop*        pMethods;
+        ucell           refCount;
+		cell            id;
 #ifdef WIN32
 		CRITICAL_SECTION* pLock;
 #else
@@ -1176,9 +1177,8 @@ namespace OLock
 
 	void CreateAsyncLockObject(ForthObject& outAsyncLock, ForthEngine *pEngine)
 	{
-		ForthInterface* pPrimaryInterface = gpAsyncLockVocabulary->GetInterface(0);
-
 		MALLOCATE_OBJECT(oAsyncLockStruct, pLockStruct, gpAsyncLockVocabulary);
+        pLockStruct->pMethods = gpAsyncLockVocabulary->GetMethods();
 		pLockStruct->refCount = 0;
 #ifdef WIN32
         pLockStruct->pLock = new CRITICAL_SECTION();
@@ -1193,9 +1193,7 @@ namespace OLock
 
 		pthread_mutexattr_destroy(&mutexAttr);
 #endif
-
-		outAsyncLock.pMethodOps = pPrimaryInterface->GetMethods();
-		outAsyncLock.pData = (long *)pLockStruct;
+		outAsyncLock = (ForthObject)pLockStruct;
 	}
 
 	FORTHOP(oAsyncLockNew)
@@ -1263,8 +1261,8 @@ namespace OLock
 		METHOD_RET("tryGrab", oAsyncLockTryGrabMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("ungrab", oAsyncLockUngrabMethod),
 
-		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+		MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 		// following must be last in table
 		END_MEMBERS
 	};
@@ -1277,9 +1275,10 @@ namespace OLock
 
 	struct oLockStruct
 	{
-		ulong			refCount;
-		int				id;
-		int				lockDepth;
+        forthop*        pMethods;
+        ucell           refCount;
+		cell            id;
+		cell            lockDepth;
 #ifdef WIN32
 		CRITICAL_SECTION* pLock;
 #else
@@ -1292,10 +1291,10 @@ namespace OLock
 	FORTHOP(oLockNew)
 	{
 		ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-		ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
 		MALLOCATE_OBJECT(oLockStruct, pLockStruct, pClassVocab);
 
-		pLockStruct->refCount = 0;
+        pLockStruct->pMethods = pClassVocab->GetMethods();
+        pLockStruct->refCount = 0;
 #ifdef WIN32
         pLockStruct->pLock = new CRITICAL_SECTION();
         InitializeCriticalSection(pLockStruct->pLock);
@@ -1313,7 +1312,7 @@ namespace OLock
 		pLockStruct->pBlockedThreads = new std::deque<ForthThread*>;
 		pLockStruct->lockDepth = 0;
 
-		PUSH_PAIR(pPrimaryInterface->GetMethods(), pLockStruct);
+		PUSH_OBJECT(pLockStruct);
 	}
 
 	FORTHOP(oLockDeleteMethod)
@@ -1482,11 +1481,11 @@ namespace OLock
 		METHOD_RET("tryGrab", oLockTryGrabMethod, RETURNS_NATIVE(kBaseTypeInt)),
 		METHOD("ungrab", oLockUngrabMethod),
 
-		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("lockDepth", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__lockHolder", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-		MEMBER_VAR("__blockedThreads", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+		MEMBER_VAR("lockDepth", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+		MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+		MEMBER_VAR("__lockHolder", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+		MEMBER_VAR("__blockedThreads", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
 		// following must be last in table
 		END_MEMBERS
@@ -1500,9 +1499,10 @@ namespace OLock
 
     struct oSemaphoreStruct
     {
+        forthop*        pMethods;
         ulong			refCount;
-        int				id;
-        int				count;
+        cell            id;
+        cell            count;
 #ifdef WIN32
         CRITICAL_SECTION* pLock;
 #else
@@ -1514,9 +1514,9 @@ namespace OLock
     FORTHOP(oSemaphoreNew)
     {
         ForthClassVocabulary *pClassVocab = (ForthClassVocabulary *)(SPOP);
-        ForthInterface* pPrimaryInterface = pClassVocab->GetInterface(0);
         MALLOCATE_OBJECT(oSemaphoreStruct, pSemaphoreStruct, pClassVocab);
 
+        pSemaphoreStruct->pMethods = pClassVocab->GetMethods();
         pSemaphoreStruct->refCount = 0;
 #ifdef WIN32
         pSemaphoreStruct->pLock = new CRITICAL_SECTION();
@@ -1534,7 +1534,7 @@ namespace OLock
         pSemaphoreStruct->pBlockedThreads = new std::deque<ForthThread*>;
         pSemaphoreStruct->count = 0;
 
-        PUSH_PAIR(pPrimaryInterface->GetMethods(), pSemaphoreStruct);
+        PUSH_OBJECT(pSemaphoreStruct);
     }
 
     FORTHOP(oSemaphoreDeleteMethod)
@@ -1639,10 +1639,10 @@ namespace OLock
         METHOD("wait", oSemaphoreWaitMethod),
         METHOD("post", oSemaphorePostMethod),
 
-        MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("count", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("__blockedThreads", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+        MEMBER_VAR("count", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+        MEMBER_VAR("__lock", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
+        MEMBER_VAR("__blockedThreads", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
         // following must be last in table
         END_MEMBERS
@@ -1656,8 +1656,9 @@ namespace OLock
 
     struct oAsyncSemaphoreStruct
     {
+        forthop*        pMethods;
         ulong			refCount;
-        int				id;
+        cell            id;
 #ifdef WIN32
         HANDLE pSemaphore;
 #else
@@ -1669,9 +1670,8 @@ namespace OLock
 
     void CreateAsyncSemaphoreObject(ForthObject& outSemaphore, ForthEngine *pEngine)
     {
-        ForthInterface* pPrimaryInterface = gpSemaphoreVocabulary->GetInterface(0);
-
         MALLOCATE_OBJECT(oAsyncSemaphoreStruct, pSemaphoreStruct, gpSemaphoreVocabulary);
+        pSemaphoreStruct->pMethods = gpSemaphoreVocabulary->GetMethods();
         pSemaphoreStruct->refCount = 0;
 #ifdef WIN32
         pSemaphoreStruct->pSemaphore = 0;
@@ -1679,8 +1679,7 @@ namespace OLock
         pSemaphoreStruct->pSemaphore = nullptr;
 #endif
 
-        outSemaphore.pMethodOps = pPrimaryInterface->GetMethods();
-        outSemaphore.pData = (long *)pSemaphoreStruct;
+        outSemaphore = (ForthObject)pSemaphoreStruct;
     }
 
     FORTHOP(oAsyncSemaphoreNew)
@@ -1770,8 +1769,8 @@ namespace OLock
         METHOD("wait", oAsyncSemaphoreWaitMethod),
         METHOD("post", oAsyncSemaphorePostMethod),
 
-        MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
-        MEMBER_VAR("__semaphore", NATIVE_TYPE_TO_CODE(0, kBaseTypeInt)),
+        MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
+        MEMBER_VAR("__semaphore", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
 
         // following must be last in table
         END_MEMBERS

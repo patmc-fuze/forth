@@ -128,7 +128,7 @@ class: atcTile
   ;m
   
   m: init
-    'tile' -> tag
+    `tile` -> tag
     0 -> altitude
     kATTEmpty -> tileType
     new List -> airplanes
@@ -247,7 +247,7 @@ class: iAtcBeacon
   int id
   
   m: init  // X Y ID
-    'becn' -> tag
+    `becn` -> tag
     -> id
     -> y
     -> x
@@ -267,7 +267,7 @@ class: iAtcLine
   int y1
   
   m: init        // x0 y0 x1 y1
-    'line' -> tag
+    `line` -> tag
     -> y1  -> x1  -> y0  -> x0
   ;m
 
@@ -386,17 +386,15 @@ loaddone
 
 : listGames
   int dirHandle
-  ptrTo dirent pEntry
-  int pName   //ptrTo byte pName
+  dirent entry
+  ptrTo byte pName
   
   opendir("games") -> dirHandle
   if( dirHandle )
     begin
-      readdir(dirHandle) -> pEntry
-    while( pEntry )
-      pEntry.d_name(0 ref) -> pName // ref pName !
-      //pEntry %x %bl pName %x %bl pName %s %nl
-      if(pName c@ '.' <>)
+    while( readdir(dirHandle entry) )
+      entry.d_name(0 ref) -> pName // ref pName !
+      if(pName c@ `.` <>)
         "   " %s pName %s %nl
       endif
     repeat

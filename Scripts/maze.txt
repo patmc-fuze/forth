@@ -39,10 +39,10 @@ enum: eMazeDirs
 
 : char2dir
   case
-    'R' of kDirRight endof
-    'L' of kDirLeft  endof
-    'U' of kDirUp    endof
-    'D' of kDirDown  endof
+    `R` of kDirRight endof
+    `L` of kDirLeft  endof
+    `U` of kDirUp    endof
+    `D` of kDirDown  endof
   endcase
 ;
 
@@ -54,26 +54,26 @@ kNumDirs arrayOf mazeDirs dirs
   ix -> dirs.ch
 ;
 
-initDir( 'R'  1  0 kDirRight )
-initDir( 'D'  0  1 kDirDown )
-initDir( 'L'  -1  0 kDirLeft )
-initDir( 'U'  0  -1 kDirUp )
+initDir( `R`  1  0 kDirRight )
+initDir( `D`  0  1 kDirDown )
+initDir( `L`  -1  0 kDirLeft )
+initDir( `U`  0  -1 kDirUp )
 
 : reverseDir
   2+ 3 and
 ;
 
 enum: eMazeTileTypes
-  '#' kMTTWall
-  'R' kMTTRight
-  'L' kMTTLeft
-  'U' kMTTUp
-  'D' kMTTDown
-  '[' kMTTEntrance
-  ']' kMTTExit
-  '.' kMTTUnused
-  '?' kMTTDeadEnd
-  '\ ' kMTTOpen
+  `#` kMTTWall
+  `R` kMTTRight
+  `L` kMTTLeft
+  `U` kMTTUp
+  `D` kMTTDown
+  `[` kMTTEntrance
+  `]` kMTTExit
+  `.` kMTTUnused
+  `?` kMTTDeadEnd
+  ` ` kMTTOpen
 ;enum
 
 : ?pick 0= if swap endif drop ;

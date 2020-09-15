@@ -64,6 +64,8 @@ typedef enum
 	kBCILongArrayIter,
     kBCIStructArray,
     kBCIStructArrayIter,
+    kBCIDeque,
+    //kBCIDequeIter,
     kBCIInt,
 	kBCILong,
 	kBCIFloat,
@@ -86,16 +88,17 @@ typedef enum
 	kBCIConsoleOutStream,
 	kBCIFunctionOutStream,
 	kBCITraceOutStream,
+    kBCISplitOutStream,
     kBCIBlockFile,
     kBCIBag,
     kBCIBagIter,
     kBCISocket,
+    kBCIShellStack,
 	kNumBuiltinClasses		// must be last
 } eBuiltinClassIndex;
 
-#define SHOW_OBJ_HEADER  pShowContext->ShowHeader(pCore, ((ForthClassObject *)(*((GET_TPM)-1)))->pVocab->GetName(), GET_TPD)
 // ForthShowAlreadyShownObject returns true if object was already shown (or null), does display for those cases
-bool ForthShowAlreadyShownObject(ForthObject* obj, ForthCoreState* pCore, bool addIfUnshown);
+bool ForthShowAlreadyShownObject(ForthObject obj, ForthCoreState* pCore, bool addIfUnshown);
 void ForthShowObject(ForthObject& obj, ForthCoreState* pCore);
 
 extern "C"
@@ -104,12 +107,17 @@ extern "C"
     extern FORTHOP(illegalMethodOp);
 };
 
-#define EXIT_IF_OBJECT_ALREADY_SHOWN if (ForthShowAlreadyShownObject(GET_THIS_PTR, pCore, true)) { METHOD_RETURN; return; }
+#define EXIT_IF_OBJECT_ALREADY_SHOWN if (ForthShowAlreadyShownObject(GET_TP, pCore, true)) { METHOD_RETURN; return; }
 
 void unrefObject(ForthObject& fobj);
 
-#define GET_BUILTIN_INTERFACE(BCI_INDEX, INTERFACE_INDEX) ForthTypesManager::GetInstance()->GetClassVocabulary(BCI_INDEX)->GetInterface(INTERFACE_INDEX)
-
+#define GET_CLASS_VOCABULARY(BCI_INDEX) ForthTypesManager::GetInstance()->GetClassVocabulary(BCI_INDEX)
+#define GET_BUILTIN_INTERFACE(BCI_INDEX, INTERFACE_INDEX) GET_CLASS_VOCABULARY(BCI_INDEX)->GetInterface(INTERFACE_INDEX)
+#ifdef FORTH64
+#define GET_CLASS_OBJECT(OBJ) *((ForthClassObject **)(((OBJ)->pMethods) - 2))
+#else
+#define GET_CLASS_OBJECT(OBJ) ((ForthClassObject *)(*(((OBJ)->pMethods) - 1)))
+#endif
 // oOutStream is an abstract output stream class
 
 struct OutStreamFuncs
@@ -122,10 +130,17 @@ struct OutStreamFuncs
 
 struct oOutStreamStruct
 {
-	ulong               refCount;
+    forthop*            pMethods;
+    ucell               refCount;
 	void*               pUserData;
 	OutStreamFuncs*     pOutFuncs;
 	char				eolChars[4];
+};
+
+struct oStringOutStreamStruct
+{
+    oOutStreamStruct		ostream;
+    ForthObject				outString;
 };
 
 struct InStreamFuncs
@@ -141,8 +156,9 @@ enum
 {
 	kOutStreamPutCharMethod = kNumBaseMethods,
 	kOutStreamPutBytesMethod = kNumBaseMethods + 1,
-	kOutStreamPutStringMethod = kNumBaseMethods + 2,
-	kInStreamGetCharMethod = kNumBaseMethods,
+    kOutStreamPutStringMethod = kNumBaseMethods + 2,
+    kOutStreamPutLineMethod = kNumBaseMethods + 3,
+    kInStreamGetCharMethod = kNumBaseMethods,
 	kInStreamGetBytesMethod = kNumBaseMethods + 1,
 	kInStreamGetLineMethod = kNumBaseMethods + 2,
 	kInStreamGetStringMethod = kNumBaseMethods + 3,
@@ -151,7 +167,8 @@ enum
 
 struct oInStreamStruct
 {
-	ulong               refCount;
+    forthop*            pMethods;
+    ucell               refCount;
 	void*               pUserData;
 	int					bTrimEOL;
     InStreamFuncs*      pInFuncs;
@@ -160,8 +177,9 @@ struct oInStreamStruct
 typedef std::vector<ForthObject> oArray;
 struct oArrayStruct
 {
-	ulong       refCount;
-	oArray*    elements;
+    forthop*    pMethods;
+    ucell       refCount;
+	oArray*     elements;
 };
 
 struct oListElement
@@ -173,16 +191,18 @@ struct oListElement
 
 struct oListStruct
 {
-	ulong			refCount;
+    forthop*        pMethods;
+    ucell			refCount;
 	oListElement*	head;
 	oListElement*	tail;
 };
 
 struct oArrayIterStruct
 {
-	ulong			refCount;
+    forthop*        pMethods;
+    ucell			refCount;
 	ForthObject		parent;
-	ulong			cursor;
+	ucell			cursor;
 };
 
 #define DEFAULT_STRING_DATA_BYTES 32
@@ -196,21 +216,24 @@ struct oString
 
 struct oStringStruct
 {
-	ulong		refCount;
-	ulong		hash;
+    forthop*    pMethods;
+    ucell		refCount;
+	ucell		hash;
 	oString*	str;
 };
 
-typedef std::map<long long, ForthObject> oLongMap;
+typedef std::map<int64_t, ForthObject> oLongMap;
 struct oLongMapStruct
 {
-    ulong       refCount;
+    forthop*    pMethods;
+    ucell       refCount;
     oLongMap*	elements;
 };
 
 struct oLongMapIterStruct
 {
-    ulong				refCount;
+    forthop*            pMethods;
+    ucell				refCount;
     ForthObject			parent;
     oLongMap::iterator*	cursor;
 };
@@ -218,14 +241,14 @@ struct oLongMapIterStruct
 class ForthForgettableGlobalObject : public ForthForgettable
 {
 public:
-    ForthForgettableGlobalObject( const char* pName, void *pOpAddress, long op, int numElements = 1 );
+    ForthForgettableGlobalObject( const char* pName, void *pOpAddress, forthop op, int numElements = 1 );
     virtual ~ForthForgettableGlobalObject();
 
     virtual const char* GetTypeName();
     virtual const char* GetName();
 protected:
     char* mpName;
-    virtual void    ForgetCleanup( void *pForgetLimit, long op );
+    virtual void    ForgetCleanup( void *pForgetLimit, forthop op );
 
 	int		mNumElements;
 };

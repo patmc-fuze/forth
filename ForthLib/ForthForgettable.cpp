@@ -26,7 +26,7 @@
 
 ForthForgettable* ForthForgettable::mpChainHead = NULL;
 
-ForthForgettable::ForthForgettable( void* pOpAddress, long op )
+ForthForgettable::ForthForgettable( void* pOpAddress, forthop op )
 : mpNext( mpChainHead )
 , mpOpAddress( pOpAddress )
 , mOp( op )
@@ -90,7 +90,7 @@ ForthForgettable::Restore( const char* pBuffer, unsigned int numBytes )
 }
 
 
-void ForthForgettable::ForgetPropagate( void* pForgetLimit, long op )
+void ForthForgettable::ForgetPropagate( void* pForgetLimit, forthop op )
 {
     ForthForgettable *pNext;
     ForthForgettable *pTmp;

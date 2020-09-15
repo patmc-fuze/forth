@@ -3,11 +3,11 @@ autoforget notedeck
 
 : notedeck ;
 
-// flags are binary properties any note can have, a notedeck can have up to 64 defined
+// tags are binary properties any note can have
 // params are properties of a note, the params a note can have are defined by its schema
 
 // ----------------------------------------------
-class: NoteDef
+class: NoteDef  // just a base class for tags and schemas
   int id
   String name
   String description
@@ -31,7 +31,7 @@ class: NoteDef
 
 
 // ----------------------------------------------
-class: NoteFlagDef extends NoteDef
+class: NoteTagDef extends NoteDef
   String displayName
   long mask
   
@@ -46,30 +46,8 @@ class: NoteFlagDef extends NoteDef
     super.init
     
     if(id 64 <)
-      2lshift(1L id)
-    else
-      // TODO: report error, too many flags
-      error("too many flag definitions")
+      2lshift(1L id) -> mask
     endif
-    -> mask
-  ;m
-  
-;class
-
-
-// ----------------------------------------------
-class: NoteTagDef extends NoteDef
-  String displayName
-  
-  m: delete
-    oclear displayName
-    super.delete
-  ;m
-  
-  m: init  // NAME DISPLAY_NAME DESCRIPTION ID ...
-    new String -> displayName
-    displayName.set(rot)
-    super.init
   ;m
   
 ;class
@@ -80,17 +58,17 @@ class: NoteSchema extends NoteDef
   IntArray requiredParams
   IntArray optionalParams
   
-  m: init
+  m: init   // NAME DISPLAY_NAME DESCRIPTION ID ...
     new IntArray -> requiredParams
     new IntArray -> optionalParams
     super.init
   ;m
   
-  m: addOptionalParam
+  m: addOptionalParam   // ID ...
     optionalParams.push(<NoteDef>.id)
   ;m
   
-  m: addRequiredParam
+  m: addRequiredParam   // ID ...
     requiredParams.push(<NoteDef>.id)
   ;m
   
@@ -107,45 +85,24 @@ class: NoteSchema extends NoteDef
 class: NoteParam
   int id
   String sval
-  Long nval
+  long nval
   
   m: delete
     oclear sval
     super.delete
   ;m
   
-  m: getInt
-    ref nval @
-  ;m
-
-  m: setInt
-    ref nval !
-  ;m
+  m: getInt     ref nval @      ;m
+  m: setInt     ref nval !      ;m
+  m: getFloat   ref nval @      ;m
+  m: setFloat   ref nval !      ;m
+  m: getLong    nval            ;m
+  m: setLong    -> nval         ;m
+  m: getDouble  nval            ;m
+  m: setDouble  swap -> nval    ;m
+  m: getString  sval            ;m
+  m: setString  sval.set        ;m
   
-  m: getFloat
-    ref nval @
-  ;m
-  
-  m: setFloat
-    ref nval !
-  ;m
-  
-  m: getLong
-    nval
-  ;m
-  
-  m: setLong
-    -> nval
-  ;m
-  
-  m: getDouble
-    nval
-  ;m
-  
-  m: setDouble
-    swap -> nval
-  ;m
-   
 ;class
 
 
@@ -153,13 +110,11 @@ class: NoteParam
 class: Note
   int id            // index into containing Notebook notes array
   int schema        // 0 for default schema
-  int parent        // -1 for none
   String name
   String body
-  StringMap of Note children
   IntMap of NoteParam params
-  long flags
-  Object obj        // optional associated object
+  long tags
+  IntArray links
 
   m: init           // NAME BODY ID ...
     -> id
@@ -168,16 +123,15 @@ class: Note
     new String -> name
     name.set
     0 -> schema
-    -1 -> parent
     new IntMap -> params
+    new IntArray -> links
   ;m
   
   m: delete
     oclear name
     oclear body
-    oclear children
     oclear params
-    oclear obj
+    oclear links
     super.delete
   ;m
 
@@ -185,15 +139,122 @@ class: Note
     params.grab
   ;m
   
-  m: getChild            // NAME ...   false   OR   NOTE_OBJ true
-    if(objNotNull(children))
-      children.grab
+  m: addTag             // TAG_ID ...
+    -> int tagId
+    if(tagId 64 <)
+      lshift(1 tagId) tags l+ -> tags
     else
-      false
+      // TODO: deal with when extended tags are added
     endif
   ;m
   
+  m: hasTag             // TAG_ID ... true/false
+    -> int tagId
+    if(tagId 64 <)
+      0
+      if(lshift(1 tagId) tags and)
+        1-
+      endif
+    else
+      // TODO: deal with when extended tags are added
+    endif
+  ;m
+  
+  m: isNamed        // NAME ... true/false
+    if(name)
+      name.equals
+    else
+      0
+    endif
+  ;m
+  
+  : link2type
+    26 rshift
+  ;
+  
+  : linkSplit           // LINK ... NODE_ID LINK_TYPE
+    dup 0x3FFFFFF and
+    swap 26 rshift
+  ;
+  
+  m: addLink            // NODE_ID LINK_TYPE ...
+    links.push(26 lshift or)
+  ;m
+  
+  m: findNextLink       // START_INDEX LINK_TYPE ...    false   OR    NODE_ID NEXT_INDEX true
+    -> int linkType
+    -> int index
+    //"looking for type " %s linkType %d " starting at " %s index %d %nl
+    begin
+    while(index links.count <)
+      //index %d %bl %bl links.get(index) dup %x %bl %bl linkSplit "type:" %s %x " value:" %s %x %nl
+      if(links.get(index) linkSplit linkType =)
+        //"bailing at index " %s index %d " returning nodeId " %s dup %x %nl
+        index 1+ -1
+        exit
+      else
+        drop
+      endif
+      1 ->+ index
+    repeat
+    0
+  ;m
+
 ;class
+
+class: NoteLinkIter
+
+  Note note
+  int index
+  int limit
+  
+  m: init   // NOTE ...
+    -> note
+    note.links.count -> limit
+    0 -> index
+  ;m
+
+  m: next  // LINK_TYPE ... NOTE_ID true  OR   false
+    index swap note.findNextLink
+    if
+      -> index
+      -1
+    else
+      limit -> index
+      0
+    endif
+  ;m
+  
+  m: delete
+    oclear note
+  ;m
+
+  m: seek  // INDEX ...
+    if(dup 0>)
+      if(dup limit <)
+        -> index
+      else
+        drop
+      endif
+    else
+      drop
+    endif
+  ;m
+
+  m: tell  // ... INDEX
+    index
+  ;m
+
+  m: current // ... NODE_ID
+    note.links.get(index) Note:linkSplit drop
+  ;m
+
+  m: atTail // ... TRUE/FALSE
+    index limit =
+  ;m
+
+;class
+
 
 
 // ----------------------------------------------
@@ -204,9 +265,6 @@ class: NoteDeck
   Array of Note notes
   StringMap noteMap
   
-  Array of NoteFlagDef flags
-  StringMap flagMap
-  
   Array of NoteTagDef tags
   StringMap tagMap
   
@@ -215,14 +273,20 @@ class: NoteDeck
   
   Array of NoteDef params
   StringMap paramMap
-  
+
+  Array of NoteDef linkTypes
+  StringMap linkTypeMap
+
+  // predefined link types
+  long kLTParent
+  long kLTChild
+  long kLTTag
+  long kLTLink
   
   m: clearAll
     oclear name
     oclear notes
     oclear noteMap
-    oclear flags
-    oclear flagMap
     oclear tags
     oclear tagMap
     oclear schemas
@@ -236,7 +300,7 @@ class: NoteDeck
     super.delete
   ;m
   
-  m: addTagDef      // NAME DISPLAY_NAME DESCRIPTION ... NEW_TAG_DEF
+  m: addTagDef returns NoteTagDef      // NAME DISPLAY_NAME DESCRIPTION ... NEW_TAG_DEF
     mko NoteTagDef def
     def.init(tags.count)
     tags.push(def)
@@ -248,20 +312,7 @@ class: NoteDeck
     tagMap.grab
   ;m
   
-  m: addFlagDef      // NAME DISPLAY_NAME DESCRIPTION ... NEW_FLAG_DEF
-    mko NoteFlagDef def
-    def.init(flags.count)
-    flags.push(def)
-    flagMap.set(def def.name.get)
-    //def.name.get %s %bl def.mask %x %nl
-    unref def
-  ;m
-  
-  m: getFlag         // NAME ...    false   OR   FLAG_DEF_OBJ true
-    flagMap.grab
-  ;m
-  
-  m: addSchema      // NAME DESCRIPTION ... NEW_SCHEMA
+  m: addSchema returns NoteSchema     // NAME DESCRIPTION ... NEW_SCHEMA
     mko NoteSchema def
     def.init(schemas.count)
     schemas.push(def)
@@ -273,7 +324,7 @@ class: NoteDeck
     schemaMap.grab
   ;m
   
-  m: addParamDef      // NAME DESCRIPTION ... NEW_PARAM_DEF
+  m: addParamDef returns NoteDef     // NAME DESCRIPTION ... NEW_PARAM_DEF
     mko NoteDef def
     def.init(params.count)
     params.push(def)
@@ -285,26 +336,73 @@ class: NoteDeck
     paramMap.grab
   ;m
   
-  m: addNote      // NAME BODY ... NEW_NOTE
+  m: addLinkType returns NoteDef     // NAME DESCRIPTION ... NEW_LINKTYPE
+    mko NoteDef def
+    def.init(linkTypes.count)
+    linkTypes.push(def)
+    linkTypeMap.set(def def.name.get)
+    def.id
+    oclear def
+  ;m
+  
+  m: getLinkType        // NAME ...    false   OR   LINKTYPE_OBJ true
+    linkTypeMap.grab
+  ;m
+
+  // creates a parentless note, doesn't add it to global named note map  
+  m: addNote returns Note      // NAME BODY ... NEW_NOTE
     mko Note note
     note.init(notes.count)
     notes.push(note)
-    // TODO: check for note name already in map
-    noteMap.set(note note.name.get)
     unref note
   ;m
   
-  m: addChild      // NAME BODY PARENT_NOTE ... NEW_NOTE
-    ->o Note parent
-    mko Note note
-    note.init(notes.count)
-    note.id -> note.parent
-    if(objIsNull(parent.children))
-      new StringMap -> parent.children
-    endif
-    notes.push(note)
+  // creates a parentless note and adds it to global named note map  
+  m: addGlobalNote returns Note      // NAME BODY ... NEW_NOTE
+    addNote ->o Note note
     // TODO: check for note name already in map
-    parent.children.set(note note.name.get)
+    noteMap.set(note note.name.get)
+    note
+  ;m
+  
+  m: getNamedLink   // NAME LINK_TYPE NOTE ...    false   OR    INDEX true
+    ->o Note note
+    -> int linkType
+    -> ptrTo byte name
+    note.links.headIter -> IntArrayIter iter
+    begin
+    while(iter.next)
+      Note:linkSplit
+      if(linkType =)
+        -> int childId
+        if(notes.get(childId).isNamed(name))
+          childId -1
+          oclear iter
+          exit
+        endif
+      else
+        drop
+      endif
+    repeat
+    oclear iter
+
+    0
+  ;m
+  
+  m: getChild            // NAME NOTE ...   false   OR   NOTE_OBJ true
+    kLTChild swap getNamedLink
+    if
+      notes.get -1
+    else
+      0
+    endif
+  ;m
+  
+  m: addChild returns Note     // NAME BODY PARENT_NOTE ... NEW_NOTE
+    ->o Note parent
+    addNote -> Note note
+    note.addLink(parent.id kLTParent)
+    parent.addLink(note.id kLTChild)
     unref note
   ;m
   
@@ -320,9 +418,6 @@ class: NoteDeck
     new Array -> notes
     new StringMap -> noteMap
 
-    new Array -> flags
-    new StringMap -> flagMap
-
     new Array -> tags
     new StringMap -> tagMap
 
@@ -332,14 +427,22 @@ class: NoteDeck
     new Array -> params
     new StringMap -> paramMap
 
-    addSchema("defaultSchema" "Default Schema - notecard with no params") 2drop
+    new Array -> linkTypes
+    new StringMap -> linkTypeMap
+    
+    addLinkType("parent" "Parent Note") -> kLTParent
+    addLinkType("child" "Child Note") -> kLTChild
+    addLinkType("tag" "Extended Tag") -> kLTTag
+    addLinkType("link" "Generic Link") -> kLTLink
+
+    addSchema("defaultSchema" "Default Schema - notecard with no params") drop
   ;m
   
-  m: newestNote
+  m: newestNote returns Note
     if(notes.count)
       notes.get(notes.count 1-)
     else
-      dnull
+      null
     endif
   ;m
 
@@ -347,7 +450,49 @@ class: NoteDeck
 
 loaddone
 
+=============================================
+TODOs for Notes:
 
+  int id            // index into containing Notebook notes array
+  int schema        // 0 for default schema
+x  int parent        // -1 for none
+  String name
+  String body
+x  StringMap of Note children
+  IntMap of NoteParam params
+  long flags
+x Object obj        // optional associated object
+
+- replace children StringMap with links IntArray, where the elements are a combination of
+  26-bit note id and 6-bit link type
+  -> make the noteId/linkType specified per notebook
+  o link types are specified by the notebook, but some are predefined
+    like 'parent' and 'child'
+  o tags just become notes which describe the tag
+  o replace params with a StructArray, the param struct is an 7-char name,
+    1 byte type code and an 8-byte body
+  o not all Notes have names, change NoteDeck:addNote to addNamedNote,
+    add an addNote member that doesn't set a name
+  ? remove parent member, replace with parent link
+  o remove obj member, use params instead
+  
+Hmm, helpdeck uses multiple levels of name maps, which can have the same
+symbol used multiple times, in particular for method names.  I guess the
+change to one global name map will still work, but then there needs to be
+a way for a Note to have a name without appearing in the global name map,
+method names don't need to be in the global map, but the code uses the Note
+name field for the method name.
+? is there a general 'index' needed to replace Note:children StringMap?
+? maybe NoteDeck has StringMap of StringIntMap indices, which is map of named indices?
+? replace Note:params with a Bag?
+=============================================
+There is always a default 'incoming' notebook
+other notebooks are projects/interestAreas for user
+forth
+music
+bass
+media
+=============================================
 addtags dailyWorkLog forth python c++ math reddit metafilter torrents arm
 
 add a tagged note object/file/db
