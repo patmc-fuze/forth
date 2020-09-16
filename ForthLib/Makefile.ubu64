@@ -1,0 +1,100 @@
+# you will need to install nasm (the netwide assembler) if you don't already have it with:
+# sudo apt-get install nasm
+
+# you may need to install readline with this command:
+# sudo apt-get install libreadline6-dev libreadline6
+
+#.PHONY:	all clean depends
+
+CC = g++
+ASM = /usr/bin/nasm
+CDEBUG = -g
+# DEFINES = -DRASPI -DLINUX -DASM_INNER_INTERPRETER
+DEFINES = -DLINUX -DASM_INNER_INTERPRETER -DASM_UNDERSCORE_PREFIX -DFORTH64 -DINCLUDE_TRACE
+#CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -save-temps=obj -fno-leading-underscore
+CFLAGS = -c $(CDEBUG) $(DEFINES) $(WARNING_FLAGS) -std=c++11 -m64
+WARNING_FLAGS = -Wall -Wno-format -Wno-reorder -Wno-unused-variable -Wno-sign-compare -Wno-conversion-null -Wno-pointer-arith
+CPPFLAGS = $(CFLAGS)
+
+ASMFLAGS = -d ASM_INNER_INTERPRETER -d LINUX -felf32
+
+LDFLAGS = $(CDEBUG)
+
+SRCS = \
+	ForthShell.cpp \
+	ForthEngine.cpp \
+	ForthInner.cpp \
+	ForthInput.cpp \
+	ForthVocabulary.cpp \
+	ForthBuiltinClasses.cpp \
+	ForthExtension.cpp \
+	ForthShowContext.cpp \
+	ForthStructs.cpp \
+	ForthStructCodeGenerator.cpp \
+	ForthOps.cpp \
+	ForthServer.cpp \
+	ForthClient.cpp \
+	ForthOpcodeCompiler.cpp \
+	ForthBlockFileManager.cpp \
+	ForthParseInfo.cpp \
+	ForthPipe.cpp \
+	ForthForgettable.cpp \
+	ForthThread.cpp \
+	ForthObjectReader.cpp \
+	ForthMemoryManager.cpp \
+	kbhit.cpp \
+	OArray.cpp \
+	OList.cpp \
+	OMap.cpp \
+	ONumber.cpp \
+	OSocket.cpp \
+	OStream.cpp \
+	OString.cpp \
+	OSystem.cpp
+	
+	
+ASMSRCS = InnerInterp.asm \
+	AsmCore.asm
+
+OBJDIR = obj
+ASMOBJS := $(patsubst %.asm,$(OBJDIR)/%.o,$(ASMSRCS))
+OBJS := $(patsubst %.cpp,$(OBJDIR)/%.o,$(SRCS)) $(ASMOBJS)
+DEPDIR = dep
+DEPS := $(patsubst %.cpp,$(DEPDIR)/%.d,$(SRCS))
+# XDEFS is used to pass in defines from the make command line
+LIBS := -lm -lstdc++ -ldl -lpthread
+
+libforth.a:	$(OBJS)
+	ar rcs libforth.a $(OBJS)
+	
+-include $(DEPS)
+
+stuff:
+	echo "DEPS=" $(DEPS)
+	echo "OBJS=" $(OBJS)
+	echo "SRCS=" $(SRCS)
+
+#spoo: ForthOps.cpp
+#	echo "at " $@ "   less" $< "   star" $* "   pat" $(patsubst %.cpp,%.d,$@)
+	
+$(DEPDIR)/%.d: %.cpp
+	gcc -M $(CPPFLAGS) -o $(DEPDIR)/$*.d $<
+	
+#%.d: ../%.cpp
+#	gcc -M $(CPPFLAGS) -o $*.d $<
+	
+#	echo "DEP at=" $@ "   less=" $< "   star=" $*
+
+$(OBJDIR)/%.o: %.cpp
+	$(CC) $(CFLAGS) -o $(OBJDIR)/$*.o $<
+    
+$(OBJDIR)/%.o: %.asm
+	$(ASM) $(ASMFLAGS) -o $(OBJDIR)/$*.o $<
+    
+all:	libforth.a
+
+clean:
+	-rm $(OBJDIR)/*.o
+	-rm $(DEPDIR)/*.d
+	-rm libforth.a
+
