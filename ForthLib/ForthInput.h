@@ -42,7 +42,8 @@ public:
     virtual int     GetWriteOffset( void );
     virtual void    SetWriteOffset( int offset );
 	virtual bool	IsEmpty();
-	virtual bool	IsGenerated();
+    virtual bool	IsGenerated();
+    virtual bool	IsFile();
 
     virtual int     GetBufferLength( void );
     virtual void    SetBufferPointer( const char *pBuff );
@@ -101,6 +102,7 @@ public:
 
     virtual cell*   GetInputState();
     virtual bool    SetInputState(cell* pState);
+    virtual bool	IsFile();
 
 protected:
     FILE            *mpInFile;
@@ -198,6 +200,8 @@ public:
 
     virtual cell*   GetInputState();
     virtual bool    SetInputState(cell* pState);
+
+    virtual bool	IsFile();
 
 
 protected:

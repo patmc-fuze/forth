@@ -49,7 +49,7 @@ struct ForthFileInterface
 	FILE*				(*getStdOut)();
 	FILE*				(*getStdErr)();
 	void*				(*openDir)( const char* pPath );	// returns DIR*, which is pDir in readDir, closeDir, rewindDir
-	void*				(*readDir)( void* pDir );			// return is a struct dirent*
+	void*				(*readDir)( void* pDir, void* pDstEntry );	// return is a struct dirent*
     int                 (*closeDir)( void* pDir );
 	void				(*rewindDir)( void* pDir );
 };

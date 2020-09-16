@@ -1559,6 +1559,7 @@ namespace OArray
             if (a[i].tag.s64 == soughtTag.s64)
             {
                 SPUSH(i);
+                found--;
                 break;
             }
         }
@@ -1578,7 +1579,7 @@ namespace OArray
         {
             if (a[i].tag.s64 == soughtTag.s64)
             {
-                retVal = -1;
+                retVal--;
                 PUSH_OBJECT(a[retVal].obj);
                 break;
             }

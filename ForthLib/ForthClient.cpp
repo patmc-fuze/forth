@@ -29,6 +29,7 @@
 #include "ForthPipe.h"
 #include "ForthClient.h"
 #include "ForthMessages.h"
+#include "dirent.h"
 
 #ifndef SOCKADDR
 #define SOCKADDR struct sockaddr
@@ -319,7 +320,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                     pMsgPipe->ReadString( accessMode );
                     FILE* pFile = fopen( pFilename, accessMode );
 
-                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->StartMessage(kServerMsgHandleResult);
                     pMsgPipe->WriteCell( (cell) pFile );
                     pMsgPipe->SendMessage();
                 }
@@ -373,10 +374,6 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                     {
                         numBytes = result * itemSize;
                         pMsgPipe->WriteCountedData( pReadBuffer, numBytes );
-                    }
-                    else
-                    {
-                        printf( "fread returned %d\n", result );
                     }
                     pMsgPipe->SendMessage();
                 }
@@ -659,15 +656,15 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgGetStdIn:
 				{
-                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
-                    pMsgPipe->WriteCell( (cell) stdin );
+                    pMsgPipe->StartMessage(kServerMsgHandleResult);
+                    pMsgPipe->WriteCell((cell)stdin);
                     pMsgPipe->SendMessage();
                 }
                 break;
 
             case kClientMsgGetStdOut:
 				{
-                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->StartMessage(kServerMsgHandleResult);
                     pMsgPipe->WriteCell((cell)stdout);
                     pMsgPipe->SendMessage();
                 }
@@ -675,9 +672,57 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 
             case kClientMsgGetStdErr:
 				{
-                    pMsgPipe->StartMessage( kServerMsgFileOpResult );
+                    pMsgPipe->StartMessage(kServerMsgHandleResult);
                     pMsgPipe->WriteCell((cell)stderr);
                     pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgOpenDir:
+                {
+                    const char* pString;
+                    pMsgPipe->ReadString(pString);
+                    cell result = (cell) opendir(pString);
+
+                    pMsgPipe->StartMessage(kServerMsgHandleResult);
+                    pMsgPipe->WriteCell((cell)result);
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgReadDir:
+                {
+                    cell pDir;
+                    struct dirent* pEntry = nullptr;
+                    pMsgPipe->ReadCell(pDir);
+                    if (pDir)
+                    {
+                        pEntry = readdir((DIR *)pDir);
+                    }
+
+                    pMsgPipe->StartMessage(kServerMsgReadDirResult);
+                    pMsgPipe->WriteCountedData(pEntry, (pEntry == nullptr) ? 0 : (int)sizeof(struct dirent));
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgCloseDir:
+                {
+                    cell pDir;
+                    pMsgPipe->ReadCell(pDir);
+                    int result = closedir((DIR *)pDir);
+
+                    pMsgPipe->StartMessage(kServerMsgFileOpResult);
+                    pMsgPipe->WriteInt(result);
+                    pMsgPipe->SendMessage();
+                }
+                break;
+
+            case kClientMsgRewindDir:
+                {
+                    cell pDir;
+                    pMsgPipe->ReadCell(pDir);
+                    rewinddir((DIR *)pDir);
                 }
                 break;
 

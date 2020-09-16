@@ -180,6 +180,7 @@ public:
     virtual int             FileGetPosition( FILE* pFile );
     virtual char*           FileGetString( FILE* pFile, char* dstBuffer, int maxChars );
     virtual int             FilePutString( FILE* pFile, const char* pBuffer );
+    virtual void*			ReadDir(void* pDir, void* pEntry);
 
     virtual void            PoundIf();
     virtual void            PoundIfdef( bool isDefined );

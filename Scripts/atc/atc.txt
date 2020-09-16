@@ -386,16 +386,14 @@ loaddone
 
 : listGames
   int dirHandle
-  ptrTo dirent pEntry
-  int pName   //ptrTo byte pName
+  dirent entry
+  ptrTo byte pName
   
   opendir("games") -> dirHandle
   if( dirHandle )
     begin
-      readdir(dirHandle) -> pEntry
-    while( pEntry )
-      pEntry.d_name(0 ref) -> pName // ref pName !
-      //pEntry %x %bl pName %x %bl pName %s %nl
+    while( readdir(dirHandle entry) )
+      entry.d_name(0 ref) -> pName // ref pName !
       if(pName c@ `.` <>)
         "   " %s pName %s %nl
       endif

@@ -138,28 +138,34 @@ namespace
 #endif
 	}
 
-}
+    // return is a DIR*
+    void* openDir(const char* pPath)
+    {
+        return opendir(pPath);
+    }
 
-// return is a DIR*
-void* openDir( const char* pPath )
-{
-	return opendir( pPath );
-}
+    // return is a struct dirent*
+    void* readDir(void* pDir, void* pEntry)
+    {
+        struct dirent* pResult = readdir((DIR*)pDir);
+        if (pResult)
+        {
+            memcpy(pEntry, pResult, sizeof(struct dirent));
+        }
 
-// return is a struct dirent*
-void* readDir( void* pDir )
-{
-	return readdir( (DIR*) pDir );
-}
+        return pResult;
+    }
 
-int closeDir( void* pDir )
-{
-	return closedir( (DIR*) pDir );
-}
+    int closeDir(void* pDir)
+    {
+        return closedir((DIR*)pDir);
+    }
 
-void rewindDir( void* pDir )
-{
-	rewinddir( (DIR*) pDir );
+    void rewindDir(void* pDir)
+    {
+        rewinddir((DIR*)pDir);
+    }
+
 }
 
 #if defined(WIN32)
@@ -1767,6 +1773,12 @@ int
 ForthShell::FilePutString( FILE* pFile, const char* pBuffer )
 {
     return fputs( pBuffer, pFile );
+}
+
+void*
+ForthShell::ReadDir(void* pDir, void* pEntry)
+{
+    return readDir(pDir, pEntry);
 }
 
 /*int

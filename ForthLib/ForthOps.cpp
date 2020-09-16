@@ -4186,11 +4186,12 @@ FORTHOP( opendirOp )
 
 FORTHOP( readdirOp )
 {
-    NEEDS(1);
-	void* pDir = (void *) SPOP;
-    cell result = (cell)(pCore->pFileFuncs->readDir( pDir ));
+    NEEDS(2);
+    void* pResult = (void *)SPOP;
+    void* pDir = (void *)SPOP;
+    cell result = (cell)(pCore->pFileFuncs->readDir(pDir, pResult));
 	// result is actually a struct dirent*
-    SPUSH( result );
+    SPUSH(result == 0 ? 0 : -1);
 }
 
 FORTHOP( closedirOp )
@@ -4294,6 +4295,24 @@ FORTHOP( renameOp )
 	const char* pSrcPath = (const char*) SPOP;
     int result = pCore->pFileFuncs->renameFile( pSrcPath, pDstPath );
     SPUSH( result );
+}
+
+FORTHOP(statOp)
+{
+    NEEDS(2);
+    struct stat* pDstStat = (struct stat*)SPOP;
+    const char* pSrcPath = (const char*)SPOP;
+    int result = stat(pSrcPath, pDstStat);
+    SPUSH(result);
+}
+
+FORTHOP(fstatOp)
+{
+    NEEDS(2);
+    struct stat* pDstStat = (struct stat*)SPOP;
+    int fileHandle = SPOP;
+    int result = fstat(fileHandle, pDstStat);
+    SPUSH(result);
 }
 
 FORTHOP( sourceIdOp )
@@ -9706,6 +9725,8 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF(    mkdirOp,                "mkdir" ),
     OP_DEF(    rmdirOp,                "rmdir" ),
     OP_DEF(    renameOp,               "rename" ),
+    OP_DEF(    statOp,                 "stat" ),
+    OP_DEF(    fstatOp,                "fstat" ),
     OP_DEF(    sourceIdOp,             "source-id" ),
     OP_DEF(    restoreInputOp,         "restore-input" ),
     OP_DEF(    saveInputOp,            "save-input" ),

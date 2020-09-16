@@ -149,6 +149,72 @@ Double has consistent layout, long is reversed on param stack.
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 24 2020
+
+I got forthtest.txt to work in client/server.  There were a bunch of cases where
+an input stream would get unexpectedly popped, there may still be problems there.
+
+I added stat and fstat ops, untested, also would need custom client/server code.
+It might be better to add commands for getting individual file stats, like last
+modified and creation times - that would avoid problems with client and server
+having different stat structure definitions.
+
++ client("127.0.0.1") works
+- newadv doesn't work remote
+- atc doesn't work remote
+- console ops (setConsoleCursor/setConsoleColor/clearConsole etc.) don't work remote
+- add way to switch between local and remote filesystems
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 23 2020
+
+I'm mostly done the changes to get readdir working remotely.
+I put in the changes to support local files in client/server, but it
+is completely untested, and can't even be set to local mode.
+
++ ForthInner.h
+  + ForthFileInterface
++ ForthOps
+  + readdir op
++ ForthMessages.h
+  + kClientMsg OpenDir/ReadDir/CloseDir/RewindDir
+  + kServerMsgReadDirResult
++ ForthShell
+  + readDir which copies dirent
+  + ReadDir method
++ ForthServerShell
+  + ReadDir method
+  + opendir
+  + readdir
+  + closedir
+  + rewinddir
++ ForthClient
+  + opendir
+  + readdir
+  + closedir
+  + rewinddir
+- update all scripts which use readdir
+  + forth_autoload.txt
+  ? atc.txt
+    can't load atc.txt
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+August 21 2020
+
+I have started putting in local file mode for client/server.
+I noticed that the server shell file functions openDir/readDir/closeDir/rewindDir
+hadn't been implemented and started to add them to the protocol so that they
+could work in both local and network file mode.  When I got to readDir I remembered
+why I didn't do them earlier - readDir returns a pointer to a memory structure,
+the client sending this to the server makes no sense, it can't do anything with
+it.  The right way to do it would be to have the client send the contents of
+the directory entry (270 or so bytes) to the server.  There remains the problem
+of the server needing to buffer that entry somewhere - maybe use ForthEngine::AddTempString
+to allocate the buffer entry.
+-> I will need to worry about the temp buffer being properly aligned
+A better solution is to change the definition of the readdir op to require it
+to pass in a pointer to a dirent buffer that takes the result.
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 20 2020
 
 I decided to try to make an Electron front for Forth.  I couldn't find any

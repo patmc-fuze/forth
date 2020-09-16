@@ -47,6 +47,8 @@ ForthInputStack::PushInputStream( ForthInputStream *pNewStream )
     mpHead = pNewStream;
     mpHead->mpNext = pOldStream;
 
+    //printf("ForthInputStack::PushInputStream %s  gen:%d   file:%d\n", mpHead->GetType(),
+    //    mpHead->IsGenerated(), mpHead->IsFile());
     *(ForthEngine::GetInstance()->GetBlockFileManager()->GetBlockPtr()) = mpHead->GetBlockNumber();
 
 	SPEW_SHELL("PushInputStream %s:%s\n", pNewStream->GetType(), pNewStream->GetName());
@@ -60,10 +62,13 @@ ForthInputStack::PopInputStream( void )
 
     if ( (mpHead == NULL) || (mpHead->mpNext == NULL) )
     {
+        //printf("ForthInputStack::PopInputStream NO MORE STREAMS\n");
         // all done!
         return true;
     }
 
+    //printf("ForthInputStack::PopInputStream %s  gen:%d   file:%d\n", mpHead->GetType(),
+    //    mpHead->IsGenerated(), mpHead->IsFile());
     pNext = mpHead->mpNext;
 	if (mpHead->DeleteWhenEmpty())
 	{
@@ -453,6 +458,13 @@ ForthInputStream::IsGenerated(void)
 }
 
 
+bool
+ForthInputStream::IsFile(void)
+{
+    return false;
+}
+
+
 //////////////////////////////////////////////////////////////////////
 ////
 ///
@@ -578,6 +590,12 @@ ForthFileInputStream::SetInputState( cell* pState)
     }
     mLineNumber = pState[2];
     mReadOffset = pState[3];
+    return true;
+}
+
+bool
+ForthFileInputStream::IsFile(void)
+{
     return true;
 }
 
@@ -965,6 +983,12 @@ ForthBlockInputStream::ReadBlock()
         fclose( pInFile );
     }
     return success;
+}
+
+bool
+ForthBlockInputStream::IsFile(void)
+{
+    return true;
 }
 
 //////////////////////////////////////////////////////////////////////

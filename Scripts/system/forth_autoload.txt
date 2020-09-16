@@ -467,7 +467,7 @@ precedence literal   precedence fliteral   precedence dliteral
   //opType:makeOpcode( opType:litString lenInts ) ,		// compile literal string opcode
   or(0x15000000 lenInts) ,		// compile literal string opcode
   strcpy( here src )
-  allot( lenInts cells )
+  allot( lenInts 4* )
 ;
 
 : cmove 0 do over i + c@ over i + c! loop 2drop ;
@@ -892,7 +892,9 @@ struct: dirent
   int	d_namlen
 #endif
   int	d_type
-  MAX_PATH arrayOf byte d_name
+  // for some reason bytes beyond end of dirent struct get overwritten,
+  //   add 8 bytes of padding for now
+  MAX_PATH 8+ arrayOf byte d_name
 ;struct
 
 #else
@@ -900,7 +902,7 @@ struct: dirent
 struct: dirent
   int	d_ino
   short	d_reclen
-  int	d_namlen
+  cell	d_namlen
   int	d_type
   256 arrayOf byte d_name
 ;struct
@@ -915,17 +917,17 @@ enum: DIRENT_TYPE_BITS
 
 // "DIRECTORY_PATH" ... Array of String
 : getFilesInDirectory
-  int dirHandle
-  ptrTo dirent pEntry
-  int pName
+  cell dirHandle
+  dirent entry
+  ptrTo byte pName
   new Array -> Array of String filenames
+  ref dirHandle %x %bl entry %x %nl
   
   opendir -> dirHandle
   if( dirHandle )
     begin
-      readdir(dirHandle) -> pEntry
-    while( pEntry )
-      pEntry.d_name(0 ref) -> pName
+    while( readdir(dirHandle entry) )
+      entry.d_name(0 ref) -> pName
       if(pName c@ `.` <>)
         new String -> String filename
         filename.set(pName)
