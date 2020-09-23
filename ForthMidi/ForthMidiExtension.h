@@ -91,6 +91,7 @@ protected:
     std::vector<InDeviceInfo>    mInputDevices;
     std::vector<OutDeviceInfo>   mOutputDevices;
 
+    ForthAsyncThread*       mpAsyncThread;
     ForthThread*            mpThread;
     bool                    mbEnabled;
 };

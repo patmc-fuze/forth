@@ -229,7 +229,8 @@ void ForthMidiExtension::Initialize( ForthEngine* pEngine )
     {
         delete mpThread;
     }
-	mpThread = ForthEngine::GetInstance()->CreateThread();
+    mpAsyncThread = ForthEngine::GetInstance()->CreateAsyncThread();
+    mpThread = mpAsyncThread->CreateThread(pEngine, 0, 4096, 4096);
     ForthExtension::Initialize( pEngine );
     pEngine->AddBuiltinOps( midiDictionary );
 }
@@ -367,9 +368,9 @@ void ForthMidiExtension::HandleMidiIn( UINT wMsg, DWORD_PTR dwInstance, DWORD_PT
 			mpThread->Push( dwParam1 );
 			mpThread->Push( dwParam2 );
 			mpThread->Run();
-			long* pStack = mpThread->GetCoreState()->SP;
+			cell* pStack = mpThread->GetCore()->SP;
 			TRACE( "MIDI:" );
-			while ( pStack < mpThread->GetCoreState()->ST )
+			while ( pStack < mpThread->GetCore()->ST )
 			{
 				TRACE( " %x", *pStack );
 				pStack++;
