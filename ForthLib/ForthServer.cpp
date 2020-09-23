@@ -9,7 +9,7 @@
 //#include <windows.h>
 #include <ws2tcpip.h>
 #include <io.h>
-#include "dirent.h"
+#include "sys/dirent.h"
 #else
 #include <sys/stat.h>
 #include <sys/types.h>

@@ -17,7 +17,7 @@
 #include <dirent.h>
 #else
 #include <io.h>
-#include "dirent.h"
+#include "sys/dirent.h"
 #endif
 #include "ForthEngine.h"
 #include "ForthThread.h"

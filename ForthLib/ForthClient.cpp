@@ -29,7 +29,7 @@
 #include "ForthPipe.h"
 #include "ForthClient.h"
 #include "ForthMessages.h"
-#include "dirent.h"
+#include "sys/dirent.h"
 
 #ifndef SOCKADDR
 #define SOCKADDR struct sockaddr

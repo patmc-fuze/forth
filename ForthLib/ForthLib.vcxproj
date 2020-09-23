@@ -1159,7 +1159,6 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="dirent.h" />
     <ClInclude Include="Forth.h" />
     <ClInclude Include="ForthBlockFileManager.h" />
     <ClInclude Include="ForthBuiltinClasses.h" />
@@ -1194,6 +1193,7 @@
     <ClInclude Include="OString.h" />
     <ClInclude Include="OSystem.h" />
     <ClInclude Include="StdAfx.h" />
+    <ClInclude Include="sys\dirent.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Readme.txt" />
