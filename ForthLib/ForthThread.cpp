@@ -59,6 +59,7 @@ ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, 
 , mpShowContext(NULL)
 , mpJoinHead(nullptr)
 , mpNextJoiner(nullptr)
+, mObject(nullptr)
 {
     mCore.pThread = this;
     mCore.SLen = paramStackLongs;
@@ -120,11 +121,15 @@ ForthThread::~ForthThread()
 	{
 		delete mpShowContext;
 	}
-	oThreadStruct* pThreadStruct = (oThreadStruct *)mObject;
-	if (pThreadStruct->pThread != NULL)
-	{
-		FREE_OBJECT(pThreadStruct);
-	}
+
+    if (mObject)
+    {
+        oThreadStruct* pThreadStruct = (oThreadStruct *)mObject;
+        if (pThreadStruct->pThread != NULL)
+        {
+            FREE_OBJECT(pThreadStruct);
+        }
+    }
 }
 
 void ForthThread::Destroy()
