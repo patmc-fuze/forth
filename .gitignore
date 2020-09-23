@@ -97,14 +97,11 @@ Forth_for_ARM.txt
 ForthARM/gdbs.txt
 ForthARM/sdlt.txt
 ForthARM/t.txt
-ForthClient/ForthClient.vcxproj
 ForthClient/ForthClient.vcxproj.filters
 ForthDocs/ForthDocs.vcxproj.filters
 ForthDocs/Manual/*.txt
 *.nas
-ForthLogger/ForthLogger.vcxproj
 ForthLogger/ReadMe.txt
-ForthMidi/ForthMidi.vcxproj
 ForthMidi/Resource.h
 ForthMidi/stdafx.cpp
 ForthMidi/stdafx.h
