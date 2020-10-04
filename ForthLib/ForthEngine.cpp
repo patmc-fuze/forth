@@ -2710,8 +2710,6 @@ void ForthEngine::ResetConsoleOut( ForthCoreState& core )
 	CLEAR_OBJECT(core.consoleOutStream);
     OBJECT_ASSIGN(&core, core.consoleOutStream, mDefaultConsoleOutStream);
     OBJECT_ASSIGN(&core, mAuxOutStream, mDefaultConsoleOutStream);
-    printf("^^^^ ResetConsoleOut core:%p out:%p\n",
-        &core, core.consoleOutStream);
 }
 
 

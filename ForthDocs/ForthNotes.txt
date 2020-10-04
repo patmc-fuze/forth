@@ -149,6 +149,13 @@ Double has consistent layout, long is reversed on param stack.
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+October 3 2020
+
+I got the midi extension working again after many years of beiung broken.  It
+was still setup for the original thread implementation.  I also fixed some bugs
+with thread/coreState initialization where some fields weren't initialized on
+construction.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 August 24 2020
 
 I got forthtest.txt to work in client/server.  There were a bunch of cases where
