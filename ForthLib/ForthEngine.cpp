@@ -491,6 +491,8 @@ ForthEngine::Initialize( ForthShell*        pShell,
     mpTempBuffer = new char[MAX_STRING_SIZE];
 
     mpMainThread = CreateAsyncThread( 0, MAIN_THREAD_PSTACK_LONGS, MAIN_THREAD_RSTACK_LONGS );
+    mpMainThread->SetName("MainAsyncThread");
+    mpMainThread->GetThread(0)->SetName("MainThread");
 	mpCore = mpMainThread->GetThread(0)->GetCore();
 	mpCore->optypeAction = (optypeActionRoutine *) __MALLOC(sizeof(optypeActionRoutine) * 256);
     mpCore->numBuiltinOps = 0;
@@ -521,14 +523,14 @@ ForthEngine::Initialize( ForthShell*        pShell,
 	// the primary thread objects can't be inited until builtin classes are initialized
 	OThread::FixupAsyncThread(mpMainThread);
 
-    if ( pExtension != NULL )
+	GetForthConsoleOutStream( mpCore, mDefaultConsoleOutStream );
+    ResetConsoleOut( *mpCore );
+
+    if (pExtension != NULL)
     {
         mpExtension = pExtension;
-        mpExtension->Initialize( this );
+        mpExtension->Initialize(this);
     }
-
-	GetForthConsoleOutStream( mpCore, mDefaultConsoleOutStream );
-    ResetConsoleOut( mpCore );
 
     Reset();
 }
@@ -928,26 +930,33 @@ ForthEngine::CreateAsyncThread(forthop threadOp, int paramStackSize, int returnS
 	ForthThread *pNewThread = pAsyncThread->GetThread(0);
 	pNewThread->SetOp(threadOp);
 
-    pNewThread->mCore.pEngine = this;
-    pNewThread->mCore.pDictionary = &mDictionary;
-    pNewThread->mCore.pFileFuncs = mpShell->GetFileInterface();
-
-    if ( mpCore != NULL )
-    {
-        // fill in optype & opcode action tables from engine thread
-        pNewThread->mCore.optypeAction = mpCore->optypeAction;
-        pNewThread->mCore.numBuiltinOps = mpCore->numBuiltinOps;
-        pNewThread->mCore.numOps = mpCore->numOps;
-        pNewThread->mCore.maxOps = mpCore->maxOps;
-        pNewThread->mCore.ops = mpCore->ops;
-        pNewThread->mCore.innerLoop = mpCore->innerLoop;
-        pNewThread->mCore.innerExecute = mpCore->innerExecute;
-    }
+    InitCoreState(pNewThread->mCore);
 
 	pAsyncThread->mpNext = mpThreads;
 	mpThreads = pAsyncThread;
 
 	return pAsyncThread;
+}
+
+
+void ForthEngine::InitCoreState(ForthCoreState& core)
+{
+   core.pEngine = this;
+   core.pDictionary = &mDictionary;
+   core.pFileFuncs = mpShell->GetFileInterface();
+
+    if (mpCore != NULL)
+    {
+        // fill in optype & opcode action tables from engine thread
+       core.optypeAction = mpCore->optypeAction;
+       core.numBuiltinOps = mpCore->numBuiltinOps;
+       core.numOps = mpCore->numOps;
+       core.maxOps = mpCore->maxOps;
+       core.ops = mpCore->ops;
+       core.innerLoop = mpCore->innerLoop;
+       core.innerExecute = mpCore->innerExecute;
+       core.innerExecute = mpCore->innerExecute;
+    }
 }
 
 
@@ -2662,23 +2671,19 @@ void ForthEngine::SetDefaultConsoleOut( ForthObject& newOutStream )
 {
 	SPEW_SHELL("SetDefaultConsoleOut pCore=%p  pMethods=%p  pData=%p\n", mpCore, newOutStream->pMethods, newOutStream);
     OBJECT_ASSIGN(mpCore, mDefaultConsoleOutStream, newOutStream);
-    mDefaultConsoleOutStream = newOutStream;
     OBJECT_ASSIGN(mpCore, mAuxOutStream, newOutStream);
-    mAuxOutStream = newOutStream;
 }
 
 void ForthEngine::SetConsoleOut(ForthCoreState* pCore, ForthObject& newOutStream)
 {
     SPEW_SHELL("SetConsoleOut pCore=%p  pMethods=%p  pData=%p\n", pCore, newOutStream->pMethods, newOutStream);
     OBJECT_ASSIGN(pCore, pCore->consoleOutStream, newOutStream);
-    pCore->consoleOutStream = newOutStream;
 }
 
 void ForthEngine::SetAuxOut(ForthCoreState* pCore, ForthObject& newOutStream)
 {
     SPEW_SHELL("SetAuxOut pCore=%p  pMethods=%p  pData=%p\n", pCore, newOutStream->pMethods, newOutStream);
     OBJECT_ASSIGN(pCore, mAuxOutStream, newOutStream);
-    mAuxOutStream = newOutStream;
 }
 
 void ForthEngine::PushConsoleOut( ForthCoreState* pCore )
@@ -2696,19 +2701,17 @@ void ForthEngine::PushAuxOut(ForthCoreState* pCore)
     PUSH_OBJECT(mAuxOutStream);
 }
 
-void ForthEngine::ResetConsoleOut( ForthCoreState* pCore )
+void ForthEngine::ResetConsoleOut( ForthCoreState& core )
 {
 	// TODO: there is a dilemma here - either we just replace the current output stream
 	//  without doing a release, and possibly leak a stream object, or we do a release
 	//  and risk a crash, since ResetConsoleOut is called when an error is detected,
 	//  so the object we are releasing may already be deleted or otherwise corrupted.
-	CLEAR_OBJECT(pCore->consoleOutStream);
-
-    OBJECT_ASSIGN(pCore, pCore->consoleOutStream, mDefaultConsoleOutStream);
-    pCore->consoleOutStream = mDefaultConsoleOutStream;
-
-    OBJECT_ASSIGN(pCore, mAuxOutStream, mDefaultConsoleOutStream);
-    mAuxOutStream = mDefaultConsoleOutStream;
+	CLEAR_OBJECT(core.consoleOutStream);
+    OBJECT_ASSIGN(&core, core.consoleOutStream, mDefaultConsoleOutStream);
+    OBJECT_ASSIGN(&core, mAuxOutStream, mDefaultConsoleOutStream);
+    printf("^^^^ ResetConsoleOut core:%p out:%p\n",
+        &core, core.consoleOutStream);
 }
 
 

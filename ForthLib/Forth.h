@@ -34,6 +34,9 @@ struct ForthCoreState;
 
 #define MAX_STRING_SIZE (8 * 1024)
 
+#define DEFAULT_BASE 10
+
+
 // these are opcode types, they are held in the top byte of an opcode, and in
 // a vocabulary entry value field
 // NOTE: if you add or reorder op types, make sure that you update ForthEngine::opTypeNames

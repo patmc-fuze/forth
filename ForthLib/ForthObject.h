@@ -41,7 +41,7 @@
 #define CLEAR_OBJECT( _obj )             (_obj) = nullptr
 
 #define OBJECT_ASSIGN( _pCore, _dstObj, _srcObj ) \
-    if ( (_dstObj) != (_srcObj) ) { SAFE_KEEP( (_srcObj) ); SAFE_RELEASE( (_pCore), (_dstObj) ); }
+    if ( (_dstObj) != (_srcObj) ) { SAFE_KEEP( (_srcObj) ); SAFE_RELEASE( (_pCore), (_dstObj) ); _dstObj = _srcObj; }
 
 enum
 {

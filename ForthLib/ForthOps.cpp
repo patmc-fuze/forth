@@ -4125,7 +4125,7 @@ FORTHOP( resetConsoleOutOp )
 {
     ForthEngine *pEngine = GET_ENGINE;
 
-	pEngine->ResetConsoleOut( pCore );
+	pEngine->ResetConsoleOut( *pCore );
 }
 
 FORTHOP(toupperOp)

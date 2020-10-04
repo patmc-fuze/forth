@@ -47,6 +47,97 @@ struct oThreadStruct
 //////////////////////////////////////////////////////////////////////
 ////
 ///
+//                     ForthCoreState struct
+// 
+
+ForthCoreState::ForthCoreState(int paramStackSize, int returnStackSize)
+    : SLen(paramStackSize)
+    , RLen(returnStackSize)
+{
+    // leave a few extra words above top of stacks, so that underflows don't
+    //   tromp on the memory allocator info
+    SB = new cell[SLen + (GAURD_AREA * 2)];
+    SB += GAURD_AREA;
+    ST = SB + SLen;
+
+    RB = new cell[RLen + (GAURD_AREA * 2)];
+    RB += GAURD_AREA;
+    RT = RB + RLen;
+
+#ifdef CHECK_GAURD_AREAS
+    long checkVal = 0x03020100;
+    for (int i = 0; i < GAURD_AREA; i++)
+    {
+        SB[i - GAURD_AREA] = checkVal;
+        RB[i - GAURD_AREA] = checkVal;
+        ST[i] = checkVal;
+        RT[i] = checkVal;
+        checkVal += 0x04040404;
+    }
+#endif
+    IP = nullptr;
+    FP = nullptr;
+    TP = nullptr;
+
+    optypeAction = nullptr;
+    numBuiltinOps = 0;
+    ops = nullptr;
+    numOps = 0;
+    maxOps = 0;
+
+    pEngine = nullptr;
+    pThread = nullptr;
+    pDictionary = nullptr;
+    pFileFuncs = nullptr;
+    consoleOutStream = nullptr;
+    pExceptionFrame = nullptr;
+
+    innerLoop = nullptr;
+    innerExecute = nullptr;
+
+    varMode = kVarDefaultOp;
+    state = kResultDone;
+    error = kForthErrorNone;
+
+    base = DEFAULT_BASE;
+    signedPrintMode = kPrintSignedDecimal;
+    traceFlags = 0;
+
+    for (int i = 0; i < NUM_CORE_SCRATCH_CELLS; i++)
+    {
+        scratch[i] = 0;
+    }
+}
+
+
+void ForthCoreState::InitializeFromEngine(void* engineIn)
+{
+    ForthEngine* pEngine = (ForthEngine *)engineIn;
+    pDictionary = pEngine->GetDictionaryMemorySection();
+    //    core.pFileFuncs = mpShell->GetFileInterface();
+
+    ForthCoreState* pEngineCore = pEngine->GetCoreState();
+    if (pEngineCore != NULL)
+    {
+        // fill in optype & opcode action tables from engine thread
+        optypeAction = pEngineCore->optypeAction;
+        numBuiltinOps = pEngineCore->numBuiltinOps;
+        numOps = pEngineCore->numOps;
+        maxOps = pEngineCore->maxOps;
+        ops = pEngineCore->ops;
+        innerLoop = pEngineCore->innerLoop;
+        innerExecute = pEngineCore->innerExecute;
+        innerExecute = pEngineCore->innerExecute;
+    }
+
+    pEngine->ResetConsoleOut(*this);
+
+}
+
+
+//////////////////////////////////////////////////////////////////////
+////
+///
 //                     ForthThread
 // 
 
@@ -60,44 +151,11 @@ ForthThread::ForthThread(ForthEngine *pEngine, ForthAsyncThread *pParentThread, 
 , mpJoinHead(nullptr)
 , mpNextJoiner(nullptr)
 , mObject(nullptr)
+, mCore(paramStackLongs, returnStackLongs)
 {
     mCore.pThread = this;
-    mCore.SLen = paramStackLongs;
-    mCore.RLen = returnStackLongs;
-    // leave a few extra words above top of stacks, so that underflows don't
-    //   tromp on the memory allocator info
-    mCore.SB = new cell[mCore.SLen + (GAURD_AREA * 2)];
-    mCore.SB += GAURD_AREA;
-    mCore.ST = mCore.SB + mCore.SLen;
 
-    mCore.RB = new cell[mCore.RLen + (GAURD_AREA * 2)];
-    mCore.RB += GAURD_AREA;
-    mCore.RT = mCore.RB + mCore.RLen;
-
-#ifdef CHECK_GAURD_AREAS
-    long checkVal = 0x03020100;
-    for ( int i = 0; i < 64; i++ )
-    {
-        mCore.SB[i - GAURD_AREA] = checkVal;
-        mCore.RB[i - GAURD_AREA] = checkVal;
-        mCore.ST[i] = checkVal;
-        mCore.RT[i] = checkVal;
-        checkVal += 0x04040404;
-    }
-#endif
-    mCore.optypeAction = NULL;
-    mCore.numBuiltinOps = 0;
-    mCore.ops = NULL;
-    mCore.numOps = 0;
-    mCore.maxOps = 0;
-    mCore.IP = NULL;
-    mCore.pEngine = pEngine;
-
-    mCore.pDictionary = NULL;
-
-	mCore.consoleOutStream = nullptr;
-
-    pEngine->ResetConsoleOut( &mCore );
+    mCore.InitializeFromEngine(pEngine);
 
     mOps[1] = gCompiledOps[OP_DONE];
 
@@ -325,6 +383,16 @@ void ForthThread::Exit()
     WakeAllJoiningThreads();
 }
 
+const char* ForthThread::GetName() const
+{
+    return mName.c_str();
+}
+
+void ForthThread::SetName(const char* newName)
+{
+    mName.assign(newName);
+}
+
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -340,6 +408,7 @@ ForthAsyncThread::ForthAsyncThread(ForthEngine *pEngine, int paramStackLongs, in
 	, mpNext(NULL)
 	, mActiveThreadIndex(0)
 	, mRunState(kFTRSStopped)
+    , mObject(nullptr)
 {
 	ForthThread* pPrimaryThread = new ForthThread(pEngine, this, 0, paramStackLongs, returnStackLongs);
 	pPrimaryThread->SetRunState(kFTRSReady);
@@ -379,7 +448,7 @@ ForthAsyncThread::~ForthAsyncThread()
 		}
 	}
 	oAsyncThreadStruct* pThreadStruct = (oAsyncThreadStruct *)mObject;
-	if (pThreadStruct->pThread != NULL)
+	if (pThreadStruct != nullptr && pThreadStruct->pThread != nullptr)
 	{
 		FREE_OBJECT(pThreadStruct);
 	}
@@ -795,6 +864,18 @@ void ForthAsyncThread::DeleteThread(ForthThread* pInThread)
 	}
 }
 
+
+const char* ForthAsyncThread::GetName() const
+{
+    return mName.c_str();
+}
+
+void ForthAsyncThread::SetName(const char* newName)
+{
+    mName.assign(newName);
+}
+
+
 namespace OThread
 {
 	//////////////////////////////////////////////////////////////////////
@@ -904,6 +985,21 @@ namespace OThread
 		METHOD_RETURN;
 	}
 
+    FORTHOP(oAsyncThreadGetNameMethod)
+    {
+        GET_THIS(oAsyncThreadStruct, pThreadStruct);
+        SPUSH((cell)(pThreadStruct->pThread->GetName()));
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oAsyncThreadSetNameMethod)
+    {
+        GET_THIS(oAsyncThreadStruct, pThreadStruct);
+        const char* name = (const char*)(SPOP);
+        pThreadStruct->pThread->SetName(name);
+        METHOD_RETURN;
+    }
+
 	baseMethodEntry oAsyncThreadMembers[] =
 	{
 		METHOD("__newOp", oAsyncThreadNew),
@@ -914,6 +1010,8 @@ namespace OThread
         METHOD("reset", oAsyncThreadResetMethod),
 		METHOD_RET("createThread", oAsyncThreadCreateThreadMethod, RETURNS_OBJECT(kBCIThread)),
 		METHOD_RET("getRunState", oAsyncThreadGetRunStateMethod, RETURNS_NATIVE(kBaseTypeInt)),
+        METHOD_RET("getName", oAsyncThreadGetNameMethod, RETURNS_NATIVE(kBaseTypeByte | kDTIsPtr)),
+        METHOD("setName", oAsyncThreadSetNameMethod),
 
 		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
 		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),
@@ -1122,6 +1220,21 @@ namespace OThread
         METHOD_RETURN;
     }
 
+    FORTHOP(oThreadGetNameMethod)
+    {
+        GET_THIS(oThreadStruct, pThreadStruct);
+        SPUSH((cell)(pThreadStruct->pThread->GetName()));
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oThreadSetNameMethod)
+    {
+        GET_THIS(oThreadStruct, pThreadStruct);
+        const char* name = (const char*)(SPOP);
+        pThreadStruct->pThread->SetName(name);
+        METHOD_RETURN;
+    }
+
     baseMethodEntry oThreadMembers[] =
 	{
 		METHOD("__newOp", oThreadNew),
@@ -1141,7 +1254,9 @@ namespace OThread
 		METHOD("reset", oThreadResetMethod),
 		METHOD("resetIP", oThreadResetIPMethod),
         METHOD("getCore", oThreadGetCoreMethod),
-		//METHOD_RET("getParent", oThreadGetParentMethod, RETURNS_NATIVE(kBaseType)),
+        METHOD_RET("getName", oThreadGetNameMethod, RETURNS_NATIVE(kBaseTypeByte | kDTIsPtr)),
+        METHOD("setName", oThreadSetNameMethod),
+        //METHOD_RET("getParent", oThreadGetParentMethod, RETURNS_NATIVE(kBaseType)),
 
 		MEMBER_VAR("id", NATIVE_TYPE_TO_CODE(0, kBaseTypeCell)),
 		MEMBER_VAR("__thread", NATIVE_TYPE_TO_CODE(kDTIsPtr, kBaseTypeUCell)),

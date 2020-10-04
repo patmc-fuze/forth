@@ -398,7 +398,7 @@ void CForthGuiDlg::CreateForth()
 	CreateDialogOps();
 
 	pEngine->SetDefaultConsoleOut(mConsoleOutObject );
-	pEngine->ResetConsoleOut( pCore );
+	pEngine->ResetConsoleOut(*pCore);
 	//pEngine->SetTraceOutRoutine(ForthTraceOutRoutine, GetDlgItem(IDC_RICHEDT_DEBUG));
 	mInBuffer[0] = '\0';
     mpInStream = new ForthBufferInputStream( mInBuffer, INPUT_BUFFER_SIZE, true );

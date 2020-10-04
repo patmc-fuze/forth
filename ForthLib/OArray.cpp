@@ -266,7 +266,6 @@ namespace OArray
             ForthObject newObj;
             POP_OBJECT(newObj);
             OBJECT_ASSIGN(pCore, oldObj, newObj);
-            a[ix] = newObj;
         }
         else
         {
@@ -1294,7 +1293,6 @@ namespace OArray
             LPOP(element.tag);
             POP_OBJECT(newObj);
             OBJECT_ASSIGN(pCore, oldObj, newObj);
-            element.obj = newObj;
         }
         else
         {

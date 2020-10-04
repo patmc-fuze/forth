@@ -82,6 +82,9 @@ public:
 
     inline int GetThreadIndex() { return mThreadIndex; }
 
+    const char* GetName() const;
+    void SetName(const char* newName);
+
 protected:
     void    WakeAllJoiningThreads();
 
@@ -98,6 +101,7 @@ protected:
     ForthThread*         mpJoinHead;
     ForthThread*         mpNextJoiner;
     int                 mThreadIndex;
+    std::string         mName;
 };
 
 class ForthAsyncThread
@@ -128,6 +132,9 @@ public:
 	inline ForthObject& GetAsyncThreadObject() { return mObject; }
 	inline void SetAsyncThreadObject(ForthObject& inObject) { mObject = inObject; }
 
+    const char* GetName() const;
+    void SetName(const char* newName);
+
 #if defined(LINUX) || defined(MACOSX)
 	static void* RunLoop(void *pThis);
 #else
@@ -142,6 +149,7 @@ protected:
 	ForthAsyncThread*   mpNext;
 	int					mActiveThreadIndex;
 	eForthThreadRunState mRunState;
+    std::string         mName;
 #if defined(LINUX) || defined(MACOSX)
 	int                 mHandle;
 	pthread_t           mThread;

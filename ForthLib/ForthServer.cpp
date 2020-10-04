@@ -716,7 +716,7 @@ int ForthServerShell::Run( ForthInputStream *pInputStream )
 
 	ForthCoreState* pCore = mpEngine->GetCoreState();
 	CreateForthFunctionOutStream( pCore, mConsoleOutObject, NULL, NULL, consoleOutToClient, pCore );
-	mpEngine->ResetConsoleOut( pCore );
+	mpEngine->ResetConsoleOut( *pCore );
     mpInput->PushInputStream( pStream );
 
     if ( mDoAutoload )

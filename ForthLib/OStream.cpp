@@ -1508,7 +1508,6 @@ namespace OStream
 		ForthObject dstString;
 		POP_OBJECT(dstString);
 		OBJECT_ASSIGN(pCore, pStringOutStream->outString, dstString);
-		pStringOutStream->outString = dstString;
 		METHOD_RETURN;
 	}
 
@@ -1706,11 +1705,9 @@ namespace OStream
 
         POP_OBJECT(obj);
         OBJECT_ASSIGN(pCore, pOutStream->streamB, obj);
-        pOutStream->streamB = obj;
 
         POP_OBJECT(obj);
         OBJECT_ASSIGN(pCore, pOutStream->streamA, obj);
-        pOutStream->streamA = obj;
 
         METHOD_RETURN;
     }
@@ -1960,14 +1957,21 @@ void ForthConsoleCharOut(ForthCoreState* pCore, char ch)
 {
 	ForthEngine *pEngine = GET_ENGINE;
 	oOutStreamStruct* pOutStream = reinterpret_cast<oOutStreamStruct*>(pCore->consoleOutStream);
-	if (pOutStream->pOutFuncs != NULL)
+	if ((pOutStream != nullptr) && (pOutStream->pOutFuncs != nullptr))
 	{
 		OStream::streamCharOut(pCore, pOutStream, ch);
 	}
 	else
 	{
-		SPUSH(((cell)ch));
-		pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutCharMethod);
+        if (pOutStream != nullptr)
+        {
+            SPUSH(((cell)ch));
+            pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutCharMethod);
+        }
+        else
+        {
+            pEngine->SetError(kForthErrorException, " ForthConsoleCharOut outstream is null");
+        }
 	}
 }
 
@@ -1975,15 +1979,22 @@ void ForthConsoleBytesOut(ForthCoreState* pCore, const char* pBuffer, int numCha
 {
 	ForthEngine *pEngine = GET_ENGINE;
 	oOutStreamStruct* pOutStream = reinterpret_cast<oOutStreamStruct*>(pCore->consoleOutStream);
-	if (pOutStream->pOutFuncs != NULL)
-	{
+    if ((pOutStream != nullptr) && (pOutStream->pOutFuncs != nullptr))
+    {
 		OStream::streamBytesOut(pCore, pOutStream, pBuffer, numChars);
 	}
 	else
 	{
-		SPUSH(((cell)pBuffer));
-		SPUSH(numChars);
-		pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutBytesMethod);
+        if (pOutStream != nullptr)
+        {
+            SPUSH(((cell)pBuffer));
+            SPUSH(numChars);
+            pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutBytesMethod);
+        }
+        else
+        {
+            pEngine->SetError(kForthErrorException, " ForthConsoleBytesOut outstream is null");
+        }
 	}
 }
 
@@ -1991,14 +2002,21 @@ void ForthConsoleStringOut(ForthCoreState* pCore, const char* pBuffer)
 {
 	ForthEngine *pEngine = GET_ENGINE;
 	oOutStreamStruct* pOutStream = reinterpret_cast<oOutStreamStruct*>(pCore->consoleOutStream);
-	if (pOutStream->pOutFuncs != NULL)
+    if ((pOutStream != nullptr) && (pOutStream->pOutFuncs != nullptr))
 	{
 		OStream::streamStringOut(pCore, pOutStream, pBuffer);
 	}
 	else
 	{
-		SPUSH(((cell)pBuffer));
-		pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutStringMethod);
+        if (pOutStream != nullptr)
+        {
+            SPUSH(((cell)pBuffer));
+            pEngine->FullyExecuteMethod(pCore, pCore->consoleOutStream, kOutStreamPutStringMethod);
+        }
+        else
+        {
+            pEngine->SetError(kForthErrorException, " ForthConsoleStringOut outstream is null");
+        }
 	}
 }
 

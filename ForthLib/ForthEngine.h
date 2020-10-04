@@ -190,6 +190,8 @@ public:
     ForthAsyncThread * CreateAsyncThread(forthop threadLoopOp = OP_DONE, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
 	void               DestroyAsyncThread(ForthAsyncThread *pThread);
 
+    void InitCoreState(ForthCoreState& core);
+
     // return true IFF the last compiled opcode was an integer literal
     bool            GetLastConstant( long& constantValue );
 
@@ -325,7 +327,7 @@ public:
     void					PushConsoleOut( ForthCoreState* pCore );
 	void					PushDefaultConsoleOut( ForthCoreState* pCore );
     void                    PushAuxOut(ForthCoreState* pCore);
-	void					ResetConsoleOut( ForthCoreState* pCore );
+	void					ResetConsoleOut( ForthCoreState& core );
 
     // return milliseconds since engine was created
     unsigned long           GetElapsedTime( void );

@@ -54,8 +54,13 @@ struct ForthFileInterface
 	void				(*rewindDir)( void* pDir );
 };
 
+#define NUM_CORE_SCRATCH_CELLS 8
+
 struct ForthCoreState
 {
+    ForthCoreState(int paramStackLongs, int returnStackLongs);
+    void InitializeFromEngine(void* pEngine);
+
     optypeActionRoutine  *optypeAction;
 
     ucell               numBuiltinOps;
@@ -108,7 +113,7 @@ struct ForthCoreState
     long                traceFlags;
 
     ForthExceptionFrame* pExceptionFrame;  // points to current exception handler frame in rstack
-    ucell               scratch[4];
+    ucell               scratch[NUM_CORE_SCRATCH_CELLS];
 };
 
 

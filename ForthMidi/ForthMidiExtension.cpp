@@ -230,7 +230,10 @@ void ForthMidiExtension::Initialize( ForthEngine* pEngine )
         delete mpThread;
     }
     mpAsyncThread = ForthEngine::GetInstance()->CreateAsyncThread();
-    mpThread = mpAsyncThread->CreateThread(pEngine, 0, 4096, 4096);
+    mpAsyncThread->SetName("MidiAsyncThread");
+    mpThread = mpAsyncThread->GetThread(0);
+    mpThread->SetName("MidiThread");
+
     ForthExtension::Initialize( pEngine );
     pEngine->AddBuiltinOps( midiDictionary );
 }
