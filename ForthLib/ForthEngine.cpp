@@ -421,10 +421,10 @@ ForthEngine::~ForthEngine()
     }
 
     // delete all threads;
-	ForthAsyncThread *pThread = mpThreads;
+	ForthThread *pThread = mpThreads;
 	while (pThread != NULL)
     {
-		ForthAsyncThread *pNextThread = pThread->mpNext;
+		ForthThread *pNextThread = pThread->mpNext;
 		delete pThread;
 		pThread = pNextThread;
     }
@@ -490,10 +490,10 @@ ForthEngine::Initialize( ForthShell*        pShell,
     mpStringBufferA = new char[mStringBufferASize];
     mpTempBuffer = new char[MAX_STRING_SIZE];
 
-    mpMainThread = CreateAsyncThread( 0, MAIN_THREAD_PSTACK_LONGS, MAIN_THREAD_RSTACK_LONGS );
-    mpMainThread->SetName("MainAsyncThread");
-    mpMainThread->GetThread(0)->SetName("MainThread");
-	mpCore = mpMainThread->GetThread(0)->GetCore();
+    mpMainThread = CreateThread( 0, MAIN_THREAD_PSTACK_LONGS, MAIN_THREAD_RSTACK_LONGS );
+    mpMainThread->SetName("MainThread");
+    mpMainThread->GetFiber(0)->SetName("MainFiber");
+	mpCore = mpMainThread->GetFiber(0)->GetCore();
 	mpCore->optypeAction = (optypeActionRoutine *) __MALLOC(sizeof(optypeActionRoutine) * 256);
     mpCore->numBuiltinOps = 0;
     mpCore->numOps = 0;
@@ -521,7 +521,7 @@ ForthEngine::Initialize( ForthShell*        pShell,
     }
 
 	// the primary thread objects can't be inited until builtin classes are initialized
-	OThread::FixupAsyncThread(mpMainThread);
+	OThread::FixupThread(mpMainThread);
 
 	GetForthConsoleOutStream( mpCore, mDefaultConsoleOutStream );
     ResetConsoleOut( *mpCore );
@@ -923,19 +923,19 @@ ForthEngine::ShowSearchInfo()
 	ForthConsoleCharOut(mpCore, '\n');
 }
 
-ForthAsyncThread *
-ForthEngine::CreateAsyncThread(forthop threadOp, int paramStackSize, int returnStackSize )
+ForthThread *
+ForthEngine::CreateThread(forthop fiberOp, int paramStackSize, int returnStackSize )
 {
-	ForthAsyncThread *pAsyncThread = new ForthAsyncThread(this, paramStackSize, returnStackSize);
-	ForthThread *pNewThread = pAsyncThread->GetThread(0);
-	pNewThread->SetOp(threadOp);
+	ForthThread *pThread = new ForthThread(this, paramStackSize, returnStackSize);
+	ForthFiber *pNewThread = pThread->GetFiber(0);
+	pNewThread->SetOp(fiberOp);
 
     InitCoreState(pNewThread->mCore);
 
-	pAsyncThread->mpNext = mpThreads;
-	mpThreads = pAsyncThread;
+	pThread->mpNext = mpThreads;
+	mpThreads = pThread;
 
-	return pAsyncThread;
+	return pThread;
 }
 
 
@@ -961,15 +961,15 @@ void ForthEngine::InitCoreState(ForthCoreState& core)
 
 
 void
-ForthEngine::DestroyAsyncThread(ForthAsyncThread *pThread)
+ForthEngine::DestroyThread(ForthThread *pThread)
 {
-	ForthAsyncThread *pNext, *pCurrent;
+	ForthThread *pNext, *pCurrent;
 
     if ( mpThreads == pThread )
     {
 
         // special case - thread is head of list
-		mpThreads = (ForthAsyncThread *)(mpThreads->mpNext);
+		mpThreads = (ForthThread *)(mpThreads->mpNext);
         delete pThread;
 
     }
@@ -980,7 +980,7 @@ ForthEngine::DestroyAsyncThread(ForthAsyncThread *pThread)
         pCurrent = mpThreads;
         while ( pCurrent != NULL )
         {
-			pNext = (ForthAsyncThread *)(pCurrent->mpNext);
+			pNext = (ForthThread *)(pCurrent->mpNext);
             if ( pThread == pNext )
             {
                 pCurrent->mpNext = pNext->mpNext;

@@ -117,7 +117,7 @@ namespace
     FORTHOP(objectShowMethod)
     {
         ForthObject obj = GET_TP;
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         ForthClassObject* pClassObject = GET_CLASS_OBJECT(obj);
         ForthEngine *pEngine = ForthEngine::GetInstance();
 
@@ -158,7 +158,7 @@ namespace
     FORTHOP(objectShowInnerMethod)
     {
         ForthObject obj = GET_TP;
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         ForthClassObject* pClassObject = GET_CLASS_OBJECT(obj);
         ForthEngine *pEngine = ForthEngine::GetInstance();
 
@@ -387,8 +387,8 @@ namespace
 bool ForthShowAlreadyShownObject(ForthObject obj, ForthCoreState* pCore, bool addIfUnshown)
 {
 	ForthEngine* pEngine = ForthEngine::GetInstance();
-	ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-	if (obj != nullptr)
+    GET_SHOW_CONTEXT;
+    if (obj != nullptr)
 	{
         ForthClassObject* pClassObject = GET_CLASS_OBJECT(obj);
         if (pShowContext->ObjectAlreadyShown(obj))
@@ -417,8 +417,8 @@ void ForthShowObject(ForthObject& obj, ForthCoreState* pCore)
 	if (!ForthShowAlreadyShownObject(obj, pCore, false))
 	{
 		ForthEngine* pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		pEngine->FullyExecuteMethod(pCore, obj, kMethodShow);
+        GET_SHOW_CONTEXT;
+        pEngine->FullyExecuteMethod(pCore, obj, kMethodShow);
 		pShowContext->AddObject(obj);
 	}
 }

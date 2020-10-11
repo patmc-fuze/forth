@@ -114,7 +114,7 @@ namespace ODeque
         GET_THIS(oDequeStruct, pDeque);
         oDeque::iterator iter;
         oDeque& deq = *(pDeque->que);
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("queue");
         pShowContext->BeginArray();
         if (!deq.empty())

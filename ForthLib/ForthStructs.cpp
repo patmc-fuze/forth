@@ -1123,7 +1123,7 @@ ForthStructVocabulary::GetTypeName( void )
 void
 ForthStructVocabulary::ShowData(const void* pData, ForthCoreState* pCore, bool showId)
 {
-	ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+    GET_SHOW_CONTEXT;
 
     pShowContext->BeginObject(GetName(), pData, showId);
 
@@ -1149,7 +1149,7 @@ ForthStructVocabulary::ShowDataInner(const void* pData, ForthCoreState* pCore, F
 
     char buffer[256];
     const char* pStruct = (const char*)pData;
-    ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+    GET_SHOW_CONTEXT;
     ForthStructVocabulary* pVocab = this;
 
     const char* pVocabName = pVocab->GetName();

@@ -119,7 +119,7 @@ namespace OArray
 		GET_THIS(oArrayStruct, pArray);
 		oArray::iterator iter;
 		oArray& a = *(pArray->elements);
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("elements");
         pShowContext->BeginArray();
 		for (iter = a.begin(); iter != a.end(); ++iter)
@@ -1096,7 +1096,7 @@ namespace OArray
         oBag& a = *(pBag->elements);
         char tag[12] = "12345678\0";
         ForthEngine *pEngine = ForthEngine::GetInstance();
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("elements");
         pShowContext->ShowTextReturn("{");
         pShowContext->BeginNestedShow();
@@ -2051,8 +2051,8 @@ namespace OArray
 	{
 		char buffer[8];
 		GET_THIS(oByteArrayStruct, pArray);
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
-		oByteArray& a = *(pArray->elements);
+        GET_SHOW_CONTEXT;
+        oByteArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
         pShowContext->BeginArray();
 		for (unsigned int i = 0; i < a.size(); i++)
@@ -2760,7 +2760,7 @@ namespace OArray
     {
         char buffer[32];
         GET_THIS(oShortArrayStruct, pArray);
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         oShortArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
         pShowContext->BeginArray();
@@ -3455,7 +3455,7 @@ namespace OArray
     {
         char buffer[32];
         GET_THIS(oIntArrayStruct, pArray);
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         oIntArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
         pShowContext->BeginArray();
@@ -4104,7 +4104,7 @@ namespace OArray
     {
         char buffer[32];
         GET_THIS(oIntArrayStruct, pArray);
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         oIntArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
         pShowContext->BeginArray();
@@ -4252,7 +4252,7 @@ namespace OArray
     {
         char buffer[32];
         GET_THIS(oLongArrayStruct, pArray);
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         oLongArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
         pShowContext->BeginArray();
@@ -4967,7 +4967,7 @@ namespace OArray
     {
         char buffer[32];
         GET_THIS(oDoubleArrayStruct, pArray);
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         oDoubleArray& a = *(pArray->elements);
         pShowContext->BeginElement("elements");
         pShowContext->BeginArray();
@@ -5322,7 +5322,7 @@ namespace OArray
         if (pArray->pVocab != nullptr)
         {
             ForthEngine *pEngine = GET_ENGINE;
-            ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+            GET_SHOW_CONTEXT;
             oStructArray& a = *(pArray->elements);
 
             pShowContext->BeginElement("structType");

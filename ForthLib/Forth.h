@@ -244,7 +244,7 @@ typedef enum {
 	kResultYield,		// exit because of a stopThread/yield/sleepThread opcode
 } eForthResult;
 
-// run state of ForthThreads
+// run state of ForthFibers
 typedef enum
 {
 	kFTRSStopped,		// initial state, or after executing stop, needs another thread to Start it
@@ -252,7 +252,7 @@ typedef enum
 	kFTRSSleeping,		// sleeping until wakeup time is reached
 	kFTRSBlocked,		// blocked on a soft lock
 	kFTRSExited,		// done running - executed exitThread
-} eForthThreadRunState;
+} eForthFiberRunState;
 
 typedef enum {
 	kForthErrorNone,
@@ -411,6 +411,7 @@ extern void ForthConsoleStringOut( ForthCoreState* pCore, const char* pBuffer );
 #define RNEEDS(A)
 
 class ForthThread;
+class ForthFiber;
 
 #define COMPILED_OP( OP_TYPE, VALUE ) (((OP_TYPE) << 24) | ((VALUE) & OPCODE_VALUE_MASK))
 // These are opcodes that built-in ops must compile directly
@@ -674,8 +675,8 @@ enum
 //////////////////////////////////////////////////////////////////////
 ////
 ///     built-in forth ops are implemented with static C-style routines
-//      which take a pointer to the ForthThread they are being run in
-//      the thread is accesed through "g->" in the code
+//      which take a pointer to the ForthFiber they are being run in
+//      the thread is accessed through "pCore->" in the code
 
 #define FORTHOP(NAME) void NAME( ForthCoreState *pCore )
 // GFORTHOP is used for forthops which are defined outside of the dictionary source module

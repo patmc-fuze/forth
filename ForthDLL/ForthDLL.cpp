@@ -137,9 +137,9 @@ void DeleteForthShell( ForthShell* pShell )
 	delete pShell;
 }
 
-void DeleteForthThread( ForthThread* pThread )
+void DeleteForthFiber( ForthFiber* pFiber )
 {
-	delete pThread;
+	delete pFiber;
 }
 
 void DeleteForthInputStream( ForthInputStream* pStream )

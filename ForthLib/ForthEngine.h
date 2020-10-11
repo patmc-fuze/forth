@@ -19,6 +19,7 @@
 #include "ForthStructs.h"
 
 class ForthThread;
+class ForthFiber;
 class ForthShell;
 class ForthExtension;
 class ForthOpcodeCompiler;
@@ -187,8 +188,8 @@ public:
 
     // create a thread which will be managed by the engine - the engine destructor will delete all threads
     //  which were created with CreateThread 
-    ForthAsyncThread * CreateAsyncThread(forthop threadLoopOp = OP_DONE, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
-	void               DestroyAsyncThread(ForthAsyncThread *pThread);
+    ForthThread *   CreateThread(forthop fiberOp = OP_DONE, int paramStackSize = DEFAULT_PSTACK_SIZE, int returnStackSize = DEFAULT_RSTACK_SIZE );
+	void            DestroyThread(ForthThread *pThread);
 
     void InitCoreState(ForthCoreState& core);
 
@@ -279,7 +280,7 @@ public:
 	inline void				SetShell( ForthShell *pShell ) { mpShell = pShell; };
     inline ForthVocabulary  *GetForthVocabulary(void) { return mpForthVocab; };
     inline ForthVocabulary  *GetLiteralsVocabulary(void) { return mpLiteralsVocab; };
-    inline ForthThread      *GetMainThread( void )  { return mpMainThread->GetThread(0); };
+    inline ForthFiber       *GetMainFiber( void )  { return mpMainThread->GetFiber(0); };
 
     inline cell             *GetCompileStatePtr( void ) { return &mCompileState; };
     inline void             SetCompileState( cell v ) { mCompileState = v; };
@@ -412,8 +413,8 @@ protected:
 
     cell        mCompileState;          // true iff compiling
 
-	ForthAsyncThread * mpThreads;
-	ForthAsyncThread * mpMainThread;
+	ForthThread * mpThreads;
+	ForthThread * mpMainThread;
     ForthShell  *   mpShell;
     long *          mpEngineScratch;
     char *          mpLastToken;

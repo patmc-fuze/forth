@@ -43,6 +43,8 @@
 #define OBJECT_ASSIGN( _pCore, _dstObj, _srcObj ) \
     if ( (_dstObj) != (_srcObj) ) { SAFE_KEEP( (_srcObj) ); SAFE_RELEASE( (_pCore), (_dstObj) ); _dstObj = _srcObj; }
 
+#define GET_SHOW_CONTEXT ForthShowContext* pShowContext = static_cast<ForthFiber*>(pCore->pFiber)->GetShowContext();
+
 enum
 {
     // all objects have methods 0..6

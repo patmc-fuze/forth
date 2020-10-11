@@ -119,7 +119,7 @@ namespace OString
     FORTHOP( oStringShowInnerMethod )
     {
 		char buffer[16];
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
 
 		pShowContext->BeginElement("value");
 		GET_THIS(oStringStruct, pString);
@@ -1016,7 +1016,7 @@ namespace OString
 		oStringMap::iterator iter;
 		oStringMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("map");
         pShowContext->ShowTextReturn("{");
         pShowContext->BeginNestedShow();

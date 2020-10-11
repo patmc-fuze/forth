@@ -241,13 +241,13 @@ namespace OSystem
         METHOD_RETURN;
     }
 
-	FORTHOP(oSystemCreateAsyncThreadMethod)
+	FORTHOP(oSystemCreateThreadMethod)
 	{
 		ForthObject asyncThread;
 		int returnStackLongs = (int)SPOP;
 		int paramStackLongs = (int)SPOP;
         forthop threadOp = (forthop)SPOP;
-		OThread::CreateAsyncThreadObject(asyncThread, GET_ENGINE, threadOp, paramStackLongs, returnStackLongs);
+		OThread::CreateThreadObject(asyncThread, GET_ENGINE, threadOp, paramStackLongs, returnStackLongs);
 
 		PUSH_OBJECT(asyncThread);
 		METHOD_RETURN;
@@ -324,7 +324,7 @@ namespace OSystem
         METHOD_RET("getOpsTable", oSystemGetOpsTableMethod, RETURNS_NATIVE(kBaseTypeCell)),
         METHOD_RET("getClassByIndex", oSystemGetClassByIndexMethod, RETURNS_OBJECT(kBCIObject)),
         METHOD_RET("getNumClasses", oSystemGetNumClassesMethod, RETURNS_NATIVE(kBaseTypeCell)),
-        METHOD_RET("createAsyncThread", oSystemCreateAsyncThreadMethod, RETURNS_OBJECT(kBCIAsyncThread)),
+        METHOD_RET("createThread", oSystemCreateThreadMethod, RETURNS_OBJECT(kBCIThread)),
         METHOD_RET("createAsyncLock", oSystemCreateAsyncLockMethod, RETURNS_OBJECT(kBCIAsyncLock)),
         METHOD_RET("createAsyncSemaphore", oSystemCreateAsyncSemaphoreMethod, RETURNS_OBJECT(kBCIAsyncSemaphore)),
         METHOD("setAuxOut", oSystemSetAuxOutMethod),

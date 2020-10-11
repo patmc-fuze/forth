@@ -98,7 +98,7 @@ struct ForthCoreState
 
     ucell               RLen;           // size of return stack in longwords
 
-    void                *pThread;		// actually a ForthAsyncThread
+    void                *pFiber;		// actually a ForthFiber
 
     ForthMemorySection* pDictionary;
     ForthFileInterface* pFileFuncs;

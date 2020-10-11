@@ -5767,73 +5767,38 @@ FORTHOP( thruOp )
 //  threads
 ///////////////////////////////////////////
 
-FORTHOP( createAsyncThreadOp )
+FORTHOP( createThreadOp )
 {
 	ForthObject asyncThread;
 	int returnStackLongs = (int)(SPOP);
 	int paramStackLongs = (int)(SPOP);
 	long threadOp = SPOP;
 	ForthEngine* pEngine = GET_ENGINE;
-	OThread::CreateAsyncThreadObject(asyncThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
+	OThread::CreateThreadObject(asyncThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
 
 	PUSH_OBJECT(asyncThread);
 }
 
-FORTHOP(createThreadOp)
+FORTHOP(createFiberOp)
 {
 	ForthEngine* pEngine = GET_ENGINE;
-	ForthObject thread;
+	ForthObject fiber;
 
-	ForthThread* pThread = (ForthThread*)(pCore->pThread);
-	ForthAsyncThread* pAsyncThread = pThread->GetParent();
+	ForthFiber* pFiber = (ForthFiber*)(pCore->pFiber);
+	ForthThread* pThread = pFiber->GetParent();
 	int returnStackLongs = (int)(SPOP);
 	int paramStackLongs = (int)(SPOP);
 	long threadOp = SPOP;
-	OThread::CreateThreadObject(thread, pAsyncThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
+	OThread::CreateFiberObject(fiber, pThread, pEngine, threadOp, paramStackLongs, returnStackLongs);
 
-	PUSH_OBJECT(thread);
+	PUSH_OBJECT(fiber);
 }
 
-#if 0
-FORTHOP( threadGetStateOp )
+FORTHOP( exitThreadOp )
 {
-    ForthThread* pThread = (ForthThread*)(SPOP);
-	SPUSH( (cell) (pThread->GetCore()) );
-}
-
-FORTHOP( stepThreadOp )
-{
-    ForthThread* pThread = (ForthThread*)(SPOP);
-	ForthCoreState* pThreadCore = pThread->GetCore();
-	forthop op = *(pThreadCore->IP)++;
-    long result;
-    ForthEngine *pEngine = GET_ENGINE;
-#ifdef ASM_INNER_INTERPRETER
-	if ( pEngine->GetFastMode() )
-	{
-		result = (long) InterpretOneOpFast( pCore, op );
-	}
-	else
-#endif
-	{
-		result = (long) InterpretOneOp( pCore, op );
-	}
-    SPUSH( result );
-}
-
-FORTHOP( startThreadOp )
-{
-	ForthAsyncThread* pThread = (ForthAsyncThread*)(SPOP);
-    long result = pThread->Start();
-    SPUSH( result );
-}
-#endif
-
-FORTHOP( exitAsyncThreadOp )
-{
-	ForthThread* pThread = (ForthThread*)(pCore->pThread);
-	ForthAsyncThread* pAsyncThread = pThread->GetParent();
-	pAsyncThread->Exit();
+	ForthFiber* pFiber = (ForthFiber*)(pCore->pFiber);
+	ForthThread* pThread = pFiber->GetParent();
+	pThread->Exit();
 }
 
 FORTHOP(yieldOp)
@@ -5841,38 +5806,38 @@ FORTHOP(yieldOp)
 	SET_STATE(kResultYield);
 }
 
-FORTHOP(stopThreadOp)
+FORTHOP(stopFiberOp)
 {
 	SET_STATE(kResultYield);
-	ForthThread* pThread = (ForthThread*)(pCore->pThread);
-	pThread->Stop();
+	ForthFiber* pFiber = (ForthFiber*)(pCore->pFiber);
+	pFiber->Stop();
 }
 
-FORTHOP(sleepThreadOp)
+FORTHOP(sleepFiberOp)
 {
 	SET_STATE(kResultYield);
-	ForthThread* pThread = (ForthThread*)(pCore->pThread);
+	ForthFiber* pFiber = (ForthFiber*)(pCore->pFiber);
 	ulong sleepMilliseconds = (ulong)(SPOP);
-	pThread->Sleep(sleepMilliseconds);
+	pFiber->Sleep(sleepMilliseconds);
 }
 
-FORTHOP(exitThreadOp)
+FORTHOP(exitFiberOp)
 {
 	SET_STATE(kResultYield);
-	ForthThread* pThread = (ForthThread*)(pCore->pThread);
-	pThread->Exit();
+	ForthFiber* pFiber = (ForthFiber*)(pCore->pFiber);
+	pFiber->Exit();
+}
+
+FORTHOP(getCurrentFiberOp)
+{
+	PUSH_OBJECT(((ForthFiber *)(pCore->pFiber))->GetFiberObject());
 }
 
 FORTHOP(getCurrentThreadOp)
 {
-	PUSH_OBJECT(((ForthThread *)(pCore->pThread))->GetThreadObject());
-}
-
-FORTHOP(getCurrentAsyncThreadOp)
-{
-	ForthThread* pThread = (ForthThread*)(pCore->pThread);
-	ForthAsyncThread* pAsyncThread = pThread->GetParent();
-	PUSH_OBJECT(pAsyncThread->GetAsyncThreadObject());
+	ForthFiber* pFiber = (ForthFiber*)(pCore->pFiber);
+	ForthThread* pThread = pFiber->GetParent();
+	PUSH_OBJECT(pThread->GetThreadObject());
 }
 
 #ifdef WIN32
@@ -8998,43 +8963,49 @@ FORTHOP(scHandleAlreadyShownOp)
 
 FORTHOP(scBeginIndentOp)
 {
-	((ForthThread *)(pCore->pThread))->GetShowContext()->BeginIndent();
+    GET_SHOW_CONTEXT;
+    pShowContext->BeginIndent();
 }
 
 FORTHOP(scEndIndentOp)
 {
-	((ForthThread *)(pCore->pThread))->GetShowContext()->EndIndent();
+    GET_SHOW_CONTEXT;
+    pShowContext->EndIndent();
 }
 
 FORTHOP(scShowHeaderOp)
 {
-	ForthShowContext* pShowContext = ((ForthThread *)(pCore->pThread))->GetShowContext();
+    GET_SHOW_CONTEXT;
     ForthClassObject* pClassObject = GET_CLASS_OBJECT(GET_TP);
     pShowContext->ShowHeader(pCore, pClassObject->pVocab->GetName(), GET_TP);
 }
 
 FORTHOP(scShowIndentOp)
 {
-	const char* pStr = (const char *)(SPOP);
-	((ForthThread *)(pCore->pThread))->GetShowContext()->ShowIndent(pStr);
+    GET_SHOW_CONTEXT;
+    const char* pStr = (const char *)(SPOP);
+    pShowContext->ShowIndent(pStr);
 }
 
 FORTHOP(scBeginFirstElementOp)
 {
-	const char* pStr = (const char *)(SPOP);
-	((ForthThread *)(pCore->pThread))->GetShowContext()->BeginFirstElement(pStr);
+    GET_SHOW_CONTEXT;
+    const char* pStr = (const char *)(SPOP);
+    pShowContext->BeginFirstElement(pStr);
 }
 
 FORTHOP(scBeginNextElementOp)
 {
-	const char* pStr = (const char *)(SPOP);
-	((ForthThread *)(pCore->pThread))->GetShowContext()->BeginNextElement(pStr);
+    GET_SHOW_CONTEXT;
+    const char* pStr = (const char *)(SPOP);
+    pShowContext->BeginNextElement(pStr);
 }
 
 FORTHOP(scEndElementOp)
 {
-	const char* pStr = (const char *)(SPOP);
-	((ForthThread *)(pCore->pThread))->GetShowContext()->EndElement(pStr);
+    GET_SHOW_CONTEXT;
+    const char* pStr = (const char *)(SPOP);
+    pShowContext->EndElement(pStr);
 }
 
 FORTHOP(scShowObjectOp)
@@ -9046,25 +9017,29 @@ FORTHOP(scShowObjectOp)
 
 FORTHOP(scSetShowIDOp)
 {
-	int show = SPOP;
-	((ForthThread *)(pCore->pThread))->GetShowContext()->SetShowIDElement(show != 0);
+    GET_SHOW_CONTEXT;
+    int show = SPOP;
+    pShowContext->SetShowIDElement(show != 0);
 }
 
 FORTHOP(scGetShowIDOp)
 {
-	bool show = ((ForthThread *)(pCore->pThread))->GetShowContext()->GetShowIDElement();
+    GET_SHOW_CONTEXT;
+    bool show = pShowContext->GetShowIDElement();
 	SPUSH(show ? -1 : 0);
 }
 
 FORTHOP(scSetShowRefCountOp)
 {
-	int show = SPOP;
-	((ForthThread *)(pCore->pThread))->GetShowContext()->SetShowRefCount(show != 0);
+    GET_SHOW_CONTEXT;
+    int show = SPOP;
+    pShowContext->SetShowRefCount(show != 0);
 }
 
 FORTHOP(scGetShowRefCountOp)
 {
-	bool show = ((ForthThread *)(pCore->pThread))->GetShowContext()->GetShowRefCount();
+    GET_SHOW_CONTEXT;
+    bool show = pShowContext->GetShowRefCount();
 	SPUSH(show ? -1 : 0);
 }
 
@@ -10106,20 +10081,15 @@ baseDictionaryEntry baseDictionary[] =
     ///////////////////////////////////////////
     //  threads
     ///////////////////////////////////////////
-	OP_DEF( createAsyncThreadOp,        "createAsyncThread" ),
-    OP_DEF( createThreadOp,             "createThread" ),
-	/*
-    OP_DEF( threadGetStateOp,           "threadGetState" ),
-    OP_DEF( stepThreadOp,               "stepThread" ),
-    OP_DEF( startThreadOp,              "startThread" ),
-	*/
-    OP_DEF( exitAsyncThreadOp,          "exitAsyncThread" ),
+	OP_DEF( createThreadOp,             "createThread" ),
+    OP_DEF( createFiberOp,              "createFiber" ),
+    OP_DEF( exitThreadOp,               "exitThread" ),
     OP_DEF( yieldOp,					"yield" ),
-    OP_DEF( stopThreadOp,				"stopThread" ),
-    OP_DEF( sleepThreadOp,				"sleepThread" ),
-    OP_DEF( exitThreadOp,				"exitThread" ),
+    OP_DEF( stopFiberOp,				"stopFiber" ),
+    OP_DEF( sleepFiberOp,				"sleepFiber" ),
+    OP_DEF( exitFiberOp,				"exitFiber" ),
+	OP_DEF( getCurrentFiberOp,          "getCurrentFiber"),
 	OP_DEF( getCurrentThreadOp,         "getCurrentThread"),
-	OP_DEF( getCurrentAsyncThreadOp,    "getCurrentAsyncThread"),
 
     ///////////////////////////////////////////
     //  exception handling

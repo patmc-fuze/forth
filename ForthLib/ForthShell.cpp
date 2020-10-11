@@ -270,7 +270,7 @@ ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEn
 #if 0
     if ( mpThread == NULL )
     {
-        mpThread = mpEngine->CreateAsyncThread( 0, PSTACK_LONGS, RSTACK_LONGS );
+        mpThread = mpEngine->CreateThread( 0, PSTACK_LONGS, RSTACK_LONGS );
     }
     mpEngine->SetCurrentThread( mpThread );
 #endif
@@ -279,7 +279,7 @@ ForthShell::ForthShell(int argc, const char ** argv, const char ** envp, ForthEn
 	mpStack = new ForthShellStack( shellStackLongs );
 
 #if 0
-    mMainThreadId = GetThreadId( GetMainThread() );
+    mMainThreadId = GetThreadId( GetMainFiber() );
     mConsoleInputThreadId = 0;
     mConsoleInputThreadHandle = _beginthreadex( NULL,		// thread security attribs
                                                 0,			// stack size (default)
@@ -699,7 +699,7 @@ ForthShell::InterpretLine( const char *pSrcLine )
 				try
 				{
 					result = mpEngine->ProcessToken( &parseInfo );
-					CHECK_STACKS( mpEngine->GetMainThread() );
+					CHECK_STACKS( mpEngine->GetMainFiber() );
 				}
 				catch(...)
 				{
@@ -711,11 +711,11 @@ ForthShell::InterpretLine( const char *pSrcLine )
 			else
 			{
                 result = mpEngine->ProcessToken( &parseInfo );
-                CHECK_STACKS( mpEngine->GetMainThread() );
+                CHECK_STACKS( mpEngine->GetMainFiber() );
 			}
 #else
             result = mpEngine->ProcessToken( &parseInfo );
-            CHECK_STACKS( mpEngine->GetMainThread() );
+            CHECK_STACKS( mpEngine->GetMainFiber() );
 #endif
             if ( result == kResultOk )
 			{

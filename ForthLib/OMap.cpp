@@ -182,7 +182,7 @@ namespace OMap
 		oMap::iterator iter;
 		oMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
 
         // first, show any key objects that weren't already shown
         std::vector<ForthObject> keysToShow;
@@ -765,7 +765,7 @@ namespace OMap
 		oIntMap::iterator iter;
 		oIntMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("map");
         pShowContext->ShowTextReturn("{");
         pShowContext->BeginNestedShow();
@@ -1296,7 +1296,7 @@ namespace OMap
 		oFloatMap::iterator iter;
 		oFloatMap& a = *(pMap->elements);
         ForthEngine *pEngine = ForthEngine::GetInstance();
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("map");
         pShowContext->ShowTextReturn("{");
         pShowContext->BeginNestedShow();
@@ -1629,7 +1629,7 @@ namespace OMap
         oLongMap::iterator iter;
         oLongMap& a = *(pMap->elements);
         ForthEngine *pEngine = ForthEngine::GetInstance();
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("map");
         pShowContext->ShowTextReturn("{");
         pShowContext->BeginNestedShow();
@@ -2187,7 +2187,7 @@ namespace OMap
         oDoubleMap::iterator iter;
         oDoubleMap& a = *(pMap->elements);
         ForthEngine *pEngine = ForthEngine::GetInstance();
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("map");
         pShowContext->ShowTextReturn("{");
         pShowContext->BeginNestedShow();
@@ -2701,7 +2701,7 @@ namespace OMap
 		oStringIntMap::iterator iter;
 		oStringIntMap& a = *(pMap->elements);
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("map");
         pShowContext->ShowTextReturn("{");
         pShowContext->BeginNestedShow();
@@ -3122,7 +3122,7 @@ namespace OMap
         oStringIntMap::iterator iter;
         oStringIntMap& a = *(pMap->elements);
         ForthEngine *pEngine = ForthEngine::GetInstance();
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("map");
         pShowContext->ShowTextReturn("{");
         pShowContext->BeginNestedShow();
@@ -3254,7 +3254,7 @@ namespace OMap
         oStringLongMap::iterator iter;
         oStringLongMap& a = *(pMap->elements);
         ForthEngine *pEngine = ForthEngine::GetInstance();
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("map");
         pShowContext->ShowTextReturn("{");
         pShowContext->BeginNestedShow();
@@ -3665,7 +3665,7 @@ namespace OMap
         oStringLongMap::iterator iter;
         oStringLongMap& a = *(pMap->elements);
         ForthEngine *pEngine = ForthEngine::GetInstance();
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("map");
         pShowContext->ShowTextReturn("{");
         pShowContext->BeginNestedShow();

@@ -58,7 +58,7 @@ namespace OList
 	{
 		GET_THIS(oListStruct, pList);
 		oListElement* pCur = pList->head;
-		ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         pShowContext->BeginElement("elements");
         pShowContext->BeginArray();
 		while (pCur != NULL)
@@ -599,7 +599,7 @@ namespace OList
 		GET_THIS(oListIterStruct, pIter);
         char buffer[32];
 		ForthEngine *pEngine = ForthEngine::GetInstance();
-        ForthShowContext* pShowContext = static_cast<ForthThread*>(pCore->pThread)->GetShowContext();
+        GET_SHOW_CONTEXT;
         oListElement* pCur = reinterpret_cast<oListStruct *>(pIter->parent)->head;
         int cursor = 0;
         while (pCur != NULL)
