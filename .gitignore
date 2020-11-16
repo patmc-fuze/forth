@@ -39,6 +39,7 @@
 *.project
 *.cproject
 *.filters
+.vs
 build
 Backup
 ColossalCaveAdventure

@@ -75,7 +75,6 @@ cd ..
 
 : _TEST_ ;
 cd system
-runtest maze
 runtest hersheyfont
 runtest file
 runtest rbtree
