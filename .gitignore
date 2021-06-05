@@ -120,3 +120,5 @@ x64
 *.log
 ForthDLL/ReadMe.txt
 ForthDLL/res/ForthDLL.rc2
+ForthDLLxxx
+ForthDLLMainxxx
