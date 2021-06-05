@@ -35,7 +35,6 @@ extern void NativeAction( ForthCoreState *pCore, forthop opVal );
 // doByte{Fetch,Ref,Store,PlusStore,MinusStore} are parts of doByteOp
 VAR_ACTION( doByteFetch ) 
 {
-    // IP points to data field
     signed char c = *(signed char *)(SPOP);
     SPUSH( (cell) c );
 }
@@ -46,21 +45,18 @@ VAR_ACTION( doByteRef )
 
 VAR_ACTION( doByteStore ) 
 {
-    // IP points to data field
     unsigned char *pA = (unsigned char *)(SPOP);
     *pA = (unsigned char) (SPOP);
 }
 
 VAR_ACTION( doBytePlusStore ) 
 {
-    // IP points to data field
     unsigned char *pA = (unsigned char *)(SPOP);
     *pA = (unsigned char) ((*pA) + SPOP);
 }
 
 VAR_ACTION( doByteMinusStore ) 
 {
-    // IP points to data field
     unsigned char *pA = (unsigned char *)(SPOP);
     *pA = (unsigned char) ((*pA) - SPOP);
 }
@@ -120,7 +116,6 @@ GFORTHOP( byteVarActionBop )
 
 VAR_ACTION( doUByteFetch ) 
 {
-    // IP points to data field
     unsigned char c = *(unsigned char *)(SPOP);
     SPUSH( (cell) c );
 }
@@ -316,7 +311,6 @@ OPTYPE_ACTION( MemberUByteArrayAction )
 // doShort{Fetch,Ref,Store,PlusStore,MinusStore} are parts of doShortOp
 VAR_ACTION( doShortFetch )
 {
-    // IP points to data field
     short s = *(short *)(SPOP);
     SPUSH( (cell) s );
 }
@@ -327,21 +321,18 @@ VAR_ACTION( doShortRef )
 
 VAR_ACTION( doShortStore ) 
 {
-    // IP points to data field
     short *pA = (short *)(SPOP);
     *pA = (short) (SPOP);
 }
 
 VAR_ACTION( doShortPlusStore ) 
 {
-    // IP points to data field
     short *pA = (short *)(SPOP);
     *pA = (short)((*pA) + SPOP);
 }
 
 VAR_ACTION( doShortMinusStore ) 
 {
-    // IP points to data field
     short *pA = (short *)(SPOP);
     *pA = (short)((*pA) - SPOP);
 }
@@ -401,7 +392,6 @@ GFORTHOP( shortVarActionBop )
 
 VAR_ACTION( doUShortFetch )
 {
-    // IP points to data field
     unsigned short s = *(unsigned short *)(SPOP);
     SPUSH( (cell) s );
 }
@@ -597,7 +587,6 @@ OPTYPE_ACTION( MemberUShortArrayAction )
 // doInt{Fetch,Ref,Store,PlusStore,MinusStore} are parts of doIntOp
 VAR_ACTION( doIntFetch ) 
 {
-    // IP points to data field
     long *pA = (long *) (SPOP);
     SPUSH( *pA );
 }
@@ -608,21 +597,18 @@ VAR_ACTION( doIntRef )
 
 VAR_ACTION( doIntStore ) 
 {
-    // IP points to data field
     long *pA = (long *) (SPOP);
     *pA = SPOP;
 }
 
 VAR_ACTION( doIntPlusStore ) 
 {
-    // IP points to data field
     long *pA = (long *) (SPOP);
     *pA += SPOP;
 }
 
 VAR_ACTION( doIntMinusStore ) 
 {
-    // IP points to data field
     long *pA = (long *) (SPOP);
     *pA -= SPOP;
 }
@@ -685,6 +671,73 @@ GFORTHOP( intVarActionBop )
 }
 #endif
 
+#ifdef FORTH64
+
+VAR_ACTION(doUIntFetch)
+{
+    unsigned int s = *(unsigned int*)(SPOP);
+    SPUSH((cell)s);
+}
+
+VarAction uintOps[] =
+{
+    doUIntFetch,
+    doUIntFetch,
+    doIntRef,
+    doIntStore,
+    doIntPlusStore,
+    doIntMinusStore
+};
+
+static void _doUIntVarop(ForthCoreState* pCore, unsigned int* pVar)
+{
+    ForthEngine* pEngine = (ForthEngine*)pCore->pEngine;
+    ulong varOp = GET_VAR_OPERATION;
+    if (varOp)
+    {
+        if (varOp <= kVarMinusStore)
+        {
+            SPUSH((cell)pVar);
+            uintOps[varOp](pCore);
+        }
+        else
+        {
+            // report GET_VAR_OPERATION out of range
+            pEngine->SetError(kForthErrorBadVarOperation);
+        }
+        CLEAR_VAR_OPERATION;
+    }
+    else
+    {
+        // just a fetch
+        SPUSH((cell)*pVar);
+    }
+}
+#endif
+
+#ifndef ASM_INNER_INTERPRETER
+// this is an internal op that is compiled before the data field of each unsigned int variable
+GFORTHOP(doUIntBop)
+{
+    // IP points to data field
+
+#ifdef FORTH64
+    unsigned int* pVar = (unsigned int*)(GET_IP);
+    _doUIntVarop(pCore, pVar);
+#else
+    int* pVar = (int*)(GET_IP);
+    _doIntVarop(pCore, pVar);
+#endif
+    SET_IP((forthop*)(RPOP));
+}
+
+GFORTHOP(uintVarActionBop)
+{
+    unsigned int* pVar = (unsigned int*)(SPOP);
+    _doUIntVarop(pCore, pVar);
+}
+#endif
+
 OPTYPE_ACTION( LocalIntAction )
 {
 	SET_OPVAL;
@@ -709,6 +762,38 @@ OPTYPE_ACTION( MemberIntAction )
 
 	_doIntVarop( pCore, pVar );
 }
+
+#ifdef FORTH64
+
+OPTYPE_ACTION(LocalUIntAction)
+{
+    SET_OPVAL;
+    unsigned int* pVar = (unsigned int*)(GET_FP - opVal);
+
+    _doUIntVarop(pCore, pVar);
+}
+
+OPTYPE_ACTION(FieldUIntAction)
+{
+    SET_OPVAL;
+    unsigned int* pVar = (unsigned int*)(SPOP + opVal);
+
+    _doUIntVarop(pCore, pVar);
+}
+
+OPTYPE_ACTION(MemberUIntAction)
+{
+    SET_OPVAL;
+    unsigned int* pVar = (unsigned int*)(((cell)(GET_TP)) + opVal);
+
+    _doUIntVarop(pCore, pVar);
+}
+
+#else
+#define LocalUIntAction LocalIntAction
+#define FieldUIntAction FieldIntAction
+#define MemberUIntAction MemberIntAction
+#endif
 
 #ifndef ASM_INNER_INTERPRETER
 // this is an internal op that is compiled before the data field of each array
@@ -751,6 +836,43 @@ OPTYPE_ACTION( MemberIntArrayAction )
 	_doIntVarop( pCore, pVar );
 }
 
+#ifdef FORTH64
+
+OPTYPE_ACTION(LocalUIntArrayAction)
+{
+    SET_OPVAL;
+    unsigned int* pVar = ((unsigned int*)(GET_FP - opVal)) + SPOP;
+
+    _doUIntVarop(pCore, pVar);
+}
+
+OPTYPE_ACTION(FieldUIntArrayAction)
+{
+    SET_OPVAL;
+    // TOS is struct base, NOS is index
+    // opVal is byte offset of int[0]
+    unsigned int* pVar = (unsigned int*)(SPOP + opVal);
+    pVar += SPOP;
+
+    _doUIntVarop(pCore, pVar);
+}
+
+OPTYPE_ACTION(MemberUIntArrayAction)
+{
+    SET_OPVAL;
+    // TOS is index
+    // opVal is byte offset of byte[0]
+    unsigned int* pVar = ((unsigned int*)(((cell)(GET_TP)) + opVal)) + SPOP;
+
+    _doUIntVarop(pCore, pVar);
+}
+
+#else
+#define LocalIntArrayAction LocalUIntArrayAction
+#define FieldIntArrayAction FieldUIntArrayAction
+#define MemberIntArrayAction MemberUIntArrayAction
+#endif
+
 
 //////////////////////////////////////////////////////////////////////
 ////
@@ -760,14 +882,12 @@ OPTYPE_ACTION( MemberIntArrayAction )
 
 VAR_ACTION( doFloatPlusStore ) 
 {
-    // IP points to data field
     float *pA = (float *) (SPOP);
     *pA += FPOP;
 }
 
 VAR_ACTION( doFloatMinusStore ) 
 {
-    // IP points to data field
     float *pA = (float *) (SPOP);
     *pA -= FPOP;
 }
@@ -898,28 +1018,24 @@ OPTYPE_ACTION( MemberFloatArrayAction )
 
 VAR_ACTION( doDoubleFetch ) 
 {
-    // IP points to data field
     double *pA = (double *) (SPOP);
     DPUSH( *pA );
 }
 
 VAR_ACTION( doDoubleStore ) 
 {
-    // IP points to data field
     double *pA = (double *) (SPOP);
     *pA = DPOP;
 }
 
 VAR_ACTION( doDoublePlusStore ) 
 {
-    // IP points to data field
     double *pA = (double *) (SPOP);
     *pA += DPOP;
 }
 
 VAR_ACTION( doDoubleMinusStore ) 
 {
-    // IP points to data field
     double *pA = (double *) (SPOP);
     *pA -= DPOP;
 }
@@ -2385,7 +2501,7 @@ optypeActionRoutine builtinOptypeAction[] =
     LocalShortAction,			// 0x20
     LocalUShortAction,
     LocalIntAction,
-    LocalIntAction,
+    LocalUIntAction,
     LocalLongAction,			// 0x24
     LocalLongAction,
     LocalFloatAction,
@@ -2400,7 +2516,7 @@ optypeActionRoutine builtinOptypeAction[] =
     LocalShortArrayAction,
     LocalUShortArrayAction,
     LocalIntArrayAction,
-    LocalIntArrayAction,		// 0x30
+    LocalUIntArrayAction,		// 0x30
     LocalLongArrayAction,
 
     // 50 - 59
@@ -2417,7 +2533,7 @@ optypeActionRoutine builtinOptypeAction[] =
 
     // 60 - 69
     FieldIntAction,				// 0x3C
-    FieldIntAction,
+    FieldUIntAction,
     FieldLongAction,
     FieldLongAction,
     FieldFloatAction,			// 0x40
@@ -2432,7 +2548,7 @@ optypeActionRoutine builtinOptypeAction[] =
     FieldShortArrayAction,
     FieldUShortArrayAction,		// 0x48
     FieldIntArrayAction,
-    FieldIntArrayAction,
+    FieldUIntArrayAction,
     FieldLongArrayAction,
     FieldLongArrayAction,		// 0x4C
     FieldFloatArrayAction,
@@ -2447,7 +2563,7 @@ optypeActionRoutine builtinOptypeAction[] =
     MemberShortAction,			// 0x54
     MemberUShortAction,
     MemberIntAction,
-    MemberIntAction,
+    MemberUIntAction,
     MemberLongAction,			// 0x58
     MemberLongAction,
 
@@ -2464,7 +2580,7 @@ optypeActionRoutine builtinOptypeAction[] =
     MemberIntArrayAction,
 
 	// 100 - 109	64 - 6D
-    MemberIntArrayAction,		// 0x64
+    MemberUIntArrayAction,		// 0x64
     MemberLongArrayAction,
     MemberLongArrayAction,
     MemberFloatArrayAction,

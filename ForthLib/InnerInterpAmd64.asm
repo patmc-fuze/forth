@@ -1429,6 +1429,49 @@ localInt1:
 	mov	rbx, [rcx + rbx*8]
 	jmp	rbx
 
+entry localUIntType
+	mov	rax, rbx
+	; see if a varop is specified
+	and	rax, 00E00000h
+	jz localIntType1
+	shr	rax, 21
+	mov	[rcore + FCore.varMode], rax
+localUIntType1:
+	; get ptr to int var into rax
+	mov	rax, rfp
+	and	rbx, 001FFFFFh
+	sal	rbx, 3
+	sub	rax, rbx
+	; see if it is a fetch
+uintEntry:
+	mov	rbx, [rcore + FCore.varMode]
+	or	rbx, rbx
+	jnz	localUInt1
+	; fetch local uint
+localUIntFetch:
+	sub	rpsp, 8
+	xor	rbx, rbx
+	mov	[rcore + FCore.varMode], rbx
+	mov	ebx, DWORD[rax]
+	mov	[rpsp], rbx
+	jmp	rnext
+
+localUIntActionTable:
+	DQ	localUIntFetch
+	DQ	localUIntFetch
+	DQ	localIntRef
+	DQ	localIntStore
+	DQ	localIntPlusStore
+	DQ	localIntMinusStore
+
+localUInt1:
+	cmp	rbx, kVarMinusStore
+	jg	badVarOperation
+	; dispatch based on value in rbx
+	mov rcx, localUIntActionTable
+	mov	rbx, [rcx + rbx*8]
+	jmp	rbx
+
 entry fieldIntType
 	; get ptr to int var into rax
 	; TOS is base ptr, rbx is field offset in bytes
@@ -1445,6 +1488,22 @@ fieldIntType1:
 	add	rax, rbx
 	jmp	intEntry
 
+entry fieldUIntType
+	; get ptr to uint var into rax
+	; TOS is base ptr, rbx is field offset in bytes
+	mov	rax, rbx
+	; see if a varop is specified
+	and	rax, 00E00000h
+	jz fieldUIntType1
+	shr	rax, 21
+	mov	[rcore + FCore.varMode], rax
+fieldUIntType1:
+	mov	rax, [rpsp]
+	add	rpsp, 8
+	and	rbx, 001FFFFFh
+	add	rax, rbx
+	jmp	uintEntry
+
 entry memberIntType
 	; get ptr to int var into rax
 	; this data ptr is base ptr, rbx is field offset in bytes
@@ -1460,6 +1519,21 @@ memberIntType1:
 	add	rax, rbx
 	jmp	intEntry
 
+entry memberUIntType
+	; get ptr to int var into rax
+	; this data ptr is base ptr, rbx is field offset in bytes
+	mov	rax, rbx
+	; see if a varop is specified
+	and	rax, 00E00000h
+	jz memberUIntType1
+	shr	rax, 21
+	mov	[rcore + FCore.varMode], rax
+memberUIntType1:
+	mov	rax, [rcore + FCore.TPtr]
+	and	rbx, 001FFFFFh
+	add	rax, rbx
+	jmp	uintEntry
+
 entry localIntArrayType
 	; get ptr to int var into rax
 	mov	rax, rfp
@@ -1469,6 +1543,16 @@ entry localIntArrayType
 	sal	rbx, 3
 	sub	rax, rbx
 	jmp	intEntry
+
+entry localUIntArrayType
+	; get ptr to int var into rax
+	mov	rax, rfp
+	and	rbx, 00FFFFFFh
+	sub	rbx, [rpsp]		; add in array index on TOS
+	add	rpsp, 8
+	sal	rbx, 3
+	sub	rax, rbx
+	jmp	uintEntry
 
 entry fieldIntArrayType
 	; get ptr to int var into rax
@@ -1482,6 +1566,18 @@ entry fieldIntArrayType
 	add	rax, rbx		; add in field offset
 	jmp	intEntry
 
+entry fieldUIntArrayType
+	; get ptr to int var into rax
+	; TOS is struct base ptr, NOS is index
+	; rbx is field offset in bytes
+	mov	rax, [rpsp+4]	; rax = index
+	sal	rax, 2
+	add	rax, [rpsp]		; add in struct base ptr
+	add	rpsp, 8
+	and	rbx, 00FFFFFFh
+	add	rax, rbx		; add in field offset
+	jmp	uintEntry
+
 entry memberIntArrayType
 	; get ptr to short var into rax
 	; this data ptr is base ptr, TOS is index
@@ -1493,6 +1589,18 @@ entry memberIntArrayType
 	and	rbx, 00FFFFFFh
 	add	rax, rbx		; add in field offset
 	jmp	intEntry
+
+entry memberUIntArrayType
+	; get ptr to short var into rax
+	; this data ptr is base ptr, TOS is index
+	; rbx is field offset in bytes
+	mov	rax, [rpsp]	; rax = index
+	sal	rax, 2
+	add	rax, [rcore + FCore.TPtr]
+	add	rpsp, 8
+	and	rbx, 00FFFFFFh
+	add	rax, rbx		; add in field offset
+	jmp	uintEntry
 
 ;-----------------------------------------------
 ;
@@ -2037,18 +2145,9 @@ localOpExecute:
 	mov	rax, [rcore + FCore.innerExecute]
 	jmp rax
 
-localOpFetch:
-	sub	rpsp, 8
-	mov	rbx, [rax]
-	mov	[rpsp], rbx
-	; set var operation back to fetch
-	xor	rax, rax
-	mov	[rcore + FCore.varMode], rax
-	jmp	rnext
-
 localOpActionTable:
 	DQ	localOpExecute
-	DQ	localOpFetch
+	DQ	localUIntFetch
 	DQ	localIntRef
 	DQ	localIntStore
 
@@ -2713,6 +2812,19 @@ entry doIntBop
 
 ;-----------------------------------------------
 ;
+; doUIntOp is compiled as the first op in global uint vars
+; the uint data field is immediately after this op
+;
+entry doUIntBop
+	; get ptr to int var into rax
+	mov	rax, rip
+	; pop rstack
+	mov	rip, [rrp]
+	add	rrp, 8
+	jmp	uintEntry
+
+;-----------------------------------------------
+;
 ; doIntArrayOp is compiled as the first op in global int arrays
 ; the data array is immediately after this op
 ;
@@ -2727,6 +2839,23 @@ entry doIntArrayBop
 	mov	rip, [rrp]
 	add	rrp, 8
 	jmp	intEntry
+
+;-----------------------------------------------
+;
+; doUIntArrayOp is compiled as the first op in global uint arrays
+; the data array is immediately after this op
+;
+entry doUIntArrayBop
+	; get ptr to uint var into rax
+	mov	rax, rip
+	mov	rbx, [rpsp]		; rbx = array index
+	add	rpsp, 8
+	sal	rbx, 2
+	add	rax, rbx	
+	; pop rstack
+	mov	rip, [rrp]
+	add	rrp, 8
+	jmp	uintEntry
 
 ;-----------------------------------------------
 ;
@@ -5439,6 +5568,13 @@ entry intVarActionBop
 	mov	rax, [rpsp]
 	add	rpsp, 8
 	jmp	intEntry
+	
+;========================================
+
+entry uintVarActionBop
+	mov	rax, [rpsp]
+	add	rpsp, 8
+	jmp	uintEntry
 	
 ;========================================
 

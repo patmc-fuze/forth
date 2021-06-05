@@ -149,6 +149,67 @@ Double has consistent layout, long is reversed on param stack.
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+May 31 2021
+
+I was going to make a main program to act as the console for ForthDLL, and I
+ran test.txt with configuration RelAsm to be sure everything was working, and
+I hit an exception in maze.txt - the problem was "fetch generatorOp" which does
+a fetch on an op member field, the high 32-bits was garbage.  The problem was
+that localOpFetch was doing a 64-bit grab, ops are 32-bits.
+When I was fixing it I realized there were a few bugs:
+- all the "fetch" ops are broken, they don't clear the varop.  this probably
+  only matters for the case where a fetch happens just before an op variable
+  is invoked
++ the uint type is broken on 64-bits, it acts like a signed int
+  -> tested for global and local simple uints, haven't checked members or arrays yet
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 31 2021
+
+a
+a@
+a&
+a!
+a&
+a--
+a++
+a@++
+	for non-pointer int/long, returns a then increments a
+	for pointer, returns @a then increments a
+a++@
+a@--
+	for non-pointer int/long, returns value then decrements
+a--@
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+January 24 2021
+
+I have been thinking about getting rid of arrow operators (-> ->+ ->- ->o) and
+using a syntax like this:
+  abc		returns value of abc
+  abc!		stores into abc
+  abc+!		adds to abc
+  abc-!		subtracts from abc
+  abc&	returns address of abc
+I think this would be very good for arrays, where the syntax currently sucks.
+	5 1 -> abc
+would become
+	5 1 abc!
+
+I'm waffling about if abc should return the value of abc or its address, getting
+the value of a variable is much more common than getting its address.
+Requiring fetching a value to append '@' would fit better with standard forth, but
+it would lead to more typing and more bugs where somebody forgot the '@'.
+
+This change would create some headaches, existing operators which contain ampersand
+and exclamation point would clash with standard operators like c! and w!.
+
+I am tempted to add additional meanings for object classes, like append to a list,
+or add to a map, but that should come later, if ever.
+
+? how would '->o' be handled - currently it uses ->+ varaction.
+? how would 'unref' varaction be handled - currently it uses '->-' varaction.
+? how would oclear be handled
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 October 10 2020
 
 I decided to rename ForthThread to ForthFiber and ForthAsyncThread to ForthThread.

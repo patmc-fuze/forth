@@ -82,6 +82,9 @@ extern GFORTHOP( ubyteVarActionBop );
 extern GFORTHOP( shortVarActionBop );
 extern GFORTHOP( ushortVarActionBop );
 extern GFORTHOP( intVarActionBop );
+#ifdef FORTH64
+extern GFORTHOP(uintVarActionBop);
+#endif
 extern GFORTHOP( longVarActionBop );
 extern GFORTHOP( floatVarActionBop );
 extern GFORTHOP( doubleVarActionBop );
@@ -9051,7 +9054,7 @@ extern GFORTHOP( doUByteBop );
 extern GFORTHOP( doShortBop );
 extern GFORTHOP( doUShortBop );
 extern GFORTHOP( doIntBop );
-extern GFORTHOP( doIntBop );
+extern GFORTHOP( doUIntBop );
 extern GFORTHOP( doFloatBop );
 extern GFORTHOP( doDoubleBop );
 extern GFORTHOP( doStringBop );
@@ -9063,7 +9066,7 @@ extern GFORTHOP( doUByteArrayBop );
 extern GFORTHOP( doShortArrayBop );
 extern GFORTHOP( doUShortArrayBop );
 extern GFORTHOP( doIntArrayBop );
-extern GFORTHOP( doIntArrayBop );
+extern GFORTHOP( doUIntArrayBop );
 extern GFORTHOP( doFloatArrayBop );
 extern GFORTHOP( doDoubleArrayBop );
 extern GFORTHOP( doStringArrayBop );
@@ -9193,6 +9196,9 @@ OPREF( moveBop );           OPREF( fillBop );           OPREF( setVarActionBop )
 OPREF(memcmpBop);
 OPREF( getVarActionBop );   OPREF( byteVarActionBop );  OPREF( ubyteVarActionBop );
 OPREF( shortVarActionBop ); OPREF( ushortVarActionBop ); OPREF( intVarActionBop );
+#ifdef FORTH64
+OPREF(uintVarActionBop);
+#endif
 OPREF( longVarActionBop );  OPREF( floatVarActionBop ); OPREF( doubleVarActionBop );
 OPREF( stringVarActionBop ); OPREF( opVarActionBop );   OPREF( objectVarActionBop );
 OPREF( strcpyBop );         OPREF( strncpyBop );        OPREF( strlenBop );
@@ -9248,7 +9254,11 @@ baseDictionaryCompiledEntry baseCompiledDictionary[] =
     NATIVE_COMPILED_DEF(    doShortBop,              "_doShort",		OP_DO_SHORT ),
 	NATIVE_COMPILED_DEF(    doUShortBop,             "_doUShort",		OP_DO_USHORT ),
     NATIVE_COMPILED_DEF(    doIntBop,                "_doInt",			OP_DO_INT ),
-    NATIVE_COMPILED_DEF(    doIntBop,                "_doUInt",			OP_DO_UINT ),
+#if defined(FORTH64)
+    NATIVE_COMPILED_DEF(    doUIntBop,               "_doUInt",			OP_DO_UINT),
+#else
+    NATIVE_COMPILED_DEF(    doIntBop,                "_doUInt",			OP_DO_UINT),
+#endif
     NATIVE_COMPILED_DEF(    doLongBop,               "_doLong",			OP_DO_LONG ),
     NATIVE_COMPILED_DEF(    doLongBop,               "_doULong",		OP_DO_ULONG ),
     NATIVE_COMPILED_DEF(    doFloatBop,              "_doFloat",		OP_DO_FLOAT ),
@@ -9577,6 +9587,11 @@ baseDictionaryEntry baseDictionary[] =
     NATIVE_DEF(    shortVarActionBop,       "shortVarAction" ),
     NATIVE_DEF(    ushortVarActionBop,      "ushortVarAction" ),
     NATIVE_DEF(    intVarActionBop,         "intVarAction" ),
+#ifdef FORTH64
+    NATIVE_DEF(     uintVarActionBop,       "uintVarAction"),
+#else
+    NATIVE_DEF(     intVarActionBop,        "uintVarAction"),
+#endif
     NATIVE_DEF(    longVarActionBop,        "longVarAction" ),
     NATIVE_DEF(    floatVarActionBop,       "floatVarAction" ),
     NATIVE_DEF(    doubleVarActionBop,      "doubleVarAction" ),
