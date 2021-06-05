@@ -1,7 +1,7 @@
 // ForthGuiDlg.cpp : implementation file
 //
 
-#include "stdafx.h"
+#include "pch.h"
 #include "ForthGui.h"
 #include "ForthGuiDlg.h"
 #include "ForthBlankDlg.h"

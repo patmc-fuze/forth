@@ -4,7 +4,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "stdafx.h"
+#include "pch.h"
 #include "ForthEngine.h"
 #include "ForthMidiExtension.h"
 #include <vector>

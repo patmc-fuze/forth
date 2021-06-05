@@ -4,7 +4,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "StdAfx.h"
+#include "pch.h"
 
 #if defined(LINUX) || defined(MACOSX)
 #include <ctype.h>

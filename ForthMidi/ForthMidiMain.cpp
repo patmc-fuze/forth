@@ -1,7 +1,7 @@
 // ForthMidiMain.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
+#include "pch.h"
 #include "ForthMidiMain.h"
 #include "ForthShell.h"
 #include "ForthEngine.h"

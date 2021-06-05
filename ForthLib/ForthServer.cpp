@@ -3,7 +3,7 @@
 // ForthServer.cpp: Forth server support
 //
 //////////////////////////////////////////////////////////////////////
-#include "StdAfx.h"
+#include "pch.h"
 #ifdef WIN32
 //#include <winsock2.h>
 //#include <windows.h>

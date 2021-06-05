@@ -4,7 +4,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#include "StdAfx.h"
+#include "pch.h"
 #include <stdexcept>
 #include "ForthObjectReader.h"
 //#include "ForthEngine.h"
