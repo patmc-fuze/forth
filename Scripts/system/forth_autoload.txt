@@ -370,7 +370,7 @@ int dumpWidth
 : _ldump
   -> int offset		// offset is subtracted from the actual data address before display
   and( 3+ invert( 3 ) ) -> int len
-  and( invert( 3 ) ) -> int addr
+  and( invert( 3 ) ) -> cell addr
   int columns
   int endAddr
   int ch
@@ -412,8 +412,8 @@ int dumpWidth
   -> op dumpOp
   -> int len
   -> int offset
-  "rb" fopen -> int infile
-  int buff
+  "rb" fopen -> cell infile
+  cell buff
 
   if( infile 0= )
     "open failure" %s %nl
@@ -517,8 +517,8 @@ alias space %bl
 
 addHelp $enum       enumInfo enumValue ... str      convert an enum value into its string
 : $enum
-  -> int enumInfo
-  -> int enumValue
+  -> cell enumInfo
+  -> cell enumValue
   findEnumSymbol(enumValue enumInfo)
   if(0=)
     mko String ss
@@ -567,10 +567,10 @@ addHelp cd	cd BLAH			change working directory to BLAH
   true -> int okay
   null -> ptrTo byte outName
   null -> ptrTo byte errName
-  null -> int outStream
-  null -> int errStream
-  -1   -> int oldStdOut
-  -1   -> int oldStdErr
+  null -> cell outStream
+  null -> cell errStream
+  -1   -> cell oldStdOut
+  -1   -> cell oldStdErr
   0    -> int bytesRead
   2048 -> int readSize
   malloc( readSize 1+ ) -> ptrTo byte buffer
@@ -762,7 +762,7 @@ addHelp rm	rm FILENAME		remove a file
 addHelp more more FILENAME	display FILENAME on screen
 : more
   255 string linebuff
-  fopen( blword "r" ) -> int infile
+  fopen( blword "r" ) -> cell infile
   if( infile null = )
     exit
   endif

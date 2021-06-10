@@ -10,4 +10,38 @@
 // add headers that you want to pre-compile here
 #include "framework.h"
 
-#endif //PCH_H
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <strsafe.h>
+#include <stdint.h>
+#include <tchar.h>
+#include <conio.h>
+#include <direct.h>
+#include <io.h>
+#include <ctype.h>
+
+#include <cassert>
+
+#define ASSERT assert
+
+#ifndef ulong
+#define ulong unsigned long
+#endif
+
+// these had to be added to get ForthDLL DbgAsm and RelAsm configurations to compile
+// I don't understand how these are different from Debug and Release for this case
+# ifndef _CRT_SECURE_NO_WARNINGS
+# define _CRT_SECURE_NO_WARNINGS 1
+# endif
+# ifndef _WINSOCK_DEPRECATED_NO_WARNINGS
+# define _WINSOCK_DEPRECATED_NO_WARNINGS 1
+# endif
+# if defined(_MSC_VER)
+# ifndef _CRT_SECURE_NO_DEPRECATE
+# define _CRT_SECURE_NO_DEPRECATE 1
+# endif
+# pragma warning(disable : 4996)
+# endif
+
+#endif

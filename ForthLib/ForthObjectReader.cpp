@@ -356,7 +356,7 @@ void ForthObjectReader::processElement(const std::string& name)
             if (newClassVocab->IsClass())
             {
                 mContext.pVocab = newClassVocab;
-                mContext.objIndex = mObjects.size();
+                mContext.objIndex = (int) mObjects.size();
 
                 long initOpcode = mContext.pVocab->GetInitOpcode();
                 SPUSH((long)mContext.pVocab);

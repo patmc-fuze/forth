@@ -30,7 +30,7 @@ FORTHDLL_API void OutputToLogger(const char* pBuffer)
     //OutputDebugString(buffer);
 
     DWORD dwWritten;
-    int bufferLen = 1 + strlen(pBuffer);
+    int bufferLen = 1 + (int) strlen(pBuffer);
 
     if (hLoggingPipe == INVALID_HANDLE_VALUE)
     {

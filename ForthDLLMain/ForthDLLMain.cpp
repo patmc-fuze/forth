@@ -2,12 +2,70 @@
 //
 
 #include <iostream>
+#include "windows.h"
 #include "..\ForthDLL\ForthDLL.h"
 
-int main()
+
+static bool InitSystem()
 {
-    int fooVal = foo();
-    std::cout << "foo say:" << fooVal;
+    // TODO!
+    return true;
+}
+
+int main(int argc, char* argv[], char* envp[])
+{
+    int nRetCode = 0;
+    ForthShell* pShell = NULL;
+    ForthInputStream* pInStream = NULL;
+
+    if (!InitSystem())
+    {
+        nRetCode = 1;
+    }
+    else
+    {
+        nRetCode = 1;
+        pShell = CreateForthShell(argc, (const char**)(argv), (const char**)envp);
+#if 0
+        if (argc > 1)
+        {
+
+            //
+            // interpret the forth file named on the command line
+            //
+            FILE* pInFile = fopen(argv[1], "r");
+            if (pInFile != NULL)
+            {
+                pInStream = CreateForthFileInputStream(pInFile);
+                nRetCode = pShell->Run(pInStream);
+                fclose(pInFile);
+
+            }
+        }
+        else
+#endif
+        {
+            //
+            // run forth in interactive mode
+            //
+            pInStream = CreateForthConsoleInputStream();
+            nRetCode = pShell->Run(pInStream);
+
+        }
+        delete pShell;
+    }
+
+    // NOTE: this will always report a 64 byte memory leak (a CDynLinkLibrary object) that it causes itself
+    /*
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_WARN, hLoggingPipe);    // or _CRTDBG_FILE_STDERR?
+    _CrtDumpMemoryLeaks();
+    _CrtSetReportMode(_CRT_WARN, 0);
+    */
+    return nRetCode;
+
+    //int fooVal = foo();
+    //std::cout << "foo say:" << fooVal;
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu

@@ -313,7 +313,7 @@ namespace
 	FORTHOP(classSetNewMethod)
 	{
 		ForthClassObject* pClassObject = (ForthClassObject *)(GET_TP);
-		pClassObject->newOp = SPOP;
+		pClassObject->newOp = (forthop)(SPOP);
 		METHOD_RETURN;
 	}
 
@@ -433,7 +433,7 @@ ForthForgettableGlobalObject::ForthForgettableGlobalObject( const char* pName, v
 : ForthForgettable( pOpAddress, op )
 ,	mNumElements( numElements )
 {
-    int nameLen = strlen( pName );
+    size_t nameLen = strlen( pName );
     mpName = (char *) __MALLOC(nameLen + 1);
     strcpy( mpName, pName );
 }
@@ -458,7 +458,7 @@ ForthForgettableGlobalObject::GetTypeName( void )
 void ForthForgettableGlobalObject::ForgetCleanup( void* pForgetLimit, forthop op )
 {
 	// first longword is OP_DO_OBJECT or OP_DO_OBJECT_ARRAY, after that are object elements
-	if ((ulong)mpOpAddress > (ulong)pForgetLimit)
+	if ((ucell)mpOpAddress > (ucell)pForgetLimit)
 	{
 		ForthObject* pObject = (ForthObject *)((long *)mpOpAddress + 1);
 		ForthCoreState* pCore = ForthEngine::GetInstance()->GetCoreState();

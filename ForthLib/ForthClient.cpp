@@ -366,7 +366,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
 						pReadBuffer = (char *)__REALLOC(pReadBuffer, numBytes);
                         readBufferSize = numBytes;
                     }
-                    int result = fread( pReadBuffer, itemSize, numItems, (FILE *) file );
+                    int result = (int) fread( pReadBuffer, itemSize, numItems, (FILE *) file );
 
                     pMsgPipe->StartMessage( kServerMsgFileReadResult );
                     pMsgPipe->WriteInt( result );
@@ -388,7 +388,7 @@ int ForthClientMainLoop( ForthEngine *pEngine, const char* pServerStr, unsigned 
                     pMsgPipe->ReadInt( itemSize );
                     pMsgPipe->ReadInt( numItems );
                     pMsgPipe->ReadCountedData( pData, numBytes );
-                    int result = fwrite( pData, itemSize, numItems, (FILE *) file );
+                    int result = (int)fwrite( pData, itemSize, numItems, (FILE *) file );
 
                     pMsgPipe->StartMessage( kServerMsgFileOpResult );
                     pMsgPipe->WriteInt( result );

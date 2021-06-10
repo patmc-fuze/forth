@@ -1176,8 +1176,8 @@ namespace OString
             SAFE_RELEASE(pCore, o);
         }
         a.clear();
-        int n = SPOP;
-        for (int i = 0; i < n; i++)
+        cell n = SPOP;
+        for (cell i = 0; i < n; i++)
         {
             std::string key;
             key = (const char*)(SPOP);

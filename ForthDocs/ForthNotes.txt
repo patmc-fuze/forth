@@ -149,6 +149,33 @@ Double has consistent layout, long is reversed on param stack.
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+June 6 2021
+
+I scrapped the old ForthDLL and ForthDLLMain, I think mayb I defined the DLL as
+an MFC extension DLL, so I recreated those projects as a plain vanilla DLL.
+I also decided to replace all the StdAfx/stdafx precompiled headers with pch.ccp/h.
+Things seemed to be going pretty well, the Debug and Release x64 configurations
+worked with a little work.  The DbgAsm and RelAsm ones are giving me major headaches.
+DbgAsm compiles for some reason are only getting some of the preprocessor definitions.
+-> the Configuration Manager didn't have the correct values for DbgAsm and RelAsm
+After fixing that, all x64 configurations build, and Debug, Release and DbgAsm
+all run test.txt with no errors, RelAsm gets an exception in resizeOString when
+it runs adv.txt.
+RelAsm also has a crash if you just do 'ls'.
+These problems don't happen in non-DLL ForthMain RelAsm.
+_fileNo crashes - it looks like in this code:
+	FILE* pFile = (FILE *) SPOP;
+	int result = pCore->pFileFuncs->fileNo( pFile );
+pFile has its top 32-bits set to -1 as if it was a signed 32-bit int extended
+to 64-bits.  I tried the same thing in non-DLL ForthMain and there the FILE*
+had its top 32-bits 0, but that might just be luck in where the iobuf was
+positioned in memory.
+
+GAH! the bug is in $shellRun in forth_autoload, it uses ints for FILE*.
+Fixing that made test.txt work for both DbgAsm and RelAsm.  The crash in adv
+was because its saveAdventure uses $shellRun to copy the save file.
+
+There are probably more ints used to store pointers lurking about.
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 May 31 2021
 

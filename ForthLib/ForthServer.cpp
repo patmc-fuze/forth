@@ -70,13 +70,13 @@ namespace
     size_t fileRead( void* data, size_t itemSize, size_t numItems, FILE* pFile )
     {
         ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
-        return pShell->FileRead( pFile, data, itemSize, numItems );
+        return (size_t)pShell->FileRead( pFile, data, itemSize, numItems );
     }
 
     size_t fileWrite( const void* data, size_t itemSize, size_t numItems, FILE* pFile )
     {
         ForthServerShell* pShell = (ForthServerShell *) (ForthEngine::GetInstance()->GetShell());
-        return pShell->FileWrite( pFile, data, itemSize, numItems );
+        return (size_t)pShell->FileWrite( pFile, data, itemSize, numItems );
     }
 
     int fileGetChar( FILE* pFile )

@@ -126,7 +126,7 @@ namespace OSystem
 
 	FORTHOP(oSystemGetSearchVocabAtMethod)
 	{
-		cell vocabStackIndex = SPOP;
+		int vocabStackIndex = (int) SPOP;
 
 		ForthVocabularyStack* pVocabStack = GET_ENGINE->GetVocabularyStack();
 		ForthVocabulary* pVocab = pVocabStack->GetElement(vocabStackIndex);
@@ -437,7 +437,7 @@ namespace OSystem
     FORTHOP(oShellStackPeekMethod)
     {
         ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
-        cell i = SPOP;
+        int i = (int) SPOP;
         cell v = stack->Peek(i);
         SPUSH(v);
         METHOD_RETURN;
@@ -446,7 +446,7 @@ namespace OSystem
     FORTHOP(oShellStackPeekTagMethod)
     {
         ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
-        cell i = SPOP;
+        int i = (int)SPOP;
         cell v = (cell)stack->PeekTag(i);
         SPUSH(v);
         METHOD_RETURN;
@@ -455,7 +455,7 @@ namespace OSystem
     FORTHOP(oShellStackPeekAddressMethod)
     {
         ForthShellStack* stack = GET_ENGINE->GetShell()->GetShellStack();
-        cell i = SPOP;
+        int i = (int)SPOP;
         cell v = (cell)stack->PeekAddress(i);
         SPUSH(v);
         METHOD_RETURN;

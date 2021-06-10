@@ -3563,7 +3563,7 @@ namespace OArray
         ulong ix = (ulong)SPOP;
         if (a.size() > ix)
         {
-            SPUSH(a[ix]);
+            SPUSH((cell) a[ix]);
         }
         else
         {
@@ -3579,7 +3579,7 @@ namespace OArray
         ulong ix = (ulong)SPOP;
         if (a.size() > ix)
         {
-            a[ix] = SPOP;
+            a[ix] = (int) SPOP;
         }
         else
         {
