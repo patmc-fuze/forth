@@ -78,6 +78,8 @@ releases
 relOld
 relSource
 Sandbox
+sandbox
+sandbox.old
 TestDLL
 TextToSpeech
 Unused
@@ -98,6 +100,9 @@ Forth_for_ARM.txt
 ForthARM/gdbs.txt
 ForthARM/sdlt.txt
 ForthARM/t.txt
+ForthARM/obj
+ForthARM/forth
+ForthARM/logfile.txt
 ForthClient/ForthClient.vcxproj.filters
 ForthDocs/ForthDocs.vcxproj.filters
 ForthDocs/Manual/*.txt
