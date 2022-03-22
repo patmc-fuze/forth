@@ -149,6 +149,113 @@ Double has consistent layout, long is reversed on param stack.
 
 
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 22 2022
+
+I revived the ARM branch on the latest version of Raspbian, it hadn't been
+kept up to date for a few years, it was missing all the changes from when I
+created the 64-bit version.  I still need to test it, I won't be surprised if
+there are hi/lo word order problems, or problems in the scripts where the 64-bit
+changes broke the 32-bit version.  I also found out that there was an old change
+that added NoteDeck::getLinkIter which never got checked in that HelpDeck is
+using.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+March 18 2022
+
+Thinking of a new name for my version of Forth, this came to mind:
+FaaSL - Forth as a Scripting Language - pronounced like fossil
+I would need to make it a better scripting language to justify the name.
+
+On the new suffixes, I was thinking instead of x+! and x-! I could use x!+ and x!-,
+this would avoid collisions with existing operators like c+!.
+
+addrOf          &
+fetch           @
+store           !
+addTo           !+
+subFrom         !-
+storeNoRef      !o
+oclear          !~      or !0 (but that looks like !o)
+unref           !^
+
+Another plus to this is that it would fit with adding pre and post increment
+fetches later on.
+
+Another possible syntax addition: using pound sign with chars as a 64-bit literal.
+Space ends the literal, no escaped chars are allowed, chars which would cause
+collisions with formatted printing ('<' and '>') are not allowed.
+? or maybe just disallow things which directly collide with known operators?
+
+Pros:
+- changes `abcd` to #abcd
+Cons:
+- only saves one char
+- # requires hitting shift, ` does not
+
+
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 6 2022
+
+I started the first phase, changing '->' for objects to mean store-noref and
+making '->^' mean store-addref, changing the code was trivial, but when I was
+converting the scripts I saw how ugly it would be, and error prone - it is a
+lot better to have -> do an addref.
+Maybe the best course would be:
+o continue to support varaction operators
+o use ! suffix for object store-addref
+o use !o for object store-noref
+o change & from prefix to suffix
+o don't add suffixes for oclear and unref
+  ? or maybe use '~' for oclear and '^' for unref?
+
+Existing script files could be left as-is for now, and converted over whenever
+I feel like it, or just left with the old syntax.
+
+The big downside for this is that the per-fiber varmode member would need to be
+kept around.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
+February 5 2022
+
+Long time no code!
+I've been working on ditching the old varaction ops and changing the syntax to
+have suffixes added to variable/field/members:
+	-> a					a!
+	->+ a					a+!
+	&a						a&
+	srcObj -> objectA		srcObj objectA^!
+	srcObj ->o objectA		srcObj objectA!
+	oclear objectA			objectA^-
+
+One very annoying thing about this change is that all the script files will need
+to be updated, and while it can be done automatically for some parts, the way
+object store with/without addref is a problem - before a store (->) on an object
+variable did an addref and there was a special store (->o) for storing to an
+object without doing an addref, in the new system the store suffix (!) on an
+object variable does a store without adding a ref and a new store suffix (^!)
+is used to store and add a ref.
+To make dealing with this easier, I will first add a new varaction op ->^ to the
+existing system which does a store with addref, and change -> on objects to do
+no addref, get all the scripts to work with this change, then switch over to the
+new syntax using action suffixes.
+In the first version using the new syntax, I will leave in support for using the
+existing varaction ops just to make things easier.  Eventually I will remove the
+varaction ops and the per-thread varmode entirely.
+
+This change will allow the removal of the uncompile code for varactions and also
+eliminate this problem with native arrays:
+	55 -> arrayA(b)		becomes		55 -> b arrayA
+So instead of storing 55 into the element specified by b, b is set to 55 and
+the arrayA element selected by whatever is on TOS is accessed.
+With the new code that would be:
+	55 arrayA!(b)		becomes		55 b arrayA!
+So the code does what you would expect.
+
+One aspect of the new syntax I have mulled over is wether the action for no
+suffix should be fetch or reference, I settled on default being fetch, but you
+can also explicitly add @ to specify fetch.
+
+The current syntax with '&' is a prefix, I don't think I used it very much, but
+they will need to be fixed by hand in the scripts.
+-|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 June 6 2021
 
 I scrapped the old ForthDLL and ForthDLLMain, I think mayb I defined the DLL as
