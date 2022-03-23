@@ -278,10 +278,10 @@ class: NoteDeck
   StringMap linkTypeMap
 
   // predefined link types
-  long kLTParent
-  long kLTChild
-  long kLTTag
-  long kLTLink
+  int kLTParent
+  int kLTChild
+  int kLTTag
+  int kLTLink
   
   m: clearAll
     oclear name
