@@ -158,6 +158,17 @@ there are hi/lo word order problems, or problems in the scripts where the 64-bit
 changes broke the 32-bit version.  I also found out that there was an old change
 that added NoteDeck::getLinkIter which never got checked in that HelpDeck is
 using.
+
+On ARM test.txt fails in tree_examples.txt, it turned out to be when it tried
+to execute 'labs', which got a segfault.  Any word defined with the forth
+assembler, even a no-op, gets a segfault.  What could cause that?
+x a bug in one of the assembler words
+  -> check if no-op assembles to just 'bx lr'
+  -> it generates 1e ff 2f e1, which is correct
+o raspbian preventing execution of 'data'
+  ? would this show up as a 'segmentation fault'?
+x a bug in the native (optype 0) dispatcher
+  -> nope, this is same as builtin words written in assembler, which work
 -|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|=|-
 March 18 2022
 
