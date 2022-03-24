@@ -29,7 +29,15 @@
 #include "ForthPipe.h"
 #include "ForthClient.h"
 #include "ForthMessages.h"
+#if defined(WIN64) || defined(WIN32)
 #include "sys/dirent.h"
+#else
+#include <dirent.h>
+#endif
+
+#ifndef MAX_PATH
+#define MAX_PATH 511
+#endif
 
 #ifndef SOCKADDR
 #define SOCKADDR struct sockaddr

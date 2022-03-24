@@ -49,7 +49,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifndef RASPI
 #define ASSERT(x, ...)
+#endif
 
 #endif
 

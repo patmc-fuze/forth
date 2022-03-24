@@ -11,12 +11,12 @@
 #define RPUSH_THIS  RPUSH_OBJECT( GET_TP )
 #define SET_THIS( _object) SET_TP( (_object) )
 
-#define METHOD( NAME, VALUE  )          { NAME, VALUE, NATIVE_TYPE_TO_CODE( kDTIsMethod, kBaseTypeVoid ) }
-#define METHOD_RET( NAME, VAL, RVAL )   { NAME,  VAL, RVAL }
-#define MEMBER_VAR( NAME, TYPE )        { NAME, 0, (ucell) TYPE }
+#define METHOD( NAME, VALUE  )          { NAME, (void *)VALUE, NATIVE_TYPE_TO_CODE( kDTIsMethod, kBaseTypeVoid ) }
+#define METHOD_RET( NAME, VAL, RVAL )   { NAME,  (void *)VAL, RVAL }
+#define MEMBER_VAR( NAME, TYPE )        { NAME, (void *)0, (ucell) TYPE }
 #define MEMBER_ARRAY( NAME, TYPE, NUM ) { NAME, NUM, (ucell) (TYPE | kDTIsArray) }
-#define CLASS_OP( NAME, VALUE )         { NAME, VALUE, NATIVE_TYPE_TO_CODE(0, kBaseTypeUserDefinition) }
-#define CLASS_PRECOP( NAME, VALUE )     { NAME, VALUE, NATIVE_TYPE_TO_CODE(kDTIsFunky, kBaseTypeUserDefinition) }
+#define CLASS_OP( NAME, VALUE )         { NAME, (void *)VALUE, NATIVE_TYPE_TO_CODE(0, kBaseTypeUserDefinition) }
+#define CLASS_PRECOP( NAME, VALUE )     { NAME, (void *)VALUE, NATIVE_TYPE_TO_CODE(kDTIsFunky, kBaseTypeUserDefinition) }
 
 #define END_MEMBERS { nullptr, 0, 0 }
 

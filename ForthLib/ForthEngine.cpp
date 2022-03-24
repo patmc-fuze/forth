@@ -2333,7 +2333,7 @@ void ForthEngine::CompileCell(cell v)
     SPEW_COMPILATION("Compiling cell 0x%p @ 0x%p\n", v, mDictionary.pCurrent);
     *((cell*)mDictionary.pCurrent) = v; mDictionary.pCurrent += CELL_LONGS;
 }
-#endif#endif
+#endif
 
 // patch an opcode - fill in the branch destination offset
 void ForthEngine::PatchOpcode(forthOpType opType, forthop opVal, forthop* pOpcode)

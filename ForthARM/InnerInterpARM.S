@@ -158,7 +158,7 @@ fileGetString	=		44
 filePutString	=		48
 
 	.global	abortBop, dropBop, nipBop, doDoesBop, litBop, litBop, dlitBop, doVariableBop, doConstantBop, doDConstantBop, doneBop
-	.global	doByteBop, doShortBop, doIntBop, doFloatBop, refBop, fetchBop, intoBop, addToBop, subtractFromBop, doExitBop
+	.global	doByteBop, doShortBop, doIntBop, doFloatBop, refVaractionBop, fetchVaractionBop, intoVaractionBop, addToVaractionBop, subtractFromVaractionBop, doExitBop
 	.global	doExitLBop, doExitMBop, doExitMLBop, doVocabBop, doByteArrayBop, doShortArrayBop, doIntArrayBop, doFloatArrayBop
 	.global	plusBop, ifetchBop, doStructBop, doStructArrayBop, doDoBop, doLoopBop, doLoopNBop, dfetchBop
 	.global	thisBop, unsuperBop, executeBop, callBop, gotoBop, iBop, jBop, unloopBop, leaveBop, hereBop, dpBop
@@ -170,15 +170,16 @@ filePutString	=		48
 	.global equalsBop, notEqualsBop, greaterThanBop, greaterEqualsBop, lessThanBop, lessEqualsBop
 	.global equals0Bop, notEquals0Bop, greaterThan0Bop, greaterEquals0Bop, lessThan0Bop, lessEquals0Bop
 	.global rpushBop, rpopBop, rdropBop, rpBop, r0Bop, dupBop, checkDupBop, swapBop, overBop
-	.global rotBop, tuckBop, pickBop, spBop, s0Bop, fpBop, ddupBop, dswapBop, ddropBop, doverBop, drotBop,
-	.global storeBop, cstoreBop, cfetchBop, scfetchBop, c2iBop, wstoreBop, wfetchBop, swfetchBop, w2iBop, dstoreBop
+	.global rotBop, tuckBop, pickBop, spBop, s0Bop, fpBop, ddupBop, dswapBop, ddropBop, doverBop, drotBop
+	.global istoreBop, bstoreBop, ubfetchBop, bfetchBop, c2iBop, sstoreBop, sfetchBop, swfetchBop, w2iBop, dstoreBop
+	.global lstoreBop, lfetchBop, lstoreNextBop, lfetchNextBop, odropBop
 	.global	moveBop, memcmpBop, fillBop, setVarActionBop, getVarActionBop, strcpyBop, strncpyBop, strlenBop, strcatBop, strncatBop
 	.global	strchrBop, strrchrBop, strcmpBop, strncmpBop, stricmpBop, strstrBop, strtokBop, initStringBop, strFixupBop
 	.global doUByteBop, doUByteArrayBop, doUShortBop, doUShortArrayBop
 	.global dsinBop, dasinBop, dcosBop, dacosBop, dtanBop, datanBop, datan2Bop, dexpBop, dlnBop, dlog10Bop, dpowBop
 	.global dsqrtBop, dceilBop, dfloorBop, dabsBop, dldexpBop, dfrexpBop, dmodfBop, dfmodBop, i2fBop, i2dBop, f2iBop, f2dBop, d2iBop, d2fBop
-	.global ipBop, startTupleBop, endTupleBop, rpeekBop, minBop, maxBop, storeNextBop, fetchNextBop, cstoreNextBop, cfetchNextBop
-	.global wstoreNextBop, wfetchNextBop, dstoreNextBop, dfetchNextBop
+	.global ipBop, startTupleBop, endTupleBop, rpeekBop, minBop, maxBop, istoreNextBop, ifetchNextBop, bstoreNextBop, bfetchNextBop
+	.global sstoreNextBop, sfetchNextBop, dstoreNextBop, dfetchNextBop
 	.global fEqualsBop, fNotEqualsBop, fGreaterThanBop, fGreaterEqualsBop, fLessThanBop, fLessEqualsBop
 	.global fEquals0Bop, fNotEquals0Bop, fGreaterThan0Bop, fGreaterEquals0Bop, fLessThan0Bop, fLessEquals0Bop
 	.global dEqualsBop, dNotEqualsBop, dGreaterThanBop, dGreaterEqualsBop, dLessThanBop, dLessEqualsBop
@@ -195,7 +196,7 @@ filePutString	=		48
 	.global fsinBop, fasinBop, fcosBop, facosBop, ftanBop, fatanBop, fatan2Bop, fexpBop, flnBop, flog10Bop
 	.global fpowBop, fsqrtBop, fceilBop, ffloorBop, fabsBop
 	.global fcmpBop, dcmpBop, fldexpBop, ffrexpBop, fmodfBop, ffmodBop
-	.global icmpBop, uicmpBop, oclearBop, lplusBop, lminusBop, ltimesBop, mtimesBop, umtimesBop
+	.global icmpBop, uicmpBop, oclearVaractionBop, lplusBop, lminusBop, ltimesBop, mtimesBop, umtimesBop
     .global lcmpBop, ulcmpBop
     
 	.global fprintfSub, fscanfSub, snprintfSub, sscanfSub, oStringFormatSub, setTraceBop
@@ -1972,6 +1973,31 @@ localObjectStore:
 	ldr	r1, [r3, r1, lsl #2]
 	bx	r1
 	
+@@@@@@@@@@@@@@@@@  drop  @@@@@@@@@@@@@@@@@
+
+odropBop:
+	ldmia	rsp!, {r2}
+	orrs	r2, r2
+	beq	.odrop2					@ if obj is null, don't decrement refcount
+	ldr	r1, [r2, #4]			@ check refcount
+	orrs	r1, r1
+	beq		.odrop3
+.odrop2:
+	bx	lr
+	
+.odrop3:
+	@ obj refcount was 0, invoke obj.delete method
+	@ push pCore->this on rstack
+	ldr	r0, [rcore, #tp]
+	stmdb	rrp!, {r0}
+	@ set this to obj to delete
+	str	r2, [rcore, #tp]
+
+	ldr r3, [r2]                @ r3 is oldObj methods table ptr
+	ldr	r0, [r3]				@ r0 is method 0 (delete) opcode
+	ldr	r1, [rcore, #inner_execute]
+	bx	r1
+	
 localObjectClear:
 	@ TOS is new object, r0 points to destination/old object
     eor r2, r2
@@ -2498,42 +2524,42 @@ doObjectArrayBop:
 	
 @@@@@@@@@@@@@@@@@  addressOf  @@@@@@@@@@@@@@@@@
 
-refBop:
+refVaractionBop:
 	mov	r0,	#kVarRef
 	str	r0, [rcore, #varmode]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  fetch  @@@@@@@@@@@@@@@@@
 
-fetchBop:
+fetchVaractionBop:
 	mov	r0, #kVarFetch
 	str	r0, [rcore, #varmode]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  ->  @@@@@@@@@@@@@@@@@
 
-intoBop:
+intoVaractionBop:
 	mov	r0, #kVarStore
 	str	r0, [rcore, #varmode]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@ ->+   @@@@@@@@@@@@@@@@@
 
-addToBop:
+addToVaractionBop:
 	mov	r0, #kVarPlusStore
 	str	r0, [rcore, #varmode]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  ->-  @@@@@@@@@@@@@@@@@
 
-subtractFromBop:
+subtractFromVaractionBop:
 	mov	r0, #kVarMinusStore
 	str	r0, [rcore, #varmode]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  oclear  @@@@@@@@@@@@@@@@@
 
-oclearBop:
+oclearVaractionBop:
 	mov	r0, #kVarObjectClear
 	str	r0, [rcore, #varmode]
 	bx	lr
@@ -2651,14 +2677,14 @@ ifetchBop:
 	str	r1, [rsp]
 	bx	lr
 
-storeNextBop:
+istoreNextBop:
 	ldmia	rsp!, {r0, r1}	@ r1 = value, r0 = ptr to dest ptr
 	ldr	r2, [r0]			@ r2 = dest ptr
 	stmia	r2!, {r1}		@ store value and advance dest ptr
 	str	r2, [r0]			@ update stored dest ptr
 	bx	lr
 
-fetchNextBop:
+ifetchNextBop:
 	ldr	r1, [rsp]			@ r1 - ptr to src ptr
 	ldr	r2, [r1]			@ r2 = src ptr
 	ldmia	r2!, {r0}		@ r0 = fetched value
@@ -2666,6 +2692,33 @@ fetchNextBop:
 	str	r0, [rsp]
 	bx	lr
 	
+@@@@@@@@@@@@@@@@@  l@  @@@@@@@@@@@@@@@@@
+
+lfetchBop:
+	ldmia	rsp!, {r0}
+	ldrd	r2, [r0]
+	mov	r1, r3
+	stmdb	rsp!, {r1,r2}			@ push long on TOS
+	bx	lr
+
+lstoreNextBop:
+	ldmia	rsp!, {r0, r1}	@ r1 = value, r0 = ptr to dest ptr
+	ldr	r2, [r0]			@ r2 = dest ptr
+	stmia	r2!, {r1}		@ store value and advance dest ptr
+	str	r2, [r0]			@ update stored dest ptr
+	bx	lr
+
+lfetchNextBop:
+	ldmia	rsp!, {r0}		@ r0 - ptr to src ptr
+	ldr	r1, [r0]			@ r1 = src ptr
+	ldmia	r1!, {r2,r3}		@ r2/r3 = fetched value
+	str	r1, [r0]			@ update stored src ptr
+	mov	r1, r3
+	stmdb	rsp!, {r1,r2}			@ push long on TOS
+	bx	lr
+	
+
+
 		
 @@@@@@@@@@@@@@@@@  _doStruct  @@@@@@@@@@@@@@@@@
 
@@ -5120,28 +5173,36 @@ drotBop:
 
 @@@@@@@@@@@@@@@@@  !  @@@@@@@@@@@@@@@@@
 
-storeBop:
+istoreBop:
 	ldmia	rsp!, {r0, r1}	@ r0 = int ptr, r1 = value
 	str	r1, [r0]
 	bx	lr
 
-@@@@@@@@@@@@@@@@@  c!  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  l!  @@@@@@@@@@@@@@@@@
 
-cstoreBop:
+lstoreBop:
+	ldmia	rsp!, {r0,r1,r2}	@ r0 = long ptr
+	mov	r3, r1
+	strd	r2, [r0]				@ store long
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  b!  @@@@@@@@@@@@@@@@@
+
+bstoreBop:
 	ldmia	rsp!, {r0, r1}	@ r0 = byte ptr, r1 = value
 	strb	r1, [r0]
 	bx	lr
 
-@@@@@@@@@@@@@@@@@  c@  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  ub@  @@@@@@@@@@@@@@@@@
 
-cfetchBop:
+ubfetchBop:
 	ldr	r0, [rsp]
 	eor	r1, r1
 	ldrb	r1, [r0]
 	str	r1, [rsp]
 	bx	lr
 
-cstoreNextBop:
+bstoreNextBop:
 	ldmia	rsp!, {r0, r1}	@ r1 = value, r0 = ptr to dest ptr
 	ldr	r2, [r0]			@ r2 = dest ptr
 	strb	r1, [r2]
@@ -5149,18 +5210,18 @@ cstoreNextBop:
 	str	r2, [r0]			@ update stored dest ptr
 	bx	lr
 
-cfetchNextBop:
+bfetchNextBop:
 	ldr	r1, [rsp]			@ r1 - ptr to src ptr
 	ldr	r2, [r1]			@ r2 = src ptr
-	ldrb	r0, [r2]
+	ldrsb	r0, [r2]
 	add	r2, #1
 	str	r2, [r1]			@ update stored src ptr
 	str	r0, [rsp]
 	bx	lr
 	
-@@@@@@@@@@@@@@@@@  sc@  @@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@  b@  @@@@@@@@@@@@@@@@@
 
-scfetchBop:
+bfetchBop:
 	ldr	r0, [rsp]
 	eor	r1, r1
 	ldrsb	r1, [r0]
@@ -5176,21 +5237,21 @@ c2iBop:
 
 @@@@@@@@@@@@@@@@@  w!  @@@@@@@@@@@@@@@@@
 
-wstoreBop:
+sstoreBop:
 	ldmia	rsp!, {r0, r1}	@ r0 = short ptr, r1 = value
 	strh	r1, [r0]
 	bx	lr
 
 @@@@@@@@@@@@@@@@@  w@  @@@@@@@@@@@@@@@@@
 
-wfetchBop:
+sfetchBop:
 	ldr	r0, [rsp]
 	eor	r1, r1
 	ldrh	r1, [r0]
 	str	r1, [rsp]
 	bx	lr
 
-wstoreNextBop:
+sstoreNextBop:
 	ldmia	rsp!, {r0, r1}	@ r1 = value, r0 = ptr to dest ptr
 	ldr	r2, [r0]			@ r2 = dest ptr
 	strh	r1, [r2]
@@ -5198,7 +5259,7 @@ wstoreNextBop:
 	str	r2, [r0]			@ update stored dest ptr
 	bx	lr
 
-wfetchNextBop:
+sfetchNextBop:
 	ldr	r1, [rsp]			@ r1 - ptr to src ptr
 	ldr	r2, [r1]			@ r2 = src ptr
 	ldrh	r0, [r2]

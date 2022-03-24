@@ -12,7 +12,9 @@
 #if defined(MACOSX)
 #include <sys/uio.h>
 #else
+#ifndef RASPI
 #include <sys/io.h>
+#endif
 #endif
 #include <dirent.h>
 #else

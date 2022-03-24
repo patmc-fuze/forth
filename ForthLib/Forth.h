@@ -527,10 +527,10 @@ typedef struct
 } baseDictionaryEntry;
 
 // helper macro for built-in op entries in baseDictionary
-#define OP_DEF( func, funcName )  { funcName, kOpCCode, func }
+#define OP_DEF( func, funcName )  { funcName, kOpCCode, (void *)func }
 
 // helper macro for ops which have precedence (execute at compile time)
-#define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate, func }
+#define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate, (void *)func }
 
 
 typedef struct

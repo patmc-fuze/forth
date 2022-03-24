@@ -3514,7 +3514,7 @@ FORTHOP( printLongHexOp )
 #if defined(WINDOWS_BUILD)
     SNPRINTF( buff, sizeof(buff), "%I64x", val );
 #else
-    SNPRINTF( buff, sizeof(buff), "%llx", val.s64 );
+    SNPRINTF( buff, sizeof(buff), "%llx", val );
 #endif
 #ifdef TRACE_PRINTS
     SPEW_PRINTS( "printed %s\n", buff );
@@ -9082,18 +9082,18 @@ typedef struct {
 } baseDictionaryCompiledEntry;
 
 // helper macro for built-in op entries in baseDictionary
-#define OP_DEF( func, funcName )  { funcName, kOpCCode, func }
-#define OP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCode, func, index }
+#define OP_DEF( func, funcName )  { funcName, kOpCCode, (void *)func }
+#define OP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCode, (void *)func, index }
 
 // helper macro for ops which have precedence (execute at compile time)
-#define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate,func }
-#define PRECOP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCodeImmediate, func, index }
+#define PRECOP_DEF( func, funcName )  { funcName, kOpCCodeImmediate, (void *)func }
+#define PRECOP_COMPILED_DEF( func, funcName, index )  { funcName, kOpCCodeImmediate, (void *)func, index }
 
 #ifdef ASM_INNER_INTERPRETER
 
 // helper macro for built-in op entries in baseDictionary
-#define NATIVE_DEF( func, funcName )  { funcName, kOpNative, func }
-#define NATIVE_COMPILED_DEF( func, funcName, index ) { funcName, kOpNative, func, index }
+#define NATIVE_DEF( func, funcName )  { funcName, kOpNative, (void *)func }
+#define NATIVE_COMPILED_DEF( func, funcName, index ) { funcName, kOpNative, (void *)func, index }
 
 #define OPREF extern GFORTHOP
 

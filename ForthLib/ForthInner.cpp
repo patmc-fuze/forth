@@ -868,9 +868,9 @@ OPTYPE_ACTION(MemberUIntArrayAction)
 }
 
 #else
-#define LocalIntArrayAction LocalUIntArrayAction
-#define FieldIntArrayAction FieldUIntArrayAction
-#define MemberIntArrayAction MemberUIntArrayAction
+#define LocalUIntArrayAction LocalIntArrayAction
+#define FieldUIntArrayAction FieldIntArrayAction
+#define MemberUIntArrayAction MemberIntArrayAction
 #endif
 
 
