@@ -5949,7 +5949,335 @@ sscanfSub2:
 	pop	{r0-r3, rcore, rsp, rrp, lr}
 	bx	lr
 
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@                                                    @
+@ these ops used to be in extops_arm, but it seems   @
+@ that Raspbian doesn't allow execution of code in   @
+@ the data segment.                                  @
+@                                                    @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 	
+@@@@@@@@@@@@@@@@@  abs  @@@@@@@@@@@@@@@@@
+
+absBop:
+	ldr	r0, [rsp]
+	orrs	r0, r0
+	bxge	lr
+
+	neg	r0, r0
+	str	r0, [rsp]
+	bx	lr
+  
+@@@@@@@@@@@@@@@@@  +!  @@@@@@@@@@@@@@@@@
+
+plusStoreBop:
+	ldmia	rsp!, {r0, r1}	// r0 is ptr to dst ptr, r1 is amount to add
+	ldr	r2, [r0]
+	add	r1, r2
+	str	r1, [r0]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  roll  @@@@@@@@@@@@@@@@@
+
+rollBop:
+	@ TOS is number of entries to roll (1 means swap, 2 means rot)
+	ldmia	rsp!, {r0}
+	orrs    r0, r0
+	bxeq	lr			@ early exit if #entries == 0
+	blt	.rollneg
+	
+	@ positive roll
+	add	r2, rsp, r0, lsl #2
+	ldr	r3, [r2]			@ r3 = value to move to TOS
+	
+.roll1:
+	ldmdb	r2!, {r1}
+	str	r1, [r2, #4]
+	subs	r0, r1, #1
+	bne	.roll1
+	str	r3, [rsp]
+	bx	lr
+	
+.rollneg:
+	@ negative roll
+	neg	r0, r0
+	mov	r2, rsp
+	ldr	r3, [r2]		@ r3 = value to move to bottom
+.roll2:
+	ldr	r1, [r2, #4]
+	stmia	r2!, {r1}
+	subs	r0, r0, #1
+	bne	.roll2
+	str	r3, [r2]
+	
+.rollx:
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  2dup  @@@@@@@@@@@@@@@@@
+  
+twoDupBop:
+	ldmia	rsp, {r0, r1}
+	stmdb	rsp!, {r0, r1}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  2swap  @@@@@@@@@@@@@@@@@
+
+twoSwapBop:
+	ldmia	rsp, {r0, r1, r2}
+	str	r2, [rsp]
+	ldr	r2, [rsp, #12]
+	str	r2, [rsp, #4]
+	str	r0, [rsp, #8]
+	str	r1, [rsp, #12]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  2drop  @@@@@@@@@@@@@@@@@
+
+twoDropBop:
+	add	rsp, #8
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  ndrop  @@@@@@@@@@@@@@@@@
+
+ndropBop:
+	ldmia	rsp!, {r0}
+	add	rsp, rsp, r0, lsl #2
+	bx	lr
+  
+@@@@@@@@@@@@@@@@@  ndup  @@@@@@@@@@@@@@@@@
+
+ndupBop:
+	@ TOS is number of entries to dup
+	ldmia	rsp!, {r0}
+	orrs	r0, r0
+	bxeq	lr			@ early exit if #entries == 0
+	add	r2, rsp, r0, lsl #2
+.ndup1:
+	sub	r2, r2, #4
+	ldr	r1, [r2]
+	stmdb	rsp!, {r1}
+	subs	r0, r0, #1
+	bne	.ndup1
+	bx	lr
+	
+@@@@@@@@@@@@@@@@@  2over  @@@@@@@@@@@@@@@@@
+
+twoOverBop:
+	ldr	r0, [rsp, #8]
+	ldr	r1, [rsp, #12]
+	stmdb	rsp!, {r0, r1}
+	bx	lr
+  
+@@@@@@@@@@@@@@@@@  2rot  @@@@@@@@@@@@@@@@@
+
+twoRotBop:
+	@ 5 -> 1 4 -> 0 3 -> 5 2 -> 4 1 -> 3 0 -> 2
+	ldr	r0, [rsp, #20]
+	ldr	r1, [rsp, #12]
+	str	r1, [rsp, #20]
+	ldr	r1, [rsp, #4]
+	str	r1, [rsp, #12]
+	str	r0, [rsp, #4]
+	ldr	r0, [rsp, #16]
+	ldr	r1, [rsp, #8]
+	str	r1, [rsp, #16]
+	ldr	r1, [rsp]
+	str	r1, [rsp, #8]
+	str	r0, [rsp]
+	bx	lr
+  
+@@@@@@@@@@@@@@@@@  -2rot  @@@@@@@@@@@@@@@@@
+
+twoReverseRotBop:
+	@ 5 -> 3 4 -> 2 3 -> 1 2 -> 0 1 -> 5 0 -> 4
+	ldr	r0, [rsp, #20]
+	ldr	r1, [rsp, #4]
+	str	r1, [rsp, #20]
+	ldr	r1, [rsp, #12]
+	str	r1, [rsp, #4]
+	str	r0, [rsp, #12]
+	ldr	r0, [rsp, #16]
+	ldr	r1, [rsp]
+	str	r1, [rsp, #16]
+	ldr	r1, [rsp, #8]
+	str	r1, [rsp]
+	str	r0, [rsp, #8]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  2nip  @@@@@@@@@@@@@@@@@
+
+twoNipBop:
+	ldmia	rsp!, {r0, r1}
+	add	rsp, rsp, #16
+	stmdb	rsp!, {r0, r1}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  2tuck  @@@@@@@@@@@@@@@@@
+
+twoTuckBop:
+	ldmia	rsp!, {r0-r3}
+	sub	rsp, rsp, #8
+	stmdb	rsp!, {r0-r3}
+	str	r0, [rsp, #16]
+	str	r1, [rsp, #20]
+	bx	lr
+  
+@@@@@@@@@@@@@@@@@  2pick  @@@@@@@@@@@@@@@@@
+
+twoPickBop:
+	ldmia	rsp!, {r0}
+	add	r2, rsp, r0, lsl #3
+	ldmia	r2, {r0, r1}
+	stmdb	rsp!, {r0, r1}
+	bx	lr
+  
+@@@@@@@@@@@@@@@@@  2roll  @@@@@@@@@@@@@@@@@
+
+twoRollBop:
+	@ TOS is number of entries to roll (1 means swap, 2 means rot)
+	ldmia	rsp!, {r3}
+	orrs	r3, r3
+	bxeq	lr					@ early exit if #entries == 0
+	stmdb	sp!, {rip, rfp}	@ we will use rip,rfp as temps
+
+	ble	.twoRollNeg
+
+	@ positive roll
+	@ save 2 longs at sp+(n * 8)
+	@ shift (2 * n) longs at sp+8 up by 2 longs
+	@ stuff 2 saved longs at sp
+	add	r2, rsp, r3, lsl #3
+	ldmia	r2, {rip, rfp}		@ rip,rfp = value to move to TOS
+
+.twoRoll1:
+	ldr	r0, [r2, #-8]
+	ldr	r1, [r2, #-4]
+	stmia	r2, {r0, r1}
+	sub	r2, r2, #8
+	subs	r3, r3, #1
+	bne	.twoRoll1
+	stmia	rsp, {rip, rfp}
+	b	.twoRollX
+
+.twoRollNeg:	
+	@ negative roll
+	@ save 2 longs at sp
+	@ shift (2 * n) longs at sp+8 down by 2 longs
+	@ stuff 2 saved longs at sp+(n * 8)
+	
+	neg	r3, r3			@ make roll count positive
+
+    ldmia	rsp, {rip, rfp}		@ rip,rfp = value to move to bottom
+	mov	r2, rsp
+.twoRoll2:
+	ldr	r0, [r2, #8]
+	ldr	r1, [r2, #12]
+	stmia	r2, {r0, r1}
+	add	r2, r2, #8
+	subs	r3, r3, #1
+	bne	.twoRoll2
+	stmia	r2, {rip, rfp}
+
+.twoRollX:
+	ldmia	sp!, {rip, rfp}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  lnegate  @@@@@@@@@@@@@@@@@
+
+lnegateBop:
+	ldmia	rsp, {r0, r1}
+	eor	r2, r2
+	subs	r1, r2, r1
+	sbc	r0, r2, r0
+	stmia	rsp, {r0, r1}
+	bx	lr
+  
+@@@@@@@@@@@@@@@@@  labs  @@@@@@@@@@@@@@@@@
+
+labsBop:
+	ldrd	r0, [rsp]		@ r0 is hiword   r1 is lowword
+	orrs	r0, r0
+	bxge	lr				@ bail if not negative
+	eor	r2, r2
+	subs	r1, r2, r1
+	sbc	r0, r2, r0
+	strd	r0, [rsp]
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  tailRecurse  @@@@@@@@@@@@@@@@@
+
+@ this requires that caller not have extra junk on return stack
+tailRecurseBop:
+	@ tail recurse by popping the rstack and then moving the IP back one instruction
+	ldmia	rsp!, {r0}
+	sub	r0, #4
+	mov	rip, r0
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  2>r  @@@@@@@@@@@@@@@@@
+
+twoRPushBop:
+	ldmia	rsp!, {r0, r1}
+	stmdb	rrp!, {r0, r1}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  2r>  @@@@@@@@@@@@@@@@@
+
+twoRPopBop:
+	ldmia	rrp!, {r0, r1}
+	stmdb	rsp!, {r0, r1}
+	bx	lr
+  
+@@@@@@@@@@@@@@@@@  2r@  @@@@@@@@@@@@@@@@@
+
+twoRAtBop:
+	ldmia	rrp, {r0, r1}
+	stmdb	rsp!, {r0, r1}
+	bx	lr
+
+@@@@@@@@@@@@@@@@@  compareMemory  @@@@@@@@@@@@@@@@@
+
+compareMemoryBop:
+	@ returns null if numBytes memory blocks at block1 and block2 are the same
+	@ else returns ptr to first non-matching byte in block1
+	ldmia	rsp!, {r0, r1, r2}
+	@ r2: numBytes
+	@ r1: block2
+	@ r0: block1
+	orrs	r2, r2
+	bne	.compMem1
+
+	@ block with size 0 always counts as a match
+	stmdb	rsp!, {r2}
+	bx	lr
+	
+.compMem1:
+	stmdb	sp!, {r4, r5}
+	@ r5 will count up from 0 to r2-1
+	eor	r5, r5
+.compMem2:
+	ldrb	r3, [r0, r5]
+	ldrb	r4, [r1, r5]
+	cmp	r3, r4
+	beq	.compMem3
+
+	@ bytes didn't match
+	add	r0, r5
+	stmdb	rsp!, {r0}
+	ldmia	sp!, {r4, r5}
+	bx	lr
+
+.compMem3:
+	@ advance comparison offset, see if all bytes checked
+	add	r5, r5, #1
+	cmp	r5, r2
+	bne	.compMem2
+
+	@ all bytes matched, push a null and exit
+	eor	r0, r0
+	stmdb	rsp!, {r0}
+	ldmia	sp!, {r4, r5}
+	bx	lr
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @                                                    @
