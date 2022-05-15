@@ -43,6 +43,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 
 extern int kbhit(void);
 extern int getch(void);
@@ -6134,6 +6135,23 @@ FORTHOP(clearConsoleOp)
 }
 
 
+FORTHOP(getConsoleSizesOp)
+{
+    NEEDS(0);
+#ifdef WIN32
+    CONSOLE_SCREEN_BUFFER_INFO consoleInfo;
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    GetConsoleScreenBufferInfo(hConsole, &consoleInfo);
+    SPUSH((consoleInfo.srWindow.Right - consoleInfo.srWindow.Left) + 1);
+    SPUSH((consoleInfo.srWindow.Bottom - consoleInfo.srWindow.Top) + 1);
+#else
+    struct winsize ws;
+    ioctl(0, TIOCGWINSZ, &ws);
+    SPUSH(ws.ws_col);
+    SPUSH(ws.ws_row);
+#endif
+}
+
 
 ///////////////////////////////////////////
 //  Network support
@@ -10150,6 +10168,7 @@ baseDictionaryEntry baseDictionary[] =
     OP_DEF( getConsoleColorOp,          "getConsoleColor" ),
     OP_DEF( setConsoleColorOp,          "setConsoleColor" ),
     OP_DEF( clearConsoleOp,             "clearConsole" ),
+    OP_DEF( getConsoleSizesOp,          "getConsoleSizes" ),
 
 	NATIVE_DEF( archARMBop,				"ARCH_ARM" ),
 	NATIVE_DEF( archX86Bop,				"ARCH_X86" ),
