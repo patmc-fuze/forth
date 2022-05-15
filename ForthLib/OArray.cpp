@@ -2147,10 +2147,18 @@ namespace OArray
 
     FORTHOP(oByteArrayClearMethod)
     {
-        // go through all elements and release any which are not null
         GET_THIS(oByteArrayStruct, pArray);
         oByteArray& a = *(pArray->elements);
         a.clear();
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oByteArrayFillMethod)
+    {
+        GET_THIS(oByteArrayStruct, pArray);
+        oByteArray& a = *(pArray->elements);
+        char val = (char)SPOP;
+        memset(&(a[0]), val, pArray->elements->size());
         METHOD_RETURN;
     }
 
@@ -2414,6 +2422,7 @@ namespace OArray
         METHOD_RET("clone", oByteArrayCloneMethod, RETURNS_OBJECT(kBCIByteArray)),
         METHOD_RET("count", oByteArrayCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD("clear", oByteArrayClearMethod),
+        METHOD("fill", oByteArrayFillMethod),
 
         METHOD_RET("get", oByteArrayGetMethod, RETURNS_NATIVE(kBaseTypeByte)),
         METHOD("set", oByteArraySetMethod),
@@ -2861,6 +2870,18 @@ namespace OArray
         METHOD_RETURN;
     }
 
+    FORTHOP(oShortArrayFillMethod)
+    {
+        GET_THIS(oShortArrayStruct, pArray);
+        oShortArray& a = *(pArray->elements);
+        short val = (short)SPOP;
+        for (int i = 0; i < pArray->elements->size(); ++i)
+        {
+            a[i] = val;
+        }
+        METHOD_RETURN;
+    }
+
     FORTHOP(oShortArrayGetMethod)
     {
         GET_THIS(oShortArrayStruct, pArray);
@@ -3112,6 +3133,7 @@ namespace OArray
         METHOD_RET("clone", oShortArrayCloneMethod, RETURNS_OBJECT(kBCIShortArray)),
         METHOD_RET("count", oShortArrayCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD("clear", oShortArrayClearMethod),
+        METHOD("fill", oShortArrayFillMethod),
 
         METHOD_RET("get", oShortArrayGetMethod, RETURNS_NATIVE(kBaseTypeShort)),
         METHOD("set", oShortArraySetMethod),
@@ -3556,6 +3578,18 @@ namespace OArray
         METHOD_RETURN;
     }
 
+    FORTHOP(oIntArrayFillMethod)
+    {
+        GET_THIS(oIntArrayStruct, pArray);
+        oIntArray& a = *(pArray->elements);
+        int val = (int)SPOP;
+        for (int i = 0; i < pArray->elements->size(); ++i)
+        {
+            a[i] = val;
+        }
+        METHOD_RETURN;
+    }
+
     FORTHOP(oIntArrayGetMethod)
     {
         GET_THIS(oIntArrayStruct, pArray);
@@ -3807,6 +3841,7 @@ namespace OArray
         METHOD_RET("clone", oIntArrayCloneMethod, RETURNS_OBJECT(kBCIIntArray)),
         METHOD_RET("count", oIntArrayCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD("clear", oIntArrayClearMethod),
+        METHOD("fill", oIntArrayFillMethod),
 
         METHOD_RET("get", oIntArrayGetMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD("set", oIntArraySetMethod),
@@ -4140,6 +4175,7 @@ namespace OArray
         METHOD_RET("clone", oIntArrayCloneMethod, RETURNS_OBJECT(kBCIIntArray)),
         METHOD_RET("count", oIntArrayCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD("clear", oIntArrayClearMethod),
+        METHOD("fill", oIntArrayFillMethod),
 
         METHOD_RET("get", oIntArrayGetMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD("set", oIntArraySetMethod),
@@ -4353,6 +4389,20 @@ namespace OArray
         GET_THIS(oLongArrayStruct, pArray);
         oLongArray& a = *(pArray->elements);
         a.clear();
+        METHOD_RETURN;
+    }
+
+    FORTHOP(oLongArrayFillMethod)
+    {
+        GET_THIS(oLongArrayStruct, pArray);
+        oLongArray& a = *(pArray->elements);
+        stackInt64 a64;
+        LPOP(a64);
+        int64_t longVal = a64.s64;
+        for (int i = 0; i < pArray->elements->size(); ++i)
+        {
+            a[i] = longVal;
+        }
         METHOD_RETURN;
     }
 
@@ -4618,6 +4668,7 @@ namespace OArray
         METHOD_RET("clone", oLongArrayCloneMethod, RETURNS_OBJECT(kBCILongArray)),
         METHOD_RET("count", oLongArrayCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD("clear", oLongArrayClearMethod),
+        METHOD("fill", oLongArrayFillMethod),
 
         METHOD_RET("get", oLongArrayGetMethod, RETURNS_NATIVE(kBaseTypeLong)),
         METHOD("set", oLongArraySetMethod),
@@ -5190,6 +5241,7 @@ namespace OArray
         METHOD_RET("clone", oLongArrayCloneMethod, RETURNS_OBJECT(kBCILongArray)),
         METHOD_RET("count", oLongArrayCountMethod, RETURNS_NATIVE(kBaseTypeInt)),
         METHOD("clear", oLongArrayClearMethod),
+        METHOD("fill", oLongArrayFillMethod),
 
         METHOD_RET("get", oDoubleArrayGetMethod, RETURNS_NATIVE(kBaseTypeDouble)),
         METHOD("set", oDoubleArraySetMethod),
