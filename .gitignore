@@ -39,6 +39,8 @@
 *.project
 *.cproject
 *.filters
+*.lastbuildstate
+*.tlog
 .vs
 build
 Backup
